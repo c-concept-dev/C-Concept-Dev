@@ -1,0 +1,23 @@
+{
+  "name": "c-concept-dev",
+  "version": "1.0.0",
+  "description": "Framework de Clonage Psychologique Alimenté par l'IA - Clone Interview Pro v18.5",
+  "main": "generate-index.js",
+  "scripts": {
+    "generate": "node generate-index.js",
+    "build": "node generate-index.js"
+  },
+  "keywords": [
+    "c-concept-dev",
+    "clone",
+    "psychology",
+    "ai",
+    "framework",
+    "personality"
+  ],
+  "author": "Christophe BONNET - C Concept&Dev",
+  "license": "Proprietary",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
