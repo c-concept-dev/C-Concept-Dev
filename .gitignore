@@ -1,0 +1,156 @@
+# ═══════════════════════════════════════════════════════════════
+# .gitignore - C Concept&Dev
+# Sécurité MAXIMALE pour données personnelles
+# ═══════════════════════════════════════════════════════════════
+
+# ═══ DONNÉES PERSONNELLES (CRITIQUE) ═══
+# ⚠️ NE JAMAIS COMMITTER CES FICHIERS
+json-user/                    # Tous vos JSON personnels
+**/Brain.json                 # Votre profil psychologique
+**/Persona.json               # Votre histoire personnelle
+**/megasearch.json            # Base de connaissances complète
+**/*-personal.json            # Tout JSON marqué "personal"
+**/*-private.json             # Tout JSON marqué "private"
+
+# Clés API et secrets
+.env
+.env.local
+.env.*.local
+**/*.key
+**/*.pem
+**/*.p12
+**/secrets/
+**/api-keys/
+
+# ═══ SYSTÈME ═══
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+*.swp
+*.swo
+*.swn
+.vscode/
+.idea/
+*.sublime-*
+
+# ═══ NODE.JS ═══
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log*
+
+# ═══ PYTHON ═══
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+env/
+.venv
+
+# ═══ LOGS ═══
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# ═══ CACHES ═══
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vercel
+
+# ═══ TESTS ═══
+coverage/
+.nyc_output/
+.pytest_cache/
+.tox/
+
+# ═══ TEMPORAIRE ═══
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+*-backup.*
+
+# ═══ BUILDS ═══
+dist/
+build/
+out/
+
+# ═══ DONNÉES VOLUMINEUSES ═══
+*.mp3
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# EXCEPTION: Garder assets légers
+!assets/**/*.png
+!assets/**/*.jpg
+!assets/**/*.svg
+!assets/**/*.gif
+
+# ═══ FICHIERS SYSTÈME WINDOWS ═══
+Desktop.ini
+$RECYCLE.BIN/
+
+# ═══ FICHIERS SYSTÈME LINUX ═══
+*~
+
+# ═══ SÉCURITÉ ADDITIONNELLE ═══
+# Tout fichier contenant "password", "secret", "token"
+**/*password*
+**/*secret*
+**/*token*
+**/*credential*
+
+# ═══ NOTES LOCALES ═══
+TODO.md
+NOTES.md
+SCRATCH.md
+*.draft.*
+
+# ═══════════════════════════════════════════════════════════════
+# ⚠️ RAPPEL IMPORTANT
+# 
+# Ce .gitignore protège vos données personnelles mais
+# VÉRIFIEZ TOUJOURS avant de faire `git add` ou `git commit`
+# 
+# Commandes utiles :
+#   git status           # Voir ce qui sera commité
+#   git diff --staged    # Voir les changements
+#   git add -p           # Ajouter fichier par fichier
+# 
+# ═══════════════════════════════════════════════════════════════

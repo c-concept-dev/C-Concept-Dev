@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-conceptdev.com/schemas/brain.schema.json",
+  "title": "Brain JSON Schema",
+  "description": "Profil psychologique complet généré par Clone Interview Pro",
+  "type": "object",
+  "required": ["metadata", "personalityProfile"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["version", "generatedAt", "mode"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Version du schema (semver)"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ISO 8601"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["video", "audio", "text"],
+          "description": "Mode d'interview utilisé"
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Identifiant unique de session"
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Durée en minutes"
+        },
+        "questionCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Nombre de questions posées"
+        }
+      }
+    },
+    "personalityProfile": {
+      "type": "object",
+      "required": ["bigFive", "schwartzValues", "communicationStyle"],
+      "properties": {
+        "bigFive": {
+          "type": "object",
+          "required": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
+          "properties": {
+            "openness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Ouverture à l'expérience (0-100%)"
+            },
+            "conscientiousness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Conscience (0-100%)"
+            },
+            "extraversion": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Extraversion (0-100%)"
+            },
+            "agreeableness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Agréabilité (0-100%)"
+            },
+            "neuroticism": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Neuroticisme (0-100%)"
+            }
+          }
+        },
+        "schwartzValues": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "required": ["name", "score"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "enum": [
+                  "Self-direction",
+                  "Stimulation",
+                  "Hedonism",
+                  "Achievement",
+                  "Power",
+                  "Security",
+                  "Conformity",
+                  "Tradition",
+                  "Benevolence",
+                  "Universalism"
+                ]
+              },
+              "score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "communicationStyle": {
+          "type": "string",
+          "enum": [
+            "Direct",
+            "Diplomatic",
+            "Analytical",
+            "Narrative",
+            "Concise",
+            "Collaborative",
+            "Assertive",
+            "Empathetic"
+          ],
+          "description": "Style de communication dominant"
+        },
+        "emotionalProfile": {
+          "type": "object",
+          "properties": {
+            "emotionalStability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "empathy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "emotionalExpression": {
+              "type": "string",
+              "enum": ["reserved", "moderate", "expressive"]
+            }
+          }
+        },
+        "behavioralPatterns": {
+          "type": "object",
+          "properties": {
+            "decisionMaking": {
+              "type": "string",
+              "enum": ["intuitive", "rational", "balanced"]
+            },
+            "conflictResolution": {
+              "type": "string",
+              "enum": ["avoidant", "confrontational", "collaborative"]
+            },
+            "stressResponse": {
+              "type": "string",
+              "enum": ["fight", "flight", "freeze", "adapt"]
+            }
+          }
+        }
+      }
+    },
+    "multiModalData": {
+      "type": "object",
+      "description": "Données spécifiques aux modes vidéo/audio",
+      "properties": {
+        "audioFeatures": {
+          "type": "object",
+          "properties": {
+            "speechRate": {
+              "type": "number",
+              "description": "Débit de parole (mots/min)"
+            },
+            "pitchVariation": {
+              "type": "number",
+              "description": "Variation tonale"
+            },
+            "pauseFrequency": {
+              "type": "number",
+              "description": "Fréquence des pauses"
+            }
+          }
+        },
+        "visualFeatures": {
+          "type": "object",
+          "properties": {
+            "facialExpressions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "eyeContact": {
+              "type": "string",
+              "enum": ["low", "moderate", "high"]
+            },
+            "gestureFrequency": {
+              "type": "string",
+              "enum": ["minimal", "moderate", "animated"]
+            }
+          }
+        },
+        "concordanceScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Score de cohérence audio/vidéo/texte"
+        }
+      }
+    },
+    "qualityMetrics": {
+      "type": "object",
+      "properties": {
+        "completeness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "% de l'interview complétée"
+        },
+        "consistency": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Cohérence des réponses"
+        },
+        "reliability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Fiabilité globale du profil"
+        }
+      }
+    }
+  }
+}

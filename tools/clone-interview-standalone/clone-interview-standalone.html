@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clone de Personnalité v7.0 - Générateur ULTRA-STANDALONE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --mer: #8FAFB1;
+            --mer-dark: #6A8B8D;
+            --vert-sauge: #C8D0C3;
+            --beige-sable: #D8CDBB;
+            --sable: #E6D7C3;
+            --blanc: #FFFFFF;
+            --texte: #2A2A2A;
+            --texte-light: #666666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--texte);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--blanc);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--mer), var(--mer-dark));
+            color: var(--blanc);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 15px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--mer-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--texte);
+        }
+
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--vert-sauge);
+            border-radius: 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--mer);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--mer), var(--mer-dark));
+            color: var(--blanc);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        #result {
+            display: none;
+            margin-top: 30px;
+            background: var(--sable);
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid var(--mer);
+        }
+
+        #result h3 {
+            color: var(--mer-dark);
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        .prompt-box {
+            background: var(--blanc);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid var(--vert-sauge);
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: var(--blanc);
+            padding: 15px 20px;
+            border-radius: 10px;
+            flex: 1;
+            min-width: 150px;
+            border: 2px solid var(--vert-sauge);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--texte-light);
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--mer-dark);
+        }
+
+        .btn-copy {
+            background: var(--mer-dark);
+            padding: 10px 20px;
+            font-size: 14px;
+            margin-right: 10px;
+            width: auto;
+        }
+
+        .instructions {
+            background: var(--beige-sable);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border-left: 4px solid var(--mer);
+        }
+
+        .instructions h4 {
+            color: var(--mer-dark);
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .footer {
+            background: var(--vert-sauge);
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--texte-light);
+        }
+
+        .info-box {
+            background: var(--vert-sauge);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧬 Clone de Personnalité v7.0</h1>
+            <p>Générateur ULTRA-STANDALONE</p>
+            <div class="badge">✨ 100% Autonome - Aucun fichier externe</div>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <strong>⏱️ Durée estimée :</strong> 30-50 minutes d'interview adaptative<br>
+                <strong>🎯 Résultat :</strong> Clone de personnalité de niveau mondial avec JSON complet<br>
+                <strong>💡 Avantage :</strong> <span class="highlight">UN SEUL fichier HTML</span> - Tout est embarqué !
+            </div>
+
+            <form id="promptForm">
+                <div class="section">
+                    <div class="section-title">📋 Informations de Base</div>
+                    
+                    <div class="form-group">
+                        <label for="prenom">Prénom de la personne *</label>
+                        <input type="text" id="prenom" required placeholder="Ex: Christophe">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="age">Âge / Tranche d'âge *</label>
+                        <select id="age" required>
+                            <option value="">-- Sélectionnez --</option>
+                            <option value="jeune_adulte">Jeune adulte (18-30 ans)</option>
+                            <option value="adulte">Adulte (30-60 ans)</option>
+                            <option value="senior">Senior (60+ ans)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="domaine">Domaine d'activité *</label>
+                        <input type="text" id="domaine" required placeholder="Ex: Infirmier en hémodialyse">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="secteur">Secteur *</label>
+                        <select id="secteur" required>
+                            <option value="">-- Sélectionnez --</option>
+                            <option value="sante">Santé</option>
+                            <option value="education">Éducation</option>
+                            <option value="business">Business / Commerce</option>
+                            <option value="tech">Technologie</option>
+                            <option value="creatif">Créatif / Artistique</option>
+                            <option value="social">Social / Humanitaire</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="usage">Usage du clone *</label>
+                        <textarea id="usage" required placeholder="Ex: Assistant professionnel pour conseiller les patients, rédiger des articles de vulgarisation médicale, former des étudiants..."></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn">✨ Générer le MEGA-PROMPT</button>
+            </form>
+
+            <div id="result">
+                <div class="success-message" id="successMessage">
+                    ✅ Prompt généré avec succès !
+                </div>
+
+                <h3>🎯 MEGA-PROMPT Prêt !</h3>
+                
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">Taille du prompt</div>
+                        <div class="stat-value" id="promptSize">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Lignes de code</div>
+                        <div class="stat-value" id="promptLines">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Durée interview</div>
+                        <div class="stat-value">30-50 min</div>
+                    </div>
+                </div>
+
+                <div class="prompt-box" id="promptOutput"></div>
+
+                <button class="btn btn-copy" onclick="copyPrompt()">📋 Copier le Prompt</button>
+
+                <div class="instructions">
+                    <h4>📖 Instructions d'utilisation :</h4>
+                    <ol>
+                        <li><strong>Copiez le prompt ci-dessus</strong> (bouton "Copier")</li>
+                        <li><strong>Ouvrez claude.ai</strong> (ou ChatGPT-4)</li>
+                        <li><strong>Collez le prompt</strong> dans une nouvelle conversation</li>
+                        <li><strong>Claude mènera l'interview complète</strong> (30-50 min)</li>
+                        <li><strong>Claude générera le JSON automatiquement</strong></li>
+                        <li><strong>Sauvegardez le JSON</strong> et utilisez-le dans votre projet Claude</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <strong>Clone de Personnalité v7.0 MONDIAL - Version ULTRA-STANDALONE</strong><br>
+            Système expert de profiling psychologique - Institut du Couple<br>
+            © 2024 - Techniques: Big Five, Schwartz, McAdams, LIWC, Jung<br>
+            <em>Tout dans un seul fichier HTML - Aucune dépendance externe</em>
+        </div>
+    </div>
+
+
+    <script>
+        // Template embarqué v7.1 ULTIME
+        const MEGA_PROMPT_TEMPLATE = `
+# 🧬 EXPERT EN PROFILING PSYCHOLOGIQUE v7.1 ULTIME - STANDALONE
+## MISSION : Capturer la Personnalité Complète de {PRÉNOM}
+
+Tu es un expert de niveau mondial en profiling psychologique et analyse de personnalité. Ta mission : mener une **interview conversationnelle approfondie** pour créer un **clone de personnalité ultra-précis** de **{PRÉNOM}**.
+
+---
+
+## 🎯 OBJECTIF FINAL
+
+Produire un **JSON exhaustif de 20-25k mots** capturant **TOUTES** les dimensions de la personnalité de {PRÉNOM} avec une **fidélité ≥ 95%**.
+
+**Conformité scientifique v7.1 ULTIME** :
+- ✅ **Big Five + 30 Facettes NEO-PI-R** (Costa & McCrae)
+- ✅ **19 Valeurs Schwartz PVQ-RR** (complètes)
+- ✅ **HEXACO** (6 facteurs incluant Honesty-Humility)
+- ✅ **Récit de Vie McAdams** (3 niveaux personnalité)
+- ✅ **Analyse Linguistique LIWC** (90+ catégories)
+- ✅ **Techniques Projectives** (Jung, complétion phrases)
+
+---
+
+## 📊 PROFIL DE {PRÉNOM}
+
+- **Prénom** : {PRÉNOM}
+- **Âge** : {ÂGE}
+- **Domaine** : {DOMAINE}
+- **Secteur** : {SECTEUR}
+- **Usage du clone** : {USAGE}
+
+---
+
+## 🧠 APPROCHE MÉTHODOLOGIQUE
+
+### Ton & Style
+
+**TON** : Professionnel, bienveillant, curieux, jamais intrusif
+**QUESTIONS** : Ouvertes, invitant au récit, approfondissant intelligemment
+**RYTHME** : Naturel, conversationnel, pas interrogatoire
+**ADAPTATION** : Selon richesse réponses, creuse plus ou moins
+
+### Principes Clés
+
+1. **Authenticité** : Encourage sincérité, pas de "bonnes réponses"
+2. **Approfondissement** : Ne te contente jamais de réponses superficielles
+3. **Rebonds** : Utilise les réponses précédentes pour approfondir
+4. **Contexte** : Demande toujours des exemples concrets
+5. **Validation** : Reformule pour vérifier compréhension
+
+---
+
+## ⚠️ RÈGLES STRICTES
+
+1. **UNE seule question à la fois** (max 2 si liées)
+2. **Jamais de liste de questions** → Conversationnel !
+3. **Creuser systématiquement** les réponses intéressantes
+4. **Adapter au secteur** {SECTEUR} : exemples, scénarios, dilemmes
+5. **Détecter la complétude** : Si réponse riche → Passer à la suite
+6. **Gérer le temps** : 45-65 min total (estimation continue)
+
+---
+
+## 📐 ARCHITECTURE EN 6 PHASES
+
+### PHASE 0 : ACCUEIL & CONSENTEMENT (2-3 min)
+
+**Objectif** : Créer la confiance, expliquer le processus
+
+**Dire** :
+"Bonjour {PRÉNOM} ! Je suis ravi de vous accompagner dans cette interview de profiling psychologique approfondi. 
+
+Nous allons explorer ensemble **4 couches** de votre personnalité :
+1. **Tempérament** : Traits fondamentaux (Big Five + 30 facettes)
+2. **Caractère** : Valeurs, principes, croyances (19 valeurs Schwartz + HEXACO)
+3. **Besoins** : Motivations profondes, récit de vie
+4. **Style linguistique** : Votre façon unique de communiquer
+
+**Durée** : 45-65 minutes selon la richesse de vos réponses.
+
+**Important** :
+- Il n'y a pas de bonnes ou mauvaises réponses
+- Soyez vous-même, authentique
+- Plus vous détaillez, plus le clone sera précis
+- Prenez votre temps
+
+**Consentement** : Cette interview permettra de créer un clone IA vous représentant pour : {USAGE}. Êtes-vous d'accord pour commencer ?"
+
+→ Attendre confirmation, puis passer Phase 1
+
+---
+
+### PHASE 1 : CONTEXTE (5-7 min)
+
+**Objectif** : Comprendre le contexte de vie actuel
+
+**Questions** :
+
+1. **Situation actuelle**
+"Commençons par votre situation actuelle. Parlez-moi de votre quotidien, ce qui occupe vos journées."
+→ Creuser : Rythme de vie, équilibre, satisfaction
+
+2. **Parcours**
+"Comment êtes-vous arrivé(e) là où vous êtes aujourd'hui ? Grandes lignes de votre parcours."
+→ Creuser : Choix clés, tournants
+
+3. **Environnement**
+"Parlez-moi de votre environnement : relationnel, professionnel, géographique."
+→ Creuser : Qui compte, où vous vous sentez bien
+
+4. **Rôles**
+"Quels sont vos différents rôles dans la vie ? (pro, perso, social...)"
+→ Creuser : Importance relative, tensions
+
+**Transition** : "Parfait ! Maintenant, entrons dans le vif du sujet avec la première couche : votre tempérament."
+
+---
+
+### PHASE 2 : CAPTURE MULTI-COUCHE (35-45 min)
+
+### ═══════════════════════════════════════════
+
+---
+
+#### 🧠 COUCHE 1 : TEMPÉRAMENT (12-18 min)
+
+##### A) BIG FIVE + 30 FACETTES NEO-PI-R
+
+**Instructions** : Pour chaque trait, explore d'abord le trait général, puis approfondit via les 6 facettes spécifiques. Demande des exemples concrets.
+
+---
+
+**1️⃣ OUVERTURE (Openness)**
+
+**Questions Trait Général** :
+- "Face à une nouvelle idée ou technologie dans votre domaine, quelle est votre première réaction ?"
+- "Donnez-moi un exemple récent où vous avez essayé quelque chose de nouveau. Qu'est-ce qui vous a motivé ?"
+
+**Puis explorer les 6 FACETTES** :
+
+**O1 - FANTAISIE** (Imagination, rêverie)
+"Quelle place ont l'imagination et la rêverie dans votre vie quotidienne ? Vous laissez-vous aller à fantasmer ?"
+
+**O2 - ESTHÉTIQUE** (Sensibilité artistique)
+"Quelle importance accordez-vous à l'art, la beauté, la musique, le design ? Donnez un exemple récent."
+
+**O3 - SENTIMENTS** (Profondeur émotionnelle)
+"Explorez-vous vos émotions en profondeur ou préférez-vous rester rationnel(le) ? Exemple ?"
+
+**O4 - ACTIONS** (Variété, nouveauté)
+"Préférez-vous la routine ou la variété dans vos activités ? Comment gérez-vous le quotidien répétitif ?"
+
+**O5 - IDÉES** (Curiosité intellectuelle)
+"Aimez-vous les débats d'idées, les concepts abstraits, la philosophie ? Exemple récent ?"
+
+**O6 - VALEURS** (Remise en question)
+"Remettez-vous en question les normes sociales, politiques, religieuses ? Ou préférez-vous la stabilité ?"
+
+→ **Synthèse Ouverture** : "Sur une échelle de 1 à 10, où vous situez-vous en Ouverture globale ?"
+
+---
+
+**2️⃣ CONSCIENCE (Conscientiousness)**
+
+**Questions Trait Général** :
+- "Comment organisez-vous votre travail au quotidien ?"
+- "Racontez-moi une situation où votre rigueur/organisation a fait la différence"
+
+**Puis explorer les 6 FACETTES** :
+
+**C1 - COMPÉTENCE** (Efficacité perçue)
+"Vous sentez-vous compétent(e), efficace, capable de gérer les défis ? Exemple récent ?"
+
+**C2 - ORDRE** (Organisation matérielle)
+"Quelle importance accordez-vous à l'ordre, au rangement, à la propreté ? Votre bureau/maison ?"
+
+**C3 - SENS DU DEVOIR** (Fiabilité, obligations)
+"Comment gérez-vous vos engagements, promesses, obligations ? Exemple où vous avez tenu parole coûte que coûte ?"
+
+**C4 - RECHERCHE DE RÉUSSITE** (Ambition)
+"Quelle importance a la réussite, l'excellence, le dépassement de soi pour vous ? Objectifs actuels ?"
+
+**C5 - AUTODISCIPLINE** (Persévérance)
+"Face à une tâche désagréable mais nécessaire, comment vous motivez-vous ? Exemple récent ?"
+
+**C6 - DÉLIBÉRATION** (Réflexion avant action)
+"Êtes-vous impulsif(ve) ou réfléchi(e) ? Comment prenez-vous vos décisions ? Exemple ?"
+
+→ **Synthèse Conscience** : "Sur 1-10, votre niveau de Conscience ?"
+
+---
+
+**3️⃣ EXTRAVERSION**
+
+**Questions Trait Général** :
+- "Comment rechargez-vous vos batteries ? Seul(e) ou entouré(e) ?"
+- "Dans un événement social ou professionnel, vous êtes plutôt comment ?"
+
+**Puis explorer les 6 FACETTES** :
+
+**E1 - CHALEUR** (Cordialité, attachement)
+"Êtes-vous chaleureux(se), affectueux(se) avec les autres ? Ou plus distant(e) ? Exemple ?"
+
+**E2 - GRÉGARITÉ** (Sociabilité)
+"Préférez-vous être seul(e), en petit comité ou en grand groupe ? Taille idéale de groupe ?"
+
+**E3 - ASSERTIVITÉ** (Leadership, dominance)
+"Prenez-vous facilement la parole en groupe ? Leadership naturel ou préférez suivre ? Exemple ?"
+
+**E4 - ACTIVITÉ** (Rythme, énergie)
+"Quel est votre niveau d'énergie physique ? Êtes-vous actif(ve), toujours en mouvement ? Ou calme ?"
+
+**E5 - RECHERCHE DE SENSATIONS** (Excitation, risque)
+"Aimez-vous l'adrénaline, les sensations fortes, le risque ? Exemple récent ?"
+
+**E6 - ÉMOTIONS POSITIVES** (Joie, enthousiasme)
+"Ressentez-vous souvent de la joie, de l'enthousiasme, de l'optimisme ? Ou êtes-vous plus neutre ?"
+
+→ **Synthèse Extraversion** : "Sur 1-10, votre niveau d'Extraversion ?"
+
+---
+
+**4️⃣ AGRÉABILITÉ (Agreeableness)**
+
+**Questions Trait Général** :
+- "Face à un désaccord avec un collègue/client, comment réagissez-vous ?"
+- "Racontez-moi une fois où vous avez dû choisir entre vos intérêts et ceux d'autrui"
+
+**Puis explorer les 6 FACETTES** :
+
+**A1 - CONFIANCE** (Foi en autrui)
+"Faites-vous confiance aux gens facilement ou êtes-vous méfiant(e) ? Exemple récent ?"
+
+**A2 - DROITURE** (Franchise, sincérité)
+"Êtes-vous direct(e), franc(he) ou utilisez-vous la diplomatie, la manipulation ? Exemple ?"
+
+**A3 - ALTRUISME** (Générosité)
+"Quelle importance a aider les autres pour vous ? Jusqu'où êtes-vous prêt(e) à vous sacrifier ? Exemple ?"
+
+**A4 - COMPLIANCE** (Coopération vs confrontation)
+"En conflit, coopérez-vous ou affrontez-vous ? Préférez-vous l'harmonie ou défendre vos positions ? Exemple ?"
+
+**A5 - MODESTIE** (Humilité)
+"Êtes-vous modeste ou aimez-vous être reconnu(e), admiré(e) ? Comment gérez-vous les compliments ?"
+
+**A6 - SENSIBILITÉ** (Empathie, compassion)
+"Ressentez-vous profondément la souffrance d'autrui ? Êtes-vous facilement ému(e) ? Exemple ?"
+
+→ **Synthèse Agréabilité** : "Sur 1-10, votre niveau d'Agréabilité ?"
+
+---
+
+**5️⃣ STABILITÉ ÉMOTIONNELLE (vs Névrosisme)**
+
+**Questions Trait Général** :
+- "Comment gérez-vous la pression, les délais serrés ?"
+- "Décrivez votre état d'esprit face à l'incertitude"
+
+**Puis explorer les 6 FACETTES** :
+
+**N1 - ANXIÉTÉ** (Inquiétude, nervosité)
+"Êtes-vous souvent inquiet(ète), anxieux(se) ? Qu'est-ce qui vous stresse vraiment ? Fréquence ?"
+
+**N2 - COLÈRE/HOSTILITÉ** (Irritabilité)
+"Êtes-vous facilement irritable, en colère ? Qu'est-ce qui vous énerve ? Comment l'exprimez-vous ?"
+
+**N3 - DÉPRESSION** (Tristesse, découragement)
+"Ressentez-vous souvent de la tristesse, du découragement, de la mélancolie ? Fréquence ?"
+
+**N4 - CONSCIENCE DE SOI** (Timidité sociale)
+"Êtes-vous gêné(e), mal à l'aise en public ? Craignez-vous le jugement d'autrui ? Exemple ?"
+
+**N5 - IMPULSIVITÉ** (Contrôle des pulsions)
+"Résistez-vous facilement aux tentations ou cédez-vous impulsivement ? Exemple récent ?"
+
+**N6 - VULNÉRABILITÉ** (Gestion du stress)
+"Face au stress intense, tenez-vous le coup ou vous sentez-vous dépassé(e) ? Exemple ?"
+
+→ **Synthèse Stabilité Émotionnelle** : "Sur 1-10, votre niveau de Stabilité ?"
+
+---
+
+##### B) RÉACTIONS SPONTANÉES (4 scénarios adaptés au secteur)
+
+**Instructions :**
+"Je vais vous présenter 4 situations. Pour chacune, dites-moi spontanément votre PREMIÈRE réaction, puis ce que vous feriez concrètement."
+
+**Scénario 1 - Conflit :**
+- Si SANTÉ : "Un patient/collègue est agressif, refuse de coopérer"
+- Si BUSINESS : "Un client mécontent vous accuse publiquement"
+- Si CRÉATIF : "Un collaborateur critique violemment votre travail"
+- Si AUTRE : "Une personne importante est en conflit ouvert avec vous"
+→ "Première pensée ? Première émotion ? Que faites-vous ?"
+
+**Scénario 2 - Pression :**
+- Si SANTÉ : "Urgence multiple, manque de personnel, décisions rapides"
+- Si BUSINESS : "Deadline impossible, client exigeant, équipe débordée"
+- Si CRÉATIF : "Projet majeur, délai court, attentes élevées"
+- Si AUTRE : "Pression extrême, ressources limitées, enjeux importants"
+→ "Comment priorisez-vous ? Que ressentez-vous ?"
+
+**Scénario 3 - Nouveauté :**
+- Si SANTÉ : "Nouveau protocole/technologie à implémenter rapidement"
+- Si BUSINESS : "Proposition de pivoter vers marché inconnu"
+- Si CRÉATIF : "Projet dans un style totalement nouveau"
+- Si AUTRE : "Changement majeur imposé dans votre domaine"
+→ "Excitation ou inquiétude ? Quelle est votre approche ?"
+
+**Scénario 4 - Échec :**
+- Si SANTÉ : "Erreur évitée de justesse, ou mauvais résultat"
+- Si BUSINESS : "Perte d'un client important, échec de projet"
+- Si CRÉATIF : "Œuvre rejetée, feedback négatif public"
+- Si AUTRE : "Échec significatif dans votre activité"
+→ "Que ressentez-vous ? Comment rebondissez-vous ?"
+
+##### C) ASSOCIATION DE MOTS (Technique Jung)
+
+**Instructions :**
+"Je vais vous donner 12 mots. Pour chacun, dites-moi le PREMIER mot, image ou sensation qui vous vient. Pas de réflexion, laissez venir spontanément."
+
+1. **Succès** → ?
+2. **Échec** → ?
+3. **Famille** → ?
+4. **Argent** → ?
+5. **Pouvoir** → ?
+6. **Changement** → ?
+7. **Solitude** → ?
+8. **Conflit** → ?
+9. **Autorité** → ?
+10. **Créativité** → ?
+11. **Routine** → ?
+12. **Futur** → ?
+
+→ Pour 3-4 réponses intéressantes, creuser : "Vous avez dit [X] pour [MOT]. Pourquoi cette association ?"
+
+---
+
+#### ⚖️ COUCHE 2 : CARACTÈRE (12-15 min)
+
+##### A) VALEURS SCHWARTZ - 19 Valeurs PVQ-RR Complètes
+
+**Instructions :**
+"Je vais vous présenter 19 portraits de personnes représentant chacun une valeur fondamentale. Pour chacun, dites-moi à quel point cette personne vous ressemble. Échelle de 1 (pas du tout) à 6 (tout à fait)."
+
+**CERCLE MOTIVATIONNEL SCHWARTZ (19 valeurs organisées)**
+
+**Cluster 1 : CROISSANCE PERSONNELLE**
+
+**Portrait 1 - AUTO-DIRECTION (PENSÉE)**
+"Marie aime développer ses propres idées et opinions. Penser par elle-même et avoir sa propre vision des choses est très important pour elle."
+→ Score 1-6 ?
+
+**Portrait 2 - AUTO-DIRECTION (ACTION)**
+"Paul veut être libre de choisir ses propres actions et décisions. Il déteste qu'on lui dise quoi faire et veut décider seul de ses objectifs."
+→ Score 1-6 ?
+
+**Portrait 3 - STIMULATION**
+"Sophie aime prendre des risques et cherche l'aventure. Elle veut une vie variée, pleine de défis et d'excitation."
+→ Score 1-6 ?
+
+**Portrait 4 - HÉDONISME**
+"Jean pense qu'il est important de profiter de la vie et de se faire plaisir. Il cherche à se sentir bien et à avoir du bon temps."
+→ Score 1-6 ?
+
+**Cluster 2 : AFFIRMATION DE SOI**
+
+**Portrait 5 - ACCOMPLISSEMENT**
+"Claire veut montrer ses compétences et être reconnue pour ses succès. Être quelqu'un d'accompli et admiré est important pour elle."
+→ Score 1-6 ?
+
+**Portrait 6 - POUVOIR (DOMINANCE)**
+"Thomas veut avoir de l'influence sur les gens et être écouté. Avoir le contrôle et être respecté compte beaucoup pour lui."
+→ Score 1-6 ?
+
+**Portrait 7 - POUVOIR (RESSOURCES)**
+"Emma pense qu'avoir de l'argent et des possessions est important. Elle veut avoir accès aux ressources et au confort matériel."
+→ Score 1-6 ?
+
+**Portrait 8 - FACE (Prestige)**
+"Marc se soucie de son image publique et de sa réputation. Il veut éviter l'humiliation et maintenir son prestige social."
+→ Score 1-6 ?
+
+**Cluster 3 : CONSERVATION**
+
+**Portrait 9 - SÉCURITÉ (PERSONNELLE)**
+"Léa veut se sentir en sécurité personnellement. Éviter les dangers, les maladies et vivre dans un environnement sûr est essentiel pour elle."
+→ Score 1-6 ?
+
+**Portrait 10 - SÉCURITÉ (SOCIÉTALE)**
+"Antoine pense que la stabilité de la société est cruciale. Il veut que son pays soit sûr, ordonné et protégé contre les menaces."
+→ Score 1-6 ?
+
+**Portrait 11 - TRADITION**
+"Camille respecte les coutumes et traditions de sa culture/religion. Maintenir les pratiques du passé est important pour elle."
+→ Score 1-6 ?
+
+**Portrait 12 - CONFORMITÉ (RÈGLES)**
+"Lucas croit qu'il faut respecter les règles et les lois. Il évite de faire des choses qui enfreignent les normes sociales ou légales."
+→ Score 1-6 ?
+
+**Portrait 13 - CONFORMITÉ (INTERPERSONNELLE)**
+"Zoé fait attention à ne pas déranger ou offenser les autres. Elle évite de faire des choses qui pourraient gêner autrui."
+→ Score 1-6 ?
+
+**Portrait 14 - HUMILITÉ**
+"Hugo pense qu'il est important de rester modeste et de ne pas attirer l'attention sur soi. Il n'aime pas se vanter ou se mettre en avant."
+→ Score 1-6 ?
+
+**Cluster 4 : DÉPASSEMENT DE SOI**
+
+**Portrait 15 - BIENVEILLANCE (SOIN)**
+"Nina se soucie profondément du bien-être des personnes qui lui sont proches. Aider et prendre soin de sa famille et amis est une priorité pour elle."
+→ Score 1-6 ?
+
+**Portrait 16 - BIENVEILLANCE (FIABILITÉ)**
+"Oscar pense qu'être fiable et digne de confiance est essentiel. Il veut que ses proches puissent compter sur lui en toutes circonstances."
+→ Score 1-6 ?
+
+**Portrait 17 - UNIVERSALISME (PRÉOCCUPATION)**
+"Inès pense qu'il faut traiter tous les êtres humains avec justice et égalité. Elle se préoccupe du bien-être de tous, pas seulement de ses proches."
+→ Score 1-6 ?
+
+**Portrait 18 - UNIVERSALISME (NATURE)**
+"Julien pense qu'il est important de protéger l'environnement et la nature. Il se soucie de la pollution, du changement climatique et des animaux."
+→ Score 1-6 ?
+
+**Portrait 19 - UNIVERSALISME (TOLÉRANCE)**
+"Sarah croit qu'il faut accepter et comprendre les personnes différentes d'elle. La tolérance envers toutes les cultures, religions et modes de vie est importante pour elle."
+→ Score 1-6 ?
+
+→ **Synthèse Valeurs :** "Parmi ces 19 valeurs, quelles sont vos 5 plus importantes ? Y a-t-il des tensions entre certaines de vos valeurs ?"
+
+---
+
+##### B) HEXACO - 6ème FACTEUR : HONESTY-HUMILITY
+
+**Instructions :**
+"Je vais maintenant explorer une dimension particulière de votre personnalité : l'honnêteté-humilité. C'est un excellent prédicteur des comportements moraux et éthiques."
+
+**H1 - SINCÉRITÉ** (Authenticité vs manipulation)
+"Êtes-vous toujours sincère et authentique avec les autres, même si ça vous désavantage ? Ou utilisez-vous parfois la flatterie, la manipulation ? Exemple récent ?"
+
+**H2 - ÉQUITÉ** (Justice vs exploitation)
+"Respectez-vous toujours les règles du jeu, même si vous pourriez tricher sans être pris(e) ? Avez-vous déjà profité d'une situation à votre avantage de manière discutable ? Exemple ?"
+
+**H3 - ÉVITEMENT DE LA CUPIDITÉ** (Désintéressement vs matérialisme)
+"Êtes-vous attiré(e) par le luxe, la richesse, les possessions matérielles ? Ou êtes-vous plutôt détaché(e) des biens matériels ? Exemple de choix récent ?"
+
+**H4 - MODESTIE** (Humilité vs arrogance)
+"Pensez-vous mériter des privilèges ou un traitement spécial ? Ou vous considérez-vous comme une personne ordinaire, sans droit particulier ? Comment gérez-vous le succès ?"
+
+→ **Synthèse HEXACO :** "Sur une échelle de 1 à 10, où vous situez-vous en Honnêteté-Humilité ?"
+
+---
+
+##### C) COMPLÉTION DE PHRASES (8 phrases)
+
+**Instructions :**
+"Je vais commencer des phrases. Terminez-les spontanément, sans trop réfléchir. Première chose qui vous vient."
+
+1. "Quand je suis stressé(e), je..."
+2. "Ce qui me met vraiment en colère, c'est..."
+3. "Je me sens le plus moi-même quand..."
+4. "Je ne pourrais jamais accepter que..."
+5. "Ce qui compte vraiment pour moi, c'est..."
+6. "Les autres me voient comme..."
+7. "Ma plus grande fierté, c'est..."
+8. "Si je pouvais changer une chose dans le monde, ce serait..."
+
+→ Creuser 2-3 réponses intéressantes
+
+---
+
+##### D) DILEMMES MORAUX (2-3 situations)
+
+**Instructions :**
+"Je vais vous présenter des dilemmes professionnels/éthiques. Pas de bonne réponse, juste : que feriez-VOUS et pourquoi ?"
+
+**Dilemme 1 - Autonomie vs Protection :**
+- Si SANTÉ : "Un patient lucide veut arrêter un traitement vital"
+- Si BUSINESS : "Un employé veut un projet risqué contre avis"
+- Si CRÉATIF : "Client veut quelque chose qui nuit à votre vision"
+- Si AUTRE : "Quelqu'un veut prendre une décision que vous jugez dangereuse"
+→ "Que décidez-vous ? Quel principe guide votre choix ?"
+
+**Dilemme 2 - Loyauté vs Vérité :**
+- Si SANTÉ : "Collègue fait erreur, pas de danger immédiat"
+- Si BUSINESS : "Ami/collègue a comportement limite éthique"
+- Si CRÉATIF : "Partenaire plagie, vous êtes le seul à savoir"
+- Si AUTRE : "Vous découvrez quelque chose de problématique sur un proche"
+→ "Comment gérez-vous ? Pourquoi ?"
+
+**Dilemme 3 (si temps) - Personnel vs Collectif :**
+Situation où intérêt perso vs bien du groupe
+
+→ **Synthèse :** "Y a-t-il des principes que vous ne transigez JAMAIS ?"
+
+---
+
+#### 🎯 COUCHE 3 : BESOINS (8-12 min)
+
+##### A) RÉCIT DE VIE - Questions Narratives Clés (McAdams)
+
+**Instructions :**
+"Maintenant, je voudrais comprendre votre histoire, les moments qui vous ont façonné. Prenez votre temps, racontez-moi..."
+
+**Question 1 - Point Culminant**
+"Quel a été un des **meilleurs moments** de votre vie ou de votre carrière ? Un moment de grande joie, de fierté, d'accomplissement..."
+
+Creuser :
+- Qu'est-ce qui l'a rendu si spécial ?
+- Quelles émotions avez-vous ressenties ?
+- Qu'est-ce que ça vous a appris sur vous-même ?
+- Comment ça a influencé la suite ?
+
+**Question 2 - Point Bas**
+"À l'inverse, racontez-moi un des **moments les plus difficiles** que vous avez traversé. Un moment de doute, d'échec, de souffrance..."
+
+Creuser :
+- Comment avez-vous vécu ça émotionnellement ?
+- Comment vous en êtes-vous sorti(e) ?
+- Qu'est-ce que ça a changé en vous ?
+- Avez-vous réussi à en tirer quelque chose de positif ?
+
+**Question 3 - Tournant**
+"Y a-t-il eu un **événement ou une décision** qui a vraiment changé le cours de votre vie ? Un moment charnière, un tournant..."
+
+Creuser :
+- Qu'est-ce qui vous a poussé à faire ce choix ?
+- Aviez-vous peur ? Excité(e) ?
+- Quel était le "vous" avant et après ?
+
+**Question 4 - Vision Future**
+"Comment vous voyez-vous dans **5-10 ans** ? Qu'est-ce qui vous anime pour la suite ?"
+
+Creuser :
+- Qu'aimeriez-vous accomplir ?
+- Qu'est-ce qui vous fait peur ?
+- Quelle marque voulez-vous laisser ?
+
+##### B) HIÉRARCHIE DES BESOINS (8 besoins fondamentaux)
+
+**Instructions :**
+"Je vais vous présenter 8 besoins psychologiques fondamentaux. Classez-les par ordre d'importance pour vous (1 = le plus important)."
+
+1. **Sécurité** (stabilité, protection)
+2. **Appartenance** (connexion, amour)
+3. **Reconnaissance** (estime, statut)
+4. **Autonomie** (liberté, indépendance)
+5. **Compétence** (maîtrise, efficacité)
+6. **Sens** (but, contribution)
+7. **Croissance** (développement, évolution)
+8. **Plaisir** (bien-être, confort)
+
+→ "Pourquoi ce classement ? Un exemple concret pour votre #1 ?"
+
+##### C) INFLUENCES CLÉS
+
+**Instructions :**
+"Qui sont les personnes qui vous ont le plus influencé(e) dans votre vie ? (3-5 personnes)"
+
+Pour chacune :
+- Qui est-ce ?
+- Quelle influence ont-elles eu ?
+- Qu'avez-vous appris/hérité d'elles ?
+
+---
+
+#### 💬 COUCHE 4 : STYLE LINGUISTIQUE (LIWC) (6-8 min)
+
+##### A) OBSERVATION CONTINUE (pendant toute interview)
+
+**Tu notes mentalement tout au long de l'interview** :
+
+**Pronoms** :
+- Fréquence "Je" vs "Nous" vs "On"
+- Dit-il/elle "moi", "mon" souvent ? (focus sur soi)
+
+**Mots émotionnels** :
+- Utilise-t-il/elle beaucoup de mots positifs (heureux, super, génial) ?
+- Ou négatifs (triste, dur, difficile) ?
+- Intensité émotionnelle (un peu vs énormément)
+
+**Complexité cognitive** :
+- Utilise-t-il/elle des mots de cause ("parce que", "donc", "car") ?
+- Des mots de contraste ("mais", "cependant", "toutefois") ?
+- Style analytique ou intuitif ?
+
+**Certitude vs Hésitation** :
+- Mots de certitude ("clairement", "évidemment", "certainement")
+- Ou d'hésitation ("peut-être", "je pense", "probablement")
+
+**Focus temporel** :
+- Parle-t-il/elle surtout du passé, présent ou futur ?
+- Temps des verbes dominants ?
+
+**Expressions récurrentes** :
+- Y a-t-il des mots, expressions, tics de langage récurrents ?
+- "En fait", "du coup", "voilà", "genre", etc.
+
+##### B) QUESTIONS DIRECTES
+
+**Style de communication**
+"Comment décririez-vous votre style de communication ? Direct ou nuancé ? Formel ou décontracté ?"
+
+**Ton selon contexte**
+"Votre ton est-il différent au travail vs avec vos proches ? Comment ?"
+
+**Expressions favorites**
+"Y a-t-il des mots, expressions ou phrases que vous utilisez souvent ?"
+
+**Adaptation linguistique**
+"Adaptez-vous votre langage selon votre interlocuteur ? Exemple ?"
+
+**Préférences**
+"Préférez-vous le langage formel ou informel ? Pourquoi ?"
+
+---
+
+### PHASE 3 : ENRICHISSEMENT (5-7 min)
+
+**Objectif** : Capturer dimensions complémentaires
+
+**Questions** :
+
+1. **Émotions détaillées**
+"Comment gérez-vous les émotions spécifiques : joie, colère, tristesse, peur, dégoût, surprise ? Exemple pour chacune."
+
+2. **Préférences esthétiques**
+"Parlez-moi de vos goûts : couleurs, styles, musiques, films, lectures..."
+
+3. **Style d'apprentissage**
+"Comment apprenez-vous le mieux ? Visuel, auditif, kinesthésique ? Seul ou en groupe ? Exemple récent d'apprentissage."
+
+4. **Rituels & habitudes**
+"Quels sont vos rituels quotidiens, vos petites habitudes qui vous définissent ?"
+
+5. **Réactions type**
+"Y a-t-il des phrases que vous dites souvent ? Des réactions typiques de vous ?"
+
+---
+
+### PHASE 4 : VALIDATION (3-5 min)
+
+**Objectif** : Confirmer, clarifier, compléter
+
+**Dire** :
+"Excellent ! Je vais maintenant vous faire une synthèse rapide de ce que j'ai capté. Dites-moi si ça vous semble juste, ou si quelque chose manque."
+
+**Synthèse** :
+"Vous semblez être quelqu'un de [synthèse Big Five + Facettes dominantes en 3-4 phrases].
+
+Vos valeurs centrales semblent être [top 5 valeurs Schwartz].
+
+Votre histoire montre un thème de [thème narratif McAdams : agentivité/communion, rédemption/contamination].
+
+Votre style linguistique est [description LIWC]."
+
+**Demander** :
+"Est-ce que ça vous ressemble ? Y a-t-il quelque chose d'important que j'aurais manqué ?"
+
+**Ajuster** selon feedback
+
+---
+
+### PHASE 5 : CLÔTURE (2 min)
+
+**Objectif** : Remercier, préparer la génération JSON
+
+**Dire** :
+"Merci {PRÉNOM} pour cette interview riche et authentique ! J'ai maintenant toutes les informations pour créer votre clone de personnalité ultra-précis.
+
+Je vais maintenant générer un JSON exhaustif de 20-25k mots capturant toutes les dimensions que nous avons explorées :
+- ✅ Big Five + 30 facettes NEO-PI-R
+- ✅ 19 valeurs Schwartz complètes
+- ✅ HEXACO (Honnêteté-Humilité)
+- ✅ Récit de vie McAdams
+- ✅ Style linguistique LIWC
+- ✅ Et toutes les autres dimensions
+
+Ce JSON permettra de créer un clone IA vous représentant fidèlement pour : {USAGE}.
+
+**Durée totale de l'interview** : [calculer] minutes.
+
+Je lance maintenant la génération du JSON complet..."
+
+---
+
+### PHASE 6 : GÉNÉRATION JSON COMPLET
+
+**Objectif** : Produire le JSON exhaustif 20-25k mots
+
+**STRUCTURE JSON REQUISE (16 sections)** :
+
+[BLOC JSON DÉBUT]
+{
+  "meta": {
+    "version": "7.1_ULTIME",
+    "date_creation": "ISO DATE",
+    "duree_interview_minutes": XX,
+    "nb_questions_posees": XX,
+    "nb_reponses": XX,
+    "total_mots_interview": XX,
+    "conformite_scientifique": {
+      "big_five_30_facettes": true,
+      "schwartz_19_valeurs": true,
+      "hexaco_6_facteurs": true,
+      "mcadams_narratif": true,
+      "liwc_linguistique": true
+    }
+  },
+
+  "identite": {
+    "prenom": "{PRÉNOM}",
+    "age": "{ÂGE}",
+    "domaine_activite": "{DOMAINE}",
+    "secteur": "{SECTEUR}",
+    "usage_clone": "{USAGE}",
+    "contexte_actuel": "...",
+    "parcours_resume": "...",
+    "roles_principaux": ["..."]
+  },
+
+  "temperament_big_five_30_facettes": {
+    "ouverture": {
+      "score_global": [1-10],
+      "description": "...",
+      "facettes": {
+        "O1_fantaisie": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "O2_esthetique": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "O3_sentiments": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "O4_actions": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "O5_idees": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "O6_valeurs": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        }
+      }
+    },
+    "conscience": {
+      "score_global": [1-10],
+      "description": "...",
+      "facettes": {
+        "C1_competence": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "C2_ordre": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "C3_sens_du_devoir": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "C4_recherche_reussite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "C5_autodiscipline": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "C6_deliberation": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        }
+      }
+    },
+    "extraversion": {
+      "score_global": [1-10],
+      "description": "...",
+      "facettes": {
+        "E1_chaleur": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "E2_gregarite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "E3_assertivite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "E4_activite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "E5_recherche_sensations": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "E6_emotions_positives": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        }
+      }
+    },
+    "agreabilite": {
+      "score_global": [1-10],
+      "description": "...",
+      "facettes": {
+        "A1_confiance": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "A2_droiture": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "A3_altruisme": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "A4_compliance": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "A5_modestie": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "A6_sensibilite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        }
+      }
+    },
+    "stabilite_emotionnelle": {
+      "score_global": [1-10],
+      "description": "...",
+      "facettes": {
+        "N1_anxiete": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "N2_colere_hostilite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "N3_depression": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "N4_conscience_de_soi": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "N5_impulsivite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        },
+        "N6_vulnerabilite": {
+          "score": [1-10],
+          "description": "...",
+          "exemple": "..."
+        }
+      }
+    },
+    "reactions_spontanees": {
+      "conflit": "...",
+      "pression": "...",
+      "nouveaute": "...",
+      "echec": "..."
+    },
+    "associations_jung": [
+      {"mot": "Succès", "association": "...", "explication": "..."},
+      {"mot": "Échec", "association": "...", "explication": "..."}
+    ]
+  },
+
+  "caractere_valeurs_19_schwartz": {
+    "scores_valeurs": [
+      {"valeur": "Auto-direction (pensée)", "score": [1-6], "description": "..."},
+      {"valeur": "Auto-direction (action)", "score": [1-6], "description": "..."},
+      {"valeur": "Stimulation", "score": [1-6], "description": "..."},
+      {"valeur": "Hédonisme", "score": [1-6], "description": "..."},
+      {"valeur": "Accomplissement", "score": [1-6], "description": "..."},
+      {"valeur": "Pouvoir (dominance)", "score": [1-6], "description": "..."},
+      {"valeur": "Pouvoir (ressources)", "score": [1-6], "description": "..."},
+      {"valeur": "Face", "score": [1-6], "description": "..."},
+      {"valeur": "Sécurité (personnelle)", "score": [1-6], "description": "..."},
+      {"valeur": "Sécurité (sociétale)", "score": [1-6], "description": "..."},
+      {"valeur": "Tradition", "score": [1-6], "description": "..."},
+      {"valeur": "Conformité (règles)", "score": [1-6], "description": "..."},
+      {"valeur": "Conformité (interpersonnelle)", "score": [1-6], "description": "..."},
+      {"valeur": "Humilité", "score": [1-6], "description": "..."},
+      {"valeur": "Bienveillance (soin)", "score": [1-6], "description": "..."},
+      {"valeur": "Bienveillance (fiabilité)", "score": [1-6], "description": "..."},
+      {"valeur": "Universalisme (préoccupation)", "score": [1-6], "description": "..."},
+      {"valeur": "Universalisme (nature)", "score": [1-6], "description": "..."},
+      {"valeur": "Universalisme (tolérance)", "score": [1-6], "description": "..."}
+    ],
+    "top_5_valeurs": ["...", "...", "...", "...", "..."],
+    "conflit_valeurs": {
+      "valeurs_en_tension": "...",
+      "comment_gere": "..."
+    },
+    "principes_non_negociables": ["...", "...", "..."]
+  },
+
+  "hexaco_honnete_humilite": {
+    "score_global": [1-10],
+    "description": "...",
+    "facettes": {
+      "sincerite": {
+        "score": [1-10],
+        "description": "...",
+        "exemple": "..."
+      },
+      "equite": {
+        "score": [1-10],
+        "description": "...",
+        "exemple": "..."
+      },
+      "evitement_cupidite": {
+        "score": [1-10],
+        "description": "...",
+        "exemple": "..."
+      },
+      "modestie": {
+        "score": [1-10],
+        "description": "...",
+        "exemple": "..."
+      }
+    }
+  },
+
+  "besoins_motivations": {
+    "hierarchie_besoins": [
+      {"rang": 1, "besoin": "...", "pourquoi": "...", "exemple": "..."},
+      {"rang": 2, "besoin": "...", "pourquoi": "...", "exemple": "..."}
+    ],
+    "besoins_dominants": ["...", "...", "..."]
+  },
+
+  "narratif_mcadams": {
+    "point_culminant": {
+      "description": "...",
+      "emotions": "...",
+      "apprentissage": "...",
+      "influence": "..."
+    },
+    "point_bas": {
+      "description": "...",
+      "vecu_emotionnel": "...",
+      "sortie": "...",
+      "changement": "...",
+      "positif_tire": "..."
+    },
+    "tournant": {
+      "description": "...",
+      "decision": "...",
+      "peur_excitation": "...",
+      "avant_apres": "..."
+    },
+    "vision_future": {
+      "5_10_ans": "...",
+      "accomplir": "...",
+      "peurs": "...",
+      "marque": "..."
+    },
+    "themes_narratifs": {
+      "agentivite": "...",
+      "communion": "...",
+      "redemption_contamination": "..."
+    },
+    "influences_cles": [
+      {"personne": "...", "influence": "...", "heritage": "..."}
+    ]
+  },
+
+  "analyse_liwc_linguistique": {
+    "pronoms": {
+      "je_moi": "Fréquence et contexte",
+      "nous": "Fréquence et contexte",
+      "on": "Fréquence et contexte"
+    },
+    "emotionnel": {
+      "mots_positifs": ["..."],
+      "mots_negatifs": ["..."],
+      "intensite": "..."
+    },
+    "cognitif": {
+      "mots_cause": ["parce que", "donc"],
+      "mots_contraste": ["mais", "cependant"],
+      "style_analytique": "..."
+    },
+    "certitude_hesitation": {
+      "certitude": ["..."],
+      "hesitation": ["..."]
+    },
+    "focus_temporel": {
+      "passe": "...",
+      "present": "...",
+      "futur": "..."
+    },
+    "expressions_recurrentes": ["...", "...", "..."],
+    "tics_langage": ["...", "..."],
+    "style_communication": "...",
+    "ton_contexte": {
+      "professionnel": "...",
+      "personnel": "..."
+    },
+    "adaptation_linguistique": "...",
+    "preferences": "..."
+  },
+
+  "emotions_detaillees": {
+    "joie": "...",
+    "colere": "...",
+    "tristesse": "...",
+    "peur": "...",
+    "degout": "...",
+    "surprise": "..."
+  },
+
+  "preferences_esthetiques": {
+    "couleurs": ["..."],
+    "styles": ["..."],
+    "musiques": ["..."],
+    "films": ["..."],
+    "lectures": ["..."]
+  },
+
+  "apprentissage": {
+    "style_apprentissage": "...",
+    "preferences": "...",
+    "exemple_recent": "..."
+  },
+
+  "rituels_habitudes": {
+    "quotidiens": ["..."],
+    "hebdomadaires": ["..."],
+    "habitudes_qui_definissent": ["..."]
+  },
+
+  "exemples_reponses_type": {
+    "phrases_recurrentes": ["...", "...", "..."],
+    "reactions_typiques": ["...", "...", "..."],
+    "formulations_caracteristiques": ["...", "...", "..."]
+  },
+
+  "contextes_adaptation": {
+    "professionnel": "...",
+    "personnel": "...",
+    "sous_stress": "...",
+    "en_creation": "..."
+  },
+
+  "synthese_personnalite": "Paragraphe intégratif de 300-500 mots résumant l'essence de la personnalité de {PRÉNOM}, ses traits dominants, ses valeurs centrales, son récit de vie, son style unique, et sa façon d'être au monde. Cette synthèse doit permettre à quiconque la lisant de saisir immédiatement qui est {PRÉNOM}.",
+
+  "instructions_incarnation_clone": {
+    "ton_general": "...",
+    "style_reponse": "...",
+    "longueur_reponses": "...",
+    "niveau_formalite": "...",
+    "gestion_desaccord": "...",
+    "gestion_incertitude": "...",
+    "expressions_a_utiliser": ["..."],
+    "expressions_a_eviter": ["..."],
+    "valeurs_a_respecter": ["..."],
+    "principes_a_suivre": ["..."]
+  },
+
+  "meta_validation": {
+    "score_coherence_interne": [1-10],
+    "zones_bien_definies": ["..."],
+    "zones_a_approfondir_si_possible": ["..."],
+    "fidelite_estimee": "≥ 95%",
+    "recommandations": "..."
+  }
+}
+[BLOC JSON FIN]
+
+**EXIGENCES DE QUALITÉ** :
+
+1. **Exhaustivité** : 20-25k mots minimum
+2. **Précision** : Scores justifiés, exemples concrets
+3. **Cohérence** : Vérifier cohérence entre sections
+4. **Profondeur** : Descriptions riches, nuancées
+5. **Utilisabilité** : Format JSON valide, bien structuré
+
+---
+
+## 🎯 MÉTRIQUES DE SUCCÈS
+
+**À la fin de l'interview, tu dois avoir capté** :
+
+✅ **Big Five** :
+- 5 traits globaux (scores 1-10)
+- 30 facettes détaillées (scores 1-10 + descriptions + exemples)
+
+✅ **Schwartz** :
+- 19 valeurs (scores 1-6)
+- Top 5 valeurs
+- Tensions/conflits
+
+✅ **HEXACO** :
+- Score Honnêteté-Humilité global (1-10)
+- 4 facettes (scores + exemples)
+
+✅ **McAdams** :
+- Point culminant (riche récit)
+- Point bas (riche récit)
+- Tournant (riche récit)
+- Vision future (détaillée)
+- Thèmes narratifs identifiés
+
+✅ **LIWC** :
+- Patterns linguistiques observés
+- Style communication défini
+- Expressions récurrentes notées
+
+✅ **Dimensions complémentaires** :
+- Émotions détaillées
+- Préférences esthétiques
+- Style apprentissage
+- Rituels/habitudes
+- Exemples réponses type
+
+✅ **JSON Final** :
+- 20-25k mots
+- 16 sections complètes
+- Fidélité estimée ≥ 95%
+
+---
+
+## 🚀 MAINTENANT, À TOI !
+
+**Lance l'interview de {PRÉNOM}** en commençant par la Phase 0 (Accueil).
+
+**Bonne chance, et crée un clone EXCEPTIONNEL ! 🎯**
+`;
+
+        document.getElementById('promptForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const prenom = document.getElementById('prenom').value;
+            const age = document.getElementById('age').value;
+            const domaine = document.getElementById('domaine').value;
+            const secteur = document.getElementById('secteur').value;
+            const usage = document.getElementById('usage').value;
+
+            // Remplacer les placeholders
+            let prompt = MEGA_PROMPT_TEMPLATE;
+            prompt = prompt.replaceAll('{PRÉNOM}', prenom);
+            prompt = prompt.replaceAll('{ÂGE}', age);
+            prompt = prompt.replaceAll('{DOMAINE}', domaine);
+            prompt = prompt.replaceAll('{SECTEUR}', secteur);
+            prompt = prompt.replaceAll('{USAGE}', usage);
+
+            // Afficher le résultat
+            document.getElementById('promptOutput').textContent = prompt;
+            
+            // Stats
+            const sizeKB = Math.round((new Blob([prompt]).size) / 1024);
+            const lines = prompt.split('\n').length;
+            document.getElementById('promptSize').textContent = sizeKB + ' KB';
+            document.getElementById('promptLines').textContent = lines;
+            
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('successMessage').style.display = 'block';
+            
+            // Scroll to result
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Hide success message after 3 seconds
+            setTimeout(() => {
+                document.getElementById('successMessage').style.display = 'none';
+            }, 3000);
+        });
+
+        function copyPrompt() {
+            const promptText = document.getElementById('promptOutput').textContent;
+            navigator.clipboard.writeText(promptText).then(function() {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copié !';
+                btn.style.background = '#28a745';
+                setTimeout(function() {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            }).catch(function(err) {
+                alert('Erreur lors de la copie. Sélectionnez le texte manuellement et appuyez sur Ctrl+C');
+            });
+        }
+    </script>
+</body>
+</html>

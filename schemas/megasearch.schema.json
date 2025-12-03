@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-conceptdev.com/schemas/megasearch.schema.json",
+  "title": "Megasearch JSON Schema",
+  "description": "Base de connaissances complète agrégée (6.6 Mo typical)",
+  "type": "object",
+  "required": ["metadata", "resources"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["version", "generated_at", "total_resources"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Version du megasearch"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date de génération"
+        },
+        "total_resources": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Nombre total de ressources"
+        },
+        "total_categories": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_mp3": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Nombre de fichiers audio (si applicable)"
+        },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "by_category": {
+              "type": "object",
+              "additionalProperties": {"type": "integer"}
+            },
+            "by_type": {
+              "type": "object",
+              "additionalProperties": {"type": "integer"}
+            },
+            "by_difficulty": {
+              "type": "object",
+              "additionalProperties": {"type": "integer"}
+            }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "path": {"type": "string"},
+              "itemCount": {"type": "integer"}
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "title"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant unique"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["song", "exercise", "text", "recipe", "procedure", "concept", "reference", "other"],
+            "description": "Type de ressource"
+          },
+          "title": {
+            "type": "string",
+            "description": "Titre"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Numéro de page (si applicable)"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL de la ressource (GitHub Pages, etc.)"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "book": {"type": "string"},
+              "category": {"type": "string"},
+              "style": {"type": "string"},
+              "key": {"type": "string", "description": "Tonalité musicale (si applicable)"},
+              "difficulty": {"type": "string"},
+              "technique": {"type": "string"},
+              "composer": {"type": "string"},
+              "duration": {"type": "string"},
+              "has_mp3": {"type": "boolean"},
+              "has_video": {"type": "boolean"}
+            }
+          },
+          "searchText": {
+            "type": "string",
+            "description": "Texte optimisé pour recherche (lowercase)"
+          },
+          "tags": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "index": {
+      "type": "object",
+      "description": "Index pour recherche rapide",
+      "properties": {
+        "byCategory": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {"type": "string", "description": "Resource IDs"}
+          }
+        },
+        "byTitle": {
+          "type": "object",
+          "description": "Index alphabétique",
+          "additionalProperties": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "byTag": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

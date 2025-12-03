@@ -1,0 +1,243 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-conceptdev.com/schemas/persona.schema.json",
+  "title": "Persona JSON Schema",
+  "description": "Histoire personnelle et parcours de vie généré par Persona Builder",
+  "type": "object",
+  "required": ["metadata", "identity", "lifeStory"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["version", "generatedAt", "lastUpdated"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Version du schema (semver)"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date de création initiale"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Dernière mise à jour"
+        },
+        "totalUpdates": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Nombre total de mises à jour"
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["fullName"],
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "Nom complet"
+        },
+        "nicknames": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Surnoms utilisés"
+        },
+        "birthDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date de naissance (optionnel)"
+        },
+        "birthPlace": {
+          "type": "string",
+          "description": "Lieu de naissance"
+        },
+        "currentLocation": {
+          "type": "string",
+          "description": "Lieu de résidence actuel"
+        }
+      }
+    },
+    "lifeStory": {
+      "type": "object",
+      "required": ["childhood", "adolescence", "adulthood"],
+      "properties": {
+        "childhood": {
+          "type": "object",
+          "properties": {
+            "years": {"type": "string", "description": "Ex: 0-12 ans"},
+            "keyEvents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["year", "title", "description"],
+                "properties": {
+                  "year": {"type": "integer"},
+                  "title": {"type": "string"},
+                  "description": {"type": "string"},
+                  "impact": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "transformative"]
+                  }
+                }
+              }
+            },
+            "familyContext": {"type": "string"},
+            "earlyInfluences": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "adolescence": {
+          "type": "object",
+          "properties": {
+            "years": {"type": "string", "description": "Ex: 13-18 ans"},
+            "keyEvents": {"$ref": "#/properties/lifeStory/properties/childhood/properties/keyEvents"},
+            "education": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "years": {"type": "string"},
+                  "institution": {"type": "string"},
+                  "field": {"type": "string"},
+                  "achievements": {"type": "array", "items": {"type": "string"}}
+                }
+              }
+            },
+            "formativeExperiences": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "adulthood": {
+          "type": "object",
+          "properties": {
+            "keyEvents": {"$ref": "#/properties/lifeStory/properties/childhood/properties/keyEvents"},
+            "professionalJourney": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["years", "position", "organization"],
+                "properties": {
+                  "years": {"type": "string"},
+                  "position": {"type": "string"},
+                  "organization": {"type": "string"},
+                  "achievements": {"type": "array", "items": {"type": "string"}},
+                  "skills": {"type": "array", "items": {"type": "string"}},
+                  "challenges": {"type": "array", "items": {"type": "string"}}
+                }
+              }
+            },
+            "personalMilestones": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "year": {"type": "integer"},
+                  "milestone": {"type": "string"},
+                  "impact": {"type": "string"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "relation": {"type": "string", "description": "Ex: mother, brother, child"},
+              "name": {"type": "string"},
+              "influence": {"type": "string"},
+              "currentStatus": {"type": "string", "enum": ["close", "distant", "estranged", "deceased"]}
+            }
+          }
+        },
+        "significantOthers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["romantic", "friendship", "mentorship", "professional"]},
+              "name": {"type": "string"},
+              "years": {"type": "string"},
+              "impact": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "values": {
+      "type": "object",
+      "properties": {
+        "coreBeliefs": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Croyances fondamentales"
+        },
+        "lifePhilosophy": {
+          "type": "string",
+          "description": "Philosophie de vie en une phrase"
+        },
+        "motivations": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Motivations profondes"
+        }
+      }
+    },
+    "traumas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "year": {"type": "integer"},
+          "event": {"type": "string"},
+          "impact": {"type": "string"},
+          "healingStatus": {
+            "type": "string",
+            "enum": ["unprocessed", "processing", "healed", "integrated"]
+          }
+        }
+      },
+      "description": "Événements traumatiques (optionnel, sensible)"
+    },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "year": {"type": "integer"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "significance": {"type": "string", "enum": ["personal", "professional", "societal"]}
+        }
+      }
+    },
+    "evolution": {
+      "type": "object",
+      "properties": {
+        "personalGrowth": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "period": {"type": "string"},
+              "change": {"type": "string"},
+              "catalyst": {"type": "string"}
+            }
+          }
+        },
+        "futureGoals": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Objectifs futurs"
+        }
+      }
+    }
+  }
+}

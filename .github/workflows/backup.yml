@@ -1,0 +1,41 @@
+name: Backup megasearch.json
+
+on:
+  push:
+    paths:
+      - 'output/megasearch.json'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Check if megasearch.json exists
+      id: check
+      run: |
+        if [ -f "output/megasearch.json" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      if: steps.check.outputs.exists == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: backup-${{ github.run_number }}
+        name: Backup megasearch.json - ${{ github.run_number }}
+        body: |
+          Automated backup of megasearch.json
+          Timestamp: ${{ github.event.head_commit.timestamp }}
+          Commit: ${{ github.sha }}
+        files: |
+          output/megasearch.json
+          output/Brain.json
+          output/Persona.json
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

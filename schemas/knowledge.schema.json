@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-conceptdev.com/schemas/knowledge.schema.json",
+  "title": "Knowledge Item JSON Schema",
+  "description": "Structure d'un item de connaissance individuel dans la Knowledge Base",
+  "type": "object",
+  "required": ["metadata", "content"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["id", "category", "title", "createdAt"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant unique"
+        },
+        "category": {
+          "type": "string",
+          "description": "Catégorie (ex: musique, cuisine, médecine)"
+        },
+        "subCategory": {
+          "type": "string",
+          "description": "Sous-catégorie optionnelle"
+        },
+        "title": {
+          "type": "string",
+          "description": "Titre descriptif"
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Tags pour recherche"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source originale (livre, cours, expérience)"
+        },
+        "language": {
+          "type": "string",
+          "default": "fr",
+          "enum": ["fr", "en", "es", "de", "it"]
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["text", "exercise", "song", "recipe", "procedure", "concept", "reference"],
+          "description": "Type de contenu"
+        },
+        "body": {
+          "type": "string",
+          "description": "Contenu principal"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Résumé court (pour recherche)"
+        },
+        "details": {
+          "type": "object",
+          "description": "Détails spécifiques au type de contenu",
+          "properties": {
+            "difficulty": {
+              "type": "string",
+              "enum": ["beginner", "intermediate", "advanced", "expert"]
+            },
+            "duration": {
+              "type": "string",
+              "description": "Durée estimée (ex: '15 min')"
+            },
+            "prerequisites": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "relatedItems": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "IDs d'items liés"
+            }
+          }
+        }
+      }
+    },
+    "media": {
+      "type": "object",
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {"type": "string", "format": "uri"},
+              "caption": {"type": "string"},
+              "pageNumber": {"type": "integer"}
+            }
+          }
+        },
+        "audio": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {"type": "string", "format": "uri"},
+              "title": {"type": "string"},
+              "duration": {"type": "string"}
+            }
+          }
+        },
+        "video": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {"type": "string", "format": "uri"},
+              "title": {"type": "string"},
+              "platform": {"type": "string", "enum": ["youtube", "vimeo", "local"]}
+            }
+          }
+        }
+      }
+    },
+    "searchability": {
+      "type": "object",
+      "properties": {
+        "searchText": {
+          "type": "string",
+          "description": "Texte optimisé pour recherche (lowercase, sans accents)"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Mots-clés importants"
+        },
+        "alternateNames": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Noms alternatifs ou traductions"
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "accessCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Nombre d'accès"
+        },
+        "lastAccessed": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "userRating": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        }
+      }
+    }
+  }
+}
