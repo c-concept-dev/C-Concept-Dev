@@ -3579,7 +3579,7 @@ class TTSQueue {
     async generateAndPlay(text) {
         return new Promise((resolve, reject) => {
             const mode = state.voiceMode || 'auto';
-            const hasGoogleKey = !!(config.workerEndpoints?.googleTTS) || !!state.googleTTSApiKey;
+            const hasGoogleKey = !!(state.workerEndpoints?.googleTTS) || !!state.googleTTSApiKey;
             const hasElevenKey = !!state.elevenLabsApiKey;
 
             // Considérer tous les modes "google", "auto" et "google-*"
@@ -3698,7 +3698,7 @@ class TTSQueue {
             
             console.log(`[TTSQueue] 🎤 Voice: "${voiceName}" (${voiceGender})`);
             
-            const response = await fetch(config.workerEndpoints.googleTTS, {
+            const response = await fetch(state.workerEndpoints.googleTTS, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
