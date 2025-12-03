@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="Auto-generated index - C Concept&Dev">
+  <meta name="last-updated" content="2025-12-03T16:16:18.538Z">
+  <meta name="author" content="Christophe BONNET">
+  <title>C Concept&Dev - Framework Clone Complet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: white;
+      padding: 60px 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #8FAFB1;
+      font-size: 3.5rem;
+      margin-bottom: 15px;
+      font-weight: 700;
+    }
+
+    .tagline {
+      color: #666;
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .author {
+      color: #888;
+      font-size: 1rem;
+      margin-top: 15px;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+      padding: 20px 30px;
+      border-radius: 15px;
+      border-top: 4px solid #8FAFB1;
+      transition: transform 0.3s;
+    }
+
+    .stat:hover {
+      transform: translateY(-5px);
+    }
+
+    .stat-number {
+      color: #8FAFB1;
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+
+    .search-box {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      margin-bottom: 40px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 18px 25px;
+      border: 2px solid #C8D0C3;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.3s;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #8FAFB1;
+      box-shadow: 0 0 0 4px rgba(143, 175, 177, 0.1);
+    }
+
+    .category-section {
+      margin-bottom: 50px;
+    }
+
+    .category-title {
+      color: #8FAFB1;
+      font-size: 2rem;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #C8D0C3;
+      font-weight: 600;
+    }
+
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 25px;
+    }
+
+    .file-card {
+      background: white;
+      border-radius: 15px;
+      border-left: 5px solid #8FAFB1;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+      display: flex;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .file-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 15px 40px rgba(143, 175, 177, 0.3);
+    }
+
+    .file-icon {
+      font-size: 2.5rem;
+      flex-shrink: 0;
+    }
+
+    .file-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-info h3 {
+      margin-bottom: 8px;
+      font-size: 1.2rem;
+    }
+
+    .file-info h3 a {
+      color: #333;
+      text-decoration: none;
+      transition: color 0.3s;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-info h3 a:hover {
+      color: #8FAFB1;
+    }
+
+    .file-path {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-meta {
+      display: flex;
+      gap: 15px;
+      font-size: 0.85rem;
+      color: #999;
+      flex-wrap: wrap;
+    }
+
+    footer {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      text-align: center;
+      color: #666;
+      margin-top: 60px;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 80px 40px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      display: none;
+    }
+
+    .no-results.show {
+      display: block;
+    }
+
+    .no-results h2 {
+      color: #8FAFB1;
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .files-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      h1 {
+        font-size: 2.5rem;
+      }
+      
+      .stats {
+        gap: 15px;
+      }
+
+      .stat {
+        padding: 15px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧠 C Concept&Dev</h1>
+      <p class="tagline">Framework de Clonage Psychologique Alimenté par l'IA</p>
+      <p class="author">Christophe BONNET</p>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Pages HTML</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">2</div>
+          <div class="stat-label">Outils</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">1</div>
+          <div class="stat-label">Templates</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">0</div>
+          <div class="stat-label">Exemples</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="search-box">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="🔍 Rechercher un outil, template, exemple..."
+        autocomplete="off"
+      >
+    </div>
+
+    <div id="contentContainer">
+      
+    <section class="category-section">
+      <h2 class="category-title">🛠️ Outils</h2>
+      <div class="files-grid">
+        
+    <div class="file-card">
+      <div class="file-icon">🛠️</div>
+      <div class="file-info">
+        <h3><a href="tools/clone-interview-pro/clone-interview-pro.html" target="_blank">Clone Interview Pro v17.3.0 UX - C Concept&Dev</a></h3>
+        <p class="file-path">📁 tools/clone-interview-pro</p>
+        <div class="file-meta">
+          <span>📅 3 décembre 2025 à 15:49</span>
+          <span>💾 1006.0 KB</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="file-card">
+      <div class="file-icon">🛠️</div>
+      <div class="file-info">
+        <h3><a href="tools/clone-interview-standalone/clone-interview-standalone.html" target="_blank">Clone de Personnalité v7.0 - Générateur ULTRA-STANDALONE</a></h3>
+        <p class="file-path">📁 tools/clone-interview-standalone</p>
+        <div class="file-meta">
+          <span>📅 27 novembre 2025 à 19:10</span>
+          <span>💾 53.2 KB</span>
+        </div>
+      </div>
+    </div>
+      </div>
+    </section>
+    <section class="category-section">
+      <h2 class="category-title">📋 Templates</h2>
+      <div class="files-grid">
+        
+    <div class="file-card">
+      <div class="file-icon">📋</div>
+      <div class="file-info">
+        <h3><a href="templates/prompts/prompt-detailed.html" target="_blank">Clone Instructions Détaillées - [NOM]</a></h3>
+        <p class="file-path">📁 templates/prompts</p>
+        <div class="file-meta">
+          <span>📅 2 décembre 2025 à 23:28</span>
+          <span>💾 62.8 KB</span>
+        </div>
+      </div>
+    </div>
+      </div>
+    </section>
+    </div>
+
+    <div class="no-results" id="noResults">
+      <h2>😕 Aucun résultat</h2>
+      <p>Essayez avec d'autres mots-clés</p>
+    </div>
+
+    <footer>
+      <p><strong>C Concept&Dev</strong> - Framework de Clonage Psychologique</p>
+      <p style="margin-top: 10px;">Par Christophe BONNET</p>
+      <p style="margin-top: 15px; font-size: 0.9em;">
+        ✨ Index généré automatiquement • 3 pages • 
+        Dernière mise à jour : 3 décembre 2025 à 17:16
+      </p>
+      <p style="margin-top: 10px; font-size: 0.85em; color: #999;">
+        <a href="https://github.com/c-concept-dev/C-Concept-Dev" style="color: #8FAFB1; text-decoration: none;">
+          📦 Voir sur GitHub
+        </a>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    // Fonction de recherche
+    const searchInput = document.getElementById('searchInput');
+    const contentContainer = document.getElementById('contentContainer');
+    const noResults = document.getElementById('noResults');
+    const allCards = document.querySelectorAll('.file-card');
+    const allSections = document.querySelectorAll('.category-section');
+
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase().trim();
+      let totalVisible = 0;
+
+      // Chercher dans toutes les cartes
+      allCards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          card.style.display = 'flex';
+          totalVisible++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      // Cacher les sections vides
+      allSections.forEach(section => {
+        const visibleCards = section.querySelectorAll('.file-card[style="display: flex;"]');
+        if (visibleCards.length === 0 || searchTerm) {
+          section.style.display = searchTerm && visibleCards.length === 0 ? 'none' : 'block';
+        } else {
+          section.style.display = 'block';
+        }
+      });
+
+      // Afficher "aucun résultat" si nécessaire
+      if (totalVisible === 0) {
+        contentContainer.style.display = 'none';
+        noResults.classList.add('show');
+      } else {
+        contentContainer.style.display = 'block';
+        noResults.classList.remove('show');
+      }
+    });
+
+    // Animation au chargement
+    allCards.forEach((card, index) => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        card.style.transition = 'all 0.5s';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      }, index * 30);
+    });
+  </script>
+</body>
+</html>
