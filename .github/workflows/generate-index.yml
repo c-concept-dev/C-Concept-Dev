@@ -1,4 +1,17 @@
-name: 🔄 Generate Index
+- name: 📤 Commit and push index.html
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Vérifier s'il y a des changements
+          if git diff --quiet index.html 2>/dev/null; then
+            echo "ℹ️ Pas de changements détectés dans index.html"
+          else
+            git add index.html
+            git commit -m "🔄 Auto-update index.html - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            git push
+            echo "✅ index.html mis à jour et poussé"
+          finame: 🔄 Generate Index
 
 on:
   push:
