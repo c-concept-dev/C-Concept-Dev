@@ -1,0 +1,91 @@
+name: 🔄 Generate Index
+
+on:
+  push:
+    paths:
+      - '**/*.html'
+      - '!index.html'
+      - 'generate-index.js'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-index:
+    name: 📋 Generate HTML Index
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: 🔍 List HTML files
+        run: |
+          echo "📚 Fichiers HTML trouvés:"
+          find . -name "*.html" -not -path "./.git/*" -not -name "index.html" | head -30
+          echo ""
+          echo "📊 Total: $(find . -name "*.html" -not -path "./.git/*" -not -name "index.html" | wc -l) fichiers"
+      
+      - name: 🚀 Generate index.html
+        run: |
+          echo "═══════════════════════════════════════════════════"
+          echo "🔄 Génération de l'index C Concept&Dev"
+          echo "═══════════════════════════════════════════════════"
+          node generate-index.js
+      
+      - name: 📊 Verify generated index
+        run: |
+          if [ -f index.html ]; then
+            echo "✅ index.html généré avec succès"
+            echo ""
+            echo "📦 Taille du fichier:"
+            ls -lh index.html
+          else
+            echo "❌ Erreur: index.html non généré"
+            exit 1
+          fi
+      
+      - name: 📤 Commit and push index.html
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Vérifier s'il y a des changements
+          if git diff --quiet index.html 2>/dev/null; then
+            echo "ℹ️ Pas de changements détectés dans index.html"
+          else
+            git add index.html
+            
+            COMMIT_MSG="🔄 Auto-update index.html
+
+📋 Régénération automatique de l'index des pages
+📅 $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+Triggered by: ${{ github.event_name }}
+Commit: ${{ github.sha }}"
+            
+            git commit -m "$COMMIT_MSG"
+            git push
+            
+            echo "✅ index.html mis à jour et poussé"
+          fi
+      
+      - name: 📋 Summary
+        run: |
+          echo ""
+          echo "═══════════════════════════════════════════════════"
+          echo "✅ WORKFLOW TERMINÉ AVEC SUCCÈS"
+          echo "═══════════════════════════════════════════════════"
+          echo ""
+          echo "L'index.html est maintenant à jour et accessible"
+          echo "sur GitHub Pages."
+          echo ""
