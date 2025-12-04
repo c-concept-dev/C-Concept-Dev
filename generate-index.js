@@ -1,260 +1,212 @@
 #!/usr/bin/env node
+/**
+ * 🗂️ GENERATE INDEX - Structure Hiérarchique
+ * C Concept&Dev - Christophe BONNET
+ * Génère index.html avec dossiers expandables
+ */
 
 const fs = require('fs');
 const path = require('path');
 
-// Configuration C Concept&Dev
-const CONFIG = {
-  sourceDir: '.',
-  outputFile: 'index.html',
-  excludeFiles: [
-    'index.html', 
-    'generate-index.js', 
-    'package.json', 
-    'package-lock.json',
-    'node_modules', 
-    '.git', 
-    '.github'
-  ],
-  excludeDirs: [
-    'node_modules',
-    '.git',
-    '.github',
-    'json-user',
-    'output'
-  ],
-  extensions: ['.html'],
-  title: 'C Concept&Dev - Framework Clone Complet',
-  header: 'C Concept&Dev',
-  tagline: 'Framework de Clonage Psychologique Alimenté par l\'IA',
-  author: 'Christophe BONNET',
-  colors: {
-    primary: '#8FAFB1',
-    secondary: '#C8D0C3',
-    tertiary: '#E6D7C3',
-    accent: '#D8CDBB'
-  }
-};
+console.log('🚀 Génération de l'index C Concept&Dev en cours...\n');
 
-/**
- * Vérifie si un chemin doit être exclu
- */
-function shouldExclude(filePath) {
-  // Exclure les dossiers
-  for (const dir of CONFIG.excludeDirs) {
-    if (filePath.includes(`/${dir}/`) || filePath.includes(`\\${dir}\\`)) {
-      return true;
+// Configuration
+const ROOT_DIR = process.cwd();
+const IGNORE_PATTERNS = [
+  /node_modules/,
+  /\.git/,
+  /^index\.html$/,
+  /\.DS_Store/,
+  /^\..*$/
+];
+
+// Fonction pour parser le titre HTML
+function extractTitle(htmlPath) {
+  try {
+    const content = fs.readFileSync(htmlPath, 'utf-8');
+    const titleMatch = content.match(/<title>(.*?)<\/title>/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1].replace(/ - C Concept&Dev$/, '').trim();
     }
+    return path.basename(htmlPath, '.html');
+  } catch (err) {
+    return path.basename(htmlPath, '.html');
   }
-  
-  // Exclure les fichiers spécifiques
-  const fileName = path.basename(filePath);
-  return CONFIG.excludeFiles.includes(fileName);
 }
 
-/**
- * Récupère tous les fichiers HTML du dossier
- */
-function getHtmlFiles(dir, fileList = []) {
-  const files = fs.readdirSync(dir);
-
-  files.forEach(file => {
-    const filePath = path.join(dir, file);
+// Scanner récursif
+function scanDirectory(dir, baseDir = ROOT_DIR) {
+  const structure = {};
+  
+  try {
+    const items = fs.readdirSync(dir);
     
-    // Ignorer si exclu
-    if (shouldExclude(filePath)) {
-      return;
-    }
-
-    const stat = fs.statSync(filePath);
-
-    if (stat.isDirectory()) {
-      // Récursion dans les sous-dossiers
-      getHtmlFiles(filePath, fileList);
-    } else {
-      // Vérifier l'extension
-      const ext = path.extname(file).toLowerCase();
-      if (CONFIG.extensions.includes(ext)) {
-        fileList.push({
-          path: filePath.replace(/\\/g, '/').replace('./', ''),
-          name: file,
-          dir: path.dirname(filePath).replace(/\\/g, '/').replace('.', ''),
-          modified: stat.mtime,
-          size: stat.size
+    for (const item of items) {
+      // Ignorer patterns
+      if (IGNORE_PATTERNS.some(pattern => pattern.test(item))) {
+        continue;
+      }
+      
+      const fullPath = path.join(dir, item);
+      const stats = fs.statSync(fullPath);
+      const relativePath = path.relative(baseDir, fullPath);
+      
+      if (stats.isDirectory()) {
+        // Dossier : scanner récursivement
+        const subStructure = scanDirectory(fullPath, baseDir);
+        if (Object.keys(subStructure.files || {}).length > 0 || Object.keys(subStructure.folders || {}).length > 0) {
+          structure[item] = subStructure;
+        }
+      } else if (stats.isFile() && item.endsWith('.html')) {
+        // Fichier HTML
+        if (!structure.files) structure.files = [];
+        structure.files.push({
+          name: item,
+          path: relativePath,
+          title: extractTitle(fullPath),
+          size: stats.size,
+          modified: stats.mtime
         });
       }
     }
-  });
-
-  return fileList;
-}
-
-/**
- * Extrait le titre d'un fichier HTML
- */
-function extractTitle(filePath) {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const titleMatch = content.match(/<title>(.*?)<\/title>/i);
-    if (titleMatch) {
-      return titleMatch[1].trim();
-    }
-  } catch (error) {
-    console.warn(`Impossible de lire ${filePath}:`, error.message);
+  } catch (err) {
+    console.error(`Erreur lecture ${dir}:`, err.message);
   }
-  return null;
+  
+  return structure;
 }
 
-/**
- * Formate la taille du fichier
- */
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-/**
- * Formate la date
- */
-function formatDate(date) {
-  return date.toLocaleDateString('fr-FR', {
-    year: 'numeric',
-    month: 'long',
+// Générer HTML pour un fichier
+function generateFileHTML(file) {
+  const sizeKB = (file.size / 1024).toFixed(1);
+  const dateStr = file.modified.toLocaleDateString('fr-FR', {
     day: 'numeric',
+    month: 'long',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   });
-}
-
-/**
- * Catégorise les fichiers par type
- */
-function categorizeFiles(files) {
-  const categories = {
-    tools: [],
-    templates: [],
-    examples: [],
-    docs: [],
-    other: []
-  };
-
-  files.forEach(file => {
-    const pathLower = file.path.toLowerCase();
-    
-    if (pathLower.includes('tools/')) {
-      categories.tools.push(file);
-    } else if (pathLower.includes('templates/')) {
-      categories.templates.push(file);
-    } else if (pathLower.includes('examples/')) {
-      categories.examples.push(file);
-    } else if (pathLower.includes('docs/')) {
-      categories.docs.push(file);
-    } else {
-      categories.other.push(file);
-    }
-  });
-
-  return categories;
-}
-
-/**
- * Génère une carte de fichier HTML
- */
-function generateFileCard(file) {
-  const title = extractTitle(file.path) || file.name.replace('.html', '');
-  const dirLabel = file.dir ? `📁 ${file.dir}` : '📄 Racine';
-  
-  // Icône selon catégorie
-  let icon = '📄';
-  if (file.path.includes('tools/')) icon = '🛠️';
-  if (file.path.includes('templates/')) icon = '📋';
-  if (file.path.includes('examples/')) icon = '🎯';
-  if (file.path.includes('docs/')) icon = '📚';
   
   return `
-    <div class="file-card">
-      <div class="file-icon">${icon}</div>
+    <div class="file-item">
+      <div class="file-icon">📄</div>
       <div class="file-info">
-        <h3><a href="${file.path}" target="_blank">${title}</a></h3>
-        <p class="file-path">${dirLabel}</p>
+        <h4><a href="${file.path}" target="_blank">${file.title}</a></h4>
         <div class="file-meta">
-          <span>📅 ${formatDate(file.modified)}</span>
-          <span>💾 ${formatSize(file.size)}</span>
+          <span>📅 ${dateStr}</span>
+          <span>💾 ${sizeKB} KB</span>
         </div>
       </div>
     </div>`;
 }
 
-/**
- * Génère le HTML de l'index
- */
-function generateIndexHtml(files) {
-  const categories = categorizeFiles(files);
+// Générer HTML pour un dossier
+function generateFolderHTML(folderName, folderData, level = 0) {
+  const files = folderData.files || [];
+  const subfolders = Object.keys(folderData).filter(k => k !== 'files');
   
-  // Générer sections par catégorie
-  let sectionsHtml = '';
+  const totalFiles = files.length;
+  const folderId = `folder-${folderName.replace(/[^a-zA-Z0-9]/g, '-')}-${level}`;
   
-  if (categories.tools.length > 0) {
-    sectionsHtml += `
-    <section class="category-section">
-      <h2 class="category-title">🛠️ Outils</h2>
-      <div class="files-grid">
-        ${categories.tools.map(generateFileCard).join('\n')}
+  let html = `
+    <div class="folder-container" data-level="${level}">
+      <div class="folder-header" onclick="toggleFolder('${folderId}')">
+        <span class="folder-icon">📁</span>
+        <span class="folder-name">${folderName}/</span>
+        <span class="folder-count">(${totalFiles} fichier${totalFiles > 1 ? 's' : ''})</span>
+        <span class="folder-toggle" id="${folderId}-toggle">▼</span>
       </div>
-    </section>`;
+      <div class="folder-content" id="${folderId}" style="display: block;">`;
+  
+  // Sous-dossiers
+  for (const subfolder of subfolders) {
+    html += generateFolderHTML(subfolder, folderData[subfolder], level + 1);
   }
   
-  if (categories.templates.length > 0) {
-    sectionsHtml += `
-    <section class="category-section">
-      <h2 class="category-title">📋 Templates</h2>
-      <div class="files-grid">
-        ${categories.templates.map(generateFileCard).join('\n')}
-      </div>
-    </section>`;
+  // Fichiers
+  if (files.length > 0) {
+    html += `<div class="files-list">`;
+    for (const file of files) {
+      html += generateFileHTML(file);
+    }
+    html += `</div>`;
   }
   
-  if (categories.examples.length > 0) {
-    sectionsHtml += `
-    <section class="category-section">
-      <h2 class="category-title">🎯 Exemples</h2>
-      <div class="files-grid">
-        ${categories.examples.map(generateFileCard).join('\n')}
+  html += `
       </div>
-    </section>`;
-  }
+    </div>`;
   
-  if (categories.docs.length > 0) {
-    sectionsHtml += `
-    <section class="category-section">
-      <h2 class="category-title">📚 Documentation</h2>
-      <div class="files-grid">
-        ${categories.docs.map(generateFileCard).join('\n')}
-      </div>
-    </section>`;
-  }
-  
-  if (categories.other.length > 0) {
-    sectionsHtml += `
-    <section class="category-section">
-      <h2 class="category-title">📄 Autres</h2>
-      <div class="files-grid">
-        ${categories.other.map(generateFileCard).join('\n')}
-      </div>
-    </section>`;
-  }
+  return html;
+}
 
-  // Template HTML complet avec branding C Concept&Dev
-  return `<!DOCTYPE html>
+// Compter statistiques
+function countStats(structure) {
+  let stats = { files: 0, folders: 0 };
+  
+  function count(obj) {
+    if (obj.files) {
+      stats.files += obj.files.length;
+    }
+    for (const key in obj) {
+      if (key !== 'files' && typeof obj[key] === 'object') {
+        stats.folders++;
+        count(obj[key]);
+      }
+    }
+  }
+  
+  count(structure);
+  return stats;
+}
+
+// Générer l'index complet
+function generateIndex() {
+  const structure = scanDirectory(ROOT_DIR);
+  const stats = countStats(structure);
+  
+  console.log(`✅ ${stats.files} fichier(s) HTML trouvé(s)`);
+  console.log(`📁 ${stats.folders} dossier(s) détecté(s)\n`);
+  
+  let contentHTML = '';
+  
+  // Générer structure hiérarchique
+  for (const topFolder in structure) {
+    if (topFolder !== 'files') {
+      contentHTML += generateFolderHTML(topFolder, structure[topFolder], 0);
+    }
+  }
+  
+  // Fichiers à la racine (si présents)
+  if (structure.files && structure.files.length > 0) {
+    contentHTML += `
+    <div class="folder-container" data-level="0">
+      <div class="folder-header">
+        <span class="folder-icon">📁</span>
+        <span class="folder-name">Racine</span>
+        <span class="folder-count">(${structure.files.length} fichier${structure.files.length > 1 ? 's' : ''})</span>
+      </div>
+      <div class="folder-content" style="display: block;">
+        <div class="files-list">`;
+    
+    for (const file of structure.files) {
+      contentHTML += generateFileHTML(file);
+    }
+    
+    contentHTML += `
+        </div>
+      </div>
+    </div>`;
+  }
+  
+  const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="Auto-generated index - C Concept&Dev">
   <meta name="last-updated" content="${new Date().toISOString()}">
-  <meta name="author" content="${CONFIG.author}">
-  <title>${CONFIG.title}</title>
+  <meta name="author" content="Christophe BONNET">
+  <title>C Concept&Dev - Framework Clone Complet</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * {
@@ -265,7 +217,7 @@ function generateIndexHtml(files) {
 
     body {
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, ${CONFIG.colors.primary} 0%, ${CONFIG.colors.secondary} 100%);
+      background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
       min-height: 100vh;
       padding: 40px 20px;
       color: #333;
@@ -286,7 +238,7 @@ function generateIndexHtml(files) {
     }
 
     h1 {
-      color: ${CONFIG.colors.primary};
+      color: #8FAFB1;
       font-size: 3.5rem;
       margin-bottom: 15px;
       font-weight: 700;
@@ -314,10 +266,10 @@ function generateIndexHtml(files) {
     }
 
     .stat {
-      background: linear-gradient(135deg, ${CONFIG.colors.tertiary} 0%, ${CONFIG.colors.accent} 100%);
+      background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
       padding: 20px 30px;
       border-radius: 15px;
-      border-top: 4px solid ${CONFIG.colors.primary};
+      border-top: 4px solid #8FAFB1;
       transition: transform 0.3s;
     }
 
@@ -326,7 +278,7 @@ function generateIndexHtml(files) {
     }
 
     .stat-number {
-      color: ${CONFIG.colors.primary};
+      color: #8FAFB1;
       font-size: 2.5rem;
       font-weight: 700;
     }
@@ -350,7 +302,7 @@ function generateIndexHtml(files) {
     .search-box input {
       width: 100%;
       padding: 18px 25px;
-      border: 2px solid ${CONFIG.colors.secondary};
+      border: 2px solid #C8D0C3;
       border-radius: 12px;
       font-size: 1.1rem;
       font-family: 'Montserrat', sans-serif;
@@ -359,48 +311,118 @@ function generateIndexHtml(files) {
 
     .search-box input:focus {
       outline: none;
-      border-color: ${CONFIG.colors.primary};
+      border-color: #8FAFB1;
       box-shadow: 0 0 0 4px rgba(143, 175, 177, 0.1);
     }
 
-    .category-section {
-      margin-bottom: 50px;
-    }
-
-    .category-title {
-      color: ${CONFIG.colors.primary};
-      font-size: 2rem;
-      margin-bottom: 25px;
-      padding-bottom: 15px;
-      border-bottom: 3px solid ${CONFIG.colors.secondary};
-      font-weight: 600;
-    }
-
-    .files-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 25px;
-    }
-
-    .file-card {
+    .content {
       background: white;
-      border-radius: 15px;
-      border-left: 5px solid ${CONFIG.colors.primary};
-      padding: 25px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      transition: all 0.3s;
-      display: flex;
-      gap: 20px;
-      align-items: start;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
 
-    .file-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 15px 40px rgba(143, 175, 177, 0.3);
+    /* STRUCTURE HIÉRARCHIQUE */
+    
+    .folder-container {
+      margin-bottom: 20px;
+      border-left: 3px solid #C8D0C3;
+      padding-left: 0;
+      transition: all 0.3s;
+    }
+
+    .folder-container[data-level="0"] {
+      border-left-color: #8FAFB1;
+      border-left-width: 4px;
+    }
+
+    .folder-container[data-level="1"] {
+      margin-left: 20px;
+    }
+
+    .folder-container[data-level="2"] {
+      margin-left: 40px;
+    }
+
+    .folder-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 10px;
+    }
+
+    .folder-header:hover {
+      background: #E6D7C3;
+      transform: translateX(5px);
+    }
+
+    .folder-icon {
+      font-size: 1.5rem;
+    }
+
+    .folder-name {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #8FAFB1;
+      flex: 1;
+    }
+
+    .folder-count {
+      font-size: 0.9rem;
+      color: #999;
+      font-weight: 500;
+    }
+
+    .folder-toggle {
+      font-size: 1rem;
+      color: #8FAFB1;
+      transition: transform 0.3s;
+      font-weight: bold;
+    }
+
+    .folder-toggle.collapsed {
+      transform: rotate(-90deg);
+    }
+
+    .folder-content {
+      padding: 10px 20px;
+      transition: all 0.3s;
+    }
+
+    .folder-content.hidden {
+      display: none !important;
+    }
+
+    .files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: white;
+      border: 2px solid #f0f0f0;
+      border-radius: 10px;
+      transition: all 0.3s;
+    }
+
+    .file-item:hover {
+      border-color: #8FAFB1;
+      transform: translateX(10px);
+      box-shadow: 0 4px 15px rgba(143, 175, 177, 0.2);
     }
 
     .file-icon {
-      font-size: 2.5rem;
+      font-size: 1.8rem;
       flex-shrink: 0;
     }
 
@@ -409,32 +431,19 @@ function generateIndexHtml(files) {
       min-width: 0;
     }
 
-    .file-info h3 {
+    .file-info h4 {
       margin-bottom: 8px;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
     }
 
-    .file-info h3 a {
+    .file-info h4 a {
       color: #333;
       text-decoration: none;
       transition: color 0.3s;
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
-    .file-info h3 a:hover {
-      color: ${CONFIG.colors.primary};
-    }
-
-    .file-path {
-      color: #888;
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .file-info h4 a:hover {
+      color: #8FAFB1;
     }
 
     .file-meta {
@@ -469,16 +478,12 @@ function generateIndexHtml(files) {
     }
 
     .no-results h2 {
-      color: ${CONFIG.colors.primary};
+      color: #8FAFB1;
       font-size: 2rem;
       margin-bottom: 10px;
     }
 
     @media (max-width: 768px) {
-      .files-grid {
-        grid-template-columns: 1fr;
-      }
-      
       h1 {
         font-size: 2.5rem;
       }
@@ -490,31 +495,31 @@ function generateIndexHtml(files) {
       .stat {
         padding: 15px 20px;
       }
+
+      .folder-container[data-level="1"] {
+        margin-left: 10px;
+      }
+
+      .folder-container[data-level="2"] {
+        margin-left: 20px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>🧠 ${CONFIG.header}</h1>
-      <p class="tagline">${CONFIG.tagline}</p>
-      <p class="author">${CONFIG.author}</p>
+      <h1>🧠 C Concept&Dev</h1>
+      <p class="tagline">Framework de Clonage Psychologique Alimenté par l'IA</p>
+      <p class="author">Christophe BONNET</p>
       <div class="stats">
         <div class="stat">
-          <div class="stat-number">${files.length}</div>
-          <div class="stat-label">Pages HTML</div>
+          <div class="stat-number">${stats.files}</div>
+          <div class="stat-label">Fichiers HTML</div>
         </div>
         <div class="stat">
-          <div class="stat-number">${categories.tools.length}</div>
-          <div class="stat-label">Outils</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">${categories.templates.length}</div>
-          <div class="stat-label">Templates</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">${categories.examples.length}</div>
-          <div class="stat-label">Exemples</div>
+          <div class="stat-number">${stats.folders}</div>
+          <div class="stat-label">Dossiers</div>
         </div>
       </div>
     </header>
@@ -523,13 +528,13 @@ function generateIndexHtml(files) {
       <input 
         type="text" 
         id="searchInput" 
-        placeholder="🔍 Rechercher un outil, template, exemple..."
+        placeholder="🔍 Rechercher un outil, template, dossier..."
         autocomplete="off"
       >
     </div>
 
-    <div id="contentContainer">
-      ${sectionsHtml}
+    <div class="content" id="contentContainer">
+      ${contentHTML || '<p class="no-results show"><h2>😕 Aucun fichier trouvé</h2></p>'}
     </div>
 
     <div class="no-results" id="noResults">
@@ -539,13 +544,13 @@ function generateIndexHtml(files) {
 
     <footer>
       <p><strong>C Concept&Dev</strong> - Framework de Clonage Psychologique</p>
-      <p style="margin-top: 10px;">Par ${CONFIG.author}</p>
+      <p style="margin-top: 10px;">Par Christophe BONNET</p>
       <p style="margin-top: 15px; font-size: 0.9em;">
-        ✨ Index généré automatiquement • ${files.length} pages • 
-        Dernière mise à jour : ${formatDate(new Date())}
+        ✨ Index généré automatiquement • ${stats.files} fichiers • 
+        Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
       </p>
       <p style="margin-top: 10px; font-size: 0.85em; color: #999;">
-        <a href="https://github.com/c-concept-dev/C-Concept-Dev" style="color: ${CONFIG.colors.primary}; text-decoration: none;">
+        <a href="https://github.com/c-concept-dev/C-Concept-Dev" style="color: #8FAFB1; text-decoration: none;">
           📦 Voir sur GitHub
         </a>
       </p>
@@ -553,40 +558,71 @@ function generateIndexHtml(files) {
   </div>
 
   <script>
-    // Fonction de recherche
+    // Toggle folder expand/collapse
+    function toggleFolder(folderId) {
+      const content = document.getElementById(folderId);
+      const toggle = document.getElementById(folderId + '-toggle');
+      
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.classList.remove('collapsed');
+      } else {
+        content.style.display = 'none';
+        toggle.classList.add('collapsed');
+      }
+    }
+
+    // Search functionality
     const searchInput = document.getElementById('searchInput');
     const contentContainer = document.getElementById('contentContainer');
     const noResults = document.getElementById('noResults');
-    const allCards = document.querySelectorAll('.file-card');
-    const allSections = document.querySelectorAll('.category-section');
+    const allFolders = document.querySelectorAll('.folder-container');
+    const allFiles = document.querySelectorAll('.file-item');
 
     searchInput.addEventListener('input', (e) => {
       const searchTerm = e.target.value.toLowerCase().trim();
-      let totalVisible = 0;
+      
+      if (!searchTerm) {
+        // Reset: show all
+        contentContainer.style.display = 'block';
+        noResults.classList.remove('show');
+        allFolders.forEach(f => f.style.display = 'block');
+        allFiles.forEach(f => f.style.display = 'flex');
+        return;
+      }
 
-      // Chercher dans toutes les cartes
-      allCards.forEach(card => {
-        const text = card.textContent.toLowerCase();
+      let visibleCount = 0;
+
+      // Search in files
+      allFiles.forEach(file => {
+        const text = file.textContent.toLowerCase();
         if (text.includes(searchTerm)) {
-          card.style.display = 'flex';
-          totalVisible++;
+          file.style.display = 'flex';
+          visibleCount++;
+          
+          // Show parent folder
+          let parent = file.closest('.folder-container');
+          while (parent) {
+            parent.style.display = 'block';
+            const content = parent.querySelector('.folder-content');
+            if (content) content.style.display = 'block';
+            parent = parent.parentElement.closest('.folder-container');
+          }
         } else {
-          card.style.display = 'none';
+          file.style.display = 'none';
         }
       });
 
-      // Cacher les sections vides
-      allSections.forEach(section => {
-        const visibleCards = section.querySelectorAll('.file-card[style="display: flex;"]');
-        if (visibleCards.length === 0 || searchTerm) {
-          section.style.display = searchTerm && visibleCards.length === 0 ? 'none' : 'block';
-        } else {
-          section.style.display = 'block';
+      // Hide empty folders
+      allFolders.forEach(folder => {
+        const visibleFiles = folder.querySelectorAll('.file-item[style*="display: flex"]');
+        if (visibleFiles.length === 0) {
+          folder.style.display = 'none';
         }
       });
 
-      // Afficher "aucun résultat" si nécessaire
-      if (totalVisible === 0) {
+      // Show/hide no results
+      if (visibleCount === 0) {
         contentContainer.style.display = 'none';
         noResults.classList.add('show');
       } else {
@@ -595,51 +631,32 @@ function generateIndexHtml(files) {
       }
     });
 
-    // Animation au chargement
-    allCards.forEach((card, index) => {
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(20px)';
+    // Animation on load
+    document.querySelectorAll('.folder-container').forEach((folder, index) => {
+      folder.style.opacity = '0';
+      folder.style.transform = 'translateY(20px)';
       setTimeout(() => {
-        card.style.transition = 'all 0.5s';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
-      }, index * 30);
+        folder.style.transition = 'all 0.5s';
+        folder.style.opacity = '1';
+        folder.style.transform = 'translateY(0)';
+      }, index * 50);
     });
   </script>
 </body>
 </html>`;
-}
 
-/**
- * Fonction principale
- */
-function main() {
-  console.log('🚀 Génération de l\'index C Concept&Dev en cours...\n');
-
-  // Scanner les fichiers
-  const files = getHtmlFiles(CONFIG.sourceDir);
-  console.log(`✅ ${files.length} fichier(s) HTML trouvé(s)`);
-
-  if (files.length === 0) {
-    console.log('⚠️  Aucun fichier HTML trouvé !');
-    return;
-  }
-
-  // Générer le HTML
-  const html = generateIndexHtml(files);
-
-  // Écrire le fichier
-  fs.writeFileSync(CONFIG.outputFile, html, 'utf-8');
-  console.log(`\n✨ Index généré avec succès : ${CONFIG.outputFile}`);
-  console.log(`📊 Statistiques :`);
+  fs.writeFileSync(path.join(ROOT_DIR, 'index.html'), html, 'utf-8');
   
-  const categories = categorizeFiles(files);
-  console.log(`   - Outils : ${categories.tools.length}`);
-  console.log(`   - Templates : ${categories.templates.length}`);
-  console.log(`   - Exemples : ${categories.examples.length}`);
-  console.log(`   - Docs : ${categories.docs.length}`);
-  console.log(`   - Autres : ${categories.other.length}`);
+  console.log('✨ Index généré avec succès : index.html');
+  console.log('📊 Statistiques :');
+  console.log(`   - Fichiers : ${stats.files}`);
+  console.log(`   - Dossiers : ${stats.folders}`);
 }
 
-// Exécution
-main();
+// Exécuter
+try {
+  generateIndex();
+} catch (err) {
+  console.error('❌ Erreur:', err.message);
+  process.exit(1);
+}
