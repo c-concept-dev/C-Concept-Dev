@@ -6,6 +6,8 @@ on:
       - '**/*.html'
       - '!index.html'
       - 'generate-index.js'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -35,6 +37,21 @@ jobs:
           echo ""
           echo "📊 Total: $(find . -name "*.html" -not -path "./.git/*" -not -name "index.html" | wc -l) fichiers"
       
+      - name: 🔄 Pull latest changes (ANTI-CONFLIT)
+        run: |
+          echo "🔄 Synchronisation avec origin/main..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Pull avec rebase pour éviter conflits
+          git pull --rebase origin main || {
+            echo "⚠️ Conflit détecté, résolution automatique..."
+            # Si conflit sur index.html, prendre la version remote et régénérer
+            git checkout --theirs index.html 2>/dev/null || true
+            git add index.html 2>/dev/null || true
+            git rebase --continue || git rebase --skip
+          }
+      
       - name: 🚀 Generate index.html
         run: |
           echo "═══════════════════════════════════════════════════"
@@ -54,27 +71,61 @@ jobs:
             exit 1
           fi
       
-      - name: 📤 Commit and push index.html
+      - name: 📤 Commit and push with retry (ANTI-CONFLIT)
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
+          # Vérifier si changements
           if git diff --quiet index.html 2>/dev/null; then
             echo "ℹ️ Pas de changements détectés dans index.html"
-          else
-            git add index.html
-            git commit -m "🔄 Auto-update index.html - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            git push
-            echo "✅ index.html mis à jour et poussé"
+            exit 0
           fi
+          
+          # Ajouter et commiter
+          git add index.html
+          git commit -m "🔄 Auto-update index.html [skip ci]"
+          
+          # Push avec retry (3 tentatives)
+          for attempt in {1..3}; do
+            echo "📤 Tentative de push ($attempt/3)..."
+            
+            if git push origin main; then
+              echo "✅ Push réussi !"
+              exit 0
+            else
+              echo "⚠️ Push échoué, tentative $attempt/3"
+              
+              if [ $attempt -lt 3 ]; then
+                echo "🔄 Pull + rebase avant nouvelle tentative..."
+                sleep 5
+                
+                # Pull avec rebase
+                git pull --rebase origin main || {
+                  echo "⚠️ Conflit durant rebase, résolution..."
+                  # Prendre la version remote et régénérer
+                  git checkout --theirs index.html 2>/dev/null || true
+                  node generate-index.js
+                  git add index.html
+                  git rebase --continue || git rebase --skip
+                }
+              else
+                echo "❌ Échec après 3 tentatives"
+                exit 1
+              fi
+            fi
+          done
       
       - name: 📋 Summary
+        if: always()
         run: |
           echo ""
           echo "═══════════════════════════════════════════════════"
-          echo "✅ WORKFLOW TERMINÉ AVEC SUCCÈS"
+          echo "✅ WORKFLOW TERMINÉ"
           echo "═══════════════════════════════════════════════════"
           echo ""
           echo "L'index.html est maintenant à jour et accessible"
           echo "sur GitHub Pages."
+          echo ""
+          echo "🔗 https://c-concept-dev.github.io/C-Concept-Dev/"
           echo ""
