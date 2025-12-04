@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * 🗂️ GENERATE INDEX - Structure Hiérarchique
+ * Generate Index - Structure Hierarchique
  * C Concept&Dev - Christophe BONNET
- * Génère index.html avec dossiers expandables
+ * Generate index.html avec dossiers expandables
  */
 
 const fs = require('fs');
 const path = require('path');
 
-console.log('🚀 Génération de l'index C Concept&Dev en cours...\n');
+console.log('Generation de l\'index C Concept&Dev en cours...\n');
 
 // Configuration
 const ROOT_DIR = process.cwd();
@@ -62,7 +62,7 @@ function scanDirectory(dir, baseDir = ROOT_DIR) {
         if (!structure.files) structure.files = [];
         structure.files.push({
           name: item,
-          path: relativePath,
+          path: relativePath.replace(/\\/g, '/'),
           title: extractTitle(fullPath),
           size: stats.size,
           modified: stats.mtime
@@ -70,7 +70,7 @@ function scanDirectory(dir, baseDir = ROOT_DIR) {
       }
     }
   } catch (err) {
-    console.error(`Erreur lecture ${dir}:`, err.message);
+    console.error('Erreur lecture ' + dir + ':', err.message);
   }
   
   return structure;
@@ -89,12 +89,12 @@ function generateFileHTML(file) {
   
   return `
     <div class="file-item">
-      <div class="file-icon">📄</div>
+      <div class="file-icon">&#128196;</div>
       <div class="file-info">
         <h4><a href="${file.path}" target="_blank">${file.title}</a></h4>
         <div class="file-meta">
-          <span>📅 ${dateStr}</span>
-          <span>💾 ${sizeKB} KB</span>
+          <span>&#128197; ${dateStr}</span>
+          <span>&#128190; ${sizeKB} KB</span>
         </div>
       </div>
     </div>`;
@@ -106,15 +106,15 @@ function generateFolderHTML(folderName, folderData, level = 0) {
   const subfolders = Object.keys(folderData).filter(k => k !== 'files');
   
   const totalFiles = files.length;
-  const folderId = `folder-${folderName.replace(/[^a-zA-Z0-9]/g, '-')}-${level}`;
+  const folderId = 'folder-' + folderName.replace(/[^a-zA-Z0-9]/g, '-') + '-' + level;
   
   let html = `
     <div class="folder-container" data-level="${level}">
       <div class="folder-header" onclick="toggleFolder('${folderId}')">
-        <span class="folder-icon">📁</span>
+        <span class="folder-icon">&#128193;</span>
         <span class="folder-name">${folderName}/</span>
         <span class="folder-count">(${totalFiles} fichier${totalFiles > 1 ? 's' : ''})</span>
-        <span class="folder-toggle" id="${folderId}-toggle">▼</span>
+        <span class="folder-toggle" id="${folderId}-toggle">&#9660;</span>
       </div>
       <div class="folder-content" id="${folderId}" style="display: block;">`;
   
@@ -125,11 +125,11 @@ function generateFolderHTML(folderName, folderData, level = 0) {
   
   // Fichiers
   if (files.length > 0) {
-    html += `<div class="files-list">`;
+    html += '<div class="files-list">';
     for (const file of files) {
       html += generateFileHTML(file);
     }
-    html += `</div>`;
+    html += '</div>';
   }
   
   html += `
@@ -164,8 +164,8 @@ function generateIndex() {
   const structure = scanDirectory(ROOT_DIR);
   const stats = countStats(structure);
   
-  console.log(`✅ ${stats.files} fichier(s) HTML trouvé(s)`);
-  console.log(`📁 ${stats.folders} dossier(s) détecté(s)\n`);
+  console.log(stats.files + ' fichier(s) HTML trouve(s)');
+  console.log(stats.folders + ' dossier(s) detecte(s)\n');
   
   let contentHTML = '';
   
@@ -181,7 +181,7 @@ function generateIndex() {
     contentHTML += `
     <div class="folder-container" data-level="0">
       <div class="folder-header">
-        <span class="folder-icon">📁</span>
+        <span class="folder-icon">&#128193;</span>
         <span class="folder-name">Racine</span>
         <span class="folder-count">(${structure.files.length} fichier${structure.files.length > 1 ? 's' : ''})</span>
       </div>
@@ -197,6 +197,14 @@ function generateIndex() {
       </div>
     </div>`;
   }
+  
+  const lastUpdate = new Date().toLocaleDateString('fr-FR', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
   
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -322,8 +330,6 @@ function generateIndex() {
       box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
 
-    /* STRUCTURE HIÉRARCHIQUE */
-    
     .folder-container {
       margin-bottom: 20px;
       border-left: 3px solid #C8D0C3;
@@ -509,8 +515,8 @@ function generateIndex() {
 <body>
   <div class="container">
     <header>
-      <h1>🧠 C Concept&Dev</h1>
-      <p class="tagline">Framework de Clonage Psychologique Alimenté par l'IA</p>
+      <h1>&#129504; C Concept&Dev</h1>
+      <p class="tagline">Framework de Clonage Psychologique Aliment&eacute; par l'IA</p>
       <p class="author">Christophe BONNET</p>
       <div class="stats">
         <div class="stat">
@@ -528,37 +534,36 @@ function generateIndex() {
       <input 
         type="text" 
         id="searchInput" 
-        placeholder="🔍 Rechercher un outil, template, dossier..."
+        placeholder="&#128269; Rechercher un outil, template, dossier..."
         autocomplete="off"
       >
     </div>
 
     <div class="content" id="contentContainer">
-      ${contentHTML || '<p class="no-results show"><h2>😕 Aucun fichier trouvé</h2></p>'}
+      ${contentHTML || '<p class="no-results show"><h2>Aucun fichier trouve</h2></p>'}
     </div>
 
     <div class="no-results" id="noResults">
-      <h2>😕 Aucun résultat</h2>
-      <p>Essayez avec d'autres mots-clés</p>
+      <h2>Aucun resultat</h2>
+      <p>Essayez avec d'autres mots-cles</p>
     </div>
 
     <footer>
       <p><strong>C Concept&Dev</strong> - Framework de Clonage Psychologique</p>
       <p style="margin-top: 10px;">Par Christophe BONNET</p>
       <p style="margin-top: 15px; font-size: 0.9em;">
-        ✨ Index généré automatiquement • ${stats.files} fichiers • 
-        Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        Index genere automatiquement &bull; ${stats.files} fichiers &bull; 
+        Derniere mise a jour : ${lastUpdate}
       </p>
       <p style="margin-top: 10px; font-size: 0.85em; color: #999;">
         <a href="https://github.com/c-concept-dev/C-Concept-Dev" style="color: #8FAFB1; text-decoration: none;">
-          📦 Voir sur GitHub
+          &#128230; Voir sur GitHub
         </a>
       </p>
     </footer>
   </div>
 
   <script>
-    // Toggle folder expand/collapse
     function toggleFolder(folderId) {
       const content = document.getElementById(folderId);
       const toggle = document.getElementById(folderId + '-toggle');
@@ -572,35 +577,31 @@ function generateIndex() {
       }
     }
 
-    // Search functionality
     const searchInput = document.getElementById('searchInput');
     const contentContainer = document.getElementById('contentContainer');
     const noResults = document.getElementById('noResults');
     const allFolders = document.querySelectorAll('.folder-container');
     const allFiles = document.querySelectorAll('.file-item');
 
-    searchInput.addEventListener('input', (e) => {
+    searchInput.addEventListener('input', function(e) {
       const searchTerm = e.target.value.toLowerCase().trim();
       
       if (!searchTerm) {
-        // Reset: show all
         contentContainer.style.display = 'block';
         noResults.classList.remove('show');
-        allFolders.forEach(f => f.style.display = 'block');
-        allFiles.forEach(f => f.style.display = 'flex');
+        allFolders.forEach(function(f) { f.style.display = 'block'; });
+        allFiles.forEach(function(f) { f.style.display = 'flex'; });
         return;
       }
 
       let visibleCount = 0;
 
-      // Search in files
-      allFiles.forEach(file => {
+      allFiles.forEach(function(file) {
         const text = file.textContent.toLowerCase();
         if (text.includes(searchTerm)) {
           file.style.display = 'flex';
           visibleCount++;
           
-          // Show parent folder
           let parent = file.closest('.folder-container');
           while (parent) {
             parent.style.display = 'block';
@@ -613,15 +614,13 @@ function generateIndex() {
         }
       });
 
-      // Hide empty folders
-      allFolders.forEach(folder => {
+      allFolders.forEach(function(folder) {
         const visibleFiles = folder.querySelectorAll('.file-item[style*="display: flex"]');
         if (visibleFiles.length === 0) {
           folder.style.display = 'none';
         }
       });
 
-      // Show/hide no results
       if (visibleCount === 0) {
         contentContainer.style.display = 'none';
         noResults.classList.add('show');
@@ -631,11 +630,10 @@ function generateIndex() {
       }
     });
 
-    // Animation on load
-    document.querySelectorAll('.folder-container').forEach((folder, index) => {
+    document.querySelectorAll('.folder-container').forEach(function(folder, index) {
       folder.style.opacity = '0';
       folder.style.transform = 'translateY(20px)';
-      setTimeout(() => {
+      setTimeout(function() {
         folder.style.transition = 'all 0.5s';
         folder.style.opacity = '1';
         folder.style.transform = 'translateY(0)';
@@ -647,16 +645,15 @@ function generateIndex() {
 
   fs.writeFileSync(path.join(ROOT_DIR, 'index.html'), html, 'utf-8');
   
-  console.log('✨ Index généré avec succès : index.html');
-  console.log('📊 Statistiques :');
-  console.log(`   - Fichiers : ${stats.files}`);
-  console.log(`   - Dossiers : ${stats.folders}`);
+  console.log('Index genere avec succes : index.html');
+  console.log('Statistiques :');
+  console.log('   - Fichiers : ' + stats.files);
+  console.log('   - Dossiers : ' + stats.folders);
 }
 
-// Exécuter
 try {
   generateIndex();
 } catch (err) {
-  console.error('❌ Erreur:', err.message);
+  console.error('Erreur:', err.message);
   process.exit(1);
 }
