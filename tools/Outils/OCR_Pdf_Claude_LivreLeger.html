@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Batch PRO - Édition Claude Ultimate v2.0 (Mode Livre Léger)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --mer: #8FAFB1;
+            --vert-sauge: #C8D0C3;
+            --beige-sable: #D8CDBB;
+            --sable: #E6D7C3;
+            --blanc: #FFFFFF;
+            --gris-texte: #333333;
+            --accent-light: #E8F4F8;
+            --accent-warning: #FFF3CD;
+            --accent-success: #D4EDDA;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: var(--blanc);
+            min-height: 100vh;
+            padding: 30px 20px;
+            color: var(--gris-texte);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--blanc);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            color: var(--mer);
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.8em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--gris-texte);
+            margin-bottom: 25px;
+            font-size: 1.1em;
+        }
+
+        .claude-badge {
+            background: linear-gradient(135deg, var(--mer), var(--vert-sauge));
+            color: var(--blanc);
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 700;
+            display: inline-block;
+            margin: 0 auto 30px;
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+            font-size: 1.15em;
+            text-align: center;
+        }
+
+        .version-badge {
+            background: linear-gradient(135deg, #6C63FF, #4ECDC4);
+            color: var(--blanc);
+            padding: 6px 15px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: 700;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .phase {
+            background: var(--sable);
+            padding: 35px;
+            border-radius: 15px;
+            margin: 30px 0;
+            border-left: 6px solid var(--mer);
+        }
+
+        .phase-title {
+            color: var(--mer);
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--gris-texte);
+            font-size: 1.05em;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--vert-sauge);
+            border-radius: 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            background: var(--blanc);
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: var(--mer);
+            box-shadow: 0 0 0 3px rgba(143, 175, 177, 0.1);
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            accent-color: var(--mer);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+            color: var(--blanc);
+            border: none;
+            padding: 18px 45px;
+            border-radius: 12px;
+            font-size: 1.15em;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(143, 175, 177, 0.4);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(143, 175, 177, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--beige-sable);
+            color: var(--gris-texte);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-small {
+            padding: 12px 25px;
+            font-size: 0.95em;
+            width: auto;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, var(--sable), var(--beige-sable));
+            border: 3px solid var(--mer);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .info-box-title {
+            font-weight: 700;
+            color: var(--mer);
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .info-box ul {
+            margin-left: 25px;
+            line-height: 2;
+        }
+
+        /* === MODE LIVRE LÉGER - NOUVEAU === */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .mode-card {
+            background: var(--blanc);
+            border: 3px solid var(--vert-sauge);
+            border-radius: 15px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .mode-card:hover {
+            border-color: var(--mer);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(143, 175, 177, 0.3);
+        }
+
+        .mode-card.selected {
+            border-color: var(--mer);
+            border-width: 4px;
+            background: linear-gradient(135deg, var(--accent-light), var(--blanc));
+        }
+
+        .mode-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: var(--mer);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            font-weight: 700;
+        }
+
+        .mode-card.recommended {
+            border-color: #28a745;
+        }
+
+        .mode-card.recommended::before {
+            content: 'RECOMMANDÉ';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: 700;
+        }
+
+        .mode-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .mode-title {
+            font-weight: 700;
+            color: var(--mer);
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+
+        .mode-desc {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .mode-specs {
+            background: var(--sable);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85em;
+        }
+
+        .mode-specs-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed var(--vert-sauge);
+        }
+
+        .mode-specs-item:last-child {
+            border-bottom: none;
+        }
+
+        .detection-box {
+            background: var(--accent-warning);
+            border: 2px solid #856404;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .detection-box.light-book {
+            background: var(--accent-success);
+            border-color: #28a745;
+        }
+
+        .detection-title {
+            font-weight: 700;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .detection-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .detection-stat {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 8px;
+        }
+
+        .detection-stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--mer);
+        }
+
+        .detection-stat-label {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        /* === FIN MODE LIVRE LÉGER === */
+
+        .split-summary {
+            background: var(--blanc);
+            border: 3px solid var(--vert-sauge);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .part-card {
+            background: var(--blanc);
+            border: 3px solid var(--vert-sauge);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 25px 0;
+            transition: all 0.3s;
+        }
+
+        .part-card:hover {
+            border-color: var(--mer);
+            box-shadow: 0 8px 25px rgba(143, 175, 177, 0.3);
+        }
+
+        .part-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .part-title {
+            color: var(--mer);
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+
+        .part-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .part-info-item {
+            background: var(--sable);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .part-info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .part-info-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: var(--mer);
+        }
+
+        .prompt-box {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 25px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .json-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid var(--vert-sauge);
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: vertical;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+
+        .json-textarea:focus {
+            outline: none;
+            border-color: var(--mer);
+            box-shadow: 0 0 0 3px rgba(143, 175, 177, 0.1);
+        }
+
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .download-item {
+            background: var(--blanc);
+            border: 3px solid var(--vert-sauge);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .download-item:hover {
+            border-color: var(--mer);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(143, 175, 177, 0.3);
+        }
+
+        .download-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 3px solid var(--beige-sable);
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            color: #000000;
+        }
+
+        .progress-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--beige-sable);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.3em;
+            color: #666;
+            border: 3px solid var(--vert-sauge);
+        }
+
+        .progress-step.active .progress-circle {
+            background: linear-gradient(135deg, var(--mer), var(--vert-sauge));
+            color: var(--blanc);
+            border-color: var(--mer);
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.4);
+        }
+
+        .progress-step.completed .progress-circle {
+            background: var(--vert-sauge);
+            color: var(--blanc);
+            border-color: var(--mer);
+        }
+
+        .progress-label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .progress-step.active .progress-label {
+            color: var(--mer);
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .phase {
+                padding: 25px;
+            }
+
+            .part-info {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .download-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .mode-selector {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 20px rgba(143, 175, 177, 0.4);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 8px 30px rgba(143, 175, 177, 0.6);
+            }
+        }
+
+        #fusionBtn {
+            animation: pulse 2s infinite;
+        }
+
+        .json-validation-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb) !important;
+            border-color: #28a745 !important;
+        }
+
+        .json-validation-error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb) !important;
+            border-color: #dc3545 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Batch PRO <span class="version-badge">v2.0</span></h1>
+        <div class="subtitle">Traitement Expert de Documents Thérapeutiques avec Claude</div>
+        <div style="text-align: center;">
+            <span class="claude-badge">Édition Claude Ultimate - OCR Haute Fidélité + Mode Livre Léger</span>
+        </div>
+
+        <!-- Indicateur de progression -->
+        <div class="progress-indicator">
+            <div class="progress-step active" id="stepIndicator1">
+                <div class="progress-circle">1</div>
+                <div class="progress-label">Configuration</div>
+            </div>
+            <div class="progress-step" id="stepIndicator2">
+                <div class="progress-circle">2</div>
+                <div class="progress-label">Extraction</div>
+            </div>
+            <div class="progress-step" id="stepIndicator3">
+                <div class="progress-circle">3</div>
+                <div class="progress-label">Export</div>
+            </div>
+        </div>
+
+        <!-- PHASE 1 : Configuration -->
+        <div class="phase" id="phase1">
+            <div class="phase-title">Phase 1 : Configuration du Document</div>
+            
+            <div class="info-box">
+                <div class="info-box-title">Système d'Extraction Expert Claude v2.0</div>
+                <p style="line-height: 1.8;">
+                    Cette version inclut le <strong>Mode Livre Léger</strong> : détection automatique des livres 
+                    à faible densité (beaucoup de pages, peu de poids) avec extraction optimisée permettant 
+                    des parties plus grandes (40-50 pages) tout en préservant une qualité exceptionnelle.
+                </p>
+                <ul>
+                    <li><strong>Détection intelligente</strong> : Analyse automatique de la densité du document</li>
+                    <li><strong>Mode adaptatif</strong> : Standard (25 p.) ou Livre Léger (45 p.)</li>
+                    <li><strong>Qualité préservée</strong> : Extraction exhaustive sans perte d'information</li>
+                    <li><strong>Split intelligent</strong> : Découpage optimal selon le type de document</li>
+                </ul>
+            </div>
+
+            <div class="form-group">
+                <label for="fileInput">Sélectionner votre PDF</label>
+                <input type="file" id="fileInput" accept=".pdf" style="padding: 10px;">
+            </div>
+
+            <!-- Zone de détection automatique -->
+            <div id="detectionZone" class="hidden"></div>
+
+            <!-- Sélecteur de mode -->
+            <div id="modeSelector" class="hidden">
+                <label>Mode d'extraction</label>
+                <div class="mode-selector">
+                    <div class="mode-card" id="modeStandard" onclick="selectMode('standard')">
+                        <div class="mode-icon">📚</div>
+                        <div class="mode-title">Mode Standard</div>
+                        <div class="mode-desc">
+                            Pour les documents denses avec beaucoup de contenu par page. 
+                            Extraction détaillée avec parties de 25-30 pages.
+                        </div>
+                        <div class="mode-specs">
+                            <div class="mode-specs-item">
+                                <span>Pages/partie</span>
+                                <span><strong>~25-30</strong></span>
+                            </div>
+                            <div class="mode-specs-item">
+                                <span>Contenus/page</span>
+                                <span><strong>2-4</strong></span>
+                            </div>
+                            <div class="mode-specs-item">
+                                <span>JSON estimé</span>
+                                <span><strong>~3 Ko/page</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mode-card" id="modeLightBook" onclick="selectMode('lightbook')">
+                        <div class="mode-icon">📖</div>
+                        <div class="mode-title">Mode Livre Léger</div>
+                        <div class="mode-desc">
+                            Pour les livres avec beaucoup de pages mais peu de poids. 
+                            Extraction condensée avec parties de 40-50 pages.
+                        </div>
+                        <div class="mode-specs">
+                            <div class="mode-specs-item">
+                                <span>Pages/partie</span>
+                                <span><strong>~40-50</strong></span>
+                            </div>
+                            <div class="mode-specs-item">
+                                <span>Contenus/page</span>
+                                <span><strong>1-2</strong></span>
+                            </div>
+                            <div class="mode-specs-item">
+                                <span>JSON estimé</span>
+                                <span><strong>~1.5 Ko/page</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="fileInfo" class="hidden" style="margin: 25px 0;">
+                <div class="split-summary" id="fileDetails"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="titleInput">Titre du document</label>
+                <input type="text" id="titleInput" placeholder="Ex: La Thérapie de Couple - Approche Imago">
+            </div>
+
+            <div class="form-group">
+                <label for="authorsInput">Auteurs (séparés par des virgules)</label>
+                <input type="text" id="authorsInput" placeholder="Ex: Harville Hendrix, Helen LaKelly Hunt">
+            </div>
+
+            <div class="form-group">
+                <label for="yearInput">Année de publication</label>
+                <input type="number" id="yearInput" placeholder="2024" min="1900" max="2100">
+            </div>
+
+            <div class="form-group">
+                <label for="domainInput">Domaine d'expertise</label>
+                <select id="domainInput">
+                    <option value="Thérapie de couple">Thérapie de couple</option>
+                    <option value="Psychologie clinique">Psychologie clinique</option>
+                    <option value="Thérapie familiale">Thérapie familiale</option>
+                    <option value="Sexologie">Sexologie</option>
+                    <option value="Psychothérapie">Psychothérapie</option>
+                    <option value="Coaching relationnel">Coaching relationnel</option>
+                    <option value="Développement personnel">Développement personnel</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Approches thérapeutiques présentes</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app1" value="Imago">
+                        <label for="app1">Imago</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app2" value="Gottman">
+                        <label for="app2">Gottman</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app3" value="Systémique">
+                        <label for="app3">Systémique</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app4" value="EFT">
+                        <label for="app4">EFT (Émotionnelle)</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app5" value="Attachement">
+                        <label for="app5">Attachement</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app6" value="CNV">
+                        <label for="app6">CNV</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app7" value="Analyse Transactionnelle">
+                        <label for="app7">Analyse Transactionnelle</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="app8" value="TCC">
+                        <label for="app8">TCC</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="langInput">Langue du document</label>
+                <select id="langInput">
+                    <option value="Français">Français</option>
+                    <option value="Anglais">Anglais</option>
+                    <option value="Espagnol">Espagnol</option>
+                    <option value="Italien">Italien</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="validatePhase1()">Valider et Générer les Parties</button>
+        </div>
+
+        <!-- PHASE 2 : Extraction avec Claude -->
+        <div class="phase hidden" id="phase2">
+            <div class="phase-title">Phase 2 : Extraction et Validation</div>
+            
+            <div class="split-summary" id="splitSummary"></div>
+
+            <div class="info-box">
+                <div class="info-box-title">Workflow Optimisé</div>
+                <p style="line-height: 1.8; margin-bottom: 15px;">
+                    <strong>Traitement en flux continu :</strong> Dès qu'une partie est traitée par Claude, 
+                    collez immédiatement le JSON dans la zone prévue, testez-le, puis validez-le. 
+                    Pas besoin d'attendre la fin de toutes les parties.
+                </p>
+                <ol style="margin-left: 25px; line-height: 2;">
+                    <li>Téléchargez le PDF de la partie</li>
+                    <li>Ouvrez Claude (claude.ai) et uploadez le PDF</li>
+                    <li>Copiez-collez le prompt dans Claude</li>
+                    <li>Attendez la génération du JSON (2-5 min)</li>
+                    <li><strong>Collez IMMÉDIATEMENT</strong> le JSON dans la zone ci-dessous</li>
+                    <li>Testez le JSON pour vérifier sa validité</li>
+                    <li>Validez et passez à la partie suivante</li>
+                </ol>
+            </div>
+
+            <div id="partsContainer"></div>
+
+            <div class="info-box" id="fusionReady" style="display: none; background: linear-gradient(135deg, var(--vert-sauge), var(--mer)); border-color: var(--mer); color: white;">
+                <div style="font-size: 1.5em; font-weight: 700; margin-bottom: 15px; text-align: center;">
+                    Toutes les parties sont validées
+                </div>
+                <p style="text-align: center; font-size: 1.1em;">
+                    Vous pouvez maintenant fusionner tous les JSON en une base de connaissances unique.
+                </p>
+            </div>
+
+            <button class="btn" id="fusionBtn" onclick="mergeAndGenerate()" style="margin-top: 30px; display: none; font-size: 1.3em; padding: 20px;">
+                Fusionner Tous les JSON et Générer la Base de Connaissances
+            </button>
+        </div>
+
+        <!-- PHASE 3 : Téléchargements Finaux -->
+        <div class="phase hidden" id="phase3">
+            <div class="phase-title">Phase 3 : Base de Connaissances Générée</div>
+            
+            <div class="info-box">
+                <div class="info-box-title">Extraction Terminée avec Succès</div>
+                <p style="line-height: 1.8;">
+                    Votre base de connaissances thérapeutique a été générée avec succès. Vous disposez maintenant 
+                    de plusieurs formats exploitables pour intégrer ce contenu dans vos outils de travail, 
+                    formations ou systèmes de gestion des connaissances.
+                </p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="btn" onclick="downloadAllAsZip()" style="max-width: 500px; font-size: 1.2em;">
+                    Télécharger Tout en ZIP
+                </button>
+            </div>
+
+            <h3 style="color: var(--mer); margin: 40px 0 25px; text-align: center; font-size: 1.8em;">
+                Fichiers Disponibles
+            </h3>
+
+            <div class="download-grid" id="finalDownloads"></div>
+
+            <div style="text-align: center; margin-top: 40px;">
+                <button class="btn btn-secondary" onclick="reset()">Traiter un Nouveau Document</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            Bilan de Compétences du couple - Marie-Christine Abatte Psychologue
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
+        // === CONFIGURATION DES MODES ===
+        const EXTRACTION_MODES = {
+            standard: {
+                name: 'Standard',
+                pagesPerPart: 27,
+                contentsPerPage: 2.5,
+                kbPerPage: 3.0,
+                maxJsonKb: 80,
+                description: 'Documents denses'
+            },
+            lightbook: {
+                name: 'Livre Léger',
+                pagesPerPart: 45,
+                contentsPerPage: 1.5,
+                kbPerPage: 1.8,
+                maxJsonKb: 80,
+                description: 'Livres aérés'
+            }
+        };
+
+        const state = {
+            pdfFile: null,
+            pdfDoc: null,
+            fileSize: 0,
+            totalPages: 0,
+            parts: [],
+            metadata: {
+                titre: '',
+                auteurs: [],
+                annee: null,
+                domaine: '',
+                approches: [],
+                langue: ''
+            },
+            uploadedJSONs: [],
+            finalData: null,
+            selectedMode: 'standard',
+            documentDensity: 0,
+            isLightBook: false
+        };
+
+        // PHASE 1 : Configuration
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || file.type !== 'application/pdf') {
+                alert('Veuillez sélectionner un fichier PDF valide.');
+                return;
+            }
+
+            state.pdfFile = file;
+            state.fileSize = file.size;
+
+            const arrayBuffer = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            state.pdfDoc = await loadingTask.promise;
+            state.totalPages = state.pdfDoc.numPages;
+
+            analyzeDocumentDensity();
+            displayFileInfo();
+        });
+
+        function analyzeDocumentDensity() {
+            // Calcul de la densité : Mo par page
+            const sizeMB = state.fileSize / (1024 * 1024);
+            state.documentDensity = sizeMB / state.totalPages;
+            
+            // Seuil pour détecter un livre léger : < 0.05 Mo/page (environ 50 Ko/page)
+            state.isLightBook = state.documentDensity < 0.05;
+            
+            // Afficher la zone de détection
+            const detectionZone = document.getElementById('detectionZone');
+            detectionZone.classList.remove('hidden');
+            
+            const isLight = state.isLightBook;
+            const densityText = state.documentDensity < 0.02 ? 'Très faible' : 
+                               state.documentDensity < 0.05 ? 'Faible' : 
+                               state.documentDensity < 0.1 ? 'Moyenne' : 'Élevée';
+            
+            detectionZone.innerHTML = `
+                <div class="detection-box ${isLight ? 'light-book' : ''}">
+                    <div class="detection-title">
+                        ${isLight ? '<span style="font-size:1.5em">📖</span> Document Livre Léger Détecté' : '<span style="font-size:1.5em">📚</span> Document Standard Détecté'}
+                    </div>
+                    <p style="margin-bottom: 10px;">
+                        ${isLight 
+                            ? 'Ce document a une faible densité (beaucoup de pages, peu de poids). Le Mode Livre Léger est recommandé pour une extraction optimale avec moins de parties.' 
+                            : 'Ce document a une densité normale. Le Mode Standard est recommandé pour une extraction détaillée.'}
+                    </p>
+                    <div class="detection-stats">
+                        <div class="detection-stat">
+                            <div class="detection-stat-value">${state.totalPages}</div>
+                            <div class="detection-stat-label">Pages</div>
+                        </div>
+                        <div class="detection-stat">
+                            <div class="detection-stat-value">${sizeMB.toFixed(2)} Mo</div>
+                            <div class="detection-stat-label">Taille</div>
+                        </div>
+                        <div class="detection-stat">
+                            <div class="detection-stat-value">${(state.documentDensity * 1024).toFixed(1)} Ko</div>
+                            <div class="detection-stat-label">Par page</div>
+                        </div>
+                        <div class="detection-stat">
+                            <div class="detection-stat-value">${densityText}</div>
+                            <div class="detection-stat-label">Densité</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Afficher le sélecteur de mode
+            document.getElementById('modeSelector').classList.remove('hidden');
+            
+            // Pré-sélectionner le mode recommandé
+            selectMode(isLight ? 'lightbook' : 'standard');
+            
+            // Ajouter le badge "recommandé"
+            if (isLight) {
+                document.getElementById('modeLightBook').classList.add('recommended');
+                document.getElementById('modeStandard').classList.remove('recommended');
+            } else {
+                document.getElementById('modeStandard').classList.add('recommended');
+                document.getElementById('modeLightBook').classList.remove('recommended');
+            }
+        }
+
+        function selectMode(mode) {
+            state.selectedMode = mode;
+            
+            // Mise à jour visuelle
+            document.querySelectorAll('.mode-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            if (mode === 'standard') {
+                document.getElementById('modeStandard').classList.add('selected');
+            } else {
+                document.getElementById('modeLightBook').classList.add('selected');
+            }
+            
+            // Mettre à jour l'affichage des infos fichier
+            if (state.pdfFile) {
+                displayFileInfo();
+            }
+        }
+
+        function displayFileInfo() {
+            document.getElementById('fileInfo').classList.remove('hidden');
+            const sizeMB = (state.fileSize / (1024 * 1024)).toFixed(2);
+            const mode = EXTRACTION_MODES[state.selectedMode];
+            const estimatedParts = Math.ceil(state.totalPages / mode.pagesPerPart);
+            const estimatedJsonKb = state.totalPages * mode.kbPerPage;
+            
+            const details = document.getElementById('fileDetails');
+            details.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div class="part-info-item">
+                        <div class="part-info-label">Fichier</div>
+                        <div class="part-info-value" style="font-size: 1em; word-break: break-all;">${state.pdfFile.name}</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Taille</div>
+                        <div class="part-info-value">${sizeMB} Mo</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Pages</div>
+                        <div class="part-info-value">${state.totalPages}</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Mode</div>
+                        <div class="part-info-value" style="font-size: 1em;">${mode.name}</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Parties estimées</div>
+                        <div class="part-info-value">${estimatedParts}</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">JSON estimé</div>
+                        <div class="part-info-value" style="font-size: 1em;">${(estimatedJsonKb / 1024).toFixed(1)} Mo</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function validatePhase1() {
+            const titre = document.getElementById('titleInput').value.trim();
+            const auteurs = document.getElementById('authorsInput').value.trim();
+            const annee = document.getElementById('yearInput').value;
+            const domaine = document.getElementById('domainInput').value;
+            const langue = document.getElementById('langInput').value;
+
+            if (!state.pdfFile) {
+                alert('Veuillez sélectionner un fichier PDF.');
+                return;
+            }
+
+            if (!titre || !auteurs) {
+                alert('Veuillez remplir au minimum le titre et les auteurs.');
+                return;
+            }
+
+            state.metadata = {
+                titre: titre,
+                auteurs: auteurs.split(',').map(a => a.trim()),
+                annee: annee ? parseInt(annee) : null,
+                domaine: domaine,
+                approches: [],
+                langue: langue
+            };
+
+            const approches = [];
+            document.querySelectorAll('.checkbox-item input[type="checkbox"]:checked').forEach(cb => {
+                approches.push(cb.value);
+            });
+            state.metadata.approches = approches;
+
+            await calculateOptimalSplit();
+            displaySplitResults();
+
+            updateProgressIndicator(2);
+            document.getElementById('phase1').classList.add('hidden');
+            document.getElementById('phase2').classList.remove('hidden');
+            document.getElementById('phase2').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function calculateOptimalSplit() {
+            const mode = EXTRACTION_MODES[state.selectedMode];
+            const pagesPerPart = mode.pagesPerPart;
+            
+            // Calcul du nombre de parties optimal
+            const numParts = Math.ceil(state.totalPages / pagesPerPart);
+            
+            // Répartition équilibrée des pages
+            const basePagesPerPart = Math.floor(state.totalPages / numParts);
+            const remainder = state.totalPages % numParts;
+
+            state.parts = [];
+
+            let currentPage = 1;
+            for (let i = 0; i < numParts; i++) {
+                // Distribuer les pages restantes sur les premières parties
+                const pagesThisPart = basePagesPerPart + (i < remainder ? 1 : 0);
+                const startPage = currentPage;
+                const endPage = currentPage + pagesThisPart - 1;
+
+                state.parts.push({
+                    partNum: i + 1,
+                    totalParts: numParts,
+                    startPage: startPage,
+                    endPage: endPage,
+                    numPages: pagesThisPart,
+                    file: null,
+                    mode: state.selectedMode
+                });
+                
+                currentPage = endPage + 1;
+            }
+        }
+
+        function displaySplitResults() {
+            const mode = EXTRACTION_MODES[state.selectedMode];
+            const summary = document.getElementById('splitSummary');
+            
+            summary.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="part-info-item">
+                        <div class="part-info-label">Mode d'extraction</div>
+                        <div class="part-info-value" style="font-size: 1.1em;">${mode.name}</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Taille totale</div>
+                        <div class="part-info-value">${(state.fileSize / (1024 * 1024)).toFixed(2)} Mo</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Nombre de parties</div>
+                        <div class="part-info-value">${state.parts.length}</div>
+                    </div>
+                    <div class="part-info-item">
+                        <div class="part-info-label">Pages par partie</div>
+                        <div class="part-info-value">~${Math.ceil(state.totalPages / state.parts.length)}</div>
+                    </div>
+                </div>
+                ${state.selectedMode === 'lightbook' ? `
+                <div style="background: var(--accent-success); padding: 15px; border-radius: 10px; border-left: 4px solid #28a745;">
+                    <strong>Mode Livre Léger actif :</strong> Extraction condensée optimisée pour les documents à faible densité. 
+                    Qualité exceptionnelle préservée avec moins de parties à traiter.
+                </div>
+                ` : ''}
+            `;
+
+            const container = document.getElementById('partsContainer');
+            container.innerHTML = '';
+            
+            state.uploadedJSONs = new Array(state.parts.length).fill(null);
+
+            state.parts.forEach(part => {
+                const card = document.createElement('div');
+                card.className = 'part-card';
+                card.id = `partCard${part.partNum}`;
+                card.innerHTML = `
+                    <div class="part-header">
+                        <div class="part-title">Partie ${part.partNum}/${part.totalParts}</div>
+                        <div id="partValidated${part.partNum}" style="font-size: 2em; display: none;">✓</div>
+                    </div>
+
+                    <div class="part-info">
+                        <div class="part-info-item">
+                            <div class="part-info-label">Pages</div>
+                            <div class="part-info-value">${part.startPage}-${part.endPage}</div>
+                        </div>
+                        <div class="part-info-item">
+                            <div class="part-info-label">Quantité</div>
+                            <div class="part-info-value">${part.numPages} p.</div>
+                        </div>
+                        <div class="part-info-item">
+                            <div class="part-info-label">Mode</div>
+                            <div class="part-info-value" style="font-size: 0.9em;">${mode.name}</div>
+                        </div>
+                        <div class="part-info-item">
+                            <div class="part-info-label">Statut PDF</div>
+                            <div class="part-info-value" id="status${part.partNum}">Préparation...</div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--sable); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                        <h4 style="color: var(--mer); margin-bottom: 15px; font-size: 1.2em;">Prompt pour Claude</h4>
+                        <div class="prompt-box" id="prompt${part.partNum}"></div>
+                        <div class="action-buttons" style="margin-top: 15px;">
+                            <button class="btn btn-secondary" onclick="copyPrompt(${part.partNum})">Copier Prompt</button>
+                            <button class="btn btn-secondary" onclick="downloadPromptTxt(${part.partNum})">Télécharger Prompt.txt</button>
+                            <button class="btn btn-secondary" id="downloadBtn${part.partNum}" onclick="downloadFile(${part.partNum})" disabled>Télécharger PDF</button>
+                        </div>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, rgba(143, 175, 177, 0.1), rgba(200, 208, 195, 0.1)); padding: 25px; border-radius: 12px; border: 3px solid var(--vert-sauge); margin-top: 25px;" id="jsonZone${part.partNum}">
+                        <h4 style="color: var(--mer); margin-bottom: 15px; font-size: 1.3em; display: flex; align-items: center; gap: 10px;">
+                            <span>Validation Immédiate du JSON</span>
+                        </h4>
+                        
+                        <div id="jsonStatus${part.partNum}" style="margin-bottom: 15px; padding: 12px; background: var(--blanc); border-radius: 8px; font-weight: 600; color: #666;">
+                            En attente du JSON Claude...
+                        </div>
+                        
+                        <textarea id="jsonTextarea${part.partNum}" class="json-textarea" placeholder="Dès que Claude a terminé de générer le JSON :
+1. Sélectionnez TOUT le JSON (Ctrl+A ou Cmd+A dans Claude)
+2. Copiez (Ctrl+C ou Cmd+C)
+3. Collez ICI (Ctrl+V ou Cmd+V)
+4. Cliquez sur 'Tester le JSON' pour vérifier
+5. Si valide, cliquez sur 'Valider et Enregistrer'
+
+Le JSON sera automatiquement nettoyé (suppression des blocs markdown, commentaires, etc.)" oninput="enableButtons(${part.partNum})"></textarea>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 15px;">
+                            <button class="btn btn-secondary" id="testBtn${part.partNum}" onclick="previewJSON(${part.partNum})" disabled style="opacity: 0.5;">
+                                Tester le JSON
+                            </button>
+                            <button class="btn btn-secondary" onclick="validateJSONFromTextarea(${part.partNum})" id="validateBtn${part.partNum}" disabled style="opacity: 0.5;">
+                                Valider et Enregistrer
+                            </button>
+                            <button class="btn btn-secondary" onclick="document.getElementById('fileInput${part.partNum}').click()">
+                                Upload Fichier JSON
+                            </button>
+                        </div>
+                        
+                        <div id="jsonPreview${part.partNum}" style="display: none; margin-top: 20px; padding: 20px; background: var(--blanc); border-radius: 10px; border: 2px solid var(--vert-sauge);"></div>
+                        
+                        <input type="file" id="fileInput${part.partNum}" accept=".json" onchange="handleJSONUpload(${part.partNum})" style="display: none;">
+                    </div>
+                `;
+                container.appendChild(card);
+
+                generatePartPDF(part);
+            });
+        }
+
+        async function generatePartPDF(part) {
+            const statusDiv = document.getElementById(`status${part.partNum}`);
+            statusDiv.innerHTML = 'Extraction...';
+
+            try {
+                const arrayBuffer = await state.pdfFile.arrayBuffer();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                
+                const newPdf = await PDFLib.PDFDocument.create();
+                const pages = await newPdf.copyPages(pdfDoc, Array.from({length: part.endPage - part.startPage + 1}, (_, i) => part.startPage - 1 + i));
+                
+                pages.forEach(page => newPdf.addPage(page));
+                
+                const pdfBytes = await newPdf.save();
+                const actualSize = pdfBytes.length;
+                
+                part.file = new Blob([pdfBytes], { type: 'application/pdf' });
+                part.estimatedSize = actualSize;
+
+                statusDiv.innerHTML = 'Prêt';
+                statusDiv.style.color = 'var(--mer)';
+                document.getElementById(`downloadBtn${part.partNum}`).disabled = false;
+
+                updatePrompt(part);
+
+            } catch (error) {
+                statusDiv.innerHTML = 'Erreur';
+                statusDiv.style.color = '#dc3545';
+            }
+        }
+
+        function updatePrompt(part) {
+            const prompt = generateClaudePrompt(part);
+            document.getElementById(`prompt${part.partNum}`).textContent = prompt;
+        }
+
+        function generateClaudePrompt(part) {
+            const meta = state.metadata;
+            const isMulti = part.totalParts > 1;
+            const isLightBook = state.selectedMode === 'lightbook';
+            
+            // Prompt adapté au mode
+            const modeInstructions = isLightBook ? `
+MODE LIVRE LÉGER ACTIVÉ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ce document est identifié comme un livre à faible densité.
+Applique une extraction CONDENSÉE mais EXHAUSTIVE :
+
+• SYNTHÉTISE les concepts au niveau section (pas paragraphe par paragraphe)
+• REGROUPE les idées connexes sous des concepts unifiés
+• PRIORISE les éléments actionnables (outils, exercices, protocoles)
+• LIMITE à 1-2 contenus par page en moyenne
+• PRÉSERVE 100% des informations clés sans duplication
+
+OBJECTIF : JSON compact (~1.5 Ko/page) SANS perte de substance
+` : `
+MODE STANDARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Extraction détaillée avec granularité fine :
+
+• CAPTURE chaque concept distinct
+• DÉTAILLE chaque outil et exercice
+• DOCUMENTE chaque cas clinique
+• VISE 2-4 contenus par page
+`;
+            
+            return `# ${isMulti ? `PARTIE ${part.partNum}/${part.totalParts} | ` : ''}EXTRACTION EXPERTE CLAUDE
+
+${isMulti ? `Pages ${part.startPage}-${part.endPage} (${part.numPages} pages)\n\n` : ''}DOCUMENT : ${meta.titre}
+AUTEURS : ${meta.auteurs.join(', ')}
+ANNÉE : ${meta.annee || 'N/A'}
+APPROCHES : ${meta.approches.join(', ') || 'À identifier'}
+DOMAINE : ${meta.domaine}
+LANGUE : ${meta.langue}
+
+${modeInstructions}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MISSION : Extraction Thérapeutique de Haute Fidélité
+
+Tu es Claude Sonnet 4.5, expert en analyse de littérature thérapeutique. 
+Ta mission est d'extraire le contenu avec FIDÉLITÉ ABSOLUE au texte original.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PRINCIPES FONDAMENTAUX
+
+1. FIDÉLITÉ ABSOLUE AU CONTENU ORIGINAL
+   - Respecte scrupuleusement la terminologie exacte de l'auteur
+   - Ne modifie JAMAIS le sens ou l'intention du contenu
+   - Préserve les nuances et précisions du texte
+   - Cite textuellement lorsque pertinent (avec guillemets et pages)
+
+2. EXHAUSTIVITÉ ${isLightBook ? 'CONDENSÉE' : 'MAXIMALE'}
+   - Identifie ${isLightBook ? 'les concepts majeurs regroupés par thème' : 'TOUS les concepts thérapeutiques sans exception'}
+   - Repère ${isLightBook ? 'les outils et exercices principaux' : 'TOUS les outils, exercices et protocoles'}
+   - Capture ${isLightBook ? 'les frameworks essentiels' : 'TOUS les frameworks et modèles théoriques'}
+   ${isLightBook ? '- Synthétise les idées connexes' : '- Note TOUS les cas cliniques et exemples pratiques'}
+
+3. STRUCTURE HIÉRARCHIQUE CLAIRE
+   - Organise le contenu selon la logique de l'ouvrage
+   - Respecte la progression pédagogique de l'auteur
+   - Hiérarchise chapitres → sections → contenus
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FORMAT JSON EXIGÉ
+
+{
+  "part_info": ${isMulti ? `{
+    "part_number": ${part.partNum},
+    "total_parts": ${part.totalParts},
+    "page_range": [${part.startPage}, ${part.endPage}],
+    "extraction_mode": "${isLightBook ? 'lightbook' : 'standard'}"
+  }` : 'null'},
+  "document_metadata": {
+    "id": "${meta.titre.substring(0, 30).toLowerCase().replace(/[^a-z0-9]/g, '_')}",
+    "titre": "${meta.titre}",
+    "auteurs": ${JSON.stringify(meta.auteurs)},
+    "annee_publication": ${meta.annee || 'null'},
+    "approches_therapeutiques": ${JSON.stringify(meta.approches)},
+    "domaine_expertise": "${meta.domaine}",
+    "langue": "${meta.langue}",
+    "niveau_expertise": "professionnel_expert",
+    "pages_total": ${part.numPages}${isMulti ? `,
+    "contexte_extraction": "Partie ${part.partNum} sur ${part.totalParts}"` : ''}
+  },
+  "structure_hierarchique": {
+    "chapitres": [
+      {
+        "chapitre_id": "ch01",
+        "numero": 1,
+        "titre": "TITRE EXACT DU CHAPITRE",
+        "pages": [${part.startPage}],
+        "resume_chapitre": "Synthèse en 2-3 phrases",
+        "sections": [
+          {
+            "section_id": "ch01_s01",
+            "titre": "Titre de la section",
+            "pages": [${part.startPage}],
+            "contenus": [
+              {
+                "contenu_id": "ch01_s01_c001",
+                "type": "concept_theorique|framework|outil_therapeutique|exercice_pratique|cas_clinique|citation_reference",
+                "titre": "Titre précis",
+                "pages": [${part.startPage}],
+                "taxonomie": {
+                  "categorie_principale": "attachment|communication|conflict|intimacy|emotion_regulation",
+                  "niveau_complexite": "fondamental|intermediaire|avance"
+                },
+                "description_courte": "Résumé 2-3 phrases",
+                "description_detaillee": "Explication complète fidèle à l'ouvrage",
+                "contexte_therapeutique": "Applications concrètes",
+                "mots_cles_experts": ["terme1", "terme2"]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "statistiques": {
+    "total_chapitres": 0,
+    "total_sections": 0,
+    "total_concepts": 0,
+    "total_outils": 0,
+    "total_exercices": 0,
+    "pages_analysees": ${part.numPages}
+  }
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VALIDATION QUALITÉ
+
+Avant de finaliser, vérifie :
+- Toutes les pages ${part.startPage}-${part.endPage} analysées
+- ${isLightBook ? 'Concepts majeurs regroupés et synthétisés' : 'Aucun concept important omis'}
+- Terminologie exacte de l'auteur préservée
+- JSON strictement valide
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LANCE L'EXTRACTION MAINTENANT
+
+Ta réponse doit être UNIQUEMENT le JSON valide, sans aucun texte additionnel.`;
+        }
+
+        function copyPrompt(partNum) {
+            const part = state.parts[partNum - 1];
+            const prompt = generateClaudePrompt(part);
+            navigator.clipboard.writeText(prompt).then(() => {
+                alert('Prompt copié dans le presse-papiers');
+            });
+        }
+
+        function downloadPromptTxt(partNum) {
+            const part = state.parts[partNum - 1];
+            const prompt = generateClaudePrompt(part);
+            const blob = new Blob([prompt], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fileName = `prompt_claude_part${partNum}_${state.metadata.titre.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}.txt`;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadFile(partNum) {
+            const part = state.parts[partNum - 1];
+            if (!part.file) {
+                alert('Le fichier n\'est pas encore prêt.');
+                return;
+            }
+            const url = URL.createObjectURL(part.file);
+            const a = document.createElement('a');
+            a.href = url;
+            const fileName = `part${String(partNum).padStart(2, '0')}_${state.metadata.titre.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}.pdf`;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function enableButtons(partNum) {
+            const textarea = document.getElementById(`jsonTextarea${partNum}`);
+            const hasContent = textarea && textarea.value.trim().length > 0;
+            
+            const testBtn = document.getElementById(`testBtn${partNum}`);
+            const validateBtn = document.getElementById(`validateBtn${partNum}`);
+            const statusDiv = document.getElementById(`jsonStatus${partNum}`);
+            
+            if (testBtn && validateBtn) {
+                testBtn.disabled = !hasContent;
+                validateBtn.disabled = !hasContent;
+                testBtn.style.opacity = hasContent ? '1' : '0.5';
+                validateBtn.style.opacity = hasContent ? '1' : '0.5';
+                testBtn.style.cursor = hasContent ? 'pointer' : 'not-allowed';
+                validateBtn.style.cursor = hasContent ? 'pointer' : 'not-allowed';
+            }
+            
+            if (statusDiv && hasContent) {
+                statusDiv.innerHTML = 'JSON collé - Cliquez sur "Tester" puis "Valider"';
+                statusDiv.style.color = '#0066cc';
+                statusDiv.style.background = '#e3f2fd';
+            }
+        }
+
+        function previewJSON(partNum) {
+            const textarea = document.getElementById(`jsonTextarea${partNum}`);
+            let jsonText = textarea.value.trim();
+            const previewDiv = document.getElementById(`jsonPreview${partNum}`);
+            
+            if (!jsonText) {
+                alert('Aucun JSON à prévisualiser.');
+                return;
+            }
+
+            jsonText = cleanJSON(jsonText);
+
+            try {
+                const json = JSON.parse(jsonText);
+                
+                let stats = { chapitres: 0, sections: 0, contenus: 0 };
+                if (json.structure_hierarchique && json.structure_hierarchique.chapitres) {
+                    stats.chapitres = json.structure_hierarchique.chapitres.length;
+                    json.structure_hierarchique.chapitres.forEach(ch => {
+                        if (ch.sections) {
+                            stats.sections += ch.sections.length;
+                            ch.sections.forEach(sec => {
+                                if (sec.contenus) {
+                                    stats.contenus += sec.contenus.length;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                previewDiv.innerHTML = `
+                    <div style="font-weight: 700; margin-bottom: 15px; color: var(--mer); font-size: 1.2em;">JSON VALIDE</div>
+                    <div style="padding: 15px; background: linear-gradient(135deg, #d4edda, #c3e6cb); border-radius: 8px; border: 2px solid #28a745; color: #155724; font-weight: 600;">
+                        Structure validée : ${stats.chapitres} chapitres, ${stats.sections} sections, ${stats.contenus} contenus
+                    </div>
+                `;
+                previewDiv.style.display = 'block';
+                
+            } catch (error) {
+                previewDiv.innerHTML = `
+                    <div style="font-weight: 700; margin-bottom: 10px; color: #dc3545; font-size: 1.2em;">JSON INVALIDE</div>
+                    <div style="padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">
+                        ${error.message}
+                    </div>
+                `;
+                previewDiv.style.display = 'block';
+            }
+        }
+
+        function validateJSONFromTextarea(partNum) {
+            const textarea = document.getElementById(`jsonTextarea${partNum}`);
+            let jsonText = textarea.value.trim();
+            
+            if (!jsonText) {
+                alert('Veuillez coller le JSON dans la zone de texte.');
+                return;
+            }
+
+            jsonText = cleanJSON(jsonText);
+
+            try {
+                const json = JSON.parse(jsonText);
+                
+                if (!validateJSONStructure(json)) {
+                    alert('Structure JSON invalide. Vérifiez que le JSON contient les champs requis.');
+                    return;
+                }
+                
+                processJSON(partNum - 1, json);
+            } catch (error) {
+                showDetailedJSONError(error, jsonText, partNum);
+            }
+        }
+
+        function cleanJSON(text) {
+            text = text.replace(/```json\s*/g, '');
+            text = text.replace(/```\s*/g, '');
+            text = text.replace(/\/\*[\s\S]*?\*\//g, '');
+            text = text.replace(/\/\/.*/g, '');
+            text = text.trim();
+            
+            const jsonStart = text.indexOf('{');
+            if (jsonStart !== -1) {
+                text = text.substring(jsonStart);
+            }
+            
+            return text;
+        }
+
+        function validateJSONStructure(json) {
+            return json && 
+                   json.document_metadata && 
+                   json.structure_hierarchique;
+        }
+
+        function showDetailedJSONError(error, jsonText, partNum) {
+            const previewDiv = document.getElementById(`jsonPreview${partNum}`);
+            
+            let errorInfo = `Erreur : ${error.message}`;
+            
+            const posMatch = error.message.match(/position (\d+)/);
+            if (posMatch) {
+                const pos = parseInt(posMatch[1]);
+                const start = Math.max(0, pos - 50);
+                const end = Math.min(jsonText.length, pos + 50);
+                const context = jsonText.substring(start, end);
+                errorInfo += `\n\nContexte autour de l'erreur :\n...${context}...`;
+            }
+            
+            previewDiv.innerHTML = `
+                <div style="font-weight: 700; margin-bottom: 10px; color: #dc3545; font-size: 1.2em;">JSON INVALIDE</div>
+                <div style="padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24; white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
+                    ${errorInfo}
+                </div>
+            `;
+            previewDiv.style.display = 'block';
+        }
+
+        function handleJSONUpload(partNum) {
+            const fileInput = document.getElementById(`fileInput${partNum}`);
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    
+                    if (!validateJSONStructure(json)) {
+                        alert('Structure JSON invalide.');
+                        return;
+                    }
+                    
+                    processJSON(partNum - 1, json);
+                } catch (error) {
+                    alert(`Erreur de parsing JSON : ${error.message}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function processJSON(slotIndex, json) {
+            state.uploadedJSONs[slotIndex] = json;
+            
+            const partNum = slotIndex + 1;
+            
+            const card = document.getElementById(`partCard${partNum}`);
+            card.style.borderColor = '#28a745';
+            card.style.borderWidth = '4px';
+            card.style.background = 'linear-gradient(135deg, rgba(40, 167, 69, 0.05), rgba(40, 167, 69, 0.1))';
+            
+            document.getElementById(`partValidated${partNum}`).style.display = 'block';
+            
+            const validatedCount = state.uploadedJSONs.filter(j => j !== null).length;
+            const totalParts = state.parts.length;
+            
+            const statusDiv = document.getElementById(`jsonStatus${partNum}`);
+            statusDiv.innerHTML = `<strong>Partie ${partNum}/${totalParts} VALIDÉE</strong> ${validatedCount < totalParts ? `- Passez à la partie ${partNum + 1}` : '- Toutes les parties sont validées'}`;
+            statusDiv.style.color = '#155724';
+            statusDiv.style.background = 'linear-gradient(135deg, #d4edda, #c3e6cb)';
+            statusDiv.style.fontWeight = '700';
+            statusDiv.style.fontSize = '1.1em';
+            statusDiv.style.padding = '15px';
+            statusDiv.style.border = '2px solid #28a745';
+            
+            document.getElementById(`jsonTextarea${partNum}`).style.display = 'none';
+            document.getElementById(`testBtn${partNum}`).style.display = 'none';
+            document.getElementById(`validateBtn${partNum}`).style.display = 'none';
+            
+            const previewDiv = document.getElementById(`jsonPreview${partNum}`);
+            if (previewDiv) {
+                previewDiv.style.display = 'none';
+            }
+            
+            if (validatedCount < totalParts) {
+                const nextCard = document.getElementById(`partCard${partNum + 1}`);
+                if (nextCard) {
+                    setTimeout(() => {
+                        nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 500);
+                }
+            } else {
+                document.getElementById('fusionReady').style.display = 'block';
+                document.getElementById('fusionBtn').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('fusionBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 500);
+            }
+        }
+
+        function mergeAndGenerate() {
+            let mergedData = {
+                document_metadata: state.uploadedJSONs[0].document_metadata,
+                extraction_mode: state.selectedMode,
+                structure_hierarchique: {
+                    chapitres: []
+                },
+                statistiques: {
+                    total_chapitres: 0,
+                    total_sections: 0,
+                    total_concepts: 0,
+                    total_frameworks: 0,
+                    total_outils: 0,
+                    total_exercices: 0,
+                    total_cas_cliniques: 0,
+                    total_citations: 0,
+                    pages_analysees: state.totalPages
+                },
+                date_creation: new Date().toISOString(),
+                parts_merged: state.parts.length
+            };
+
+            state.uploadedJSONs.forEach((json, index) => {
+                if (json && json.structure_hierarchique && json.structure_hierarchique.chapitres) {
+                    json.structure_hierarchique.chapitres.forEach(chapitre => {
+                        const existingChapter = mergedData.structure_hierarchique.chapitres.find(
+                            ch => ch.titre === chapitre.titre
+                        );
+                        
+                        if (existingChapter && chapitre.sections) {
+                            existingChapter.sections = existingChapter.sections || [];
+                            existingChapter.sections.push(...chapitre.sections);
+                        } else {
+                            mergedData.structure_hierarchique.chapitres.push({...chapitre});
+                        }
+                    });
+                }
+                
+                if (json && json.statistiques) {
+                    Object.keys(json.statistiques).forEach(key => {
+                        if (typeof json.statistiques[key] === 'number' && key !== 'pages_analysees') {
+                            mergedData.statistiques[key] = (mergedData.statistiques[key] || 0) + json.statistiques[key];
+                        }
+                    });
+                }
+            });
+
+            mergedData.statistiques.total_chapitres = mergedData.structure_hierarchique.chapitres.length;
+            
+            let totalSections = 0;
+            mergedData.structure_hierarchique.chapitres.forEach(ch => {
+                if (ch.sections) {
+                    totalSections += ch.sections.length;
+                }
+            });
+            mergedData.statistiques.total_sections = totalSections;
+
+            if (mergedData.document_metadata.contexte_extraction) {
+                delete mergedData.document_metadata.contexte_extraction;
+            }
+            mergedData.document_metadata.pages_total = state.totalPages;
+
+            state.finalData = mergedData;
+            
+            const readme = generateREADME(mergedData);
+            const html = generateHTML(mergedData);
+            const md = generateMarkdown(mergedData);
+            
+            updateProgressIndicator(3);
+            document.getElementById('phase2').classList.add('hidden');
+            document.getElementById('phase3').classList.remove('hidden');
+            document.getElementById('phase3').scrollIntoView({ behavior: 'smooth' });
+            
+            createFinalDownloads(mergedData, readme, html, md);
+        }
+
+        function generateREADME(data) {
+            const mode = EXTRACTION_MODES[state.selectedMode];
+            return `# ${data.document_metadata.titre}
+
+## Métadonnées
+
+- **Auteurs** : ${data.document_metadata.auteurs.join(', ')}
+- **Année** : ${data.document_metadata.annee_publication || 'N/A'}
+- **Domaine** : ${data.document_metadata.domaine_expertise}
+- **Approches** : ${data.document_metadata.approches_therapeutiques.join(', ')}
+- **Pages** : ${data.document_metadata.pages_total}
+- **Mode d'extraction** : ${mode.name}
+
+## Statistiques
+
+- Chapitres : ${data.statistiques.total_chapitres}
+- Sections : ${data.statistiques.total_sections}
+- Concepts : ${data.statistiques.total_concepts || 'N/A'}
+- Outils : ${data.statistiques.total_outils || 'N/A'}
+- Exercices : ${data.statistiques.total_exercices || 'N/A'}
+
+## Structure
+
+${data.structure_hierarchique.chapitres.map((ch, i) => `
+### ${i + 1}. ${ch.titre}
+${ch.resume_chapitre || ''}
+${ch.sections ? ch.sections.map(s => `- ${s.titre}`).join('\n') : ''}
+`).join('\n')}
+
+---
+
+Base de connaissances générée par PDF Batch PRO v2.0 - Mode ${mode.name}
+Bilan de Compétences du couple - Marie-Christine Abatte Psychologue
+`;
+        }
+
+        function generateHTML(data) {
+            const mode = EXTRACTION_MODES[state.selectedMode];
+            return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${data.document_metadata.titre}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --mer: #8FAFB1;
+            --vert-sauge: #C8D0C3;
+            --sable: #E6D7C3;
+            --blanc: #FFFFFF;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: var(--blanc);
+            color: #333;
+            padding: 40px 20px;
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--blanc);
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: var(--mer);
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            border-bottom: 4px solid var(--vert-sauge);
+            padding-bottom: 20px;
+        }
+        .meta {
+            background: linear-gradient(135deg, var(--sable), var(--vert-sauge));
+            padding: 25px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border-left: 5px solid var(--mer);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        .stat-card {
+            background: var(--sable);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--mer);
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        h2 {
+            color: var(--mer);
+            margin: 40px 0 20px;
+            font-size: 1.8em;
+        }
+        .chapter {
+            background: var(--sable);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid var(--mer);
+        }
+        .chapter-title {
+            font-weight: 700;
+            color: var(--mer);
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 2px solid var(--vert-sauge);
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>${data.document_metadata.titre}</h1>
+        
+        <div class="meta">
+            <p><strong>Auteurs :</strong> ${data.document_metadata.auteurs.join(', ')}</p>
+            <p><strong>Année :</strong> ${data.document_metadata.annee_publication || 'N/A'}</p>
+            <p><strong>Domaine :</strong> ${data.document_metadata.domaine_expertise}</p>
+            <p><strong>Approches :</strong> ${data.document_metadata.approches_therapeutiques.join(', ')}</p>
+            <p><strong>Mode d'extraction :</strong> ${mode.name}</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">${data.statistiques.total_chapitres}</div>
+                <div class="stat-label">Chapitres</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${data.statistiques.total_sections}</div>
+                <div class="stat-label">Sections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${data.statistiques.total_outils || 0}</div>
+                <div class="stat-label">Outils</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${data.statistiques.total_exercices || 0}</div>
+                <div class="stat-label">Exercices</div>
+            </div>
+        </div>
+
+        <h2>Structure des Chapitres</h2>
+        ${data.structure_hierarchique.chapitres.map((ch, i) => `
+            <div class="chapter">
+                <div class="chapter-title">${i + 1}. ${ch.titre}</div>
+                <p><strong>Pages :</strong> ${ch.pages ? ch.pages.join(', ') : 'N/A'}</p>
+                <p><strong>Sections :</strong> ${ch.sections ? ch.sections.length : 0}</p>
+                ${ch.resume_chapitre ? `<p style="margin-top: 10px; font-style: italic;">${ch.resume_chapitre}</p>` : ''}
+            </div>
+        `).join('')}
+
+        <div class="footer">
+            <p><strong>Institut du Couple - Base de Connaissances Thérapeutiques</strong></p>
+            <p>PDF Batch PRO v2.0 - Mode ${mode.name}</p>
+            <p>Bilan de Compétences du couple - Marie-Christine Abatte Psychologue</p>
+        </div>
+    </div>
+</body>
+</html>`;
+        }
+
+        function generateMarkdown(data) {
+            const mode = EXTRACTION_MODES[state.selectedMode];
+            let md = `# ${data.document_metadata.titre}\n\n`;
+            md += `**Auteurs :** ${data.document_metadata.auteurs.join(', ')}\n`;
+            md += `**Approches :** ${data.document_metadata.approches_therapeutiques.join(', ')}\n`;
+            md += `**Domaine :** ${data.document_metadata.domaine_expertise}\n`;
+            md += `**Pages :** ${data.document_metadata.pages_total}\n`;
+            md += `**Mode :** ${mode.name}\n\n`;
+            md += `---\n\n`;
+
+            data.structure_hierarchique.chapitres.forEach((ch, i) => {
+                md += `## Chapitre ${i + 1} : ${ch.titre}\n\n`;
+                
+                if (ch.resume_chapitre) {
+                    md += `*${ch.resume_chapitre}*\n\n`;
+                }
+                
+                if (ch.sections) {
+                    ch.sections.forEach((section, j) => {
+                        md += `### ${j + 1}. ${section.titre}\n\n`;
+                        
+                        if (section.contenus) {
+                            section.contenus.forEach(content => {
+                                md += `#### ${content.titre}\n\n`;
+                                md += `**Type :** ${content.type}\n\n`;
+                                
+                                if (content.description_courte) {
+                                    md += `${content.description_courte}\n\n`;
+                                }
+                                
+                                if (content.mots_cles_experts && content.mots_cles_experts.length > 0) {
+                                    md += `**Mots-clés :** ${content.mots_cles_experts.join(', ')}\n\n`;
+                                }
+                                
+                                md += `---\n\n`;
+                            });
+                        }
+                    });
+                }
+            });
+
+            md += `\n---\n\n`;
+            md += `*PDF Batch PRO v2.0 - Mode ${mode.name}*\n`;
+            md += `*Bilan de Compétences du couple - Marie-Christine Abatte Psychologue*\n`;
+
+            return md;
+        }
+
+        function createFinalDownloads(json, readme, html, md) {
+            const container = document.getElementById('finalDownloads');
+            container.innerHTML = '';
+            
+            const files = [
+                { 
+                    name: 'knowledge_index.json', 
+                    content: JSON.stringify(json, null, 2), 
+                    type: 'application/json', 
+                    icon: '{}',
+                    desc: 'Structure JSON complète' 
+                },
+                { 
+                    name: 'README.md', 
+                    content: readme, 
+                    type: 'text/markdown', 
+                    icon: '#',
+                    desc: 'Documentation' 
+                },
+                { 
+                    name: 'index.html', 
+                    content: html, 
+                    type: 'text/html', 
+                    icon: '<>',
+                    desc: 'Interface web' 
+                },
+                { 
+                    name: 'knowledge.md', 
+                    content: md, 
+                    type: 'text/markdown', 
+                    icon: 'MD',
+                    desc: 'Format Markdown' 
+                },
+                { 
+                    name: state.pdfFile.name, 
+                    content: state.pdfFile, 
+                    type: 'application/pdf', 
+                    icon: 'PDF',
+                    desc: 'PDF original',
+                    isBlob: true
+                }
+            ];
+
+            files.forEach(file => {
+                const blob = file.isBlob ? file.content : new Blob([file.content], { type: file.type });
+                const url = URL.createObjectURL(blob);
+                
+                const item = document.createElement('div');
+                item.className = 'download-item';
+                item.innerHTML = `
+                    <div class="download-icon" style="font-family: monospace; background: var(--sable); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 1.5em; font-weight: 700; color: var(--mer);">${file.icon}</div>
+                    <div style="font-weight: 700; font-size: 1.1em; margin: 15px 0;">${file.name}</div>
+                    <div style="font-size: 0.9em; color: #666; margin-bottom: 20px;">${file.desc}</div>
+                    <a href="${url}" download="${file.name}" class="btn btn-secondary btn-small">Télécharger</a>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        async function downloadAllAsZip() {
+            const zip = new JSZip();
+            const baseName = state.metadata.titre.substring(0, 50).replace(/[^a-z0-9]/gi, '_');
+            
+            zip.file('knowledge_index.json', JSON.stringify(state.finalData, null, 2));
+            zip.file('README.md', generateREADME(state.finalData));
+            zip.file('index.html', generateHTML(state.finalData));
+            zip.file('knowledge.md', generateMarkdown(state.finalData));
+            zip.file(state.pdfFile.name, state.pdfFile);
+            
+            const content = await zip.generateAsync({ type: 'blob' });
+            
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${baseName}_base_connaissances.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function updateProgressIndicator(step) {
+            for (let i = 1; i <= 3; i++) {
+                const indicator = document.getElementById(`stepIndicator${i}`);
+                indicator.classList.remove('active', 'completed');
+                
+                if (i < step) {
+                    indicator.classList.add('completed');
+                } else if (i === step) {
+                    indicator.classList.add('active');
+                }
+            }
+        }
+
+        function reset() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>

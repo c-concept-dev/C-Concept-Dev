@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traducteur de Prompts – Version Anti-Procrastination</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #7f5af0 0, #16161a 55%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #111827;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f9fafb;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #7f5af0 0%, #2cb67d 100%);
+            color: white;
+            padding: 28px 24px 22px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 span {
+            font-size: 1.6rem;
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 0.98rem;
+        }
+
+        .badge-header {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            background: rgba(15,23,42,0.2);
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #2cb67d;
+        }
+
+        .main {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+            gap: 20px;
+        }
+
+        .info-box {
+            grid-column: 1 / -1;
+            background: #e0f2fe;
+            border-left: 4px solid #0284c7;
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 0.9rem;
+        }
+
+        .info-box strong {
+            color: #0369a1;
+        }
+
+        .info-box ul {
+            margin-left: 18px;
+            margin-top: 6px;
+        }
+
+        .info-box li {
+            margin: 2px 0;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .pill {
+            padding: 2px 9px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .pill-input {
+            background: #fbbf24;
+            color: #78350f;
+        }
+
+        .pill-output {
+            background: #22c55e;
+            color: #022c22;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 360px;
+            padding: 14px 14px 40px;
+            border-radius: 12px;
+            border: 1.5px solid #e5e7eb;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            outline: none;
+            background: white;
+            line-height: 1.5;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+        }
+
+        #inputPrompt {
+            background: #fffbeb;
+        }
+
+        #outputPrompt {
+            background: #eff6ff;
+        }
+
+        textarea:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.25);
+        }
+
+        .placeholder {
+            color: #9ca3af;
+        }
+
+        .btn-row {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        button {
+            border: none;
+            cursor: pointer;
+            border-radius: 999px;
+            padding: 10px 22px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+
+        button span.emoji {
+            font-size: 1.1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #7f5af0, #4338ca);
+            color: white;
+            box-shadow: 0 8px 20px rgba(79,70,229,0.5);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(79,70,229,0.65);
+        }
+
+        .btn-secondary {
+            background: #22c55e;
+            color: #052e16;
+        }
+
+        .btn-secondary:hover {
+            background: #16a34a;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: #fef2f2;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .stats {
+            grid-column: 1 / -1;
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            background: #f3f4f6;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        .stat-chip {
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: white;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .stat-label {
+            color: #6b7280;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-align: right;
+        }
+
+        @media (max-width: 840px) {
+            .main {
+                grid-template-columns: minmax(0,1fr);
+            }
+            .stats {
+                border-radius: 14px;
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <h1><span>🎯</span> Traducteur de Prompts – Optimiseur Anti-Procrastination</h1>
+        <p>Colle ton prompt brut → récupère un super-prompt structuré, avec rôle, objectif, contraintes et règle anti-procrastination intégrée.</p>
+        <div class="badge-header">
+            <div class="badge-dot"></div>
+            <span>Compatible GPT-5.1 Thinking / GPT-4 & co</span>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="info-box">
+            <strong>Mode d’emploi :</strong>
+            <ul>
+                <li>📝 Colle ton prompt “naturel” à gauche (même très brouillon).</li>
+                <li>⚡ Clique sur <strong>“Traduire le prompt”</strong>.</li>
+                <li>📋 Récupère à droite un prompt ultra-cadré prêt à être collé dans ChatGPT.</li>
+                <li>🚫 La sortie intègre automatiquement : rôle, objectif, contraintes, format, validations + mode <strong>anti-procrastination</strong> et tolérance à l’incertitude.</li>
+            </ul>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <span class="pill pill-input">Entrée</span>
+                <span class="panel-title">Prompt brut</span>
+            </div>
+            <textarea id="inputPrompt" placeholder="Exemple : 
+
+Fais-moi l’OCR de ces 10 pages et génère un JSON structuré complet pour entraîner un GPT spécialisé. 
+Tolérance aux zones floues : tu marques [illisible] quand tu ne peux pas lire."></textarea>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <span class="pill pill-output">Sortie</span>
+                <span class="panel-title">Prompt optimisé</span>
+            </div>
+            <textarea id="outputPrompt" readonly placeholder="Le prompt optimisé apparaîtra ici..."></textarea>
+        </section>
+
+        <div class="btn-row">
+            <button class="btn-primary" id="btnTranslate">
+                <span class="emoji">⚡</span> Traduire le prompt
+            </button>
+            <button class="btn-secondary" id="btnCopy">
+                <span class="emoji">📋</span> Copier le résultat
+            </button>
+            <button class="btn-danger" id="btnClear">
+                <span class="emoji">🗑️</span> Effacer tout
+            </button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-chip">
+                <span class="stat-label">Mots entrée :</span>
+                <span class="stat-value" id="statInputWords">0</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-label">Mots sortie :</span>
+                <span class="stat-value" id="statOutputWords">0</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-label">Facteur d’expansion :</span>
+                <span class="stat-value" id="statRatio">0%</span>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            ⌨️ Raccourci : <strong>Ctrl + Entrée</strong> dans le champ de gauche pour traduire.
+        </div>
+    </main>
+</div>
+
+<script>
+    // --- Utils de texte ------------------------------------------------------
+
+    function countWords(text) {
+        if (!text) return 0;
+        return text
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .length;
+    }
+
+    function updateStats() {
+        const input = document.getElementById('inputPrompt').value;
+        const output = document.getElementById('outputPrompt').value;
+
+        const inCount = countWords(input);
+        const outCount = countWords(output);
+
+        document.getElementById('statInputWords').textContent = inCount;
+        document.getElementById('statOutputWords').textContent = outCount;
+
+        const ratioEl = document.getElementById('statRatio');
+        if (inCount > 0 && outCount > 0) {
+            const ratio = Math.round((outCount / inCount) * 100);
+            ratioEl.textContent = ratio + '%';
+        } else {
+            ratioEl.textContent = '0%';
+        }
+    }
+
+    // Détection grossière du type de tâche pour ajuster le rôle / objectif
+    function detectTaskType(prompt) {
+        const p = prompt.toLowerCase();
+
+        if (p.match(/\b(code|programme|script|fonction|html|css|javascript|python)\b/)) {
+            return 'coding';
+        }
+        if (p.match(/\b(ocr|json|extraction|convertis|structure|analyse|parser|parse)\b/)) {
+            return 'ocr_json';
+        }
+        if (p.match(/\b(rédige|écris|article|texte|story|histoire|post|mail|email)\b/)) {
+            return 'writing';
+        }
+        if (p.match(/\b(résume|synthétise|condense|summary)\b/)) {
+            return 'summary';
+        }
+        if (p.match(/\b(explique|décris|pédagogue|cours|leçon|lecon)\b/)) {
+            return 'explanation';
+        }
+        if (p.match(/\b(liste|énumère|checklist|points clés|bullet points)\b/)) {
+            return 'listing';
+        }
+        if (p.match(/\b(plan|stratégie|strategie|architecture|conçois|design)\b/)) {
+            return 'strategy';
+        }
+
+        return 'general';
+    }
+
+    // Génère les blocs de rôle / objectif / contraintes selon le type
+    function buildConstraints(taskType) {
+        const c = {
+            role: '',
+            objective: '',
+            constraints: '',
+            format: '',
+            validation: ''
+        };
+
+        switch (taskType) {
+            case 'coding':
+                c.role = "Tu es un développeur senior, expert dans le langage / stack le plus adapté à la demande, " +
+                         "avec une obsession pour le code propre, lisible et directement exécutable.";
+                c.objective = "Produire du code complet, fonctionnel, sans TODO, avec les imports et dépendances nécessaires.";
+                c.constraints =
+`- Le code doit être immédiatement exécutable (ou intégrable) sans modifications majeures
+- Respect strict des bonnes pratiques du langage (nommage, structure, gestion des erreurs)
+- Commenter uniquement les parties non triviales
+- Mentionner clairement les dépendances éventuelles (bibliothèques, runtime, etc.)
+- Si plusieurs approches sont possibles, choisir la plus simple et robuste`;
+                c.format =
+`1. Bloc de code complet (sans blabla avant/après)
+2. Brève explication (5–10 lignes max) si nécessaire
+3. Exemple d’appel / d’utilisation si pertinent
+4. Liste éventuelle des dépendances (version minimale si utile)`;
+                c.validation =
+`- [ ] Le code est complet (pas de pseudo-code, pas de "…" ou de TODO)
+- [ ] Tous les imports / dépendances nécessaires sont présents
+- [ ] Les cas d’erreur évidents sont gérés proprement
+- [ ] Le style respecte les conventions du langage
+- [ ] Un exemple d’utilisation est fourni si utile`;
+                break;
+
+            case 'ocr_json':
+                c.role = "Tu es un expert mondial en OCR sémantique, structuration de documents et modélisation JSON pour GPT personnalisé.";
+                c.objective = "Transformer le contenu (texte, pages, consignes) en un JSON parfaitement structuré, exploitable directement comme base de connaissance pour un GPT spécialisé.";
+                c.constraints =
+`- Extraire / organiser l’information par niveaux logiques : document → chapitres → sections → éléments (concepts, exercices, exemples…)
+- Tolérance maximale aux incertitudes : dès qu’un mot, une phrase ou un passage est illisible, tu écris "[illisible]" au lieu de bloquer
+- Tu dois préférer la complétude structurée à la perfection micro-typographique
+- Les clés JSON doivent être en snake_case, explicites et stables
+- Aucune méta-explication dans le JSON (pas de phrases du type "ici je…")`;
+                c.format =
+`Tu fournis UNIQUEMENT un objet JSON valide, sans texte autour, de la forme :
+
+{
+  "document_metadata": { ... },
+  "structure_hierarchique": { ... },
+  "index_concepts": [ ... ],
+  "statistiques": { ... }
+}
+
+Adapte les sous-structures au besoin, mais respecte :
+- Une hiérarchie claire
+- Des tableaux pour les listes
+- Des chaînes de caractères pour les contenus textuels`;
+                c.validation =
+`- [ ] Le JSON est valide (accolades et crochets équilibrés, guillemets corrects)
+- [ ] Tous les niveaux logiques utiles sont bien représentés
+- [ ] Les zones floues / illisibles sont marquées "[illisible]" au lieu d’être ignorées
+- [ ] Aucune explication méta n’est incluse dans les valeurs JSON
+- [ ] La structure est cohérente d’un bout à l’autre (mêmes clés pour mêmes types d’éléments)`;
+                break;
+
+            case 'writing':
+                c.role = "Tu es un rédacteur expert, spécialisé dans les contenus clairs, structurés et engageants.";
+                c.objective = "Produire un texte complet et agréable à lire, qui répond précisément à la demande.";
+                c.constraints =
+`- Ton : professionnel, clair et humain (pas de phrases robotiques)
+- Structure logique avec titres et sous-titres
+- Utiliser des exemples concrets quand c’est pertinent
+- Éviter les redites et les remplissages creux
+- Pas de fautes d’orthographe majeures`;
+                c.format =
+`1. Introduction courte qui pose le contexte
+2. 2 à 4 grandes parties avec sous-titres
+3. Conclusion concise avec idée-clé ou ouverture`;
+                c.validation =
+`- [ ] La demande initiale est traitée explicitement
+- [ ] Le texte est structuré avec titres / sous-titres
+- [ ] Des exemples concrets sont présents si utiles
+- [ ] Le ton est homogène et cohérent
+- [ ] Aucune section n’est du remplissage vide`;
+                break;
+
+            case 'summary':
+                c.role = "Tu es un expert en synthèse qui condense l’information sans perdre les points essentiels.";
+                c.objective = "Produire un résumé fidèle, hiérarchisé et facile à relire.";
+                c.constraints =
+`- Longueur cible : ~30% maximum du volume initial (sauf indication contraire)
+- Conserver toutes les idées principales, supprimer les détails secondaires
+- Organiser les idées par importance décroissante
+- Reformuler avec tes mots (pas de copier-coller intégral)`;
+                c.format =
+`1. Phrase d’idée centrale
+2. Liste de 3 à 7 points clés
+3. Si utile : une phrase sur les implications / limites`;
+                c.validation =
+`- [ ] Les idées principales sont toutes présentes
+- [ ] Le résumé est clairement plus court que l’original
+- [ ] La structure est lisible (points clés hiérarchisés)
+- [ ] Aucune interprétation personnelle n’est introduite`;
+                break;
+
+            case 'explanation':
+                c.role = "Tu es un pédagogue expert, capable d’expliquer clairement des concepts à différents niveaux.";
+                c.objective = "Rendre le sujet compréhensible, même pour quelqu’un qui ne le maîtrise pas encore.";
+                c.constraints =
+`- Commencer simple, puis aller vers plus de nuance
+- Définir les termes techniques dès leur première apparition
+- Utiliser des exemples ou analogies parlantes
+- Éviter le jargon inutile et les phrases trop longues`;
+                c.format =
+`1. Définition simple du sujet
+2. Développement : comment ça fonctionne / pourquoi c’est important
+3. Exemples concrets ou analogies
+4. Récapitulatif en 3 points maximum`;
+                c.validation =
+`- [ ] Le lecteur peut expliquer le concept en 2–3 phrases après lecture
+- [ ] Au moins un exemple concret est donné
+- [ ] Les termes techniques sont définis clairement`;
+                break;
+
+            case 'listing':
+                c.role = "Tu es un organisateur d’idées, spécialiste des listes claires et actionnables.";
+                c.objective = "Fournir une liste structurée et immédiatement exploitable.";
+                c.constraints =
+`- Nombre d’éléments : viser 8–15 items (sauf instruction contraire)
+- Chaque item doit être muni d’un titre court + 1–2 phrases explicatives
+- Regrouper par catégories si pertinent
+- Garder un ordre logique (priorité, chronologie, etc.)`;
+                c.format =
+`Pour chaque élément :
+- Titre de l’item
+- Description courte
+Optionnel : étiquette (catégorie, niveau, priorité…)`;
+                c.validation =
+`- [ ] La liste couvre bien le périmètre demandé
+- [ ] Chaque item est compréhensible tout seul
+- [ ] L’ordre choisi aide à l’utilisation concrète`;
+                break;
+
+            case 'strategy':
+                c.role = "Tu es un consultant / architecte stratégique, capable de proposer un plan clair et réaliste.";
+                c.objective = "Concevoir une stratégie ou un plan structuré, applicable dans le réel.";
+                c.constraints =
+`- Proposer une progression en étapes successives
+- Pour chaque étape : objectif, actions, résultats attendus
+- Être réaliste sur l’effort et les prérequis
+- Distinguer bien : court terme / moyen terme / long terme si pertinent`;
+                c.format =
+`1. Résumé de la stratégie en 5–7 lignes
+2. Plan en étapes numérotées
+3. Pour chaque étape : objectif, actions, livrable
+4. Risques / points de vigilance principaux`;
+                c.validation =
+`- [ ] Toutes les grandes étapes nécessaires sont présentes
+- [ ] Chaque étape est actionnable (action + livrable)
+- [ ] Les risques majeurs sont identifiés`;
+                break;
+
+            default:
+                c.role = "Tu es un assistant expert, parfaitement adapté à la tâche décrite dans le prompt original.";
+                c.objective = "Répondre à la demande de manière complète, précise et exploitable immédiatement.";
+                c.constraints =
+`- Ne rien oublier de la demande initiale
+- Privilégier la clarté et la structure
+- Donner des exemples concrets si utile
+- Éviter les réponses génériques et vagues`;
+                c.format =
+`1. Réponse directe à la question / tâche
+2. Développement structuré
+3. Exemples / cas d’usage si pertinent`;
+                c.validation =
+`- [ ] Tous les éléments de la demande sont couverts
+- [ ] La réponse est structurée et lisible
+- [ ] Le résultat peut être utilisé tel quel sans te re-consulter`;
+        }
+
+        return c;
+    }
+
+    // Génère le super-prompt final
+    function buildSuperPrompt(rawPrompt) {
+        const taskType = detectTaskType(rawPrompt);
+        const c = buildConstraints(taskType);
+
+        const result =
+`# RÔLE
+${c.role}
+
+# OBJECTIF
+${c.objective}
+
+# CONTRAINTES OBLIGATOIRES
+${c.constraints}
+
+# FORMAT DE SORTIE IMPOSÉ
+${c.format}
+
+# VALIDATION AVANT ENVOI
+Avant d'envoyer ta réponse, vérifie mentalement :
+${c.validation}
+
+# MODE ANTI-PROCRASTINATION (IMPORTANT)
+Tu NE DOIS PAS :
+- Demander des clarifications, sauf si la demande est objectivement contradictoire
+- Proposer plusieurs options sans choisir
+- Suggérer d'autres approches que celle demandée
+- T'excuser pour des limites génériques
+
+Tu DOIS :
+- Produire directement un résultat complet, exploitable en ONE SHOT
+- Prendre des décisions raisonnables quand quelque chose n'est pas spécifié
+- Tolérer l'incertitude : si une information manque ou est floue, tu la signales clairement ("[illisible]" ou "[hypothèse raisonnable]") au lieu de bloquer
+
+---
+
+# PROMPT ORIGINEL À EXÉCUTER
+Utilise maintenant les sections ci-dessus pour traiter le prompt suivant :
+
+[DEBUT_PROMPT_ORIGINAL]
+${rawPrompt.trim()}
+[FIN_PROMPT_ORIGINAL]`;
+
+        return result;
+    }
+
+    // --- Gestion UI ----------------------------------------------------------
+
+    const inputEl = document.getElementById('inputPrompt');
+    const outputEl = document.getElementById('outputPrompt');
+    const btnTranslate = document.getElementById('btnTranslate');
+    const btnCopy = document.getElementById('btnCopy');
+    const btnClear = document.getElementById('btnClear');
+
+    btnTranslate.addEventListener('click', () => {
+        const raw = inputEl.value.trim();
+        if (!raw) {
+            alert('⚠️ Mets d’abord un prompt brut dans la zone de gauche.');
+            return;
+        }
+
+        const superPrompt = buildSuperPrompt(raw);
+        outputEl.value = superPrompt;
+
+        // petite animation visuelle
+        outputEl.style.borderColor = '#22c55e';
+        setTimeout(() => {
+            outputEl.style.borderColor = '#e5e7eb';
+        }, 900);
+
+        updateStats();
+    });
+
+    btnCopy.addEventListener('click', (event) => {
+        const text = outputEl.value.trim();
+        if (!text) {
+            alert('⚠️ Rien à copier. Traduits d’abord un prompt.');
+            return;
+        }
+
+        outputEl.focus();
+        outputEl.select();
+        try {
+            const ok = document.execCommand('copy');
+            if (!ok) throw new Error('execCommand échoué');
+        } catch (e) {
+            navigator.clipboard?.writeText(text).catch(() => {
+                alert('Impossible de copier automatiquement. Copie manuelle nécessaire.');
+            });
+        }
+
+        const btn = event.currentTarget;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<span class="emoji">✅</span> Copié !';
+        btn.style.background = '#16a34a';
+
+        setTimeout(() => {
+            btn.innerHTML = original;
+            btn.style.background = '#22c55e';
+        }, 1800);
+    });
+
+    btnClear.addEventListener('click', () => {
+        if (!confirm('Effacer le prompt d’entrée et le prompt optimisé ?')) return;
+        inputEl.value = '';
+        outputEl.value = '';
+        updateStats();
+    });
+
+    inputEl.addEventListener('input', updateStats);
+    outputEl.addEventListener('input', updateStats);
+
+    // Raccourci clavier : Ctrl+Enter dans le champ d'entrée
+    inputEl.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && (e.key === 'Enter' || e.key === 'NumpadEnter')) {
+            e.preventDefault();
+            btnTranslate.click();
+        }
+    });
+
+    // Init
+    updateStats();
+</script>
+</body>
+</html>

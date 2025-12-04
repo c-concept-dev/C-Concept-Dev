@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 PDF Splitter Pro - Découpeur Jazz</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animation jazz notes */
+        .jazz-notes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.1;
+        }
+
+        .note {
+            position: absolute;
+            font-size: 24px;
+            animation: float 15s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.3; }
+            50% { transform: translateY(-100vh) rotate(360deg); opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(-120vh) rotate(720deg); opacity: 0; }
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 15px;
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .mode-card {
+            background: #ecf0f1;
+            border: 3px solid #bdc3c7;
+            border-radius: 15px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .mode-card.active {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border-color: #2980b9;
+            color: white;
+        }
+
+        .mode-card.active .mode-icon {
+            filter: brightness(0) invert(1);
+        }
+
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .mode-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .mode-desc {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .settings-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            display: none;
+        }
+
+        .settings-panel.active {
+            display: block;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-group label {
+            display: block;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .setting-group input, .setting-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .setting-group input:focus, .setting-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .setting-group small {
+            font-size: 12px;
+            color: #7f8c8d;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 25px;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.05) 0%, rgba(41, 128, 185, 0.05) 100%);
+        }
+
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(41, 128, 185, 0.1) 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background: linear-gradient(135deg, rgba(39, 174, 96, 0.1) 0%, rgba(46, 204, 113, 0.1) 100%);
+            transform: scale(1.05);
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #3498db;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-info {
+            background: #e8f8f5;
+            border-left: 5px solid #27ae60;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: none;
+        }
+
+        .file-info.active {
+            display: block;
+            animation: slideIn 0.4s ease;
+        }
+
+        .file-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .file-stat {
+            text-align: center;
+        }
+
+        .file-stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #27ae60;
+            margin-bottom: 5px;
+        }
+
+        .file-stat-label {
+            font-size: 13px;
+            color: #16a085;
+        }
+
+        .preview-section {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: none;
+        }
+
+        .preview-section.active {
+            display: block;
+            animation: slideIn 0.4s ease;
+        }
+
+        .preview-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .html-estimate {
+            background: #f3e5f5;
+            border-left: 5px solid #9c27b0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        .html-estimate-title {
+            font-weight: bold;
+            color: #6a1b9a;
+            margin-bottom: 15px;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .html-estimate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .html-estimate-stat {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .html-estimate-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #6a1b9a;
+            margin-bottom: 5px;
+        }
+
+        .html-estimate-label {
+            font-size: 11px;
+            color: #6a1b9a;
+        }
+
+        .html-warning {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(255, 152, 0, 0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #e65100;
+            display: none;
+        }
+
+        .html-warning.active {
+            display: block;
+        }
+
+        .preview-stat {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .preview-stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 5px;
+        }
+
+        .preview-stat-label {
+            font-size: 12px;
+            color: #856404;
+        }
+
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+        }
+
+        .file-list-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .file-list-name {
+            color: #856404;
+            font-weight: 500;
+        }
+
+        .file-list-info {
+            color: #856404;
+            opacity: 0.7;
+            font-size: 12px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 15px 35px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(127, 140, 141, 0.4);
+        }
+
+        .progress-section {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: none;
+        }
+
+        .progress-section.active {
+            display: block;
+            animation: slideIn 0.4s ease;
+        }
+
+        .progress-bar-container {
+            background: white;
+            border-radius: 10px;
+            height: 30px;
+            overflow: hidden;
+            margin-top: 15px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #17a2b8 0%, #138496 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .progress-text {
+            color: #0c5460;
+            margin-top: 10px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .success-section {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            display: none;
+        }
+
+        .success-section.active {
+            display: block;
+            animation: slideIn 0.4s ease;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .success-text {
+            color: #155724;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .download-options {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .download-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .download-btn-individual {
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+            color: white;
+        }
+
+        .download-btn-zip {
+            background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);
+            color: white;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .individual-downloads {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+        }
+
+        .individual-download-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .individual-download-name {
+            color: #155724;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .individual-download-btn {
+            padding: 8px 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .individual-download-btn:hover {
+            background: #218838;
+            transform: scale(1.05);
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 5px solid #2196F3;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            color: #0d47a1;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+
+            .mode-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="jazz-notes">
+        <div class="note" style="left: 10%; animation-delay: 0s;">🎵</div>
+        <div class="note" style="left: 25%; animation-delay: 3s;">🎶</div>
+        <div class="note" style="left: 40%; animation-delay: 6s;">🎵</div>
+        <div class="note" style="left: 55%; animation-delay: 9s;">🎶</div>
+        <div class="note" style="left: 70%; animation-delay: 12s;">🎵</div>
+        <div class="note" style="left: 85%; animation-delay: 15s;">🎶</div>
+    </div>
+
+    <div class="container">
+        <h1>
+            <span>🎵</span>
+            PDF Splitter Pro
+            <span>🎷</span>
+        </h1>
+        <p class="subtitle">
+            Découpez vos PDFs avec la précision d'un solo de jazz... Par taille ou par nombre de pages, c'est vous qui dirigez l'orchestre ! 🎺
+        </p>
+
+        <div class="info-box">
+            <strong>🎯 Pourquoi ce découpage ?</strong><br>
+            GitHub Desktop limite les fichiers à 100 Mo. Ce splitter vous permet de découper vos gros PDFs pour contourner cette limite, puis de les convertir individuellement en HTML avec votre convertisseur préféré.
+        </div>
+
+        <!-- Sélection du mode -->
+        <div class="mode-selector">
+            <div class="mode-card active" data-mode="pages">
+                <div class="mode-icon">📄</div>
+                <div class="mode-title">Par nombre de pages</div>
+                <div class="mode-desc">Découper tous les X pages</div>
+            </div>
+            <div class="mode-card" data-mode="size">
+                <div class="mode-icon">⚖️</div>
+                <div class="mode-title">Par taille de fichier</div>
+                <div class="mode-desc">Limiter la taille de chaque fichier</div>
+            </div>
+        </div>
+
+        <!-- Paramètres mode pages -->
+        <div class="settings-panel active" id="settingsPages">
+            <div class="setting-group">
+                <label for="pagesPerFile">
+                    📄 Nombre de pages par fichier
+                </label>
+                <input type="number" id="pagesPerFile" value="50" min="1" max="1000">
+                <small>Chaque fichier contiendra ce nombre de pages (sauf le dernier)</small>
+            </div>
+            <div class="setting-group">
+                <label for="htmlQuality">
+                    🎨 Qualité de conversion HTML (0.1 - 1.0)
+                </label>
+                <input type="number" id="htmlQuality" value="0.8" min="0.1" max="1.0" step="0.1">
+                <small>Utilisé pour estimer la taille HTML après conversion (défaut : 0.8)</small>
+            </div>
+            <div class="setting-group">
+                <label for="htmlScale">
+                    🔍 Échelle de conversion HTML
+                </label>
+                <input type="number" id="htmlScale" value="1.5" min="0.5" max="3.0" step="0.1">
+                <small>Facteur d'échelle pour le rendu (défaut : 1.5)</small>
+            </div>
+        </div>
+
+        <!-- Paramètres mode taille -->
+        <div class="settings-panel" id="settingsSize">
+            <div class="setting-group">
+                <label for="maxSizeMB">
+                    ⚖️ Taille maximale par fichier (Mo)
+                </label>
+                <input type="number" id="maxSizeMB" value="80" min="1" max="500">
+                <small>Les fichiers ne dépasseront pas cette taille (recommandé : 80 Mo pour GitHub)</small>
+            </div>
+            <div class="setting-group">
+                <label for="estimateMethod">
+                    🎯 Méthode d'estimation
+                </label>
+                <select id="estimateMethod">
+                    <option value="proportional">Proportionnelle (rapide)</option>
+                    <option value="precise">Précise (plus lent mais exact)</option>
+                </select>
+                <small>La méthode précise analyse chaque page individuellement</small>
+            </div>
+            <div class="setting-group">
+                <label for="htmlQualitySize">
+                    🎨 Qualité de conversion HTML (0.1 - 1.0)
+                </label>
+                <input type="number" id="htmlQualitySize" value="0.8" min="0.1" max="1.0" step="0.1">
+                <small>Utilisé pour estimer la taille HTML après conversion (défaut : 0.8)</small>
+            </div>
+            <div class="setting-group">
+                <label for="htmlScaleSize">
+                    🔍 Échelle de conversion HTML
+                </label>
+                <input type="number" id="htmlScaleSize" value="1.5" min="0.5" max="3.0" step="0.1">
+                <small>Facteur d'échelle pour le rendu (défaut : 1.5)</small>
+            </div>
+        </div>
+
+        <!-- Zone d'upload -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">🎼</div>
+            <div class="upload-text">Glissez votre PDF ici ou cliquez pour sélectionner</div>
+            <div class="upload-hint">Format accepté : PDF uniquement</div>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+
+        <!-- Info fichier -->
+        <div class="file-info" id="fileInfo">
+            <div style="color: #27ae60; font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+                ✅ Fichier chargé avec succès !
+            </div>
+            <div style="color: #16a085; font-weight: 500; margin-bottom: 15px;" id="fileName"></div>
+            <div class="file-info-grid">
+                <div class="file-stat">
+                    <div class="file-stat-value" id="filePages">-</div>
+                    <div class="file-stat-label">Pages</div>
+                </div>
+                <div class="file-stat">
+                    <div class="file-stat-value" id="fileSize">-</div>
+                    <div class="file-stat-label">Taille</div>
+                </div>
+                <div class="file-stat">
+                    <div class="file-stat-value" id="fileAvgSize">-</div>
+                    <div class="file-stat-label">Moyenne/page</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prévisualisation -->
+        <div class="preview-section" id="previewSection">
+            <div class="preview-title">
+                <span>🔮</span>
+                Prévisualisation du découpage
+            </div>
+            <div class="preview-grid">
+                <div class="preview-stat">
+                    <div class="preview-stat-value" id="previewFiles">-</div>
+                    <div class="preview-stat-label">Fichiers créés</div>
+                </div>
+                <div class="preview-stat">
+                    <div class="preview-stat-value" id="previewAvgSize">-</div>
+                    <div class="preview-stat-label">Taille moyenne</div>
+                </div>
+                <div class="preview-stat">
+                    <div class="preview-stat-value" id="previewMaxSize">-</div>
+                    <div class="preview-stat-label">Taille max</div>
+                </div>
+            </div>
+            <div class="file-list" id="fileList"></div>
+            
+            <div class="html-estimate">
+                <div class="html-estimate-title">
+                    <span>🌐</span>
+                    Estimation après conversion HTML
+                </div>
+                <div class="html-estimate-grid">
+                    <div class="html-estimate-stat">
+                        <div class="html-estimate-value" id="htmlTotalSize">-</div>
+                        <div class="html-estimate-label">Taille totale HTML</div>
+                    </div>
+                    <div class="html-estimate-stat">
+                        <div class="html-estimate-value" id="htmlAvgSize">-</div>
+                        <div class="html-estimate-label">Moyenne par fichier</div>
+                    </div>
+                    <div class="html-estimate-stat">
+                        <div class="html-estimate-value" id="htmlMaxSize">-</div>
+                        <div class="html-estimate-label">Taille max HTML</div>
+                    </div>
+                    <div class="html-estimate-stat">
+                        <div class="html-estimate-value" id="htmlExpansion">-</div>
+                        <div class="html-estimate-label">Facteur d'expansion</div>
+                    </div>
+                </div>
+                <div class="html-warning" id="htmlWarning">
+                    ⚠️ Attention : Certains fichiers HTML dépasseront 100 Mo après conversion !
+                </div>
+            </div>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" id="resetBtn" style="display: none;">
+                🔄 Recommencer
+            </button>
+            <button class="btn btn-primary" id="splitBtn" disabled>
+                ✂️ Découper le PDF
+            </button>
+        </div>
+
+        <!-- Progression -->
+        <div class="progress-section" id="progressSection">
+            <div style="color: #0c5460; font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+                🎵 Découpage en cours...
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+            <div class="progress-text" id="progressText">Initialisation...</div>
+        </div>
+
+        <!-- Succès -->
+        <div class="success-section" id="successSection">
+            <div class="success-icon">🎉</div>
+            <div class="success-text">Découpage terminé avec succès !</div>
+            <div id="successInfo" style="color: #155724; text-align: center; margin-bottom: 20px;"></div>
+            
+            <div class="download-options">
+                <button class="download-btn download-btn-zip" id="downloadZipBtn">
+                    📦 Télécharger tout (ZIP)
+                </button>
+                <button class="download-btn download-btn-individual" id="showIndividualBtn">
+                    📄 Téléchargements individuels
+                </button>
+            </div>
+
+            <div class="individual-downloads" id="individualDownloads" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const { PDFDocument } = PDFLib;
+        
+        let currentMode = 'pages';
+        let currentPDF = null;
+        let currentFile = null;
+        let splitResults = [];
+
+        // Éléments DOM
+        const modeCards = document.querySelectorAll('.mode-card');
+        const settingsPages = document.getElementById('settingsPages');
+        const settingsSize = document.getElementById('settingsSize');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const previewSection = document.getElementById('previewSection');
+        const splitBtn = document.getElementById('splitBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const progressSection = document.getElementById('progressSection');
+        const successSection = document.getElementById('successSection');
+
+        // Sélection du mode
+        modeCards.forEach(card => {
+            card.addEventListener('click', () => {
+                modeCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                currentMode = card.dataset.mode;
+                
+                settingsPages.classList.toggle('active', currentMode === 'pages');
+                settingsSize.classList.toggle('active', currentMode === 'size');
+                
+                if (currentPDF) {
+                    updatePreview();
+                }
+            });
+        });
+
+        // Upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                handleFile(file);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // Mise à jour auto de la prévisualisation
+        document.getElementById('pagesPerFile').addEventListener('input', () => {
+            if (currentPDF) updatePreview();
+        });
+        
+        document.getElementById('maxSizeMB').addEventListener('input', () => {
+            if (currentPDF) updatePreview();
+        });
+        
+        document.getElementById('htmlQuality').addEventListener('input', () => {
+            if (currentPDF) updatePreview();
+        });
+        
+        document.getElementById('htmlScale').addEventListener('input', () => {
+            if (currentPDF) updatePreview();
+        });
+        
+        document.getElementById('htmlQualitySize').addEventListener('input', () => {
+            if (currentPDF) updatePreview();
+        });
+        
+        document.getElementById('htmlScaleSize').addEventListener('input', () => {
+            if (currentPDF) updatePreview();
+        });
+
+        // Gestion du fichier
+        async function handleFile(file) {
+            try {
+                currentFile = file;
+                const arrayBuffer = await file.arrayBuffer();
+                currentPDF = await PDFDocument.load(arrayBuffer);
+                
+                const numPages = currentPDF.getPageCount();
+                const fileSize = file.size;
+                const avgPageSize = fileSize / numPages;
+                
+                document.getElementById('fileName').textContent = `📄 ${file.name}`;
+                document.getElementById('filePages').textContent = numPages;
+                document.getElementById('fileSize').textContent = formatSize(fileSize);
+                document.getElementById('fileAvgSize').textContent = formatSize(avgPageSize);
+                
+                fileInfo.classList.add('active');
+                resetBtn.style.display = 'inline-flex';
+                splitBtn.disabled = false;
+                
+                updatePreview();
+                
+            } catch (error) {
+                alert(`❌ Erreur lors du chargement du PDF: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        // Mise à jour de la prévisualisation
+        function updatePreview() {
+            if (!currentPDF) return;
+            
+            const numPages = currentPDF.getPageCount();
+            const fileSize = currentFile.size;
+            const avgPageSize = fileSize / numPages;
+            
+            // Récupérer les paramètres HTML selon le mode
+            let htmlQuality, htmlScale;
+            if (currentMode === 'pages') {
+                htmlQuality = parseFloat(document.getElementById('htmlQuality').value) || 0.8;
+                htmlScale = parseFloat(document.getElementById('htmlScale').value) || 1.5;
+            } else {
+                htmlQuality = parseFloat(document.getElementById('htmlQualitySize').value) || 0.8;
+                htmlScale = parseFloat(document.getElementById('htmlScaleSize').value) || 1.5;
+            }
+            
+            let preview = [];
+            
+            if (currentMode === 'pages') {
+                const pagesPerFile = parseInt(document.getElementById('pagesPerFile').value) || 50;
+                const numFiles = Math.ceil(numPages / pagesPerFile);
+                
+                for (let i = 0; i < numFiles; i++) {
+                    const startPage = i * pagesPerFile + 1;
+                    const endPage = Math.min((i + 1) * pagesPerFile, numPages);
+                    const pages = endPage - startPage + 1;
+                    const estimatedSize = pages * avgPageSize;
+                    
+                    preview.push({
+                        name: `${currentFile.name.replace('.pdf', '')}_part${i + 1}.pdf`,
+                        startPage,
+                        endPage,
+                        pages,
+                        estimatedSize,
+                        htmlSize: estimateHTMLSize(pages, htmlQuality, htmlScale, estimatedSize)
+                    });
+                }
+                
+            } else {
+                const maxSizeMB = parseInt(document.getElementById('maxSizeMB').value) || 80;
+                const maxSizeBytes = maxSizeMB * 1024 * 1024;
+                
+                let currentStartPage = 1;
+                let fileIndex = 1;
+                
+                while (currentStartPage <= numPages) {
+                    const estimatedPages = Math.floor(maxSizeBytes / avgPageSize);
+                    const endPage = Math.min(currentStartPage + estimatedPages - 1, numPages);
+                    const pages = endPage - currentStartPage + 1;
+                    const estimatedSize = pages * avgPageSize;
+                    
+                    preview.push({
+                        name: `${currentFile.name.replace('.pdf', '')}_part${fileIndex}.pdf`,
+                        startPage: currentStartPage,
+                        endPage,
+                        pages,
+                        estimatedSize,
+                        htmlSize: estimateHTMLSize(pages, htmlQuality, htmlScale, estimatedSize)
+                    });
+                    
+                    currentStartPage = endPage + 1;
+                    fileIndex++;
+                }
+            }
+            
+            // Afficher les stats PDF
+            document.getElementById('previewFiles').textContent = preview.length;
+            
+            const totalSize = preview.reduce((sum, f) => sum + f.estimatedSize, 0);
+            document.getElementById('previewAvgSize').textContent = formatSize(totalSize / preview.length);
+            
+            const maxSize = Math.max(...preview.map(f => f.estimatedSize));
+            document.getElementById('previewMaxSize').textContent = formatSize(maxSize);
+            
+            // Afficher les stats HTML
+            const totalHTMLSize = preview.reduce((sum, f) => sum + f.htmlSize, 0);
+            const avgHTMLSize = totalHTMLSize / preview.length;
+            const maxHTMLSize = Math.max(...preview.map(f => f.htmlSize));
+            const expansionFactor = totalHTMLSize / totalSize;
+            
+            document.getElementById('htmlTotalSize').textContent = formatSize(totalHTMLSize);
+            document.getElementById('htmlAvgSize').textContent = formatSize(avgHTMLSize);
+            document.getElementById('htmlMaxSize').textContent = formatSize(maxHTMLSize);
+            document.getElementById('htmlExpansion').textContent = `×${expansionFactor.toFixed(2)}`;
+            
+            // Avertissement si dépassement de 100 Mo
+            const htmlWarning = document.getElementById('htmlWarning');
+            const githubLimit = 100 * 1024 * 1024; // 100 Mo
+            if (maxHTMLSize > githubLimit) {
+                htmlWarning.classList.add('active');
+                htmlWarning.innerHTML = `⚠️ Attention : Le fichier HTML le plus gros fera ${formatSize(maxHTMLSize)}, dépassant la limite GitHub de 100 Mo ! Réduisez le nombre de pages par fichier ou la qualité/échelle de conversion.`;
+            } else {
+                htmlWarning.classList.remove('active');
+            }
+            
+            // Liste des fichiers avec estimation HTML
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = preview.map((f, i) => `
+                <div class="file-list-item">
+                    <span class="file-list-name">${f.name}</span>
+                    <span class="file-list-info">
+                        Pages ${f.startPage}-${f.endPage} (${f.pages} pages) • PDF: ~${formatSize(f.estimatedSize)} → HTML: ~${formatSize(f.htmlSize)}
+                    </span>
+                </div>
+            `).join('');
+            
+            previewSection.classList.add('active');
+        }
+        
+        /**
+         * Estime la taille du fichier HTML après conversion
+         * Basé sur des tests réels avec le convertisseur PDF vers HTML
+         * 
+         * Données de calibration réelles:
+         * - Test 1: 40 Mo PDF → 134 Mo HTML (×3.35)
+         * - Test 2: 55 Mo PDF, 508 pages → 179.9 Mo HTML (×3.27)
+         * - Test 3: 60 Mo PDF, 231 pages → 105.0 Mo HTML (×1.75)
+         * - Paramètres: quality=0.8, scale=1.5, format=JPEG
+         * 
+         * Observation: Le ratio varie beaucoup selon la densité du contenu PDF.
+         * Solution: Utiliser un ratio direct basé sur la taille PDF totale.
+         * 
+         * Ratio conservateur choisi: ×3.0
+         * (permet de couvrir la plupart des cas tout en restant prudent)
+         * 
+         * @param {number} numPages - Nombre de pages
+         * @param {number} quality - Qualité JPEG (0.1 à 1.0)
+         * @param {number} scale - Échelle de rendu (ex: 1.5)
+         * @param {number} pdfSize - Taille du PDF source en octets
+         * @returns {number} Taille estimée en octets
+         */
+        function estimateHTMLSize(numPages, quality, scale, pdfSize) {
+            // Ratio de base: ×3.0 (conservateur)
+            const baseRatio = 3.0;
+            
+            // Facteurs de référence pour la calibration
+            const refQuality = 0.8;
+            const refScale = 1.5;
+            
+            // Impact de la qualité
+            // quality augmente = taille augmente proportionnellement
+            const qualityFactor = quality / refQuality;
+            
+            // Impact du scale
+            // scale augmente = surface augmente au carré
+            const scaleFactor = Math.pow(scale / refScale, 2);
+            
+            // Ratio ajusté selon les paramètres
+            const adjustedRatio = baseRatio * qualityFactor * scaleFactor;
+            
+            // Taille estimée basée sur la taille PDF
+            return pdfSize * adjustedRatio;
+        }
+
+        // Découpage
+        splitBtn.addEventListener('click', async () => {
+            if (!currentPDF) return;
+            
+            splitBtn.disabled = true;
+            progressSection.classList.add('active');
+            successSection.classList.remove('active');
+            
+            try {
+                const numPages = currentPDF.getPageCount();
+                splitResults = [];
+                
+                if (currentMode === 'pages') {
+                    await splitByPages(numPages);
+                } else {
+                    await splitBySize(numPages);
+                }
+                
+                // Afficher le succès
+                progressSection.classList.remove('active');
+                successSection.classList.add('active');
+                
+                document.getElementById('successInfo').innerHTML = `
+                    <strong>${splitResults.length} fichiers créés</strong><br>
+                    Taille totale : ${formatSize(splitResults.reduce((sum, f) => sum + f.size, 0))}
+                `;
+                
+                // Préparer les téléchargements individuels
+                const individualDownloads = document.getElementById('individualDownloads');
+                individualDownloads.innerHTML = splitResults.map((result, i) => `
+                    <div class="individual-download-item">
+                        <span class="individual-download-name">
+                            ${result.name} (${formatSize(result.size)})
+                        </span>
+                        <button class="individual-download-btn" data-index="${i}">
+                            💾 Télécharger
+                        </button>
+                    </div>
+                `).join('');
+                
+                // Événements de téléchargement
+                individualDownloads.querySelectorAll('.individual-download-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const index = parseInt(btn.dataset.index);
+                        downloadFile(splitResults[index]);
+                    });
+                });
+                
+            } catch (error) {
+                alert(`❌ Erreur lors du découpage: ${error.message}`);
+                console.error(error);
+                progressSection.classList.remove('active');
+            }
+            
+            splitBtn.disabled = false;
+        });
+
+        async function splitByPages(numPages) {
+            const pagesPerFile = parseInt(document.getElementById('pagesPerFile').value) || 50;
+            const numFiles = Math.ceil(numPages / pagesPerFile);
+            
+            for (let i = 0; i < numFiles; i++) {
+                const startPage = i * pagesPerFile;
+                const endPage = Math.min((i + 1) * pagesPerFile - 1, numPages - 1);
+                
+                updateProgress((i / numFiles) * 100, 
+                    `Création du fichier ${i + 1}/${numFiles}...`);
+                
+                const newPdf = await PDFDocument.create();
+                const pages = await newPdf.copyPages(currentPDF, 
+                    Array.from({length: endPage - startPage + 1}, (_, j) => startPage + j));
+                
+                pages.forEach(page => newPdf.addPage(page));
+                
+                const pdfBytes = await newPdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                splitResults.push({
+                    name: `${currentFile.name.replace('.pdf', '')}_part${i + 1}.pdf`,
+                    blob,
+                    size: blob.size
+                });
+            }
+        }
+
+        async function splitBySize(numPages) {
+            const maxSizeMB = parseInt(document.getElementById('maxSizeMB').value) || 80;
+            const maxSizeBytes = maxSizeMB * 1024 * 1024;
+            const fileSize = currentFile.size;
+            const avgPageSize = fileSize / numPages;
+            
+            let currentStartPage = 0;
+            let fileIndex = 1;
+            let totalCreated = 0;
+            
+            while (currentStartPage < numPages) {
+                const estimatedPages = Math.floor(maxSizeBytes / avgPageSize);
+                let endPage = Math.min(currentStartPage + estimatedPages - 1, numPages - 1);
+                
+                // Vérification de la taille réelle si méthode précise
+                const estimateMethod = document.getElementById('estimateMethod').value;
+                if (estimateMethod === 'precise') {
+                    endPage = await findOptimalEndPage(currentStartPage, endPage, maxSizeBytes);
+                }
+                
+                totalCreated++;
+                const estimatedTotal = Math.ceil(numPages * avgPageSize / maxSizeBytes);
+                updateProgress((totalCreated / estimatedTotal) * 100, 
+                    `Création du fichier ${fileIndex}...`);
+                
+                const newPdf = await PDFDocument.create();
+                const pages = await newPdf.copyPages(currentPDF, 
+                    Array.from({length: endPage - currentStartPage + 1}, (_, j) => currentStartPage + j));
+                
+                pages.forEach(page => newPdf.addPage(page));
+                
+                const pdfBytes = await newPdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                splitResults.push({
+                    name: `${currentFile.name.replace('.pdf', '')}_part${fileIndex}.pdf`,
+                    blob,
+                    size: blob.size
+                });
+                
+                currentStartPage = endPage + 1;
+                fileIndex++;
+            }
+        }
+
+        async function findOptimalEndPage(startPage, estimatedEndPage, maxSize) {
+            // Créer un PDF temporaire pour tester la taille
+            const testPdf = await PDFDocument.create();
+            const pages = await testPdf.copyPages(currentPDF, 
+                Array.from({length: estimatedEndPage - startPage + 1}, (_, j) => startPage + j));
+            pages.forEach(page => testPdf.addPage(page));
+            
+            const testBytes = await testPdf.save();
+            
+            if (testBytes.length <= maxSize) {
+                return estimatedEndPage;
+            } else {
+                // Réduire le nombre de pages
+                const reduction = Math.ceil((testBytes.length - maxSize) / (testBytes.length / pages.length));
+                return Math.max(startPage, estimatedEndPage - reduction);
+            }
+        }
+
+        function updateProgress(percent, text) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            progressBar.style.width = `${percent}%`;
+            progressBar.textContent = `${Math.round(percent)}%`;
+            progressText.textContent = text;
+        }
+
+        // Téléchargement ZIP
+        document.getElementById('downloadZipBtn').addEventListener('click', async () => {
+            const zip = new JSZip();
+            
+            splitResults.forEach(result => {
+                zip.file(result.name, result.blob);
+            });
+            
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentFile.name.replace('.pdf', '')}_split.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Afficher téléchargements individuels
+        document.getElementById('showIndividualBtn').addEventListener('click', () => {
+            const individualDownloads = document.getElementById('individualDownloads');
+            individualDownloads.style.display = 
+                individualDownloads.style.display === 'none' ? 'block' : 'none';
+        });
+
+        function downloadFile(result) {
+            const url = URL.createObjectURL(result.blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = result.name;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Reset
+        resetBtn.addEventListener('click', () => {
+            currentPDF = null;
+            currentFile = null;
+            splitResults = [];
+            fileInput.value = '';
+            
+            fileInfo.classList.remove('active');
+            previewSection.classList.remove('active');
+            successSection.classList.remove('active');
+            resetBtn.style.display = 'none';
+            splitBtn.disabled = true;
+        });
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+    </script>
+</body>
+</html>
