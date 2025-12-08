@@ -2962,46 +2962,87 @@
                 <p style="margin-bottom:15px;color:var(--gris-secondaire);">Cochez tous les types présents dans le document:</p>
                 
                 <div id="contentCheckboxes" class="content-checkboxes">
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="text_paragraphs" onchange="updateComposition()">
-                        📝 Texte & Paragraphes
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="images_photos" onchange="updateComposition()">
-                        🖼️ Images & Photos
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="tables_data" onchange="updateComposition()">
-                        📊 Tableaux & Données
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="charts_graphs" onchange="updateComposition()">
-                        📈 Graphiques & Courbes
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="diagrams_schemas" onchange="updateComposition()">
-                        🔷 Diagrammes & Schémas
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="forms_templates" onchange="updateComposition()">
-                        📋 Formulaires & Modèles
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="lists_bullet_points" onchange="updateComposition()">
-                        • Listes & Points
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="code_technical" onchange="updateComposition()">
-                        💻 Code & Technique
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="mathematical_formulas" onchange="updateComposition()">
-                        🧮 Formules Mathématiques
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="annotations_highlights" onchange="updateComposition()">
-                        ✏️ Annotations & Surlignages
-                    </label>
+                    <!-- TYPES UNIVERSELS (10) -->
+                    <div style="margin-bottom:20px;border-bottom:2px solid var(--beige-sable);padding-bottom:15px;">
+                        <h5 style="color:var(--vert-sauge);margin-bottom:10px;font-size:14px;">Types Universels</h5>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="text_paragraphs" onchange="updateComposition()">
+                            📝 Texte & Paragraphes
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="images_photos" onchange="updateComposition()">
+                            🖼️ Images & Photos
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="tables_data" onchange="updateComposition()">
+                            📊 Tableaux & Données
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="charts_graphs" onchange="updateComposition()">
+                            📈 Graphiques & Courbes
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="diagrams_schemas" onchange="updateComposition()">
+                            🔷 Diagrammes & Schémas
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="forms_templates" onchange="updateComposition()">
+                            📋 Formulaires & Modèles
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="lists_bullet_points" onchange="updateComposition()">
+                            • Listes & Points
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="code_technical" onchange="updateComposition()">
+                            💻 Code & Technique
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="mathematical_formulas" onchange="updateComposition()">
+                            🧮 Formules Mathématiques
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="annotations_highlights" onchange="updateComposition()">
+                            ✏️ Annotations & Surlignages
+                        </label>
+                    </div>
+                    
+                    <!-- TYPES COMPLÉMENTAIRES (8) -->
+                    <div>
+                        <h5 style="color:var(--bleu-mer);margin-bottom:10px;font-size:14px;">Types Complémentaires</h5>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="musical_notation" onchange="updateComposition()">
+                            🎼 Notation Musicale
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="citations_references" onchange="updateComposition()">
+                            📖 Citations & Références
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="exercises_questions" onchange="updateComposition()">
+                            ❓ Exercices & Questions
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="callouts_boxes" onchange="updateComposition()">
+                            💬 Encadrés Spéciaux
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="index_glossary" onchange="updateComposition()">
+                            📑 Index & Glossaires
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="case_studies" onchange="updateComposition()">
+                            📚 Études de Cas
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="links_urls" onchange="updateComposition()">
+                            🔗 Liens & URLs
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="infographics" onchange="updateComposition()">
+                            🎨 Infographies
+                        </label>
+                    </div>
                 </div>
                 
                 <div id="weightsSection" class="weights-section" style="display:none;">
@@ -6986,9 +7027,9 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
             
             const weights = STATE.analysis.composition.weights;
             
-            // ✨ MAPPING UNIVERSEL: Noms affichables pour tous types de contenu
+            // ✨ MAPPING COMPLET: 18 types (10 universels + 8 complémentaires)
             const names = {
-                // Nouveaux types universels (français)
+                // Types universels (10)
                 'text_paragraphs': 'Texte',
                 'images_photos': 'Images',
                 'tables_data': 'Tableaux',
@@ -6999,7 +7040,16 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
                 'code_technical': 'Code',
                 'mathematical_formulas': 'Math',
                 'annotations_highlights': 'Annotations',
-                // Anciens types (compatibilité)
+                // Types complémentaires (8)
+                'musical_notation': 'Notation Musicale',
+                'citations_references': 'Citations',
+                'exercises_questions': 'Exercices',
+                'callouts_boxes': 'Encadrés',
+                'index_glossary': 'Index',
+                'case_studies': 'Études de Cas',
+                'links_urls': 'Liens',
+                'infographics': 'Infographies',
+                // Anciens types (compatibilité rétro-active)
                 'partition_musicale': 'Partition',
                 'tablature': 'Tablature',
                 'texte_pedagogique': 'Pédagogie',
