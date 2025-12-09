@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCR Universel V6.0 ULTIMATE - Labo R&D Anthropic + API Multi-LLM</title>
+    <title>OCR Universel V6.4.4 SIMPLE - Worker intégré au workflow Manuel</title>
     
     <!-- Police Montserrat -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -894,6 +894,77 @@
             border-radius: 10px;
             margin: 20px 0;
         }
+
+        /* ════════════════════════════════════════════════════════════
+           V6.3.0 - SECTION SÉCURITÉ
+           ════════════════════════════════════════════════════════════ */
+        .security-warning {
+            background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .security-warning.visible {
+            display: block;
+        }
+        .security-warning h4 {
+            color: #e65100;
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .security-warning-content {
+            color: #5d4037;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .security-warning-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .security-warning-content li {
+            margin: 5px 0;
+        }
+        .security-warning-highlight {
+            background: #fff3e0;
+            border-left: 3px solid #ff9800;
+            padding: 10px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .security-warning-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .security-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .security-btn-primary {
+            background: var(--vert-sauge);
+            color: white;
+        }
+        .security-btn-primary:hover {
+            background: #7fa582;
+        }
+        .security-btn-secondary {
+            background: white;
+            color: var(--gris-secondaire);
+            border: 1px solid var(--gris-clair);
+        }
+        .security-btn-secondary:hover {
+            background: var(--beige-sable);
+        }
+        /* ════════════════════════════════════════════════════════════ */
         
         .batch-config-row {
             display: grid;
@@ -977,6 +1048,40 @@
             opacity: 0.5;
             cursor: not-allowed;
             pointer-events: none;
+        }
+        
+        /* V6.3.0 - Organisation Exports Basiques/Avancés */
+        .export-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--beige-sable);
+        }
+        .export-section-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--vert-sauge);
+        }
+        .export-toggle-btn {
+            background: var(--beige-sable);
+            border: 1px solid var(--gris-clair);
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+        .export-toggle-btn:hover {
+            background: var(--vert-sauge);
+            color: white;
+        }
+        .export-advanced-section {
+            display: none;
+        }
+        .export-advanced-section.visible {
+            display: block;
         }
         
         .export-format-icon {
@@ -2208,6 +2313,17 @@
             }
         }
         
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 4px 20px rgba(76, 175, 80, 0.6);
+            }
+        }
+        
         /* ══════════════════════════════════════════════════════════════ */
         /* TABS MODERNES */
         /* ══════════════════════════════════════════════════════════════ */
@@ -2499,10 +2615,10 @@
         <!-- HEADER -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <div class="header">
-            <h1>OCR Universel V6.0 ULTIMATE</h1>
-            <span class="version-badge">Labo R&D Anthropic + API Multi-LLM</span>
+            <h1>OCR Universel V6.4.4 SIMPLE</h1>
+            <span class="version-badge">Worker intégré • Workflow Manuel unifié • Pro Charte</span>
             <p class="subtitle">
-                21 formats supportés • OCR parallèle intelligent • Détection multi-dimensionnelle • API Multi-LLM • Production Ready
+                21 formats supportés • OCR parallèle intelligent • Worker = même workflow que Manuel • API Multi-LLM • Production Ready
             </p>
         </div>
 
@@ -2518,7 +2634,7 @@
                     <input type="radio" name="mode" value="manual" checked onchange="switchMode('manual')">
                     <span>Manuel</span>
                 </label>
-                <label class="mode-radio" onclick="handleModeToggle(event, 'user-keys')">
+                <label class="mode-radio">
                     <input type="radio" name="mode" value="user-keys" onchange="switchMode('user-keys')">
                     <span>API Multi-LLM</span>
                 </label>
@@ -2695,6 +2811,7 @@
                 
                 <!-- PANEL WORKER -->
                 <div class="mode-panel" id="panelWorker" data-mode="worker">
+                    <!-- TOGGLE -->
                     <div style="padding:12px;background:#E6D7C3;border-left:4px solid #8FAFB1;border-radius:6px;margin-bottom:12px;text-align:center;">
                         <label style="display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;">
                             <span style="font-size:0.9em;font-weight:600;">Activer Worker Mode</span>
@@ -2702,21 +2819,29 @@
                         </label>
                     </div>
                     
+                    <!-- PANEL ACTIF -->
                     <div id="workerActivePanel" style="display:none;">
-                        <select id="workerModel" style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #C8D0C3;border-radius:4px;font-size:0.9em;">
-                            <option value="claude-sonnet-4-20250514">Sonnet 4</option>
-                            <option value="claude-opus-4-20250514">Opus 4</option>
-                            <option value="claude-haiku-4.5-20250514">Haiku 4.5</option>
-                        </select>
-                        <button class="btn" onclick="sendWithWorker()" style="width:100%;padding:12px;background:#8FAFB1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.9em;font-weight:600;transition:all 0.2s ease;" onmouseover="this.style.background='#7A9FA1'" onmouseout="this.style.background='#8FAFB1'">
-                            Analyser avec Worker
-                        </button>
-                        <div id="apiProgress" style="display:none;margin-top:12px;">
-                            <div style="background:#E6D7C3;border-radius:6px;overflow:hidden;height:24px;">
-                                <div id="apiProgressFill" style="background:#8FAFB1;height:100%;width:0%;transition:width 0.3s;display:flex;align-items:center;justify-content:center;">
-                                    <span id="apiProgressText" style="color:white;font-size:0.8em;font-weight:600;">Préparation...</span>
-                                </div>
-                            </div>
+                        <!-- Sélecteur modèle -->
+                        <div style="margin-bottom:15px;">
+                            <label style="display:block;margin-bottom:5px;font-size:0.9em;font-weight:600;color:#333;">Modèle Claude</label>
+                            <select id="workerModel" style="width:100%;padding:12px;border:2px solid #8FAFB1;border-radius:6px;font-size:0.9em;font-family:Montserrat;background:white;">
+                                <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (Recommandé - Équilibré)</option>
+                                <option value="claude-opus-4-20250514">Claude Opus 4 (Premium - Qualité max)</option>
+                                <option value="claude-haiku-4.5-20250514">Claude Haiku 4.5 (Rapide - Économique)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- INFO BOX -->
+                        <div style="padding:15px;background:linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);border-radius:8px;border-left:4px solid #4CAF50;">
+                            <h4 style="margin:0 0 10px 0;color:#2E7D32;font-size:0.95em;">✅ Worker Mode activé</h4>
+                            <ul style="margin:0;padding-left:20px;color:#1B5E20;font-size:0.85em;">
+                                <li>Aucune clé API requise côté client</li>
+                                <li>Traitement via Cloudflare Worker (gratuit)</li>
+                                <li>Clés sécurisées côté serveur</li>
+                            </ul>
+                            <p style="margin:15px 0 0 0;padding-top:12px;border-top:1px solid rgba(46, 125, 50, 0.2);color:#2E7D32;font-size:0.85em;font-weight:600;">
+                                👉 Utilisez maintenant <strong>Batch Processing</strong> ou <strong>Upload Document</strong> normalement
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -2767,8 +2892,8 @@
                 <h4>Configuration Batch</h4>
                 <div class="batch-config-row">
                     <div class="batch-config-item">
-                        <label>Fichiers simultanés:</label>
-                        <input type="number" id="batchMaxConcurrent" value="3" min="1" max="5" onchange="updateBatchConfig()">
+                        <label>Fichiers simultanés: <span style="color: #8FAFB1; font-size: 0.9em;">(1-10, recommandé: 3-5)</span></label>
+                        <input type="number" id="batchMaxConcurrent" value="3" min="1" max="10" onchange="updateBatchConfig()">
                     </div>
                     <div class="batch-config-item">
                         <label>Tentatives retry:</label>
@@ -2790,6 +2915,20 @@
                             <option value="alphabetical">Alphabétique</option>
                             <option value="flat">Plat (pas de fusion)</option>
                         </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Batch Limits Info -->
+            <div style="background: linear-gradient(135deg, rgba(143, 175, 177, 0.1), rgba(200, 208, 195, 0.1)); border-left: 3px solid #8FAFB1; padding: 12px 15px; margin: 15px 0; border-radius: 8px; font-size: 0.9em;">
+                <div style="font-weight: 600; color: #8FAFB1; margin-bottom: 8px;">📊 Limites Batch Processing</div>
+                <div style="color: var(--gris-secondaire); line-height: 1.6;">
+                    <div>✅ <strong>1-25 fichiers</strong>: Rapide et fiable (~2-10 min selon API)</div>
+                    <div>⚠️ <strong>26-50 fichiers</strong>: OK mais peut être long (~10-25 min)</div>
+                    <div>⚠️ <strong>51-100 fichiers</strong>: Limite pratique (~25-50 min, risque timeout)</div>
+                    <div>❌ <strong>100+ fichiers</strong>: Non recommandé (utiliser script externe)</div>
+                    <div style="margin-top: 8px; font-style: italic; color: #8FAFB1;">
+                        Tip: Pour grands volumes, divisez en batches de 25-50 fichiers
                     </div>
                 </div>
             </div>
@@ -2890,52 +3029,6 @@
         <!-- ══════════════════════════════════════════════════════════════ -->
         <div class="section" id="detectionSection" style="display:none;">
             <!-- Rempli dynamiquement -->
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════════════ -->
-        <!-- API QUICK ACTIONS (SINGLE FILE) -->
-        <!-- ══════════════════════════════════════════════════════════════ -->
-        <div class="section" id="apiQuickActions" style="display:none;">
-            <h2>🚀 Analyser avec API</h2>
-            <p style="color:var(--gris-secondaire);margin-bottom:20px;">Envoyez directement ce document à un LLM pour analyse automatique</p>
-            
-            <div class="api-quick-grid">
-                <!-- Groq Card -->
-                <div class="api-quick-card" onclick="sendSingleFileToAPI('groq', 'llama-3.3-70b-versatile')">
-                    <div class="api-quick-icon">⚡</div>
-                    <h4>Groq (GRATUIT)</h4>
-                    <p>Llama 3.3 70B</p>
-                    <div class="api-quick-badge">$0.00</div>
-                </div>
-                
-                <!-- DeepSeek Card -->
-                <div class="api-quick-card" onclick="sendSingleFileToAPI('deepseek', 'deepseek-chat')">
-                    <div class="api-quick-icon">💰</div>
-                    <h4>DeepSeek (-89%)</h4>
-                    <p>DeepSeek-V3</p>
-                    <div class="api-quick-badge">~$0.018</div>
-                </div>
-                
-                <!-- Anthropic Card -->
-                <div class="api-quick-card" onclick="sendSingleFileToAPI('anthropic', 'claude-sonnet-4-20250514')">
-                    <div class="api-quick-icon">🤖</div>
-                    <h4>Claude Sonnet 4</h4>
-                    <p>Qualité maximale</p>
-                    <div class="api-quick-badge">~$0.21</div>
-                </div>
-                
-                <!-- OpenAI Card -->
-                <div class="api-quick-card" onclick="sendSingleFileToAPI('openai', 'gpt-4o')">
-                    <div class="api-quick-icon">🟢</div>
-                    <h4>GPT-4o</h4>
-                    <p>Référence</p>
-                    <div class="api-quick-badge">~$0.17</div>
-                </div>
-            </div>
-            
-            <div style="margin-top:20px;padding:15px;background:#FFF3CD;border-radius:8px;border-left:4px solid #FFC107;">
-                <p style="margin:0;color:#856404;"><strong>💡 Astuce:</strong> Configurez d'abord vos clés API dans <strong>MODE 2 : API MULTI-LLM</strong> (en haut de la page)</p>
-            </div>
         </div>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
@@ -3170,8 +3263,10 @@
                 </div>
             </div>
             
-            <!-- Export Formats Grid -->
-            <h3 style="margin-top:30px;">Formats Disponibles</h3>
+            <!-- V6.3.0 - EXPORTS RAPIDES -->
+            <div class="export-section-header">
+                <h3 class="export-section-title">📦 Exports Rapides</h3>
+            </div>
             <div class="export-formats-grid">
                 <div class="export-format-card" onclick="exportFormat('markdown')">
                     <div class="export-format-icon">📝</div>
@@ -3193,7 +3288,17 @@
                     <div class="export-format-desc">Feuilles de calcul avec données tabulaires</div>
                     <span class="export-format-badge">.xlsx</span>
                 </div>
-                
+            </div>
+            
+            <!-- V6.3.0 - EXPORTS AVANCÉS (toggle) -->
+            <div class="export-section-header">
+                <h3 class="export-section-title">🔧 Exports Avancés</h3>
+                <button class="export-toggle-btn" onclick="toggleAdvancedExports()">
+                    <span id="toggleAdvancedText">▼ Afficher (5 formats)</span>
+                </button>
+            </div>
+            <div class="export-advanced-section" id="advancedExportsSection">
+                <div class="export-formats-grid">
                 <div class="export-format-card" onclick="exportFormat('jsonld')">
                     <div class="export-format-icon">🔗</div>
                     <div class="export-format-name">JSON-LD</div>
@@ -4357,6 +4462,12 @@ INSTRUCTIONS:
                 updateBatchButtons();
                 document.getElementById('batchStats').style.display = 'grid';
                 
+                // ✅ Afficher le loader
+                showProcessingLoader('Démarrage du batch...', {
+                    percent: 0,
+                    text: `0/${STATE.batch.queue.length} documents`
+                });
+                
                 showStatus('Démarrage du batch...', 'info');
                 
                 await this.processBatchQueue();
@@ -4390,6 +4501,10 @@ INSTRUCTIONS:
                 const queue = STATE.batch.queue;
                 const config = STATE.batch.config;
                 
+                // ✅ Afficher le loader avec progression
+                const totalFiles = queue.length;
+                let completedFiles = 0;
+                
                 while (STATE.batch.currentIndex < queue.length && !this.pauseRequested) {
                     const concurrentPromises = [];
                     
@@ -4401,7 +4516,14 @@ INSTRUCTIONS:
                         // Skip already completed or errored
                         if (item.status === 'completed' || item.status === 'error') continue;
                         
-                        const promise = this.processFileInBatch(item, index);
+                        const promise = this.processFileInBatch(item, index).then(() => {
+                            completedFiles++;
+                            const percent = Math.floor((completedFiles / totalFiles) * 100);
+                            showProcessingLoader('Traitement batch en cours...', {
+                                percent,
+                                text: `${completedFiles}/${totalFiles} documents traités`
+                            });
+                        });
                         concurrentPromises.push(promise);
                     }
                     
@@ -4410,6 +4532,9 @@ INSTRUCTIONS:
                     // Update stats
                     updateBatchStats();
                 }
+                
+                // ✅ Masquer le loader
+                hideProcessingLoader();
                 
                 // Check if paused or completed
                 if (this.pauseRequested) {
@@ -4431,13 +4556,20 @@ INSTRUCTIONS:
                                           (result.extractedText ? result.extractedText.split(/\s+/).length : 0),
                                 text: result.extractedText || '',
                                 analysis: result.analysis,
-                                prompt: result.prompt
+                                prompt: result.prompt,
+                                zipFilename: result.zipFilename
                             });
                         }
                     }
                     console.log(`[Batch] ${STATE.batch.consolidatedResults.length} résultats consolidés`);
                     
-                    showStatus(`Batch terminé ! ${STATE.batch.stats.completed} fichiers traités`, 'success');
+                    const successCount = STATE.batch.stats.completed;
+                    const errorCount = STATE.batch.stats.errors;
+                    let statusMsg = `Batch terminé ! ${successCount} fichier(s) traité(s)`;
+                    if (errorCount > 0) {
+                        statusMsg += ` (${errorCount} erreur(s))`;
+                    }
+                    showStatus(statusMsg, errorCount > 0 ? 'warning' : 'success');
                     updateBatchButtons();
                 }
             }
@@ -4519,10 +4651,10 @@ INSTRUCTIONS:
                     throw new Error(`Impossible d'extraire le texte de ${fileType}: ${error.message}`);
                 }
                 
-                this.progressTracker.updateProgress(item.id, 'extracting', 40, 'Texte extrait');
+                this.progressTracker.updateProgress(item.id, 'extracting', 30, 'Texte extrait');
                 
                 // Phase 2: Analysis
-                this.progressTracker.updateProgress(item.id, 'analyzing', 50, 'Analyse du contenu...');
+                this.progressTracker.updateProgress(item.id, 'analyzing', 40, 'Analyse du contenu...');
                 
                 // Create extractedData object with required properties
                 const extractedData = {
@@ -4538,11 +4670,25 @@ INSTRUCTIONS:
                     extractedData
                 );
                 
-                this.progressTracker.updateProgress(item.id, 'analyzing', 70, 'Analyse terminée');
+                this.progressTracker.updateProgress(item.id, 'analyzing', 50, 'Analyse terminée');
                 
-                // Phase 3: Generate prompt
-                this.progressTracker.updateProgress(item.id, 'generating', 80, 'Génération du prompt...');
+                // Phase 3: API Processing
+                this.progressTracker.updateProgress(item.id, 'api_call', 60, 'Appel API en cours...');
                 
+                // Determine provider and model based on current mode
+                let provider, model;
+                if (multiLLM.mode === 'worker') {
+                    provider = 'anthropic';
+                    model = 'claude-sonnet-4-20250514';
+                } else {
+                    // Use saved provider from STATE
+                    provider = STATE.selectedProvider || 'anthropic';
+                    model = STATE.selectedModel || 'claude-sonnet-4-20250514';
+                }
+                
+                console.log(`[BATCH] Using ${provider}/${model} for ${item.file.name}`);
+                
+                // Generate prompt
                 const prompt = generatePrompt({
                     file: item.file,
                     fileName: item.file.name,
@@ -4551,14 +4697,89 @@ INSTRUCTIONS:
                     totalPages: 1
                 });
                 
-                this.progressTracker.updateProgress(item.id, 'generating', 100, 'Prompt généré');
+                // Call API
+                const apiResponse = await multiLLM.sendPrompt(prompt, {
+                    provider: provider,
+                    model: model,
+                    max_tokens: 4096,
+                    temperature: 0.3
+                });
+                
+                this.progressTracker.updateProgress(item.id, 'api_call', 80, 'Réponse API reçue');
+                
+                // Phase 4: Generate and download ZIP
+                this.progressTracker.updateProgress(item.id, 'packaging', 90, 'Génération du ZIP...');
+                
+                // Create ZIP with sanitized filename
+                const sanitizedName = item.file.name
+                    .replace(/\.[^.]+$/, '') // Remove extension
+                    .replace(/[^a-zA-Z0-9_-]/g, '_'); // Sanitize
+                
+                const zipFilename = `${sanitizedName}_OCR.zip`;
+                
+                // Download ZIP automatically
+                await this.downloadResultAsZIP({
+                    fileName: item.file.name,
+                    extractedText,
+                    analysis,
+                    apiResponse,
+                    prompt
+                }, zipFilename);
+                
+                this.progressTracker.updateProgress(item.id, 'completed', 100, 'ZIP téléchargé ✓');
                 
                 return {
                     fileName: item.file.name,
                     extractedText,
                     analysis,
-                    prompt
+                    prompt,
+                    apiResponse,
+                    zipFilename
                 };
+            }
+            
+            async downloadResultAsZIP(result, zipFilename) {
+                const zip = new JSZip();
+                
+                // Add original text
+                zip.file('texte_extrait.txt', result.extractedText || '');
+                
+                // Add API response
+                if (result.apiResponse && result.apiResponse.text) {
+                    zip.file('analyse_ia.txt', result.apiResponse.text);
+                }
+                
+                // Add analysis JSON
+                if (result.analysis) {
+                    zip.file('analyse_technique.json', JSON.stringify(result.analysis, null, 2));
+                }
+                
+                // Add prompt
+                if (result.prompt) {
+                    zip.file('prompt_utilise.txt', result.prompt);
+                }
+                
+                // Add metadata
+                const metadata = {
+                    fichier: result.fileName,
+                    date: new Date().toISOString(),
+                    provider: multiLLM.mode === 'worker' ? 'anthropic (worker)' : STATE.selectedProvider,
+                    model: multiLLM.mode === 'worker' ? 'claude-sonnet-4-20250514' : STATE.selectedModel
+                };
+                zip.file('metadata.json', JSON.stringify(metadata, null, 2));
+                
+                // Generate and download
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = zipFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log(`[BATCH] ZIP downloaded: ${zipFilename}`);
             }
             
             async extractPDFText(file) {
@@ -4598,22 +4819,74 @@ INSTRUCTIONS:
             }
             
             async extractEPUBText(file) {
-                // EPUB is a ZIP containing HTML/XHTML
-                const arrayBuffer = await file.arrayBuffer();
-                const zip = await JSZip.loadAsync(arrayBuffer);
-                let text = '';
-                
-                // Find content files (usually in OEBPS or content folder)
-                for (const [path, zipEntry] of Object.entries(zip.files)) {
-                    if (path.match(/\.(html|xhtml|xml)$/i) && !zipEntry.dir) {
-                        const content = await zipEntry.async('text');
-                        // Strip HTML tags
-                        const stripped = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-                        text += stripped + '\n';
+                try {
+                    console.log('[BATCH-EPUB] Starting extraction for:', file.name);
+                    const zip = await JSZip.loadAsync(file);
+                    console.log('[BATCH-EPUB] ZIP loaded, files:', Object.keys(zip.files).length);
+                    
+                    let allText = '';
+                    
+                    // Chercher tous les fichiers HTML/XHTML dans tout le ZIP
+                    const contentFiles = Object.keys(zip.files).filter(name => 
+                        (name.endsWith('.html') || name.endsWith('.xhtml')) && !zip.files[name].dir
+                    );
+                    
+                    console.log('[BATCH-EPUB] Content files found:', contentFiles.length);
+                    
+                    for (const filename of contentFiles) {
+                        try {
+                            const content = await zip.file(filename).async('string');
+                            
+                            // Essayer plusieurs méthodes d'extraction
+                            let text = '';
+                            
+                            // Méthode 1: DOMParser (pour HTML propre)
+                            try {
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(content, 'text/html');
+                                
+                                // Retirer les balises script et style
+                                doc.querySelectorAll('script, style').forEach(el => el.remove());
+                                
+                                text = doc.body ? doc.body.textContent : doc.documentElement.textContent;
+                            } catch (e) {
+                                console.log('[BATCH-EPUB] DOMParser failed for', filename);
+                            }
+                            
+                            // Méthode 2: Regex simple si DOMParser échoue ou retourne vide
+                            if (!text || text.trim().length < 50) {
+                                // Retirer balises HTML
+                                text = content
+                                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                                    .replace(/<[^>]+>/g, ' ')
+                                    .replace(/&nbsp;/g, ' ')
+                                    .replace(/&lt;/g, '<')
+                                    .replace(/&gt;/g, '>')
+                                    .replace(/&amp;/g, '&')
+                                    .replace(/&quot;/g, '"')
+                                    .replace(/&#39;/g, "'");
+                            }
+                            
+                            const cleanText = text.replace(/\s+/g, ' ').trim();
+                            
+                            if (cleanText.length > 10) {
+                                allText += cleanText + '\n\n';
+                            }
+                        } catch (err) {
+                            console.error('[BATCH-EPUB] Error processing', filename, err);
+                        }
                     }
+                    
+                    const finalText = allText.trim();
+                    console.log('[BATCH-EPUB] Total text extracted:', finalText.length, 'chars');
+                    
+                    return finalText || 'Unable to extract EPUB text';
+                    
+                } catch (error) {
+                    console.error('[BATCH-EPUB] ERROR:', error);
+                    return 'EPUB extraction failed: ' + error.message;
                 }
-                
-                return text || 'Unable to extract EPUB text';
             }
             
             async extractHTMLText(file) {
@@ -5252,6 +5525,96 @@ INSTRUCTIONS:
             }, 5000);
         }
         
+        /**
+         * ✨ V6.4.4 - Afficher loader discret pendant traitement API
+         */
+        function showProcessingLoader(message = 'Traitement en cours...', progress = null) {
+            // Créer le loader s'il n'existe pas
+            let loader = document.getElementById('processingLoader');
+            
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.id = 'processingLoader';
+                loader.style.cssText = `
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+                    color: white;
+                    padding: 15px 30px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    z-index: 9999;
+                    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+                    font-weight: 600;
+                    font-size: 0.95em;
+                `;
+                
+                loader.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:center;gap:15px;">
+                        <div class="hourglass-spinner" style="font-size:1.5em;">⏳</div>
+                        <div id="loaderMessage"></div>
+                    </div>
+                    <div id="loaderProgressContainer" style="display:none;">
+                        <div style="background:rgba(255,255,255,0.3);border-radius:10px;height:20px;overflow:hidden;">
+                            <div id="loaderProgressBar" style="background:rgba(255,255,255,0.9);height:100%;width:0%;transition:width 0.3s ease;border-radius:10px;"></div>
+                        </div>
+                        <div id="loaderProgressText" style="text-align:center;margin-top:5px;font-size:0.9em;opacity:0.9;"></div>
+                    </div>
+                `;
+                
+                document.body.appendChild(loader);
+                
+                // Ajouter animation CSS pour le sablier
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes rotate-hourglass {
+                        0% { transform: rotate(0deg); }
+                        50% { transform: rotate(180deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    .hourglass-spinner {
+                        animation: rotate-hourglass 2s ease-in-out infinite;
+                        display: inline-block;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            // Mettre à jour le message
+            const messageEl = document.getElementById('loaderMessage');
+            if (messageEl) {
+                messageEl.textContent = message;
+            }
+            
+            // Mettre à jour la barre de progression
+            const progressContainer = document.getElementById('loaderProgressContainer');
+            const progressBar = document.getElementById('loaderProgressBar');
+            const progressText = document.getElementById('loaderProgressText');
+            
+            if (progress !== null && progressContainer && progressBar && progressText) {
+                progressContainer.style.display = 'block';
+                progressBar.style.width = `${progress.percent}%`;
+                progressText.textContent = progress.text || '';
+            } else if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+            
+            loader.style.display = 'flex';
+        }
+        
+        /**
+         * ✨ V6.4.4 - Cacher le loader
+         */
+        function hideProcessingLoader() {
+            const loader = document.getElementById('processingLoader');
+            if (loader) {
+                loader.style.display = 'none';
+            }
+        }
+        
         function updateProgress(percent, stage, text) {
             const progressBar = document.getElementById('progressBar');
             const progressStage = document.getElementById('progressStage');
@@ -5315,6 +5678,29 @@ INSTRUCTIONS:
         
         function addFilesToBatch(files) {
             if (!files || files.length === 0) return;
+            
+            // ⚠️ Warning pour grands batches
+            const newTotal = STATE.batch.queue.length + files.length;
+            if (newTotal > 50 && newTotal <= 100) {
+                const proceed = confirm(
+                    `⚠️ ATTENTION: Vous allez traiter ${newTotal} fichiers.\n\n` +
+                    `Recommandations:\n` +
+                    `• 1-25 fichiers: Rapide et fiable\n` +
+                    `• 26-50 fichiers: OK mais peut être long\n` +
+                    `• 51-100 fichiers: Risque de lenteur/timeout\n\n` +
+                    `Voulez-vous continuer ?`
+                );
+                if (!proceed) return;
+            } else if (newTotal > 100) {
+                alert(
+                    `❌ LIMITE DÉPASSÉE: ${newTotal} fichiers\n\n` +
+                    `Maximum recommandé: 100 fichiers par batch\n\n` +
+                    `Pour traiter de gros volumes:\n` +
+                    `• Divisez en plusieurs batches de 50 fichiers\n` +
+                    `• Ou utilisez un script externe en ligne de commande`
+                );
+                return;
+            }
             
             files.forEach(file => {
                 const fileId = crypto.randomUUID();
@@ -5664,6 +6050,25 @@ INSTRUCTIONS:
         // EXPORT FUNCTIONS
         // ══════════════════════════════════════════════════════════════
         
+        // ════════════════════════════════════════════════════════════
+        // V6.3.0 - TOGGLE EXPORTS AVANCÉS
+        // ════════════════════════════════════════════════════════════
+        
+        function toggleAdvancedExports() {
+            const section = document.getElementById('advancedExportsSection');
+            const toggleText = document.getElementById('toggleAdvancedText');
+            
+            if (section.classList.contains('visible')) {
+                section.classList.remove('visible');
+                toggleText.textContent = '▼ Afficher (5 formats)';
+            } else {
+                section.classList.add('visible');
+                toggleText.textContent = '▲ Masquer';
+            }
+        }
+        
+        // ════════════════════════════════════════════════════════════
+        
         async function exportFormat(format) {
             if (!STATE.exportManager) {
                 showStatus('Export Manager non initialisé', 'error');
@@ -5877,14 +6282,83 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
         // FILE HANDLING
         // ══════════════════════════════════════════════════════════════
         
+        // ════════════════════════════════════════════════════════════
+        // V6.3.0 - DÉTECTION FICHIERS LOURDS
+        // ════════════════════════════════════════════════════════════
+        
+        function checkIfHeavyFile(file) {
+            const sizeMB = file.size / 1024 / 1024;
+            const fileType = file.name.split('.').pop().toLowerCase();
+            
+            // Seuils par type de fichier
+            const thresholds = {
+                'pdf': 50,      // 50 MB pour PDFs
+                'png': 20,      // 20 MB pour images (Tesseract lourd)
+                'jpg': 20,
+                'jpeg': 20,
+                'tiff': 30,
+                'default': 100  // 100 MB pour autres formats
+            };
+            
+            const threshold = thresholds[fileType] || thresholds['default'];
+            const isHeavy = sizeMB > threshold;
+            
+            let message = '';
+            let recommendation = '';
+            
+            if (isHeavy) {
+                if (fileType === 'pdf') {
+                    message = `Document volumineux (${sizeMB.toFixed(1)} MB). Analyse complète peut prendre plusieurs minutes.`;
+                    recommendation = 'Considérez une analyse par échantillonnage pour plus de rapidité.';
+                } else if (['png', 'jpg', 'jpeg', 'tiff'].includes(fileType)) {
+                    message = `Image volumineuse (${sizeMB.toFixed(1)} MB). OCR Tesseract peut être lent.`;
+                    recommendation = 'Sur mobile ou connexion lente, préférez une résolution réduite.';
+                } else {
+                    message = `Fichier volumineux (${sizeMB.toFixed(1)} MB).`;
+                    recommendation = 'Le traitement peut prendre du temps.';
+                }
+            }
+            
+            return {
+                isHeavy,
+                sizeMB,
+                threshold,
+                message,
+                recommendation,
+                fileType
+            };
+        }
+        
+        // ════════════════════════════════════════════════════════════
+        
         async function handleFile(file) {
+            // ✅ V6.4.4 - Réinitialiser complètement STATE pour nouveau fichier
             STATE.file = file;
             STATE.fileName = file.name;
-            STATE.fileSize = file.size;  // ✅ SAUVEGARDER LA TAILLE
+            STATE.fileSize = file.size;
             STATE.fileType = file.name.split('.').pop().toLowerCase();
             STATE.startTime = Date.now();
             
+            // ✅ VIDER les données du fichier précédent
+            STATE.extractedText = '';
+            STATE.detectionResult = null;
+            STATE.documentType = null;
+            STATE.analysis = null;
+            STATE.totalPages = 0;
+            
+            console.log('[DEBUG] handleFile - STATE reset for new file:', STATE.fileName);
+            
             showStatus(`Fichier chargé: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 'success');
+            
+            // ════════════════════════════════════════════════════════════
+            // V6.3.0 - DÉTECTION FICHIER LOURD
+            // ════════════════════════════════════════════════════════════
+            const isHeavy = checkIfHeavyFile(file);
+            if (isHeavy.isHeavy) {
+                showStatus(`⚠️ ${isHeavy.message}`, 'warning');
+                console.log('[PERF] Heavy file detected:', isHeavy);
+            }
+            // ════════════════════════════════════════════════════════════
             
             updateProgress(10, 'Analyse du fichier', 'Détection du format...');
             
@@ -5892,9 +6366,22 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
                 STATE.detectionResult = await detectDocumentType(file);
                 STATE.documentType = STATE.detectionResult.type;
                 
-                // ✅ extractedText est maintenant géré dans detectDocumentType
-                // Pour les PDFs, c'est fait dans detectDocumentMultiDimensional
-                // Pour les autres formats, c'est fait dans detectDocumentMultiDimensionalFromText
+                // ✅ V6.4.4 - Récupérer extractedText si pas assigné pendant detection
+                if (!STATE.extractedText || STATE.extractedText.length === 0) {
+                    console.log('[DEBUG] extractedText empty after detection, recovering from analysis...');
+                    
+                    // detectDocumentType() retourne analysis complet
+                    // donc STATE.detectionResult contient extractedData
+                    if (STATE.detectionResult.extractedData?.text) {
+                        STATE.extractedText = STATE.detectionResult.extractedData.text;
+                        console.log('[DEBUG] Recovered extractedText:', STATE.extractedText.length, 'chars');
+                    }
+                    // Fallback: depuis STATE.analysis
+                    else if (STATE.analysis?.extractedData?.text) {
+                        STATE.extractedText = STATE.analysis.extractedData.text;
+                        console.log('[DEBUG] Recovered from STATE.analysis:', STATE.extractedText.length, 'chars');
+                    }
+                }
                 
                 console.log('[DEBUG] handleFile - extractedText length:', STATE.extractedText?.length || 0);
                 console.log('[DEBUG] handleFile - totalPages:', STATE.totalPages);
@@ -5904,12 +6391,38 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
                 updateProgress(100, 'Analyse terminée', 'Prêt à traiter');
                 
                 document.getElementById('detectionSection').style.display = 'block';
-                document.getElementById('apiQuickActions').style.display = 'block';  // ✅ AJOUTÉ
+                // ✅ V6.4.4 - Supprimé apiQuickActions (workflow unifié pour tous les modes)
                 document.getElementById('compositionSection').style.display = 'block';
                 document.getElementById('configSection').style.display = 'block';
                 
                 // ✅ SCROLL AUTOMATIQUE après upload
                 scrollAfterUpload();
+                
+                // ════════════════════════════════════════════════════════════
+                // ✨ V6.4.4 - WORKER MODE (seulement si radio Worker coché)
+                // ════════════════════════════════════════════════════════════
+                const radioWorker = document.querySelector('input[name="mode"][value="worker"]');
+                const workerToggle = document.getElementById('workerToggle');
+                
+                // ✅ VÉRIFIER QUE LE RADIO WORKER EST COCHÉ (sinon c'est Manuel ou API Multi-LLM)
+                if (radioWorker && radioWorker.checked) {
+                    // On est en mode Worker → activer Worker dans multiLLM
+                    if (workerToggle && workerToggle.checked) {
+                        console.log('[WORKER MODE] Activé - utilisation du Worker pour API');
+                        multiLLM.switchMode('worker');
+                    }
+                } else {
+                    // On est en mode Manuel ou API Multi-LLM → NE PAS activer Worker
+                    console.log('[MANUAL/USER-KEYS MODE] Worker non activé');
+                    
+                    // Vérifier si on est en mode API Multi-LLM
+                    const radioUserKeys = document.querySelector('input[name="mode"][value="user-keys"]');
+                    if (radioUserKeys && radioUserKeys.checked) {
+                        console.log('[USER-KEYS MODE] Mode API Multi-LLM actif');
+                        multiLLM.switchMode('user_keys');
+                    }
+                }
+                // ════════════════════════════════════════════════════════════
                 
             } catch (error) {
                 console.error('Error handling file:', error);
@@ -5951,7 +6464,9 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
             }
             
             if (fileExt === 'epub') {
+                console.log('[DETECT-TYPE] Starting EPUB extraction...');
                 const extracted = await extractTextFromEPUB(file);
+                console.log('[DETECT-TYPE] EPUB extraction complete, text length:', extracted.text?.length || 0);
                 return await detectDocumentMultiDimensionalFromText(file, extracted.text, extracted);
             }
             
@@ -6246,8 +6761,13 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
         
         async function detectDocumentMultiDimensionalFromText(file, text, extractedData) {
             try {
+                console.log('[DETECT] Received text length:', text?.length || 0);
+                console.log('[DETECT] Received extractedData:', extractedData?.method);
+                
                 STATE.extractedText = text;
                 STATE.totalPages = 1;
+                
+                console.log('[DETECT] STATE.extractedText set to length:', STATE.extractedText?.length || 0);
                 
                 // Ensure extractedData has required properties with defaults
                 const safeExtractedData = {
@@ -6282,6 +6802,7 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
                     confidence: content.detected[0]?.confidence || 0.7
                 };
                 
+                console.log('[DETECT] Returning analysis, STATE.extractedText length:', STATE.extractedText?.length || 0);
                 return analysis;
                 
             } catch (error) {
@@ -6495,34 +7016,87 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
         
         async function extractTextFromEPUB(file) {
             try {
+                console.log('[EPUB] Starting extraction for:', file.name);
                 updateProgress(30, 'Extraction EPUB', 'Décompression...');
                 
                 const zip = await JSZip.loadAsync(file);
+                console.log('[EPUB] ZIP loaded, files:', Object.keys(zip.files).length);
+                
                 let allText = '';
                 
+                // Chercher tous les fichiers HTML/XHTML dans tout le ZIP
                 const contentFiles = Object.keys(zip.files).filter(name => 
-                    name.endsWith('.html') || name.endsWith('.xhtml')
+                    (name.endsWith('.html') || name.endsWith('.xhtml')) && !zip.files[name].dir
                 );
                 
+                console.log('[EPUB] Content files found:', contentFiles.length);
+                console.log('[EPUB] Files:', contentFiles);
+                
                 for (const filename of contentFiles) {
-                    const content = await zip.file(filename).async('string');
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(content, 'text/html');
-                    const text = doc.body ? doc.body.textContent : '';
-                    allText += text + '\n\n';
+                    try {
+                        const content = await zip.file(filename).async('string');
+                        console.log('[EPUB] Processing:', filename, 'length:', content.length);
+                        
+                        // Essayer plusieurs méthodes d'extraction
+                        let text = '';
+                        
+                        // Méthode 1: DOMParser (pour HTML propre)
+                        try {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(content, 'text/html');
+                            
+                            // Retirer les balises script et style
+                            doc.querySelectorAll('script, style').forEach(el => el.remove());
+                            
+                            text = doc.body ? doc.body.textContent : doc.documentElement.textContent;
+                        } catch (e) {
+                            console.log('[EPUB] DOMParser failed for', filename, e);
+                        }
+                        
+                        // Méthode 2: Regex simple si DOMParser échoue ou retourne vide
+                        if (!text || text.trim().length < 50) {
+                            console.log('[EPUB] Trying regex fallback for', filename);
+                            // Retirer balises HTML
+                            text = content
+                                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                                .replace(/<[^>]+>/g, ' ')
+                                .replace(/&nbsp;/g, ' ')
+                                .replace(/&lt;/g, '<')
+                                .replace(/&gt;/g, '>')
+                                .replace(/&amp;/g, '&')
+                                .replace(/&quot;/g, '"')
+                                .replace(/&#39;/g, "'");
+                        }
+                        
+                        const cleanText = text.replace(/\s+/g, ' ').trim();
+                        console.log('[EPUB] Extracted from', filename, ':', cleanText.length, 'chars');
+                        
+                        if (cleanText.length > 10) {
+                            allText += cleanText + '\n\n';
+                        }
+                    } catch (err) {
+                        console.error('[EPUB] Error processing', filename, err);
+                    }
                 }
                 
+                const finalText = allText.trim();
+                console.log('[EPUB] Total text extracted:', finalText.length, 'chars');
+                console.log('[EPUB] First 200 chars:', finalText.substring(0, 200));
                 updateProgress(80, 'EPUB traité', 'Analyse...');
                 
-                return {
-                    text: allText.trim(),
-                    confidence: 1.0,
-                    wordCount: allText.split(/\s+/).length,
+                const result = {
+                    text: finalText,
+                    confidence: finalText.length > 100 ? 1.0 : 0.5,
+                    wordCount: finalText.split(/\s+/).filter(w => w.length > 0).length,
                     method: 'jszip_epub'
                 };
                 
+                console.log('[EPUB] Returning result with text length:', result.text.length);
+                return result;
+                
             } catch (error) {
-                console.error('Erreur EPUB:', error);
+                console.error('[EPUB] ERROR:', error);
                 return {
                     text: '',
                     confidence: 0,
@@ -6885,6 +7459,12 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
             const content = analysis.content;
             const comp = analysis.composition;
             
+            // ✅ V6.4.4 - Afficher les infos du fichier uploadé
+            const fileSize = STATE.file ? (STATE.file.size / 1024).toFixed(1) + ' KB' : 'N/A';
+            const fileType = STATE.fileType ? STATE.fileType.toUpperCase() : 'N/A';
+            const fileName = STATE.fileName || 'Document';
+            const totalPages = STATE.totalPages || 1;
+            
             const contentNames = {
                 'partition_musicale': 'Partition Musicale',
                 'tablature': 'Tablature',
@@ -6923,6 +7503,32 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
             const densityText = tech.density?.toFixed(3) || 'N/A';
             
             detectionSection.innerHTML = `
+                <!-- ✅ V6.4.4 - FICHIER UPLOADÉ -->
+                <div class="card" style="background:linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);border-left:6px solid #2196F3;margin-bottom:25px;">
+                    <h4 style="color:#1976D2;margin:0 0 15px 0;display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:1.5em;">📄</span>
+                        Fichier uploadé
+                    </h4>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Nom:</div>
+                            <div class="info-value" style="font-weight:600;">${fileName}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Type:</div>
+                            <div class="info-value">${fileType}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Taille:</div>
+                            <div class="info-value">${fileSize}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Pages:</div>
+                            <div class="info-value">${totalPages}</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <h2>Analyse Multi-Dimensionnelle</h2>
                 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
@@ -7210,15 +7816,67 @@ Généré le ${new Date().toLocaleString('fr-FR')} avec OCR Universel V6.0 ULTIM
         }
         
         async function processFile() {
-            document.getElementById('configSection').style.display = 'none';
-            document.getElementById('phase2').style.display = 'block';
+            // ✅ V6.4.4 - Détecter le mode actif
+            const radioWorker = document.querySelector('input[name="mode"][value="worker"]');
+            const radioUserKeys = document.querySelector('input[name="mode"][value="user-keys"]');
+            const workerToggle = document.getElementById('workerToggle');
             
-            await splitDocument();
+            const isWorkerMode = radioWorker && radioWorker.checked && workerToggle && workerToggle.checked;
+            const isAPIUserKeysMode = radioUserKeys && radioUserKeys.checked;
             
-            document.getElementById('phase2').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
+            if (isWorkerMode) {
+                // ═══ MODE WORKER ═══
+                console.log('[WORKER MODE] Processing via API Worker');
+                const workerModel = document.getElementById('workerModel')?.value || 'claude-sonnet-4-20250514';
+                
+                document.getElementById('configSection').style.display = 'none';
+                showStatus('🚀 Envoi au Worker Cloudflare...', 'info');
+                
+                try {
+                    multiLLM.switchMode('worker');
+                    await sendSingleFileToAPI('anthropic', workerModel);
+                    showStatus('✅ Traitement terminé avec succès!', 'success');
+                } catch (error) {
+                    console.error('[WORKER MODE] Processing failed:', error);
+                    showStatus('❌ Erreur: ' + error.message, 'error');
+                }
+                
+            } else if (isAPIUserKeysMode) {
+                // ═══ MODE API MULTI-LLM ═══
+                console.log('[API USER-KEYS MODE] Processing via user API keys');
+                
+                // ✅ V6.4.4 - Utiliser le provider et modèle sauvegardés
+                const userProvider = STATE.selectedProvider || 'anthropic';
+                const userModel = STATE.selectedModel || 'claude-sonnet-4-20250514';
+                
+                console.log('[API USER-KEYS] Using provider:', userProvider);
+                console.log('[API USER-KEYS] Using model:', userModel);
+                
+                document.getElementById('configSection').style.display = 'none';
+                showStatus(`🚀 Envoi à ${userProvider}...`, 'info');
+                
+                try {
+                    multiLLM.switchMode('user_keys');
+                    await sendSingleFileToAPI(userProvider, userModel);
+                    showStatus('✅ Traitement terminé avec succès!', 'success');
+                } catch (error) {
+                    console.error('[API USER-KEYS MODE] Processing failed:', error);
+                    showStatus('❌ Erreur: ' + error.message, 'error');
+                }
+                
+            } else {
+                // ═══ MODE MANUEL ═══
+                console.log('[MANUAL MODE] Processing via copy/paste workflow');
+                document.getElementById('configSection').style.display = 'none';
+                document.getElementById('phase2').style.display = 'block';
+                
+                await splitDocument();
+                
+                document.getElementById('phase2').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }
         }
         
         async function splitDocument() {
@@ -8461,6 +9119,68 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
             document.getElementById('costTotal').textContent = `$${estimate.cost}`;
         }
         
+        // ════════════════════════════════════════════════════════════
+        // V6.3.0 - GESTION SÉCURITÉ & LIMITES
+        // ════════════════════════════════════════════════════════════
+        
+        function showSecurityWarning() {
+            const warning = document.getElementById('securityWarning');
+            if (warning && !localStorage.getItem('securityWarningAccepted')) {
+                warning.classList.add('visible');
+            }
+        }
+        
+        function acceptSecurityWarning() {
+            const warning = document.getElementById('securityWarning');
+            if (warning) {
+                warning.classList.remove('visible');
+                localStorage.setItem('securityWarningAccepted', 'true');
+                console.log('[SECURITY] User accepted security warning');
+            }
+        }
+        
+        function learnMoreSecurity() {
+            alert(`DÉTAILS TECHNIQUES SUR LA SÉCURITÉ
+
+MODE USER KEYS :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Stockage : localStorage du navigateur (non chiffré)
+• Obfuscation : XOR simple avec clé statique
+• Protection : Aucune encryption forte
+• Exposition : Code JavaScript peut accéder aux clés
+
+RISQUES :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ Toute extension malveillante peut lire les clés
+⚠️ XOR est facilement réversible
+⚠️ Les clés transitent en clair dans le navigateur
+⚠️ Pas de protection contre l'inspection réseau
+
+RECOMMANDATIONS :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Mode Worker : clés sécurisées côté serveur
+✅ Usage limité : tests & développement uniquement
+✅ Jamais en production avec données sensibles
+✅ Créez des clés API dédiées avec quotas limités
+
+Pour plus d'infos : https://docs.anthropic.com/en/api/security`);
+        }
+        
+        // Afficher l'avertissement au chargement du Mode 2
+        window.addEventListener('load', () => {
+            // Vérifier si on est en Mode 2 (user-keys)
+            const mode2Radio = document.querySelector('input[value="user-keys"]');
+            if (mode2Radio) {
+                mode2Radio.addEventListener('change', function() {
+                    if (this.checked && !localStorage.getItem('securityWarningAccepted')) {
+                        setTimeout(showSecurityWarning, 300);
+                    }
+                });
+            }
+        });
+        
+        // ════════════════════════════════════════════════════════════
+        
         function saveUserKey() {
             console.log('[DEBUG] saveUserKey called');
             
@@ -8665,32 +9385,85 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                 return;
             }
             
-            // Si extractedText n'existe pas, essayer de le récupérer depuis detectionResult
-            if (!STATE.extractedText && STATE.detectionResult?.extracted?.text) {
-                console.log('[DEBUG] Recovering extractedText from detectionResult');
-                STATE.extractedText = STATE.detectionResult.extracted.text;
+            // ✅ V6.4.4 - Récupération améliorée de extractedText depuis plusieurs sources
+            if (!STATE.extractedText || STATE.extractedText.length === 0) {
+                console.log('[DEBUG] Attempting to recover extractedText from various sources...');
+                
+                // Essayer depuis detectionResult.extracted.text
+                if (STATE.detectionResult?.extracted?.text) {
+                    console.log('[DEBUG] Recovering from detectionResult.extracted.text');
+                    STATE.extractedText = STATE.detectionResult.extracted.text;
+                }
+                // Essayer depuis analysis.extractedData.text
+                else if (STATE.analysis?.extractedData?.text) {
+                    console.log('[DEBUG] Recovering from analysis.extractedData.text');
+                    STATE.extractedText = STATE.analysis.extractedData.text;
+                }
+                // Essayer de ré-extraire le texte du fichier
+                else if (STATE.file) {
+                    console.log('[DEBUG] Re-extracting text from file...');
+                    try {
+                        const fileExt = STATE.fileType;
+                        let extractedData = null;
+                        
+                        if (fileExt === 'epub') {
+                            extractedData = await extractTextFromEPUB(STATE.file);
+                        } else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'tiff', 'tif'].includes(fileExt)) {
+                            extractedData = await extractTextFromImage(STATE.file);
+                        } else if (['xlsx', 'xls', 'ods'].includes(fileExt)) {
+                            extractedData = await extractTextFromExcel(STATE.file);
+                        } else if (['docx', 'doc', 'odt'].includes(fileExt)) {
+                            extractedData = await extractTextFromDOCX(STATE.file);
+                        }
+                        
+                        if (extractedData && extractedData.text) {
+                            STATE.extractedText = extractedData.text;
+                            console.log('[DEBUG] Re-extraction successful:', STATE.extractedText.length, 'chars');
+                        }
+                    } catch (error) {
+                        console.error('[DEBUG] Re-extraction failed:', error);
+                    }
+                }
             }
             
-            if (!STATE.extractedText) {
+            if (!STATE.extractedText || STATE.extractedText.length === 0) {
                 console.error('[DEBUG] No extractedText in STATE');
+                hideProcessingLoader();
                 showStatus('⚠️ Le texte n\'a pas été extrait. Réessayez d\'uploader le fichier.', 'error');
                 return;
             }
             
-            // Vérifier que la clé existe
-            const encryptedKey = multiLLM.userKeys[provider];
-            console.log('[DEBUG] encryptedKey exists:', !!encryptedKey);
+            console.log('[DEBUG] Final extractedText length:', STATE.extractedText.length);
             
-            if (!encryptedKey) {
-                console.error('[DEBUG] No key for provider:', provider);
-                showStatus(`⚠️ Clé ${provider} non configurée. Allez dans MODE 2 pour configurer.`, 'error');
-                // Scroll vers le mode 2
-                const panel = document.getElementById('panelUserKeys');
-                if (panel) panel.scrollIntoView({ behavior: 'smooth' });
-                return;
+            // ✅ V6.4.2 - Skip vérification clés en mode Worker (clés côté serveur)
+            if (multiLLM.mode !== 'worker') {
+                // Vérifier que la clé existe (seulement en mode user_keys)
+                const encryptedKey = multiLLM.userKeys[provider];
+                console.log('[DEBUG] encryptedKey exists:', !!encryptedKey);
+                
+                if (!encryptedKey) {
+                    console.error('[DEBUG] No key for provider:', provider);
+                    showStatus(`⚠️ Clé ${provider} non configurée. Allez dans MODE 2 pour configurer.`, 'error');
+                    // Scroll vers le mode 2
+                    const panel = document.getElementById('panelUserKeys');
+                    if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+                    return;
+                }
+            } else {
+                console.log('[DEBUG] Worker Mode - Skip key verification (keys on server)');
             }
             
-            showStatus(`🚀 Envoi à ${provider}...`, 'info');
+            // ✅ V6.4.4 - AFFICHER LOADER PENDANT TRAITEMENT
+            const providerNames = {
+                'groq': 'Groq',
+                'deepseek': 'DeepSeek',
+                'anthropic': 'Anthropic Claude',
+                'openai': 'OpenAI',
+                'google': 'Google Gemini'
+            };
+            showProcessingLoader(`Analyse en cours avec ${providerNames[provider] || provider}...`);
+            
+            showStatus(`Envoi à ${provider}...`, 'info');
             console.log('[DEBUG] Starting API call...');
             
             try {
@@ -8804,12 +9577,19 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
             } catch (error) {
                 console.error('[DEBUG] API Error:', error);
                 console.error('Single File API Error:', error);
+                
+                // ✅ V6.4.4 - Cacher le loader en cas d'erreur
+                hideProcessingLoader();
+                
                 showStatus(`❌ Erreur ${provider}: ${error.message}`, 'error');
             }
         }
         
         function displaySingleFileAPIResult(response, metadata) {
             const { provider, model, duration, cost } = metadata;
+            
+            // ✅ V6.4.4 - Cacher le loader
+            hideProcessingLoader();
             
             // ✅ STOCKER dans STATE au lieu d'embedder dans onclick
             STATE.lastAPIResult = response.json || response.text;
@@ -8849,15 +9629,30 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                 <div style="background:white;border-radius:16px;max-width:900px;width:100%;max-height:90vh;overflow-y:auto;padding:30px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                         <h2 style="margin:0;color:var(--noir-principal);">${providerIcons[provider]} Résultat ${providerNames[provider]}</h2>
-                        <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:28px;cursor:pointer;color:var(--gris-secondaire);">×</button>
+                        <button id="closeModalBtn" onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:28px;cursor:pointer;color:var(--gris-secondaire);">×</button>
                     </div>
                     
+                    <!-- SÉLECTEUR FORMAT EXTRACTION - CHARTE: Vert sauge -->
+                    <div style="margin-bottom:20px;padding:20px;background:linear-gradient(135deg, #C8D0C3 0%, #8FAFB1 100%);border-radius:12px;border-left:6px solid #8FAFB1;">
+                        <h3 style="margin:0 0 12px 0;color:#2D4A4F;font-size:1.1em;">📊 Format Extraction</h3>
+                        <select id="formatSelector" style="width:100%;padding:12px;border:2px solid #8FAFB1;border-radius:8px;font-size:0.95em;font-weight:600;background:white;cursor:pointer;">
+                            <option value="standard">Standard (7 modules) - Rapide</option>
+                            <option value="complet" selected>R&D Complet (32 modules) - Détaillé</option>
+                            <option value="minimal">Minimal (3 modules) - Essentiel</option>
+                            <option value="custom">Personnalisé - À configurer</option>
+                        </select>
+                        <p style="margin:10px 0 0 0;font-size:0.85em;color:#2D4A4F;">
+                            <strong>R&D Complet</strong> inclut: glossaire, controverses, statistiques, implémentation, sources, etc.
+                        </p>
+                    </div>
+                    
+                    <!-- MÉTADONNÉES - CHARTE -->
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px;">
-                        <div style="padding:15px;background:#E3F2FD;border-radius:8px;">
+                        <div style="padding:15px;background:#E6D7C3;border-radius:8px;">
                             <div style="font-size:0.85em;color:var(--gris-secondaire);">Provider</div>
                             <div style="font-weight:600;color:var(--noir-principal);">${providerNames[provider]}</div>
                         </div>
-                        <div style="padding:15px;background:#E8F5E9;border-radius:8px;">
+                        <div style="padding:15px;background:#C8D0C3;border-radius:8px;">
                             <div style="font-size:0.85em;color:var(--gris-secondaire);">Modèle</div>
                             <div style="font-weight:600;color:var(--noir-principal);">${model}</div>
                         </div>
@@ -8865,7 +9660,7 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                             <div style="font-size:0.85em;color:var(--gris-secondaire);">Durée</div>
                             <div style="font-weight:600;color:var(--noir-principal);">${duration}s</div>
                         </div>
-                        <div style="padding:15px;background:#E1BEE7;border-radius:8px;">
+                        <div style="padding:15px;background:#D8CDBB;border-radius:8px;">
                             <div style="font-size:0.85em;color:var(--gris-secondaire);">Coût</div>
                             <div style="font-weight:600;color:var(--noir-principal);">$${cost.cost}</div>
                         </div>
@@ -8888,14 +9683,14 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                         <button id="downloadJSONBtn" style="flex:1;min-width:150px;padding:12px;background:var(--accent);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
                             💾 Télécharger JSON
                         </button>
-                        <button id="downloadZIPBtn" style="flex:1;min-width:150px;padding:12px;background:linear-gradient(135deg, #FFD700, #FFA500);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(255,165,0,0.3);">
-                            📦 Télécharger ZIP Complet
+                        <button id="downloadZIPBtn" style="flex:1;min-width:200px;padding:15px;background:linear-gradient(135deg, #FFD700, #FFA500);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(255,165,0,0.3);font-size:1.05em;">
+                            📦 Sauvegarder ZIP Complet
                         </button>
                     </div>
-                    <div style="margin-top:15px;padding:15px;background:#FFF9E6;border-radius:8px;border-left:4px solid #FFD700;">
+                    <div id="zipInfo" style="margin-top:15px;padding:15px;background:#FFF9E6;border-radius:8px;border-left:4px solid #FFD700;">
                         <p style="margin:0;font-size:0.9em;color:#666;">
                             <strong>📦 ZIP Complet contient :</strong><br>
-                            • knowledge_index.json (32 modules)<br>
+                            • knowledge_index.json (<span id="modulesCount">32 modules</span>)<br>
                             • knowledge.md (version Markdown)<br>
                             • index.html (viewer interactif)<br>
                             • README.md (métadonnées)<br>
@@ -8907,16 +9702,29 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
             
             document.body.appendChild(modal);
             
-            // ✅ SCROLL ET HIGHLIGHT
+            // ✅ V6.4.4 - SCROLL AUTOMATIQUE VERS BOUTON SAUVEGARDER
             setTimeout(() => {
-                const modalContent = modal.querySelector('div[style*="background:white"]');
-                if (modalContent) {
-                    highlightElement(modalContent);
-                    modalContent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const saveBtn = document.getElementById('downloadZIPBtn');
+                if (saveBtn) {
+                    saveBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    highlightElement(saveBtn);
                 }
-            }, 100);
+            }, 300);
             
             // ✅ Ajouter event listeners APRÈS l'insertion dans le DOM
+            
+            // Listener pour le sélecteur de format
+            document.getElementById('formatSelector').addEventListener('change', (e) => {
+                const modulesCount = document.getElementById('modulesCount');
+                const formatMap = {
+                    'standard': '7 modules',
+                    'complet': '32 modules',
+                    'minimal': '3 modules',
+                    'custom': 'modules personnalisés'
+                };
+                modulesCount.textContent = formatMap[e.target.value];
+            });
+            
             document.getElementById('copyJSONBtn').addEventListener('click', () => {
                 navigator.clipboard.writeText(jsonString);
                 alert('📋 JSON copié !');
@@ -8926,9 +9734,20 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                 downloadJSON(STATE.lastAPIResult, `${STATE.fileName}_${provider}_analysis.json`);
             });
             
-            // ✅ NOUVEAU : Bouton ZIP complet
+            // ✅ NOUVEAU : Bouton ZIP complet avec choix de format
             document.getElementById('downloadZIPBtn').addEventListener('click', () => {
-                downloadAPIResultAsZIP(STATE.lastAPIResult, provider, model);
+                const selectedFormat = document.getElementById('formatSelector').value;
+                console.log('[DOWNLOAD] Format sélectionné:', selectedFormat);
+                downloadAPIResultAsZIP(STATE.lastAPIResult, provider, model, selectedFormat);
+                
+                // ✅ V6.4.4 - Après téléchargement, scroll vers la croix pour fermer
+                setTimeout(() => {
+                    const closeBtn = document.getElementById('closeModalBtn');
+                    if (closeBtn) {
+                        closeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        highlightElement(closeBtn);
+                    }
+                }, 800);
             });
         }
         
@@ -9263,52 +10082,7 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                 mini.classList.remove('active');
             });
             
-            // ✨ SI MODE USER-KEYS : TOGGLE LE PANEL ENTIER
-            if (mode === 'user-keys') {
-                const panel = document.querySelector(`.mode-panel[data-mode="user-keys"]`);
-                
-                if (!panel) {
-                    console.error('[MODE] Panel user-keys not found!');
-                    return;
-                }
-                
-                // ✅ Déclarer isCurrentlyActive ICI, avant utilisation
-                const isCurrentlyActive = panel.classList.contains('active');
-                
-                if (isCurrentlyActive) {
-                    // Si actif → cacher
-                    panel.classList.remove('active');
-                    console.log(`[MODE] Panel REPLIÉ`);
-                    
-                    // Décocher le radio user-keys et cocher manual
-                    const radioManual = document.querySelector('input[name="mode"][value="manual"]');
-                    if (radioManual) radioManual.checked = true;
-                    
-                    STATE.processingMode = 'manual';
-                    STATE.mode = 'manual';
-                } else {
-                    // Si caché → afficher
-                    // D'abord cacher tous les autres panels
-                    document.querySelectorAll('.mode-panel').forEach(p => {
-                        p.classList.remove('active');
-                    });
-                    // Puis afficher celui-ci
-                    panel.classList.add('active');
-                    console.log(`[MODE] Panel DÉPLIÉ`);
-                    
-                    // S'assurer que les accordéons sont visibles
-                    document.querySelectorAll('.provider-mini').forEach(mini => {
-                        mini.style.display = 'block';
-                    });
-                    
-                    STATE.processingMode = 'user-keys';
-                    STATE.mode = 'user-keys';
-                }
-                
-                return;  // Sortir ici pour Mode 2
-            }
-            
-            // ✅ POUR LES AUTRES MODES : comportement normal
+            // ✅ V6.4.4 - COMPORTEMENT SIMPLIFIÉ (plus de toggle)
             // Cacher tous les panels
             document.querySelectorAll('.mode-panel').forEach(panel => {
                 panel.classList.remove('active');
@@ -9318,41 +10092,47 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
             const panel = document.querySelector(`.mode-panel[data-mode="${mode}"]`);
             if (panel) {
                 panel.classList.add('active');
+                console.log(`[MODE] Panel ${mode} activé`);
             }
             
             // Mettre à jour STATE
             STATE.processingMode = mode;
             STATE.mode = mode;
             
-            // Si mode worker, gérer le toggle
+            // ✅ V6.4.4 - Désactiver Worker toggle si on quitte le mode Worker
+            const workerToggle = document.getElementById('workerToggle');
+            const workerPanel = document.getElementById('workerActivePanel');
+            
             if (mode === 'worker') {
-                const toggle = document.getElementById('workerToggle');
-                if (toggle && toggle.checked) {
-                    document.getElementById('workerActivePanel').style.display = 'block';
+                // Mode Worker: gérer le toggle
+                if (workerToggle && workerToggle.checked) {
+                    if (workerPanel) workerPanel.style.display = 'block';
+                }
+            } else {
+                // Modes Manuel ou API Multi-LLM: désactiver Worker
+                if (workerToggle) {
+                    workerToggle.checked = false;
+                    if (workerPanel) workerPanel.style.display = 'none';
+                    console.log('[MODE] Worker toggle désactivé (mode:', mode, ')');
+                }
+                // S'assurer que multiLLM est en mode correct
+                if (mode === 'manual') {
+                    multiLLM.switchMode('user_keys');  // Reset au mode par défaut
+                } else if (mode === 'user-keys') {
+                    multiLLM.switchMode('user_keys');
                 }
             }
         }
         
         /**
-         * ✨ NOUVEAU: Gérer le toggle du radio Mode 2
-         * Permet de cliquer à nouveau sur Mode 2 pour le replier
+         * ✨ V6.4.4 - Gérer le clic sur label Mode 2
+         * Ne plus faire de toggle - juste activer le mode normalement
          */
         function handleModeToggle(event, mode) {
-            const radio = event.currentTarget.querySelector('input[type="radio"]');
-            
-            if (radio && radio.checked && mode === 'user-keys') {
-                // Le radio est déjà coché → on veut le décocher (toggle)
-                console.log('[MODE-TOGGLE] Radio déjà coché, toggle vers manuel');
-                event.preventDefault();
-                event.stopPropagation();
-                
-                // Appeler switchMode qui va détecter que le panel est actif et le cacher
-                switchMode('user-keys');
-                
-                return false;
-            }
-            
-            // Sinon, laisser le comportement normal (le radio va se cocher et déclencher onchange)
+            // ✅ Laisser le comportement normal du radio
+            // Le onclick du label va cocher le radio
+            // Le onchange du radio va appeler switchMode
+            // Plus de toggle compliqué !
         }
         
         /**
@@ -9462,23 +10242,27 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                     // 3. Toast success
                     showStatus(`Clé ${providerId} sauvegardée`, 'success');
                     
+                    // ✅ V6.4.4 - Stocker le provider et modèle sélectionnés
+                    STATE.selectedProvider = providerId;
+                    STATE.selectedModel = model;
+                    console.log('[SAVE] STATE.selectedProvider =', providerId);
+                    console.log('[SAVE] STATE.selectedModel =', model);
+                    
                     // 4. ✨ FERMER L'ACCORDION
                     setTimeout(() => {
                         closeMini(providerId);
                     }, 500);
                     
-                    // 5. Afficher Quick Actions
-                    const quickActions = document.getElementById('apiQuickActions');
-                    if (quickActions) {
-                        quickActions.style.display = 'block';
-                    }
+                    // ✅ V6.4.4 - NE PLUS afficher Quick Actions (workflow unifié)
+                    // const quickActions = document.getElementById('apiQuickActions');
+                    // if (quickActions) quickActions.style.display = 'block';
                     
-                    // 6. ✨ CACHER TOUS LES ACCORDÉONS (pas Quick Actions)
-                    setTimeout(() => {
-                        document.querySelectorAll('.provider-mini').forEach(mini => {
-                            mini.style.display = 'none';
-                        });
-                    }, 600);
+                    // ✅ V6.4.4 - NE PLUS cacher les accordéons (pour permettre de changer de provider)
+                    // setTimeout(() => {
+                    //     document.querySelectorAll('.provider-mini').forEach(mini => {
+                    //         mini.style.display = 'none';
+                    //     });
+                    // }, 600);
                     
                     // 7. Remettre le bouton normal après 3s
                     setTimeout(() => {
@@ -9858,51 +10642,23 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
          */
         function scrollAfterUpload() {
             setTimeout(() => {
-                // Mode Manuel → Scroll vers section détection (plus logique)
-                if (STATE.processingMode === 'manual') {
-                    const detectionSection = document.getElementById('detectionSection');
-                    if (detectionSection && detectionSection.style.display !== 'none') {
-                        detectionSection.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start',
-                            inline: 'nearest'
-                        });
-                        return;
-                    }
+                // ✅ V6.4.4 - TOUS LES MODES: scroll vers détection (workflow unifié)
+                const detectionSection = document.getElementById('detectionSection');
+                if (detectionSection && detectionSection.style.display !== 'none') {
+                    detectionSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                    return;
                 }
                 
-                // Mode API User Keys → Scroll vers Quick Actions
-                if (STATE.processingMode === 'user-keys') {
-                    const quickActions = document.getElementById('apiQuickActions');
-                    if (quickActions && quickActions.style.display !== 'none') {
-                        quickActions.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start',
-                            inline: 'nearest'
-                        });
-                        return;
-                    }
-                }
-                
-                // Mode Worker → Scroll vers configuration worker
-                if (STATE.processingMode === 'worker') {
-                    const workerPanel = document.getElementById('workerActivePanel');
-                    if (workerPanel && workerPanel.style.display !== 'none') {
-                        workerPanel.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start',
-                            inline: 'nearest'
-                        });
-                        return;
-                    }
-                }
-                
-                // Fallback: scroll vers composition section si visible
+                // Fallback: scroll vers composition si détection non visible
                 const compositionSection = document.getElementById('compositionSection');
                 if (compositionSection && compositionSection.style.display !== 'none') {
                     compositionSection.scrollIntoView({ 
                         behavior: 'smooth', 
-                        block: 'center',
+                        block: 'start',
                         inline: 'nearest'
                     });
                 }
@@ -10126,11 +10882,23 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
         }
         
         function toggleWorkerMode() {
-            const enabled = document.getElementById('workerToggle').checked;
+            const toggle = document.getElementById('workerToggle');
+            const panel = document.getElementById('workerActivePanel');
+            const enabled = toggle.checked;
             
             if (enabled) {
-                showStatus('✅ Worker activé - Prêt pour traitement automatique', 'success');
+                multiLLM.switchMode('worker');
+                panel.style.display = 'block';
+                showStatus('✅ Worker activé - Glissez un fichier pour traitement automatique', 'success');
+                console.log('[WORKER] Mode activé, URL:', multiLLM.workerURL);
+                
+                // Scroll vers le panel
+                setTimeout(() => {
+                    smoothScrollToElement(panel, -20);
+                }, 300);
             } else {
+                multiLLM.switchMode('user_keys');
+                panel.style.display = 'none';
                 showStatus('Worker désactivé', 'info');
             }
         }
@@ -10140,12 +10908,12 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
         // ══════════════════════════════════════════════════════════════
         
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('OCR Universel V6.0 ULTIMATE - Ready!');
+            console.log('OCR Universel V6.4.4 SIMPLE - Ready!');
             console.log('21 formats supportés');
             console.log('OCR Workers parallèles activés');
             console.log('PROMPT_MODULES intégrés');
             console.log('Multi-LLM API Manager activé');
-            console.log('3 MODES : Manuel (défaut), API User Keys, API Worker');
+            console.log('3 MODES : Manuel (copy/paste), API Multi-LLM (vos clés), API Worker (gratuit - workflow identique au Manuel)');
             
             // Initialiser le mode par défaut
             STATE.processingMode = 'manual';
@@ -10156,6 +10924,20 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
             if (document.getElementById('userModel')) {
                 updateUserModels();
             }
+            
+            // ✅ V6.4.4 - TOUJOURS démarrer en mode Manuel (pas de restauration)
+            const radioManual = document.querySelector('input[name="mode"][value="manual"]');
+            if (radioManual) {
+                radioManual.checked = true;
+            }
+            
+            // Forcer multiLLM en mode user_keys par défaut
+            multiLLM.switchMode('user_keys');
+            
+            STATE.processingMode = 'manual';
+            STATE.mode = 'manual';
+            
+            console.log('[INIT] Mode par défaut: Manuel');
         });
     </script>
     
@@ -10231,6 +11013,41 @@ Généré avec OCR Universel V6.0 ULTIMATE - API Multi-LLM
                                 <select id="userModel" onchange="updateUserCost()">
                                     <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
                                 </select>
+                            </div>
+                        </div>
+                        
+                        <!-- V6.3.0 - PANNEAU SÉCURITÉ & LIMITES -->
+                        <div id="securityWarning" class="security-warning">
+                            <h4>
+                                <span style="font-size:24px;">⚠️</span>
+                                <span>SÉCURITÉ & LIMITES - IMPORTANT</span>
+                            </h4>
+                            <div class="security-warning-content">
+                                <p><strong>MODE USER KEYS (clés personnelles) :</strong></p>
+                                <ul>
+                                    <li>Vos clés sont stockées <strong>LOCALEMENT</strong> dans votre navigateur</li>
+                                    <li>Obfuscation XOR (⚠️ PAS une vraie encryption)</li>
+                                    <li>Les clés sont exposées au JavaScript de cette page</li>
+                                </ul>
+                                
+                                <div class="security-warning-highlight">
+                                    ⚠️ N'utilisez PAS ce mode pour des données ultra-sensibles ou en production
+                                </div>
+                                
+                                <p><strong>POUR PLUS DE SÉCURITÉ :</strong></p>
+                                <ul>
+                                    <li>✅ Utilisez le <strong>Mode Worker</strong> (serveur Cloudflare sécurisé)</li>
+                                    <li>✅ Ou hébergez votre propre backend avec proxy</li>
+                                    <li>✅ Limitez l'usage aux tests et développement</li>
+                                </ul>
+                            </div>
+                            <div class="security-warning-actions">
+                                <button class="security-btn security-btn-primary" onclick="acceptSecurityWarning()">
+                                    ✓ J'ai compris, continuer
+                                </button>
+                                <button class="security-btn security-btn-secondary" onclick="learnMoreSecurity()">
+                                    ℹ️ En savoir plus
+                                </button>
                             </div>
                         </div>
                         
