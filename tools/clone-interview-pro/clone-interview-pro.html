@@ -11594,23 +11594,68 @@ class ConversationalSystem {
             { name: 'Projets futurs', priority: 5, keywords: ['projet', 'futur', 'avenir', 'prévoir', 'planifier'], minDepth: 2 }
         ];
         
-        // V20: PLAN MACRO — 5 phases cliniques (scheduler souple)
+        // V20: PLAN MACRO — 5 phases cliniques (objectifs + banques d'angles)
         this.interviewPhases = [
-            { id: 'securisation', name: 'Sécurisation & identité', questions: [1, 8], 
-              domains: ['identité', 'contexte de vie', 'présentation'],
-              goal: 'Établir le lien, connaître la personne, créer la sécurité' },
+            { id: 'securisation', name: 'Sécurisation & cartographie', questions: [1, 8], 
+              objectives: [
+                  { id: 'quotidien', label: 'Obtenir un récit du quotidien', achieved: false,
+                    angles: ['journée type', 'routine matinale', 'ce qui rythme ta semaine', 'moment préféré de la journée'] },
+                  { id: 'fierte', label: 'Identifier une source de fierté', achieved: false,
+                    angles: ['accomplissement récent', 'moment de satisfaction', 'ce qui te rend fier', 'dernier truc bien fait'] },
+                  { id: 'tension', label: 'Repérer une zone de tension', achieved: false,
+                    angles: ['agacement récent', 'frustration', 'moment tendu', 'ce qui énerve'] },
+                  { id: 'identite', label: 'Cerner l\'identité déclarée', achieved: false,
+                    angles: ['comment tu te présentes', 'ce qui te définit', 'ce que les gens ne devinent pas', 'ta phrase résumé'] }
+              ],
+              rules: 'NE DEMANDE JAMAIS "qu\'est-ce qui t\'amène" — tu sais pourquoi il est là. Plonge DIRECTEMENT dans le vécu. Première question = narrative, concrète, impossible à intellectualiser.' },
             { id: 'monde_interne', name: 'Monde interne & émotions', questions: [9, 18],
-              domains: ['attachement', 'enfance', 'émotions', 'relations proches', 'vulnérabilité'],
-              goal: 'Explorer l\'attachement, les schémas précoces, la vie émotionnelle' },
+              objectives: [
+                  { id: 'attachement', label: 'Explorer le style d\'attachement', achieved: false,
+                    angles: ['personne la plus importante', 'réaction à la séparation', 'demander de l\'aide', 'confiance vs méfiance'] },
+                  { id: 'enfance', label: 'Accéder aux souvenirs précoces', achieved: false,
+                    angles: ['premier souvenir', 'ambiance familiale', 'règle non-dite', 'moment marquant enfant'] },
+                  { id: 'vulnerabilite', label: 'Toucher la vulnérabilité', achieved: false,
+                    angles: ['dernière fois ému', 'ce qui fait pleurer', 'peur profonde', 'moment de doute'] },
+                  { id: 'emotion_regulation', label: 'Comprendre la régulation émotionnelle', achieved: false,
+                    angles: ['gestion de la colère', 'réaction à l\'injustice', 'ce qui calme', 'quand tout déborde'] }
+              ],
+              rules: 'Phase SENSIBLE. Transition douce depuis la phase 1. Utilise les fils repérés. Si résistance → question projective ou narrative.' },
             { id: 'valeurs_moteurs', name: 'Valeurs, moteurs & conflits', questions: [19, 28],
-              domains: ['valeurs', 'motivations', 'dilemmes', 'conflits', 'limites', 'honte/culpabilité'],
-              goal: 'Cartographier les valeurs, les moteurs, les zones de tension' },
+              objectives: [
+                  { id: 'valeurs', label: 'Cartographier les valeurs', achieved: false,
+                    angles: ['ce qui est non-négociable', 'dilemme moral vécu', 'injustice intolérable', 'transmission aux enfants'] },
+                  { id: 'motivation', label: 'Identifier les moteurs', achieved: false,
+                    angles: ['ce qui donne envie le matin', 'flow / état de grâce', 'sans quoi la vie serait vide', 'ce qui manquerait'] },
+                  { id: 'limites', label: 'Explorer les limites et le non', achieved: false,
+                    angles: ['dire non', 'dernière fois refusé', 'culpabilité', 'sacrifice pour les autres'] },
+                  { id: 'honte', label: 'Approcher la honte et la culpabilité', achieved: false,
+                    angles: ['regret', 'chose qu\'on referait différemment', 'secret', 'jugement des autres'] }
+              ],
+              rules: 'Phase de PROFONDEUR. Utilise les questions de contraste et les dilemmes. Connecte aux récits de phase 1 et 2.' },
             { id: 'stress_defense', name: 'Stress, défenses & angles morts', questions: [29, 36],
-              domains: ['stress', 'coping', 'défenses', 'contradictions', 'résistance'],
-              goal: 'Tester les défenses, explorer les réactions sous pression' },
+              objectives: [
+                  { id: 'stress', label: 'Tester la réaction au stress', achieved: false,
+                    angles: ['pire journée récente', 'sous pression', 'quand tout va mal', 'coping'] },
+                  { id: 'defenses', label: 'Observer les mécanismes de défense', achieved: false,
+                    angles: ['humour défensif', 'intellectualisation', 'minimisation', 'détournement'] },
+                  { id: 'contradictions', label: 'Explorer les contradictions repérées', achieved: false,
+                    angles: ['incohérence entre dit et fait', 'valeur affichée vs comportement', 'ce que les proches diraient'] },
+                  { id: 'conflit', label: 'Comprendre le style de conflit', achieved: false,
+                    angles: ['dernière dispute', 'désaccord profond', 'quand quelqu\'un franchit ta limite', 'pardon vs rancune'] }
+              ],
+              rules: 'Phase INCISIVE. Tu as assez de matière pour formuler des hypothèses et les tester. Ose la confrontation douce : "Tu m\'as dit X mais aussi Y..."' },
             { id: 'synthese', name: 'Synthèse & projection', questions: [37, 45],
-              domains: ['identité synthèse', 'projection', 'aspirations', 'réparation'],
-              goal: 'Intégrer, vérifier les hypothèses, ouvrir sur l\'avenir' }
+              objectives: [
+                  { id: 'synthese_id', label: 'Vérifier l\'image de soi', achieved: false,
+                    angles: ['3 mots pour te décrire', 'différence entre toi vu de dehors et de dedans', 'ta plus grande force', 'ton talon d\'Achille'] },
+                  { id: 'projection', label: 'Ouvrir sur le futur', achieved: false,
+                    angles: ['dans 5 ans', 'vie idéale', 'peur pour l\'avenir', 'ce qui reste à accomplir'] },
+                  { id: 'reparation', label: 'Explorer la réparation', achieved: false,
+                    angles: ['ce que tu changerais dans ta vie', 'lettre à ton moi de 20 ans', 'pardon', 'acceptation'] },
+                  { id: 'cloture', label: 'Donner la parole finale', achieved: false,
+                    angles: ['ce que tu n\'as pas dit', 'ce que tu voudrais ajouter', 'surprise', 'mot de la fin'] }
+              ],
+              rules: 'Phase de CLÔTURE. Synthétise, vérifie tes hypothèses, laisse la personne se reconnaître dans ton résumé. Termine avec respect.' }
         ];
         this.currentPhaseIndex = 0;
         
@@ -11693,27 +11738,23 @@ class ConversationalSystem {
         // v16.7 - Présentation accueil (UNE SEULE FOIS)
         if (!this.presentationPlayed) {
             await this.addMessage('assistant', 
-                "Bonjour. Installe-toi confortablement, prends le temps qu'il te faut. " +
+                "Bonjour. Installe-toi confortablement. " +
                 "Cet entretien est une conversation libre — il n'y a pas de bonnes ou mauvaises réponses, " +
-                "et tu peux me dire à tout moment si une question te gêne. " +
-                "Pour commencer, dis-moi simplement comment tu t'appelles et ce qui t'amène ici."
+                "et tu peux passer une question à tout moment si elle te gêne. " +
+                "Pour commencer, dis-moi ton prénom et raconte-moi à quoi ressemble une journée typique dans ta vie."
             );
             
             this.presentationPlayed = true;
+            this.questionCount = 1; // Le greeting compte comme Q1
             
-            // Attendre fin TTS avant première question
+            // Attendre fin TTS — puis ATTENDRE la réponse de l'utilisateur (pas de generateNextQuestion)
             await this.waitForTTSComplete();
             
-            // v16.7 - Ajouter message user silencieusement pour initialiser contexte API
-            // (nécessaire car API Claude ne peut pas répondre si dernier message est 'assistant')
-            this.messages.push({
-                role: 'user',
-                content: "Oui, je suis prêt ! C'est parti.",
-                timestamp: new Date().toISOString()
-            });
+            console.log('[ConversationalSystem] ✅ Greeting sent as Q1 — waiting for user response');
+            return; // STOP — on attend que l'utilisateur réponde
         }
         
-        // Première question
+        // Première question (seulement si reprise de session sans greeting)
         await this.generateNextQuestion();
     }
     
@@ -12010,7 +12051,7 @@ class ConversationalSystem {
     /**
      * v16.7 - Construire prompt conversationnel adaptatif
      */
-    // V20: Déterminer la phase clinique courante
+    // V20: Déterminer la phase clinique courante + objectifs adaptatifs
     getCurrentPhaseContext() {
         const q = this.questionCount || 0;
         
@@ -12023,16 +12064,85 @@ class ConversationalSystem {
         const phase = this.interviewPhases[this.currentPhaseIndex];
         const nextPhase = this.interviewPhases[this.currentPhaseIndex + 1];
         
-        let ctx = `═══ PHASE CLINIQUE : ${phase.name.toUpperCase()} (questions ${phase.questions[0]}-${phase.questions[1]}, tu es à Q${q + 1}) ═══
-Objectif : ${phase.goal}
-Domaines prioritaires : ${phase.domains.join(', ')}`;
+        // Marquer les objectifs atteints en analysant les messages
+        this._updateObjectiveAchievement(phase);
         
-        // Alerte transition douce
-        if (q >= phase.questions[1] - 1 && nextPhase) {
-            ctx += `\n⚠️ TRANSITION IMMINENTE vers "${nextPhase.name}" — commence à orienter vers : ${nextPhase.domains.slice(0, 3).join(', ')}`;
+        // Construire le contexte
+        const remaining = phase.objectives.filter(o => !o.achieved);
+        const achieved = phase.objectives.filter(o => o.achieved);
+        
+        let ctx = `═══ PHASE : ${phase.name.toUpperCase()} (Q${q + 1}, plage Q${phase.questions[0]}-${phase.questions[1]}) ═══
+
+RÈGLE DE PHASE : ${phase.rules}
+
+OBJECTIFS DIAGNOSTIQUES :`;
+        
+        // Objectifs atteints
+        if (achieved.length > 0) {
+            ctx += '\n✅ Atteints : ' + achieved.map(o => o.label).join(', ');
+        }
+        
+        // Objectifs restants avec angles
+        if (remaining.length > 0) {
+            ctx += '\n🎯 À atteindre :';
+            remaining.forEach(o => {
+                // Choisir 2 angles aléatoires parmi les disponibles
+                const shuffled = [...o.angles].sort(() => Math.random() - 0.5);
+                const suggested = shuffled.slice(0, 2);
+                ctx += `\n  → ${o.label} — angles possibles : "${suggested.join('", "')}" (adapte librement)`;
+            });
+        }
+        
+        // Transition
+        if (q >= phase.questions[1] - 2 && nextPhase) {
+            const nextRemaining = nextPhase.objectives.slice(0, 2).map(o => o.label).join(', ');
+            ctx += `\n\n⚠️ TRANSITION vers "${nextPhase.name}" dans ~${phase.questions[1] - q} questions — commence à orienter vers : ${nextRemaining}`;
         }
         
         return ctx;
+    }
+    
+    // V20: Marquer les objectifs atteints en analysant le contenu des messages
+    _updateObjectiveAchievement(phase) {
+        if (!phase.objectives || !this.messages) return;
+        
+        const allContent = this.messages
+            .filter(m => m.role === 'user')
+            .map(m => (m.content || '').toLowerCase())
+            .join(' ');
+        
+        const keywordMap = {
+            quotidien: ['journée', 'matin', 'soir', 'routine', 'semaine', 'réveil', 'coucher', 'quotidien'],
+            fierte: ['fier', 'fierté', 'accompli', 'réussi', 'satisf', 'content de'],
+            tension: ['énerv', 'agac', 'frustré', 'tendu', 'colère', 'stress', 'difficile'],
+            identite: ['je suis', 'je me définis', 'on me voit', 'les gens pensent'],
+            attachement: ['confiance', 'compter sur', 'proche', 'sépar', 'manque', 'besoin de'],
+            enfance: ['enfant', 'petit', 'gamin', 'parents', 'père', 'mère', 'école', 'souvenir'],
+            vulnerabilite: ['pleur', 'ému', 'triste', 'peur', 'doute', 'fragile', 'sensible'],
+            emotion_regulation: ['colère', 'calme', 'gère', 'explose', 'retiens', 'déborde'],
+            valeurs: ['important', 'valeur', 'principe', 'intolérable', 'injust', 'non-négociable'],
+            motivation: ['passion', 'envie', 'motiv', 'énergie', 'sens', 'vide', 'sans ça'],
+            limites: ['non', 'refus', 'limite', 'sacrifice', 'culpabil'],
+            honte: ['honte', 'regret', 'secret', 'jugé', 'referais'],
+            stress: ['stress', 'pression', 'pire', 'catastrophe', 'surmonter'],
+            defenses: ['humour', 'dédramatis', 'minimis', 'rational', 'intellectualis'],
+            contradictions: ['contraire', 'incohérent', 'paradox'],
+            conflit: ['dispute', 'désaccord', 'confrontation', 'rancune', 'pardon'],
+            synthese_id: ['force', 'faiblesse', 'qualité', 'défaut', 'mots pour me décrire'],
+            projection: ['avenir', 'futur', '5 ans', 'rêve', 'idéal'],
+            reparation: ['changer', 'différemment', 'lettre', 'accepter'],
+            cloture: ['ajouter', 'pas dit', 'mot de la fin']
+        };
+        
+        phase.objectives.forEach(obj => {
+            if (obj.achieved) return;
+            const keywords = keywordMap[obj.id] || [];
+            const matches = keywords.filter(kw => allContent.includes(kw));
+            if (matches.length >= 2) {
+                obj.achieved = true;
+                console.log(`[V20] ✅ Objective "${obj.label}" achieved (${matches.join(', ')})`);
+            }
+        });
     }
     
     buildConversationalPrompt() {
