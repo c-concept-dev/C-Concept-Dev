@@ -47,7 +47,7 @@
 ║    - BrainBuilderAIHelper (génération profil psycho)                     ║
 ║    - BrainJSONSchemaValidator (validation progressive)                   ║
 ║    - ConversationalSystem (questions adaptatives)                        ║
-║    - Concordance 101%+ (validation scientifique)                         ║
+║    - Complétude clinique (couverture des domaines)                         ║
 ║                                                                           ║
 ║  CONFIGURATION:                                                          ║
 ║    - Google Cloud TTS (optionnel, config au 1er lancement)              ║
@@ -1759,7 +1759,7 @@
         <p style="margin: 30px auto; max-width: 500px; line-height: 1.8; color: var(--text-secondary);">
             <strong>Durée :</strong> 45-60 minutes<br>
             <strong>Questions :</strong> 40<br>
-            <strong>Concordance cible :</strong> 101%+ (mode vidéo)
+            <strong>Complétude cible :</strong> 100% (mode vidéo)
         </p>
         
         <button class="start-btn" onclick="showModeSelection()" style="font-size: 16px; padding: 16px 48px;">
@@ -1968,10 +1968,26 @@
                     placeholder="Écrivez votre réponse ici (ou parlez si mode audio/vidéo activé)..."
                 ></textarea>
                 <div class="actions-row">
-                    <div class="word-count" id="word-count-display">0 mots</div>
-                    <button class="send-btn" id="send-btn" onclick="sendResponse()">
-                        Envoyer ➤
-                    </button>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button id="skip-btn" onclick="handleSkip('pass')" title="Passer cette question" style="
+                            background:white;border:1.5px solid #D8CDBB;border-radius:20px;padding:6px 14px;
+                            font-size:12px;color:#666;cursor:pointer;font-family:inherit;transition:all 0.2s;
+                        " onmouseover="this.style.borderColor='#8FAFB1';this.style.color='#8FAFB1'" onmouseout="this.style.borderColor='#D8CDBB';this.style.color='#666'">
+                            Je passe
+                        </button>
+                        <button id="refuse-btn" onclick="handleSkip('refuse')" title="Refuser de répondre à ce sujet" style="
+                            background:white;border:1.5px solid #D8CDBB;border-radius:20px;padding:6px 14px;
+                            font-size:12px;color:#666;cursor:pointer;font-family:inherit;transition:all 0.2s;
+                        " onmouseover="this.style.borderColor='#e67e22';this.style.color='#e67e22'" onmouseout="this.style.borderColor='#D8CDBB';this.style.color='#666'">
+                            Je préfère ne pas répondre
+                        </button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="word-count" id="word-count-display">0 mots</div>
+                        <button class="send-btn" id="send-btn" onclick="sendResponse()">
+                            Envoyer ➤
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2039,7 +2055,7 @@
                                 🏆 RECOMMANDÉ - Résultat optimal
                             </div>
                         </div>
-                        <div class="mode-concordance">101%+</div>
+                        <div class="mode-concordance">100%</div>
                     </div>
                     <ul class="mode-features">
                         <li>✅ Analyse texte + voix + expressions faciales</li>
@@ -2096,8 +2112,16 @@
                 <div class="consent-checkbox">
                     <input type="checkbox" id="consent-check" onchange="updateConsentButton()">
                     <label for="consent-check">
-                        J'accepte que mes réponses soient analysées localement sur mon appareil
+                        J'accepte que mes réponses soient analysées pour créer un profil de personnalité
                     </label>
+                </div>
+                <div style="margin-top:8px;padding:10px 12px;background:#f8f6f3;border-radius:8px;font-size:11px;color:#666;line-height:1.5;">
+                    <strong style="color:#555;">Transparence :</strong>
+                    L'analyse audio/vidéo est traitée localement sur votre appareil. 
+                    Les questions sont générées par IA via un service distant sécurisé (Anthropic Claude). 
+                    Vos réponses textuelles transitent par ce service pour générer les questions suivantes, 
+                    mais ne sont pas stockées par le prestataire.
+                    <br><em style="color:#8FAFB1;">Ceci n'est pas un outil de diagnostic médical ou psychiatrique.</em>
                 </div>
             </div>
             
@@ -11570,6 +11594,26 @@ class ConversationalSystem {
             { name: 'Projets futurs', priority: 5, keywords: ['projet', 'futur', 'avenir', 'prévoir', 'planifier'], minDepth: 2 }
         ];
         
+        // V20: PLAN MACRO — 5 phases cliniques (scheduler souple)
+        this.interviewPhases = [
+            { id: 'securisation', name: 'Sécurisation & identité', questions: [1, 8], 
+              domains: ['identité', 'contexte de vie', 'présentation'],
+              goal: 'Établir le lien, connaître la personne, créer la sécurité' },
+            { id: 'monde_interne', name: 'Monde interne & émotions', questions: [9, 18],
+              domains: ['attachement', 'enfance', 'émotions', 'relations proches', 'vulnérabilité'],
+              goal: 'Explorer l\'attachement, les schémas précoces, la vie émotionnelle' },
+            { id: 'valeurs_moteurs', name: 'Valeurs, moteurs & conflits', questions: [19, 28],
+              domains: ['valeurs', 'motivations', 'dilemmes', 'conflits', 'limites', 'honte/culpabilité'],
+              goal: 'Cartographier les valeurs, les moteurs, les zones de tension' },
+            { id: 'stress_defense', name: 'Stress, défenses & angles morts', questions: [29, 36],
+              domains: ['stress', 'coping', 'défenses', 'contradictions', 'résistance'],
+              goal: 'Tester les défenses, explorer les réactions sous pression' },
+            { id: 'synthese', name: 'Synthèse & projection', questions: [37, 45],
+              domains: ['identité synthèse', 'projection', 'aspirations', 'réparation'],
+              goal: 'Intégrer, vérifier les hypothèses, ouvrir sur l\'avenir' }
+        ];
+        this.currentPhaseIndex = 0;
+        
         // UI Elements (seront initialisés)
         this.messagesContainer = null;
         this.userInput = null;
@@ -11649,10 +11693,10 @@ class ConversationalSystem {
         // v16.7 - Présentation accueil (UNE SEULE FOIS)
         if (!this.presentationPlayed) {
             await this.addMessage('assistant', 
-                "Bonjour ! Je suis Claude, ton assistant conversationnel pour créer un clone précis de ta personnalité. " +
-                "Cette interview est 100% naturelle : tu peux m'interrompre, me poser des questions, ou demander des clarifications à tout moment. " +
-                "Je vais adapter mes questions selon tes réponses. Il n'y a pas de durée fixe ni de nombre de questions précis. " +
-                "L'interview continue jusqu'à ce que j'aie une compréhension complète de qui tu es. Prêt à commencer ?"
+                "Bonjour. Installe-toi confortablement, prends le temps qu'il te faut. " +
+                "Cet entretien est une conversation libre — il n'y a pas de bonnes ou mauvaises réponses, " +
+                "et tu peux me dire à tout moment si une question te gêne. " +
+                "Pour commencer, dis-moi simplement comment tu t'appelles et ce qui t'amène ici."
             );
             
             this.presentationPlayed = true;
@@ -11875,7 +11919,7 @@ class ConversationalSystem {
                     payload: {
                         provider: 'anthropic',
                         model: 'claude-sonnet-4-20250514',
-                        max_tokens: 180,
+                        max_tokens: 220,
                         temperature: 1.0,
                         system: systemPrompt,
                         messages: cleanMessages
@@ -11966,6 +12010,31 @@ class ConversationalSystem {
     /**
      * v16.7 - Construire prompt conversationnel adaptatif
      */
+    // V20: Déterminer la phase clinique courante
+    getCurrentPhaseContext() {
+        const q = this.questionCount || 0;
+        
+        // Avancer la phase si on a dépassé la plage
+        while (this.currentPhaseIndex < this.interviewPhases.length - 1 &&
+               q > this.interviewPhases[this.currentPhaseIndex].questions[1]) {
+            this.currentPhaseIndex++;
+        }
+        
+        const phase = this.interviewPhases[this.currentPhaseIndex];
+        const nextPhase = this.interviewPhases[this.currentPhaseIndex + 1];
+        
+        let ctx = `═══ PHASE CLINIQUE : ${phase.name.toUpperCase()} (questions ${phase.questions[0]}-${phase.questions[1]}, tu es à Q${q + 1}) ═══
+Objectif : ${phase.goal}
+Domaines prioritaires : ${phase.domains.join(', ')}`;
+        
+        // Alerte transition douce
+        if (q >= phase.questions[1] - 1 && nextPhase) {
+            ctx += `\n⚠️ TRANSITION IMMINENTE vers "${nextPhase.name}" — commence à orienter vers : ${nextPhase.domains.slice(0, 3).join(', ')}`;
+        }
+        
+        return ctx;
+    }
+    
     buildConversationalPrompt() {
         // Détecter émotion dominante récente (si vidéo active)
         const recentEmotion = this.detectRecentEmotion();
@@ -12011,7 +12080,10 @@ class ConversationalSystem {
 POSTURE CLINIQUE :
 Tu n'es PAS un chatbot qui pose des questions de sondage. Tu es un clinicien qui ÉCOUTE, OBSERVE, et FORMULE DES HYPOTHÈSES qu'il vérifie par des questions précises. Chaque question a un OBJECTIF DIAGNOSTIQUE clair.
 
-CONCORDANCE : ${concordance.toFixed(1)}% (cible: 102%+)
+COMPLÉTUDE : ${concordance.toFixed(1)}% (cible: 100%+)
+Ce score mesure le degré d'exploration des domaines, PAS un diagnostic.
+
+${this.getCurrentPhaseContext()}
 
 THÈMES :
 ${themesStatus}
@@ -13137,7 +13209,7 @@ function updateModeDisplay() {
     if (state.mode === 'video') {
         icon = '📹';
         text = 'Mode VIDÉO';
-        concordance = '101%+';
+        concordance = '100%';
     } else if (state.mode === 'audio') {
         icon = '🎤';
         text = 'Mode AUDIO';
@@ -13758,7 +13830,7 @@ function fuseMultiModalData() {
 }
 
 /**
- * Calcule la concordance psychologique (cible 101%+)
+ * Calcule la complétude clinique (cible 100%)
  * Mesure la cohérence entre modalités
  */
 function calculateConcordance(fusionVector) {
@@ -13792,7 +13864,7 @@ function calculateConcordance(fusionVector) {
     return {
         score: concordanceScore,
         target: 101.0,
-        achieved: concordanceScore >= 101.0,
+        achieved: concordanceScore >= 100.0,
         breakdown: {
             base: 100,
             keyMomentsBonus: keyMoments > 5 ? 0.5 : 0,
@@ -14715,7 +14787,7 @@ function exportPDF() {
         
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
-        doc.text('(Cible: ' + (profile.concordance?.target || 101) + '% - Atteint: ' + (profile.concordance?.achieved ? 'Oui' : 'Non') + ')', 105, 78, { align: 'center' });
+        doc.text('(Cible: ' + (profile.concordance?.target || 100) + '% - Atteint: ' + (profile.concordance?.achieved ? 'Oui' : 'Non') + ')', 105, 78, { align: 'center' });
         
         // Statistiques
         doc.setFontSize(16);
@@ -15211,6 +15283,33 @@ function addMessage(type, text, options = {}) {
     }
 }
 
+// V20: Gestion "Je passe" / "Je préfère ne pas répondre"
+function handleSkip(type) {
+    if (!window.conversationalSystem) return;
+    
+    const cs = window.conversationalSystem;
+    
+    if (type === 'pass') {
+        // "Je passe" = donnée neutre, passer à la question suivante
+        console.log('[V20] ⏭️ User skipped question');
+        cs.addMessage('user', '[La personne passe cette question]');
+    } else if (type === 'refuse') {
+        // "Je préfère ne pas répondre" = donnée clinique importante (résistance/évitement)
+        console.log('[V20] 🚫 User refused to answer — clinical data: avoidance');
+        cs.addMessage('user', '[La personne refuse de répondre à cette question — sujet sensible, à revisiter par un angle différent plus tard]');
+        
+        // Tracker la résistance si DeepPersonalityAnalyzer est actif
+        if (window.deepPersonalityAnalyzer) {
+            window.deepPersonalityAnalyzer.reticenceScore = Math.min(100, 
+                (window.deepPersonalityAnalyzer.reticenceScore || 0) + 15);
+            console.log('[V20] Reticence score +15 →', window.deepPersonalityAnalyzer.reticenceScore);
+        }
+    }
+    
+    // Générer la question suivante (le prompt sait interpréter le skip/refus)
+    cs.generateNextQuestion();
+}
+
 function sendResponse() {
     // Stop clone speaking when user responds
     stopCloneSpeaking();
@@ -15372,7 +15471,7 @@ document.getElementById('response-input').addEventListener('input', updateWordCo
 // ============================================================================
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  Clone Interview Pro v17.2.0 ULTIMATE                          ');
-console.log('  C DevConcept - Concordance 101%+                       ');
+console.log('  C DevConcept - Complétude clinique                       ');
 console.log('  Modules Psycho 23-32 + ElevenLabs TTS                   ');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('[v15.3] ✅ Ready! Worker:', CONFIG.WORKER_URL);
