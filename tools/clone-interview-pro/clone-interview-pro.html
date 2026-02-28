@@ -1817,22 +1817,22 @@
         
         <!-- V19: DIMENSIONAL SIDEBAR DASHBOARD -->
         <div id="v19-pillar-dashboard" style="
-            position: fixed; top: 80px; right: 15px; width: 280px;
-            background: white; border-radius: 12px;
+            position: fixed; top: 80px; right: 15px; width: 52px;
+            background: white; border-radius: 26px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             z-index: 1000; overflow: hidden; display: none;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            transition: all 0.3s ease;"
-            onmouseenter="document.getElementById('v19-pillar-content').style.maxHeight='400px';document.getElementById('v19-pillar-content').style.opacity='1';"
-            onmouseleave="document.getElementById('v19-pillar-content').style.maxHeight='0px';document.getElementById('v19-pillar-content').style.opacity='0';">
+            transition: width 0.35s cubic-bezier(0.4,0,0.2,1), border-radius 0.35s ease;"
+            onmouseenter="const d=this;d.style.width='280px';d.style.borderRadius='12px';document.getElementById('v19-pillar-header-text').style.opacity='1';document.getElementById('v19-pillar-header-text').style.width='auto';document.getElementById('v19-pillar-header-bar').style.display='block';document.getElementById('v19-pillar-content').style.maxHeight='400px';document.getElementById('v19-pillar-content').style.opacity='1';"
+            onmouseleave="const d=this;d.style.width='52px';d.style.borderRadius='26px';document.getElementById('v19-pillar-header-text').style.opacity='0';document.getElementById('v19-pillar-header-text').style.width='0';document.getElementById('v19-pillar-header-bar').style.display='none';document.getElementById('v19-pillar-content').style.maxHeight='0px';document.getElementById('v19-pillar-content').style.opacity='0';">
             
             <!-- Header (always visible) -->
-            <div style="background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%); padding: 10px 15px; cursor: pointer;" onclick="const c=document.getElementById('v19-pillar-content');if(c.style.maxHeight==='0px'){c.style.maxHeight='400px';c.style.opacity='1'}else{c.style.maxHeight='0px';c.style.opacity='0'}">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: white; font-weight: 600; font-size: 13px;">🧠 Personnalité</span>
-                    <span id="v19-global-text" style="color: white; font-weight: 700; font-size: 16px;">0%</span>
+            <div style="background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%); padding: 10px 12px; cursor: pointer; white-space: nowrap;" onclick="const c=document.getElementById('v19-pillar-content');const d=document.getElementById('v19-pillar-dashboard');if(d.style.width==='52px'){d.style.width='280px';d.style.borderRadius='12px';document.getElementById('v19-pillar-header-text').style.opacity='1';document.getElementById('v19-pillar-header-text').style.width='auto';document.getElementById('v19-pillar-header-bar').style.display='block';c.style.maxHeight='400px';c.style.opacity='1'}else{d.style.width='52px';d.style.borderRadius='26px';document.getElementById('v19-pillar-header-text').style.opacity='0';document.getElementById('v19-pillar-header-text').style.width='0';document.getElementById('v19-pillar-header-bar').style.display='none';c.style.maxHeight='0px';c.style.opacity='0'}">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="v19-global-text" style="color: white; font-weight: 700; font-size: 14px; flex-shrink: 0;">0%</span>
+                    <span id="v19-pillar-header-text" style="color: white; font-weight: 600; font-size: 13px; opacity: 0; width: 0; overflow: hidden; transition: opacity 0.3s ease, width 0.3s ease;">Personnalité</span>
                 </div>
-                <div style="background: rgba(255,255,255,0.3); height: 4px; border-radius: 2px; margin-top: 6px;">
+                <div id="v19-pillar-header-bar" style="background: rgba(255,255,255,0.3); height: 4px; border-radius: 2px; margin-top: 6px; display: none;">
                     <div id="v19-global-bar" style="background: white; height: 100%; border-radius: 2px; width: 0%; transition: width 0.5s ease;"></div>
                 </div>
             </div>
@@ -13043,42 +13043,69 @@ async function startInterview() {
     }
     
     // Démarrer conversation
-    await conversationalSystem.start();
+    // ═══ V19 FIX: Si reprise de session, restaurer AVANT start() ═══
+    const isResuming = !!window._pendingSessionRestore;
     
-    // ═══ V19 FIX: Si une session est en attente de restauration ═══
-    if (window._pendingSessionRestore) {
+    if (isResuming) {
         const sessionState = window._pendingSessionRestore;
-        window._pendingSessionRestore = null; // Consommer
+        window._pendingSessionRestore = null;
         
-        console.log('[V19-FIX] 📥 Restoring pending session after init...');
+        console.log('[V19-FIX] 📥 Session restore BEFORE start()...');
+        
+        // Marquer la présentation comme déjà jouée (évite le re-greeting)
+        conversationalSystem.presentationPlayed = true;
+        
+        // Démarrer les services (dashboard, auto-save) sans le greeting/première question
+        // On appelle les parties de start() manuellement
+        if (window.progressDashboard) window.progressDashboard.start();
+        if (window.autoSaveManager) window.autoSaveManager.start();
+        
+        const v19Dash = document.getElementById('v19-pillar-dashboard');
+        if (v19Dash) v19Dash.style.display = 'block';
+        
+        if (window.audioInterruptor) {
+            window.audioInterruptor.onInterrupt = () => {
+                if (window.ttsQueue) window.ttsQueue.interrupt();
+            };
+        }
         
         // Restaurer toutes les données dans les modules
         v19RestoreSessionData(sessionState);
         
-        // Remplacer le chat UI (le greeting vient d'être affiché par start())
+        // Afficher les messages restaurés dans le chat UI
         v19RestoreChatUI(sessionState.conversation?.messages || []);
         
-        // Remettre les messages dans le ConversationalSystem (écrase le greeting)
+        // Remettre les messages dans le ConversationalSystem
         if (sessionState.conversation?.messages) {
-            conversationalSystem.messages = sessionState.conversation.messages;
+            conversationalSystem.messages = [...sessionState.conversation.messages];
+        }
+        if (sessionState.conversation) {
+            conversationalSystem.responses = sessionState.conversation.responses || [];
+            conversationalSystem.exploredThemes = new Set(sessionState.conversation.exploredThemes || []);
+            conversationalSystem.themeDepth = sessionState.conversation.themeDepth || {};
+            conversationalSystem.questionCount = sessionState.conversation.questionCount || 0;
+            conversationalSystem.responseCount = (sessionState.conversation.responses || []).length;
         }
         
         // Update stats visuels
         if (conversationalSystem.updateStats) conversationalSystem.updateStats();
         
-        // Afficher le dashboard V19
-        const v19Dashboard = document.getElementById('v19-pillar-dashboard');
-        if (v19Dashboard) v19Dashboard.style.display = 'block';
-        
-        // Toast de confirmation
+        // Toast
         const tracker = window.personalityTracker;
         const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
         const qCount = sessionState.conversation?.questionCount || 0;
         if (typeof showToast === 'function') {
-            showToast(`✅ Session restaurée — ${qCount} questions, ${completeness}% complétude`, 'success');
+            showToast(`✅ Session restaurée — ${qCount} questions, ${completeness}% complétude. Continuez !`, 'success');
         }
         
-        console.log('[V19-FIX] ✅ Session fully restored after startInterview()');
+        console.log('[V19-FIX] ✅ Session restored, ready to continue');
+        
+        // Générer le message de reprise (avec TTS)
+        await v19GenerateResumeMessage(conversationalSystem);
+        
+    } else {
+        // Flow normal : greeting + première question
+        await conversationalSystem.start();
     }
     
     // v17.3.15 ULTIMATE: Initialiser avatar dès le démarrage
@@ -29047,30 +29074,136 @@ function v19RestoreSessionData(sessionState) {
 
 // Recréer le chat UI à partir des messages sauvegardés
 function v19RestoreChatUI(messages) {
-    const chatContainer = document.getElementById('chat-container');
-    if (!chatContainer || !messages.length) return;
-    
-    // Vider le chat (le greeting auto a déjà été ajouté par start())
-    chatContainer.innerHTML = '';
-    
-    for (const msg of messages) {
-        const div = document.createElement('div');
-        div.style.cssText = msg.role === 'assistant'
-            ? 'margin:8px 40px 8px 0;padding:12px 16px;background:var(--sable,#E6D7C3);border-radius:12px 12px 12px 4px;line-height:1.6;font-size:14px;color:var(--gris-texte,#333);'
-            : 'margin:8px 0 8px 40px;padding:12px 16px;background:var(--mer,#8FAFB1);color:white;border-radius:12px 12px 4px 12px;line-height:1.6;font-size:14px;';
-        div.textContent = msg.content || '';
-        chatContainer.appendChild(div);
+    const container = document.getElementById('messages-container');
+    if (!container) {
+        console.error('[V19-FIX] ❌ messages-container not found!');
+        return;
     }
     
-    // Ajouter un marqueur visuel de reprise
-    const marker = document.createElement('div');
-    marker.style.cssText = 'text-align:center;padding:10px;margin:12px 0;background:linear-gradient(135deg,var(--sable,#E6D7C3),var(--beige-sable,#D8CDBB));border-radius:10px;font-size:13px;color:var(--gris-texte,#333);border-left:4px solid var(--mer,#8FAFB1);';
-    const qCount = messages.filter(m => m.role === 'user').length;
-    marker.innerHTML = `📥 <strong>Session restaurée</strong> — ${qCount} réponses. La conversation reprend ici.`;
-    chatContainer.appendChild(marker);
+    // Vider le chat
+    container.innerHTML = '';
     
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    console.log('[V19-FIX] Chat UI restored:', messages.length, 'messages');
+    if (!messages.length) {
+        console.log('[V19-FIX] No messages to restore');
+        return;
+    }
+    
+    for (const msg of messages) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${msg.role}`;
+        
+        // Avatar pour assistant
+        if (msg.role === 'assistant') {
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = '🧠';
+            messageDiv.appendChild(avatar);
+        }
+        
+        // Contenu
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = msg.content || '';
+        messageDiv.appendChild(contentDiv);
+        
+        // Timestamp
+        const ts = document.createElement('div');
+        ts.className = 'message-timestamp';
+        ts.textContent = msg.timestamp 
+            ? new Date(msg.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})
+            : '';
+        messageDiv.appendChild(ts);
+        
+        container.appendChild(messageDiv);
+    }
+    
+    container.scrollTop = container.scrollHeight;
+    console.log('[V19-FIX] Chat UI restored:', messages.length, 'messages in messages-container');
+}
+
+// Générer un message de reprise contextuel via Claude API
+async function v19GenerateResumeMessage(convSystem) {
+    const messages = convSystem.messages || [];
+    const qCount = convSystem.questionCount || 0;
+    const WORKER_URL = convSystem.WORKER_URL || window.CONFIG?.WORKER_URL || 'https://clone-proxy.11drumboy11.workers.dev/';
+    
+    // Extraire les derniers échanges (max 6 messages) pour le contexte
+    const lastMessages = messages.slice(-6).map(m => ({
+        role: m.role,
+        content: m.content
+    }));
+    
+    // Si pas assez de contexte, fallback simple
+    if (lastMessages.length <= 1) {
+        console.log('[V19-FIX] Pas assez de contexte — relance simple');
+        await convSystem.addMessage('assistant', 
+            'Rebonjour ! On reprend notre conversation. Je suis prêt à continuer. Qu\'est-ce qui te vient à l\'esprit ?'
+        );
+        return;
+    }
+    
+    try {
+        console.log('[V19-FIX] 🧠 Generating contextual resume message via API...');
+        
+        const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                payload: {
+                    provider: 'anthropic',
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 150,
+                    temperature: 0.7,
+                    system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
+Tu dois générer UNE SEULE phrase de reprise naturelle et chaleureuse qui :
+1. Salue la personne (Rebonjour / Content de te retrouver)
+2. Rappelle brièvement le dernier sujet abordé, EN CITANT un élément précis de ce qu'elle a dit
+3. Relance naturellement la conversation sur ce fil
+
+Exemples de bonnes relances :
+- "Rebonjour ! La dernière fois, tu me parlais de ta relation avec ton père et tu disais que l'autorité te posait problème. J'aimerais creuser ça — qu'est-ce qui se passe en toi quand quelqu'un te donne un ordre ?"
+- "Content de te retrouver ! On en était à tes choix de carrière, tu mentionnais cette tension entre sécurité et passion. Qu'est-ce qui a bougé depuis ?"
+
+RÈGLES :
+- UNE seule phrase, max 2 lignes
+- Tutoiement
+- Naturel, pas robotique
+- Termine par une question ouverte qui reprend le fil`,
+                    messages: [
+                        ...lastMessages,
+                        { 
+                            role: 'user', 
+                            content: `[SYSTÈME : La session a été mise en pause après ${qCount} questions. L'utilisateur vient de la reprendre. Génère ta phrase de reprise basée sur les échanges ci-dessus.]` 
+                        }
+                    ]
+                }
+            })
+        });
+        
+        if (!response.ok) throw new Error('API ' + response.status);
+        
+        const data = await response.json();
+        let resumeText = '';
+        
+        if (data?.content && Array.isArray(data.content)) {
+            resumeText = data.content.filter(c => c.type === 'text').map(c => c.text).join('').trim();
+        } else if (typeof data?.content === 'string') {
+            resumeText = data.content.trim();
+        }
+        
+        if (!resumeText) throw new Error('Empty response');
+        
+        // Afficher via ConversationalSystem (avec TTS)
+        await convSystem.addMessage('assistant', resumeText);
+        console.log('[V19-FIX] ✅ Contextual resume message:', resumeText.substring(0, 80) + '...');
+        
+    } catch (err) {
+        console.warn('[V19-FIX] ⚠️ API resume failed, fallback:', err.message);
+        // Fallback statique
+        await convSystem.addMessage('assistant',
+            'Rebonjour ! On reprend notre conversation là où on en était. Qu\'est-ce qui te vient à l\'esprit ?'
+        );
+    }
 }
 
 // L'ancienne fonction pour le bouton dans l'interview screen
