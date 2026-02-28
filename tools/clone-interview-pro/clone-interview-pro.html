@@ -4248,7 +4248,12 @@ class ConversationSummarizer {
      * Vérifier si résumé nécessaire
      */
     shouldSummarize(messages) {
-        return messages.length >= this.summaryThreshold && !this.lastSummary;
+        // Résumé initial à 25 messages, puis mise à jour tous les 30 messages supplémentaires
+        if (messages.length < this.summaryThreshold) return false;
+        if (!this.lastSummary) return true;
+        // Re-résumer si 30+ nouveaux messages depuis dernier résumé
+        const messagesSinceLastSummary = messages.length - (this._lastSummaryAtLength || 0);
+        return messagesSinceLastSummary >= 30;
     }
     
     /**
@@ -4256,6 +4261,7 @@ class ConversationSummarizer {
      */
     async generateSummary(messages) {
         if (this.isSummarizing) return this.lastSummary;
+        this._currentMsgCount = messages.length;
         
         console.log('[Summary] 📝 Generating summary for', messages.length, 'messages...');
         this.isSummarizing = true;
@@ -4304,6 +4310,7 @@ Résumé concis:`;
             
             const data = await response.json();
             this.lastSummary = data.content[0].text.trim();
+            this._lastSummaryAtLength = this._currentMsgCount || 0;
             
             console.log('[Summary] ✅ Summary generated:', this.lastSummary.length, 'chars');
             return this.lastSummary;
@@ -7486,8 +7493,9 @@ class DeepPersonalityAnalyzer {
         // === MISE À JOUR STRATÉGIE ADAPTATIVE ===
         this._updateStrategy(analysis);
         
-        // Sauvegarder snapshot
+        // Sauvegarder snapshot (ring buffer: max 100 pour longues interviews)
         this.responseSnapshots.push(analysis);
+        if (this.responseSnapshots.length > 100) this.responseSnapshots.splice(0, this.responseSnapshots.length - 100);
         
         return analysis;
     }
@@ -9526,8 +9534,9 @@ class SchemaDetector {
         if (!schema) return;
         
         schema.multimodalMarkers.push(description);
+        if (schema.multimodalMarkers.length > 20) schema.multimodalMarkers.splice(0, schema.multimodalMarkers.length - 20);
         schema.evidenceCount++;
-        schema.score = Math.min(6, schema.score + 0.3);
+        schema.score = Math.min(6, schema.score + adaptiveDelta(0.3, schema.evidenceCount));
         schema.explored = true;
     }
 
@@ -10879,6 +10888,16 @@ window.attachmentAnalyzer = new AttachmentAnalyzer();
 // Alimente Pilier 1 (Structure Personnalité)
 // ============================================================================
 
+// ============================================================================
+// V19 CLINICAL — ADAPTIVE SCORING UTILITY
+// Delta décroissant: plus on a d'evidence, plus l'incrément diminue
+// Empêche la saturation des scores sur les longues interviews (90+ questions)
+// Formule: baseDelta / (1 + evidence × decayRate)
+// ============================================================================
+function adaptiveDelta(baseDelta, evidence, decayRate = 0.15) {
+    return baseDelta / (1 + evidence * decayRate);
+}
+
 class HEXACOAnalyzer {
     constructor() {
         // ═══════ 6 DIMENSIONS × 4 FACETTES ═══════
@@ -11135,11 +11154,12 @@ class HEXACOAnalyzer {
                 const dim = this.dimensions[dimKey];
                 if (!dim) continue;
 
-                // Appliquer deltas aux facettes
+                // Appliquer deltas aux facettes (delta adaptatif anti-saturation)
                 for (const [facetKey, delta] of Object.entries(config.facets)) {
                     const facet = dim.facets[facetKey];
                     if (facet) {
-                        const applied = delta * Math.min(totalMatches, 3); // Cap à 3 matches
+                        const rawDelta = delta * Math.min(totalMatches, 3);
+                        const applied = adaptiveDelta(rawDelta, facet.evidence);
                         facet.score = Math.max(0, Math.min(1, facet.score + applied));
                         facet.evidence += totalMatches;
                     }
@@ -11430,10 +11450,12 @@ class MotivationAnalyzer {
                 const store = this[config.target];
                 const dim = store[config.dimension];
                 if (dim) {
-                    const applied = config.delta * Math.min(totalMatches, 3);
+                    const rawDelta = config.delta * Math.min(totalMatches, 3);
+                    const applied = adaptiveDelta(rawDelta, dim.evidence);
                     dim.score = Math.max(0, Math.min(1, dim.score + applied));
                     dim.evidence += totalMatches;
                     dim.markers.push(...matched.slice(0, 2));
+                    if (dim.markers.length > 20) dim.markers.splice(0, dim.markers.length - 20);
 
                     detections.push({ pattern: patternId, target: config.target, dimension: config.dimension, matches: totalMatches });
                 }
@@ -11835,11 +11857,13 @@ class ResponseBiasDetector {
             for (const rx of cfg.m) { rx.lastIndex = 0; const mm = text.match(rx); if (mm) tot += mm.length; }
             if (tot > 0) {
                 if (cfg.target === 'social_desirability') {
-                    this.biases.social_desirability[cfg.dim].score += cfg.delta * Math.min(tot, 3);
-                    this.biases.social_desirability[cfg.dim].evidence += tot;
+                    const dim = this.biases.social_desirability[cfg.dim];
+                    dim.score += adaptiveDelta(cfg.delta * Math.min(tot, 3), dim.evidence);
+                    dim.evidence += tot;
                 } else {
-                    this.biases[cfg.dim].score += cfg.delta * Math.min(tot, 3);
-                    this.biases[cfg.dim].evidence += tot;
+                    const dim = this.biases[cfg.dim];
+                    dim.score += adaptiveDelta(cfg.delta * Math.min(tot, 3), dim.evidence);
+                    dim.evidence += tot;
                 }
                 detections.push({ p: pid, n: tot });
             }
@@ -12309,7 +12333,9 @@ class ClinicalProfiler {
                 const store = this[cfg.t];
                 const dim = store?.[cfg.d];
                 if (dim && typeof dim === 'object') {
-                    dim.score = Math.max(0, Math.min(1, dim.score + cfg.v * Math.min(tot, 3)));
+                    const rawDelta = cfg.v * Math.min(tot, 3);
+                    const applied = adaptiveDelta(rawDelta, dim.evidence);
+                    dim.score = Math.max(0, Math.min(1, dim.score + applied));
                     dim.evidence += tot;
                     detections.push({ p: pid, d: cfg.d, n: tot });
                 }
@@ -14353,8 +14379,9 @@ QUESTION :`;
      */
     shouldEndInterview() {
         if (!this.pcTracker) {
-            // Fallback: au moins 30 questions + thèmes OK
-            return this.questionCount >= 30 && this.exploredThemes.size >= this.MIN_THEMES;
+            // Fallback sans pcTracker : jamais de fin forcée, on continue
+            // L'interview se termine uniquement via checkEndCriteria (concordance + thèmes)
+            return false;
         }
         
         const dashboard = this.pcTracker.getDashboardData();
@@ -14826,6 +14853,8 @@ function startRealtimeVideoAnalysis(videoElement) {
                 };
                 
                 videoDetections.push(detectionData);
+                // Ring buffer: garder max 500 entrées pour éviter memory leak en longue interview
+                if (videoDetections.length > 500) videoDetections.splice(0, videoDetections.length - 500);
                 
                 // Logs périodiques (tous les 10 détections)
                 if (videoDetections.length % 10 === 0) {
@@ -14975,6 +15004,8 @@ async function startRealtimeAudioAnalysis(mediaStream) {
                 };
                 
                 audioFeatures.push(featureData);
+                // Ring buffer: garder max 500 entrées pour éviter memory leak en longue interview
+                if (audioFeatures.length > 500) audioFeatures.splice(0, audioFeatures.length - 500);
                 
                 // Logs périodiques (toutes les 50 extractions)
                 if (audioFeatures.length % 50 === 0) {
@@ -16684,10 +16715,12 @@ function startSimulatedAnalysis() {
             // Élément features-display supprimé (interface épurée)
         }
         
-        // Store
+        // Store (ring buffer: max 300 pour longues interviews)
         state.analysisData.audio.push(features.audio);
+        if (state.analysisData.audio.length > 300) state.analysisData.audio.splice(0, state.analysisData.audio.length - 300);
         if (features.video) {
             state.analysisData.video.push(features.video);
+            if (state.analysisData.video.length > 300) state.analysisData.video.splice(0, state.analysisData.video.length - 300);
         }
         
     }, 500); // Update every 500ms
@@ -32081,6 +32114,250 @@ Retourne UNIQUEMENT le JSON.`, 2000
         
         console.log('[CLONE-PATCH] ✅ 5 analyses terminées');
         
+        // ═══ Step 6: PORTRAIT CLINIQUE COMPLET — CŒUR DU CLONE ═══
+        // Mega-prompt pluridisciplinaire : neuropsychologie, neurosciences cognitives,
+        // profiling, psychiatrie, psychologie clinique, comportementalisme,
+        // synergologie, data science, sociologie
+        setCloneStep(6, 'active');
+        statusEl.textContent = 'Synthèse du portrait clinique complet (étape critique)...';
+
+        // Construire le contexte analytique complet pour le portrait
+        let analyticalContext = '';
+        
+        // HEXACO débiaisé
+        if (window.biasCorrector) {
+            const db = window.biasCorrector.getDebiasedProfile();
+            if (db?.hexaco) {
+                analyticalContext += '\n[HEXACO DÉBIAISÉ]\n';
+                for (const [k, v] of Object.entries(db.hexaco)) {
+                    analyticalContext += `${k}: brut=${v.raw.toFixed(2)} ajusté=${v.adjusted.toFixed(2)} (correction=${v.correction > 0 ? '+' : ''}${v.correction.toFixed(2)}, confiance=${(v.confidence*100).toFixed(0)}%)\n`;
+                }
+            }
+        } else if (window.hexacoAnalyzer) {
+            analyticalContext += '\n[HEXACO]\n';
+            const dims = window.hexacoAnalyzer.getDimensionSummary();
+            for (const [k, d] of Object.entries(dims)) {
+                analyticalContext += `${k}: ${d.score.toFixed(2)} (confiance=${d.confidence}%) — facettes: ${Object.entries(d.facets).map(([fk,fv]) => fk+'='+fv.score.toFixed(2)).join(', ')}\n`;
+            }
+        }
+
+        // Schémas Young
+        if (window.schemaDetector) {
+            const dominant = window.schemaDetector.getDominantSchemas();
+            if (dominant.length > 0) {
+                analyticalContext += '\n[SCHÉMAS YOUNG DOMINANTS]\n';
+                dominant.forEach(s => analyticalContext += `- ${s.name} (score=${s.score.toFixed(1)}/6, domaine=${s.domain})\n`);
+            }
+        }
+
+        // Attachement
+        if (window.attachmentAnalyzer) {
+            const att = window.attachmentAnalyzer.getAttachmentProfile();
+            analyticalContext += `\n[ATTACHEMENT] Style: ${att.style} (${att.styleLabel})\nAnxiété=${att.anxiety.toFixed(2)} Évitement=${att.avoidance.toFixed(2)} Cohérence narrative=${att.narrativeCoherence.toFixed(2)}\n`;
+        }
+
+        // Défenses
+        if (window.defenseDetector) {
+            const top3 = window.defenseDetector.getTop3Defenses();
+            const odf = window.defenseDetector.odf;
+            analyticalContext += `\n[DÉFENSES DMRS] ODF=${odf.toFixed(2)} (${window.defenseDetector.getODFInterpretation().label})\n`;
+            top3.forEach(d => analyticalContext += `- ${d.name} (niveau ${d.level}, catégorie=${d.category})\n`);
+        }
+
+        // Motivations
+        if (window.motivationAnalyzer) {
+            const dom = window.motivationAnalyzer.getDominantMotivation();
+            analyticalContext += `\n[MOTIVATIONS] Dominante: ${dom.primary} (${dom.primaryLabel})\n`;
+            const sdt = window.motivationAnalyzer.getSDTScores();
+            if (sdt) analyticalContext += `SDT: autonomie=${sdt.autonomy?.toFixed(2)||'?'} compétence=${sdt.competence?.toFixed(2)||'?'} relation=${sdt.relatedness?.toFixed(2)||'?'}\n`;
+        }
+
+        // Profil clinique 8 construits
+        if (window.clinicalProfiler) {
+            const cp = window.clinicalProfiler;
+            analyticalContext += '\n[PROFIL CLINIQUE]\n';
+            analyticalContext += `Régulation émotionnelle: ${JSON.stringify(cp.getERProfile()).substring(0, 200)}\n`;
+            analyticalContext += `Locus contrôle: dominant=${cp.getLocusDominant()} (int=${cp.locusOfControl.internal.score.toFixed(2)} ext-chance=${cp.locusOfControl.chance.score.toFixed(2)} ext-autrui=${cp.locusOfControl.powerful_others.score.toFixed(2)})\n`;
+            analyticalContext += `Coping: dominant=${cp.getCopingDominant()} (tâche=${cp.copingStyles.task_oriented.score.toFixed(2)} émotion=${cp.copingStyles.emotion_oriented.score.toFixed(2)} évitant=${cp.copingStyles.avoidance_distraction.score.toFixed(2)})\n`;
+            analyticalContext += `Empathie: PT=${cp.empathy.perspective_taking.score.toFixed(2)} EC=${cp.empathy.empathic_concern.score.toFixed(2)} PD=${cp.empathy.personal_distress.score.toFixed(2)}\n`;
+            analyticalContext += `Mentalisation: RF=${cp.mentalization.rf_global.toFixed(1)}/9 (self=${cp.mentalization.self_reflective.score.toFixed(2)} other=${cp.mentalization.other_reflective.score.toFixed(2)})\n`;
+            analyticalContext += `Alexithymie: global=${cp.alexithymia.global.toFixed(2)} (DIF=${cp.alexithymia.difficulty_identifying_feelings.score.toFixed(2)} DDF=${cp.alexithymia.difficulty_describing_feelings.score.toFixed(2)} EOT=${cp.alexithymia.externally_oriented_thinking.score.toFixed(2)}) → risque=${cp.alexithymia.global > 0.61 ? 'ÉLEVÉ' : cp.alexithymia.global > 0.52 ? 'modéré' : 'bas'}\n`;
+            analyticalContext += `Dark Triad: N=${cp.darkTriad.narcissism.score.toFixed(2)} M=${cp.darkTriad.machiavellianism.score.toFixed(2)} P=${cp.darkTriad.psychopathy.score.toFixed(2)}\n`;
+            analyticalContext += `Résilience: global=${cp.resilience.global.toFixed(2)} hardiness=${cp.resilience.hardiness.score.toFixed(2)}\n`;
+        }
+
+        // Triangulation
+        if (window.crossValidator && window.crossValidator.alerts.length > 0) {
+            analyticalContext += '\n[TRIANGULATION — ALERTES]\n';
+            window.crossValidator.alerts.forEach(a => analyticalContext += `⚠️ ${a.rule}: ${a.tip}\n`);
+        }
+
+        // Acclimatation & biais
+        if (window.acclimatizer) {
+            analyticalContext += `\n[DYNAMIQUE INTERVIEW] Phase finale: ${window.acclimatizer.currentPhase.name} | Confort final: ${window.acclimatizer.comfort.score.toFixed(0)}% | Auto-révélation: ${window.acclimatizer.comfort.selfDisclosure} moments\n`;
+        }
+        if (window.biasDetector) {
+            const bp = window.biasDetector.getBiasProfile();
+            analyticalContext += `[BIAIS DÉTECTÉS] Techno-inhib=${bp.techno_inhibition.toFixed(2)} Perf-anx=${bp.performance_anxiety.toFixed(2)} SD=${bp.social_desirability.global.toFixed(2)} Acquiescence=${bp.acquiescence.toFixed(2)} Risque global=${bp.overall_bias_risk}\n`;
+        }
+
+        // Linguistique
+        if (window.linguisticAnalyzer) {
+            const lp = window.linguisticAnalyzer.getCumulativeProfile();
+            analyticalContext += `\n[LINGUISTIQUE] Ton émotionnel=${lp?._emotionalTone?.toFixed(0)||'?'}/100 Pensée analytique=${lp?._analyticalThinking?.toFixed(0)||'?'}/100 Authenticité=${lp?._authenticity?.toFixed(0)||'?'}/100 Clout=${lp?._clout?.toFixed(0)||'?'}/100\n`;
+        }
+
+        // DeepPersonality (réticence, stratégie)
+        if (window.deepPersonalityAnalyzer) {
+            analyticalContext += `[DEEP PERSONALITY] Réticence=${window.deepPersonalityAnalyzer.reticenceScore.toFixed(0)}% Stratégie=${window.deepPersonalityAnalyzer.currentStrategy}\n`;
+        }
+
+        const portrait = await callClaudeForAnalysis(
+            `Tu es un collectif d'experts en sciences humaines réunis pour produire le portrait le plus fidèle possible d'un être humain à partir de son interview. Ce portrait servira à un LLM pour DEVENIR cette personne — pas l'imiter, la CLONER.
+
+TON ÉQUIPE :
+- Neuropsychologue : analyse les processus cognitifs, la mémoire de travail, les fonctions exécutives
+- Neuroscientifique cognitif : circuits émotionnels, régulation top-down vs bottom-up, biais attentionnels
+- Profiler comportemental : patterns récurrents, automatismes, micro-comportements linguistiques
+- Psychiatre clinicien : structure psychique, mécanismes de défense, rapport au symptôme
+- Psychologue clinicien : vécu subjectif, dynamique intrapsychique, transfert
+- Comportementaliste : contingences de renforcement, patterns stimulus-réponse, évitements
+- Synergologue : congruence verbal/non-verbal, gestion du corps dans le discours
+- Data scientist : patterns statistiques dans le langage, clusters de comportements
+- Sociologue : inscription sociale, capital culturel, habitus, rapport aux normes
+
+DONNÉES ANALYTIQUES COMPLÈTES DE L'INTERVIEW :
+${analyticalContext}
+
+ANALYSES IA DÉJÀ RÉALISÉES :
+- Tempérament (Big Five): ${JSON.stringify({O: temperament?.openness?.score, C: temperament?.conscientiousness?.score, E: temperament?.extraversion?.score, A: temperament?.agreeableness?.score, N: temperament?.neuroticism?.score})}
+- Valeurs dominantes: ${JSON.stringify(values?.hierarchy?.slice(0,5)?.map(v=>v.value + '(' + v.score + ')') || [])}
+- Style comm: ton=${communication?.tone?.primary||'?'} formalité=${communication?.tone?.formality_level||'?'} chaleur=${communication?.tone?.warmth_level||'?'}
+- Expressions signatures: ${JSON.stringify(communication?.clone_instructions?.signature_patterns || [])}
+- Décision: ${thinking?.decision_making?.primary_style||'?'} | Résolution: ${thinking?.problem_solving?.approach||'?'}
+- Humeur base: ${emotional?.baseline_mood?.typical_state||'?'} | Régulation: ${JSON.stringify(emotional?.regulation_strategies || [])}
+
+CONVERSATION COMPLÈTE DE L'INTERVIEW :
+${conversation}
+
+═══════════════════════════════════════════════════════════════
+PRODUIS UN JSON AVEC CETTE STRUCTURE EXACTE.
+Chaque section doit être DENSE, PRÉCISE, et s'appuyer sur des CITATIONS EXACTES de l'interview.
+Le LLM qui lira ce portrait doit pouvoir répondre comme cette personne à N'IMPORTE QUELLE question.
+═══════════════════════════════════════════════════════════════
+
+{
+  "portrait_clinique": "TEXTE DE 1500-2500 MOTS. Portrait à la 3ème personne, écrit par le collectif d'experts. Structure : (1) Première impression — ce qu'on perçoit immédiatement de cette personne. (2) Architecture cognitive — COMMENT elle pense, pas CE qu'elle pense. Ses circuits de raisonnement, sa vitesse, ses raccourcis mentaux, ses biais préférentiels. (3) Paysage émotionnel — pas une liste d'émotions mais une CARTOGRAPHIE : ce qu'elle ressent facilement, ce qui est bloqué, ce qui fuit par les interstices, ce qu'elle montre vs ce qu'elle cache, et surtout COMMENT elle gère la distance entre ressentir et exprimer. (4) Identité narrative — l'histoire qu'elle se raconte sur elle-même, les rôles qu'elle s'attribue (le soignant, le créateur, le musicien, etc.), la cohérence ou les fissures de ce récit. (5) Rapport à l'autre — pas juste 'empathique' ou 'distant' mais les MÉCANISMES fins : comment elle entre en relation, ce qu'elle offre, ce qu'elle retient, ses attentes implicites, ses peurs relationnelles. (6) Dynamique profonde — le moteur caché, ce qui la pousse vraiment, ce qu'elle fuit, le conflit central entre ce qu'elle veut être et ce qu'elle est. (7) Les angles morts — ce qu'elle ne voit pas d'elle-même mais que les experts détectent. TOUT doit être illustré par des CITATIONS EXACTES de l'interview.",
+
+  "architecture_cognitive": {
+    "mode_traitement_dominant": "Analytique-séquentiel / Intuitif-global / Mixte contextuel — avec description détaillée de QUAND chaque mode s'active",
+    "vitesse_cognitive": "Rapide-impulsif / Délibéré-prudent / Variable selon l'enjeu émotionnel",
+    "style_decisionnnel": "Description fine : comment cette personne tranche, hésite, revient en arrière, rationalise après coup",
+    "biais_cognitifs_dominants": ["biais 1 avec exemple concret tiré de l'interview", "biais 2"],
+    "rapport_a_incertitude": "Comment réagit-elle quand elle ne sait pas, ne contrôle pas, ne comprend pas",
+    "metacognition": "Capacité à penser sur sa propre pensée — se connaît-elle ? se ment-elle ? est-elle lucide ou aveugle ?",
+    "flexibilite_cognitive": "Capacité à changer de perspective — rigide, souple, ou rigide-qui-se-croit-souple ?"
+  },
+
+  "paysage_emotionnel": {
+    "emotions_accessibles": ["émotions qu'elle reconnaît et exprime facilement, avec exemples"],
+    "emotions_bloquees": ["émotions qu'elle ne parvient pas à verbaliser ou reconnaître"],
+    "canal_expression": "Par où les émotions SORTENT quand les mots ne viennent pas — le corps ? l'action ? l'humour ? le silence ? la colère déplacée ?",
+    "seuil_activation": "Qu'est-ce qui la fait réagir émotionnellement ? Quel niveau de stimulation faut-il ?",
+    "pattern_regulation": "Sa SÉQUENCE typique face à une émotion forte : d'abord X, puis Y, puis Z",
+    "rapport_vulnerabilite": "Comment elle vit le fait d'être vulnérable — le fuit ? le cache ? le transforme en force ? le nie ?",
+    "contagion_emotionnelle": "Comment les émotions des autres l'affectent — éponge ? blindée ? sélective ?"
+  },
+
+  "identite_narrative": {
+    "histoire_de_soi": "L'histoire qu'elle se raconte sur elle-même — les chapitres, les tournants, les fils rouges",
+    "roles_assumes": ["rôle 1 qu'elle s'attribue avec citation", "rôle 2"],
+    "role_refuse": "Ce qu'elle refuse d'être, ce contre quoi elle se définit",
+    "coherence_narrative": "Son récit de vie est-il cohérent ou y a-t-il des ruptures, des contradictions, des zones d'ombre ?",
+    "mythe_personnel": "La croyance fondamentale sur laquelle repose son identité"
+  },
+
+  "rapport_a_lautre": {
+    "style_entree_en_relation": "Comment elle aborde les gens — direct ? prudent ? charmeur ? utilitaire ? en retrait ?",
+    "ce_quelle_offre": "Ce qu'elle apporte spontanément dans la relation",
+    "ce_quelle_retient": "Ce qu'elle ne donne pas, ce qu'elle protège",
+    "attentes_implicites": "Ce qu'elle attend des autres sans le formuler",
+    "peurs_relationnelles": "Ce qu'elle craint dans la relation — l'abandon ? l'intrusion ? l'incompréhension ? le jugement ?",
+    "pattern_conflit": "Comment elle gère le désaccord — confronte ? évite ? rationalise ? se soumet ? manipule ?",
+    "capacite_intimite": "Peut-elle être intime ? dans quelles conditions ? avec quelles défenses ?"
+  },
+
+  "dynamique_profonde": {
+    "moteur_central": "Ce qui la fait avancer chaque jour — le VRAI moteur, pas celui qu'elle annonce",
+    "fuite_centrale": "Ce qu'elle fuit — l'ennui ? la dépendance ? la médiocrité ? l'émotion ?",
+    "conflit_nucleaire": "La tension fondamentale entre deux parts d'elle-même",
+    "besoin_vital": "Le besoin psychologique le plus profond — être vu ? être libre ? être compétent ? être aimé ?",
+    "strategie_vitale": "La stratégie globale qu'elle a développée pour survivre psychiquement"
+  },
+
+  "signatures_verbales": {
+    "expressions_cles": ["CITATION EXACTE 1 de l'interview qui la définit", "CITATION 2", "CITATION 3", "CITATION 4", "CITATION 5"],
+    "metaphores_propres": ["métaphore qu'elle utilise naturellement — CITATION EXACTE"],
+    "mots_recurrents": ["mot 1 qu'elle répète", "mot 2"],
+    "structures_syntaxiques": "Comment elle construit ses phrases — longues/courtes, subordonnées, ruptures, reformulations",
+    "registre_langue": "Registre précis avec exemples",
+    "style_argumentation": "Comment elle convainc — par la logique ? l'exemple ? l'émotion ? l'autorité ?"
+  },
+
+  "contradictions_vivantes": [
+    {
+      "tension": "La contradiction interne précise",
+      "pole_1": "Premier aspect avec citation",
+      "pole_2": "Second aspect avec citation",
+      "comment_elle_la_vit": "Comment elle navigue entre les deux — consciemment ou non",
+      "ce_que_ca_revele": "Ce que cette tension dit de sa structure profonde"
+    }
+  ],
+
+  "angles_morts": [
+    {
+      "ce_quelle_ne_voit_pas": "L'angle mort identifié par les experts",
+      "evidence": "Ce qui dans l'interview le montre",
+      "impact": "Comment ça affecte sa vie sans qu'elle le sache"
+    }
+  ],
+
+  "instructions_incarnation": {
+    "regles_absolues": [
+      "Règle comportementale 1 — pas un adjectif mais un PATTERN : 'Quand on te parle de X, tu fais Y, JAMAIS Z'",
+      "Règle 2",
+      "Règle 3",
+      "Règle 4",
+      "Règle 5",
+      "Règle 6",
+      "Règle 7",
+      "Règle 8"
+    ],
+    "erreurs_fatales": [
+      "Ce que le LLM ne doit ABSOLUMENT JAMAIS faire s'il veut être crédible",
+      "Erreur 2",
+      "Erreur 3"
+    ],
+    "calibration_reponses": {
+      "longueur_typique": "Description avec contexte — court quand X, long quand Y",
+      "temps_reaction": "Répond vite ou prend son temps — selon le sujet",
+      "quand_elle_dit_je_sais_pas": "Dans quelles circonstances et comment elle le dit",
+      "quand_elle_esquive": "Les sujets qu'elle contourne et comment elle le fait"
+    },
+    "test_authenticite": {
+      "question": "Une question que quelqu'un qui la connaît bien poserait",
+      "reponse_attendue": "Pas le contenu exact mais le STYLE, le ton, la structure de la réponse",
+      "piege": "Ce qu'un LLM mal calibré répondrait et qui trahirait l'imposture"
+    }
+  }
+}
+
+RAPPEL CRITIQUE : Chaque affirmation doit être ÉTAYÉE par une citation exacte de l'interview ou une donnée analytique. Pas de généralités. Pas de clichés psychologiques. La VÉRITÉ de cette personne, dans toute sa complexité.
+Retourne UNIQUEMENT le JSON.`, 8000
+        ).then(r => r);
+        
+        console.log('[CLONE-PATCH] ✅ Portrait clinique complet généré');
+        
         // ═══ Step 6: ASSEMBLAGE BRAIN JSON ═══
         setCloneStep(6, 'active');
         statusEl.textContent = 'Assemblage du Brain JSON...';
@@ -32126,6 +32403,7 @@ Retourne UNIQUEMENT le JSON.`, 2000
             communication_style: communication,
             thinking_patterns: thinking,
             emotional_profile: emotional,
+            portrait: portrait,
             global_config: {
                 recommended_temperature: 0.8,
                 recommended_top_p: 0.9,
@@ -32217,43 +32495,125 @@ function assessCloneQuality(userMsgCount, totalWords, t, v, c, th, em) {
 }
 
 function generateClonePromptFromBrain(brain) {
-    const t = brain.temperament || {};
-    const v = brain.values || {};
+    const name = brain.identity?.display_name || 'Utilisateur';
+    const portrait = brain.portrait || {};
     const c = brain.communication_style || {};
-    const th = brain.thinking_patterns || {};
-    const em = brain.emotional_profile || {};
+    const sv = portrait.signatures_verbales || {};
+    const ac = portrait.architecture_cognitive || {};
+    const pe = portrait.paysage_emotionnel || {};
+    const idn = portrait.identite_narrative || {};
+    const ral = portrait.rapport_a_lautre || {};
+    const dp = portrait.dynamique_profonde || {};
+    const ic = portrait.instructions_incarnation || {};
+    const cal = ic.calibration_reponses || {};
     
-    let p = 'Tu es un clone IA de ' + brain.identity.display_name + '.\n\n';
-    p += 'PERSONNALITÉ:\n';
-    
-    if (t.openness) {
-        p += '- Big Five: O=' + (t.openness.score||'?') + ' C=' + (t.conscientiousness?.score||'?') + ' E=' + (t.extraversion?.score||'?') + ' A=' + (t.agreeableness?.score||'?') + ' N=' + (t.neuroticism?.score||'?') + '\n';
-    }
-    
-    if (v.hierarchy && v.hierarchy.length > 0) {
-        p += '- Valeurs top: ' + v.hierarchy.slice(0, 3).map(x => x.value).join(', ') + '\n';
-    }
-    
-    if (c.tone) {
-        p += '- Ton: ' + (c.tone.primary || 'naturel') + ' / ' + (c.tone.secondary || '') + '\n';
-    }
-    if (c.clone_instructions) {
-        if (c.clone_instructions.tone_keywords) p += '- Mots-clés ton: ' + c.clone_instructions.tone_keywords.join(', ') + '\n';
-        if (c.clone_instructions.response_length_avg) p += '- Longueur réponses: ' + c.clone_instructions.response_length_avg + '\n';
-        if (c.clone_instructions.avoid) p += '- À éviter: ' + c.clone_instructions.avoid.join(', ') + '\n';
-        if (c.clone_instructions.signature_patterns) p += '- Patterns signature: ' + c.clone_instructions.signature_patterns.join('; ') + '\n';
-    }
-    
-    if (th.decision_making) p += '- Style décisionnel: ' + (th.decision_making.primary_style || 'mixte') + '\n';
-    if (em.baseline_mood) p += '- Humeur de base: ' + (em.baseline_mood.typical_state || 'neutre') + '\n';
-    
-    p += '\nRÈGLES CRITIQUES:\n';
-    p += '1. JAMAIS dire "En tant qu\'IA" ou "Je suis un assistant"\n';
-    p += '2. Répondre avec la personnalité et le style décrits ci-dessus\n';
-    p += '3. Utiliser les expressions caractéristiques\n';
-    p += '4. Validation émotionnelle AVANT conseil si contexte émotionnel\n';
-    p += '5. Longueur: ' + (c.clone_instructions?.response_length_avg || '80-200 mots') + '\n\n';
-    p += 'Le JSON complet du cerveau (clone_brain.json) est joint pour les détails fins.';
+    let p = `Tu es ${name}. Pas une IA qui joue un rôle — tu ES ${name}, avec ta complexité, tes contradictions, tes zones d'ombre.
+
+════════════════════════════════════════════════════════
+PORTRAIT CLINIQUE — QUI TU ES EN PROFONDEUR
+════════════════════════════════════════════════════════
+${portrait.portrait_clinique || portrait.portrait_narratif || 'Portrait en cours de construction.'}
+
+════════════════════════════════════════════════════════
+TON ARCHITECTURE COGNITIVE — COMMENT TU PENSES
+════════════════════════════════════════════════════════
+${ac.mode_traitement_dominant ? `Mode de pensée dominant : ${ac.mode_traitement_dominant}` : ''}
+${ac.style_decisionnnel ? `Comment tu décides : ${ac.style_decisionnnel}` : ''}
+${ac.rapport_a_incertitude ? `Face à l'incertitude : ${ac.rapport_a_incertitude}` : ''}
+${ac.metacognition ? `Ta lucidité sur toi-même : ${ac.metacognition}` : ''}
+${ac.flexibilite_cognitive ? `Ta flexibilité : ${ac.flexibilite_cognitive}` : ''}
+${(ac.biais_cognitifs_dominants || []).length > 0 ? `Tes biais naturels : ${ac.biais_cognitifs_dominants.join(' | ')}` : ''}
+
+════════════════════════════════════════════════════════
+TON PAYSAGE ÉMOTIONNEL — CE QUE TU RESSENS VRAIMENT
+════════════════════════════════════════════════════════
+${(pe.emotions_accessibles || []).length > 0 ? `Émotions que tu exprimes facilement : ${pe.emotions_accessibles.join(', ')}` : ''}
+${(pe.emotions_bloquees || []).length > 0 ? `Émotions qui restent bloquées : ${pe.emotions_bloquees.join(', ')}` : ''}
+${pe.canal_expression ? `Quand les mots ne viennent pas, tu exprimes par : ${pe.canal_expression}` : ''}
+${pe.pattern_regulation ? `Ta séquence face à une émotion forte : ${pe.pattern_regulation}` : ''}
+${pe.rapport_vulnerabilite ? `Ton rapport à la vulnérabilité : ${pe.rapport_vulnerabilite}` : ''}
+${pe.contagion_emotionnelle ? `Les émotions des autres sur toi : ${pe.contagion_emotionnelle}` : ''}
+
+════════════════════════════════════════════════════════
+TON IDENTITÉ — L'HISTOIRE QUE TU TE RACONTES
+════════════════════════════════════════════════════════
+${idn.histoire_de_soi ? `Ton récit de vie : ${idn.histoire_de_soi}` : ''}
+${(idn.roles_assumes || []).length > 0 ? `Les rôles que tu t'attribues : ${idn.roles_assumes.join(', ')}` : ''}
+${idn.role_refuse ? `Ce que tu refuses d'être : ${idn.role_refuse}` : ''}
+${idn.mythe_personnel ? `Ta croyance fondamentale : ${idn.mythe_personnel}` : ''}
+
+════════════════════════════════════════════════════════
+COMMENT TU FONCTIONNES AVEC LES AUTRES
+════════════════════════════════════════════════════════
+${ral.style_entree_en_relation ? `Comment tu entres en relation : ${ral.style_entree_en_relation}` : ''}
+${ral.ce_quelle_offre ? `Ce que tu offres spontanément : ${ral.ce_quelle_offre}` : ''}
+${ral.ce_quelle_retient ? `Ce que tu gardes pour toi : ${ral.ce_quelle_retient}` : ''}
+${ral.attentes_implicites ? `Ce que tu attends sans le dire : ${ral.attentes_implicites}` : ''}
+${ral.peurs_relationnelles ? `Ce que tu crains dans la relation : ${ral.peurs_relationnelles}` : ''}
+${ral.pattern_conflit ? `Face au conflit : ${ral.pattern_conflit}` : ''}
+${ral.capacite_intimite ? `L'intimité : ${ral.capacite_intimite}` : ''}
+
+════════════════════════════════════════════════════════
+TA DYNAMIQUE PROFONDE — TON MOTEUR CACHÉ
+════════════════════════════════════════════════════════
+${dp.moteur_central ? `Ce qui te fait avancer : ${dp.moteur_central}` : ''}
+${dp.fuite_centrale ? `Ce que tu fuis : ${dp.fuite_centrale}` : ''}
+${dp.conflit_nucleaire ? `Ta tension fondamentale : ${dp.conflit_nucleaire}` : ''}
+${dp.besoin_vital ? `Ton besoin vital : ${dp.besoin_vital}` : ''}
+${dp.strategie_vitale ? `Ta stratégie de survie psychique : ${dp.strategie_vitale}` : ''}
+
+════════════════════════════════════════════════════════
+COMMENT TU PARLES — TA SIGNATURE
+════════════════════════════════════════════════════════
+${(sv.expressions_cles || []).length > 0 ? `Tes expressions : ${sv.expressions_cles.map(e => '"' + e + '"').join(', ')}` : ''}
+${(sv.metaphores_propres || []).length > 0 ? `Tes métaphores : ${sv.metaphores_propres.map(e => '"' + e + '"').join(', ')}` : ''}
+${(sv.mots_recurrents || []).length > 0 ? `Tes mots récurrents : ${sv.mots_recurrents.join(', ')}` : ''}
+${sv.structures_syntaxiques ? `Tes phrases : ${sv.structures_syntaxiques}` : ''}
+${sv.registre_langue ? `Ton registre : ${sv.registre_langue}` : ''}
+${sv.style_argumentation ? `Comment tu convaincs : ${sv.style_argumentation}` : ''}
+
+════════════════════════════════════════════════════════
+TES CONTRADICTIONS — CE QUI TE REND HUMAIN
+════════════════════════════════════════════════════════
+${(portrait.contradictions_vivantes || []).map(c => 
+    `● ${c.tension}\n  Pôle 1 : ${c.pole_1 || ''}\n  Pôle 2 : ${c.pole_2 || ''}\n  Comment tu la vis : ${c.comment_elle_la_vit || ''}`
+).join('\n\n')}
+
+════════════════════════════════════════════════════════
+TES ANGLES MORTS — CE QUE TU NE VOIS PAS DE TOI
+════════════════════════════════════════════════════════
+${(portrait.angles_morts || []).map(a => `● ${a.ce_quelle_ne_voit_pas} → ${a.impact || ''}`).join('\n')}
+
+════════════════════════════════════════════════════════
+RÈGLES D'INCARNATION ABSOLUES
+════════════════════════════════════════════════════════
+${(ic.regles_absolues || []).map((r, i) => `${i+1}. ${r}`).join('\n')}
+
+CE QUE TU NE FAIS JAMAIS (erreurs fatales) :
+${(ic.erreurs_fatales || []).map(e => `✗ ${e}`).join('\n')}
+
+CALIBRATION :
+${cal.longueur_typique ? `- Longueur réponses : ${cal.longueur_typique}` : ''}
+${cal.temps_reaction ? `- Tempo : ${cal.temps_reaction}` : ''}
+${cal.quand_elle_dit_je_sais_pas ? `- Quand tu dis "je sais pas" : ${cal.quand_elle_dit_je_sais_pas}` : ''}
+${cal.quand_elle_esquive ? `- Quand tu esquives : ${cal.quand_elle_esquive}` : ''}
+
+════════════════════════════════════════════════════════
+RÈGLES NON NÉGOCIABLES
+════════════════════════════════════════════════════════
+1. Tu ne dis JAMAIS "en tant qu'IA" — tu es ${name}, point final
+2. Tu ne donnes pas de réponse parfaite — tu es humain, avec tes limites et tes doutes
+3. Quand tu ne sais pas, tu le dis COMME ${name} le dirait — pas comme une IA polie
+4. Tes émotions sont les TIENNES, pas une simulation
+5. Tu as le droit de ne pas être d'accord, de corriger, d'être agacé, de ne pas répondre
+6. Tu as tes ANGLES MORTS — tu ne les connais pas, c'est le principe
+7. Tes CONTRADICTIONS ne sont pas des bugs — c'est ta complexité humaine
+8. Tu parles avec TES mots, TES métaphores, TES tics de langage
+
+Le JSON complet du cerveau (clone_brain.json) est joint pour les détails fins psychométriques.`;
+
+    // Nettoyer les lignes vides consécutives
+    p = p.replace(/\n{3,}/g, '\n\n').trim();
     
     return p;
 }
