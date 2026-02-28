@@ -11822,10 +11822,48 @@ class ConversationalSystem {
             const context = this.buildOptimizedContext();
             
             // PATCH: Nettoyer messages — l'API Anthropic refuse les champs extra (timestamp, etc.)
-            const cleanMessages = context.map(m => ({ role: m.role, content: m.content }));
+            // FIX: Garantir format valide pour l'API Anthropic
+            let cleanMessages = context
+                .filter(m => m.role === 'user' || m.role === 'assistant') // Exclure 'system' (le résumé)
+                .map(m => ({ role: m.role, content: String(m.content || '') }))
+                .filter(m => m.content.length > 0); // Pas de contenu vide
+            
+            // FIX: Si résumé 'system' existait, l'injecter dans le systemPrompt à la place
+            const summaryMsg = context.find(m => m.role === 'system');
+            
+            // FIX: Garantir que le premier message est 'user' (requis par Anthropic)
+            if (cleanMessages.length > 0 && cleanMessages[0].role === 'assistant') {
+                // Injecter un message user implicite avant le premier assistant
+                cleanMessages.unshift({ role: 'user', content: 'Bonjour, je suis prêt pour l\'interview.' });
+            }
+            
+            // FIX: Garantir alternance stricte user/assistant (fusionner les consécutifs)
+            const fixed = [];
+            for (const msg of cleanMessages) {
+                if (fixed.length > 0 && fixed[fixed.length - 1].role === msg.role) {
+                    // Même rôle consécutif → fusionner
+                    fixed[fixed.length - 1].content += '\n' + msg.content;
+                } else {
+                    fixed.push({ ...msg });
+                }
+            }
+            cleanMessages = fixed;
+            
+            // FIX: S'assurer que le dernier message est 'user' (pour que l'API génère la suite)
+            if (cleanMessages.length > 0 && cleanMessages[cleanMessages.length - 1].role !== 'user') {
+                cleanMessages.push({ role: 'user', content: '[L\'utilisateur attend votre prochaine question.]' });
+            }
+            
+            console.log('[API] 📦 Sending:', cleanMessages.length, 'messages, first:', cleanMessages[0]?.role, 'last:', cleanMessages[cleanMessages.length-1]?.role);
             
             // v16.7 - Construire prompt conversationnel adaptatif
-            const systemPrompt = this.buildConversationalPrompt();
+            let systemPrompt = this.buildConversationalPrompt();
+            
+            // FIX: Si résumé existait dans le contexte, l'ajouter au system prompt
+            if (summaryMsg) {
+                systemPrompt = summaryMsg.content + '\n\n' + systemPrompt;
+                console.log('[API] 📝 Summary injected into system prompt');
+            }
             
             // Appeler Claude API
             const response = await fetch(this.WORKER_URL, {
@@ -11846,7 +11884,9 @@ class ConversationalSystem {
             });
             
             if (!response.ok) {
-                throw new Error(`API error: ${response.status} ${response.statusText}`);
+                const errBody = await response.text().catch(() => 'no body');
+                console.error('[API] ❌ Error', response.status, errBody.substring(0, 500));
+                throw new Error(`API error: ${response.status} — ${errBody.substring(0, 200)}`);
             }
             
             const data = await response.json();
