@@ -2895,6 +2895,11 @@ function loadElevenLabsSettings() {
 function showModeSelection() {
     console.log('[v15.3] Opening mode selection modal');
     document.getElementById('mode-modal').classList.add('active');
+    // V19 FIX: Reset le texte du bouton si ce n'est pas une reprise
+    const continueBtn = document.getElementById('modal-continue-btn');
+    if (continueBtn && !window._pendingSessionRestore) {
+        continueBtn.innerHTML = 'Continuer';
+    }
 }
 
 function selectMode(mode, element) {
@@ -13039,6 +13044,42 @@ async function startInterview() {
     
     // Démarrer conversation
     await conversationalSystem.start();
+    
+    // ═══ V19 FIX: Si une session est en attente de restauration ═══
+    if (window._pendingSessionRestore) {
+        const sessionState = window._pendingSessionRestore;
+        window._pendingSessionRestore = null; // Consommer
+        
+        console.log('[V19-FIX] 📥 Restoring pending session after init...');
+        
+        // Restaurer toutes les données dans les modules
+        v19RestoreSessionData(sessionState);
+        
+        // Remplacer le chat UI (le greeting vient d'être affiché par start())
+        v19RestoreChatUI(sessionState.conversation?.messages || []);
+        
+        // Remettre les messages dans le ConversationalSystem (écrase le greeting)
+        if (sessionState.conversation?.messages) {
+            conversationalSystem.messages = sessionState.conversation.messages;
+        }
+        
+        // Update stats visuels
+        if (conversationalSystem.updateStats) conversationalSystem.updateStats();
+        
+        // Afficher le dashboard V19
+        const v19Dashboard = document.getElementById('v19-pillar-dashboard');
+        if (v19Dashboard) v19Dashboard.style.display = 'block';
+        
+        // Toast de confirmation
+        const tracker = window.personalityTracker;
+        const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
+        const qCount = sessionState.conversation?.questionCount || 0;
+        if (typeof showToast === 'function') {
+            showToast(`✅ Session restaurée — ${qCount} questions, ${completeness}% complétude`, 'success');
+        }
+        
+        console.log('[V19-FIX] ✅ Session fully restored after startInterview()');
+    }
     
     // v17.3.15 ULTIMATE: Initialiser avatar dès le démarrage
     if (typeof updateProgressAvatar === 'function') {
@@ -28899,101 +28940,59 @@ function v19PauseExport() {
     });
 }
 
-// ═══ V19 FIX: Reprise de session depuis l'écran d'accueil ═══
-// Problème: l'ancien code supposait que ConversationalSystem existait déjà
-// Fix: on initialise TOUT le système, PUIS on restaure les données
+// ═══ V19 FIX: Reprise de session — flow correct ═══
+// 1. User clique "Reprendre" → charge JSON en mémoire
+// 2. Ouvre le modal de choix de mode (texte/audio/vidéo)
+// 3. User choisit et clique Continuer → startInterview() normal
+// 4. startInterview() détecte _pendingSessionRestore → restaure après init
 
 async function v19ResumeFromWelcome(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
     fileInput.value = '';
     
-    console.log('[V19-FIX] 📥 Resume from welcome screen:', file.name);
+    console.log('[V19-FIX] 📥 Loading session file:', file.name);
     
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = function(e) {
         try {
             const sessionState = JSON.parse(e.target.result);
             
-            // Validation
+            // Validation minimale
             if (!sessionState.version && !sessionState.completeness && !sessionState.conversation) {
                 alert('Format de session non reconnu. Fichier V19 requis.');
                 return;
             }
             
-            console.log('[V19-FIX] Session loaded:', {
+            const qCount = sessionState.conversation?.questionCount || 0;
+            const msgCount = sessionState.conversation?.messages?.length || 0;
+            
+            console.log('[V19-FIX] Session loaded in memory:', {
                 version: sessionState.version,
-                questions: sessionState.conversation?.questionCount,
-                messages: sessionState.conversation?.messages?.length,
+                questions: qCount,
+                messages: msgCount,
                 status: sessionState.status
             });
             
-            // 1. INITIALISER L'ENVIRONNEMENT (comme startInterview le fait)
-            state.startTime = Date.now();
-            state.mode = sessionState.config?.interviewMode || 'text';
+            // Stocker en mémoire — sera consommé par startInterview()
+            window._pendingSessionRestore = sessionState;
             
-            // Fermer le modal s'il est ouvert
-            const modal = document.getElementById('mode-modal');
-            if (modal) modal.classList.remove('active');
+            // Ouvrir le modal de choix de mode (même flow que "Commencer")
+            showModeSelection();
             
-            // Transition d'écran : welcome → interview
-            document.getElementById('welcome-screen').classList.remove('active');
-            document.getElementById('interview-screen').classList.add('active');
-            
-            updateModeDisplay();
-            
-            // 2. CRÉER le ConversationalSystem
-            conversationalSystem = new ConversationalSystem();
-            window.conversationalSystem = conversationalSystem;
-            
-            if (!conversationalSystem.init()) {
-                console.error('[V19-FIX] Failed to init ConversationalSystem');
-                alert('Erreur d\'initialisation du système');
-                return;
+            // Changer le texte du bouton Continuer pour indiquer la reprise
+            const continueBtn = document.getElementById('modal-continue-btn');
+            if (continueBtn) {
+                continueBtn.innerHTML = `📥 Reprendre la session (${qCount}Q, ${msgCount} messages)`;
             }
-            
-            // 3. RESTAURER les données dans tous les modules
-            v19RestoreSessionData(sessionState);
-            
-            // 4. AFFICHER les messages dans le chat UI
-            v19RestoreChatUI(sessionState.conversation?.messages || []);
-            
-            // 5. RELANCER la conversation (sans le greeting)
-            // On NE relance PAS convSystem.start() qui enverrait un nouveau greeting
-            // On met juste le système en état "prêt à recevoir"
-            conversationalSystem.started = true;
-            conversationalSystem.isProcessing = false;
-            
-            // 6. Update dashboard et stats
-            if (conversationalSystem.updateStats) conversationalSystem.updateStats();
-            
-            const v19Dashboard = document.getElementById('v19-pillar-dashboard');
-            if (v19Dashboard) v19Dashboard.style.display = 'block';
-            
-            // 7. Confirmation
-            const tracker = window.personalityTracker;
-            const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
-            const qCount = sessionState.conversation?.questionCount || 0;
             
             if (typeof showToast === 'function') {
-                showToast(`✅ Session restaurée ! ${qCount} questions, ${completeness}% complétude`, 'success');
+                showToast(`Session chargée en mémoire — choisissez votre mode puis cliquez Continuer`, 'info');
             }
-            
-            // 8. Ajouter un message système visible pour confirmer la reprise
-            const chatContainer = document.getElementById('chat-container');
-            if (chatContainer) {
-                const resumeMsg = document.createElement('div');
-                resumeMsg.style.cssText = 'text-align:center;padding:12px;margin:10px 0;background:var(--sable,#E6D7C3);border-radius:10px;font-size:13px;color:var(--gris-texte,#333);border-left:4px solid var(--mer,#8FAFB1);';
-                resumeMsg.innerHTML = `📥 <strong>Session restaurée</strong> — ${qCount} questions, ${completeness}% complétude. Continuez la conversation.`;
-                chatContainer.appendChild(resumeMsg);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-            
-            console.log('[V19-FIX] ✅ Full resume complete:', { questions: qCount, completeness: completeness + '%' });
             
         } catch (err) {
-            console.error('[V19-FIX] ❌ Resume failed:', err);
-            alert('Erreur lors de la restauration: ' + err.message);
+            console.error('[V19-FIX] ❌ JSON parse failed:', err);
+            alert('Erreur de lecture du fichier: ' + err.message);
         }
     };
     reader.readAsText(file);
@@ -29004,7 +29003,7 @@ function v19RestoreSessionData(sessionState) {
     // PersonalityCompletenessTracker
     if (sessionState.completeness && window.personalityTracker) {
         try { window.personalityTracker.fromJSON(sessionState.completeness); }
-        catch(e) { console.warn('[V19-FIX] PCTracker restore failed:', e.message); }
+        catch(e) { console.warn('[V19-FIX] PCTracker restore:', e.message); }
     }
     
     // ConversationalSystem state
@@ -29027,43 +29026,23 @@ function v19RestoreSessionData(sessionState) {
         window.deepPersonalityAnalyzer.evasionPatterns = dp.evasionPatterns || [];
     }
     
-    // LinguisticAnalyzer
-    if (sessionState.analysis?.linguistic && window.linguisticAnalyzer) {
-        try { window.linguisticAnalyzer.fromJSON(sessionState.analysis.linguistic); }
-        catch(e) { console.warn('[V19-FIX] LinguisticAnalyzer restore:', e.message); }
+    // Tous les modules V19 avec try/catch individuel
+    const moduleMap = {
+        linguistic: 'linguisticAnalyzer',
+        schemas: 'schemaDetector',
+        defenses: 'defenseDetector',
+        attachment: 'attachmentAnalyzer',
+        hexaco: 'hexacoAnalyzer',
+        motivation: 'motivationAnalyzer'
+    };
+    for (const [dataKey, globalName] of Object.entries(moduleMap)) {
+        if (sessionState.analysis?.[dataKey] && window[globalName]?.fromJSON) {
+            try { window[globalName].fromJSON(sessionState.analysis[dataKey]); }
+            catch(e) { console.warn(`[V19-FIX] ${globalName} restore:`, e.message); }
+        }
     }
     
-    // SchemaDetector
-    if (sessionState.analysis?.schemas && window.schemaDetector) {
-        try { window.schemaDetector.fromJSON(sessionState.analysis.schemas); }
-        catch(e) { console.warn('[V19-FIX] SchemaDetector restore:', e.message); }
-    }
-    
-    // DefenseDetector
-    if (sessionState.analysis?.defenses && window.defenseDetector) {
-        try { window.defenseDetector.fromJSON(sessionState.analysis.defenses); }
-        catch(e) { console.warn('[V19-FIX] DefenseDetector restore:', e.message); }
-    }
-    
-    // AttachmentAnalyzer
-    if (sessionState.analysis?.attachment && window.attachmentAnalyzer) {
-        try { window.attachmentAnalyzer.fromJSON(sessionState.analysis.attachment); }
-        catch(e) { console.warn('[V19-FIX] AttachmentAnalyzer restore:', e.message); }
-    }
-    
-    // HEXACOAnalyzer
-    if (sessionState.analysis?.hexaco && window.hexacoAnalyzer) {
-        try { window.hexacoAnalyzer.fromJSON(sessionState.analysis.hexaco); }
-        catch(e) { console.warn('[V19-FIX] HEXACOAnalyzer restore:', e.message); }
-    }
-    
-    // MotivationAnalyzer
-    if (sessionState.analysis?.motivation && window.motivationAnalyzer) {
-        try { window.motivationAnalyzer.fromJSON(sessionState.analysis.motivation); }
-        catch(e) { console.warn('[V19-FIX] MotivationAnalyzer restore:', e.message); }
-    }
-    
-    console.log('[V19-FIX] All modules restored');
+    console.log('[V19-FIX] ✅ All modules restored');
 }
 
 // Recréer le chat UI à partir des messages sauvegardés
@@ -29071,7 +29050,7 @@ function v19RestoreChatUI(messages) {
     const chatContainer = document.getElementById('chat-container');
     if (!chatContainer || !messages.length) return;
     
-    // Vider le chat existant
+    // Vider le chat (le greeting auto a déjà été ajouté par start())
     chatContainer.innerHTML = '';
     
     for (const msg of messages) {
@@ -29083,39 +29062,37 @@ function v19RestoreChatUI(messages) {
         chatContainer.appendChild(div);
     }
     
+    // Ajouter un marqueur visuel de reprise
+    const marker = document.createElement('div');
+    marker.style.cssText = 'text-align:center;padding:10px;margin:12px 0;background:linear-gradient(135deg,var(--sable,#E6D7C3),var(--beige-sable,#D8CDBB));border-radius:10px;font-size:13px;color:var(--gris-texte,#333);border-left:4px solid var(--mer,#8FAFB1);';
+    const qCount = messages.filter(m => m.role === 'user').length;
+    marker.innerHTML = `📥 <strong>Session restaurée</strong> — ${qCount} réponses. La conversation reprend ici.`;
+    chatContainer.appendChild(marker);
+    
     chatContainer.scrollTop = chatContainer.scrollHeight;
-    console.log('[V19-FIX] Chat UI restored with', messages.length, 'messages');
+    console.log('[V19-FIX] Chat UI restored:', messages.length, 'messages');
 }
 
-// L'ancienne fonction pour le bouton dans l'interview screen — redirige vers le même code
+// L'ancienne fonction pour le bouton dans l'interview screen
 function v19ResumeSession(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
     fileInput.value = '';
     
-    console.log('[V19-FIX] 📥 Resume from interview screen:', file.name);
-    
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const sessionState = JSON.parse(e.target.result);
-            
             if (!sessionState.version && !sessionState.completeness) {
                 alert('Format de session non reconnu.');
                 return;
             }
             
-            // Le ConversationalSystem existe déjà (on est en interview)
             v19RestoreSessionData(sessionState);
             v19RestoreChatUI(sessionState.conversation?.messages || []);
             
-            // Re-set state
             const cs = window.conversationalSystem;
-            if (cs) {
-                cs.started = true;
-                cs.isProcessing = false;
-                cs.updateStats();
-            }
+            if (cs) { cs.isProcessing = false; cs.updateStats(); }
             
             const v19Dashboard = document.getElementById('v19-pillar-dashboard');
             if (v19Dashboard) v19Dashboard.style.display = 'block';
@@ -29125,7 +29102,6 @@ function v19ResumeSession(fileInput) {
             if (typeof showToast === 'function') {
                 showToast(`✅ Session restaurée ! ${sessionState.conversation?.questionCount || 0}Q, ${completeness}%`, 'success');
             }
-            
         } catch (err) {
             console.error('[V19-FIX] ❌ Resume failed:', err);
             alert('Erreur: ' + err.message);
