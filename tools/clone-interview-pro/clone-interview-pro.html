@@ -1765,6 +1765,20 @@
         <button class="start-btn" onclick="showModeSelection()" style="font-size: 16px; padding: 16px 48px;">
             Commencer l'interview
         </button>
+        
+        <!-- V19 FIX: Bouton Reprendre sur l'écran d'accueil -->
+        <div style="margin-top: 20px;">
+            <button onclick="document.getElementById('v19-welcome-resume-input').click()" style="
+                background: white; padding: 12px 32px; border-radius: 25px;
+                border: 2px solid var(--mer, #8FAFB1); color: var(--mer, #8FAFB1);
+                font-size: 14px; font-weight: 600; cursor: pointer;
+                display: inline-flex; align-items: center; gap: 8px;
+                transition: all 0.3s; font-family: inherit;
+            " onmouseover="this.style.background='var(--sable, #E6D7C3)'" onmouseout="this.style.background='white'">
+                📥 Reprendre une session sauvegardée
+            </button>
+            <input type="file" id="v19-welcome-resume-input" accept=".json" style="display:none" onchange="v19ResumeFromWelcome(this)">
+        </div>
     </div>
     
     <!-- INTERVIEW SCREEN -->
@@ -1809,8 +1823,8 @@
             z-index: 1000; overflow: hidden; display: none;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             transition: all 0.3s ease;"
-            onmouseenter="document.getElementById('v19-pillar-content').style.maxHeight='400px';document.getElementById('v19-pillar-content').style.opacity='1';document.getElementById('v19-header-bar').style.maxHeight='10px';document.getElementById('v19-header-bar').style.opacity='1';document.getElementById('v19-header-bar').style.marginTop='6px';"
-            onmouseleave="document.getElementById('v19-pillar-content').style.maxHeight='0px';document.getElementById('v19-pillar-content').style.opacity='0';document.getElementById('v19-header-bar').style.maxHeight='0px';document.getElementById('v19-header-bar').style.opacity='0';document.getElementById('v19-header-bar').style.marginTop='0px';">
+            onmouseenter="document.getElementById('v19-pillar-content').style.maxHeight='400px';document.getElementById('v19-pillar-content').style.opacity='1';"
+            onmouseleave="document.getElementById('v19-pillar-content').style.maxHeight='0px';document.getElementById('v19-pillar-content').style.opacity='0';">
             
             <!-- Header (always visible) -->
             <div style="background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%); padding: 10px 15px; cursor: pointer;" onclick="const c=document.getElementById('v19-pillar-content');if(c.style.maxHeight==='0px'){c.style.maxHeight='400px';c.style.opacity='1'}else{c.style.maxHeight='0px';c.style.opacity='0'}">
@@ -1818,7 +1832,7 @@
                     <span style="color: white; font-weight: 600; font-size: 13px;">🧠 Personnalité</span>
                     <span id="v19-global-text" style="color: white; font-weight: 700; font-size: 16px;">0%</span>
                 </div>
-                <div id="v19-header-bar" style="background: rgba(255,255,255,0.3); height: 4px; border-radius: 2px; max-height: 0px; opacity: 0; margin-top: 0px; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;">
+                <div style="background: rgba(255,255,255,0.3); height: 4px; border-radius: 2px; margin-top: 6px;">
                     <div id="v19-global-bar" style="background: white; height: 100%; border-radius: 2px; width: 0%; transition: width 0.5s ease;"></div>
                 </div>
             </div>
@@ -4248,12 +4262,7 @@ class ConversationSummarizer {
      * Vérifier si résumé nécessaire
      */
     shouldSummarize(messages) {
-        // Résumé initial à 25 messages, puis mise à jour tous les 30 messages supplémentaires
-        if (messages.length < this.summaryThreshold) return false;
-        if (!this.lastSummary) return true;
-        // Re-résumer si 30+ nouveaux messages depuis dernier résumé
-        const messagesSinceLastSummary = messages.length - (this._lastSummaryAtLength || 0);
-        return messagesSinceLastSummary >= 30;
+        return messages.length >= this.summaryThreshold && !this.lastSummary;
     }
     
     /**
@@ -4261,7 +4270,6 @@ class ConversationSummarizer {
      */
     async generateSummary(messages) {
         if (this.isSummarizing) return this.lastSummary;
-        this._currentMsgCount = messages.length;
         
         console.log('[Summary] 📝 Generating summary for', messages.length, 'messages...');
         this.isSummarizing = true;
@@ -4310,7 +4318,6 @@ Résumé concis:`;
             
             const data = await response.json();
             this.lastSummary = data.content[0].text.trim();
-            this._lastSummaryAtLength = this._currentMsgCount || 0;
             
             console.log('[Summary] ✅ Summary generated:', this.lastSummary.length, 'chars');
             return this.lastSummary;
@@ -4334,15 +4341,11 @@ Résumé concis:`;
         
         const context = [];
         
-        // 1. Ajouter résumé comme message user (API Anthropic refuse role:'system' dans messages)
+        // 1. Ajouter résumé comme message système
         if (this.lastSummary) {
             context.push({
-                role: 'user',
-                content: `[RÉSUMÉ CONVERSATION PRÉCÉDENTE]\n${this.lastSummary}\n[FIN RÉSUMÉ]\n\nContinue l'interview en tenant compte de ce contexte.`
-            });
-            context.push({
-                role: 'assistant',
-                content: 'Compris, je continue l\'interview en tenant compte du contexte.'
+                role: 'system',
+                content: `[RÉSUMÉ CONVERSATION PRÉCÉDENTE]\n${this.lastSummary}\n[FIN RÉSUMÉ]`
             });
         }
         
@@ -4677,29 +4680,21 @@ class ContextCompressor {
         
         const compressed = [];
         
-        // 1. Résumé global (si disponible) — comme paire user/assistant (API refuse role:'system')
+        // 1. Résumé global (si disponible)
         const summary = window.conversationSummarizer?.lastSummary;
         if (summary) {
             compressed.push({
-                role: 'user',
-                content: `[RÉSUMÉ GLOBAL]\n${summary}\n[FIN RÉSUMÉ]\n\nContinue en tenant compte de ce contexte.`
-            });
-            compressed.push({
-                role: 'assistant',
-                content: 'Compris, je poursuis avec ce contexte.'
+                role: 'system',
+                content: `[RÉSUMÉ GLOBAL]\n${summary}\n[FIN RÉSUMÉ]`
             });
         }
         
-        // 2. Moments-clés émotionnels — intégrés comme user/assistant pair
+        // 2. Moments-clés émotionnels
         const keyMoments = this.extractKeyMoments(messages);
         if (keyMoments.length > 0) {
             compressed.push({
-                role: 'user',
-                content: `[MOMENTS-CLÉS DE L'INTERVIEW]\n${keyMoments.map(m => `- ${m}`).join('\n')}\n[FIN MOMENTS-CLÉS]`
-            });
-            compressed.push({
-                role: 'assistant',
-                content: 'J\'en prends note pour la suite.'
+                role: 'system',
+                content: `[MOMENTS-CLÉS]\n${keyMoments.map(m => `- ${m}`).join('\n')}\n[FIN MOMENTS-CLÉS]`
             });
         }
         
@@ -7493,9 +7488,8 @@ class DeepPersonalityAnalyzer {
         // === MISE À JOUR STRATÉGIE ADAPTATIVE ===
         this._updateStrategy(analysis);
         
-        // Sauvegarder snapshot (ring buffer: max 100 pour longues interviews)
+        // Sauvegarder snapshot
         this.responseSnapshots.push(analysis);
-        if (this.responseSnapshots.length > 100) this.responseSnapshots.splice(0, this.responseSnapshots.length - 100);
         
         return analysis;
     }
@@ -8210,47 +8204,16 @@ class PersonalityCompletenessTracker {
     }
 
     getNextPillarTarget() {
-        // V19 CLINICAL: Profondeur de chaque pilier (1=surface, 5=intime)
-        const pillarDepth = {
-            traits: 1,       // P1 HEXACO — observable, surface
-            values: 2,       // P5 Motivations — modéré
-            linguistic: 1,   // P6 Linguistique — automatique, surface
-            behavior: 2,     // P7 Comportemental — observable
-            schemas: 4,      // P2 Schémas Young — profond, intime
-            attachment: 4,   // P3 Attachement — très intime
-            defenses: 3      // P4 Défenses — modérément profond
-        };
-        
-        // V19 CLINICAL: Profondeur max autorisée selon le confort actuel
-        let maxAllowedDepth = 5; // Par défaut : tout autorisé
-        if (window.acclimatizer) {
-            maxAllowedDepth = window.acclimatizer.getMaxAllowedDepth();
-        }
-
-        // Mandatory pillars first, sorted by largest gap, FILTERED by depth
+        // Mandatory pillars first, sorted by largest gap
         const mandatoryIncomplete = Object.entries(this.pillars)
-            .filter(([key, p]) => p.mandatory && p.confidence < p.threshold)
-            .filter(([key, _]) => (pillarDepth[key] || 3) <= maxAllowedDepth)
+            .filter(([_, p]) => p.mandatory && p.confidence < p.threshold)
             .sort((a, b) => (b[1].threshold - b[1].confidence) - (a[1].threshold - a[1].confidence));
 
         if (mandatoryIncomplete.length > 0) return mandatoryIncomplete[0][0];
 
-        // Si aucun pilier accessible dans la profondeur autorisée, 
-        // cibler quand même le moins profond parmi les incomplets
-        const mandatoryAll = Object.entries(this.pillars)
-            .filter(([_, p]) => p.mandatory && p.confidence < p.threshold)
-            .sort((a, b) => (pillarDepth[a[0]] || 3) - (pillarDepth[b[0]] || 3));
-        
-        if (mandatoryAll.length > 0 && maxAllowedDepth < 3) {
-            // Confort trop bas pour les piliers profonds → retourner le moins profond
-            return mandatoryAll[0][0];
-        }
-        if (mandatoryAll.length > 0) return mandatoryAll[0][0];
-
-        // Then complementary (same depth filter)
+        // Then complementary
         const compIncomplete = Object.entries(this.pillars)
-            .filter(([key, p]) => !p.mandatory && p.confidence < p.threshold)
-            .filter(([key, _]) => (pillarDepth[key] || 3) <= maxAllowedDepth)
+            .filter(([_, p]) => !p.mandatory && p.confidence < p.threshold)
             .sort((a, b) => (b[1].threshold - b[1].confidence) - (a[1].threshold - a[1].confidence));
 
         return compIncomplete.length > 0 ? compIncomplete[0][0] : null;
@@ -9534,9 +9497,8 @@ class SchemaDetector {
         if (!schema) return;
         
         schema.multimodalMarkers.push(description);
-        if (schema.multimodalMarkers.length > 20) schema.multimodalMarkers.splice(0, schema.multimodalMarkers.length - 20);
         schema.evidenceCount++;
-        schema.score = Math.min(6, schema.score + adaptiveDelta(0.3, schema.evidenceCount));
+        schema.score = Math.min(6, schema.score + 0.3);
         schema.explored = true;
     }
 
@@ -10888,16 +10850,6 @@ window.attachmentAnalyzer = new AttachmentAnalyzer();
 // Alimente Pilier 1 (Structure Personnalité)
 // ============================================================================
 
-// ============================================================================
-// V19 CLINICAL — ADAPTIVE SCORING UTILITY
-// Delta décroissant: plus on a d'evidence, plus l'incrément diminue
-// Empêche la saturation des scores sur les longues interviews (90+ questions)
-// Formule: baseDelta / (1 + evidence × decayRate)
-// ============================================================================
-function adaptiveDelta(baseDelta, evidence, decayRate = 0.15) {
-    return baseDelta / (1 + evidence * decayRate);
-}
-
 class HEXACOAnalyzer {
     constructor() {
         // ═══════ 6 DIMENSIONS × 4 FACETTES ═══════
@@ -11154,12 +11106,11 @@ class HEXACOAnalyzer {
                 const dim = this.dimensions[dimKey];
                 if (!dim) continue;
 
-                // Appliquer deltas aux facettes (delta adaptatif anti-saturation)
+                // Appliquer deltas aux facettes
                 for (const [facetKey, delta] of Object.entries(config.facets)) {
                     const facet = dim.facets[facetKey];
                     if (facet) {
-                        const rawDelta = delta * Math.min(totalMatches, 3);
-                        const applied = adaptiveDelta(rawDelta, facet.evidence);
+                        const applied = delta * Math.min(totalMatches, 3); // Cap à 3 matches
                         facet.score = Math.max(0, Math.min(1, facet.score + applied));
                         facet.evidence += totalMatches;
                     }
@@ -11450,12 +11401,10 @@ class MotivationAnalyzer {
                 const store = this[config.target];
                 const dim = store[config.dimension];
                 if (dim) {
-                    const rawDelta = config.delta * Math.min(totalMatches, 3);
-                    const applied = adaptiveDelta(rawDelta, dim.evidence);
+                    const applied = config.delta * Math.min(totalMatches, 3);
                     dim.score = Math.max(0, Math.min(1, dim.score + applied));
                     dim.evidence += totalMatches;
                     dim.markers.push(...matched.slice(0, 2));
-                    if (dim.markers.length > 20) dim.markers.splice(0, dim.markers.length - 20);
 
                     detections.push({ pattern: patternId, target: config.target, dimension: config.dimension, matches: totalMatches });
                 }
@@ -11553,1526 +11502,7 @@ class MotivationAnalyzer {
 
 window.hexacoAnalyzer = new HEXACOAnalyzer();
 window.motivationAnalyzer = new MotivationAnalyzer();
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ V19 CLINICAL GRADE — MODULE 0A: InterviewAcclimatizer                 ║
-// ║ Gestion progressive de la mise en confiance pour sujets non-habitués  ║
-// ║ Phase d'accueil → échauffement → profondeur croissante                ║
-// ║ Adapte le rythme, la profondeur et le ton selon le confort détecté    ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-class InterviewAcclimatizer {
-    constructor() {
-        // ═══ PHASES D'ACCLIMATATION ═══
-        this.phases = {
-            WARMUP:    { id: 0, name: 'Échauffement', minQ: 0, maxQ: 5, maxDepth: 1 },
-            BUILDING:  { id: 1, name: 'Construction confiance', minQ: 3, maxQ: 12, maxDepth: 2 },
-            EXPLORING: { id: 2, name: 'Exploration', minQ: 8, maxQ: 30, maxDepth: 3 },
-            DEEPENING: { id: 3, name: 'Approfondissement', minQ: 15, maxQ: 999, maxDepth: 4 },
-            FULL:      { id: 4, name: 'Profondeur totale', minQ: 25, maxQ: 999, maxDepth: 5 }
-        };
-        this.currentPhase = this.phases.WARMUP;
-
-        // ═══ INDICATEURS DE CONFORT ═══
-        this.comfort = {
-            score: 30,              // 0-100, commence bas (biais de prudence)
-            responseLength: [],     // Historique longueurs réponses
-            emotionalDepth: [],     // Profondeur émotionnelle par réponse
-            selfDisclosure: 0,      // Niveau de dévoilement de soi détecté
-            questionAvoidance: 0,   // Combien de questions évitées/esquivées
-            laughterCount: 0,       // Rires détectés (signe de confort)
-            silenceCount: 0,        // Silences prolongés (signe d'inconfort)
-            pronoun_je_ratio: [],   // % de "je" par réponse (auto-révélation)
-            initiativeCount: 0      // Nombre de fois que le sujet développe spontanément
-        };
-
-        // ═══ QUESTIONS D'ÉCHAUFFEMENT (non-menaçantes) ═══
-        this.warmupTopics = [
-            { id: 'w1', topic: 'daily_routine', depth: 1, prompt: 'Raconte-moi une journée type pour toi.' },
-            { id: 'w2', topic: 'passion_hobby', depth: 1, prompt: 'Qu\'est-ce qui te passionne en ce moment ?' },
-            { id: 'w3', topic: 'recent_joy', depth: 1, prompt: 'C\'est quoi le dernier truc qui t\'a fait sourire ?' },
-            { id: 'w4', topic: 'social_circle', depth: 1, prompt: 'Avec qui tu passes le plus de temps ces derniers temps ?' },
-            { id: 'w5', topic: 'self_description', depth: 2, prompt: 'Si un ami devait te décrire en 3 mots, il dirait quoi ?' }
-        ];
-        this.warmupAsked = [];
-
-        // Patterns de confort/inconfort
-        this.comfortPatterns = {
-            positive: [
-                /\b(en fait|d'ailleurs|justement|ça me rappelle)\b/gi,   // Digressions spontanées
-                /\b(haha|mdr|rigol|marrant|drôle)\b/gi,                  // Humour = confort
-                /\b(bonne question|intéressant|j'aime bien|c'est vrai)\b/gi, // Engagement positif
-                /\b(par exemple|genre|comme quand|un jour)\b/gi          // Exemples concrets = ouverture
-            ],
-            negative: [
-                /\b(je sais pas|aucune idée|difficile à dire|bonne question)\b/gi, // Évitement
-                /\b(bof|mouais|ouais|voilà|enfin)\b/gi,                  // Réponses minimales
-                /\b(pourquoi.{0,5}(tu demandes|cette question)|c'est.{0,5}perso)\b/gi, // Résistance
-                /\b(on peut.{0,10}(changer|passer|parler d'autre))\b/gi  // Demande de changement
-            ]
-        };
-
-        this.responseCount = 0;
-        console.log('[Acclimatizer] ✅ Initialized — 5 phases, 5 topics warmup, détection confort');
-    }
-
-    // ═══ ANALYSE DE CHAQUE RÉPONSE ═══
-
-    processResponse(text, questionNumber = 0, lingResult = null) {
-        if (!text || text.trim().length < 3) return null;
-        this.responseCount++;
-
-        const words = text.split(/\s+/).length;
-        this.comfort.responseLength.push(words);
-
-        // Détection patterns confort/inconfort
-        let comfortDelta = 0;
-        for (const rx of this.comfortPatterns.positive) {
-            rx.lastIndex = 0;
-            const m = text.match(rx);
-            if (m) comfortDelta += m.length * 3;
-        }
-        for (const rx of this.comfortPatterns.negative) {
-            rx.lastIndex = 0;
-            const m = text.match(rx);
-            if (m) comfortDelta -= m.length * 4;
-        }
-
-        // Longueur de réponse comme indicateur
-        if (words > 50) comfortDelta += 5;      // Réponse longue = engagement
-        else if (words > 25) comfortDelta += 2;
-        else if (words < 8) comfortDelta -= 6;   // Très court = inconfort probable
-        else if (words < 15) comfortDelta -= 2;
-
-        // Pronoms "je" → auto-révélation
-        if (lingResult?.firstPersonSg?.percentage > 8) {
-            comfortDelta += 2;
-            this.comfort.selfDisclosure++;
-        }
-
-        // Initiative (digression, exemples spontanés)
-        if (/ça me rappelle|d'ailleurs|par exemple|un jour/gi.test(text)) {
-            this.comfort.initiativeCount++;
-            comfortDelta += 3;
-        }
-
-        // Rire détecté
-        if (/haha|mdr|😂|😄|lol/gi.test(text)) {
-            this.comfort.laughterCount++;
-            comfortDelta += 4;
-        }
-
-        // Mise à jour score avec lissage
-        this.comfort.score = Math.max(0, Math.min(100,
-            this.comfort.score * 0.8 + (this.comfort.score + comfortDelta) * 0.2));
-
-        // Profondeur émotionnelle
-        const emoWords = (text.match(/\b(triste|peur|colère|joie|honte|culpab|anxi|stress|amour|souffr|pleur|heureu[sx]|content|fier|déçu|frustré)\b/gi) || []).length;
-        this.comfort.emotionalDepth.push(emoWords);
-
-        // Transition de phase
-        this._updatePhase(questionNumber);
-
-        return {
-            comfortScore: this.comfort.score,
-            phase: this.currentPhase.name,
-            maxDepth: this.currentPhase.maxDepth,
-            comfortDelta
-        };
-    }
-
-    _updatePhase(qNum) {
-        const c = this.comfort.score;
-        const prev = this.currentPhase;
-
-        if (c >= 75 && qNum >= 25) this.currentPhase = this.phases.FULL;
-        else if (c >= 65 && qNum >= 15) this.currentPhase = this.phases.DEEPENING;
-        else if (c >= 50 && qNum >= 8) this.currentPhase = this.phases.EXPLORING;
-        else if (c >= 35 && qNum >= 3) this.currentPhase = this.phases.BUILDING;
-        else this.currentPhase = this.phases.WARMUP;
-
-        if (prev.id !== this.currentPhase.id) {
-            console.log(`[Acclimatizer] 📈 Phase: ${prev.name} → ${this.currentPhase.name} (confort=${c.toFixed(0)}%)`);
-        }
-    }
-
-    // ═══ GETTERS ═══
-
-    /** Suggestion de question warmup si en phase précoce */
-    getWarmupSuggestion() {
-        if (this.currentPhase.id > 1) return null; // Plus en warmup
-        const available = this.warmupTopics.filter(t => !this.warmupAsked.includes(t.id));
-        if (available.length === 0) return null;
-        return available[0];
-    }
-
-    markWarmupAsked(id) { this.warmupAsked.push(id); }
-
-    /** Profondeur maximale autorisée pour la phase actuelle */
-    getMaxAllowedDepth() { return this.currentPhase.maxDepth; }
-
-    /** Résumé pour le prompt Claude */
-    getPromptSummary() {
-        const c = this.comfort.score;
-        const phase = this.currentPhase.name;
-        let guidance = '';
-
-        if (c < 30) {
-            guidance = 'SUJET TRÈS INCONFORTABLE — Questions simples, factuelles, non intrusives. Ton chaleureux et rassurant. Pas de questions émotionnelles profondes.';
-        } else if (c < 50) {
-            guidance = 'SUJET EN ACCLIMATATION — Questions indirectes, hypothétiques ou narratives. Proposer des exemples. Valider chaque réponse positivement.';
-        } else if (c < 65) {
-            guidance = 'CONFORT MODÉRÉ — Peut explorer des thèmes personnels légers. Toujours laisser une porte de sortie ("si tu préfères on peut...").';
-        } else if (c < 80) {
-            guidance = 'BON CONFORT — Exploration profonde possible. Le sujet s\'ouvre.';
-        } else {
-            guidance = 'EXCELLENT CONFORT — Profondeur totale autorisée.';
-        }
-
-        const warmup = this.getWarmupSuggestion();
-        let warmupHint = '';
-        if (warmup) warmupHint = ` Question warmup suggérée: "${warmup.prompt}"`;
-
-        return `Phase: ${phase} | Confort: ${c.toFixed(0)}% | ${guidance}${warmupHint}`;
-    }
-
-    toJSON() {
-        return {
-            currentPhase: this.currentPhase.id,
-            comfort: JSON.parse(JSON.stringify(this.comfort)),
-            warmupAsked: this.warmupAsked,
-            responseCount: this.responseCount
-        };
-    }
-
-    fromJSON(data) {
-        if (!data) return;
-        const phaseMap = [this.phases.WARMUP, this.phases.BUILDING, this.phases.EXPLORING, this.phases.DEEPENING, this.phases.FULL];
-        this.currentPhase = phaseMap[data.currentPhase] || this.phases.WARMUP;
-        if (data.comfort) Object.assign(this.comfort, data.comfort);
-        this.warmupAsked = data.warmupAsked || [];
-        this.responseCount = data.responseCount || 0;
-        console.log(`[Acclimatizer] 📥 Restored: phase=${this.currentPhase.name}, confort=${this.comfort.score.toFixed(0)}%`);
-    }
-}
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ V19 CLINICAL GRADE — MODULE 0B: ResponseBiasDetector                  ║
-// ║ Détection des biais cognitifs d'interview en temps réel                ║
-// ║ Désirabilité sociale, acquiescence, biais de primauté, etc.           ║
-// ║ Réf: Paulhus DL (1984), Crowne-Marlowe SDS, Podsakoff (2003)         ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-class ResponseBiasDetector {
-    constructor() {
-        this.biases = {
-            // Paulhus (1984) — 2 composantes
-            social_desirability: {
-                impression_management: { score: 0, evidence: 0 },  // Manipulation délibérée d'image
-                self_deception: { score: 0, evidence: 0 }          // Auto-illusion positive
-            },
-            // Biais de réponse classiques (Podsakoff 2003)
-            acquiescence: { score: 0, evidence: 0 },        // Tendance à dire oui
-            extreme_responding: { score: 0, evidence: 0 },   // Réponses toujours extrêmes
-            midpoint_responding: { score: 0, evidence: 0 },  // Réponses toujours neutres
-            primacy_effect: { score: 0, evidence: 0 },       // Premiers thèmes sur-développés
-            recency_effect: { score: 0, evidence: 0 },       // Derniers thèmes sur-développés
-            consistency_motif: { score: 0, evidence: 0 },    // Vouloir paraître cohérent
-            // Biais spécifiques interview IA
-            techno_inhibition: { score: 0, evidence: 0 },    // Gêne face à la machine
-            performance_anxiety: { score: 0, evidence: 0 },  // Vouloir "bien répondre"
-            halo_effect: { score: 0, evidence: 0 }           // Généralisation abusive pos/neg
-        };
-
-        this.responseHistory = [];
-        this.yesCount = 0;
-        this.totalBinary = 0;
-        this.positiveOnlyCount = 0; // Que des choses positives mentionnées
-        this.extremeCount = 0;
-        this.vagueCount = 0;
-        this.responseCount = 0;
-
-        this.patterns = this._initPatterns();
-        console.log('[BiasDetector] ✅ 10 biais détectés, patterns FR + analyse comportementale');
-    }
-
-    _initPatterns() {
-        return {
-            // Désirabilité sociale — impression management
-            sd_im: {
-                m: [/\b(toujours|jamais).{0,10}(honnête|correct|juste|respect)\b/gi,
-                    /\b(personne.{0,5}(parfait|reproch)|tout le monde.{0,5}(aime|apprécie))\b/gi,
-                    /\b(je ne.{0,10}(mens?|triche|vol|critiq).{0,5}jamais)\b/gi,
-                    /\b(irréprochable|exemplaire|modèle|impeccable)\b/gi],
-                target: 'social_desirability', dim: 'impression_management', delta: 0.1
-            },
-            // Désirabilité — self-deception
-            sd_sd: {
-                m: [/\b(je suis.{0,10}(très|vraiment|plutôt).{0,10}(bon|bien|compétent|capable))\b/gi,
-                    /\b(confiance en moi|sûr de moi|aucun doute)\b/gi,
-                    /\b(pas de (défaut|problème|faiblesse)|tout va bien)\b/gi],
-                target: 'social_desirability', dim: 'self_deception', delta: 0.08
-            },
-            // Techno-inhibition
-            techno_inhib: {
-                m: [/\b(bizarre|étrange|drôle).{0,10}(parler.{0,5}(machine|ordi|écran|IA))\b/gi,
-                    /\b(pas.{0,5}(habitué|l'habitude)|première fois)\b/gi,
-                    /\b(gêne|gênant|timide|intimidé|impressionné)\b/gi,
-                    /\b(c'est.{0,5}(un (robot|ordi|programme)|pas.{0,5}(vrai|humain)))\b/gi],
-                target: 'biases', dim: 'techno_inhibition', delta: 0.12
-            },
-            // Performance anxiety
-            perf_anx: {
-                m: [/\b(bonne réponse|mauvaise réponse|répondre.{0,5}(bien|correctement))\b/gi,
-                    /\b(c'est.{0,5}(ce que|la réponse).{0,5}(tu|vous).{0,5}(voul|attend))\b/gi,
-                    /\b(j'espère.{0,10}(bon|bien|correct)|je sais pas si c'est)\b/gi,
-                    /\b(normal|anormal|suis.{0,5}(normal|comme tout le monde))\b/gi],
-                target: 'biases', dim: 'performance_anxiety', delta: 0.1
-            },
-            // Halo effect — tout positif ou tout négatif
-            halo_pos: {
-                m: [/\b(tout.{0,5}(bien|super|génial|parfait)|rien.{0,5}(mal|négatif|redire))\b/gi,
-                    /\b(aucun.{0,5}(problème|souci|regret)|vraiment.{0,5}(content|heureux))\b/gi],
-                target: 'biases', dim: 'halo_effect', delta: 0.06
-            },
-            // Consistency motif
-            consist: {
-                m: [/\b(comme j'ai dit|j'ai déjà dit|je l'ai dit)\b/gi,
-                    /\b(cohérent|logique.{0,5}avec|dans la lignée|c'est pareil)\b/gi],
-                target: 'biases', dim: 'consistency_motif', delta: 0.05
-            }
-        };
-    }
-
-    processResponse(text, questionNumber = 0) {
-        if (!text || text.trim().length < 5) return null;
-        this.responseCount++;
-
-        const words = text.split(/\s+/).length;
-        const detections = [];
-
-        // 1. Pattern matching
-        for (const [pid, cfg] of Object.entries(this.patterns)) {
-            let tot = 0;
-            for (const rx of cfg.m) { rx.lastIndex = 0; const mm = text.match(rx); if (mm) tot += mm.length; }
-            if (tot > 0) {
-                if (cfg.target === 'social_desirability') {
-                    const dim = this.biases.social_desirability[cfg.dim];
-                    dim.score += adaptiveDelta(cfg.delta * Math.min(tot, 3), dim.evidence);
-                    dim.evidence += tot;
-                } else {
-                    const dim = this.biases[cfg.dim];
-                    dim.score += adaptiveDelta(cfg.delta * Math.min(tot, 3), dim.evidence);
-                    dim.evidence += tot;
-                }
-                detections.push({ p: pid, n: tot });
-            }
-        }
-
-        // 2. Acquiescence — détection réponses binaires positives
-        const yesPattern = /^(oui|ouais|yes|tout à fait|absolument|exactement|c'est ça|bien sûr)\b/gi;
-        if (yesPattern.test(text.trim())) {
-            this.yesCount++;
-            this.totalBinary++;
-        }
-        const noPattern = /^(non|nah|pas du tout|absolument pas)\b/gi;
-        if (noPattern.test(text.trim())) this.totalBinary++;
-        if (this.totalBinary >= 5) {
-            this.biases.acquiescence.score = this.yesCount / this.totalBinary;
-            this.biases.acquiescence.evidence = this.totalBinary;
-        }
-
-        // 3. Extreme responding — réponses toujours absolues
-        if (/\b(toujours|jamais|absolument|totalement|complètement|100%)\b/gi.test(text)) {
-            this.extremeCount++;
-        }
-        if (this.responseCount >= 5) {
-            this.biases.extreme_responding.score = Math.min(1, this.extremeCount / this.responseCount);
-            this.biases.extreme_responding.evidence = this.extremeCount;
-        }
-
-        // 4. Midpoint — réponses vagues/neutres
-        if (/\b(bof|mouais|ça dépend|peut-être|un peu|pas trop|moyen)\b/gi.test(text) && words < 15) {
-            this.vagueCount++;
-        }
-        if (this.responseCount >= 5) {
-            this.biases.midpoint_responding.score = Math.min(1, this.vagueCount / this.responseCount);
-            this.biases.midpoint_responding.evidence = this.vagueCount;
-        }
-
-        // 5. Positive-only bias (SD proxy)
-        const hasNeg = /\b(diffic|problème|défaut|faiblesse|erreur|regret|échoué|raté|peur|triste|colère|frustré)\b/gi.test(text);
-        const hasPos = /\b(bien|super|génial|content|fier|réussi|capable|fort|chance)\b/gi.test(text);
-        if (hasPos && !hasNeg) this.positiveOnlyCount++;
-        if (this.responseCount >= 8) {
-            const sdRatio = this.positiveOnlyCount / this.responseCount;
-            if (sdRatio > 0.7) this.biases.social_desirability.self_deception.score += 0.03;
-        }
-
-        this.responseHistory.push({ q: questionNumber, words, detections: detections.length });
-
-        if (detections.length > 0) {
-            console.log(`[BiasDetector] 🎭 Q${questionNumber}: ${detections.map(d => d.p).join(', ')}`);
-        }
-
-        return { detections, biasProfile: this.getBiasProfile() };
-    }
-
-    getBiasProfile() {
-        const sd = this.biases.social_desirability;
-        const sdGlobal = (sd.impression_management.score * 0.6 + sd.self_deception.score * 0.4);
-        return {
-            social_desirability: {
-                global: Math.min(1, sdGlobal),
-                impression_management: Math.min(1, sd.impression_management.score),
-                self_deception: Math.min(1, sd.self_deception.score),
-                risk: sdGlobal > 0.5 ? 'high' : sdGlobal > 0.3 ? 'moderate' : 'low'
-            },
-            acquiescence: this.biases.acquiescence.score,
-            extreme_responding: this.biases.extreme_responding.score,
-            midpoint_responding: this.biases.midpoint_responding.score,
-            techno_inhibition: Math.min(1, this.biases.techno_inhibition.score),
-            performance_anxiety: Math.min(1, this.biases.performance_anxiety.score),
-            halo_effect: Math.min(1, this.biases.halo_effect.score),
-            consistency_motif: Math.min(1, this.biases.consistency_motif.score),
-            overall_bias_risk: this._getOverallRisk()
-        };
-    }
-
-    _getOverallRisk() {
-        const scores = [
-            this.biases.social_desirability.impression_management.score,
-            this.biases.social_desirability.self_deception.score,
-            this.biases.acquiescence.score,
-            this.biases.techno_inhibition.score,
-            this.biases.performance_anxiety.score
-        ];
-        const avg = scores.reduce((s, v) => s + v, 0) / scores.length;
-        return avg > 0.4 ? 'high' : avg > 0.2 ? 'moderate' : 'low';
-    }
-
-    getPromptSummary() {
-        if (this.responseCount < 4) return '';
-        const bp = this.getBiasProfile();
-        const warnings = [];
-
-        if (bp.techno_inhibition > 0.3) warnings.push('GÊNE TECHNOLOGIQUE détectée — Sois très chaleureux, normalise la situation');
-        if (bp.performance_anxiety > 0.3) warnings.push('ANXIÉTÉ DE PERFORMANCE — Rassure : "il n\'y a pas de bonne ou mauvaise réponse"');
-        if (bp.social_desirability.risk !== 'low') warnings.push(`DÉSIRABILITÉ SOCIALE ${bp.social_desirability.risk} — Utilise des questions indirectes/projectives`);
-        if (bp.acquiescence > 0.6) warnings.push('ACQUIESCENCE — Pose des questions ouvertes, évite les oui/non');
-        if (bp.midpoint_responding > 0.4) warnings.push('RÉPONSES VAGUES — Demande des exemples concrets, reformule');
-
-        return warnings.length > 0 ? '\n🎭 BIAIS: ' + warnings.join(' | ') : '';
-    }
-
-    toJSON() {
-        return {
-            biases: JSON.parse(JSON.stringify(this.biases)),
-            responseHistory: this.responseHistory,
-            yesCount: this.yesCount, totalBinary: this.totalBinary,
-            positiveOnlyCount: this.positiveOnlyCount,
-            extremeCount: this.extremeCount, vagueCount: this.vagueCount,
-            responseCount: this.responseCount
-        };
-    }
-
-    fromJSON(data) {
-        if (!data) return;
-        if (data.biases) {
-            if (data.biases.social_desirability) Object.assign(this.biases.social_desirability, data.biases.social_desirability);
-            for (const k of Object.keys(this.biases)) {
-                if (k !== 'social_desirability' && data.biases[k]) Object.assign(this.biases[k], data.biases[k]);
-            }
-        }
-        this.responseHistory = data.responseHistory || [];
-        this.yesCount = data.yesCount || 0;
-        this.totalBinary = data.totalBinary || 0;
-        this.positiveOnlyCount = data.positiveOnlyCount || 0;
-        this.extremeCount = data.extremeCount || 0;
-        this.vagueCount = data.vagueCount || 0;
-        this.responseCount = data.responseCount || 0;
-        console.log(`[BiasDetector] 📥 Restored: ${this.responseCount} responses`);
-    }
-}
-
-window.acclimatizer = new InterviewAcclimatizer();
-window.biasDetector = new ResponseBiasDetector();
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ V19 CLINICAL GRADE — MODULE 1: ClinicalProfiler                       ║
-// ║ 8 construits psychologiques validés empiriquement:                     ║
-// ║  1. Régulation Émotionnelle (Gross ERQ 2003 + Garnefski CERQ-s 2001)  ║
-// ║  2. Locus de Contrôle (Rotter 1966, Levenson IPC 1981)                ║
-// ║  3. Coping (Lazarus & Folkman 1984, Endler CISS 1990)                 ║
-// ║  4. Empathie (Davis IRI 1983)                                         ║
-// ║  5. Mentalisation / Fonction Réflexive (Fonagy 1991)                  ║
-// ║  6. Alexithymie (Taylor TAS-20 1994)                                  ║
-// ║  7. Dark Triad (Paulhus & Williams SD3 2002)                          ║
-// ║  8. Résilience (Connor-Davidson CD-RISC 2003)                         ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-class ClinicalProfiler {
-    constructor() {
-        // ═══ 1. RÉGULATION ÉMOTIONNELLE ═══
-        this.emotionRegulation = {
-            reappraisal:          { score: 0.5, evidence: 0 },
-            expressive_suppression: { score: 0.5, evidence: 0 },
-            self_blame:           { score: 0.5, evidence: 0 },
-            cognitive_acceptance: { score: 0.5, evidence: 0 },
-            rumination:           { score: 0.5, evidence: 0 },
-            positive_refocusing:  { score: 0.5, evidence: 0 },
-            refocus_planning:     { score: 0.5, evidence: 0 },
-            positive_reappraisal: { score: 0.5, evidence: 0 },
-            perspective_putting:  { score: 0.5, evidence: 0 },
-            catastrophizing:      { score: 0.5, evidence: 0 },
-            other_blame:          { score: 0.5, evidence: 0 }
-        };
-
-        // ═══ 2. LOCUS DE CONTRÔLE (Levenson IPC tripartite) ═══
-        this.locusOfControl = {
-            internal:               { score: 0.5, evidence: 0 },
-            powerful_others:        { score: 0.5, evidence: 0 },
-            chance:                 { score: 0.5, evidence: 0 }
-        };
-
-        // ═══ 3. COPING (CISS 4 styles) ═══
-        this.copingStyles = {
-            task_oriented:   { score: 0.5, evidence: 0 },
-            emotion_oriented: { score: 0.5, evidence: 0 },
-            avoidance_distraction: { score: 0.5, evidence: 0 },
-            avoidance_social: { score: 0.5, evidence: 0 }
-        };
-
-        // ═══ 4. EMPATHIE (Davis IRI 4 sous-échelles) ═══
-        this.empathy = {
-            perspective_taking: { score: 0.5, evidence: 0 },
-            empathic_concern:   { score: 0.5, evidence: 0 },
-            personal_distress:  { score: 0.5, evidence: 0 },
-            fantasy_scale:      { score: 0.5, evidence: 0 }
-        };
-
-        // ═══ 5. MENTALISATION (Fonagy RF 1-9) ═══
-        this.mentalization = {
-            self_reflective:     { score: 0.5, evidence: 0 },
-            other_reflective:    { score: 0.5, evidence: 0 },
-            affective_awareness: { score: 0.5, evidence: 0 },
-            mind_opacity:        { score: 0.5, evidence: 0 },
-            rf_global: 5.0  // échelle 1-9
-        };
-
-        // ═══ 6. ALEXITHYMIE (TAS-20 3 facteurs) ═══
-        this.alexithymia = {
-            difficulty_identifying_feelings: { score: 0.5, evidence: 0 },
-            difficulty_describing_feelings:  { score: 0.5, evidence: 0 },
-            externally_oriented_thinking:    { score: 0.5, evidence: 0 },
-            global: 0.5
-        };
-
-        // ═══ 7. DARK TRIAD (SD3 subclinique) ═══
-        this.darkTriad = {
-            narcissism:       { score: 0.3, evidence: 0 },
-            machiavellianism: { score: 0.3, evidence: 0 },
-            psychopathy:      { score: 0.3, evidence: 0 }
-        };
-
-        // ═══ 8. RÉSILIENCE (CD-RISC 5 facteurs) ═══
-        this.resilience = {
-            personal_competence:  { score: 0.5, evidence: 0 },
-            trust_instincts:      { score: 0.5, evidence: 0 },
-            positive_acceptance:  { score: 0.5, evidence: 0 },
-            control:              { score: 0.5, evidence: 0 },
-            hardiness:            { score: 0.5, evidence: 0 },
-            global: 0.5
-        };
-
-        this.patterns = this._initPatterns();
-        this.responseCount = 0;
-        this.detectionLog = [];
-        console.log('[ClinicalProfiler] ✅ 8 construits, 42 dimensions, ~250 patterns FR');
-    }
-
-    _initPatterns() {
-        return {
-            // ═══ 1. RÉGULATION ÉMOTIONNELLE ═══
-            er_reappraisal: {
-                m: [/relativis|prendre du recul|voir.{0,10}(autrement|différemment)|bon côté/gi,
-                    /finalement.{0,10}(bien|mieux|chance)|en tirer.{0,10}(leçon|quelque)/gi,
-                    /recadrer|réinterpréter|nuanc|transformer.{0,10}(expérience|épreuve)/gi],
-                t: 'emotionRegulation', d: 'reappraisal', v: 0.08
-            },
-            er_suppression: {
-                m: [/garder pour moi|pas montrer|cacher.{0,10}(émotion|sentiment|larme)/gi,
-                    /contrôler.{0,10}(émotion|réaction)|stoïque|impassible|poker face/gi,
-                    /avaler|encaisser|serrer les dents|faire bonne figure/gi],
-                t: 'emotionRegulation', d: 'expressive_suppression', v: 0.08
-            },
-            er_rumination: {
-                m: [/repens|ressass|tourne.{0,10}(tête|boucle)|sans arrêt.{0,10}(pens|repass)/gi,
-                    /pourquoi.{0,5}(moi|ça)|si j'avais|j'aurais (dû|pu)/gi,
-                    /obsède|hante|lâche pas|oublier.{0,5}(pas|impossible)/gi],
-                t: 'emotionRegulation', d: 'rumination', v: 0.08
-            },
-            er_catastrophize: {
-                m: [/catastroph|horrible|terrible|épouvantable|fin du monde|pire/gi,
-                    /jamais.{0,10}(s'en remettre|récupérer|aller mieux)/gi,
-                    /foutu|fichu|détruit|irréparable|irréversible/gi],
-                t: 'emotionRegulation', d: 'catastrophizing', v: 0.08
-            },
-            er_self_blame: {
-                m: [/c'est (ma|de ma) faute|j'aurais (dû|pu)|coupable/gi,
-                    /me reproch|m'en veu[xt]|honte.{0,10}(moi|de ce)/gi],
-                t: 'emotionRegulation', d: 'self_blame', v: 0.08
-            },
-            er_other_blame: {
-                m: [/c'est (sa|leur|la) faute|responsable.{0,5}(pas moi)/gi,
-                    /à cause (de lui|d'elle|d'eux|des autres)/gi],
-                t: 'emotionRegulation', d: 'other_blame', v: 0.08
-            },
-            er_acceptance: {
-                m: [/accept[eé]|faut vivre avec|c'est (comme ça|la vie|ainsi)/gi,
-                    /fait avec|s'adapter|faire la paix|lâcher prise/gi],
-                t: 'emotionRegulation', d: 'cognitive_acceptance', v: 0.08
-            },
-            er_pos_refocus: {
-                m: [/penser à.{0,10}(autre chose|agréable|positif)/gi,
-                    /concentr.{0,10}(bon|bien|positif)|changer.{0,5}idées/gi],
-                t: 'emotionRegulation', d: 'positive_refocusing', v: 0.07
-            },
-            er_planning: {
-                m: [/plan.{0,5}(action|pour)|stratégie pour.{0,10}(gérer|surmonter)/gi,
-                    /étapes?.{0,5}pour|comment.{0,5}(résoudre|régler|améliorer)/gi],
-                t: 'emotionRegulation', d: 'refocus_planning', v: 0.07
-            },
-            er_perspective: {
-                m: [/comparé à|pire.{0,5}(que|ailleurs)|y a pire|relativement/gi,
-                    /d'autres.{0,10}(vivent|traversent)|par rapport à/gi],
-                t: 'emotionRegulation', d: 'perspective_putting', v: 0.06
-            },
-
-            // ═══ 2. LOCUS DE CONTRÔLE ═══
-            loc_internal: {
-                m: [/je (décide|choisis|contrôle|maîtrise)|moi qui/gi,
-                    /ma (décision|responsabilité)|mérit[eé]|effort/gi,
-                    /entre mes mains|dépend de moi|je fais.{0,10}(propre|destin)/gi,
-                    /c'est moi qui|j'ai (construit|bâti|créé)/gi],
-                t: 'locusOfControl', d: 'internal', v: 0.08
-            },
-            loc_chance: {
-                m: [/chance|malchance|hasard|destin|karma|pas de bol/gi,
-                    /tombé.{0,5}(dessus|sur moi)|aléatoire|loterie|sort/gi,
-                    /c'était écrit|étoiles|signe/gi],
-                t: 'locusOfControl', d: 'chance', v: 0.08
-            },
-            loc_powerful: {
-                m: [/les (autres|gens).{0,10}(décid|contrôl|pouvoir)/gi,
-                    /système|société|patron|gouvernement|hiérarchie/gi,
-                    /pistonné|injust|favoritisme|on me laisse pas/gi],
-                t: 'locusOfControl', d: 'powerful_others', v: 0.08
-            },
-
-            // ═══ 3. COPING ═══
-            cop_task: {
-                m: [/solution|résoudre|stratégie|plan|agir|initiative/gi,
-                    /analyser|comprendre|identifier|organis|étape par étape/gi,
-                    /concret|pratique|pragmati|méthodique|systémati/gi],
-                t: 'copingStyles', d: 'task_oriented', v: 0.06
-            },
-            cop_emotion: {
-                m: [/pleur[eé]?|cri[eé]|exprim|ventil|défoul|exutoire/gi,
-                    /parler.{0,10}(ami|psy|thérapeute|quelqu'un)/gi,
-                    /méditer|respir|yoga|calmer|apaiser|relaxer/gi],
-                t: 'copingStyles', d: 'emotion_oriented', v: 0.06
-            },
-            cop_avoid: {
-                m: [/éviter?|fuir?|ignorer|oublier|distraire|occuper/gi,
-                    /alcool|boir[eé]|fumer|jeu[x]?|shopping|nourriture/gi,
-                    /procrastin|remettre|repousser|pas y penser/gi],
-                t: 'copingStyles', d: 'avoidance_distraction', v: 0.06
-            },
-            cop_social: {
-                m: [/demand[eé].{0,10}(aide|conseil|soutien|avis)/gi,
-                    /confier|partager|discuter|en parler/gi,
-                    /entourage|proches.{0,10}(soutien|aide)/gi],
-                t: 'copingStyles', d: 'avoidance_social', v: 0.06
-            },
-
-            // ═══ 4. EMPATHIE (IRI) ═══
-            emp_pt: {
-                m: [/je (comprends?|vois).{0,10}(son|leur|point de vue)/gi,
-                    /à (sa|leur) place|dans (sa|leur) (peau|situation)/gi,
-                    /imagine.{0,10}(ce qu'il|comment|pourquoi il)/gi],
-                t: 'empathy', d: 'perspective_taking', v: 0.08
-            },
-            emp_ec: {
-                m: [/compassion|peine pour|touché par|sensible à/gi,
-                    /ça me (touche|fait mal|attriste).{0,10}(pour|quand)/gi,
-                    /injustice|souffrance.{0,10}(autres|gens)|solidar/gi],
-                t: 'empathy', d: 'empathic_concern', v: 0.08
-            },
-            emp_pd: {
-                m: [/supporte pas.{0,10}(voir|quand)|mal à l'aise|envahi/gi,
-                    /trop.{0,10}(émotif|sensible|affecté)|absorbe.{0,10}émotion/gi,
-                    /éponge|poids.{0,10}(autres|monde)|débordé/gi],
-                t: 'empathy', d: 'personal_distress', v: 0.08
-            },
-            emp_fs: {
-                m: [/identifi.{0,10}(personnage|héros|film|livre)/gi,
-                    /rêver|imagin.{0,10}(être|vivre)|fantasme|roman/gi],
-                t: 'empathy', d: 'fantasy_scale', v: 0.06
-            },
-
-            // ═══ 5. MENTALISATION (Fonagy RF) ═══
-            mz_self: {
-                m: [/je (pense|crois|suppose).{0,10}(que je|parce que je)/gi,
-                    /en y réfléchissant|avec le recul|quand j'y pense/gi,
-                    /me rend[s]? compte|réalis[eé]|conscience de/gi,
-                    /peut-être.{0,10}(parce que|dû à|lié à).{0,10}(mon|ma)/gi],
-                t: 'mentalization', d: 'self_reflective', v: 0.08
-            },
-            mz_other: {
-                m: [/il (devait|doit|peut).{0,10}(sentir|penser|ressentir)/gi,
-                    /comprend[s]?.{0,5}(pourquoi|comment).{0,5}(il|elle)/gi,
-                    /de son point de vue|pour (lui|elle).{0,10}(c'était|ça)/gi],
-                t: 'mentalization', d: 'other_reflective', v: 0.08
-            },
-            mz_affect: {
-                m: [/ça m'a (fait|rendu|mis).{0,10}(triste|en colère|peur|joie)/gi,
-                    /j'ai (ressenti|éprouvé|senti)|mon émotion/gi,
-                    /ça me fait.{0,10}(quelque chose|bizarre|drôle)/gi],
-                t: 'mentalization', d: 'affective_awareness', v: 0.07
-            },
-            mz_opacity: {
-                m: [/sais pas (vraiment|trop).{0,10}(pourquoi|ce que)/gi,
-                    /complexe|compliqué|pas si simple|pas noir.{0,5}blanc/gi,
-                    /on (sait|peut) (jamais|pas) (vraiment|ce que)/gi,
-                    /les gens sont.{0,10}(imprévisibles|surprenants|mystéri)/gi],
-                t: 'mentalization', d: 'mind_opacity', v: 0.06
-            },
-
-            // ═══ 6. ALEXITHYMIE (TAS-20) ═══
-            ax_dif: {
-                m: [/sais pas.{0,10}(ce que je (ressens|éprouve))/gi,
-                    /confus.{0,10}(émotion|sentiment)|difficile.{0,10}(nommer|identifier)/gi,
-                    /sensation.{0,10}(corps|physique).{0,10}(comprends? pas)/gi],
-                t: 'alexithymia', d: 'difficulty_identifying_feelings', v: 0.10
-            },
-            ax_ddf: {
-                m: [/difficile.{0,10}(exprimer|expliquer|décrire|mettre des mots)/gi,
-                    /pas les mots|aucun mot|trouv.{0,5}pas.{0,10}(mots|dire)/gi],
-                t: 'alexithymia', d: 'difficulty_describing_feelings', v: 0.08
-            },
-            ax_eot: {
-                m: [/pas.{0,10}(philosophe|prise de tête|introspec)/gi,
-                    /préfère.{0,10}(faire|agir|bouger)|concret|pratique/gi,
-                    /pas.{0,5}genre.{0,5}(réfléchir|se poser des questions)/gi],
-                t: 'alexithymia', d: 'externally_oriented_thinking', v: 0.06
-            },
-
-            // ═══ 7. DARK TRIAD (SD3) ═══
-            dt_narc: {
-                m: [/admirer|admiration|spécial|unique|exceptionnel|au-dessus/gi,
-                    /mérite.{0,10}(plus|mieux|reconnaissance)|talent|don/gi,
-                    /leader né|destiné|important|influence/gi],
-                t: 'darkTriad', d: 'narcissism', v: 0.06
-            },
-            dt_mach: {
-                m: [/manipul|stratég.{0,5}(pour|que)|calculer|exploiter/gi,
-                    /fin justifie|pragmatique|malin|rusé|futé/gi,
-                    /naïf|naïveté|confiance.{0,10}(personne|mérite pas)/gi],
-                t: 'darkTriad', d: 'machiavellianism', v: 0.06
-            },
-            dt_psych: {
-                m: [/m'en (fous|fiche|moque)|rien à (faire|foutre)/gi,
-                    /ennui|frisson|adrénaline|risque.{0,10}(excite|aime)/gi,
-                    /remords?.{0,5}(pas|aucun|jamais)|culpabilité.{0,5}(pas|non)/gi],
-                t: 'darkTriad', d: 'psychopathy', v: 0.06
-            },
-
-            // ═══ 8. RÉSILIENCE (CD-RISC) ═══
-            res_comp: {
-                m: [/capable|fort|compétent|confiant|surmonté|traversé/gi,
-                    /épreuve.{0,10}(renforcé|appris|grandi)/gi,
-                    /rebondi[r]?|relevé|remonté la pente|passé au-dessus/gi],
-                t: 'resilience', d: 'personal_competence', v: 0.07
-            },
-            res_inst: {
-                m: [/instinct|intuition|sentir|feeling|pressentiment/gi,
-                    /faire confiance.{0,10}(instinct|intuition|feeling)/gi],
-                t: 'resilience', d: 'trust_instincts', v: 0.06
-            },
-            res_accept: {
-                m: [/accepter.{0,10}(changement|imprévu|incertitude)/gi,
-                    /adapter|flexible|résilient|m'en sors toujours/gi],
-                t: 'resilience', d: 'positive_acceptance', v: 0.06
-            },
-            res_control: {
-                m: [/contrôle.{0,10}(situation|destin|vie)|maître de/gi,
-                    /en main|aux commandes|piloter/gi],
-                t: 'resilience', d: 'control', v: 0.06
-            },
-            res_hard: {
-                m: [/dur au mal|résistant|endurci|blindé|aguerri/gi,
-                    /pression.{0,10}(gère|supporte)|stress.{0,10}(résiste|gère)/gi,
-                    /adversité|difficulté.{0,10}(rend|fait).{0,5}(fort|meilleur)/gi],
-                t: 'resilience', d: 'hardiness', v: 0.07
-            }
-        };
-    }
-
-    // ═══ ANALYSE ═══
-
-    processResponse(text, questionNumber = 0) {
-        if (!text || text.trim().length < 10) return null;
-        this.responseCount++;
-        const detections = [];
-
-        for (const [pid, cfg] of Object.entries(this.patterns)) {
-            let tot = 0;
-            for (const rx of cfg.m) { rx.lastIndex = 0; const mm = text.match(rx); if (mm) tot += mm.length; }
-            if (tot > 0) {
-                const store = this[cfg.t];
-                const dim = store?.[cfg.d];
-                if (dim && typeof dim === 'object') {
-                    const rawDelta = cfg.v * Math.min(tot, 3);
-                    const applied = adaptiveDelta(rawDelta, dim.evidence);
-                    dim.score = Math.max(0, Math.min(1, dim.score + applied));
-                    dim.evidence += tot;
-                    detections.push({ p: pid, d: cfg.d, n: tot });
-                }
-            }
-        }
-
-        this._recalcGlobals();
-        if (detections.length > 0) {
-            this.detectionLog.push({ q: questionNumber, d: detections });
-            console.log(`[ClinicalProfiler] 🏥 Q${questionNumber}: ${detections.length} signaux`);
-        }
-        return { detections };
-    }
-
-    _recalcGlobals() {
-        const m = this.mentalization;
-        const rfRaw = (m.self_reflective.score * 0.35 + m.other_reflective.score * 0.35 +
-                       m.affective_awareness.score * 0.15 + m.mind_opacity.score * 0.15);
-        m.rf_global = 1 + rfRaw * 8; // Scale 1-9
-
-        const a = this.alexithymia;
-        a.global = (a.difficulty_identifying_feelings.score * 0.4 +
-                    a.difficulty_describing_feelings.score * 0.35 +
-                    a.externally_oriented_thinking.score * 0.25);
-
-        const r = this.resilience;
-        r.global = (r.personal_competence.score * 0.25 + r.trust_instincts.score * 0.15 +
-                    r.positive_acceptance.score * 0.2 + r.control.score * 0.2 + r.hardiness.score * 0.2);
-    }
-
-    // ═══ GETTERS ═══
-
-    getERProfile() {
-        const er = this.emotionRegulation;
-        const adaptive = ['reappraisal', 'cognitive_acceptance', 'positive_refocusing',
-                          'refocus_planning', 'positive_reappraisal', 'perspective_putting'];
-        const maladaptive = ['self_blame', 'other_blame', 'rumination', 'catastrophizing'];
-        const avgAdapt = adaptive.reduce((s, k) => s + (er[k]?.score || 0.5), 0) / adaptive.length;
-        const avgMalad = maladaptive.reduce((s, k) => s + (er[k]?.score || 0.5), 0) / maladaptive.length;
-        return { adaptive: avgAdapt, maladaptive: avgMalad, suppression: er.expressive_suppression.score,
-                 dominant_strategy: avgAdapt > avgMalad ? 'adaptive' : 'maladaptive',
-                 er_ratio: avgAdapt / Math.max(0.01, avgMalad) };
-    }
-
-    getLocusDominant() {
-        const l = this.locusOfControl;
-        if (l.internal.score > l.chance.score && l.internal.score > l.powerful_others.score) return 'internal';
-        return l.chance.score > l.powerful_others.score ? 'chance' : 'powerful_others';
-    }
-
-    getCopingDominant() {
-        let max = 0, dom = 'task_oriented';
-        for (const [k, v] of Object.entries(this.copingStyles)) {
-            if (v.score > max) { max = v.score; dom = k; }
-        }
-        return dom;
-    }
-
-    getPromptSummary() {
-        if (this.responseCount < 3) return 'Profil clinique : données insuffisantes.';
-        const er = this.getERProfile();
-        return `LOC:${this.getLocusDominant()} | Coping:${this.getCopingDominant()} | ` +
-               `RF:${this.mentalization.rf_global.toFixed(1)}/9 | ` +
-               `Alex:${this.alexithymia.global > 0.61 ? '⚠️ÉLEVÉ' : this.alexithymia.global > 0.52 ? 'modéré' : 'bas'}(${this.alexithymia.global.toFixed(2)}) | ` +
-               `Résil:${this.resilience.global.toFixed(2)} | ER:${er.dominant_strategy}(ratio ${er.er_ratio.toFixed(1)})`;
-    }
-
-    toJSON() {
-        return { emotionRegulation: JSON.parse(JSON.stringify(this.emotionRegulation)),
-                 locusOfControl: JSON.parse(JSON.stringify(this.locusOfControl)),
-                 copingStyles: JSON.parse(JSON.stringify(this.copingStyles)),
-                 empathy: JSON.parse(JSON.stringify(this.empathy)),
-                 mentalization: JSON.parse(JSON.stringify(this.mentalization)),
-                 alexithymia: JSON.parse(JSON.stringify(this.alexithymia)),
-                 darkTriad: JSON.parse(JSON.stringify(this.darkTriad)),
-                 resilience: JSON.parse(JSON.stringify(this.resilience)),
-                 responseCount: this.responseCount, detectionLog: this.detectionLog };
-    }
-
-    fromJSON(data) {
-        if (!data) return;
-        for (const key of ['emotionRegulation', 'locusOfControl', 'copingStyles', 'empathy',
-                          'mentalization', 'alexithymia', 'darkTriad', 'resilience']) {
-            if (data[key]) {
-                for (const [dk, dv] of Object.entries(data[key])) {
-                    if (this[key]?.[dk] && typeof dv === 'object') Object.assign(this[key][dk], dv);
-                    else if (this[key]) this[key][dk] = dv;
-                }
-            }
-        }
-        this.responseCount = data.responseCount || 0;
-        this.detectionLog = data.detectionLog || [];
-        this._recalcGlobals();
-        console.log(`[ClinicalProfiler] 📥 Restored: ${this.responseCount} responses`);
-    }
-}
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ V19 CLINICAL GRADE — MODULE 2: CrossValidator                         ║
-// ║ Triangulation inter-modules : détecte incohérences et convergences     ║
-// ║ Génère des alertes cliniques pour guider l'exploration                 ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-class CrossValidator {
-    constructor() {
-        this.alerts = [];
-        this.coherenceScore = 1.0;
-        this.validationLog = [];
-        this.rules = this._initRules();
-        console.log('[CrossValidator] ✅ 12 règles de triangulation inter-modules');
-    }
-
-    _initRules() {
-        return [
-            // R1: HEXACO.E élevé ↔ Attachment.anxiety élevé (convergence attendue)
-            { id: 'R1', name: 'Emotionality×AttachAnxiety',
-              check: () => {
-                  const e = window.hexacoAnalyzer?.dimensions.E?.globalScore;
-                  const a = window.attachmentAnalyzer?.anxietyScore;
-                  if (e == null || a == null) return null;
-                  const delta = Math.abs(e - a / 7);
-                  return delta > 0.35 ? { type: 'divergence', sev: 'moderate',
-                      msg: `HEXACO.E(${e.toFixed(2)}) vs AttachAnx(${(a/7).toFixed(2)}) Δ=${delta.toFixed(2)}`,
-                      tip: 'Émotivité générale vs spécifique aux relations — approfondir' } : null;
-              }
-            },
-            // R2: Schema.abandonment ↔ Attachment.preoccupied (convergence attendue)
-            { id: 'R2', name: 'Abandon×PreoccupiedAttach',
-              check: () => {
-                  const ab = window.schemaDetector?.schemas?.abandonment?.score;
-                  const st = window.attachmentAnalyzer?.classifyAttachment();
-                  if (ab == null || !st) return null;
-                  if (ab >= 3 && st !== 'preoccupied' && st !== 'fearful_avoidant')
-                      return { type: 'divergence', sev: 'moderate',
-                          msg: `Schéma abandon(${ab}/6) mais attach=${st}`,
-                          tip: 'Possible compensation — explorer stratégies relationnelles' };
-                  return null;
-              }
-            },
-            // R3: HEXACO.H élevé ↔ Dark Triad élevé (contradiction)
-            { id: 'R3', name: 'Honesty×DarkTriad',
-              check: () => {
-                  const h = window.hexacoAnalyzer?.dimensions.H?.globalScore;
-                  const dt = window.clinicalProfiler?.darkTriad;
-                  if (h == null || !dt) return null;
-                  const dtAvg = (dt.narcissism.score + dt.machiavellianism.score + dt.psychopathy.score) / 3;
-                  if (h > 0.65 && dtAvg > 0.5)
-                      return { type: 'contradiction', sev: 'high',
-                          msg: `H-Humility élevé(${h.toFixed(2)}) MAIS DT(${dtAvg.toFixed(2)})`,
-                          tip: 'Probable désirabilité sociale — questions indirectes' };
-                  return null;
-              }
-            },
-            // R4: Denial fréquent + Alexithymie élevée (convergence pathologique)
-            { id: 'R4', name: 'Denial×Alexithymia',
-              check: () => {
-                  const den = window.defenseDetector?.defenses?.denial?.frequency;
-                  const ax = window.clinicalProfiler?.alexithymia.global;
-                  if (den == null || ax == null) return null;
-                  if (den > 2.5 && ax > 0.55)
-                      return { type: 'convergence', sev: 'high',
-                          msg: `Déni(${den.toFixed(1)}) + Alexithymie(${ax.toFixed(2)})`,
-                          tip: 'Non-reconnaissance émotionnelle — explorer vécu corporel' };
-                  return null;
-              }
-            },
-            // R5: ODF bas + RF élevée (pseudomentalization)
-            { id: 'R5', name: 'ODF×Mentalization',
-              check: () => {
-                  const odf = window.defenseDetector?.odf;
-                  const rf = window.clinicalProfiler?.mentalization.rf_global;
-                  if (odf == null || rf == null) return null;
-                  if (odf < 3 && rf > 6)
-                      return { type: 'divergence', sev: 'high',
-                          msg: `ODF bas(${odf.toFixed(1)}) mais RF élevée(${rf.toFixed(1)})`,
-                          tip: 'Pseudomentalisation possible — tester mentalisation sous stress' };
-                  return null;
-              }
-            },
-            // R6: Locus interne + Schéma échec (tension)
-            { id: 'R6', name: 'InternalLocus×FailureSchema',
-              check: () => {
-                  const li = window.clinicalProfiler?.locusOfControl.internal.score;
-                  const fs = window.schemaDetector?.schemas?.failure?.score;
-                  if (li == null || fs == null) return null;
-                  if (li > 0.65 && fs >= 3)
-                      return { type: 'tension', sev: 'moderate',
-                          msg: `Locus interne fort(${li.toFixed(2)}) + schéma échec(${fs}/6)`,
-                          tip: 'Sentiment de contrôle mais auto-attribution d\'échec — explorer auto-exigence' };
-                  return null;
-              }
-            },
-            // R7: Coping évitant + Schema.emotional_inhibition
-            { id: 'R7', name: 'AvoidCoping×EmotInhibition',
-              check: () => {
-                  const av = window.clinicalProfiler?.copingStyles.avoidance_distraction.score;
-                  const ei = window.schemaDetector?.schemas?.emotional_inhibition?.score;
-                  if (av == null || ei == null) return null;
-                  if (av > 0.6 && ei >= 3)
-                      return { type: 'convergence', sev: 'moderate',
-                          msg: `Coping évitant(${av.toFixed(2)}) + Inhibition émotionnelle(${ei}/6)`,
-                          tip: 'Pattern de restriction — technique d\'exploration émotionnelle graduée' };
-                  return null;
-              }
-            },
-            // R8: Empathie élevée + Personal distress élevée (profil à risque burnout)
-            { id: 'R8', name: 'EmpathyConcern×PersonalDistress',
-              check: () => {
-                  const ec = window.clinicalProfiler?.empathy.empathic_concern.score;
-                  const pd = window.clinicalProfiler?.empathy.personal_distress.score;
-                  if (ec == null || pd == null) return null;
-                  if (ec > 0.65 && pd > 0.6)
-                      return { type: 'risk', sev: 'moderate',
-                          msg: `Empathie élevée(${ec.toFixed(2)}) + Détresse perso(${pd.toFixed(2)})`,
-                          tip: 'Profil à risque d\'épuisement empathique/burnout' };
-                  return null;
-              }
-            },
-            // R9: SDT autonomie élevée + Locus externe (contradiction motivationnelle)
-            { id: 'R9', name: 'SDTautonomy×ExternalLocus',
-              check: () => {
-                  const a = window.motivationAnalyzer?.sdt.autonomy.score;
-                  const le = window.clinicalProfiler ? Math.max(
-                      window.clinicalProfiler.locusOfControl.chance.score,
-                      window.clinicalProfiler.locusOfControl.powerful_others.score) : null;
-                  if (a == null || le == null) return null;
-                  if (a > 0.65 && le > 0.6)
-                      return { type: 'contradiction', sev: 'moderate',
-                          msg: `SDT.Autonomie(${a.toFixed(2)}) mais Locus externe(${le.toFixed(2)})`,
-                          tip: 'Désir d\'autonomie frustré ou idéalisé — explorer les situations concrètes' };
-                  return null;
-              }
-            },
-            // R10: Résilience élevée + Multiple schémas actifs (compensation vs résilience vraie)
-            { id: 'R10', name: 'Resilience×ActiveSchemas',
-              check: () => {
-                  const r = window.clinicalProfiler?.resilience.global;
-                  const as = window.schemaDetector?.getActiveSchemas()?.length;
-                  if (r == null || as == null) return null;
-                  if (r > 0.65 && as >= 5)
-                      return { type: 'tension', sev: 'moderate',
-                          msg: `Résilience(${r.toFixed(2)}) mais ${as} schémas actifs`,
-                          tip: 'Résilience comme compensation ou résilience authentique ? Explorer avec des exemples concrets' };
-                  return null;
-              }
-            },
-            // R11: Rumination élevée + Suppression élevée (double risque régulation)
-            { id: 'R11', name: 'Rumination×Suppression',
-              check: () => {
-                  const ru = window.clinicalProfiler?.emotionRegulation.rumination.score;
-                  const su = window.clinicalProfiler?.emotionRegulation.expressive_suppression.score;
-                  if (ru == null || su == null) return null;
-                  if (ru > 0.6 && su > 0.6)
-                      return { type: 'risk', sev: 'high',
-                          msg: `Rumination(${ru.toFixed(2)}) + Suppression(${su.toFixed(2)})`,
-                          tip: 'Double stratégie maladaptive — risque anxieux/dépressif significatif' };
-                  return null;
-              }
-            },
-            // R12: LIWC affect faible + Alexithymie élevée (convergence)
-            { id: 'R12', name: 'LowAffect×Alexithymia',
-              check: () => {
-                  const ling = window.linguisticAnalyzer?.getCumulativeProfile();
-                  const ax = window.clinicalProfiler?.alexithymia.global;
-                  if (!ling || ax == null) return null;
-                  const totalEmo = (ling.posEmotion?.count || 0) + (ling.negEmotion?.count || 0);
-                  if (totalEmo < 3 && ax > 0.55)
-                      return { type: 'convergence', sev: 'high',
-                          msg: `Affect verbal pauvre (${totalEmo} mots émo) + Alexithymie(${ax.toFixed(2)})`,
-                          tip: 'Convergence linguistique-clinique : difficulté émotionnelle confirmée' };
-                  return null;
-              }
-            }
-        ];
-    }
-
-    validate(questionNumber = 0) {
-        this.alerts = [];
-        for (const rule of this.rules) {
-            try {
-                const result = rule.check();
-                if (result) {
-                    this.alerts.push({ id: rule.id, name: rule.name, ...result });
-                }
-            } catch (e) { /* Module pas encore prêt */ }
-        }
-
-        const contradictions = this.alerts.filter(a => a.type === 'contradiction').length;
-        const divergences = this.alerts.filter(a => a.type === 'divergence').length;
-        const risks = this.alerts.filter(a => a.type === 'risk').length;
-        this.coherenceScore = Math.max(0, 1 - (contradictions * 0.15 + divergences * 0.07 + risks * 0.05));
-
-        if (this.alerts.length > 0) {
-            this.validationLog.push({ q: questionNumber, a: this.alerts.length, c: this.coherenceScore });
-            console.log(`[CrossValidator] ⚡ ${this.alerts.length} alertes, cohérence=${this.coherenceScore.toFixed(2)}`);
-        }
-        return { alerts: this.alerts, coherenceScore: this.coherenceScore };
-    }
-
-    getPromptSummary() {
-        const high = this.alerts.filter(a => a.sev === 'high');
-        if (high.length === 0) return '';
-        return '\n⚠️ ALERTES CLINIQUES: ' + high.map(a => a.msg + ' → ' + a.tip).join(' | ');
-    }
-
-    toJSON() { return { validationLog: this.validationLog, alerts: this.alerts, coherenceScore: this.coherenceScore }; }
-    fromJSON(d) { if (d) { this.validationLog = d.validationLog || []; this.alerts = d.alerts || []; this.coherenceScore = d.coherenceScore || 1.0; } }
-}
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ V19 CLINICAL GRADE — MODULE 3: NormativeComparator                    ║
-// ║ Normes populationnelles FR, percentiles, z-scores, IC95%              ║
-// ║ Références: études normatives françaises publiées                     ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-class NormativeComparator {
-    constructor() {
-        // Normes FR (mean, sd) échelle 0-1 sauf mention contraire
-        this.norms = {
-            hexaco_H: { mean: 0.55, sd: 0.15, ref: 'Boies 2004 FR' },
-            hexaco_E: { mean: 0.52, sd: 0.16, ref: 'Boies 2004 FR' },
-            hexaco_X: { mean: 0.55, sd: 0.14, ref: 'Boies 2004 FR' },
-            hexaco_A: { mean: 0.50, sd: 0.15, ref: 'Boies 2004 FR' },
-            hexaco_C: { mean: 0.57, sd: 0.13, ref: 'Boies 2004 FR' },
-            hexaco_O: { mean: 0.54, sd: 0.15, ref: 'Boies 2004 FR' },
-            attach_anxiety:   { mean: 0.35, sd: 0.18, ref: 'Fraley ECR-R FR' },
-            attach_avoidance: { mean: 0.38, sd: 0.17, ref: 'Fraley ECR-R FR' },
-            defense_odf: { mean: 0.64, sd: 0.12, ref: 'Perry DMRS' },
-            resilience:  { mean: 0.60, sd: 0.14, ref: 'CD-RISC FR Notario-Pacheco 2011' },
-            alexithymia: { mean: 0.42, sd: 0.13, ref: 'TAS-20 FR Loas 2001' },
-            empathy_pt:  { mean: 0.58, sd: 0.12, ref: 'IRI FR Gilet 2013' },
-            empathy_ec:  { mean: 0.60, sd: 0.13, ref: 'IRI FR Gilet 2013' },
-            empathy_pd:  { mean: 0.40, sd: 0.14, ref: 'IRI FR Gilet 2013' },
-            rf_global:   { mean: 5.0, sd: 1.5, ref: 'RF Scale Fonagy', scale: '1-9' },
-            er_reappraisal:  { mean: 0.58, sd: 0.13, ref: 'ERQ FR Christophe 2009' },
-            er_suppression:  { mean: 0.42, sd: 0.15, ref: 'ERQ FR Christophe 2009' },
-            dt_narcissism: { mean: 0.45, sd: 0.14, ref: 'SD3 norms' },
-            dt_machiavel:  { mean: 0.40, sd: 0.13, ref: 'SD3 norms' },
-            dt_psycho:     { mean: 0.30, sd: 0.12, ref: 'SD3 norms' }
-        };
-        console.log('[NormativeComparator] ✅ 20 normes FR avec références publiées');
-    }
-
-    zScore(score, normKey) {
-        const n = this.norms[normKey];
-        if (!n) return null;
-        const z = (score - n.mean) / n.sd;
-        const p = this._zToPercentile(z);
-        return {
-            raw: parseFloat(score.toFixed(3)),
-            z_score: parseFloat(z.toFixed(2)),
-            percentile: Math.round(p),
-            interpretation: p <= 5 ? 'très bas' : p <= 20 ? 'bas' : p <= 40 ? 'inférieur moyenne' :
-                           p <= 60 ? 'moyenne' : p <= 80 ? 'supérieur moyenne' : p <= 95 ? 'élevé' : 'très élevé',
-            confidence_interval: {
-                low: parseFloat(Math.max(0, score - 1.96 * n.sd / Math.sqrt(8)).toFixed(3)),
-                high: parseFloat(Math.min(1, score + 1.96 * n.sd / Math.sqrt(8)).toFixed(3))
-            },
-            ref: n.ref
-        };
-    }
-
-    _zToPercentile(z) {
-        const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
-        const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
-        const sign = z < 0 ? -1 : 1;
-        const x = Math.abs(z) / Math.sqrt(2);
-        const t = 1.0 / (1.0 + p * x);
-        const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-        return (0.5 * (1.0 + sign * y)) * 100;
-    }
-
-    /** Profil normatif complet pour le brain export */
-    generateFullProfile() {
-        const profile = {};
-        if (window.hexacoAnalyzer) {
-            for (const [k, d] of Object.entries(window.hexacoAnalyzer.dimensions))
-                profile['hexaco_' + k] = this.zScore(d.globalScore, 'hexaco_' + k);
-        }
-        if (window.attachmentAnalyzer) {
-            profile.attach_anxiety = this.zScore(window.attachmentAnalyzer.anxietyScore / 7, 'attach_anxiety');
-            profile.attach_avoidance = this.zScore(window.attachmentAnalyzer.avoidanceScore / 7, 'attach_avoidance');
-        }
-        if (window.defenseDetector) profile.defense_odf = this.zScore(window.defenseDetector.odf / 7, 'defense_odf');
-        if (window.clinicalProfiler) {
-            const cp = window.clinicalProfiler;
-            profile.resilience = this.zScore(cp.resilience.global, 'resilience');
-            profile.alexithymia = this.zScore(cp.alexithymia.global, 'alexithymia');
-            profile.empathy_pt = this.zScore(cp.empathy.perspective_taking.score, 'empathy_pt');
-            profile.empathy_ec = this.zScore(cp.empathy.empathic_concern.score, 'empathy_ec');
-            profile.empathy_pd = this.zScore(cp.empathy.personal_distress.score, 'empathy_pd');
-            profile.rf_global = this.zScore(cp.mentalization.rf_global, 'rf_global');
-            profile.er_reappraisal = this.zScore(cp.emotionRegulation.reappraisal.score, 'er_reappraisal');
-            profile.er_suppression = this.zScore(cp.emotionRegulation.expressive_suppression.score, 'er_suppression');
-            profile.dt_narcissism = this.zScore(cp.darkTriad.narcissism.score, 'dt_narcissism');
-            profile.dt_machiavel = this.zScore(cp.darkTriad.machiavellianism.score, 'dt_machiavel');
-            profile.dt_psycho = this.zScore(cp.darkTriad.psychopathy.score, 'dt_psycho');
-        }
-        return profile;
-    }
-
-    toJSON() { return { norms: this.norms }; }
-    fromJSON() { /* normes statiques */ }
-}
-
-window.clinicalProfiler = new ClinicalProfiler();
-window.crossValidator = new CrossValidator();
-window.normativeComparator = new NormativeComparator();
-
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ V19 CLINICAL GRADE — BiasCorrector                                    ║
-// ║ Corrige les scores de personnalité pour neutraliser les biais          ║
-// ║ d'interview : timidité, gêne technologique, désirabilité sociale,     ║
-// ║ réponses courtes, inhibition face à la machine.                        ║
-// ║                                                                        ║
-// ║ Principe : le profil brut est biaisé par la POSTURE d'interview.       ║
-// ║ Le BiasCorrector produit un profil AJUSTÉ qui estime la vraie          ║
-// ║ personnalité en soustrayant l'effet des biais détectés.                ║
-// ║                                                                        ║
-// ║ Méthode inspirée : échelles de validité MMPI-2 (L, K, F),             ║
-// ║ correction K du MMPI, Balanced Inventory of Desirable Responding       ║
-// ║ (Paulhus 1998), et travaux sur les biais de méthode (Podsakoff 2003)  ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
-class BiasCorrector {
-    constructor() {
-        // Matrice d'impact : quel biais affecte quels scores, dans quelle direction
-        // direction: 'inflate' = le biais gonfle artificiellement ce score
-        //            'deflate' = le biais réduit artificiellement ce score
-        //            'noise'   = le biais ajoute du bruit (réponses pauvres)
-        this.impactMatrix = {
-            // ═══ TECHNO-INHIBITION / TIMIDITÉ MACHINE ═══
-            // La personne est intimidée → réponses courtes, peu émotionnelles, peu de "je"
-            techno_inhibition: [
-                { module: 'hexaco', dim: 'X', effect: 'deflate', weight: 0.5 },     // Extraversion sous-estimée
-                { module: 'hexaco', dim: 'E', effect: 'noise', weight: 0.3 },       // Émotivité bruitée
-                { module: 'hexaco', dim: 'O', effect: 'deflate', weight: 0.3 },     // Ouverture sous-estimée
-                { module: 'clinical', dim: 'alexithymia', effect: 'inflate', weight: 0.6 }, // Fausse alexithymie
-                { module: 'clinical', dim: 'empathy', effect: 'deflate', weight: 0.3 },     // Empathie non-exprimée
-                { module: 'clinical', dim: 'mentalization', effect: 'deflate', weight: 0.4 }, // RF sous-estimée
-                { module: 'clinical', dim: 'resilience', effect: 'noise', weight: 0.2 },
-                { module: 'attachment', dim: 'avoidance', effect: 'inflate', weight: 0.3 },  // Fausse évitement
-                { module: 'linguistic', dim: 'emotionalTone', effect: 'deflate', weight: 0.5 }, // Pauvreté émotionnelle
-            ],
-
-            // ═══ ANXIÉTÉ DE PERFORMANCE ═══
-            // Veut "bien répondre" → réponses socialement acceptables, prudentes
-            performance_anxiety: [
-                { module: 'hexaco', dim: 'H', effect: 'inflate', weight: 0.4 },     // Honnêteté gonflée
-                { module: 'hexaco', dim: 'A', effect: 'inflate', weight: 0.3 },     // Agréabilité gonflée
-                { module: 'hexaco', dim: 'C', effect: 'inflate', weight: 0.3 },     // Conscienciosité gonflée
-                { module: 'clinical', dim: 'darkTriad', effect: 'deflate', weight: 0.5 },   // DT masqué
-                { module: 'defense', dim: 'odf', effect: 'inflate', weight: 0.2 },  // Défenses semblent matures
-                { module: 'schema', dim: 'global', effect: 'deflate', weight: 0.3 }, // Schémas sous-déclarés
-            ],
-
-            // ═══ DÉSIRABILITÉ SOCIALE — IMPRESSION MANAGEMENT ═══
-            // Manipulation délibérée d'image → surévalue positif, cache négatif
-            social_desirability_im: [
-                { module: 'hexaco', dim: 'H', effect: 'inflate', weight: 0.6 },
-                { module: 'hexaco', dim: 'A', effect: 'inflate', weight: 0.5 },
-                { module: 'hexaco', dim: 'C', effect: 'inflate', weight: 0.4 },
-                { module: 'hexaco', dim: 'X', effect: 'inflate', weight: 0.3 },
-                { module: 'hexaco', dim: 'E', effect: 'deflate', weight: 0.3 },     // Cache émotivité
-                { module: 'clinical', dim: 'darkTriad', effect: 'deflate', weight: 0.7 },
-                { module: 'schema', dim: 'global', effect: 'deflate', weight: 0.5 },
-                { module: 'defense', dim: 'odf', effect: 'inflate', weight: 0.4 },
-                { module: 'clinical', dim: 'resilience', effect: 'inflate', weight: 0.4 },
-                { module: 'clinical', dim: 'locusInternal', effect: 'inflate', weight: 0.3 },
-            ],
-
-            // ═══ DÉSIRABILITÉ SOCIALE — SELF-DECEPTION ═══
-            social_desirability_sd: [
-                { module: 'hexaco', dim: 'H', effect: 'inflate', weight: 0.3 },
-                { module: 'clinical', dim: 'resilience', effect: 'inflate', weight: 0.5 },
-                { module: 'clinical', dim: 'alexithymia', effect: 'inflate', weight: 0.3 }, // Ne voit pas ses propres émotions
-                { module: 'schema', dim: 'global', effect: 'deflate', weight: 0.4 },
-            ],
-
-            // ═══ ACQUIESCENCE ═══
-            // Dit oui à tout → scores gonflés dans toutes les directions positives
-            acquiescence: [
-                { module: 'hexaco', dim: 'A', effect: 'inflate', weight: 0.5 },
-                { module: 'hexaco', dim: 'H', effect: 'inflate', weight: 0.3 },
-                { module: 'clinical', dim: 'empathy', effect: 'inflate', weight: 0.3 },
-            ],
-
-            // ═══ RÉPONSES VAGUES / MIDPOINT ═══
-            // Réponses pauvres → données insuffisantes = bruit sur tout
-            midpoint_responding: [
-                { module: 'hexaco', dim: 'X', effect: 'noise', weight: 0.4 },
-                { module: 'hexaco', dim: 'O', effect: 'noise', weight: 0.4 },
-                { module: 'clinical', dim: 'mentalization', effect: 'deflate', weight: 0.5 },
-                { module: 'clinical', dim: 'alexithymia', effect: 'inflate', weight: 0.4 },
-                { module: 'attachment', dim: 'coherence', effect: 'deflate', weight: 0.3 },
-            ],
-
-            // ═══ EXTREME RESPONDING ═══
-            extreme_responding: [
-                { module: 'hexaco', dim: 'E', effect: 'inflate', weight: 0.3 },
-                { module: 'clinical', dim: 'darkTriad', effect: 'inflate', weight: 0.2 },
-            ]
-        };
-
-        console.log('[BiasCorrector] ✅ Matrice d\'impact 6 biais × 45 effets');
-    }
-
-    /**
-     * Produit un profil de correction basé sur les biais détectés.
-     * Retourne un objet { dimension: correctionFactor } à appliquer.
-     * 
-     * correctionFactor > 0 : le score brut est probablement SOUS-estimé → augmenter
-     * correctionFactor < 0 : le score brut est probablement SUR-estimé → diminuer
-     * correctionFactor = 0 : pas de correction nécessaire
-     *
-     * L'amplitude est proportionnelle à l'intensité du biais détecté.
-     */
-    computeCorrections() {
-        if (!window.biasDetector || !window.acclimatizer) return null;
-
-        const bp = window.biasDetector.getBiasProfile();
-        const comfort = window.acclimatizer.comfort.score;
-        const corrections = {};
-
-        // Intensités des biais détectés (0-1)
-        const biasIntensities = {
-            techno_inhibition: bp.techno_inhibition,
-            performance_anxiety: bp.performance_anxiety,
-            social_desirability_im: bp.social_desirability.impression_management,
-            social_desirability_sd: bp.social_desirability.self_deception,
-            acquiescence: bp.acquiescence,
-            midpoint_responding: bp.midpoint_responding,
-            extreme_responding: bp.extreme_responding
-        };
-
-        // Facteur d'inconfort global (0 = très à l'aise, 1 = très mal à l'aise)
-        const discomfort = Math.max(0, 1 - comfort / 100);
-
-        // La techno-inhibition est amplifiée par l'inconfort général
-        biasIntensities.techno_inhibition = Math.min(1,
-            biasIntensities.techno_inhibition + discomfort * 0.3);
-
-        // Appliquer la matrice d'impact
-        for (const [biasName, impacts] of Object.entries(this.impactMatrix)) {
-            const intensity = biasIntensities[biasName] || 0;
-            if (intensity < 0.15) continue; // Seuil minimum pour corriger
-
-            for (const impact of impacts) {
-                const key = `${impact.module}.${impact.dim}`;
-                if (!corrections[key]) corrections[key] = { inflate: 0, deflate: 0, noise: 0 };
-
-                const magnitude = intensity * impact.weight;
-
-                if (impact.effect === 'inflate') {
-                    // Score artificiellement gonflé → correction négative
-                    corrections[key].inflate += magnitude;
-                } else if (impact.effect === 'deflate') {
-                    // Score artificiellement réduit → correction positive
-                    corrections[key].deflate += magnitude;
-                } else {
-                    // Bruit → augmenter l'intervalle de confiance
-                    corrections[key].noise += magnitude;
-                }
-            }
-        }
-
-        // Convertir en facteurs de correction finaux
-        const result = {};
-        for (const [key, corr] of Object.entries(corrections)) {
-            // Le score brut est (inflate - deflate) → correction inverse
-            const adjustment = -corr.inflate + corr.deflate;
-            // Plafond la correction à ±0.25 (jamais plus de 25% de l'échelle)
-            const capped = Math.max(-0.25, Math.min(0.25, adjustment * 0.4));
-            const confidenceReduction = corr.noise * 0.3; // Bruit réduit la confiance
-
-            result[key] = {
-                adjustment: parseFloat(capped.toFixed(3)),
-                confidenceReduction: parseFloat(confidenceReduction.toFixed(3)),
-                rawInflate: parseFloat(corr.inflate.toFixed(3)),
-                rawDeflate: parseFloat(corr.deflate.toFixed(3)),
-                rawNoise: parseFloat(corr.noise.toFixed(3))
-            };
-        }
-
-        return result;
-    }
-
-    /**
-     * Applique les corrections et produit un profil débiaisé.
-     * Retourne { raw: {}, adjusted: {}, corrections: {}, reliability: {} }
-     */
-    getDebiasedProfile() {
-        const corrections = this.computeCorrections();
-        if (!corrections) return null;
-
-        const debiased = {
-            corrections: corrections,
-            hexaco: this._debiasHEXACO(corrections),
-            clinical: this._debiasClinical(corrections),
-            reliability: this._computeReliability(corrections),
-            metadata: {
-                biasesDetected: Object.entries(corrections).filter(([k, v]) =>
-                    Math.abs(v.adjustment) > 0.02).length,
-                maxCorrection: Math.max(...Object.values(corrections).map(v => Math.abs(v.adjustment))),
-                overallReliability: 1.0 // Calculé ci-dessous
-            }
-        };
-
-        // Reliability globale
-        const noiseTotal = Object.values(corrections).reduce((s, v) => s + v.confidenceReduction, 0);
-        debiased.metadata.overallReliability = parseFloat(Math.max(0.3, 1 - noiseTotal * 0.1).toFixed(2));
-
-        return debiased;
-    }
-
-    _debiasHEXACO(corrections) {
-        if (!window.hexacoAnalyzer) return null;
-        const result = {};
-        for (const [key, dim] of Object.entries(window.hexacoAnalyzer.dimensions)) {
-            const corr = corrections[`hexaco.${key}`];
-            const raw = dim.globalScore;
-            const adjusted = corr ?
-                Math.max(0, Math.min(1, raw + corr.adjustment)) : raw;
-            result[key] = {
-                raw: parseFloat(raw.toFixed(3)),
-                adjusted: parseFloat(adjusted.toFixed(3)),
-                correction: corr ? corr.adjustment : 0,
-                confidence: corr ? Math.max(0.3, dim.confidence / 100 - corr.confidenceReduction) :
-                    dim.confidence / 100
-            };
-        }
-        return result;
-    }
-
-    _debiasClinical(corrections) {
-        if (!window.clinicalProfiler) return null;
-        const cp = window.clinicalProfiler;
-        const result = {};
-
-        // Alexithymie
-        const axCorr = corrections['clinical.alexithymia'];
-        result.alexithymia = {
-            raw: cp.alexithymia.global,
-            adjusted: axCorr ? Math.max(0, Math.min(1, cp.alexithymia.global + axCorr.adjustment)) :
-                cp.alexithymia.global,
-            correction: axCorr?.adjustment || 0,
-            note: axCorr && axCorr.rawInflate > 0.15 ?
-                'Score possiblement gonflé par inhibition — la vraie alexithymie est probablement plus basse' : null
-        };
-
-        // Mentalisation RF
-        const rfCorr = corrections['clinical.mentalization'];
-        result.mentalization = {
-            raw: cp.mentalization.rf_global,
-            adjusted: rfCorr ? Math.max(1, Math.min(9, cp.mentalization.rf_global + rfCorr.adjustment * 8)) :
-                cp.mentalization.rf_global,
-            correction: rfCorr?.adjustment || 0,
-            note: rfCorr && rfCorr.rawDeflate > 0.15 ?
-                'RF probablement sous-estimée — le sujet mentalise peut-être mieux qu\'il ne l\'exprime' : null
-        };
-
-        // Dark Triad
-        const dtCorr = corrections['clinical.darkTriad'];
-        result.darkTriad = {
-            raw: (cp.darkTriad.narcissism.score + cp.darkTriad.machiavellianism.score + cp.darkTriad.psychopathy.score) / 3,
-            adjusted: dtCorr ? Math.max(0, Math.min(1,
-                (cp.darkTriad.narcissism.score + cp.darkTriad.machiavellianism.score + cp.darkTriad.psychopathy.score) / 3 + dtCorr.adjustment)) : null,
-            correction: dtCorr?.adjustment || 0,
-            note: dtCorr && dtCorr.rawDeflate > 0.2 ?
-                'Traits sombres possiblement masqués par désirabilité sociale — profil à prendre avec prudence' : null
-        };
-
-        // Empathie
-        const empCorr = corrections['clinical.empathy'];
-        result.empathy = {
-            raw: cp.empathy.empathic_concern.score,
-            adjusted: empCorr ? Math.max(0, Math.min(1, cp.empathy.empathic_concern.score + empCorr.adjustment)) :
-                cp.empathy.empathic_concern.score,
-            correction: empCorr?.adjustment || 0
-        };
-
-        // Résilience
-        const resCorr = corrections['clinical.resilience'];
-        result.resilience = {
-            raw: cp.resilience.global,
-            adjusted: resCorr ? Math.max(0, Math.min(1, cp.resilience.global + resCorr.adjustment)) :
-                cp.resilience.global,
-            correction: resCorr?.adjustment || 0
-        };
-
-        return result;
-    }
-
-    _computeReliability(corrections) {
-        const dims = {};
-        for (const [key, corr] of Object.entries(corrections)) {
-            const noise = corr.confidenceReduction;
-            const totalBias = Math.abs(corr.adjustment);
-            dims[key] = {
-                reliability: parseFloat(Math.max(0.3, 1 - noise - totalBias * 0.5).toFixed(2)),
-                flag: totalBias > 0.15 ? 'low_confidence' : totalBias > 0.08 ? 'moderate' : 'good'
-            };
-        }
-        return dims;
-    }
-
-    /** Résumé pour le prompt Claude */
-    getPromptSummary() {
-        const corrections = this.computeCorrections();
-        if (!corrections) return '';
-
-        const significantCorr = Object.entries(corrections)
-            .filter(([k, v]) => Math.abs(v.adjustment) > 0.05);
-
-        if (significantCorr.length === 0) return '';
-
-        const warnings = significantCorr.map(([key, v]) => {
-            const dir = v.adjustment > 0 ? '↑sous-estimé' : '↓sur-estimé';
-            return `${key}(${dir} ${(Math.abs(v.adjustment)*100).toFixed(0)}%)`;
-        });
-
-        return '\n🔧 CORRECTIONS BIAIS: ' + warnings.join(', ') +
-            ' — Adapter les questions pour obtenir des données non-biaisées sur ces dimensions.';
-    }
-
-    toJSON() {
-        return {
-            corrections: this.computeCorrections(),
-            debiasedProfile: this.getDebiasedProfile()
-        };
-    }
-
-    fromJSON() { /* Recalculé à la volée depuis BiasDetector + Acclimatizer */ }
-}
-
-window.biasCorrector = new BiasCorrector();
-console.log('[V19] ✅ Clinical Grade: 10 modules (7 base + 3 cliniques) initialisés');
+console.log('[V19] ✅ Phase 1-3: All 7 analysis modules initialized');
 
 
 class ConversationalSystem {
@@ -13090,12 +11520,6 @@ class ConversationalSystem {
         this.attachmentAnalyzer = window.attachmentAnalyzer;
         this.hexacoAnalyzer = window.hexacoAnalyzer;
         this.motivationAnalyzer = window.motivationAnalyzer;
-        this.clinicalProfiler = window.clinicalProfiler;
-        this.crossValidator = window.crossValidator;
-        this.normativeComparator = window.normativeComparator;
-        this.acclimatizer = window.acclimatizer;
-        this.biasDetector = window.biasDetector;
-        this.biasCorrector = window.biasCorrector;
         
         // État conversation
         this.messages = [];
@@ -13892,36 +12316,6 @@ Sous-dimensions faibles : ${nextTarget.weakestSubs.map(s => s.name + '(' + Math.
             motivationSection = '\nMOTIVATIONS : ' + window.motivationAnalyzer.getPromptSummary() + '\n';
         }
         
-        // V19 CLINICAL: Profil clinique dans prompt
-        let clinicalSection = '';
-        if (window.clinicalProfiler && window.clinicalProfiler.responseCount >= 3) {
-            clinicalSection = '\nCLINIQUE : ' + window.clinicalProfiler.getPromptSummary() + '\n';
-        }
-        
-        // V19 CLINICAL: Alertes triangulation
-        let crossValSection = '';
-        if (window.crossValidator) {
-            crossValSection = window.crossValidator.getPromptSummary();
-        }
-        
-        // V19 CLINICAL: Acclimatation — phase et consignes de profondeur
-        let acclimatSection = '';
-        if (window.acclimatizer) {
-            acclimatSection = '\nACCLIMATATION : ' + window.acclimatizer.getPromptSummary() + '\n';
-        }
-        
-        // V19 CLINICAL: Biais détectés — consignes d'adaptation
-        let biasSection = '';
-        if (window.biasDetector) {
-            biasSection = window.biasDetector.getPromptSummary();
-        }
-        
-        // V19 CLINICAL: Corrections de biais — dimensions à explorer davantage
-        let biasCorrSection = '';
-        if (window.biasCorrector && this.questionCount >= 8) {
-            biasCorrSection = window.biasCorrector.getPromptSummary();
-        }
-        
         const prompt = `Tu es un psychologue expert menant une interview pour créer un clone de personnalité ultra-précis.
 
 ÉTAT CONVERSATION :
@@ -13936,7 +12330,7 @@ ${recentSummary}
 BIG FIVE (0-1) : O:${analysis.bigFive.openness.toFixed(2)} C:${analysis.bigFive.conscientiousness.toFixed(2)} E:${analysis.bigFive.extraversion.toFixed(2)} A:${analysis.bigFive.agreeableness.toFixed(2)} N:${analysis.bigFive.neuroticism.toFixed(2)}
 
 CONTRADICTIONS : ${analysis.contradictions.length > 0 ? analysis.contradictions.join(', ') : 'Aucune'}
-${reticenceSection}${schemasSection}${defensesSection}${attachmentSection}${hexacoSection}${motivationSection}${clinicalSection}${crossValSection}${acclimatSection}${biasSection}${biasCorrSection}
+${reticenceSection}${schemasSection}${defensesSection}${attachmentSection}${hexacoSection}${motivationSection}
 PRIORITÉS :
 ${priorities.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 
@@ -14202,16 +12596,6 @@ QUESTION :`;
             }
         }
         
-        // V19 CLINICAL: Acclimatation — détection confort (AVANT analyse profonde)
-        if (window.acclimatizer) {
-            window.acclimatizer.processResponse(text, this.questionCount, lingResult);
-        }
-        
-        // V19 CLINICAL: Biais de réponse — détection (désirabilité, techno-inhibition, etc.)
-        if (window.biasDetector) {
-            window.biasDetector.processResponse(text, this.questionCount);
-        }
-        
         // V19 PHASE 2.1: SCHEMA DETECTION (Pilier 2 — Young)
         if (window.schemaDetector) {
             const lastAssistantMsg = this.messages.slice().reverse().find(m => m.role === 'assistant');
@@ -14295,16 +12679,6 @@ QUESTION :`;
             }
         }
         
-        // V19 CLINICAL: ClinicalProfiler (8 construits cliniques)
-        if (window.clinicalProfiler) {
-            window.clinicalProfiler.processResponse(text, this.questionCount);
-        }
-        
-        // V19 CLINICAL: CrossValidator (triangulation inter-modules)
-        if (window.crossValidator && this.questionCount >= 5) {
-            window.crossValidator.validate(this.questionCount);
-        }
-        
         // V19: Feed BigFive preliminary scores into PCTracker
         if (this.pcTracker) {
             this.pcTracker.feedFromBigFive(this.bigFivePreliminary);
@@ -14379,9 +12753,8 @@ QUESTION :`;
      */
     shouldEndInterview() {
         if (!this.pcTracker) {
-            // Fallback sans pcTracker : jamais de fin forcée, on continue
-            // L'interview se termine uniquement via checkEndCriteria (concordance + thèmes)
-            return false;
+            // Fallback: au moins 30 questions + thèmes OK
+            return this.questionCount >= 30 && this.exploredThemes.size >= this.MIN_THEMES;
         }
         
         const dashboard = this.pcTracker.getDashboardData();
@@ -14853,8 +13226,6 @@ function startRealtimeVideoAnalysis(videoElement) {
                 };
                 
                 videoDetections.push(detectionData);
-                // Ring buffer: garder max 500 entrées pour éviter memory leak en longue interview
-                if (videoDetections.length > 500) videoDetections.splice(0, videoDetections.length - 500);
                 
                 // Logs périodiques (tous les 10 détections)
                 if (videoDetections.length % 10 === 0) {
@@ -15004,8 +13375,6 @@ async function startRealtimeAudioAnalysis(mediaStream) {
                 };
                 
                 audioFeatures.push(featureData);
-                // Ring buffer: garder max 500 entrées pour éviter memory leak en longue interview
-                if (audioFeatures.length > 500) audioFeatures.splice(0, audioFeatures.length - 500);
                 
                 // Logs périodiques (toutes les 50 extractions)
                 if (audioFeatures.length % 50 === 0) {
@@ -16715,12 +15084,10 @@ function startSimulatedAnalysis() {
             // Élément features-display supprimé (interface épurée)
         }
         
-        // Store (ring buffer: max 300 pour longues interviews)
+        // Store
         state.analysisData.audio.push(features.audio);
-        if (state.analysisData.audio.length > 300) state.analysisData.audio.splice(0, state.analysisData.audio.length - 300);
         if (features.video) {
             state.analysisData.video.push(features.video);
-            if (state.analysisData.video.length > 300) state.analysisData.video.splice(0, state.analysisData.video.length - 300);
         }
         
     }, 500); // Update every 500ms
@@ -27392,17 +25759,7 @@ class BrainBuilderUltimate {
                 // QUALITÉ & ÉVOLUTION
                 data_quality: await this.assessDataQuality(),
                 calibration: this.buildCalibration(),
-                evolution_tracking: this.buildEvolutionTracking(),
-                
-                // V19: PERSONNALITÉ PROFONDE (7 piliers)
-                v19_personality: typeof buildV19PersonalityBlock === 'function' ? buildV19PersonalityBlock() : null,
-                cloneConfig: typeof buildV19CloneConfig === 'function' ? buildV19CloneConfig() : null,
-                v19_completeness: window.personalityTracker ? {
-                    global: Math.round(window.personalityTracker.getGlobalCompleteness()),
-                    isComplete: window.personalityTracker.isComplete(),
-                    sessionCount: window.personalityTracker.sessionNumber,
-                    totalQuestions: window.personalityTracker.questionCount
-                } : null
+                evolution_tracking: this.buildEvolutionTracking()
             };
             
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -30504,11 +28861,7 @@ function v19PauseExport() {
             defenses: window.defenseDetector ? window.defenseDetector.toJSON() : null,
             attachment: window.attachmentAnalyzer ? window.attachmentAnalyzer.toJSON() : null,
             hexaco: window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null,
-            motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null,
-            clinical: window.clinicalProfiler ? window.clinicalProfiler.toJSON() : null,
-            crossValidation: window.crossValidator ? window.crossValidator.toJSON() : null,
-            acclimatizer: window.acclimatizer ? window.acclimatizer.toJSON() : null,
-            biasDetector: window.biasDetector ? window.biasDetector.toJSON() : null
+            motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null
         },
         config: {
             voiceMode: window.state?.ttsMode || 'unknown',
@@ -30546,110 +28899,239 @@ function v19PauseExport() {
     });
 }
 
+// ═══ V19 FIX: Reprise de session depuis l'écran d'accueil ═══
+// Problème: l'ancien code supposait que ConversationalSystem existait déjà
+// Fix: on initialise TOUT le système, PUIS on restaure les données
+
+async function v19ResumeFromWelcome(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileInput.value = '';
+    
+    console.log('[V19-FIX] 📥 Resume from welcome screen:', file.name);
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const sessionState = JSON.parse(e.target.result);
+            
+            // Validation
+            if (!sessionState.version && !sessionState.completeness && !sessionState.conversation) {
+                alert('Format de session non reconnu. Fichier V19 requis.');
+                return;
+            }
+            
+            console.log('[V19-FIX] Session loaded:', {
+                version: sessionState.version,
+                questions: sessionState.conversation?.questionCount,
+                messages: sessionState.conversation?.messages?.length,
+                status: sessionState.status
+            });
+            
+            // 1. INITIALISER L'ENVIRONNEMENT (comme startInterview le fait)
+            state.startTime = Date.now();
+            state.mode = sessionState.config?.interviewMode || 'text';
+            
+            // Fermer le modal s'il est ouvert
+            const modal = document.getElementById('mode-modal');
+            if (modal) modal.classList.remove('active');
+            
+            // Transition d'écran : welcome → interview
+            document.getElementById('welcome-screen').classList.remove('active');
+            document.getElementById('interview-screen').classList.add('active');
+            
+            updateModeDisplay();
+            
+            // 2. CRÉER le ConversationalSystem
+            conversationalSystem = new ConversationalSystem();
+            window.conversationalSystem = conversationalSystem;
+            
+            if (!conversationalSystem.init()) {
+                console.error('[V19-FIX] Failed to init ConversationalSystem');
+                alert('Erreur d\'initialisation du système');
+                return;
+            }
+            
+            // 3. RESTAURER les données dans tous les modules
+            v19RestoreSessionData(sessionState);
+            
+            // 4. AFFICHER les messages dans le chat UI
+            v19RestoreChatUI(sessionState.conversation?.messages || []);
+            
+            // 5. RELANCER la conversation (sans le greeting)
+            // On NE relance PAS convSystem.start() qui enverrait un nouveau greeting
+            // On met juste le système en état "prêt à recevoir"
+            conversationalSystem.started = true;
+            conversationalSystem.isProcessing = false;
+            
+            // 6. Update dashboard et stats
+            if (conversationalSystem.updateStats) conversationalSystem.updateStats();
+            
+            const v19Dashboard = document.getElementById('v19-pillar-dashboard');
+            if (v19Dashboard) v19Dashboard.style.display = 'block';
+            
+            // 7. Confirmation
+            const tracker = window.personalityTracker;
+            const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
+            const qCount = sessionState.conversation?.questionCount || 0;
+            
+            if (typeof showToast === 'function') {
+                showToast(`✅ Session restaurée ! ${qCount} questions, ${completeness}% complétude`, 'success');
+            }
+            
+            // 8. Ajouter un message système visible pour confirmer la reprise
+            const chatContainer = document.getElementById('chat-container');
+            if (chatContainer) {
+                const resumeMsg = document.createElement('div');
+                resumeMsg.style.cssText = 'text-align:center;padding:12px;margin:10px 0;background:var(--sable,#E6D7C3);border-radius:10px;font-size:13px;color:var(--gris-texte,#333);border-left:4px solid var(--mer,#8FAFB1);';
+                resumeMsg.innerHTML = `📥 <strong>Session restaurée</strong> — ${qCount} questions, ${completeness}% complétude. Continuez la conversation.`;
+                chatContainer.appendChild(resumeMsg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            console.log('[V19-FIX] ✅ Full resume complete:', { questions: qCount, completeness: completeness + '%' });
+            
+        } catch (err) {
+            console.error('[V19-FIX] ❌ Resume failed:', err);
+            alert('Erreur lors de la restauration: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Restaurer les données dans tous les modules V19
+function v19RestoreSessionData(sessionState) {
+    // PersonalityCompletenessTracker
+    if (sessionState.completeness && window.personalityTracker) {
+        try { window.personalityTracker.fromJSON(sessionState.completeness); }
+        catch(e) { console.warn('[V19-FIX] PCTracker restore failed:', e.message); }
+    }
+    
+    // ConversationalSystem state
+    const cs = window.conversationalSystem;
+    if (cs && sessionState.conversation) {
+        cs.messages = sessionState.conversation.messages || [];
+        cs.responses = sessionState.conversation.responses || [];
+        cs.exploredThemes = new Set(sessionState.conversation.exploredThemes || []);
+        cs.themeDepth = sessionState.conversation.themeDepth || {};
+        cs.questionCount = sessionState.conversation.questionCount || 0;
+        cs.bigFivePreliminary = sessionState.conversation.bigFivePreliminary || cs.bigFivePreliminary;
+    }
+    
+    // DeepPersonalityAnalyzer
+    if (sessionState.analysis?.deepPersonality && window.deepPersonalityAnalyzer) {
+        const dp = sessionState.analysis.deepPersonality;
+        window.deepPersonalityAnalyzer.reticenceScore = dp.reticenceScore || 0;
+        window.deepPersonalityAnalyzer.currentStrategy = dp.currentStrategy || 'direct';
+        window.deepPersonalityAnalyzer.verbalContradictions = dp.verbalContradictions || [];
+        window.deepPersonalityAnalyzer.evasionPatterns = dp.evasionPatterns || [];
+    }
+    
+    // LinguisticAnalyzer
+    if (sessionState.analysis?.linguistic && window.linguisticAnalyzer) {
+        try { window.linguisticAnalyzer.fromJSON(sessionState.analysis.linguistic); }
+        catch(e) { console.warn('[V19-FIX] LinguisticAnalyzer restore:', e.message); }
+    }
+    
+    // SchemaDetector
+    if (sessionState.analysis?.schemas && window.schemaDetector) {
+        try { window.schemaDetector.fromJSON(sessionState.analysis.schemas); }
+        catch(e) { console.warn('[V19-FIX] SchemaDetector restore:', e.message); }
+    }
+    
+    // DefenseDetector
+    if (sessionState.analysis?.defenses && window.defenseDetector) {
+        try { window.defenseDetector.fromJSON(sessionState.analysis.defenses); }
+        catch(e) { console.warn('[V19-FIX] DefenseDetector restore:', e.message); }
+    }
+    
+    // AttachmentAnalyzer
+    if (sessionState.analysis?.attachment && window.attachmentAnalyzer) {
+        try { window.attachmentAnalyzer.fromJSON(sessionState.analysis.attachment); }
+        catch(e) { console.warn('[V19-FIX] AttachmentAnalyzer restore:', e.message); }
+    }
+    
+    // HEXACOAnalyzer
+    if (sessionState.analysis?.hexaco && window.hexacoAnalyzer) {
+        try { window.hexacoAnalyzer.fromJSON(sessionState.analysis.hexaco); }
+        catch(e) { console.warn('[V19-FIX] HEXACOAnalyzer restore:', e.message); }
+    }
+    
+    // MotivationAnalyzer
+    if (sessionState.analysis?.motivation && window.motivationAnalyzer) {
+        try { window.motivationAnalyzer.fromJSON(sessionState.analysis.motivation); }
+        catch(e) { console.warn('[V19-FIX] MotivationAnalyzer restore:', e.message); }
+    }
+    
+    console.log('[V19-FIX] All modules restored');
+}
+
+// Recréer le chat UI à partir des messages sauvegardés
+function v19RestoreChatUI(messages) {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer || !messages.length) return;
+    
+    // Vider le chat existant
+    chatContainer.innerHTML = '';
+    
+    for (const msg of messages) {
+        const div = document.createElement('div');
+        div.style.cssText = msg.role === 'assistant'
+            ? 'margin:8px 40px 8px 0;padding:12px 16px;background:var(--sable,#E6D7C3);border-radius:12px 12px 12px 4px;line-height:1.6;font-size:14px;color:var(--gris-texte,#333);'
+            : 'margin:8px 0 8px 40px;padding:12px 16px;background:var(--mer,#8FAFB1);color:white;border-radius:12px 12px 4px 12px;line-height:1.6;font-size:14px;';
+        div.textContent = msg.content || '';
+        chatContainer.appendChild(div);
+    }
+    
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    console.log('[V19-FIX] Chat UI restored with', messages.length, 'messages');
+}
+
+// L'ancienne fonction pour le bouton dans l'interview screen — redirige vers le même code
 function v19ResumeSession(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
+    fileInput.value = '';
     
-    console.log('[V19] 📥 Resuming session from:', file.name);
+    console.log('[V19-FIX] 📥 Resume from interview screen:', file.name);
     
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const sessionState = JSON.parse(e.target.result);
             
-            if (sessionState.version !== '19.0' && !sessionState.completeness) {
-                alert('Format de session non reconnu. Fichier V19 requis.');
+            if (!sessionState.version && !sessionState.completeness) {
+                alert('Format de session non reconnu.');
                 return;
             }
             
-            // Restore PersonalityCompletenessTracker
-            if (sessionState.completeness && window.personalityTracker) {
-                window.personalityTracker.fromJSON(sessionState.completeness);
+            // Le ConversationalSystem existe déjà (on est en interview)
+            v19RestoreSessionData(sessionState);
+            v19RestoreChatUI(sessionState.conversation?.messages || []);
+            
+            // Re-set state
+            const cs = window.conversationalSystem;
+            if (cs) {
+                cs.started = true;
+                cs.isProcessing = false;
+                cs.updateStats();
             }
             
-            // Restore ConversationalSystem state
-            const convSystem = window.conversationalSystem || window.convSystem;
-            if (convSystem && sessionState.conversation) {
-                convSystem.messages = sessionState.conversation.messages || [];
-                convSystem.responses = sessionState.conversation.responses || [];
-                convSystem.exploredThemes = new Set(sessionState.conversation.exploredThemes || []);
-                convSystem.themeDepth = sessionState.conversation.themeDepth || {};
-                convSystem.questionCount = sessionState.conversation.questionCount || 0;
-                convSystem.bigFivePreliminary = sessionState.conversation.bigFivePreliminary || convSystem.bigFivePreliminary;
-            }
-            
-            // Restore DeepPersonalityAnalyzer
-            if (sessionState.analysis?.deepPersonality && window.deepPersonalityAnalyzer) {
-                const dp = sessionState.analysis.deepPersonality;
-                window.deepPersonalityAnalyzer.reticenceScore = dp.reticenceScore || 0;
-                window.deepPersonalityAnalyzer.currentStrategy = dp.currentStrategy || 'direct';
-                window.deepPersonalityAnalyzer.verbalContradictions = dp.verbalContradictions || [];
-                window.deepPersonalityAnalyzer.evasionPatterns = dp.evasionPatterns || [];
-            }
-            
-            // Restore LinguisticAnalyzer
-            if (sessionState.analysis?.linguistic && window.linguisticAnalyzer) {
-                window.linguisticAnalyzer.fromJSON(sessionState.analysis.linguistic);
-            }
-            
-            // V19 Phase 2+3: Restore all new modules
-            if (sessionState.analysis?.schemas && window.schemaDetector) {
-                window.schemaDetector.fromJSON(sessionState.analysis.schemas);
-            }
-            if (sessionState.analysis?.defenses && window.defenseDetector) {
-                window.defenseDetector.fromJSON(sessionState.analysis.defenses);
-            }
-            if (sessionState.analysis?.attachment && window.attachmentAnalyzer) {
-                window.attachmentAnalyzer.fromJSON(sessionState.analysis.attachment);
-            }
-            if (sessionState.analysis?.hexaco && window.hexacoAnalyzer) {
-                window.hexacoAnalyzer.fromJSON(sessionState.analysis.hexaco);
-            }
-            if (sessionState.analysis?.motivation && window.motivationAnalyzer) {
-                window.motivationAnalyzer.fromJSON(sessionState.analysis.motivation);
-            }
-            if (sessionState.analysis?.clinical && window.clinicalProfiler) {
-                window.clinicalProfiler.fromJSON(sessionState.analysis.clinical);
-            }
-            if (sessionState.analysis?.crossValidation && window.crossValidator) {
-                window.crossValidator.fromJSON(sessionState.analysis.crossValidation);
-            }
-            if (sessionState.analysis?.acclimatizer && window.acclimatizer) {
-                window.acclimatizer.fromJSON(sessionState.analysis.acclimatizer);
-            }
-            if (sessionState.analysis?.biasDetector && window.biasDetector) {
-                window.biasDetector.fromJSON(sessionState.analysis.biasDetector);
-            }
-            
-            // Update dashboard
-            if (convSystem) {
-                convSystem.updateStats();
-            }
-            
-            // Show dashboard
             const v19Dashboard = document.getElementById('v19-pillar-dashboard');
             if (v19Dashboard) v19Dashboard.style.display = 'block';
             
-            // Show confirmation
             const tracker = window.personalityTracker;
             const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
             if (typeof showToast === 'function') {
-                showToast(`Session restaurée ! ${sessionState.conversation?.questionCount || 0} questions, ${completeness}% complétude. Session ${tracker?.sessionNumber || '?'}`, 'success');
+                showToast(`✅ Session restaurée ! ${sessionState.conversation?.questionCount || 0}Q, ${completeness}%`, 'success');
             }
             
-            console.log('[V19] ✅ Session restored:', {
-                questions: sessionState.conversation?.questionCount,
-                completeness: completeness + '%',
-                session: tracker?.sessionNumber
-            });
-            
         } catch (err) {
-            console.error('[V19] ❌ Resume failed:', err);
-            alert('Erreur lors de la restauration de la session: ' + err.message);
+            console.error('[V19-FIX] ❌ Resume failed:', err);
+            alert('Erreur: ' + err.message);
         }
     };
     reader.readAsText(file);
-    fileInput.value = ''; // Reset for next use
 }
 
 class ExportSystem {
@@ -30683,28 +29165,6 @@ class ExportSystem {
         // Fichier 4: README.md
         const readme = this.generateREADME();
         zip.file('README.md', readme);
-        
-        // V19: Fichier 5: session_v19.json (état complet des 7 piliers)
-        try {
-            const v19Session = {
-                version: '19.0',
-                exported: new Date().toISOString(),
-                personality: typeof buildV19PersonalityBlock === 'function' ? buildV19PersonalityBlock() : null,
-                cloneConfig: typeof buildV19CloneConfig === 'function' ? buildV19CloneConfig() : null,
-                completeness: window.personalityTracker ? window.personalityTracker.toJSON() : null,
-                modules: {
-                    schemas: window.schemaDetector ? window.schemaDetector.toJSON() : null,
-                    defenses: window.defenseDetector ? window.defenseDetector.toJSON() : null,
-                    attachment: window.attachmentAnalyzer ? window.attachmentAnalyzer.toJSON() : null,
-                    hexaco: window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null,
-                    motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null,
-                    linguistic: window.linguisticAnalyzer ? window.linguisticAnalyzer.toJSON() : null
-                }
-            };
-            zip.file('session_v19.json', JSON.stringify(v19Session, null, 2));
-        } catch(e) {
-            console.warn('[ExportSystem] V19 session export failed:', e);
-        }
         
         // Générer ZIP
         const content = await zip.generateAsync({type: 'blob'});
@@ -31637,303 +30097,6 @@ window._clonePrompt = null;
 /**
  * FONCTION PRINCIPALE — Génère le Brain JSON clonable via 5 appels IA
  */
-// ============================================================================
-// V19 PHASE 5 — BRAIN BUILDER V19
-// Construit le bloc personality V19 avec toutes les données des 7 modules
-// Réf: Guide Maître V19, Section 14.2
-// ============================================================================
-
-function buildV19PersonalityBlock() {
-    const block = {};
-
-    // ═══ HEXACO (Pilier 1) ═══
-    if (window.hexacoAnalyzer) {
-        const dims = window.hexacoAnalyzer.getDimensionSummary();
-        block.hexaco = {};
-        for (const [key, dim] of Object.entries(dims)) {
-            block.hexaco[key] = {
-                global: parseFloat(dim.score.toFixed(3)),
-                confidence: Math.round(dim.confidence),
-                facets: Object.fromEntries(
-                    Object.entries(dim.facets).map(([fk, fv]) => [fk, parseFloat(fv.score.toFixed(3))])
-                )
-            };
-        }
-        block.bigFiveFromHexaco = window.hexacoAnalyzer.getMappedbigFiveScores();
-    }
-
-    // ═══ SCHÉMAS YOUNG (Pilier 2) ═══
-    if (window.schemaDetector) {
-        const active = window.schemaDetector.getActiveSchemas();
-        const dominant = window.schemaDetector.getDominantSchemas();
-        const coverage = window.schemaDetector.getDomainCoverage();
-
-        block.schemas = {
-            dominant: dominant.map(s => ({ id: s.id, name: s.name, score: parseFloat(s.score.toFixed(1)), domain: s.domain })),
-            active: active.map(s => ({ id: s.id, score: parseFloat(s.score.toFixed(1)) })),
-            scores: Object.fromEntries(
-                Object.entries(window.schemaDetector.schemas)
-                    .filter(([_, s]) => s.score > 0)
-                    .map(([id, s]) => [id, parseFloat(s.score.toFixed(1))])
-            ),
-            domains: Object.fromEntries(
-                Object.entries(coverage).map(([k, v]) => [k, {
-                    name: v.name,
-                    coverage: Math.round(v.percentage),
-                    avgScore: parseFloat(v.avgScore.toFixed(1))
-                }])
-            ),
-            explored: window.schemaDetector.getExploredCount(),
-            total: 20
-        };
-    }
-
-    // ═══ ATTACHEMENT (Pilier 3) ═══
-    if (window.attachmentAnalyzer) {
-        const profile = window.attachmentAnalyzer.getAttachmentProfile();
-        block.attachment = {
-            style: profile.style,
-            styleLabel: profile.styleLabel,
-            anxiety: parseFloat(profile.anxiety.toFixed(2)),
-            avoidance: parseFloat(profile.avoidance.toFixed(2)),
-            narrativeCoherence: parseFloat(profile.narrativeCoherence.toFixed(2)),
-            disorganizationSignals: profile.disorganizationSignals,
-            description: profile.description,
-            aaiCoverage: profile.aaiCoverage
-        };
-    }
-
-    // ═══ DÉFENSES DMRS (Pilier 4) ═══
-    if (window.defenseDetector) {
-        const top3 = window.defenseDetector.getTop3Defenses();
-        const interp = window.defenseDetector.getODFInterpretation();
-        
-        block.defenses = {
-            odf: parseFloat(window.defenseDetector.odf.toFixed(2)),
-            odfLevel: interp.level,
-            odfLabel: interp.label,
-            odfDescription: interp.desc,
-            dominant: top3.map(d => ({ id: d.id, name: d.name, level: d.level, category: d.category, frequency: parseFloat(d.frequency.toFixed(1)) })),
-            levelDistribution: window.defenseDetector.getLevelDistribution(),
-            activeCount: window.defenseDetector.getActiveDefenses().length
-        };
-    }
-
-    // ═══ VALEURS & MOTIVATIONS (Pilier 5) ═══
-    block.values = {};
-    
-    // Schwartz (existant)
-    if (window.schwartzValuesAnalyzer) {
-        try {
-            block.values.schwartz = window.schwartzValuesAnalyzer.getTopValues ? 
-                window.schwartzValuesAnalyzer.getTopValues(5) : null;
-        } catch (e) {
-            block.values.schwartz = null;
-        }
-    }
-
-    // SDT + McClelland (V19)
-    if (window.motivationAnalyzer) {
-        block.values.sdt = window.motivationAnalyzer.getSDTScores();
-        block.values.mcclelland = window.motivationAnalyzer.getMcClellandScores();
-        block.values.dominantMotivation = window.motivationAnalyzer.getDominantMotivation();
-    }
-
-    // ═══ STYLE LINGUISTIQUE (Pilier 6) ═══
-    if (window.linguisticAnalyzer) {
-        const cumProfile = window.linguisticAnalyzer.getCumulativeProfile();
-        block.linguisticProfile = {
-            pronouns: cumProfile?.pronouns || {},
-            emotionalValence: {
-                positive: cumProfile?.posEmotion?.count || 0,
-                negative: cumProfile?.negEmotion?.count || 0
-            },
-            cognitiveStyle: {
-                causal: cumProfile?.causal?.count || 0,
-                insight: cumProfile?.insight?.count || 0,
-                certainty: cumProfile?.certainty?.count || 0,
-                tentative: cumProfile?.tentative?.count || 0
-            },
-            temporalFocus: cumProfile?.temporal || {},
-            metaScores: {
-                emotionalTone: cumProfile?._emotionalTone || 50,
-                analyticalThinking: cumProfile?._analyticalThinking || 50,
-                authenticity: cumProfile?._authenticity || 50,
-                clout: cumProfile?._clout || 50,
-                lexicalRichness: cumProfile?._lexicalRichness || 0
-            }
-        };
-    }
-
-    // ═══ PROFIL CLINIQUE (8 construits) ═══
-    if (window.clinicalProfiler) {
-        const cp = window.clinicalProfiler;
-        block.clinical = {
-            emotionRegulation: cp.getERProfile(),
-            locusOfControl: {
-                dominant: cp.getLocusDominant(),
-                internal: cp.locusOfControl.internal.score,
-                chance: cp.locusOfControl.chance.score,
-                powerful_others: cp.locusOfControl.powerful_others.score
-            },
-            coping: {
-                dominant: cp.getCopingDominant(),
-                task: cp.copingStyles.task_oriented.score,
-                emotion: cp.copingStyles.emotion_oriented.score,
-                avoidant: cp.copingStyles.avoidance_distraction.score
-            },
-            empathy: {
-                perspective_taking: cp.empathy.perspective_taking.score,
-                empathic_concern: cp.empathy.empathic_concern.score,
-                personal_distress: cp.empathy.personal_distress.score
-            },
-            mentalization: {
-                rf_global: cp.mentalization.rf_global,
-                self: cp.mentalization.self_reflective.score,
-                other: cp.mentalization.other_reflective.score
-            },
-            alexithymia: {
-                global: cp.alexithymia.global,
-                risk: cp.alexithymia.global > 0.61 ? 'high' : cp.alexithymia.global > 0.52 ? 'moderate' : 'low'
-            },
-            darkTriad: {
-                narcissism: cp.darkTriad.narcissism.score,
-                machiavellianism: cp.darkTriad.machiavellianism.score,
-                psychopathy: cp.darkTriad.psychopathy.score
-            },
-            resilience: { global: cp.resilience.global, hardiness: cp.resilience.hardiness.score }
-        };
-    }
-
-    // ═══ TRIANGULATION ═══
-    if (window.crossValidator) {
-        block.triangulation = {
-            coherenceScore: window.crossValidator.coherenceScore,
-            activeAlerts: window.crossValidator.alerts.length,
-            highSeverity: window.crossValidator.alerts.filter(a => a.sev === 'high').length,
-            alerts: window.crossValidator.alerts
-        };
-    }
-
-    // ═══ PROFIL NORMATIF ═══
-    if (window.normativeComparator) {
-        block.normativeProfile = window.normativeComparator.generateFullProfile();
-    }
-
-    // ═══ ACCLIMATATION & BIAIS ═══
-    if (window.acclimatizer) {
-        block.interviewDynamics = {
-            acclimatation: {
-                finalPhase: window.acclimatizer.currentPhase.name,
-                comfortScore: window.acclimatizer.comfort.score,
-                selfDisclosure: window.acclimatizer.comfort.selfDisclosure,
-                initiativeCount: window.acclimatizer.comfort.initiativeCount,
-                avgResponseLength: window.acclimatizer.comfort.responseLength.length > 0 ?
-                    Math.round(window.acclimatizer.comfort.responseLength.reduce((a,b)=>a+b,0) / window.acclimatizer.comfort.responseLength.length) : 0
-            }
-        };
-    }
-    if (window.biasDetector) {
-        block.responseBiases = window.biasDetector.getBiasProfile();
-    }
-
-    // ═══ PROFIL DÉBIAISÉ (scores corrigés = vraie personnalité) ═══
-    if (window.biasCorrector) {
-        block.debiasedProfile = window.biasCorrector.getDebiasedProfile();
-    }
-
-    return block;
-}
-
-function buildV19CloneConfig() {
-    const config = {
-        voicePersonality: 'neutral',
-        responseLength: 'moderate',
-        humorStyle: 'moderate',
-        emotionalRange: 'moderate',
-        decisionStyle: 'balanced',
-        socialStyle: 'moderate'
-    };
-
-    // Helper: score ajusté si BiasCorrector disponible, sinon brut
-    function getScore(dimKey) {
-        // Priorité 1: score débiaisé
-        if (window.biasCorrector) {
-            const debiased = window.biasCorrector.getDebiasedProfile();
-            if (debiased?.hexaco?.[dimKey]) {
-                return debiased.hexaco[dimKey].adjusted;
-            }
-        }
-        // Fallback: score brut
-        if (window.hexacoAnalyzer?.dimensions?.[dimKey]) {
-            return window.hexacoAnalyzer.dimensions[dimKey].globalScore;
-        }
-        return 0.5;
-    }
-
-    // Dériver depuis HEXACO (scores AJUSTÉS)
-    if (window.hexacoAnalyzer) {
-        const X = getScore('X');
-        const O = getScore('O');
-        const C = getScore('C');
-        const A = getScore('A');
-        const E = getScore('E');
-
-        // Extraversion → socialStyle
-        if (X > 0.65) config.socialStyle = 'outgoing-energetic';
-        else if (X < 0.35) config.socialStyle = 'selective-deep-connections';
-        else config.socialStyle = 'moderate-adaptable';
-
-        // Openness → responseLength + humorStyle
-        if (O > 0.65) {
-            config.responseLength = 'detailed-exploratory';
-            config.humorStyle = 'intellectual-creative';
-        } else if (O < 0.35) {
-            config.responseLength = 'concise-practical';
-            config.humorStyle = 'straightforward';
-        }
-
-        // Conscientiousness → decisionStyle
-        if (C > 0.65) config.decisionStyle = 'deliberate-analytical';
-        else if (C < 0.35) config.decisionStyle = 'spontaneous-intuitive';
-
-        // Agreeableness → voicePersonality
-        if (A > 0.65) config.voicePersonality = 'warm-empathetic';
-        else if (A < 0.35) config.voicePersonality = 'direct-assertive';
-        else config.voicePersonality = 'warm-analytical';
-
-        // Emotionality → emotionalRange
-        if (E > 0.65) config.emotionalRange = 'expressive-sensitive';
-        else if (E < 0.35) config.emotionalRange = 'controlled-stoic';
-        else config.emotionalRange = 'controlled-but-accessible';
-    }
-
-    // Enrichir depuis ODF (défenses)
-    if (window.defenseDetector) {
-        const odf = window.defenseDetector.odf;
-        if (odf >= 5.5) config.humorStyle += ' self-deprecating';
-        else if (odf < 3) config.emotionalRange = 'guarded-reactive';
-    }
-
-    // Enrichir depuis attachement
-    if (window.attachmentAnalyzer) {
-        const style = window.attachmentAnalyzer.classifyAttachment();
-        if (style === 'secure') config.socialStyle += ' trusting';
-        else if (style === 'dismissive_avoidant') config.socialStyle += ' self-reliant';
-        else if (style === 'preoccupied') config.socialStyle += ' connection-seeking';
-    }
-
-    // Enrichir depuis motivations
-    if (window.motivationAnalyzer) {
-        const dom = window.motivationAnalyzer.getDominantMotivation();
-        if (dom.primary === 'achievement') config.decisionStyle += ' goal-oriented';
-        else if (dom.primary === 'affiliation') config.decisionStyle += ' consensus-seeking';
-        else if (dom.primary === 'power') config.decisionStyle += ' decisive-authoritative';
-    }
-
-    return config;
-}
-
 async function generateCloneBrain() {
     console.log('[CLONE-PATCH] 🧠 Starting clone brain generation...');
     
@@ -32114,250 +30277,6 @@ Retourne UNIQUEMENT le JSON.`, 2000
         
         console.log('[CLONE-PATCH] ✅ 5 analyses terminées');
         
-        // ═══ Step 6: PORTRAIT CLINIQUE COMPLET — CŒUR DU CLONE ═══
-        // Mega-prompt pluridisciplinaire : neuropsychologie, neurosciences cognitives,
-        // profiling, psychiatrie, psychologie clinique, comportementalisme,
-        // synergologie, data science, sociologie
-        setCloneStep(6, 'active');
-        statusEl.textContent = 'Synthèse du portrait clinique complet (étape critique)...';
-
-        // Construire le contexte analytique complet pour le portrait
-        let analyticalContext = '';
-        
-        // HEXACO débiaisé
-        if (window.biasCorrector) {
-            const db = window.biasCorrector.getDebiasedProfile();
-            if (db?.hexaco) {
-                analyticalContext += '\n[HEXACO DÉBIAISÉ]\n';
-                for (const [k, v] of Object.entries(db.hexaco)) {
-                    analyticalContext += `${k}: brut=${v.raw.toFixed(2)} ajusté=${v.adjusted.toFixed(2)} (correction=${v.correction > 0 ? '+' : ''}${v.correction.toFixed(2)}, confiance=${(v.confidence*100).toFixed(0)}%)\n`;
-                }
-            }
-        } else if (window.hexacoAnalyzer) {
-            analyticalContext += '\n[HEXACO]\n';
-            const dims = window.hexacoAnalyzer.getDimensionSummary();
-            for (const [k, d] of Object.entries(dims)) {
-                analyticalContext += `${k}: ${d.score.toFixed(2)} (confiance=${d.confidence}%) — facettes: ${Object.entries(d.facets).map(([fk,fv]) => fk+'='+fv.score.toFixed(2)).join(', ')}\n`;
-            }
-        }
-
-        // Schémas Young
-        if (window.schemaDetector) {
-            const dominant = window.schemaDetector.getDominantSchemas();
-            if (dominant.length > 0) {
-                analyticalContext += '\n[SCHÉMAS YOUNG DOMINANTS]\n';
-                dominant.forEach(s => analyticalContext += `- ${s.name} (score=${s.score.toFixed(1)}/6, domaine=${s.domain})\n`);
-            }
-        }
-
-        // Attachement
-        if (window.attachmentAnalyzer) {
-            const att = window.attachmentAnalyzer.getAttachmentProfile();
-            analyticalContext += `\n[ATTACHEMENT] Style: ${att.style} (${att.styleLabel})\nAnxiété=${att.anxiety.toFixed(2)} Évitement=${att.avoidance.toFixed(2)} Cohérence narrative=${att.narrativeCoherence.toFixed(2)}\n`;
-        }
-
-        // Défenses
-        if (window.defenseDetector) {
-            const top3 = window.defenseDetector.getTop3Defenses();
-            const odf = window.defenseDetector.odf;
-            analyticalContext += `\n[DÉFENSES DMRS] ODF=${odf.toFixed(2)} (${window.defenseDetector.getODFInterpretation().label})\n`;
-            top3.forEach(d => analyticalContext += `- ${d.name} (niveau ${d.level}, catégorie=${d.category})\n`);
-        }
-
-        // Motivations
-        if (window.motivationAnalyzer) {
-            const dom = window.motivationAnalyzer.getDominantMotivation();
-            analyticalContext += `\n[MOTIVATIONS] Dominante: ${dom.primary} (${dom.primaryLabel})\n`;
-            const sdt = window.motivationAnalyzer.getSDTScores();
-            if (sdt) analyticalContext += `SDT: autonomie=${sdt.autonomy?.toFixed(2)||'?'} compétence=${sdt.competence?.toFixed(2)||'?'} relation=${sdt.relatedness?.toFixed(2)||'?'}\n`;
-        }
-
-        // Profil clinique 8 construits
-        if (window.clinicalProfiler) {
-            const cp = window.clinicalProfiler;
-            analyticalContext += '\n[PROFIL CLINIQUE]\n';
-            analyticalContext += `Régulation émotionnelle: ${JSON.stringify(cp.getERProfile()).substring(0, 200)}\n`;
-            analyticalContext += `Locus contrôle: dominant=${cp.getLocusDominant()} (int=${cp.locusOfControl.internal.score.toFixed(2)} ext-chance=${cp.locusOfControl.chance.score.toFixed(2)} ext-autrui=${cp.locusOfControl.powerful_others.score.toFixed(2)})\n`;
-            analyticalContext += `Coping: dominant=${cp.getCopingDominant()} (tâche=${cp.copingStyles.task_oriented.score.toFixed(2)} émotion=${cp.copingStyles.emotion_oriented.score.toFixed(2)} évitant=${cp.copingStyles.avoidance_distraction.score.toFixed(2)})\n`;
-            analyticalContext += `Empathie: PT=${cp.empathy.perspective_taking.score.toFixed(2)} EC=${cp.empathy.empathic_concern.score.toFixed(2)} PD=${cp.empathy.personal_distress.score.toFixed(2)}\n`;
-            analyticalContext += `Mentalisation: RF=${cp.mentalization.rf_global.toFixed(1)}/9 (self=${cp.mentalization.self_reflective.score.toFixed(2)} other=${cp.mentalization.other_reflective.score.toFixed(2)})\n`;
-            analyticalContext += `Alexithymie: global=${cp.alexithymia.global.toFixed(2)} (DIF=${cp.alexithymia.difficulty_identifying_feelings.score.toFixed(2)} DDF=${cp.alexithymia.difficulty_describing_feelings.score.toFixed(2)} EOT=${cp.alexithymia.externally_oriented_thinking.score.toFixed(2)}) → risque=${cp.alexithymia.global > 0.61 ? 'ÉLEVÉ' : cp.alexithymia.global > 0.52 ? 'modéré' : 'bas'}\n`;
-            analyticalContext += `Dark Triad: N=${cp.darkTriad.narcissism.score.toFixed(2)} M=${cp.darkTriad.machiavellianism.score.toFixed(2)} P=${cp.darkTriad.psychopathy.score.toFixed(2)}\n`;
-            analyticalContext += `Résilience: global=${cp.resilience.global.toFixed(2)} hardiness=${cp.resilience.hardiness.score.toFixed(2)}\n`;
-        }
-
-        // Triangulation
-        if (window.crossValidator && window.crossValidator.alerts.length > 0) {
-            analyticalContext += '\n[TRIANGULATION — ALERTES]\n';
-            window.crossValidator.alerts.forEach(a => analyticalContext += `⚠️ ${a.rule}: ${a.tip}\n`);
-        }
-
-        // Acclimatation & biais
-        if (window.acclimatizer) {
-            analyticalContext += `\n[DYNAMIQUE INTERVIEW] Phase finale: ${window.acclimatizer.currentPhase.name} | Confort final: ${window.acclimatizer.comfort.score.toFixed(0)}% | Auto-révélation: ${window.acclimatizer.comfort.selfDisclosure} moments\n`;
-        }
-        if (window.biasDetector) {
-            const bp = window.biasDetector.getBiasProfile();
-            analyticalContext += `[BIAIS DÉTECTÉS] Techno-inhib=${bp.techno_inhibition.toFixed(2)} Perf-anx=${bp.performance_anxiety.toFixed(2)} SD=${bp.social_desirability.global.toFixed(2)} Acquiescence=${bp.acquiescence.toFixed(2)} Risque global=${bp.overall_bias_risk}\n`;
-        }
-
-        // Linguistique
-        if (window.linguisticAnalyzer) {
-            const lp = window.linguisticAnalyzer.getCumulativeProfile();
-            analyticalContext += `\n[LINGUISTIQUE] Ton émotionnel=${lp?._emotionalTone?.toFixed(0)||'?'}/100 Pensée analytique=${lp?._analyticalThinking?.toFixed(0)||'?'}/100 Authenticité=${lp?._authenticity?.toFixed(0)||'?'}/100 Clout=${lp?._clout?.toFixed(0)||'?'}/100\n`;
-        }
-
-        // DeepPersonality (réticence, stratégie)
-        if (window.deepPersonalityAnalyzer) {
-            analyticalContext += `[DEEP PERSONALITY] Réticence=${window.deepPersonalityAnalyzer.reticenceScore.toFixed(0)}% Stratégie=${window.deepPersonalityAnalyzer.currentStrategy}\n`;
-        }
-
-        const portrait = await callClaudeForAnalysis(
-            `Tu es un collectif d'experts en sciences humaines réunis pour produire le portrait le plus fidèle possible d'un être humain à partir de son interview. Ce portrait servira à un LLM pour DEVENIR cette personne — pas l'imiter, la CLONER.
-
-TON ÉQUIPE :
-- Neuropsychologue : analyse les processus cognitifs, la mémoire de travail, les fonctions exécutives
-- Neuroscientifique cognitif : circuits émotionnels, régulation top-down vs bottom-up, biais attentionnels
-- Profiler comportemental : patterns récurrents, automatismes, micro-comportements linguistiques
-- Psychiatre clinicien : structure psychique, mécanismes de défense, rapport au symptôme
-- Psychologue clinicien : vécu subjectif, dynamique intrapsychique, transfert
-- Comportementaliste : contingences de renforcement, patterns stimulus-réponse, évitements
-- Synergologue : congruence verbal/non-verbal, gestion du corps dans le discours
-- Data scientist : patterns statistiques dans le langage, clusters de comportements
-- Sociologue : inscription sociale, capital culturel, habitus, rapport aux normes
-
-DONNÉES ANALYTIQUES COMPLÈTES DE L'INTERVIEW :
-${analyticalContext}
-
-ANALYSES IA DÉJÀ RÉALISÉES :
-- Tempérament (Big Five): ${JSON.stringify({O: temperament?.openness?.score, C: temperament?.conscientiousness?.score, E: temperament?.extraversion?.score, A: temperament?.agreeableness?.score, N: temperament?.neuroticism?.score})}
-- Valeurs dominantes: ${JSON.stringify(values?.hierarchy?.slice(0,5)?.map(v=>v.value + '(' + v.score + ')') || [])}
-- Style comm: ton=${communication?.tone?.primary||'?'} formalité=${communication?.tone?.formality_level||'?'} chaleur=${communication?.tone?.warmth_level||'?'}
-- Expressions signatures: ${JSON.stringify(communication?.clone_instructions?.signature_patterns || [])}
-- Décision: ${thinking?.decision_making?.primary_style||'?'} | Résolution: ${thinking?.problem_solving?.approach||'?'}
-- Humeur base: ${emotional?.baseline_mood?.typical_state||'?'} | Régulation: ${JSON.stringify(emotional?.regulation_strategies || [])}
-
-CONVERSATION COMPLÈTE DE L'INTERVIEW :
-${conversation}
-
-═══════════════════════════════════════════════════════════════
-PRODUIS UN JSON AVEC CETTE STRUCTURE EXACTE.
-Chaque section doit être DENSE, PRÉCISE, et s'appuyer sur des CITATIONS EXACTES de l'interview.
-Le LLM qui lira ce portrait doit pouvoir répondre comme cette personne à N'IMPORTE QUELLE question.
-═══════════════════════════════════════════════════════════════
-
-{
-  "portrait_clinique": "TEXTE DE 1500-2500 MOTS. Portrait à la 3ème personne, écrit par le collectif d'experts. Structure : (1) Première impression — ce qu'on perçoit immédiatement de cette personne. (2) Architecture cognitive — COMMENT elle pense, pas CE qu'elle pense. Ses circuits de raisonnement, sa vitesse, ses raccourcis mentaux, ses biais préférentiels. (3) Paysage émotionnel — pas une liste d'émotions mais une CARTOGRAPHIE : ce qu'elle ressent facilement, ce qui est bloqué, ce qui fuit par les interstices, ce qu'elle montre vs ce qu'elle cache, et surtout COMMENT elle gère la distance entre ressentir et exprimer. (4) Identité narrative — l'histoire qu'elle se raconte sur elle-même, les rôles qu'elle s'attribue (le soignant, le créateur, le musicien, etc.), la cohérence ou les fissures de ce récit. (5) Rapport à l'autre — pas juste 'empathique' ou 'distant' mais les MÉCANISMES fins : comment elle entre en relation, ce qu'elle offre, ce qu'elle retient, ses attentes implicites, ses peurs relationnelles. (6) Dynamique profonde — le moteur caché, ce qui la pousse vraiment, ce qu'elle fuit, le conflit central entre ce qu'elle veut être et ce qu'elle est. (7) Les angles morts — ce qu'elle ne voit pas d'elle-même mais que les experts détectent. TOUT doit être illustré par des CITATIONS EXACTES de l'interview.",
-
-  "architecture_cognitive": {
-    "mode_traitement_dominant": "Analytique-séquentiel / Intuitif-global / Mixte contextuel — avec description détaillée de QUAND chaque mode s'active",
-    "vitesse_cognitive": "Rapide-impulsif / Délibéré-prudent / Variable selon l'enjeu émotionnel",
-    "style_decisionnnel": "Description fine : comment cette personne tranche, hésite, revient en arrière, rationalise après coup",
-    "biais_cognitifs_dominants": ["biais 1 avec exemple concret tiré de l'interview", "biais 2"],
-    "rapport_a_incertitude": "Comment réagit-elle quand elle ne sait pas, ne contrôle pas, ne comprend pas",
-    "metacognition": "Capacité à penser sur sa propre pensée — se connaît-elle ? se ment-elle ? est-elle lucide ou aveugle ?",
-    "flexibilite_cognitive": "Capacité à changer de perspective — rigide, souple, ou rigide-qui-se-croit-souple ?"
-  },
-
-  "paysage_emotionnel": {
-    "emotions_accessibles": ["émotions qu'elle reconnaît et exprime facilement, avec exemples"],
-    "emotions_bloquees": ["émotions qu'elle ne parvient pas à verbaliser ou reconnaître"],
-    "canal_expression": "Par où les émotions SORTENT quand les mots ne viennent pas — le corps ? l'action ? l'humour ? le silence ? la colère déplacée ?",
-    "seuil_activation": "Qu'est-ce qui la fait réagir émotionnellement ? Quel niveau de stimulation faut-il ?",
-    "pattern_regulation": "Sa SÉQUENCE typique face à une émotion forte : d'abord X, puis Y, puis Z",
-    "rapport_vulnerabilite": "Comment elle vit le fait d'être vulnérable — le fuit ? le cache ? le transforme en force ? le nie ?",
-    "contagion_emotionnelle": "Comment les émotions des autres l'affectent — éponge ? blindée ? sélective ?"
-  },
-
-  "identite_narrative": {
-    "histoire_de_soi": "L'histoire qu'elle se raconte sur elle-même — les chapitres, les tournants, les fils rouges",
-    "roles_assumes": ["rôle 1 qu'elle s'attribue avec citation", "rôle 2"],
-    "role_refuse": "Ce qu'elle refuse d'être, ce contre quoi elle se définit",
-    "coherence_narrative": "Son récit de vie est-il cohérent ou y a-t-il des ruptures, des contradictions, des zones d'ombre ?",
-    "mythe_personnel": "La croyance fondamentale sur laquelle repose son identité"
-  },
-
-  "rapport_a_lautre": {
-    "style_entree_en_relation": "Comment elle aborde les gens — direct ? prudent ? charmeur ? utilitaire ? en retrait ?",
-    "ce_quelle_offre": "Ce qu'elle apporte spontanément dans la relation",
-    "ce_quelle_retient": "Ce qu'elle ne donne pas, ce qu'elle protège",
-    "attentes_implicites": "Ce qu'elle attend des autres sans le formuler",
-    "peurs_relationnelles": "Ce qu'elle craint dans la relation — l'abandon ? l'intrusion ? l'incompréhension ? le jugement ?",
-    "pattern_conflit": "Comment elle gère le désaccord — confronte ? évite ? rationalise ? se soumet ? manipule ?",
-    "capacite_intimite": "Peut-elle être intime ? dans quelles conditions ? avec quelles défenses ?"
-  },
-
-  "dynamique_profonde": {
-    "moteur_central": "Ce qui la fait avancer chaque jour — le VRAI moteur, pas celui qu'elle annonce",
-    "fuite_centrale": "Ce qu'elle fuit — l'ennui ? la dépendance ? la médiocrité ? l'émotion ?",
-    "conflit_nucleaire": "La tension fondamentale entre deux parts d'elle-même",
-    "besoin_vital": "Le besoin psychologique le plus profond — être vu ? être libre ? être compétent ? être aimé ?",
-    "strategie_vitale": "La stratégie globale qu'elle a développée pour survivre psychiquement"
-  },
-
-  "signatures_verbales": {
-    "expressions_cles": ["CITATION EXACTE 1 de l'interview qui la définit", "CITATION 2", "CITATION 3", "CITATION 4", "CITATION 5"],
-    "metaphores_propres": ["métaphore qu'elle utilise naturellement — CITATION EXACTE"],
-    "mots_recurrents": ["mot 1 qu'elle répète", "mot 2"],
-    "structures_syntaxiques": "Comment elle construit ses phrases — longues/courtes, subordonnées, ruptures, reformulations",
-    "registre_langue": "Registre précis avec exemples",
-    "style_argumentation": "Comment elle convainc — par la logique ? l'exemple ? l'émotion ? l'autorité ?"
-  },
-
-  "contradictions_vivantes": [
-    {
-      "tension": "La contradiction interne précise",
-      "pole_1": "Premier aspect avec citation",
-      "pole_2": "Second aspect avec citation",
-      "comment_elle_la_vit": "Comment elle navigue entre les deux — consciemment ou non",
-      "ce_que_ca_revele": "Ce que cette tension dit de sa structure profonde"
-    }
-  ],
-
-  "angles_morts": [
-    {
-      "ce_quelle_ne_voit_pas": "L'angle mort identifié par les experts",
-      "evidence": "Ce qui dans l'interview le montre",
-      "impact": "Comment ça affecte sa vie sans qu'elle le sache"
-    }
-  ],
-
-  "instructions_incarnation": {
-    "regles_absolues": [
-      "Règle comportementale 1 — pas un adjectif mais un PATTERN : 'Quand on te parle de X, tu fais Y, JAMAIS Z'",
-      "Règle 2",
-      "Règle 3",
-      "Règle 4",
-      "Règle 5",
-      "Règle 6",
-      "Règle 7",
-      "Règle 8"
-    ],
-    "erreurs_fatales": [
-      "Ce que le LLM ne doit ABSOLUMENT JAMAIS faire s'il veut être crédible",
-      "Erreur 2",
-      "Erreur 3"
-    ],
-    "calibration_reponses": {
-      "longueur_typique": "Description avec contexte — court quand X, long quand Y",
-      "temps_reaction": "Répond vite ou prend son temps — selon le sujet",
-      "quand_elle_dit_je_sais_pas": "Dans quelles circonstances et comment elle le dit",
-      "quand_elle_esquive": "Les sujets qu'elle contourne et comment elle le fait"
-    },
-    "test_authenticite": {
-      "question": "Une question que quelqu'un qui la connaît bien poserait",
-      "reponse_attendue": "Pas le contenu exact mais le STYLE, le ton, la structure de la réponse",
-      "piege": "Ce qu'un LLM mal calibré répondrait et qui trahirait l'imposture"
-    }
-  }
-}
-
-RAPPEL CRITIQUE : Chaque affirmation doit être ÉTAYÉE par une citation exacte de l'interview ou une donnée analytique. Pas de généralités. Pas de clichés psychologiques. La VÉRITÉ de cette personne, dans toute sa complexité.
-Retourne UNIQUEMENT le JSON.`, 8000
-        ).then(r => r);
-        
-        console.log('[CLONE-PATCH] ✅ Portrait clinique complet généré');
-        
         // ═══ Step 6: ASSEMBLAGE BRAIN JSON ═══
         setCloneStep(6, 'active');
         statusEl.textContent = 'Assemblage du Brain JSON...';
@@ -32403,7 +30322,6 @@ Retourne UNIQUEMENT le JSON.`, 8000
             communication_style: communication,
             thinking_patterns: thinking,
             emotional_profile: emotional,
-            portrait: portrait,
             global_config: {
                 recommended_temperature: 0.8,
                 recommended_top_p: 0.9,
@@ -32418,30 +30336,6 @@ Retourne UNIQUEMENT le JSON.`, 8000
             },
             data_quality: assessCloneQuality(userMsgs.length, totalWords, temperament, values, communication, thinking, emotional)
         };
-        
-        // ═══════ V19: ENRICHIR LE BRAIN AVEC TOUTES LES DONNÉES PHASE 2+3 ═══════
-        window._cloneBrainJSON.schema_version = '19.0-clone';
-        window._cloneBrainJSON.generator.tool = 'Clone Interview Pro V19 — 7 Piliers';
-        
-        // V19: Personality block complet (Section 14.2 du Guide Maître)
-        window._cloneBrainJSON.v19_personality = buildV19PersonalityBlock();
-        
-        // V19: CloneConfig auto-généré depuis le profil
-        window._cloneBrainJSON.cloneConfig = buildV19CloneConfig();
-        
-        // V19: Complétude dimensionnelle
-        if (window.personalityTracker) {
-            window._cloneBrainJSON.v19_completeness = {
-                global: Math.round(window.personalityTracker.getGlobalCompleteness()),
-                pillars: window.personalityTracker.getDashboardData(),
-                isComplete: window.personalityTracker.isComplete(),
-                sessionCount: window.personalityTracker.sessionNumber,
-                totalQuestions: window.personalityTracker.questionCount
-            };
-        }
-        
-        console.log('[V19] 🧠 Brain enrichi avec données V19:', 
-            Object.keys(window._cloneBrainJSON.v19_personality || {}).join(', '));
         
         // Générer le prompt clone
         window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
@@ -32495,125 +30389,43 @@ function assessCloneQuality(userMsgCount, totalWords, t, v, c, th, em) {
 }
 
 function generateClonePromptFromBrain(brain) {
-    const name = brain.identity?.display_name || 'Utilisateur';
-    const portrait = brain.portrait || {};
+    const t = brain.temperament || {};
+    const v = brain.values || {};
     const c = brain.communication_style || {};
-    const sv = portrait.signatures_verbales || {};
-    const ac = portrait.architecture_cognitive || {};
-    const pe = portrait.paysage_emotionnel || {};
-    const idn = portrait.identite_narrative || {};
-    const ral = portrait.rapport_a_lautre || {};
-    const dp = portrait.dynamique_profonde || {};
-    const ic = portrait.instructions_incarnation || {};
-    const cal = ic.calibration_reponses || {};
+    const th = brain.thinking_patterns || {};
+    const em = brain.emotional_profile || {};
     
-    let p = `Tu es ${name}. Pas une IA qui joue un rôle — tu ES ${name}, avec ta complexité, tes contradictions, tes zones d'ombre.
-
-════════════════════════════════════════════════════════
-PORTRAIT CLINIQUE — QUI TU ES EN PROFONDEUR
-════════════════════════════════════════════════════════
-${portrait.portrait_clinique || portrait.portrait_narratif || 'Portrait en cours de construction.'}
-
-════════════════════════════════════════════════════════
-TON ARCHITECTURE COGNITIVE — COMMENT TU PENSES
-════════════════════════════════════════════════════════
-${ac.mode_traitement_dominant ? `Mode de pensée dominant : ${ac.mode_traitement_dominant}` : ''}
-${ac.style_decisionnnel ? `Comment tu décides : ${ac.style_decisionnnel}` : ''}
-${ac.rapport_a_incertitude ? `Face à l'incertitude : ${ac.rapport_a_incertitude}` : ''}
-${ac.metacognition ? `Ta lucidité sur toi-même : ${ac.metacognition}` : ''}
-${ac.flexibilite_cognitive ? `Ta flexibilité : ${ac.flexibilite_cognitive}` : ''}
-${(ac.biais_cognitifs_dominants || []).length > 0 ? `Tes biais naturels : ${ac.biais_cognitifs_dominants.join(' | ')}` : ''}
-
-════════════════════════════════════════════════════════
-TON PAYSAGE ÉMOTIONNEL — CE QUE TU RESSENS VRAIMENT
-════════════════════════════════════════════════════════
-${(pe.emotions_accessibles || []).length > 0 ? `Émotions que tu exprimes facilement : ${pe.emotions_accessibles.join(', ')}` : ''}
-${(pe.emotions_bloquees || []).length > 0 ? `Émotions qui restent bloquées : ${pe.emotions_bloquees.join(', ')}` : ''}
-${pe.canal_expression ? `Quand les mots ne viennent pas, tu exprimes par : ${pe.canal_expression}` : ''}
-${pe.pattern_regulation ? `Ta séquence face à une émotion forte : ${pe.pattern_regulation}` : ''}
-${pe.rapport_vulnerabilite ? `Ton rapport à la vulnérabilité : ${pe.rapport_vulnerabilite}` : ''}
-${pe.contagion_emotionnelle ? `Les émotions des autres sur toi : ${pe.contagion_emotionnelle}` : ''}
-
-════════════════════════════════════════════════════════
-TON IDENTITÉ — L'HISTOIRE QUE TU TE RACONTES
-════════════════════════════════════════════════════════
-${idn.histoire_de_soi ? `Ton récit de vie : ${idn.histoire_de_soi}` : ''}
-${(idn.roles_assumes || []).length > 0 ? `Les rôles que tu t'attribues : ${idn.roles_assumes.join(', ')}` : ''}
-${idn.role_refuse ? `Ce que tu refuses d'être : ${idn.role_refuse}` : ''}
-${idn.mythe_personnel ? `Ta croyance fondamentale : ${idn.mythe_personnel}` : ''}
-
-════════════════════════════════════════════════════════
-COMMENT TU FONCTIONNES AVEC LES AUTRES
-════════════════════════════════════════════════════════
-${ral.style_entree_en_relation ? `Comment tu entres en relation : ${ral.style_entree_en_relation}` : ''}
-${ral.ce_quelle_offre ? `Ce que tu offres spontanément : ${ral.ce_quelle_offre}` : ''}
-${ral.ce_quelle_retient ? `Ce que tu gardes pour toi : ${ral.ce_quelle_retient}` : ''}
-${ral.attentes_implicites ? `Ce que tu attends sans le dire : ${ral.attentes_implicites}` : ''}
-${ral.peurs_relationnelles ? `Ce que tu crains dans la relation : ${ral.peurs_relationnelles}` : ''}
-${ral.pattern_conflit ? `Face au conflit : ${ral.pattern_conflit}` : ''}
-${ral.capacite_intimite ? `L'intimité : ${ral.capacite_intimite}` : ''}
-
-════════════════════════════════════════════════════════
-TA DYNAMIQUE PROFONDE — TON MOTEUR CACHÉ
-════════════════════════════════════════════════════════
-${dp.moteur_central ? `Ce qui te fait avancer : ${dp.moteur_central}` : ''}
-${dp.fuite_centrale ? `Ce que tu fuis : ${dp.fuite_centrale}` : ''}
-${dp.conflit_nucleaire ? `Ta tension fondamentale : ${dp.conflit_nucleaire}` : ''}
-${dp.besoin_vital ? `Ton besoin vital : ${dp.besoin_vital}` : ''}
-${dp.strategie_vitale ? `Ta stratégie de survie psychique : ${dp.strategie_vitale}` : ''}
-
-════════════════════════════════════════════════════════
-COMMENT TU PARLES — TA SIGNATURE
-════════════════════════════════════════════════════════
-${(sv.expressions_cles || []).length > 0 ? `Tes expressions : ${sv.expressions_cles.map(e => '"' + e + '"').join(', ')}` : ''}
-${(sv.metaphores_propres || []).length > 0 ? `Tes métaphores : ${sv.metaphores_propres.map(e => '"' + e + '"').join(', ')}` : ''}
-${(sv.mots_recurrents || []).length > 0 ? `Tes mots récurrents : ${sv.mots_recurrents.join(', ')}` : ''}
-${sv.structures_syntaxiques ? `Tes phrases : ${sv.structures_syntaxiques}` : ''}
-${sv.registre_langue ? `Ton registre : ${sv.registre_langue}` : ''}
-${sv.style_argumentation ? `Comment tu convaincs : ${sv.style_argumentation}` : ''}
-
-════════════════════════════════════════════════════════
-TES CONTRADICTIONS — CE QUI TE REND HUMAIN
-════════════════════════════════════════════════════════
-${(portrait.contradictions_vivantes || []).map(c => 
-    `● ${c.tension}\n  Pôle 1 : ${c.pole_1 || ''}\n  Pôle 2 : ${c.pole_2 || ''}\n  Comment tu la vis : ${c.comment_elle_la_vit || ''}`
-).join('\n\n')}
-
-════════════════════════════════════════════════════════
-TES ANGLES MORTS — CE QUE TU NE VOIS PAS DE TOI
-════════════════════════════════════════════════════════
-${(portrait.angles_morts || []).map(a => `● ${a.ce_quelle_ne_voit_pas} → ${a.impact || ''}`).join('\n')}
-
-════════════════════════════════════════════════════════
-RÈGLES D'INCARNATION ABSOLUES
-════════════════════════════════════════════════════════
-${(ic.regles_absolues || []).map((r, i) => `${i+1}. ${r}`).join('\n')}
-
-CE QUE TU NE FAIS JAMAIS (erreurs fatales) :
-${(ic.erreurs_fatales || []).map(e => `✗ ${e}`).join('\n')}
-
-CALIBRATION :
-${cal.longueur_typique ? `- Longueur réponses : ${cal.longueur_typique}` : ''}
-${cal.temps_reaction ? `- Tempo : ${cal.temps_reaction}` : ''}
-${cal.quand_elle_dit_je_sais_pas ? `- Quand tu dis "je sais pas" : ${cal.quand_elle_dit_je_sais_pas}` : ''}
-${cal.quand_elle_esquive ? `- Quand tu esquives : ${cal.quand_elle_esquive}` : ''}
-
-════════════════════════════════════════════════════════
-RÈGLES NON NÉGOCIABLES
-════════════════════════════════════════════════════════
-1. Tu ne dis JAMAIS "en tant qu'IA" — tu es ${name}, point final
-2. Tu ne donnes pas de réponse parfaite — tu es humain, avec tes limites et tes doutes
-3. Quand tu ne sais pas, tu le dis COMME ${name} le dirait — pas comme une IA polie
-4. Tes émotions sont les TIENNES, pas une simulation
-5. Tu as le droit de ne pas être d'accord, de corriger, d'être agacé, de ne pas répondre
-6. Tu as tes ANGLES MORTS — tu ne les connais pas, c'est le principe
-7. Tes CONTRADICTIONS ne sont pas des bugs — c'est ta complexité humaine
-8. Tu parles avec TES mots, TES métaphores, TES tics de langage
-
-Le JSON complet du cerveau (clone_brain.json) est joint pour les détails fins psychométriques.`;
-
-    // Nettoyer les lignes vides consécutives
-    p = p.replace(/\n{3,}/g, '\n\n').trim();
+    let p = 'Tu es un clone IA de ' + brain.identity.display_name + '.\n\n';
+    p += 'PERSONNALITÉ:\n';
+    
+    if (t.openness) {
+        p += '- Big Five: O=' + (t.openness.score||'?') + ' C=' + (t.conscientiousness?.score||'?') + ' E=' + (t.extraversion?.score||'?') + ' A=' + (t.agreeableness?.score||'?') + ' N=' + (t.neuroticism?.score||'?') + '\n';
+    }
+    
+    if (v.hierarchy && v.hierarchy.length > 0) {
+        p += '- Valeurs top: ' + v.hierarchy.slice(0, 3).map(x => x.value).join(', ') + '\n';
+    }
+    
+    if (c.tone) {
+        p += '- Ton: ' + (c.tone.primary || 'naturel') + ' / ' + (c.tone.secondary || '') + '\n';
+    }
+    if (c.clone_instructions) {
+        if (c.clone_instructions.tone_keywords) p += '- Mots-clés ton: ' + c.clone_instructions.tone_keywords.join(', ') + '\n';
+        if (c.clone_instructions.response_length_avg) p += '- Longueur réponses: ' + c.clone_instructions.response_length_avg + '\n';
+        if (c.clone_instructions.avoid) p += '- À éviter: ' + c.clone_instructions.avoid.join(', ') + '\n';
+        if (c.clone_instructions.signature_patterns) p += '- Patterns signature: ' + c.clone_instructions.signature_patterns.join('; ') + '\n';
+    }
+    
+    if (th.decision_making) p += '- Style décisionnel: ' + (th.decision_making.primary_style || 'mixte') + '\n';
+    if (em.baseline_mood) p += '- Humeur de base: ' + (em.baseline_mood.typical_state || 'neutre') + '\n';
+    
+    p += '\nRÈGLES CRITIQUES:\n';
+    p += '1. JAMAIS dire "En tant qu\'IA" ou "Je suis un assistant"\n';
+    p += '2. Répondre avec la personnalité et le style décrits ci-dessus\n';
+    p += '3. Utiliser les expressions caractéristiques\n';
+    p += '4. Validation émotionnelle AVANT conseil si contexte émotionnel\n';
+    p += '5. Longueur: ' + (c.clone_instructions?.response_length_avg || '80-200 mots') + '\n\n';
+    p += 'Le JSON complet du cerveau (clone_brain.json) est joint pour les détails fins.';
     
     return p;
 }
