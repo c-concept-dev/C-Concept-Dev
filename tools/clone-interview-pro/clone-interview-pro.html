@@ -4327,11 +4327,15 @@ Résumé concis:`;
         
         const context = [];
         
-        // 1. Ajouter résumé comme message système
+        // 1. Ajouter résumé comme message user (API Anthropic refuse role:'system' dans messages)
         if (this.lastSummary) {
             context.push({
-                role: 'system',
-                content: `[RÉSUMÉ CONVERSATION PRÉCÉDENTE]\n${this.lastSummary}\n[FIN RÉSUMÉ]`
+                role: 'user',
+                content: `[RÉSUMÉ CONVERSATION PRÉCÉDENTE]\n${this.lastSummary}\n[FIN RÉSUMÉ]\n\nContinue l'interview en tenant compte de ce contexte.`
+            });
+            context.push({
+                role: 'assistant',
+                content: 'Compris, je continue l\'interview en tenant compte du contexte.'
             });
         }
         
@@ -4666,21 +4670,29 @@ class ContextCompressor {
         
         const compressed = [];
         
-        // 1. Résumé global (si disponible)
+        // 1. Résumé global (si disponible) — comme paire user/assistant (API refuse role:'system')
         const summary = window.conversationSummarizer?.lastSummary;
         if (summary) {
             compressed.push({
-                role: 'system',
-                content: `[RÉSUMÉ GLOBAL]\n${summary}\n[FIN RÉSUMÉ]`
+                role: 'user',
+                content: `[RÉSUMÉ GLOBAL]\n${summary}\n[FIN RÉSUMÉ]\n\nContinue en tenant compte de ce contexte.`
+            });
+            compressed.push({
+                role: 'assistant',
+                content: 'Compris, je poursuis avec ce contexte.'
             });
         }
         
-        // 2. Moments-clés émotionnels
+        // 2. Moments-clés émotionnels — intégrés comme user/assistant pair
         const keyMoments = this.extractKeyMoments(messages);
         if (keyMoments.length > 0) {
             compressed.push({
-                role: 'system',
-                content: `[MOMENTS-CLÉS]\n${keyMoments.map(m => `- ${m}`).join('\n')}\n[FIN MOMENTS-CLÉS]`
+                role: 'user',
+                content: `[MOMENTS-CLÉS DE L'INTERVIEW]\n${keyMoments.map(m => `- ${m}`).join('\n')}\n[FIN MOMENTS-CLÉS]`
+            });
+            compressed.push({
+                role: 'assistant',
+                content: 'J\'en prends note pour la suite.'
             });
         }
         
