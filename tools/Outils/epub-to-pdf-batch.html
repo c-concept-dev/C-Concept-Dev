@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB → PDF — Convertisseur Batch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 44px;
+            max-width: 760px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+
+        h1 { color: #8FAFB1; font-size: 1.8em; font-weight: 700; }
+
+        .badge {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white; font-size: 11px; font-weight: 600;
+            padding: 4px 10px; border-radius: 12px;
+        }
+
+        .subtitle { color: #999; font-size: 13px; margin-bottom: 28px; }
+
+        /* ── DROP ZONE ── */
+        .dropzone {
+            border: 3px dashed #C8D0C3; border-radius: 16px;
+            padding: 44px 24px; text-align: center; cursor: pointer;
+            transition: all 0.3s; background: #fafaf8; position: relative;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #8FAFB1; background: #f0f6f6;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(143, 175, 177, 0.15);
+        }
+        .dropzone-icon { font-size: 44px; margin-bottom: 10px; display: block; }
+        .dropzone-text { font-size: 15px; font-weight: 600; color: #555; }
+        .dropzone-hint { font-size: 12px; color: #aaa; margin-top: 6px; }
+        .dropzone input[type="file"] {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer;
+        }
+
+        /* ── FILE LIST ── */
+        .file-list { margin-top: 24px; }
+        .file-list:empty { display: none; }
+
+        .file-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; background: #fafaf8;
+            border-radius: 10px; margin-bottom: 8px;
+            border-left: 4px solid #C8D0C3;
+            transition: all 0.3s;
+        }
+        .file-item.processing { border-left-color: #8FAFB1; background: #f0f6f6; }
+        .file-item.done { border-left-color: #27ae60; }
+        .file-item.error { border-left-color: #e74c3c; }
+
+        .file-icon { font-size: 22px; flex-shrink: 0; }
+        .file-info { flex: 1; min-width: 0; }
+        .file-name {
+            font-weight: 600; font-size: 13px; color: #333;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .file-status { font-size: 11px; color: #999; margin-top: 2px; }
+        .file-status.ok { color: #27ae60; }
+        .file-status.err { color: #e74c3c; }
+
+        .file-progress {
+            height: 4px; background: #E6D7C3; border-radius: 2px;
+            margin-top: 6px; overflow: hidden;
+        }
+        .file-progress-fill {
+            height: 100%; border-radius: 2px; width: 0%;
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            transition: width 0.3s;
+        }
+
+        .file-action { flex-shrink: 0; }
+        .btn-dl-small {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white; border: none; padding: 6px 14px;
+            border-radius: 6px; font-size: 11px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all 0.2s;
+        }
+        .btn-dl-small:hover { transform: scale(1.05); }
+        .btn-remove {
+            background: none; border: none; color: #ccc; font-size: 16px;
+            cursor: pointer; padding: 4px 8px;
+        }
+        .btn-remove:hover { color: #e74c3c; }
+
+        /* ── CONTROLS ── */
+        .controls {
+            display: none; margin-top: 20px; gap: 10px;
+            justify-content: center; flex-wrap: wrap;
+        }
+        .controls.active { display: flex; }
+
+        .btn-main {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white; border: none; padding: 13px 32px;
+            border-radius: 10px; font-size: 15px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            transition: all 0.3s;
+        }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4); }
+        .btn-main:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: white; color: #8FAFB1; border: 2px solid #C8D0C3;
+            padding: 11px 24px; border-radius: 10px; font-size: 14px;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: #8FAFB1; }
+
+        /* ── GLOBAL PROGRESS ── */
+        .global-progress {
+            display: none; margin-top: 20px; text-align: center;
+        }
+        .global-progress.active { display: block; }
+        .global-bar-track {
+            background: #E6D7C3; border-radius: 8px; height: 8px;
+            overflow: hidden; margin-bottom: 8px;
+        }
+        .global-bar-fill {
+            height: 100%; border-radius: 8px; width: 0%;
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            transition: width 0.4s;
+        }
+        .global-status { font-size: 12px; color: #888; }
+
+        /* ── SUMMARY ── */
+        .summary {
+            display: none; margin-top: 20px; padding: 20px;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            border-radius: 12px; border-left: 4px solid #8FAFB1;
+            text-align: center;
+        }
+        .summary.active { display: block; }
+        .summary-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+        .summary-text { font-weight: 600; color: #333; font-size: 14px; }
+        .summary-details { font-size: 12px; color: #777; margin-top: 4px; }
+
+        .footer {
+            text-align: center; margin-top: 28px;
+            font-size: 11px; color: #bbb;
+        }
+
+        .error-msg {
+            display: none; background: #fff0f0; border-left: 4px solid #e74c3c;
+            padding: 12px 16px; border-radius: 8px; margin-top: 16px;
+            font-size: 13px; color: #c00;
+        }
+        .error-msg.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>EPUB → PDF</h1>
+            <span class="badge">BATCH</span>
+        </div>
+        <div class="subtitle">Glissez un ou plusieurs fichiers .epub — conversion 100% locale</div>
+
+        <div class="dropzone" id="dropzone">
+            <span class="dropzone-icon">📚</span>
+            <div class="dropzone-text">Glissez vos fichiers EPUB ici</div>
+            <div class="dropzone-hint">ou cliquez pour sélectionner — plusieurs fichiers acceptés</div>
+            <input type="file" id="fileInput" accept=".epub" multiple>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <div class="controls" id="controls">
+            <button class="btn-main" id="btnConvert" onclick="startBatchConversion()">
+                ⚡ Convertir tout
+            </button>
+            <button class="btn-secondary" id="btnDownloadAll" onclick="downloadAllPDFs()" style="display:none;">
+                📥 Tout télécharger
+            </button>
+            <button class="btn-secondary" onclick="clearAll()">🗑 Tout effacer</button>
+        </div>
+
+        <div class="global-progress" id="globalProgress">
+            <div class="global-bar-track">
+                <div class="global-bar-fill" id="globalBar"></div>
+            </div>
+            <div class="global-status" id="globalStatus"></div>
+        </div>
+
+        <div class="summary" id="summary">
+            <span class="summary-icon">✅</span>
+            <div class="summary-text" id="summaryText"></div>
+            <div class="summary-details" id="summaryDetails"></div>
+        </div>
+
+        <div class="footer">C Concept&Dev — Aucune donnée envoyée, tout se passe dans votre navigateur</div>
+    </div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// EPUB → PDF BATCH CONVERTER
+// ═══════════════════════════════════════════════════════
+
+const { jsPDF } = window.jspdf || {};
+
+if (!jsPDF) {
+    document.getElementById('errorMsg').textContent = 'Erreur de chargement de la librairie PDF. Rechargez la page.';
+    document.getElementById('errorMsg').classList.add('active');
+}
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const controls = document.getElementById('controls');
+
+// ── State ──
+let files = []; // { file, id, status, pdfBlob, pdfName, pages, chapters, error }
+let isConverting = false;
+
+// ── Drag & Drop ──
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => {
+    addFiles(Array.from(fileInput.files));
+    fileInput.value = '';
+});
+
+// ── Add Files ──
+function addFiles(newFiles) {
+    const epubs = newFiles.filter(f => f.name.toLowerCase().endsWith('.epub'));
+    if (epubs.length === 0) {
+        showError('Seuls les fichiers .epub sont acceptés.');
+        return;
+    }
+    hideError();
+
+    for (const f of epubs) {
+        // Éviter les doublons
+        if (files.find(x => x.file.name === f.name && x.file.size === f.size)) continue;
+
+        const id = 'f-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+        files.push({
+            id, file: f, status: 'pending',
+            pdfBlob: null, pdfName: f.name.replace(/\.epub$/i, '.pdf'),
+            pages: 0, chapters: 0, error: null
+        });
+    }
+
+    renderFileList();
+    controls.classList.add('active');
+}
+
+// ── Render ──
+function renderFileList() {
+    fileList.innerHTML = files.map(f => {
+        const statusClass = f.status === 'done' ? 'done' : f.status === 'error' ? 'error' : f.status === 'converting' ? 'processing' : '';
+        const icon = f.status === 'done' ? '✅' : f.status === 'error' ? '❌' : f.status === 'converting' ? '⏳' : '📄';
+
+        let statusText = '';
+        if (f.status === 'pending') statusText = `${(f.file.size / (1024*1024)).toFixed(1)} Mo — en attente`;
+        else if (f.status === 'converting') statusText = 'Conversion en cours...';
+        else if (f.status === 'done') statusText = `<span class="ok">✓ ${f.chapters} chapitres · ${f.pages} pages</span>`;
+        else if (f.status === 'error') statusText = `<span class="err">✗ ${f.error}</span>`;
+
+        let action = '';
+        if (f.status === 'pending') action = `<button class="btn-remove" onclick="removeFile('${f.id}')" title="Retirer">✕</button>`;
+        else if (f.status === 'done') action = `<button class="btn-dl-small" onclick="downloadOne('${f.id}')">📥 PDF</button>`;
+
+        return `<div class="file-item ${statusClass}" id="item-${f.id}">
+            <div class="file-icon">${icon}</div>
+            <div class="file-info">
+                <div class="file-name">${f.file.name}</div>
+                <div class="file-status">${statusText}</div>
+                ${f.status === 'converting' ? `<div class="file-progress"><div class="file-progress-fill" id="prog-${f.id}"></div></div>` : ''}
+            </div>
+            <div class="file-action">${action}</div>
+        </div>`;
+    }).join('');
+}
+
+function removeFile(id) {
+    files = files.filter(f => f.id !== id);
+    renderFileList();
+    if (files.length === 0) controls.classList.remove('active');
+}
+
+function clearAll() {
+    files = [];
+    fileList.innerHTML = '';
+    controls.classList.remove('active');
+    document.getElementById('globalProgress').classList.remove('active');
+    document.getElementById('summary').classList.remove('active');
+    document.getElementById('btnDownloadAll').style.display = 'none';
+    document.getElementById('btnConvert').disabled = false;
+}
+
+// ── Batch Conversion ──
+async function startBatchConversion() {
+    if (isConverting || files.length === 0) return;
+    isConverting = true;
+
+    const btn = document.getElementById('btnConvert');
+    btn.disabled = true;
+    btn.textContent = '⏳ Conversion en cours...';
+
+    const gp = document.getElementById('globalProgress');
+    gp.classList.add('active');
+    document.getElementById('summary').classList.remove('active');
+
+    const pending = files.filter(f => f.status === 'pending' || f.status === 'error');
+    let completed = 0;
+    let totalPages = 0;
+    let errors = 0;
+
+    for (let i = 0; i < pending.length; i++) {
+        const f = pending[i];
+        f.status = 'converting';
+        renderFileList();
+
+        updateGlobal(i, pending.length, `Conversion ${i + 1}/${pending.length} : ${f.file.name}`);
+
+        try {
+            const result = await convertOneEpub(f);
+            f.pdfBlob = result.blob;
+            f.pages = result.pages;
+            f.chapters = result.chapters;
+            f.status = 'done';
+            totalPages += result.pages;
+            completed++;
+        } catch (err) {
+            f.status = 'error';
+            f.error = err.message || 'Erreur inconnue';
+            errors++;
+        }
+
+        renderFileList();
+    }
+
+    updateGlobal(pending.length, pending.length, 'Terminé !');
+
+    // Summary
+    const summary = document.getElementById('summary');
+    document.getElementById('summaryText').textContent =
+        `${completed} fichier${completed > 1 ? 's' : ''} converti${completed > 1 ? 's' : ''}${errors > 0 ? ` · ${errors} erreur${errors > 1 ? 's' : ''}` : ''}`;
+    document.getElementById('summaryDetails').textContent =
+        `${totalPages} pages au total`;
+    summary.classList.add('active');
+
+    // Show download all
+    if (completed > 1) {
+        document.getElementById('btnDownloadAll').style.display = 'inline-block';
+    }
+
+    btn.textContent = '⚡ Convertir tout';
+    btn.disabled = false;
+    isConverting = false;
+}
+
+function updateGlobal(current, total, status) {
+    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+    document.getElementById('globalBar').style.width = pct + '%';
+    document.getElementById('globalStatus').textContent = status;
+}
+
+// ── Convert single EPUB ──
+async function convertOneEpub(fileEntry) {
+    const file = fileEntry.file;
+    const progBar = document.getElementById('prog-' + fileEntry.id);
+    const setProg = (pct) => { if (progBar) progBar.style.width = pct + '%'; };
+
+    // 1. Read ZIP
+    setProg(10);
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+
+    // 2. Find content
+    setProg(20);
+    const contentPaths = await findContentFiles(zip);
+    if (contentPaths.length === 0) throw new Error('Aucun contenu trouvé');
+
+    // 3. Extract text
+    setProg(30);
+    let fullText = '';
+    let chapterCount = 0;
+
+    for (let i = 0; i < contentPaths.length; i++) {
+        setProg(30 + Math.round((i / contentPaths.length) * 35));
+        const content = await zip.file(contentPaths[i])?.async('string');
+        if (content) {
+            const text = extractTextFromHTML(content);
+            if (text.trim().length > 20) {
+                fullText += text + '\n\n';
+                chapterCount++;
+            }
+        }
+    }
+
+    if (fullText.trim().length < 50) throw new Error('Texte insuffisant (DRM ou images uniquement)');
+
+    // 4. Generate PDF
+    setProg(70);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const m = 20;
+    const mw = pw - m * 2;
+    const lh = 6;
+    let y = m;
+
+    // Title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(16);
+    pdf.text(file.name.replace(/\.epub$/i, ''), m, y);
+    y += 12;
+    pdf.setDrawColor(143, 175, 177);
+    pdf.setLineWidth(0.5);
+    pdf.line(m, y, pw - m, y);
+    y += 10;
+
+    // Body
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    const paragraphs = fullText.split(/\n\n+/);
+    let totalPages = 1;
+
+    for (let p = 0; p < paragraphs.length; p++) {
+        const para = paragraphs[p].trim();
+        if (!para) continue;
+
+        const isH = para.length < 80 && (
+            para === para.toUpperCase() ||
+            /^(Chapitre|CHAPITRE|Chapter|PART|PARTIE)\b/i.test(para) ||
+            /^\d+[\.\)]\s/.test(para)
+        );
+
+        if (isH) { y += 6; pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); }
+        else { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); }
+
+        const lines = pdf.splitTextToSize(para, mw);
+        for (const line of lines) {
+            if (y + lh > ph - m) {
+                pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8); pdf.setTextColor(150);
+                pdf.text(`${totalPages}`, pw / 2, ph - 10, { align: 'center' });
+                pdf.setTextColor(0);
+                pdf.addPage(); totalPages++; y = m;
+                pdf.setFont('helvetica', isH ? 'bold' : 'normal');
+                pdf.setFontSize(isH ? 12 : 10);
+            }
+            pdf.text(line, m, y);
+            y += lh;
+        }
+        y += 3;
+
+        if (p % 100 === 0) setProg(70 + Math.round((p / paragraphs.length) * 28));
+    }
+
+    // Last page number
+    pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8); pdf.setTextColor(150);
+    pdf.text(`${totalPages}`, pw / 2, ph - 10, { align: 'center' });
+
+    setProg(100);
+
+    return {
+        blob: pdf.output('blob'),
+        pages: totalPages,
+        chapters: chapterCount
+    };
+}
+
+// ── Find content files in EPUB ──
+async function findContentFiles(zip) {
+    const paths = [];
+
+    try {
+        const containerXml = await zip.file('META-INF/container.xml')?.async('string');
+        if (containerXml) {
+            const rootMatch = containerXml.match(/full-path="([^"]+)"/);
+            if (rootMatch) {
+                const opfPath = rootMatch[1];
+                const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+                const opfContent = await zip.file(opfPath)?.async('string');
+
+                if (opfContent) {
+                    const manifest = {};
+                    const re1 = /<item\s[^>]*?id="([^"]*)"[^>]*?href="([^"]*)"[^>]*?media-type="([^"]*)"[^>]*?\/?>/g;
+                    const re2 = /<item\s[^>]*?href="([^"]*)"[^>]*?id="([^"]*)"[^>]*?media-type="([^"]*)"[^>]*?\/?>/g;
+                    let m;
+                    while ((m = re1.exec(opfContent)) !== null) manifest[m[1]] = { href: m[2], mt: m[3] };
+                    while ((m = re2.exec(opfContent)) !== null) manifest[m[2]] = { href: m[1], mt: m[3] };
+
+                    const spineMatch = opfContent.match(/<spine[^>]*>([\s\S]*?)<\/spine>/);
+                    if (spineMatch) {
+                        const iref = /idref="([^"]*)"/g;
+                        while ((m = iref.exec(spineMatch[1])) !== null) {
+                            const item = manifest[m[1]];
+                            if (item && (item.mt.includes('html') || item.mt.includes('xml'))) {
+                                const fp = opfDir + item.href;
+                                if (zip.file(fp) || zip.file(decodeURIComponent(fp))) paths.push(fp);
+                            }
+                        }
+                    }
+
+                    if (paths.length === 0) {
+                        for (const item of Object.values(manifest)) {
+                            if (item.mt.includes('html') || item.mt.includes('xml')) {
+                                const fp = opfDir + item.href;
+                                if (zip.file(fp)) paths.push(fp);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) { console.warn('OPF parse failed:', e); }
+
+    if (paths.length === 0) {
+        zip.forEach((rp, f) => {
+            if (!f.dir && /\.(x?html?|xml)$/i.test(rp) && !rp.includes('META-INF') &&
+                !rp.toLowerCase().includes('toc') && !rp.toLowerCase().includes('nav'))
+                paths.push(rp);
+        });
+        paths.sort();
+    }
+    return paths;
+}
+
+// ── Extract text from HTML/XHTML ──
+function extractTextFromHTML(html) {
+    html = html.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script, style, link, meta').forEach(el => el.remove());
+
+    let text = '';
+    const blocks = new Set(['p','div','h1','h2','h3','h4','h5','h6','li','blockquote','br','hr','tr','section','article']);
+
+    function walk(node) {
+        if (node.nodeType === 3) { const t = node.textContent.trim(); if (t) text += t + ' '; return; }
+        if (node.nodeType !== 1) return;
+        const tag = node.tagName?.toLowerCase();
+        if (blocks.has(tag)) text += '\n\n';
+        for (const c of node.childNodes) walk(c);
+        if (blocks.has(tag)) text += '\n';
+    }
+
+    walk(doc.body || doc.documentElement);
+    return text.replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ').trim();
+}
+
+// ── Download helpers ──
+function downloadOne(id) {
+    const f = files.find(x => x.id === id);
+    if (!f?.pdfBlob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f.pdfBlob);
+    a.download = f.pdfName;
+    a.click();
+}
+
+async function downloadAllPDFs() {
+    const done = files.filter(f => f.status === 'done' && f.pdfBlob);
+    if (done.length === 0) return;
+
+    if (done.length === 1) { downloadOne(done[0].id); return; }
+
+    // ZIP all PDFs
+    const zip = new JSZip();
+    for (const f of done) {
+        zip.file(f.pdfName, f.pdfBlob);
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'epub-to-pdf-batch.zip';
+    a.click();
+}
+
+// ── Error helpers ──
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg; el.classList.add('active');
+    setTimeout(() => el.classList.remove('active'), 5000);
+}
+function hideError() { document.getElementById('errorMsg').classList.remove('active'); }
+</script>
+</body>
+</html>
