@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliothèque Thérapeutique — Administration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            min-height: 100vh; padding: 24px;
+        }
+        .app {
+            max-width: 900px; margin: 0 auto;
+        }
+
+        /* ── HEADER ── */
+        .app-header {
+            background: linear-gradient(135deg, #7A9A9C 0%, #8FAFB1 100%);
+            padding: 24px 32px; border-radius: 16px 16px 0 0;
+            color: white; display: flex; justify-content: space-between; align-items: center;
+        }
+        .app-header h1 { font-size: 1.4em; }
+        .app-header .stats { font-size: 12px; opacity: 0.85; }
+
+        /* ── CONFIG ── */
+        .config-bar {
+            background: white; padding: 16px 24px;
+            border-bottom: 1px solid #eee;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .config-bar label { font-size: 12px; color: #888; font-weight: 600; }
+        .config-bar input {
+            flex: 1; min-width: 250px; padding: 8px 12px;
+            border: 2px solid #D8CDBB; border-radius: 8px;
+            font-family: monospace; font-size: 12px;
+        }
+        .config-bar input:focus { border-color: #8FAFB1; outline: none; }
+        .btn-refresh {
+            background: #8FAFB1; color: white; border: none;
+            padding: 8px 16px; border-radius: 8px; font-size: 12px;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+
+        /* ── MAIN ── */
+        .main { background: white; padding: 24px; border-radius: 0 0 16px 16px; }
+
+        /* ── TABS ── */
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+        .tab {
+            padding: 10px 20px; border: none; background: #f5f5f5;
+            border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600;
+            color: #888; cursor: pointer; font-family: inherit; transition: all 0.2s;
+        }
+        .tab.active { background: #8FAFB1; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── DROPZONE ── */
+        .dropzone {
+            border: 3px dashed #C8D0C3; border-radius: 14px;
+            padding: 40px 24px; text-align: center; cursor: pointer;
+            transition: all 0.3s; background: #fafaf8; position: relative;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #8FAFB1; background: #f0f6f6;
+        }
+        .dropzone-icon { font-size: 40px; display: block; margin-bottom: 8px; }
+        .dropzone-text { font-size: 14px; font-weight: 600; color: #555; }
+        .dropzone-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+        .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+        /* ── METADATA FORM ── */
+        .meta-form {
+            display: none; margin-top: 16px; padding: 20px;
+            background: #fafaf8; border-radius: 10px; border: 1px solid #eee;
+        }
+        .meta-form.active { display: block; }
+        .meta-form h3 { font-size: 14px; color: #8FAFB1; margin-bottom: 12px; }
+        .form-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 11px; color: #888; font-weight: 600; }
+        .form-group input, .form-group select {
+            padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 13px; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #8FAFB1; outline: none;
+        }
+
+        /* ── QUEUE ── */
+        .queue { margin-top: 16px; }
+        .queue-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; background: #fafaf8;
+            border-radius: 8px; margin-bottom: 6px;
+            border-left: 4px solid #C8D0C3; transition: all 0.3s;
+        }
+        .queue-item.processing { border-left-color: #8FAFB1; background: #f0f6f6; }
+        .queue-item.done { border-left-color: #27ae60; }
+        .queue-item.error { border-left-color: #e74c3c; }
+        .qi-icon { font-size: 20px; }
+        .qi-info { flex: 1; }
+        .qi-name { font-weight: 600; font-size: 13px; color: #333; }
+        .qi-status { font-size: 11px; color: #999; margin-top: 2px; }
+        .qi-status.ok { color: #27ae60; }
+        .qi-status.err { color: #e74c3c; }
+        .qi-progress { height: 3px; background: #eee; border-radius: 2px; margin-top: 4px; }
+        .qi-progress-fill {
+            height: 100%; border-radius: 2px; width: 0%;
+            background: linear-gradient(135deg, #8FAFB1, #C8D0C3);
+            transition: width 0.3s;
+        }
+        .qi-action {}
+        .btn-sm {
+            padding: 4px 10px; border-radius: 4px; font-size: 11px;
+            border: 1px solid #ddd; background: white; cursor: pointer;
+            font-family: inherit; color: #888;
+        }
+        .btn-sm:hover { border-color: #8FAFB1; color: #8FAFB1; }
+        .btn-sm.danger:hover { border-color: #e74c3c; color: #e74c3c; }
+
+        /* ── BUTTONS ── */
+        .action-bar {
+            display: flex; gap: 10px; margin-top: 16px;
+            justify-content: center; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 28px; border-radius: 10px; font-size: 14px;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+            border: none; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8FAFB1, #C8D0C3);
+            color: white; box-shadow: 0 4px 12px rgba(143,175,177,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+        .btn-outline {
+            background: white; color: #8FAFB1; border: 2px solid #C8D0C3;
+        }
+
+        /* ── LIBRARY TAB ── */
+        .book-grid { display: flex; flex-direction: column; gap: 8px; }
+        .book-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; background: #fafaf8;
+            border-radius: 10px; border-left: 4px solid #8FAFB1;
+        }
+        .bc-info { flex: 1; }
+        .bc-title { font-weight: 600; font-size: 13px; color: #333; }
+        .bc-meta { font-size: 11px; color: #999; margin-top: 2px; }
+        .bc-approach {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 10px; font-weight: 600; background: #E6D7C3; color: #7A9A9C;
+        }
+        .bc-chunks { font-size: 11px; color: #aaa; }
+        .btn-delete {
+            padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px;
+            background: white; color: #ccc; cursor: pointer; font-size: 11px;
+            font-family: inherit;
+        }
+        .btn-delete:hover { border-color: #e74c3c; color: #e74c3c; }
+
+        .empty-state {
+            text-align: center; padding: 40px; color: #bbb;
+        }
+        .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+
+        /* ── LOG ── */
+        .log-box {
+            background: #1a1a2e; color: #C8D0C3; border-radius: 8px;
+            padding: 14px; font-family: monospace; font-size: 11px;
+            max-height: 200px; overflow-y: auto; margin-top: 16px;
+            line-height: 1.6;
+        }
+        .log-box .err { color: #e74c3c; }
+        .log-box .ok { color: #27ae60; }
+        .log-box .info { color: #8FAFB1; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- HEADER -->
+    <div class="app-header">
+        <div>
+            <h1>📚 Bibliothèque Thérapeutique</h1>
+            <div style="font-size:12px;opacity:0.8;margin-top:2px;">Administration — Indexation RAG</div>
+        </div>
+        <div class="stats" id="headerStats">Chargement...</div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="config-bar">
+        <label>Worker URL</label>
+        <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev" placeholder="https://clone-proxy.xxx.workers.dev">
+        <button class="btn-refresh" onclick="refreshStats()">🔄 Actualiser</button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('upload')">📤 Ajouter des livres</button>
+            <button class="tab" onclick="switchTab('library')">📚 Bibliothèque</button>
+            <button class="tab" onclick="switchTab('log')">📋 Journal</button>
+        </div>
+
+        <!-- TAB: UPLOAD -->
+        <div class="tab-content active" id="tab-upload">
+            <div class="dropzone" id="dropzone">
+                <span class="dropzone-icon">📄</span>
+                <div class="dropzone-text">Glissez vos PDF ici</div>
+                <div class="dropzone-hint">Plusieurs fichiers acceptés — extraction et indexation automatiques</div>
+                <input type="file" id="fileInput" accept=".pdf" multiple>
+            </div>
+
+            <div class="queue" id="queue"></div>
+
+            <div class="action-bar" id="actionBar" style="display:none;">
+                <button class="btn btn-primary" id="btnIngest" onclick="startIngestion()">⚡ Indexer tout</button>
+                <button class="btn btn-outline" onclick="clearQueue()">🗑 Vider la file</button>
+            </div>
+        </div>
+
+        <!-- TAB: LIBRARY -->
+        <div class="tab-content" id="tab-library">
+            <div id="libraryContent">
+                <div class="empty-state">
+                    <div class="icon">📚</div>
+                    <div>Cliquez sur Actualiser pour charger la bibliothèque</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: LOG -->
+        <div class="tab-content" id="tab-log">
+            <div class="log-box" id="logBox">
+                <span class="info">[SYSTÈME]</span> Prêt. Configurez l'URL du Worker et glissez vos PDF.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// BIBLIOTHÈQUE THÉRAPEUTIQUE — ADMIN
+// Extraction PDF côté navigateur → Envoi chunks au Worker
+// ═══════════════════════════════════════════════════════════════
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let queue = []; // { id, file, meta, status, chunks, error }
+let isIngesting = false;
+
+// ── Tabs ──
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', ['upload','library','log'][i] === name);
+    });
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'library') refreshLibrary();
+}
+
+// ── Log ──
+function log(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const cls = type === 'error' ? 'err' : type === 'success' ? 'ok' : 'info';
+    const time = new Date().toLocaleTimeString('fr-FR');
+    box.innerHTML += `\n<span class="${cls}">[${time}]</span> ${msg}`;
+    box.scrollTop = box.scrollHeight;
+}
+
+// ── Worker URL ──
+function getWorkerUrl() {
+    return document.getElementById('workerUrl').value.replace(/\/+$/, '');
+}
+
+// ── Drag & Drop ──
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('dragover');
+    addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => {
+    addFiles(Array.from(fileInput.files));
+    fileInput.value = '';
+});
+
+function addFiles(files) {
+    const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+    if (pdfs.length === 0) return;
+
+    for (const f of pdfs) {
+        if (queue.find(q => q.file.name === f.name)) continue;
+        const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
+        const bookId = f.name.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        queue.push({
+            id, file: f,
+            meta: {
+                book_id: bookId,
+                title: f.name.replace(/\.pdf$/i, ''),
+                author: '',
+                language: 'fr',
+                approach: 'general',
+                tags: []
+            },
+            status: 'pending', chunks: [], error: null
+        });
+    }
+    renderQueue();
+    document.getElementById('actionBar').style.display = 'flex';
+    log(`${pdfs.length} PDF ajouté(s) à la file d'attente`);
+}
+
+// ── Queue Render ──
+function renderQueue() {
+    const el = document.getElementById('queue');
+    el.innerHTML = queue.map(q => {
+        const icon = q.status === 'done' ? '✅' : q.status === 'error' ? '❌' :
+                     q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : '📄';
+        const statusCls = q.status === 'done' ? 'done' : q.status === 'error' ? 'error' :
+                          (q.status === 'extracting' || q.status === 'uploading') ? 'processing' : '';
+
+        let statusText = '';
+        if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
+        else if (q.status === 'extracting') statusText = 'Extraction du texte...';
+        else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
+        else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} chunks indexés</span>`;
+        else if (q.status === 'error') statusText = `<span class="err">✗ ${q.error}</span>`;
+
+        return `<div class="queue-item ${statusCls}" id="qi-${q.id}">
+            <div class="qi-icon">${icon}</div>
+            <div class="qi-info">
+                <div class="qi-name">${q.meta.title}</div>
+                <div class="qi-status">${statusText}</div>
+                ${(q.status === 'extracting' || q.status === 'uploading') ?
+                    `<div class="qi-progress"><div class="qi-progress-fill" id="qp-${q.id}"></div></div>` : ''}
+                ${q.status === 'pending' ? renderMetaForm(q) : ''}
+            </div>
+            <div class="qi-action">
+                ${q.status === 'pending' ? `<button class="btn-sm danger" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderMetaForm(q) {
+    return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
+            ${['general','schema_therapy','act','ifs','coherence','emdr','couple','attachment','cbt','cft','dbt']
+                .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
+        </select>
+        <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
+            <option value="fr" ${q.meta.language==='fr'?'selected':''}>FR</option>
+            <option value="en" ${q.meta.language==='en'?'selected':''}>EN</option>
+        </select>
+        <input type="text" placeholder="Auteur" value="${q.meta.author}"
+            onchange="updateMeta('${q.id}','author',this.value)"
+            style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:120px;">
+    </div>`;
+}
+
+function updateMeta(id, field, value) {
+    const q = queue.find(x => x.id === id);
+    if (q) q.meta[field] = value;
+}
+
+function removeFromQueue(id) {
+    queue = queue.filter(q => q.id !== id);
+    renderQueue();
+    if (queue.length === 0) document.getElementById('actionBar').style.display = 'none';
+}
+
+function clearQueue() {
+    queue = queue.filter(q => q.status === 'done');
+    renderQueue();
+    if (queue.length === 0) document.getElementById('actionBar').style.display = 'none';
+}
+
+// ── Extract PDF text with pdf.js ──
+async function extractPDFText(file, progressCb) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdf.numPages;
+    let allText = '';
+    const pages = [];
+
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items.map(item => item.str).join(' ');
+        if (pageText.trim().length > 20) {
+            pages.push({ page: i, text: pageText.trim() });
+        }
+        allText += pageText + '\n\n';
+        if (progressCb) progressCb(Math.round((i / numPages) * 100));
+    }
+
+    return { pages, fullText: allText, numPages };
+}
+
+// ── Chunking ──
+function chunkText(text, size = 800, overlap = 150) {
+    const words = text.split(/\s+/);
+    const chunks = [];
+    let start = 0;
+    while (start < words.length) {
+        const end = Math.min(start + size, words.length);
+        const chunk = words.slice(start, end).join(' ');
+        if (chunk.length >= 100) chunks.push(chunk);
+        start += size - overlap;
+        if (start >= words.length) break;
+    }
+    return chunks;
+}
+
+function chunkPages(pages) {
+    const allChunks = [];
+    for (const p of pages) {
+        const textChunks = chunkText(p.text);
+        for (const content of textChunks) {
+            allChunks.push({ content, page: p.page });
+        }
+    }
+    return allChunks;
+}
+
+// ── Ingestion ──
+async function startIngestion() {
+    if (isIngesting) return;
+    isIngesting = true;
+    const btn = document.getElementById('btnIngest');
+    btn.disabled = true;
+    btn.textContent = '⏳ Indexation en cours...';
+
+    const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
+    let success = 0, errors = 0;
+
+    for (const q of pending) {
+        try {
+            // Phase 1: Extract
+            q.status = 'extracting';
+            renderQueue();
+            log(`📄 Extraction: ${q.meta.title}...`);
+
+            const { pages, numPages } = await extractPDFText(q.file, pct => {
+                const bar = document.getElementById('qp-' + q.id);
+                if (bar) bar.style.width = pct + '%';
+            });
+
+            if (pages.length === 0) throw new Error('Aucun texte extrait (PDF scanné ou protégé)');
+
+            // Phase 2: Chunk
+            q.chunks = chunkPages(pages);
+            log(`  📦 ${q.chunks.length} chunks (${numPages} pages)`);
+
+            if (q.chunks.length === 0) throw new Error('Aucun chunk généré');
+
+            // Phase 3: Send to Worker
+            q.status = 'uploading';
+            renderQueue();
+            log(`  ☁️ Envoi au Worker...`);
+
+            // Send in batches of 20 chunks to avoid timeout
+            const BATCH = 20;
+            let totalSent = 0;
+
+            for (let i = 0; i < q.chunks.length; i += BATCH) {
+                const batch = q.chunks.slice(i, i + BATCH).map((c, j) => ({
+                    id: `${q.meta.book_id}-${i + j}`,
+                    content: c.content,
+                    page: c.page,
+                }));
+
+                const res = await fetch(getWorkerUrl() + '/ingest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chunks: batch, book_meta: q.meta })
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(`Worker error ${res.status}: ${err.substring(0, 100)}`);
+                }
+
+                totalSent += batch.length;
+                const bar = document.getElementById('qp-' + q.id);
+                if (bar) bar.style.width = Math.round((totalSent / q.chunks.length) * 100) + '%';
+            }
+
+            q.status = 'done';
+            success++;
+            log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
+
+        } catch (err) {
+            q.status = 'error';
+            q.error = err.message;
+            errors++;
+            log(`  ❌ ${q.meta.title}: ${err.message}`, 'error');
+        }
+
+        renderQueue();
+    }
+
+    log(`\n═══ Terminé: ${success} réussi(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
+
+    btn.disabled = false;
+    btn.textContent = '⚡ Indexer tout';
+    isIngesting = false;
+    refreshStats();
+}
+
+// ── Library Tab ──
+async function refreshLibrary() {
+    const el = document.getElementById('libraryContent');
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Chargement...</div>';
+
+    try {
+        const res = await fetch(getWorkerUrl() + '/library-stats');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (!data.books || data.books.length === 0) {
+            el.innerHTML = `<div class="empty-state">
+                <div class="icon">📚</div>
+                <div>Bibliothèque vide — ajoutez des PDF dans l'onglet "Ajouter"</div>
+            </div>`;
+            return;
+        }
+
+        // Count chunks per book
+        const bookChunks = {};
+        // We need to query D1 for chunk counts — use approach count as proxy
+        el.innerHTML = `<div style="margin-bottom:12px;font-size:12px;color:#888;">
+            ${data.total_chunks} chunks · ${data.books.length} livres ·
+            ${data.by_approach.map(a => `${a.approach} (${a.count})`).join(', ')}
+        </div>
+        <div class="book-grid">
+            ${data.books.map(b => `<div class="book-card">
+                <div class="bc-info">
+                    <div class="bc-title">${b.book_title}</div>
+                    <div class="bc-meta">${b.author} · <span class="bc-approach">${b.approach}</span> · ${b.language.toUpperCase()}</div>
+                </div>
+                <button class="btn-delete" onclick="deleteBook('${b.book_id}','${b.book_title.replace(/'/g,"\\'")}')">🗑</button>
+            </div>`).join('')}
+        </div>`;
+
+    } catch (err) {
+        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${err.message}</div>`;
+    }
+}
+
+async function deleteBook(bookId, title) {
+    if (!confirm(`Supprimer "${title}" de la bibliothèque ?`)) return;
+
+    try {
+        log(`🗑 Suppression: ${title}...`);
+        const res = await fetch(getWorkerUrl() + '/delete-book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: bookId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            log(`  ✅ ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
+        } else {
+            log(`  ❌ ${data.error}`, 'error');
+        }
+        refreshLibrary();
+        refreshStats();
+    } catch (err) {
+        log(`  ❌ ${err.message}`, 'error');
+    }
+}
+
+// ── Stats ──
+async function refreshStats() {
+    try {
+        const res = await fetch(getWorkerUrl() + '/library-stats');
+        const data = await res.json();
+        document.getElementById('headerStats').textContent =
+            `${data.total_chunks || 0} chunks · ${data.books?.length || 0} livres`;
+    } catch {
+        document.getElementById('headerStats').textContent = '⚠️ Worker inaccessible';
+    }
+}
+
+// ── Init ──
+refreshStats();
+</script>
+</body>
+</html>
