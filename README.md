@@ -9,7 +9,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/11drumboy11/C-Concept-Dev)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-Active-success.svg)]()
-[![Projects](https://img.shields.io/badge/projects-2-orange.svg)]()
+[![Projects](https://img.shields.io/badge/projects-3-orange.svg)]()
 
 ---
 
@@ -85,12 +85,31 @@ Notre framework repose sur **4 composants JSON** qui, combinés, créent un clon
 |-------|-------------|--------|
 | **[Clone Interview Pro](tools/clone-interview-pro/)** | Génère Brain JSON via interview multi-modale (vidéo/audio/texte) | ✅ v18.5 |
 | **[Persona Builder](tools/persona-builder/)** | Interface pour créer Persona JSON | 🚧 Bientôt |
-| **[Knowledge Merger](tools/knowledge-merger/)** | Fusionne multiples JSON en megasearch.json | 🚧 Bientôt |
+| **[Knowledge Merger](tools/knowledge-merger/)** | Fusionne multiples JSON en megasearch.json | ✅ En ligne |
 | **[Clone Tester](tools/clone-tester/)** | Valide qualité et fidélité du clone | 🚧 Bientôt |
 
 ### 🎸 Prof de Basse (Projet Secondaire)
 
 Scripts d'automatisation pour base de connaissances musicale.
+
+### 🩺 Thérapeute IA — Institut du Couple
+
+Plateforme thérapeutique intégrative avec analyse multimodale (vidéo, audio, texte), bibliothèque clinique RAG (37 ouvrages, 5020 passages) et deux modes de fonctionnement :
+
+| Mode | Description | Modèle IA | Status |
+|------|-------------|-----------|--------|
+| **Séance Patient** | Entretien thérapeutique complet : écoute active, interventions 3e vague (ACT, IFS, Schémas, EMDR), détection de schémas, défenses et attachement en temps réel | Claude Sonnet 4 | ✅ Opérationnel |
+| **Collaborateur PSY** | Supervision clinique pour psychologues : conceptualisation intégrative, hypothèses multi-approches, références bibliographiques, détection du contre-transfert via analyse multimodale | Claude Opus 4.5 | ✅ Opérationnel |
+
+**Fonctionnalités clés** :
+- Analyse multimodale temps réel (expressions faciales, prosodie vocale, contenu verbal)
+- 7 modules d'analyse psychologique (schémas de Young, défenses DMRS, attachement, HEXACO, Big Five, motivations, personnalité profonde)
+- Bibliothèque RAG : 37 ouvrages de référence (Young, Hayes, Schwartz, Gottman, Johnson, van der Kolk...)
+- Moteur d'action autonome (propositions d'exercices thérapeutiques, EMDR en séance)
+- Synthèse vocale Google Chirp 3 HD / OpenAI TTS
+- Export/import de sessions, mémoire inter-sessions
+
+**Stack** : HTML monofichier (~35K lignes) · Claude API via Cloudflare Worker · Cloudflare D1 + Vectorize (RAG) · face-api.js · Meyda.js · Web Speech API
 
 ---
 
@@ -164,8 +183,8 @@ python automation/clone-system/merge-all.py
 
 | Métrique | Valeur |
 |----------|--------|
-| **Lignes de code** | 27,000+ |
-| **Outils** | 4 (2 actifs) |
+| **Lignes de code** | 62,000+ |
+| **Outils** | 5 (3 actifs) |
 | **Scripts Python** | 10+ |
 | **Schemas JSON** | 4 |
 | **Documentation** | 50+ pages |
@@ -230,7 +249,7 @@ Compatibilité : Gemini, Grok, DeepSeek, LLaMA, Mistral
 - [x] Clone Interview Pro v18.5 (Test Reports + Comparator)
 - [x] Structure repo C Concept&Dev
 - [ ] Persona Builder v1.0
-- [ ] Knowledge Merger v1.0
+- [x] Knowledge Merger v1.0
 - [ ] Tests Beta (10 utilisateurs)
 
 ### Q2 2025
