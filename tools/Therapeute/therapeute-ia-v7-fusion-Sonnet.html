@@ -287,6 +287,209 @@
             background: var(--success);
         }
         
+        /* COLLAB DOSSIER SCREEN */
+        .collab-dossier-screen {
+            display: none;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        .collab-dossier-screen.active {
+            display: block;
+        }
+        .collab-dossier-screen h2 {
+            color: #5B7F83;
+            font-size: 24px;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+        .collab-dossier-screen .subtitle {
+            color: var(--text-secondary, #888);
+            font-size: 14px;
+            margin-bottom: 28px;
+        }
+        .dossier-actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .dossier-action-card {
+            flex: 1;
+            min-width: 160px;
+            max-width: 200px;
+            padding: 22px 16px;
+            border: 3px solid var(--sable, #E6D7C3);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+            background: white;
+        }
+        .dossier-action-card:hover {
+            border-color: #5B7F83;
+            background: #f8f6f2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(91,127,131,0.12);
+        }
+        .dossier-action-card.selected {
+            border-color: #C9A96E;
+            background: var(--sable-light, #F5EDE0);
+        }
+        .dossier-action-card .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .dossier-action-card .label {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        .dossier-action-card .desc {
+            font-size: 11px;
+            color: var(--text-secondary, #888);
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        .dossier-form {
+            display: none;
+            text-align: left;
+            background: white;
+            border: 2px solid var(--sable, #E6D7C3);
+            border-radius: 14px;
+            padding: 24px;
+            margin-top: 16px;
+        }
+        .dossier-form.active {
+            display: block;
+        }
+        .dossier-form label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+            margin-top: 14px;
+        }
+        .dossier-form label:first-child {
+            margin-top: 0;
+        }
+        .dossier-form input,
+        .dossier-form textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--sable, #E6D7C3);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .dossier-form input:focus,
+        .dossier-form textarea:focus {
+            outline: none;
+            border-color: var(--mer, #8FAFB1);
+        }
+        .dossier-form textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        .dossier-form .required-star {
+            color: #e67e22;
+            margin-left: 2px;
+        }
+        .dossier-form .form-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .dossier-btn-primary {
+            background: linear-gradient(135deg, #5B7F83, #8FAFB1);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .dossier-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(91,127,131,0.25);
+        }
+        .dossier-btn-primary:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .dossier-btn-secondary {
+            background: white;
+            color: #5B7F83;
+            border: 2px solid var(--sable, #E6D7C3);
+            padding: 10px 22px;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .dossier-btn-secondary:hover {
+            border-color: #5B7F83;
+        }
+        /* Dossier info banner in collab indicator */
+        .collab-dossier-info {
+            display: inline-block;
+            background: rgba(255,255,255,0.18);
+            padding: 3px 12px;
+            border-radius: 12px;
+            margin-left: 10px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        /* Confirmation modal overlay */
+        .dossier-confirm-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .dossier-confirm-overlay.active {
+            display: flex;
+        }
+        .dossier-confirm-box {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        .dossier-confirm-box h3 {
+            font-size: 18px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        .dossier-confirm-box p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        .dossier-confirm-box .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
         /* WELCOME SCREEN */
         .welcome-screen {
             display: none;
@@ -1823,17 +2026,99 @@
         </div>
     </div>
     
+    <!-- ÉCRAN DOSSIER PATIENT COLLAB -->
+    <div class="collab-dossier-screen" id="collab-dossier-screen">
+        <h2>⬢ Collaborateur PSY</h2>
+        <div class="subtitle">Gestion de votre patientèle</div>
+
+        <div class="dossier-actions">
+            <div class="dossier-action-card" onclick="selectDossierAction('new', this)">
+                <div class="icon">📋</div>
+                <div class="label">Nouveau dossier</div>
+                <div class="desc">Créer un dossier<br>pour un patient</div>
+            </div>
+            <div class="dossier-action-card" onclick="selectDossierAction('resume', this)">
+                <div class="icon">📥</div>
+                <div class="label">Reprendre</div>
+                <div class="desc">Charger un dossier<br>existant (JSON)</div>
+            </div>
+            <div class="dossier-action-card" onclick="selectDossierAction('libre', this)">
+                <div class="icon">💬</div>
+                <div class="label">Session libre</div>
+                <div class="desc">Supervision sans<br>dossier patient</div>
+            </div>
+        </div>
+
+        <!-- FORMULAIRE NOUVEAU DOSSIER -->
+        <div class="dossier-form" id="dossier-form-new">
+            <label>Initiales du patient <span class="required-star">*</span></label>
+            <input type="text" id="dossier-initiales" placeholder="Ex: M.R." maxlength="10" oninput="validateDossierForm()">
+
+            <label>Âge <span class="required-star">*</span></label>
+            <input type="number" id="dossier-age" placeholder="Ex: 34" min="1" max="120" oninput="validateDossierForm()">
+
+            <label>Motif de consultation <span class="required-star">*</span></label>
+            <input type="text" id="dossier-motif" placeholder="Ex: Conflits conjugaux, communication" oninput="validateDossierForm()">
+
+            <label>Notes libres</label>
+            <textarea id="dossier-notes" placeholder="Contexte supplémentaire (optionnel)..." rows="3"></textarea>
+
+            <div class="form-actions">
+                <button class="dossier-btn-secondary" onclick="closeDossierForm()">← Retour</button>
+                <button class="dossier-btn-primary" id="dossier-create-btn" disabled onclick="createNewDossier()">Créer le dossier</button>
+            </div>
+        </div>
+
+        <!-- ZONE UPLOAD REPRISE -->
+        <div class="dossier-form" id="dossier-form-resume" style="text-align:center;">
+            <p style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">
+                Sélectionnez le fichier JSON du dossier patient à reprendre.
+            </p>
+            <input type="file" id="dossier-resume-input" accept=".json" style="display:none" onchange="handleDossierResumeFile(this)">
+            <button class="dossier-btn-primary" onclick="document.getElementById('dossier-resume-input').click()" style="font-size:15px; padding:14px 34px;">
+                📂 Charger un dossier
+            </button>
+            <div id="dossier-resume-preview" style="display:none; margin-top:16px; text-align:left; background:#f8f6f2; border-radius:10px; padding:16px;"></div>
+            <div class="form-actions" style="margin-top:16px;">
+                <button class="dossier-btn-secondary" onclick="closeDossierForm()">← Retour</button>
+            </div>
+        </div>
+
+        <!-- RETOUR WELCOME -->
+        <div style="margin-top: 20px;">
+            <button class="dossier-btn-secondary" onclick="backToWelcome()" style="font-size:12px; padding:8px 20px;">
+                ← Changer de mode
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMATION DOSSIER (clé-serrure) -->
+    <div class="dossier-confirm-overlay" id="dossier-confirm-overlay">
+        <div class="dossier-confirm-box">
+            <h3 id="dossier-confirm-title">Confirmation</h3>
+            <p id="dossier-confirm-message"></p>
+            <div class="actions">
+                <button class="dossier-btn-secondary" onclick="closeDossierConfirm()">Annuler</button>
+                <button class="dossier-btn-primary" id="dossier-confirm-ok" onclick="confirmDossierAction()">Confirmer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ÉCRAN SÉANCE THÉRAPEUTIQUE -->
     <div class="interview-screen" id="interview-screen">
         <!-- MODE INDICATOR (visible uniquement en mode collab) -->
         <div id="collab-mode-indicator" style="display: none; background: linear-gradient(135deg, #5B7F83, #8FAFB1); padding: 10px 20px; text-align: center; color: white; font-size: 13px; font-weight: 600;">
             Mode Collaborateur PSY — <span id="collab-mode-label">Supervision</span>
+            <span id="collab-dossier-badge" class="collab-dossier-info" style="display:none;"></span>
             <span style="margin-left: 12px; font-size: 11px; opacity: 0.8;">|</span>
             <button onclick="window._collabMode='supervision'; document.getElementById('collab-mode-label').textContent='Supervision';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:8px;opacity:0.8;font-family:inherit;">Supervision</button>
             <button onclick="window._collabMode='analyse'; document.getElementById('collab-mode-label').textContent='Analyse de cas';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Analyse</button>
             <button onclick="window._collabMode='intervention'; document.getElementById('collab-mode-label').textContent='Stratégie';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Stratégie</button>
             <button onclick="window._collabMode='conceptualisation'; document.getElementById('collab-mode-label').textContent='Conceptualisation';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Concept°</button>
             <button onclick="window._collabMode='bibliographie'; document.getElementById('collab-mode-label').textContent='Bibliographie';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Biblio</button>
+            <span style="margin-left: 12px; font-size: 11px; opacity: 0.6;">|</span>
+            <button onclick="v19PauseExport()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;cursor:pointer;font-size:11px;margin-left:8px;padding:3px 10px;border-radius:10px;font-family:inherit;font-weight:600;" title="Sauvegarder le dossier">💾 Sauvegarder</button>
+            <button onclick="endCollabSession()" style="background:rgba(255,100,100,0.25);border:1px solid rgba(255,255,255,0.4);color:white;cursor:pointer;font-size:11px;margin-left:4px;padding:3px 10px;border-radius:10px;font-family:inherit;font-weight:600;" title="Terminer et exporter le dossier">⏹ Fin de séance</button>
         </div>
         <!-- PROGRESS v17.3.3 - Badges discrets charte -->
         <div class="progress-section" style="background: transparent; padding: 15px 20px; margin-bottom: 20px;">
@@ -1858,6 +2143,10 @@
                 <!-- V19: Pause & Export button -->
                 <button id="v19-pause-btn" onclick="v19PauseExport()" style="background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #e67e22; color: #e67e22; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Sauvegarder la session">
                     ⏸️ Pause
+                </button>
+                <!-- COLLAB: Bouton Fin de séance (visible uniquement en mode collab) -->
+                <button id="collab-end-session-btn" onclick="collabEndSession()" style="display: none; background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; cursor: pointer; align-items: center; gap: 5px;" title="Terminer la session et exporter le dossier">
+                    ⏹️ Fin de séance
                 </button>
                 <!-- V19: Resume button -->
                 <button id="v19-resume-btn" onclick="document.getElementById('v19-resume-input').click()" style="background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #8FAFB1; color: #8FAFB1; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Reprendre une session">
@@ -3196,15 +3485,98 @@ Hayes (ACT, hexaflex), Linehan (DBT, tolérance détresse, validation radicale),
 
 Vouvoiement systématique. Ton d'autorité tranquille — celui d'un clinicien qui n'a plus rien à prouver. Chaleur contenue, jamais excessive. Respect profond pour la collègue, manifesté par la rigueur de votre pensée, pas par des flatteries.
 
+═══ RÈGLE ABSOLUE — PACING ═══
+
+Votre profondeur d'analyse est PROPORTIONNELLE à la quantité d'information clinique reçue.
+
+NIVEAU 1 — DESCRIPTION INITIALE (peu d'infos, début de session) :
+- Le psy vient de décrire le cas en 2-5 phrases
+- Vous accusez réception, reformulez ce que vous avez compris
+- Vous posez 1 à 2 questions précises pour OUVRIR le tableau clinique
+- PAS d'hypothèse théorique encore. Pas de nom d'auteur. Vous n'avez pas assez de matériel.
+- Format : 4-8 phrases maximum
+
+NIVEAU 2 — APPROFONDISSEMENT (infos modérées, milieu de session) :
+- Le psy a donné le contexte, l'anamnèse, les observations en séance
+- Vous pouvez formuler UNE hypothèse exploratoire, la nommer ("ce qui m'interpelle"), et demander au psy ce qu'il en pense
+- Vous pouvez mentionner UN auteur si c'est éclairant, pas trois
+- Format : 8-15 phrases
+
+NIVEAU 3 — CONCEPTUALISATION (matériel riche, session avancée) :
+- Le psy a répondu à vos questions, vous avez un tableau clinique étoffé
+- Vous pouvez croiser les grilles de lecture, proposer plusieurs hypothèses, articuler un plan
+- Maintenant les auteurs sont bienvenus — comme des outils, pas comme un catalogue
+- Format : 15-25 phrases selon la complexité
+
+INDICATEUR DE NIVEAU : comptez les messages-user dans la conversation. Messages 1-2 = Niveau 1. Messages 3-5 = Niveau 2. Messages 6+ = Niveau 3. Ajustez si le psy donne beaucoup d'information en peu de messages.
+
+═══ POSTURE SOCRATIQUE ═══
+
+Vous ne MONTREZ PAS votre savoir — vous GUIDEZ le raisonnement clinique de votre collègue.
+
+PRINCIPES :
+- Avant de proposer une hypothèse, DEMANDEZ au psy ce qu'il pense, ce qu'il repère, ce qu'il ressent face à ce patient
+- Si le psy donne une piste, EXPLOREZ-LA avec lui avant d'en proposer une autre
+- Privilégiez les questions qui font RÉFLÉCHIR : "Qu'est-ce que ça vous fait quand il dit ça ?", "Si on retournait l'hypothèse, qu'est-ce qu'on verrait ?", "Qu'est-ce qui vous retient d'aller là ?"
+- Une seule question par intervention — pas de liste de questions
+- Quand vous posez une question, elle doit être SPÉCIFIQUE au cas, pas générique
+
+CE QUI EST INTERDIT :
+- Aligner 3+ auteurs dans une même réponse au Niveau 1
+- Poser plus d'une question de relance par message
+- Faire un "cours" sur un concept alors que le psy n'a rien demandé
+- Proposer un plan de traitement alors que le tableau clinique n'est pas complet
+
+CE QUI EST ATTENDU :
+- Montrer que vous avez ÉCOUTÉ en reformulant avec précision ce que le psy a dit
+- Repérer ce qui MANQUE dans la description et le demander
+- Faire confiance à l'intelligence clinique de votre collègue — il/elle sait des choses, aidez-le/la à les formuler
+- Quand vous apportez quelque chose, que ce soit UNE idée forte, pas cinq idées diluées
+
 Prose dense, fluide, habitée. Chaque phrase porte une idée. Pas de remplissage, pas de redondance. Listes uniquement pour structurer un plan de traitement séquencé.
 
-8 à 25 phrases selon la complexité du cas. Si c'est simple, soyez bref et percutant. Si c'est complexe, déployez.
-
-Citez les auteurs naturellement, comme un clinicien qui les a lus et pratiqués, pas comme un étudiant qui les récite.
-
-Terminez toujours par une question qui fait avancer la réflexion clinique — une question qui montre que vous avez vu plus loin que ce qui a été dit, et qui invite votre collègue à y aller aussi.
-
 RETOURNE UNIQUEMENT votre intervention de supervision. Rien d'autre.`;
+
+    // ═══ DOSSIER PATIENT — Contexte du patient en cours ═══
+    if (window._collabDossier) {
+        const d = window._collabDossier;
+        const sessionNum = window._collabSessionNumber || 1;
+        prompt += '\n\n═══ DOSSIER PATIENT EN COURS ═══\n';
+        prompt += 'Identifiant : ' + d.patientDossierID + '\n';
+        prompt += 'Patient : ' + d.initiales + ', ' + d.age + ' ans\n';
+        prompt += 'Motif de consultation : ' + d.motif + '\n';
+        if (d.notes) prompt += 'Notes : ' + d.notes + '\n';
+        prompt += 'Session de supervision n°' + sessionNum + '\n';
+        
+        // Historique des sessions précédentes
+        if (window._collabSessionHistory && window._collabSessionHistory.length > 0) {
+            prompt += '\n── Historique des sessions de supervision ──\n';
+            for (const s of window._collabSessionHistory) {
+                const dateStr = new Date(s.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                prompt += 'Session ' + s.sessionNumber + ' (' + dateStr + ', ' + s.mode + ') : ';
+                prompt += (s.summary || '').substring(0, 200);
+                if (s.hypotheses && s.hypotheses.length > 0) {
+                    prompt += ' | Hypothèses: ' + s.hypotheses.join(', ');
+                }
+                prompt += '\n';
+            }
+        }
+        
+        // Notes cliniques cumulées
+        if (window._collabClinicalNotes) {
+            const cn = window._collabClinicalNotes;
+            if (cn.hypotheses && cn.hypotheses.length > 0) {
+                prompt += '\nHypothèses cliniques en cours : ' + cn.hypotheses.join(', ') + '\n';
+            }
+            if (cn.diagnosticFormulation) {
+                prompt += 'Formulation diagnostique : ' + cn.diagnosticFormulation + '\n';
+            }
+            if (cn.treatmentPlan) {
+                prompt += 'Plan de traitement : ' + cn.treatmentPlan + '\n';
+            }
+        }
+        prompt += '(Utilisez ces informations pour contextualiser votre supervision. Vous connaissez déjà ce patient des sessions précédentes.)\n';
+    }
 
     // ═══ FIX 4 — Injecter la mémoire de supervision (cas discutés précédemment) ═══
     const supervisionMemory = SupervisionMemory.getContextForPrompt();
@@ -3319,7 +3691,438 @@ const SupervisionMemory = {
 
 window.SupervisionMemory = SupervisionMemory;
 
+// ═══════════════════════════════════════════════════════════════
+// SYSTÈME DOSSIERS PATIENTS — Mode Collaborateur PSY
+// ═══════════════════════════════════════════════════════════════
+
+window._collabDossier = null;           // Objet dossier patient en cours
+window._collabSessionHistory = [];      // Historique sessions collab cumulé
+window._collabSessionNumber = 1;        // Numéro session courante
+window._collabDossierPendingAction = null; // Action en attente de confirmation
+
+/**
+ * Génère un ID unique pour un dossier patient : PAT-{initiales}{age}-{hash4}
+ */
+function generateDossierID(initiales, age) {
+    const clean = initiales.replace(/[^A-Za-zÀ-ÿ]/g, '').toUpperCase();
+    const hash = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return 'PAT-' + clean + age + '-' + hash;
+}
+
+/**
+ * PHASE 1 — Affiche l'écran de sélection/création de dossier
+ */
+function showCollabDossierScreen() {
+    document.getElementById('welcome-screen').classList.remove('active');
+    document.getElementById('collab-dossier-screen').classList.add('active');
+    // Reset
+    document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('dossier-form-new').classList.remove('active');
+    document.getElementById('dossier-form-resume').classList.remove('active');
+    console.log('[Dossier] 📋 Écran dossier patient affiché');
+}
+
+/**
+ * Sélection d'une action dossier (nouveau / reprendre / libre)
+ */
+function selectDossierAction(action, el) {
+    document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    
+    document.getElementById('dossier-form-new').classList.remove('active');
+    document.getElementById('dossier-form-resume').classList.remove('active');
+    
+    if (action === 'new') {
+        document.getElementById('dossier-form-new').classList.add('active');
+    } else if (action === 'resume') {
+        document.getElementById('dossier-form-resume').classList.add('active');
+        document.getElementById('dossier-resume-preview').style.display = 'none';
+    } else if (action === 'libre') {
+        // Session libre : pas de dossier, on lance directement
+        window._collabDossier = null;
+        window._collabSessionHistory = [];
+        window._collabSessionNumber = 1;
+        window._collabDossierDone = true;
+        document.getElementById('collab-dossier-screen').classList.remove('active');
+        showModeSelection();
+    }
+}
+
+/**
+ * Retour au welcome screen
+ */
+function backToWelcome() {
+    document.getElementById('collab-dossier-screen').classList.remove('active');
+    document.getElementById('welcome-screen').classList.add('active');
+}
+
+/**
+ * Ferme le formulaire dossier et revient aux 3 cartes
+ */
+function closeDossierForm() {
+    document.getElementById('dossier-form-new').classList.remove('active');
+    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
+}
+
+/**
+ * Validation du formulaire nouveau dossier
+ */
+function validateDossierForm() {
+    const initiales = document.getElementById('dossier-initiales').value.trim();
+    const age = document.getElementById('dossier-age').value.trim();
+    const motif = document.getElementById('dossier-motif').value.trim();
+    const btn = document.getElementById('dossier-create-btn');
+    btn.disabled = !(initiales && age && parseInt(age) > 0 && motif);
+}
+
+/**
+ * PHASE 1 — Crée un nouveau dossier patient
+ */
+function createNewDossier() {
+    const initiales = document.getElementById('dossier-initiales').value.trim();
+    const age = parseInt(document.getElementById('dossier-age').value.trim());
+    const motif = document.getElementById('dossier-motif').value.trim();
+    const notes = document.getElementById('dossier-notes').value.trim();
+    
+    if (!initiales || !age || !motif) return;
+    
+    const dossierID = generateDossierID(initiales, age);
+    
+    window._collabDossier = {
+        patientDossierID: dossierID,
+        initiales: initiales,
+        age: age,
+        motif: motif,
+        notes: notes || '',
+        created: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+    };
+    window._collabSessionHistory = [];
+    window._collabSessionNumber = 1;
+    
+    console.log('[Dossier] ✅ Nouveau dossier créé:', dossierID, initiales, age + ' ans');
+    
+    if (typeof showToast === 'function') {
+        showToast('Dossier ' + initiales + ' créé (' + dossierID + ')', 'success');
+    }
+    
+    // Passer au choix du mode (texte/audio/vidéo)
+    document.getElementById('collab-dossier-screen').classList.remove('active');
+    window._collabDossierDone = true;
+    showModeSelection();
+}
+
+/**
+ * PHASE 2+3 — Charge un dossier depuis un JSON uploadé
+ */
+function handleDossierResumeFile(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileInput.value = '';
+    
+    console.log('[Dossier] 📥 Chargement fichier:', file.name);
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Vérifier le format
+            if (data._format !== 'therapeute-ia-collab-dossier') {
+                // Peut-être un ancien format session patient
+                if (data._format === 'therapeute-ia-session') {
+                    if (typeof showToast === 'function') {
+                        showToast('Ce fichier est une session patient, pas un dossier collab. Utilisez \"Reprendre une session\" depuis l\'accueil.', 'error');
+                    }
+                    return;
+                }
+                if (typeof showToast === 'function') {
+                    showToast('Format de fichier non reconnu.', 'error');
+                }
+                return;
+            }
+            
+            const dossier = data.dossier;
+            if (!dossier || !dossier.patientDossierID) {
+                if (typeof showToast === 'function') {
+                    showToast('Dossier corrompu : identifiant manquant.', 'error');
+                }
+                return;
+            }
+            
+            // PHASE 3 — Système clé-serrure
+            if (window._collabDossier && window._collabDossier.patientDossierID !== dossier.patientDossierID) {
+                // Un dossier est déjà ouvert et ce n'est pas le même patient
+                showDossierConfirm(
+                    '⚠️ Dossier différent',
+                    'Ce fichier correspond au dossier de <strong>' + dossier.initiales + ', ' + dossier.age + ' ans</strong> — pas au dossier en cours (<strong>' + window._collabDossier.initiales + ', ' + window._collabDossier.age + ' ans</strong>).<br><br>Voulez-vous changer de dossier ?',
+                    function() {
+                        loadDossierFromJSON(data);
+                    }
+                );
+                return;
+            }
+            
+            // Pas de conflit ou pas de dossier ouvert : afficher preview + confirmer
+            const sessionCount = (data.sessionHistory || []).length;
+            const lastMode = data.sessionHistory && data.sessionHistory.length > 0 ? data.sessionHistory[data.sessionHistory.length - 1].mode : '—';
+            
+            showDossierConfirm(
+                '📋 Dossier trouvé',
+                'Dossier de <strong>' + dossier.initiales + ', ' + dossier.age + ' ans</strong><br>' +
+                'Motif : ' + dossier.motif + '<br>' +
+                sessionCount + ' session(s) de supervision<br>' +
+                'Dernier mode : ' + lastMode + '<br><br>' +
+                'Continuer avec ce dossier ?',
+                function() {
+                    loadDossierFromJSON(data);
+                }
+            );
+            
+        } catch (err) {
+            console.error('[Dossier] ❌ Erreur parsing JSON:', err);
+            if (typeof showToast === 'function') {
+                showToast('Erreur de lecture du fichier JSON.', 'error');
+            }
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * PHASE 2 — Charge effectivement un dossier depuis les données JSON
+ */
+function loadDossierFromJSON(data) {
+    window._collabDossier = data.dossier;
+    window._collabSessionHistory = data.sessionHistory || [];
+    window._collabSessionNumber = (data.metadata?.sessionNumber || window._collabSessionHistory.length || 0) + 1;
+    
+    // Restaurer la mémoire de supervision si présente
+    if (data.supervisionMemory && window.SupervisionMemory) {
+        try {
+            localStorage.setItem(window.SupervisionMemory.STORAGE_KEY, JSON.stringify(
+                Array.isArray(data.supervisionMemory) ? data.supervisionMemory : []
+            ));
+        } catch(e) {}
+    }
+    
+    // Restaurer les messages si présents (pour continuer la conversation)
+    if (data.conversation && data.conversation.messages && data.conversation.messages.length > 0) {
+        window._pendingCollabMessages = data.conversation.messages;
+    }
+    
+    // Restaurer les notes cliniques
+    if (data.clinicalNotes) {
+        window._collabClinicalNotes = data.clinicalNotes;
+    }
+    
+    console.log('[Dossier] ✅ Dossier chargé:', window._collabDossier.patientDossierID, 
+        window._collabDossier.initiales, '— session', window._collabSessionNumber);
+    
+    if (typeof showToast === 'function') {
+        showToast('Dossier ' + window._collabDossier.initiales + ' chargé — session ' + window._collabSessionNumber, 'success');
+    }
+    
+    closeDossierConfirm();
+    document.getElementById('collab-dossier-screen').classList.remove('active');
+    window._collabDossierDone = true;
+    showModeSelection();
+}
+
+/**
+ * PHASE 3 — Dialogue de confirmation (clé-serrure)
+ */
+function showDossierConfirm(title, message, onConfirm) {
+    document.getElementById('dossier-confirm-title').textContent = title;
+    document.getElementById('dossier-confirm-message').innerHTML = message;
+    window._collabDossierPendingAction = onConfirm;
+    document.getElementById('dossier-confirm-overlay').classList.add('active');
+}
+
+function confirmDossierAction() {
+    if (typeof window._collabDossierPendingAction === 'function') {
+        window._collabDossierPendingAction();
+    }
+    window._collabDossierPendingAction = null;
+    document.getElementById('dossier-confirm-overlay').classList.remove('active');
+}
+
+function closeDossierConfirm() {
+    window._collabDossierPendingAction = null;
+    document.getElementById('dossier-confirm-overlay').classList.remove('active');
+}
+
+/**
+ * PHASE 2 — Export JSON dossier collab cumulatif
+ */
+function exportCollabDossier() {
+    if (!window._collabDossier) {
+        console.warn('[Dossier] Pas de dossier actif, export standard');
+        return false; // signale qu'il faut utiliser l'export standard
+    }
+    
+    try {
+        const convSystem = window.conversationalSystem || window.convSystem;
+        const sm = window.sessionManager;
+        const currentSessionNumber = window._collabSessionNumber || 1;
+        
+        // Résumé de la session courante
+        const messages = convSystem ? convSystem.messages : [];
+        const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).join(' ');
+        
+        // Extraire hypothèses et thèmes
+        const exploredThemes = convSystem ? Array.from(convSystem.exploredThemes || []) : [];
+        const clinicalTerms = window.SupervisionMemory ? window.SupervisionMemory._extractClinicalTerms(userMessages) : [];
+        
+        const currentSessionSummary = {
+            sessionNumber: currentSessionNumber,
+            date: new Date().toISOString(),
+            mode: window._collabMode || 'supervision',
+            duration_minutes: sm ? Math.round(sm.getElapsedMinutes()) : null,
+            messageCount: messages.length,
+            summary: userMessages.substring(0, 300) + (userMessages.length > 300 ? '...' : ''),
+            hypotheses: clinicalTerms,
+            strategies_discussed: exploredThemes,
+            modesUsed: [window._collabMode || 'supervision']
+        };
+        
+        const fullHistory = [...(window._collabSessionHistory || []), currentSessionSummary];
+        
+        // Notes cliniques cumulées
+        const clinicalNotes = window._collabClinicalNotes || {};
+        clinicalNotes.lastUpdated = new Date().toISOString();
+        
+        // Mettre à jour le dossier
+        window._collabDossier.lastModified = new Date().toISOString();
+        
+        const exportData = {
+            _format: 'therapeute-ia-collab-dossier',
+            _version: '1.0',
+            _exported: new Date().toISOString(),
+            
+            dossier: { ...window._collabDossier },
+            
+            metadata: {
+                sessionNumber: currentSessionNumber,
+                totalSessions: fullHistory.length,
+                operator: 'C Concept&Dev'
+            },
+            
+            sessionHistory: fullHistory,
+            
+            conversation: {
+                messages: messages.map(m => ({
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.timestamp || null
+                })),
+                exploredThemes: exploredThemes
+            },
+            
+            clinicalNotes: clinicalNotes,
+            
+            supervisionMemory: (() => {
+                try {
+                    return JSON.parse(localStorage.getItem(window.SupervisionMemory?.STORAGE_KEY || 'collab_supervision_memory') || '[]');
+                } catch(e) { return []; }
+            })()
+        };
+        
+        const json = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const initClean = window._collabDossier.initiales.replace(/\./g, '').replace(/\s/g, '');
+        const modeStr = window._collabMode || 'supervision';
+        
+        a.href = URL.createObjectURL(blob);
+        a.download = 'collab_' + initClean + '-' + window._collabDossier.age + 'ans_' + modeStr + '_seance-' + currentSessionNumber + '_' + dateStr + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        
+        console.log('[Dossier] 📤 JSON dossier exporté: session', currentSessionNumber, 'patient', window._collabDossier.initiales);
+        if (typeof showToast === 'function') {
+            showToast('Dossier ' + window._collabDossier.initiales + ' sauvegardé (session ' + currentSessionNumber + ')', 'success');
+        }
+        
+        return true; // export dossier effectué
+        
+    } catch(e) {
+        console.error('[Dossier] ❌ Erreur export:', e);
+        if (typeof showToast === 'function') {
+            showToast('Erreur export dossier', 'error');
+        }
+        return false;
+    }
+}
+
+/**
+ * PHASE 4 — Met à jour la barre collab indicator avec les infos dossier
+ */
+function updateCollabModeIndicator() {
+    const badge = document.getElementById('collab-dossier-badge');
+    if (!badge) return;
+    
+    if (window._collabDossier) {
+        badge.style.display = 'inline-block';
+        badge.textContent = '📋 ' + window._collabDossier.initiales + ', ' + window._collabDossier.age + ' ans — ' + window._collabDossier.motif.substring(0, 40);
+        badge.title = 'Dossier: ' + window._collabDossier.patientDossierID + '\nMotif: ' + window._collabDossier.motif + '\nSession: ' + (window._collabSessionNumber || 1);
+    } else {
+        badge.style.display = 'none';
+        badge.textContent = '';
+    }
+}
+
+
+/**
+ * Fin de séance collab — exporte le dossier et affiche un message de clôture
+ */
+function endCollabSession() {
+    if (!confirm('Terminer la session de supervision et exporter le dossier ?')) return;
+    
+    console.log('[Collab] ⏹ Fin de séance demandée');
+    
+    // Sauvegarder la mémoire de supervision
+    if (window.SupervisionMemory) {
+        const cs = window.conversationalSystem || window.convSystem;
+        if (cs && cs.messages && cs.messages.length >= 4) {
+            window.SupervisionMemory.saveSession(cs.messages);
+        }
+    }
+    
+    // Exporter le dossier ou la session
+    if (window._collabDossier) {
+        exportCollabDossier();
+    } else {
+        v19PauseExport();
+    }
+    
+    // Message de clôture dans le chat
+    const cs = window.conversationalSystem || window.convSystem;
+    if (cs && typeof cs.addMessage === 'function') {
+        const msg = window._collabDossier 
+            ? 'Session de supervision terminée. Le dossier de ' + window._collabDossier.initiales + ' a été sauvegardé. À la prochaine session.'
+            : 'Session de supervision terminée. Le fichier a été sauvegardé.';
+        cs.addMessage('assistant', msg, true);
+    }
+    
+    if (typeof showToast === 'function') {
+        showToast('Session terminée — dossier exporté', 'success');
+    }
+}
+
+
 function showModeSelection() {
+    // ═══ INTERCEPTION COLLAB → Écran dossier patient ═══
+    if (window._operatingMode === 'collaborateur' && !window._collabDossierDone) {
+        showCollabDossierScreen();
+        return;
+    }
+    window._collabDossierDone = false; // Reset pour la prochaine fois
+
     console.log('[v15.3] Opening mode selection modal');
     document.getElementById('mode-modal').classList.add('active');
     // V19 FIX: Reset le texte du bouton si ce n'est pas une reprise
@@ -5197,6 +6000,68 @@ class AutoSaveManager {
         this.timer = setInterval(() => {
             this.save();
         }, this.interval);
+        
+        // ═══ AUTO-EXPORT JSON toutes les 5 minutes ═══
+        if (this.autoExportTimer) clearInterval(this.autoExportTimer);
+        this.autoExportTimer = setInterval(() => {
+            this.autoExportJSON();
+        }, 5 * 60 * 1000);
+        console.log('[AutoSave] 💾 Auto-export JSON actif (toutes les 5 min)');
+    }
+    
+    /**
+     * Auto-export JSON silencieux (localStorage backup complet)
+     */
+    autoExportJSON() {
+        try {
+            const convSystem = window.conversationalSystem || window.convSystem;
+            if (!convSystem?.messages?.length || convSystem.messages.length < 2) return;
+            
+            const tracker = window.personalityTracker;
+            const currentSessionNumber = (window._currentSessionNumber || 1);
+            const previousSessions = window._sessionHistory || [];
+            
+            const autoSaveData = {
+                version: '19.1',
+                type: 'therapeute_ia_cumulative_session',
+                status: 'auto_saved',
+                metadata: {
+                    created: new Date().toISOString(),
+                    lastActivity: new Date().toISOString(),
+                    sessionNumber: currentSessionNumber,
+                    totalSessions: currentSessionNumber,
+                    operator: 'C Concept&Dev'
+                },
+                sessionHistory: previousSessions,
+                completeness: tracker ? tracker.toJSON() : null,
+                conversation: {
+                    messages: convSystem.messages || [],
+                    responses: convSystem.responses || [],
+                    exploredThemes: Array.from(convSystem.exploredThemes || []),
+                    themeDepth: convSystem.themeDepth || {},
+                    questionCount: convSystem.questionCount || 0,
+                    bigFivePreliminary: convSystem.bigFivePreliminary || {}
+                },
+                analysis: {
+                    schemas: window.schemaDetector ? window.schemaDetector.toJSON() : null,
+                    defenses: window.defenseDetector ? window.defenseDetector.toJSON() : null,
+                    attachment: window.attachmentAnalyzer ? window.attachmentAnalyzer.toJSON() : null,
+                    hexaco: window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null,
+                    motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null,
+                    linguistic: window.linguisticAnalyzer ? window.linguisticAnalyzer.toJSON() : null
+                },
+                config: {
+                    voiceMode: window.state?.ttsMode || 'unknown',
+                    interviewMode: window.state?.interviewMode || 'video'
+                }
+            };
+            
+            localStorage.setItem('v19_autosave_session', JSON.stringify(autoSaveData));
+            console.log('[AutoSave] 💾 Auto-export JSON silencieux —', convSystem.messages.length, 'messages');
+            
+        } catch(e) {
+            console.warn('[AutoSave] Auto-export failed:', e.message);
+        }
     }
     
     /**
@@ -16203,6 +17068,17 @@ class SessionExporter {
                 console.log('[Import] ✅ MDC restauré — approche:', data.mdc.activeApproach);
             }
 
+            // 6b. Restaurer historique cumulatif
+            if (data.sessionHistory) {
+                window._sessionHistory = data.sessionHistory;
+                const prevNum = data.metadata?.sessionNumber || data.sessionHistory.length || 1;
+                window._currentSessionNumber = prevNum + 1;
+                console.log('[Import] ✅ Historique restauré:', data.sessionHistory.length, 'séances, prochaine:', window._currentSessionNumber);
+                if (window.patientProfile?.profile) {
+                    window.patientProfile.profile.sessions_count = prevNum;
+                }
+            }
+
             // 7. Démarrer la session
             if (window.sessionManager) {
                 window.sessionManager.startSession();
@@ -16516,12 +17392,11 @@ class ConversationalSystem {
                     if (lastNote?.behavioral_commitment) {
                         greeting += 'Vous vous étiez engagé sur : ' + lastNote.behavioral_commitment + '. Comment ça s\'est passé ?';
                     } else {
-                        greeting += "Comment est votre système aujourd'hui — plutôt tendu, ralenti, agité, ou calme ?";
+                        greeting += "Comment allez-vous depuis la dernière fois ?";
                     }
                 } else {
-                    // Premier contact — scan phénoménologique direct
-                    greeting += "Comment est votre système aujourd'hui ? Plutôt tendu, ralenti, agité, coupé ? " +
-                        "Prenez le temps de sentir avant de répondre.";
+                    // Premier contact — accueil simple, humain, professionnel
+                    greeting += "Qu'est-ce qui vous amène aujourd'hui ?";
                 }
             }
             
@@ -17088,7 +17963,7 @@ OBJECTIFS DIAGNOSTIQUES :`;
             }
             
             // v7.2 — Détection des mentions neurocognitives dans le message du psy
-            const lastUserMsg = this.conversationHistory.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+            const lastUserMsg = (this.messages || []).filter(m => m.role === 'user').slice(-1)[0]?.content || '';
             const msgLower = lastUserMsg.toLowerCase();
             const neuroMentions = [];
             if (/\b(tdah|tda[\s-]?h|adhd|déficit d'attention|trouble.{0,5}attention)\b/i.test(msgLower)) neuroMentions.push('TDAH : attention divergente, régulation réactive, besoin de structure courte');
@@ -17330,9 +18205,9 @@ ${sessionCtx.phase === 'opening' ? `
 Évaluer : état du système nerveux + alliance + thème dominant.
 
 Questions d'ouverture (choisis la plus adaptée) :
-• "Comment est votre système aujourd'hui ? Plutôt tendu, ralenti, agité, coupé ?"
-• "Qu'est-ce qui est le plus vivant en vous là maintenant ?"
-• Si suivi : "Où en êtes-vous depuis la dernière fois ? Qu'est-ce qui a bougé ?"
+• "Qu'est-ce qui vous amène aujourd'hui ?"
+• "Comment vous sentez-vous en arrivant ?"
+• Si suivi : "Comment allez-vous depuis la dernière fois ?"
 
 Tu OBSERVES : tonus, regard, vitesse du discours, respiration, dissociation subtile.
 Hypothèse rapide : activation menace ? évitement ? effondrement ?
@@ -17702,90 +18577,182 @@ RETOURNE UNIQUEMENT ton intervention thérapeutique. Rien d'autre.`;
         return false;
     }
     
-    /**
-     * PHASE 1A — Clôturer la séance thérapeutique
+            /**
+     * Cloturer la seance therapeutique
      */
     async endInterview() {
-        console.log('[ConversationalSystem] 🏁 Closing therapeutic session...');
-        
+        console.log('[Session] Fin de seance');
+
         if (window.sessionManager) {
             window.sessionManager.forceClosing();
         }
-        
-        // Arrêter auto-save mais pas le dashboard (utile pour le thérapeute)
+
         if (window.autoSaveManager) {
             window.autoSaveManager.stop();
         }
-        
-        // PHASE 6: Génération automatique de la note clinique
+
+        // Note clinique interne (invisible patient)
         if (window.postSessionManager) {
             const note = window.postSessionManager.generateSessionNote();
             if (note) {
-                console.log('[PHASE-6] 📋 Note clinique générée:', note);
                 window._lastSessionNote = note;
+                console.log('[Session] Note clinique generee (interne)');
             }
         }
-        
-        // PHASE 4: Mise à jour finale du profil patient
+
+        // Mise a jour profil patient
         if (window.patientProfile) {
             window.patientProfile.updateFromDetectors();
             window.patientProfile.profile.sessions_count = (window.patientProfile.profile.sessions_count || 0) + 1;
             window.patientProfile.save();
-            console.log('[PHASE-4] 💾 Profil patient sauvegardé (fin de séance)');
         }
-        
-        // ═══ EXPORT JSON AUTOMATIQUE — Modale de fin de séance ═══
-        this._showEndSessionModal();
+
+        // Export JSON cumulatif automatique
+        this._exportSessionJSON();
+
+        // Message simple dans le chat — adapté si mode collab avec dossier
+        if (window._operatingMode === 'collaborateur' && window._collabDossier) {
+            await this.addMessage('assistant',
+                'Session de supervision terminée. Le dossier de ' + window._collabDossier.initiales +
+                ' (session ' + (window._collabSessionNumber || 1) + ') a été téléchargé automatiquement. ' +
+                'Conservez ce fichier pour la prochaine session — il contient tout l\'historique cumulé.',
+                true
+            );
+        } else {
+            await this.addMessage('assistant',
+                'Notre s\u00e9ance touche \u00e0 sa fin. Votre fichier de suivi a \u00e9t\u00e9 t\u00e9l\u00e9charg\u00e9 automatiquement. ' +
+                'Conservez-le pour notre prochaine rencontre \u2014 il vous suffira de le charger avec le bouton \u00ab\u00a0Reprendre une s\u00e9ance\u00a0\u00bb. ' +
+                'Prenez soin de vous.',
+                true
+            );
+        }
     }
-    
-    _showEndSessionModal() {
-        const existing = document.getElementById('end-session-modal');
-        if (existing) existing.remove();
-        
-        const modal = document.createElement('div');
-        modal.id = 'end-session-modal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-        
-        const sm = window.sessionManager;
-        const profile = window.patientProfile?.profile;
-        const note = window._lastSessionNote;
-        const msgCount = this.messages?.length || 0;
-        
-        modal.innerHTML = `
-            <div style="background:white;border-radius:16px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:'Montserrat',sans-serif;">
-                <h2 style="color:#8FAFB1;font-size:22px;margin:0 0 8px;border-bottom:2px solid #C8D0C3;padding-bottom:10px;">Séance terminée</h2>
-                <div style="color:#666;font-size:13px;margin-bottom:20px;">
-                    ${note ? `${note.duration_minutes || '?'} minutes · ${note.exchanges || msgCount} échanges · Approches: ${(note.approaches_used || []).join(', ') || '—'}` : `${msgCount} échanges`}
-                </div>
-                
-                ${note?.summary ? `<div style="background:#E6D7C3;padding:14px;border-radius:8px;margin-bottom:16px;font-size:13px;line-height:1.6;border-left:3px solid #8FAFB1;">${note.summary}</div>` : ''}
-                
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    <button onclick="window.sessionExporter.download();this.textContent='✅ Exporté !';this.disabled=true;" 
-                        style="background:linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);color:white;border:none;padding:14px 24px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(143,175,177,0.3);">
-                        📥 Exporter la séance complète (JSON)
-                    </button>
-                    <button onclick="generateAndShowSessionNote()" 
-                        style="background:white;color:#8FAFB1;border:2px solid #8FAFB1;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">
-                        📋 Voir la note clinique
-                    </button>
-                    <button onclick="document.getElementById('end-session-modal').remove()" 
-                        style="background:white;color:#999;border:1px solid #ddd;padding:10px 24px;border-radius:10px;font-size:13px;cursor:pointer;">
-                        Fermer
-                    </button>
-                </div>
-                
-                <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;font-size:11px;color:#aaa;text-align:center;">
-                    Le fichier JSON contient tout : profil, messages, détecteurs, EMDR, exercices.<br>
-                    Importez-le au début de la prochaine séance pour reprendre exactement où vous étiez.
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        console.log('[AUTONOME] 🏁 Modale de fin de séance affichée');
+
+    /**
+     * Export JSON cumulatif - telecharge le fichier directement
+     */
+    _exportSessionJSON() {
+        // ═══ DOSSIER COLLAB : déléguer à exportCollabDossier si dossier actif ═══
+        if (window._operatingMode === 'collaborateur' && window._collabDossier) {
+            exportCollabDossier();
+            return;
+        }
+        try {
+            const convSystem = window.conversationalSystem || window.convSystem;
+            const tracker = window.personalityTracker;
+            const previousSessions = window._sessionHistory || [];
+            const currentSessionNumber = (window._currentSessionNumber || 1);
+            const sm = window.sessionManager;
+            const profile = window.patientProfile?.profile;
+            const note = window._lastSessionNote;
+
+            const currentSessionSummary = {
+                sessionNumber: currentSessionNumber,
+                date: new Date().toISOString(),
+                status: 'completed',
+                duration_minutes: sm ? Math.round(sm.getElapsedMinutes()) : null,
+                messageCount: convSystem ? convSystem.messages.length : 0,
+                exchangeCount: sm ? sm.exchangeCount : 0,
+                exploredThemes: convSystem ? Array.from(convSystem.exploredThemes || []) : [],
+                dominantSchemas: window.schemaDetector ?
+                    Object.entries(window.schemaDetector.schemas || {})
+                        .filter(([k,v]) => v.score > 1)
+                        .sort((a,b) => b[1].score - a[1].score)
+                        .slice(0, 5)
+                        .map(([k,v]) => ({id: k, name: v.name, score: Math.round(v.score * 100) / 100})) : [],
+                sessionNote: note ? {
+                    summary: note.summary || null,
+                    approaches_used: note.approaches_used || [],
+                    behavioral_commitment: note.behavioral_commitment || null,
+                    next_session_focus: note.next_session_focus || null
+                } : null
+            };
+
+            const exportData = {
+                _format: 'therapeute-ia-session',
+                _version: '3.0',
+                _exported: new Date().toISOString(),
+
+                metadata: {
+                    sessionNumber: currentSessionNumber,
+                    totalSessions: currentSessionNumber,
+                    patientId: profile?.patient_id || null
+                },
+
+                sessionHistory: [...previousSessions, currentSessionSummary],
+
+                patient_profile: profile || null,
+                messages: (convSystem?.messages || []).map(m => ({
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.timestamp || null
+                })),
+
+                detectors: {
+                    schemas: window.schemaDetector ? window.schemaDetector.toJSON() : null,
+                    schemasRaw: (() => {
+                        if (!window.schemaDetector) return null;
+                        const raw = {};
+                        try {
+                            for (const [id, data] of Object.entries(window.schemaDetector.schemas || {})) {
+                                raw[id] = { score: data.score, explored: data.explored, evidenceCount: data.evidenceCount || 0 };
+                            }
+                        } catch(e) {}
+                        return raw;
+                    })(),
+                    defenses: window.defenseDetector ? window.defenseDetector.toJSON() : null,
+                    attachment: window.attachmentAnalyzer ? window.attachmentAnalyzer.toJSON() : null,
+                    hexaco: window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null,
+                    motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null,
+                    linguistic: window.linguisticAnalyzer ? window.linguisticAnalyzer.toJSON() : null
+                },
+
+                emdr: window.blsModule?.toJSON() || null,
+                exercises: {
+                    given: profile?.exercises_given || [],
+                    returned: profile?.exercises_returned || []
+                },
+                act: {
+                    values: profile?.act_profile?.values_clarified || {},
+                    flexibility: profile?.act_profile?.flexibility_scores || {},
+                    hexaflex: window.actModule?.hexaflex || {}
+                },
+                mdc: window.clinicalDecisionEngine ? {
+                    activeApproach: window.clinicalDecisionEngine.activeApproach,
+                    approachHistory: window.clinicalDecisionEngine.approachHistory || [],
+                    transitionCount: window.clinicalDecisionEngine.transitionCount || 0
+                } : null,
+
+                completeness: tracker ? tracker.toJSON() : null,
+                session_note: note || null
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const a = document.createElement('a');
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.href = URL.createObjectURL(blob);
+            a.download = 'suivi-therapeutique_seance-' + currentSessionNumber + '_' + dateStr + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+
+            try { localStorage.setItem('v19_last_session', json); } catch(e) {}
+
+            console.log('[Session] JSON exporte: seance', currentSessionNumber);
+            if (typeof showToast === 'function') {
+                showToast('Fichier de suivi telecharge', 'success');
+            }
+
+        } catch(e) {
+            console.error('[Session] Export error:', e);
+            if (typeof showToast === 'function') {
+                showToast('Erreur export', 'error');
+            }
+        }
     }
-    
+
     /**
      * V19: Construire prompt intelligent avec piliers dimensionnels
      */
@@ -18571,7 +19538,13 @@ async function startInterview() {
         const modeLabels = { supervision: 'Supervision', analyse: 'Analyse de cas', intervention: 'Stratégie', conceptualisation: 'Conceptualisation', bibliographie: 'Bibliographie' };
         const label = document.getElementById('collab-mode-label');
         if (label) label.textContent = modeLabels[window._collabMode] || 'Supervision';
-        console.log('[MODE] 🧠 Collaborateur PSY activé, mode:', window._collabMode);
+        // ═══ DOSSIER PATIENT — Afficher les infos dans la barre ═══
+        updateCollabModeIndicator();
+        // ═══ BOUTON FIN DE SÉANCE — visible en mode collab ═══
+        const endBtn = document.getElementById('collab-end-session-btn');
+        if (endBtn) endBtn.style.display = 'flex';
+        console.log('[MODE] 🧠 Collaborateur PSY activé, mode:', window._collabMode, 
+            window._collabDossier ? '— Dossier: ' + window._collabDossier.initiales : '— Session libre');
     }
     
     // Update mode display
@@ -34479,96 +35452,38 @@ function v19ToggleSelfView() {
 }
 
 function v19PauseExport() {
-    console.log('[V19] ⏸️ Pause & Export triggered');
-    
-    // FIX 4: Sauvegarder la mémoire de supervision si mode collab
+    console.log('[Session] Sauvegarde manuelle');
     if (window._operatingMode === 'collaborateur' && window.SupervisionMemory) {
-        const convSystem = window.conversationalSystem || window.convSystem;
-        if (convSystem?.messages) {
-            window.SupervisionMemory.saveSession(convSystem.messages);
-            console.log('[V19] 💾 Mémoire de supervision sauvegardée');
-        }
+        const cs = window.conversationalSystem || window.convSystem;
+        if (cs && cs.messages) { window.SupervisionMemory.saveSession(cs.messages); }
     }
-    
-    const tracker = window.personalityTracker;
-    const convSystem = window.conversationalSystem || window.convSystem;
-    
-    const sessionState = {
-        version: '19.0',
-        type: 'personality_capture_session',
-        status: 'paused',
-        metadata: {
-            created: new Date().toISOString(),
-            lastActivity: new Date().toISOString(),
-            sessionNumber: tracker ? tracker.sessionNumber : 1,
-            operator: 'C Concept&Dev'
-        },
-        completeness: tracker ? tracker.toJSON() : null,
-        conversation: {
-            messages: convSystem ? convSystem.messages : [],
-            responses: convSystem ? convSystem.responses : [],
-            exploredThemes: convSystem ? Array.from(convSystem.exploredThemes) : [],
-            themeDepth: convSystem ? convSystem.themeDepth : {},
-            questionCount: convSystem ? convSystem.questionCount : 0,
-            bigFivePreliminary: convSystem ? convSystem.bigFivePreliminary : {}
-        },
-        analysis: {
-            deepPersonality: window.deepPersonalityAnalyzer ? {
-                reticenceScore: window.deepPersonalityAnalyzer.reticenceScore,
-                currentStrategy: window.deepPersonalityAnalyzer.currentStrategy,
-                verbalContradictions: window.deepPersonalityAnalyzer.verbalContradictions,
-                evasionPatterns: window.deepPersonalityAnalyzer.evasionPatterns
-            } : null,
-            linguistic: window.linguisticAnalyzer ? window.linguisticAnalyzer.toJSON() : null,
-            memory: window.memorySystem ? window.memorySystem.memory : null,
-            // V19 Phase 2+3: Sauvegarder tous les nouveaux modules
-            schemas: window.schemaDetector ? window.schemaDetector.toJSON() : null,
-            defenses: window.defenseDetector ? window.defenseDetector.toJSON() : null,
-            attachment: window.attachmentAnalyzer ? window.attachmentAnalyzer.toJSON() : null,
-            hexaco: window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null,
-            motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null
-        },
-        config: {
-            voiceMode: window.state?.ttsMode || 'unknown',
-            interviewMode: window.state?.interviewMode || 'video'
-        }
-    };
-    
-    // Download JSON
-    const blob = new Blob([JSON.stringify(sessionState, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const dateStr = new Date().toISOString().slice(0, 10);
-    a.href = url;
-    a.download = `session_v19_${dateStr}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    // LocalStorage backup
-    try {
-        localStorage.setItem('v19_session_backup', JSON.stringify(sessionState));
-        console.log('[V19] 💾 Session backed up to localStorage');
-    } catch (e) {
-        console.warn('[V19] localStorage backup failed:', e);
+    // ═══ DOSSIER COLLAB : utiliser l'export dossier si un dossier est actif ═══
+    if (window._operatingMode === 'collaborateur' && window._collabDossier) {
+        exportCollabDossier();
+        return;
     }
-    
-    // Show confirmation toast
-    if (typeof showToast === 'function') {
-        showToast('Session sauvegardée ! Fichier JSON téléchargé.', 'success');
+    if (window.conversationalSystem && window.conversationalSystem._exportSessionJSON) {
+        window.conversationalSystem._exportSessionJSON();
+    } else {
+        const cs = window.conversationalSystem || window.convSystem;
+        const num = window._currentSessionNumber || 1;
+        const json = JSON.stringify({
+            _format: 'therapeute-ia-session', _version: '3.0',
+            _exported: new Date().toISOString(),
+            metadata: { sessionNumber: num },
+            sessionHistory: window._sessionHistory || [],
+            messages: cs ? cs.messages : [],
+            patient_profile: window.patientProfile ? window.patientProfile.profile : null
+        }, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'suivi-therapeutique_seance-' + num + '_' + new Date().toISOString().slice(0,10) + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        if (typeof showToast === 'function') showToast('Fichier de suivi telecharge', 'success');
     }
-    
-    console.log('[V19] ✅ Session exported:', {
-        questions: sessionState.conversation.questionCount,
-        completeness: tracker ? Math.round(tracker.getGlobalCompleteness()) + '%' : 'N/A',
-        session: sessionState.metadata.sessionNumber
-    });
 }
-
-// ═══ V19 FIX: Reprise de session — flow correct ═══
-// 1. User clique "Reprendre" → charge JSON en mémoire
-// 2. Ouvre le modal de choix de mode (texte/audio/vidéo)
-// 3. User choisit et clique Continuer → startInterview() normal
-// 4. startInterview() détecte _pendingSessionRestore → restaure après init
 
 async function v19ResumeFromWelcome(fileInput) {
     const file = fileInput.files[0];
@@ -34581,6 +35496,23 @@ async function v19ResumeFromWelcome(fileInput) {
     reader.onload = async function(e) {
         try {
             const data = JSON.parse(e.target.result);
+            
+            // ═══ FORMAT COLLAB-DOSSIER : rediriger vers le mode collab ═══
+            if (data._format === 'therapeute-ia-collab-dossier') {
+                console.log('[Resume] 📋 Format dossier collab détecté v' + data._version);
+                window._operatingMode = 'collaborateur';
+                
+                // Charger le dossier via le système clé-serrure
+                const dossier = data.dossier;
+                if (!dossier || !dossier.patientDossierID) {
+                    alert('Dossier collab corrompu : identifiant manquant.');
+                    return;
+                }
+                
+                // Charger directement
+                loadDossierFromJSON(data);
+                return;
+            }
             
             // ═══ NOUVEAU FORMAT : therapeute-ia-session ═══
             if (data._format === 'therapeute-ia-session') {
