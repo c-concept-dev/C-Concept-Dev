@@ -2245,6 +2245,9 @@ if (typeof window.state === 'undefined') {
     console.log('[v15.4.3] ✅ state exposed on window.state');
 }
 
+// ═══ CLONE SESSION HISTORY — Historique cumulé multi-sessions ═══
+window._cloneSessionHistory = [];
+
 // Expose multi-modal functions (Phase 2.4)
 window.synchronizeModalitiesTimestamps = synchronizeModalitiesTimestamps;
 window.correlateAudioVideo = correlateAudioVideo;
@@ -29111,26 +29114,56 @@ function v19PauseExport() {
     
     const tracker = window.personalityTracker;
     const convSystem = window.conversationalSystem || window.convSystem;
+    const currentSessionNumber = tracker ? tracker.sessionNumber : 1;
+    
+    // ═══ RÉSUMÉ DE LA SESSION COURANTE ═══
+    const messages = convSystem ? convSystem.messages : [];
+    const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).join(' ');
+    const exploredThemes = convSystem ? Array.from(convSystem.exploredThemes || []) : [];
+    const dashboard = tracker ? tracker.getDashboardData() : null;
+    
+    const currentSessionSummary = {
+        sessionNumber: currentSessionNumber,
+        date: new Date().toISOString(),
+        questionCount: convSystem ? convSystem.questionCount : 0,
+        messageCount: messages.length,
+        duration_minutes: dashboard ? dashboard.elapsedMinutes : null,
+        completeness: dashboard ? dashboard.global : 0,
+        themesExplored: exploredThemes,
+        summary: userMessages.substring(0, 400) + (userMessages.length > 400 ? '...' : ''),
+        pillarScores: dashboard ? dashboard.pillars.map(p => ({
+            name: p.name, icon: p.icon, confidence: p.confidence, threshold: p.threshold, status: p.status
+        })) : []
+    };
+    
+    // ═══ HISTORIQUE CUMULÉ ═══
+    const fullHistory = [...(window._cloneSessionHistory || []), currentSessionSummary];
     
     const sessionState = {
-        version: '19.0',
-        type: 'personality_capture_session',
-        status: 'paused',
+        _format: 'clone-interview-session',
+        _version: '2.0',
+        _exported: new Date().toISOString(),
+        
         metadata: {
-            created: new Date().toISOString(),
-            lastActivity: new Date().toISOString(),
-            sessionNumber: tracker ? tracker.sessionNumber : 1,
+            sessionNumber: currentSessionNumber,
+            totalSessions: fullHistory.length,
+            status: 'paused',
             operator: 'C Concept&Dev'
         },
+        
+        sessionHistory: fullHistory,
+        
         completeness: tracker ? tracker.toJSON() : null,
+        
         conversation: {
             messages: convSystem ? convSystem.messages : [],
             responses: convSystem ? convSystem.responses : [],
-            exploredThemes: convSystem ? Array.from(convSystem.exploredThemes) : [],
+            exploredThemes: exploredThemes,
             themeDepth: convSystem ? convSystem.themeDepth : {},
             questionCount: convSystem ? convSystem.questionCount : 0,
             bigFivePreliminary: convSystem ? convSystem.bigFivePreliminary : {}
         },
+        
         analysis: {
             deepPersonality: window.deepPersonalityAnalyzer ? {
                 reticenceScore: window.deepPersonalityAnalyzer.reticenceScore,
@@ -29140,26 +29173,27 @@ function v19PauseExport() {
             } : null,
             linguistic: window.linguisticAnalyzer ? window.linguisticAnalyzer.toJSON() : null,
             memory: window.memorySystem ? window.memorySystem.memory : null,
-            // V19 Phase 2+3: Sauvegarder tous les nouveaux modules
             schemas: window.schemaDetector ? window.schemaDetector.toJSON() : null,
             defenses: window.defenseDetector ? window.defenseDetector.toJSON() : null,
             attachment: window.attachmentAnalyzer ? window.attachmentAnalyzer.toJSON() : null,
             hexaco: window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null,
             motivation: window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null
         },
+        
         config: {
             voiceMode: window.state?.ttsMode || 'unknown',
             interviewMode: window.state?.interviewMode || 'video'
         }
     };
     
-    // Download JSON
+    // Download JSON avec nom explicite
     const blob = new Blob([JSON.stringify(sessionState, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const dateStr = new Date().toISOString().slice(0, 10);
+    const completeness = dashboard ? Math.round(dashboard.global) : 0;
     a.href = url;
-    a.download = `session_v19_${dateStr}.json`;
+    a.download = 'clone-session_S' + currentSessionNumber + '_' + completeness + 'pct_' + dateStr + '.json';
     a.click();
     URL.revokeObjectURL(url);
     
@@ -29173,13 +29207,14 @@ function v19PauseExport() {
     
     // Show confirmation toast
     if (typeof showToast === 'function') {
-        showToast('Session sauvegardée ! Fichier JSON téléchargé.', 'success');
+        showToast('Session ' + currentSessionNumber + ' sauvegardée (' + completeness + '% complétude)', 'success');
     }
     
     console.log('[V19] ✅ Session exported:', {
         questions: sessionState.conversation.questionCount,
-        completeness: tracker ? Math.round(tracker.getGlobalCompleteness()) + '%' : 'N/A',
-        session: sessionState.metadata.sessionNumber
+        completeness: completeness + '%',
+        session: currentSessionNumber,
+        totalSessions: fullHistory.length
     });
 }
 
@@ -29201,36 +29236,66 @@ async function v19ResumeFromWelcome(fileInput) {
         try {
             const sessionState = JSON.parse(e.target.result);
             
-            // Validation minimale
+            // ═══ FORMAT V2.0 CUMULATIF ═══
+            if (sessionState._format === 'clone-interview-session') {
+                console.log('[V19] 📋 Format cumulatif v' + sessionState._version + ' détecté');
+                
+                // Restaurer l'historique des sessions précédentes
+                window._cloneSessionHistory = sessionState.sessionHistory || [];
+                
+                const sessionNum = sessionState.metadata?.sessionNumber || 1;
+                const totalSessions = sessionState.metadata?.totalSessions || 1;
+                const qCount = sessionState.conversation?.questionCount || 0;
+                const msgCount = sessionState.conversation?.messages?.length || 0;
+                const completeness = sessionState.completeness?.globalCompleteness || 0;
+                
+                console.log('[V19] Session chargée:', {
+                    session: sessionNum, total: totalSessions,
+                    questions: qCount, messages: msgCount,
+                    completeness: Math.round(completeness) + '%'
+                });
+                
+                window._pendingSessionRestore = sessionState;
+                showModeSelection();
+                
+                const continueBtn = document.getElementById('modal-continue-btn');
+                if (continueBtn) {
+                    continueBtn.innerHTML = '📥 Reprendre S' + sessionNum + ' (' + qCount + 'Q, ' + Math.round(completeness) + '%)';
+                }
+                
+                if (typeof showToast === 'function') {
+                    showToast('Session ' + sessionNum + ' chargée — ' + Math.round(completeness) + '% complétude — choisissez votre mode', 'info');
+                }
+                return;
+            }
+            
+            // ═══ ANCIEN FORMAT V19 (rétrocompatibilité) ═══
             if (!sessionState.version && !sessionState.completeness && !sessionState.conversation) {
                 alert('Format de session non reconnu. Fichier V19 requis.');
                 return;
             }
             
+            // Pas d'historique dans l'ancien format
+            window._cloneSessionHistory = [];
+            
             const qCount = sessionState.conversation?.questionCount || 0;
             const msgCount = sessionState.conversation?.messages?.length || 0;
             
-            console.log('[V19-FIX] Session loaded in memory:', {
-                version: sessionState.version,
-                questions: qCount,
-                messages: msgCount,
-                status: sessionState.status
+            console.log('[V19-FIX] Session legacy loaded:', {
+                version: sessionState.version, questions: qCount,
+                messages: msgCount, status: sessionState.status
             });
             
-            // Stocker en mémoire — sera consommé par startInterview()
             window._pendingSessionRestore = sessionState;
-            
-            // Ouvrir le modal de choix de mode (même flow que "Commencer")
             showModeSelection();
             
-            // Changer le texte du bouton Continuer pour indiquer la reprise
             const continueBtn = document.getElementById('modal-continue-btn');
             if (continueBtn) {
-                continueBtn.innerHTML = `📥 Reprendre la session (${qCount}Q, ${msgCount} messages)`;
+                continueBtn.innerHTML = '📥 Reprendre la session (' + qCount + 'Q, ' + msgCount + ' messages)';
             }
             
             if (typeof showToast === 'function') {
-                showToast(`Session chargée en mémoire — choisissez votre mode puis cliquez Continuer`, 'info');
+                showToast('Session chargée en mémoire — choisissez votre mode puis cliquez Continuer', 'info');
             }
             
         } catch (err) {
@@ -29243,6 +29308,12 @@ async function v19ResumeFromWelcome(fileInput) {
 
 // Restaurer les données dans tous les modules V19
 function v19RestoreSessionData(sessionState) {
+    // ═══ HISTORIQUE CUMULÉ — restaurer si format v2.0 ═══
+    if (sessionState.sessionHistory) {
+        window._cloneSessionHistory = sessionState.sessionHistory;
+        console.log('[V19] 📋 Historique restauré:', window._cloneSessionHistory.length, 'sessions');
+    }
+    
     // PersonalityCompletenessTracker
     if (sessionState.completeness && window.personalityTracker) {
         try { window.personalityTracker.fromJSON(sessionState.completeness); }
@@ -29342,6 +29413,8 @@ async function v19GenerateResumeMessage(convSystem) {
     const messages = convSystem.messages || [];
     const qCount = convSystem.questionCount || 0;
     const WORKER_URL = convSystem.WORKER_URL || window.CONFIG?.WORKER_URL || 'https://clone-proxy.11drumboy11.workers.dev/';
+    const tracker = window.personalityTracker;
+    const sessionNum = tracker ? tracker.sessionNumber : 1;
     
     // Extraire les derniers échanges (max 6 messages) pour le contexte
     const lastMessages = messages.slice(-6).map(m => ({
@@ -29358,6 +29431,38 @@ async function v19GenerateResumeMessage(convSystem) {
         return;
     }
     
+    // ═══ CONTEXTE MULTI-SESSIONS pour le prompt ═══
+    let sessionContext = '';
+    const history = window._cloneSessionHistory || [];
+    if (history.length > 0) {
+        sessionContext = '\n\nHISTORIQUE DES SESSIONS PRÉCÉDENTES :\n';
+        for (const s of history) {
+            const dateStr = new Date(s.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+            sessionContext += '- Session ' + s.sessionNumber + ' (' + dateStr + ') : ' + 
+                s.questionCount + ' questions, ' + Math.round(s.completeness) + '% complétude';
+            if (s.themesExplored && s.themesExplored.length > 0) {
+                sessionContext += ' — Thèmes : ' + s.themesExplored.join(', ');
+            }
+            sessionContext += '\n';
+        }
+    }
+    
+    // Dimensions manquantes
+    let dimensionContext = '';
+    if (tracker) {
+        const dashboard = tracker.getDashboardData();
+        const incomplete = dashboard.pillars.filter(p => p.status !== 'complete');
+        const complete = dashboard.pillars.filter(p => p.status === 'complete');
+        if (incomplete.length > 0) {
+            dimensionContext = '\nDIMENSIONS À EXPLORER EN PRIORITÉ : ' + 
+                incomplete.map(p => p.icon + ' ' + p.name + ' (' + p.confidence + '%)').join(', ');
+        }
+        if (complete.length > 0) {
+            dimensionContext += '\nDIMENSIONS DÉJÀ COMPLÈTES : ' + 
+                complete.map(p => p.icon + ' ' + p.name).join(', ');
+        }
+    }
+    
     try {
         console.log('[V19-FIX] 🧠 Generating contextual resume message via API...');
         
@@ -29368,28 +29473,28 @@ async function v19GenerateResumeMessage(convSystem) {
                 payload: {
                     provider: 'anthropic',
                     model: 'claude-sonnet-4-20250514',
-                    max_tokens: 150,
+                    max_tokens: 200,
                     temperature: 0.7,
                     system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
+C'est la session ${sessionNum}. ${qCount} questions ont déjà été posées au total.
+${sessionContext}${dimensionContext}
+
 Tu dois générer UNE SEULE phrase de reprise naturelle et chaleureuse qui :
 1. Salue la personne (Rebonjour / Content de te retrouver)
 2. Rappelle brièvement le dernier sujet abordé, EN CITANT un élément précis de ce qu'elle a dit
-3. Relance naturellement la conversation sur ce fil
-
-Exemples de bonnes relances :
-- "Rebonjour ! La dernière fois, tu me parlais de ta relation avec ton père et tu disais que l'autorité te posait problème. J'aimerais creuser ça — qu'est-ce qui se passe en toi quand quelqu'un te donne un ordre ?"
-- "Content de te retrouver ! On en était à tes choix de carrière, tu mentionnais cette tension entre sécurité et passion. Qu'est-ce qui a bougé depuis ?"
+3. ${dimensionContext ? 'Oriente vers une dimension encore peu explorée' : 'Relance naturellement la conversation'}
 
 RÈGLES :
-- UNE seule phrase, max 2 lignes
+- UNE seule phrase, max 2-3 lignes
 - Tutoiement
 - Naturel, pas robotique
-- Termine par une question ouverte qui reprend le fil`,
+- NE PAS re-poser de questions sur les thèmes déjà bien couverts
+- Termine par une question ouverte qui explore une nouvelle dimension`,
                     messages: [
                         ...lastMessages,
                         { 
                             role: 'user', 
-                            content: `[SYSTÈME : La session a été mise en pause après ${qCount} questions. L'utilisateur vient de la reprendre. Génère ta phrase de reprise basée sur les échanges ci-dessus.]` 
+                            content: '[SYSTÈME : Session ' + sessionNum + ', ' + qCount + ' questions au total. L\'utilisateur vient de reprendre. Génère ta phrase de reprise.]' 
                         }
                     ]
                 }
@@ -29432,7 +29537,9 @@ function v19ResumeSession(fileInput) {
     reader.onload = function(e) {
         try {
             const sessionState = JSON.parse(e.target.result);
-            if (!sessionState.version && !sessionState.completeness) {
+            
+            // Valider le format (v2.0 ou legacy)
+            if (!sessionState._format && !sessionState.version && !sessionState.completeness) {
                 alert('Format de session non reconnu.');
                 return;
             }
@@ -29448,8 +29555,9 @@ function v19ResumeSession(fileInput) {
             
             const tracker = window.personalityTracker;
             const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
+            const sessionNum = sessionState.metadata?.sessionNumber || tracker?.sessionNumber || '?';
             if (typeof showToast === 'function') {
-                showToast(`✅ Session restaurée ! ${sessionState.conversation?.questionCount || 0}Q, ${completeness}%`, 'success');
+                showToast('Session S' + sessionNum + ' restaurée — ' + (sessionState.conversation?.questionCount || 0) + 'Q, ' + completeness + '%', 'success');
             }
         } catch (err) {
             console.error('[V19-FIX] ❌ Resume failed:', err);
