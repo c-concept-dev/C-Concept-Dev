@@ -161,6 +161,26 @@
             font-size: 10px; font-weight: 600; background: #E6D7C3; color: #7A9A9C;
         }
         .bc-chunks { font-size: 11px; color: #aaa; }
+        .dup-banner { background: #FFF3E0; border: 2px solid #FFB74D; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+        .dup-banner .dup-icon { font-size: 24px; flex-shrink: 0; }
+        .dup-banner .dup-text { font-size: 13px; color: #E65100; flex: 1; }
+        .dup-banner .dup-text b { color: #BF360C; }
+        .dup-banner .dup-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .dup-banner button { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; }
+        .dup-banner .btn-overwrite { background: #FF7043; color: white; }
+        .dup-banner .btn-overwrite:hover { background: #F4511E; }
+        .dup-banner .btn-skip { background: #fff; color: #999; border: 1px solid #ddd; }
+        .dup-banner .btn-skip:hover { background: #f5f5f5; }
+        .dup-group { background: #FFFDE7; border: 2px solid #FFF176; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .dup-group-header { font-size: 13px; font-weight: 700; color: #F57F17; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .dup-group-items { font-size: 12px; color: #555; }
+        .dup-group-items div { padding: 4px 0; border-bottom: 1px solid #FFF9C4; display: flex; justify-content: space-between; }
+        .dup-group-items div:last-child { border: none; }
+        .dup-group button { padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; background: #FF7043; color: white; margin-top: 8px; }
+        .dup-group button:hover { background: #F4511E; }
+        .dup-scan-btn { background: linear-gradient(135deg, #FFB74D, #FFA726); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; margin-bottom: 16px; box-shadow: 0 4px 15px rgba(255,183,77,0.3); }
+        .dup-scan-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,183,77,0.4); }
+        .dup-clean { background: #E8F5E9; border-radius: 10px; padding: 20px; text-align: center; color: #2E7D32; font-weight: 600; }
         .btn-delete {
             padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px;
             background: white; color: #ccc; cursor: pointer; font-size: 11px;
@@ -223,6 +243,7 @@
                 <input type="file" id="fileInput" accept=".pdf" multiple>
             </div>
 
+            <div id="dupAlerts"></div>
             <div class="queue" id="queue"></div>
 
             <div class="action-bar" id="actionBar" style="display:none;">
@@ -233,6 +254,11 @@
 
         <!-- TAB: LIBRARY -->
         <div class="tab-content" id="tab-library">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button class="dup-scan-btn" onclick="scanDuplicates()" style="flex:1;">🔍 Scanner les doublons</button>
+                <button class="btn-refresh" onclick="refreshLibrary()">🔄</button>
+            </div>
+            <div id="dupResults"></div>
             <div id="libraryContent">
                 <div class="empty-state">
                     <div class="icon">📚</div>
@@ -470,6 +496,7 @@ function renderQueue() {
 
         let statusText = '';
         if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
+        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon (${q._existingChunks} chunks)</span>`;
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
         else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} chunks indexés</span>`;
@@ -644,10 +671,57 @@ async function startIngestion() {
     btn.textContent = '⏳ Indexation en cours...';
 
     const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
+    // Filtrer ceux marqués 'skip' par l'utilisateur
+    const toProcess = pending.filter(q => q._dupAction !== 'skip');
     let success = 0, errors = 0;
 
-    for (const q of pending) {
+    for (const q of toProcess) {
         try {
+            // Phase 0: Vérification doublons — essaie /d1-query, fallback /library-stats
+            if (q._dupAction !== 'overwrite') {
+                log('  🔎 Vérification doublon : ' + q.meta.book_id + '...');
+                try {
+                    let existing = 0;
+                    // Méthode 1 : /d1-query (précis)
+                    const dupRes = await fetch(getWorkerUrl() + '/d1-query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sql: "SELECT COUNT(*) as cnt FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
+                    });
+                    if (dupRes.ok) {
+                        const dupData = await dupRes.json();
+                        existing = dupData?.results?.[0]?.cnt || 0;
+                    } else {
+                        // Fallback : /library-stats (toujours dispo)
+                        log('  ↪ Fallback /library-stats...');
+                        const statsRes = await fetch(getWorkerUrl() + '/library-stats');
+                        if (statsRes.ok) {
+                            const stats = await statsRes.json();
+                            const match = (stats.books || []).find(b => b.book_id === q.meta.book_id);
+                            if (match) existing = 1; // on sait juste qu'il existe
+                        }
+                    }
+                    if (existing > 0) {
+                        q._existingChunks = existing;
+                        q.status = 'duplicate';
+                        log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà' + (existing > 1 ? ' (' + existing + ' chunks)' : '') , 'error');
+                        renderQueue();
+                        continue;
+                    }
+                } catch(dupErr) { log('  ⚡ Vérification doublon impossible — on continue'); }
+            } else {
+                // L'utilisateur a choisi "écraser" — supprimer l'ancien avant de ré-indexer
+                log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
+                try {
+                    await fetch(getWorkerUrl() + '/d1-query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sql: "DELETE FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
+                    });
+                    log('  ✅ Ancien contenu supprimé');
+                } catch(e) { log('  ⚠️ Suppression partielle : ' + e.message); }
+            }
+
             // Phase 1: Extract
             q.status = 'extracting';
             renderQueue();
@@ -725,6 +799,17 @@ async function startIngestion() {
         }
 
         renderQueue();
+        renderDupAlerts();
+    }
+
+    // Relancer si des doublons ont été détectés et que l'utilisateur a fait un choix
+    const pendingDups = queue.filter(q => q.status === 'pending' && q._dupAction === 'overwrite');
+    if (pendingDups.length > 0) {
+        isIngesting = false;
+        btn.disabled = false;
+        btn.textContent = '⚡ Indexer tout';
+        log('\n⚠️ ' + pendingDups.length + ' livre(s) prêts à écraser — relancez l\'indexation');
+        return;
     }
 
     log(`\n═══ Terminé: ${success} réussi(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
@@ -733,6 +818,148 @@ async function startIngestion() {
     btn.textContent = '⚡ Indexer tout';
     isIngesting = false;
     refreshStats();
+}
+
+// ── Gestion des doublons (upload) ──
+function overwriteDuplicate(qId) {
+    const q = queue.find(x => x.id === qId);
+    if (q) { q._dupAction = 'overwrite'; q.status = 'pending'; renderQueue(); renderDupAlerts(); }
+}
+
+function skipDuplicate(qId) {
+    const q = queue.find(x => x.id === qId);
+    if (q) { q._dupAction = 'skip'; q.status = 'skipped'; renderQueue(); renderDupAlerts(); }
+}
+
+function renderDupAlerts() {
+    const el = document.getElementById('dupAlerts');
+    const dups = queue.filter(q => q.status === 'duplicate');
+    if (dups.length === 0) { el.innerHTML = ''; return; }
+    el.innerHTML = dups.map(q => {
+        return '<div class="dup-banner">'
+            + '<div class="dup-icon">⚠️</div>'
+            + '<div class="dup-text"><b>' + q.meta.title + '</b> existe déjà dans la base (' + q._existingChunks + ' chunks). Écraser ou ignorer ?</div>'
+            + '<div class="dup-actions">'
+            + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">♻️ Écraser</button>'
+            + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer</button>'
+            + '</div></div>';
+    }).join('');
+}
+
+// ── Scanner doublons dans la bibliothèque ──
+async function scanDuplicates() {
+    const el = document.getElementById('dupResults');
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🔍 Scan en cours...</div>';
+
+    try {
+        // Chercher les book_id avec des chunks en double (même content dans le même livre)
+        const res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sql: "SELECT book_id, book_title, content, COUNT(*) as cnt FROM chunks GROUP BY book_id, content HAVING cnt > 1 ORDER BY cnt DESC LIMIT 100"
+            })
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const results = data?.results || data?.[0]?.results || [];
+
+        if (results.length === 0) {
+            // Vérifier aussi les livres entièrement dupliqués (même book_id, même nombre de chunks)
+            const res2 = await fetch(getWorkerUrl() + '/d1-query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sql: "SELECT book_id, book_title, COUNT(*) as total, COUNT(DISTINCT content) as unique_chunks FROM chunks GROUP BY book_id HAVING total > unique_chunks ORDER BY (total - unique_chunks) DESC"
+                })
+            });
+            const data2 = await res2.json();
+            const results2 = data2?.results || data2?.[0]?.results || [];
+
+            if (results2.length === 0) {
+                el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
+                return;
+            }
+
+            // Afficher les livres avec doublons internes
+            let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + results2.length + ' livre(s) avec des chunks dupliqués :</div>';
+            window._dupBooks = results2;
+            results2.forEach(function(r, idx) {
+                const surplus = r.total - r.unique_chunks;
+                html += '<div class="dup-group">'
+                    + '<div class="dup-group-header"><span>📘 ' + r.book_title + '</span><span>' + r.total + ' chunks (' + surplus + ' doublons)</span></div>'
+                    + '<div class="dup-group-items"><div><span>Total chunks</span><span>' + r.total + '</span></div>'
+                    + '<div><span>Chunks uniques</span><span>' + r.unique_chunks + '</span></div>'
+                    + '<div><span>À supprimer</span><span style="color:#E65100;font-weight:700;">' + surplus + '</span></div></div>'
+                    + '<button onclick="purgeDupByIndex('+idx+')">'
+                    + '🧹 Purger les doublons</button></div>';
+            });
+            el.innerHTML = html;
+            return;
+        }
+
+        // Regrouper par book_id
+        const groups = {};
+        results.forEach(function(r) {
+            if (!groups[r.book_id]) groups[r.book_id] = { title: r.book_title, duplicates: 0 };
+            groups[r.book_id].duplicates += (r.cnt - 1);
+        });
+
+        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + Object.keys(groups).length + ' livre(s) avec des doublons :</div>';
+        window._dupBooks = Object.entries(groups).map(function(entry) { return { book_id: entry[0], book_title: entry[1].title, duplicates: entry[1].duplicates }; });
+        window._dupBooks.forEach(function(g, idx) {
+            html += '<div class="dup-group">'
+                + '<div class="dup-group-header"><span>📘 ' + g.book_title + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
+                + '<button onclick="purgeDupByIndex('+idx+')">'
+                + '🧹 Purger les doublons</button></div>';
+        });
+        el.innerHTML = html;
+
+    } catch(err) {
+        if (err.message.includes('400')) {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /d1-query. Déployez la nouvelle version du Worker (clone-proxy-v2.js) pour activer le scan de doublons.</div>';
+        } else {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + err.message + '</div>';
+        }
+    }
+}
+
+function purgeDupByIndex(idx) {
+    const b = window._dupBooks[idx];
+    if (b) purgeDuplicates(b.book_id, b.book_title);
+}
+
+async function purgeDuplicates(bookId, bookTitle) {
+    if (!confirm('Purger les chunks dupliqués de "' + bookTitle + '" ?\n\nCela supprimera les copies en double en gardant un seul exemplaire de chaque chunk.')) return;
+
+    const el = document.getElementById('dupResults');
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🧹 Purge en cours...</div>';
+
+    try {
+        // Stratégie : pour chaque book_id, supprimer les doublons en gardant le rowid le plus petit
+        const res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sql: "DELETE FROM chunks WHERE rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content) AND book_id = ?",
+                params: [bookId, bookId]
+            })
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const deleted = data?.meta?.changes || data?.[0]?.meta?.changes || 0;
+
+        el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + bookTitle + '"</div>';
+        log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
+
+        // Re-scanner après 2 secondes
+        setTimeout(scanDuplicates, 2000);
+
+    } catch(err) {
+        el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur purge : ' + err.message + '</div>';
+    }
 }
 
 // ── Library Tab ──
