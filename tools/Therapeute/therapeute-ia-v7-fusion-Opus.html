@@ -3085,7 +3085,9 @@ YOUNG (Schémas) — Un pattern ancien se répète ? Schéma précoce activé ? 
 
 HOFMANN (PBT) — Méta-position : vous ne supervisez jamais "un trouble". Vous supervisez des PROCESSUS transdiagnostiques et vous aidez la psychologue à naviguer entre les approches.
 
-Votre force est de faire des PONTS : "Ce que Young nomme le schéma d'assujettissement, Hayes le lit comme une fusion avec la règle 'mes besoins ne comptent pas', Gilbert y voit un système de menace chronique, et en attachement c'est le style anxieux qui maintient le lien au prix de soi. Selon la porte d'entrée qu'on choisit, l'intervention sera différente..."
+ROSENBERG / D'ANSEMBOURG (CNV) — Le patient ne sait pas exprimer ses besoins ? S'efface ? Explose ? Communication toxique en couple ? → Protocole OSBD (Observation, Sentiment, Besoin, Demande), distinction observation/jugement, besoin/stratégie. D'Ansembourg : passage de la complaisance à l'authenticité. Particulièrement indiqué pour assujettissement, carence émotionnelle, conflits de couple.
+
+Votre force est de faire des PONTS : "Ce que Young nomme le schéma d'assujettissement, Hayes le lit comme une fusion avec la règle 'mes besoins ne comptent pas', Gilbert y voit un système de menace chronique, Rosenberg y voit un besoin non exprimé qui se transforme en ressentiment, et en attachement c'est le style anxieux qui maintient le lien au prix de soi. Selon la porte d'entrée qu'on choisit, l'intervention sera différente..."
 
 ═══ POSTURE ═══
 
@@ -3157,7 +3159,7 @@ Intégrer ces observations avec délicatesse pour orienter vos questions et hypo
 
 ═══ RÉFÉRENCES ═══
 
-Hayes (ACT, hexaflex), Linehan (DBT, tolérance détresse), Gilbert (CFT, systèmes régulation), Segal/Williams/Teasdale (MBCT), Miller/Rollnick (MI), Young (schémas, modes), Hofmann (PBT, processus transdiagnostiques), Schwartz (IFS, parts), Ecker (reconsolidation mnésique), Shapiro (EMDR), Gottman (4 cavaliers), Johnson (EFT couple), Hendrix (Imago), Bowlby/Wallin (attachement), van der Kolk (trauma), Herman (trauma complexe).
+Hayes (ACT, hexaflex), Linehan (DBT, tolérance détresse), Gilbert (CFT, systèmes régulation), Segal/Williams/Teasdale (MBCT), Miller/Rollnick (MI), Young (schémas, modes), Hofmann (PBT, processus transdiagnostiques), Rosenberg/d'Ansembourg (CNV, protocole OSBD, message-je), Schwartz (IFS, parts), Ecker (reconsolidation mnésique), Shapiro (EMDR), Gottman (4 cavaliers), Johnson (EFT couple), Hendrix (Imago), Bowlby/Wallin (attachement), van der Kolk (trauma), Herman (trauma complexe).
 
 ═══ TON ET FORMAT ═══
 
@@ -14813,8 +14815,8 @@ class TherapeuticActionEngine {
         this.lastEMDRProposed = null;
         this.exerciseCooldownExchanges = 8;  // Min 8 échanges entre 2 propositions
         this.emdrCooldownExchanges = 15;     // Min 15 échanges entre 2 propositions EMDR
-        this._exchangesSinceLastExercise = 99;
-        this._exchangesSinceLastEMDR = 99;
+        this._exchangesSinceLastExercise = 0; // Force d'attendre le cooldown au démarrage
+        this._exchangesSinceLastEMDR = 0;     // Force d'attendre 15 échanges avant toute proposition EMDR
         console.log('[TherapeuticActionEngine] ✅ Moteur d\'action autonome initialisé');
     }
 
@@ -14863,19 +14865,13 @@ class TherapeuticActionEngine {
         const traumaSignal = signals.find(s => 
             s.type === 'trauma_memory' || 
             s.detail?.includes('flashback') || 
-            s.detail?.includes('souvenir') ||
             s.detail?.includes('image intrusive')
-        );
-
-        // Signal : schéma très activé + patient stable (SUD implicite modéré)
-        const highSchema = state.recentSignals.find(s => 
-            s.type === 'schema' && s.intensity === 'deep'
         );
 
         // Signal : le MDC recommande déjà EMDR
         const mdcRecommendsEMDR = state.activeApproach === 'emdr';
 
-        if (traumaSignal || mdcRecommendsEMDR) {
+        if (traumaSignal && mdcRecommendsEMDR) {
             this._exchangesSinceLastEMDR = 0;
             this.lastEMDRProposed = new Date();
             return {
@@ -15500,19 +15496,18 @@ class ConversationalSystem {
             }
             // ═══ MODE PATIENT (original) ═══
             else {
-                greeting = "Bienvenue. Prenez un instant pour vous installer confortablement. " +
-                    "Cet espace est le vôtre — il n'y a rien à réussir, rien à produire. ";
+                greeting = "Bonjour. Installez-vous. ";
             
                 const profile = window.patientProfile?.profile;
                 if (profile && profile.sessions_count > 0) {
-                    // Patient connu — résumé dernière séance
-                    greeting = "Rebonjour. Content de vous retrouver. ";
+                    // Patient connu — direct et structuré
+                    greeting = "Bonjour. Content de vous retrouver. ";
                     
                     const lastNote = profile.session_notes?.[profile.session_notes.length - 1];
                     if (lastNote) {
-                        greeting += `Lors de notre dernière séance (${lastNote.date}), nous avions travaillé ensemble`;
+                        greeting += `La dernière fois, on avait travaillé ensemble`;
                         if (lastNote.approaches_used?.length > 0) {
-                            greeting += ` avec une approche ${lastNote.approaches_used.join(' et ')}`;
+                            greeting += ` sur ${lastNote.approaches_used.join(' et ')}`;
                         }
                         greeting += ". ";
                     }
@@ -15524,17 +15519,17 @@ class ConversationalSystem {
                     });
                     
                     if (exercises?.length > 0) {
-                        greeting += "Vous aviez un exercice à faire entre les séances — avez-vous pu vous y pencher ? ";
+                        greeting += "Vous aviez un exercice à faire — comment ça s'est passé ? ";
                     } else if (profile.exercises_returned?.length > 0) {
                         const lastReturned = profile.exercises_returned[profile.exercises_returned.length - 1];
-                        greeting += `J'ai bien reçu votre exercice — on pourra en parler si vous le souhaitez. `;
+                        greeting += `J'ai reçu votre exercice — on pourra en parler. `;
                     }
                     
-                    greeting += "Comment vous sentez-vous aujourd'hui ?";
+                    greeting += "Comment est votre système aujourd'hui — plutôt tendu, ralenti, agité, ou calme ?";
                 } else {
-                    // Premier contact
-                    greeting += "On va simplement prendre le temps d'explorer ce qui est présent pour vous aujourd'hui. " +
-                        "Comment vous sentez-vous en ce moment ?";
+                    // Premier contact — scan phénoménologique direct
+                    greeting += "Comment est votre système aujourd'hui ? Plutôt tendu, ralenti, agité, coupé ? " +
+                        "Prenez le temps de sentir avant de répondre.";
                 }
             }
             
@@ -16195,6 +16190,15 @@ STEFAN HOFMANN (PBT — Process-Based Therapy) — Ta MÉTA-POSITION permanente
 → À chaque instant, tu identifies : quel processus est actif ? Quelle approche est la plus pertinente ? Tu navigues entre les experts selon le besoin du moment.
 → C'est Hofmann qui te donne la permission de CHANGER D'APPROCHE en cours de séance si le processus change.
 
+MARSHALL ROSENBERG / THOMAS D'ANSEMBOURG (CNV — Communication NonViolente) — Quand le patient NE SAIT PAS EXPRIMER ses besoins, se soumet, explose ou accuse
+→ Protocole OSBD : Observation (faits sans jugement) → Sentiment (émotion ressentie) → Besoin (besoin universel non satisfait) → Demande (concrète, réalisable, négociable).
+→ Distinction fondamentale : observation vs jugement ("Tu rentres à 22h" vs "Tu ne penses qu'à toi"), besoin vs stratégie ("J'ai besoin de sécurité" vs "Tu dois rentrer à 19h"), demande vs exigence.
+→ Rosenberg : le patient apprend à passer du "langage chacal" (accusation, jugement, exigence) au "langage girafe" (observation, sentiment, besoin, demande).
+→ D'Ansembourg : "Cessez d'être gentil, soyez vrai." Quand le patient est dans l'assujettissement ou la complaisance, d'Ansembourg aide à passer de "je fais ce qu'on attend de moi" à "voici ce que je ressens et ce dont j'ai besoin".
+→ Questions signatures : "Quand ça arrive, qu'est-ce que vous ressentez ? Et de quoi avez-vous besoin à ce moment-là ?" / "Si vous deviez le dire sans accuser et sans vous soumettre, ça donnerait quoi ?" / "Quelle est la demande concrète que vous pourriez formuler ?"
+→ Exercice OSBD en séance : reformuler une situation conflictuelle en 4 étapes. Exercice inter-séance : journal OSBD (noter une situation/jour avec les 4 étapes).
+→ PARTICULIÈREMENT INDIQUÉ pour : assujettissement, carence émotionnelle, conflits de couple, communication parent-enfant, difficulté à poser des limites.
+
 ═══ ARBRE DÉCISIONNEL EN TEMPS RÉEL ═══
 
 À chaque intervention, tu ÉVALUES le processus dominant et tu choisis :
@@ -16205,6 +16209,7 @@ Patient s'auto-attaque → Gilbert (CFT) : compassion, dialogue avec la critique
 Patient rumine / boucle → Segal (MBCT) : décentration, observation
 Patient ambivalent / résistant → Miller (MI) : explorer l'ambivalence, reflet
 Schéma ancien activé → Young : identifier, reparenter, rescénariser
+Patient ne sait pas exprimer ses besoins / s'efface / explose → Rosenberg (CNV) : OSBD, message-je, demande concrète
 Processus change en cours de séance → Hofmann (PBT) : switch fluide
 
 Tu n'es PAS marié à une seule approche. Tu navigues avec fluidité. L'intégration, c'est ça.
@@ -16295,6 +16300,7 @@ EXERCICES EN SÉANCE — l'initiative vient de TOI :
 • Décentration MBCT : "Observez cette pensée comme un nuage. Elle passe. Vous n'êtes pas cette pensée."
 • Chaise vide Young : "Imaginez cet enfant devant vous. Qu'est-ce que vous lui diriez ?"
 • Exploration MI : "D'un côté... de l'autre... Qu'est-ce qui pèse le plus lourd ?"
+• Reformulation CNV (Rosenberg) : "Reprenez cette situation avec votre femme. Décrivez les faits sans juger. Qu'avez-vous ressenti ? De quoi aviez-vous besoin ? Quelle demande concrète auriez-vous pu formuler ?"
 ` : ''}${sessionCtx.phase === 'closing' ? `
 → CONVERGENCE ET CLÔTURE
 
@@ -16340,6 +16346,8 @@ Ces données sont tes INSTRUMENTS DE NAVIGATION :
 - Rumination / boucle → Segal : décentration
 - Schéma activé (abandon, échec, assujettissement) → Young : identifier le mode, reparenter
 - Ambivalence → Miller : explorer, ne pas pousser
+- Assujettissement / effacement / difficulté à exprimer ses besoins → Rosenberg (CNV) : protocole OSBD, message-je
+- Conflits de couple / communication toxique → Rosenberg + d'Ansembourg : reformulation non-violente, distinction besoin/stratégie
 - Incongruence multimodale → "Votre voix me dit autre chose que vos mots."
 
 ═══ APPROCHE ACTIVE : ${approachInstructions.posture || ''} ═══
@@ -16404,6 +16412,18 @@ Le patient repart avec :
 ═══ FORMAT ═══
 
 3 à 8 phrases. Pas de listes. Pas d'emojis. Pas de jargon (sauf patient professionnel psy). Ton chaleureux, posé, direct. Vouvoiement par défaut.
+
+MOTS ET EXPRESSIONS INTERDITS :
+- "Magnifique", "Fascinant", "Très révélateur", "C'est courageux", "Bravo" → Tu n'es pas un professeur qui note les productions du patient. Tu OBSERVES et tu POINTES.
+- "Je vous entends" en début de phrase → Montre que tu entends par la QUALITÉ de ta reformulation, pas en le déclarant.
+- "Vous portez beaucoup", "C'est vraiment difficile" → Validation générique vide. Sois SPÉCIFIQUE.
+- "Qu'en pensez-vous ?" / "Comment ça vous fait vous sentir ?" → Questions molles. Pose des questions INCISIVES.
+
+AU LIEU DE : "Magnifique. Restez avec ça."
+DIS : "Restez là. Qu'est-ce qui se passe dans votre corps maintenant ?"
+
+AU LIEU DE : "Je vous entends. Vous portez beaucoup."
+DIS : "Vous décrivez la situation de tout le monde sauf la vôtre. Qu'est-ce que VOUS ressentez ?"
 
 RETOURNE UNIQUEMENT ton intervention thérapeutique. Rien d'autre.`;
         // Injection contexte mémorisé via ContextInjector (inchangé)
@@ -16607,7 +16627,7 @@ RETOURNE UNIQUEMENT ton intervention thérapeutique. Rien d'autre.`;
         // Signal EMDR possible
         if (phase === 'working' && tae._exchangesSinceLastEMDR > tae.emdrCooldownExchanges && minutes >= 10 && minutes <= 40) {
             const mdc = window.clinicalDecisionEngine;
-            if (mdc?.activeApproach === 'emdr' || mdc?.getState()?.recentSignals?.find(s => s.type === 'trauma_memory')) {
+            if (mdc?.activeApproach === 'emdr' && mdc?.getState()?.recentSignals?.find(s => s.type === 'trauma_memory')) {
                 signals.push('→ SIGNAL EMDR : Un souvenir traumatique a été identifié. Si le patient est stable, tu peux proposer un travail de désensibilisation EMDR. Le module BLS sera activé automatiquement.');
             }
         }
@@ -33934,6 +33954,23 @@ function updateAvatarTooltip() {
  * Calculer les métriques pour l'infobulle
  */
 function calculateTooltipMetrics() {
+    if (typeof state === 'undefined') {
+        // Mode Thérapeute IA — state ClonePro non disponible
+        const sm = window.sessionManager;
+        const ctx = sm ? sm.getPhaseContext() : {};
+        return {
+            questions: ctx.exchangeCount || 0,
+            totalWords: 0,
+            timeStr: (ctx.elapsedMinutes || 0) + ':00',
+            concordancePercent: 0,
+            avgWords: 0,
+            style: 'Thérapeutique',
+            richness: 'N/A',
+            engagement: 'Séance active',
+            openness: 'N/A',
+            conscientiousness: 'N/A'
+        };
+    }
     const responses = state.responses || [];
     const questions = state.currentQuestionIndex || 0;
     const totalWords = state.totalWords || 0;
@@ -34028,7 +34065,7 @@ function getTooltipInfo(index, metrics) {
         // 3. Richesse lexicale
         {
             title: "Analyse Lexicale",
-            line1: { label: "Mots totaux", value: `${state.totalWords || 0}` },
+            line1: { label: "Mots totaux", value: `${(typeof state !== "undefined" ? state.totalWords : 0) || 0}` },
             line2: { label: "Moyenne", value: `${metrics.avgWords}/rep` },
             line3: { label: "Variete", value: metrics.richness }
         },
@@ -34295,7 +34332,7 @@ function checkInterruptedSession() {
 /**
  * Démarrage automatique de l'auto-save
  */
-setInterval(autoSaveState, state.autoSaveInterval);
+if (typeof state !== 'undefined') setInterval(autoSaveState, state.autoSaveInterval);
 
 /**
  * Modal de configuration Google Cloud TTS
