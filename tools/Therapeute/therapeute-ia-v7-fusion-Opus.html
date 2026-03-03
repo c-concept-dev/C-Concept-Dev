@@ -12132,7 +12132,7 @@ class ClinicalDecisionEngine {
             temporalRegression: false,
             relationalLoop: false,
             persistentSymptom: false,
-            emotionalIntensity: 0, toleranceWindow: 'adequate',
+            emotionalIntensity: 0, toleranceWindow: 'adequate', allianceRupture: null,
             attachmentStyle: null, odf: null
         };
         
@@ -12329,8 +12329,74 @@ class ClinicalDecisionEngine {
             this.sessionSignals.push({ type: 'communication_deficit',
                 detail: 'Difficulté d\'expression des besoins — CNV / OSBD indiqué', source: 'TextAnalysis' });
         }
+
+        // v7.1 — Détection de rupture/tension d'alliance thérapeutique
+        const allianceRupturePatterns = [
+            /\b(tu (comprends|m'écoutes|m'entends) (rien|pas|que dalle)|t'es (nul|inutile|chiant))\b/i,
+            /\b(ça (sert|mène) à (rien|quoi)|c'est (n'importe quoi|du vent|bidon|vide))\b/i,
+            /\b(tu (répètes|radotes|tournes en rond)|arrête (de|avec) (tes|les) questions)\b/i,
+            /\b(j'en ai (marre|ras le bol|assez)|laisse (tomber|béton|moi tranquille))\b/i,
+            /\b(c'est pas (ça|ce que|comme ça)|tu (passes|es passé) à côté|tu (captes|piges) pas)\b/i,
+            /\b(je (vois|sais) (pas|plus) (pourquoi|à quoi)|ça (m'aide|m'apporte) (pas|rien))\b/i,
+            /\b(à quoi (bon|ça sert)|je perds mon temps|c'est (inutile|vain|stérile))\b/i,
+            /\b(on (avance|progresse) pas|on (piétine|stagne|fait du surplace))\b/i,
+            /\b(je (comprends|sais) (plus|pas) (où|ce que|de quoi)|on parle de quoi (là|au juste))\b/i,
+            /\b(je suis (perdu|paumé|largué|confus)|tu me (perds|embrouilles))\b/i,
+            // v7.1 — patterns de désengagement et désinvestissement
+            /\b(oui oui|ok ok|mouais|bof|si tu (veux|le dis)|comme tu (veux|dis))\b/i,
+            /\b(on peut (changer|passer à autre chose|arrêter)|j'ai plus envie)\b/i,
+            /\b(je (sais|savais) pas pourquoi je (suis là|viens|fais ça))\b/i,
+            /\b(c'est toujours (la même chose|pareil) (avec toi|ici)|tu dis toujours (pareil|la même chose))\b/i
+        ];
+        
+        const allianceRuptureDetected = allianceRupturePatterns.some(p => p.test(textLower));
+        const deepPers = window.deepPersonalityAnalyzer;
+        const reticenceScr = deepPers?.reticenceScore || 0;
+        const consecutiveShrt = deepPers?.consecutiveShortAnswers || 0;
+        
+        if (allianceRuptureDetected) {
+            signals.allianceRupture = 'explicit';
+            this.sessionSignals.push({ type: 'alliance_rupture',
+                detail: 'Rupture d\'alliance explicite — le patient exprime irritation ou désengagement', source: 'TextAnalysis' });
+        } else if (reticenceScr > 65 && consecutiveShrt >= 3) {
+            signals.allianceRupture = 'implicit';
+            this.sessionSignals.push({ type: 'alliance_rupture',
+                detail: 'Rupture d\'alliance implicite — désengagement progressif', source: 'BehavioralAnalysis' });
+        } else if (reticenceScr > 50 && consecutiveShrt >= 2) {
+            signals.allianceRupture = 'warning';
+        }
         }
 
+        // v7.1 — Détection textuelle de la fenêtre de tolérance
+        const toleranceExceededPatterns = [
+            /\b(je (peux|arrive) (plus|pas)|c'est trop|stop|arrête)\b/i,
+            /\b(j'arrive plus à (respirer|réfléchir|penser|parler))\b/i,
+            /\b(je (tremble|suffoque|panique|m'étouffe|vais vomir))\b/i,
+            /\b(je suis (submergée?|noyée?|débordée?))\b/i,
+            /\b(je (pète|perds) (les plombs|la tête|le contrôle))\b/i,
+            /\b(c'est (insupportable|insoutenable|intolérable))\b/i
+        ];
+        const toleranceNarrowPatterns = [
+            /\b(c'est (dur|difficile|douloureux|intense) (là|en ce moment))\b/i,
+            /\b(j'ai (du mal|à peine)|je (sens|suis) (fragile|vulnérable))\b/i,
+            /\b(ça (monte|me prend|me serre|m'envahit))\b/i,
+            /\b(j'ai (la gorge|l'estomac|le ventre) (serré|noué|contracté))\b/i,
+            /\b(je (retiens|refoule) (mes larmes|mes émotions))\b/i,
+            /\b(j'ai envie de (pleurer|crier|partir|fuir))\b/i
+        ];
+        
+        if (toleranceExceededPatterns.some(p => p.test(textLower))) {
+            signals.toleranceWindow = 'exceeded';
+            this.sessionSignals.push({ type: 'tolerance_exceeded',
+                detail: 'Fenêtre de tolérance dépassée (détection textuelle)', source: 'TextAnalysis' });
+        } else if (toleranceNarrowPatterns.some(p => p.test(textLower))) {
+            if (signals.toleranceWindow !== 'exceeded') {
+                signals.toleranceWindow = 'narrow';
+                this.sessionSignals.push({ type: 'tolerance_narrow',
+                    detail: 'Fenêtre de tolérance étroite (détection textuelle)', source: 'TextAnalysis' });
+            }
+        }
+        
         // Intensité émotionnelle (multimodal)
         if (multimodalEngine) {
             try {
@@ -12379,6 +12445,19 @@ class ClinicalDecisionEngine {
             recommendation.intensity = 'gentle';
             recommendation.specificIntervention = 'dbt_grounding';
             return recommendation;
+        }
+        
+        // v7.1 — Rupture d'alliance : priorité avant toute technique
+        if (signals.allianceRupture === 'explicit') {
+            recommendation.approach = 'motivational';
+            recommendation.reason = "Rupture d'alliance explicite — réparation relationnelle prioritaire (Miller/Rollnick)";
+            recommendation.intensity = 'gentle';
+            recommendation.specificIntervention = 'alliance_repair';
+            return recommendation;
+        }
+        if (signals.allianceRupture === 'implicit') {
+            recommendation.reason += " (tension d'alliance détectée — vérifier avec le patient)";
+            recommendation.intensity = 'gentle';
         }
         
         if (this.safetyLevel >= 2) {
@@ -12608,6 +12687,14 @@ class ClinicalDecisionEngine {
         context += `\n── FENÊTRE DE TOLÉRANCE : ${signals.toleranceWindow} ──\n`;
         if (signals.toleranceWindow === 'narrow') context += `  → Interventions douces. Pas de travail en profondeur.\n`;
         else if (signals.toleranceWindow === 'exceeded') context += `  → STABILISATION IMMÉDIATE. Ancrage sensoriel.\n`;
+        
+        // v7.1 — Alliance thérapeutique
+        if (signals.allianceRupture) {
+            context += `\n── ALLIANCE THÉRAPEUTIQUE : ${signals.allianceRupture} ──\n`;
+            if (signals.allianceRupture === 'explicit') context += `  → RUPTURE EXPLICITE. Arrête toute technique. La réparation d'alliance EST le travail.\n`;
+            else if (signals.allianceRupture === 'implicit') context += `  → Désengagement progressif. Vérifie : "Mon rythme te convient ?"\n`;
+            else if (signals.allianceRupture === 'warning') context += `  → Léger retrait détecté. Reste attentif, propose un ajustement.\n`;
+        }
         
         if (this.approachHistory.length > 0) {
             const recent = this.approachHistory.slice(-3);
@@ -17128,6 +17215,23 @@ ${cautionsText}
 ═══ SIGNAUX D'ACTION ═══
 ${this._buildActionSignals()}
 
+═══ FENÊTRE DE TOLÉRANCE (règle absolue) ═══
+
+Avant CHAQUE intervention, évalue la fenêtre de tolérance du patient :
+
+VERTE (adequate) → Régulé, présent. Tu peux explorer en profondeur.
+ORANGE (narrow) → À la limite. Interventions douces. Nomme si pertinent : "Je sens qu'on touche à quelque chose d'intense. On peut ralentir." PAS de confrontation.
+ROUGE (exceeded) → Débordement. STOP. Stabilisation : ancrage sensoriel, respiration, validation. "C'est normal. Tu es en sécurité."
+
+RUPTURE D'ALLIANCE : si le patient montre irritation, désengagement ou confusion envers toi — c'est le signal le plus important. Arrête toute technique. Reviens à la relation : "Je sens que quelque chose ne va pas entre nous. Tu peux me le dire." La réparation d'alliance EST le travail thérapeutique.
+
+FENÊTRE DE TOLÉRANCE — FEEDBACK AU PATIENT :
+Quand la fenêtre est ÉTROITE, nomme-le avec douceur : "Je sens qu'on touche à quelque chose d'intense. On peut ralentir si tu veux." ou "On est dans quelque chose de fort. Je suis là."
+Quand la fenêtre est DÉPASSÉE, agis immédiatement : "On fait une pause. Pose tes pieds bien à plat au sol. Regarde autour de toi. Tu es en sécurité." Ne reviens PAS au sujet tant que le patient n'est pas régulé.
+Quand la fenêtre est ADÉQUATE, ne dis rien — travaille normalement.
+Le patient doit SENTIR que tu perçois son état émotionnel et que tu ajustes en temps réel. C'est ce qui crée la sécurité relationnelle.
+
+
 ═══ MODÈLE D'INTERVENTION ═══
 
 CHAQUE intervention (3 à 8 phrases) :
@@ -17416,6 +17520,25 @@ RETOURNE UNIQUEMENT ton intervention thérapeutique. Rien d'autre.`;
         const cs = window.conversationalSystem || window._conversationalSystem;
         if (cs && cs._consecutiveReformulations >= 2) {
             signals.push('ALERTE : Tu as reformulé ' + cs._consecutiveReformulations + ' fois de suite SANS INTERVENIR. STOP. Pose une question incisive ou propose un exercice. Ne reformule plus.');
+        }
+
+                // v7.1 — Signal de rupture/tension d'alliance
+        const mdcState = window.clinicalDecisionEngine?.getState();
+        const allianceSignal = mdcState?.recentSignals?.find(s => s.type === 'alliance_rupture');
+        if (allianceSignal) {
+            if (allianceSignal.detail.includes('explicite')) {
+                signals.push('\n⚠️ RUPTURE D\'ALLIANCE DÉTECTÉE (explicite) : Le patient exprime irritation ou désengagement. PRIORITÉ ABSOLUE. Arrête toute technique.\n  1. Nomme : "Je sens que quelque chose ne va pas entre nous en ce moment."\n  2. Valide : "C\'est tout à fait légitime."\n  3. Demande : "Est-ce que ma façon de faire te convient ?"\n  La réparation d\'alliance EST le travail thérapeutique.');
+            } else {
+                signals.push('\n⚠️ TENSION D\'ALLIANCE (implicite) : Désengagement progressif détecté. Ralentis et vérifie :\n  "Je me demande si mon rythme te convient. N\'hésite pas à me le dire."');
+            }
+        }
+
+        // v7.1 — Feedback fenêtre de tolérance
+        const twState = mdcState?.toleranceWindow || 'adequate';
+        if (twState === 'exceeded') {
+            signals.push('\n🛑 FENÊTRE DE TOLÉRANCE DÉPASSÉE : Débordement émotionnel. STOP exploration. Stabilisation immédiate :\n  1. Ancrage : "Pose tes pieds bien à plat au sol."\n  2. Respiration : inspire 4s, retiens 2s, expire 6s\n  3. Sensoriel : "Nomme 3 choses que tu vois."\n  4. Validation : "C\'est normal. Tu es en sécurité."\n  NE REVIENS PAS au sujet tant que non régulé.');
+        } else if (twState === 'narrow') {
+            signals.push('\n⚠️ FENÊTRE ÉTROITE : Interventions douces. Pas de confrontation. Tu peux nommer : "Je sens qu\'on touche à quelque chose d\'intense. On peut ralentir."');
         }
 
         if (signals.length === 0) return '(Pas de signal d\'action particulier — continue le travail thérapeutique)';
