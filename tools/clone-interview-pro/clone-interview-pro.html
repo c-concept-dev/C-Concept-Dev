@@ -7437,12 +7437,18 @@ class DeepPersonalityAnalyzer {
             charCount: responseText.length,
             responseTime: this._getResponseTime(),
             
+            // ═══ AMÉLIORATION 1: LATENCE DE RÉPONSE ═══
+            latencyProfile: this._analyzeLatency(responseText),
+            
             // Analyse verbale
             hedging: this._detectHedging(responseText),
             deflection: this._detectDeflection(responseText),
             intensity: this._detectIntensity(responseText),
             specificity: this._measureSpecificity(responseText),
             emotionalValence: this._detectVerbalEmotion(responseText),
+            
+            // ═══ AMÉLIORATION 4: DÉSIRABILITÉ SOCIALE ═══
+            socialDesirability: this._detectSocialDesirability(responseText),
             
             // Snapshot multimodal (état facial/vocal PENDANT la réponse)
             multimodalSnapshot: this._captureMultimodalSnapshot(),
@@ -7524,6 +7530,185 @@ class DeepPersonalityAnalyzer {
         this.responseSnapshots.push(analysis);
         
         return analysis;
+    }
+    
+    // ==================== AMÉLIORATION 1: LATENCE DE RÉPONSE ====================
+    
+    _analyzeLatency(responseText) {
+        const latencySeconds = this._getResponseTime();
+        const wordCount = responseText.split(/\s+/).length;
+        
+        // Calculer le profil latence
+        let profile = 'normal';
+        let interpretation = '';
+        
+        if (latencySeconds > 15 && wordCount < 15) {
+            profile = 'long_latency_short_response';
+            interpretation = 'Zone sensible — réticence, défense ou conflit interne';
+        } else if (latencySeconds < 5 && wordCount > 50) {
+            profile = 'short_latency_long_response';
+            interpretation = 'Sujet d\'aisance — identité consolidée, discours fluide';
+        } else if (latencySeconds > 20 && wordCount > 40) {
+            profile = 'long_latency_long_response';
+            interpretation = 'Réflexion profonde — accès mémoire autobiographique';
+        } else if (latencySeconds < 3 && wordCount < 10) {
+            profile = 'rapid_dismissal';
+            interpretation = 'Esquive rapide — réponse automatique sans engagement';
+        }
+        
+        // Variabilité inter-réponses
+        const latencies = this.responseSnapshots.map(s => s.responseTime || 0).filter(t => t > 0);
+        latencies.push(latencySeconds);
+        const mean = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+        const variance = latencies.length > 2 
+            ? Math.sqrt(latencies.map(t => Math.pow(t - mean, 2)).reduce((a, b) => a + b, 0) / latencies.length)
+            : 0;
+        const variabilityScore = Math.min(100, (variance / Math.max(1, mean)) * 100);
+        
+        return {
+            seconds: Math.round(latencySeconds * 10) / 10,
+            profile: profile,
+            interpretation: interpretation,
+            wordsPerSecond: latencySeconds > 0 ? Math.round((wordCount / latencySeconds) * 10) / 10 : 0,
+            variability: Math.round(variabilityScore),
+            mean: Math.round(mean * 10) / 10
+        };
+    }
+    
+    // ==================== AMÉLIORATION 2: TIMING CONGRUENCE MULTIMODALE ====================
+    
+    _analyzeTemporalCongruence(snapshot) {
+        const result = {
+            preSpeechEmotion: null,
+            duringSpeechEmotion: null,
+            postSpeechEmotion: null,
+            emotionShiftTiming: 'none', // 'pre' | 'during' | 'post' | 'none'
+            suppressionSpeed: null, // rapide = suppression active
+            interpretation: ''
+        };
+        
+        if (!window.videoDetections || window.videoDetections.length < 10) return result;
+        
+        const detections = window.videoDetections;
+        const now = Date.now();
+        
+        // Fenêtres temporelles (approximation)
+        // Pre-speech: 5-2 secondes avant (préparation)
+        // During: les 10 dernières détections
+        // Post: dernières 3 détections
+        
+        const preSpeech = detections.slice(-25, -15); // ~avant la réponse
+        const duringSpeech = detections.slice(-15, -3); // pendant
+        const postSpeech = detections.slice(-3); // juste après
+        
+        const getDominant = (arr) => {
+            if (!arr.length) return 'neutral';
+            const counts = {};
+            arr.forEach(d => { if (d.emotion) counts[d.emotion] = (counts[d.emotion] || 0) + 1; });
+            return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'neutral';
+        };
+        
+        result.preSpeechEmotion = getDominant(preSpeech);
+        result.duringSpeechEmotion = getDominant(duringSpeech);
+        result.postSpeechEmotion = getDominant(postSpeech);
+        
+        // Détecter le timing du shift émotionnel
+        if (result.preSpeechEmotion !== 'neutral' && result.duringSpeechEmotion === 'neutral') {
+            result.emotionShiftTiming = 'pre';
+            result.interpretation = 'Micro-expression AVANT la réponse — anticipation anxieuse ou préparation émotionnelle';
+        } else if (result.preSpeechEmotion === 'neutral' && result.duringSpeechEmotion !== 'neutral') {
+            result.emotionShiftTiming = 'during';
+            result.interpretation = 'Émotion déclenchée PENDANT la verbalisation — marqueur somatique (résonance au contenu)';
+        } else if (result.duringSpeechEmotion !== 'neutral' && result.postSpeechEmotion === 'neutral') {
+            // Vitesse de retour au neutre
+            result.emotionShiftTiming = 'post';
+            result.suppressionSpeed = 'fast';
+            result.interpretation = 'Retour au neutre TROP RAPIDE après émotion — suppression émotionnelle active';
+        }
+        
+        return result;
+    }
+    
+    // ==================== AMÉLIORATION 4: DÉSIRABILITÉ SOCIALE ====================
+    
+    _detectSocialDesirability(text) {
+        const lower = text.toLowerCase();
+        const wordCount = text.split(/\s+/).length;
+        let score = 0; // 0-100, 0 = authentique, 100 = très désirable socialement
+        const markers = [];
+        
+        // 1. Réponses normatives/génériques
+        const normativePatterns = [
+            'comme tout le monde', 'c\'est normal', 'on fait tous ça', 'c\'est classique',
+            'c\'est la vie', 'tout le monde fait ça', 'c\'est humain', 'rien de spécial',
+            'comme les autres', 'c\'est courant', 'c\'est banal'
+        ];
+        const normativeHits = normativePatterns.filter(p => lower.includes(p));
+        if (normativeHits.length > 0) {
+            score += 15 * normativeHits.length;
+            markers.push('normative: ' + normativeHits.join(', '));
+        }
+        
+        // 2. Auto-présentation positive systématique sans nuance
+        const positiveOnly = [
+            'j\'aime les gens', 'je suis quelqu\'un de bien', 'je suis plutôt apprécié',
+            'j\'ai de la chance', 'je m\'entends bien avec', 'pas de problème',
+            'tout va bien', 'je gère', 'ça va très bien', 'je suis content'
+        ];
+        const posHits = positiveOnly.filter(p => lower.includes(p));
+        const negativeWords = ['mais', 'sauf', 'parfois', 'pas toujours', 'difficile', 'compliqué', 'dur'];
+        const hasNuance = negativeWords.some(w => lower.includes(w));
+        
+        if (posHits.length > 0 && !hasNuance) {
+            score += 20;
+            markers.push('positive_without_nuance');
+        }
+        
+        // 3. Absence d'ambivalence (suspect si réponse longue)
+        if (wordCount > 30 && !hasNuance && !lower.includes('d\'un côté') && !lower.includes('en même temps')) {
+            score += 10;
+            markers.push('no_ambivalence_in_long_response');
+        }
+        
+        // 4. Réponses culturellement attendues (templates sociaux)
+        const socialTemplates = [
+            'la famille c\'est le plus important', 'le travail c\'est important',
+            'l\'honnêteté', 'le respect', 'la tolérance', 'je suis quelqu\'un de loyal',
+            'j\'essaie d\'être juste', 'j\'aime aider les autres'
+        ];
+        const templateHits = socialTemplates.filter(p => lower.includes(p));
+        if (templateHits.length >= 2) {
+            score += 15;
+            markers.push('social_templates: ' + templateHits.length);
+        }
+        
+        // 5. Bonus authenticité (réduit le score)
+        const authenticityMarkers = [
+            'j\'avoue', 'en fait', 'pour être honnête', 'je sais que c\'est pas bien',
+            'ça me fait un peu honte', 'je devrais pas dire ça', 'c\'est con mais',
+            'je suis pas fier', 'j\'ai du mal avec', 'ça m\'énerve quand'
+        ];
+        const authHits = authenticityMarkers.filter(p => lower.includes(p));
+        if (authHits.length > 0) {
+            score -= 15 * authHits.length;
+            markers.push('authentic_disclosure');
+        }
+        
+        score = Math.max(0, Math.min(100, score));
+        
+        // Mise à jour du score cumulé
+        if (!this._socialDesirabilityHistory) this._socialDesirabilityHistory = [];
+        this._socialDesirabilityHistory.push(score);
+        
+        const avgScore = this._socialDesirabilityHistory.reduce((a, b) => a + b, 0) / this._socialDesirabilityHistory.length;
+        
+        return {
+            instant: score,
+            cumulative: Math.round(avgScore),
+            markers: markers,
+            level: avgScore > 60 ? 'HIGH' : avgScore > 35 ? 'MODERATE' : 'LOW',
+            confidenceDiscount: Math.round(Math.min(30, avgScore * 0.4)) // Max 30% de réduction
+        };
     }
     
     // ==================== DÉTECTION HEDGING / ÉVASION ====================
@@ -7660,6 +7845,9 @@ class DeepPersonalityAnalyzer {
                 };
             }
         }
+        
+        // ═══ AMÉLIORATION 2: TIMING CONGRUENCE TEMPORELLE ═══
+        snapshot.temporalCongruence = this._analyzeTemporalCongruence(snapshot);
         
         return snapshot;
     }
@@ -7992,6 +8180,42 @@ class DeepPersonalityAnalyzer {
         
         let output = '\n🧠 ANALYSE PERSONNALITÉ PROFONDE :\n';
         
+        // ═══ AMÉLIORATION 1: LATENCE DE RÉPONSE ═══
+        const lastSnapshot = this.responseSnapshots[this.responseSnapshots.length - 1];
+        if (lastSnapshot?.latencyProfile) {
+            const lp = lastSnapshot.latencyProfile;
+            if (lp.profile !== 'normal') {
+                output += `\n⏱️ LATENCE: ${lp.seconds}s — ${lp.interpretation}\n`;
+            }
+            if (lp.variability > 60) {
+                output += `   Variabilité inter-réponses ÉLEVÉE (${lp.variability}%) — engagement émotionnel fluctuant\n`;
+            }
+        }
+        
+        // ═══ AMÉLIORATION 2: TIMING CONGRUENCE TEMPORELLE ═══
+        if (lastSnapshot?.multimodalSnapshot?.temporalCongruence) {
+            const tc = lastSnapshot.multimodalSnapshot.temporalCongruence;
+            if (tc.emotionShiftTiming !== 'none' && tc.interpretation) {
+                output += `\n🕐 TIMING ÉMOTIONNEL: ${tc.interpretation}\n`;
+                if (tc.suppressionSpeed === 'fast') {
+                    output += `   → Suppression émotionnelle active — ne PAS confronter directement, utiliser approche narrative\n`;
+                }
+            }
+        }
+        
+        // ═══ AMÉLIORATION 4: DÉSIRABILITÉ SOCIALE ═══
+        if (lastSnapshot?.socialDesirability) {
+            const sd = lastSnapshot.socialDesirability;
+            if (sd.level === 'HIGH') {
+                output += `\n⚠️ DÉSIRABILITÉ SOCIALE ÉLEVÉE (${sd.cumulative}%) — le sujet donne des réponses "correctes" plutôt que sa vérité\n`;
+                output += `   → Utiliser questions projectives/hypothétiques pour contourner la façade sociale\n`;
+                output += `   → Ex: "Si personne ne pouvait te juger, tu dirais quoi ?" ou "Ton meilleur ami, il dirait quoi de toi ?"\n`;
+                output += `   → Réduction confiance piliers: -${sd.confidenceDiscount}%\n`;
+            } else if (sd.level === 'MODERATE') {
+                output += `\n📊 DÉSIRABILITÉ SOCIALE MODÉRÉE (${sd.cumulative}%) — tendance aux réponses convenues sur certains sujets\n`;
+            }
+        }
+        
         // === Réticence ===
         const reticenceLevel = this.reticenceScore > 60 ? '🔴 ÉLEVÉE' : 
                               this.reticenceScore > 30 ? '🟡 MODÉRÉE' : '🟢 BASSE';
@@ -8236,17 +8460,27 @@ class PersonalityCompletenessTracker {
     }
 
     getNextPillarTarget() {
-        // Mandatory pillars first, sorted by largest gap
+        // ═══ AMÉLIORATION 3: ÉVITER LES PILIERS SATURÉS ═══
+        // Mandatory pillars first, sorted by largest gap, skip saturated
         const mandatoryIncomplete = Object.entries(this.pillars)
             .filter(([_, p]) => p.mandatory && p.confidence < p.threshold)
-            .sort((a, b) => (b[1].threshold - b[1].confidence) - (a[1].threshold - a[1].confidence));
+            .sort((a, b) => {
+                // Pénaliser les piliers saturés — les mettre en fin de liste
+                const aSat = a[1]._saturated ? 1000 : 0;
+                const bSat = b[1]._saturated ? 1000 : 0;
+                return ((b[1].threshold - b[1].confidence) - bSat) - ((a[1].threshold - a[1].confidence) - aSat);
+            });
 
         if (mandatoryIncomplete.length > 0) return mandatoryIncomplete[0][0];
 
-        // Then complementary
+        // Then complementary (same saturation logic)
         const compIncomplete = Object.entries(this.pillars)
             .filter(([_, p]) => !p.mandatory && p.confidence < p.threshold)
-            .sort((a, b) => (b[1].threshold - b[1].confidence) - (a[1].threshold - a[1].confidence));
+            .sort((a, b) => {
+                const aSat = a[1]._saturated ? 1000 : 0;
+                const bSat = b[1]._saturated ? 1000 : 0;
+                return ((b[1].threshold - b[1].confidence) - bSat) - ((a[1].threshold - a[1].confidence) - aSat);
+            });
 
         return compIncomplete.length > 0 ? compIncomplete[0][0] : null;
     }
@@ -8287,7 +8521,9 @@ class PersonalityCompletenessTracker {
                 confidence: Math.round(p.confidence),
                 threshold: p.threshold,
                 mandatory: p.mandatory,
+                saturated: p._saturated || false,
                 status: p.confidence >= p.threshold ? 'complete' :
+                        p._saturated ? 'saturated' :
                         p.confidence > 0 ? 'in_progress' : 'unexplored',
                 gap: Math.max(0, p.threshold - p.confidence)
             }))
@@ -8317,6 +8553,9 @@ class PersonalityCompletenessTracker {
             return;
         }
 
+        // ═══ AMÉLIORATION 3: TRACKER HISTORIQUE CONFIANCE POUR SATURATION ═══
+        const prevConfidence = pillar.confidence;
+
         for (const [key, value] of Object.entries(subDimensionScores)) {
             if (key in pillar.subDimensions) {
                 // Scores only go up (max), never down
@@ -8327,6 +8566,25 @@ class PersonalityCompletenessTracker {
         // Recalculate pillar confidence = average of sub-dimensions
         const scores = Object.values(pillar.subDimensions);
         pillar.confidence = scores.reduce((a, b) => a + b, 0) / scores.length;
+        
+        // ═══ AMÉLIORATION 3: HISTORIQUE CONFIANCE + DÉTECTION SATURATION ═══
+        if (!pillar._confidenceHistory) pillar._confidenceHistory = [];
+        pillar._confidenceHistory.push({ 
+            confidence: pillar.confidence, 
+            delta: pillar.confidence - prevConfidence,
+            timestamp: Date.now() 
+        });
+        
+        // Saturation = 3 dernières mises à jour avec delta < 2 points
+        const recent = pillar._confidenceHistory.slice(-3);
+        if (recent.length >= 3) {
+            const allStagnant = recent.every(h => Math.abs(h.delta) < 2);
+            pillar._saturated = allStagnant && pillar.confidence < pillar.threshold;
+            if (pillar._saturated && !pillar._saturationLogged) {
+                console.log(`[PCTracker] 📊 SATURATION détectée: ${pillar.name} stagne à ${pillar.confidence.toFixed(0)}% (seuil: ${pillar.threshold}%)`);
+                pillar._saturationLogged = true;
+            }
+        }
 
         // Update status
         if (pillar.confidence >= pillar.threshold) {
@@ -12428,8 +12686,18 @@ FORMAT : Retourne UNIQUEMENT ta prochaine intervention (observation optionnelle 
                 incompletePillars
                     .sort((a, b) => b.gap - a.gap)
                     .forEach(p => {
-                        pillarSection += `- ${p.icon} ${p.name} : ${p.confidence}% → objectif ${p.threshold}% (manque ${p.gap}%)\n`;
+                        const satFlag = p.saturated ? ' ⚠️ SATURÉ — changer d\'angle !' : '';
+                        pillarSection += `- ${p.icon} ${p.name} : ${p.confidence}% → objectif ${p.threshold}% (manque ${p.gap}%)${satFlag}\n`;
                     });
+            }
+            
+            // ═══ AMÉLIORATION 3: SIGNALER LA SATURATION ═══
+            const saturatedPillars = dashboard.pillars.filter(p => p.saturated);
+            if (saturatedPillars.length > 0) {
+                pillarSection += `\n⚠️ PILIERS EN SATURATION (les questions actuelles n'apportent plus d'info nouvelle) :\n`;
+                saturatedPillars.forEach(p => {
+                    pillarSection += `- ${p.icon} ${p.name} à ${p.confidence}% — CHANGER D'APPROCHE : question projective, dilemme, anecdote, contraste\n`;
+                });
             }
         }
         
@@ -30767,7 +31035,54 @@ Retourne UNIQUEMENT le JSON.`, 2000
                     "emotional_profile"
                 ]
             },
-            data_quality: assessCloneQuality(userMsgs.length, totalWords, temperament, values, communication, thinking, emotional)
+            data_quality: assessCloneQuality(userMsgs.length, totalWords, temperament, values, communication, thinking, emotional),
+            
+            // ═══ AMÉLIORATION 5: RELIABILITY SCORE PAR DIMENSION ═══
+            reliability: (() => {
+                const dp = window.deepPersonalityAnalyzer;
+                const tracker = window.personalityTracker;
+                const avgReticence = dp ? dp.reticenceScore / 100 : 0;
+                const avgDesirability = (dp?._socialDesirabilityHistory || []).length > 0
+                    ? (dp._socialDesirabilityHistory.reduce((a, b) => a + b, 0) / dp._socialDesirabilityHistory.length) / 100
+                    : 0;
+                
+                const pillarReliability = {};
+                if (tracker) {
+                    for (const [key, pillar] of Object.entries(tracker.pillars)) {
+                        const evidenceCount = Math.min(1, (pillar._confidenceHistory || []).length / 10); // normalize 0-1
+                        const congruence = 1 - (dp ? dp.modalContradictions.length * 0.05 : 0); // each contradiction reduces 5%
+                        const reliability = Math.max(0, Math.min(100, 
+                            Math.round(100 * evidenceCount * Math.max(0.3, congruence) * (1 - avgDesirability * 0.4) * (1 - avgReticence * 0.3))
+                        ));
+                        pillarReliability[key] = {
+                            score: reliability,
+                            confidence: Math.round(pillar.confidence),
+                            evidence_updates: (pillar._confidenceHistory || []).length,
+                            saturated: pillar._saturated || false,
+                            grade: reliability >= 80 ? 'A' : reliability >= 60 ? 'B' : reliability >= 40 ? 'C' : 'D'
+                        };
+                    }
+                }
+                
+                const allScores = Object.values(pillarReliability).map(r => r.score);
+                const globalReliability = allScores.length > 0 
+                    ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
+                
+                return {
+                    global: globalReliability,
+                    grade: globalReliability >= 80 ? 'A' : globalReliability >= 60 ? 'B' : globalReliability >= 40 ? 'C' : 'D',
+                    reticence_factor: Math.round(avgReticence * 100),
+                    social_desirability_factor: Math.round(avgDesirability * 100),
+                    modal_incongruences: dp ? dp.modalContradictions.length : 0,
+                    verbal_contradictions: dp ? dp.verbalContradictions.length : 0,
+                    pillars: pillarReliability,
+                    warning: avgDesirability > 0.5 
+                        ? 'HIGH_SOCIAL_DESIRABILITY — Clone may reflect idealized self rather than authentic personality'
+                        : avgReticence > 0.5
+                        ? 'HIGH_RETICENCE — Clone based on limited disclosure, some dimensions may be inaccurate'
+                        : null
+                };
+            })()
         };
         
         // Générer le prompt clone
