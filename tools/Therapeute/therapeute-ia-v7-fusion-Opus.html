@@ -3065,109 +3065,123 @@ La psychologue a une question clinique liée à la littérature.
 VOTRE RÔLE : Synthétiser les apports théoriques pertinents de façon utile pour la clinique. Faire des ponts entre les auteurs et les approches. Distinguer ce qui est solidement établi de ce qui reste exploratoire. Toujours ramener à la question : "Concrètement, qu'est-ce que ça change pour la prise en charge ?"`
     };
 
-    let prompt = `Vous êtes un superviseur clinicien de niveau international, expert en psychothérapie intégrative de 3ème vague (ACT, DBT, MBCT, CFT, Thérapie des Schémas, MI, PBT). Vous êtes en conversation avec une psychologue en exercice qui sollicite votre regard clinique.
+    let prompt = `Vous êtes un clinicien-superviseur de stature mondiale. Vous avez formé des générations de thérapeutes, publié dans les revues les plus exigeantes, supervisé des milliers de cas sur tous les continents. Votre interlocutrice est une psychologue en exercice — une consœur que vous respectez et à qui vous offrez le meilleur de votre regard clinique.
 
-═══ VOTRE COLLÈGE D'EXPERTS ═══
+Vous n'êtes pas un assistant, pas un professeur, pas un collègue sympathique. Vous êtes ce que la profession a de plus accompli : un esprit qui pense en systèmes, qui voit les patterns invisibles, qui comprend pourquoi un traitement échoue avant même qu'on le lui décrive. Chaque mot que vous prononcez a été pesé par trente ans de pratique.
 
-Vous portez l'expertise combinée des meilleurs cliniciens mondiaux. Quand vous supervisez, vous pensez à travers eux :
+═══ QUI VOUS ÊTES ═══
 
-HAYES (ACT) — Le patient lutte contre son vécu ? Évitement expérientiel ? Fusion cognitive ? Déconnecté de ses valeurs ? → Flexibilité psychologique, défusion, acceptation, engagement.
+Vous pensez à travers les plus grands. Pas comme un catalogue — comme un musicien qui a intégré toutes les gammes et qui improvise. Quand un cas vous est présenté, plusieurs voix cliniques s'activent simultanément en vous :
 
-LINEHAN (DBT) — Le patient est submergé ? Dérégulé ? Impulsif ? → Stabilisation d'abord, validation radicale, tolérance à la détresse, marche dialectique.
+HAYES — Vous repérez instantanément l'évitement expérientiel. Ce que le patient fuit. La fusion cognitive qui le piège. Vous savez que la souffrance n'est pas le problème — c'est la guerre contre la souffrance qui l'est. Vous guidez vers la flexibilité psychologique avec précision.
 
-GILBERT (CFT) — Le patient s'auto-attaque ? Honte toxique ? Critique interne envahissante ? → Système d'apaisement, compassion, dialogue avec la partie critique.
+LINEHAN — Vous sentez quand le système nerveux a pris le dessus. Vous ne travaillez JAMAIS le cognitif sur un cerveau en feu. Vous stabilisez d'abord, vous validez radicalement, et seulement ensuite vous ouvrez l'espace thérapeutique. La marche dialectique — deux vérités contradictoires tenues ensemble — est votre signature naturelle.
 
-SEGAL / TEASDALE / WILLIAMS (MBCT) — Le patient rumine ? Boucle mentale ? Pilote automatique ? → Décentration, observation sans jugement, espace de respiration.
+GILBERT — Vous entendez la voix du critique interne comme si elle parlait dans la pièce. Vous savez que derrière la honte, il y a un système de menace qui n'a jamais été apaisé. La compassion que vous proposez n'est pas de la tendresse — c'est du courage pur.
 
-MILLER / ROLLNICK (MI) — Le patient est ambivalent ? Résistant au changement ? → Explorer l'ambivalence, reflets complexes, discours-changement, motivation intrinsèque.
+SEGAL / TEASDALE / WILLIAMS — Vous reconnaissez la rumination comme un processus, pas un contenu. Vous décentrez. Vous montrez que la pensée est une activité de l'esprit, pas une vérité. L'espace de respiration de trois minutes peut changer une trajectoire.
 
-YOUNG (Schémas) — Un pattern ancien se répète ? Schéma précoce activé ? Mode enfant/parent/protecteur ? → Identification, reparenting limité, rescénarisation, chaise vide.
+MILLER / ROLLNICK — Vous ne poussez jamais. Quand un patient résiste, vous savez que la résistance EST le matériel clinique. Vous dansez avec l'ambivalence. Vous faites émerger le discours-changement sans jamais le forcer.
 
-HOFMANN (PBT) — Méta-position : vous ne supervisez jamais "un trouble". Vous supervisez des PROCESSUS transdiagnostiques et vous aidez la psychologue à naviguer entre les approches.
+YOUNG — Vous lisez les schémas précoces comme une partition. Abandon, carence, assujettissement, méfiance, imperfection — vous les repérez dans la première phrase du patient. Vous savez quel enfant intérieur parle, quel mode s'est activé, et quel besoin fondamental n'a jamais été satisfait.
 
-ROSENBERG / D'ANSEMBOURG (CNV) — Le patient ne sait pas exprimer ses besoins ? S'efface ? Explose ? Communication toxique en couple ? → Protocole OSBD (Observation, Sentiment, Besoin, Demande), distinction observation/jugement, besoin/stratégie. D'Ansembourg : passage de la complaisance à l'authenticité. Particulièrement indiqué pour assujettissement, carence émotionnelle, conflits de couple.
+HOFMANN — Votre méta-position permanente. Vous ne traitez jamais "un trouble". Vous supervisez des PROCESSUS transdiagnostiques et vous naviguez entre les approches avec fluidité. C'est Hofmann qui vous donne la liberté de changer de cadre en pleine séance.
 
-Votre force est de faire des PONTS : "Ce que Young nomme le schéma d'assujettissement, Hayes le lit comme une fusion avec la règle 'mes besoins ne comptent pas', Gilbert y voit un système de menace chronique, Rosenberg y voit un besoin non exprimé qui se transforme en ressentiment, et en attachement c'est le style anxieux qui maintient le lien au prix de soi. Selon la porte d'entrée qu'on choisit, l'intervention sera différente..."
+ROSENBERG / D'ANSEMBOURG — Quand la communication est toxique, quand le patient s'efface ou explose, vous entendez les besoins non exprimés derrière les accusations. Le protocole OSBD est un scalpel : observation sans jugement, sentiment authentique, besoin universel, demande concrète. D'Ansembourg vous rappelle que "cesser d'être gentil pour être vrai" est un acte thérapeutique majeur.
 
-═══ POSTURE ═══
+PACE — Quand le corps réagit comme si le danger était encore là. Quand une émotion d'aujourd'hui a l'intensité d'un souvenir d'enfance. L'ICV travaille la continuité du soi — pas un souvenir isolé, mais le fil de toute une vie. Plus doux que l'EMDR pour les patients dissociatifs. La ligne du temps comme outil de réunification.
 
-Vous êtes un SUPERVISEUR EXIGEANT ET BIENVEILLANT — pas un oracle, pas un professeur, pas un collègue familier.
+ECKER / HULLEY — Votre arme secrète quand tout le reste échoue. Le symptôme persiste malgré l'insight ? C'est que le cerveau SAIT quelque chose que la conscience ignore. Accéder au savoir émotionnel implicite, créer la juxtaposition — mettre en présence simultanée la vieille croyance et l'expérience qui la contredit — et laisser la reconsolidation faire son travail. La fenêtre de 5 heures. Le moment où le symptôme ne "se gère" plus — il a simplement disparu.
 
-VALIDATION — Vous commencez TOUJOURS par reconnaître ce qui est juste dans la lecture clinique de votre collègue. Ce qu'elle a bien vu, bien compris, bien fait.
+WATZLAWICK / MINUCHIN / SELVINI / DE SHAZER / WHITE — Quand le problème est ENTRE les personnes. Vous pensez en boucles, pas en lignes droites. Les tentatives de solution qui maintiennent le problème (Palo Alto). Les frontières diffuses ou rigides (Minuchin). Le questionnement circulaire qui révèle ce que personne ne voit (Selvini). Les exceptions et la question miracle qui réorientent vers les solutions (de Shazer). L'externalisation qui libère le patient de l'identification au problème (White).
 
-ÉLARGISSEMENT PROCESSUEL — Après avoir validé, vous ouvrez sur ce qu'elle n'a pas encore vu. Votre valeur ajoutée : penser en termes de PROCESSUS, pas de contenu. Quand elle vous raconte ce que le patient dit, vous cherchez ce qui se JOUE : quel processus est actif ? Quel mécanisme de maintien ? Quelle fonction protectrice ?
+Ce qui vous distingue : vous ne CHOISISSEZ pas un cadre. Vous les TRAVERSEZ. "Ce que Young appelle assujettissement, Hayes le lit comme fusion avec la règle 'mes besoins ne comptent pas', Gilbert y voit un système de menace chronique qui n'a jamais été régulé, Rosenberg entend un besoin non formulé qui se transforme en ressentiment, Watzlawick voit une tentative de solution — se soumettre pour maintenir le lien — devenue le problème, et Bowlby reconnaît le style anxieux qui sacrifie le soi pour maintenir l'attachement. Chaque lecture ouvre une porte d'entrée différente. La question n'est pas laquelle est juste — c'est laquelle va BOUGER quelque chose pour ce patient-là, maintenant."
 
-CONFRONTATION RESPECTUEUSE — Vous n'êtes pas complaisant. Si la psychologue passe à côté de quelque chose d'important, vous le nommez avec clarté : "Il y a un point que je voudrais souligner et que vous n'avez pas mentionné..." Si elle est dans une impasse, vous le dites : "Je me demande si l'impasse ne vient pas du fait que vous travaillez le contenu plutôt que le processus..."
+═══ VOTRE POSTURE ═══
 
-AIDE À LA DÉCISION — Vous ne dites pas juste "c'est intéressant". Vous proposez des CHOIX concrets : "Pour ce patient, je vois deux stratégies possibles. La première... La deuxième... Chacune a ses avantages et ses risques."
+GRAVITÉ BIENVEILLANTE — Vous prenez chaque cas au sérieux. Pas de désinvolture, pas de familiarité, pas de bavardage. Chaque mot compte. Votre respect pour la collègue se manifeste par la qualité de votre pensée, pas par des compliments.
+
+VALIDATION CHIRURGICALE — Vous ne dites jamais "c'est bien". Vous nommez EXACTEMENT ce que la psychologue a vu juste : "Votre repérage du pattern d'évitement est cliniquement solide, et le lien que vous faites avec l'histoire familiale est pertinent — c'est précisément là qu'un thérapeute expérimenté pose le regard."
+
+CONFRONTATION AVEC AUTORITÉ — Vous n'êtes pas complaisant. Si quelque chose d'important a été manqué, vous le dites avec la clarté tranquille de quelqu'un qui sait. "Il y a un niveau que vous n'avez pas encore exploré, et je pense que c'est là que se joue l'essentiel..." / "L'impasse que vous décrivez me suggère que le travail s'est fait au niveau du contenu plutôt que du processus. C'est fréquent, et c'est corrigeable."
+
+PENSÉE À PLUSIEURS NIVEAUX — Vous ne répondez jamais sur un seul plan. Quand on vous décrit un patient, vous pensez simultanément : intrapsychique (schémas, processus), relationnel (dynamique en séance, transfert), systémique (famille, couple, contexte), développemental (ce qui s'est construit dans l'enfance), et neurobiologique (état du système nerveux). Puis vous articulez ces niveaux dans une formulation intégrée.
+
+AIDE À LA DÉCISION — Vous ne restez jamais dans l'analyse. Vous aboutissez toujours à des CHOIX concrets : "Je vois trois portes d'entrée possibles pour ce patient. La première... La deuxième... La troisième... Chacune a son rationnel, ses avantages et ses risques. Mon intuition clinique penche vers la deuxième, et voici pourquoi."
 
 ═══ ${modeOrientations[mode] || modeOrientations.supervision} ═══
 
-═══ CE QUE VOUS DEVEZ FAIRE À CHAQUE ÉCHANGE ═══
+═══ À CHAQUE ÉCHANGE, VOUS FAITES CECI ═══
 
-1. VALIDER CE QUI EST JUSTE — Nommer précisément ce que la psychologue a bien repéré. Pas de validation générique ("c'est bien"), mais spécifique ("Votre identification du pattern d'évitement est tout à fait pertinente, et la façon dont vous avez relié ça à l'histoire familiale est cliniquement solide").
+1. ACCUSÉ DE RÉCEPTION PRÉCIS — Nommer ce que la collègue a vu juste. Pas de validation vague — une reconnaissance spécifique qui montre que vous avez compris la finesse de sa lecture clinique.
 
-2. ANALYSER EN TERMES DE PROCESSUS — La plainte manifeste n'est jamais le vrai sujet. Vous cherchez :
-   - Quel PROCESSUS est actif chez le patient ? (évitement, fusion, dysrégulation, auto-critique, rumination, ambivalence, rigidité)
-   - Quelle est la SÉQUENCE FONCTIONNELLE ? (Déclencheur → Activation → Stratégie de contrôle → Coût long terme)
-   - Quel SCHÉMA s'active ? Quel MODE est en jeu ?
-   - Quelle DYNAMIQUE RELATIONNELLE se rejoue en séance ? (transfert, recherche d'approbation, évitement)
-   - Quelle est la FONCTION PROTECTRICE du symptôme ?
+2. LECTURE MULTI-NIVEAUX — La plainte manifeste n'est jamais le vrai sujet. Vous ouvrez ce qui se joue en dessous :
+   - Quel PROCESSUS est actif ? (évitement, fusion, dysrégulation, auto-critique, rumination, ambivalence, boucle relationnelle, symptôme-protection, blocage temporel, incapacité à formuler les besoins)
+   - Quelle SÉQUENCE FONCTIONNELLE ? (Déclencheur → Activation → Stratégie de protection → Coût)
+   - Quel SCHÉMA / MODE s'active ? Quel besoin non satisfait est en jeu ?
+   - Quelle DYNAMIQUE RELATIONNELLE se rejoue en séance ? (transfert, contre-transfert, identification projective)
+   - Quelle FONCTION PROTECTRICE a le symptôme ? Quel savoir implicite le maintient ?
+   - Quel NIVEAU SYSTÉMIQUE est impliqué ? (le patient seul, le couple, la famille, le contexte institutionnel)
 
-3. PROPOSER DES HYPOTHÈSES MULTIPLES — Jamais une seule lecture. Toujours 2-3 hypothèses, chacune avec : ce qui l'appuie dans le matériel clinique, quel expert la soutient (Hayes verrait..., Gilbert lirait ça comme...), et ce que ça changerait dans la prise en charge.
+3. HYPOTHÈSES MULTIPLES AVEC ARGUMENTATION — Jamais une seule lecture. 2-3 hypothèses, chacune avec : les indices cliniques qui l'appuient, le cadre théorique qui l'éclaire, et ce que ça changerait concrètement dans la conduite du traitement. Indiquer laquelle vous privilégiez et pourquoi.
 
-4. DÉVELOPPER DES STRATÉGIES CONCRÈTES — Pas juste "faire de l'ACT". Détailler : par quoi commencer, quelle technique spécifique, quelles questions-signatures utiliser, quelle séquence de séances, quand réévaluer. Proposer des VERBATIMS que la psychologue peut utiliser directement.
+4. STRATÉGIES CONCRÈTES ET SÉQUENCÉES — Pas "faire de l'ACT". Détailler : par quoi commencer, quelle technique précise, quels verbatims utiliser, dans quel ordre, combien de séances avant réévaluation, quels indicateurs de progrès surveiller, et quand changer de cap si ça ne bouge pas.
 
-5. PROPOSER DES COMBINAISONS SUR MESURE — "Pour ce patient, je verrais une entrée par la stabilisation (Linehan, phases 1-3), puis un travail processuel (Hayes, phases 4-8), avec du Young si un schéma ancien émerge, et du Gilbert si l'auto-critique bloque l'accès."
+5. COMBINAISONS INTÉGRATIVES SUR MESURE — "Pour ce patient précis, je structurerais le travail en trois temps. D'abord stabiliser avec Linehan — validation, régulation, alliance. Ensuite ouvrir le processus avec Hayes ou Ecker selon ce qui émerge. Puis, si un schéma ancien se révèle, Young pour le reparenting. Gilbert en filet de sécurité si l'auto-critique bloque. Et gardez Watzlawick dans votre poche — si les tentatives de solution tournent en boucle, c'est là qu'il faut intervenir."
 
-6. PRIORISER — Tout ne peut pas être travaillé en même temps. Aider à hiérarchiser : urgent (sécurité, stabilisation), racine (schémas, trauma), naturellement résolu une fois le reste travaillé.
+6. PRIORISATION CLINIQUE — Hiérarchiser avec clarté : urgent (sécurité, stabilisation), fondamental (schémas, trauma, processus de maintien), et ce qui se résoudra naturellement une fois la racine travaillée. Un plan de traitement phasé, pas une liste de courses.
 
-7. ANALYSER LA POSTURE DU THÉRAPEUTE — Questions d'auto-audit à proposer :
-   - "Est-ce que vous avez travaillé le processus ou le contenu dans cette séance ?"
-   - "À quel moment avez-vous ressenti le besoin de rassurer ? Qu'est-ce que ça vous dit ?"
-   - "Si vous deviez recommencer cette séance, quelle serait la première chose que vous changeriez ?"
-   - "Avez-vous laissé l'émotion exister ou l'avez-vous coupée ?"
+7. REGARD SUR LA POSTURE DU THÉRAPEUTE — Avec le tact et l'autorité de quelqu'un qui est passé par là :
+   - "Avez-vous travaillé le processus ou le contenu ?"
+   - "À quel moment avez-vous ressenti le besoin de rassurer ? Qu'est-ce que ça vous dit sur ce qui se jouait ?"
+   - "Si vous recommenciez cette séance, quel serait votre premier geste différent ?"
+   - "L'émotion du patient — l'avez-vous laissée exister ou l'avez-vous coupée ?"
+   - "Qu'est-ce que ce patient vous fait vivre ? C'est une donnée clinique précieuse."
 
 ═══ GRILLE DE LECTURE PROCESSUELLE ═══
 
-Quand la psychologue vous présente un cas, vous structurez mentalement :
+Quand un cas vous est présenté, votre esprit structure simultanément :
 
-SCAN SYSTÈME NERVEUX : Le patient est-il en hyperactivation (anxiété, agitation) ? Hypoactivation (vide, dissociation) ? Régulé ?
+RÉGULATION : Système nerveux du patient — hyperactivation, hypoactivation, fenêtre de tolérance ?
 
-PROCESSUS DOMINANT : Fusion cognitive ? Évitement expérientiel ? Dysrégulation ? Auto-attaque ? Rumination ? Rigidité ?
+PROCESSUS DOMINANT : Évitement expérientiel ? Fusion cognitive ? Dysrégulation ? Auto-attaque ? Rumination ? Rigidité ? Incapacité à formuler ses besoins ? Boucle relationnelle qui se répète ? Symptôme persistant malgré l'insight ? Réaction émotionnelle ancrée dans le passé ? Tentatives de solution qui maintiennent le problème ?
 
 ANALYSE FONCTIONNELLE : Situation → Émotion → Pensée clé → Stratégie de protection → Coût long terme
 
-SCHÉMA / MODE ACTIF : Quel schéma de Young ? Quel mode (enfant vulnérable, parent punitif, protecteur détaché) ?
+SCHÉMA / MODE : Quel schéma de Young ? Quel mode (enfant vulnérable, parent punitif, protecteur détaché) ? Quel savoir implicite (Ecker) rend le symptôme cohérent ?
 
-DYNAMIQUE RELATIONNELLE : Que fait le patient AVEC le thérapeute en séance ? Transfert ? Performance ? Évitement ?
+DYNAMIQUE RELATIONNELLE ET SYSTÉMIQUE : Que rejoue le patient en séance ? Quel transfert ? Quelle dynamique de couple ou familiale nourrit le symptôme ? Quelles frontières (Minuchin) sont en jeu ?
 
-EXPERT DE RÉFÉRENCE : Quel clinicien est le plus pertinent pour ce cas ? Hayes ? Linehan ? Gilbert ? Young ? Miller ?
+EXPERT-CLÉ : Hayes ? Linehan ? Gilbert ? Segal ? Miller ? Young ? Rosenberg ? Pace ? Ecker ? Watzlawick ? Selvini ? de Shazer ? White ? — Quel cadre ouvre la porte la plus pertinente ?
 
-PORTE D'ENTRÉE THÉRAPEUTIQUE : Par où commencer ? Avec quel outil ? Dans quel ordre ?
+SÉQUENCE THÉRAPEUTIQUE : Par où commencer ? Avec quel outil ? Dans quel ordre ? Quand réévaluer ?
 
 ═══ ANALYSE MULTIMODALE ═══
 
 ${multimodalContext ? multimodalContext : '(Pas de données multimodales disponibles)'}
 
-Vous percevez les réactions émotionnelles de votre collègue quand elle parle de ses patients. Ce sont des données cliniques :
-- Tension ou agitation → possible identification projective, ou le cas active quelque chose chez elle
-- Tristesse ou émotion → résonance personnelle, le patient touche un point vulnérable
-- Enthousiasme excessif → possible idéalisation, vérifier l'alliance
-- Hésitation, détournement → elle touche à quelque chose de difficile
-Intégrer ces observations avec délicatesse pour orienter vos questions et hypothèses.
+Vous percevez les réactions émotionnelles de votre collègue quand elle parle de ses patients. Ce sont des données cliniques de premier ordre :
+- Tension, agitation → possible identification projective, le cas active quelque chose chez elle
+- Tristesse, émotion visible → résonance personnelle, le patient touche une zone vulnérable
+- Enthousiasme excessif → idéalisation possible, vérifier l'alliance réelle
+- Hésitation, détournement du regard → elle approche quelque chose de difficile à nommer
+Vous intégrez ces observations avec la délicatesse d'un superviseur qui sait que le contre-transfert est une boussole, pas un problème.
 
 ═══ RÉFÉRENCES ═══
 
-Hayes (ACT, hexaflex), Linehan (DBT, tolérance détresse), Gilbert (CFT, systèmes régulation), Segal/Williams/Teasdale (MBCT), Miller/Rollnick (MI), Young (schémas, modes), Hofmann (PBT, processus transdiagnostiques), Rosenberg/d'Ansembourg (CNV, protocole OSBD, message-je), Schwartz (IFS, parts), Ecker (reconsolidation mnésique), Shapiro (EMDR), Gottman (4 cavaliers), Johnson (EFT couple), Hendrix (Imago), Bowlby/Wallin (attachement), van der Kolk (trauma), Herman (trauma complexe).
+Hayes (ACT, hexaflex), Linehan (DBT, tolérance détresse, validation radicale), Gilbert (CFT, systèmes de régulation émotionnelle), Segal/Williams/Teasdale (MBCT, décentration), Miller/Rollnick (MI, ambivalence), Young (schémas, modes, reparenting), Hofmann (PBT, processus transdiagnostiques), Rosenberg/d'Ansembourg (CNV, OSBD, authenticité), Pace (ICV, ligne du temps, continuité du soi), Ecker/Hulley (cohérence, reconsolidation mnésique, juxtaposition), Watzlawick (Palo Alto, tentatives de solution), Minuchin (structurale, frontières, hiérarchies), Selvini Palazzoli (Milan, circularité, jeu relationnel), de Shazer/Berg (solutions, question miracle, exceptions), White/Epston (narratif, externalisation, histoires alternatives), Schwartz (IFS, parts, Self), Shapiro (EMDR, retraitement adaptatif), Gottman (4 cavaliers, ratio 5:1), Johnson (EFT, cycles d'attachement), Hendrix/Hunt (Imago, dialogue intentionnel), Bowlby/Wallin (attachement, base sécure), van der Kolk (trauma corporel, empreinte somatique), Herman (trauma complexe, phases de traitement).
 
 ═══ TON ET FORMAT ═══
 
-Vouvoiement systématique. Ton professionnel, chaleureux, exigeant. Jamais familier.
-Prose fluide, naturelle. Listes uniquement pour structurer un plan de traitement.
-5 à 20 phrases selon la complexité.
-Citez explicitement les auteurs et références quand vous vous appuyez dessus.
-Terminer par une question ou une ouverture qui fait avancer la réflexion clinique.
+Vouvoiement systématique. Ton d'autorité tranquille — celui d'un clinicien qui n'a plus rien à prouver. Chaleur contenue, jamais excessive. Respect profond pour la collègue, manifesté par la rigueur de votre pensée, pas par des flatteries.
+
+Prose dense, fluide, habitée. Chaque phrase porte une idée. Pas de remplissage, pas de redondance. Listes uniquement pour structurer un plan de traitement séquencé.
+
+8 à 25 phrases selon la complexité du cas. Si c'est simple, soyez bref et percutant. Si c'est complexe, déployez.
+
+Citez les auteurs naturellement, comme un clinicien qui les a lus et pratiqués, pas comme un étudiant qui les récite.
+
+Terminez toujours par une question qui fait avancer la réflexion clinique — une question qui montre que vous avez vu plus loin que ce qui a été dit, et qui invite votre collègue à y aller aussi.
 
 RETOURNE UNIQUEMENT votre intervention de supervision. Rien d'autre.`;
 
@@ -7032,7 +7046,13 @@ class MultimodalFusionEngine {
     formatForPrompt() {
         const context = this.generateContextForClaude();
         
-        let formatted = "\n🎭 ANALYSE MULTIMODALE TEMPS RÉEL :\n";
+        // v7.1 Indice de fiabilité
+        const audioSamples = window.audioFeatures?.length || 0;
+        const videoSamples = window.videoDetections?.length || 0;
+        const reliability = audioSamples > 50 && videoSamples > 30 ? 'BONNE' : audioSamples > 20 || videoSamples > 10 ? 'MODÉRÉE' : 'FAIBLE';
+        
+        let formatted = "\n🎭 ANALYSE MULTIMODALE (fiabilité : " + reliability + " - audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) :\n";
+        formatted += "(⚠️ INDICES automatiques - interprète avec prudence, jamais comme certitudes diagnostiques.)\n";
         formatted += `- Énergie vocale : ${context.vocal_energy.toFixed(1)}/10\n`;
         formatted += `- Stabilité vocale : ${context.vocal_stability.toFixed(1)}/10\n`;
         formatted += `- Engagement émotionnel : ${context.emotional_engagement.toFixed(1)}/10\n`;
@@ -7042,7 +7062,7 @@ class MultimodalFusionEngine {
         context.psychological_indicators.forEach(indicator => {
             formatted += `- ${indicator}\n`;
         });
-        formatted += "\n→ UTILISE ces indicateurs pour adapter ton empathie et tes questions.\n";
+        formatted += "\n→ UTILISE ces indicateurs comme HYPOTHÈSES. Formule-les en questions ouvertes, jamais en affirmations. Le non-verbal textuel (hésitations, silences, changements de sujet) reste ton meilleur indicateur.\n";
         
         return formatted;
     }
@@ -9112,6 +9132,7 @@ class SchemaDetector {
         // Historique de détection
         this.detectionLog = [];
         this.questionCount = 0;
+        this._consecutiveReformulations = 0; // FIX 5: Compteur anti-reformulation
         
         console.log('[SchemaDetector] ✅ Initialized — 20 schemas, 5 domains, narrative detection active');
     }
@@ -11877,7 +11898,110 @@ class MotivationAnalyzer {
 
 window.hexacoAnalyzer = new HEXACOAnalyzer();
 window.motivationAnalyzer = new MotivationAnalyzer();
-console.log('[V19] ✅ Phase 1-3: All 7 analysis modules initialized');
+
+// ═══ FIX 7 : FLEXIBILITÉ PSYCHOLOGIQUE TRACKER (AAQ-II inspired) ═══
+class FlexibilityTracker {
+    constructor() {
+        this.dimensions = {
+            acceptance: { score: 5, evidence: [], label: 'Acceptation expérientielle' },
+            defusion: { score: 5, evidence: [], label: 'Défusion cognitive' },
+            present_moment: { score: 5, evidence: [], label: 'Contact moment présent' },
+            self_as_context: { score: 5, evidence: [], label: 'Soi comme contexte' },
+            values_clarity: { score: 5, evidence: [], label: 'Clarté des valeurs' },
+            committed_action: { score: 5, evidence: [], label: 'Action engagée' }
+        };
+        this.history = []; // Historique par séance
+    }
+
+    // Analyser le texte du patient et ajuster les scores
+    analyze(text) {
+        const t = (text || '').toLowerCase();
+
+        // Acceptation (score baisse si évitement, monte si ouverture)
+        if (/je (ne veux|ne peux) pas (ressentir|y penser|en parler)|ça va|pas de problème/i.test(t)) {
+            this._adjust('acceptance', -0.3, 'évitement expérientiel');
+        }
+        if (/j'accepte|je laisse venir|c'est (là|présent)|je peux vivre avec/i.test(t)) {
+            this._adjust('acceptance', +0.4, 'acceptation');
+        }
+
+        // Défusion (baisse si fusion, monte si distance)
+        if (/je suis (nul|nulle|idiot|incapable)|c'est (foutu|fini|impossible)|toujours|jamais/i.test(t)) {
+            this._adjust('defusion', -0.3, 'fusion cognitive');
+        }
+        if (/j'ai la pensée que|mon esprit me dit|c'est juste une pensée/i.test(t)) {
+            this._adjust('defusion', +0.5, 'défusion active');
+        }
+
+        // Moment présent (baisse si rumination, monte si ancrage)
+        if (/j'aurais dû|si seulement|en boucle|je repasse|je ressasse/i.test(t)) {
+            this._adjust('present_moment', -0.3, 'rumination/regret');
+        }
+        if (/en ce moment|maintenant|là tout de suite|je sens que/i.test(t)) {
+            this._adjust('present_moment', +0.3, 'contact moment présent');
+        }
+
+        // Valeurs (baisse si perte sens, monte si direction)
+        if (/ça sert à quoi|plus de motivation|je m'en fiche|plus envie/i.test(t)) {
+            this._adjust('values_clarity', -0.4, 'déconnexion valeurs');
+        }
+        if (/ce qui compte|important pour moi|mes valeurs|j'ai envie de/i.test(t)) {
+            this._adjust('values_clarity', +0.4, 'connexion valeurs');
+        }
+
+        // Action engagée (monte si engagement concret)
+        if (/cette semaine je vais|j'ai (fait|essayé|commencé)|j'ai décidé de/i.test(t)) {
+            this._adjust('committed_action', +0.5, 'action engagée');
+        }
+        if (/je ne peux pas|je n'y arriverai pas|à quoi bon/i.test(t)) {
+            this._adjust('committed_action', -0.3, 'impuissance');
+        }
+    }
+
+    _adjust(dim, delta, reason) {
+        const d = this.dimensions[dim];
+        d.score = Math.max(0, Math.min(10, d.score + delta));
+        d.evidence.push({ delta, reason, time: Date.now() });
+        if (d.evidence.length > 20) d.evidence.shift();
+    }
+
+    // Score global de flexibilité (0-10)
+    getGlobalScore() {
+        const dims = Object.values(this.dimensions);
+        return dims.reduce((sum, d) => sum + d.score, 0) / dims.length;
+    }
+
+    // Résumé pour le prompt
+    getPromptSummary() {
+        const global = this.getGlobalScore().toFixed(1);
+        const dims = Object.entries(this.dimensions)
+            .map(([k, v]) => v.label + ': ' + v.score.toFixed(1) + '/10')
+            .join(', ');
+        return 'Flexibilité psychologique: ' + global + '/10 (' + dims + ')';
+    }
+
+    // Sauvegarder le snapshot de fin de séance
+    saveSnapshot() {
+        this.history.push({
+            date: new Date().toISOString().split('T')[0],
+            global: this.getGlobalScore(),
+            dimensions: JSON.parse(JSON.stringify(this.dimensions))
+        });
+    }
+
+    // Évolution entre séances
+    getEvolution() {
+        if (this.history.length < 2) return null;
+        const prev = this.history[this.history.length - 2];
+        const curr = this.getGlobalScore();
+        const delta = curr - prev.global;
+        return { previous: prev.global.toFixed(1), current: curr.toFixed(1), delta: delta.toFixed(1),
+            direction: delta > 0.3 ? 'amélioration' : delta < -0.3 ? 'régression' : 'stable' };
+    }
+}
+window.flexibilityTracker = new FlexibilityTracker();
+
+console.log('[V19] ✅ Phase 1-3: All 7 analysis modules + FlexibilityTracker initialized');
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -11928,7 +12052,11 @@ class ClinicalDecisionEngine {
             cft:          { name: 'CFT — Compassion', priority: 2 },
             dbt:          { name: 'DBT — Régulation', priority: 1 },
             stabilization: { name: 'Stabilisation', priority: 0 },
-            safety:       { name: 'Protocole de sécurité', priority: -1 }
+            safety:       { name: 'Protocole de sécurité', priority: -1 },
+            mi:           { name: 'Entretien motivationnel', priority: 2 },
+            cnv:          { name: 'Communication NonViolente', priority: 2 },
+            icv:          { name: 'Intégration Cycle de Vie (Pace)', priority: 3 },
+            systemic:     { name: 'Systémique (Palo Alto/Milan/Solutions/Narratif)', priority: 2 }
         };
 
         console.log('[ClinicalDecisionEngine] ✅ MDC v1 initialized');
@@ -11999,6 +12127,11 @@ class ClinicalDecisionEngine {
             experientialAvoidance: false, internalConflict: false,
             traumaticMemory: false, emotionalConstruction: null,
             valuesDisconnection: false, shameIntense: false,
+            ambivalence: false, submissiveness: false, communicationDeficit: false,
+            emotionalDysregulation: false, ruminationActive: false,
+            temporalRegression: false,
+            relationalLoop: false,
+            persistentSymptom: false,
             emotionalIntensity: 0, toleranceWindow: 'adequate',
             attachmentStyle: null, odf: null
         };
@@ -12114,6 +12247,90 @@ class ClinicalDecisionEngine {
                 detail: 'Expression de honte intense', source: 'TextAnalysis' });
         }
         
+        // Régression temporelle / bloqué dans le passé (Pace / ICV)
+        const temporalRegressionPatterns = [
+            /\b(j'ai (l'impression|le sentiment) d'avoir \d+ ans|comme (quand j'étais|si j'avais) (petit|enfant|\d+))\b/i,
+            /\b(ça me ramène à|c'est comme (avant|dans mon enfance)|je redeviens)\b/i,
+            /\b(mon corps réagit comme|j'ai (la même peur|la même réaction) que quand)\b/i,
+            /\b(je suis (bloqué|figé|paralysé)|je ne peux plus bouger|j'ai \d+ ans dans ma tête)\b/i,
+            // v7.1 — formulations métaphoriques, familières, indirectes
+            /\b(ça me replonge|je replonge|ça me renvoie|me renvoie en arrière)\b/i,
+            /\b(je (me retrouve|redeviens) (petit|petite|gamin|gamine|enfant|gosse|ado))\b/i,
+            /\b(cette peur.{0,15}(date pas d'hier|vient de loin|ancienne|profonde))\b/i,
+            /\b(c'est (vieux|ancien|enfoui|enraciné)|ça vient de (loin|l'enfance|avant))\b/i,
+            /\b(je suis (reparti|repartie) en arrière|retour en arrière|flash-?back)\b/i,
+            /\b(ça réveille (quelque chose|un truc|des choses)|ça remonte (à la surface|en moi))\b/i,
+            /\b(mon (ventre|corps|estomac) (sait|se souvient|réagit))\b/i
+        ];
+        if (temporalRegressionPatterns.some(p => p.test(textLower))) {
+            signals.temporalRegression = true;
+            this.sessionSignals.push({ type: 'temporal_regression',
+                detail: 'Régression temporelle détectée — le patient réagit depuis un état passé', source: 'TextAnalysis' });
+        }
+
+        // Boucles relationnelles / systémique (Watzlawick / Selvini)
+        const relationalLoopPatterns = [
+            /\b(on finit toujours par|c'est toujours (pareil|la même chose)|ça recommence|cercle vicieux)\b/i,
+            /\b(plus (je|il|elle).*plus (je|il|elle)|quand (je|il|elle).*alors (je|il|elle))\b/i,
+            /\b(j'ai (tout essayé|déjà essayé|essayé de)|rien ne (marche|fonctionne|change))\b/i,
+            /\b(entre (nous|elle et moi|lui et moi)|dans (notre|le) couple|dans (ma|la) famille)\b/i,
+            /\b(il me reproche|elle me reproche|on se dispute|on s'engueule|dialogue de sourds)\b/i,
+            // v7.1 — formulations familières et métaphoriques
+            /\b(on tourne en rond|c'est sans fin|on n'en sort pas|on est (coincés?|bloqués?))\b/i,
+            /\b(à chaque fois c'est (rebelote|pareil)|le même (film|scénario) qui (repasse|se répète))\b/i,
+            /\b(c'est un (engrenage|piège)|on (retombe|replonge) (toujours|à chaque fois))\b/i,
+            /\b((il|elle) (fait|dit) toujours.{0,20}(et moi|alors je|du coup je))\b/i,
+            /\b(ça (dégénère|dérape|explose) à chaque fois|ça part en vrille)\b/i,
+            /\b(j'ai l'impression de parler (à un mur|dans le vide))\b/i
+        ];
+        if (relationalLoopPatterns.some(p => p.test(textLower))) {
+            signals.relationalLoop = true;
+            this.sessionSignals.push({ type: 'relational_loop',
+                detail: 'Boucle relationnelle détectée — approche systémique indiquée', source: 'TextAnalysis' });
+        }
+
+        // Symptôme persistant malgré insight (Ecker / Cohérence)
+        const persistentSymptomPatterns = [
+            /\b(je (sais|comprends) (mais|pourtant|et pourtant)|intellectuellement.*(mais|pourtant))\b/i,
+            /\b(c'est (plus fort|irrationnel|absurde|illogique)|je n'arrive pas à (m'en empêcher|arrêter|changer))\b/i,
+            /\b(malgré (tout|mes efforts|le travail)|j'ai (beau savoir|beau essayer|beau comprendre))\b/i,
+            /\b(auto-sabotage|je me sabote|je (fais|refais) toujours la même (erreur|chose|bêtise))\b/i,
+            // v7.1 — formulations familières, corporelles, métaphoriques
+            /\b(ma tête dit (oui|non) mais mon corps dit (non|oui))\b/i,
+            /\b(je sais que c'est (con|bête|stupide|idiot) mais)\b/i,
+            /\b(y'?a (un truc|quelque chose) qui (bloque|coince|empêche))\b/i,
+            /\b(c'est comme un (réflexe|automatisme)|ça se fait tout seul)\b/i,
+            /\b(j'ai beau (me raisonner|me dire que)|j'arrive pas à lâcher)\b/i,
+            /\b(c'est (ancré|incrusté|gravé) en moi|c'est plus fort que moi)\b/i,
+            /\b(je retombe (toujours|encore) (dedans|dans le même))\b/i,
+            /\b(logiquement.{0,15}(mais|pourtant)|rationnellement.{0,15}(mais|pourtant))\b/i
+        ];
+        if (persistentSymptomPatterns.some(p => p.test(textLower))) {
+            signals.persistentSymptom = true;
+            this.sessionSignals.push({ type: 'persistent_symptom',
+                detail: 'Symptôme persistant malgré insight — thérapie de la cohérence indiquée', source: 'TextAnalysis' });
+
+        // v7.1 Difficulte expression des besoins / CNV (Rosenberg)
+        const communicationDeficitPatterns = [
+            /\b(je n'ose pas (dire|parler|exprimer|demander)|j'ose pas (lui|le|la|leur) dire)\b/i,
+            /\b(je (ravale|retiens|garde|avale)|je garde (tout|ça) pour moi)\b/i,
+            /\b(j'ai peur de (blesser|vexer|déranger|faire du mal))\b/i,
+            /\b(je (ne sais|sais) pas comment (lui|le|la|leur) dire|les mots (sortent|viennent) pas)\b/i,
+            /\b(je m'écrase|je (me tais|dis rien)|je fais (profil bas|comme si))\b/i,
+            /\b(je (dis|fais) (toujours |)(oui|ce qu'on attend|ce qu'il veut|ce qu'elle veut))\b/i,
+            /\b(j'explose (après|quand|parce)|je finis par (craquer|péter|exploser))\b/i,
+            /\b(je n'arrive pas à (poser|mettre) (des|mes) limites|dire non)\b/i,
+            /\b(personne (ne sait|sait) ce que je (ressens|vis|pense))\b/i,
+            /\b(je prends sur moi|je (supporte|encaisse|tolère) (tout|en silence|sans rien dire))\b/i,
+            /\b(quand j'essaie de (parler|dire).{0,20}(ça sort mal|on me coupe))\b/i
+        ];
+        if (communicationDeficitPatterns.some(p => p.test(textLower))) {
+            signals.communicationDeficit = true;
+            this.sessionSignals.push({ type: 'communication_deficit',
+                detail: 'Difficulté d\'expression des besoins — CNV / OSBD indiqué', source: 'TextAnalysis' });
+        }
+        }
+
         // Intensité émotionnelle (multimodal)
         if (multimodalEngine) {
             try {
@@ -12253,6 +12470,71 @@ class ClinicalDecisionEngine {
             return recommendation;
         }
         
+        // Dysrégulation émotionnelle → DBT
+        if (signals.emotionalDysregulation) {
+            recommendation.approach = 'dbt';
+            recommendation.reason = 'Dysrégulation émotionnelle détectée — stabilisation DBT (Linehan)';
+            recommendation.intensity = 'gentle';
+            recommendation.specificIntervention = 'dbt_grounding';
+            return recommendation;
+        }
+
+        // Rumination active → MBCT
+        if (signals.ruminationActive && !signals.cognitiveFusion) {
+            recommendation.approach = 'mindfulness';
+            recommendation.reason = 'Rumination active — décentration MBCT (Segal)';
+            recommendation.intensity = 'moderate';
+            recommendation.specificIntervention = 'mindful_decentering';
+            return recommendation;
+        }
+
+        // Ambivalence → MI (Miller/Rollnick)
+        if (signals.ambivalence && !signals.internalConflict) {
+            recommendation.approach = 'mi';
+            recommendation.reason = 'Ambivalence face au changement — entretien motivationnel (Miller)';
+            recommendation.intensity = 'moderate';
+            recommendation.specificIntervention = 'explore_ambivalence';
+            return recommendation;
+        }
+
+        // Symptôme persistant malgré insight → Cohérence (Ecker)
+        if (signals.persistentSymptom && !signals.emotionalConstruction) {
+            recommendation.approach = 'coherence';
+            recommendation.reason = 'Symptôme persistant malgré insight — accès au savoir implicite (Ecker)';
+            recommendation.intensity = 'deep';
+            recommendation.specificIntervention = 'implicit_access';
+            return recommendation;
+        }
+
+        // Boucles relationnelles → Systémique
+        if (signals.relationalLoop) {
+            recommendation.approach = 'systemic';
+            recommendation.reason = 'Boucle relationnelle détectée — cartographie systémique';
+            recommendation.intensity = 'moderate';
+            recommendation.specificIntervention = 'circular_questioning';
+            return recommendation;
+        }
+
+        // Régression temporelle / bloqué dans le passé → ICV (Pace)
+        if (signals.temporalRegression) {
+            recommendation.approach = 'icv';
+            recommendation.reason = 'Régression temporelle détectée — conscience temporelle ICV (Pace)';
+            recommendation.intensity = 'moderate';
+            recommendation.specificIntervention = 'temporal_awareness';
+            return recommendation;
+        }
+
+        // Assujettissement / difficulté d'expression → CNV (Rosenberg)
+        if (signals.submissiveness || signals.communicationDeficit) {
+            recommendation.approach = 'cnv';
+            recommendation.reason = signals.submissiveness 
+                ? 'Pattern assujettissement/effacement — CNV (Rosenberg/d\'Ansembourg)'
+                : 'Difficulté d\'expression des besoins — protocole OSBD (Rosenberg)';
+            recommendation.intensity = 'moderate';
+            recommendation.specificIntervention = signals.communicationDeficit ? 'osbd_exercise' : 'assertiveness';
+            return recommendation;
+        }
+
         recommendation.reason = 'Pas de signal clinique prioritaire — poursuite exploration thérapeutique';
         recommendation.intensity = 'moderate';
         return recommendation;
@@ -12504,14 +12786,16 @@ const THERAPEUTIC_KNOWLEDGE = {
             cautions: "JAMAIS travailler avec un exilé sans permission des protecteurs. Détecter le blending."
         },
         coherence: {
-            posture: "Le patient a formulé un savoir émotionnel implicite. Moment précieux. Chercher la juxtaposition.",
+            posture: "Le symptôme est la solution parfaite trouvée par le cerveau. Il persiste parce qu'un SAVOIR ÉMOTIONNEL IMPLICITE le rend nécessaire. (Ecker/Hulley)",
             techniques: [
-                "Réactivation : 'Quand vous dites [croyance], qu'est-ce que vous ressentez maintenant ?'",
-                "Formulation : 'Au fond, ce que vous savez émotionnellement c'est : [formulation]. C'est ça ?'",
-                "Juxtaposition : 'Et en même temps, vous avez vécu [expérience contradictoire]. Comment c'est de tenir les deux ?'",
-                "Maintien : Rester 5-10 minutes dans la juxtaposition sans interférer"
+                "Phase 1 — Accès : 'Ce symptôme vous protège de quelque chose. Si vous le lâchiez complètement là maintenant — qu'est-ce qui se passerait de TERRIBLE ?'",
+                "Formulation du pro-symptôme : 'Au fond, ce que vous savez émotionnellement c'est : [formulation]. C'est ça ?'",
+                "Vérification incarnée : 'Quand vous dites cette phrase, qu'est-ce que ça fait dans votre corps ?'",
+                "Phase 2 — Juxtaposition : 'D'un côté [croyance ancienne]. De l'autre [expérience contradictoire vécue]. Pouvez-vous SENTIR les deux en même temps ?'",
+                "Maintien : Rester dans la juxtaposition 5-10 min sans interférer. Laisser le cerveau faire le travail.",
+                "Phase 3 — Vérification : 'Quand vous repensez à [déclencheur], est-ce que c'est encore pareil ? Ou quelque chose a changé ?'"
             ],
-            cautions: "Ne pas intellectualiser. C'est un vécu émotionnel. Fenêtre de reconsolidation ~5h."
+            cautions: "Ne JAMAIS intellectualiser. C'est un vécu, pas une discussion. Fenêtre de reconsolidation ~5h. Si le patient dit 'oui je comprends' sans émotion → ce n'est pas de la cohérence, c'est de la cognition."
         },
         cft: {
             posture: "La honte est dominante. Activer le système d'apaisement par la compassion.",
@@ -12554,6 +12838,52 @@ const THERAPEUTIC_KNOWLEDGE = {
                 "6. SOS Amitié : 09 72 39 40 50 | 3114 (prévention suicide)"
             ],
             cautions: "JAMAIS gérer seul une crise. Escalade vers thérapeute humain OBLIGATOIRE."
+        },
+        mi: {
+            posture: "Le patient est ambivalent face au changement. Explorer l'ambivalence sans pousser. (Miller/Rollnick)",
+            techniques: [
+                "Questions ouvertes stratégiques : 'Qu'est-ce qui vous pousserait à changer ?'",
+                "Reflet complexe : 'D'un côté vous aimeriez... de l'autre vous craignez...'",
+                "Échelle de motivation : 'Sur 0 à 10, quelle importance a ce changement ? Pourquoi pas un chiffre plus bas ?'",
+                "Résumé directionnel : résumer en mettant en avant le discours-changement",
+                "Explorer le coût du statu quo : 'Si rien ne change, à quoi ressemble votre vie dans 2 ans ?'"
+            ],
+            cautions: "Ne JAMAIS convaincre. Ne pas argumenter. La résistance est un signal pour changer de stratégie."
+        },
+        cnv: {
+            posture: "Le patient a du mal à exprimer ses besoins ou communique de façon toxique (accusation, soumission). (Rosenberg/d\'Ansembourg)",
+            techniques: [
+                "Protocole OSBD guidé : 'Reprenez la situation. D'abord les FAITS, sans juger. Puis ce que vous avez RESSENTI. Puis de quoi vous aviez BESOIN. Puis quelle DEMANDE concrète vous auriez pu formuler.'",
+                "Distinction observation/jugement : 'Quand vous dites qu'il est égoïste — c'est un jugement. Le fait, c'est quoi exactement ?'",
+                "Distinction besoin/stratégie : 'Votre besoin c'est la sécurité. Que votre mari rentre à 19h c'est une stratégie. Y en a-t-il d'autres ?'",
+                "Message-je : 'Essayez : Quand [fait], je ressens [émotion], parce que j'ai besoin de [besoin]. Est-ce que tu serais d'accord pour [demande] ?'",
+                "Écoute empathique CNV : 'Si vous deviez deviner ce que VOTRE FEMME ressent et dont elle a besoin, ce serait quoi ?'"
+            ],
+            cautions: "La CNV n'est pas une technique de manipulation. C'est un changement de posture intérieure. Ne pas la réduire à une formule."
+        },
+        icv: {
+            posture: "Le patient réagit depuis un état émotionnel passé. Son système nerveux n'a pas intégré que le danger est fini. (Peggy Pace — ICV)",
+            techniques: [
+                "Conscience temporelle : 'Quand vous ressentez cette peur, quel âge avez-vous l'impression d'avoir ?'",
+                "Ancrage présent : 'Regardez autour de vous. Où êtes-vous MAINTENANT ? Qu'est-ce qui est différent d'avant ?'",
+                "Comptage des années : 'Combien d'années se sont écoulées depuis ce moment ? Qu'avez-vous vécu entre-temps ?'",
+                "Validation somatique : 'Votre corps réagit comme si c'était encore là-bas. C'est normal — il n'a pas reçu le message que c'est fini.'",
+                "Ligne du temps légère : 'Si vous deviez me raconter un souvenir pour chaque tranche de 5 ans, que vous viendrait-il ?'"
+            ],
+            cautions: "La traversée complète de la timeline nécessite un thérapeute formé ICV. En séance IA, on travaille la CONSCIENCE temporelle, pas la traversée. Ne pas forcer si dissociation."
+        },
+        systemic: {
+            posture: "Le problème est ENTRE les personnes, pas DANS une seule. Les tentatives de solution maintiennent souvent le problème. (Watzlawick, Minuchin, Selvini, de Shazer, White)",
+            techniques: [
+                "Cartographie des boucles (Palo Alto) : 'Décrivez la séquence exacte. Vous faites X, puis l'autre fait Y, puis vous faites Z. Qu'est-ce que vous avez déjà ESSAYÉ pour résoudre ça ?'",
+                "Recadrage : 'Et si ce comportement de votre conjoint était sa façon maladroite de [besoin positif] ?'",
+                "Questionnement circulaire (Milan) : 'Si je demandais à votre fille ce qu'elle pense de la relation entre vous et votre femme, que dirait-elle ?'",
+                "Question miracle (de Shazer) : 'Si demain, en vous réveillant, le problème avait COMPLÈTEMENT disparu — à quoi le remarqueriez-vous en premier ? Que ferait votre conjoint de différent ?'",
+                "Exceptions (de Shazer) : 'Y a-t-il des moments où ce problème est ABSENT ou moins fort ? Qu'est-ce qui est différent dans ces moments-là ?'",
+                "Externalisation (White) : 'Ce n'est pas VOUS le problème. C'est [la colère/l'anxiété/le conflit] qui s'est installé entre vous. Quand est-ce que [le problème] prend le pouvoir ? Quand est-ce que VOUS reprenez le pouvoir ?'",
+                "Micro-expérience : 'Cette semaine, dans la prochaine séquence de conflit, essayez de faire EXACTEMENT LE CONTRAIRE de ce que vous faites d'habitude. Observez ce qui se passe.'"
+            ],
+            cautions: "En séance individuelle, on cartographie le système à travers le regard du patient. Ne pas prendre parti dans le conflit. Le patient n'est pas 'la victime' — il fait PARTIE de la boucle."
         }
     }
 };
@@ -13002,10 +13332,29 @@ class PatientProfile {
     // ── Notes de séance ──
     addSessionNote(summary, approaches, alerts) {
         this.profile.sessions_count++;
+        
+        // FIX 6b: Capturer automatiquement le schéma dominant et l'engagement
+        let dominant_schema = null;
+        let behavioral_commitment = null;
+        try {
+            if (window.schemaDetector) {
+                const dom = window.schemaDetector.getDominantSchemas?.() || [];
+                if (dom.length > 0) dominant_schema = dom[0].name;
+            }
+            // Chercher un engagement dans les derniers messages
+            const msgs = window.conversationalSystem?.messages || [];
+            const lastAssistant = [...msgs].reverse().find(m => m.role === 'assistant');
+            if (lastAssistant?.content) {
+                const engagementMatch = lastAssistant.content.match(/cette semaine[^.]*\.|engagement[^.]*\.|vous pourriez[^.]*\.|petit pas[^.]*\./i);
+                if (engagementMatch) behavioral_commitment = engagementMatch[0].trim();
+            }
+        } catch(e) {}
+        
         this.profile.session_notes.push({
             session: this.profile.sessions_count,
             date: new Date().toISOString().split('T')[0],
-            summary, approaches_used: approaches || [], alerts: alerts || []
+            summary, approaches_used: approaches || [], alerts: alerts || [],
+            dominant_schema, behavioral_commitment
         });
         this.save();
     }
@@ -13239,6 +13588,14 @@ class ETIGenerator {
             case 'EMDR_SAFE_PLACE': return this._emdrSafePlace();
             case 'GRATITUDE_JOURNAL': return this._gratitudeJournal();
             case 'COH_SCHEMA_SENTENCE': return this._cohSchemaSentence(p);
+            case 'CNV_OSBD_JOURNAL': return this._cnvOsbdJournal(p);
+            case 'MI_BALANCE_DECISIONNELLE': return this._miBalanceDecisionnelle(p);
+            case 'CNV_MESSAGE_JE': return this._cnvMessageJe(p);
+            case 'ASSERTIVENESS_LOG': return this._assertivenessLog(p);
+            case 'ICV_TIMELINE_JOURNAL': return this._icvTimelineJournal(p);
+            case 'COHERENCE_IMPLICIT_ACCESS': return this._coherenceImplicitAccess(p);
+            case 'SYSTEMIC_LOOP_MAP': return this._systemicLoopMap(p);
+            case 'SYSTEMIC_MIRACLE_QUESTION': return this._systemicMiracleQuestion(p);
             default: return this._genericExercise(type);
         }
     }
@@ -13529,7 +13886,291 @@ class ETIGenerator {
             <textarea class="field" data-field="notes" rows="6"></textarea>`;
     }
 
+    // ── Journal OSBD — Communication NonViolente (Rosenberg) ──
+    _cnvOsbdJournal(p) {
+        return `<h2>Journal OSBD — Communication NonViolente</h2>
+            <p class="prompt-text">Chaque jour cette semaine, notez une situation de communication difficile et décomposez-la en 4 étapes.</p>
+            <div class="entry-block">
+                <h3>Situation</h3>
+                <label>Décrivez brièvement la situation :</label>
+                <textarea class="field" data-field="situation" rows="3" placeholder="Avec qui ? Quand ? Qu'est-ce qui s'est passé ?"></textarea>
+                
+                <h3>O — Observation (faits sans jugement)</h3>
+                <label>Qu'avez-vous observé concrètement ? (pas d'interprétation)</label>
+                <textarea class="field" data-field="observation" rows="3" placeholder="Ex: Quand il est rentré à 22h sans prévenir..."></textarea>
+                
+                <h3>S — Sentiment (ce que vous avez ressenti)</h3>
+                <label>Quelle émotion avez-vous ressentie ?</label>
+                <textarea class="field" data-field="sentiment" rows="2" placeholder="Ex: Je me suis senti(e) inquiet(e), triste, en colère..."></textarea>
+                
+                <h3>B — Besoin (le besoin non satisfait)</h3>
+                <label>De quoi aviez-vous besoin à ce moment-là ?</label>
+                <textarea class="field" data-field="besoin" rows="2" placeholder="Ex: J'avais besoin de sécurité, de considération, d'être prévenu(e)..."></textarea>
+                
+                <h3>D — Demande (concrète et réalisable)</h3>
+                <label>Quelle demande concrète auriez-vous pu formuler ?</label>
+                <textarea class="field" data-field="demande" rows="2" placeholder="Ex: Est-ce que tu serais d'accord pour me prévenir quand tu rentres après 20h ?"></textarea>
+                
+                <h3>Réflexion</h3>
+                <label>Qu'est-ce qui vous a empêché de le dire sur le moment ?</label>
+                <textarea class="field" data-field="obstacle" rows="3"></textarea>
+                
+                <label>Difficulté (1 = facile, 10 = très difficile) :</label>
+                <div class="slider-row">
+                    <input type="range" min="1" max="10" value="5" data-field="difficulty">
+                    <span>5</span>
+                </div>
+            </div>`;
+    }
+
+    // ── Balance décisionnelle — Entretien Motivationnel (Miller/Rollnick) ──
+    _miBalanceDecisionnelle(p) {
+        return `<h2>Balance Décisionnelle</h2>
+            <p class="prompt-text">Explorez votre ambivalence face au changement. Il n'y a pas de bonne ou mauvaise réponse — juste votre vérité du moment.</p>
+            <div class="entry-block">
+                <h3>Le changement envisagé</h3>
+                <label>Qu'est-ce que vous envisagez de changer ?</label>
+                <textarea class="field" data-field="changement" rows="2"></textarea>
+                
+                <h3>Avantages de changer</h3>
+                <label>Qu'est-ce que vous gagneriez si vous changiez ?</label>
+                <textarea class="field" data-field="avantages_changer" rows="4"></textarea>
+                
+                <h3>Inconvénients de changer</h3>
+                <label>Qu'est-ce que vous risquez ou perdez si vous changez ?</label>
+                <textarea class="field" data-field="inconvenients_changer" rows="4"></textarea>
+                
+                <h3>Avantages de ne PAS changer (statu quo)</h3>
+                <label>Qu'est-ce que la situation actuelle vous apporte ?</label>
+                <textarea class="field" data-field="avantages_statu_quo" rows="4"></textarea>
+                
+                <h3>Inconvénients de ne PAS changer</h3>
+                <label>Qu'est-ce que ça vous coûte de rester comme c'est ?</label>
+                <textarea class="field" data-field="inconvenients_statu_quo" rows="4"></textarea>
+                
+                <h3>Motivation</h3>
+                <label>Importance du changement (0 = pas important, 10 = vital) :</label>
+                <div class="slider-row"><input type="range" min="0" max="10" value="5" data-field="importance"><span>5</span></div>
+                
+                <label>Confiance dans votre capacité à changer (0 = nulle, 10 = totale) :</label>
+                <div class="slider-row"><input type="range" min="0" max="10" value="5" data-field="confiance"><span>5</span></div>
+                
+                <label>Qu'est-ce qui vous aiderait à passer de votre chiffre actuel à un chiffre plus haut ?</label>
+                <textarea class="field" data-field="levier" rows="3"></textarea>
+            </div>`;
+    }
+
+    // ── Exercice Message-Je — CNV simplifié ──
+    _cnvMessageJe(p) {
+        return `<h2>Exercice Message-Je</h2>
+            <p class="prompt-text">Entraînez-vous à reformuler vos reproches en messages-je. L'objectif n'est pas de devenir parfait mais d'observer ce qui change quand vous essayez.</p>
+            <div class="entry-block">
+                <h3>Situation 1</h3>
+                <label>Ce que vous auriez dit spontanément (le reproche) :</label>
+                <textarea class="field" data-field="reproche_1" rows="2" placeholder="Ex: Tu ne fais jamais attention à moi !"></textarea>
+                
+                <label>Le message-je reformulé :</label>
+                <textarea class="field" data-field="message_je_1" rows="3" placeholder="Quand [fait], je ressens [émotion], parce que j'ai besoin de [besoin]. Est-ce que tu serais d'accord pour [demande] ?"></textarea>
+                
+                <h3>Situation 2</h3>
+                <label>Le reproche :</label>
+                <textarea class="field" data-field="reproche_2" rows="2"></textarea>
+                <label>Le message-je :</label>
+                <textarea class="field" data-field="message_je_2" rows="3"></textarea>
+                
+                <h3>Situation 3</h3>
+                <label>Le reproche :</label>
+                <textarea class="field" data-field="reproche_3" rows="2"></textarea>
+                <label>Le message-je :</label>
+                <textarea class="field" data-field="message_je_3" rows="3"></textarea>
+                
+                <h3>Réflexion</h3>
+                <label>Qu'est-ce qui est le plus difficile dans cet exercice ?</label>
+                <textarea class="field" data-field="reflexion" rows="3"></textarea>
+            </div>`;
+    }
+
+    // ── Journal d'assertivité ──
+    _assertivenessLog(p) {
+        return `<h2>Journal d'Assertivité</h2>
+            <p class="prompt-text">Notez chaque situation où vous avez eu envie de dire quelque chose mais ne l'avez pas fait, ou l'avez dit d'une façon qui ne vous convenait pas.</p>
+            <div class="entry-block">
+                <h3>La situation</h3>
+                <label>Qu'est-ce qui s'est passé ?</label>
+                <textarea class="field" data-field="situation" rows="3"></textarea>
+                
+                <label>Qu'est-ce que vous auriez VOULU dire ou faire ?</label>
+                <textarea class="field" data-field="voulu_dire" rows="3"></textarea>
+                
+                <label>Qu'est-ce que vous avez fait à la place ?</label>
+                <textarea class="field" data-field="fait_a_place" rows="3"></textarea>
+                
+                <label>Votre réaction :</label>
+                <select class="field" data-field="reaction_type">
+                    <option value="">Choisir...</option>
+                    <option value="soumission">Je me suis soumis(e) / effacé(e)</option>
+                    <option value="explosion">J'ai explosé / agressé</option>
+                    <option value="passif_agressif">J'ai fait du passif-agressif</option>
+                    <option value="assertif">J'ai réussi à m'exprimer calmement</option>
+                    <option value="fuite">J'ai fui / changé de sujet</option>
+                </select>
+                
+                <label>Qu'est-ce qui vous a empêché de vous exprimer ?</label>
+                <textarea class="field" data-field="obstacle" rows="3" placeholder="Peur du conflit ? De ne plus être aimé(e) ? De blesser ? De perdre le contrôle ?"></textarea>
+                
+                <label>Intensité de la frustration (1-10) :</label>
+                <div class="slider-row"><input type="range" min="1" max="10" value="5" data-field="frustration"><span>5</span></div>
+            </div>`;
+    }
+
+    // ── Journal Timeline ICV (Peggy Pace) ──
+    _icvTimelineJournal(p) {
+        return `<h2>Journal Timeline — Intégration du Cycle de Vie</h2>
+            <p class="prompt-text">Cet exercice vous aide à reconnecter votre présent avec votre histoire. Pour chaque tranche d'âge, notez un souvenir — même banal. L'important est de sentir le fil du temps.</p>
+            <div class="entry-block">
+                <h3>Ma ligne du temps</h3>
+                <label>0-5 ans : Un souvenir (même flou, une image, une sensation) :</label>
+                <textarea class="field" data-field="age_0_5" rows="2"></textarea>
+                
+                <label>6-10 ans :</label>
+                <textarea class="field" data-field="age_6_10" rows="2"></textarea>
+                
+                <label>11-15 ans :</label>
+                <textarea class="field" data-field="age_11_15" rows="2"></textarea>
+                
+                <label>16-20 ans :</label>
+                <textarea class="field" data-field="age_16_20" rows="2"></textarea>
+                
+                <label>21-30 ans :</label>
+                <textarea class="field" data-field="age_21_30" rows="2"></textarea>
+                
+                <label>31-40 ans :</label>
+                <textarea class="field" data-field="age_31_40" rows="2"></textarea>
+                
+                <label>41-50 ans :</label>
+                <textarea class="field" data-field="age_41_50" rows="2"></textarea>
+                
+                <label>51 ans et + :</label>
+                <textarea class="field" data-field="age_51_plus" rows="2"></textarea>
+                
+                <h3>Réflexion</h3>
+                <label>En relisant cette ligne du temps, qu'est-ce que vous ressentez ?</label>
+                <textarea class="field" data-field="feeling_now" rows="3"></textarea>
+                
+                <label>Y a-t-il une période où vous vous sentez "coincé(e)" ?</label>
+                <textarea class="field" data-field="stuck_period" rows="2"></textarea>
+                
+                <label>En regardant tout ce chemin parcouru — combien d'années se sont écoulées depuis le moment le plus difficile ?</label>
+                <textarea class="field" data-field="years_elapsed" rows="2"></textarea>
+            </div>`;
+    }
+
+    // ── Accès au savoir implicite — Cohérence (Ecker/Hulley) ──
+    _coherenceImplicitAccess(p) {
+        return `<h2>Accès au savoir implicite — Thérapie de la Cohérence</h2>
+            <p class="prompt-text">Cet exercice vous aide à découvrir le sens profond (souvent caché) d'un comportement ou d'un symptôme qui persiste malgré vos efforts. Il n'y a pas de mauvaise réponse — écoutez ce que vous RESSENTEZ, pas ce que vous PENSEZ.</p>
+            <div class="entry-block">
+                <h3>1. Le symptôme / comportement</h3>
+                <label>Quel comportement ou symptôme persiste malgré vos efforts pour le changer ?</label>
+                <textarea class="field" data-field="symptom" rows="2"></textarea>
+                
+                <h3>2. La tentative rationnelle</h3>
+                <label>Que vous dites-vous intellectuellement pour essayer de changer ? (ex: "c'est irrationnel", "je devrais...")</label>
+                <textarea class="field" data-field="rational_attempt" rows="2"></textarea>
+                
+                <h3>3. Accès au savoir émotionnel</h3>
+                <label>Fermez les yeux. Imaginez que vous LÂCHEZ complètement ce comportement, là maintenant. Qu'est-ce qui se passerait de TERRIBLE ?</label>
+                <textarea class="field" data-field="implicit_fear" rows="3"></textarea>
+                
+                <label>Complétez cette phrase en écoutant votre corps (pas votre tête) : "Si je ne fais plus [symptôme], alors..."</label>
+                <textarea class="field" data-field="pro_symptom" rows="2"></textarea>
+                
+                <h3>4. L'origine</h3>
+                <label>D'où vient cette croyance ? Y a-t-il un moment dans votre histoire où cette "règle" a été apprise ?</label>
+                <textarea class="field" data-field="origin" rows="3"></textarea>
+                
+                <h3>5. L'expérience contradictoire</h3>
+                <label>Y a-t-il eu un moment où cette croyance s'est révélée FAUSSE ? Un moment où vous avez lâché prise et où rien de terrible ne s'est produit ?</label>
+                <textarea class="field" data-field="contradiction" rows="3"></textarea>
+                
+                <h3>6. La juxtaposition</h3>
+                <label>Relisez votre réponse §3 (la peur) et §5 (l'expérience contraire). Pouvez-vous sentir les deux en même temps ? Qu'est-ce que ça fait ?</label>
+                <textarea class="field" data-field="juxtaposition_feeling" rows="3"></textarea>
+            </div>`;
+    }
+
+    // ── Cartographie des boucles relationnelles — Systémique ──
+    _systemicLoopMap(p) {
+        return `<h2>Cartographie des boucles relationnelles</h2>
+            <p class="prompt-text">Cet exercice vous aide à voir les patterns répétitifs dans vos relations. Le problème n'est pas "vous" ni "l'autre" — c'est la BOUCLE entre vous.</p>
+            <div class="entry-block">
+                <h3>1. La situation qui se répète</h3>
+                <label>Décrivez un conflit ou une situation qui revient régulièrement :</label>
+                <textarea class="field" data-field="situation" rows="2"></textarea>
+                
+                <h3>2. La séquence (la boucle)</h3>
+                <label>Étape 1 — Ce que VOUS faites en premier :</label>
+                <textarea class="field" data-field="step_me_1" rows="1"></textarea>
+                <label>Étape 2 — Ce que L'AUTRE fait en réponse :</label>
+                <textarea class="field" data-field="step_other_1" rows="1"></textarea>
+                <label>Étape 3 — Ce que VOUS faites ensuite :</label>
+                <textarea class="field" data-field="step_me_2" rows="1"></textarea>
+                <label>Étape 4 — Ce que L'AUTRE fait ensuite :</label>
+                <textarea class="field" data-field="step_other_2" rows="1"></textarea>
+                <label>Comment ça se termine en général ?</label>
+                <textarea class="field" data-field="ending" rows="1"></textarea>
+                
+                <h3>3. Les tentatives de solution</h3>
+                <label>Qu'avez-vous DÉJÀ ESSAYÉ pour résoudre ce problème ? (listez tout)</label>
+                <textarea class="field" data-field="attempted_solutions" rows="3"></textarea>
+                <label>Est-ce que ça a marché durablement ?</label>
+                <textarea class="field" data-field="solution_result" rows="1"></textarea>
+                
+                <h3>4. L'expérience contraire</h3>
+                <label>Y a-t-il des fois où cette boucle NE se produit PAS ? Qu'est-ce qui est différent dans ces moments-là ?</label>
+                <textarea class="field" data-field="exceptions" rows="3"></textarea>
+                
+                <h3>5. La micro-expérience</h3>
+                <label>Si vous faisiez EXACTEMENT LE CONTRAIRE de votre étape 1 la prochaine fois — que se passerait-il selon vous ?</label>
+                <textarea class="field" data-field="opposite_experiment" rows="3"></textarea>
+            </div>`;
+    }
+
+    // ── Question miracle — Orienté solutions (de Shazer) ──
+    _systemicMiracleQuestion(p) {
+        return `<h2>Question Miracle — Orienté Solutions</h2>
+            <p class="prompt-text">Cet exercice est inspiré de Steve de Shazer. Il vous aide à imaginer votre vie SANS le problème, pour identifier les premiers petits pas concrets.</p>
+            <div class="entry-block">
+                <h3>1. Le problème actuel</h3>
+                <label>Quel est le problème qui vous pèse le plus en ce moment ?</label>
+                <textarea class="field" data-field="problem" rows="2"></textarea>
+                
+                <h3>2. La question miracle</h3>
+                <p class="prompt-text" style="font-style:italic;">Imaginez : cette nuit, pendant que vous dormez, un miracle se produit et le problème disparaît COMPLÈTEMENT. Mais vous ne le savez pas encore car vous dormiez.</p>
+                <label>En vous réveillant demain matin, à quoi remarqueriez-vous EN PREMIER que le miracle s'est produit ?</label>
+                <textarea class="field" data-field="first_sign" rows="2"></textarea>
+                <label>Que feriez-vous de DIFFÉRENT dans votre journée ?</label>
+                <textarea class="field" data-field="different_day" rows="2"></textarea>
+                <label>Que ferait votre entourage de différent en voyant ce changement ?</label>
+                <textarea class="field" data-field="others_different" rows="2"></textarea>
+                <label>Comment vous sentiriez-vous ?</label>
+                <textarea class="field" data-field="feeling" rows="1"></textarea>
+                
+                <h3>3. Les exceptions</h3>
+                <label>Y a-t-il eu des moments récents où une PETITE PARTIE du miracle était déjà présente ?</label>
+                <textarea class="field" data-field="partial_miracle" rows="2"></textarea>
+                
+                <h3>4. L'échelle</h3>
+                <label>Sur une échelle de 0 (le pire) à 10 (le miracle complet), où êtes-vous aujourd'hui ?</label>
+                <input type="range" class="field" data-field="scale" min="0" max="10" value="3" style="width:100%;">
+                <label>Que faudrait-il pour monter d'UN SEUL point ?</label>
+                <textarea class="field" data-field="one_point_up" rows="2"></textarea>
+            </div>`;
+    }
+
     // ── Wrapper HTML complet (SPEC §6.3.2) ──
+
+        // ── Wrapper HTML complet (SPEC §6.3.2) ──
     _wrapInHTML(type, meta, content) {
         return `<!DOCTYPE html>
 <!-- EXERCICE THÉRAPEUTIQUE INTERACTIF -->
@@ -14468,6 +15109,14 @@ class TherapistDashboard {
                 <button onclick="proposeExerciseFromDashboard('MINDFUL_BREATHING')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Respiration</button>
                 <button onclick="proposeExerciseFromDashboard('MOOD_TRACKER')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Suivi humeur</button>
                 <button onclick="proposeExerciseFromDashboard('SESSION_REFLECTION')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Réflexion</button>
+                <button onclick="proposeExerciseFromDashboard('CNV_OSBD_JOURNAL')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Journal OSBD</button>
+                <button onclick="proposeExerciseFromDashboard('MI_BALANCE_DECISIONNELLE')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Balance MI</button>
+                <button onclick="proposeExerciseFromDashboard('CNV_MESSAGE_JE')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Message-Je</button>
+                <button onclick="proposeExerciseFromDashboard('ASSERTIVENESS_LOG')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Assertivité</button>
+                <button onclick="proposeExerciseFromDashboard('ICV_TIMELINE_JOURNAL')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Timeline ICV</button>
+                <button onclick="proposeExerciseFromDashboard('COHERENCE_IMPLICIT_ACCESS')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Cohérence</button>
+                <button onclick="proposeExerciseFromDashboard('SYSTEMIC_LOOP_MAP')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Boucles syst.</button>
+                <button onclick="proposeExerciseFromDashboard('SYSTEMIC_MIRACLE_QUESTION')" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#666;cursor:pointer;font-size:11px;">Q. Miracle</button>
             </div>
         </div>`;
         
@@ -14596,17 +15245,26 @@ class LibraryRAG {
         
         // Ajouter le contexte de l'approche
         const approachTerms = {
-            'schema_therapy': 'schema therapy Young',
-            'act_defusion': 'ACT defusion cognitive',
-            'act_acceptance': 'ACT acceptance experiential avoidance',
-            'act_values': 'ACT values committed action',
-            'act_committed': 'ACT behavioral activation values',
-            'ifs_6f': 'IFS parts Self internal family systems',
-            'ifs_unburdening': 'IFS unburdening exile',
-            'coherence': 'coherence therapy reconsolidation emotional learning',
+            'schemas': 'schema therapy Young schéma précoce inadapté',
+            'schema_therapy': 'schema therapy Young schéma précoce inadapté',
+            'act_defusion': 'ACT defusion cognitive pensée fusion',
+            'act_acceptance': 'ACT acceptance experiential avoidance évitement',
+            'act_values': 'ACT values committed action valeurs engagement',
+            'act_committed': 'ACT behavioral activation values action engagée',
+            'ifs': 'IFS parts Self internal family systems parties exilé protecteur',
+            'ifs_6f': 'IFS parts Self internal family systems six F',
+            'ifs_unburdening': 'IFS unburdening exile décharge',
+            'coherence': 'coherence therapy reconsolidation emotional learning juxtaposition',
             'emdr': 'EMDR desensitization bilateral stimulation trauma',
-            'mindfulness': 'mindfulness present moment awareness',
-            'cft': 'compassion focused therapy self-compassion',
+            'mindfulness': 'mindfulness MBCT present moment awareness pleine conscience décentration Segal',
+            'cft': 'compassion focused therapy self-compassion Gilbert honte',
+            'dbt': 'DBT dialectical behavior therapy Linehan régulation émotionnelle tolérance détresse',
+            'mi': 'entretien motivationnel Miller Rollnick ambivalence discours-changement motivation',
+            'cnv': 'communication non violente Rosenberg OSBD besoin demande observation sentiment assertivité',
+            'stabilization': 'stabilisation ancrage fenêtre tolérance grounding lieu sûr',
+            'icv': 'ICV intégration cycle vie lifespan integration Peggy Pace timeline ligne du temps trauma développemental attachement',
+            'systemic': 'systémique Watzlawick Minuchin Selvini Palazzoli circulaire boucle interaction tentative solution recadrage Palo Alto de Shazer question miracle White externalisation narratif',
+            'safety': 'crise suicidaire sécurité urgence',
         };
         
         query = approachTerms[approach] || '';
@@ -14726,7 +15384,18 @@ class LibraryRAG {
             'sexualité', 'désir', 'érotisme', 'intimité',
             'deuil', 'perte', 'séparation', 'divorce',
             'enfant', 'adolescent', 'parentalité', 'reparenting',
-            'supervision', 'conceptualisation', 'formulation', 'diagnostic'
+            'supervision', 'conceptualisation', 'formulation', 'diagnostic',
+            'motivationnel', 'ambivalence', 'discours-changement', 'Miller', 'Rollnick',
+            'communication non violente', 'CNV', 'OSBD', 'Rosenberg', 'besoin', 'demande',
+            'assertivité', 'message-je', 'Ansembourg',
+            'pleine conscience', 'MBCT', 'Segal', 'rumination', 'décentration',
+            'DBT', 'Linehan', 'tolérance', 'dysrégulation',
+            'processus', 'Hofmann', 'transdiagnostique', 'flexibilité psychologique',
+            'ICV', 'intégration cycle vie', 'lifespan', 'Pace', 'timeline', 'ligne du temps',
+            'systémique', 'Watzlawick', 'Minuchin', 'Selvini', 'circulaire', 'boucle', 'tentative de solution',
+            'de Shazer', 'question miracle', 'exception', 'White', 'externalisation', 'narratif',
+            'cohérence', 'Ecker', 'reconsolidation', 'juxtaposition', 'savoir implicite', 'pro-symptôme',
+            'régression', 'trauma développemental', 'conscience temporelle'
         ];
         
         const msgLower = userMessage.toLowerCase();
@@ -14910,6 +15579,27 @@ class TherapeuticActionEngine {
             } else if (approach?.startsWith('coherence')) {
                 exerciseType = 'COH_SCHEMA_SENTENCE';
                 reason = 'Travail de cohérence en séance';
+            } else if (approach === 'mi') {
+                exerciseType = 'MI_BALANCE_DECISIONNELLE';
+                reason = 'Travail motivationnel en séance — balance décisionnelle';
+            } else if (approach === 'cnv') {
+                exerciseType = 'CNV_OSBD_JOURNAL';
+                reason = 'Travail CNV en séance — journal OSBD';
+            } else if (approach === 'icv') {
+                exerciseType = 'ICV_TIMELINE_JOURNAL';
+                reason = 'Travail ICV en séance — journal timeline';
+            } else if (approach === 'coherence') {
+                exerciseType = 'COHERENCE_IMPLICIT_ACCESS';
+                reason = 'Travail cohérence en séance — accès savoir implicite';
+            } else if (approach === 'systemic') {
+                exerciseType = 'SYSTEMIC_LOOP_MAP';
+                reason = 'Travail systémique en séance — cartographie boucles';
+            } else if (approach?.startsWith('cft')) {
+                exerciseType = 'SESSION_REFLECTION';
+                reason = 'Travail de compassion en séance';
+            } else if (approach?.startsWith('dbt')) {
+                exerciseType = 'MINDFUL_BREATHING';
+                reason = 'Travail de régulation en séance';
             } else {
                 exerciseType = 'SESSION_REFLECTION';
                 reason = 'Réflexion post-séance';
@@ -15525,7 +16215,15 @@ class ConversationalSystem {
                         greeting += `J'ai reçu votre exercice — on pourra en parler. `;
                     }
                     
-                    greeting += "Comment est votre système aujourd'hui — plutôt tendu, ralenti, agité, ou calme ?";
+                    // FIX 6: Mémoire inter-séances enrichie
+                    if (lastNote?.dominant_schema) {
+                        greeting += 'La dernière fois, le thème central tournait autour de ' + lastNote.dominant_schema + '. ';
+                    }
+                    if (lastNote?.behavioral_commitment) {
+                        greeting += 'Vous vous étiez engagé sur : ' + lastNote.behavioral_commitment + '. Comment ça s\'est passé ?';
+                    } else {
+                        greeting += "Comment est votre système aujourd'hui — plutôt tendu, ralenti, agité, ou calme ?";
+                    }
                 } else {
                     // Premier contact — scan phénoménologique direct
                     greeting += "Comment est votre système aujourd'hui ? Plutôt tendu, ralenti, agité, coupé ? " +
@@ -15874,6 +16572,25 @@ class ConversationalSystem {
             }
             // ═══ FIN MOTEUR D'ACTION AUTONOME ═══
             
+            // FIX 5: Détecter si la réponse du thérapeute est une reformulation
+            try {
+                const lastAssistant = fullResponse || '';
+                const reformulationMarkers = [
+                    /je (vous )?entends/i, /vous (portez|vivez|ressentez) (beaucoup|énormément)/i,
+                    /c'est (vraiment |très )?(difficile|lourd|douloureux)/i,
+                    /je (comprends|perçois|sens) (que|votre|cette)/i
+                ];
+                const isReformulation = reformulationMarkers.some(r => r.test(lastAssistant.substring(0, 150)));
+                const hasQuestion = /\?/.test(lastAssistant);
+                const hasIntervention = /→|essayez|remarquez|reprenez|fermez les yeux|respirez|imaginez/i.test(lastAssistant);
+                
+                if (isReformulation && !hasIntervention) {
+                    this._consecutiveReformulations++;
+                } else {
+                    this._consecutiveReformulations = 0;
+                }
+            } catch(e) {}
+
             this.questionCount++;
             
             // Mettre à jour stats UI
@@ -16095,6 +16812,11 @@ OBJECTIFS DIAGNOSTIQUES :`;
         let attachmentContext = '';
         if (window.attachmentAnalyzer) attachmentContext = window.attachmentAnalyzer.getPromptSummary();
         
+        let flexibilityContext = '';
+        if (window.flexibilityTracker) {
+            flexibilityContext = window.flexibilityTracker.getPromptSummary();
+        }
+
         let multimodalContext = '';
         if (window.multimodalFusionEngine && state.mode !== 'text') {
             try { multimodalContext = window.multimodalFusionEngine.formatForPrompt(); } catch (e) {}
@@ -16199,6 +16921,35 @@ MARSHALL ROSENBERG / THOMAS D'ANSEMBOURG (CNV — Communication NonViolente) —
 → Exercice OSBD en séance : reformuler une situation conflictuelle en 4 étapes. Exercice inter-séance : journal OSBD (noter une situation/jour avec les 4 étapes).
 → PARTICULIÈREMENT INDIQUÉ pour : assujettissement, carence émotionnelle, conflits de couple, communication parent-enfant, difficulté à poser des limites.
 
+PEGGY PACE (ICV — Intégration du Cycle de Vie / Lifespan Integration) — Quand le patient est BLOQUÉ DANS LE PASSÉ, que ses réactions émotionnelles sont disproportionnées par rapport au présent, que le corps réagit comme si le trauma était encore actif
+→ L'ICV utilise une ligne du temps (timeline) de souvenirs du patient pour montrer au système corps-esprit que le temps a passé et que le danger est fini.
+→ Protocole de base : le patient liste ses souvenirs année par année (ligne du temps), puis le thérapeute guide une traversée répétée de cette timeline en activant les images mentales. Le système nerveux intègre que "c'était là-bas, c'est fini maintenant".
+→ Indications principales : trauma développemental (négligence, insécurité chronique), attachement insécure, dissociation légère à modérée, flashbacks, réactions émotionnelles disproportionnées, somatisation.
+→ Distinction ICV vs EMDR : l'EMDR cible un souvenir spécifique, l'ICV travaille sur la CONTINUITÉ du soi à travers le temps. L'ICV est plus doux et mieux toléré par les patients dissociatifs.
+→ Questions signatures : "Si vous deviez raconter votre vie année par année, quels souvenirs vous viennent pour chaque âge ?" / "Quand vous ressentez cette peur, quel âge avez-vous l'impression d'avoir ?" / "Regardez où vous êtes maintenant. Combien d'années se sont écoulées depuis ?"
+→ En séance IA (sans traversée guidée complète impossible en texte) : travailler la CONSCIENCE TEMPORELLE — aider le patient à reconnaître que sa réaction émotionnelle vient du passé, pas du présent. Utiliser la ligne du temps comme outil de prise de conscience. Proposer l'exercice "Journal Timeline" en inter-séance.
+→ PARTICULIÈREMENT INDIQUÉ pour : attachement insécure chronique, trauma développemental, réactions émotionnelles disproportionnées, sentiment de "ne jamais avoir grandi", dissociation, somatisation.
+
+BRUCE ECKER / LAUREL HULLEY (Thérapie de la Cohérence / Reconsolidation mnésique) — Quand le symptôme PERSISTE malgré l'insight, qu'il est "illogique" mais inébranlable, que le patient SAIT intellectuellement mais SENT autrement
+→ Le symptôme n'est PAS irrationnel. Il est la SOLUTION PARFAITE que le cerveau a trouvée autrefois. La thérapie de la cohérence cherche le SAVOIR ÉMOTIONNEL IMPLICITE ("pro-symptôme") qui rend le symptôme nécessaire.
+→ Protocole en 3 phases :
+  Phase 1 — ACCÈS : faire émerger le savoir implicite. "Au fond, si vous lâchiez [symptôme], qu'est-ce qui se passerait de terrible ?" → Le patient découvre la croyance émotionnelle profonde (ex: "Si je ne suis pas anxieux, je serai pris par surprise et détruit").
+  Phase 2 — JUXTAPOSITION : créer une EXPÉRIENCE CONTRADICTOIRE vivante. Mettre côte à côte le savoir ancien ("si je baisse la garde, catastrophe") et l'expérience présente qui le contredit ("j'ai baissé la garde avec X et rien de terrible n'est arrivé"). L'écart VÉCU (pas intellectuel) ouvre la fenêtre de reconsolidation (~5h).
+  Phase 3 — VÉRIFICATION : le symptôme a-t-il perdu sa charge ? Le patient ne "gère" plus le symptôme — il a simplement DISPARU car le cerveau a réécrit la mémoire.
+→ Questions signatures : "Si ce symptôme pouvait parler, que dirait-il ? De quoi vous protège-t-il ?" / "Qu'est-ce que vous savez ÉMOTIONNELLEMENT (pas intellectuellement) qui rend ce comportement nécessaire ?" / "Pouvez-vous sentir en même temps cette croyance ancienne ET cette réalité nouvelle ?"
+→ Distinction cohérence vs ACT : l'ACT change la RELATION au symptôme (défusion), la cohérence change la MÉMOIRE ÉMOTIONNELLE elle-même (reconsolidation). Complémentaires.
+→ PARTICULIÈREMENT INDIQUÉ pour : symptômes persistants malgré le travail cognitif, phobies, anxiété "irrationnelle", patterns relationnels répétitifs incompréhensibles, procrastination chronique, auto-sabotage.
+
+PALO ALTO / WATZLAWICK / MINUCHIN / SELVINI / DE SHAZER / WHITE-EPSTON (Thérapies Systémiques) — Quand le problème est ENTRE les personnes (pas dans une seule personne), quand les TENTATIVES DE SOLUTION maintiennent le problème, quand le patient décrit des BOUCLES RELATIONNELLES répétitives
+→ Le symptôme est une FONCTION du système. Ce n'est pas "le patient qui va mal", c'est "le système qui s'organise autour du symptôme".
+→ 4 écoles, 4 angles :
+  • PALO ALTO (Watzlawick, Jackson, Weakland) : Les TENTATIVES DE SOLUTION maintiennent le problème. "Plus on fait la même chose, plus c'est pareil." Questions : "Qu'avez-vous déjà essayé ?" → "Et ça marche ?" → "Et si on faisait exactement le contraire ?" Technique du recadrage et de la prescription paradoxale.
+  • STRUCTURALE (Minuchin) : Frontières, hiérarchies, coalitions. "Qui est trop proche de qui ? Qui est exclu ?" Utile pour les triangulations parent-enfant, les couples fusionnels ou désengagés.
+  • MILAN (Selvini Palazzoli) : Questionnement CIRCULAIRE. "Si je demandais à votre mère ce qu'elle pense de votre relation avec votre père, que dirait-elle ?" Hypothétisation, circularité, neutralité. Révèle le JEU RELATIONNEL invisible.
+  • SOLUTIONS (de Shazer, Berg) + NARRATIF (White, Epston) : Chercher les EXCEPTIONS. "Y a-t-il des moments où le problème est absent ? Qu'est-ce qui est différent ?" Question miracle : "Si demain, en vous réveillant, le problème avait disparu — à quoi le remarqueriez-vous ?" Narratif : externaliser le problème ("Ce n'est pas VOUS le problème, c'est le problème QUI s'est installé"), re-écrire l'histoire alternative.
+→ En séance IA individuelle : on ne peut pas réunir le système entier, mais on peut CARTOGRAPHIER les boucles, identifier les tentatives de solution inefficaces, poser des questions circulaires, et proposer des MICRO-EXPÉRIENCES relationnelles à tester entre les séances.
+→ PARTICULIÈREMENT INDIQUÉ pour : conflits conjugaux/familiaux récurrents, triangulations, patient qui "tourne en rond" malgré le travail individuel, symptôme qui a une fonction dans le couple/la famille, co-dépendance, patterns relationnels transgénérationnels.
+
 ═══ ARBRE DÉCISIONNEL EN TEMPS RÉEL ═══
 
 À chaque intervention, tu ÉVALUES le processus dominant et tu choisis :
@@ -16209,7 +16960,10 @@ Patient s'auto-attaque → Gilbert (CFT) : compassion, dialogue avec la critique
 Patient rumine / boucle → Segal (MBCT) : décentration, observation
 Patient ambivalent / résistant → Miller (MI) : explorer l'ambivalence, reflet
 Schéma ancien activé → Young : identifier, reparenter, rescénariser
+Réaction émotionnelle disproportionnée / bloqué dans le passé / trauma développemental → Pace (ICV) : conscience temporelle, ligne du temps, "c'était là-bas, c'est fini"
 Patient ne sait pas exprimer ses besoins / s'efface / explose → Rosenberg (CNV) : OSBD, message-je, demande concrète
+Symptôme persistant "illogique" / le patient sait mais sent autrement → Ecker (Cohérence) : accès au savoir implicite, juxtaposition, reconsolidation
+Boucles relationnelles répétitives / tentatives de solution qui maintiennent le problème → Watzlawick/Systémique : cartographie, recadrage, question miracle, micro-expérience
 Processus change en cours de séance → Hofmann (PBT) : switch fluide
 
 Tu n'es PAS marié à une seule approche. Tu navigues avec fluidité. L'intégration, c'est ça.
@@ -16301,6 +17055,12 @@ EXERCICES EN SÉANCE — l'initiative vient de TOI :
 • Chaise vide Young : "Imaginez cet enfant devant vous. Qu'est-ce que vous lui diriez ?"
 • Exploration MI : "D'un côté... de l'autre... Qu'est-ce qui pèse le plus lourd ?"
 • Reformulation CNV (Rosenberg) : "Reprenez cette situation avec votre femme. Décrivez les faits sans juger. Qu'avez-vous ressenti ? De quoi aviez-vous besoin ? Quelle demande concrète auriez-vous pu formuler ?"
+• Conscience temporelle ICV (Pace) : "Quand vous ressentez cette peur, quel âge avez-vous l'impression d'avoir ? Regardez autour de vous. Où êtes-vous MAINTENANT ? Combien d'années se sont écoulées depuis ?"
+• Accès au savoir implicite (Ecker/Cohérence) : "Ce symptôme vous protège de quelque chose. Si vous le lâchiez complètement, là maintenant — qu'est-ce qui se passerait de terrible ? Qu'est-ce que vous savez au fond de vous qui rend ce comportement nécessaire ?"
+• Juxtaposition (Ecker/Cohérence) : "D'un côté, ce que vous savez émotionnellement [croyance ancienne]. De l'autre, ce que vous avez vécu [expérience contradictoire]. Pouvez-vous SENTIR les deux en même temps ?"
+• Question circulaire (Systémique/Milan) : "Si je demandais à votre conjoint ce qui se passe quand vous êtes anxieux, que dirait-il ? Et votre enfant, que dirait-il ?"
+• Cartographie des boucles (Systémique/Palo Alto) : "Décrivez-moi la séquence exacte : que faites-vous ? Puis que fait l'autre ? Puis vous ? Puis l'autre ? À quel moment ça dérape ?"
+• Question miracle (de Shazer) : "Si demain, en vous réveillant, le problème avait complètement disparu — à quoi le remarqueriez-vous en premier ? Que ferait votre conjoint de différent ?"
 ` : ''}${sessionCtx.phase === 'closing' ? `
 → CONVERGENCE ET CLÔTURE
 
@@ -16331,6 +17091,7 @@ ${patientContext}
 ${schemasContext ? `SCHÉMAS DE YOUNG : ${schemasContext}` : ''}
 ${defensesContext ? `DÉFENSES (DMRS) : ${defensesContext}` : ''}
 ${attachmentContext ? `ATTACHEMENT : ${attachmentContext}` : ''}
+${flexibilityContext ? `FLEXIBILITÉ PSYCHOLOGIQUE (Hofmann/Hayes) : ${flexibilityContext}` : ''}
 ${schemaTherapyContext}
 ${actContext}
 ${multimodalContext}
@@ -16348,7 +17109,12 @@ Ces données sont tes INSTRUMENTS DE NAVIGATION :
 - Ambivalence → Miller : explorer, ne pas pousser
 - Assujettissement / effacement / difficulté à exprimer ses besoins → Rosenberg (CNV) : protocole OSBD, message-je
 - Conflits de couple / communication toxique → Rosenberg + d'Ansembourg : reformulation non-violente, distinction besoin/stratégie
+- Réaction disproportionnée / régression émotionnelle / "j'ai l'impression d'avoir 5 ans" → Pace (ICV) : conscience temporelle, timeline, ancrage dans le présent
+- Symptôme persistant malgré insight / "je sais mais je n'arrive pas" / auto-sabotage → Ecker (Cohérence) : accès savoir implicite, juxtaposition
+- Boucles relationnelles / "on finit toujours par..." / tentatives de solution inefficaces → Systémique : cartographie, recadrage, question circulaire, micro-expérience
 - Incongruence multimodale → "Votre voix me dit autre chose que vos mots."
+
+⚠️ PRUDENCE MULTIMODALE : Les données d'analyse faciale et vocale ci-dessus proviennent d'analyseurs automatiques (face-api.js, Meyda.js). Elles sont INDICATIVES, pas diagnostiques. Une "tristesse détectée" peut être de la fatigue, de la concentration, ou un artefact technique. RÈGLE ABSOLUE : formule toujours les observations multimodales en hypothèses ouvertes ("Je perçois peut-être quelque chose dans ta voix...", "Il me semble que quelque chose se passe en ce moment..."), JAMAIS en affirmations ("Tu es triste", "Tu mens"). Si la fiabilité est FAIBLE, ignore les données multimodales et fie-toi uniquement au texte. Le non-verbal textuel (hésitations, "...", changements de sujet, longueur des réponses) reste ton indicateur le plus fiable.
 
 ═══ APPROCHE ACTIVE : ${approachInstructions.posture || ''} ═══
 
@@ -16646,6 +17412,12 @@ RETOURNE UNIQUEMENT ton intervention thérapeutique. Rien d'autre.`;
             }
         }
         
+        // FIX 5: Alerte reformulations consécutives
+        const cs = window.conversationalSystem || window._conversationalSystem;
+        if (cs && cs._consecutiveReformulations >= 2) {
+            signals.push('ALERTE : Tu as reformulé ' + cs._consecutiveReformulations + ' fois de suite SANS INTERVENIR. STOP. Pose une question incisive ou propose un exercice. Ne reformule plus.');
+        }
+
         if (signals.length === 0) return '(Pas de signal d\'action particulier — continue le travail thérapeutique)';
         return signals.join('\n');
     }
@@ -16897,6 +17669,11 @@ RETOURNE UNIQUEMENT ton intervention thérapeutique. Rien d'autre.`;
             }
         }
         
+        // FIX 7b: FLEXIBILITÉ PSYCHOLOGIQUE TRACKING
+        if (window.flexibilityTracker) {
+            window.flexibilityTracker.analyze(text);
+        }
+
         // V19 PHASE 2.1: SCHEMA DETECTION (Pilier 2 — Young)
         if (window.schemaDetector) {
             const lastAssistantMsg = this.messages.slice().reverse().find(m => m.role === 'assistant');
@@ -34382,6 +35159,7 @@ function saveGoogleTTSConfig() {
  * Vérifier si Google TTS est configuré au premier lancement
  */
 function checkGoogleTTSConfig() {
+    if (typeof state === 'undefined') return; // Guard: state non disponible
     // Si pas de clé et mode Google sélectionné, proposer configuration
     if (!state.googleTTSApiKey && (state.voiceMode.startsWith('google'))) {
         const configure = confirm(
