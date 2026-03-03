@@ -3191,6 +3191,28 @@ RETOURNE UNIQUEMENT votre intervention de supervision. Rien d'autre.`;
         prompt += supervisionMemory;
     }
 
+    // v7.2 — Profil neurocognitif pour le collaborateur
+    const ncProfile = window.patientProfile?.profile?.neurocognitive;
+    if (ncProfile && ncProfile.source !== 'none') {
+        prompt += '\n\n' + String.raw`═══ PROFIL NEUROCOGNITIF DU PATIENT (Barkley/Frith/Porges/Aron/Dehaene) ═══` + '\n';
+        prompt += 'Source : ' + ncProfile.source + ' | Confiance : ' + ncProfile.confidence + '\n';
+        const dimLabels = {
+            attention_style: 'Style attentionnel (focalisé 1 - divergent 10)',
+            information_processing: 'Traitement info (intuitif 1 - littéral 10)',
+            emotional_regulation: 'Régulation émotionnelle (modulée 1 - réactive 10)',
+            sensory_sensitivity: 'Sensibilité sensorielle (standard 1 - hyper 10)',
+            cognitive_speed: 'Rythme cognitif (standard 1 - accéléré 10)',
+            reading_writing_load: 'Charge lecture/écriture (aisé 1 - coûteux 10)'
+        };
+        for (const [key, label] of Object.entries(dimLabels)) {
+            if (ncProfile[key] > 0) prompt += '  ' + label + ' : ' + ncProfile[key] + '/10\n';
+        }
+        if (ncProfile.declarations.length > 0) prompt += 'Déclarations patient : ' + ncProfile.declarations.join(', ') + '\n';
+        prompt += '\nCe profil adapte la FORME thérapeutique (longueur, structure, métaphores, rythme), pas le FOND (approche). ';
+        prompt += 'Vous pouvez valider, nuancer ou invalider ces dimensions. ';
+        prompt += 'Si le contexte clinique (trauma, dissociation, protecteur détaché) explique mieux les indicateurs, mentionnez-le.\n';
+    }
+
     return prompt;
 }
 
@@ -12330,6 +12352,9 @@ class ClinicalDecisionEngine {
                 detail: 'Difficulté d\'expression des besoins — CNV / OSBD indiqué', source: 'TextAnalysis' });
         }
 
+        // v7.2 — Détection neurocognitive déclarative (voie haute fiabilité)
+        this._detectNeuroCognitiveDeclarations(text);
+
         // v7.1 — Détection de rupture/tension d'alliance thérapeutique
         const allianceRupturePatterns = [
             /\b(tu (comprends|m'écoutes|m'entends) (rien|pas|que dalle)|t'es (nul|inutile|chiant))\b/i,
@@ -12696,6 +12721,10 @@ class ClinicalDecisionEngine {
             else if (signals.allianceRupture === 'warning') context += `  → Léger retrait détecté. Reste attentif, propose un ajustement.\n`;
         }
         
+        // v7.2 — Contexte neurocognitif adaptatif
+        const ncCtx = this._getNeuroCognitiveContext();
+        if (ncCtx) context += ncCtx;
+        
         if (this.approachHistory.length > 0) {
             const recent = this.approachHistory.slice(-3);
             context += `\n── TRANSITIONS RÉCENTES ──\n`;
@@ -12720,7 +12749,128 @@ class ClinicalDecisionEngine {
         };
     }
     
-    getState() {
+    // v7.2 — Profil Neurocognitif Adaptatif (Barkley/Frith/Porges/Aron/Siaud-Facchin/Dehaene)
+    _detectNeuroCognitiveDeclarations(text) {
+        const profile = window.patientProfile?.profile;
+        if (!profile?.neurocognitive) return;
+        const nc = profile.neurocognitive;
+        const t = text.toLowerCase();
+        
+        // === VOIE DÉCLARATIVE — Niveau A : Diagnostic déclaré ===
+        const diagPatterns = [
+            { rx: /(je suis|j'ai un|on m'a diagnostiqu[ée]|diagnostiqu[ée]|j'ai un diagnostic de?)\s*(tdah|tda[ -]?h|adhd|d[ée]ficit d'attention|trouble (de l'|d')attention)/i, dims: {attention_style: 8, emotional_regulation: 7}, label: "TDAH" },
+            { rx: /(je suis|j'ai un|on m'a diagnostiqu[ée]|diagnostiqu[ée])\s*(tsa|autis|asperger|spectre (de l')?autis)/i, dims: {information_processing: 8, sensory_sensitivity: 7}, label: "TSA" },
+            { rx: /(je suis|on m'a (dit|d[ée]tect[ée])|test[ée]|diagnostiqu[ée])\s*(hpi|haut potentiel|surdou[ée]|z[eè]bre|pr[ée]coce)/i, dims: {cognitive_speed: 8}, label: "HPI" },
+            { rx: /(je suis|j'ai une?|on m'a diagnostiqu[ée])\s*(dys|dyslexi|dysorthograph|dysprax|dyscalcul)/i, dims: {reading_writing_load: 8}, label: "DYS" },
+            { rx: /(je suis|on m'a dit)\s*(hypersensible|hsp|hautement sensible)/i, dims: {sensory_sensitivity: 8, emotional_regulation: 6}, label: "HSP" }
+        ];
+        
+        // === VOIE DÉCLARATIVE — Niveau B : Auto-observation fonctionnelle ===
+        const autoObsPatterns = [
+            { rx: /(j'ai (du mal|beaucoup de mal) [aà] me concentrer|je (m'[ée]parpille|pars dans tous les sens|d[ée]croche|perds le fil))/i, dim: "attention_style", val: 5 },
+            { rx: /(je (comprends|capte) pas (les|l') (m[ée]taphore|implicite|sous-entendu|ironi)|faut (m'|me )expliquer clairement)/i, dim: "information_processing", val: 5 },
+            { rx: /(je suis (tr[eè]s |hyper)?sensible (au |aux |[aà] la )(bruit|lumi[eè]re|son|texture|foule|stimul))/i, dim: "sensory_sensitivity", val: 5 },
+            { rx: /([çc]a va (trop vite|tr[eè]s vite) dans ma t[eê]te|mon cerveau (s'arr[eê]te|tourne) (jamais|en permanence|tout le temps))/i, dim: "cognitive_speed", val: 5 },
+            { rx: /(j'ai (du mal|horreur) [aà] ([ée]crire|lire|taper)|la lecture (me fatigue|c'est dur)|[ée]crire (c'est|me) (dur|fatigue|co[uû]te))/i, dim: "reading_writing_load", val: 5 },
+            { rx: /(je (g[eè]re|contr[oô]le) mal mes [ée]motions|j'explose (pour rien|vite|facilement)|mes [ée]motions (d[ée]bordent|me submergent))/i, dim: "emotional_regulation", val: 5 },
+            { rx: /(je suis (vite |facilement )?(submerg[ée]|satur[ée]|surcharg[ée]) (par |d')?(les |l')?(informations|stimul|donn[ée]es))/i, dim: "sensory_sensitivity", val: 4 },
+            { rx: /(j'ai besoin (de |qu'on me )(structur|cadre|organis|[ée]tape))/i, dim: "attention_style", val: 4 },
+            { rx: /(je pense [aà] (mille|cent|plein de) (choses|trucs) [aà] la fois)/i, dim: "attention_style", val: 5 }
+        ];
+        
+        // === VOIE DÉCLARATIVE — Niveau C : Information rapportée ===
+        const reportedPatterns = [
+            { rx: /(mon (psy|m[ée]decin|psychiatre|neuro) (pense|dit|suspecte|[ée]voque)|on (m'a dit|suspecte|[ée]voque).{0,20}(tdah|tsa|autis|hpi|dys|hypersensib))/i, val: 3 }
+        ];
+        
+        let changed = false;
+        
+        // Diagnostic déclaré (Niveau A — confiance haute)
+        for (const pat of diagPatterns) {
+            if (pat.rx.test(t)) {
+                for (const [dim, val] of Object.entries(pat.dims)) {
+                    if (nc[dim] < val) { nc[dim] = val; changed = true; }
+                }
+                nc.source = "declaration";
+                nc.confidence = "high";
+                if (!nc.declarations.includes(pat.label)) nc.declarations.push(pat.label);
+                this.sessionSignals.push({ type: "neurocognitive_declaration",
+                    detail: "Auto-déclaration neurocognitive : " + pat.label + " (confiance haute)", source: "TextAnalysis" });
+                console.log("[NeuroCog] Déclaration Niveau A :", pat.label);
+            }
+        }
+        
+        // Auto-observation (Niveau B — confiance modérée)
+        for (const pat of autoObsPatterns) {
+            if (pat.rx.test(t)) {
+                if (nc[pat.dim] < pat.val) { nc[pat.dim] = pat.val; changed = true; }
+                if (nc.source === "none") nc.source = "observation";
+                if (nc.confidence === "none") nc.confidence = "moderate";
+                this.sessionSignals.push({ type: "neurocognitive_observation",
+                    detail: "Auto-observation : " + pat.dim + " (confiance modérée)", source: "TextAnalysis" });
+            }
+        }
+        
+        // Information rapportée (Niveau C — confiance faible)
+        for (const pat of reportedPatterns) {
+            if (pat.rx.test(t)) {
+                if (nc.source === "none") nc.source = "reported";
+                if (nc.confidence === "none") nc.confidence = "low";
+                this.sessionSignals.push({ type: "neurocognitive_reported",
+                    detail: "Information rapportée neuro (confiance faible)", source: "TextAnalysis" });
+            }
+        }
+        
+        // === GARDE-FOU 4 : Override patient ===
+        if (/(je (ne |)suis pas (tdah|tsa|autis|hpi|dys|hypersensib)|arr[eê]te (de |avec )(simplifi|structur|adapt))/i.test(t)) {
+            nc.attention_style = 0; nc.information_processing = 0; nc.emotional_regulation = 0;
+            nc.sensory_sensitivity = 0; nc.cognitive_speed = 0; nc.reading_writing_load = 0;
+            nc.source = "none"; nc.confidence = "none"; nc.declarations = [];
+            changed = true;
+            console.log("[NeuroCog] Override patient : profil réinitialisé");
+        }
+        
+        if (changed) {
+            nc.last_updated = new Date().toISOString();
+            window.patientProfile?.save();
+        }
+    }
+    
+    // v7.2 — Génère le contexte neurocognitif pour le prompt (si actif)
+    _getNeuroCognitiveContext() {
+        const nc = window.patientProfile?.profile?.neurocognitive;
+        if (!nc || nc.source === 'none') return '';
+        
+        const THRESHOLD = 3;
+        const dims = {
+            attention_style: { high: 'Style attentionnel divergent', adapt: 'Réponses courtes (3-5 phrases max), un seul fil, récapitulatifs fréquents' },
+            information_processing: { high: 'Traitement littéral/explicite', adapt: 'Métaphores concrètes, consignes explicites, nommer les processus, pas d\'ironie' },
+            emotional_regulation: { high: 'Régulation réactive', adapt: 'Valider avant tout, transitions annoncées, pas de confrontation rapide' },
+            sensory_sensitivity: { high: 'Hypersensibilité sensorielle', adapt: 'Rythme plus lent, pauses proposées, exercices doux' },
+            cognitive_speed: { high: 'Rythme cognitif accéléré', adapt: 'Ne pas simplifier, métacognition comme levier, attention intellectualisation' },
+            reading_writing_load: { high: 'Charge lecture/écriture élevée', adapt: 'Privilégier audio (TTS), réponses courtes, exercices guidés simples' }
+        };
+        
+        let active = [];
+        for (const [key, info] of Object.entries(dims)) {
+            if (nc[key] >= THRESHOLD) {
+                active.push({ dim: key, score: nc[key], label: info.high, adapt: info.adapt });
+            }
+        }
+        
+        if (active.length === 0) return '';
+        
+        let ctx = '\n\u2500\u2500 ADAPTATION NEUROCOGNITIVE (confiance : ' + nc.confidence + ', source : ' + nc.source + ') \u2500\u2500\n';
+        ctx += '  Ceci adapte la FORME, pas le FOND.\n';
+        for (const a of active) {
+            ctx += '  \u2022 ' + a.label + ' (' + a.score + '/10) \u2014 ' + a.adapt + '\n';
+        }
+        ctx += '  Si le patient demande d\'arr\u00eater d\'adapter, reviens au style standard.\n';
+        return ctx;
+    }
+
+
+        getState() {
         return {
             activeApproach: this.activeApproach,
             approachName: this.approaches[this.activeApproach]?.name,
@@ -13362,7 +13512,24 @@ class PatientProfile {
             emdr_targets: [],
             session_notes: [],
             exercises_given: [],
-            exercises_returned: []
+            exercises_returned: [],
+            
+            // v7.2 — Profil Neurocognitif Adaptatif (6 dimensions fonctionnelles)
+            neurocognitive: {
+                // Dimensions (0-10, 0=pas de donnée, 1-3=faible, 4-6=modéré, 7-10=élevé)
+                attention_style: 0,       // focalisé (1) ↔ divergent (10) — Barkley
+                information_processing: 0, // intuitif (1) ↔ littéral (10) — Frith/Happé
+                emotional_regulation: 0,   // modulée (1) ↔ réactive (10) — Porges/Siegel
+                sensory_sensitivity: 0,    // standard (1) ↔ hypersensible (10) — Aron
+                cognitive_speed: 0,        // standard (1) ↔ accéléré (10) — Jacobsen/Siaud-Facchin
+                reading_writing_load: 0,   // aisé (1) ↔ coûteux (10) — Dehaene/Shaywitz
+                // Métadonnées
+                source: 'none',            // none | declaration | observation | professional | mixed
+                confidence: 'none',        // none | low | moderate | high
+                declarations: [],          // ["je suis TDAH", ...] — historique brut
+                last_updated: null,
+                professional_override: null // {dimensions, note, date} — si le collab a réglé
+            }
         };
     }
 
@@ -13486,6 +13653,25 @@ class PatientProfile {
         if (p.session_notes.length > 0) {
             const last = p.session_notes[p.session_notes.length - 1];
             summary += `Dernière séance (${last.date}) : ${last.summary}\n`;
+        }
+        
+        // v7.2 — Profil neurocognitif
+        const nc = p.neurocognitive;
+        if (nc && nc.source !== 'none') {
+            summary += `\n── PROFIL NEUROCOGNITIF (source : ${nc.source}, confiance : ${nc.confidence}) ──\n`;
+            const dimLabels = {
+                attention_style: 'Style attentionnel (focalisé↔divergent)',
+                information_processing: 'Traitement info (intuitif↔littéral)',
+                emotional_regulation: 'Régulation émotionnelle (modulée↔réactive)',
+                sensory_sensitivity: 'Sensibilité sensorielle (standard↔hyper)',
+                cognitive_speed: 'Rythme cognitif (standard↔accéléré)',
+                reading_writing_load: 'Charge lecture/écriture (aisé↔coûteux)'
+            };
+            for (const [key, label] of Object.entries(dimLabels)) {
+                if (nc[key] > 0) summary += `  ${label} : ${nc[key]}/10\n`;
+            }
+            if (nc.declarations.length > 0) summary += `  Déclarations : ${nc.declarations.join(', ')}\n`;
+            if (nc.professional_override) summary += `  ⚕️ Override professionnel : ${nc.professional_override.note}\n`;
         }
         
         return summary;
@@ -17231,6 +17417,17 @@ Quand la fenêtre est DÉPASSÉE, agis immédiatement : "On fait une pause. Pose
 Quand la fenêtre est ADÉQUATE, ne dis rien — travaille normalement.
 Le patient doit SENTIR que tu perçois son état émotionnel et que tu ajustes en temps réel. C'est ce qui crée la sécurité relationnelle.
 
+
+═══ ADAPTATION NEUROCOGNITIVE ═══
+
+Si le contexte clinique contient une section ADAPTATION NEUROCOGNITIVE, applique les adaptations de forme indiquées. Ce n'est PAS un diagnostic — ce sont des dimensions fonctionnelles du traitement de l'information (Barkley, Frith, Porges, Aron, Siaud-Facchin, Dehaene).
+
+RÈGLES :
+1. Adapte la FORME (longueur, structure, type de métaphores, rythme), jamais le FOND (approche thérapeutique).
+2. Si le patient te dit "je suis TDAH/TSA/HPI/DYS" — adapte immédiatement sans attendre.
+3. Si le patient te dit qu'il n'est pas concerné ou te demande d'arrêter — reviens au style standard.
+4. TRANSPARENCE DOUCE : tu peux dire "Je peux adapter ma façon de te parler — plus structuré, plus court, plus concret. Dis-moi ce qui t'aide le mieux." C'est de la co-construction, pas du diagnostic.
+5. Ne mentionne JAMAIS un label diagnostique (TDAH, TSA, HPI) sauf si le patient l'a dit lui-même.
 
 ═══ MODÈLE D'INTERVENTION ═══
 
