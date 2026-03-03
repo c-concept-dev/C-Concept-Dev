@@ -3154,6 +3154,26 @@ DYNAMIQUE RELATIONNELLE ET SYSTÉMIQUE : Que rejoue le patient en séance ? Quel
 
 EXPERT-CLÉ : Hayes ? Linehan ? Gilbert ? Segal ? Miller ? Young ? Rosenberg ? Pace ? Ecker ? Watzlawick ? Selvini ? de Shazer ? White ? — Quel cadre ouvre la porte la plus pertinente ?
 
+DIMENSION NEUROCOGNITIVE (Barkley / Frith / Happé / Porges / Aron / Siaud-Facchin / Dehaene) :
+Si la collègue mentionne un profil neurocognitif du patient (TDAH, TSA, HPI, DYS, hypersensibilité, ou des descriptions fonctionnelles : "il décroche", "elle comprend tout littéralement", "il va trop vite", "elle est submergée par les stimulations"), INTÉGREZ cette dimension dans votre analyse.
+
+Pensez en 6 axes fonctionnels (pas en labels) :
+— Style attentionnel (focalisé ↔ divergent) : impact sur la longueur des séances, le fil, les exercices
+— Traitement de l'information (intuitif ↔ littéral) : impact sur les métaphores, l'implicite, les consignes
+— Régulation émotionnelle (modulée ↔ réactive) : impact sur le rythme, les confrontations, la fenêtre de tolérance
+— Sensibilité sensorielle (standard ↔ hypersensible) : impact sur le cadre, la surcharge, le shutdown vs meltdown
+— Rythme cognitif (standard ↔ accéléré) : impact sur l'intellectualisation comme défense, l'ennui thérapeutique
+— Charge lecture/écriture (aisé ↔ coûteux) : impact sur les exercices écrits, journaux, supports
+
+QUESTIONS CLÉS à poser systématiquement :
+— Le profil neurocognitif est-il TRAIT (stable, constitutionnel) ou ÉTAT (lié au trauma, à la crise, au contexte) ?
+— La stratégie thérapeutique actuelle est-elle neuro-compatible ? (ex: exercice de pleine conscience long + TDAH = échec prévisible)
+— Y a-t-il une comorbidité neuro + clinique qui se masque mutuellement ? (ex: TSA + trauma : le shutdown sensoriel ressemble à la dissociation)
+— La collègue adapte-t-elle déjà sa FORME ou travaille-t-elle "en standard" ?
+— Le patient connaît-il son profil ? Est-ce intégré dans la conceptualisation ou traité comme "à côté" ?
+
+PIÈGE MAJEUR : ne jamais réduire un patient à son profil neurocognitif. Le TDAH n'explique pas l'abandon, le TSA n'explique pas la maltraitance, le HPI n'explique pas la dépression. Le profil neurocognitif MODULE la forme thérapeutique, il ne REMPLACE pas la formulation clinique.
+
 SÉQUENCE THÉRAPEUTIQUE : Par où commencer ? Avec quel outil ? Dans quel ordre ? Quand réévaluer ?
 
 ═══ ANALYSE MULTIMODALE ═══
@@ -17064,6 +17084,26 @@ OBJECTIFS DIAGNOSTIQUES :`;
             
             if (hasDetectorData) {
                 prompt += collabDetectors;
+            }
+            
+            // v7.2 — Détection des mentions neurocognitives dans le message du psy
+            const lastUserMsg = this.conversationHistory.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+            const msgLower = lastUserMsg.toLowerCase();
+            const neuroMentions = [];
+            if (/\b(tdah|tda[\s-]?h|adhd|déficit d'attention|trouble.{0,5}attention)\b/i.test(msgLower)) neuroMentions.push('TDAH : attention divergente, régulation réactive, besoin de structure courte');
+            if (/\b(tsa|autis|asperger|spectre)\b/i.test(msgLower)) neuroMentions.push('TSA : traitement littéral, sensibilité sensorielle, besoin d\'explicite');
+            if (/\b(hpi|haut potentiel|surdoué|zèbre|précoce)\b/i.test(msgLower)) neuroMentions.push('HPI : rythme accéléré, risque intellectualisation, besoin de profondeur');
+            if (/\b(dys|dyslexi|dysorthograph|dysprax|dyscalcul)\b/i.test(msgLower)) neuroMentions.push('DYS : charge lecture/écriture élevée, adapter les supports');
+            if (/\b(hypersensib|hsp|hautement sensible)\b/i.test(msgLower)) neuroMentions.push('HSP : hypersensibilité sensorielle et émotionnelle, rythme doux');
+            if (/\b(décroche|s'éparpille|perd le fil|se concentre pas)\b/i.test(msgLower)) neuroMentions.push('Signes attentionnels mentionnés : explorer trait cognitif ou symptôme clinique');
+            if (/\b(comprend.{0,5}littéral|métaphore.{0,10}(marche|fonctionne) pas)\b/i.test(msgLower)) neuroMentions.push('Traitement littéral mentionné : adapter métaphores et consignes');
+            if (/\b(surcharge|surchargé|saturé|submergé.{0,10}stimul|shutdown|meltdown)\b/i.test(msgLower)) neuroMentions.push('Surcharge sensorielle mentionnée : évaluer sensibilité et cadre');
+            
+            if (neuroMentions.length > 0) {
+                prompt += '\n\n═══ PROFIL NEUROCOGNITIF MENTIONNÉ PAR LA COLLÈGUE ═══\n';
+                prompt += 'La psychologue mentionne des caractéristiques neurocognitives chez son patient :\n';
+                neuroMentions.forEach(m => { prompt += '  • ' + m + '\n'; });
+                prompt += '\nINTÉGREZ cette dimension dans votre analyse. Vérifiez : la stratégie thérapeutique est-elle neuro-compatible ? Le profil est-il TRAIT ou ÉTAT ? Y a-t-il masquage mutuel neuro/clinique ?\n';
             }
             
             // Injection contexte mémorisé via ContextInjector
