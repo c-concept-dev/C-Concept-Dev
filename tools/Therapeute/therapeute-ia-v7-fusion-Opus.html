@@ -2116,9 +2116,6 @@
             <button onclick="window._collabMode='intervention'; document.getElementById('collab-mode-label').textContent='Stratégie';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Stratégie</button>
             <button onclick="window._collabMode='conceptualisation'; document.getElementById('collab-mode-label').textContent='Conceptualisation';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Concept°</button>
             <button onclick="window._collabMode='bibliographie'; document.getElementById('collab-mode-label').textContent='Bibliographie';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Biblio</button>
-            <span style="margin-left: 12px; font-size: 11px; opacity: 0.6;">|</span>
-            <button onclick="v19PauseExport()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;cursor:pointer;font-size:11px;margin-left:8px;padding:3px 10px;border-radius:10px;font-family:inherit;font-weight:600;" title="Sauvegarder le dossier">💾 Sauvegarder</button>
-            <button onclick="endCollabSession()" style="background:rgba(255,100,100,0.25);border:1px solid rgba(255,255,255,0.4);color:white;cursor:pointer;font-size:11px;margin-left:4px;padding:3px 10px;border-radius:10px;font-family:inherit;font-weight:600;" title="Terminer et exporter le dossier">⏹ Fin de séance</button>
         </div>
         <!-- PROGRESS v17.3.3 - Badges discrets charte -->
         <div class="progress-section" style="background: transparent; padding: 15px 20px; margin-bottom: 20px;">
@@ -2145,7 +2142,7 @@
                     ⏸️ Pause
                 </button>
                 <!-- COLLAB: Bouton Fin de séance (visible uniquement en mode collab) -->
-                <button id="collab-end-session-btn" onclick="endCollabSession()" style="display: none; background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; cursor: pointer; align-items: center; gap: 5px;" title="Terminer la session et exporter le dossier">
+                <button id="collab-end-session-btn" onclick="endCollabSession()" style="display: none; background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #5B7F83; color: #5B7F83; font-size: 12px; font-weight: 600; cursor: pointer; align-items: center; gap: 5px;" title="Terminer la session et exporter le dossier">
                     ⏹️ Fin de séance
                 </button>
                 <!-- V19: Resume button -->
@@ -2359,7 +2356,8 @@
         </div>
         
         <!-- FOOTER -->
-        <div class="footer-actions" style="justify-content: space-between;">
+        <!-- FOOTER PATIENT -->
+        <div class="footer-actions" id="footer-patient" style="justify-content: space-between;">
             <button class="export-btn" onclick="v19PauseExport()" style="background: linear-gradient(135deg, #8FAFB1, #7A9A9C); font-size: 14px; padding: 12px 24px; border-radius: 12px;">
                 💾 Sauvegarder ma séance
             </button>
@@ -2367,6 +2365,19 @@
                 🔄 Reprendre une séance
             </label>
             <input type="file" id="v19-footer-resume-input" accept=".json" style="display:none" onchange="v19ResumeSession(this)">
+        </div>
+        <!-- FOOTER COLLABORATEUR PSY -->
+        <div class="footer-actions" id="footer-collab" style="display:none; justify-content: space-between; gap: 12px;">
+            <button class="export-btn" onclick="v19PauseExport()" style="background: linear-gradient(135deg, #5B7F83, #8FAFB1); font-size: 14px; padding: 12px 24px; border-radius: 12px;">
+                💾 Sauvegarder le dossier
+            </button>
+            <button class="export-btn" onclick="endCollabSession()" style="background: linear-gradient(135deg, #5B7F83, #7A9A9C); font-size: 14px; padding: 12px 24px; border-radius: 12px;">
+                ⏹ Fin de séance
+            </button>
+            <label class="export-btn" onclick="document.getElementById('v19-footer-collab-resume-input').click()" style="background: var(--sable, #E6D7C3); color: var(--text-primary, #333); font-size: 13px; padding: 10px 20px; border-radius: 12px; cursor: pointer;">
+                📥 Charger un dossier
+            </label>
+            <input type="file" id="v19-footer-collab-resume-input" accept=".json" style="display:none" onchange="handleDossierResumeFile(this)">
         </div>
     </div>
 </div>
@@ -19668,6 +19679,11 @@ async function startInterview() {
         // ═══ BOUTON FIN DE SÉANCE — visible en mode collab ═══
         const endBtn = document.getElementById('collab-end-session-btn');
         if (endBtn) endBtn.style.display = 'flex';
+        // ═══ FOOTER COLLAB — Switcher les footers ═══
+        const footerPatient = document.getElementById('footer-patient');
+        const footerCollab = document.getElementById('footer-collab');
+        if (footerPatient) footerPatient.style.display = 'none';
+        if (footerCollab) footerCollab.style.display = 'flex';
         console.log('[MODE] 🧠 Collaborateur PSY activé, mode:', window._collabMode, 
             window._collabDossier ? '— Dossier: ' + window._collabDossier.initiales : '— Session libre');
     }
