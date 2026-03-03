@@ -209,6 +209,8 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('upload')">📤 Ajouter des livres</button>
             <button class="tab" onclick="switchTab('library')">📚 Bibliothèque</button>
+            <button class="tab" onclick="switchTab('search')">🔍 Test recherche</button>
+            <button class="tab" onclick="switchTab('glossary')">📖 Glossaire</button>
             <button class="tab" onclick="switchTab('log')">📋 Journal</button>
         </div>
 
@@ -239,6 +241,134 @@
             </div>
         </div>
 
+        <!-- TAB: SEARCH -->
+        <div class="tab-content" id="tab-search">
+            <div style="margin-bottom:16px;">
+                <h3 style="font-size:14px;color:#8FAFB1;margin-bottom:10px;">🔍 Tester la recherche RAG</h3>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="searchQuery" placeholder="Ex: schéma d'abandon en thérapie de couple"
+                        style="flex:1;padding:10px 14px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;">
+                    <select id="searchApproach" style="padding:8px;border:2px solid #D8CDBB;border-radius:8px;font-size:12px;font-family:inherit;">
+                        <option value="">Toutes approches</option>
+                        <option value="schema_therapy">Schémas</option>
+                        <option value="act">ACT</option>
+                        <option value="ifs">IFS</option>
+                        <option value="couple">Couple</option>
+                        <option value="attachment">Attachement</option>
+                        <option value="mi">MI</option>
+                        <option value="cnv">CNV</option>
+                        <option value="cft">CFT</option>
+                        <option value="dbt">DBT</option>
+                        <option value="emdr">EMDR</option>
+                        <option value="icv">ICV</option>
+                        <option value="systemic">Systémique</option>
+                        <option value="coherence">Cohérence</option>
+                    </select>
+                    <button class="btn-refresh" onclick="testSearch()">🔍 Rechercher</button>
+                </div>
+                <div style="margin-top:4px;font-size:11px;color:#aaa;">
+                    topK: <input type="number" id="searchTopK" value="5" min="1" max="20" style="width:50px;padding:2px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
+                </div>
+            </div>
+            <div id="searchResults" style="font-size:13px;color:#555;">
+                <div class="empty-state">
+                    <div class="icon">🔍</div>
+                    <div>Testez une requête pour vérifier la qualité de l'indexation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: GLOSSARY -->
+        <div class="tab-content" id="tab-glossary">
+            <div style="max-height:70vh;overflow-y:auto;padding-right:8px;">
+                <h3 style="font-size:16px;color:#7A9A9C;margin-bottom:16px;">📖 Glossaire des approches thérapeutiques</h3>
+                
+                <div style="display:grid;gap:10px;">
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">ACT — Acceptance and Commitment Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie d'acceptation et d'engagement (Steven Hayes). Travaille la défusion cognitive, l'acceptation émotionnelle, le contact avec le moment présent, et l'engagement vers les valeurs. Modèle hexaflex.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">CBT / TCC — Cognitive Behavioral Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie cognitivo-comportementale (Aaron Beck). Restructuration cognitive, identification des pensées automatiques, modification des schémas cognitifs, exposition comportementale.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">CFT — Compassion-Focused Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie centrée sur la compassion (Paul Gilbert). Travaille les 3 systèmes de régulation émotionnelle (menace, motivation, apaisement). Indiquée pour la honte et l'autocritique.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">CNV — Communication NonViolente</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Marshall Rosenberg. Protocole OSBD : Observation (faits), Sentiment (émotion), Besoin (besoin universel), Demande (concrète). "Langage girafe" vs "langage chacal". Voir aussi Thomas d'Ansembourg.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">DBT — Dialectical Behavior Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie comportementale dialectique (Marsha Linehan). Régulation émotionnelle, tolérance à la détresse, efficacité interpersonnelle, pleine conscience. Développée pour le trouble borderline, applicable plus largement.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">EMDR — Eye Movement Desensitization and Reprocessing</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Désensibilisation et retraitement par mouvements oculaires (Francine Shapiro). Stimulation bilatérale (visuelle, auditive ou tactile) pendant le rappel d'un souvenir traumatique pour faciliter son retraitement.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">ICV — Intégration du Cycle de Vie (Lifespan Integration)</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Peggy Pace. Utilise une ligne du temps (timeline) de souvenirs pour montrer au système nerveux que le temps a passé. Indiquée pour le trauma développemental, l'attachement insécure, la dissociation. Plus douce que l'EMDR.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Cohérence (Thérapie de la) — Reconsolidation mnésique</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Bruce Ecker et Laurel Hulley. Le symptôme persiste car un savoir émotionnel implicite le rend nécessaire. Protocole : accès au savoir implicite → juxtaposition émotionnelle (expérience contradictoire) → vérification. Utilise la fenêtre de reconsolidation (~5h).</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Systémique — Thérapies systémiques</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Famille d'approches où le problème est entre les personnes, pas dans une seule. Palo Alto (Watzlawick) : tentatives de solution. Structurale (Minuchin) : frontières, hiérarchies. Milan (Selvini) : questionnement circulaire. Solutions (de Shazer) : exceptions, question miracle. Narratif (White/Epston) : externalisation.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">IFS — Internal Family Systems</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Système familial intérieur (Richard Schwartz). Le psychisme contient des "parts" (exilés, managers, pompiers) et un Self. Protocole 6F : Find, Focus, Flesh out, Feel toward, beFriend, Fears. Unburdening pour les exilés.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">MBCT — Mindfulness-Based Cognitive Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie cognitive basée sur la pleine conscience (Segal, Williams, Teasdale). Prévention des rechutes dépressives par la décentration cognitive et l'observation sans jugement des pensées.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">MI — Entretien Motivationnel (Motivational Interviewing)</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de William Miller et Stephen Rollnick. Explorer l'ambivalence face au changement sans convaincre. Techniques : reflets complexes, questions ouvertes, résumés directionnels, discours-changement vs discours-maintien.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">OSBD — Observation, Sentiment, Besoin, Demande</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Les 4 étapes du protocole CNV de Rosenberg. Observer sans juger → nommer l'émotion → identifier le besoin → formuler une demande concrète et négociable.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">PBT — Process-Based Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie basée sur les processus (Stefan Hofmann). Approche méta-thérapeutique : on ne traite pas "un trouble" mais des processus transdiagnostiques. Permet de naviguer entre les approches selon le processus actif.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">RAG — Retrieval-Augmented Generation</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Technique d'IA : avant de répondre, le système cherche des passages pertinents dans la bibliothèque indexée et les injecte dans le contexte. Permet au thérapeute IA de s'appuyer sur les auteurs réels.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Schéma Therapy — Thérapie des Schémas</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Jeffrey Young. 18 schémas précoces inadaptés (abandon, méfiance, carence, imperfection...), 5 domaines, 3 styles de coping (soumission, évitement, compensation), modes enfant/parent/adulte. Techniques : reparentage limité, rescénarisation en imagerie, dialogue socratique.</div>
+                    </div>
+                </div>
+                
+                <h3 style="font-size:14px;color:#7A9A9C;margin:20px 0 12px;">📌 Autres termes fréquents</h3>
+                <div style="display:grid;gap:8px;font-size:12px;">
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">AAQ-II</b> — Acceptance and Action Questionnaire. Mesure la flexibilité psychologique (Hayes).</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">BLS</b> — Bilateral Stimulation. Stimulation bilatérale utilisée en EMDR (mouvements oculaires, tapping, sons alternés).</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">DMRS</b> — Defense Mechanism Rating Scale. Échelle de cotation des mécanismes de défense (Perry). Utilisée pour calculer l'ODF.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">EFT</b> — Emotionally Focused Therapy. Thérapie centrée sur les émotions pour les couples (Sue Johnson). Basée sur l'attachement.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Hexaflex</b> — Le modèle à 6 processus de l'ACT : défusion, acceptation, moment présent, soi-contexte, valeurs, action engagée.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Imago</b> — Thérapie Imago pour les couples (Harville Hendrix). Dialogue structuré : reflet, validation, empathie.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">MDC</b> — Moteur de Décision Clinique. Le système automatique du Thérapeute IA qui analyse les signaux et recommande l'approche.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">ODF</b> — Overall Defensive Functioning. Score global de fonctionnement défensif (0-7). Plus c'est haut, plus les défenses sont matures.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">TIPP</b> — Température, Intense exercise, Paced breathing, Progressive relaxation. Technique DBT de régulation rapide.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">MRI</b> — Mental Research Institute (Palo Alto). École systémique fondée par Bateson, Jackson, Watzlawick. Focus sur les tentatives de solution.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Juxtaposition</b> — Concept clé de la thérapie de la cohérence (Ecker). Tenir simultanément la croyance ancienne et l'expérience contradictoire pour ouvrir la reconsolidation.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Question miracle</b> — Technique de Steve de Shazer. "Si le problème disparaissait cette nuit, à quoi le remarqueriez-vous demain ?" Oriente vers la solution.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Externalisation</b> — Technique narrative (Michael White). Séparer le problème de la personne : "Ce n'est pas vous le problème, c'est le problème qui s'est installé."</div>
+                </div>
+            </div>
+        </div>
+
         <!-- TAB: LOG -->
         <div class="tab-content" id="tab-log">
             <div class="log-box" id="logBox">
@@ -263,7 +393,7 @@ let isIngesting = false;
 // ── Tabs ──
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['upload','library','log'][i] === name);
+        t.classList.toggle('active', ['upload','library','search','glossary','log'][i] === name);
     });
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
@@ -283,6 +413,10 @@ function log(msg, type = '') {
 function getWorkerUrl() {
     return document.getElementById('workerUrl').value.replace(/\/+$/, '');
 }
+
+// Helper: échapper les apostrophes pour les attributs onclick
+function esc(s) { return (s || '').replace(/'/g, "\\'"); }
+
 
 // ── Drag & Drop ──
 const dropzone = document.getElementById('dropzone');
@@ -360,7 +494,7 @@ function renderQueue() {
 function renderMetaForm(q) {
     return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
-            ${['general','schema_therapy','act','ifs','coherence','emdr','couple','attachment','cbt','cft','dbt']
+            ${['general','schema_therapy','act','ifs','coherence','emdr','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic']
                 .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
         </select>
         <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
@@ -412,29 +546,92 @@ async function extractPDFText(file, progressCb) {
     return { pages, fullText: allText, numPages };
 }
 
-// ── Chunking ──
-function chunkText(text, size = 800, overlap = 150) {
-    const words = text.split(/\s+/);
+// ── Chunking intelligent (respecte les paragraphes) ──
+function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
+    // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule)
+    const paragraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 20);
+    
     const chunks = [];
-    let start = 0;
-    while (start < words.length) {
-        const end = Math.min(start + size, words.length);
-        const chunk = words.slice(start, end).join(' ');
-        if (chunk.length >= 100) chunks.push(chunk);
-        start += size - overlap;
-        if (start >= words.length) break;
+    let currentChunk = '';
+    let lastOverlap = '';
+    
+    for (const para of paragraphs) {
+        const trimmed = para.trim();
+        
+        // Si ajouter ce paragraphe dépasse la taille max → sauvegarder le chunk actuel
+        if (currentChunk.length > 0 && (currentChunk + ' ' + trimmed).split(/\s+/).length > maxSize) {
+            if (currentChunk.trim().length >= 80) {
+                chunks.push(currentChunk.trim());
+            }
+            // Overlap : garder les derniers mots du chunk précédent
+            const words = currentChunk.split(/\s+/);
+            lastOverlap = words.slice(-overlap).join(' ');
+            currentChunk = lastOverlap + ' ' + trimmed;
+        } else {
+            currentChunk += (currentChunk ? ' ' : '') + trimmed;
+        }
+        
+        // Si le chunk atteint la taille cible et se termine par une phrase → couper
+        if (currentChunk.split(/\s+/).length >= targetSize && /[.!?]\s*$/.test(currentChunk)) {
+            chunks.push(currentChunk.trim());
+            const words = currentChunk.split(/\s+/);
+            lastOverlap = words.slice(-overlap).join(' ');
+            currentChunk = lastOverlap;
+        }
     }
+    
+    // Dernier chunk
+    if (currentChunk.trim().length >= 80) {
+        chunks.push(currentChunk.trim());
+    }
+    
+    // Fallback si le découpage par paragraphes n'a rien donné (PDF sans sauts de ligne)
+    if (chunks.length === 0) {
+        const words = text.split(/\s+/);
+        let start = 0;
+        while (start < words.length) {
+            const end = Math.min(start + targetSize, words.length);
+            const chunk = words.slice(start, end).join(' ');
+            if (chunk.length >= 80) chunks.push(chunk);
+            start += targetSize - overlap;
+            if (start >= words.length) break;
+        }
+    }
+    
     return chunks;
 }
 
 function chunkPages(pages) {
+    // Stratégie : regrouper les pages proches puis chunker le texte continu
+    // Cela évite de couper un concept qui s'étend sur 2 pages
     const allChunks = [];
+    let buffer = '';
+    let startPage = 1;
+    let currentPage = 1;
+    
     for (const p of pages) {
-        const textChunks = chunkText(p.text);
-        for (const content of textChunks) {
-            allChunks.push({ content, page: p.page });
+        buffer += ' ' + p.text;
+        currentPage = p.page;
+        
+        // Chunker quand on a assez de texte (environ 3-4 pages)
+        if (buffer.split(/\s+/).length > 1500) {
+            const textChunks = chunkText(buffer);
+            for (const content of textChunks) {
+                allChunks.push({ content, page: startPage, page_end: currentPage });
+            }
+            buffer = '';
+            startPage = currentPage + 1;
         }
     }
+    
+    // Dernier buffer
+    if (buffer.trim().length > 80) {
+        const textChunks = chunkText(buffer);
+        for (const content of textChunks) {
+            allChunks.push({ content, page: startPage, page_end: currentPage });
+        }
+    }
+    
     return allChunks;
 }
 
@@ -463,9 +660,23 @@ async function startIngestion() {
 
             if (pages.length === 0) throw new Error('Aucun texte extrait (PDF scanné ou protégé)');
 
+            // Phase 1b: Auto-detect metadata
+            if (!q.meta.author || q.meta.approach === 'general') {
+                const detected = autoDetectMeta(pages, q.file.name);
+                if (!q.meta.author && detected.author) {
+                    q.meta.author = detected.author;
+                    log('  🔍 Auteur détecté : ' + detected.author);
+                }
+                if (q.meta.approach === 'general' && detected.approach !== 'general') {
+                    q.meta.approach = detected.approach;
+                    log('  🔍 Approche détectée : ' + detected.approach);
+                }
+            }
+
             // Phase 2: Chunk
             q.chunks = chunkPages(pages);
-            log(`  📦 ${q.chunks.length} chunks (${numPages} pages)`);
+            const avgWords = Math.round(q.chunks.reduce((s, c) => s + c.content.split(/\s+/).length, 0) / q.chunks.length);
+            log(`  📦 ${q.chunks.length} chunks (${numPages} pages, ~${avgWords} mots/chunk)`);
 
             if (q.chunks.length === 0) throw new Error('Aucun chunk généré');
 
@@ -483,6 +694,7 @@ async function startIngestion() {
                     id: `${q.meta.book_id}-${i + j}`,
                     content: c.content,
                     page: c.page,
+                    page_end: c.page_end || c.page,
                 }));
 
                 const res = await fetch(getWorkerUrl() + '/ingest', {
@@ -541,26 +753,165 @@ async function refreshLibrary() {
             return;
         }
 
-        // Count chunks per book
-        const bookChunks = {};
-        // We need to query D1 for chunk counts — use approach count as proxy
-        el.innerHTML = `<div style="margin-bottom:12px;font-size:12px;color:#888;">
-            ${data.total_chunks} chunks · ${data.books.length} livres ·
-            ${data.by_approach.map(a => `${a.approach} (${a.count})`).join(', ')}
-        </div>
-        <div class="book-grid">
-            ${data.books.map(b => `<div class="book-card">
-                <div class="bc-info">
-                    <div class="bc-title">${b.book_title}</div>
-                    <div class="bc-meta">${b.author} · <span class="bc-approach">${b.approach}</span> · ${b.language.toUpperCase()}</div>
-                </div>
-                <button class="btn-delete" onclick="deleteBook('${b.book_id}','${b.book_title.replace(/'/g,"\\'")}')">🗑</button>
-            </div>`).join('')}
-        </div>`;
+        // Stocker les livres globalement — les index numériques évitent les problèmes d'apostrophes
+        window._libBooks = data.books;
+
+        let html = '<div style="margin-bottom:12px;font-size:12px;color:#888;">'
+            + data.total_chunks + ' chunks · ' + data.books.length + ' livres · '
+            + data.by_approach.map(a => a.approach + ' (' + a.count + ')').join(', ')
+            + '</div><div class="book-grid">';
+
+        data.books.forEach(function(b, idx) {
+            html += '<div class="book-card">'
+                + '<div class="bc-info">'
+                + '<div class="bc-title">' + b.book_title + '</div>'
+                + '<div class="bc-meta">' + b.author + ' · <span class="bc-approach">' + b.approach + '</span> · ' + b.language.toUpperCase() + '</div>'
+                + '</div>'
+                + '<div style="display:flex;gap:4px;">'
+                + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
+                + '<button class="btn-delete" onclick="deleteBookByIndex(' + idx + ')">🗑</button>'
+                + '</div></div>';
+        });
+
+        html += '</div>';
+        el.innerHTML = html;
 
     } catch (err) {
-        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${err.message}</div>`;
+        el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + err.message + '</div>';
     }
+}
+
+function editBookByIndex(idx) {
+    const b = window._libBooks[idx];
+    if (b) editBookMeta(b.book_id, b.book_title, b.approach, b.author, b.language);
+}
+
+function deleteBookByIndex(idx) {
+    const b = window._libBooks[idx];
+    if (b) deleteBook(b.book_id, b.book_title);
+}
+
+
+// ── Modifier les métadonnées d'un livre ──
+async function editBookMeta(bookId, title, currentApproach, currentAuthor, currentLang) {
+    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic'];
+    
+    // Créer un mini-formulaire en overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    // Stocker l'ID du livre en cours d'édition (évite les apostrophes dans onclick)
+    window._editBookId = bookId;
+
+    const optionsHtml = approaches.map(a => '<option value="' + a + '"' + (a === currentApproach ? ' selected' : '') + '>' + a + '</option>').join('');
+
+    const formDiv = document.createElement('div');
+    formDiv.style.cssText = 'background:white;border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+
+    const titleEl = document.createElement('h3');
+    titleEl.style.cssText = 'font-size:16px;color:#7A9A9C;margin-bottom:16px;';
+    titleEl.textContent = '✏️ Modifier : ' + title;
+    formDiv.appendChild(titleEl);
+
+    formDiv.innerHTML += '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Approche thérapeutique</label>'
+        + '<select id="edit-approach" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">' + optionsHtml + '</select></div>'
+        + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Auteur</label>'
+        + '<input id="edit-author" type="text" value="' + (currentAuthor || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
+        + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Langue</label>'
+        + '<select id="edit-lang" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">'
+        + '<option value="fr"' + (currentLang === 'fr' ? ' selected' : '') + '>FR</option>'
+        + '<option value="en"' + (currentLang === 'en' ? ' selected' : '') + '>EN</option>'
+        + '</select></div></div>';
+
+    const btnBar = document.createElement('div');
+    btnBar.style.cssText = 'display:flex;gap:8px;margin-top:20px;justify-content:flex-end;';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.textContent = 'Annuler';
+    btnCancel.style.cssText = 'padding:10px 20px;border:2px solid #ddd;border-radius:8px;background:white;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+    btnCancel.addEventListener('click', function() { overlay.remove(); });
+
+    const btnSave = document.createElement('button');
+    btnSave.textContent = 'Enregistrer';
+    btnSave.style.cssText = 'padding:10px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#8FAFB1,#C8D0C3);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+    btnSave.addEventListener('click', function() { submitEditMeta(window._editBookId); });
+
+    btnBar.appendChild(btnCancel);
+    btnBar.appendChild(btnSave);
+    formDiv.appendChild(btnBar);
+    overlay.appendChild(formDiv);
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+async function submitEditMeta(bookId) {
+    const approach = document.getElementById('edit-approach').value;
+    const author = document.getElementById('edit-author').value;
+    const language = document.getElementById('edit-lang').value;
+    
+    try {
+        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + author);
+        
+        // Essayer d'abord /update-book-meta
+        let res = await fetch(getWorkerUrl() + '/update-book-meta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: bookId, approach, author, language })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                log('  ✅ Métadonnées mises à jour (' + (data.updated_chunks || '?') + ' chunks)', 'success');
+                document.getElementById('edit-overlay')?.remove();
+                refreshLibrary();
+                return;
+            }
+        }
+        
+        // Fallback : si l'endpoint n'existe pas (404/405), utiliser /d1-query direct
+        log('  ⚠️ /update-book-meta non disponible — tentative via /d1-query...');
+        res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sql: "UPDATE chunks SET approach = ?, author = ?, language = ? WHERE book_id = ?",
+                params: [approach, author, language, bookId]
+            })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            log('  ✅ Métadonnées mises à jour via D1 direct', 'success');
+            document.getElementById('edit-overlay')?.remove();
+            refreshLibrary();
+            return;
+        }
+
+        // Dernier recours : instruction manuelle
+        log('  ⚠️ Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
+        log('  📋 SQL à exécuter dans D1 Dashboard :', 'info');
+        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + author + '" WHERE book_id = "' + bookId + '";', 'info');
+        
+        // Copier dans le presse-papier
+        const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
+        try { 
+            await navigator.clipboard.writeText(sql);
+            log('  📋 SQL copié dans le presse-papier !', 'success');
+        } catch(e) {}
+        
+    } catch (err) {
+        log('  ❌ ' + err.message, 'error');
+        // Donner le SQL en fallback
+        const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
+        log('  📋 SQL fallback : ' + sql, 'info');
+        try { await navigator.clipboard.writeText(sql); log('  📋 SQL copié !', 'success'); } catch(e) {}
+    }
+    
+    document.getElementById('edit-overlay')?.remove();
+    refreshLibrary();
 }
 
 async function deleteBook(bookId, title) {
@@ -584,6 +935,109 @@ async function deleteBook(bookId, title) {
     } catch (err) {
         log(`  ❌ ${err.message}`, 'error');
     }
+}
+
+// ── Test Search ──
+async function testSearch() {
+    const query = document.getElementById('searchQuery').value.trim();
+    if (!query) return;
+    const approach = document.getElementById('searchApproach').value;
+    const topK = parseInt(document.getElementById('searchTopK').value) || 5;
+    const el = document.getElementById('searchResults');
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours...</div>';
+
+    try {
+        const t0 = Date.now();
+        const res = await fetch(getWorkerUrl() + '/search-library', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, topK, approach: approach || undefined })
+        });
+        const data = await res.json();
+        const ms = Date.now() - t0;
+        const results = data.results || [];
+
+        if (results.length === 0) {
+            el.innerHTML = `<div class="empty-state"><div class="icon">😐</div><div>Aucun résultat pour "${query}" (${ms}ms)</div></div>`;
+            return;
+        }
+
+        el.innerHTML = `<div style="margin-bottom:12px;font-size:11px;color:#888;">${results.length} résultats en ${ms}ms</div>` +
+            results.map((r, i) => `<div style="background:#fafaf8;padding:14px;border-radius:8px;margin-bottom:8px;border-left:4px solid ${i===0?'#8FAFB1':'#C8D0C3'};">
+                <div style="font-weight:600;font-size:12px;color:#7A9A9C;margin-bottom:6px;">
+                    📖 ${r.book_title || '?'} — ${r.author || '?'} ${r.page ? '(p.'+r.page+')' : ''}
+                    <span style="float:right;font-size:10px;color:#aaa;">score: ${(r.score || r.similarity || 0).toFixed(3)} · ${r.approach || '?'}</span>
+                </div>
+                <div style="font-size:12px;line-height:1.6;color:#444;">${(r.content || r.text || '').substring(0, 500)}${(r.content||r.text||'').length > 500 ? '...' : ''}</div>
+            </div>`).join('');
+
+    } catch (err) {
+        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${err.message}</div>`;
+    }
+}
+
+// ── Auto-detect metadata from first page ──
+function autoDetectMeta(pages, filename) {
+    const meta = { title: '', author: '', approach: 'general' };
+    
+    if (!pages || pages.length === 0) return meta;
+    
+    const firstPage = pages[0].text.substring(0, 1000);
+    
+    // Titre : souvent la plus grande ligne de la première page, ou le nom de fichier nettoyé
+    meta.title = filename.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ').trim();
+    
+    // Auteur : chercher des patterns courants
+    const authorPatterns = [
+        /(?:par|by|auteur|author)[:\s]+([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+){1,3})/i,
+        /([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+){1,2})\s*\n/,
+        /©\s*\d{4}\s+(.+?)(?:\n|$)/i,
+    ];
+    for (const p of authorPatterns) {
+        const m = firstPage.match(p);
+        if (m) { meta.author = m[1].trim(); break; }
+    }
+    
+    // Approche : détecter par mots-clés dans le texte complet des premières pages
+    const sample = pages.slice(0, 3).map(p => p.text).join(' ').toLowerCase();
+    const approachKeywords = {
+        'schema_therapy': ['schéma', 'young', 'schema therapy', 'early maladaptive', 'schémas précoces'],
+        'act': ['acceptation', 'engagement', 'défusion', 'hexaflex', 'hayes', 'act '],
+        'ifs': ['internal family', 'parts work', 'self leadership', 'schwartz', 'exilé', 'pompier', 'manager'],
+        'emdr': ['emdr', 'bilateral', 'désensibilisation', 'shapiro', 'mouvements oculaires'],
+        'couple': ['couple', 'conjugal', 'gottman', 'hendrix', 'imago', 'relation amoureuse', 'partenaire'],
+        'attachment': ['attachement', 'bowlby', 'ainsworth', 'sécure', 'évitant', 'anxieux', 'wallin'],
+        'cft': ['compassion', 'gilbert', 'auto-compassion', 'self-compassion', 'honte'],
+        'dbt': ['dialectique', 'linehan', 'dbt', 'régulation émotionnelle', 'tolérance détresse'],
+        'mi': ['motivationnel', 'miller', 'rollnick', 'ambivalence', 'discours-changement'],
+        'cnv': ['non violente', 'rosenberg', 'communication non', 'osbd', 'girafe', 'chacal'],
+        'icv': ['intégration du cycle', 'lifespan integration', 'peggy pace', 'ligne du temps', 'timeline', 'icv'],
+        'systemic': ['systémique', 'watzlawick', 'minuchin', 'selvini', 'palo alto', 'circularité', 'de shazer', 'question miracle', 'narratif', 'white', 'epston', 'externalisation', 'boucle', 'homéostasie'],
+        'coherence': ['cohérence', 'reconsolidation', 'ecker', 'hulley', 'juxtaposition', 'mémoire implicite', 'savoir émotionnel'],
+        'mbct': ['pleine conscience', 'mbct', 'segal', 'mindfulness', 'méditation'],
+        'cbt': ['cognitif', 'beck', 'cbt', 'tcc', 'restructuration cognitive'],
+        'trauma': ['trauma', 'ptsd', 'van der kolk', 'herman', 'dissociation', 'traumatisme'],
+        'psychodynamic': ['psychodynamique', 'transfert', 'inconscient', 'pulsion', 'freud'],
+        'systemic': ['systémique', 'famille', 'neuburger', 'homéostasie', 'double lien'],
+    };
+    
+    let bestMatch = { approach: 'general', score: 0 };
+    for (const [approach, keywords] of Object.entries(approachKeywords)) {
+        let score = 0;
+        for (const kw of keywords) {
+            const regex = new RegExp(kw, 'gi');
+            const matches = sample.match(regex);
+            if (matches) score += matches.length;
+        }
+        if (score > bestMatch.score) {
+            bestMatch = { approach, score };
+        }
+    }
+    if (bestMatch.score >= 3) {
+        meta.approach = bestMatch.approach;
+    }
+    
+    return meta;
 }
 
 // ── Stats ──
