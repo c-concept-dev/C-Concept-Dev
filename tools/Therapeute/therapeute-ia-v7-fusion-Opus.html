@@ -2145,7 +2145,7 @@
                     ⏸️ Pause
                 </button>
                 <!-- COLLAB: Bouton Fin de séance (visible uniquement en mode collab) -->
-                <button id="collab-end-session-btn" onclick="collabEndSession()" style="display: none; background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; cursor: pointer; align-items: center; gap: 5px;" title="Terminer la session et exporter le dossier">
+                <button id="collab-end-session-btn" onclick="endCollabSession()" style="display: none; background: white; padding: 8px 14px; border-radius: 20px; border: 2px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; cursor: pointer; align-items: center; gap: 5px;" title="Terminer la session et exporter le dossier">
                     ⏹️ Fin de séance
                 </button>
                 <!-- V19: Resume button -->
@@ -3700,6 +3700,109 @@ window._collabSessionHistory = [];      // Historique sessions collab cumulé
 window._collabSessionNumber = 1;        // Numéro session courante
 window._collabDossierPendingAction = null; // Action en attente de confirmation
 
+// ═══════════════════════════════════════════════════════════════
+// CHIFFREMENT DOSSIER PATIENT — AES-256-GCM (Web Crypto API)
+// Le JSON exporté est illisible par tout éditeur de texte.
+// Déchiffrement transparent à l'import par l'application.
+// ═══════════════════════════════════════════════════════════════
+
+const DossierCrypto = {
+    // Clé applicative fixe (sel + passphrase interne — pas un secret utilisateur)
+    _APP_KEY: 'TherapeuteIA-CConceptDev-2026-Dossier-Patient-Secure',
+    _MAGIC: 'TIADOSSIER_ENC_V1', // Marqueur de fichier chiffré
+
+    /**
+     * Dérive une clé AES-256 depuis la passphrase applicative
+     */
+    async _deriveKey() {
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw', encoder.encode(this._APP_KEY), 'PBKDF2', false, ['deriveKey']
+        );
+        return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: encoder.encode('therapeute-ia-salt-v1'), iterations: 100000, hash: 'SHA-256' },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    },
+
+    /**
+     * Chiffre un objet JSON → string base64 illisible
+     */
+    async encrypt(data) {
+        try {
+            const key = await this._deriveKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encoded = new TextEncoder().encode(JSON.stringify(data));
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, encoded);
+
+            // Combiner IV + données chiffrées
+            const combined = new Uint8Array(iv.length + encrypted.byteLength);
+            combined.set(iv, 0);
+            combined.set(new Uint8Array(encrypted), iv.length);
+
+            // Convertir en base64
+            const base64 = btoa(String.fromCharCode(...combined));
+
+            // Enveloppe JSON avec marqueur
+            return JSON.stringify({
+                _encrypted: true,
+                _magic: this._MAGIC,
+                _v: 1,
+                payload: base64
+            });
+        } catch (e) {
+            console.error('[DossierCrypto] ❌ Erreur chiffrement:', e);
+            // Fallback : export en clair si le chiffrement échoue
+            return JSON.stringify(data, null, 2);
+        }
+    },
+
+    /**
+     * Déchiffre un string chiffré → objet JSON
+     */
+    async decrypt(jsonString) {
+        try {
+            const wrapper = JSON.parse(jsonString);
+
+            // Si ce n'est pas chiffré, retourner tel quel
+            if (!wrapper._encrypted || wrapper._magic !== this._MAGIC) {
+                return wrapper;
+            }
+
+            const key = await this._deriveKey();
+            const combined = Uint8Array.from(atob(wrapper.payload), c => c.charCodeAt(0));
+
+            // Extraire IV (12 premiers octets) et données
+            const iv = combined.slice(0, 12);
+            const encryptedData = combined.slice(12);
+
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, encryptedData);
+            const decoded = new TextDecoder().decode(decrypted);
+            return JSON.parse(decoded);
+        } catch (e) {
+            console.error('[DossierCrypto] ❌ Erreur déchiffrement:', e);
+            throw new Error('Impossible de déchiffrer le dossier. Fichier corrompu ou incompatible.');
+        }
+    },
+
+    /**
+     * Détecte si un contenu est chiffré
+     */
+    isEncrypted(jsonString) {
+        try {
+            const parsed = JSON.parse(jsonString);
+            return parsed._encrypted === true && parsed._magic === this._MAGIC;
+        } catch (e) {
+            return false;
+        }
+    }
+};
+
+window.DossierCrypto = DossierCrypto;
+
 /**
  * Génère un ID unique pour un dossier patient : PAT-{initiales}{age}-{hash4}
  */
@@ -3824,9 +3927,27 @@ function handleDossierResumeFile(fileInput) {
     console.log('[Dossier] 📥 Chargement fichier:', file.name);
     
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
-            const data = JSON.parse(e.target.result);
+            const rawContent = e.target.result;
+            
+            // ═══ DÉCHIFFREMENT — détecter et déchiffrer si nécessaire ═══
+            let data;
+            if (DossierCrypto.isEncrypted(rawContent)) {
+                console.log('[Dossier] 🔐 Fichier chiffré détecté, déchiffrement...');
+                try {
+                    data = await DossierCrypto.decrypt(rawContent);
+                    console.log('[Dossier] ✅ Déchiffrement réussi');
+                } catch (cryptoErr) {
+                    console.error('[Dossier] ❌ Déchiffrement échoué:', cryptoErr);
+                    if (typeof showToast === 'function') {
+                        showToast('Impossible de déchiffrer le dossier. Fichier corrompu ou incompatible.', 'error');
+                    }
+                    return;
+                }
+            } else {
+                data = JSON.parse(rawContent);
+            }
             
             // Vérifier le format
             if (data._format !== 'therapeute-ia-collab-dossier') {
@@ -3956,7 +4077,7 @@ function closeDossierConfirm() {
 /**
  * PHASE 2 — Export JSON dossier collab cumulatif
  */
-function exportCollabDossier() {
+async function exportCollabDossier() {
     if (!window._collabDossier) {
         console.warn('[Dossier] Pas de dossier actif, export standard');
         return false; // signale qu'il faut utiliser l'export standard
@@ -4030,7 +4151,11 @@ function exportCollabDossier() {
         };
         
         const json = JSON.stringify(exportData, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
+        
+        // ═══ CHIFFREMENT — rendre le JSON illisible ═══
+        const encryptedContent = await DossierCrypto.encrypt(exportData);
+        
+        const blob = new Blob([encryptedContent], { type: 'application/json' });
         const a = document.createElement('a');
         const dateStr = new Date().toISOString().slice(0, 10);
         const initClean = window._collabDossier.initiales.replace(/\./g, '').replace(/\s/g, '');
@@ -35495,7 +35620,23 @@ async function v19ResumeFromWelcome(fileInput) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
-            const data = JSON.parse(e.target.result);
+            const rawContent = e.target.result;
+            
+            // ═══ DÉCHIFFREMENT — détecter et déchiffrer si nécessaire ═══
+            let data;
+            if (window.DossierCrypto && DossierCrypto.isEncrypted(rawContent)) {
+                console.log('[Resume] 🔐 Fichier chiffré détecté, déchiffrement...');
+                try {
+                    data = await DossierCrypto.decrypt(rawContent);
+                    console.log('[Resume] ✅ Déchiffrement réussi');
+                } catch (cryptoErr) {
+                    console.error('[Resume] ❌ Déchiffrement échoué:', cryptoErr);
+                    alert('Impossible de déchiffrer le dossier. Fichier corrompu ou incompatible.');
+                    return;
+                }
+            } else {
+                data = JSON.parse(rawContent);
+            }
             
             // ═══ FORMAT COLLAB-DOSSIER : rediriger vers le mode collab ═══
             if (data._format === 'therapeute-ia-collab-dossier') {
