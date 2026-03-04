@@ -286,6 +286,7 @@
                         <option value="cft">CFT</option>
                         <option value="dbt">DBT</option>
                         <option value="emdr">EMDR</option>
+                        <option value="hypnosis">Hypnose Ericksonienne</option>
                         <option value="icv">ICV</option>
                         <option value="systemic">Systémique</option>
                         <option value="coherence">Cohérence</option>
@@ -333,6 +334,11 @@
                     <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
                         <div style="font-weight:700;color:#7A9A9C;font-size:13px;">EMDR — Eye Movement Desensitization and Reprocessing</div>
                         <div style="font-size:12px;color:#555;margin-top:4px;">Désensibilisation et retraitement par mouvements oculaires (Francine Shapiro). Stimulation bilatérale (visuelle, auditive ou tactile) pendant le rappel d'un souvenir traumatique pour faciliter son retraitement.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Hypnose Ericksonienne</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Milton H. Erickson, développée en France par François Roustang, Antoine Bioy, Gérard Megglé. État de concentration focalisée et de réceptivité accrue que le patient crée lui-même avec le guidage du thérapeute. Langage permissif ("vous pouvez peut-être..."), présuppositions ("quand vous serez prêt..."), métaphores thérapeutiques, saupoudrage. Techniques : induction par fixation, relaxation progressive, confusion bénigne, ancrage ressource, approfondissement fractionné. Indications principales : anxiété, douleur chronique (hypno-analgésie), troubles du sommeil, phobies, trauma (complémentaire EMDR), psychosomatique. Contre-indiquée en cas de psychose active, épisode maniaque ou dissociation sévère.</div>
+                        <div style="font-size:11px;color:#8FAFB1;margin-top:6px;font-weight:600;">▸ Auteurs clés : Erickson, Roustang, Bioy, Megglé, Benhaiem — Concepts : induction, transe, ancrage, suggestion post-hypnotique, auto-hypnose, hypno-analgésie, gant anesthésique, binaurale thêta</div>
                     </div>
                     <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
                         <div style="font-weight:700;color:#7A9A9C;font-size:13px;">ICV — Intégration du Cycle de Vie (Lifespan Integration)</div>
@@ -389,6 +395,11 @@
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">TIPP</b> — Température, Intense exercise, Paced breathing, Progressive relaxation. Technique DBT de régulation rapide.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">MRI</b> — Mental Research Institute (Palo Alto). École systémique fondée par Bateson, Jackson, Watzlawick. Focus sur les tentatives de solution.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Juxtaposition</b> — Concept clé de la thérapie de la cohérence (Ecker). Tenir simultanément la croyance ancienne et l'expérience contradictoire pour ouvrir la reconsolidation.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Ancrage (hypnose)</b> — Association entre un stimulus (geste, mot, respiration) et un état intérieur ressource. Une fois posé, le geste permet de retrouver l'état en quelques secondes.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Auto-hypnose</b> — Protocole en 5 étapes (posture → compte 5→1 → lieu sûr → suggestion → retour 1→5). Exercice inter-séances HYPNO_SELF_HYPNOSIS dans le Thérapeute IA.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Binaurale (thêta)</b> — Sons binauraux à battement de 6 Hz (fréquence thêta) pour faciliter l'induction hypnotique. Implémentée dans le HypnosisModule du Thérapeute IA.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Gant anesthésique</b> — Technique d'hypno-analgésie : suggestion d'engourdissement de la main puis transfert sur la zone douloureuse. Pertinent pour la douleur chronique.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Saupoudrage</b> — Technique Ericksonienne : insertion de suggestions hypnotiques dans la conversation ordinaire via changements de ton, pauses, emphase vocale sur des mots-clés.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Question miracle</b> — Technique de Steve de Shazer. "Si le problème disparaissait cette nuit, à quoi le remarqueriez-vous demain ?" Oriente vers la solution.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Externalisation</b> — Technique narrative (Michael White). Séparer le problème de la personne : "Ce n'est pas vous le problème, c'est le problème qui s'est installé."</div>
                 </div>
@@ -521,7 +532,7 @@ function renderQueue() {
 function renderMetaForm(q) {
     return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
-            ${['general','schema_therapy','act','ifs','coherence','emdr','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic']
+            ${['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic']
                 .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
         </select>
         <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
@@ -1021,7 +1032,7 @@ function deleteBookByIndex(idx) {
 
 // ── Modifier les métadonnées d'un livre ──
 async function editBookMeta(bookId, title, currentApproach, currentAuthor, currentLang) {
-    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic'];
+    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic'];
     
     // Créer un mini-formulaire en overlay
     const overlay = document.createElement('div');
@@ -1246,6 +1257,7 @@ function autoDetectMeta(pages, filename) {
         'trauma': ['trauma', 'ptsd', 'van der kolk', 'herman', 'dissociation', 'traumatisme'],
         'psychodynamic': ['psychodynamique', 'transfert', 'inconscient', 'pulsion', 'freud'],
         'systemic': ['systémique', 'famille', 'neuburger', 'homéostasie', 'double lien'],
+        'hypnosis': ['hypnose', 'hypnotique', 'transe', 'erickson', 'roustang', 'bioy', 'megglé', 'induction', 'suggestion hypnotique', 'auto-hypnose', 'hypnothérapie', 'état modifié', 'saupoudrage', 'ancrage ressource', 'hypno-analgésie', 'benhaiem', 'état hypnotique'],
     };
     
     let bestMatch = { approach: 'general', score: 0 };
