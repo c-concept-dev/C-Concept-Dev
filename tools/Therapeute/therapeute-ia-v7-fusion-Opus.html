@@ -16608,7 +16608,9 @@ class LibraryRAG {
                 body: JSON.stringify({
                     query,
                     topK: options.topK || 3,
+                    // Exclure systématiquement les chunks hypnose — Thérapeute IA est PSY, pas hypnothérapeute
                     approach: options.approach || undefined,
+                    exclude_approach: 'hypnosis',
                     language: options.language || undefined,
                 })
             });
@@ -16638,13 +16640,15 @@ class LibraryRAG {
         const query = this._extractSearchQuery(userMessage);
         if (!query) return null;
 
-        const results = await this.search(query);
-        if (!results || results.length === 0) return null;
+        const results = await this.search(query, { exclude_approach: 'hypnosis' });
+        // Filtre de sécurité côté client — exclure chunks hypnose (pas pertinents pour PSY)
+        const filtered = (results || []).filter(r => r.approach !== 'hypnosis');
+        if (!filtered || filtered.length === 0) return null;
 
         let context = '\n═══ RÉFÉRENCES BIBLIOTHÈQUE THÉRAPEUTIQUE ═══\n';
         context += '(Passages pertinents — utilise-les pour enrichir ton intervention, sans citer les sources au patient sauf s\'il demande.)\n\n';
 
-        for (const r of results) {
+        for (const r of filtered) {
             context += `── ${r.book_title} (${r.author})${r.page ? ', p.' + r.page : ''} ──\n`;
             context += r.content.substring(0, 400) + (r.content.length > 400 ? '...' : '') + '\n\n';
         }
