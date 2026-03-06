@@ -15841,7 +15841,7 @@ class PostSessionManager {
         if (profile) {
             profile.updateFromDetectors();
             profile.addSessionNote(
-                `Séance ${Math.round(session.getElapsedMinutes())}min, ${session.exchangeCount} échanges. Approches : ${note.approaches_used.join(', ')}. ${note.alerts.length > 0 ? 'ALERTES: ' + note.alerts.join('; ') : 'Pas d\'alerte.'}`,
+                `Séance ${Math.round(session.getElapsedMinutes())}min, ${session.exchangeCount} échanges. Approches : ${note.approaches_used.join(', ')}. ${note.alerts.length > 0 ? 'ALERTES: ' + note.alerts.join('; ') : "Pas d'alerte."}`,
                 approaches,
                 note.alerts
             );
@@ -22245,7 +22245,7 @@ console.log('🧠 Chargement des modules psychologiques...');
  * - API publique complète
  * 
  * Dépendances:
- * - Meyda.js (~30 KB) - https://cdn.jsdelivr.net/npm/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6508001c010425504b534b55">[email&#160;protected]</a>/dist/web/meyda.min.js
+ * - Meyda.js (~30 KB) - https://cdn.jsdelivr.net/npm/meyda@5.6.0/dist/web/meyda.min.js
  * - IndexedDB (natif)
  * - Web Audio API (natif)
  * 
@@ -22397,7 +22397,7 @@ class AudioProcessor {
         
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="84e9e1fde0e5c4b1aab2aab4">[email&#160;protected]</a>/dist/web/meyda.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/meyda@5.6.0/dist/web/meyda.min.js';
             script.onload = () => {
                 console.log('[AudioProcessor] ✅ Meyda loaded');
                 resolve();
@@ -23262,7 +23262,7 @@ console.log('✅ Module 23 - Audio Processing Foundation loaded');
  * - Performance adaptative (desktop/mobile)
  * 
  * Dépendances:
- * - face-api.js (~300 KB) - https://cdn.jsdelivr.net/npm/@vladmandic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="57313634327a36273e17667960796665">[email&#160;protected]</a>/dist/face-api.min.js
+ * - face-api.js (~300 KB) - https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js
  * - Models: TinyFaceDetector (~200 KB)
  * - IndexedDB (natif)
  * - MediaStream API (natif)
@@ -23315,7 +23315,7 @@ const VideoConfig = {
     storeName: 'videoFrames',
     
     // Models path
-    modelsPath: 'https://cdn.jsdelivr.net/npm/@vladmandic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0b6d6a686e266a7b624b3a253c253a39">[email&#160;protected]</a>/model'
+    modelsPath: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model'
 };
 
 // ============================================================================
@@ -32239,7 +32239,7 @@ async function initMLModules() {
         // 2. Charger face-api.js models (TinyFaceDetector + Landmarks + Expressions)
         if (typeof faceapi !== 'undefined') {
             console.log('[Phase 2] 📦 Loading face-api.js models...');
-            const modelsPath = 'https://cdn.jsdelivr.net/npm/@vladmandic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e88e898b8dc5899881a8d9c6dfc6d9da">[email&#160;protected]</a>/model';
+            const modelsPath = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
             
             try {
                 await Promise.all([
@@ -32413,7 +32413,7 @@ button:active {
 </style>
 
 <!-- v16.7 AUTO-SAVE RESTORATION -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // Vérifier backup auto-save au chargement
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[v16.7] Checking for auto-save backup...');
@@ -35304,6 +35304,2440 @@ class BrainBuilderUltimate {
 // End of BrainBuilderUltimate
 }
     
+</script>
+
+<!-- Brain Inspector UI + Export System -->
+<script>
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * BRAIN INSPECTOR UI
+ * Visualise le JSON cerveau avec graphiques interactifs
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+class BrainInspectorUI {
+    constructor(brainJSON) {
+        this.brain = brainJSON;
+        this.charts = {};
+    }
+    
+    show() {
+        // Créer modal avec Brain Inspector
+        const modal = document.createElement('div');
+        modal.id = 'brainInspectorModal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 10000; overflow-y: auto;
+            padding: 20px; display: flex; justify-content: center; align-items: flex-start;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 30px; max-width: 1200px; width: 100%; max-height: 90vh; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                    <h1 style="margin: 0; color: #8FAFB1;">🧠 Brain Inspector</h1>
+                    <button onclick="document.getElementById('brainInspectorModal').remove()" 
+                            style="background: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                        ✕ Fermer
+                    </button>
+                </div>
+                
+                <!-- Tabs -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+                    <button class="inspector-tab active" data-tab="overview" style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #8FAFB1; font-weight: bold;">
+                        📊 Overview
+                    </button>
+                    <button class="inspector-tab" data-tab="personality" style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
+                        🧬 Personnalité
+                    </button>
+                    <button class="inspector-tab" data-tab="communication" style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
+                        💬 Communication
+                    </button>
+                    <button class="inspector-tab" data-tab="quality" style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
+                        📈 Qualité
+                    </button>
+                    <button class="inspector-tab" data-tab="json" style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
+                        📄 JSON Brut
+                    </button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div id="inspector-content"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Setup tabs
+        document.querySelectorAll('.inspector-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.inspector-tab').forEach(b => {
+                    b.style.borderBottom = 'none';
+                    b.style.fontWeight = 'normal';
+                    b.classList.remove('active');
+                });
+                btn.style.borderBottom = '3px solid #8FAFB1';
+                btn.style.fontWeight = 'bold';
+                btn.classList.add('active');
+                this.showTab(btn.dataset.tab);
+            });
+        });
+        
+        // Show default tab
+        this.showTab('overview');
+    }
+    
+    showTab(tab) {
+        const content = document.getElementById('inspector-content');
+        
+        switch(tab) {
+            case 'overview':
+                content.innerHTML = this.renderOverview();
+                break;
+            case 'personality':
+                content.innerHTML = this.renderPersonality();
+                this.renderBigFiveRadar();
+                this.renderSchwartzCircle();
+                break;
+            case 'communication':
+                content.innerHTML = this.renderCommunication();
+                break;
+            case 'quality':
+                content.innerHTML = this.renderQuality();
+                this.renderQualityChart();
+                break;
+            case 'json':
+                content.innerHTML = this.renderJSON();
+                break;
+        }
+    }
+    
+    renderOverview() {
+        return `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%); color: white; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top: 0;">🎭 Identité</h3>
+                    <p><strong>Nom:</strong> ${this.brain.identity.display_name}</p>
+                    <p><strong>Rôles:</strong> ${this.brain.identity.roles.primary} ${this.brain.identity.roles.secondary.slice(0, 2).join(', ')}</p>
+                    <p><strong>Langues:</strong> ${this.brain.identity.languages.primary} + ${this.brain.identity.languages.additional.length}</p>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top: 0;">📊 Qualité Données</h3>
+                    <p><strong>Grade:</strong> ${this.brain.data_quality.quality_grade}</p>
+                    <p><strong>Confidence:</strong> ${(this.brain.data_quality.overall_confidence * 100).toFixed(0)}%</p>
+                    <p><strong>Messages:</strong> ${this.brain.data_quality.data_sources.text_messages}</p>
+                    <p><strong>Audio:</strong> ${this.brain.data_quality.data_sources.audio_samples} samples</p>
+                    <p><strong>Vidéo:</strong> ${this.brain.data_quality.data_sources.video_frames} frames</p>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top: 0;">🎯 Top Valeurs</h3>
+                    ${this.brain.values.schwartz.top_values_ranked.slice(0, 3).map((v, i) => `
+                        <p><strong>${i+1}. ${v.name}:</strong> ${v.score}</p>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <h3>💡 Résumé Rapide</h3>
+                <p>${this.brain.temperament.derived_types.descriptive_summary}</p>
+                <p>${this.brain.values.schwartz.values_narrative.extended_paragraph}</p>
+            </div>
+        `;
+    }
+    
+    renderPersonality() {
+        return `
+            <h2 style="color: #8FAFB1;">🧬 Profil Personnalité</h2>
+            
+            <h3>Big Five</h3>
+            <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <canvas id="bigFiveRadar" width="400" height="300"></canvas>
+            </div>
+            
+            <h3>Valeurs Schwartz</h3>
+            <div style="background: white; padding: 20px; border-radius: 8px;">
+                <canvas id="schwartzCircle" width="400" height="400"></canvas>
+            </div>
+            
+            <h3 style="margin-top: 30px;">⚡ Contradictions Humaines</h3>
+            ${this.brain.complexity_profile.core_contradictions.map((c, i) => `
+                <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <strong>${c.tension}</strong><br>
+                    ${c.description}<br>
+                    <em style="color: #666;">Résolution: ${c.resolution_pattern}</em>
+                </div>
+            `).join('')}
+        `;
+    }
+    
+    renderCommunication() {
+        return `
+            <h2 style="color: #8FAFB1;">💬 Style Communication</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px;">
+                    <h3>🎨 Ton Global</h3>
+                    <p><strong>Keywords:</strong> ${this.brain.communication_style.global_tone.keywords.join(', ')}</p>
+                    <p><strong>Formalité:</strong> ${(this.brain.communication_style.global_tone.formality_level * 100).toFixed(0)}%</p>
+                    <p><strong>Longueur moyenne:</strong> ${this.brain.communication_style.global_tone.typical_sentence_length.average_words} mots</p>
+                </div>
+                
+                <div style="background: #E6D7C3; padding: 20px; border-radius: 8px;">
+                    <h3>🔤 Patterns Verbaux</h3>
+                    <p><strong>Openers:</strong> ${this.brain.communication_style.verbal_patterns.typical_openers.join(', ')}</p>
+                    <p><strong>Closers:</strong> ${this.brain.communication_style.verbal_patterns.typical_closers.join(', ')}</p>
+                    <p>✅ Utilise exemples: ${this.brain.communication_style.verbal_patterns.prefers_examples ? 'Oui' : 'Non'}</p>
+                    <p>✅ Utilise métaphores: ${this.brain.communication_style.verbal_patterns.prefers_metaphors ? 'Oui' : 'Non'}</p>
+                </div>
+            </div>
+            
+            <h3>🎭 Variants Contextuels</h3>
+            ${this.brain.operational_variants.modes.map(mode => `
+                <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <strong>${mode.mode.replace(/_/g, ' ').toUpperCase()}</strong><br>
+                    <em>Déclencheurs:</em> ${mode.triggers.slice(0, 5).join(', ')}<br>
+                    <em>Ajustements:</em> ${mode.personality_shift}
+                </div>
+            `).join('')}
+        `;
+    }
+    
+    renderQuality() {
+        return `
+            <h2 style="color: #8FAFB1;">📈 Qualité & Confidence</h2>
+            
+            <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%); color: white; border-radius: 12px; margin-bottom: 30px;">
+                <div style="font-size: 72px; font-weight: bold; margin-bottom: 10px;">
+                    ${this.brain.data_quality.quality_grade}
+                </div>
+                <div style="font-size: 24px;">
+                    Confidence: ${(this.brain.data_quality.overall_confidence * 100).toFixed(0)}%
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <canvas id="qualityChart" width="600" height="300"></canvas>
+            </div>
+            
+            <h3>✅ Aires Haute Confidence</h3>
+            ${this.brain.data_quality.high_confidence_areas.map(area => `
+                <div style="background: #e8f5e9; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <strong>${area.area}</strong> (${(area.confidence * 100).toFixed(0)}%)<br>
+                    <em>${area.reason}</em>
+                </div>
+            `).join('')}
+            
+            <h3>⚠️ Aires Basse Confidence</h3>
+            ${this.brain.data_quality.low_confidence_areas.map(area => `
+                <div style="background: #ffebee; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <strong>${area.area}</strong> (${(area.confidence * 100).toFixed(0)}%)<br>
+                    <em>${area.reason}</em>
+                </div>
+            `).join('')}
+            
+            <h3>💡 Recommandations</h3>
+            ${this.brain.data_quality.recommendations.map(rec => `
+                <p>• ${rec}</p>
+            `).join('')}
+        `;
+    }
+    
+    renderJSON() {
+        return `
+            <h2 style="color: #8FAFB1;">📄 JSON Brut</h2>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('jsonContent').textContent).then(() => alert('✅ JSON copié!'))" 
+                    style="background: #8FAFB1; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">
+                📋 Copier JSON
+            </button>
+            <pre id="jsonContent" style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; max-height: 600px; font-size: 12px;">${JSON.stringify(this.brain, null, 2)}</pre>
+        `;
+    }
+    
+    renderBigFiveRadar() {
+        const ctx = document.getElementById('bigFiveRadar').getContext('2d');
+        
+        const data = {
+            labels: ['Ouverture', 'Conscience', 'Extraversion', 'Agréabilité', 'Stabilité émot.'],
+            datasets: [{
+                label: 'Big Five',
+                data: [
+                    this.brain.temperament.big_five.O.score * 100,
+                    this.brain.temperament.big_five.C.score * 100,
+                    this.brain.temperament.big_five.E.score * 100,
+                    this.brain.temperament.big_five.A.score * 100,
+                    (1 - this.brain.temperament.big_five.N.score) * 100
+                ],
+                backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                borderColor: 'rgba(102, 126, 234, 1)',
+                borderWidth: 2,
+                pointBackgroundColor: 'rgba(102, 126, 234, 1)'
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'radar',
+            data: data,
+            options: {
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    renderSchwartzCircle() {
+        const ctx = document.getElementById('schwartzCircle').getContext('2d');
+        
+        const schwartzDimensions = Object.entries(this.brain.values.schwartz.dimension_scores || {});
+        const labels = schwartzDimensions.map(([key, _]) => key.replace('_', '-'));
+        const values = schwartzDimensions.map(([_, value]) => value * 100);
+        
+        const data = {
+            labels: labels,
+            datasets: [{
+                label: 'Valeurs Schwartz',
+                data: values,
+                backgroundColor: 'rgba(118, 75, 162, 0.2)',
+                borderColor: 'rgba(118, 75, 162, 1)',
+                borderWidth: 2,
+                pointBackgroundColor: 'rgba(118, 75, 162, 1)'
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'radar',
+            data: data,
+            options: {
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    renderQualityChart() {
+        const ctx = document.getElementById('qualityChart').getContext('2d');
+        
+        const highConfidence = this.brain.data_quality.high_confidence_areas.map(a => ({
+            area: a.area,
+            confidence: a.confidence * 100
+        }));
+        
+        const mediumConfidence = this.brain.data_quality.medium_confidence_areas.map(a => ({
+            area: a.area,
+            confidence: a.confidence * 100
+        }));
+        
+        const lowConfidence = this.brain.data_quality.low_confidence_areas.map(a => ({
+            area: a.area,
+            confidence: a.confidence * 100
+        }));
+        
+        const allAreas = [...highConfidence, ...mediumConfidence, ...lowConfidence];
+        
+        const data = {
+            labels: allAreas.map(a => a.area),
+            datasets: [{
+                label: 'Confidence (%)',
+                data: allAreas.map(a => a.confidence),
+                backgroundColor: allAreas.map(a => {
+                    if (a.confidence >= 80) return 'rgba(76, 175, 80, 0.8)';
+                    if (a.confidence >= 60) return 'rgba(255, 152, 0, 0.8)';
+                    return 'rgba(244, 67, 54, 0.8)';
+                }),
+                borderColor: '#8FAFB1',
+                borderWidth: 1
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * EXPORT SYSTEM
+ * Génère ZIP avec 4 fichiers
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+// ============================================================================
+// V19 — PAUSE / RESUME SESSION FUNCTIONS
+// ============================================================================
+
+/**
+ * V19: Toggle self-view — masque la vidéo pour le sujet tout en gardant la caméra active
+ * L'analyse vidéo (face-api, expressions) continue de tourner normalement
+ */
+function v19ToggleSelfView() {
+    const video = document.getElementById('video-preview');
+    const overlay = document.getElementById('v19-self-hidden-overlay');
+    const btn = document.getElementById('v19-hide-self-btn');
+    
+    if (!video) return;
+    
+    const isHidden = video.style.opacity === '0';
+    
+    if (isHidden) {
+        // Réafficher la vidéo
+        video.style.opacity = '1';
+        if (overlay) overlay.style.display = 'none';
+        if (btn) btn.textContent = '👁';
+        if (btn) btn.title = 'Masquer ma vidéo (caméra reste active)';
+        console.log('[V19] 👁 Self-view restored');
+    } else {
+        // Masquer la vidéo — caméra et analyse restent actives
+        video.style.opacity = '0';
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+        if (btn) btn.textContent = '👁‍🗨';
+        if (btn) btn.title = 'Réafficher ma vidéo';
+        console.log('[V19] 👁‍🗨 Self-view hidden (camera still active)');
+    }
+}
+
+function v19PauseExport() {
+    console.log('[Session] Sauvegarde manuelle');
+    if (window._operatingMode === 'collaborateur' && window.SupervisionMemory) {
+        const cs = window.conversationalSystem || window.convSystem;
+        if (cs && cs.messages) { window.SupervisionMemory.saveSession(cs.messages); }
+    }
+    // ═══ DOSSIER COLLAB : utiliser l'export dossier si un dossier est actif ═══
+    if (window._operatingMode === 'collaborateur' && window._collabDossier) {
+        exportCollabDossier();
+        return;
+    }
+    if (window.conversationalSystem && window.conversationalSystem._exportSessionJSON) {
+        window.conversationalSystem._exportSessionJSON();
+    } else {
+        const cs = window.conversationalSystem || window.convSystem;
+        const num = window._currentSessionNumber || 1;
+        const json = JSON.stringify({
+            _format: 'therapeute-ia-session', _version: '3.0',
+            _exported: new Date().toISOString(),
+            metadata: { sessionNumber: num },
+            sessionHistory: window._sessionHistory || [],
+            messages: cs ? cs.messages : [],
+            patient_profile: window.patientProfile ? window.patientProfile.profile : null
+        }, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'suivi-therapeutique_seance-' + num + '_' + new Date().toISOString().slice(0,10) + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        if (typeof showToast === 'function') showToast('Fichier de suivi telecharge', 'success');
+    }
+}
+
+async function v19ResumeFromWelcome(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileInput.value = '';
+    
+    console.log('[Resume] 📥 Loading session file:', file.name);
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const rawContent = e.target.result;
+            
+            // ═══ DÉCHIFFREMENT — détecter et déchiffrer si nécessaire ═══
+            let data;
+            if (window.DossierCrypto && DossierCrypto.isEncrypted(rawContent)) {
+                console.log('[Resume] 🔐 Fichier chiffré détecté, déchiffrement...');
+                try {
+                    data = await DossierCrypto.decrypt(rawContent);
+                    console.log('[Resume] ✅ Déchiffrement réussi');
+                } catch (cryptoErr) {
+                    console.error('[Resume] ❌ Déchiffrement échoué:', cryptoErr);
+                    alert('Impossible de déchiffrer le dossier. Fichier corrompu ou incompatible.');
+                    return;
+                }
+            } else {
+                data = JSON.parse(rawContent);
+            }
+            
+            // ═══ FORMAT COLLAB-DOSSIER : rediriger vers le mode collab ═══
+            if (data._format === 'therapeute-ia-collab-dossier') {
+                console.log('[Resume] 📋 Format dossier collab détecté v' + data._version);
+                window._operatingMode = 'collaborateur';
+                
+                // Charger le dossier via le système clé-serrure
+                const dossier = data.dossier;
+                if (!dossier || !dossier.patientDossierID) {
+                    alert('Dossier collab corrompu : identifiant manquant.');
+                    return;
+                }
+                
+                // Charger directement
+                loadDossierFromJSON(data);
+                return;
+            }
+            
+            // ═══ NOUVEAU FORMAT : therapeute-ia-session ═══
+            if (data._format === 'therapeute-ia-session') {
+                console.log('[Resume] 📤 Format Thérapeute IA détecté v' + data._version);
+                
+                // Passer directement en mode séance
+                const welcomeScreen = document.getElementById('welcome-screen');
+                const interviewScreen = document.getElementById('interview-screen');
+                if (welcomeScreen) welcomeScreen.classList.remove('active');
+                if (interviewScreen) interviewScreen.classList.add('active');
+                
+                // Lancer le système
+                if (window.conversationalSystem) {
+                    window.conversationalSystem.presentationPlayed = true;
+                    await window.sessionExporter.importSession(data);
+                    
+                    // Afficher les piliers
+                    const dashboard = document.getElementById('v19-pillar-dashboard');
+                    if (dashboard) dashboard.style.display = 'block';
+                } else {
+                    // Stocker pour quand le système sera prêt
+                    window._pendingSessionImport = data;
+                    showModeSelection();
+                }
+                return;
+            }
+            
+            // ═══ ANCIEN FORMAT V19 (compatibilité) ═══
+            if (!data.version && !data.completeness && !data.conversation) {
+                alert('Format de session non reconnu.');
+                return;
+            }
+            
+            const qCount = data.conversation?.questionCount || 0;
+            const msgCount = data.conversation?.messages?.length || 0;
+            
+            window._pendingSessionRestore = data;
+            showModeSelection();
+            
+            const continueBtn = document.getElementById('modal-continue-btn');
+            if (continueBtn) {
+                continueBtn.innerHTML = `📥 Reprendre la session (${qCount}Q, ${msgCount} messages)`;
+            }
+            
+            if (typeof showToast === 'function') {
+                showToast(`Session chargée — choisissez votre mode puis cliquez Continuer`, 'info');
+            }
+            
+        } catch (err) {
+            console.error('[Resume] ❌ JSON parse failed:', err);
+            alert('Erreur de lecture du fichier: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Restaurer les données dans tous les modules V19
+function v19RestoreSessionData(sessionState) {
+    // PersonalityCompletenessTracker
+    if (sessionState.completeness && window.personalityTracker) {
+        try { window.personalityTracker.fromJSON(sessionState.completeness); }
+        catch(e) { console.warn('[V19-FIX] PCTracker restore:', e.message); }
+    }
+    
+    // ConversationalSystem state
+    const cs = window.conversationalSystem;
+    if (cs && sessionState.conversation) {
+        cs.messages = sessionState.conversation.messages || [];
+        cs.responses = sessionState.conversation.responses || [];
+        cs.exploredThemes = new Set(sessionState.conversation.exploredThemes || []);
+        cs.themeDepth = sessionState.conversation.themeDepth || {};
+        cs.questionCount = sessionState.conversation.questionCount || 0;
+        cs.bigFivePreliminary = sessionState.conversation.bigFivePreliminary || cs.bigFivePreliminary;
+    }
+    
+    // DeepPersonalityAnalyzer
+    if (sessionState.analysis?.deepPersonality && window.deepPersonalityAnalyzer) {
+        const dp = sessionState.analysis.deepPersonality;
+        window.deepPersonalityAnalyzer.reticenceScore = dp.reticenceScore || 0;
+        window.deepPersonalityAnalyzer.currentStrategy = dp.currentStrategy || 'direct';
+        window.deepPersonalityAnalyzer.verbalContradictions = dp.verbalContradictions || [];
+        window.deepPersonalityAnalyzer.evasionPatterns = dp.evasionPatterns || [];
+    }
+    
+    // Tous les modules V19 avec try/catch individuel
+    const moduleMap = {
+        linguistic: 'linguisticAnalyzer',
+        schemas: 'schemaDetector',
+        defenses: 'defenseDetector',
+        attachment: 'attachmentAnalyzer',
+        hexaco: 'hexacoAnalyzer',
+        motivation: 'motivationAnalyzer'
+    };
+    for (const [dataKey, globalName] of Object.entries(moduleMap)) {
+        if (sessionState.analysis?.[dataKey] && window[globalName]?.fromJSON) {
+            try { window[globalName].fromJSON(sessionState.analysis[dataKey]); }
+            catch(e) { console.warn(`[V19-FIX] ${globalName} restore:`, e.message); }
+        }
+    }
+    
+    console.log('[V19-FIX] ✅ All modules restored');
+}
+
+// Recréer le chat UI à partir des messages sauvegardés
+function v19RestoreChatUI(messages) {
+    const container = document.getElementById('messages-container');
+    if (!container) {
+        console.error('[V19-FIX] ❌ messages-container not found!');
+        return;
+    }
+    
+    // Vider le chat
+    container.innerHTML = '';
+    
+    if (!messages.length) {
+        console.log('[V19-FIX] No messages to restore');
+        return;
+    }
+    
+    for (const msg of messages) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${msg.role}`;
+        
+        // Avatar pour assistant
+        if (msg.role === 'assistant') {
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = '🧠';
+            messageDiv.appendChild(avatar);
+        }
+        
+        // Contenu
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = msg.content || '';
+        messageDiv.appendChild(contentDiv);
+        
+        // Timestamp
+        const ts = document.createElement('div');
+        ts.className = 'message-timestamp';
+        ts.textContent = msg.timestamp 
+            ? new Date(msg.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})
+            : '';
+        messageDiv.appendChild(ts);
+        
+        container.appendChild(messageDiv);
+    }
+    
+    container.scrollTop = container.scrollHeight;
+    console.log('[V19-FIX] Chat UI restored:', messages.length, 'messages in messages-container');
+}
+
+// Générer un message de reprise contextuel via Claude API
+async function v19GenerateResumeMessage(convSystem) {
+    const messages = convSystem.messages || [];
+    const qCount = convSystem.questionCount || 0;
+    const WORKER_URL = convSystem.WORKER_URL || window.CONFIG?.WORKER_URL || 'https://clone-proxy.11drumboy11.workers.dev/';
+    
+    // Extraire les derniers échanges (max 6 messages) pour le contexte
+    const lastMessages = messages.slice(-6).map(m => ({
+        role: m.role,
+        content: m.content
+    }));
+    
+    // Si pas assez de contexte, fallback simple
+    if (lastMessages.length <= 1) {
+        console.log('[V19-FIX] Pas assez de contexte — relance simple');
+        await convSystem.addMessage('assistant', 
+            'Rebonjour ! On reprend notre conversation. Je suis prêt à continuer. Qu\'est-ce qui te vient à l\'esprit ?'
+        );
+        return;
+    }
+    
+    try {
+        console.log('[V19-FIX] 🧠 Generating contextual resume message via API...');
+        
+        const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                payload: {
+                    provider: 'anthropic',
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 150,
+                    temperature: 0.7,
+                    system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
+Tu dois générer UNE SEULE phrase de reprise naturelle et chaleureuse qui :
+1. Salue la personne (Rebonjour / Content de te retrouver)
+2. Rappelle brièvement le dernier sujet abordé, EN CITANT un élément précis de ce qu'elle a dit
+3. Relance naturellement la conversation sur ce fil
+
+Exemples de bonnes relances :
+- "Rebonjour ! La dernière fois, tu me parlais de ta relation avec ton père et tu disais que l'autorité te posait problème. J'aimerais creuser ça — qu'est-ce qui se passe en toi quand quelqu'un te donne un ordre ?"
+- "Content de te retrouver ! On en était à tes choix de carrière, tu mentionnais cette tension entre sécurité et passion. Qu'est-ce qui a bougé depuis ?"
+
+RÈGLES :
+- UNE seule phrase, max 2 lignes
+- Tutoiement
+- Naturel, pas robotique
+- Termine par une question ouverte qui reprend le fil`,
+                    messages: [
+                        ...lastMessages,
+                        { 
+                            role: 'user', 
+                            content: `[SYSTÈME : La session a été mise en pause après ${qCount} questions. L'utilisateur vient de la reprendre. Génère ta phrase de reprise basée sur les échanges ci-dessus.]` 
+                        }
+                    ]
+                }
+            })
+        });
+        
+        if (!response.ok) throw new Error('API ' + response.status);
+        
+        const data = await response.json();
+        let resumeText = '';
+        
+        if (data?.content && Array.isArray(data.content)) {
+            resumeText = data.content.filter(c => c.type === 'text').map(c => c.text).join('').trim();
+        } else if (typeof data?.content === 'string') {
+            resumeText = data.content.trim();
+        }
+        
+        if (!resumeText) throw new Error('Empty response');
+        
+        // Afficher via ConversationalSystem (avec TTS)
+        await convSystem.addMessage('assistant', resumeText);
+        console.log('[V19-FIX] ✅ Contextual resume message:', resumeText.substring(0, 80) + '...');
+        
+    } catch (err) {
+        console.warn('[V19-FIX] ⚠️ API resume failed, fallback:', err.message);
+        // Fallback statique
+        await convSystem.addMessage('assistant',
+            'Rebonjour ! On reprend notre conversation là où on en était. Qu\'est-ce qui te vient à l\'esprit ?'
+        );
+    }
+}
+
+// L'ancienne fonction pour le bouton dans l'interview screen
+function v19ResumeSession(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileInput.value = '';
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const sessionState = JSON.parse(e.target.result);
+            if (!sessionState.version && !sessionState.completeness) {
+                alert('Format de session non reconnu.');
+                return;
+            }
+            
+            v19RestoreSessionData(sessionState);
+            v19RestoreChatUI(sessionState.conversation?.messages || []);
+            
+            const cs = window.conversationalSystem;
+            if (cs) { cs.isProcessing = false; cs.updateStats(); }
+            
+            const v19Dashboard = document.getElementById('v19-pillar-dashboard');
+            if (v19Dashboard) v19Dashboard.style.display = 'block';
+            
+            const tracker = window.personalityTracker;
+            const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
+            if (typeof showToast === 'function') {
+                showToast(`✅ Session restaurée ! ${sessionState.conversation?.questionCount || 0}Q, ${completeness}%`, 'success');
+            }
+        } catch (err) {
+            console.error('[V19-FIX] ❌ Resume failed:', err);
+            alert('Erreur: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+class ExportSystem {
+    constructor(brainJSON, megaPromptHTML, miniPrompt) {
+        this.brainJSON = brainJSON;
+        this.megaPromptHTML = megaPromptHTML;
+        this.miniPrompt = miniPrompt;
+    }
+    
+    async generateZIP() {
+        console.log('[ExportSystem] 📦 Generating ZIP export...');
+        
+        // Nécessite JSZip (à charger depuis CDN si pas déjà présent)
+        if (typeof JSZip === 'undefined') {
+            console.error('[ExportSystem] JSZip not loaded!');
+            alert('❌ JSZip library not loaded. Cannot create ZIP.');
+            return;
+        }
+        
+        const zip = new JSZip();
+        
+        // Fichier 1: clone_brain.json
+        zip.file('clone_brain.json', JSON.stringify(this.brainJSON, null, 2));
+        
+        // Fichier 2: clone_instructions.html
+        zip.file('clone_instructions.html', this.megaPromptHTML);
+        
+        // Fichier 3: clone_mini_prompt.txt
+        zip.file('clone_mini_prompt.txt', this.miniPrompt);
+        
+        // Fichier 4: README.md
+        const readme = this.generateREADME();
+        zip.file('README.md', readme);
+        
+        // Générer ZIP
+        const content = await zip.generateAsync({type: 'blob'});
+        
+        // Télécharger
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `clone_${this.brainJSON.identity.display_name.replace(/\s+/g, '_')}_v${this.brainJSON.meta.schema_version}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('[ExportSystem] ✅ ZIP exported successfully!');
+        alert('✅ Clone exporté avec succès!\n\n4 fichiers dans le ZIP:\n- clone_brain.json\n- clone_instructions.html\n- clone_mini_prompt.txt\n- README.md');
+    }
+    
+    generateREADME() {
+        return `# 🧠 Clone IA - ${this.brainJSON.identity.display_name}
+
+Version ${this.brainJSON.meta.schema_version} | Généré le ${new Date(this.brainJSON.meta.generated_at).toLocaleString('fr-FR')}
+
+## 📦 Contenu du package
+
+Ce ZIP contient tout ce dont vous avez besoin pour utiliser le clone IA de ${this.brainJSON.identity.display_name} :
+
+1. **clone_brain.json** (~300 KB) - Données psychologiques complètes (Big Five, valeurs, style, etc.)
+2. **clone_instructions.html** (~50 KB) - Instructions exhaustives (Mini Prompt + Mega Prompt)
+3. **clone_mini_prompt.txt** (~1 KB) - Prompt court pour Custom Instructions
+4. **README.md** - Ce fichier
+
+## 🚀 Utilisation rapide
+
+### Option 1: ChatGPT
+
+1. Ouvrir ChatGPT → Paramètres → Custom Instructions
+2. Coller le contenu de \`clone_mini_prompt.txt\` dans "How would you like ChatGPT to respond?"
+3. Dans une nouvelle conversation:
+   - Uploader \`clone_brain.json\`
+   - Uploader \`clone_instructions.html\`
+4. Dire: "Lis le JSON cerveau et les instructions, puis réponds comme ${this.brainJSON.identity.display_name.split(' ')[0]}."
+
+### Option 2: Claude (claude.ai)
+
+1. Créer nouvelle conversation
+2. Uploader \`clone_brain.json\` et \`clone_instructions.html\`
+3. Envoyer le Mini Prompt dans le premier message
+4. Dire: "Tu es maintenant ${this.brainJSON.identity.display_name}. Utilise le JSON + instructions."
+
+### Option 3: Gemini
+
+1. Ouvrir Gemini
+2. Uploader les 2 fichiers (JSON + HTML)
+3. Coller Mini Prompt + "Analyse JSON et deviens ce clone"
+
+## 📊 Qualité du clone
+
+- **Grade:** ${this.brainJSON.data_quality.quality_grade}
+- **Confidence:** ${(this.brainJSON.data_quality.overall_confidence * 100).toFixed(0)}%
+- **Messages analysés:** ${this.brainJSON.data_quality.data_sources.text_messages}
+- **Audio samples:** ${this.brainJSON.data_quality.data_sources.audio_samples}
+- **Vidéo frames:** ${this.brainJSON.data_quality.data_sources.video_frames}
+
+## 🎯 Top 3 valeurs
+
+${this.brainJSON.values.schwartz.top_values_ranked.slice(0, 3).map((v, i) => `${i+1}. **${v.name}** (${v.score}) - ${v.explanation}`).join('\n')}
+
+## 🧬 Big Five
+
+- **Ouverture:** ${this.brainJSON.temperament.big_five.O.score}
+- **Conscience:** ${this.brainJSON.temperament.big_five.C.score}
+- **Extraversion:** ${this.brainJSON.temperament.big_five.E.score}
+- **Agréabilité:** ${this.brainJSON.temperament.big_five.A.score}
+- **Stabilité émot.:** ${this.brainJSON.temperament.big_five.N.score}
+
+## ⚡ Astuces d'utilisation
+
+1. **Testez avec questions typiques** pour valider similarité
+2. **Donnez du contexte** au début: "Je veux que tu te comportes exactement comme ${this.brainJSON.identity.display_name.split(' ')[0]}"
+3. **Variants contextuels:** Le clone adapte son style selon contexte (médical, musical, thérapeutique, etc.)
+4. **Longueur réponses:** Optimale entre 80-250 mots
+5. **Utilisez Brain Inspector** dans le Thérapeute IA pour visualiser le profil
+
+## 🔄 Mise à jour
+
+Pour améliorer le clone:
+1. Nouvelle séance thérapeutique (Thérapeute IA)
+2. Fusionner avec version précédente (60% ancien / 40% nouveau)
+3. Comparer évolution traits
+
+## 📞 Support
+
+Créé avec **Thérapeute IA v1.0** - Brain Builder 🧠🚀
+
+Pour questions ou améliorer: revenir dans le Thérapeute IA et démarrer une nouvelle séance.
+
+---
+
+*Généré le ${new Date().toLocaleString('fr-FR')} par Brain Builder ULTIMATE v2.0*
+`;
+    }
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * BOUTON "GÉNÉRER CLONE" - INTÉGRATION FINALE
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+function addGenerateCloneButton() {
+    console.log('[ClonePro] 🎨 Adding Generate Clone button...');
+    
+    // NE PAS afficher le bouton dès le début
+    // Attendre que l'utilisateur ait fait l'interview
+    
+    // On ajoute juste un écouteur pour vérifier périodiquement
+    let buttonAdded = false;
+    
+    const checkInterval = setInterval(() => {
+        // Vérifier si interview en cours et suffisamment de données
+        const memorySystem = window.memorySystem;
+        const conversationalSystem = window.conversationalSystem;
+        
+        if (!memorySystem || !conversationalSystem) {
+            return; // Pas encore initialisé
+        }
+        
+        const messageCount = conversationalSystem.messages ? conversationalSystem.messages.length : 0;
+        const categoryCount = memorySystem.categories ? Object.keys(memorySystem.categories).length : 0;
+        
+        // CONDITION: Au moins 50 messages ET 5+ catégories memory
+        const hasEnoughData = messageCount >= 50 && categoryCount >= 5;
+        
+        if (hasEnoughData && !buttonAdded) {
+            // OK, on peut afficher le bouton maintenant
+            const existingBtn = document.getElementById('generateCloneBtn');
+            if (!existingBtn) {
+                const btn = document.createElement('button');
+                btn.id = 'generateCloneBtn';
+                btn.innerHTML = '🧠 Générer Clone Complet';
+                btn.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 30px;
+                    background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+                    color: white;
+                    border: none;
+                    padding: 15px 30px;
+                    border-radius: 12px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    z-index: 9999;
+                    box-shadow: 0 4px 15px rgba(143, 175, 177, 0.4);
+                    transition: transform 0.3s, box-shadow 0.3s;
+                `;
+                
+                btn.onmouseover = () => {
+                    btn.style.transform = 'scale(1.05)';
+                    btn.style.boxShadow = '0 6px 20px rgba(143, 175, 177, 0.5)';
+                };
+                
+                btn.onmouseout = () => {
+                    btn.style.transform = 'scale(1)';
+                    btn.style.boxShadow = '0 4px 15px rgba(143, 175, 177, 0.4)';
+                };
+                
+                btn.onclick = handleGenerateClone;
+                
+                document.body.appendChild(btn);
+                buttonAdded = true;
+                
+                console.log('[ClonePro] ✅ Generate Clone button added (after interview)');
+                clearInterval(checkInterval);
+            }
+        }
+    }, 2000); // Vérifier toutes les 2 secondes
+}
+
+function showLoadingModal(message) {
+    const modal = document.createElement('div');
+    modal.id = 'loadingModal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center;';
+    modal.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 20px;">🧠</div>
+            <h2 style="margin: 0 0 20px 0;">${message}</h2>
+            <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #8FAFB1; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    document.body.appendChild(modal);
+}
+
+function hideLoadingModal() {
+    const modal = document.getElementById('loadingModal');
+    if (modal) modal.remove();
+}
+
+// Auto-init
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addGenerateCloneButton);
+} else {
+    addGenerateCloneButton();
+}
+
+// ============================================================================
+// v17.3.0 UX: AVATAR ÉVOLUTIF + MODE DÉVELOPPEUR
+// ============================================================================
+
+/**
+ * Avatar de Progression Évolutif v17.3.1
+ * Graine 🌱 → Pousse 🌿 → Arbre 🌳 → Cible Atteinte 🎯
+ * + Tooltip enrichi avec infos temps réel
+ */
+function updateProgressAvatar() {
+    const avatarIcon = document.getElementById('avatar-icon');
+    
+    if (!avatarIcon) return;
+    
+    // v17.3.13: CORRECTIF - Lire concordance-stat (header) au lieu de concordance-progress
+    const concordanceText = document.getElementById('concordance-stat')?.textContent || '0%';
+    const concordance = parseFloat(concordanceText.replace(/[^0-9.]/g, '')) || 0;
+    
+    // Déterminer l'avatar selon la progression
+    let icon = '🌱';  // Graine (0-25%)
+    
+    if (concordance >= 75) {
+        icon = '🎯';  // Cible atteinte (75%+)
+    } else if (concordance >= 50) {
+        icon = '🌳';  // Arbre (50-75%)
+    } else if (concordance >= 25) {
+        icon = '🌿';  // Pousse (25-50%)
+    }
+    
+    avatarIcon.textContent = icon;
+    
+    // Mettre à jour le tooltip enrichi
+    updateAvatarTooltip();
+}
+
+/**
+ * v17.3.15 ULTIMATE: Infobulle INTELLIGENTE avec rotation automatique
+ * Affiche 8 types d'informations pertinentes et didactiques
+ */
+
+// Index de rotation (change tous les 4 secondes)
+let tooltipRotationIndex = 0;
+let tooltipRotationInterval = null;
+
+function updateAvatarTooltip() {
+    // Calculer les métriques
+    const metrics = calculateTooltipMetrics();
+    
+    // Obtenir les infos pour l'index actuel
+    const info = getTooltipInfo(tooltipRotationIndex, metrics);
+    
+    // Mettre à jour le DOM
+    const title = document.getElementById('tooltip-title');
+    const label1 = document.getElementById('tooltip-label-1');
+    const value1 = document.getElementById('tooltip-value-1');
+    const label2 = document.getElementById('tooltip-label-2');
+    const value2 = document.getElementById('tooltip-value-2');
+    const label3 = document.getElementById('tooltip-label-3');
+    const value3 = document.getElementById('tooltip-value-3');
+    
+    if (title) title.textContent = info.title;
+    if (label1) label1.textContent = info.line1.label;
+    if (value1) value1.textContent = info.line1.value;
+    if (label2) label2.textContent = info.line2.label;
+    if (value2) value2.textContent = info.line2.value;
+    if (label3) label3.textContent = info.line3.label;
+    if (value3) value3.textContent = info.line3.value;
+}
+
+/**
+ * Calculer les métriques pour l'infobulle
+ */
+function calculateTooltipMetrics() {
+    if (typeof state === 'undefined') {
+        // Mode Thérapeute IA — state ClonePro non disponible
+        const sm = window.sessionManager;
+        const ctx = sm ? sm.getPhaseContext() : {};
+        return {
+            questions: ctx.exchangeCount || 0,
+            totalWords: 0,
+            timeStr: (ctx.elapsedMinutes || 0) + ':00',
+            concordancePercent: 0,
+            avgWords: 0,
+            style: 'Thérapeutique',
+            richness: 'N/A',
+            engagement: 'Séance active',
+            openness: 'N/A',
+            conscientiousness: 'N/A'
+        };
+    }
+    const responses = state.responses || [];
+    const questions = state.currentQuestionIndex || 0;
+    const totalWords = state.totalWords || 0;
+    
+    // Temps écoulé
+    const startTime = state.startTime || Date.now();
+    const elapsedMs = Date.now() - startTime;
+    const minutes = Math.floor(elapsedMs / 60000);
+    const seconds = Math.floor((elapsedMs % 60000) / 1000);
+    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Concordance
+    let concordance = CONFIG.CONCORDANCE_BASE;
+    if (state.mode === 'audio') concordance = CONFIG.CONCORDANCE_AUDIO;
+    if (state.mode === 'video') concordance = CONFIG.CONCORDANCE_VIDEO;
+    const concordancePercent = Math.round(concordance * 100);
+    
+    // Mots par réponse
+    const avgWords = responses.length > 0 ? Math.round(totalWords / responses.length) : 0;
+    
+    // Style de communication
+    let style = "En analyse";
+    if (avgWords > 50) style = "Narratif";
+    else if (avgWords > 25) style = "Equilibre";
+    else if (avgWords > 0) style = "Concis";
+    
+    // Richesse lexicale (estimation simple)
+    const richness = avgWords > 40 ? "Elevee" : avgWords > 20 ? "Moyenne" : "Standard";
+    
+    // Engagement (basé sur longueur des réponses)
+    let engagement = "Excellent";
+    if (avgWords < 15) engagement = "Moyen";
+    else if (avgWords < 30) engagement = "Bon";
+    
+    // Traits Big Five (simulation basée sur les réponses)
+    let openness = "Moyen";
+    let conscientiousness = "Moyen";
+    if (avgWords > 35) openness = "Eleve";
+    if (responses.length > questions * 0.8) conscientiousness = "Eleve";
+    
+    // Rythme (basé sur temps par question)
+    const avgTimePerQ = responses.length > 0 ? elapsedMs / (responses.length * 1000) : 0;
+    let rhythm = "Reflexif";
+    if (avgTimePerQ < 45) rhythm = "Rapide";
+    else if (avgTimePerQ < 90) rhythm = "Fluide";
+    
+    // Profondeur (basé sur mots + complexité)
+    let depth = avgWords > 40 ? "Introspectif" : avgWords > 20 ? "Analytique" : "Descriptif";
+    
+    return {
+        questions: questions + 1,
+        time: timeStr,
+        concordance: concordancePercent,
+        avgWords,
+        style,
+        richness,
+        engagement,
+        openness,
+        conscientiousness,
+        rhythm,
+        depth,
+        totalResponses: responses.length
+    };
+}
+
+/**
+ * Obtenir les infos à afficher pour un index donné
+ */
+function getTooltipInfo(index, metrics) {
+    const infos = [
+        // 0. Progression temporelle
+        {
+            title: "Progression Séance",
+            line1: { label: "Question", value: `${metrics.questions}/40` },
+            line2: { label: "Temps", value: metrics.time },
+            line3: { label: "Concordance", value: `${metrics.concordance}%` }
+        },
+        // 1. Style de communication
+        {
+            title: "Style Communication",
+            line1: { label: "Type", value: metrics.style },
+            line2: { label: "Mots/reponse", value: `${metrics.avgWords}` },
+            line3: { label: "Richesse", value: metrics.richness }
+        },
+        // 2. Traits Big Five
+        {
+            title: "Traits Personnalite",
+            line1: { label: "Ouverture", value: metrics.openness },
+            line2: { label: "Conscience", value: metrics.conscientiousness },
+            line3: { label: "Engagement", value: metrics.engagement }
+        },
+        // 3. Richesse lexicale
+        {
+            title: "Analyse Lexicale",
+            line1: { label: "Mots totaux", value: `${(typeof state !== "undefined" ? state.totalWords : 0) || 0}` },
+            line2: { label: "Moyenne", value: `${metrics.avgWords}/rep` },
+            line3: { label: "Variete", value: metrics.richness }
+        },
+        // 4. Engagement émotionnel
+        {
+            title: "Engagement Emotionnel",
+            line1: { label: "Niveau", value: metrics.engagement },
+            line2: { label: "Reponses", value: `${metrics.totalResponses}` },
+            line3: { label: "Stabilite", value: "Coherent" }
+        },
+        // 5. Rythme conversationnel
+        {
+            title: "Rythme Conversation",
+            line1: { label: "Fluidite", value: metrics.rhythm },
+            line2: { label: "Duree", value: metrics.time },
+            line3: { label: "Cadence", value: "Naturelle" }
+        },
+        // 6. Profondeur réflexive
+        {
+            title: "Profondeur Reflexion",
+            line1: { label: "Niveau", value: metrics.depth },
+            line2: { label: "Detail", value: metrics.avgWords > 30 ? "Eleve" : "Moyen" },
+            line3: { label: "Introspection", value: metrics.openness }
+        },
+        // 7. Cohérence narrative
+        {
+            title: "Coherence Narrative",
+            line1: { label: "Structure", value: "Logique" },
+            line2: { label: "Continuite", value: "Fluide" },
+            line3: { label: "Clarte", value: metrics.avgWords > 20 ? "Bonne" : "Directe" }
+        }
+    ];
+    
+    return infos[index % infos.length];
+}
+
+/**
+ * Démarrer la rotation automatique de l'infobulle
+ */
+function startTooltipRotation() {
+    if (tooltipRotationInterval) {
+        clearInterval(tooltipRotationInterval);
+    }
+    
+    tooltipRotationInterval = setInterval(() => {
+        tooltipRotationIndex = (tooltipRotationIndex + 1) % 8;
+        updateAvatarTooltip();
+    }, 4000); // Rotation toutes les 4 secondes
+    
+    console.log('[v17.3.15] ✅ Tooltip rotation started (every 4 seconds)');
+}
+
+/**
+ * Arrêter la rotation
+ */
+function stopTooltipRotation() {
+    if (tooltipRotationInterval) {
+        clearInterval(tooltipRotationInterval);
+        tooltipRotationInterval = null;
+    }
+}
+
+/**
+ * v17.3.3: Mise à jour indicateur audio (Silence / Vous parlez / Clone parle)
+ */
+function updateAudioStatusIndicator(status) {
+    const indicator = document.getElementById('audio-status-indicator');
+    if (!indicator) return;
+    
+    const statusConfig = {
+        'silence': {
+            text: 'Silence...',
+            color: 'var(--text-secondary)',
+            borderColor: 'var(--sable)'
+        },
+        'user': {
+            text: 'Vous parlez...',
+            color: 'var(--mer)',
+            borderColor: 'var(--mer)'
+        },
+        'clone': {
+            text: 'Clone parle...',
+            color: 'var(--vert-sauge)',
+            borderColor: 'var(--vert-sauge)'
+        }
+    };
+    
+    const config = statusConfig[status] || statusConfig['silence'];
+    indicator.textContent = config.text;
+    indicator.style.color = config.color;
+    indicator.style.borderColor = config.borderColor;
+}
+
+// Initialiser l'indicateur au silence
+window.currentAudioStatus = 'silence';
+
+/**
+ * v17.3.6: Mode Développeur désactivé
+ * (Barre violette supprimée - interface épurée)
+ */
+function toggleDevMode() {
+    // Mode dev désactivé - interface épurée v17.3.6
+    console.log('[v17.3.6] Mode développeur désactivé (interface épurée)');
+}
+
+/**
+ * Raccourcis clavier
+ * Ctrl+D : Mode Développeur
+ * Cmd+Shift+K (Mac) / Ctrl+Shift+K (Win) : Changer API key
+ */
+document.addEventListener('keydown', function(e) {
+    // Ctrl+D : Mode Développeur
+    if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        toggleDevMode();
+    }
+    
+    // Cmd+Shift+K (Mac) ou Ctrl+Shift+K (Win) : API Key
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'K') {
+        e.preventDefault();
+        openDevAPIKeyModal();
+    }
+});
+
+/**
+ * Mise à jour debug bar (appelée par les systèmes de monitoring)
+ */
+var devModeEnabled = devModeEnabled || false;
+function updateDebugBar(data) {
+    if (!devModeEnabled) return;
+    
+    const emotionEl = document.getElementById('debug-emotion');
+    const rmsEl = document.getElementById('debug-rms');
+    const energyEl = document.getElementById('debug-energy');
+    const faceEl = document.getElementById('debug-face');
+    
+    if (data.emotion && emotionEl) {
+        emotionEl.textContent = `${data.emotion} (${(data.emotionConfidence * 100).toFixed(1)}%)`;
+    }
+    if (data.rms !== undefined && rmsEl) {
+        rmsEl.textContent = data.rms.toFixed(4);
+    }
+    if (data.energy !== undefined && energyEl) {
+        energyEl.textContent = data.energy.toFixed(4);
+    }
+    if (data.faceDetected !== undefined && faceEl) {
+        faceEl.textContent = data.faceDetected ? 'Détecté' : 'Non détecté';
+    }
+}
+
+// Mettre à jour l'avatar toutes les 2 secondes
+setInterval(updateProgressAvatar, 2000);
+
+// Initialiser l'avatar au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updateProgressAvatar);
+} else {
+    updateProgressAvatar();
+}
+
+// ============================================================================
+// v17.3.1 CLEAN: NOUVELLES FONCTIONNALITÉS
+// ============================================================================
+
+/**
+ * v17.3.2: Pause/Reprise de la conversation
+ * ⚠️ IMPORTANT: L'ANALYSE NE S'ARRÊTE JAMAIS (caméra/micro continuent)
+ * Seules les questions du clone s'arrêtent
+ */
+let conversationPaused = false;
+
+function togglePause() {
+    conversationPaused = !conversationPaused;
+    const pauseBtn = document.getElementById('pause-btn');
+    const pauseText = document.getElementById('pause-text');
+    
+    if (conversationPaused) {
+        // Mode Pause CONVERSATION (analyse continue)
+        pauseBtn?.classList.add('paused');
+        if (pauseText) pauseText.textContent = '▶️ Reprendre conversation';
+        
+        // Stopper le TTS si en cours
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        
+        console.log('[v17.3.2] ⏸ CONVERSATION en pause | ✓ ANALYSE continue (24/7)');
+    } else {
+        // Mode Reprise
+        pauseBtn?.classList.remove('paused');
+        if (pauseText) pauseText.textContent = '⏸ Pause conversation';
+        
+        console.log('[v17.3.2] ▶️ CONVERSATION reprise | ✓ ANALYSE toujours active');
+    }
+}
+
+/**
+ * Auto-save silencieux toutes les 30 secondes
+ * Sauvegarde invisible pour l'utilisateur (récupération crash uniquement)
+ */
+function autoSaveState() {
+    if (!state.autoSaveEnabled) return;
+    
+    try {
+        const saveData = {
+            mode: state.mode,
+            responses: state.responses,
+            currentQuestionIndex: state.currentQuestionIndex,
+            totalWords: state.totalWords,
+            timestamp: Date.now(),
+            version: 'v17.3.1'
+        };
+        
+        localStorage.setItem('clone_interview_autosave', JSON.stringify(saveData));
+        state.lastAutoSave = Date.now();
+        
+        console.log('[v17.3.1] 💾 Auto-save silencieux effectué');
+    } catch (error) {
+        console.error('[v17.3.1] ❌ Erreur auto-save:', error);
+    }
+}
+
+/**
+ * Vérifier si une session interrompue existe
+ */
+function checkInterruptedSession() {
+    try {
+        const savedData = localStorage.getItem('clone_interview_autosave');
+        if (!savedData) return;
+        
+        const data = JSON.parse(savedData);
+        const elapsed = Date.now() - data.timestamp;
+        const minutes = Math.round(elapsed / 60000);
+        
+        // Proposer de reprendre si interruption < 10 minutes
+        if (elapsed < 600000 && data.responses && data.responses.length > 0) {
+            const resume = confirm(
+                `⚠️ Interview interrompue détectée (il y a ${minutes} min)\n\n` +
+                `Reprendre où vous étiez ? (${data.responses.length} réponses déjà données)\n\n` +
+                `Note: Cette reprise est une exception technique.\n` +
+                `Pour une vraie interview, prévoyez 45-60 min continues.`
+            );
+            
+            if (resume) {
+                // Restaurer l'état
+                state.mode = data.mode;
+                state.responses = data.responses;
+                state.currentQuestionIndex = data.currentQuestionIndex;
+                state.totalWords = data.totalWords;
+                
+                console.log('[v17.3.1] ↩️ Session restaurée depuis auto-save');
+                return true;
+            } else {
+                // Effacer la sauvegarde
+                localStorage.removeItem('clone_interview_autosave');
+            }
+        }
+    } catch (error) {
+        console.error('[v17.3.1] ❌ Erreur vérification session:', error);
+    }
+    return false;
+}
+
+/**
+ * Démarrage automatique de l'auto-save
+ */
+if (typeof state !== 'undefined') setInterval(autoSaveState, state.autoSaveInterval);
+
+/**
+ * Modal de configuration Google Cloud TTS
+ */
+function openGoogleTTSConfig() {
+    const modal = document.getElementById('google-tts-config-modal');
+    if (modal) modal.style.display = 'flex';
+    
+    // Pré-remplir si clé existe
+    const apiKeyInput = document.getElementById('google-tts-api-key');
+    if (apiKeyInput && state.googleTTSApiKey) {
+        apiKeyInput.value = state.googleTTSApiKey;
+    }
+}
+
+function closeGoogleTTSConfig() {
+    const modal = document.getElementById('google-tts-config-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function saveGoogleTTSConfig() {
+    const apiKey = document.getElementById('google-tts-api-key')?.value.trim();
+    
+    if (!apiKey) {
+        alert('⚠️ Veuillez entrer une clé API valide');
+        return;
+    }
+    
+    // Sauvegarder en localStorage
+    localStorage.setItem('googleTTSApiKey', apiKey);
+    localStorage.setItem('voiceMode', 'google-chirp3-m'); // Activer Journey par défaut
+    
+    state.googleTTSApiKey = apiKey;
+    state.voiceMode = 'google-chirp3-m';
+    
+    // Mettre à jour le sélecteur de voix
+    const voiceSelect = document.getElementById('voice-mode-select');
+    if (voiceSelect) voiceSelect.value = 'google-chirp3-m';
+    
+    closeGoogleTTSConfig();
+    
+    alert('✅ Clé API Google Cloud TTS enregistrée !\n\nVoix Journey (Chirp 3 HD) activée.');
+    console.log('[v17.3.1] ✅ Google Cloud TTS configuré');
+}
+
+/**
+ * Vérifier si Google TTS est configuré au premier lancement
+ */
+function checkGoogleTTSConfig() {
+    if (typeof state === 'undefined') return; // Guard: state non disponible
+    // Si pas de clé et mode Google sélectionné, proposer configuration
+    if (!state.googleTTSApiKey && (state.voiceMode.startsWith('google'))) {
+        const configure = confirm(
+            '🎤 Configuration Google Cloud TTS\n\n' +
+            'Voulez-vous configurer une clé API Google Cloud pour bénéficier de voix HD ?\n\n' +
+            '• OUI → Ouvrir la configuration\n' +
+            '• NON → Utiliser Web Speech (gratuit)'
+        );
+        
+        if (configure) {
+            openGoogleTTSConfig();
+        } else {
+            // Basculer sur Web Speech
+            state.voiceMode = 'webspeech';
+            localStorage.setItem('voiceMode', 'webspeech');
+            const voiceSelect = document.getElementById('voice-mode-select');
+            if (voiceSelect) voiceSelect.value = 'webspeech';
+        }
+    }
+}
+
+/**
+ * v17.3.2: Modal Développeur pour changer l'API key rapidement
+ * Raccourci: Cmd+Shift+K (Mac) ou Ctrl+Shift+K (Win)
+ */
+function openDevAPIKeyModal() {
+    const currentKey = state.googleTTSApiKey || '';
+    const maskedKey = currentKey ? currentKey.substring(0, 10) + '...' : '(aucune)';
+    
+    const modal = document.createElement('div');
+    modal.id = 'dev-api-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        ">
+            <h3 style="margin: 0 0 10px 0; color: var(--text);">🔑 API Key Développeur</h3>
+            <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 14px;">
+                Clé actuelle: <strong>${maskedKey}</strong>
+            </p>
+            
+            <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 600; font-size: 14px;">
+                Nouvelle clé Google Cloud TTS:
+            </label>
+            <input 
+                type="text" 
+                id="dev-api-input" 
+                placeholder="AIzaSy..."
+                value="${currentKey}"
+                style="
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid var(--mer);
+                    border-radius: 8px;
+                    font-family: monospace;
+                    font-size: 13px;
+                    margin-bottom: 20px;
+                    box-sizing: border-box;
+                "
+            />
+            
+            <div style="display: flex; gap: 12px;">
+                <button onclick="closeDevAPIKeyModal()" style="
+                    flex: 1;
+                    padding: 12px;
+                    border: 2px solid var(--text-secondary);
+                    border-radius: 8px;
+                    background: white;
+                    color: var(--text);
+                    font-weight: 600;
+                    cursor: pointer;
+                ">
+                    Annuler
+                </button>
+                <button onclick="saveDevAPIKey()" style="
+                    flex: 1;
+                    padding: 12px;
+                    border: none;
+                    border-radius: 8px;
+                    background: linear-gradient(135deg, var(--mer), var(--vert-sauge));
+                    color: white;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">
+                    💾 Enregistrer
+                </button>
+            </div>
+            
+            <p style="margin: 20px 0 0 0; font-size: 12px; color: var(--text-secondary); font-style: italic;">
+                Raccourci: Cmd+Shift+K (Mac) ou Ctrl+Shift+K (Windows)
+            </p>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Focus sur l'input
+    setTimeout(() => {
+        document.getElementById('dev-api-input')?.focus();
+    }, 100);
+    
+    // Fermer avec Escape
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDevAPIKeyModal();
+    });
+}
+
+function closeDevAPIKeyModal() {
+    const modal = document.getElementById('dev-api-modal');
+    if (modal) modal.remove();
+}
+
+function saveDevAPIKey() {
+    const input = document.getElementById('dev-api-input');
+    const newKey = input?.value.trim();
+    
+    if (!newKey) {
+        alert('⚠️ Veuillez entrer une clé API valide');
+        return;
+    }
+    
+    // Validation basique format Google API key
+    if (!newKey.startsWith('AIza')) {
+        const proceed = confirm('⚠️ Cette clé ne semble pas avoir le bon format (devrait commencer par "AIza").\n\nContinuer quand même ?');
+        if (!proceed) return;
+    }
+    
+    // Sauvegarder
+    state.googleTTSApiKey = newKey;
+    localStorage.setItem('googleTTSApiKey', newKey);
+    
+    // Activer mode Google
+    state.voiceMode = 'google-chirp3-m';
+    localStorage.setItem('voiceMode', 'google-chirp3-m');
+    
+    closeDevAPIKeyModal();
+    
+    console.log('[v17.3.2 DEV] ✅ API key mise à jour');
+    alert('✅ API key enregistrée avec succès !\n\nVoix Journey (Chirp 3 HD) activée.');
+}
+
+// [PATCH] Removed orphaned code fragment (auto-start analysis)
+
+/**
+ * Stocker les données audio/émotion pour le tooltip
+ */
+window.lastAudioRMS = 0;
+window.lastDetectedEmotion = '-';
+
+// Intercepter les updates audio/vidéo pour enrichir le tooltip
+const originalUpdateDebugBar = updateDebugBar;
+updateDebugBar = function(data) {
+    // Appeler la fonction originale
+    originalUpdateDebugBar(data);
+    
+    // Stocker pour le tooltip
+    if (data.rms !== undefined) window.lastAudioRMS = data.rms;
+    if (data.emotion) window.lastDetectedEmotion = data.emotion;
+    
+    // Mettre à jour le tooltip
+    updateAvatarTooltip();
+};
+
+console.log('[v17.3.1 CLEAN] ✅ Nouvelles fonctionnalités initialisées');
+// ============================================================================
+// TODO v17.4 - Améliorations demandées par Christophe
+// ============================================================================
+// 1. MODE DEV UNIFIÉ (1 touche)
+//    - Actuellement: Ctrl+D (mode dev), Cmd+Shift+K (API key), Ctrl+I (interruption)
+//    - Objectif: 1 seule touche ouvre modal avec TOUS les modes dev
+//    - Contenu modal:
+//      * API Keys (Google TTS, Anthropic)
+//      * Monitoring Google TTS (consommation/coût temps réel)
+//      * Monitoring interruptions (calibration, seuil, logs)
+//      * Tous les autres modes dev futurs
+//
+// 2. MONITORING GOOGLE TTS
+//    - Compteur appels API (nombre de requêtes)
+//    - Compteur caractères envoyés (coût)
+//    - Coût estimé en temps réel
+//    - Historique consommation par session
+//    - Affichage dans modal mode dev
+//
+// 3. AMÉLIORATION AVATAR
+//    - Avatar photo déjà implémenté en v17.3.4
+//    - Futur: permettre changement avatar par utilisateur
+//    - Futur: avatars évolutifs selon progression (🌱→🌿→🌳→🎯)
+//
+// ============================================================================
+
+console.log('[v17.3.1 CLEAN] - Pause conversation (observation continue)');
+console.log('[v17.3.1 CLEAN] - Auto-save silencieux (30s)');
+console.log('[v17.3.1 CLEAN] - Modal Google Cloud TTS');
+console.log('[v17.3.1 CLEAN] - Auto-start analyse');
+console.log('[v17.3.1 CLEAN] - Avatar tooltip enrichi');
+
+// Vérifier session interrompue au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        checkInterruptedSession();
+        checkGoogleTTSConfig();
+    });
+} else {
+    checkInterruptedSession();
+    checkGoogleTTSConfig();
+}
+
+console.log('[v17.3.0 UX] Avatar Évolutif & Mode Dev initialisés ✅');
+console.log('[v17.3.0 UX] Appuyez sur Ctrl+D pour activer le mode développeur');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PATCH V18-CLONE: GÉNÉRATION DU BRAIN JSON CLONABLE
+// Connecte BrainBuilderUltimate + BrainBuilderAIHelper au bouton export
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Variable globale pour stocker le brain JSON généré
+window._cloneBrainJSON = null;
+window._clonePrompt = null;
+
+/**
+ * FONCTION PRINCIPALE — Génère le Brain JSON clonable via 5 appels IA
+ */
+async function generateCloneBrain() {
+    console.log('[CLONE-PATCH] 🧠 Starting clone brain generation...');
+    
+    // Afficher overlay
+    const overlay = document.getElementById('clone-gen-overlay');
+    overlay.style.display = 'flex';
+    
+    const statusEl = document.getElementById('clone-gen-status');
+    const resultEl = document.getElementById('clone-gen-result');
+    const spinnerEl = document.getElementById('clone-gen-spinner');
+    resultEl.style.display = 'none';
+    spinnerEl.style.display = 'block';
+    
+    // Reset steps
+    for (let i = 1; i <= 6; i++) {
+        const step = document.getElementById('cg-s' + i);
+        step.className = 'cg-step';
+        step.textContent = step.textContent.replace(/^[✅⏳🔄❌]\s*/, '⏳ ');
+    }
+    
+    try {
+        // Vérifier que les données existent
+        const convSystem = window.conversationalSystem;
+        if (!convSystem || !convSystem.messages || convSystem.messages.length < 4) {
+            throw new Error('Interview trop courte. Minimum 2 échanges requis.');
+        }
+        
+        statusEl.textContent = 'Lancement des 5 analyses IA en parallèle...';
+        
+        // ═══ MÉTHODE 1: Via BrainBuilderUltimate (si disponible et fonctionnel) ═══
+        // ═══ MÉTHODE 2: Appels directs au worker (plus fiable) ═══
+        
+        const workerUrl = CONFIG?.WORKER_URL || 'https://clone-proxy.11drumboy11.workers.dev/';
+        const conversation = formatConversationForAnalysis(convSystem.messages);
+        
+        // Helper pour appeler Claude
+        async function callClaudeForAnalysis(prompt, maxTokens) {
+            const resp = await fetch(workerUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    payload: {
+                        provider: 'anthropic',
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: maxTokens || 2500,
+                        temperature: 0.3,
+                        system: prompt,
+                        messages: [{ role: 'user', content: 'Analyse cette conversation et retourne le JSON demandé.' }]
+                    }
+                })
+            });
+            if (!resp.ok) throw new Error('API ' + resp.status);
+            const data = await resp.json();
+            let text = '';
+            if (Array.isArray(data?.content)) {
+                text = data.content.filter(c => c.type === 'text').map(c => c.text || '').join('\n');
+            } else if (typeof data?.content === 'string') {
+                text = data.content;
+            } else if (data?.text) {
+                text = data.text;
+            }
+            text = text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            return JSON.parse(text);
+        }
+        
+        // ═══ 5 ANALYSES PARALLÈLES ═══
+        
+        // Step 1: Big Five
+        setCloneStep(1, 'active');
+        statusEl.textContent = 'Analyse du tempérament (Big Five)...';
+        
+        const p1 = callClaudeForAnalysis(
+            `Tu es un expert mondial en psychologie des traits de personnalité (Big Five / NEO-PI-R).
+Analyse cette conversation d'interview psychologique et détermine les scores Big Five avec les 6 facettes par dimension.
+
+CONVERSATION:
+${conversation}
+
+Génère un JSON avec cette structure EXACTE:
+{
+  "openness": { "score": 75, "level": "high", "facets": { "imagination": 80, "artistic_interests": 70, "emotionality": 65, "adventurousness": 75, "intellect": 85, "liberalism": 70 }, "summary": "Description 2 phrases", "evidence": ["citation1"] },
+  "conscientiousness": { "score": 0, "level": "...", "facets": {...}, "summary": "...", "evidence": [...] },
+  "extraversion": { "score": 0, "level": "...", "facets": {...}, "summary": "...", "evidence": [...] },
+  "agreeableness": { "score": 0, "level": "...", "facets": {...}, "summary": "...", "evidence": [...] },
+  "neuroticism": { "score": 0, "level": "...", "facets": {...}, "summary": "...", "evidence": [...] }
+}
+Scores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100). Cite phrases EXACTES. Retourne UNIQUEMENT le JSON.`, 3000
+        ).then(r => { setCloneStep(1, 'done'); return r; });
+        
+        // Step 2: Schwartz Values
+        setCloneStep(2, 'active');
+        const p2 = callClaudeForAnalysis(
+            `Tu es un expert mondial en psychologie des valeurs (modèle Schwartz 10 valeurs).
+Analyse cette conversation et identifie la hiérarchie complète des valeurs.
+
+CONVERSATION:
+${conversation}
+
+Génère un JSON:
+{
+  "hierarchy": [
+    { "value": "self-direction", "score": 90, "sub_values": ["autonomy","creativity"], "evidence": ["citation"], "manifestation": "Comment cette valeur se manifeste" }
+  ],
+  "tensions": [ { "pair": "achievement vs benevolence", "description": "...", "resolution": "..." } ],
+  "core_motivations": ["Motivation 1", "Motivation 2"]
+}
+Les 10 valeurs: self-direction, stimulation, hedonism, achievement, power, security, conformity, tradition, benevolence, universalism.
+Classe les 10 par score décroissant. Retourne UNIQUEMENT le JSON.`, 2500
+        ).then(r => { setCloneStep(2, 'done'); return r; });
+        
+        // Step 3: Communication Style
+        setCloneStep(3, 'active');
+        const p3 = callClaudeForAnalysis(
+            `Tu es un expert mondial en analyse linguistique et styles de communication.
+Analyse le style de communication de l'utilisateur.
+
+CONVERSATION:
+${conversation}
+
+Génère un JSON:
+{
+  "tone": { "primary": "informal-warm", "secondary": "analytical", "formality_level": 40, "warmth_level": 75 },
+  "vocabulary": { "complexity": "medium-high", "domain_specific_terms": ["terme1"], "characteristic_expressions": ["expression1"], "avg_sentence_length": "medium" },
+  "rhetorical_patterns": ["pattern1"],
+  "emotional_expression": { "frequency": "moderate", "intensity": "moderate", "preferred_emotions": ["enthusiasm"] },
+  "interaction_style": { "directness": 75, "humor_usage": "frequent", "humor_type": "self-deprecating", "storytelling_tendency": 70 },
+  "clone_instructions": { "tone_keywords": ["chaleureux","direct"], "avoid": ["trop formel"], "response_length_avg": "80-150 mots", "signature_patterns": ["pattern1"] }
+}
+Retourne UNIQUEMENT le JSON.`, 2500
+        ).then(r => { setCloneStep(3, 'done'); return r; });
+        
+        // Step 4: Thinking Patterns
+        setCloneStep(4, 'active');
+        const p4 = callClaudeForAnalysis(
+            `Tu es un expert mondial en psychologie cognitive.
+Analyse les patterns cognitifs de l'utilisateur.
+
+CONVERSATION:
+${conversation}
+
+Génère un JSON:
+{
+  "decision_making": { "primary_style": "analytical-intuitive-mix", "speed": "deliberate", "risk_tolerance": 60, "evidence": "citation" },
+  "problem_solving": { "approach": "systematic-creative-hybrid", "strategies": ["decomposition","iteration"], "innovation_orientation": 80 },
+  "learning_style": { "primary_modality": "visual-kinesthetic", "pace": "self-paced", "depth_vs_breadth": "depth-oriented", "autodidact_level": 85 },
+  "cognitive_biases": [ { "bias": "optimism_bias", "strength": "moderate", "context": "..." } ],
+  "meta_cognition": { "self_awareness": 85, "reflective_capacity": "high", "growth_mindset_score": 80 },
+  "complexity_handling": { "ambiguity_tolerance": 70, "systems_thinking": 85, "abstraction_level": "high" }
+}
+Retourne UNIQUEMENT le JSON.`, 2000
+        ).then(r => { setCloneStep(4, 'done'); return r; });
+        
+        // Step 5: Emotional Profile
+        setCloneStep(5, 'active');
+        const p5 = callClaudeForAnalysis(
+            `Tu es un expert mondial en intelligence émotionnelle.
+Analyse le profil émotionnel de l'utilisateur.
+
+CONVERSATION:
+${conversation}
+
+Génère un JSON:
+{
+  "baseline_mood": { "typical_state": "calm-positive", "stability": 75, "energy_level": "moderate-high" },
+  "emotional_range": { "intensity": "moderate", "variety": "good", "expression_comfort": 70 },
+  "triggers": { "positive": [ { "trigger": "création réussie", "intensity": "high", "evidence": "..." } ], "negative": [ { "trigger": "injustice", "intensity": "medium", "evidence": "..." } ] },
+  "regulation_strategies": ["humor", "problem-solving"],
+  "empathy_profile": { "cognitive_empathy": 85, "affective_empathy": 75, "compassion_score": 80 },
+  "stress_response": { "primary_coping": "active-problem-solving", "resilience_score": 75, "recovery_speed": "moderate-fast" },
+  "attachment_style": { "primary": "secure", "evidence": "..." }
+}
+Retourne UNIQUEMENT le JSON.`, 2000
+        ).then(r => { setCloneStep(5, 'done'); return r; });
+        
+        // Attendre les 5 analyses
+        statusEl.textContent = '5 analyses IA en cours...';
+        const [temperament, values, communication, thinking, emotional] = await Promise.all([p1, p2, p3, p4, p5]);
+        
+        console.log('[CLONE-PATCH] ✅ 5 analyses terminées');
+        
+        // ═══ Step 6: ASSEMBLAGE BRAIN JSON ═══
+        setCloneStep(6, 'active');
+        statusEl.textContent = 'Assemblage du Brain JSON...';
+        
+        const msgs = convSystem.messages || [];
+        const userMsgs = msgs.filter(m => m.role === 'user');
+        const totalWords = userMsgs.reduce((s, m) => s + (m.content || '').split(/\s+/).length, 0);
+        
+        // Extraire identité depuis la conversation
+        const allUserText = userMsgs.map(m => m.content).join(' ');
+        let displayName = 'Utilisateur';
+        const nameMatch = allUserText.match(/(?:je m'appelle|mon nom est|je suis|moi c'est)\s+([A-ZÀÂÉÈÊÏÎÔÙÛÜÇ][a-zàâéèêëïîôùûüç]+)/i);
+        if (nameMatch) displayName = nameMatch[1];
+        
+        const now = new Date().toISOString();
+        
+        window._cloneBrainJSON = {
+            schema_version: "18.0-clone",
+            generated_at_utc: now,
+            clone_id: 'clone-' + now.split('T')[0] + '-' + Math.random().toString(36).substr(2, 9),
+            generator: {
+                tool: "Thérapeute IA v1.0",
+                author: "C Concept&Dev",
+                pipeline: "Interview → 5x Claude Analysis → Brain Assembly"
+            },
+            source_interview: {
+                date: now,
+                duration_minutes: convSystem.messages.length > 0 ? Math.round(convSystem.messages.length * 1.5) : 0,
+                questions_count: convSystem.questionCount || Math.floor(msgs.filter(m => m.role === 'assistant').length),
+                messages_count: msgs.length,
+                user_messages_count: userMsgs.length,
+                total_user_words: totalWords,
+                mode: state?.mode || 'text',
+                audio_samples: window.audioFeatures?.length || 0,
+                video_detections: window.videoDetections?.length || 0
+            },
+            identity: {
+                display_name: displayName,
+                languages: ['Français']
+            },
+            temperament: temperament,
+            values: values,
+            communication_style: communication,
+            thinking_patterns: thinking,
+            emotional_profile: emotional,
+            global_config: {
+                recommended_temperature: 0.8,
+                recommended_top_p: 0.9,
+                response_length: communication?.clone_instructions?.response_length_avg || "80-200 mots",
+                priority_order: [
+                    "communication_style",
+                    "thinking_patterns",
+                    "temperament",
+                    "values",
+                    "emotional_profile"
+                ]
+            },
+            data_quality: assessCloneQuality(userMsgs.length, totalWords, temperament, values, communication, thinking, emotional)
+        };
+        
+        // Générer le prompt clone
+        window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
+        
+        setCloneStep(6, 'done');
+        spinnerEl.style.display = 'none';
+        statusEl.textContent = '✅ Clone prêt ! Qualité: ' + window._cloneBrainJSON.data_quality.grade + ' | ' + JSON.stringify(window._cloneBrainJSON).length + ' octets';
+        resultEl.style.display = 'block';
+        
+        console.log('[CLONE-PATCH] ✅ Brain JSON complet:', JSON.stringify(window._cloneBrainJSON).length, 'octets');
+        console.log('[CLONE-PATCH] 📊 Qualité:', window._cloneBrainJSON.data_quality.grade);
+        
+    } catch (error) {
+        console.error('[CLONE-PATCH] ❌ Erreur:', error);
+        statusEl.textContent = '❌ Erreur: ' + error.message;
+        spinnerEl.style.display = 'none';
+    }
+}
+
+function setCloneStep(n, state) {
+    const el = document.getElementById('cg-s' + n);
+    if (!el) return;
+    el.className = 'cg-step ' + state;
+    const text = el.textContent.replace(/^[✅⏳🔄❌]\s*/, '');
+    if (state === 'done') el.textContent = '✅ ' + text;
+    else if (state === 'active') el.textContent = '🔄 ' + text;
+}
+
+function formatConversationForAnalysis(messages) {
+    return messages
+        .filter(m => m.content && m.content.length > 2)
+        .slice(-40) // Max 40 derniers messages
+        .map((m, i) => '[' + (i+1) + '] ' + (m.role === 'user' ? 'UTILISATEUR' : 'ASSISTANT') + ': ' + m.content)
+        .join('\n\n');
+}
+
+function assessCloneQuality(userMsgCount, totalWords, t, v, c, th, em) {
+    let score = 0;
+    const issues = [];
+    
+    if (userMsgCount >= 20) score += 20; else if (userMsgCount >= 10) score += 10; else issues.push('Peu de réponses (' + userMsgCount + ')');
+    if (totalWords >= 2000) score += 15; else if (totalWords >= 1000) score += 8; else issues.push('Peu de mots (' + totalWords + ')');
+    
+    [['temperament', t], ['values', v], ['communication', c], ['thinking', th], ['emotional', em]].forEach(([name, data]) => {
+        if (data && Object.keys(data).length > 2) score += 13;
+        else issues.push('Analyse ' + name + ' incomplète');
+    });
+    
+    const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B+' : score >= 60 ? 'B' : score >= 50 ? 'C' : 'D';
+    return { overall_score: Math.min(score, 100), grade, issues };
+}
+
+function generateClonePromptFromBrain(brain) {
+    const t = brain.temperament || {};
+    const v = brain.values || {};
+    const c = brain.communication_style || {};
+    const th = brain.thinking_patterns || {};
+    const em = brain.emotional_profile || {};
+    
+    let p = 'Tu es un clone IA de ' + brain.identity.display_name + '.\n\n';
+    p += 'PERSONNALITÉ:\n';
+    
+    if (t.openness) {
+        p += '- Big Five: O=' + (t.openness.score||'?') + ' C=' + (t.conscientiousness?.score||'?') + ' E=' + (t.extraversion?.score||'?') + ' A=' + (t.agreeableness?.score||'?') + ' N=' + (t.neuroticism?.score||'?') + '\n';
+    }
+    
+    if (v.hierarchy && v.hierarchy.length > 0) {
+        p += '- Valeurs top: ' + v.hierarchy.slice(0, 3).map(x => x.value).join(', ') + '\n';
+    }
+    
+    if (c.tone) {
+        p += '- Ton: ' + (c.tone.primary || 'naturel') + ' / ' + (c.tone.secondary || '') + '\n';
+    }
+    if (c.clone_instructions) {
+        if (c.clone_instructions.tone_keywords) p += '- Mots-clés ton: ' + c.clone_instructions.tone_keywords.join(', ') + '\n';
+        if (c.clone_instructions.response_length_avg) p += '- Longueur réponses: ' + c.clone_instructions.response_length_avg + '\n';
+        if (c.clone_instructions.avoid) p += '- À éviter: ' + c.clone_instructions.avoid.join(', ') + '\n';
+        if (c.clone_instructions.signature_patterns) p += '- Patterns signature: ' + c.clone_instructions.signature_patterns.join('; ') + '\n';
+    }
+    
+    if (th.decision_making) p += '- Style décisionnel: ' + (th.decision_making.primary_style || 'mixte') + '\n';
+    if (em.baseline_mood) p += '- Humeur de base: ' + (em.baseline_mood.typical_state || 'neutre') + '\n';
+    
+    p += '\nRÈGLES CRITIQUES:\n';
+    p += '1. JAMAIS dire "En tant qu\'IA" ou "Je suis un assistant"\n';
+    p += '2. Répondre avec la personnalité et le style décrits ci-dessus\n';
+    p += '3. Utiliser les expressions caractéristiques\n';
+    p += '4. Validation émotionnelle AVANT conseil si contexte émotionnel\n';
+    p += '5. Longueur: ' + (c.clone_instructions?.response_length_avg || '80-200 mots') + '\n\n';
+    p += 'Le JSON complet du cerveau (clone_brain.json) est joint pour les détails fins.';
+    
+    return p;
+}
+
+function downloadCloneJSON() {
+    if (!window._cloneBrainJSON) return alert('Aucun clone généré. Cliquez "Générer Clone JSON" d\'abord.');
+    const blob = new Blob([JSON.stringify(window._cloneBrainJSON, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'clone_brain_' + (window._cloneBrainJSON.identity.display_name || 'user').toLowerCase() + '_' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function downloadCloneZIP() {
+    if (!window._cloneBrainJSON) return alert('Aucun clone généré.');
+    
+    // Vérifier JSZip
+    if (typeof JSZip === 'undefined') {
+        // Fallback: télécharger juste le JSON
+        console.warn('[CLONE-PATCH] JSZip non disponible, fallback JSON seul');
+        return downloadCloneJSON();
+    }
+    
+    const zip = new JSZip();
+    const name = (window._cloneBrainJSON.identity.display_name || 'user').toLowerCase();
+    
+    // 1. Brain JSON
+    zip.file('clone_brain.json', JSON.stringify(window._cloneBrainJSON, null, 2));
+    
+    // 2. Profil Thérapeutique
+    zip.file('clone_prompt.txt', window._clonePrompt || '');
+    
+    // 3. Instructions HTML
+    const instrHTML = generateCloneInstructionsHTML(window._cloneBrainJSON, window._clonePrompt);
+    zip.file('clone_instructions.html', instrHTML);
+    
+    // 4. Transcript
+    const msgs = window.conversationalSystem?.messages || [];
+    const transcript = msgs.map(m => '[' + (m.timestamp || '') + '] ' + m.role.toUpperCase() + ': ' + m.content).join('\n\n');
+    zip.file('interview_transcript.txt', transcript);
+    
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'clone-' + name + '-' + new Date().toISOString().split('T')[0] + '.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    console.log('[CLONE-PATCH] ✅ ZIP exporté');
+}
+
+function generateCloneInstructionsHTML(brain, prompt) {
+    const name = brain.identity.display_name || 'Clone';
+    const t = brain.temperament || {};
+    const safePrompt = (prompt || '').replace(/\x3c/g, '&lt;').replace(/>/g, '&gt;');
+    // Build HTML using \x3c for < to avoid breaking the enclosing script tag
+    var h = '\x3c!DOCTYPE html>\x3chtml lang="fr">\x3chead>\x3cmeta charset="UTF-8">\x3ctitle>Clone Instructions — ' + name + '\x3c/title>';
+    h += '\x3cstyle>body{font-family:Segoe UI,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1a2e;line-height:1.6}';
+    h += 'h1{color:#8FAFB1;border-bottom:2px solid #8FAFB1;padding-bottom:10px}h2{color:#6B9193;margin-top:30px}';
+    h += 'pre{background:#f5f5f5;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;white-space:pre-wrap}';
+    h += '.step{background:#FAF9F6;padding:16px;border-radius:8px;margin:10px 0;border-left:3px solid #8FAFB1}.meta{color:#8b8680;font-size:13px}\x3c/style>\x3c/head>\x3cbody>';
+    h += '\x3ch1>Clone de ' + name + '\x3c/h1>';
+    h += '\x3cp class="meta">Généré le ' + new Date().toLocaleDateString('fr-FR') + ' par Thérapeute IA — Institut du Couple — C Concept&Dev\x3c/p>';
+    h += '\x3cp class="meta">Qualité: ' + brain.data_quality.grade + '\x3c/p>';
+    h += '\x3ch2>Comment utiliser\x3c/h2>';
+    h += '\x3cdiv class="step">\x3cstrong>1.\x3c/strong> Copiez clone_prompt.txt dans Custom Instructions de votre LLM\x3c/div>';
+    h += '\x3cdiv class="step">\x3cstrong>2.\x3c/strong> Uploadez clone_brain.json dans la conversation\x3c/div>';
+    h += '\x3cdiv class="step">\x3cstrong>3.\x3c/strong> Dites: "Lis ce JSON et réponds comme ' + name.split(' ')[0] + '"\x3c/div>';
+    h += '\x3ch2>Profil Thérapeutique\x3c/h2>\x3cpre>' + safePrompt + '\x3c/pre>';
+    h += '\x3ch2>Big Five\x3c/h2>\x3cp>O=' + (t.openness?.score||'?') + ' C=' + (t.conscientiousness?.score||'?') + ' E=' + (t.extraversion?.score||'?') + ' A=' + (t.agreeableness?.score||'?') + ' N=' + (t.neuroticism?.score||'?') + '\x3c/p>';
+    h += '\x3cp class="meta" style="margin-top:40px">Compatible: Claude, ChatGPT, Gemini, Mistral, DeepSeek\x3c/p>\x3c/body>\x3c/html>';
+    return h;
+}
+
+console.log('[CLONE-PATCH] ✅ Patch V18-Clone chargé — Bouton "Générer Clone JSON" disponible');
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// THÉRAPEUTE IA — FONCTIONS UI (Menu ETI, Upload exercices, Notes de séance)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function showETIMenu() {
+    // Supprimer un menu existant
+    const existing = document.getElementById('eti-menu-modal');
+    if (existing) { existing.remove(); return; }
+    
+    const types = [
+        { id: 'MOOD_TRACKER', label: '📊 Suivi de l\'humeur', cat: 'Transversal' },
+        { id: 'SESSION_REFLECTION', label: '💭 Réflexion post-séance', cat: 'Transversal' },
+        { id: 'MINDFUL_BREATHING', label: '🌬️ Respiration consciente', cat: 'Pleine conscience' },
+        { id: 'GRATITUDE_JOURNAL', label: '🙏 Journal de gratitude', cat: 'Transversal' },
+        { id: 'SCHEMA_DIARY', label: '📓 Journal des schémas', cat: 'Schémas' },
+        { id: 'SCHEMA_EVIDENCE', label: '⚖️ Tableau pour/contre', cat: 'Schémas' },
+        { id: 'ACT_VALUES_COMPASS', label: '🧭 Boussole des valeurs', cat: 'ACT' },
+        { id: 'ACT_DEFUSION_LOG', label: '💨 Journal de défusion', cat: 'ACT' },
+        { id: 'ACT_COMMITTED_ACTIONS', label: '🎯 Actions engagées', cat: 'ACT' },
+        { id: 'IFS_PARTS_JOURNAL', label: '🗣️ Dialogue avec une part', cat: 'IFS' },
+        { id: 'IFS_SELF_CHECK', label: '🌟 Check-in Self (8 C\'s)', cat: 'IFS' },
+        { id: 'IFS_PROTECTOR_LETTER', label: '✉️ Lettre à un protecteur', cat: 'IFS' },
+        { id: 'COH_SCHEMA_SENTENCE', label: '💡 Complétion de phrases', cat: 'Cohérence' },
+        { id: 'EMDR_SAFE_PLACE', label: '🏡 Mon lieu sûr', cat: 'EMDR' }
+    ];
+    
+    const modal = document.createElement('div');
+    modal.id = 'eti-menu-modal';
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;border-radius:16px;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.2);z-index:9999;max-height:80vh;overflow-y:auto;width:400px;max-width:90vw;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    
+    let html = '<h2 style="margin:0 0 16px;color:#7A9A9C;font-size:18px;">📝 Générer un exercice thérapeutique</h2>';
+    html += '<p style="color:#666;font-size:13px;margin-bottom:16px;">Choisissez un exercice à télécharger pour le patient. Fichier HTML autonome — pas d\'internet requis.</p>';
+    
+    let currentCat = '';
+    types.forEach(t => {
+        if (t.cat !== currentCat) {
+            currentCat = t.cat;
+            html += `<h3 style="color:#8FAFB1;font-size:13px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:1px;">${t.cat}</h3>`;
+        }
+        html += `<button onclick="generateETI('${t.id}')" style="display:block;width:100%;text-align:left;padding:10px 14px;margin:4px 0;border:1px solid #e0d8d0;border-radius:8px;background:#fafaf5;cursor:pointer;font-size:14px;transition:background 0.2s;" onmouseover="this.style.background='#e8f0e8'" onmouseout="this.style.background='#fafaf5'">${t.label}</button>`;
+    });
+    
+    html += '<div style="text-align:center;margin-top:16px;"><button onclick="document.getElementById(\'eti-menu-modal\').remove()" style="padding:8px 24px;border:1px solid #ccc;border-radius:8px;background:#f5f5f5;cursor:pointer;">Fermer</button></div>';
+    
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
+}
+
+function generateETI(type) {
+    const html = window.etiGenerator?.generate(type, window.patientProfile);
+    if (!html) { 
+        if (typeof showToast === 'function') showToast('❌ Impossible de générer: ' + type, 'error');
+        return; 
+    }
+    const blob = new Blob([html], {type: 'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = type + '-' + new Date().toISOString().split('T')[0] + '.html';
+    a.click();
+    
+    // Fermer le menu
+    const modal = document.getElementById('eti-menu-modal');
+    if (modal) modal.remove();
+    
+    if (typeof showToast === 'function') showToast('📝 Exercice "' + type + '" téléchargé', 'success');
+    
+    // Logger dans le profil patient
+    if (window.patientProfile) {
+        window.patientProfile.profile.exercises_given.push({
+            type: type,
+            date: new Date().toISOString(),
+            session: window.patientProfile.profile.sessions_count
+        });
+        window.patientProfile.save();
+    }
+}
+
+function handleETIUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        let parsed = null;
+        
+        if (file.name.endsWith('.json')) {
+            try { parsed = { exercise_meta: JSON.parse(content).exercise_meta, responses: JSON.parse(content).responses }; }
+            catch (err) { if (typeof showToast === 'function') showToast('❌ Fichier JSON invalide', 'error'); return; }
+        } else {
+            parsed = ETIGenerator.parseUploadedExercise(content);
+        }
+        
+        if (!parsed || !parsed.exercise_meta) {
+            if (typeof showToast === 'function') showToast('❌ Fichier non reconnu comme exercice thérapeutique', 'error');
+            return;
+        }
+        
+        console.log('[ETI] 📤 Exercice reçu:', parsed.exercise_meta.type, '| Réponses:', Object.keys(parsed.responses).length);
+        
+        // Stocker dans le profil patient
+        if (window.patientProfile) {
+            window.patientProfile.profile.exercises_returned.push({
+                meta: parsed.exercise_meta,
+                responses: parsed.responses,
+                received: new Date().toISOString()
+            });
+            window.patientProfile.save();
+        }
+        
+        // Injecter les données dans le contexte de la prochaine question
+        window._lastExerciseReturn = parsed;
+        
+        if (typeof showToast === 'function') {
+            showToast('✅ Exercice "' + parsed.exercise_meta.type + '" importé — sera intégré à la prochaine intervention', 'success');
+        }
+        
+        // Si conversation active, informer le chat
+        if (window.conversationalSystem) {
+            const summary = `[Le patient a rempli l'exercice "${parsed.exercise_meta.type}" entre les séances. Données disponibles : ${Object.keys(parsed.responses).length} réponses. Ouvrez sur ses observations.]`;
+            window.conversationalSystem.messages.push({
+                role: 'system',
+                content: summary,
+                timestamp: new Date().toISOString()
+            });
+            console.log('[ETI] 💉 Contexte exercice injecté dans le chat');
+        }
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+
+function generateAndShowSessionNote() {
+    const note = window.postSessionManager?.generateSessionNote();
+    if (!note) {
+        if (typeof showToast === 'function') showToast('⚠️ Démarrez une séance d\'abord', 'warning');
+        return;
+    }
+    
+    // Afficher dans une modale
+    const modal = document.createElement('div');
+    modal.id = 'session-note-modal';
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;border-radius:16px;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.2);z-index:9999;max-height:80vh;overflow-y:auto;width:500px;max-width:90vw;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    
+    let html = '<h2 style="margin:0 0 16px;color:#7A9A9C;font-size:18px;">📋 Note clinique de séance</h2>';
+    html += '<div style="background:#f8f6ff;border-radius:8px;padding:16px;font-size:14px;line-height:1.8;">';
+    html += `<strong>Date :</strong> ${note.date}<br>`;
+    html += `<strong>Durée :</strong> ${note.duration_minutes} min | <strong>Échanges :</strong> ${note.exchanges}<br>`;
+    html += `<strong>Approches :</strong> ${note.approaches_used.join(', ') || 'Aucune'}<br>`;
+    html += `<strong>Transitions :</strong> ${note.transitions}<br>`;
+    html += `<strong>Sécurité :</strong> Niveau max ${note.safety_level_max}/3<br>`;
+    if (note.signals_detected.length > 0) {
+        html += `<br><strong>Signaux détectés :</strong><br>`;
+        note.signals_detected.forEach(s => { html += `&nbsp;&nbsp;• ${s}<br>`; });
+    }
+    if (note.alerts.length > 0) {
+        html += `<br><strong style="color:#c00;">⚠️ ALERTES :</strong><br>`;
+        note.alerts.forEach(a => { html += `&nbsp;&nbsp;• ${a}<br>`; });
+    }
+    html += '</div>';
+    
+    html += '<div style="text-align:center;margin-top:16px;gap:8px;display:flex;justify-content:center;">';
+    html += '<button onclick="copySessionNote()" style="padding:8px 20px;border:none;border-radius:8px;background:#7A9A9C;color:white;cursor:pointer;">📋 Copier</button>';
+    html += '<button onclick="downloadSessionNote()" style="padding:8px 20px;border:none;border-radius:8px;background:#8FAFB1;color:white;cursor:pointer;">📥 Télécharger</button>';
+    html += '<button onclick="document.getElementById(\'session-note-modal\').remove()" style="padding:8px 20px;border:1px solid #ccc;border-radius:8px;background:#f5f5f5;cursor:pointer;">Fermer</button>';
+    html += '</div>';
+    
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
+    
+    window._lastSessionNote = note;
+}
+
+function copySessionNote() {
+    const note = window._lastSessionNote;
+    if (!note) return;
+    const text = `NOTE CLINIQUE — ${note.date}\nDurée: ${note.duration_minutes}min | Échanges: ${note.exchanges}\nApproches: ${note.approaches_used.join(', ')}\nTransitions: ${note.transitions}\nSécurité: ${note.safety_level_max}/3\nSignaux: ${note.signals_detected.join('; ') || 'Aucun'}\nAlertes: ${note.alerts.join('; ') || 'Aucune'}`;
+    navigator.clipboard.writeText(text).then(() => {
+        if (typeof showToast === 'function') showToast('📋 Note copiée', 'success');
+    });
+}
+
+function downloadSessionNote() {
+    const note = window._lastSessionNote;
+    if (!note) return;
+    const blob = new Blob([JSON.stringify(note, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'note-seance-' + note.date + '.json';
+    a.click();
+}
+
+console.log('[THÉRAPEUTE-IA-UI] ✅ Boutons ETI + Notes de séance initialisés');
+
+// ═══ IMPORT DE SÉANCE DEPUIS LA BARRE DE CONTRÔLE ═══
+function handleSessionImport(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data._format === 'therapeute-ia-session') {
+                const success = await window.sessionExporter.importSession(data);
+                if (success) {
+                    console.log('[Import] ✅ Séance importée depuis la barre de contrôle');
+                }
+            } else {
+                if (typeof showToast === 'function') showToast('❌ Format non reconnu — fichier JSON Thérapeute IA requis', 'error');
+            }
+        } catch (err) {
+            console.error('[Import] ❌ Erreur:', err);
+            if (typeof showToast === 'function') showToast('❌ Erreur de lecture: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ═══ FORCE APPROACH DEPUIS LE DASHBOARD ═══
+function forceApproachFromDashboard(approach) {
+    if (window.clinicalDecisionEngine) {
+        window.clinicalDecisionEngine.forceApproach(approach);
+        if (typeof showToast === 'function') showToast(`🧠 Approche forcée: ${approach}`, 'info');
+        if (window.therapistDashboard?.isVisible) window.therapistDashboard._updateContent();
+    }
+}
+
+// ═══ PROPOSITION EXERCICE DEPUIS LE DASHBOARD ═══
+function proposeExerciseFromDashboard(type) {
+    if (!window.therapeuticActionEngine || !window.conversationalSystem) return;
+    const actionHTML = window.therapeuticActionEngine.generateExerciseButton(type);
+    if (actionHTML) {
+        // Injecter un message assistant avec le bouton
+        window.conversationalSystem.addMessage('assistant', 
+            'J\'ai préparé un exercice pour vous, voici le lien de téléchargement :');
+        // Attendre que le message soit rendu
+        setTimeout(() => {
+            const bubbles = document.querySelectorAll('.message.assistant .message-content');
+            const lastBubble = bubbles[bubbles.length - 1];
+            if (lastBubble) lastBubble.insertAdjacentHTML('beforeend', actionHTML);
+        }, 100);
+    }
+}
+
+console.log('[AUTONOME-UI] ✅ Import séance + Force approach + Proposition exercice depuis Dashboard');
+
+// FIX 4: Sauvegarde automatique mémoire supervision à la fermeture
+window.addEventListener('beforeunload', () => {
+    if (window._operatingMode === 'collaborateur' && window.SupervisionMemory) {
+        const convSystem = window.conversationalSystem || window.convSystem;
+        if (convSystem?.messages?.length >= 4) {
+            window.SupervisionMemory.saveSession(convSystem.messages);
+        }
+    }
+});
+
+
 </script>
 
 <script>
