@@ -16648,274 +16648,267 @@ console.log('  👤 Mode patient/thérapeute — toggleViewMode()');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RAG — RECHERCHE DANS LA BIBLIOTHÈQUE THÉRAPEUTIQUE
-// Interroge le Worker /search-library pour trouver des passages pertinents
+// ═══════════════════════════════════════════════════════════════════════════════
+// RAG v2 — Bibliothèque Thérapeutique (100-300 livres, multi-requêtes parallèles)
+// Architecture : catalogue dynamique D1 + Vectorize, tous index sauf hypnose
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class LibraryRAG {
-    constructor(workerUrl) {
-        this.workerUrl = workerUrl;
-        this.enabled = true;
-        this.cache = new Map();
-        this.cacheMaxAge = 5 * 60 * 1000; // 5 min cache
-        this.lastQuery = '';
-        this.minQueryLength = 15; // Pas de recherche pour les réponses courtes
-        this._searchCooldownMs = 10000; // 10s entre les recherches
-        this._lastSearchTime = 0;
-        console.log('[LibraryRAG] ✅ Initialisé — Worker:', workerUrl);
-    }
+const THERAPY_RAG_CATALOG = {
+  loaded:      false,
+  loading:     false,
+  books:       [],   // [{book_id, book_title, author, chunks, approach, language}]
+  totalChunks: 0,
+  loadedAt:    null,
+  error:       null,
+};
 
-    // Extraire les mots-clés thérapeutiques du message patient
-    _extractSearchQuery(userMessage) {
-        // Ne pas chercher si le message est trop court ou banal
-        if (!userMessage || userMessage.length < this.minQueryLength) return null;
-
-        const mdc = window.clinicalDecisionEngine;
-        const approach = mdc?.activeApproach || '';
-        
-        // Construire une requête de recherche intelligente basée sur :
-        // 1. L'approche active
-        // 2. Les mots-clés du message patient
-        // 3. Le schéma dominant si présent
-        
-        let query = '';
-        
-        // Ajouter le contexte de l'approche
-        const approachTerms = {
-            'schemas': 'schema therapy Young schéma précoce inadapté',
-            'schema_therapy': 'schema therapy Young schéma précoce inadapté',
-            'act_defusion': 'ACT defusion cognitive pensée fusion',
-            'act_acceptance': 'ACT acceptance experiential avoidance évitement',
-            'act_values': 'ACT values committed action valeurs engagement',
-            'act_committed': 'ACT behavioral activation values action engagée',
-            'ifs': 'IFS parts Self internal family systems parties exilé protecteur',
-            'ifs_6f': 'IFS parts Self internal family systems six F',
-            'ifs_unburdening': 'IFS unburdening exile décharge',
-            'coherence': 'coherence therapy reconsolidation emotional learning juxtaposition',
-            'emdr': 'EMDR desensitization bilateral stimulation trauma',
-            'mindfulness': 'mindfulness MBCT present moment awareness pleine conscience décentration Segal',
-            'cft': 'compassion focused therapy self-compassion Gilbert honte',
-            'dbt': 'DBT dialectical behavior therapy Linehan régulation émotionnelle tolérance détresse',
-            'mi': 'entretien motivationnel Miller Rollnick ambivalence discours-changement motivation',
-            'cnv': 'communication non violente Rosenberg OSBD besoin demande observation sentiment assertivité',
-            'stabilization': 'stabilisation ancrage fenêtre tolérance grounding lieu sûr',
-            'icv': 'ICV intégration cycle vie lifespan integration Peggy Pace timeline ligne du temps trauma développemental attachement',
-            'systemic': 'systémique Watzlawick Minuchin Selvini Palazzoli circulaire boucle interaction tentative solution recadrage Palo Alto de Shazer question miracle White externalisation narratif',
-            'safety': 'crise suicidaire sécurité urgence',
-        };
-        
-        query = approachTerms[approach] || '';
-        
-        // Ajouter le schéma dominant
-        const schemas = window.schemaDetector?.getDominantSchemas?.() || [];
-        if (schemas.length > 0) {
-            query += ' ' + schemas[0].name;
-        }
-        
-        // Ajouter des extraits du message patient (mots significatifs)
-        const significantWords = userMessage
-            .split(/\s+/)
-            .filter(w => w.length > 4)
-            .filter(w => !['alors', 'comme', 'cette', 'quand', 'aussi', 'toujours', 'jamais', 'vraiment', 'peut-être', 'parce'].includes(w.toLowerCase()))
-            .slice(0, 5)
-            .join(' ');
-        
-        query += ' ' + significantWords;
-        
-        return query.trim() || null;
-    }
-
-    async search(query, options = {}) {
-        if (!this.enabled || !query) return [];
-        
-        // Cooldown
-        const now = Date.now();
-        if (now - this._lastSearchTime < this._searchCooldownMs) return [];
-        this._lastSearchTime = now;
-        
-        // Cache
-        const cacheKey = query.substring(0, 50);
-        if (this.cache.has(cacheKey)) {
-            const cached = this.cache.get(cacheKey);
-            if (now - cached.time < this.cacheMaxAge) {
-                console.log('[RAG] 💾 Cache hit');
-                return cached.results;
-            }
-        }
-
-        try {
-            const res = await fetch(this.workerUrl + '/search-library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query,
-                    topK: options.topK || 3,
-                    // Exclure systématiquement les chunks hypnose — Thérapeute IA est PSY, pas hypnothérapeute
-                    approach: options.approach || undefined,
-                    exclude_approach: 'hypnosis',
-                    language: options.language || undefined,
-                })
-            });
-
-            if (!res.ok) {
-                console.warn('[RAG] ⚠️ Search failed:', res.status);
-                return [];
-            }
-
-            const data = await res.json();
-            const results = data.results || [];
-            
-            // Cacher
-            this.cache.set(cacheKey, { results, time: now });
-            
-            console.log(`[RAG] 📚 ${results.length} passages trouvés pour: "${query.substring(0, 40)}..."`);
-            return results;
-
-        } catch (err) {
-            console.warn('[RAG] ⚠️ Network error:', err.message);
-            return [];
-        }
-    }
-
-    // Recherche + formatage pour injection dans le prompt (MODE PATIENT)
-    async searchAndFormat(userMessage) {
-        const query = this._extractSearchQuery(userMessage);
-        if (!query) return null;
-
-        const results = await this.search(query, { exclude_approach: 'hypnosis' });
-        // Filtre de sécurité côté client — exclure chunks hypnose (pas pertinents pour PSY)
-        const filtered = (results || []).filter(r => r.approach !== 'hypnosis');
-        if (!filtered || filtered.length === 0) return null;
-
-        let context = '\n═══ RÉFÉRENCES BIBLIOTHÈQUE THÉRAPEUTIQUE ═══\n';
-        context += '(Passages pertinents — utilise-les pour enrichir ton intervention, sans citer les sources au patient sauf s\'il demande.)\n\n';
-
-        for (const r of filtered) {
-            context += `── ${r.book_title} (${r.author})${r.page ? ', p.' + r.page : ''} ──\n`;
-            context += r.content.substring(0, 400) + (r.content.length > 400 ? '...' : '') + '\n\n';
-        }
-
-        return context;
-    }
-
-    // ═══ FIX 2+3 — Recherche spécialisée MODE COLLABORATEUR ═══
-    // Requête basée sur les termes cliniques du message (pas les détecteurs de la psy)
-    // Plus de résultats, passages plus longs, citations encouragées
-    
-    _extractCollabQuery(userMessage) {
-        if (!userMessage || userMessage.length < 10) return null;
-        
-        // Dictionnaire de termes cliniques à matcher
-        const clinicalTerms = [
-            'schéma', 'schema', 'abandon', 'carence', 'méfiance', 'assujettissement',
-            'dépendance', 'vulnérabilité', 'fusion', 'échec', 'contrôle', 'sacrifice',
-            'exigences', 'inhibition', 'punition', 'manque affectif',
-            'ACT', 'acceptation', 'défusion', 'valeurs', 'engagement', 'hexaflex',
-            'IFS', 'parts', 'exilé', 'manager', 'pompier', 'Self',
-            'EMDR', 'trauma', 'désensibilisation', 'retraitement', 'flash',
-            'attachement', 'anxieux', 'évitant', 'désorganisé', 'sécure',
-            'transfert', 'contre-transfert', 'alliance', 'rupture',
-            'dissociation', 'régulation', 'fenêtre de tolérance',
-            'narcissique', 'borderline', 'dépression', 'anxiété', 'TOC', 'PTSD',
-            'couple', 'infidélité', 'communication', 'gottman', 'cavaliers',
-            'systémique', 'triangulation', 'homéostasie', 'loyauté',
-            'cognitif', 'comportemental', 'restructuration', 'exposition',
-            'compassion', 'auto-compassion', 'honte', 'culpabilité',
-            'reconsolidation', 'cohérence', 'mémoire émotionnelle',
-            'sexualité', 'désir', 'érotisme', 'intimité',
-            'deuil', 'perte', 'séparation', 'divorce',
-            'enfant', 'adolescent', 'parentalité', 'reparenting',
-            'supervision', 'conceptualisation', 'formulation', 'diagnostic',
-            'motivationnel', 'ambivalence', 'discours-changement', 'Miller', 'Rollnick',
-            'communication non violente', 'CNV', 'OSBD', 'Rosenberg', 'besoin', 'demande',
-            'assertivité', 'message-je', 'Ansembourg',
-            'pleine conscience', 'MBCT', 'Segal', 'rumination', 'décentration',
-            'DBT', 'Linehan', 'tolérance', 'dysrégulation',
-            'processus', 'Hofmann', 'transdiagnostique', 'flexibilité psychologique',
-            'ICV', 'intégration cycle vie', 'lifespan', 'Pace', 'timeline', 'ligne du temps',
-            'systémique', 'Watzlawick', 'Minuchin', 'Selvini', 'circulaire', 'boucle', 'tentative de solution',
-            'de Shazer', 'question miracle', 'exception', 'White', 'externalisation', 'narratif',
-            'cohérence', 'Ecker', 'reconsolidation', 'juxtaposition', 'savoir implicite', 'pro-symptôme',
-            'régression', 'trauma développemental', 'conscience temporelle'
-        ];
-        
-        const msgLower = userMessage.toLowerCase();
-        
-        // Extraire les termes cliniques trouvés dans le message
-        const foundTerms = clinicalTerms.filter(t => msgLower.includes(t.toLowerCase()));
-        
-        // Ajouter les mots significatifs du message (>5 chars, pas stop words)
-        const stopWords = ['alors', 'comme', 'cette', 'quand', 'aussi', 'toujours', 'jamais', 
-            'vraiment', 'peut-être', 'parce', 'patient', 'séance', 'pense', 'semble',
-            'pourrait', 'comment', 'depuis', 'encore', 'beaucoup', 'quelque', 'chose'];
-        const significantWords = userMessage
-            .split(/\s+/)
-            .filter(w => w.length > 5)
-            .filter(w => !stopWords.includes(w.toLowerCase()))
-            .slice(0, 6);
-        
-        // Combiner : termes cliniques + mots-clés du message + mode actif
-        const collabMode = window._collabMode || 'supervision';
-        const modeTerms = {
-            supervision: 'supervision clinique contre-transfert',
-            analyse: 'conceptualisation formulation cas clinique',
-            intervention: 'stratégie intervention technique thérapeutique',
-            conceptualisation: 'formulation intégrative schéma attachement',
-            bibliographie: 'recherche littérature référence théorique'
-        };
-        
-        let query = (modeTerms[collabMode] || '') + ' ' + foundTerms.join(' ') + ' ' + significantWords.join(' ');
-        return query.trim() || null;
-    }
-    
-    async searchAndFormatCollab(userMessage) {
-        const query = this._extractCollabQuery(userMessage);
-        if (!query) return null;
-
-        // Mode collab : plus de résultats
-        const results = await this.search(query, { topK: 5 });
-        if (!results || results.length === 0) return null;
-
-        let context = '\n═══ RÉFÉRENCES BIBLIOTHÈQUE CLINIQUE ═══\n';
-        context += '(Citez explicitement les auteurs et références quand vous vous appuyez dessus. La psychologue veut savoir d\'où viennent les concepts. Indiquez l\'auteur, le concept et la page si disponible.)\n\n';
-
-        for (const r of results) {
-            context += `── ${r.book_title} — ${r.author}${r.page ? ' (p.' + r.page + ')' : ''} ──\n`;
-            // Passages plus longs pour le mode pro (800 chars au lieu de 400)
-            context += r.content.substring(0, 800) + (r.content.length > 800 ? '...' : '') + '\n\n';
-        }
-
-        return context;
-    }
-
-    disable() { this.enabled = false; console.log('[RAG] ❌ Désactivé'); }
-    enable() { this.enabled = true; console.log('[RAG] ✅ Activé'); }
+// ── Charger le catalogue depuis D1 ──
+async function loadTherapyCatalog() {
+  if (THERAPY_RAG_CATALOG.loaded || THERAPY_RAG_CATALOG.loading) return;
+  const workerUrl = window._therapyWorkerUrl;
+  if (!workerUrl) return;
+  THERAPY_RAG_CATALOG.loading = true;
+  try {
+    const q = await fetch(workerUrl + '/d1-query', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sql: "SELECT book_id, book_title, author, approach, COUNT(*) as chunks FROM chunks WHERE approach != 'hypnosis' GROUP BY book_id ORDER BY chunks DESC"
+      })
+    });
+    if (!q.ok) throw new Error('HTTP ' + q.status);
+    const data = await q.json();
+    const rows = data.results || [];
+    THERAPY_RAG_CATALOG.books = rows.map(r => ({
+      book_id:    r.book_id,
+      book_title: r.book_title,
+      author:     r.author || 'Inconnu',
+      approach:   row.approach || 'therapy',
+      language:   'fr',
+      chunks:     r.chunks || 0,
+    }));
+    THERAPY_RAG_CATALOG.totalChunks = rows.reduce((s, r) => s + (r.chunks || 0), 0);
+    THERAPY_RAG_CATALOG.loaded  = true;
+    THERAPY_RAG_CATALOG.loading = false;
+    THERAPY_RAG_CATALOG.loadedAt = Date.now();
+    console.log(`[RAG Catalog] ✅ ${THERAPY_RAG_CATALOG.books.length} livres thérapie — ${THERAPY_RAG_CATALOG.totalChunks} chunks total`);
+    THERAPY_RAG_CATALOG.books.forEach(b => console.log(`  📚 ${b.author} — "${b.book_title}" (${b.chunks} chunks)`));
+  } catch(e) {
+    THERAPY_RAG_CATALOG.loading = false;
+    THERAPY_RAG_CATALOG.error   = e.message;
+    console.warn('[RAG Catalog] ⚠️ Chargement échoué:', e.message);
+  }
 }
 
-// ═══ INITIALISATION RAG ═══
-// Détecter l'URL du Worker depuis celle utilisée pour l'API Anthropic
-(function initRAG() {
-    // Le Worker URL est stocké dans ConversationalSystem — on le récupère après init
-    const checkWorker = setInterval(() => {
-        const cs = window.conversationalSystem;
-        if (cs?.WORKER_URL) {
-            const workerBase = cs.WORKER_URL.replace(/\/$/, '');
-            window.libraryRAG = new LibraryRAG(workerBase);
-            
-            // Enrichir TherapistAPI
-            window.TherapistAPI.library = {
-                search: (q) => window.libraryRAG.search(q),
-                disable: () => window.libraryRAG.disable(),
-                enable: () => window.libraryRAG.enable(),
-                stats: async () => {
-                    const res = await fetch(workerBase + '/library-stats');
-                    return res.json();
-                }
-            };
-            
-            clearInterval(checkWorker);
-        }
-    }, 2000);
+// ── Construire les requêtes RAG contextualisées ──
+function buildTherapyRAGQueries(userMessage, operatingMode) {
+  const queries = [];
+  const mdc     = window.clinicalDecisionEngine;
+  const approach = mdc?.activeApproach || '';
+  const collabMode = window._collabMode || 'supervision';
+
+  // ── Q1 : Sémantique principale (message utilisateur) ──
+  const mainQ = userMessage.substring(0, 180).trim();
+  if (mainQ.length > 10) {
+    queries.push({ query: mainQ, approach: undefined, topK: 5, label: 'principale' });
+  }
+
+  // ── Q2 : Approche thérapeutique active ──
+  const approachMap = {
+    'schemas':             'schéma thérapie Young schéma précoce inadapté modes schématiques',
+    'schema_therapy':      'schéma thérapie Young schéma précoce inadapté modes schématiques',
+    'act_defusion':        'ACT défusion cognitive pensée fusion Hayes',
+    'act_acceptance':      'ACT acceptation évitement expérientiel Hayes',
+    'act_values':          'ACT valeurs engagement action Hayes flexibilité psychologique',
+    'act_committed':       'ACT activation comportementale valeurs engagement',
+    'ifs':                 'IFS parties Self internal family systems exilé protecteur pompier',
+    'ifs_6f':              'IFS six F find focus flesh flinch fear fight',
+    'ifs_unburdening':     'IFS décharge unburdening exilé legs fardeau',
+    'coherence':           'cohérence thérapeutique reconsolidation apprentissage émotionnel juxtaposition Ecker',
+    'emdr':                'EMDR désensibilisation stimulation bilatérale trauma retraitement Shapiro',
+    'mindfulness':         'pleine conscience MBCT Segal Kabat-Zinn moment présent rumination décentration',
+    'cft':                 'thérapie centrée compassion auto-compassion Gilbert honte critique interne',
+    'dbt':                 'DBT dialectique Linehan régulation émotionnelle tolérance détresse',
+    'mi':                  'entretien motivationnel Miller Rollnick ambivalence discours-changement stades',
+    'cnv':                 'communication non violente Rosenberg OSBD besoin demande observation assertivité',
+    'stabilization':       'stabilisation ancrage fenêtre tolérance grounding ressource sécurité',
+    'icv':                 'ICV intégration cycle vie lifespan integration Pace timeline trauma développemental',
+    'systemic':            'systémique Watzlawick Minuchin circulaire boucle tentative solution recadrage narratif',
+    'safety':              'crise suicidaire sécurité urgence intervention basse stimulation',
+  };
+  const approachQ = approachMap[approach];
+  if (approachQ) {
+    queries.push({ query: approachQ, approach: undefined, topK: 4, label: 'approche:' + approach });
+  }
+
+  // ── Q3 : Schéma dominant Young ──
+  const schemas = window.schemaDetector?.getDominantSchemas?.() || [];
+  if (schemas.length > 0) {
+    const schemaQ = schemas.slice(0, 2).map(s => s.name).join(' ') + ' schéma Young thérapie';
+    queries.push({ query: schemaQ, approach: undefined, topK: 4, label: 'schema:' + schemas[0].id });
+  }
+
+  // ── Q4 : Mode opératoire spécifique ──
+  if (operatingMode === 'couple') {
+    queries.push({ query: 'thérapie couple Gottman communication conflit attachment Neuburger systémique imago', approach: undefined, topK: 4, label: 'mode:couple' });
+  } else if (operatingMode === 'collaborateur') {
+    const collabMap = {
+      supervision:        'supervision clinique contre-transfert alliance rupture',
+      analyse:            'conceptualisation formulation cas clinique diagnostic différentiel',
+      intervention:       'stratégie intervention technique protocole thérapeutique',
+      conceptualisation:  'formulation intégrative schéma attachement développement',
+      bibliographie:      'référence théorique littérature clinique recherche',
+    };
+    const collabQ = collabMap[collabMode] || 'supervision clinique formulation';
+    queries.push({ query: collabQ, approach: undefined, topK: 5, label: 'collab:' + collabMode });
+  }
+
+  // ── Q5 : Termes cliniques extraits du message (mode collab) ──
+  if (operatingMode === 'collaborateur') {
+    const clinicalTerms = [
+      'transfert','contre-transfert','alliance','rupture','dissociation',
+      'attachement','anxieux','évitant','désorganisé','régulation',
+      'narcissique','borderline','dépression','anxiété','TOC','PTSD',
+      'trauma','reconsolidation','reparenting','parentalité',
+      'sexualité','désir','intimité','infidélité','deuil','perte',
+      'supervision','formulation','diagnostic','transdiagnostique',
+    ];
+    const msgLower = userMessage.toLowerCase();
+    const found = clinicalTerms.filter(t => msgLower.includes(t.toLowerCase())).slice(0, 6);
+    if (found.length > 0) {
+      queries.push({ query: found.join(' ') + ' thérapie clinique', approach: undefined, topK: 4, label: 'clinique' });
+    }
+  }
+
+  return queries.slice(0, 5);
+}
+
+// ── Fetch RAG principal ──
+async function fetchTherapyRAG(userMessage, operatingMode) {
+  const workerUrl = window._therapyWorkerUrl;
+  if (!workerUrl || !userMessage || userMessage.length < 15) return '';
+
+  // Lazy load catalogue
+  if (!THERAPY_RAG_CATALOG.loaded && !THERAPY_RAG_CATALOG.loading) {
+    loadTherapyCatalog();
+  }
+
+  try {
+    const queryDefs = buildTherapyRAGQueries(userMessage, operatingMode);
+    if (!queryDefs.length) return '';
+
+    // Requêtes parallèles
+    const results = await Promise.allSettled(
+      queryDefs.map(def => fetch(workerUrl + '/search-library', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: def.query, approach: def.approach, topK: def.topK || 4 })
+      }).then(r => r.ok ? r.json() : { results: [] }))
+    );
+
+    // Fusionner + dédupliquer
+    const seen   = new Set();
+    const chunks = [];
+    for (const res of results) {
+      if (res.status !== 'fulfilled') continue;
+      for (const item of (res.value.results || [])) {
+        const key = (item.book_title || '') + '|' + (item.page || '') + '|' + (item.content || '').substring(0, 70);
+        if (!seen.has(key)) { seen.add(key); chunks.push(item); }
+      }
+    }
+    if (!chunks.length) return '';
+
+    // Tri par score sémantique
+    chunks.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    // Diversité par auteur (max 3 chunks/auteur)
+    const byAuthor = {};
+    for (const c of chunks) {
+      const a = c.author || 'Inconnu';
+      if (!byAuthor[a]) byAuthor[a] = [];
+      byAuthor[a].push(c);
+    }
+    const authorOrder = Object.keys(byAuthor).sort((a, b) => {
+      const catA = THERAPY_RAG_CATALOG.books.find(bk => bk.author === a)?.chunks || byAuthor[a].length;
+      const catB = THERAPY_RAG_CATALOG.books.find(bk => bk.author === b)?.chunks || byAuthor[b].length;
+      return catB - catA;
+    });
+    const balanced = [];
+    const MAX_PER_AUTHOR = 3;
+    const MAX_TOTAL = operatingMode === 'collaborateur' ? 12 : 8;
+    for (const author of authorOrder) {
+      const ac = byAuthor[author].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, MAX_PER_AUTHOR);
+      balanced.push(...ac);
+      if (balanced.length >= MAX_TOTAL) break;
+    }
+    balanced.sort((a, b) => (b.score || 0) - (a.score || 0));
+    const final = balanced.slice(0, MAX_TOTAL);
+
+    // Construire le contexte
+    const isCollab = operatingMode === 'collaborateur';
+    const totalBooks = THERAPY_RAG_CATALOG.loaded
+      ? `${THERAPY_RAG_CATALOG.books.length} ouvrages, ${THERAPY_RAG_CATALOG.totalChunks} chunks`
+      : 'bibliothèque thérapeutique';
+
+    let ctx = isCollab
+      ? '\n═══ RÉFÉRENCES BIBLIOTHÈQUE CLINIQUE ═══\n'
+      : '\n═══ RÉFÉRENCES BIBLIOTHÈQUE THÉRAPEUTIQUE ═══\n';
+    ctx += `(${totalBooks} — tous index sauf hypnose)\n`;
+    ctx += isCollab
+      ? '(Citez explicitement auteurs et références — la psy veut savoir d\'où viennent les concepts.)\n\n'
+      : '(Intégrer naturellement — ne pas citer les sources au patient sauf s\'il demande.)\n\n';
+
+    const maxChars = isCollab ? 700 : 400;
+    final.forEach(item => {
+      const author  = item.author    ? ` [${item.author}]`     : '';
+      const page    = item.page      ? `, p.${item.page}`       : '';
+      const score   = item.score     ? ` — ${Math.round(item.score * 100)}%` : '';
+      const content = (item.content  || '').substring(0, maxChars).trim();
+      ctx += `── ${item.book_title || 'Référence'}${page}${author}${score} ──\n${content}\n\n`;
+    });
+
+    const sourcesList = [...new Set(final.map(c => c.author || '?'))].join(', ');
+    console.log(`[RAG] ✅ ${final.length} chunks | sources: ${sourcesList} | requêtes: ${queryDefs.map(q => q.label).join(', ')}`);
+    return ctx;
+
+  } catch(e) {
+    console.warn('[RAG] ⚠️ fetchTherapyRAG error:', e.message);
+    return '';
+  }
+}
+
+// ═══ INITIALISATION RAG v2 ═══
+(function initTherapyRAG() {
+  const checkWorker = setInterval(() => {
+    const cs = window.conversationalSystem;
+    if (cs?.WORKER_URL) {
+      clearInterval(checkWorker);
+      const workerBase = cs.WORKER_URL.replace(/\/$/, '');
+      window._therapyWorkerUrl = workerBase;
+
+      // Lancer le chargement du catalogue en arrière-plan
+      setTimeout(() => loadTherapyCatalog(), 1200);
+
+      // Compatibilité TherapistAPI.library (conserve l'ancienne API)
+      if (window.TherapistAPI) {
+        window.TherapistAPI.library = {
+          search: (q) => fetch(workerBase + '/search-library', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q, approach: undefined, topK: 5 })
+          }).then(r => r.json()),
+          stats: async () => {
+            const res = await fetch(workerBase + '/library-stats');
+            return res.json();
+          },
+          catalog: () => THERAPY_RAG_CATALOG,
+        };
+      }
+
+      console.log('[RAG v2] ✅ Thérapie initialisé — Worker:', workerBase);
+    }
+  }, 2000);
 })();
+
 
 
 class TherapeuticActionEngine {
@@ -17890,26 +17883,22 @@ class ConversationalSystem {
                 console.log('[API] 📝 Summary injected into system prompt');
             }
             
-            // ═══ RAG — Recherche dans la bibliothèque thérapeutique ═══
-            if (window.libraryRAG) {
+            // ═══ RAG v2 — Bibliothèque thérapeutique multi-requêtes ═══
+            if (window._therapyWorkerUrl) {
                 try {
                     const lastUserMsg = cleanMessages.filter(m => m.role === 'user').pop();
                     if (lastUserMsg) {
-                        // FIX 3: Utiliser la recherche spécialisée collab (plus de résultats, citations, termes cliniques)
-                        const isCollabRAG = window._operatingMode === 'collaborateur';
-                        const ragContext = isCollabRAG 
-                            ? await window.libraryRAG.searchAndFormatCollab(lastUserMsg.content)
-                            : await window.libraryRAG.searchAndFormat(lastUserMsg.content);
+                        const ragContext = await fetchTherapyRAG(lastUserMsg.content, window._operatingMode || 'patient');
                         if (ragContext) {
                             systemPrompt += '\n\n' + ragContext;
-                            console.log(`[RAG] 📚 Contexte bibliothèque injecté (mode: ${isCollabRAG ? 'COLLAB' : 'PATIENT'})`);
+                            console.log(`[RAG v2] 📚 Contexte injecté (mode: ${window._operatingMode || 'patient'})`);
                         }
                     }
                 } catch (ragErr) {
-                    console.warn('[RAG] ⚠️ Recherche bibliothèque échouée:', ragErr.message);
+                    console.warn('[RAG v2] ⚠️ Recherche échouée:', ragErr.message);
                 }
             }
-            // ═══ FIN RAG ═══
+            // ═══ FIN RAG v2 ═══
             
             // Appeler Claude API
             const isCollab = window._operatingMode === 'collaborateur';
