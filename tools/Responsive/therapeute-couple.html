@@ -16065,66 +16065,6 @@ function addDialogueTurn() {
     }
 })();
 <\/script>
-<script>
-    // ── FIX AUDIO MOBILE (iOS/Android) — C Concept&Dev ──────────
-    // iOS Safari bloque Audio.play() si pas déclenché par geste user
-    // Solution : résoudre l'AudioContext au 1er tap, puis play() fonctionne
-    (function() {
-        var _audioUnlocked = false;
-        var _unlockBtn = null;
-
-        function _unlockAllAudio() {
-            if (_audioUnlocked) return;
-            _audioUnlocked = true;
-
-            // 1. Resume tous les AudioContext suspendus
-            if (window.AudioContext || window.webkitAudioContext) {
-                try {
-                    var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    if (ctx.state === 'suspended') ctx.resume();
-                    // Jouer un silence pour débloquer iOS
-                    var buf = ctx.createBuffer(1, 1, 22050);
-                    var src = ctx.createBufferSource();
-                    src.buffer = buf;
-                    src.connect(ctx.destination);
-                    src.start(0);
-                } catch(e) {}
-            }
-
-            // 2. Masquer le bouton unlock
-            if (_unlockBtn) { _unlockBtn.style.display = 'none'; }
-
-            console.log('[Audio] ✅ Contexte audio débloqué');
-        }
-
-        // Déclencher sur tout tap/click
-        document.addEventListener('touchstart', _unlockAllAudio, { once: true, passive: true });
-        document.addEventListener('click',      _unlockAllAudio, { once: true });
-
-        // Afficher bouton unlock uniquement sur mobile (touch device)
-        window.addEventListener('load', function() {
-            var isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            if (!isMobile) return;
-
-            _unlockBtn = document.getElementById('mobile-audio-unlock');
-            if (_unlockBtn) {
-                _unlockBtn.style.display = 'block';
-                _unlockBtn.addEventListener('click', function() {
-                    _unlockAllAudio();
-                    this.style.display = 'none';
-                });
-                // Auto-masquer après 8s
-                setTimeout(function() {
-                    if (_unlockBtn) _unlockBtn.style.display = 'none';
-                }, 8000);
-            }
-        });
-
-        // Exposer pour usage dans le code TTS
-        window._mobileAudioUnlocked = function() { return _audioUnlocked; };
-    })();
-    // ─────────────────────────────────────────────────────────────
-</script>
 </body>
 </html>`;
     }
@@ -16192,7 +16132,7 @@ class PostSessionManager {
         if (profile) {
             profile.updateFromDetectors();
             profile.addSessionNote(
-                `Séance ${Math.round(session.getElapsedMinutes())}min, ${session.exchangeCount} échanges. Approches : ${note.approaches_used.join(', ')}. ${note.alerts.length > 0 ? 'ALERTES: ' + note.alerts.join('; ') : 'Pas d\'alerte.'}`,
+                `Séance ${Math.round(session.getElapsedMinutes())}min, ${session.exchangeCount} échanges. Approches : ${note.approaches_used.join(', ')}. ${note.alerts.length > 0 ? 'ALERTES: ' + note.alerts.join('; ') : "Pas d'alerte."}`,
                 approaches,
                 note.alerts
             );
@@ -32952,11 +32892,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- BRAIN BUILDER ULTIMATE v2.0 - SCRIPTS (FIXED) -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 
-<!-- Chart.js for visualizations -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 
-<!-- JSZip for export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <!-- Brain Builder Complete (FIXED - no nested backticks) -->
 <script>
@@ -37474,11 +37410,11 @@ console.log('[v17.3.1 CLEAN] - Avatar tooltip enrichi');
 // Vérifier session interrompue au chargement
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        checkInterruptedSession();
+        // checkInterruptedSession() désactivé — autoSaveManager gère la restauration
         checkGoogleTTSConfig();
     });
 } else {
-    checkInterruptedSession();
+    // checkInterruptedSession() désactivé
     checkGoogleTTSConfig();
 }
 
@@ -38179,5 +38115,65 @@ window.addEventListener('beforeunload', () => {
     <span class="switch-label" style="font-size: 10px; opacity: 0.6;">1 / 2</span>
 </div>
 
+<script>
+    // ── FIX AUDIO MOBILE (iOS/Android) — C Concept&Dev ──────────
+    // iOS Safari bloque Audio.play() si pas déclenché par geste user
+    // Solution : résoudre l'AudioContext au 1er tap, puis play() fonctionne
+    (function() {
+        var _audioUnlocked = false;
+        var _unlockBtn = null;
+
+        function _unlockAllAudio() {
+            if (_audioUnlocked) return;
+            _audioUnlocked = true;
+
+            // 1. Resume tous les AudioContext suspendus
+            if (window.AudioContext || window.webkitAudioContext) {
+                try {
+                    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (ctx.state === 'suspended') ctx.resume();
+                    // Jouer un silence pour débloquer iOS
+                    var buf = ctx.createBuffer(1, 1, 22050);
+                    var src = ctx.createBufferSource();
+                    src.buffer = buf;
+                    src.connect(ctx.destination);
+                    src.start(0);
+                } catch(e) {}
+            }
+
+            // 2. Masquer le bouton unlock
+            if (_unlockBtn) { _unlockBtn.style.display = 'none'; }
+
+            console.log('[Audio] ✅ Contexte audio débloqué');
+        }
+
+        // Déclencher sur tout tap/click
+        document.addEventListener('touchstart', _unlockAllAudio, { once: true, passive: true });
+        document.addEventListener('click',      _unlockAllAudio, { once: true });
+
+        // Afficher bouton unlock uniquement sur mobile (touch device)
+        window.addEventListener('load', function() {
+            var isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (!isMobile) return;
+
+            _unlockBtn = document.getElementById('mobile-audio-unlock');
+            if (_unlockBtn) {
+                _unlockBtn.style.display = 'block';
+                _unlockBtn.addEventListener('click', function() {
+                    _unlockAllAudio();
+                    this.style.display = 'none';
+                });
+                // Auto-masquer après 8s
+                setTimeout(function() {
+                    if (_unlockBtn) _unlockBtn.style.display = 'none';
+                }, 8000);
+            }
+        });
+
+        // Exposer pour usage dans le code TTS
+        window._mobileAudioUnlocked = function() { return _audioUnlocked; };
+    })();
+    // ─────────────────────────────────────────────────────────────
+</script>
 </body>
 </html>
