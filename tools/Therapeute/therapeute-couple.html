@@ -1363,6 +1363,105 @@
             content: '👤';
         }
         
+        /* ═══ MODE COUPLE — Partenaire A (Mer) + Partenaire B (Sable) ═══ */
+        .message.partnerA {
+            align-self: flex-start;
+        }
+        .message.partnerA .message-content {
+            background: linear-gradient(135deg, #8FAFB1 0%, #7A9FA3 100%);
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+        .message.partnerA .message-avatar {
+            background: linear-gradient(135deg, #8FAFB1 0%, #6B9498 100%);
+            color: white;
+            order: -1;
+        }
+        .message.partnerA .message-avatar::before { content: ''; }
+        
+        .message.partnerB {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message.partnerB .message-content {
+            background: linear-gradient(135deg, #E6D7C3 0%, #D4C4AE 100%);
+            color: #333333;
+            border-bottom-right-radius: 4px;
+        }
+        .message.partnerB .message-avatar {
+            background: linear-gradient(135deg, #E6D7C3 0%, #C9B89F 100%);
+            color: #666;
+        }
+        .message.partnerB .message-avatar::before { content: ''; }
+        
+        /* Barre de switch A/B (mode couple) */
+        .couple-switch-bar {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 50px;
+            padding: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border: 2px solid var(--sable, #E6D7C3);
+            gap: 6px;
+            align-items: center;
+        }
+        .couple-switch-bar.active { display: flex; }
+        
+        .partner-btn {
+            padding: 10px 24px;
+            border-radius: 40px;
+            border: 2px solid transparent;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+            justify-content: center;
+        }
+        
+        .partner-btn.partnerA-btn {
+            background: white;
+            color: #5B7F83;
+            border-color: #8FAFB1;
+        }
+        .partner-btn.partnerA-btn.active {
+            background: linear-gradient(135deg, #8FAFB1, #6B9498);
+            color: white;
+            border-color: #8FAFB1;
+            box-shadow: 0 2px 12px rgba(143, 175, 177, 0.4);
+        }
+        
+        .partner-btn.partnerB-btn {
+            background: white;
+            color: #8B7A66;
+            border-color: #E6D7C3;
+        }
+        .partner-btn.partnerB-btn.active {
+            background: linear-gradient(135deg, #E6D7C3, #C9B89F);
+            color: #5A4E3E;
+            border-color: #D4C4AE;
+            box-shadow: 0 2px 12px rgba(230, 215, 195, 0.5);
+        }
+        
+        .couple-switch-bar .switch-label {
+            font-size: 11px;
+            color: var(--text-muted, #999);
+            font-weight: 500;
+            padding: 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
         /* Typing Indicator */
         .message.typing {
             align-self: flex-start;
@@ -1960,11 +2059,11 @@
         </p>
         
         <!-- ═══ CHOIX DU MODE ═══ -->
-        <div id="role-selection" style="display: flex; gap: 16px; justify-content: center; margin: 30px auto; max-width: 560px; flex-wrap: wrap;">
+        <div id="role-selection" style="display: flex; gap: 16px; justify-content: center; margin: 30px auto; max-width: 840px; flex-wrap: wrap;">
             
             <!-- MODE PATIENT -->
             <div onclick="selectOperatingMode('patient', this)" class="role-card" style="
-                flex: 1; min-width: 240px; padding: 24px 20px; border: 3px solid var(--sable, #E6D7C3);
+                flex: 1; min-width: 220px; padding: 24px 20px; border: 3px solid var(--sable, #E6D7C3);
                 border-radius: 16px; cursor: pointer; transition: all 0.3s; text-align: center;
                 background: white;
             ">
@@ -1978,9 +2077,27 @@
                 <div style="margin-top: 10px; font-size: 11px; color: var(--mer);">Séance confidentielle · À votre rythme</div>
             </div>
             
+            <!-- MODE COUPLE -->
+            <div onclick="selectOperatingMode('couple', this)" class="role-card" style="
+                flex: 1; min-width: 220px; padding: 24px 20px; border: 3px solid var(--sable, #E6D7C3);
+                border-radius: 16px; cursor: pointer; transition: all 0.3s; text-align: center;
+                background: white;
+            ">
+                <div style="font-size: 40px; margin-bottom: 8px;">
+                    <span style="color: #8FAFB1;">⬡</span><span style="color: #E6D7C3;">⬡</span>
+                </div>
+                <div style="font-weight: 700; font-size: 16px; color: var(--text-primary);">Thérapie de Couple</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5;">
+                    Espace de dialogue à deux<br>
+                    Gottman · Imago · Neuburger<br>
+                    Chaque partenaire identifié
+                </div>
+                <div style="margin-top: 10px; font-size: 11px; color: var(--mer);">Institut du Couple · Dynamique relationnelle</div>
+            </div>
+            
             <!-- MODE PRO / COLLABORATEUR -->
             <div onclick="selectOperatingMode('collaborateur', this)" class="role-card" style="
-                flex: 1; min-width: 240px; padding: 24px 20px; border: 3px solid var(--sable, #E6D7C3);
+                flex: 1; min-width: 220px; padding: 24px 20px; border: 3px solid var(--sable, #E6D7C3);
                 border-radius: 16px; cursor: pointer; transition: all 0.3s; text-align: center;
                 background: white;
             ">
@@ -1992,6 +2109,30 @@
                     Vidéo · Audio · Texte
                 </div>
                 <div style="margin-top: 10px; font-size: 11px; color: #C9A96E; font-weight: 600;">PRO — Accès bibliothèque</div>
+            </div>
+        </div>
+        
+        <!-- SOUS-MODE COUPLE (noms des partenaires) -->
+        <div id="couple-setup" style="display: none; margin: 0 auto 20px; max-width: 560px; text-align: center;">
+            <div style="font-size: 12px; font-weight: 700; color: var(--mer); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Identification des partenaires</div>
+            <div style="display: flex; gap: 16px; justify-content: center; align-items: center;">
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; font-weight: 600; color: #5B7F83; text-transform: uppercase; letter-spacing: 0.5px;">Partenaire A</label>
+                    <input type="text" id="partner-a-name" placeholder="Prénom" value="Partenaire A" style="
+                        width: 100%; margin-top: 6px; padding: 10px 16px; border: 2px solid #8FAFB1;
+                        border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+                        text-align: center; color: #5B7F83; font-weight: 600;
+                    ">
+                </div>
+                <div style="font-size: 20px; color: var(--text-muted); padding-top: 20px;">&</div>
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; font-weight: 600; color: #8B7A66; text-transform: uppercase; letter-spacing: 0.5px;">Partenaire B</label>
+                    <input type="text" id="partner-b-name" placeholder="Prénom" value="Partenaire B" style="
+                        width: 100%; margin-top: 6px; padding: 10px 16px; border: 2px solid #E6D7C3;
+                        border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+                        text-align: center; color: #8B7A66; font-weight: 600;
+                    ">
+                </div>
             </div>
         </div>
         
@@ -3299,8 +3440,13 @@ function loadElevenLabsSettings() {
 // ═══════════════════════════════════════════════════════════════
 
 // State global pour le mode
-window._operatingMode = 'patient'; // 'patient' | 'collaborateur'
+window._operatingMode = 'patient'; // 'patient' | 'collaborateur' | 'couple'
 window._collabMode = 'supervision'; // 'supervision' | 'analyse' | 'intervention' | 'conceptualisation' | 'bibliographie'
+
+// ═══ COUPLE STATE ═══
+window._activePartner = 'A'; // 'A' | 'B'
+window._partnerNames = { A: 'Partenaire A', B: 'Partenaire B' };
+window._coupleHistory = { A: [], B: [] }; // Historique par partenaire
 
 function selectOperatingMode(mode, el) {
     window._operatingMode = mode;
@@ -3310,11 +3456,14 @@ function selectOperatingMode(mode, el) {
         c.style.borderColor = 'var(--sable, #E6D7C3)';
         c.style.background = 'white';
     });
-    el.style.borderColor = mode === 'collaborateur' ? '#C9A96E' : 'var(--mer, #8FAFB1)';
+    
+    const colors = { patient: 'var(--mer, #8FAFB1)', collaborateur: '#C9A96E', couple: '#8FAFB1' };
+    el.style.borderColor = colors[mode] || 'var(--mer)';
     el.style.background = 'var(--sable-light, #F5EDE0)';
     
-    // Show/hide collab submodes
+    // Show/hide mode-specific panels
     document.getElementById('collab-submodes').style.display = mode === 'collaborateur' ? 'block' : 'none';
+    document.getElementById('couple-setup').style.display = mode === 'couple' ? 'block' : 'none';
     
     // Enable start button
     const btn = document.getElementById('welcome-start-btn');
@@ -3323,6 +3472,43 @@ function selectOperatingMode(mode, el) {
     
     console.log('[MODE] Operating mode selected:', mode);
 }
+
+function switchPartner(partner) {
+    window._activePartner = partner;
+    
+    const btnA = document.getElementById('btn-partner-a');
+    const btnB = document.getElementById('btn-partner-b');
+    
+    btnA.classList.toggle('active', partner === 'A');
+    btnB.classList.toggle('active', partner === 'B');
+    
+    // Feedback visuel sur le textarea
+    const textarea = document.getElementById('response-input');
+    if (textarea) {
+        const name = window._partnerNames[partner];
+        textarea.placeholder = name + ', c\'est à vous...';
+        textarea.style.borderColor = partner === 'A' ? '#8FAFB1' : '#E6D7C3';
+    }
+    
+    // Feedback sur le panneau de transcription
+    const transcPanel = document.getElementById('transcription-text');
+    if (transcPanel) {
+        transcPanel.textContent = window._partnerNames[partner] + ', parlez...';
+    }
+    
+    console.log('[COUPLE] Active partner switched to:', partner, window._partnerNames[partner]);
+}
+
+// Raccourcis clavier 1/2 pour switcher rapidement
+document.addEventListener('keydown', (e) => {
+    if (window._operatingMode !== 'couple') return;
+    // Ne pas intercepter si on est dans un input texte
+    if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+    if (e.target.tagName === 'TEXTAREA') return;
+    
+    if (e.key === '1' || e.key === '&') { switchPartner('A'); e.preventDefault(); }
+    if (e.key === '2' || e.key === 'é') { switchPartner('B'); e.preventDefault(); }
+});
 
 function selectCollabMode(el, mode) {
     window._collabMode = mode;
@@ -3615,6 +3801,92 @@ RETOURNE UNIQUEMENT votre intervention de supervision. Rien d'autre.`;
         prompt += '\nCe profil adapte la FORME thérapeutique (longueur, structure, métaphores, rythme), pas le FOND (approche). ';
         prompt += 'Vous pouvez valider, nuancer ou invalider ces dimensions. ';
         prompt += 'Si le contexte clinique (trauma, dissociation, protecteur détaché) explique mieux les indicateurs, mentionnez-le.\n';
+    }
+
+    return prompt;
+}
+
+// ═══ PROMPT THÉRAPIE DE COUPLE ═══
+function buildCouplePrompt(multimodalContext) {
+    const nameA = window._partnerNames?.A || 'Partenaire A';
+    const nameB = window._partnerNames?.B || 'Partenaire B';
+    
+    let prompt = `Vous êtes un thérapeute de couple expert, formé aux approches de John Gottman, Harville Hendrix (Imago Relationship Therapy), et Robert Neuburger (approche systémique du couple). Vous intervenez dans le cadre de l'Institut du Couple.
+
+═══ CADRE DE LA SÉANCE ═══
+
+Deux partenaires sont présents : ${nameA} et ${nameB}. Chaque message utilisateur est préfixé par [${nameA}] ou [${nameB}] pour identifier qui parle. Vous devez maintenir un ÉQUILIBRE STRICT entre les deux — chacun doit se sentir entendu et respecté. Jamais de coalition, jamais de prise de parti.
+
+═══ GRILLES DE LECTURE CLINIQUE ═══
+
+GOTTMAN — Les 4 Cavaliers de l'Apocalypse :
+Vous êtes VIGILANT aux 4 patterns destructeurs dans les échanges :
+1. CRITIQUE : attaque sur la personne (vs plainte légitime sur un comportement)
+2. MÉPRIS : sarcasme, cynisme, roulement d'yeux, humiliation — LE prédicteur n°1 de rupture
+3. ATTITUDE DÉFENSIVE : contre-attaque, victimisation, refus de responsabilité
+4. STONEWALLING (mur) : retrait émotionnel, mutisme, déconnexion
+Quand vous détectez un cavalier, vous le nommez AVEC TACT et proposez l'antidote :
+- Critique → Plainte en "Je" (je ressens X quand Y)
+- Mépris → Culture de l'admiration et de la gratitude
+- Défensivité → Prise de responsabilité partielle
+- Mur → Auto-apaisement physiologique, puis retour au dialogue
+
+RATIO 5:1 — Gottman démontre que les couples stables ont 5 interactions positives pour 1 négative. Vous observez ce ratio dans la séance.
+
+IMAGO — Hendrix & Hunt :
+La blessure de l'enfance se rejoue dans le choix du partenaire. Le CONFLIT n'est pas le problème — c'est une OPPORTUNITÉ de guérison.
+Technique du Dialogue Imago :
+1. MIROIR : "Ce que j'entends, c'est que..." (reformulation fidèle)
+2. VALIDATION : "Ça fait sens que tu ressentes ça parce que..." (sans nécessairement être d'accord)
+3. EMPATHIE : "J'imagine que tu dois te sentir..." (se mettre dans les chaussures de l'autre)
+Vous guidez les partenaires dans ce processus en séance quand le moment est propice.
+
+NEUBURGER — Approche systémique :
+Le couple est un SYSTÈME avec ses mythes fondateurs, ses rituels, ses loyautés invisibles. Vous analysez :
+- Le MYTHE du couple : qu'est-ce qui les a réunis ? quelle histoire se racontent-ils ?
+- Les APPARTENANCES multiples : famille d'origine, amis, travail — quelles loyautés entrent en conflit ?
+- La DIFFÉRENCIATION : chaque partenaire est-il suffisamment individualisé ?
+- Le RELATIOGRAMME implicite : qui est "dedans", qui est "dehors" du système couple ?
+
+═══ POSTURE THÉRAPEUTIQUE ═══
+
+NEUTRALITÉ MULTI-PARTIALE : Vous êtes l'allié des DEUX. Pas neutre (ce serait froid) — multi-partial. Vous comprenez profondément la position de chacun et vous la validez, même quand elles semblent contradictoires.
+
+CADRAGE : Si un partenaire monopolise la parole, vous INTERVENEZ avec tact : "${nameB}, j'aimerais aussi entendre votre perspective."
+
+SÉQUENCE D'UNE SÉANCE TYPE :
+1. ACCUEIL : "Comment allez-vous tous les deux depuis la dernière fois ?"
+2. AGENDA : "Sur quoi aimeriez-vous travailler aujourd'hui ?"
+3. EXPLORATION : Alterner entre les deux partenaires, chacun exprime son vécu
+4. TRAVAIL : Exercice Imago, reformulation croisée, identification des patterns
+5. CLÔTURE : Résumé de ce qui a émergé, exercice pour la semaine
+
+DÉTECTION DES PATTERNS RELATIONNELS :
+- Poursuiveur/Distanceur (un cherche la connexion, l'autre fuit)
+- Escalade symétrique (surenchère mutuelle)
+- Complémentarité rigide (rôles figés : le "fort" et le "fragile")
+- Triangle (un tiers est impliqué — enfant, belle-famille, travail)
+- Colère masquant la blessure (la surface vs la profondeur)
+
+═══ FORMAT ═══
+
+Tutoiement avec chaque partenaire (intimité thérapeutique). Vous vous adressez toujours NOMMÉMENT à qui vous parlez : "${nameA}, ce que tu décris...", "${nameB}, qu'est-ce que ça te fait entendre ça ?".
+
+Interventions COURTES et CIBLÉES. Pas de monologue. Maximum 6-8 phrases par intervention. Alternez entre :
+- Reformulation empathique de ce qu'un partenaire vient de dire
+- Question à l'autre partenaire pour avoir son vécu
+- Observation d'un pattern ("Je remarque que quand ${nameA} dit X, ${nameB} fait Y — qu'est-ce qui se passe à ce moment-là ?")
+- Proposition d'un exercice court quand le moment est mûr
+
+═══ PREMIÈRE INTERVENTION ═══
+
+Accueillez chaleureusement les deux partenaires. Présentez-vous brièvement. Demandez à chacun comment il/elle se sent en arrivant, et ce qui les amène en thérapie de couple. Commencez par ${nameA}.
+`;
+
+    // Injecter le contexte multimodal si disponible
+    if (multimodalContext) {
+        prompt += '\n\n═══ ANALYSE MULTIMODALE EN COURS ═══\n' + multimodalContext;
+        prompt += '\n(Ces données reflètent les signaux émotionnels du partenaire qui parle actuellement. Intégrez-les subtilement.)\n';
     }
 
     return prompt;
@@ -4252,6 +4524,25 @@ function endCollabSession() {
 
 
 function showModeSelection() {
+    // ═══ INTERCEPTION COUPLE → Initialiser les noms des partenaires ═══
+    if (window._operatingMode === 'couple') {
+        const nameA = document.getElementById('partner-a-name')?.value?.trim() || 'Partenaire A';
+        const nameB = document.getElementById('partner-b-name')?.value?.trim() || 'Partenaire B';
+        window._partnerNames = { A: nameA, B: nameB };
+        
+        // Mettre à jour les labels des boutons
+        document.getElementById('label-partner-a').textContent = nameA;
+        document.getElementById('label-partner-b').textContent = nameB;
+        
+        // Activer la barre de switch
+        document.getElementById('couple-switch-bar').classList.add('active');
+        
+        console.log('[COUPLE] Initialized:', nameA, '&', nameB);
+    } else {
+        // Désactiver la barre en mode non-couple
+        document.getElementById('couple-switch-bar')?.classList.remove('active');
+    }
+    
     // ═══ INTERCEPTION COLLAB → Écran dossier patient ═══
     if (window._operatingMode === 'collaborateur' && !window._collabDossierDone) {
         showCollabDossierScreen();
@@ -17564,14 +17855,21 @@ class ConversationalSystem {
      * Ajouter message dans le chat
      */
     async addMessage(role, content) {
+        // ═══ MODE COUPLE: préfixer le contenu user avec le nom du partenaire ═══
+        let taggedContent = content;
+        if (window._operatingMode === 'couple' && role === 'user') {
+            const name = window._partnerNames?.[window._activePartner] || ('Partenaire ' + window._activePartner);
+            taggedContent = `[${name}] ${content}`;
+        }
+        
         const message = {
             role: role,
-            content: content,
+            content: taggedContent,
             timestamp: new Date().toISOString()
         };
         
         this.messages.push(message);
-        this.displayMessage(role, content);
+        this.displayMessage(role, content); // Affichage sans le tag (le tag est visuel via CSS)
         
         // v16.7 - Incrémenter compteur réponses utilisateur
         if (role === 'user') {
@@ -17635,21 +17933,51 @@ class ConversationalSystem {
     displayMessage(role, content) {
         // Créer élément message
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role}`;
         
-        // Avatar (optionnel)
+        // ═══ MODE COUPLE: remplacer 'user' par 'partnerA' ou 'partnerB' ═══
+        let displayRole = role;
+        let partnerLabel = '';
+        if (window._operatingMode === 'couple' && role === 'user') {
+            displayRole = window._activePartner === 'A' ? 'partnerA' : 'partnerB';
+            partnerLabel = window._partnerNames?.[window._activePartner] || ('Partenaire ' + window._activePartner);
+            
+            // Tracker l'historique par partenaire
+            if (!window._coupleHistory) window._coupleHistory = { A: [], B: [] };
+            window._coupleHistory[window._activePartner].push({ content, timestamp: Date.now() });
+        }
+        
+        messageDiv.className = `message ${displayRole}`;
+        
+        // Avatar
         if (role === 'assistant') {
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
-            // v17.3.4: Avatar photo au lieu de emoji
             avatar.innerHTML = '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">';
+            messageDiv.appendChild(avatar);
+        } else if (displayRole === 'partnerA' || displayRole === 'partnerB') {
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            const initial = partnerLabel.charAt(0).toUpperCase();
+            avatar.innerHTML = `<span style="font-size: 16px; font-weight: 700;">${initial}</span>`;
             messageDiv.appendChild(avatar);
         }
         
         // Contenu
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        contentDiv.textContent = content;
+        
+        // En mode couple, ajouter le nom du partenaire
+        if (partnerLabel) {
+            const nameTag = document.createElement('div');
+            nameTag.style.cssText = 'font-size: 11px; font-weight: 700; margin-bottom: 4px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px;';
+            nameTag.textContent = partnerLabel;
+            contentDiv.appendChild(nameTag);
+            const textNode = document.createElement('span');
+            textNode.textContent = content;
+            contentDiv.appendChild(textNode);
+        } else {
+            contentDiv.textContent = content;
+        }
         messageDiv.appendChild(contentDiv);
         
         // Timestamp
@@ -17682,8 +18010,8 @@ class ConversationalSystem {
             });
         }
         
-        // v16.7 - Vérifier critères de fin (pas en mode collaborateur — session libre)
-        if (window._operatingMode !== 'collaborateur') {
+        // v16.7 - Vérifier critères de fin (pas en mode collaborateur/couple — session libre)
+        if (window._operatingMode !== 'collaborateur' && window._operatingMode !== 'couple') {
             const shouldEnd = await this.checkEndCriteria();
             if (shouldEnd) {
                 await this.endInterview();
@@ -18034,6 +18362,49 @@ OBJECTIFS DIAGNOSTIQUES :`;
     }
     
     buildConversationalPrompt() {
+        // ═══ MODE COUPLE — Prompt thérapie de couple ═══
+        if (window._operatingMode === 'couple') {
+            let multimodalContext = '';
+            if (window.multimodalFusionEngine && state.mode !== 'text') {
+                try { multimodalContext = window.multimodalFusionEngine.formatForPrompt(); } catch (e) {}
+            }
+            let prompt = buildCouplePrompt(multimodalContext);
+            
+            // Injecter les détecteurs cliniques (schémas, défenses, attachement du partenaire qui parle)
+            let coupleDetectors = '\n\n═══ ANALYSE DU PARTENAIRE QUI PARLE ═══\n';
+            coupleDetectors += `(Partenaire actif : ${window._partnerNames?.[window._activePartner] || 'inconnu'})\n\n`;
+            let hasData = false;
+            
+            if (window.schemaDetector) {
+                const schemas = window.schemaDetector.getPromptSummary();
+                if (schemas && schemas.length > 10) {
+                    coupleDetectors += `SCHÉMAS ACTIVÉS : ${schemas}\n`;
+                    hasData = true;
+                }
+            }
+            if (window.defenseDetector) {
+                const defenses = window.defenseDetector.getPromptSummary();
+                if (defenses && defenses.length > 10) {
+                    coupleDetectors += `DÉFENSES : ${defenses}\n`;
+                    hasData = true;
+                }
+            }
+            if (window.attachmentAnalyzer) {
+                const att = window.attachmentAnalyzer.getPromptSummary();
+                if (att && att.length > 10) {
+                    coupleDetectors += `ATTACHEMENT : ${att}\n`;
+                    hasData = true;
+                }
+            }
+            
+            if (hasData) prompt += coupleDetectors;
+            
+            // Action signals (exercices couple)
+            try { prompt += '\n' + this._buildActionSignals(); } catch(e) {}
+            
+            return prompt;
+        }
+        
         // ═══ MODE COLLABORATEUR PSY — Prompt alternatif complet ═══
         if (window._operatingMode === 'collaborateur') {
             let multimodalContext = '';
@@ -36895,11 +37266,11 @@ console.log('[v17.3.1 CLEAN] - Avatar tooltip enrichi');
 // Vérifier session interrompue au chargement
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        checkInterruptedSession();
+        // checkInterruptedSession() desactive
         checkGoogleTTSConfig();
     });
 } else {
-    checkInterruptedSession();
+    // checkInterruptedSession() desactive
     checkGoogleTTSConfig();
 }
 
@@ -37587,6 +37958,18 @@ window.addEventListener('beforeunload', () => {
 
 
 </script>
+
+<!-- ═══ COUPLE: Barre de switch A/B flottante ═══ -->
+<div class="couple-switch-bar" id="couple-switch-bar">
+    <span class="switch-label">Qui parle ?</span>
+    <button class="partner-btn partnerA-btn active" id="btn-partner-a" onclick="switchPartner('A')">
+        <span>●</span> <span id="label-partner-a">Partenaire A</span>
+    </button>
+    <button class="partner-btn partnerB-btn" id="btn-partner-b" onclick="switchPartner('B')">
+        <span>●</span> <span id="label-partner-b">Partenaire B</span>
+    </button>
+    <span class="switch-label" style="font-size: 10px; opacity: 0.6;">1 / 2</span>
+</div>
 
 </body>
 </html>
