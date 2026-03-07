@@ -188,6 +188,20 @@
         }
         .btn-delete:hover { border-color: #e74c3c; color: #e74c3c; }
 
+        /* ── MIGRATION V2 ── */
+        .mg-card {
+            background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 10px;
+            padding: 16px;
+        }
+        .mg-card-v2 { border-color: #8FAFB1; background: #f0f6f6; }
+        .mg-card-title { font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mg-stat { font-size: 26px; font-weight: 700; color: #333; }
+        .mg-stat-sub { font-size: 12px; color: #999; margin-top: 2px; }
+        .mg-log-info    { color: #a8d8a8; }
+        .mg-log-error   { color: #ff8a80; }
+        .mg-log-warn    { color: #ffe082; }
+        .mg-log-success { color: #80cbc4; font-weight: bold; }
+
         .empty-state {
             text-align: center; padding: 40px; color: #bbb;
         }
@@ -232,6 +246,7 @@
             <button class="tab" onclick="switchTab('search')">🔍 Test recherche</button>
             <button class="tab" onclick="switchTab('glossary')">📖 Glossaire</button>
             <button class="tab" onclick="switchTab('log')">📋 Journal</button>
+            <button class="tab" onclick="switchTab('migration')">⚡ Migration v2</button>
         </div>
 
         <!-- TAB: UPLOAD -->
@@ -287,7 +302,6 @@
                         <option value="dbt">DBT</option>
                         <option value="emdr">EMDR</option>
                         <option value="hypnosis">Hypnose Ericksonienne</option>
-                        <option value="personal_development">Développement Personnel</option>
                         <option value="icv">ICV</option>
                         <option value="systemic">Systémique</option>
                         <option value="coherence">Cohérence</option>
@@ -381,11 +395,6 @@
                         <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Schéma Therapy — Thérapie des Schémas</div>
                         <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Jeffrey Young. 18 schémas précoces inadaptés (abandon, méfiance, carence, imperfection...), 5 domaines, 3 styles de coping (soumission, évitement, compensation), modes enfant/parent/adulte. Techniques : reparentage limité, rescénarisation en imagerie, dialogue socratique.</div>
                     </div>
-                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
-                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Développement Personnel</div>
-                        <div style="font-size:12px;color:#555;margin-top:4px;">Ensemble des pratiques et connaissances visant la croissance personnelle, l'épanouissement et l'actualisation du potentiel. Recouvre la psychologie positive (Seligman — PERMA : Positive emotions, Engagement, Relationships, Meaning, Accomplishment), l'intelligence émotionnelle (Goleman — conscience de soi, maîtrise de soi, motivation, empathie, compétences sociales), le flow (Csikszentmihalyi — état optimal d'engagement total dans une activité), la théorie du growth mindset (Dweck — cerveau malléable vs talent fixe), les habitudes (Duhigg, Clear — boucle habitude : signal → routine → récompense ; loi des 1%), la résilience (capacité à rebondir face à l'adversité), la gestion du stress et prévention du burn-out, l'assertivité, la gestion du temps et la productivité. Auteurs de référence : Seligman, Goleman, Csikszentmihalyi, Dweck, Covey (7 habitudes), Robbins, Carnegie (influence et communication), Tolle (présence et conscience), Gladwell (performance et contexte), Frankl (sens et logothérapie).</div>
-                        <div style="font-size:11px;color:#8FAFB1;margin-top:6px;font-weight:600;">▸ Auteurs clés : Seligman, Goleman, Csikszentmihalyi, Dweck, Covey, Robbins, Carnegie, Tolle, Frankl — Concepts : PERMA, flow, mindset, habitudes, intelligence émotionnelle, résilience, assertivité, burn-out, bien-être, sens</div>
-                    </div>
                 </div>
                 
                 <h3 style="font-size:14px;color:#7A9A9C;margin:20px 0 12px;">📌 Autres termes fréquents</h3>
@@ -393,7 +402,6 @@
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">AAQ-II</b> — Acceptance and Action Questionnaire. Mesure la flexibilité psychologique (Hayes).</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">BLS</b> — Bilateral Stimulation. Stimulation bilatérale utilisée en EMDR (mouvements oculaires, tapping, sons alternés).</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">DMRS</b> — Defense Mechanism Rating Scale. Échelle de cotation des mécanismes de défense (Perry). Utilisée pour calculer l'ODF.</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Développement Personnel</b> — Croissance personnelle, confiance en soi, estime de soi, psychologie positive, intelligence émotionnelle, coaching, résilience, habits, gestion du stress, bien-être. Auteurs : Goleman, Covey, Seligman, Csikszentmihalyi, Dweck, Robbins, Carnegie, Tolle, Gladwell.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">EFT</b> — Emotionally Focused Therapy. Thérapie centrée sur les émotions pour les couples (Sue Johnson). Basée sur l'attachement.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Hexaflex</b> — Le modèle à 6 processus de l'ACT : défusion, acceptation, moment présent, soi-contexte, valeurs, action engagée.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Imago</b> — Thérapie Imago pour les couples (Harville Hendrix). Dialogue structuré : reflet, validation, empathie.</div>
@@ -409,12 +417,6 @@
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Saupoudrage</b> — Technique Ericksonienne : insertion de suggestions hypnotiques dans la conversation ordinaire via changements de ton, pauses, emphase vocale sur des mots-clés.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Question miracle</b> — Technique de Steve de Shazer. "Si le problème disparaissait cette nuit, à quoi le remarqueriez-vous demain ?" Oriente vers la solution.</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Externalisation</b> — Technique narrative (Michael White). Séparer le problème de la personne : "Ce n'est pas vous le problème, c'est le problème qui s'est installé."</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">PERMA</b> — Modèle du bien-être de Martin Seligman (psychologie positive) : Positive emotions, Engagement, Relationships, Meaning, Accomplishment. Les 5 piliers de la vie épanouie.</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Flow</b> — État optimal décrit par Csikszentmihalyi : concentration totale, perte de la notion du temps, équilibre défi/compétence. Condition de performance et de bien-être profond.</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Growth Mindset</b> — Concept de Carol Dweck. Croyance que les capacités sont développables par l'effort (vs fixed mindset). Base du développement personnel et de la résilience.</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Loi des 1%</b> — Principe d'amélioration continue de James Clear (Atomic Habits). Une progression de 1% par jour produit une amélioration de 37x en un an. L'identité prime sur l'objectif.</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Intelligence Émotionnelle</b> — Concept de Goleman : conscience de soi, maîtrise de soi, motivation intrinsèque, empathie, compétences sociales. Prédit mieux la réussite que le QI dans les contextes relationnels.</div>
-                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Logothérapie</b> — Approche de Viktor Frankl. Le sens comme moteur de vie. "Celui qui sait pourquoi il vit peut supporter n'importe quel comment." Technique de l'intention paradoxale. Fondement de nombreux courants de développement personnel.</div>
                 </div>
             </div>
         </div>
@@ -425,6 +427,90 @@
                 <span class="info">[SYSTÈME]</span> Prêt. Configurez l'URL du Worker et glissez vos PDF.
             </div>
         </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             TAB MIGRATION V2 — Re-chunking 1000 chars + overlap 150
+             ═══════════════════════════════════════════════════════ -->
+        <div class="tab-content" id="tab-migration">
+            <div style="max-width:860px;margin:0 auto;">
+
+                <!-- Stats comparatif v1 / v2 -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                    <div class="mg-card">
+                        <div class="mg-card-title">📦 Bibliothèque v1 (actuelle)</div>
+                        <div class="mg-stat"><span id="mg-v1-chunks">…</span> chunks</div>
+                        <div class="mg-stat-sub"><span id="mg-v1-books">…</span> livres · ~3945 chars/chunk moy.</div>
+                    </div>
+                    <div class="mg-card mg-card-v2">
+                        <div class="mg-card-title">🚀 Bibliothèque v2 (cible)</div>
+                        <div class="mg-stat"><span id="mg-v2-chunks">0</span> chunks migrés</div>
+                        <div class="mg-stat-sub">avg: <span id="mg-v2-avg">0</span> chars/chunk · cible: 1000</div>
+                    </div>
+                </div>
+
+                <!-- Barre de progression -->
+                <div style="margin-bottom:20px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                        <span style="font-size:13px;color:#666;" id="mg-progress-label">En attente…</span>
+                        <span style="font-size:13px;font-weight:600;color:#8FAFB1;" id="mg-progress-pct">0%</span>
+                    </div>
+                    <div style="background:#eee;border-radius:8px;height:14px;overflow:hidden;">
+                        <div id="mg-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#8FAFB1,#C8D0C3);border-radius:8px;transition:width 0.4s;"></div>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Filtre par approche (optionnel)</label>
+                        <select id="mg-approach-filter" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                            <option value="">Toutes les approches</option>
+                            <option value="couple">couple</option>
+                            <option value="general">general</option>
+                            <option value="act">act</option>
+                            <option value="schema_therapy">schema_therapy</option>
+                            <option value="hypnosis">hypnosis</option>
+                            <option value="attachment">attachment</option>
+                            <option value="emdr">emdr</option>
+                            <option value="trauma">trauma</option>
+                            <option value="icv">icv</option>
+                            <option value="systemic">systemic</option>
+                            <option value="cnv">cnv</option>
+                            <option value="ifs">ifs</option>
+                            <option value="mbct">mbct</option>
+                            <option value="personal_development">personal_development</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Taille batch (chunks v1 par appel)</label>
+                        <select id="mg-batch-size" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                            <option value="25">25 (prudent)</option>
+                            <option value="50" selected>50 (recommandé)</option>
+                            <option value="100">100 (rapide)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Boutons -->
+                <div style="display:flex;gap:10px;margin-bottom:20px;">
+                    <button id="mg-btn-start" class="btn-primary" onclick="startMigration()" style="flex:1;padding:12px;">▶ Lancer la migration</button>
+                    <button id="mg-btn-pause" class="btn-outline" onclick="pauseMigration()" disabled style="padding:12px 20px;">⏸ Pause</button>
+                    <button id="mg-btn-stop"  class="btn-outline" onclick="stopMigration()"  disabled style="padding:12px 20px;border-color:#e74c3c;color:#e74c3c;">⛔ Stop</button>
+                    <button class="btn-outline" onclick="refreshMigrationStats()" style="padding:12px 16px;">🔄</button>
+                </div>
+
+                <!-- Info technique -->
+                <div style="background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;color:#666;line-height:1.6;">
+                    <strong style="color:#555;">Paramètres de re-chunking :</strong>
+                    Taille cible <strong>1000 chars</strong> · Maximum <strong>1200 chars</strong> · Overlap <strong>150 chars</strong> entre chunks consécutifs · Découpe aux fins de phrase · ~3.8× plus de chunks qu'en v1
+                    <br><strong style="color:#555;">Bases cibles :</strong> D1 <code>therapeute-library-v2</code> · Vectorize <code>therapeute-vectorize-v2</code>
+                </div>
+
+                <!-- Log de migration -->
+                <div id="mg-log" style="background:#1a1a2e;color:#a8d8a8;font-family:monospace;font-size:11px;padding:12px;border-radius:8px;height:280px;overflow-y:auto;line-height:1.5;"></div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -443,7 +529,7 @@ let isIngesting = false;
 // ── Tabs ──
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['upload','library','search','glossary','log'][i] === name);
+        t.classList.toggle('active', ['upload','library','search','glossary','log','migration'][i] === name);
     });
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
@@ -545,7 +631,7 @@ function renderQueue() {
 function renderMetaForm(q) {
     return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
-            ${['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development']
+            ${['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic']
                 .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
         </select>
         <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
@@ -1045,7 +1131,7 @@ function deleteBookByIndex(idx) {
 
 // ── Modifier les métadonnées d'un livre ──
 async function editBookMeta(bookId, title, currentApproach, currentAuthor, currentLang) {
-    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development'];
+    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic'];
     
     // Créer un mini-formulaire en overlay
     const overlay = document.createElement('div');
@@ -1271,7 +1357,6 @@ function autoDetectMeta(pages, filename) {
         'psychodynamic': ['psychodynamique', 'transfert', 'inconscient', 'pulsion', 'freud'],
         'systemic': ['systémique', 'famille', 'neuburger', 'homéostasie', 'double lien'],
         'hypnosis': ['hypnose', 'hypnotique', 'transe', 'erickson', 'roustang', 'bioy', 'megglé', 'induction', 'suggestion hypnotique', 'auto-hypnose', 'hypnothérapie', 'état modifié', 'saupoudrage', 'ancrage ressource', 'hypno-analgésie', 'benhaiem', 'état hypnotique'],
-        'personal_development': ['développement personnel', 'confiance en soi', 'estime de soi', 'croissance personnelle', 'plein potentiel', 'coaching', 'habits', 'habitudes', 'productivité', 'objectifs', 'motivation', 'goleman', 'intelligence émotionnelle', 'covey', 'robbins', 'carnegie', 'gladwell', 'seligman', 'psychologie positive', 'flow', 'csikszentmihalyi', 'résilience', 'stoïcisme', 'tolle', 'présence', 'mindset', 'dweck', 'assertivité', 'gestion du stress', 'burn-out', 'bien-être', 'bonheur', 'sens de la vie', 'valeurs personnelles'],
     };
     
     let bestMatch = { approach: 'general', score: 0 };
@@ -1307,6 +1392,122 @@ async function refreshStats() {
 
 // ── Init ──
 refreshStats();
+
+// ════════════════════════════════════════════════════════════════════════
+// MODULE MIGRATION RECHUNK V2
+// ════════════════════════════════════════════════════════════════════════
+
+const migrationState = {
+  running: false, paused: false, offset: 0,
+  totalV1: 0, totalV2: 0, estimatedV2: 0,
+  startTime: null, approachFilter: null, batchSize: 50
+};
+
+function getWorkerUrl() {
+  return document.getElementById('workerUrl')?.value?.trim() || 'https://clone-proxy.11drumboy11.workers.dev';
+}
+
+async function refreshMigrationStats() {
+  try {
+    const res = await fetch(`${getWorkerUrl()}/rechunk-stats`);
+    const data = await res.json();
+    document.getElementById('mg-v1-chunks').textContent = (data.v1?.chunks || 0).toLocaleString();
+    document.getElementById('mg-v1-books').textContent  = data.v1?.books || '?';
+    document.getElementById('mg-v2-chunks').textContent = (data.v2?.chunks || 0).toLocaleString();
+    document.getElementById('mg-v2-avg').textContent    = data.v2?.avg_chars || '0';
+    migrationState.totalV1     = data.v1?.chunks || 0;
+    migrationState.totalV2     = data.v2?.chunks || 0;
+    migrationState.estimatedV2 = Math.round(migrationState.totalV1 * 3.8);
+    updateProgressBar(migrationState.totalV2, migrationState.estimatedV2);
+  } catch (e) {
+    addMigrationLog('⚠️ Stats inaccessibles: ' + e.message, 'error');
+  }
+}
+
+function updateProgressBar(current, total) {
+  const pct = total > 0 ? Math.min(Math.round(current / total * 100), 100) : 0;
+  document.getElementById('mg-progress-bar').style.width = pct + '%';
+  document.getElementById('mg-progress-pct').textContent = pct + '%';
+  document.getElementById('mg-progress-label').textContent =
+    `${current.toLocaleString()} / ~${total.toLocaleString()} chunks v2`;
+}
+
+async function startMigration() {
+  if (migrationState.running) return;
+  migrationState.running      = true;
+  migrationState.paused       = false;
+  migrationState.startTime    = Date.now();
+  migrationState.approachFilter = document.getElementById('mg-approach-filter').value || null;
+  migrationState.batchSize    = parseInt(document.getElementById('mg-batch-size').value) || 50;
+  document.getElementById('mg-btn-start').disabled = true;
+  document.getElementById('mg-btn-pause').disabled = false;
+  document.getElementById('mg-btn-stop').disabled  = false;
+  addMigrationLog(`🚀 Migration démarrée — offset: ${migrationState.offset}, batch: ${migrationState.batchSize}${migrationState.approachFilter ? ', filtre: ' + migrationState.approachFilter : ''}`, 'info');
+  await runMigrationLoop();
+}
+
+async function runMigrationLoop() {
+  while (migrationState.running && !migrationState.paused) {
+    try {
+      const body = { offset: migrationState.offset, batch_size: migrationState.batchSize };
+      if (migrationState.approachFilter) body.approach_filter = migrationState.approachFilter;
+      const res  = await fetch(`${getWorkerUrl()}/rechunk-migrate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.error) { addMigrationLog('❌ Erreur: ' + data.error, 'error'); migrationState.running = false; break; }
+      if (data.done)  {
+        addMigrationLog('✅ Migration terminée !', 'success');
+        migrationState.running = false;
+        document.getElementById('mg-btn-start').disabled = false;
+        document.getElementById('mg-btn-pause').disabled = true;
+        document.getElementById('mg-btn-stop').disabled  = true;
+        await refreshMigrationStats();
+        break;
+      }
+      migrationState.offset  = data.next_offset;
+      migrationState.totalV2 += data.v2_chunks_created;
+      const elapsed   = (Date.now() - migrationState.startTime) / 1000;
+      const rate      = migrationState.offset / elapsed;
+      const remaining = rate > 0 ? Math.round((migrationState.totalV1 - migrationState.offset) / rate) : 0;
+      const eta       = remaining > 60 ? `~${Math.round(remaining/60)}min` : `~${remaining}s`;
+      addMigrationLog(
+        `📦 offset ${data.offset}→${data.next_offset} | v1: ${data.v1_chunks_read} | v2: +${data.v2_chunks_created} (×${data.ratio}) | D1: ${data.inserted_d1} | Vec: ${data.inserted_vec} | ETA: ${eta}`,
+        'info'
+      );
+      updateProgressBar(migrationState.totalV2, migrationState.estimatedV2);
+      await new Promise(r => setTimeout(r, 300));
+    } catch (e) { addMigrationLog('❌ Exception: ' + e.message, 'error'); migrationState.running = false; break; }
+  }
+  if (migrationState.paused) addMigrationLog(`⏸️ Pause à l'offset ${migrationState.offset}`, 'warn');
+}
+
+function pauseMigration() {
+  migrationState.paused = true; migrationState.running = false;
+  document.getElementById('mg-btn-start').textContent = '▶ Reprendre';
+  document.getElementById('mg-btn-start').disabled    = false;
+  document.getElementById('mg-btn-pause').disabled    = true;
+}
+
+function stopMigration() {
+  migrationState.running = false; migrationState.paused = false; migrationState.offset = 0;
+  document.getElementById('mg-btn-start').textContent = '▶ Lancer la migration';
+  document.getElementById('mg-btn-start').disabled    = false;
+  document.getElementById('mg-btn-pause').disabled    = true;
+  document.getElementById('mg-btn-stop').disabled     = true;
+  addMigrationLog('⛔ Migration arrêtée et offset remis à zéro.', 'warn');
+}
+
+function addMigrationLog(msg, type = 'info') {
+  const log  = document.getElementById('mg-log');
+  if (!log) return;
+  const line = document.createElement('div');
+  line.className = 'mg-log-line mg-log-' + type;
+  line.textContent = `[${new Date().toLocaleTimeString('fr-FR')}] ${msg}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+  while (log.children.length > 200) log.removeChild(log.firstChild);
+}
 </script>
 </body>
 </html>
