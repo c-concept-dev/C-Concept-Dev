@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centres d'Intérêt du Couple - Questionnaire Interactif</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --mer: #8FAFB1;
+            --vert-sauge: #C8D0C3;
+            --beige-sable: #D8CDBB;
+            --sable: #E6D7C3;
+            --blanc: #FFFFFF;
+            --gris-texte: #333333;
+            
+            --explorateurs: #7B68EE;
+            --createurs: #E74C3C;
+            --empathiques: #FFD700;
+            --strateges: #4A90E2;
+            --dynamiques: #FF6B35;
+            --traditionnels: #4CAF50;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--sable) 0%, var(--beige-sable) 100%);
+            color: var(--gris-texte);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--blanc);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            color: var(--mer);
+            text-align: center;
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .intro {
+            background: var(--sable);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+            line-height: 1.8;
+            border-left: 5px solid var(--mer);
+        }
+
+        .instructions {
+            background: var(--beige-sable);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid var(--mer);
+        }
+
+        .group {
+            background: var(--blanc);
+            border: 2px solid var(--vert-sauge);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            transition: all 0.3s;
+        }
+
+        .group:hover {
+            box-shadow: 0 5px 20px rgba(143, 175, 177, 0.2);
+        }
+
+        .group-title {
+            color: var(--mer);
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--vert-sauge);
+        }
+
+        .activity {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(230, 215, 195, 0.3);
+        }
+
+        .activity:hover {
+            background: var(--sable);
+            transform: translateX(5px);
+        }
+
+        .activity input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: var(--mer);
+        }
+
+        .activity label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 1em;
+            line-height: 1.5;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .badge-explorateurs { background: var(--explorateurs); }
+        .badge-createurs { background: var(--createurs); }
+        .badge-empathiques { background: var(--empathiques); color: #333; }
+        .badge-strateges { background: var(--strateges); }
+        .badge-dynamiques { background: var(--dynamiques); }
+        .badge-traditionnels { background: var(--traditionnels); }
+
+        .results-section {
+            background: linear-gradient(135deg, var(--sable) 0%, var(--beige-sable) 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 40px 0;
+            border-left: 5px solid var(--mer);
+        }
+
+        .results-title {
+            color: var(--mer);
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .score-card {
+            background: var(--blanc);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid;
+        }
+
+        .score-card.explorateurs { border-left-color: var(--explorateurs); }
+        .score-card.createurs { border-left-color: var(--createurs); }
+        .score-card.empathiques { border-left-color: var(--empathiques); }
+        .score-card.strateges { border-left-color: var(--strateges); }
+        .score-card.dynamiques { border-left-color: var(--dynamiques); }
+        .score-card.traditionnels { border-left-color: var(--traditionnels); }
+
+        .score-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .score-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--mer);
+        }
+
+        .score-max {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.3s;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--beige-sable) 0%, var(--sable) 100%);
+            color: var(--gris-texte);
+        }
+
+        .button-group {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .profiles-section {
+            margin: 40px 0;
+        }
+
+        .profile-card {
+            background: var(--blanc);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 5px solid;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .profile-card.explorateurs { border-left-color: var(--explorateurs); }
+        .profile-card.createurs { border-left-color: var(--createurs); }
+        .profile-card.empathiques { border-left-color: var(--empathiques); }
+        .profile-card.strateges { border-left-color: var(--strateges); }
+        .profile-card.dynamiques { border-left-color: var(--dynamiques); }
+        .profile-card.traditionnels { border-left-color: var(--traditionnels); }
+
+        .profile-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--mer);
+        }
+
+        .profile-content h4 {
+            color: var(--gris-texte);
+            font-weight: 600;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .profile-content p, .profile-content ul {
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        .profile-content ul {
+            margin-left: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--sable);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid var(--beige-sable);
+            font-size: 11px;
+            color: #000000;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .score-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Centres d'Intérêt du Couple</h1>
+        
+        <div class="intro">
+            <strong>Questionnaire Interactif</strong><br>
+            Cette typologie ludique est adaptée pour identifier les centres d'intérêt des partenaires dans le couple. Cet outil vise à faire émerger les préférences individuelles et croisées des partenaires dans leur rapport à l'activité, au loisir, à la routine et à l'aventure.
+        </div>
+
+        <div class="instructions">
+            <strong>Instructions :</strong> Dans chaque groupe (A à I), cochez <strong>deux activités</strong> que vous aimeriez pratiquer à deux, ou qui vous attirent spontanément dans une vie de couple. Il n'y a pas de bonne ou mauvaise réponse.
+        </div>
+
+        <!-- Groupe A -->
+        <div class="group">
+            <div class="group-title">Groupe A</div>
+            <div class="activity">
+                <input type="checkbox" id="a1" data-category="explorateurs" data-group="A">
+                <label for="a1">Faire un road-trip à l'improviste
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="a2" data-category="createurs" data-group="A">
+                <label for="a2">Suivre ensemble un atelier d'écriture ou de photo
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="a3" data-category="empathiques" data-group="A">
+                <label for="a3">Participer à une action humanitaire ou solidaire
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="a4" data-category="strateges" data-group="A">
+                <label for="a4">Construire un plan de carrière ou d'entreprise à deux
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="a5" data-category="dynamiques" data-group="A">
+                <label for="a5">Vous inscrire ensemble à un défi sportif
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="a6" data-category="traditionnels" data-group="A">
+                <label for="a6">Créer une routine familiale rassurante
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe B -->
+        <div class="group">
+            <div class="group-title">Groupe B</div>
+            <div class="activity">
+                <input type="checkbox" id="b1" data-category="explorateurs" data-group="B">
+                <label for="b1">Tester une activité extrême (parachute, canyoning)
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="b2" data-category="createurs" data-group="B">
+                <label for="b2">Visiter un musée d'art ou une expo contemporaine
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="b3" data-category="empathiques" data-group="B">
+                <label for="b3">Méditer à deux ou faire une retraite bien-être
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="b4" data-category="strateges" data-group="B">
+                <label for="b4">Lire et analyser un livre ou un podcast intellectuel
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="b5" data-category="dynamiques" data-group="B">
+                <label for="b5">Faire une compétition amicale ou escape game
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="b6" data-category="traditionnels" data-group="B">
+                <label for="b6">Organiser les repas familiaux du dimanche
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe C -->
+        <div class="group">
+            <div class="group-title">Groupe C</div>
+            <div class="activity">
+                <input type="checkbox" id="c1" data-category="explorateurs" data-group="C">
+                <label for="c1">Partir en sac à dos dans une région inconnue
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="c2" data-category="createurs" data-group="C">
+                <label for="c2">Créer ensemble une playlist ou une déco pour votre intérieur
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="c3" data-category="empathiques" data-group="C">
+                <label for="c3">Inviter des amis à la maison pour un moment de partage
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="c4" data-category="strateges" data-group="C">
+                <label for="c4">Planifier un projet de rénovation ou d'investissement
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="c5" data-category="dynamiques" data-group="C">
+                <label for="c5">Faire du sport en duo (fitness, vélo, course)
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="c6" data-category="traditionnels" data-group="C">
+                <label for="c6">Préparer des conserves maison ou bricoler ensemble
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe D -->
+        <div class="group">
+            <div class="group-title">Groupe D</div>
+            <div class="activity">
+                <input type="checkbox" id="d1" data-category="explorateurs" data-group="D">
+                <label for="d1">Explorer des lieux insolites ou naturels
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="d2" data-category="createurs" data-group="D">
+                <label for="d2">Suivre un stage artistique ou artisanal à deux
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="d3" data-category="empathiques" data-group="D">
+                <label for="d3">Faire du bénévolat en couple
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="d4" data-category="strateges" data-group="D">
+                <label for="d4">Établir des objectifs de vie ou une stratégie commune
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="d5" data-category="dynamiques" data-group="D">
+                <label for="d5">Participer à une course d'obstacles ou une compétition locale
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="d6" data-category="traditionnels" data-group="D">
+                <label for="d6">Répéter des rituels saisonniers en couple
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe E -->
+        <div class="group">
+            <div class="group-title">Groupe E</div>
+            <div class="activity">
+                <input type="checkbox" id="e1" data-category="explorateurs" data-group="E">
+                <label for="e1">Tester des cuisines locales ou des plats exotiques
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="e2" data-category="createurs" data-group="E">
+                <label for="e2">Réaliser un projet créatif commun (podcast, vidéo, blog)
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="e3" data-category="empathiques" data-group="E">
+                <label for="e3">Assister à des cercles de parole ou stages de couple
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="e4" data-category="strateges" data-group="E">
+                <label for="e4">S'inscrire à une conférence ou MOOC à thème
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="e5" data-category="dynamiques" data-group="E">
+                <label for="e5">Organiser un tournoi, un défi personnel ou de groupe
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="e6" data-category="traditionnels" data-group="E">
+                <label for="e6">Visiter un marché de producteurs ou une brocante ensemble
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe F -->
+        <div class="group">
+            <div class="group-title">Groupe F</div>
+            <div class="activity">
+                <input type="checkbox" id="f1" data-category="explorateurs" data-group="F">
+                <label for="f1">Prendre des vacances itinérantes sans planning
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="f2" data-category="createurs" data-group="F">
+                <label for="f2">Peindre, écrire ou faire du scrapbooking ensemble
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="f3" data-category="empathiques" data-group="F">
+                <label for="f3">Se retrouver pour parler des émotions et de la relation
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="f4" data-category="strateges" data-group="F">
+                <label for="f4">Élaborer des tableaux de bord de projets ou organiser la maison
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="f5" data-category="dynamiques" data-group="F">
+                <label for="f5">Faire du coaching sportif ou se fixer un challenge mensuel
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="f6" data-category="traditionnels" data-group="F">
+                <label for="f6">Regarder ensemble un film culte chaque semaine
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe G -->
+        <div class="group">
+            <div class="group-title">Groupe G</div>
+            <div class="activity">
+                <input type="checkbox" id="g1" data-category="explorateurs" data-group="G">
+                <label for="g1">S'orienter vers des séjours "aventuriers" (vanlife, bivouac)
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="g2" data-category="createurs" data-group="G">
+                <label for="g2">Créer une galerie photo des moments vécus ensemble
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="g3" data-category="empathiques" data-group="G">
+                <label for="g3">Offrir de petites attentions quotidiennes
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="g4" data-category="strateges" data-group="G">
+                <label for="g4">Mettre en place une routine de productivité
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="g5" data-category="dynamiques" data-group="G">
+                <label for="g5">Faire des jeux vidéo ou des compétitions entre amis
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="g6" data-category="traditionnels" data-group="G">
+                <label for="g6">Suivre un agenda de traditions et anniversaires à deux
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe H -->
+        <div class="group">
+            <div class="group-title">Groupe H</div>
+            <div class="activity">
+                <input type="checkbox" id="h1" data-category="explorateurs" data-group="H">
+                <label for="h1">Aller sans plan à la découverte d'une ville ou d'un village
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="h2" data-category="createurs" data-group="H">
+                <label for="h2">Participer à un festival ou à une scène ouverte
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="h3" data-category="empathiques" data-group="H">
+                <label for="h3">Faire de la méditation en duo ou des soins bien-être
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="h4" data-category="strateges" data-group="H">
+                <label for="h4">Discuter de sujets de société ou éthiques
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="h5" data-category="dynamiques" data-group="H">
+                <label for="h5">Planifier et atteindre un objectif sportif annuel
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="h6" data-category="traditionnels" data-group="H">
+                <label for="h6">Conserver les souvenirs de famille et photos d'antan
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Groupe I -->
+        <div class="group">
+            <div class="group-title">Groupe I</div>
+            <div class="activity">
+                <input type="checkbox" id="i1" data-category="explorateurs" data-group="I">
+                <label for="i1">Faire le tour d'un continent ou vivre à l'étranger temporairement
+                    <span class="category-badge badge-explorateurs">Explorateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="i2" data-category="createurs" data-group="I">
+                <label for="i2">Concevoir un projet DIY ou maison à quatre mains
+                    <span class="category-badge badge-createurs">Créateurs</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="i3" data-category="empathiques" data-group="I">
+                <label for="i3">Tenir un carnet de gratitude ou journal de couple
+                    <span class="category-badge badge-empathiques">Empathiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="i4" data-category="strateges" data-group="I">
+                <label for="i4">Comparer des outils ou logiciels pour s'organiser
+                    <span class="category-badge badge-strateges">Stratèges</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="i5" data-category="dynamiques" data-group="I">
+                <label for="i5">Participer à un bootcamp ou à une journée de team-building
+                    <span class="category-badge badge-dynamiques">Dynamiques</span>
+                </label>
+            </div>
+            <div class="activity">
+                <input type="checkbox" id="i6" data-category="traditionnels" data-group="I">
+                <label for="i6">Préparer ensemble les fêtes de fin d'année
+                    <span class="category-badge badge-traditionnels">Traditionnels</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn" onclick="calculateResults()">Calculer mes résultats</button>
+            <button class="btn btn-secondary" onclick="resetForm()">Recommencer</button>
+        </div>
+
+        <div id="resultsSection" class="results-section hidden">
+            <h2 class="results-title">Vos Résultats</h2>
+            <p style="margin-bottom: 20px;">Les 2 scores les plus élevés indiquent vos pôles dominants.</p>
+            
+            <div class="score-grid">
+                <div class="score-card explorateurs">
+                    <div class="score-label">Explorateurs</div>
+                    <div class="score-value" id="score-explorateurs">0</div>
+                    <div class="score-max">/ 18</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-explorateurs" style="background: var(--explorateurs);"></div>
+                    </div>
+                </div>
+                <div class="score-card createurs">
+                    <div class="score-label">Créateurs</div>
+                    <div class="score-value" id="score-createurs">0</div>
+                    <div class="score-max">/ 18</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-createurs" style="background: var(--createurs);"></div>
+                    </div>
+                </div>
+                <div class="score-card empathiques">
+                    <div class="score-label">Empathiques</div>
+                    <div class="score-value" id="score-empathiques">0</div>
+                    <div class="score-max">/ 18</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-empathiques" style="background: var(--empathiques);"></div>
+                    </div>
+                </div>
+                <div class="score-card strateges">
+                    <div class="score-label">Stratèges</div>
+                    <div class="score-value" id="score-strateges">0</div>
+                    <div class="score-max">/ 18</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-strateges" style="background: var(--strateges);"></div>
+                    </div>
+                </div>
+                <div class="score-card dynamiques">
+                    <div class="score-label">Dynamiques</div>
+                    <div class="score-value" id="score-dynamiques">0</div>
+                    <div class="score-max">/ 18</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-dynamiques" style="background: var(--dynamiques);"></div>
+                    </div>
+                </div>
+                <div class="score-card traditionnels">
+                    <div class="score-label">Traditionnels</div>
+                    <div class="score-value" id="score-traditionnels">0</div>
+                    <div class="score-max">/ 18</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-traditionnels" style="background: var(--traditionnels);"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: var(--blanc); border-radius: 10px; border-left: 4px solid var(--mer);">
+                <strong>Interprétation :</strong><br>
+                Comparez vos résultats avec ceux de votre partenaire. Discutez des différences, cela peut enrichir le couple ou créer des incompréhensions si elles sont ignorées.
+            </div>
+
+            <div class="button-group">
+                <button class="btn" onclick="showProfiles()">Découvrir les profils détaillés</button>
+            </div>
+        </div>
+
+        <div id="profilesSection" class="profiles-section hidden">
+            <h2 style="color: var(--mer); font-size: 2em; margin-bottom: 30px; text-align: center;">Les 6 Profils Détaillés</h2>
+
+            <div class="profile-card explorateurs">
+                <div class="profile-title">Les Explorateurs</div>
+                <div class="profile-content">
+                    <p><strong>Données générales :</strong> Curieux et aventuriers, ces partenaires aiment découvrir de nouveaux horizons ensemble. Valorisent les expériences inédites et les sensations fortes.</p>
+                    
+                    <h4>Métiers ou loisirs recherchés :</h4>
+                    <p><strong>Métiers :</strong> guide touristique, reporter, géologue, photographe de voyage.</p>
+                    <p><strong>Loisirs :</strong> randonnée, géocaching, photographie de nature, plongée sous-marine.</p>
+                    
+                    <h4>Attentions ou cadeaux idéaux :</h4>
+                    <ul>
+                        <li>Un week-end surprise dans un lieu inédit</li>
+                        <li>Un guide de voyage ou une carte personnalisée des endroits à visiter ensemble</li>
+                        <li>Matériel d'aventure : sac à dos, équipement de randonnée, accessoires de camping</li>
+                    </ul>
+                    
+                    <h4>Vacances correspondantes :</h4>
+                    <ul>
+                        <li>Road trip dans des endroits éloignés et sauvages (Islande, Patagonie)</li>
+                        <li>Séjours actifs : safari, expédition en montagne ou en forêt tropicale</li>
+                        <li>Voyages multi-destinations pour découvrir diverses cultures</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="profile-card createurs">
+                <div class="profile-title">Les Créateurs</div>
+                <div class="profile-content">
+                    <p><strong>Données générales :</strong> Amoureux de la beauté et de l'expression artistique, ils aiment produire ou consommer de l'art. Trouvent une connexion dans la créativité partagée.</p>
+                    
+                    <h4>Métiers ou loisirs recherchés :</h4>
+                    <p><strong>Métiers :</strong> designer, architecte, graphiste, écrivain, musicien.</p>
+                    <p><strong>Loisirs :</strong> peinture, écriture, bricolage, création de bijoux, ateliers DIY.</p>
+                    
+                    <h4>Attentions ou cadeaux idéaux :</h4>
+                    <ul>
+                        <li>Matériel artistique (peintures, carnet de croquis, appareils photo)</li>
+                        <li>Billets pour un concert, une pièce de théâtre ou une exposition</li>
+                        <li>Une boîte à souvenirs personnalisée ou une œuvre d'art locale</li>
+                    </ul>
+                    
+                    <h4>Vacances correspondantes :</h4>
+                    <ul>
+                        <li>Séjours dans des villes culturelles (Paris, Florence, Kyoto)</li>
+                        <li>Ateliers créatifs (céramique, photographie) ou retraites artistiques</li>
+                        <li>Festivals d'art ou de musique</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="profile-card empathiques">
+                <div class="profile-title">Les Empathiques</div>
+                <div class="profile-content">
+                    <p><strong>Données générales :</strong> Axés sur les relations humaines, ils trouvent du plaisir dans le partage émotionnel et l'entraide. Leur lien se renforce dans des contextes sociaux ou d'altruisme.</p>
+                    
+                    <h4>Métiers ou loisirs recherchés :</h4>
+                    <p><strong>Métiers :</strong> enseignant, coach, thérapeute, travailleur social, médiateur.</p>
+                    <p><strong>Loisirs :</strong> bénévolat, méditation, yoga, jardinage communautaire.</p>
+                    
+                    <h4>Attentions ou cadeaux idéaux :</h4>
+                    <ul>
+                        <li>Un album photo retraçant leurs meilleurs souvenirs de couple</li>
+                        <li>Un abonnement à des ateliers ou à des cercles de discussion pour couples</li>
+                        <li>Une soirée bien-être : massage, dîner maison avec ambiance chaleureuse</li>
+                    </ul>
+                    
+                    <h4>Vacances correspondantes :</h4>
+                    <ul>
+                        <li>Retraites spirituelles ou bien-être (méditation en Inde, spa en montagne)</li>
+                        <li>Séjours dans des communautés écoresponsables ou des éco-lodges</li>
+                        <li>Voyages solidaires (aide humanitaire, projets locaux)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="profile-card strateges">
+                <div class="profile-title">Les Stratèges</div>
+                <div class="profile-content">
+                    <p><strong>Données générales :</strong> Axés sur l'analyse et la logique, ces partenaires aiment réfléchir ensemble pour résoudre des problèmes ou construire des projets. Apprécient la planification et les discussions intellectuelles.</p>
+                    
+                    <h4>Métiers ou loisirs recherchés :</h4>
+                    <p><strong>Métiers :</strong> ingénieur, analyste, consultant, programmeur, chercheur.</p>
+                    <p><strong>Loisirs :</strong> jeux d'échecs, puzzles, lectures scientifiques ou philosophiques.</p>
+                    
+                    <h4>Attentions ou cadeaux idéaux :</h4>
+                    <ul>
+                        <li>Jeux de société stratégiques ou casse-têtes complexes</li>
+                        <li>Un abonnement à une plateforme de cours en ligne (MOOC) sur un sujet commun</li>
+                        <li>Un carnet de planification ou un logiciel de gestion de projet</li>
+                    </ul>
+                    
+                    <h4>Vacances correspondantes :</h4>
+                    <ul>
+                        <li>Séjours immersifs autour d'un thème intellectuel (archéologie en Égypte, exploration scientifique)</li>
+                        <li>Voyages avec itinéraires planifiés et objectifs clairs</li>
+                        <li>Croisières ou séjours dans des villes historiques avec visites guidées</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="profile-card dynamiques">
+                <div class="profile-title">Les Dynamiques</div>
+                <div class="profile-content">
+                    <p><strong>Données générales :</strong> Énergiques et tournés vers l'action, ils aiment vivre intensément et se lancer dans des défis ensemble. Très orientés sur la réussite et la progression personnelle ou commune.</p>
+                    
+                    <h4>Métiers ou loisirs recherchés :</h4>
+                    <p><strong>Métiers :</strong> manager, entrepreneur, coach sportif, formateur.</p>
+                    <p><strong>Loisirs :</strong> running, sports collectifs, jeux vidéo compétitifs, challenges fitness.</p>
+                    
+                    <h4>Attentions ou cadeaux idéaux :</h4>
+                    <ul>
+                        <li>Inscription à un marathon ou à un challenge sportif en duo</li>
+                        <li>Équipements de sport haut de gamme ou vêtements techniques</li>
+                        <li>Une activité dynamique à deux : karting, escalade, escape game</li>
+                    </ul>
+                    
+                    <h4>Vacances correspondantes :</h4>
+                    <ul>
+                        <li>Séjours sportifs (trekking au Népal, ski dans les Alpes)</li>
+                        <li>Parcs d'attractions ou activités intenses (saut à l'élastique, rafting)</li>
+                        <li>Destinations exotiques avec des activités organisées (kite-surf à Bali, surf au Portugal)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="profile-card traditionnels">
+                <div class="profile-title">Les Traditionnels</div>
+                <div class="profile-content">
+                    <p><strong>Données générales :</strong> Attachés aux valeurs et aux routines, ils trouvent de la sécurité dans des activités classiques ou familiales. Favorisent les traditions et les rituels du quotidien.</p>
+                    
+                    <h4>Métiers ou loisirs recherchés :</h4>
+                    <p><strong>Métiers :</strong> enseignant, artisan, comptable, agent administratif.</p>
+                    <p><strong>Loisirs :</strong> cuisine, jardinage, tricot, bricolage, participation à des clubs locaux.</p>
+                    
+                    <h4>Attentions ou cadeaux idéaux :</h4>
+                    <ul>
+                        <li>Un album de recettes maison à créer ensemble</li>
+                        <li>Un objet personnalisé pour la maison (plaid, ustensiles de cuisine)</li>
+                        <li>Une journée dans un lieu familier ou sentimental (lieu de rencontre, maison d'enfance)</li>
+                    </ul>
+                    
+                    <h4>Vacances correspondantes :</h4>
+                    <ul>
+                        <li>Séjours tranquilles à la campagne ou en bord de mer (gîtes, maisons d'hôtes)</li>
+                        <li>Croisières ou voyages en train (type Orient-Express)</li>
+                        <li>Séjours familiaux dans des lieux traditionnels (village vacances, ferme auberge)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Bilan de Compétences du couple© - Marie-Christine Abatte Psychologue
+        </div>
+    </div>
+
+    <script>
+        // Gestion des limites de sélection par groupe
+        const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const group = this.getAttribute('data-group');
+                const groupCheckboxes = document.querySelectorAll(`input[data-group="${group}"]`);
+                const checkedCount = Array.from(groupCheckboxes).filter(cb => cb.checked).length;
+                
+                // Si plus de 2 cases cochées, empêcher la sélection
+                if (checkedCount > 2) {
+                    this.checked = false;
+                    alert(`Vous ne pouvez cocher que 2 activités maximum dans le Groupe ${group}.`);
+                }
+            });
+        });
+
+        function calculateResults() {
+            const categories = ['explorateurs', 'createurs', 'empathiques', 'strateges', 'dynamiques', 'traditionnels'];
+            const scores = {};
+            
+            categories.forEach(cat => {
+                scores[cat] = document.querySelectorAll(`input[data-category="${cat}"]:checked`).length;
+            });
+            
+            // Afficher les résultats
+            categories.forEach(cat => {
+                document.getElementById(`score-${cat}`).textContent = scores[cat];
+                const percentage = (scores[cat] / 18) * 100;
+                document.getElementById(`progress-${cat}`).style.width = percentage + '%';
+            });
+            
+            // Afficher la section résultats
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function resetForm() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('profilesSection').classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showProfiles() {
+            document.getElementById('profilesSection').classList.remove('hidden');
+            document.getElementById('profilesSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Amélioration de l'interaction avec les labels
+        document.querySelectorAll('.activity label').forEach(label => {
+            label.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'INPUT') {
+                    const checkbox = this.previousElementSibling;
+                    if (checkbox && checkbox.type === 'checkbox') {
+                        checkbox.click();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
