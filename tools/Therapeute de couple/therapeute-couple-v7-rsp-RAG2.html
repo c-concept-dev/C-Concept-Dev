@@ -1949,146 +1949,6 @@
             opacity: 0.8;
         }
 
-    
-    /* ================================================================
-       RESPONSIVE MOBILE — C Concept&Dev
-       Breakpoints: mobile <768px | tablet 768-1024px
-       Fix audio mobile inclus
-       ================================================================ */
-
-    /* ── Bouton unlock AudioContext (iOS/Android) ── */
-    #mobile-audio-unlock {
-        display: none;
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 9999;
-        background: var(--mer, #8FAFB1);
-        color: white;
-        border: none;
-        padding: 14px 28px;
-        border-radius: 50px;
-        font-size: 15px;
-        font-weight: 700;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        cursor: pointer;
-        white-space: nowrap;
-        animation: pulse-audio-btn 1.5s infinite;
-    }
-    @keyframes pulse-audio-btn {
-        0%,100% { box-shadow: 0 4px 20px rgba(143,175,177,0.4); }
-        50%      { box-shadow: 0 4px 32px rgba(143,175,177,0.85); }
-    }
-
-    /* ── Tablet 768-1024px ── */
-    @media (min-width: 769px) and (max-width: 1024px) {
-        .app-header { padding: 14px 20px; }
-        .media-grid { grid-template-columns: 260px 1fr; }
-        .chat-section { padding: 20px; }
-        .messages-container { max-height: calc(100vh - 360px); }
-        .stats-grid { grid-template-columns: repeat(3,1fr); }
-    }
-
-    /* ── Mobile <768px ── */
-    @media (max-width: 768px) {
-
-        /* BASE */
-        html, body { font-size: 15px; overflow-x: hidden; }
-        * { max-width: 100vw; }
-        img, video { max-width: 100%; }
-
-        /* HEADER */
-        .app-header {
-            padding: 10px 14px;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-        .app-header h1 { font-size: 17px; }
-        .subtitle { display: none; }
-        .voice-controls { flex-wrap: wrap; gap: 6px; }
-        .voice-controls select,
-        .voice-controls button { font-size: 12px; padding: 6px 10px; }
-
-        /* WELCOME SCREEN */
-        .welcome-screen { padding: 24px 16px; }
-        .welcome-screen h2 { font-size: 20px; }
-        .welcome-screen p  { font-size: 14px; }
-        .start-btn { padding: 13px 28px; font-size: 15px; width: 100%; max-width: 300px; }
-
-        /* CARTES RÔLE empilées */
-        #role-selection {
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 12px !important;
-        }
-        .role-card { width: 100% !important; max-width: 320px !important; }
-
-        /* DOSSIER COLLAB */
-        .dossier-actions { flex-direction: column !important; align-items: center !important; gap: 10px !important; }
-        .dossier-action-card { width: 100% !important; max-width: 300px !important; }
-
-        /* PROGRESS / STATS */
-        .progress-section { padding: 10px 14px; }
-        .stats-grid { grid-template-columns: repeat(2,1fr); gap: 8px; }
-        .stat-value { font-size: 18px; }
-        .stat-label { font-size: 10px; }
-
-        /* MEDIA PANEL */
-        .media-panel { padding: 10px 14px; }
-        .media-grid { grid-template-columns: 1fr; gap: 10px; }
-        #video-preview { max-height: 160px; width: 100%; object-fit: cover; border-radius: 8px; }
-        .media-controls { gap: 8px; }
-        .transcription-panel { padding: 10px 12px; }
-        .transcription-text { font-size: 13px; min-height: 28px; }
-        .analyze-btn { padding: 10px 16px; font-size: 13px; }
-        .pause-btn  { padding: 10px 16px; font-size: 13px; }
-
-        /* CHAT */
-        .chat-section { padding: 12px 14px; }
-        .messages-container {
-            max-height: calc(100vh - 380px);
-            min-height: 180px;
-            padding: 10px;
-        }
-        .message-content {
-            font-size: 14px;
-            padding: 10px 13px;
-            max-width: 92%;
-        }
-        .message-avatar { width: 28px; height: 28px; font-size: 15px; }
-
-        /* INPUT */
-        .input-area { min-height: 65px; font-size: 15px; padding: 10px 12px; }
-        .actions-row { flex-wrap: wrap; gap: 8px; }
-        .send-btn { padding: 11px 20px; font-size: 14px; }
-        .word-count { font-size: 11px; }
-        #skip-btn, #refuse-btn { padding: 7px 10px !important; font-size: 11px !important; }
-
-        /* FOOTER */
-        .footer-actions { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
-        .export-btn { padding: 8px 14px; font-size: 13px; }
-
-        /* MODAL MODE */
-        .modal-content {
-            width: 95vw !important;
-            max-width: 95vw !important;
-            padding: 18px 14px !important;
-            max-height: 88vh;
-            overflow-y: auto;
-            margin: 6vw auto !important;
-        }
-        .mode-options { flex-direction: column !important; gap: 10px !important; }
-        .mode-option  { width: 100% !important; }
-        .modal-btn    { width: 100%; padding: 14px; font-size: 15px; }
-
-        /* CONFIG MODAL */
-        .config-content { width: 95vw !important; padding: 20px 14px !important; }
-
-        /* V19 PILLAR DASHBOARD */
-        #v19-pillar-dashboard { margin: 0 14px 8px !important; font-size: 12px !important; }
-    }
-
     </style>
     
     <!-- ============================================================ -->
@@ -2118,7 +1978,6 @@
     
 </head>
 <body>
-<button id="mobile-audio-unlock" onclick="this.style.display='none'" aria-label="Activer le son">🔊 Activer le son</button>
 
 <!-- v17.3.15 ULTIMATE: Avatar + Infobulle INTELLIGENTE dynamique -->
 <div class="progress-avatar" id="progress-avatar" title="Analyse en temps réel">
@@ -4018,6 +3877,50 @@ Interventions COURTES et CIBLÉES. Pas de monologue. Maximum 6-8 phrases par int
 - Question à l'autre partenaire pour avoir son vécu
 - Observation d'un pattern ("Je remarque que quand ${nameA} dit X, ${nameB} fait Y — qu'est-ce qui se passe à ce moment-là ?")
 - Proposition d'un exercice court quand le moment est mûr
+
+═══ OUTILS INTERACTIFS DISPONIBLES ═══
+
+Vous avez accès à 12 outils interactifs HTML que vous pouvez proposer au bon moment. Pour proposer un outil, insérez EXACTEMENT cette balise dans votre message : [OUTIL:nom_outil]
+L'interface transformera automatiquement cette balise en bouton cliquable pour les partenaires.
+
+[OUTIL:swot_conjugal] — SWOT Conjugal (Forces/Faiblesses/Opportunités/Menaces)
+→ Bilan de départ, période de questionnement ou de transition
+
+[OUTIL:Agenda_du_couple-2] — Agenda du Couple interactif
+→ Planification des rituels de connexion, projets communs
+
+[OUTIL:Appartenacogramme] — Appartenancogramme (Neuburger)
+→ Explorer les loyautés familiales, conflits d'appartenance
+
+[OUTIL:Big_5_Quizz] — Big Five "Qui est Nous ?"
+→ Explorer les personnalités, comprendre les frictions de caractère
+
+[OUTIL:IQVR_interactif_sans_exemple] — IQVR — Inventaire Qualité de Vie Relationnelle
+→ Évaluer la satisfaction sur différentes dimensions de la relation
+
+[OUTIL:Le_Controle_Technique_du_Couple_standalone_fixed] — Contrôle Technique du Couple
+→ Bilan structuré complet en début ou mi-parcours thérapeutique
+
+[OUTIL:centres_interet_couple_interactif] — Centres d'Intérêt du Couple
+→ Identifier domaines partagés et espaces d'enrichissement mutuel
+
+[OUTIL:connaissance_de_nous_interactif-3] — Connaissance de soi / de "Nous"
+→ Explorer l'identité individuelle et l'identité du couple
+
+[OUTIL:exercice_gottman_interactif-2] — Exercice Gottman — Connaissance Mutuelle
+→ Renforcer la Love Map — ce que chaque partenaire sait de l'autre
+
+[OUTIL:isqv_couple_ameliore-2] — ISQV — Inventaire Systémique Qualité de Vie
+→ Évaluer la qualité de vie relationnelle via grille systémique
+
+[OUTIL:questionnaire-das32-couple-5] — DAS-32 — Échelle Ajustement Dyadique
+→ Mesurer l'ajustement dyadique (consensus, satisfaction, cohésion, affect)
+
+[OUTIL:relatiogramme_carrousel_interactif] — Relatiogramme Carrousel (Neuburger)
+→ Visualiser les systèmes d'appartenance et leur poids sur le couple
+
+RÈGLE : Proposez UN outil maximum par intervention, au moment cliniquement pertinent.
+Formulez une phrase de contextualisation avant la balise.
 
 ═══ PREMIÈRE INTERVENTION ═══
 
@@ -16974,7 +16877,7 @@ async function loadTherapyCatalog() {
       book_id:    r.book_id,
       book_title: r.book_title,
       author:     r.author || 'Inconnu',
-      approach:   row.approach || 'therapy',
+      approach:   r.approach || 'therapy',
       language:   'fr',
       chunks:     r.chunks || 0,
     }));
@@ -18117,7 +18020,42 @@ class ConversationalSystem {
             textNode.textContent = content;
             contentDiv.appendChild(textNode);
         } else {
-            contentDiv.textContent = content;
+            // Détecter les balises [OUTIL:xxx] et les transformer en boutons
+            if (role === 'assistant' && content.includes('[OUTIL:')) {
+                const parts = content.split(/(\[OUTIL:[^\]]+\])/g);
+                const TOOL_LABELS = {
+                    'swot_conjugal': 'SWOT Conjugal',
+                    'Agenda_du_couple-2': 'Agenda du Couple',
+                    'Appartenacogramme': 'Appartenancogramme',
+                    'Big_5_Quizz': 'Big Five — Qui est Nous ?',
+                    'IQVR_interactif_sans_exemple': 'IQVR — Qualité de Vie Relationnelle',
+                    'Le_Controle_Technique_du_Couple_standalone_fixed': 'Contrôle Technique du Couple',
+                    'centres_interet_couple_interactif': "Centres d'Intérêt du Couple",
+                    'connaissance_de_nous_interactif-3': 'Connaissance de soi / de Nous',
+                    'exercice_gottman_interactif-2': 'Exercice Gottman — Connaissance Mutuelle',
+                    'isqv_couple_ameliore-2': 'ISQV — Inventaire Systémique',
+                    'questionnaire-das32-couple-5': 'DAS-32 — Ajustement Dyadique',
+                    'relatiogramme_carrousel_interactif': 'Relatiogramme Carrousel'
+                };
+                parts.forEach(function(part) {
+                    var toolMatch = part.match(/\[OUTIL:([^\]]+)\]/);
+                    if (toolMatch) {
+                        var toolId = toolMatch[1];
+                        var label = TOOL_LABELS[toolId] || toolId;
+                        var toolBtn = document.createElement('button');
+                        toolBtn.className = 'outil-couple-btn';
+                        toolBtn.innerHTML = '<span style="font-size:16px;">🛠️</span> <span>' + label + '</span>';
+                        toolBtn.onclick = function() { openCoupleOutilTool(toolId); };
+                        contentDiv.appendChild(toolBtn);
+                    } else if (part.trim()) {
+                        var textNode = document.createElement('span');
+                        textNode.textContent = part;
+                        contentDiv.appendChild(textNode);
+                    }
+                });
+            } else {
+                contentDiv.textContent = content;
+            }
         }
         messageDiv.appendChild(contentDiv);
         
@@ -32885,7 +32823,11 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- BRAIN BUILDER ULTIMATE v2.0 - SCRIPTS (FIXED) -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 
+<!-- Chart.js for visualizations -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 
+<!-- JSZip for export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <!-- Brain Builder Complete (FIXED - no nested backticks) -->
 <script>
@@ -37403,11 +37345,11 @@ console.log('[v17.3.1 CLEAN] - Avatar tooltip enrichi');
 // Vérifier session interrompue au chargement
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        // checkInterruptedSession() désactivé — autoSaveManager gère la restauration
+        // checkInterruptedSession() desactive
         checkGoogleTTSConfig();
     });
 } else {
-    // checkInterruptedSession() désactivé
+    // checkInterruptedSession() desactive
     checkGoogleTTSConfig();
 }
 
@@ -38108,65 +38050,35 @@ window.addEventListener('beforeunload', () => {
     <span class="switch-label" style="font-size: 10px; opacity: 0.6;">1 / 2</span>
 </div>
 
+
+<style>
+.outil-couple-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px 0;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(143,175,177,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.outil-couple-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 18px rgba(143,175,177,0.5);
+}
+</style>
 <script>
-    // ── FIX AUDIO MOBILE (iOS/Android) — C Concept&Dev ──────────
-    // iOS Safari bloque Audio.play() si pas déclenché par geste user
-    // Solution : résoudre l'AudioContext au 1er tap, puis play() fonctionne
-    (function() {
-        var _audioUnlocked = false;
-        var _unlockBtn = null;
-
-        function _unlockAllAudio() {
-            if (_audioUnlocked) return;
-            _audioUnlocked = true;
-
-            // 1. Resume tous les AudioContext suspendus
-            if (window.AudioContext || window.webkitAudioContext) {
-                try {
-                    var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    if (ctx.state === 'suspended') ctx.resume();
-                    // Jouer un silence pour débloquer iOS
-                    var buf = ctx.createBuffer(1, 1, 22050);
-                    var src = ctx.createBufferSource();
-                    src.buffer = buf;
-                    src.connect(ctx.destination);
-                    src.start(0);
-                } catch(e) {}
-            }
-
-            // 2. Masquer le bouton unlock
-            if (_unlockBtn) { _unlockBtn.style.display = 'none'; }
-
-            console.log('[Audio] ✅ Contexte audio débloqué');
-        }
-
-        // Déclencher sur tout tap/click
-        document.addEventListener('touchstart', _unlockAllAudio, { once: true, passive: true });
-        document.addEventListener('click',      _unlockAllAudio, { once: true });
-
-        // Afficher bouton unlock uniquement sur mobile (touch device)
-        window.addEventListener('load', function() {
-            var isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            if (!isMobile) return;
-
-            _unlockBtn = document.getElementById('mobile-audio-unlock');
-            if (_unlockBtn) {
-                _unlockBtn.style.display = 'block';
-                _unlockBtn.addEventListener('click', function() {
-                    _unlockAllAudio();
-                    this.style.display = 'none';
-                });
-                // Auto-masquer après 8s
-                setTimeout(function() {
-                    if (_unlockBtn) _unlockBtn.style.display = 'none';
-                }, 8000);
-            }
-        });
-
-        // Exposer pour usage dans le code TTS
-        window._mobileAudioUnlocked = function() { return _audioUnlocked; };
-    })();
-    // ─────────────────────────────────────────────────────────────
+const COUPLE_OUTILS_BASE_URL = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Therapeute%20de%20couple/Couple/';
+function openCoupleOutilTool(toolId) {
+    window.open(COUPLE_OUTILS_BASE_URL + encodeURIComponent(toolId) + '.html', '_blank', 'noopener,noreferrer');
+}
 </script>
 </body>
 </html>
