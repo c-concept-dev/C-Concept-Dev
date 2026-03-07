@@ -16683,7 +16683,7 @@ async function loadTherapyCatalog() {
       book_id:    r.book_id,
       book_title: r.book_title,
       author:     r.author || 'Inconnu',
-      approach:   row.approach || 'therapy',
+      approach:   r.approach || 'therapy',
       language:   'fr',
       chunks:     r.chunks || 0,
     }));
