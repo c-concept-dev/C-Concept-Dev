@@ -1,0 +1,871 @@
+<!DOCTYPE html><html lang="fr"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'Agenda du Couple - Version Interactive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;family=Pompiere&amp;display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Charte graphique */
+            --color-primary: #2A6D74;
+            --color-secondary: #B3AFA7;
+            --color-accent-1: #86B1AE;
+            --color-accent-2: #8FAFB1;
+            --color-outline: #9FA4A6;
+            --color-sand: #FFFFFF;
+            --color-bg: #FFFFFF;
+            --color-text: #2A6D74;
+            
+            /* Couleurs vives de la légende */
+            --color-travail: #4A90E2;
+            --color-famille: #FFD700;
+            --color-taches: #FF6B35;
+            --color-solo: #BD10E0;
+            --color-social: #00D9FF;
+            --color-couple: #E74C3C;
+            --color-sommeil: #7B68EE;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: #f5f5f5;
+            color: var(--color-text);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--color-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(42, 109, 116, 0.15);
+            overflow: hidden;
+            border: 2px solid var(--color-accent-1);
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent-1) 100%);
+            color: var(--color-bg);
+            text-align: center;
+            padding: 30px 20px;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, 
+                var(--color-primary) 0%, 
+                var(--color-accent-1) 50%, 
+                var(--color-accent-2) 100%);
+        }
+
+        .main-title {
+            font-family: 'Pompiere', cursive;
+            font-size: 48px;
+            font-weight: 400;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtitle {
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.95;
+            letter-spacing: 1px;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: linear-gradient(to right, rgba(42, 109, 116, 0.05), rgba(134, 177, 174, 0.05));
+            padding: 25px 30px;
+            border-left: 4px solid var(--color-primary);
+            margin: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--color-accent-1);
+        }
+
+        .instructions h3 {
+            color: var(--color-primary);
+            font-size: 16px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: 8px;
+        }
+
+        .instructions strong {
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        /* Partners Section */
+        .partners-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+
+        .partner-section {
+            background: var(--color-bg);
+            border: 2px solid var(--color-accent-1);
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .partner-section:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 8px 24px rgba(42, 109, 116, 0.12);
+        }
+
+        .partner-header {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent-2));
+            color: var(--color-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 2px solid var(--color-accent-1);
+        }
+
+        .partner-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        /* Daily Category Table */
+        .daily-category-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 2px solid var(--color-accent-1);
+            overflow-x: auto;
+        }
+
+        .daily-category-title {
+            color: var(--color-primary);
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--color-primary);
+        }
+
+        .daily-category-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(42, 109, 116, 0.08);
+            min-width: 700px;
+        }
+
+        .daily-category-table thead {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent-2));
+        }
+
+        .daily-category-table th {
+            color: var(--color-bg);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 12px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .daily-category-table th:first-child {
+            text-align: left;
+            padding-left: 15px;
+            width: 200px;
+        }
+
+        .daily-category-table th:last-child {
+            border-right: none;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .daily-category-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid var(--color-accent-1);
+        }
+
+        .daily-category-table td:first-child {
+            text-align: left;
+            padding-left: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            border-left: none;
+            background: rgba(42, 109, 116, 0.03);
+        }
+
+        .category-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .daily-category-table tbody tr:hover {
+            background: rgba(42, 109, 116, 0.05);
+        }
+
+        .daily-category-table tfoot {
+            background: linear-gradient(135deg, rgba(42, 109, 116, 0.15), rgba(134, 177, 174, 0.15));
+            font-weight: 700;
+        }
+
+        .daily-category-table tfoot td {
+            padding: 14px 8px;
+            color: var(--color-primary);
+            font-size: 14px;
+            border-top: 3px solid var(--color-primary);
+        }
+
+        .daily-category-table tfoot td:first-child {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Editable Input Cells */
+        .hours-input {
+            width: 65px;
+            padding: 6px 8px;
+            border: 2px solid var(--color-accent-1);
+            border-radius: 5px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-primary);
+            font-family: 'Montserrat', sans-serif;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .hours-input:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 2px 6px rgba(42, 109, 116, 0.15);
+        }
+
+        .hours-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            background: #f0f9fa;
+            box-shadow: 0 0 0 3px rgba(42, 109, 116, 0.1);
+        }
+
+        .total-cell {
+            font-size: 14px;
+            font-weight: 700;
+            background: rgba(42, 109, 116, 0.08);
+        }
+
+        /* Weekly Total */
+        .weekly-total-section {
+            margin-top: 15px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent-2));
+            color: var(--color-bg);
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(42, 109, 116, 0.3);
+        }
+
+        .weekly-total-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .weekly-total-hours {
+            font-size: 18px;
+            opacity: 0.95;
+            margin-bottom: 5px;
+        }
+
+        .weekly-total-label {
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        /* Statistics */
+        .stats-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 2px solid var(--color-accent-1);
+        }
+
+        .stats-title {
+            color: var(--color-primary);
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--color-accent-1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .stat-item {
+            background: var(--color-bg);
+            padding: 14px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--color-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            border-color: var(--color-accent-1);
+            box-shadow: 0 4px 12px rgba(134, 177, 174, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--color-secondary);
+            font-weight: 600;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-percentage {
+            font-size: 12px;
+            color: var(--color-outline);
+            font-weight: 600;
+        }
+
+        /* Action Buttons */
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent-1));
+            color: var(--color-bg);
+            box-shadow: 0 4px 12px rgba(42, 109, 116, 0.3);
+            border: 2px solid var(--color-accent-1);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(42, 109, 116, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--color-bg);
+            color: var(--color-primary);
+            border: 2px solid var(--color-accent-1);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-accent-2);
+            color: var(--color-bg);
+            border-color: var(--color-primary);
+        }
+
+        .btn-danger {
+            background: var(--color-secondary);
+            color: var(--color-bg);
+            border: 2px solid var(--color-outline);
+        }
+
+        .btn-danger:hover {
+            background: var(--color-outline);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 32px;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                min-width: 100%;
+            }
+
+            .container {
+                border-radius: 0;
+            }
+
+            body {
+                padding: 0;
+            }
+
+            .hours-input {
+                width: 50px;
+                font-size: 11px;
+                padding: 4px;
+            }
+
+            .daily-category-table {
+                font-size: 10px;
+            }
+
+            .daily-category-table th,
+            .daily-category-table td {
+                padding: 6px 4px;
+            }
+
+            .daily-category-table th:first-child,
+            .daily-category-table td:first-child {
+                width: 120px;
+            }
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent-1));
+            color: var(--color-bg);
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(42, 109, 116, 0.4);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            border: 2px solid var(--color-accent-1);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Visual Enhancements */
+        .highlight-row:hover .hours-input {
+            border-color: var(--color-primary);
+        }
+
+        .category-row-travail:hover { background: rgba(74, 144, 226, 0.05) !important; }
+        .category-row-famille:hover { background: rgba(255, 215, 0, 0.05) !important; }
+        .category-row-taches:hover { background: rgba(255, 107, 53, 0.05) !important; }
+        .category-row-solo:hover { background: rgba(189, 16, 224, 0.05) !important; }
+        .category-row-social:hover { background: rgba(0, 217, 255, 0.05) !important; }
+        .category-row-couple:hover { background: rgba(231, 76, 60, 0.05) !important; }
+        .category-row-sommeil:hover { background: rgba(123, 104, 238, 0.05) !important; }
+    </style>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="main-title">L'Agenda du Couple</h1>
+            <p class="subtitle">Bilan de Compétences du Couple ©</p>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3>📋 Instructions :</h3>
+            <ol>
+                <li>Saisissez le <strong>nombre d'heures</strong> directement dans chaque case du tableau</li>
+                <li>Les <strong>totaux par jour</strong> et <strong>par catégorie</strong> se calculent automatiquement</li>
+                <li>Le <strong>total hebdomadaire</strong> et les <strong>pourcentages</strong> sont mis à jour en temps réel</li>
+                <li>Analysez la <strong>répartition du temps</strong> (objectif : 168h/semaine)</li>
+                <li>Utilisez les boutons pour sauvegarder, charger ou réinitialiser vos données</li>
+            </ol>
+        </div>
+
+        <!-- Partners Section -->
+        <div class="partners-wrapper" id="partnersWrapper">
+            <!-- Les sections partenaires seront générées dynamiquement -->
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Global state
+        const state = {
+            1: { data: {} },
+            2: { data: {} }
+        };
+
+        const categoryColors = {
+            'sommeil': '#7B68EE',
+            'travail': '#4A90E2',
+            'famille': '#FFD700',
+            'taches': '#FF6B35',
+            'solo': '#BD10E0',
+            'social': '#00D9FF',
+            'couple': '#E74C3C'
+        };
+
+        const categoryLabels = {
+            'sommeil': 'Sommeil',
+            'travail': 'Travail',
+            'famille': 'Famille (enfants)',
+            'taches': 'Tâches ménagères',
+            'solo': 'Activités solo/perso',
+            'social': 'Famille d\'origine/social',
+            'couple': 'Couple/sexualité/activités partagées'
+        };
+
+        const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+        // Initialize partners
+        function initializePartners() {
+            const wrapper = document.getElementById('partnersWrapper');
+            
+            for (let partner = 1; partner <= 2; partner++) {
+                const section = createPartnerSection(partner);
+                wrapper.appendChild(section);
+                initializeData(partner);
+            }
+        }
+
+        // Initialize data structure
+        function initializeData(partner) {
+            Object.keys(categoryLabels).forEach(cat => {
+                state[partner].data[cat] = Array(7).fill(0);
+            });
+        }
+
+        // Create partner section
+        function createPartnerSection(partner) {
+            const section = document.createElement('div');
+            section.className = 'partner-section';
+            section.id = `partner${partner}`;
+            
+            section.innerHTML = `
+                <div class="partner-header">
+                    <h2>Partenaire ${partner}</h2>
+                </div>
+
+                <div class="daily-category-section">
+                    <div class="daily-category-title">📊 Répartition par jour et par catégorie</div>
+                    <table class="daily-category-table">
+                        <thead>
+                            <tr>
+                                <th>Catégorie</th>
+                                ${days.map(day => `<th>${day}</th>`).join('')}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(categoryLabels).map(([cat, label]) => `
+                                <tr class="category-row-${cat} highlight-row">
+                                    <td>
+                                        <div class="category-indicator" style="background: ${categoryColors[cat]};"></div>
+                                        ${label}
+                                    </td>
+                                    ${days.map((_, dayIndex) => `
+                                        <td>
+                                            <input 
+                                                type="number" 
+                                                class="hours-input" 
+                                                min="0" 
+                                                max="24" 
+                                                step="0.5"
+                                                placeholder="0"
+                                                value=""
+                                                oninput="updateHours(${partner}, '${cat}', ${dayIndex}, this.value)"
+                                                id="input_${partner}_${cat}_${dayIndex}"
+                                            />
+                                        </td>
+                                    `).join('')}
+                                    <td class="total-cell" id="cat_${partner}_${cat}_total" style="color: ${categoryColors[cat]};">0h</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td>TOTAL PAR JOUR</td>
+                                ${days.map((_, dayIndex) => `
+                                    <td class="total-cell" id="dayTotal${partner}_${dayIndex}">0h</td>
+                                `).join('')}
+                                <td class="total-cell" id="weekTotal${partner}" style="font-size: 16px;">0h</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="weekly-total-section">
+                    <div class="weekly-total-value" id="weeklyPercentage${partner}">0%</div>
+                    <div class="weekly-total-hours" id="weeklyHours${partner}">0h / 168h</div>
+                    <div class="weekly-total-label">de la semaine planifié</div>
+                </div>
+
+                <div class="stats-section">
+                    <div class="stats-title">📊 Répartition globale par catégorie</div>
+                    <div class="stats-grid" id="stats${partner}">
+                        ${Object.entries(categoryLabels).map(([cat, label]) => `
+                            <div class="stat-item" style="border-left-color: ${categoryColors[cat]};">
+                                <div class="stat-label">${cat === 'couple' ? '💑 ' : cat === 'sommeil' ? '😴 ' : ''}${label.split('(')[0].trim()}</div>
+                                <div class="stat-value" id="stat_${partner}_${cat}_value">0h</div>
+                                <div class="stat-percentage" id="stat_${partner}_${cat}_percent">0%</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-danger" onclick="resetCalendar(${partner})">🔄 Réinitialiser</button>
+                    <button class="btn btn-secondary" onclick="saveData(${partner})">💾 Sauvegarder</button>
+                    <button class="btn btn-secondary" onclick="loadData(${partner})">📂 Charger</button>
+                </div>
+            `;
+            
+            return section;
+        }
+
+        // Update hours
+        function updateHours(partner, category, dayIndex, value) {
+            const hours = parseFloat(value) || 0;
+            state[partner].data[category][dayIndex] = hours;
+            updateStats(partner);
+        }
+
+        // Update statistics
+        function updateStats(partner) {
+            const data = state[partner].data;
+            
+            // Initialize counters
+            const dayTotals = Array(7).fill(0);
+            const categoryTotals = {};
+            let weekTotal = 0;
+            
+            // Calculate totals
+            Object.keys(categoryLabels).forEach(cat => {
+                categoryTotals[cat] = 0;
+                
+                data[cat].forEach((hours, dayIndex) => {
+                    categoryTotals[cat] += hours;
+                    dayTotals[dayIndex] += hours;
+                    weekTotal += hours;
+                });
+            });
+            
+            // Update category totals
+            Object.keys(categoryLabels).forEach(cat => {
+                const totalElem = document.getElementById(`cat_${partner}_${cat}_total`);
+                if (totalElem) {
+                    const total = categoryTotals[cat];
+                    totalElem.textContent = total > 0 ? `${total.toFixed(1)}h` : '0h';
+                    totalElem.style.fontWeight = total > 0 ? '700' : '400';
+                }
+            });
+            
+            // Update day totals
+            days.forEach((_, dayIndex) => {
+                const elem = document.getElementById(`dayTotal${partner}_${dayIndex}`);
+                if (elem) {
+                    const total = dayTotals[dayIndex];
+                    elem.textContent = total > 0 ? `${total.toFixed(1)}h` : '0h';
+                }
+            });
+            
+            // Update week total
+            const weekElem = document.getElementById(`weekTotal${partner}`);
+            if (weekElem) {
+                weekElem.textContent = `${weekTotal.toFixed(1)}h`;
+            }
+            
+            // Update weekly percentage
+            const weekPercentage = ((weekTotal / 168) * 100).toFixed(1);
+            const percentageElem = document.getElementById(`weeklyPercentage${partner}`);
+            if (percentageElem) {
+                percentageElem.textContent = `${weekPercentage}%`;
+            }
+            
+            const hoursElem = document.getElementById(`weeklyHours${partner}`);
+            if (hoursElem) {
+                hoursElem.textContent = `${weekTotal.toFixed(1)}h / 168h`;
+            }
+            
+            // Update category stats
+            Object.keys(categoryLabels).forEach(cat => {
+                const hours = categoryTotals[cat];
+                const percentage = weekTotal > 0 ? ((hours / weekTotal) * 100).toFixed(1) : 0;
+                
+                const valueElem = document.getElementById(`stat_${partner}_${cat}_value`);
+                const percentElem = document.getElementById(`stat_${partner}_${cat}_percent`);
+                
+                if (valueElem) valueElem.textContent = `${hours.toFixed(1)}h`;
+                if (percentElem) percentElem.textContent = `${percentage}%`;
+            });
+        }
+
+        // Reset calendar
+        function resetCalendar(partner) {
+            if (!confirm(`Voulez-vous vraiment réinitialiser le calendrier du Partenaire ${partner} ?`)) {
+                return;
+            }
+            
+            // Reset data
+            Object.keys(categoryLabels).forEach(cat => {
+                state[partner].data[cat] = Array(7).fill(0);
+                
+                // Clear inputs
+                days.forEach((_, dayIndex) => {
+                    const input = document.getElementById(`input_${partner}_${cat}_${dayIndex}`);
+                    if (input) input.value = '';
+                });
+            });
+            
+            updateStats(partner);
+            showToast('✅ Calendrier réinitialisé');
+        }
+
+        // Save data
+        function saveData(partner) {
+            const data = {
+                cellData: state[partner].data,
+                date: new Date().toISOString()
+            };
+            
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `agenda-couple-partenaire${partner}-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            showToast('💾 Données sauvegardées avec succès');
+        }
+
+        // Load data
+        function loadData(partner) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        state[partner].data = data.cellData;
+                        
+                        // Update inputs
+                        Object.keys(categoryLabels).forEach(cat => {
+                            days.forEach((_, dayIndex) => {
+                                const input = document.getElementById(`input_${partner}_${cat}_${dayIndex}`);
+                                const value = state[partner].data[cat] ? state[partner].data[cat][dayIndex] : 0;
+                                if (input && value > 0) {
+                                    input.value = value;
+                                }
+                            });
+                        });
+                        
+                        updateStats(partner);
+                        showToast('✅ Données chargées avec succès');
+                    } catch (error) {
+                        showToast('❌ Erreur lors du chargement');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize
+        initializePartners();
+    </script>
+
+
+</body></html>
