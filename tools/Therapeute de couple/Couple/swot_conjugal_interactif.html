@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWOT Conjugal - Marie-Christine Abatte Psychologue</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --vert-sauge: #C8D0C3;
+            --beige-sable: #D8CDBB;
+            --sable: #E6D7C3;
+            --mer: #8FAFB1;
+            --blanc: #FFFFFF;
+            --noir: #000000;
+            --gris-texte: #333333;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--sable) 0%, var(--beige-sable) 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: var(--gris-texte);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--blanc);
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            color: var(--mer);
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        h2 {
+            color: var(--mer);
+            margin-top: 40px;
+            margin-bottom: 25px;
+            font-size: 2em;
+            font-weight: 600;
+            border-bottom: 3px solid var(--vert-sauge);
+            padding-bottom: 15px;
+        }
+
+        .intro {
+            background: var(--sable);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+            line-height: 1.8;
+            border-left: 5px solid var(--mer);
+        }
+
+        .intro strong {
+            color: var(--mer);
+            font-size: 1.1em;
+        }
+
+        .definition {
+            background: var(--beige-sable);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            line-height: 1.7;
+        }
+
+        .instructions {
+            background: var(--sable);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+            border-left: 4px solid var(--mer);
+        }
+
+        .instructions h3 {
+            color: var(--mer);
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            line-height: 2;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+        }
+
+        .instructions strong {
+            color: var(--mer);
+        }
+
+        .swot-grid {
+            display: grid;
+            grid-template-columns: 1fr 3px 1fr;
+            grid-template-rows: 1fr 3px 1fr;
+            margin: 40px 0;
+            background: var(--mer);
+            padding: 3px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(143, 175, 177, 0.3);
+        }
+
+        .swot-card {
+            background: var(--blanc);
+            padding: 30px;
+            transition: transform 0.2s, box-shadow 0.3s;
+            position: relative;
+            overflow: visible;
+        }
+
+        .swot-card:nth-child(1) {
+            grid-column: 1;
+            grid-row: 1;
+            border-radius: 12px 0 0 0;
+        }
+
+        .swot-card:nth-child(2) {
+            grid-column: 3;
+            grid-row: 1;
+            border-radius: 0 12px 0 0;
+        }
+
+        .swot-card:nth-child(3) {
+            grid-column: 1;
+            grid-row: 3;
+            border-radius: 0 0 0 12px;
+        }
+
+        .swot-card:nth-child(4) {
+            grid-column: 3;
+            grid-row: 3;
+            border-radius: 0 0 12px 0;
+        }
+
+        .swot-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+            z-index: 10;
+        }
+
+        .swot-card h3 {
+            color: var(--mer);
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--vert-sauge);
+        }
+
+        .swot-card textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid var(--vert-sauge);
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            resize: vertical;
+            background: var(--sable);
+            color: var(--gris-texte);
+            transition: border-color 0.3s;
+        }
+
+        .swot-card textarea:focus {
+            outline: none;
+            border-color: var(--mer);
+            background: var(--blanc);
+        }
+
+        .swot-card textarea::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        .buttons-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+            color: var(--blanc);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--beige-sable) 0%, var(--sable) 100%);
+            color: var(--gris-texte);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid var(--beige-sable);
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--noir);
+        }
+
+        .success-message {
+            background: var(--vert-sauge);
+            color: var(--blanc);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            .swot-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 3px auto 3px auto 3px auto;
+                padding: 2px;
+            }
+
+            .swot-card {
+                padding: 20px;
+            }
+
+            .swot-card:nth-child(1) {
+                grid-column: 1;
+                grid-row: 1;
+                border-radius: 12px 12px 0 0;
+            }
+
+            .swot-card:nth-child(2) {
+                grid-column: 1;
+                grid-row: 3;
+                border-radius: 0;
+            }
+
+            .swot-card:nth-child(3) {
+                grid-column: 1;
+                grid-row: 5;
+                border-radius: 0;
+            }
+
+            .swot-card:nth-child(4) {
+                grid-column: 1;
+                grid-row: 7;
+                border-radius: 0 0 12px 12px;
+            }
+
+            .swot-card textarea {
+                min-height: 150px;
+            }
+
+            .btn {
+                padding: 12px 30px;
+                font-size: 16px;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+
+            .buttons-container {
+                display: none;
+            }
+
+            .swot-card textarea {
+                border: 1px solid #333;
+                background: white;
+                min-height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>D'OÙ PART-ON ..?</h1>
+        
+        <div class="instructions">
+            <h3>Instructions</h3>
+            <p style="margin-bottom: 15px;">Remplissez individuellement chacune des quatre catégories en pensant à votre couple, tel que vous le voyez aujourd'hui.</p>
+            <ul>
+                <li><strong>Forces :</strong> Quelles sont les qualités de la relation ? Qu'est-ce qui fonctionne bien ? Quels sont nos points forts individuels et communs ?</li>
+                <li><strong>Faiblesses :</strong> Quelles sont les difficultés ? Où la relation est-elle vulnérable (communication, différences de valeurs etc.) ?</li>
+                <li><strong>Opportunités :</strong> Qu'est-ce qui pourrait faire évoluer la relation (projets, besoin négligé à considérer, occasion à saisir, catalyseurs de changement, transformations etc.) ?</li>
+                <li><strong>Menaces :</strong> Quels sont les risques ou dangers qui menacent la survie du couple ?</li>
+            </ul>
+        </div>
+
+        <h2>Votre SWOT Conjugal</h2>
+
+        <div style="text-align: center; margin: 25px 0 15px 0; color: var(--mer); font-size: 0.95em; font-weight: 500;">
+            <span style="background: var(--sable); padding: 8px 20px; border-radius: 20px; display: inline-block;">
+                Analyse stratégique de votre couple
+            </span>
+        </div>
+
+        <div class="swot-grid">
+            <div class="swot-card">
+                <h3>Forces</h3>
+                <textarea id="forces" placeholder="Quelles sont les qualités de la relation ? Qu'est-ce qui fonctionne bien ? Quels sont vos points forts individuels et communs ?"></textarea>
+            </div>
+
+            <div class="swot-card">
+                <h3>Faiblesses</h3>
+                <textarea id="faiblesses" placeholder="Quelles sont les difficultés ? Où la relation est-elle vulnérable ?"></textarea>
+            </div>
+
+            <div class="swot-card">
+                <h3>Opportunités</h3>
+                <textarea id="opportunites" placeholder="Qu'est-ce qui pourrait faire évoluer la relation ? Projets, besoins négligés, occasions à saisir..."></textarea>
+            </div>
+
+            <div class="swot-card">
+                <h3>Menaces</h3>
+                <textarea id="menaces" placeholder="Quels sont les risques ou dangers qui menacent la survie du couple ?"></textarea>
+            </div>
+        </div>
+
+        <div class="success-message" id="successMessage">
+            Votre SWOT a été sauvegardé avec succès !
+        </div>
+
+        <div class="buttons-container">
+            <button class="btn" onclick="sauvegarder()">Sauvegarder</button>
+            <button class="btn" onclick="imprimer()">Imprimer / PDF</button>
+            <button class="btn btn-secondary" onclick="reinitialiser()">Réinitialiser</button>
+        </div>
+
+        <div class="footer">
+            Bilan de Compétences du couple© - Marie-Christine Abatte Psychologue
+        </div>
+    </div>
+
+    <script>
+        // Sauvegarde automatique dans le navigateur
+        function sauvegarderAutomatique() {
+            const data = {
+                forces: document.getElementById('forces').value,
+                faiblesses: document.getElementById('faiblesses').value,
+                opportunites: document.getElementById('opportunites').value,
+                menaces: document.getElementById('menaces').value,
+                date: new Date().toISOString()
+            };
+            localStorage.setItem('swot_conjugal', JSON.stringify(data));
+        }
+
+        // Charger les données sauvegardées
+        function chargerDonnees() {
+            const data = localStorage.getItem('swot_conjugal');
+            if (data) {
+                const swot = JSON.parse(data);
+                document.getElementById('forces').value = swot.forces || '';
+                document.getElementById('faiblesses').value = swot.faiblesses || '';
+                document.getElementById('opportunites').value = swot.opportunites || '';
+                document.getElementById('menaces').value = swot.menaces || '';
+            }
+        }
+
+        // Sauvegarder manuellement
+        function sauvegarder() {
+            sauvegarderAutomatique();
+            const message = document.getElementById('successMessage');
+            message.style.display = 'block';
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 3000);
+        }
+
+        // Imprimer ou sauvegarder en PDF
+        function imprimer() {
+            window.print();
+        }
+
+        // Réinitialiser le formulaire
+        function reinitialiser() {
+            if (confirm('Êtes-vous sûr de vouloir réinitialiser le formulaire ? Toutes les données seront perdues.')) {
+                document.getElementById('forces').value = '';
+                document.getElementById('faiblesses').value = '';
+                document.getElementById('opportunites').value = '';
+                document.getElementById('menaces').value = '';
+                localStorage.removeItem('swot_conjugal');
+            }
+        }
+
+        // Sauvegarde automatique toutes les 30 secondes
+        setInterval(sauvegarderAutomatique, 30000);
+
+        // Sauvegarder lors de la saisie
+        document.querySelectorAll('textarea').forEach(textarea => {
+            textarea.addEventListener('input', sauvegarderAutomatique);
+        });
+
+        // Charger les données au chargement de la page
+        window.addEventListener('load', chargerDonnees);
+    </script>
+</body>
+</html>
