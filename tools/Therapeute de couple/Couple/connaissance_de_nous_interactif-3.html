@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connaissance de soi, de "Nous"</title>
+    <link href="https://fonts.googleapis.com/css2?family=Allura&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --font-size-base: 18px;
+            --color-primary: #8FAFB1;
+            --color-secondary: #C8D0C3;
+            --color-tertiary: #E6D7C3;
+            --color-text: #2C2416;
+        }
+
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            background: linear-gradient(135deg, #F5F1E8 0%, #E8E4D8 100%);
+            color: var(--color-text);
+            line-height: 2.0;
+            font-size: var(--font-size-base);
+            overflow-x: hidden;
+        }
+
+        /* CONTAINER PRINCIPAL */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* MENU LATÉRAL FIXE */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px 20px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
+            z-index: 100;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            font-family: 'Allura', cursive;
+            font-size: 28px;
+            color: var(--color-primary);
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 400;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin: 15px 0;
+            padding: 12px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+            font-size: 17px;
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        .nav-item:hover {
+            background: var(--color-tertiary);
+            border-left-color: var(--color-primary);
+            transform: translateX(5px);
+        }
+
+        .nav-item.active {
+            background: var(--color-primary);
+            color: white;
+            border-left-color: var(--color-primary);
+        }
+
+        /* CONTRÔLES TOP */
+        .top-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid var(--color-secondary);
+            border-radius: 10px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-btn:hover {
+            background: var(--color-primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.3);
+        }
+
+        /* ZONE LIVRE CENTRALE */
+        .book-container {
+            flex: 1;
+            margin-left: 280px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .book-wrapper {
+            position: relative;
+            perspective: 1500px;
+            max-width: 900px;
+            width: 100%;
+            overflow: visible;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 600px;
+            background: white;
+            padding: 60px;
+            border-radius: 15px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+            position: relative;
+            transform-origin: left center;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+        }
+
+        .page.page-flip-out {
+            animation: pageFlipOut 0.9s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+        }
+
+        .page.page-flip-in {
+            animation: pageFlipIn 0.9s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+        }
+
+        @keyframes pageFlipOut {
+            0% { 
+                transform: rotateY(0deg) translateZ(0px);
+                opacity: 1;
+                box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+            }
+            25% {
+                transform: rotateY(-25deg) translateZ(50px);
+                box-shadow: -10px 10px 60px rgba(0, 0, 0, 0.25);
+            }
+            50% {
+                transform: rotateY(-90deg) translateZ(80px);
+                opacity: 0.8;
+                box-shadow: -15px 10px 70px rgba(0, 0, 0, 0.3);
+            }
+            75% {
+                transform: rotateY(-150deg) translateZ(50px);
+                opacity: 0.4;
+            }
+            100% { 
+                transform: rotateY(-180deg) translateZ(0px);
+                opacity: 0;
+                box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        @keyframes pageFlipIn {
+            0% { 
+                transform: rotateY(180deg) translateZ(0px);
+                opacity: 0;
+                transform-origin: right center;
+                box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
+            }
+            25% {
+                transform: rotateY(150deg) translateZ(50px);
+                opacity: 0.4;
+                transform-origin: right center;
+            }
+            50% {
+                transform: rotateY(90deg) translateZ(80px);
+                opacity: 0.8;
+                transform-origin: right center;
+                box-shadow: 15px 10px 70px rgba(0, 0, 0, 0.3);
+            }
+            75% {
+                transform: rotateY(25deg) translateZ(50px);
+                transform-origin: right center;
+                box-shadow: 10px 10px 60px rgba(0, 0, 0, 0.25);
+            }
+            100% { 
+                transform: rotateY(0deg) translateZ(0px);
+                opacity: 1;
+                transform-origin: right center;
+                box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+            }
+        }
+
+        /* CONTENU DES PAGES */
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--color-primary);
+        }
+
+        .section-tag {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            color: var(--color-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .main-title {
+            font-family: 'Allura', cursive;
+            font-size: 52px;
+            color: var(--color-primary);
+            margin: 25px 0;
+            font-weight: 400;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        .section-title {
+            font-family: 'Allura', cursive;
+            font-size: 40px;
+            color: var(--color-primary);
+            margin: 30px 0 20px 0;
+            font-weight: 400;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-secondary);
+        }
+
+        .intro-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: calc(var(--font-size-base) + 1px);
+            line-height: 2.0;
+            color: var(--color-text);
+            margin: 20px 0;
+            text-align: justify;
+            padding: 20px;
+            background: transparent;
+            border-radius: 10px;
+            border-left: none;
+        }
+
+        .question {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: calc(var(--font-size-base) + 2px);
+            line-height: 2.0;
+            margin: 25px 0;
+            padding-left: 35px;
+            position: relative;
+            color: var(--color-text);
+            text-align: justify;
+        }
+
+        .question:before {
+            content: attr(data-num) ".";
+            position: absolute;
+            left: 0;
+            font-weight: 700;
+            color: var(--color-primary);
+            font-size: calc(var(--font-size-base) + 4px);
+        }
+
+        .section-intro {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: calc(var(--font-size-base) + 1px);
+            line-height: 2.0;
+            color: #555;
+            margin: 20px 0 30px 0;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .decorative-line {
+            width: 80px;
+            height: 2px;
+            background: var(--color-secondary);
+            margin: 30px auto;
+        }
+
+        .cover-ornament {
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--color-primary), transparent);
+            margin: 25px auto;
+        }
+
+        /* PAGE DE COUVERTURE */
+        .cover-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 700px;
+        }
+
+        .cover-title {
+            font-family: 'Allura', cursive;
+            font-size: 60px;
+            color: var(--color-primary);
+            margin: 30px 0 15px 0;
+            font-weight: 400;
+            line-height: 1.3;
+        }
+
+        .cover-subtitle {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 22px;
+            max-width: 600px;
+            line-height: 2.0;
+            color: var(--color-text);
+            margin: 30px 0;
+            text-align: justify;
+        }
+
+        /* FOOTER */
+        .page-footer {
+            position: absolute;
+            bottom: 20px;
+            left: 60px;
+            right: 60px;
+            text-align: center;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 12px;
+            color: #999;
+            padding-top: 10px;
+            border-top: 1px solid var(--color-tertiary);
+        }
+
+        /* NAVIGATION PAGE */
+        .page-nav {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .page-nav-btn {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+        }
+
+        .page-nav-btn:hover:not(:disabled) {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.5);
+        }
+
+        .page-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* BARRE DE PROGRESSION */
+        .progress-bar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 90;
+        }
+
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--color-tertiary);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .progress-dot.active {
+            background: var(--color-primary);
+            transform: scale(1.3);
+        }
+
+        .progress-dot:hover {
+            transform: scale(1.2);
+        }
+
+        /* RESPONSIVE MOBILE */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 250px;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .book-container {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .page {
+                padding: 30px 25px;
+                min-height: auto;
+            }
+
+            .main-title {
+                font-size: 36px;
+            }
+
+            .section-title {
+                font-size: 28px;
+            }
+
+            .top-controls {
+                top: 10px;
+                right: 10px;
+                flex-wrap: wrap;
+            }
+
+            .progress-bar {
+                bottom: 15px;
+                padding: 8px 12px;
+            }
+
+            .page-nav {
+                bottom: 80px;
+                right: 15px;
+            }
+
+            .page-nav-btn {
+                width: 45px;
+                height: 45px;
+            }
+
+            /* Mobile: scroll vertical */
+            .book-wrapper {
+                max-width: 100%;
+            }
+
+            .page.page-flip-out,
+            .page.page-flip-in {
+                animation: none;
+            }
+        }
+
+        /* BOUTON MENU MOBILE */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 101;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 15px;
+            cursor: pointer;
+            font-size: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+
+        /* OVERLAY MOBILE */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* IMPRESSION */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .sidebar,
+            .top-controls,
+            .page-nav,
+            .progress-bar,
+            .mobile-menu-btn {
+                display: none !important;
+            }
+
+            .book-container {
+                margin-left: 0;
+                padding: 0;
+            }
+
+            .page {
+                box-shadow: none;
+                page-break-after: always;
+                min-height: 297mm;
+                padding: 20mm;
+            }
+
+            .page:last-child {
+                page-break-after: auto;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BOUTON MENU MOBILE -->
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+
+    <!-- OVERLAY MOBILE -->
+    <div class="overlay" onclick="toggleMobileMenu()"></div>
+
+    <div class="app-container">
+        
+        <!-- MENU LATÉRAL -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">Connaissance de soi,<br>de "Nous"</div>
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item active" onclick="goToPage(0)">Couverture</li>
+                    <li class="nav-item" onclick="goToPage(1)">Introduction</li>
+                    <li class="nav-item" onclick="goToPage(2)">Blessures et guérisons</li>
+                    <li class="nav-item" onclick="goToPage(6)">Buts dans la vie</li>
+                    <li class="nav-item" onclick="goToPage(8)">Ce que je veux devenir</li>
+                    <li class="nav-item" onclick="goToPage(11)">Univers émotionnel</li>
+                    <li class="nav-item" onclick="goToPage(15)">Ambitions et victoires</li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- CONTRÔLES TOP -->
+        <div class="top-controls">
+            <button class="control-btn" onclick="printBook()" title="Imprimer">🖨️ Imprimer</button>
+        </div>
+
+        <!-- ZONE LIVRE -->
+        <main class="book-container">
+            <div class="book-wrapper">
+                <div id="pageContent" class="page"></div>
+                
+                <!-- NAVIGATION PAGES -->
+                <div class="page-nav">
+                    <button class="page-nav-btn" id="prevBtn" onclick="previousPage()" disabled>‹</button>
+                    <button class="page-nav-btn" id="nextBtn" onclick="nextPage()">›</button>
+                </div>
+            </div>
+
+            <!-- BARRE DE PROGRESSION -->
+            <div class="progress-bar" id="progressBar"></div>
+        </main>
+
+    </div>
+
+    <script>
+        // DONNÉES DES PAGES
+        const pages = [
+            // PAGE 0 - COUVERTURE
+            {
+                type: 'cover',
+                content: `
+                    <div class="cover-page">
+                        <div class="cover-ornament"></div>
+                        <div class="cover-title">Connaissance de soi,<br>de "Nous"</div>
+                        <div class="cover-ornament"></div>
+                        <div class="cover-subtitle">
+                            Un voyage introspectif à deux, pour découvrir l'enfant qui vit encore en vous et en votre partenaire. À travers la parole et l'écoute, explorez ensemble vos histoires, vos blessures, vos rêves et vos espoirs.
+                        </div>
+                        <div class="cover-ornament" style="margin-top: 50px;"></div>
+                    </div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 1 - INTRODUCTION
+            {
+                section: 'Introduction',
+                content: `
+                    <div class="main-title">Qui est "Je" ?</div>
+                    
+                    <div class="intro-text">
+                        Plus on en sait sur l'autre, plus la relation est profonde et enrichissante. Plus on en sait sur soi et plus on peut se connecter à soi, plus on a de chance de pouvoir offrir la meilleure version de soi dans l'estime de l'autre.
+                    </div>
+
+                    <div class="intro-text">
+                        Cet outil librement inspiré des travaux de Goffman demande une introspection plus forte, une connexion à soi. Cet exercice suppose un partage profond, en échangeant à deux sur chaque point, chaque réflexion.
+                    </div>
+
+                    <div class="intro-text">
+                        Ces questions sont regroupées par thématiques. Prenez le temps nécessaire pour chaque conversation. L'essentiel est dans l'écoute et dans la parole authentique.
+                    </div>
+
+                    <div class="decorative-line"></div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 2 - BLESSURES 1
+            {
+                section: 'Blessures et guérisons',
+                content: `
+                    <div class="section-title">Les blessures et guérisons</div>
+
+                    <div class="section-intro">
+                        Parlez ensemble de vos épreuves et de la façon dont vous les avez surmontées.
+                    </div>
+
+                    <div class="question" data-num="1">
+                        Quels périodes ou événements difficiles avez-vous traversés ? Racontez les blessures, les humiliations, les échecs, les déceptions, les épreuves. Évoquez également les périodes d'incertitude, de confusion, de contraintes, de désespoir, les relations destructrices de l'enfance ou de l'âge adulte.
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 3 - BLESSURES 2
+            {
+                section: 'Blessures et guérisons',
+                content: `
+                    <div class="section-title">Les blessures et guérisons</div>
+
+                    <div class="question" data-num="2">
+                        Comment avez-vous vécu cela ? Quels ont été les effets durables sur vous ?
+                    </div>
+
+                    <div class="question" data-num="3">
+                        Qu'avez-vous appris de ces périodes pour redresser les torts qui vous ont été faits ? Comment vous protégez désormais contre ce genre d'épreuves ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 4 - BLESSURES 3
+            {
+                section: 'Blessures et guérisons',
+                content: `
+                    <div class="section-title">Les blessures et guérisons</div>
+
+                    <div class="question" data-num="4">
+                        En quoi ces blessures ainsi que votre façon de vous en protéger ont-elles pu influencer vos attentes envers votre couple aujourd'hui ?
+                    </div>
+
+                    <div class="question" data-num="5">
+                        Voulez-vous que votre partenaire connaisse et comprenne cette facette de vous-même ?
+                    </div>
+
+                    <div class="decorative-line"></div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 5 - TRANSITION
+            {
+                section: 'Transition',
+                content: `
+                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 500px;">
+                        <div class="cover-ornament"></div>
+                        <div style="font-family: 'Allura', cursive; font-size: 40px; color: var(--color-primary); text-align: center; margin: 40px 0;">
+                            Prenez le temps de vous écouter,<br>de vous comprendre
+                        </div>
+                        <div class="cover-ornament"></div>
+                    </div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 6 - BUTS 1
+            {
+                section: 'Buts dans la vie',
+                content: `
+                    <div class="section-title">Les buts dans la vie</div>
+
+                    <div class="section-intro">
+                        Explorez ensemble vos aspirations profondes et le sens que vous donnez à votre vie.
+                    </div>
+
+                    <div class="question" data-num="1">
+                        Écrivez votre propre nécrologie. Que voudriez-vous que l'on dise de votre vie après votre mort ? Que voudriez-vous que l'on dise de votre vie ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 7 - BUTS 2
+            {
+                section: 'Buts dans la vie',
+                content: `
+                    <div class="section-title">Les buts dans la vie</div>
+
+                    <div class="question" data-num="2">
+                        Quel est, selon vous, le but de votre vie ? Qu'essayez-vous d'accomplir ?
+                    </div>
+
+                    <div class="question" data-num="3">
+                        Quels buts importants vous restent-ils à atteindre ?
+                    </div>
+
+                    <div class="decorative-line"></div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 8 - DEVENIR 1
+            {
+                section: 'Ce que je veux devenir',
+                content: `
+                    <div class="section-title">Ce que je veux devenir</div>
+
+                    <div class="section-intro">
+                        Partagez vos projections dans l'avenir et les transformations que vous souhaitez.
+                    </div>
+
+                    <div class="question" data-num="1">
+                        Décrivez la personne que vous voulez devenir.
+                    </div>
+
+                    <div class="question" data-num="2">
+                        Quel est le meilleur moyen selon vous d'y parvenir ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 9 - DEVENIR 2
+            {
+                section: 'Ce que je veux devenir',
+                content: `
+                    <div class="section-title">Ce que je veux devenir</div>
+
+                    <div class="question" data-num="3">
+                        Que comptez-vous accomplir dans les 5-10 prochaines années ?
+                    </div>
+
+                    <div class="question" data-num="4">
+                        Quels démons intérieurs avez-vous dû combattre, ou devez-vous encore affronter ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 10 - DEVENIR 3
+            {
+                section: 'Ce que je veux devenir',
+                content: `
+                    <div class="section-title">Ce que je veux devenir</div>
+
+                    <div class="question" data-num="5">
+                        Qu'aimeriez-vous que soit votre vie dans 5 ans ? Dans 10 ans ?
+                    </div>
+
+                    <div class="decorative-line"></div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 11 - ÉMOTIONS 1
+            {
+                section: 'Univers émotionnel',
+                content: `
+                    <div class="section-title">L'univers émotionnel et affectif</div>
+
+                    <div class="section-intro">
+                        Explorez ensemble votre héritage émotionnel et la façon dont il influence votre couple.
+                    </div>
+
+                    <div class="question" data-num="1">
+                        Lorsque vous étiez enfant, comment votre famille exprimait-elle la colère, la tristesse, la peur, l'affection, ou l'intérêt pour l'autre ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 12 - ÉMOTIONS 2
+            {
+                section: 'Univers émotionnel',
+                content: `
+                    <div class="section-title">L'univers émotionnel et affectif</div>
+
+                    <div class="question" data-num="2">
+                        Durant votre enfance, votre famille a-t-elle dû affronter un problème affectif particulier ? (exemple : parent déprimé, meurtre, agressivité, divorce...) Quels en sont les implications pour votre couple ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 13 - ÉMOTIONS 3
+            {
+                section: 'Univers émotionnel',
+                content: `
+                    <div class="section-title">L'univers émotionnel et affectif</div>
+
+                    <div class="question" data-num="3">
+                        Comment pensez-vous qu'il faille exprimer la tristesse, la colère, la fierté, ou l'amour dans votre couple ? Est-il difficile d'exprimer certains sentiments, ou à les voir exprimer par votre conjoint(e) ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 14 - ÉMOTIONS 4
+            {
+                section: 'Univers émotionnel',
+                content: `
+                    <div class="section-title">L'univers émotionnel et affectif</div>
+
+                    <div class="question" data-num="4">
+                        Quelles sont les différences entre vous et votre partenaire lorsqu'il s'agit d'exprimer ces émotions ? Quelles en sont les implications pour vous ?
+                    </div>
+
+                    <div class="decorative-line"></div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 15 - AMBITIONS 1
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="section-intro">
+                        Partagez vos fiertés, vos réussites et l'impact qu'elles ont eu sur votre vie.
+                    </div>
+
+                    <div class="question" data-num="1">
+                        De quoi êtes-vous le plus fier(e) dans la vie ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 16 - AMBITIONS 2
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="question" data-num="2">
+                        Quelles épreuves, quels tournants êtes-vous le/la plus fier(e) d'avoir surmontés dans l'enfance ?
+                    </div>
+
+                    <div class="question" data-num="3">
+                        Quels défis avez-vous relevés avec succès ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 17 - AMBITIONS 3
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="question" data-num="4">
+                        Rappelez-vous les époques où vous vous êtes senti(e) puissant(e), apprécié(e), triomphant(e)... En quoi ces époques ont-elles influencé votre perception de votre vie ? Quels impacts ont-ils eu sur vos buts, ce à quoi vous aspirez ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 18 - AMBITIONS 4
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="question" data-num="5">
+                        Vos parents vous montraient-ils qu'ils étaient fiers de vous lorsque vous étiez enfant ? Comment cette fierté était-elle manifestée ou, le cas contraire, niée ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 19 - AMBITIONS 5
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="question" data-num="6">
+                        Vos parents vous montraient-ils qu'ils vous aimaient ? De quelle façon ? Comment l'affection était-elle exprimée dans votre famille ? Si elle ne l'était pas, quel impact cela a-t-il pu avoir sur votre couple ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 20 - AMBITIONS 6
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="question" data-num="7">
+                        Quel rôle joue dans votre vie le fait d'être fier de vos réussites ? Que souhaiteriez-vous faire comprendre à votre partenaire de cette facette de vous-même ?
+                    </div>
+
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 21 - AMBITIONS 7
+            {
+                section: 'Ambitions et victoires',
+                content: `
+                    <div class="section-title">Les ambitions et les victoires</div>
+
+                    <div class="question" data-num="8">
+                        Comment voyez-vous l'avenir de vos projets pour l'avenir ? Comment montrez-vous que vous êtes fiers l'un de l'autre ?
+                    </div>
+
+                    <div class="decorative-line"></div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            },
+            // PAGE 22 - FIN
+            {
+                type: 'end',
+                content: `
+                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 600px;">
+                        <div class="cover-ornament"></div>
+                        
+                        <div style="font-family: 'Cormorant Garamond', serif; font-size: 22px; color: #666; text-align: center; margin: 40px 0; max-width: 600px; line-height: 2.0;">
+                            Prenez le temps de vous écouter, de vous comprendre, et de construire ensemble la relation que vous méritez.
+                        </div>
+                        
+                        <div class="cover-ornament"></div>
+                    </div>
+                    <div class="page-footer">Marie-Christine Abatte Psychologue - Bilan de Compétences du couple©</div>
+                `
+            }
+        ];
+
+        // VARIABLES GLOBALES
+        let currentPage = 0;
+        let fontSize = 18;
+
+        // INITIALISATION
+        function init() {
+            renderPage(currentPage);
+            renderProgressBar();
+            updateNavButtons();
+            updateActiveNav();
+        }
+
+        // RENDU PAGE
+        function renderPage(pageIndex) {
+            const pageContent = document.getElementById('pageContent');
+            const page = pages[pageIndex];
+            
+            // Réinitialiser toute transformation avant l'animation
+            pageContent.style.transform = 'none';
+            pageContent.style.opacity = '1';
+            
+            pageContent.classList.add('page-flip-out');
+            
+            setTimeout(() => {
+                pageContent.innerHTML = page.content;
+                pageContent.classList.remove('page-flip-out');
+                pageContent.classList.add('page-flip-in');
+                
+                setTimeout(() => {
+                    pageContent.classList.remove('page-flip-in');
+                    // Force la réinitialisation complète après l'animation
+                    pageContent.style.transform = 'none';
+                    pageContent.style.opacity = '1';
+                    pageContent.style.transformOrigin = 'left center';
+                }, 900);
+            }, 450);
+
+            updateNavButtons();
+            updateActiveNav();
+            updateProgressDots();
+        }
+
+        // NAVIGATION
+        function nextPage() {
+            if (currentPage < pages.length - 1) {
+                currentPage++;
+                renderPage(currentPage);
+            }
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        }
+
+        function goToPage(pageIndex) {
+            if (pageIndex >= 0 && pageIndex < pages.length) {
+                currentPage = pageIndex;
+                renderPage(currentPage);
+            }
+            // Fermer le menu mobile
+            if (window.innerWidth <= 768) {
+                toggleMobileMenu();
+            }
+        }
+
+        // MISE À JOUR BOUTONS NAV
+        function updateNavButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.disabled = currentPage === 0;
+            nextBtn.disabled = currentPage === pages.length - 1;
+        }
+
+        // BARRE DE PROGRESSION
+        function renderProgressBar() {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.innerHTML = '';
+            
+            pages.forEach((_, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                if (index === currentPage) {
+                    dot.classList.add('active');
+                }
+                dot.onclick = () => goToPage(index);
+                dot.title = `Page ${index + 1}`;
+                progressBar.appendChild(dot);
+            });
+        }
+
+        function updateProgressDots() {
+            const dots = document.querySelectorAll('.progress-dot');
+            dots.forEach((dot, index) => {
+                if (index === currentPage) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+
+        // MENU ACTIF
+        function updateActiveNav() {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            
+            // Logique pour déterminer quel item activer
+            if (currentPage === 0) {
+                navItems[0].classList.add('active');
+            } else if (currentPage === 1) {
+                navItems[1].classList.add('active');
+            } else if (currentPage >= 2 && currentPage <= 4) {
+                navItems[2].classList.add('active');
+            } else if (currentPage >= 6 && currentPage <= 7) {
+                navItems[3].classList.add('active');
+            } else if (currentPage >= 8 && currentPage <= 10) {
+                navItems[4].classList.add('active');
+            } else if (currentPage >= 11 && currentPage <= 14) {
+                navItems[5].classList.add('active');
+            } else if (currentPage >= 15) {
+                navItems[6].classList.add('active');
+            }
+        }
+
+        // IMPRESSION
+        function printBook() {
+            window.print();
+        }
+
+        // MENU MOBILE
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.overlay');
+            
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
+        // NAVIGATION CLAVIER
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                nextPage();
+            } else if (e.key === 'ArrowLeft') {
+                previousPage();
+            }
+        });
+
+        // DÉMARRAGE
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+
+</body>
+</html>
