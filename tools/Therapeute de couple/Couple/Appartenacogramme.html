@@ -1,0 +1,2203 @@
+<!DOCTYPE html><html lang="fr"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appartenancogramme Interactif - Bilan de Compétences du Couple</title>
+    <script crossorigin="" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin="" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: #FFFFFF;
+            color: #333333;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #8FAFB1;
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #333333;
+            font-size: 1.1em;
+            font-weight: 400;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            padding: 12px 25px;
+            background: #E6D7C3;
+            border-radius: 25px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .step.active {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            font-weight: 600;
+            transform: scale(1.1);
+        }
+
+        .step.completed {
+            background: #C8D0C3;
+            color: #333;
+        }
+
+        .welcome-screen, .mode-selection, .category-selection {
+            background: white;
+            padding: 50px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .input-group {
+            margin: 25px 0;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: #8FAFB1;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #D8CDBB;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Montserrat', sans-serif;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #8FAFB1;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #D8CDBB;
+            color: #333;
+        }
+
+        .mode-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin: 30px 0;
+        }
+
+        .mode-card {
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            border-color: #8FAFB1;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(143, 175, 177, 0.3);
+        }
+
+        .mode-card h3 {
+            color: #8FAFB1;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .mode-card p {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .category-checkbox {
+            background: white;
+            border: 3px solid #D8CDBB;
+            padding: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .category-checkbox:hover {
+            border-color: #8FAFB1;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(143, 175, 177, 0.2);
+        }
+
+        .category-checkbox.selected {
+            border-color: #8FAFB1;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            border-width: 4px;
+        }
+
+        .category-checkbox input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #8FAFB1;
+        }
+
+        .category-checkbox label {
+            flex: 1;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .selection-summary {
+            background: #E6D7C3;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .selection-summary h4 {
+            color: #8FAFB1;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .selection-summary p {
+            color: #333;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .drawing-area {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .drawing-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            border-radius: 10px;
+        }
+
+        .drawing-header h2 {
+            color: #8FAFB1;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        .drawing-header p {
+            color: #333;
+            font-size: 1em;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #FFFFFF;
+            border: 3px solid #D8CDBB;
+            border-radius: 15px;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .silhouette {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 160px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .circle {
+            position: absolute;
+            border: 2px solid;
+            border-radius: 50%;
+            cursor: move;
+            background: transparent;
+            transition: border-width 0.15s, box-shadow 0.15s;
+            user-select: none;
+            will-change: transform;
+        }
+
+        .circle:hover {
+            border-width: 3px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .circle.selected {
+            border-width: 4px;
+            z-index: 1000;
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .circle.dragging {
+            cursor: grabbing;
+            opacity: 0.9;
+        }
+
+        .circle-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 500;
+            text-align: center;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 4px 8px;
+            border-radius: 4px;
+            max-width: 90%;
+            word-wrap: break-word;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 24px;
+            height: 24px;
+            background: #ff4444;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 1;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: #cc0000;
+            transform: scale(1.1);
+        }
+
+        .circle:hover .delete-btn,
+        .circle.selected .delete-btn {
+            display: flex;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #8FAFB1;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            display: none;
+            z-index: 11;
+            transition: all 0.2s;
+        }
+
+        .resize-handle:hover {
+            background: #6a8f91;
+            transform: scale(1.2);
+        }
+
+        .circle.selected .resize-handle {
+            display: block;
+        }
+
+        .resize-handle.handle-right {
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
+        .resize-handle.handle-right:hover {
+            transform: translateY(-50%) scale(1.2);
+        }
+
+        .resize-handle.handle-bottom {
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .resize-handle.handle-bottom:hover {
+            transform: translateX(-50%) scale(1.2);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding: 20px;
+            background: #E6D7C3;
+            border-radius: 10px;
+        }
+
+        .control-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+        }
+
+        .control-btn.add {
+            background: #C8D0C3;
+            color: #333;
+        }
+
+        .control-btn.add:hover {
+            background: #8FAFB1;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .control-btn.add:disabled {
+            background: #ddd;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border-left: 5px solid #8FAFB1;
+        }
+
+        .result-card h3 {
+            color: #8FAFB1;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .result-canvas {
+            width: 100%;
+            height: 400px;
+            background: #FFFFFF;
+            border: 2px solid #D8CDBB;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .export-section {
+            text-align: center;
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            border-radius: 15px;
+        }
+
+        .legend {
+            background: #E6D7C3;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .legend h4 {
+            color: #8FAFB1;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            gap: 15px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid;
+            flex-shrink: 0;
+        }
+
+        .circles-list-panel {
+            position: fixed;
+            right: 20px;
+            top: 120px;
+            width: 280px;
+            max-height: calc(100vh - 150px);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            padding: 20px;
+            z-index: 2000;
+            overflow-y: auto;
+            transition: all 0.3s;
+        }
+
+        .circles-list-panel.hidden {
+            transform: translateX(320px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .circles-list-header {
+            font-weight: 600;
+            color: #8FAFB1;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #E6D7C3;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .circle-list-item {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 4px solid;
+            background: #F9F9F9;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .circle-list-item:hover {
+            background: #E6D7C3;
+            transform: translateX(-5px);
+        }
+
+        .circle-list-item.selected-in-list {
+            background: #D8CDBB;
+            font-weight: 600;
+        }
+
+        .circle-list-color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .circle-list-label {
+            flex: 1;
+            font-size: 0.95em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .toggle-list-btn {
+            position: fixed;
+            right: 20px;
+            top: 80px;
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            z-index: 2001;
+            transition: all 0.3s;
+        }
+
+        .toggle-list-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .autosave-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(200, 208, 195, 0.9);
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .autosave-indicator.visible {
+            opacity: 1;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .header, .step-indicator, .controls, .legend, 
+            .navigation, .export-section, .toggle-list-btn, 
+            .circles-list-panel, .btn {
+                display: none !important;
+            }
+
+            .result-card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+
+            .results-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .circles-list-panel {
+                width: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .header p {
+                font-size: 0.95em;
+            }
+
+            .mode-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .canvas-container {
+                height: 500px;
+            }
+
+            .welcome-screen, .mode-selection, .category-selection {
+                padding: 30px 20px;
+            }
+            
+            .circles-list-panel {
+                width: 100%;
+                position: relative;
+                right: auto;
+                top: auto;
+                max-height: 400px;
+                margin-top: 20px;
+            }
+
+            .circles-list-panel.hidden {
+                transform: translateY(-20px);
+            }
+
+            .toggle-list-btn {
+                position: relative;
+                right: auto;
+                top: auto;
+                margin: 20px auto;
+                display: block;
+            }
+
+            .step {
+                padding: 8px 15px;
+                font-size: 0.9em;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .navigation {
+                flex-direction: column;
+            }
+
+            .navigation .btn {
+                width: 100%;
+            }
+
+            .category-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .canvas-container {
+                height: 400px;
+            }
+
+            .result-canvas {
+                height: 300px;
+            }
+        }
+    </style>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.3f7572448765332f3047.js"></script></head>
+<body>
+    <div id="root"></div>
+    <div id="autosave-indicator" class="autosave-indicator">💾 Données sauvegardées</div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+        // ========== CONSTANTES ==========
+        
+        const CATEGORIES = [
+            { id: 'couple', label: 'Couple', color: '#E74C3C' },
+            { id: 'famille', label: 'Famille d\'origine', color: '#00D9FF' },
+            { id: 'travail', label: 'Travail', color: '#4A90E2' },
+            { id: 'amis', label: 'Amis', color: '#32CD32' },
+            { id: 'enfants', label: 'Enfants', color: '#FFD700' },
+            { id: 'passions', label: 'Passions/Loisirs', color: '#BD10E0' },
+            { id: 'sport', label: 'Sport', color: '#FF6B35' },
+            { id: 'autre', label: 'Autre', color: '#7B68EE' }
+        ];
+
+        const STORAGE_KEY = 'appartenancogramme_data';
+        const AUTOSAVE_DELAY = 2000;
+
+        // ========== UTILITAIRE STORAGE SÉCURISÉ ==========
+        
+        const secureStorage = {
+            isAvailable: false,
+            
+            init() {
+                try {
+                    const testKey = '__test__';
+                    window.localStorage.setItem(testKey, 'test');
+                    window.localStorage.removeItem(testKey);
+                    this.isAvailable = true;
+                } catch (e) {
+                    this.isAvailable = false;
+                    console.warn('localStorage non disponible, utilisation de la mémoire volatile');
+                }
+            },
+            
+            getItem(key) {
+                if (!this.isAvailable) return null;
+                try {
+                    return window.localStorage.getItem(key);
+                } catch (e) {
+                    console.error('Erreur lecture storage:', e);
+                    return null;
+                }
+            },
+            
+            setItem(key, value) {
+                if (!this.isAvailable) return false;
+                try {
+                    window.localStorage.setItem(key, value);
+                    return true;
+                } catch (e) {
+                    console.error('Erreur écriture storage:', e);
+                    return false;
+                }
+            },
+            
+            removeItem(key) {
+                if (!this.isAvailable) return false;
+                try {
+                    window.localStorage.removeItem(key);
+                    return true;
+                } catch (e) {
+                    console.error('Erreur suppression storage:', e);
+                    return false;
+                }
+            }
+        };
+
+        secureStorage.init();
+
+        // ========== FONCTIONS UTILITAIRES ==========
+        
+        function isPointInEllipse(px, py, ex, ey, width, height) {
+            const dx = px - ex;
+            const dy = py - ey;
+            const radiusX = width / 2;
+            const radiusY = height / 2;
+            return (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY) <= 1;
+        }
+
+        function doesRectOverlapSilhouette(rectX, rectY, rectWidth, rectHeight, canvasWidth, canvasHeight) {
+            const silhouetteX = canvasWidth / 2;
+            const silhouetteY = canvasHeight / 2;
+            const silhouetteWidth = 100;
+            const silhouetteHeight = 180;
+            
+            const silLeft = silhouetteX - silhouetteWidth / 2;
+            const silRight = silhouetteX + silhouetteWidth / 2;
+            const silTop = silhouetteY - silhouetteHeight / 2;
+            const silBottom = silhouetteY + silhouetteHeight / 2;
+            
+            const textLeft = rectX;
+            const textRight = rectX + rectWidth;
+            const textTop = rectY;
+            const textBottom = rectY + rectHeight;
+            
+            const margin = 5;
+            return !(textRight + margin < silLeft || 
+                     textLeft - margin > silRight || 
+                     textBottom + margin < silTop || 
+                     textTop - margin > silBottom);
+        }
+
+        function doRectsOverlap(rect1X, rect1Y, rect1Width, rect1Height, rect2X, rect2Y, rect2Width, rect2Height) {
+            const margin = 8;
+            return !(rect1X + rect1Width + margin < rect2X || 
+                     rect1X - margin > rect2X + rect2Width || 
+                     rect1Y + rect1Height + margin < rect2Y || 
+                     rect1Y - margin > rect2Y + rect2Height);
+        }
+
+        function calculateTextDensityFactor(posX, posY, circle, allCircles) {
+            const checkRadius = 150;
+            let nearbyTexts = 0;
+            
+            for (let otherCircle of allCircles) {
+                if (otherCircle.id === circle.id) continue;
+                
+                const otherPos = otherCircle.labelPosition || { x: otherCircle.x, y: otherCircle.y };
+                const distance = Math.sqrt(
+                    Math.pow(posX - otherPos.x, 2) + 
+                    Math.pow(posY - otherPos.y, 2)
+                );
+                
+                if (distance < checkRadius) {
+                    nearbyTexts++;
+                }
+            }
+            
+            return Math.max(0.6, 1.0 - (nearbyTexts * 0.1));
+        }
+
+        function calculateSilhouetteProximityFactor(posX, posY, canvasWidth, canvasHeight) {
+            const silhouetteX = canvasWidth / 2;
+            const silhouetteY = canvasHeight / 2;
+            
+            const distance = Math.sqrt(
+                Math.pow(posX - silhouetteX, 2) + 
+                Math.pow(posY - silhouetteY, 2)
+            );
+            
+            if (distance < 100) {
+                return 0.7;
+            } else if (distance < 150) {
+                return 0.85;
+            }
+            return 1.0;
+        }
+
+        function calculateAdaptiveFontSize(circle, allCircles, canvasWidth, canvasHeight) {
+            const minDimension = Math.min(circle.width, circle.height);
+            const textLength = circle.label.length;
+            
+            let baseFontSize = Math.min(
+                minDimension / 6,
+                circle.width / (textLength * 0.7)
+            );
+            
+            const numCircles = allCircles.length;
+            let globalFactor = 1.0;
+            if (numCircles >= 4) {
+                globalFactor = Math.max(0.7, 1.0 - ((numCircles - 3) * 0.05));
+            }
+            
+            const labelPos = circle.labelPosition || { x: circle.x, y: circle.y };
+            const proximityFactor = calculateSilhouetteProximityFactor(labelPos.x, labelPos.y, canvasWidth, canvasHeight);
+            const densityFactor = calculateTextDensityFactor(labelPos.x, labelPos.y, circle, allCircles);
+            
+            let adaptiveFontSize = baseFontSize * globalFactor * proximityFactor * densityFactor;
+            adaptiveFontSize = Math.max(7, Math.min(16, adaptiveFontSize));
+            
+            return adaptiveFontSize;
+        }
+
+        function estimateTextBounds(label, fontSize) {
+            const avgCharWidth = fontSize * 0.6;
+            const width = Math.max(label.length * avgCharWidth, 60);
+            const height = fontSize * 1.8;
+            return { width, height };
+        }
+
+        function calculateOptimalLabelPosition(circle, allCircles, canvasWidth, canvasHeight) {
+            const fontSize = calculateAdaptiveFontSize(circle, allCircles, canvasWidth, canvasHeight);
+            const textBounds = estimateTextBounds(circle.label, fontSize);
+            const textWidth = textBounds.width;
+            const textHeight = textBounds.height;
+            
+            const positions = [
+                { name: 'center', x: circle.x, y: circle.y },
+                { name: 'top', x: circle.x, y: circle.y - circle.height * 0.25 },
+                { name: 'bottom', x: circle.x, y: circle.y + circle.height * 0.25 },
+                { name: 'left', x: circle.x - circle.width * 0.25, y: circle.y },
+                { name: 'right', x: circle.x + circle.width * 0.25, y: circle.y }
+            ];
+            
+            for (let pos of positions) {
+                const labelX = pos.x - textWidth / 2;
+                const labelY = pos.y - textHeight / 2;
+                
+                let hasCollision = false;
+                
+                if (doesRectOverlapSilhouette(labelX, labelY, textWidth, textHeight, canvasWidth, canvasHeight)) {
+                    hasCollision = true;
+                }
+                
+                if (!hasCollision) {
+                    for (let otherCircle of allCircles) {
+                        if (otherCircle.id === circle.id) continue;
+                        
+                        const otherFontSize = calculateAdaptiveFontSize(otherCircle, allCircles, canvasWidth, canvasHeight);
+                        const otherTextBounds = estimateTextBounds(otherCircle.label, otherFontSize);
+                        const otherTextWidth = otherTextBounds.width;
+                        const otherTextHeight = otherTextBounds.height;
+                        
+                        const otherLabelPos = otherCircle.labelPosition || { x: otherCircle.x, y: otherCircle.y };
+                        const otherLabelX = otherLabelPos.x - otherTextWidth / 2;
+                        const otherLabelY = otherLabelPos.y - otherTextHeight / 2;
+                        
+                        if (doRectsOverlap(labelX, labelY, textWidth, textHeight,
+                                          otherLabelX, otherLabelY, otherTextWidth, otherTextHeight)) {
+                            hasCollision = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!hasCollision) {
+                    return { position: pos.name, x: pos.x, y: pos.y, tooSmall: false, fontSize: fontSize };
+                }
+            }
+            
+            return { position: 'center', x: circle.x, y: circle.y, tooSmall: true, fontSize: fontSize };
+        }
+
+        function getCategoryBaseName(circleId) {
+            for (let cat of CATEGORIES) {
+                if (circleId.startsWith(cat.id + '-')) {
+                    return cat.id;
+                }
+            }
+            return null;
+        }
+
+        // ========== HOOKS PERSONNALISÉS ==========
+
+        function useAutosave(data, delay = AUTOSAVE_DELAY) {
+            const timeoutRef = useRef(null);
+            const [isSaving, setIsSaving] = useState(false);
+
+            useEffect(() => {
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                }
+
+                timeoutRef.current = setTimeout(() => {
+                    setIsSaving(true);
+                    try {
+                        const success = secureStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        if (success) {
+                            setTimeout(() => setIsSaving(false), 1000);
+                        } else {
+                            setIsSaving(false);
+                        }
+                    } catch (error) {
+                        console.error('Erreur autosave:', error);
+                        setIsSaving(false);
+                    }
+                }, delay);
+
+                return () => {
+                    if (timeoutRef.current) {
+                        clearTimeout(timeoutRef.current);
+                    }
+                };
+            }, [data, delay]);
+
+            return isSaving;
+        }
+
+        // ========== COMPOSANTS ==========
+
+        function CategorySelection({ onConfirm, onBack }) {
+            const [selectedCategories, setSelectedCategories] = useState([]);
+
+            const toggleCategory = useCallback((categoryId) => {
+                setSelectedCategories(prev => {
+                    if (prev.includes(categoryId)) {
+                        return prev.filter(id => id !== categoryId);
+                    } else {
+                        return [...prev, categoryId];
+                    }
+                });
+            }, []);
+
+            const handleConfirm = useCallback(() => {
+                if (selectedCategories.length > 0) {
+                    onConfirm(selectedCategories);
+                }
+            }, [selectedCategories, onConfirm]);
+
+            return (
+                <div className="category-selection">
+                    <h2 style={{color: '#8FAFB1', marginBottom: '20px', textAlign: 'center'}}>
+                        Sélectionnez les catégories à utiliser
+                    </h2>
+                    <p style={{marginBottom: '30px', lineHeight: '1.8', textAlign: 'center'}}>
+                        Choisissez uniquement les cercles d'appartenance que vous souhaitez représenter. 
+                        Cela rendra votre espace de travail plus clair et organisé.
+                    </p>
+
+                    <div className="selection-summary">
+                        <h4>Catégories sélectionnées</h4>
+                        <p>{selectedCategories.length} / {CATEGORIES.length}</p>
+                    </div>
+
+                    <div className="category-grid">
+                        {CATEGORIES.map(cat => (
+                            <div
+                                key={cat.id}
+                                className={`category-checkbox ${selectedCategories.includes(cat.id) ? 'selected' : ''}`}
+                                onClick={() => toggleCategory(cat.id)}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedCategories.includes(cat.id)}
+                                    onChange={() => {}}
+                                />
+                                <label>
+                                    <div className="category-color-dot" style={{background: cat.color}} />
+                                    {cat.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{background: '#E6D7C3', padding: '15px', borderRadius: '10px', margin: '20px 0'}}>
+                        <p style={{fontSize: '0.9em', color: '#666', textAlign: 'center'}}>
+                            💡 <strong>Conseil :</strong> Vous pourrez toujours ajouter d'autres catégories pendant le dessin si nécessaire.
+                        </p>
+                    </div>
+
+                    <div style={{display: 'flex', gap: '15px', justifyContent: 'center', marginTop: '30px'}}>
+                        <button className="btn btn-secondary" onClick={onBack}>
+                            ← Retour
+                        </button>
+                        <button 
+                            className="btn" 
+                            onClick={handleConfirm}
+                            disabled={selectedCategories.length === 0}
+                        >
+                            Continuer avec {selectedCategories.length} catégorie{selectedCategories.length > 1 ? 's' : ''} →
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function CirclesListPanel({ circles, selectedCircle, onSelectCircle, isVisible }) {
+            if (!isVisible) return null;
+            
+            return (
+                <div className={`circles-list-panel ${!isVisible ? 'hidden' : ''}`}>
+                    <div className="circles-list-header">
+                        <span>📋 Ellipses ({circles.length})</span>
+                    </div>
+                    {circles.length === 0 ? (
+                        <p style={{color: '#666', fontSize: '0.9em', fontStyle: 'italic', textAlign: 'center'}}>
+                            Aucune ellipse
+                        </p>
+                    ) : (
+                        circles.map(circle => (
+                            <div
+                                key={circle.id}
+                                className={`circle-list-item ${selectedCircle === circle.id ? 'selected-in-list' : ''}`}
+                                style={{ borderLeftColor: circle.color }}
+                                onClick={() => onSelectCircle(circle.id)}
+                            >
+                                <div 
+                                    className="circle-list-color-dot"
+                                    style={{ background: circle.color }}
+                                />
+                                <div className="circle-list-label" title={circle.label}>
+                                    {circle.label}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            );
+        }
+
+        function Circle({ circle, onDragStart, onResize, isSelected, onClick, onDelete, onLabelChange, canvasWidth, canvasHeight, allCircles }) {
+            const [isEditing, setIsEditing] = useState(false);
+            const [editValue, setEditValue] = useState(circle.label);
+            const inputRef = useRef(null);
+            
+            let fontSize = circle.adaptiveFontSize;
+            if (!fontSize) {
+                fontSize = calculateAdaptiveFontSize(circle, allCircles || [], canvasWidth || 800, canvasHeight || 600);
+            }
+            
+            const labelPos = circle.labelPosition || { x: circle.x, y: circle.y };
+            const offsetX = labelPos.x - circle.x;
+            const offsetY = labelPos.y - circle.y;
+
+            const handleDoubleClick = useCallback((e) => {
+                e.stopPropagation();
+                if (circle.editable) {
+                    setIsEditing(true);
+                }
+            }, [circle.editable]);
+
+            const handleBlur = useCallback(() => {
+                setIsEditing(false);
+                if (editValue.trim() && editValue !== circle.label) {
+                    onLabelChange(circle.id, editValue.trim());
+                } else {
+                    setEditValue(circle.label);
+                }
+            }, [editValue, circle.label, circle.id, onLabelChange]);
+
+            const handleKeyDown = useCallback((e) => {
+                if (e.key === 'Enter') {
+                    handleBlur();
+                } else if (e.key === 'Escape') {
+                    setEditValue(circle.label);
+                    setIsEditing(false);
+                }
+            }, [handleBlur, circle.label]);
+
+            useEffect(() => {
+                if (isEditing && inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.select();
+                }
+            }, [isEditing]);
+
+            const handleMouseDown = useCallback((e) => {
+                if (!e.target.classList.contains('resize-handle') && 
+                    !e.target.classList.contains('delete-btn') &&
+                    !isEditing) {
+                    onDragStart(e, circle.id);
+                }
+            }, [isEditing, onDragStart, circle.id]);
+
+            const handleClick = useCallback((e) => {
+                e.stopPropagation();
+                if (!isEditing) {
+                    onClick(circle.id);
+                }
+            }, [isEditing, onClick, circle.id]);
+            
+            return (
+                <div
+                    className={`circle ${isSelected ? 'selected' : ''}`}
+                    style={{
+                        left: circle.x - circle.width / 2,
+                        top: circle.y - circle.height / 2,
+                        width: circle.width,
+                        height: circle.height,
+                        borderColor: circle.color,
+                        zIndex: isSelected ? 1000 : 1
+                    }}
+                    onMouseDown={handleMouseDown}
+                    onTouchStart={handleMouseDown}
+                    onClick={handleClick}
+                    onDoubleClick={handleDoubleClick}
+                >
+                    {isEditing ? (
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleBlur}
+                            onKeyDown={handleKeyDown}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`,
+                                fontSize: fontSize + 'px',
+                                border: '2px solid ' + circle.color,
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                textAlign: 'center',
+                                fontFamily: 'Montserrat, sans-serif',
+                                fontWeight: '500',
+                                color: circle.color,
+                                background: 'white',
+                                maxWidth: '90%',
+                                zIndex: 10
+                            }}
+                        />
+                    ) : (
+                        <div 
+                            className="circle-label" 
+                            style={{ 
+                                color: circle.color,
+                                fontSize: fontSize + 'px',
+                                background: circle.tooSmall ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.95)',
+                                transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`,
+                                cursor: circle.editable ? 'text' : 'default'
+                            }}
+                            title={circle.editable ? 'Double-cliquez pour éditer' : circle.label}
+                        >
+                            {circle.tooSmall && <span style={{color: '#ff8800', marginRight: '4px'}}>⚠️</span>}
+                            {circle.label}
+                            {circle.editable && <span style={{marginLeft: '4px', opacity: 0.5, fontSize: '0.8em'}}>✏️</span>}
+                        </div>
+                    )}
+                    <div 
+                        className="delete-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Supprimer "${circle.label}" ?`)) {
+                                onDelete(circle.id);
+                            }
+                        }}
+                        title="Supprimer"
+                    >
+                        ×
+                    </div>
+                    <div 
+                        className="resize-handle handle-right"
+                        onMouseDown={(e) => {
+                            e.stopPropagation();
+                            onResize(e, circle.id, 'width');
+                        }}
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                            onResize(e.touches[0], circle.id, 'width');
+                        }}
+                        title="Redimensionner horizontalement"
+                    />
+                    <div 
+                        className="resize-handle handle-bottom"
+                        onMouseDown={(e) => {
+                            e.stopPropagation();
+                            onResize(e, circle.id, 'height');
+                        }}
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                            onResize(e.touches[0], circle.id, 'height');
+                        }}
+                        title="Redimensionner verticalement"
+                    />
+                </div>
+            );
+        }
+
+        function DrawingCanvas({ circles, setCircles, silhouetteGender }) {
+            const [dragging, setDragging] = useState(null);
+            const [resizing, setResizing] = useState(null);
+            const [selectedCircle, setSelectedCircle] = useState(null);
+            const [showList, setShowList] = useState(true);
+            const canvasRef = useRef(null);
+            const recalcTimeoutRef = useRef(null);
+
+            const getCirclesAtPosition = useCallback((x, y) => {
+                return circles.filter(circle => {
+                    const dx = x - circle.x;
+                    const dy = y - circle.y;
+                    const radiusX = circle.width / 2;
+                    const radiusY = circle.height / 2;
+                    return (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY) <= 1;
+                }).sort((a, b) => {
+                    if (a.id === selectedCircle) return -1;
+                    if (b.id === selectedCircle) return 1;
+                    return 0;
+                });
+            }, [circles, selectedCircle]);
+
+            const recalculateLabelPositions = useCallback(() => {
+                if (!canvasRef.current) return;
+                
+                const rect = canvasRef.current.getBoundingClientRect();
+                const canvasWidth = rect.width;
+                const canvasHeight = rect.height;
+                
+                setCircles(prev => {
+                    const updatedCircles = prev.map(circle => {
+                        const result = calculateOptimalLabelPosition(circle, prev, canvasWidth, canvasHeight);
+                        return {
+                            ...circle,
+                            labelPosition: { x: result.x, y: result.y },
+                            tooSmall: result.tooSmall,
+                            adaptiveFontSize: result.fontSize
+                        };
+                    });
+                    return updatedCircles;
+                });
+            }, [setCircles]);
+
+            const debouncedRecalculate = useCallback(() => {
+                if (recalcTimeoutRef.current) {
+                    clearTimeout(recalcTimeoutRef.current);
+                }
+                recalcTimeoutRef.current = setTimeout(() => {
+                    recalculateLabelPositions();
+                }, 100);
+            }, [recalculateLabelPositions]);
+
+            const handleCanvasClick = useCallback((e) => {
+                if (e.target.classList.contains('canvas-container')) {
+                    setSelectedCircle(null);
+                    return;
+                }
+                
+                if (!canvasRef.current) return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                
+                const circlesAtPos = getCirclesAtPosition(clickX, clickY);
+                
+                if (circlesAtPos.length > 0) {
+                    if (selectedCircle && circlesAtPos.find(c => c.id === selectedCircle)) {
+                        const currentIndex = circlesAtPos.findIndex(c => c.id === selectedCircle);
+                        const nextIndex = (currentIndex + 1) % circlesAtPos.length;
+                        setSelectedCircle(circlesAtPos[nextIndex].id);
+                    } else {
+                        setSelectedCircle(circlesAtPos[0].id);
+                    }
+                }
+            }, [selectedCircle, getCirclesAtPosition]);
+
+            const handleSelectFromList = useCallback((circleId) => {
+                setSelectedCircle(circleId);
+            }, []);
+
+            const addCategory = useCallback((category) => {
+                if (!canvasRef.current) return;
+                
+                const rect = canvasRef.current.getBoundingClientRect();
+                const canvasWidth = rect.width;
+                const canvasHeight = rect.height;
+                
+                const isCustom = category.id === 'autre';
+                const newCircle = {
+                    id: category.id + '-' + Date.now(),
+                    label: isCustom ? 'Personnalisé' : category.label,
+                    color: category.color,
+                    x: canvasWidth / 2 + Math.random() * 100 - 50,
+                    y: canvasHeight / 2 + Math.random() * 100 - 50,
+                    width: 150,
+                    height: 120,
+                    editable: isCustom
+                };
+                
+                setCircles(prev => {
+                    const newCircles = [...prev, newCircle];
+                    setTimeout(() => recalculateLabelPositions(), 50);
+                    return newCircles;
+                });
+            }, [setCircles, recalculateLabelPositions]);
+
+            const handleMouseDown = useCallback((e, circleId, resizeType = null) => {
+                if (!canvasRef.current) return;
+                
+                const rect = canvasRef.current.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                const startX = clientX - rect.left;
+                const startY = clientY - rect.top;
+                
+                if (resizeType) {
+                    setResizing({ circleId, startX, startY, type: resizeType });
+                } else {
+                    setDragging({ circleId, startX, startY });
+                    setCircles(prev => prev.map(c => 
+                        c.id === circleId ? { ...c, isDragging: true } : c
+                    ));
+                }
+            }, [setCircles]);
+
+            const handleMouseMove = useCallback((e) => {
+                if (!dragging && !resizing) return;
+                if (!canvasRef.current) return;
+
+                const rect = canvasRef.current.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                const currentX = clientX - rect.left;
+                const currentY = clientY - rect.top;
+
+                if (dragging) {
+                    setCircles(prev => {
+                        const updated = prev.map(c => {
+                            if (c.id === dragging.circleId) {
+                                return {
+                                    ...c,
+                                    x: Math.max(c.width / 2 + 10, Math.min(rect.width - c.width / 2 - 10, currentX)),
+                                    y: Math.max(c.height / 2 + 10, Math.min(rect.height - c.height / 2 - 10, currentY))
+                                };
+                            }
+                            return c;
+                        });
+                        return updated;
+                    });
+                } else if (resizing) {
+                    setCircles(prev => {
+                        const updated = prev.map(c => {
+                            if (c.id === resizing.circleId) {
+                                if (resizing.type === 'width') {
+                                    const deltaX = currentX - c.x;
+                                    const newWidth = Math.abs(deltaX) * 2;
+                                    return {
+                                        ...c,
+                                        width: Math.max(60, Math.min(400, newWidth))
+                                    };
+                                } else if (resizing.type === 'height') {
+                                    const deltaY = currentY - c.y;
+                                    const newHeight = Math.abs(deltaY) * 2;
+                                    return {
+                                        ...c,
+                                        height: Math.max(60, Math.min(400, newHeight))
+                                    };
+                                }
+                            }
+                            return c;
+                        });
+                        return updated;
+                    });
+                }
+            }, [dragging, resizing, setCircles]);
+
+            const handleMouseUp = useCallback(() => {
+                if (dragging || resizing) {
+                    setCircles(prev => prev.map(c => ({ ...c, isDragging: false })));
+                    debouncedRecalculate();
+                }
+                setDragging(null);
+                setResizing(null);
+            }, [dragging, resizing, debouncedRecalculate, setCircles]);
+
+            const handleDelete = useCallback((circleId) => {
+                setCircles(prev => {
+                    const newCircles = prev.filter(c => c.id !== circleId);
+                    setTimeout(() => recalculateLabelPositions(), 50);
+                    return newCircles;
+                });
+                if (selectedCircle === circleId) {
+                    setSelectedCircle(null);
+                }
+            }, [setCircles, selectedCircle, recalculateLabelPositions]);
+
+            const handleLabelChange = useCallback((circleId, newLabel) => {
+                setCircles(prev => prev.map(c => 
+                    c.id === circleId ? { ...c, label: newLabel } : c
+                ));
+                setTimeout(() => recalculateLabelPositions(), 50);
+            }, [setCircles, recalculateLabelPositions]);
+
+            useEffect(() => {
+                if (dragging || resizing) {
+                    const handleMove = (e) => {
+                        e.preventDefault();
+                        handleMouseMove(e);
+                    };
+                    
+                    window.addEventListener('mousemove', handleMove);
+                    window.addEventListener('touchmove', handleMove, { passive: false });
+                    window.addEventListener('mouseup', handleMouseUp);
+                    window.addEventListener('touchend', handleMouseUp);
+                    
+                    return () => {
+                        window.removeEventListener('mousemove', handleMove);
+                        window.removeEventListener('touchmove', handleMove);
+                        window.removeEventListener('mouseup', handleMouseUp);
+                        window.removeEventListener('touchend', handleMouseUp);
+                    };
+                }
+            }, [dragging, resizing, handleMouseMove, handleMouseUp]);
+
+            useEffect(() => {
+                if (circles.length > 0 && !circles[0].labelPosition) {
+                    recalculateLabelPositions();
+                }
+            }, [circles, recalculateLabelPositions]);
+
+            const usedCategoryIds = useMemo(() => {
+                return circles.map(c => getCategoryBaseName(c.id)).filter(Boolean);
+            }, [circles]);
+
+            const availableCategories = useMemo(() => {
+                return CATEGORIES.filter(cat => !usedCategoryIds.includes(cat.id));
+            }, [usedCategoryIds]);
+
+            return (
+                <>
+                    <button 
+                        className="toggle-list-btn"
+                        onClick={() => setShowList(!showList)}
+                    >
+                        {showList ? '✕ Masquer' : '☰ Liste'}
+                    </button>
+                    
+                    <CirclesListPanel
+                        circles={circles}
+                        selectedCircle={selectedCircle}
+                        onSelectCircle={handleSelectFromList}
+                        isVisible={showList}
+                    />
+                    
+                    <div 
+                        className="canvas-container" 
+                        ref={canvasRef}
+                        onClick={handleCanvasClick}
+                    >
+                        <svg className="silhouette" viewBox="0 0 100 200" fill="black">
+                            {silhouetteGender === 'male' ? (
+                                <g>
+                                    <ellipse cx="50" cy="20" rx="12" ry="15"/>
+                                    <rect x="42" y="35" width="16" height="35" rx="3"/>
+                                    <rect x="30" y="35" width="10" height="40" rx="3"/>
+                                    <rect x="60" y="35" width="10" height="40" rx="3"/>
+                                    <rect x="42" y="70" width="7" height="60" rx="3"/>
+                                    <rect x="51" y="70" width="7" height="60" rx="3"/>
+                                    <rect x="42" y="125" width="7" height="10" rx="2"/>
+                                    <rect x="51" y="125" width="7" height="10" rx="2"/>
+                                </g>
+                            ) : (
+                                <g>
+                                    <ellipse cx="50" cy="20" rx="13" ry="16"/>
+                                    <path d="M 50 35 L 35 75 L 42 75 L 42 130 L 58 130 L 58 75 L 65 75 Z" />
+                                    <rect x="30" y="35" width="8" height="35" rx="3"/>
+                                    <rect x="62" y="35" width="8" height="35" rx="3"/>
+                                    <rect x="42" y="125" width="7" height="10" rx="2"/>
+                                    <rect x="51" y="125" width="7" height="10" rx="2"/>
+                                </g>
+                            )}
+                        </svg>
+                        {circles.map(circle => (
+                            <Circle
+                                key={circle.id}
+                                circle={circle}
+                                onDragStart={(e) => handleMouseDown(e, circle.id, null)}
+                                onResize={(e, id, type) => handleMouseDown(e, id, type)}
+                                isSelected={selectedCircle === circle.id}
+                                onClick={(id) => setSelectedCircle(id)}
+                                onDelete={handleDelete}
+                                onLabelChange={handleLabelChange}
+                                canvasWidth={canvasRef.current?.getBoundingClientRect().width || 800}
+                                canvasHeight={canvasRef.current?.getBoundingClientRect().height || 600}
+                                allCircles={circles}
+                            />
+                        ))}
+                    </div>
+
+                    {availableCategories.length > 0 && (
+                        <div className="legend">
+                            <h4>Ajouter des catégories supplémentaires</h4>
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '15px'}}>
+                                {CATEGORIES.map(cat => {
+                                    const isUsed = usedCategoryIds.includes(cat.id);
+                                    const addCircle = () => {
+                                        if (!isUsed) {
+                                            addCategory(cat);
+                                        }
+                                    };
+                                    
+                                    return (
+                                        <button
+                                            key={cat.id}
+                                            className="control-btn add"
+                                            onClick={addCircle}
+                                            disabled={isUsed}
+                                            style={{borderLeft: `4px solid ${cat.color}`}}
+                                            title={isUsed ? 'Catégorie déjà ajoutée' : 'Cliquer pour ajouter'}
+                                        >
+                                            {isUsed ? '✓ ' : '+ '}{cat.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </>
+            );
+        }
+
+        function App() {
+            const [step, setStep] = useState('welcome');
+            const [mode, setMode] = useState(null);
+            const [partner1Name, setPartner1Name] = useState('');
+            const [partner2Name, setPartner2Name] = useState('');
+            const [partner1Gender, setPartner1Gender] = useState('male');
+            const [partner2Gender, setPartner2Gender] = useState('female');
+            const [currentDrawing, setCurrentDrawing] = useState(0);
+            
+            const [selectedCategories1, setSelectedCategories1] = useState([]);
+            const [selectedCategories2, setSelectedCategories2] = useState([]);
+            const [selectedCategories3, setSelectedCategories3] = useState([]);
+            const [selectedCategories4, setSelectedCategories4] = useState([]);
+            
+            const [drawing1, setDrawing1] = useState([]);
+            const [drawing2, setDrawing2] = useState([]);
+            const [drawing3, setDrawing3] = useState([]);
+            const [drawing4, setDrawing4] = useState([]);
+
+            const drawings = useMemo(() => [drawing1, drawing2, drawing3, drawing4], [drawing1, drawing2, drawing3, drawing4]);
+            const setDrawings = useMemo(() => [setDrawing1, setDrawing2, setDrawing3, setDrawing4], []);
+            const selectedCategories = useMemo(() => [selectedCategories1, selectedCategories2, selectedCategories3, selectedCategories4], [selectedCategories1, selectedCategories2, selectedCategories3, selectedCategories4]);
+            const setSelectedCategoriesArray = useMemo(() => [setSelectedCategories1, setSelectedCategories2, setSelectedCategories3, setSelectedCategories4], []);
+
+            const appState = useMemo(() => ({
+                step,
+                mode,
+                partner1Name,
+                partner2Name,
+                partner1Gender,
+                partner2Gender,
+                currentDrawing,
+                drawings,
+                selectedCategories
+            }), [step, mode, partner1Name, partner2Name, partner1Gender, partner2Gender, currentDrawing, drawings, selectedCategories]);
+
+            const isSaving = useAutosave(appState);
+
+            useEffect(() => {
+                const indicator = document.getElementById('autosave-indicator');
+                if (indicator) {
+                    if (isSaving) {
+                        indicator.classList.add('visible');
+                    } else {
+                        indicator.classList.remove('visible');
+                    }
+                }
+            }, [isSaving]);
+
+            useEffect(() => {
+                try {
+                    const saved = secureStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        if (data.partner1Name) setPartner1Name(data.partner1Name);
+                        if (data.partner2Name) setPartner2Name(data.partner2Name);
+                        if (data.partner1Gender) setPartner1Gender(data.partner1Gender);
+                        if (data.partner2Gender) setPartner2Gender(data.partner2Gender);
+                        if (data.drawings && data.drawings.length === 4) {
+                            setDrawing1(data.drawings[0] || []);
+                            setDrawing2(data.drawings[1] || []);
+                            setDrawing3(data.drawings[2] || []);
+                            setDrawing4(data.drawings[3] || []);
+                        }
+                        if (data.selectedCategories && data.selectedCategories.length === 4) {
+                            setSelectedCategories1(data.selectedCategories[0] || []);
+                            setSelectedCategories2(data.selectedCategories[1] || []);
+                            setSelectedCategories3(data.selectedCategories[2] || []);
+                            setSelectedCategories4(data.selectedCategories[3] || []);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur chargement données:', error);
+                }
+            }, []);
+
+            const drawingTitles = useMemo(() => [
+                `${partner1Name} dessine ses propres appartenances`,
+                `${partner2Name} dessine ses propres appartenances`,
+                `${partner1Name} dessine les appartenances de ${partner2Name}`,
+                `${partner2Name} dessine les appartenances de ${partner1Name}`
+            ], [partner1Name, partner2Name]);
+
+            const drawingSubtitles = useMemo(() => [
+                `Comment ${partner1Name} perçoit ses propres investissements`,
+                `Comment ${partner2Name} perçoit ses propres investissements`,
+                `Comment ${partner1Name} perçoit les investissements de ${partner2Name}`,
+                `Comment ${partner2Name} perçoit les investissements de ${partner1Name}`
+            ], [partner1Name, partner2Name]);
+
+            const silhouetteGenders = useMemo(() => [
+                partner1Gender,
+                partner2Gender,
+                partner2Gender,
+                partner1Gender
+            ], [partner1Gender, partner2Gender]);
+
+            const initializeCircles = useCallback((categories) => {
+                const canvasWidth = 800;
+                const canvasHeight = 600;
+                const centerX = canvasWidth / 2;
+                const centerY = canvasHeight / 2;
+                
+                const selectedCats = CATEGORIES.filter(cat => categories.includes(cat.id));
+                
+                return selectedCats.map((cat, index) => {
+                    const angle = (index / selectedCats.length) * 2 * Math.PI;
+                    const radius = 200;
+                    return {
+                        id: cat.id + '-' + Date.now() + '-' + index,
+                        label: cat.id === 'autre' ? 'Personnalisé' : cat.label,
+                        color: cat.color,
+                        x: centerX + Math.cos(angle) * radius,
+                        y: centerY + Math.sin(angle) * radius,
+                        width: 150,
+                        height: 120,
+                        editable: cat.id === 'autre'
+                    };
+                });
+            }, []);
+
+            const handleCategorySelection = useCallback((categories) => {
+                setSelectedCategoriesArray[currentDrawing](categories);
+                setDrawings[currentDrawing](initializeCircles(categories));
+                setStep('drawing');
+            }, [currentDrawing, initializeCircles, setDrawings, setSelectedCategoriesArray]);
+
+            const nextDrawing = useCallback(() => {
+                if (currentDrawing < 3) {
+                    setCurrentDrawing(currentDrawing + 1);
+                    setStep('category-select');
+                } else {
+                    setStep('results');
+                }
+            }, [currentDrawing]);
+
+            const previousDrawing = useCallback(() => {
+                if (currentDrawing > 0) {
+                    setCurrentDrawing(currentDrawing - 1);
+                    setStep('category-select');
+                }
+            }, [currentDrawing]);
+
+            const exportResults = useCallback(() => {
+                window.print();
+            }, []);
+
+            const resetApp = useCallback(() => {
+                if (window.confirm('Êtes-vous sûr de vouloir recommencer ? Toutes les données seront perdues.')) {
+                    setStep('welcome');
+                    setCurrentDrawing(0);
+                    setDrawing1([]);
+                    setDrawing2([]);
+                    setDrawing3([]);
+                    setDrawing4([]);
+                    setSelectedCategories1([]);
+                    setSelectedCategories2([]);
+                    setSelectedCategories3([]);
+                    setSelectedCategories4([]);
+                    setPartner1Name('');
+                    setPartner2Name('');
+                    setPartner1Gender('male');
+                    setPartner2Gender('female');
+                    secureStorage.removeItem(STORAGE_KEY);
+                }
+            }, []);
+
+            const renderResultCanvas = useCallback((circles, gender) => {
+                return (
+                    <div className="result-canvas">
+                        <svg className="silhouette" viewBox="0 0 100 200" fill="black">
+                            {gender === 'male' ? (
+                                <g>
+                                    <ellipse cx="50" cy="20" rx="12" ry="15"/>
+                                    <rect x="42" y="35" width="16" height="35" rx="3"/>
+                                    <rect x="30" y="35" width="10" height="40" rx="3"/>
+                                    <rect x="60" y="35" width="10" height="40" rx="3"/>
+                                    <rect x="42" y="70" width="7" height="60" rx="3"/>
+                                    <rect x="51" y="70" width="7" height="60" rx="3"/>
+                                </g>
+                            ) : (
+                                <g>
+                                    <ellipse cx="50" cy="20" rx="13" ry="16"/>
+                                    <path d="M 50 35 L 35 75 L 42 75 L 42 130 L 58 130 L 58 75 L 65 75 Z" />
+                                    <rect x="30" y="35" width="8" height="35" rx="3"/>
+                                    <rect x="62" y="35" width="8" height="35" rx="3"/>
+                                </g>
+                            )}
+                        </svg>
+                        {circles.map(circle => {
+                            const scaleX = 0.5;
+                            const scaleY = 0.667;
+                            const scaledWidth = circle.width * scaleX;
+                            const scaledHeight = circle.height * scaleY;
+                            
+                            let fontSize = circle.adaptiveFontSize;
+                            if (!fontSize) {
+                                fontSize = calculateAdaptiveFontSize(circle, circles, 800 * scaleX, 600 * scaleY);
+                            }
+                            fontSize = fontSize * scaleX;
+                            fontSize = Math.max(6, Math.min(13, fontSize));
+                            
+                            const labelPos = circle.labelPosition || { x: circle.x, y: circle.y };
+                            const offsetX = (labelPos.x - circle.x) * scaleX;
+                            const offsetY = (labelPos.y - circle.y) * scaleY;
+                            
+                            return (
+                                <div
+                                    key={circle.id}
+                                    className="circle"
+                                    style={{
+                                        left: circle.x * scaleX - scaledWidth / 2,
+                                        top: circle.y * scaleY - scaledHeight / 2,
+                                        width: scaledWidth,
+                                        height: scaledHeight,
+                                        borderColor: circle.color,
+                                        cursor: 'default'
+                                    }}
+                                >
+                                    <div className="circle-label" style={{ 
+                                        color: circle.color, 
+                                        fontSize: fontSize + 'px',
+                                        background: circle.tooSmall ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.95)',
+                                        transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px)`
+                                    }}>
+                                        {circle.tooSmall && <span style={{color: '#ff8800', marginRight: '2px', fontSize: '10px'}}>⚠️</span>}
+                                        {circle.label}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            }, []);
+
+            if (step === 'welcome') {
+                return (
+                    <div className="app-container">
+                        <div className="header">
+                            <h1>Appartenancogramme Interactif</h1>
+                            <p>Outil de visualisation des appartenances - Bilan de Compétences du Couple©</p>
+                        </div>
+                        <div className="welcome-screen">
+                            <h2 style={{color: '#8FAFB1', marginBottom: '30px', textAlign: 'center'}}>
+                                Bienvenue
+                            </h2>
+                            <p style={{marginBottom: '30px', lineHeight: '1.8', textAlign: 'center'}}>
+                                Cet outil vous permet de visualiser et comparer vos perceptions respectives 
+                                sur les différents cercles d'appartenance de chacun.
+                            </p>
+                            
+                            <div className="input-group">
+                                <label>Nom du Partenaire 1</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Entrez le prénom"
+                                    value={partner1Name}
+                                    onChange={(e) => setPartner1Name(e.target.value)}
+                                />
+                                <div style={{marginTop: '10px'}}>
+                                    <label style={{display: 'inline', marginRight: '20px', fontWeight: 'normal', fontSize: '1em'}}>
+                                        <input 
+                                            type="radio" 
+                                            value="male"
+                                            checked={partner1Gender === 'male'}
+                                            onChange={(e) => setPartner1Gender(e.target.value)}
+                                            style={{marginRight: '5px'}}
+                                        /> Homme
+                                    </label>
+                                    <label style={{display: 'inline', fontWeight: 'normal', fontSize: '1em'}}>
+                                        <input 
+                                            type="radio" 
+                                            value="female"
+                                            checked={partner1Gender === 'female'}
+                                            onChange={(e) => setPartner1Gender(e.target.value)}
+                                            style={{marginRight: '5px'}}
+                                        /> Femme
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="input-group">
+                                <label>Nom du Partenaire 2</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Entrez le prénom"
+                                    value={partner2Name}
+                                    onChange={(e) => setPartner2Name(e.target.value)}
+                                />
+                                <div style={{marginTop: '10px'}}>
+                                    <label style={{display: 'inline', marginRight: '20px', fontWeight: 'normal', fontSize: '1em'}}>
+                                        <input 
+                                            type="radio" 
+                                            value="male"
+                                            checked={partner2Gender === 'male'}
+                                            onChange={(e) => setPartner2Gender(e.target.value)}
+                                            style={{marginRight: '5px'}}
+                                        /> Homme
+                                    </label>
+                                    <label style={{display: 'inline', fontWeight: 'normal', fontSize: '1em'}}>
+                                        <input 
+                                            type="radio" 
+                                            value="female"
+                                            checked={partner2Gender === 'female'}
+                                            onChange={(e) => setPartner2Gender(e.target.value)}
+                                            style={{marginRight: '5px'}}
+                                        /> Femme
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div style={{textAlign: 'center', marginTop: '40px'}}>
+                                <button 
+                                    className="btn"
+                                    onClick={() => setStep('mode')}
+                                    disabled={!partner1Name || !partner2Name}
+                                >
+                                    Continuer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (step === 'mode') {
+                return (
+                    <div className="app-container">
+                        <div className="header">
+                            <h1>Choisissez votre mode de travail</h1>
+                            <p>{partner1Name} et {partner2Name}</p>
+                        </div>
+                        <div className="mode-selection">
+                            <div className="mode-cards">
+                                <div className="mode-card" onClick={() => { setMode('duo'); setStep('category-select'); }}>
+                                    <h3>👫 Mode Duo</h3>
+                                    <p>
+                                        Travaillez ensemble sur le même écran. 
+                                        Vous vous passerez le clavier à tour de rôle pour chaque dessin.
+                                    </p>
+                                </div>
+                                <div className="mode-card" onClick={() => { setMode('solo'); setStep('category-select'); }}>
+                                    <h3>👤 Mode Solo</h3>
+                                    <p>
+                                        Travaillez séparément. Chaque partenaire complète ses dessins 
+                                        de son côté puis vous comparerez les résultats.
+                                    </p>
+                                </div>
+                            </div>
+                            <div style={{textAlign: 'center', marginTop: '30px'}}>
+                                <button className="btn btn-secondary" onClick={() => setStep('welcome')}>
+                                    Retour
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (step === 'category-select') {
+                return (
+                    <div className="app-container">
+                        <div className="header">
+                            <h1>Étape {currentDrawing + 1} sur 4</h1>
+                            <p>{drawingTitles[currentDrawing]}</p>
+                        </div>
+                        <div className="step-indicator">
+                            <div className={`step ${currentDrawing === 0 ? 'active' : currentDrawing > 0 ? 'completed' : ''}`}>
+                                Étape 1
+                            </div>
+                            <div className={`step ${currentDrawing === 1 ? 'active' : currentDrawing > 1 ? 'completed' : ''}`}>
+                                Étape 2
+                            </div>
+                            <div className={`step ${currentDrawing === 2 ? 'active' : currentDrawing > 2 ? 'completed' : ''}`}>
+                                Étape 3
+                            </div>
+                            <div className={`step ${currentDrawing === 3 ? 'active' : currentDrawing > 3 ? 'completed' : ''}`}>
+                                Étape 4
+                            </div>
+                        </div>
+                        <CategorySelection
+                            onConfirm={handleCategorySelection}
+                            onBack={() => {
+                                if (currentDrawing > 0) {
+                                    setCurrentDrawing(currentDrawing - 1);
+                                } else {
+                                    setStep('mode');
+                                }
+                            }}
+                        />
+                    </div>
+                );
+            }
+
+            if (step === 'drawing') {
+                return (
+                    <div className="app-container">
+                        <div className="header">
+                            <h1>Étape {currentDrawing + 1} sur 4</h1>
+                            <p>Appartenancogramme de {partner1Name} et {partner2Name}</p>
+                        </div>
+                        <div className="step-indicator">
+                            <div className={`step ${currentDrawing === 0 ? 'active' : currentDrawing > 0 ? 'completed' : ''}`}>
+                                Étape 1
+                            </div>
+                            <div className={`step ${currentDrawing === 1 ? 'active' : currentDrawing > 1 ? 'completed' : ''}`}>
+                                Étape 2
+                            </div>
+                            <div className={`step ${currentDrawing === 2 ? 'active' : currentDrawing > 2 ? 'completed' : ''}`}>
+                                Étape 3
+                            </div>
+                            <div className={`step ${currentDrawing === 3 ? 'active' : currentDrawing > 3 ? 'completed' : ''}`}>
+                                Étape 4
+                            </div>
+                        </div>
+                        <div className="drawing-area">
+                            <div className="drawing-header">
+                                <h2>{drawingTitles[currentDrawing]}</h2>
+                                <p>{drawingSubtitles[currentDrawing]}</p>
+                            </div>
+
+                            <DrawingCanvas 
+                                circles={drawings[currentDrawing]}
+                                setCircles={setDrawings[currentDrawing]}
+                                silhouetteGender={silhouetteGenders[currentDrawing]}
+                            />
+
+                            <div style={{background: '#E6D7C3', padding: '20px', borderRadius: '10px', marginTop: '20px'}}>
+                                <h4 style={{color: '#8FAFB1', marginBottom: '15px'}}>💡 Instructions :</h4>
+                                <ul style={{lineHeight: '2', marginLeft: '20px', fontSize: '0.9em'}}>
+                                    <li>Déplacez les cercles en les faisant glisser</li>
+                                    <li>Redimensionnez avec les poignées de chaque cercle sélectionné</li>
+                                    <li><strong>Double-cliquez sur "Personnalisé" ✏️</strong> pour le renommer</li>
+                                    <li>Cliquez sur × pour supprimer un cercle</li>
+                                    <li>Plus le cercle est grand et proche = plus l'investissement est important</li>
+                                    <li>Vous pouvez ajouter d'autres catégories depuis la section en bas de l'écran</li>
+                                </ul>
+                            </div>
+
+                            <div className="navigation">
+                                <button 
+                                    className="btn btn-secondary" 
+                                    onClick={previousDrawing}
+                                    disabled={currentDrawing === 0}
+                                >
+                                    ← Précédent
+                                </button>
+                                <button className="btn" onClick={nextDrawing}>
+                                    {currentDrawing === 3 ? 'Voir les résultats' : 'Suivant →'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (step === 'results') {
+                return (
+                    <div className="app-container">
+                        <div className="header">
+                            <h1>Résultats de l'Appartenancogramme</h1>
+                            <p>{partner1Name} et {partner2Name} - Comparaison des perceptions</p>
+                        </div>
+
+                        <div className="results-grid">
+                            <div className="result-card">
+                                <h3>Auto-perception de {partner1Name}</h3>
+                                <p style={{textAlign: 'center', color: '#666', marginBottom: '15px', fontSize: '0.9em'}}>
+                                    Comment {partner1Name} voit ses propres appartenances
+                                </p>
+                                {renderResultCanvas(drawing1, partner1Gender)}
+                            </div>
+
+                            <div className="result-card">
+                                <h3>Perception de {partner2Name} sur {partner1Name}</h3>
+                                <p style={{textAlign: 'center', color: '#666', marginBottom: '15px', fontSize: '0.9em'}}>
+                                    Comment {partner2Name} perçoit les appartenances de {partner1Name}
+                                </p>
+                                {renderResultCanvas(drawing4, partner1Gender)}
+                            </div>
+
+                            <div className="result-card">
+                                <h3>Auto-perception de {partner2Name}</h3>
+                                <p style={{textAlign: 'center', color: '#666', marginBottom: '15px', fontSize: '0.9em'}}>
+                                    Comment {partner2Name} voit ses propres appartenances
+                                </p>
+                                {renderResultCanvas(drawing2, partner2Gender)}
+                            </div>
+
+                            <div className="result-card">
+                                <h3>Perception de {partner1Name} sur {partner2Name}</h3>
+                                <p style={{textAlign: 'center', color: '#666', marginBottom: '15px', fontSize: '0.9em'}}>
+                                    Comment {partner1Name} perçoit les appartenances de {partner2Name}
+                                </p>
+                                {renderResultCanvas(drawing3, partner2Gender)}
+                            </div>
+                        </div>
+
+                        <div className="export-section">
+                            <h3 style={{color: '#8FAFB1', marginBottom: '20px'}}>
+                                Analyse et Suite
+                            </h3>
+                            <p style={{marginBottom: '20px', lineHeight: '1.8'}}>
+                                Ces représentations montrent les perceptions de chacun. 
+                                Les différences entre l'auto-perception et la perception de l'autre 
+                                sont des opportunités de dialogue et de compréhension mutuelle.
+                            </p>
+                            <div style={{display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap'}}>
+                                <button className="btn" onClick={exportResults}>
+                                    📄 Imprimer / Exporter en PDF
+                                </button>
+                                <button className="btn btn-secondary" onClick={resetApp}>
+                                    🔄 Recommencer
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{marginTop: '40px', padding: '30px', background: '#E6D7C3', borderRadius: '15px'}}>
+                            <h4 style={{color: '#8FAFB1', marginBottom: '15px', textAlign: 'center'}}>
+                                Points de réflexion pour votre accompagnement
+                            </h4>
+                            <ul style={{lineHeight: '2', marginLeft: '20px'}}>
+                                <li>Quelles sont les principales différences entre votre auto-perception et la perception de votre partenaire ?</li>
+                                <li>Y a-t-il des cercles d'appartenance que vous pensiez plus importants que votre partenaire ne les perçoit ?</li>
+                                <li>Où placez-vous chacun le cercle "Couple" ? Est-ce cohérent avec votre ressenti ?</li>
+                                <li>Quels ajustements pourriez-vous faire pour mieux aligner vos perceptions et vos investissements respectifs ?</li>
+                            </ul>
+                        </div>
+
+                        <div style={{textAlign: 'center', marginTop: '30px', padding: '20px', borderTop: '2px solid #D8CDBB'}}>
+                            <p style={{fontSize: '0.9em', color: '#666'}}>
+                                Bilan de Compétences du Couple© - Marie-Christine Abatte Psychologue
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return null;
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+
+
+</body></html>
