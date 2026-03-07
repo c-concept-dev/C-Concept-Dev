@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Échelle d'Ajustement Dyadique (DAS-32) - Questionnaire Couple</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --vert-sauge: #C8D0C3;
+            --beige-sable: #D8CDBB;
+            --sable: #E6D7C3;
+            --mer: #8FAFB1;
+            --blanc: #FFFFFF;
+            --noir: #000000;
+            --gris-texte: #333333;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--sable) 0%, var(--beige-sable) 100%);
+            color: var(--gris-texte);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--blanc);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            color: var(--mer);
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            font-weight: 700;
+        }
+
+        h2 {
+            color: var(--mer);
+            margin-top: 30px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 600;
+            border-bottom: 3px solid var(--vert-sauge);
+            padding-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--gris-texte);
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .intro-box {
+            background: var(--sable);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border-left: 5px solid var(--mer);
+            line-height: 1.8;
+        }
+
+        .intro-box strong {
+            color: var(--mer);
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .intro-box ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .intro-box li {
+            margin-bottom: 8px;
+        }
+
+        /* Sélection du partenaire */
+        .partner-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .partner-card {
+            background: linear-gradient(135deg, var(--sable) 0%, var(--beige-sable) 100%);
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 4px solid var(--mer);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .partner-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(143, 175, 177, 0.3);
+        }
+
+        .partner-card.active {
+            border-left: 4px solid var(--mer);
+            background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+            color: var(--blanc);
+        }
+
+        .partner-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .name-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--vert-sauge);
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .name-input:focus {
+            outline: none;
+            border-color: var(--mer);
+        }
+
+        /* Barre de progression */
+        .progress-container {
+            margin: 30px 0;
+            background: var(--sable);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: var(--beige-sable);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 600;
+            color: var(--mer);
+        }
+
+        /* Questions */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .question-block {
+            background: var(--sable);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--mer);
+        }
+
+        .question-text {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--gris-texte);
+            font-size: 1.05em;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: var(--blanc);
+            border: 2px solid var(--vert-sauge);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .option-label:hover {
+            background: var(--beige-sable);
+            border-color: var(--mer);
+        }
+
+        .option-label input[type="radio"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .option-label.selected {
+            background: var(--mer);
+            color: var(--blanc);
+            border-color: var(--mer);
+        }
+
+        /* Boutons de navigation */
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+            color: var(--blanc);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--beige-sable) 0%, var(--sable) 100%);
+            color: var(--gris-texte);
+        }
+
+        /* Résultats */
+        .results-container {
+            display: none;
+        }
+
+        .results-container.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, var(--sable) 0%, var(--beige-sable) 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--mer);
+        }
+
+        .score-card h3 {
+            color: var(--mer);
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .score-display {
+            font-size: 3em;
+            font-weight: 700;
+            color: var(--mer);
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .score-interpretation {
+            background: var(--blanc);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .subscale-scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .subscale-item {
+            background: var(--blanc);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .subscale-item .label {
+            font-weight: 600;
+            color: var(--gris-texte);
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .subscale-item .value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--mer);
+        }
+
+        .comparison-chart {
+            background: var(--blanc);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .chart-bar {
+            margin: 15px 0;
+        }
+
+        .chart-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--gris-texte);
+        }
+
+        .chart-bars {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .bar {
+            height: 30px;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: var(--blanc);
+            font-weight: 600;
+        }
+
+        .bar-partner1 {
+            background: linear-gradient(135deg, #8FAFB1 0%, #A5C5C7 100%);
+        }
+
+        .bar-partner2 {
+            background: linear-gradient(135deg, #C8D0C3 0%, #A8B8A3 100%);
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 5px;
+        }
+
+        /* Actions d'export */
+        .export-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: #E8F4F8;
+            border-color: var(--mer);
+            color: var(--gris-texte);
+        }
+
+        .alert-warning {
+            background: #FFF4E5;
+            border-color: #FF9800;
+            color: var(--gris-texte);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid var(--beige-sable);
+            font-size: 12px;
+            color: var(--gris-texte);
+        }
+
+        /* Graphique Radar */
+        .radar-container {
+            background: var(--blanc);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #radarChart {
+            max-width: 500px;
+            width: 100%;
+            height: 400px;
+        }
+
+        /* Analyse détaillée des écarts */
+        .gap-analysis {
+            background: var(--blanc);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .gap-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: var(--sable);
+        }
+
+        .gap-icon {
+            font-size: 2em;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .gap-content {
+            flex: 1;
+        }
+
+        .gap-title {
+            font-weight: 600;
+            color: var(--mer);
+            margin-bottom: 5px;
+        }
+
+        .gap-description {
+            font-size: 0.9em;
+            color: var(--gris-texte);
+            line-height: 1.6;
+        }
+
+        .gap-score {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--mer);
+            min-width: 80px;
+            text-align: right;
+        }
+
+        /* Alert de validation */
+        .validation-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #FF9800;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .validation-alert.success {
+            background: #4CAF50;
+        }
+
+        /* Indicateur de sauvegarde */
+        .save-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--mer);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .save-indicator.show {
+            display: block;
+        }
+
+        /* Questions incomplètes highlight */
+        .question-block.incomplete {
+            border-left-color: #FF9800;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Checkmark animation */
+        .checkmark {
+            display: none;
+            color: #4CAF50;
+            font-size: 1.2em;
+            margin-left: 10px;
+            animation: scaleIn 0.3s;
+        }
+
+        .question-block.answered .checkmark {
+            display: inline-block;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        /* PDF Export styles */
+        .pdf-preview {
+            background: var(--blanc);
+            padding: 30px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .pdf-header {
+            text-align: center;
+            border-bottom: 3px solid var(--mer);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .pdf-section {
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .partner-selection {
+                grid-template-columns: 1fr;
+            }
+
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .navigation-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .navigation-buttons,
+            .export-actions,
+            .btn {
+                display: none;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Échelle d'Ajustement Dyadique (DAS-32)</h1>
+        <p class="subtitle">par Graham B. Spanier (1976) - traduit et adapté par Jacques Baillargeon, Gilles Dubois et René Marineau, Université du Québec à Trois-Rivières</p>
+
+        <!-- Section d'introduction -->
+        <div id="intro-section" class="section active">
+            <div class="intro-box">
+                <strong>Bienvenue</strong>
+                <p>Ce questionnaire s'intéresse à votre perception de votre vie de couple. Il s'agit de votre opinion personnelle.</p>
+                <ul>
+                    <li>Ne soyez pas préoccupé de ce que peut ou pourrait répondre votre partenaire</li>
+                    <li>Pour chaque question, indiquez votre réponse en cochant la case appropriée</li>
+                    <li>Assurez-vous de répondre à toutes les questions</li>
+                    <li>Le questionnaire prendra environ 15-20 minutes à compléter</li>
+                </ul>
+            </div>
+
+            <h2>Identification des Partenaires</h2>
+            <div class="partner-selection">
+                <div class="partner-card">
+                    <h3>Partenaire 1</h3>
+                    <input type="text" id="name-partner1" class="name-input" placeholder="Votre prénom">
+                </div>
+                <div class="partner-card">
+                    <h3>Partenaire 2</h3>
+                    <input type="text" id="name-partner2" class="name-input" placeholder="Prénom de votre partenaire">
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Important :</strong> Chaque partenaire doit remplir le questionnaire séparément. Les résultats seront ensuite comparés automatiquement.
+            </div>
+
+            <div class="navigation-buttons">
+                <button class="btn" onclick="startQuestionnaire()">Commencer le Questionnaire</button>
+            </div>
+        </div>
+
+        <!-- Barre de progression -->
+        <div id="progress-section" style="display: none;">
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progress-text">Question 0 sur 32</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 1: Questions 1-15 (Consensus) -->
+        <div id="section-1" class="section">
+            <h2>Section 1 - Accord sur les Points Importants</h2>
+            <p style="margin-bottom: 20px; font-style: italic;">La plupart des gens rencontrent des problèmes dans leurs relations. Indiquez dans quelle mesure vous et votre partenaire êtes en accord ou en désaccord sur chacun des points suivants.</p>
+            
+            <div id="questions-section-1"></div>
+
+            <div class="navigation-buttons">
+                <button class="btn btn-secondary" onclick="previousSection()">Précédent</button>
+                <button class="btn" onclick="nextSection()">Suivant</button>
+            </div>
+        </div>
+
+        <!-- Section 2: Questions 16-24 -->
+        <div id="section-2" class="section">
+            <h2>Section 2 - Relation et Satisfaction</h2>
+            
+            <div id="questions-section-2"></div>
+
+            <div class="navigation-buttons">
+                <button class="btn btn-secondary" onclick="previousSection()">Précédent</button>
+                <button class="btn" onclick="nextSection()">Suivant</button>
+            </div>
+        </div>
+
+        <!-- Section 3: Questions 25-28 (Cohésion) -->
+        <div id="section-3" class="section">
+            <h2>Section 3 - Activités Partagées</h2>
+            <p style="margin-bottom: 20px; font-style: italic;">D'après vous, combien de fois les événements suivants se produisent-ils ?</p>
+            
+            <div id="questions-section-3"></div>
+
+            <div class="navigation-buttons">
+                <button class="btn btn-secondary" onclick="previousSection()">Précédent</button>
+                <button class="btn" onclick="nextSection()">Suivant</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Questions 29-32 -->
+        <div id="section-4" class="section">
+            <h2>Section 4 - Questions Finales</h2>
+            
+            <div id="questions-section-4"></div>
+
+            <div class="navigation-buttons">
+                <button class="btn btn-secondary" onclick="previousSection()">Précédent</button>
+                <button class="btn" onclick="calculateResults()">Voir les Résultats</button>
+            </div>
+        </div>
+
+        <!-- Section Résultats -->
+        <div id="results-section" class="results-container">
+            <h2>Résultats de l'Évaluation</h2>
+
+            <div id="partner1-results" class="score-card">
+                <h3 id="partner1-name-display">Partenaire 1</h3>
+                <div class="score-display" id="partner1-total-score">0</div>
+                <div class="score-interpretation" id="partner1-interpretation"></div>
+                
+                <div class="subscale-scores">
+                    <div class="subscale-item">
+                        <div class="label">Consensus</div>
+                        <div class="value" id="partner1-consensus">0</div>
+                    </div>
+                    <div class="subscale-item">
+                        <div class="label">Satisfaction</div>
+                        <div class="value" id="partner1-satisfaction">0</div>
+                    </div>
+                    <div class="subscale-item">
+                        <div class="label">Cohésion</div>
+                        <div class="value" id="partner1-cohesion">0</div>
+                    </div>
+                    <div class="subscale-item">
+                        <div class="label">Expression Affective</div>
+                        <div class="value" id="partner1-affective">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="partner2-results" class="score-card">
+                <h3 id="partner2-name-display">Partenaire 2</h3>
+                <div class="score-display" id="partner2-total-score">0</div>
+                <div class="score-interpretation" id="partner2-interpretation"></div>
+                
+                <div class="subscale-scores">
+                    <div class="subscale-item">
+                        <div class="label">Consensus</div>
+                        <div class="value" id="partner2-consensus">0</div>
+                    </div>
+                    <div class="subscale-item">
+                        <div class="label">Satisfaction</div>
+                        <div class="value" id="partner2-satisfaction">0</div>
+                    </div>
+                    <div class="subscale-item">
+                        <div class="label">Cohésion</div>
+                        <div class="value" id="partner2-cohesion">0</div>
+                    </div>
+                    <div class="subscale-item">
+                        <div class="label">Expression Affective</div>
+                        <div class="value" id="partner2-affective">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="score-card">
+                <h3>Comparaison des Partenaires</h3>
+                
+                <!-- Graphique Radar -->
+                <div class="radar-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+
+                <div class="comparison-chart">
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color bar-partner1"></div>
+                            <span id="legend-partner1">Partenaire 1</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color bar-partner2"></div>
+                            <span id="legend-partner2">Partenaire 2</span>
+                        </div>
+                    </div>
+
+                    <div class="chart-bar">
+                        <div class="chart-label">Score Total (max: 151)</div>
+                        <div class="chart-bars">
+                            <div id="bar-total-p1" class="bar bar-partner1" style="width: 0%"></div>
+                        </div>
+                        <div class="chart-bars">
+                            <div id="bar-total-p2" class="bar bar-partner2" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-bar">
+                        <div class="chart-label">Consensus</div>
+                        <div class="chart-bars">
+                            <div id="bar-consensus-p1" class="bar bar-partner1" style="width: 0%"></div>
+                        </div>
+                        <div class="chart-bars">
+                            <div id="bar-consensus-p2" class="bar bar-partner2" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-bar">
+                        <div class="chart-label">Satisfaction</div>
+                        <div class="chart-bars">
+                            <div id="bar-satisfaction-p1" class="bar bar-partner1" style="width: 0%"></div>
+                        </div>
+                        <div class="chart-bars">
+                            <div id="bar-satisfaction-p2" class="bar bar-partner2" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-bar">
+                        <div class="chart-label">Cohésion</div>
+                        <div class="chart-bars">
+                            <div id="bar-cohesion-p1" class="bar bar-partner1" style="width: 0%"></div>
+                        </div>
+                        <div class="chart-bars">
+                            <div id="bar-cohesion-p2" class="bar bar-partner2" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="score-interpretation" id="couple-interpretation" style="margin-top: 20px;"></div>
+            </div>
+
+            <!-- Analyse détaillée des écarts -->
+            <div class="score-card">
+                <h3>Analyse Détaillée des Écarts</h3>
+                <div class="gap-analysis" id="gap-analysis">
+                    <!-- Sera rempli dynamiquement -->
+                </div>
+            </div>
+
+            <div class="export-actions">
+                <button class="btn" onclick="window.print()">Imprimer les Résultats</button>
+                <button class="btn" onclick="exportToPDF()">Exporter en PDF</button>
+                <button class="btn" onclick="exportToText()">Exporter en Texte</button>
+                <button class="btn btn-secondary" onclick="restartQuestionnaire()">Recommencer</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Bilan de Compétences du Couple© - Marie-Christine Abatte Psychologue</p>
+        </div>
+    </div>
+
+    <!-- Indicateur de sauvegarde -->
+    <div id="save-indicator" class="save-indicator">
+        Sauvegarde automatique...
+    </div>
+
+    <!-- Bibliothèque Chart.js pour le graphique radar -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Bibliothèque jsPDF pour l'export PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        // ============================================
+        // SAUVEGARDE AUTOMATIQUE
+        // ============================================
+        
+        // Clé de sauvegarde dans localStorage
+        const STORAGE_KEY = 'das32_questionnaire_save';
+        
+        // Sauvegarder automatiquement
+        function autoSave() {
+            try {
+                const saveData = {
+                    answers: answers,
+                    currentSection: currentSection,
+                    currentPartner: currentPartner,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+                showSaveIndicator();
+            } catch (e) {
+                console.error('Erreur de sauvegarde:', e);
+            }
+        }
+
+        // Charger les données sauvegardées
+        function loadSave() {
+            try {
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                if (savedData) {
+                    return JSON.parse(savedData);
+                }
+            } catch (e) {
+                console.error('Erreur de chargement:', e);
+            }
+            return null;
+        }
+
+        // Supprimer la sauvegarde
+        function clearSave() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+
+        // Afficher l'indicateur de sauvegarde
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
+        // Proposer de reprendre la sauvegarde au démarrage
+        function checkForSavedData() {
+            const savedData = loadSave();
+            if (savedData && savedData.answers) {
+                const partner1Answers = Object.keys(savedData.answers.partner1).filter(key => /^q\d+$/.test(key)).length;
+                const partner2Answers = Object.keys(savedData.answers.partner2).filter(key => /^q\d+$/.test(key)).length;
+                
+                if (partner1Answers > 0 || partner2Answers > 0) {
+                    const resume = confirm(
+                        `Une sauvegarde précédente a été trouvée (${partner1Answers} réponses pour le partenaire 1, ${partner2Answers} pour le partenaire 2).\n\n` +
+                        'Voulez-vous reprendre où vous vous êtes arrêté ?'
+                    );
+                    
+                    if (resume) {
+                        answers = savedData.answers;
+                        currentSection = savedData.currentSection || 1;
+                        currentPartner = savedData.currentPartner || 1;
+                        
+                        // Pré-remplir les noms
+                        if (answers.partner1.name) {
+                            document.getElementById('name-partner1').value = answers.partner1.name;
+                        }
+                        if (answers.partner2.name) {
+                            document.getElementById('name-partner2').value = answers.partner2.name;
+                        }
+                        
+                        return true;
+                    } else {
+                        clearSave();
+                    }
+                }
+            }
+            return false;
+        }
+
+        // ============================================
+        // Configuration des questions
+        // ============================================
+        const questions = [
+            // Section 1: Questions 1-15 (Consensus Dyadique)
+            {
+                id: 1,
+                section: 1,
+                text: "Le budget familial",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 2,
+                section: 1,
+                text: "Le domaine des sports et du divertissement",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 3,
+                section: 1,
+                text: "Les questions religieuses",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 4,
+                section: 1,
+                text: "Les manifestations d'affection",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "affective"
+            },
+            {
+                id: 5,
+                section: 1,
+                text: "Les amis",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 6,
+                section: 1,
+                text: "Les relations sexuelles",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "affective"
+            },
+            {
+                id: 7,
+                section: 1,
+                text: "Les conventions sociales (se comporter de façon correcte et appropriée, bonnes manières)",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 8,
+                section: 1,
+                text: "La façon de voir la vie",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 9,
+                section: 1,
+                text: "Les relations avec les parents et les beaux-parents",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 10,
+                section: 1,
+                text: "Les buts, objectifs et choses jugées importantes",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 11,
+                section: 1,
+                text: "La quantité de temps passé ensemble",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 12,
+                section: 1,
+                text: "La manière de prendre des décisions importantes",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 13,
+                section: 1,
+                text: "Les tâches à faire à la maison",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 14,
+                section: 1,
+                text: "Les intérêts de loisirs et les activités",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            {
+                id: 15,
+                section: 1,
+                text: "Les décisions concernant le travail (métier/profession/carrière)",
+                options: [
+                    { text: "Toujours en accord", value: 5 },
+                    { text: "Presque toujours en accord", value: 4 },
+                    { text: "Parfois en désaccord", value: 3 },
+                    { text: "Souvent en désaccord", value: 2 },
+                    { text: "Presque toujours en désaccord", value: 1 },
+                    { text: "Toujours en désaccord", value: 0 }
+                ],
+                subscale: "consensus"
+            },
+            // Section 2: Questions 16-24 (Satisfaction + Cohésion)
+            {
+                id: 16,
+                section: 2,
+                text: "Est-ce qu'il vous arrive souvent ou est-ce qu'il vous est déjà arrivé d'envisager un divorce, une séparation ou de mettre fin à votre relation actuelle ?",
+                options: [
+                    { text: "Toujours", value: 0 },
+                    { text: "La plupart du temps", value: 1 },
+                    { text: "Plus souvent qu'autrement", value: 2 },
+                    { text: "Occasionnellement", value: 3 },
+                    { text: "Rarement", value: 4 },
+                    { text: "Jamais", value: 5 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 17,
+                section: 2,
+                text: "Combien de fois arrive-t-il, à vous et à votre partenaire, de quitter la maison après une dispute conjugale ?",
+                options: [
+                    { text: "Toujours", value: 0 },
+                    { text: "La plupart du temps", value: 1 },
+                    { text: "Plus souvent qu'autrement", value: 2 },
+                    { text: "Occasionnellement", value: 3 },
+                    { text: "Rarement", value: 4 },
+                    { text: "Jamais", value: 5 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 18,
+                section: 2,
+                text: "De façon générale, pouvez-vous dire que les choses vont bien entre vous et votre partenaire?",
+                options: [
+                    { text: "Toujours", value: 5 },
+                    { text: "La plupart du temps", value: 4 },
+                    { text: "Plus souvent qu'autrement", value: 3 },
+                    { text: "Occasionnellement", value: 2 },
+                    { text: "Rarement", value: 1 },
+                    { text: "Jamais", value: 0 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 19,
+                section: 2,
+                text: "Vous confiez-vous à votre partenaire?",
+                options: [
+                    { text: "Toujours", value: 5 },
+                    { text: "La plupart du temps", value: 4 },
+                    { text: "Plus souvent qu'autrement", value: 3 },
+                    { text: "Occasionnellement", value: 2 },
+                    { text: "Rarement", value: 1 },
+                    { text: "Jamais", value: 0 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 20,
+                section: 2,
+                text: "Avez-vous déjà regretté de vous être mariés (ou de vivre ensemble) ?",
+                options: [
+                    { text: "Toujours", value: 0 },
+                    { text: "La plupart du temps", value: 1 },
+                    { text: "Plus souvent qu'autrement", value: 2 },
+                    { text: "Occasionnellement", value: 3 },
+                    { text: "Rarement", value: 4 },
+                    { text: "Jamais", value: 5 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 21,
+                section: 2,
+                text: "Combien de fois vous arrive-t-il de vous disputer avec votre partenaire ?",
+                options: [
+                    { text: "Toujours", value: 0 },
+                    { text: "La plupart du temps", value: 1 },
+                    { text: "Plus souvent qu'autrement", value: 2 },
+                    { text: "Occasionnellement", value: 3 },
+                    { text: "Rarement", value: 4 },
+                    { text: "Jamais", value: 5 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 22,
+                section: 2,
+                text: "Combien de fois vous arrive-t-il, vous et votre partenaire, de vous taper sur les nerfs ?",
+                options: [
+                    { text: "Toujours", value: 0 },
+                    { text: "La plupart du temps", value: 1 },
+                    { text: "Plus souvent qu'autrement", value: 2 },
+                    { text: "Occasionnellement", value: 3 },
+                    { text: "Rarement", value: 4 },
+                    { text: "Jamais", value: 5 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 23,
+                section: 2,
+                text: "Embrassez-vous votre partenaire ?",
+                options: [
+                    { text: "Tous les jours", value: 4 },
+                    { text: "Presque tous les jours", value: 3 },
+                    { text: "Occasionnellement", value: 2 },
+                    { text: "Rarement", value: 1 },
+                    { text: "Jamais", value: 0 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 24,
+                section: 2,
+                text: "Partagez-vous ensemble des intérêts extérieurs à la maison ?",
+                options: [
+                    { text: "Tous", value: 4 },
+                    { text: "La plupart d'entre eux", value: 3 },
+                    { text: "Certains d'entre eux", value: 2 },
+                    { text: "Très peu d'entre eux", value: 1 },
+                    { text: "Aucun d'entre eux", value: 0 }
+                ],
+                subscale: "cohesion"
+            },
+            // Section 3: Questions 25-28 (Cohésion Dyadique)
+            {
+                id: 25,
+                section: 3,
+                text: "Avoir un échange d'idées stimulantes entre vous deux ?",
+                options: [
+                    { text: "Jamais", value: 0 },
+                    { text: "Moins qu'une fois par mois", value: 1 },
+                    { text: "Une à deux fois par mois", value: 2 },
+                    { text: "Une à deux fois par semaine", value: 3 },
+                    { text: "Une fois par jour", value: 4 },
+                    { text: "Plus d'une fois par jour", value: 5 }
+                ],
+                subscale: "cohesion"
+            },
+            {
+                id: 26,
+                section: 3,
+                text: "Rire ensemble ?",
+                options: [
+                    { text: "Jamais", value: 0 },
+                    { text: "Moins qu'une fois par mois", value: 1 },
+                    { text: "Une à deux fois par mois", value: 2 },
+                    { text: "Une à deux fois par semaine", value: 3 },
+                    { text: "Une fois par jour", value: 4 },
+                    { text: "Plus d'une fois par jour", value: 5 }
+                ],
+                subscale: "cohesion"
+            },
+            {
+                id: 27,
+                section: 3,
+                text: "Discuter calmement de quelque chose ?",
+                options: [
+                    { text: "Jamais", value: 0 },
+                    { text: "Moins qu'une fois par mois", value: 1 },
+                    { text: "Une à deux fois par mois", value: 2 },
+                    { text: "Une à deux fois par semaine", value: 3 },
+                    { text: "Une fois par jour", value: 4 },
+                    { text: "Plus d'une fois par jour", value: 5 }
+                ],
+                subscale: "cohesion"
+            },
+            {
+                id: 28,
+                section: 3,
+                text: "Travailler ensemble sur quelque chose ?",
+                options: [
+                    { text: "Jamais", value: 0 },
+                    { text: "Moins qu'une fois par mois", value: 1 },
+                    { text: "Une à deux fois par mois", value: 2 },
+                    { text: "Une à deux fois par semaine", value: 3 },
+                    { text: "Une fois par jour", value: 4 },
+                    { text: "Plus d'une fois par jour", value: 5 }
+                ],
+                subscale: "cohesion"
+            },
+            // Section 4: Questions 29-32
+            {
+                id: 29,
+                section: 4,
+                text: "Être trop fatigué(e) pour avoir des relations sexuelles",
+                options: [
+                    { text: "Oui", value: 0 },
+                    { text: "Non", value: 1 }
+                ],
+                subscale: "affective"
+            },
+            {
+                id: 30,
+                section: 4,
+                text: "Ne pas manifester son amour",
+                options: [
+                    { text: "Oui", value: 0 },
+                    { text: "Non", value: 1 }
+                ],
+                subscale: "affective"
+            },
+            {
+                id: 31,
+                section: 4,
+                text: "Les points sur la ligne suivante correspondent à différents degrés de bonheur dans votre relation. Le point central 'heureux' correspond au degré de bonheur retrouvé dans la plupart des relations. Veuillez choisir le point qui correspond le mieux au degré de bonheur de votre couple.",
+                options: [
+                    { text: "Extrêmement malheureux", value: 0 },
+                    { text: "Assez malheureux", value: 1 },
+                    { text: "Un peu malheureux", value: 2 },
+                    { text: "Heureux", value: 3 },
+                    { text: "Très heureux", value: 4 },
+                    { text: "Extrêmement heureux", value: 5 },
+                    { text: "Parfaitement heureux", value: 6 }
+                ],
+                subscale: "satisfaction"
+            },
+            {
+                id: 32,
+                section: 4,
+                text: "Lequel des énoncés suivants décrit le mieux ce que vous ressentez face à l'avenir de votre relation ?",
+                options: [
+                    { text: "Je désire désespérément que ma relation réussisse et je ferais presque n'importe quoi pour que ça arrive", value: 5 },
+                    { text: "Je désire énormément que ma relation réussisse et je ferai tout ce qui est en mon pouvoir pour cela se réalise", value: 4 },
+                    { text: "Je désire énormément que ma relation réussisse et je vais faire ma juste part pour que cela se réalise", value: 3 },
+                    { text: "Ce serait bien si ma relation réussissait, mais je ne peux pas faire beaucoup plus que ce que je fais maintenant pour y arriver", value: 2 },
+                    { text: "Ce serait bien si cela réussissait, mais je refuse de faire davantage que ce que je fais maintenant pour maintenir cette relation", value: 1 },
+                    { text: "Ma relation ne pourra jamais réussir et je ne peux rien faire de plus pour la maintenir", value: 0 }
+                ],
+                subscale: "satisfaction"
+            }
+        ];
+
+        // Variables globales
+        let currentSection = 0;
+        let currentPartner = 1;
+        let answers = {
+            partner1: {},
+            partner2: {}
+        };
+
+        // Initialiser les questions dans chaque section
+        function initializeQuestions() {
+            for (let i = 1; i <= 4; i++) {
+                const sectionQuestions = questions.filter(q => q.section === i);
+                const container = document.getElementById(`questions-section-${i}`);
+                
+                sectionQuestions.forEach(question => {
+                    const questionBlock = document.createElement('div');
+                    questionBlock.className = 'question-block';
+                    questionBlock.id = `question-block-${question.id}`;
+                    
+                    let html = `<div class="question-text">${question.id}. ${question.text}<span class="checkmark">OK</span></div>`;
+                    html += `<div class="options-grid">`;
+                    
+                    question.options.forEach((option, index) => {
+                        const inputId = `q${question.id}-p${currentPartner}-opt${index}`;
+                        html += `
+                            <label class="option-label" for="${inputId}">
+                                <input type="radio" 
+                                       id="${inputId}" 
+                                       name="q${question.id}-p${currentPartner}" 
+                                       value="${option.value}"
+                                       onchange="updateAnswer(${question.id}, ${option.value}, this)">
+                                <span>${option.text}</span>
+                            </label>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                    questionBlock.innerHTML = html;
+                    container.appendChild(questionBlock);
+                });
+            }
+        }
+
+        // Démarrer le questionnaire
+        function startQuestionnaire() {
+            const name1 = document.getElementById('name-partner1').value.trim();
+            const name2 = document.getElementById('name-partner2').value.trim();
+            
+            if (!name1 || !name2) {
+                alert('Veuillez entrer les prénoms des deux partenaires');
+                return;
+            }
+
+            // Stocker les noms
+            answers.partner1.name = name1;
+            answers.partner2.name = name2;
+
+            // Cacher l'intro et afficher la première section
+            document.getElementById('intro-section').style.display = 'none';
+            document.getElementById('progress-section').style.display = 'block';
+            
+            // Commencer avec le partenaire 1
+            currentPartner = 1;
+            currentSection = 1;
+            initializeQuestions();
+            showSection(1);
+            updateProgress();
+        }
+
+        // Afficher une section
+        function showSection(sectionNum) {
+            // Cacher toutes les sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Afficher la section demandée
+            const section = document.getElementById(`section-${sectionNum}`);
+            if (section) {
+                section.classList.add('active');
+                currentSection = sectionNum;
+                updateProgress();
+                window.scrollTo(0, 0);
+            }
+        }
+
+        // Mettre à jour la réponse
+        function updateAnswer(questionId, value, element) {
+            const partner = `partner${currentPartner}`;
+            answers[partner][`q${questionId}`] = parseInt(value);
+            
+            // Mettre en surbrillance l'option sélectionnée
+            const parentLabel = element.closest('.option-label');
+            const allLabels = parentLabel.parentElement.querySelectorAll('.option-label');
+            allLabels.forEach(label => label.classList.remove('selected'));
+            parentLabel.classList.add('selected');
+            
+            // Marquer la question comme répondue
+            const questionBlock = element.closest('.question-block');
+            questionBlock.classList.add('answered');
+            questionBlock.classList.remove('incomplete');
+            
+            updateProgress();
+            autoSave(); // Sauvegarde automatique
+        }
+
+        // Mettre à jour la barre de progression
+        function updateProgress() {
+            const partner = `partner${currentPartner}`;
+            const totalQuestions = 32;
+            // Compter uniquement les clés qui commencent par 'q' suivi d'un chiffre
+            const answeredQuestions = Object.keys(answers[partner]).filter(key => /^q\d+$/.test(key)).length;
+            const percentage = (answeredQuestions / totalQuestions) * 100;
+            
+            document.getElementById('progress-fill').style.width = percentage + '%';
+            document.getElementById('progress-text').textContent = `Question ${answeredQuestions} sur ${totalQuestions} - ${answers[partner].name || `Partenaire ${currentPartner}`}`;
+        }
+
+        // Navigation
+        function nextSection() {
+            // Vérifier que toutes les questions de la section actuelle sont répondues
+            const currentSectionQuestions = questions.filter(q => q.section === currentSection);
+            const partner = `partner${currentPartner}`;
+            const unansweredQuestions = [];
+            
+            currentSectionQuestions.forEach(q => {
+                if (answers[partner][`q${q.id}`] === undefined) {
+                    unansweredQuestions.push(q.id);
+                    const questionBlock = document.getElementById(`question-block-${q.id}`);
+                    if (questionBlock) {
+                        questionBlock.classList.add('incomplete');
+                    }
+                }
+            });
+            
+            if (unansweredQuestions.length > 0) {
+                showValidationAlert(`Veuillez répondre à toutes les questions avant de continuer (${unansweredQuestions.length} question(s) manquante(s))`);
+                // Scroller vers la première question non répondue
+                const firstIncomplete = document.getElementById(`question-block-${unansweredQuestions[0]}`);
+                if (firstIncomplete) {
+                    firstIncomplete.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+            
+            if (currentSection < 4) {
+                showSection(currentSection + 1);
+            }
+        }
+
+        // Afficher une alerte de validation
+        function showValidationAlert(message, type = 'warning') {
+            const existingAlert = document.querySelector('.validation-alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+            
+            const alert = document.createElement('div');
+            alert.className = `validation-alert ${type === 'success' ? 'success' : ''}`;
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 4000);
+        }
+
+        function previousSection() {
+            if (currentSection > 1) {
+                showSection(currentSection - 1);
+            } else {
+                // Retour à l'intro
+                document.querySelectorAll('.section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                document.getElementById('intro-section').style.display = 'block';
+                document.getElementById('intro-section').classList.add('active');
+                document.getElementById('progress-section').style.display = 'none';
+            }
+        }
+
+        // Calculer les résultats
+        function calculateResults() {
+            // Vérifier que tous les partenaires ont répondu
+            const partner1Answers = Object.keys(answers.partner1).filter(key => /^q\d+$/.test(key)).length;
+            const partner2Answers = Object.keys(answers.partner2).filter(key => /^q\d+$/.test(key)).length;
+            
+            if (partner1Answers < 32) {
+                if (confirm(`${answers.partner1.name} n'a répondu qu'à ${partner1Answers} questions sur 32. Voulez-vous que ${answers.partner1.name} reprenne le questionnaire ?`)) {
+                    currentPartner = 1;
+                    currentSection = 1;
+                    showSection(1);
+                    return;
+                }
+            }
+            
+            if (partner2Answers < 32) {
+                if (confirm(`${answers.partner2.name} doit également remplir le questionnaire. Voulez-vous continuer avec ${answers.partner2.name} ?`)) {
+                    currentPartner = 2;
+                    currentSection = 1;
+                    // Réinitialiser les questions pour le partenaire 2
+                    for (let i = 1; i <= 4; i++) {
+                        document.getElementById(`questions-section-${i}`).innerHTML = '';
+                    }
+                    initializeQuestions();
+                    showSection(1);
+                    return;
+                }
+            }
+
+            // Calculer les scores pour chaque partenaire
+            const scores1 = calculateScoresForPartner('partner1');
+            const scores2 = calculateScoresForPartner('partner2');
+
+            // Afficher les résultats
+            displayResults(scores1, scores2);
+
+            // Cacher les sections de questions et afficher les résultats
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById('progress-section').style.display = 'none';
+            document.getElementById('results-section').classList.add('active');
+        }
+
+        // Calculer les scores pour un partenaire
+        function calculateScoresForPartner(partner) {
+            const partnerAnswers = answers[partner];
+            let scores = {
+                total: 0,
+                consensus: 0,
+                satisfaction: 0,
+                cohesion: 0,
+                affective: 0
+            };
+
+            questions.forEach(question => {
+                const answer = partnerAnswers[`q${question.id}`];
+                if (answer !== undefined) {
+                    scores.total += answer;
+                    scores[question.subscale] += answer;
+                }
+            });
+
+            return scores;
+        }
+
+        // Afficher les résultats
+        function displayResults(scores1, scores2) {
+            // Partenaire 1
+            document.getElementById('partner1-name-display').textContent = answers.partner1.name;
+            document.getElementById('partner1-total-score').textContent = scores1.total;
+            document.getElementById('partner1-consensus').textContent = scores1.consensus;
+            document.getElementById('partner1-satisfaction').textContent = scores1.satisfaction;
+            document.getElementById('partner1-cohesion').textContent = scores1.cohesion;
+            document.getElementById('partner1-affective').textContent = scores1.affective;
+            document.getElementById('partner1-interpretation').innerHTML = getInterpretation(scores1.total);
+
+            // Partenaire 2
+            document.getElementById('partner2-name-display').textContent = answers.partner2.name;
+            document.getElementById('partner2-total-score').textContent = scores2.total;
+            document.getElementById('partner2-consensus').textContent = scores2.consensus;
+            document.getElementById('partner2-satisfaction').textContent = scores2.satisfaction;
+            document.getElementById('partner2-cohesion').textContent = scores2.cohesion;
+            document.getElementById('partner2-affective').textContent = scores2.affective;
+            document.getElementById('partner2-interpretation').innerHTML = getInterpretation(scores2.total);
+
+            // Légende
+            document.getElementById('legend-partner1').textContent = answers.partner1.name;
+            document.getElementById('legend-partner2').textContent = answers.partner2.name;
+
+            // Graphiques comparatifs
+            updateComparisonChart(scores1, scores2);
+
+            // Interprétation du couple
+            document.getElementById('couple-interpretation').innerHTML = getCoupleInterpretation(scores1.total, scores2.total);
+            
+            // Créer le graphique radar
+            setTimeout(() => {
+                createRadarChart(scores1, scores2);
+            }, 100);
+            
+            // Analyser les écarts
+            analyzeGaps(scores1, scores2);
+        }
+
+        // Obtenir l'interprétation du score
+        function getInterpretation(score) {
+            if (score < 70) {
+                return `<strong style="color: #E74C3C;">Score très faible (< 70)</strong><br>
+                        Ce score suggère une détresse relationnelle importante. Il est fortement recommandé de consulter un professionnel de la santé mentale ou un thérapeute de couple pour explorer les difficultés et trouver des solutions adaptées.`;
+            } else if (score < 98) {
+                return `<strong style="color: #FF9800;">Score faible (70-97)</strong><br>
+                        Ce score indique une détresse relationnelle significative. La relation rencontre des difficultés qui méritent attention. Un accompagnement professionnel pourrait être bénéfique pour améliorer la qualité de la relation.`;
+            } else if (score < 115) {
+                return `<strong style="color: #FFD700;">Score moyen (98-114)</strong><br>
+                        Ce score se situe dans la moyenne. La relation présente des aspects positifs mais également des zones d'amélioration. Il peut être utile de réfléchir ensemble aux domaines qui pourraient être renforcés.`;
+            } else {
+                return `<strong style="color: #4CAF50;">Score élevé (≥ 115)</strong><br>
+                        Ce score indique une relation de couple de bonne qualité. Les partenaires semblent bien ajustés et satisfaits de leur relation. Continuez à cultiver cette harmonie.`;
+            }
+        }
+
+        // Créer le graphique radar
+        let radarChartInstance = null;
+        function createRadarChart(scores1, scores2) {
+            const ctx = document.getElementById('radarChart');
+            
+            // Détruire l'ancien graphique s'il existe
+            if (radarChartInstance) {
+                radarChartInstance.destroy();
+            }
+            
+            // Normaliser les scores pour le radar (en pourcentages)
+            const maxScores = {
+                consensus: 65,
+                satisfaction: 50,
+                cohesion: 24,
+                affective: 12
+            };
+            
+            const data1 = [
+                (scores1.consensus / maxScores.consensus * 100).toFixed(1),
+                (scores1.satisfaction / maxScores.satisfaction * 100).toFixed(1),
+                (scores1.cohesion / maxScores.cohesion * 100).toFixed(1),
+                (scores1.affective / maxScores.affective * 100).toFixed(1)
+            ];
+            
+            const data2 = [
+                (scores2.consensus / maxScores.consensus * 100).toFixed(1),
+                (scores2.satisfaction / maxScores.satisfaction * 100).toFixed(1),
+                (scores2.cohesion / maxScores.cohesion * 100).toFixed(1),
+                (scores2.affective / maxScores.affective * 100).toFixed(1)
+            ];
+            
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Consensus', 'Satisfaction', 'Cohésion', 'Expression Affective'],
+                    datasets: [
+                        {
+                            label: answers.partner1.name,
+                            data: data1,
+                            fill: true,
+                            backgroundColor: 'rgba(143, 175, 177, 0.2)',
+                            borderColor: '#8FAFB1',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#8FAFB1',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#8FAFB1'
+                        },
+                        {
+                            label: answers.partner2.name,
+                            data: data2,
+                            fill: true,
+                            backgroundColor: 'rgba(200, 208, 195, 0.2)',
+                            borderColor: '#C8D0C3',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#C8D0C3',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#C8D0C3'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                stepSize: 20,
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 12,
+                                    family: 'Montserrat'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: 'Montserrat',
+                                    size: 14
+                                },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.r + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Analyser les écarts et générer des recommandations
+        function analyzeGaps(scores1, scores2) {
+            const gapAnalysisDiv = document.getElementById('gap-analysis');
+            gapAnalysisDiv.innerHTML = '';
+            
+            const dimensions = [
+                { key: 'consensus', label: 'Consensus sur les valeurs', max: 65, icon: '' },
+                { key: 'satisfaction', label: 'Satisfaction relationnelle', max: 50, icon: '' },
+                { key: 'cohesion', label: 'Cohésion et activités partagées', max: 24, icon: '' },
+                { key: 'affective', label: 'Expression affective et intimité', max: 12, icon: '' }
+            ];
+            
+            let gaps = dimensions.map(dim => {
+                const gap = Math.abs(scores1[dim.key] - scores2[dim.key]);
+                const avg = (scores1[dim.key] + scores2[dim.key]) / 2;
+                const percentage = (avg / dim.max * 100).toFixed(1);
+                
+                return {
+                    ...dim,
+                    gap: gap,
+                    avg: avg,
+                    percentage: percentage,
+                    score1: scores1[dim.key],
+                    score2: scores2[dim.key]
+                };
+            });
+            
+            // Trier par écart décroissant
+            gaps.sort((a, b) => b.gap - a.gap);
+            
+            gaps.forEach((item, index) => {
+                const gapDiv = document.createElement('div');
+                gapDiv.className = 'gap-item';
+                
+                let interpretation = '';
+                let recommendation = '';
+                
+                if (item.gap < 3) {
+                    interpretation = `<strong style="color: #4CAF50;">Perception très similaire</strong> - Vous êtes alignés sur cette dimension.`;
+                    recommendation = getRecommendation(item.key, item.percentage, 'similar');
+                } else if (item.gap < 8) {
+                    interpretation = `<strong style="color: #FFD700;">Écart modéré</strong> - Quelques différences de perception à explorer.`;
+                    recommendation = getRecommendation(item.key, item.percentage, 'moderate');
+                } else {
+                    interpretation = `<strong style="color: #FF9800;">Écart important</strong> - Vos perceptions diffèrent significativement sur ce point.`;
+                    recommendation = getRecommendation(item.key, item.percentage, 'large');
+                }
+                
+                gapDiv.innerHTML = `
+                    <div class="gap-icon">${item.icon}</div>
+                    <div class="gap-content">
+                        <div class="gap-title">${index + 1}. ${item.label}</div>
+                        <div class="gap-description">
+                            ${interpretation}<br>
+                            ${answers.partner1.name}: ${item.score1} • ${answers.partner2.name}: ${item.score2} • Écart: ${item.gap} points<br>
+                            <strong>Recommandation : ${recommendation}</strong>
+                        </div>
+                    </div>
+                    <div class="gap-score">${item.percentage}%</div>
+                `;
+                
+                gapAnalysisDiv.appendChild(gapDiv);
+            });
+        }
+
+        // Obtenir des recommandations selon la dimension et l'écart
+        function getRecommendation(dimension, percentage, gapLevel) {
+            const recommendations = {
+                consensus: {
+                    similar: "Continuez à communiquer ouvertement sur vos valeurs et objectifs communs.",
+                    moderate: "Prenez le temps de discuter de vos priorités respectives pour mieux vous comprendre.",
+                    large: "Il serait bénéfique d'explorer ensemble vos différences de valeurs avec un accompagnement professionnel."
+                },
+                satisfaction: {
+                    similar: "Votre satisfaction relationnelle est harmonieuse. Continuez à cultiver ce qui fonctionne bien.",
+                    moderate: "Identifiez ce qui contribue à votre satisfaction respective et partagez-le avec votre partenaire.",
+                    large: "Les niveaux de satisfaction diffèrent. Un dialogue approfondi sur vos besoins est recommandé."
+                },
+                cohesion: {
+                    similar: "Vous partagez un bon équilibre dans vos activités communes. C'est une force pour votre couple.",
+                    moderate: "Explorez de nouvelles activités à partager qui plaisent à chacun.",
+                    large: "Trouvez un équilibre entre temps ensemble et temps personnel qui convienne aux deux."
+                },
+                affective: {
+                    similar: "Votre expression affective est bien alignée. Maintenez cette connexion émotionnelle.",
+                    moderate: "Communiquez sur vos besoins affectifs et votre langage de l'amour respectif.",
+                    large: "Les besoins affectifs semblent différents. Explorez comment chacun exprime et reçoit l'affection."
+                }
+            };
+            
+            let recommendation = recommendations[dimension][gapLevel];
+            
+            // Ajouter un conseil selon le niveau de performance
+            if (percentage < 50) {
+                recommendation += " Cette dimension nécessite une attention particulière.";
+            } else if (percentage >= 75) {
+                recommendation += " Cette dimension est un point fort de votre relation.";
+            }
+            
+            return recommendation;
+        }
+
+        // Obtenir l'interprétation comparative du couple
+        function getCoupleInterpretation(score1, score2) {
+            const difference = Math.abs(score1 - score2);
+            const averageScore = (score1 + score2) / 2;
+            
+            let html = '<strong>Analyse Comparative du Couple</strong><br><br>';
+            
+            html += `<strong>Score moyen du couple : ${averageScore.toFixed(1)}</strong><br>`;
+            html += `<strong>Différence entre les partenaires : ${difference} points</strong><br><br>`;
+            
+            if (difference < 10) {
+                html += 'Les deux partenaires ont une perception très similaire de la relation. Cette cohérence est généralement un signe positif d\'accord et de compréhension mutuelle.';
+            } else if (difference < 20) {
+                html += 'Il existe une différence modérée dans la perception de la relation entre les deux partenaires. Il pourrait être bénéfique d\'explorer ces différences de perception lors d\'échanges constructifs.';
+            } else {
+                html += 'La différence de perception entre les partenaires est importante. Cela suggère que chacun vit la relation de manière assez différente. Un dialogue approfondi et éventuellement un accompagnement professionnel pourraient aider à harmoniser ces perceptions.';
+            }
+
+            html += '<br><br>';
+            
+            if (averageScore >= 115) {
+                html += '<strong style="color: #4CAF50;">Globalement, le couple présente un bon ajustement dyadique.</strong>';
+            } else if (averageScore >= 98) {
+                html += '<strong style="color: #FFD700;">Le couple présente un ajustement moyen avec des opportunités d\'amélioration.</strong>';
+            } else {
+                html += '<strong style="color: #FF9800;">Le couple rencontre des difficultés importantes. Un accompagnement professionnel est recommandé.</strong>';
+            }
+
+            return html;
+        }
+
+        // Mettre à jour le graphique de comparaison
+        function updateComparisonChart(scores1, scores2) {
+            // Score total (max 151)
+            const totalPercentage1 = (scores1.total / 151) * 100;
+            const totalPercentage2 = (scores2.total / 151) * 100;
+            document.getElementById('bar-total-p1').style.width = totalPercentage1 + '%';
+            document.getElementById('bar-total-p1').textContent = scores1.total;
+            document.getElementById('bar-total-p2').style.width = totalPercentage2 + '%';
+            document.getElementById('bar-total-p2').textContent = scores2.total;
+
+            // Consensus (max environ 65)
+            const consensusPercentage1 = (scores1.consensus / 65) * 100;
+            const consensusPercentage2 = (scores2.consensus / 65) * 100;
+            document.getElementById('bar-consensus-p1').style.width = consensusPercentage1 + '%';
+            document.getElementById('bar-consensus-p1').textContent = scores1.consensus;
+            document.getElementById('bar-consensus-p2').style.width = consensusPercentage2 + '%';
+            document.getElementById('bar-consensus-p2').textContent = scores2.consensus;
+
+            // Satisfaction (max environ 50)
+            const satisfactionPercentage1 = (scores1.satisfaction / 50) * 100;
+            const satisfactionPercentage2 = (scores2.satisfaction / 50) * 100;
+            document.getElementById('bar-satisfaction-p1').style.width = satisfactionPercentage1 + '%';
+            document.getElementById('bar-satisfaction-p1').textContent = scores1.satisfaction;
+            document.getElementById('bar-satisfaction-p2').style.width = satisfactionPercentage2 + '%';
+            document.getElementById('bar-satisfaction-p2').textContent = scores2.satisfaction;
+
+            // Cohésion (max environ 24)
+            const cohesionPercentage1 = (scores1.cohesion / 24) * 100;
+            const cohesionPercentage2 = (scores2.cohesion / 24) * 100;
+            document.getElementById('bar-cohesion-p1').style.width = cohesionPercentage1 + '%';
+            document.getElementById('bar-cohesion-p1').textContent = scores1.cohesion;
+            document.getElementById('bar-cohesion-p2').style.width = cohesionPercentage2 + '%';
+            document.getElementById('bar-cohesion-p2').textContent = scores2.cohesion;
+        }
+
+        // Exporter en PDF
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const scores1 = calculateScoresForPartner('partner1');
+            const scores2 = calculateScoresForPartner('partner2');
+            const averageScore = (scores1.total + scores2.total) / 2;
+            const difference = Math.abs(scores1.total - scores2.total);
+            
+            // Configuration
+            const margin = 20;
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const contentWidth = pageWidth - (margin * 2);
+            let yPos = margin;
+            
+            // Couleurs
+            const colorMer = [143, 175, 177];
+            const colorSable = [230, 215, 195];
+            
+            // En-tête
+            pdf.setFillColor(...colorMer);
+            pdf.rect(0, 0, pageWidth, 40, 'F');
+            
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(20);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Échelle d\'Ajustement Dyadique (DAS-32)', pageWidth / 2, 20, { align: 'center' });
+            
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text('Bilan de Compétences du Couple', pageWidth / 2, 30, { align: 'center' });
+            
+            yPos = 50;
+            
+            // Date et noms
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(11);
+            pdf.text(`Date de l'évaluation : ${new Date().toLocaleDateString('fr-FR')}`, margin, yPos);
+            yPos += 10;
+            pdf.text(`Partenaires : ${answers.partner1.name} et ${answers.partner2.name}`, margin, yPos);
+            yPos += 15;
+            
+            // Résultats Partenaire 1
+            pdf.setFillColor(...colorSable);
+            pdf.rect(margin, yPos, contentWidth, 8, 'F');
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(...colorMer);
+            pdf.text(`Résultats - ${answers.partner1.name}`, margin + 3, yPos + 6);
+            yPos += 12;
+            
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(`Score Total : ${scores1.total} / 151`, margin, yPos);
+            yPos += 7;
+            pdf.text(`• Consensus : ${scores1.consensus}`, margin + 5, yPos);
+            yPos += 6;
+            pdf.text(`• Satisfaction : ${scores1.satisfaction}`, margin + 5, yPos);
+            yPos += 6;
+            pdf.text(`• Cohésion : ${scores1.cohesion}`, margin + 5, yPos);
+            yPos += 6;
+            pdf.text(`• Expression Affective : ${scores1.affective}`, margin + 5, yPos);
+            yPos += 12;
+            
+            // Résultats Partenaire 2
+            pdf.setFillColor(...colorSable);
+            pdf.rect(margin, yPos, contentWidth, 8, 'F');
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(...colorMer);
+            pdf.text(`Résultats - ${answers.partner2.name}`, margin + 3, yPos + 6);
+            yPos += 12;
+            
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(`Score Total : ${scores2.total} / 151`, margin, yPos);
+            yPos += 7;
+            pdf.text(`• Consensus : ${scores2.consensus}`, margin + 5, yPos);
+            yPos += 6;
+            pdf.text(`• Satisfaction : ${scores2.satisfaction}`, margin + 5, yPos);
+            yPos += 6;
+            pdf.text(`• Cohésion : ${scores2.cohesion}`, margin + 5, yPos);
+            yPos += 6;
+            pdf.text(`• Expression Affective : ${scores2.affective}`, margin + 5, yPos);
+            yPos += 12;
+            
+            // Analyse comparative
+            pdf.setFillColor(...colorSable);
+            pdf.rect(margin, yPos, contentWidth, 8, 'F');
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(...colorMer);
+            pdf.text('Analyse Comparative', margin + 3, yPos + 6);
+            yPos += 12;
+            
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(`Score moyen du couple : ${averageScore.toFixed(1)}`, margin, yPos);
+            yPos += 7;
+            pdf.text(`Différence entre les partenaires : ${difference} points`, margin, yPos);
+            yPos += 10;
+            
+            // Interprétation
+            const interpretationText = getCoupleInterpretationText(scores1.total, scores2.total);
+            const splitText = pdf.splitTextToSize(interpretationText, contentWidth);
+            pdf.text(splitText, margin, yPos);
+            yPos += (splitText.length * 6) + 10;
+            
+            // Nouvelle page pour l'analyse détaillée
+            pdf.addPage();
+            yPos = margin;
+            
+            pdf.setFillColor(...colorMer);
+            pdf.rect(0, 0, pageWidth, 15, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Analyse Détaillée des Écarts', pageWidth / 2, 10, { align: 'center' });
+            
+            yPos = 25;
+            
+            // Dimensions
+            const dimensions = [
+                { key: 'consensus', label: 'Consensus sur les valeurs', max: 65 },
+                { key: 'satisfaction', label: 'Satisfaction relationnelle', max: 50 },
+                { key: 'cohesion', label: 'Cohésion et activités partagées', max: 24 },
+                { key: 'affective', label: 'Expression affective', max: 12 }
+            ];
+            
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+            
+            dimensions.forEach((dim, index) => {
+                const gap = Math.abs(scores1[dim.key] - scores2[dim.key]);
+                const avg = (scores1[dim.key] + scores2[dim.key]) / 2;
+                const percentage = (avg / dim.max * 100).toFixed(1);
+                
+                if (yPos > 270) {
+                    pdf.addPage();
+                    yPos = margin;
+                }
+                
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(`${index + 1}. ${dim.label}`, margin, yPos);
+                yPos += 6;
+                
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`${answers.partner1.name}: ${scores1[dim.key]} | ${answers.partner2.name}: ${scores2[dim.key]} | Écart: ${gap} points`, margin + 3, yPos);
+                yPos += 6;
+                pdf.text(`Score moyen: ${percentage}%`, margin + 3, yPos);
+                yPos += 10;
+            });
+            
+            // Normes de référence
+            yPos += 5;
+            pdf.setFillColor(...colorSable);
+            pdf.rect(margin, yPos, contentWidth, 8, 'F');
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(...colorMer);
+            pdf.text('Normes de Référence', margin + 3, yPos + 6);
+            yPos += 12;
+            
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text('• < 70 : Détresse importante (consultation recommandée)', margin, yPos);
+            yPos += 6;
+            pdf.text('• 70-97 : Seuil de détresse', margin, yPos);
+            yPos += 6;
+            pdf.text('• 98-114 : Ajustement moyen', margin, yPos);
+            yPos += 6;
+            pdf.text('• ≥ 115 : Bon ajustement (couple heureux)', margin, yPos);
+            
+            // Pied de page sur toutes les pages
+            const pageCount = pdf.internal.getNumberOfPages();
+            pdf.setFontSize(9);
+            pdf.setTextColor(100, 100, 100);
+            for (let i = 1; i <= pageCount; i++) {
+                pdf.setPage(i);
+                pdf.text('Bilan de Compétences du Couple© - Marie-Christine Abatte Psychologue', 
+                         pageWidth / 2, pageHeight - 10, { align: 'center' });
+            }
+            
+            // Sauvegarder
+            pdf.save(`DAS32_Resultats_${answers.partner1.name}_${answers.partner2.name}_${new Date().toISOString().split('T')[0]}.pdf`);
+            
+            showValidationAlert('PDF exporté avec succès !', 'success');
+        }
+
+        // Obtenir l'interprétation en texte brut (pour PDF)
+        function getCoupleInterpretationText(score1, score2) {
+            const difference = Math.abs(score1 - score2);
+            const averageScore = (score1 + score2) / 2;
+            
+            let text = '';
+            
+            if (difference < 10) {
+                text += 'Les deux partenaires ont une perception très similaire de la relation. ';
+            } else if (difference < 20) {
+                text += 'Il existe une différence modérée dans la perception de la relation. ';
+            } else {
+                text += 'La différence de perception entre les partenaires est importante. ';
+            }
+            
+            if (averageScore >= 115) {
+                text += 'Globalement, le couple présente un bon ajustement.';
+            } else if (averageScore >= 98) {
+                text += 'Le couple présente un ajustement moyen avec des opportunités d\'amélioration.';
+            } else {
+                text += 'Le couple rencontre des difficultés. Un accompagnement professionnel est recommandé.';
+            }
+            
+            return text;
+        }
+
+        // Exporter en texte
+        function exportToText() {
+            const scores1 = calculateScoresForPartner('partner1');
+            const scores2 = calculateScoresForPartner('partner2');
+            
+            let text = '═══════════════════════════════════════════════════════\n';
+            text += '     ÉCHELLE D\'AJUSTEMENT DYADIQUE (DAS-32)\n';
+            text += '                 RÉSULTATS DU COUPLE\n';
+            text += '═══════════════════════════════════════════════════════\n\n';
+            
+            text += `Date: ${new Date().toLocaleDateString('fr-FR')}\n\n`;
+            
+            text += `━━━ ${answers.partner1.name.toUpperCase()} ━━━\n`;
+            text += `Score Total: ${scores1.total} / 151\n`;
+            text += `  • Consensus Dyadique: ${scores1.consensus}\n`;
+            text += `  • Satisfaction Dyadique: ${scores1.satisfaction}\n`;
+            text += `  • Cohésion Dyadique: ${scores1.cohesion}\n`;
+            text += `  • Expression Affective: ${scores1.affective}\n\n`;
+            
+            text += `━━━ ${answers.partner2.name.toUpperCase()} ━━━\n`;
+            text += `Score Total: ${scores2.total} / 151\n`;
+            text += `  • Consensus Dyadique: ${scores2.consensus}\n`;
+            text += `  • Satisfaction Dyadique: ${scores2.satisfaction}\n`;
+            text += `  • Cohésion Dyadique: ${scores2.cohesion}\n`;
+            text += `  • Expression Affective: ${scores2.affective}\n\n`;
+            
+            const averageScore = (scores1.total + scores2.total) / 2;
+            const difference = Math.abs(scores1.total - scores2.total);
+            
+            text += '━━━ ANALYSE DU COUPLE ━━━\n';
+            text += `Score Moyen: ${averageScore.toFixed(1)}\n`;
+            text += `Différence: ${difference} points\n\n`;
+            
+            text += '═══════════════════════════════════════════════════════\n';
+            text += 'NORMES DE RÉFÉRENCE:\n';
+            text += '  • < 70   : Détresse importante (conseil: consultation)\n';
+            text += '  • 70-97  : Seuil de détresse\n';
+            text += '  • 98-114 : Ajustement moyen\n';
+            text += '  • ≥ 115  : Bon ajustement (couple heureux)\n';
+            text += '═══════════════════════════════════════════════════════\n\n';
+            
+            text += 'Bilan de Compétences du Couple©\n';
+            text += 'Marie-Christine Abatte - Psychologue\n';
+            
+            // Créer un blob et télécharger
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `DAS32_Resultats_${answers.partner1.name}_${answers.partner2.name}_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showValidationAlert('Fichier texte exporté avec succès !', 'success');
+        }
+
+        // Recommencer le questionnaire
+        function restartQuestionnaire() {
+            if (confirm('Êtes-vous sûr de vouloir recommencer ? Toutes les réponses seront perdues.')) {
+                // Supprimer la sauvegarde
+                clearSave();
+                
+                // Réinitialiser les réponses
+                answers = {
+                    partner1: {},
+                    partner2: {}
+                };
+                currentSection = 0;
+                currentPartner = 1;
+                
+                // Vider les noms
+                document.getElementById('name-partner1').value = '';
+                document.getElementById('name-partner2').value = '';
+                
+                // Vider les questions
+                for (let i = 1; i <= 4; i++) {
+                    document.getElementById(`questions-section-${i}`).innerHTML = '';
+                }
+                
+                // Détruire le graphique radar s'il existe
+                if (radarChartInstance) {
+                    radarChartInstance.destroy();
+                    radarChartInstance = null;
+                }
+                
+                // Retour à l'intro
+                document.getElementById('results-section').classList.remove('active');
+                document.getElementById('intro-section').style.display = 'block';
+                document.getElementById('intro-section').classList.add('active');
+                document.getElementById('progress-section').style.display = 'none';
+                
+                window.scrollTo(0, 0);
+            }
+        }
+
+        // Initialisation au chargement de la page
+        window.onload = function() {
+            console.log('Échelle d\'Ajustement Dyadique (DAS-32) chargée avec succès');
+            
+            // Vérifier s'il existe une sauvegarde
+            checkForSavedData();
+        };
+    </script>
+</body>
+</html>
