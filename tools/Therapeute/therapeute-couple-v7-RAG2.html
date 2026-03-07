@@ -3878,6 +3878,50 @@ Interventions COURTES et CIBLÉES. Pas de monologue. Maximum 6-8 phrases par int
 - Observation d'un pattern ("Je remarque que quand ${nameA} dit X, ${nameB} fait Y — qu'est-ce qui se passe à ce moment-là ?")
 - Proposition d'un exercice court quand le moment est mûr
 
+═══ OUTILS INTERACTIFS DISPONIBLES ═══
+
+Vous avez accès à 12 outils interactifs HTML que vous pouvez proposer au bon moment. Pour proposer un outil, insérez EXACTEMENT cette balise dans votre message : [OUTIL:nom_outil]
+L'interface transformera automatiquement cette balise en bouton cliquable pour les partenaires.
+
+[OUTIL:swot_conjugal] — SWOT Conjugal (Forces/Faiblesses/Opportunités/Menaces)
+→ Bilan de départ, période de questionnement ou de transition
+
+[OUTIL:Agenda_du_couple-2] — Agenda du Couple interactif
+→ Planification des rituels de connexion, projets communs
+
+[OUTIL:Appartenacogramme] — Appartenancogramme (Neuburger)
+→ Explorer les loyautés familiales, conflits d'appartenance
+
+[OUTIL:Big_5_Quizz] — Big Five "Qui est Nous ?"
+→ Explorer les personnalités, comprendre les frictions de caractère
+
+[OUTIL:IQVR_interactif_sans_exemple] — IQVR — Inventaire Qualité de Vie Relationnelle
+→ Évaluer la satisfaction sur différentes dimensions de la relation
+
+[OUTIL:Le_Controle_Technique_du_Couple_standalone_fixed] — Contrôle Technique du Couple
+→ Bilan structuré complet en début ou mi-parcours thérapeutique
+
+[OUTIL:centres_interet_couple_interactif] — Centres d'Intérêt du Couple
+→ Identifier domaines partagés et espaces d'enrichissement mutuel
+
+[OUTIL:connaissance_de_nous_interactif-3] — Connaissance de soi / de "Nous"
+→ Explorer l'identité individuelle et l'identité du couple
+
+[OUTIL:exercice_gottman_interactif-2] — Exercice Gottman — Connaissance Mutuelle
+→ Renforcer la Love Map — ce que chaque partenaire sait de l'autre
+
+[OUTIL:isqv_couple_ameliore-2] — ISQV — Inventaire Systémique Qualité de Vie
+→ Évaluer la qualité de vie relationnelle via grille systémique
+
+[OUTIL:questionnaire-das32-couple-5] — DAS-32 — Échelle Ajustement Dyadique
+→ Mesurer l'ajustement dyadique (consensus, satisfaction, cohésion, affect)
+
+[OUTIL:relatiogramme_carrousel_interactif] — Relatiogramme Carrousel (Neuburger)
+→ Visualiser les systèmes d'appartenance et leur poids sur le couple
+
+RÈGLE : Proposez UN outil maximum par intervention, au moment cliniquement pertinent.
+Formulez une phrase de contextualisation avant la balise.
+
 ═══ PREMIÈRE INTERVENTION ═══
 
 Accueillez chaleureusement les deux partenaires. Présentez-vous brièvement. Demandez à chacun comment il/elle se sent en arrivant, et ce qui les amène en thérapie de couple. Commencez par ${nameA}.
@@ -17976,7 +18020,41 @@ class ConversationalSystem {
             textNode.textContent = content;
             contentDiv.appendChild(textNode);
         } else {
-            contentDiv.textContent = content;
+            if (role === 'assistant' && content.includes('[OUTIL:')) {
+                var TOOL_LABELS = {
+                    'swot_conjugal': 'SWOT Conjugal',
+                    'Agenda_du_couple-2': 'Agenda du Couple',
+                    'Appartenacogramme': 'Appartenancogramme',
+                    'Big_5_Quizz': 'Big Five — Qui est Nous ?',
+                    'IQVR_interactif_sans_exemple': 'IQVR — Qualité de Vie Relationnelle',
+                    'Le_Controle_Technique_du_Couple_standalone_fixed': 'Contrôle Technique du Couple',
+                    'centres_interet_couple_interactif': "Centres d'Intérêt du Couple",
+                    'connaissance_de_nous_interactif-3': 'Connaissance de soi / de Nous',
+                    'exercice_gottman_interactif-2': 'Exercice Gottman — Connaissance Mutuelle',
+                    'isqv_couple_ameliore-2': 'ISQV — Inventaire Systémique',
+                    'questionnaire-das32-couple-5': 'DAS-32 — Ajustement Dyadique',
+                    'relatiogramme_carrousel_interactif': 'Relatiogramme Carrousel'
+                };
+                var parts = content.split(/(\[OUTIL:[^\]]+\])/g);
+                parts.forEach(function(part) {
+                    var toolMatch = part.match(/\[OUTIL:([^\]]+)\]/);
+                    if (toolMatch) {
+                        var toolId = toolMatch[1];
+                        var label = TOOL_LABELS[toolId] || toolId;
+                        var toolBtn = document.createElement('button');
+                        toolBtn.className = 'outil-couple-btn';
+                        toolBtn.innerHTML = '<span style="font-size:16px;">🛠️</span> <span>' + label + '</span>';
+                        toolBtn.onclick = function() { openCoupleOutilTool(toolId); };
+                        contentDiv.appendChild(toolBtn);
+                    } else if (part.trim()) {
+                        var textNode = document.createElement('span');
+                        textNode.textContent = part;
+                        contentDiv.appendChild(textNode);
+                    }
+                });
+            } else {
+                contentDiv.textContent = content;
+            }
         }
         messageDiv.appendChild(contentDiv);
         
@@ -37971,5 +38049,35 @@ window.addEventListener('beforeunload', () => {
     <span class="switch-label" style="font-size: 10px; opacity: 0.6;">1 / 2</span>
 </div>
 
+
+<style>
+.outil-couple-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px 0;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(143,175,177,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.outil-couple-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 18px rgba(143,175,177,0.5);
+}
+</style>
+<script>
+const COUPLE_OUTILS_BASE_URL = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Therapeute%20de%20couple/Couple/';
+function openCoupleOutilTool(toolId) {
+    window.open(COUPLE_OUTILS_BASE_URL + encodeURIComponent(toolId) + '.html', '_blank', 'noopener,noreferrer');
+}
+</script>
 </body>
 </html>
