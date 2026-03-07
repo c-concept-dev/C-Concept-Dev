@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qui est "Nous" ? - Questionnaire de Personnalité</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            color: #8FAFB1;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #8FAFB1;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #C8D0C3;
+        }
+
+        .intro {
+            background: #E6D7C3;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            line-height: 1.6;
+            border-left: 4px solid #8FAFB1;
+        }
+
+        .partner-section {
+            background: linear-gradient(135deg, #C8D0C3 0%, #8FAFB1 100%);
+            color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+
+        .partner-section.partner2 {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+        }
+
+        .partner-input {
+            margin: 20px 0;
+        }
+
+        .partner-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .partner-input input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .question {
+            background: #E6D7C3;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            border-left: 4px solid #8FAFB1;
+        }
+
+        .question-text {
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .rating-scale {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .rating-option {
+            flex: 1;
+            text-align: center;
+        }
+
+        .rating-option input[type="radio"] {
+            display: none;
+        }
+
+        .rating-option label {
+            display: block;
+            padding: 12px 5px;
+            background: #FFFFFF;
+            border: 2px solid #D8CDBB;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .rating-option input[type="radio"]:checked + label {
+            background: #8FAFB1;
+            color: white;
+            border-color: #8FAFB1;
+            transform: scale(1.05);
+        }
+
+        .rating-option label:hover {
+            border-color: #8FAFB1;
+            transform: scale(1.02);
+        }
+
+        .scale-legend {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0 20px 0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto;
+            transition: transform 0.3s;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .results {
+            display: none;
+            margin-top: 40px;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #8FAFB1;
+        }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .score-label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .score-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #8FAFB1;
+        }
+
+        .interpretation {
+            background: #D8CDBB;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #8FAFB1;
+        }
+
+        .compatibility {
+            background: #C8D0C3;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #8FAFB1;
+        }
+
+        .warning {
+            background: #D8CDBB;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #8FAFB1;
+            opacity: 0.9;
+        }
+
+        .progress-bar {
+            background: #FFFFFF;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+            border: 1px solid #D8CDBB;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8FAFB1 0%, #C8D0C3 100%);
+            transition: width 0.5s;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #D8CDBB;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            color: #000000;
+        }
+
+        @media (max-width: 768px) {
+            .rating-scale {
+                flex-wrap: wrap;
+            }
+            
+            .rating-option {
+                flex: 0 0 calc(20% - 8px);
+                margin: 4px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QUI EST "NOUS" ?</h1>
+        <div class="intro">
+            <h3>Questionnaire d'évaluation de Couple avec adaptation du modèle Big Five</h3>
+            <p style="margin-top: 10px;">Le modèle des Big Five est un modèle de personnalité proposé par Lewis Goldberg en 1981. Il se compose de 5 dimensions principales : l'Ouverture à l'expérience, la Conscience, l'Extraversion, l'Agréabilité, le Névrosisme.</p>
+            <p style="margin-top: 10px;"><strong>Instructions :</strong> Chaque partenaire répond individuellement aux 50 questions suivantes en notant chaque affirmation de 1 à 5.</p>
+        </div>
+
+        <div class="partner-section">
+            <h3>👤 Partenaire 1</h3>
+            <div class="partner-input">
+                <label for="partner1Name">Prénom :</label>
+                <input type="text" id="partner1Name" placeholder="Entrez votre prénom">
+            </div>
+        </div>
+
+        <div class="scale-legend">
+            <span>1 = Fortement en désaccord</span>
+            <span>2 = Plutôt en désaccord</span>
+            <span>3 = Neutre</span>
+            <span>4 = Plutôt d'accord</span>
+            <span>5 = Fortement d'accord</span>
+        </div>
+
+        <form id="quizForm">
+            <h2>NÉVROSISME (N)</h2>
+            <div id="neuroticismQuestions"></div>
+
+            <h2>EXTRAVERSION (E)</h2>
+            <div id="extraversionQuestions"></div>
+
+            <h2>OUVERTURE (O)</h2>
+            <div id="opennessQuestions"></div>
+
+            <h2>AGRÉABILITÉ (A)</h2>
+            <div id="agreeablenessQuestions"></div>
+
+            <h2>CONSCIENCIOSITÉ (C)</h2>
+            <div id="conscientiousnessQuestions"></div>
+
+            <button type="button" class="btn" onclick="switchPartner()">Passer au Partenaire 2 →</button>
+        </form>
+
+        <div class="partner-section partner2" id="partner2Section" style="display:none;">
+            <h3>👤 Partenaire 2</h3>
+            <div class="partner-input">
+                <label for="partner2Name">Prénom :</label>
+                <input type="text" id="partner2Name" placeholder="Entrez votre prénom">
+            </div>
+        </div>
+
+        <form id="quizForm2" style="display:none;">
+            <h2>NÉVROSISME (N)</h2>
+            <div id="neuroticismQuestions2"></div>
+
+            <h2>EXTRAVERSION (E)</h2>
+            <div id="extraversionQuestions2"></div>
+
+            <h2>OUVERTURE (O)</h2>
+            <div id="opennessQuestions2"></div>
+
+            <h2>AGRÉABILITÉ (A)</h2>
+            <div id="agreeablenessQuestions2"></div>
+
+            <h2>CONSCIENCIOSITÉ (C)</h2>
+            <div id="conscientiousnessQuestions2"></div>
+
+            <button type="button" class="btn" onclick="calculateResults()">Voir les Résultats 📊</button>
+        </form>
+
+        <div id="results" class="results"></div>
+
+        <div class="footer">
+            Bilan de Compétences du couple© - Marie-Christine Abatte Psychologue
+        </div>
+    </div>
+
+    <script>
+        const questions = {
+            neuroticism: [
+                "Je m'inquiète facilement des problèmes potentiels dans notre relation",
+                "Mes émotions sont souvent intenses dans notre relation",
+                "Je me sens parfois submergé(e) par nos désaccords",
+                "J'ai tendance à ruminer longtemps après une dispute",
+                "Le stress affecte fortement mon comportement avec mon/ma partenaire",
+                "Je ressens souvent de l'anxiété concernant notre avenir ensemble",
+                "Les critiques de mon/ma partenaire me blessent profondément",
+                "J'ai du mal à gérer les changements dans notre relation",
+                "Je me sens parfois dépassé(e) par les attentes de mon/ma partenaire",
+                "Les tensions relationnelles affectent mon bien-être physique"
+            ],
+            extraversion: [
+                "J'aime organiser des activités sociales avec mon/ma partenaire",
+                "Je prends souvent l'initiative dans notre relation",
+                "Je communique facilement mes besoins et désirs",
+                "J'apprécie partager mes expériences avec mon/ma partenaire",
+                "Je suis énergisé(e) par nos moments de partage",
+                "J'aime surprendre mon/ma partenaire",
+                "Je recherche activement des moments d'intimité",
+                "Je m'exprime spontanément dans notre relation",
+                "J'apprécie les activités dynamiques en couple",
+                "Je partage facilement mes émotions positives"
+            ],
+            openness: [
+                "J'aime explorer de nouvelles activités avec mon/ma partenaire",
+                "Je suis ouvert(e) aux points de vue différents de mon/ma partenaire",
+                "J'apprécie les discussions profondes sur notre relation",
+                "Je suis curieux(se) de découvrir de nouveaux aspects de mon/ma partenaire",
+                "J'accepte facilement les changements dans notre dynamique de couple",
+                "Je suis intéressé(e) par les centres d'intérêt de mon/ma partenaire",
+                "J'aime réinventer notre routine de couple",
+                "Je suis réceptif(ve) aux nouvelles façons de résoudre nos conflits",
+                "J'apprécie les échanges intellectuels avec mon/ma partenaire",
+                "Je suis ouvert(e) à de nouvelles expériences ensemble"
+            ],
+            agreeableness: [
+                "Je fais des compromis pour maintenir l'harmonie",
+                "Je montre de l'empathie envers mon/ma partenaire",
+                "Je pardonne facilement les erreurs de mon/ma partenaire",
+                "Je suis attentif(ve) aux besoins de mon/ma partenaire",
+                "J'évite les confrontations agressives lors des désaccords",
+                "Je recherche le consensus dans nos décisions",
+                "Je suis patient(e) avec les défauts de mon/ma partenaire",
+                "Je valorise le point de vue de mon/ma partenaire",
+                "Je fais preuve de douceur dans mes critiques",
+                "Je suis conciliant(e) dans nos désaccords"
+            ],
+            conscientiousness: [
+                "Je suis fiable dans mes engagements envers mon/ma partenaire",
+                "Je planifie nos projets communs avec soin",
+                "Je respecte nos accords de couple",
+                "Je suis organisé(e) dans notre vie commune",
+                "Je prends mes responsabilités dans notre relation",
+                "Je suis ponctuel(le) dans nos rendez-vous",
+                "Je maintiens une communication régulière",
+                "Je suis méthodique dans la résolution de nos problèmes",
+                "Je suis constant(e) dans mes efforts relationnels",
+                "Je suis rigoureux(se) dans la gestion de notre quotidien"
+            ]
+        };
+
+        let currentPartner = 1;
+
+        function renderQuestions(containerId, questionArray, prefix) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = questionArray.map((q, i) => `
+                <div class="question">
+                    <div class="question-text">${i + 1}. ${q}</div>
+                    <div class="rating-scale">
+                        ${[1, 2, 3, 4, 5].map(val => `
+                            <div class="rating-option">
+                                <input type="radio" id="${prefix}_${i}_${val}" name="${prefix}_${i}" value="${val}" required>
+                                <label for="${prefix}_${i}_${val}">${val}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialiser les questions
+        renderQuestions('neuroticismQuestions', questions.neuroticism, 'p1_n');
+        renderQuestions('extraversionQuestions', questions.extraversion, 'p1_e');
+        renderQuestions('opennessQuestions', questions.openness, 'p1_o');
+        renderQuestions('agreeablenessQuestions', questions.agreeableness, 'p1_a');
+        renderQuestions('conscientiousnessQuestions', questions.conscientiousness, 'p1_c');
+
+        renderQuestions('neuroticismQuestions2', questions.neuroticism, 'p2_n');
+        renderQuestions('extraversionQuestions2', questions.extraversion, 'p2_e');
+        renderQuestions('opennessQuestions2', questions.openness, 'p2_o');
+        renderQuestions('agreeablenessQuestions2', questions.agreeableness, 'p2_a');
+        renderQuestions('conscientiousnessQuestions2', questions.conscientiousness, 'p2_c');
+
+        function switchPartner() {
+            const form1 = document.getElementById('quizForm');
+            const allAnswered = Array.from(form1.querySelectorAll('input[type="radio"]'))
+                .reduce((groups, input) => {
+                    const name = input.name;
+                    if (!groups[name]) groups[name] = false;
+                    if (input.checked) groups[name] = true;
+                    return groups;
+                }, {});
+
+            const allQuestionsAnswered = Object.values(allAnswered).every(v => v);
+
+            if (!allQuestionsAnswered || !document.getElementById('partner1Name').value) {
+                alert('Veuillez répondre à toutes les questions et entrer votre prénom avant de continuer.');
+                return;
+            }
+
+            document.getElementById('quizForm').style.display = 'none';
+            document.querySelector('.partner-section').style.display = 'none';
+            document.getElementById('partner2Section').style.display = 'block';
+            document.getElementById('quizForm2').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        function getScore(prefix) {
+            let score = 0;
+            for (let i = 0; i < 10; i++) {
+                const selected = document.querySelector(`input[name="${prefix}_${i}"]:checked`);
+                if (selected) {
+                    score += parseInt(selected.value);
+                }
+            }
+            return score;
+        }
+
+        function interpretScore(dimension, score) {
+            const interpretations = {
+                N: {
+                    high: "Tendance à l'instabilité émotionnelle, sensibilité accrue aux stress relationnels, besoin important de réassurance.",
+                    low: "Stabilité émotionnelle, résilience face aux difficultés relationnelles, gestion efficace du stress."
+                },
+                E: {
+                    high: "Communication ouverte, recherche active d'interactions et d'activités communes, expression émotionnelle spontanée.",
+                    low: "Préférence pour l'intimité calme, communication plus réservée, besoin d'espace personnel important."
+                },
+                O: {
+                    high: "Curiosité relationnelle, adaptabilité aux changements, intérêt pour l'exploration et le développement du couple.",
+                    low: "Préférence pour la stabilité et la routine, approche plus traditionnelle de la relation."
+                },
+                A: {
+                    high: "Grande capacité d'empathie, recherche d'harmonie, flexibilité dans le compromis.",
+                    low: "Communication plus directe, accent sur l'autonomie, possible difficulté dans les compromis."
+                },
+                C: {
+                    high: "Fiabilité relationnelle, organisation structurée, engagement constant dans la relation.",
+                    low: "Approche plus spontanée, flexibilité dans les engagements, possible inconsistance dans le suivi."
+                }
+            };
+
+            if (score > 35) return interpretations[dimension].high;
+            if (score < 25) return interpretations[dimension].low;
+            return "Score modéré - équilibre entre les deux tendances.";
+        }
+
+        function calculateResults() {
+            const form2 = document.getElementById('quizForm2');
+            const allAnswered = Array.from(form2.querySelectorAll('input[type="radio"]'))
+                .reduce((groups, input) => {
+                    const name = input.name;
+                    if (!groups[name]) groups[name] = false;
+                    if (input.checked) groups[name] = true;
+                    return groups;
+                }, {});
+
+            const allQuestionsAnswered = Object.values(allAnswered).every(v => v);
+
+            if (!allQuestionsAnswered || !document.getElementById('partner2Name').value) {
+                alert('Veuillez répondre à toutes les questions et entrer votre prénom avant de voir les résultats.');
+                return;
+            }
+
+            const partner1Name = document.getElementById('partner1Name').value || 'Partenaire 1';
+            const partner2Name = document.getElementById('partner2Name').value || 'Partenaire 2';
+
+            const scores = {
+                p1: {
+                    N: getScore('p1_n'),
+                    E: getScore('p1_e'),
+                    O: getScore('p1_o'),
+                    A: getScore('p1_a'),
+                    C: getScore('p1_c')
+                },
+                p2: {
+                    N: getScore('p2_n'),
+                    E: getScore('p2_e'),
+                    O: getScore('p2_o'),
+                    A: getScore('p2_a'),
+                    C: getScore('p2_c')
+                }
+            };
+
+            const dimensions = {
+                N: 'Névrosisme',
+                E: 'Extraversion',
+                O: 'Ouverture',
+                A: 'Agréabilité',
+                C: 'Conscienciosité'
+            };
+
+            let resultsHTML = '<h2>📊 RÉSULTATS DU COUPLE</h2>';
+
+            // Scores individuels
+            Object.keys(dimensions).forEach(dim => {
+                resultsHTML += `
+                    <div class="score-card">
+                        <h3>${dimensions[dim]}</h3>
+                        <div class="score-row">
+                            <span class="score-label">${partner1Name}</span>
+                            <span class="score-value">${scores.p1[dim]}/50</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(scores.p1[dim]/50)*100}%"></div>
+                        </div>
+                        <div class="score-row">
+                            <span class="score-label">${partner2Name}</span>
+                            <span class="score-value">${scores.p2[dim]}/50</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(scores.p2[dim]/50)*100}%"></div>
+                        </div>
+                        <div class="interpretation">
+                            <strong>${partner1Name}:</strong> ${interpretScore(dim, scores.p1[dim])}
+                        </div>
+                        <div class="interpretation">
+                            <strong>${partner2Name}:</strong> ${interpretScore(dim, scores.p2[dim])}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Analyse de compatibilité
+            resultsHTML += '<h2>💑 ANALYSE DE LA DYNAMIQUE DU COUPLE</h2>';
+            
+            resultsHTML += '<div class="compatibility"><h3>✅ Compatibilités favorables</h3><ul>';
+            Object.keys(dimensions).forEach(dim => {
+                const diff = Math.abs(scores.p1[dim] - scores.p2[dim]);
+                if (diff <= 10) {
+                    resultsHTML += `<li><strong>${dimensions[dim]}:</strong> Scores similaires (différence de ${diff} points) - Bonne harmonie sur cette dimension.</li>`;
+                }
+            });
+            resultsHTML += '</ul></div>';
+
+            resultsHTML += '<div class="warning"><h3>⚠️ Points de vigilance</h3><ul>';
+            Object.keys(dimensions).forEach(dim => {
+                const diff = Math.abs(scores.p1[dim] - scores.p2[dim]);
+                if (diff > 15) {
+                    resultsHTML += `<li><strong>${dimensions[dim]}:</strong> Écart important (${diff} points) - Peut nécessiter une attention particulière.</li>`;
+                }
+            });
+            resultsHTML += '</ul></div>';
+
+            resultsHTML += `
+                <div class="interpretation">
+                    <h3>🌱 Axes de progrès</h3>
+                    <ol>
+                        <li>Explorer les complémentarités possibles dans les différences</li>
+                        <li>Développer des stratégies de communication adaptées aux profils</li>
+                        <li>Identifier les zones de compromis potentielles</li>
+                        <li>Travailler sur l'acceptation des différences stables</li>
+                        <li>Renforcer les points de convergence naturels</li>
+                    </ol>
+                </div>
+            `;
+
+            document.getElementById('results').innerHTML = resultsHTML;
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
