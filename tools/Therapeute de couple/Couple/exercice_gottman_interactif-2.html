@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercice de Connaissance Mutuelle - Couple</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #FFFFFF;
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #333333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+        }
+
+        h1 {
+            font-size: 2.2em;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            font-weight: 400;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .intro-section {
+            background: #E6D7C3;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #8FAFB1;
+            line-height: 1.8;
+        }
+
+        .quote {
+            font-style: italic;
+            color: #8FAFB1;
+            font-size: 1.1em;
+            margin: 20px 0;
+            padding-left: 20px;
+            border-left: 3px solid #8FAFB1;
+        }
+
+        .instructions {
+            background: #D8CDBB;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #8FAFB1;
+        }
+
+        .instructions h2 {
+            color: #8FAFB1;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .instructions ul {
+            margin-left: 25px;
+            line-height: 2;
+        }
+
+        .progress-bar {
+            background: #E6D7C3;
+            height: 8px;
+            border-radius: 10px;
+            margin: 30px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #8FAFB1;
+            font-weight: 600;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+
+        .question-card {
+            background: #FFFFFF;
+            border: 2px solid #E6D7C3;
+            border-left: 5px solid #8FAFB1;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.2);
+            border-left-width: 8px;
+        }
+
+        .question-number {
+            color: #8FAFB1;
+            font-weight: 700;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #333333;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .response-area {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 2px solid #D8CDBB;
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1em;
+            color: #333333;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        .response-area:focus {
+            outline: none;
+            border-color: #8FAFB1;
+            box-shadow: 0 0 0 3px rgba(143, 175, 177, 0.1);
+        }
+
+        .response-area::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(143, 175, 177, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #D8CDBB 0%, #E6D7C3 100%);
+            color: #333333;
+        }
+
+        .filter-section {
+            background: #E6D7C3;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .filter-section h3 {
+            color: #8FAFB1;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .filter-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: #FFFFFF;
+            color: #333333;
+            border: 2px solid #C8D0C3;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .filter-btn:hover {
+            border-color: #8FAFB1;
+            background: #8FAFB1;
+            color: white;
+        }
+
+        .filter-btn.active {
+            background: #8FAFB1;
+            color: white;
+            border-color: #8FAFB1;
+        }
+
+        .stats-section {
+            background: #D8CDBB;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 30px 0;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: 700;
+            color: #8FAFB1;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #333333;
+            margin-top: 5px;
+        }
+
+        .export-section {
+            background: #E6D7C3;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .export-section h3 {
+            color: #8FAFB1;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid #D8CDBB;
+            font-size: 0.9em;
+            color: #666666;
+            line-height: 1.8;
+        }
+
+        .partner-selector {
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #8FAFB1;
+            text-align: center;
+        }
+
+        .partner-selector h3 {
+            color: #8FAFB1;
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .partner-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .partner-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .partner-name-input {
+            width: 200px;
+            padding: 10px 15px;
+            border: 2px solid #C8D0C3;
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.95em;
+            color: #333333;
+            text-align: center;
+            background: #FFFFFF;
+            transition: border-color 0.3s ease;
+        }
+
+        .partner-name-input:focus {
+            outline: none;
+            border-color: #8FAFB1;
+            box-shadow: 0 0 0 3px rgba(143, 175, 177, 0.1);
+        }
+
+        .partner-btn {
+            background: #FFFFFF;
+            color: #333333;
+            border: 3px solid #C8D0C3;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            min-width: 200px;
+        }
+
+        .partner-btn:hover {
+            border-color: #8FAFB1;
+            transform: translateY(-2px);
+        }
+
+        .partner-btn.active {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            border-color: #8FAFB1;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.4);
+        }
+
+        .partner-note {
+            font-size: 0.95em;
+            color: #333333;
+            margin-top: 15px;
+            font-style: italic;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            header {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+
+            .question-card {
+                padding: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .completion-message {
+            background: linear-gradient(135deg, #8FAFB1 0%, #C8D0C3 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 30px 0;
+            box-shadow: 0 4px 15px rgba(143, 175, 177, 0.3);
+        }
+
+        .completion-message h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .completion-message p {
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Exercice de Connaissance Mutuelle</h1>
+            <div class="subtitle">Pour approfondir votre connexion de couple</div>
+        </header>
+
+        <div class="partner-selector">
+            <h3>Qui répond ?</h3>
+            <div class="partner-buttons">
+                <div class="partner-input-group">
+                    <input type="text" 
+                           id="partner1Name" 
+                           class="partner-name-input" 
+                           placeholder="Prénom partenaire 1" 
+                           value="Partenaire 1"
+                           onchange="updatePartnerName(1)">
+                    <button class="partner-btn active" data-partner="1" onclick="switchPartner(1)">
+                        <span id="partner1BtnLabel">👤 Partenaire 1</span>
+                    </button>
+                </div>
+                <div class="partner-input-group">
+                    <input type="text" 
+                           id="partner2Name" 
+                           class="partner-name-input" 
+                           placeholder="Prénom partenaire 2" 
+                           value="Partenaire 2"
+                           onchange="updatePartnerName(2)">
+                    <button class="partner-btn" data-partner="2" onclick="switchPartner(2)">
+                        <span id="partner2BtnLabel">👤 Partenaire 2</span>
+                    </button>
+                </div>
+            </div>
+            <p class="partner-note">Vous pouvez personnaliser les prénoms. Chaque partenaire a son propre espace de réponses.</p>
+        </div>
+
+        <div class="intro-section">
+            <p><strong>Bienvenue dans cet exercice de découverte et de partage.</strong></p>
+            <p style="margin-top: 15px;">Cet exercice vous invite, en couple, à explorer vos pensées, vos valeurs et vos émotions les plus profondes. Il est conçu pour favoriser la connexion authentique et la compréhension mutuelle entre vous.</p>
+            <p style="margin-top: 15px;">Chaque partenaire répond individuellement aux questions, puis vous partagez vos réponses pour approfondir votre dialogue et votre intimité.</p>
+        </div>
+
+        <div class="instructions">
+            <h2>Mode d'emploi</h2>
+            <ul>
+                <li>Complétez les phrases avec tout ce qui vous vient à l'esprit</li>
+                <li>Soyez spontané(e) : ne censurez pas, n'intellectualisez pas</li>
+                <li>Vous pouvez choisir de répondre spontanément ou de préparer vos réponses</li>
+                <li>Il n'y a pas de bonnes ou de mauvaises réponses</li>
+                <li>Prenez votre temps : vous pouvez revenir à cet exercice quand vous le souhaitez</li>
+                <li>Partagez ensuite vos réponses avec votre partenaire pour approfondir votre connexion</li>
+            </ul>
+        </div>
+
+        <div class="filter-section">
+            <h3>Filtrer par thème (optionnel)</h3>
+            <div class="filter-options">
+                <button class="filter-btn active" data-theme="all">Toutes les questions</button>
+                <button class="filter-btn" data-theme="vie">Vie & Valeurs</button>
+                <button class="filter-btn" data-theme="relation">Relations</button>
+                <button class="filter-btn" data-theme="intimite">Intimité</button>
+                <button class="filter-btn" data-theme="emotions">Émotions</button>
+                <button class="filter-btn" data-theme="quotidien">Quotidien</button>
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <div class="stat-item">
+                <div class="stat-number" id="totalQuestions">115</div>
+                <div class="stat-label">Questions totales</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="answeredQuestions">0</div>
+                <div class="stat-label">Réponses complétées</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="progressPercent">0%</div>
+                <div class="stat-label">Progression</div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Commencez à répondre pour voir votre progression</div>
+
+        <div id="questionsContainer"></div>
+
+        <div class="controls">
+            <button class="btn" onclick="saveResponses()">💾 Sauvegarder mes réponses</button>
+            <button class="btn btn-secondary" onclick="loadResponses()">📂 Charger mes réponses</button>
+            <button class="btn" onclick="exportToPDF()">📄 Exporter en PDF</button>
+            <button class="btn btn-secondary" onclick="resetAll()">🔄 Recommencer</button>
+        </div>
+
+        <div class="export-section">
+            <h3>Partage et sauvegarde</h3>
+            <p>Vos réponses sont sauvegardées localement dans votre navigateur. Vous pouvez exporter vos réponses en PDF pour les partager avec votre partenaire ou les conserver.</p>
+        </div>
+
+        <div class="footer">
+            <p><strong>Exercice de Connaissance Mutuelle</strong></p>
+            <p>Bilan de Compétences du couple© - Marie-Christine Abatte Psychologue</p>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            { id: 1, text: "Mon but dans la vie c'est ...", theme: "vie" },
+            { id: 2, text: "Ce qui me satisfait le plus dans la vie, c'est ...", theme: "vie" },
+            { id: 3, text: "Mon enfance a été ...", theme: "vie" },
+            { id: 4, text: "Je pense que la sexualité c'est ...", theme: "intimite" },
+            { id: 5, text: "Quand je fais l'amour, je préfère ...", theme: "intimite" },
+            { id: 6, text: "Ma plus grande crainte c'est ...", theme: "emotions" },
+            { id: 7, text: "Mon besoin le plus important c'est ...", theme: "emotions" },
+            { id: 8, text: "Mon sentiment le plus fréquent c'est ...", theme: "emotions" },
+            { id: 9, text: "Ce que je hais le plus c'est ...", theme: "emotions" },
+            { id: 10, text: "Je m'inquiète le plus au sujet de ...", theme: "emotions" },
+            { id: 11, text: "Mes buts pour avoir une relation privilégiée sont ...", theme: "relation" },
+            { id: 12, text: "Mes raisons d'avoir une relation privilégiée sont ...", theme: "relation" },
+            { id: 13, text: "Je pense que mes relations ont été ...", theme: "relation" },
+            { id: 14, text: "3 choses à mon sujet que je veux changer : a) ... b) ... c) ...", theme: "vie" },
+            { id: 15, text: "Je rêve de ...", theme: "vie" },
+            { id: 16, text: "Je suis en colère quand ...", theme: "emotions" },
+            { id: 17, text: "Je pense que je suis ...", theme: "vie" },
+            { id: 18, text: "La valeur la plus importante pour moi c'est ...", theme: "vie" },
+            { id: 19, text: "Je pense que dépenser de l'argent c'est ...", theme: "quotidien" },
+            { id: 20, text: "Un corps nu c'est ...", theme: "intimite" },
+            { id: 21, text: "Mon plaisir le plus fréquent c'est ...", theme: "emotions" },
+            { id: 22, text: "Je suis des plus heureux(se) quand ...", theme: "emotions" },
+            { id: 23, text: "Quand un homme fait l'amour il devrait ...", theme: "intimite" },
+            { id: 24, text: "Mon corps devrait toujours être ...", theme: "intimite" },
+            { id: 25, text: "Pour moi le travail c'est ...", theme: "quotidien" },
+            { id: 26, text: "En général, je vois la vie comme ...", theme: "vie" },
+            { id: 27, text: "Quand je vais à une réception je ...", theme: "quotidien" },
+            { id: 28, text: "Les corps des femmes sont ...", theme: "intimite" },
+            { id: 29, text: "Pour moi une carrière idéale c'est ...", theme: "quotidien" },
+            { id: 30, text: "La personne que j'admire le plus c'est ...", theme: "vie" },
+            { id: 31, text: "Pour moi la mort c'est ...", theme: "vie" },
+            { id: 32, text: "Je pense que la guerre c'est ...", theme: "vie" },
+            { id: 33, text: "Je n'ai pas besoin de personnes qui ...", theme: "relation" },
+            { id: 34, text: "J'ai peur de ...", theme: "emotions" },
+            { id: 35, text: "Quand quelqu'un est grossier envers moi je ...", theme: "emotions" },
+            { id: 36, text: "Je ne peux pas comprendre les personnes qui ...", theme: "vie" },
+            { id: 37, text: "Les corps des hommes sont ...", theme: "intimite" },
+            { id: 38, text: "En général je pense que mes forces sont ...", theme: "vie" },
+            { id: 39, text: "Après avoir fait l'amour, un homme ...", theme: "intimite" },
+            { id: 40, text: "Mes faiblesses sont ...", theme: "vie" },
+            { id: 41, text: "Je pense que l'argent est ...", theme: "quotidien" },
+            { id: 42, text: "Pour moi, les enfants sont ...", theme: "relation" },
+            { id: 43, text: "Les parents sont ...", theme: "relation" },
+            { id: 44, text: "La vie des personnes mariées est ...", theme: "relation" },
+            { id: 45, text: "Je suis envieux(se) de ...", theme: "emotions" },
+            { id: 46, text: "Ce que je veux c'est ...", theme: "vie" },
+            { id: 47, text: "Mes vacances de rêve sont ...", theme: "quotidien" },
+            { id: 48, text: "Ce qui m'amuse le plus c'est ...", theme: "emotions" },
+            { id: 49, text: "Je prends grand plaisir à ...", theme: "emotions" },
+            { id: 50, text: "Mon sport favori c'est ...", theme: "quotidien" },
+            { id: 51, text: "Ce qui me dégoute c'est ...", theme: "emotions" },
+            { id: 52, text: "Je crois que la retraite est ...", theme: "quotidien" },
+            { id: 53, text: "Beaucoup de mes rêves portent sur ...", theme: "vie" },
+            { id: 54, text: "Quand j'ai peur je ...", theme: "emotions" },
+            { id: 55, text: "Quand je vois des couples s'embrasser en public je ...", theme: "intimite" },
+            { id: 56, text: "L'orgasme de l'homme pour une femme c'est ...", theme: "intimite" },
+            { id: 57, text: "Quand je tombe amoureux(se), je ...", theme: "relation" },
+            { id: 58, text: "Quand j'ai du temps libre je ...", theme: "quotidien" },
+            { id: 59, text: "Je ne peux pas résister quand un homme ...", theme: "intimite" },
+            { id: 60, text: "Je pense que toucher est ...", theme: "intimite" },
+            { id: 61, text: "Pour moi, la religion c'est ...", theme: "vie" },
+            { id: 62, text: "Élever des enfants, de mon point de vue c'est ...", theme: "relation" },
+            { id: 63, text: "Je pense que Dieu est ...", theme: "vie" },
+            { id: 64, text: "Ce que je veux quand je tombe malade c'est ...", theme: "quotidien" },
+            { id: 65, text: "Je ne peux résister quand une femme ...", theme: "intimite" },
+            { id: 66, text: "La discipline, c'est ...", theme: "vie" },
+            { id: 67, text: "La chose qui m'ennuie le plus au niveau de mon corps c'est ...", theme: "intimite" },
+            { id: 68, text: "Quand je décèderai, je ...", theme: "vie" },
+            { id: 69, text: "Ce qui me choque le plus c'est ...", theme: "emotions" },
+            { id: 70, text: "Mes parents ...", theme: "relation" },
+            { id: 71, text: "Je n'ai jamais dit à personne que j'aime ...", theme: "emotions" },
+            { id: 72, text: "Dans un couple qui dure la sexualité c'est ...", theme: "intimite" },
+            { id: 73, text: "J'aime la sexualité quand ...", theme: "intimite" },
+            { id: 74, text: "La politique c'est ...", theme: "vie" },
+            { id: 75, text: "Les orgasmes sont ...", theme: "intimite" },
+            { id: 76, text: "La pire chose dans la vie c'est ...", theme: "vie" },
+            { id: 77, text: "La meilleure chose dans la vie c'est ...", theme: "vie" },
+            { id: 78, text: "A l'idée de vacances chacun de son côté, je me sens ...", theme: "relation" },
+            { id: 79, text: "La première chose que je remarque chez quelqu'un c'est ...", theme: "relation" },
+            { id: 80, text: "Je pense que le mariage est ...", theme: "relation" },
+            { id: 81, text: "Mon secret le plus honteux c'est ...", theme: "emotions" },
+            { id: 82, text: "Dans une discussion, je ...", theme: "relation" },
+            { id: 83, text: "Pour moi, l'intimité signifie ...", theme: "intimite" },
+            { id: 84, text: "Le divorce est ...", theme: "relation" },
+            { id: 85, text: "Quand je ne suis pas d'accord avec quelqu'un je ...", theme: "relation" },
+            { id: 86, text: "Ce que je crains le plus dans le mariage, c'est ...", theme: "relation" },
+            { id: 87, text: "Les beaux-parents devraient ...", theme: "relation" },
+            { id: 88, text: "Ce que je hais le plus c'est ...", theme: "emotions" },
+            { id: 89, text: "Ce que j'aime le plus c'est ...", theme: "emotions" },
+            { id: 90, text: "Le sexe opposé est ...", theme: "relation" },
+            { id: 91, text: "Quand quelqu'un est en colère, je ...", theme: "emotions" },
+            { id: 92, text: "Les femmes sont ...", theme: "vie" },
+            { id: 93, text: "Les hommes sont ...", theme: "vie" },
+            { id: 94, text: "La meilleure des choses du sexe opposé c'est ...", theme: "relation" },
+            { id: 95, text: "Quand je suis en colère, je ...", theme: "emotions" },
+            { id: 96, text: "A l'idée de parler de sexualité je ressens ...", theme: "intimite" },
+            { id: 97, text: "La pire des choses à propos du sexe opposé c'est ...", theme: "relation" },
+            { id: 98, text: "Ce que je hais le plus chez quelqu'un c'est ...", theme: "relation" },
+            { id: 99, text: "Ce que j'admire le plus chez les autres c'est ...", theme: "relation" },
+            { id: 100, text: "Quand je suis très bien, je suis ...", theme: "emotions" },
+            { id: 101, text: "Quand je suis très mal, je suis ...", theme: "emotions" },
+            { id: 102, text: "Les gens devraient ...", theme: "vie" },
+            { id: 103, text: "Quand je serai âgé(e) ...", theme: "vie" },
+            { id: 104, text: "Ma pire expérience de la vie a été ...", theme: "emotions" },
+            { id: 105, text: "L'amour, c'est ...", theme: "relation" },
+            { id: 106, text: "Pour moi, sortir avec quelqu'un c'est ...", theme: "relation" },
+            { id: 107, text: "« Jusqu'à la mort, que chacun tienne son rôle », signifie ...", theme: "relation" },
+            { id: 108, text: "Tomber amoureux, c'est ...", theme: "relation" },
+        ];
+
+        let currentFilter = 'all';
+        let currentPartner = 1;
+        let responses = {
+            partner1: {},
+            partner2: {}
+        };
+        let partnerNames = {
+            partner1: 'Partenaire 1',
+            partner2: 'Partenaire 2'
+        };
+
+        // Charger les réponses sauvegardées
+        function loadFromStorage() {
+            const saved = localStorage.getItem('coupleResponses');
+            if (saved) {
+                responses = JSON.parse(saved);
+            }
+            const savedNames = localStorage.getItem('partnerNames');
+            if (savedNames) {
+                partnerNames = JSON.parse(savedNames);
+                document.getElementById('partner1Name').value = partnerNames.partner1;
+                document.getElementById('partner2Name').value = partnerNames.partner2;
+                document.getElementById('partner1BtnLabel').textContent = '👤 ' + partnerNames.partner1;
+                document.getElementById('partner2BtnLabel').textContent = '👤 ' + partnerNames.partner2;
+            }
+        }
+
+        // Sauvegarder dans le localStorage
+        function saveToStorage() {
+            localStorage.setItem('coupleResponses', JSON.stringify(responses));
+            localStorage.setItem('partnerNames', JSON.stringify(partnerNames));
+        }
+
+        // Mettre à jour le nom du partenaire
+        function updatePartnerName(partner) {
+            const input = document.getElementById(`partner${partner}Name`);
+            const name = input.value.trim() || `Partenaire ${partner}`;
+            partnerNames[`partner${partner}`] = name;
+            document.getElementById(`partner${partner}BtnLabel`).textContent = '👤 ' + name;
+            saveToStorage();
+            updateStats();
+        }
+
+        // Changer de partenaire
+        function switchPartner(partner) {
+            currentPartner = partner;
+            
+            // Mettre à jour les boutons
+            document.querySelectorAll('.partner-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.partner) === partner) {
+                    btn.classList.add('active');
+                }
+            });
+
+            renderQuestions();
+        }
+
+        // Initialiser les questions
+        function renderQuestions() {
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
+
+            const filteredQuestions = currentFilter === 'all' 
+                ? questions 
+                : questions.filter(q => q.theme === currentFilter);
+
+            const partnerKey = `partner${currentPartner}`;
+
+            filteredQuestions.forEach(question => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.innerHTML = `
+                    <div class="question-number">Question ${question.id}</div>
+                    <div class="question-text">${question.text}</div>
+                    <textarea 
+                        class="response-area" 
+                        id="response-${question.id}"
+                        placeholder="Écrivez votre réponse ici... Soyez spontané(e) et authentique."
+                        oninput="updateResponse(${question.id})"
+                    >${responses[partnerKey][question.id] || ''}</textarea>
+                `;
+                container.appendChild(card);
+            });
+
+            updateStats();
+        }
+
+        // Mettre à jour une réponse
+        function updateResponse(questionId) {
+            const textarea = document.getElementById(`response-${questionId}`);
+            const partnerKey = `partner${currentPartner}`;
+            responses[partnerKey][questionId] = textarea.value;
+            saveToStorage();
+            updateStats();
+        }
+
+        // Mettre à jour les statistiques
+        function updateStats() {
+            const partnerKey = `partner${currentPartner}`;
+            const partnerName = partnerNames[partnerKey];
+            const answered = Object.keys(responses[partnerKey]).filter(id => responses[partnerKey][id].trim() !== '').length;
+            const total = questions.length;
+            const percent = Math.round((answered / total) * 100);
+
+            // Stats pour le partenaire courant
+            document.getElementById('answeredQuestions').textContent = answered;
+            document.getElementById('totalQuestions').textContent = total;
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressFill').style.width = percent + '%';
+            
+            if (percent === 0) {
+                document.getElementById('progressText').textContent = `${partnerName} : Commencez à répondre`;
+            } else if (percent === 100) {
+                document.getElementById('progressText').textContent = `🎉 ${partnerName} : Toutes les questions complétées !`;
+                
+                // Vérifier si l'autre partenaire a aussi terminé
+                const otherPartnerKey = currentPartner === 1 ? 'partner2' : 'partner1';
+                const otherAnswered = Object.keys(responses[otherPartnerKey]).filter(id => responses[otherPartnerKey][id].trim() !== '').length;
+                if (otherAnswered === total) {
+                    showBothCompletedMessage();
+                } else {
+                    showCompletionMessage();
+                }
+            } else {
+                document.getElementById('progressText').textContent = `${partnerName} : ${answered} questions complétées sur ${total}`;
+            }
+        }
+
+        // Message de félicitations
+        function showCompletionMessage() {
+            const existing = document.querySelector('.completion-message');
+            if (existing) existing.remove();
+
+            const partnerName = partnerNames[`partner${currentPartner}`];
+            const otherPartnerKey = currentPartner === 1 ? 'partner2' : 'partner1';
+            const otherPartnerName = partnerNames[otherPartnerKey];
+
+            const message = document.createElement('div');
+            message.className = 'completion-message';
+            message.innerHTML = `
+                <h2>🎉 Félicitations !</h2>
+                <p>${partnerName} a complété toutes les questions.</p>
+                <p style="margin-top: 15px;">C'est maintenant au tour de ${otherPartnerName} de répondre, puis vous pourrez partager vos réponses ensemble.</p>
+            `;
+            
+            const container = document.getElementById('questionsContainer');
+            container.parentNode.insertBefore(message, container);
+        }
+
+        // Message quand les deux ont terminé
+        function showBothCompletedMessage() {
+            const existing = document.querySelector('.completion-message');
+            if (existing) existing.remove();
+
+            const message = document.createElement('div');
+            message.className = 'completion-message';
+            message.innerHTML = `
+                <h2>🎉 Bravo à vous deux !</h2>
+                <p>${partnerNames.partner1} et ${partnerNames.partner2} ont complété l'exercice.</p>
+                <p style="margin-top: 15px;">C'est maintenant le moment idéal pour partager vos réponses et approfondir votre connexion. Prenez le temps d'écouter et de vous découvrir mutuellement.</p>
+            `;
+            
+            const container = document.getElementById('questionsContainer');
+            container.parentNode.insertBefore(message, container);
+        }
+
+        // Filtrer par thème
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.theme;
+                renderQuestions();
+            });
+        });
+
+        // Sauvegarder les réponses
+        function saveResponses() {
+            const data = JSON.stringify(responses, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reponses_couple_exercice.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('✅ Les réponses des deux partenaires ont été sauvegardées !');
+        }
+
+        // Charger les réponses
+        function loadResponses() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            responses = JSON.parse(event.target.result);
+                            saveToStorage();
+                            renderQuestions();
+                            alert('✅ Les réponses ont été chargées !');
+                        } catch (error) {
+                            alert('❌ Erreur lors du chargement du fichier.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // Exporter en PDF (basique - dans le navigateur)
+        function exportToPDF() {
+            window.print();
+        }
+
+        // Réinitialiser
+        function resetAll() {
+            if (confirm('⚠️ Êtes-vous sûr(e) de vouloir effacer toutes les réponses des DEUX partenaires ? Cette action est irréversible.')) {
+                responses = {
+                    partner1: {},
+                    partner2: {}
+                };
+                localStorage.removeItem('coupleResponses');
+                renderQuestions();
+                alert('✅ Toutes les réponses ont été effacées.');
+            }
+        }
+
+        // Initialisation
+        loadFromStorage();
+        renderQuestions();
+    </script>
+</body>
+</html>
