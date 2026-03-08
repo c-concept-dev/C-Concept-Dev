@@ -14,11 +14,6 @@ binding = "DB"
 database_name = "therapeute-library"
 database_id = "5ce316e7-f5c1-406a-ac01-4f773ba8362e"
 
-# ── Secrets (définis via Dashboard ou wrangler secret put) ───────
-# ANTHROPIC_API_KEY
-# CF_ACCOUNT_ID
-# CF_API_TOKEN  (pour Browser Rendering)
-
 # ── Vectorize : embeddings RAG ────────────────────────────────────
 [[vectorize]]
 binding = "VECTOR_INDEX"
@@ -28,17 +23,5 @@ index_name = "therapeute-library"
 [ai]
 binding = "AI"
 
-# ── Secrets images ────────────────────────────────────────────────
-# PEXELS_API_KEY  (pour /fetch-image)
-
-# ── Vectorize : embeddings RAG ────────────────────────────────────
-[[vectorize]]
-binding = "VECTOR_INDEX"
-index_name = "therapeute-library"
-
-# ── Workers AI : embeddings + génération images FLUX ─────────────
-[ai]
-binding = "AI"
-
-# ── Secrets images ────────────────────────────────────────────────
-# PEXELS_API_KEY  (pour /fetch-image)
+# ── Secrets (via Dashboard ou wrangler secret put) ────────────────
+# ANTHROPIC_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, PEXELS_API_KEY
