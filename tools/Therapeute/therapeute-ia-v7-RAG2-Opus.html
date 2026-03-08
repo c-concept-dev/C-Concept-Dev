@@ -38407,11 +38407,8 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
           '- Footer C Concept&Dev\n' +
           '- @media print optimisé\n' +
           'Sois EXHAUSTIF — cours de formation complet, pas un résumé.\n' +
-          '\nIMAGES ET ILLUSTRATIONS — trois options :\n' +
-          '1. <img data-gen="prompt en anglais détaillé" alt="..."> → génération FLUX IA\n' +
-          '2. <img data-pexels="search en anglais" alt="..."> → photo Pexels libre de droit\n' +
-          '3. SVG inline → schémas, diagrammes, infographies\n' +
-          'Ajoute style width:100% et border-radius:8px sur les images. Prompts en anglais.';
+          '\nILLUSTRATIONS SVG : si le sujet s\'y prête, intègre des illustrations SVG inline (schémas, personnages, infographies, diagrammes). ' +
+          'Les SVG sont créés directement en code — pas d\'images externes. Palette C Concept&Dev. Lisibles en impression.';
       } else if (fmt === 'pdf') {
         // PDF = HTML complet optimisé @media print — même pipeline que html
         formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT PDF ===\n' +
@@ -38427,14 +38424,9 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
           '- Footer C Concept&Dev\n' +
           '- @media print optimisé A4 : marges 15mm, sauts de page intelligents (page-break-inside: avoid)\n' +
           'Sois EXHAUSTIF — document professionnel complet, directement imprimable en PDF.\n' +
-          '\nIMAGES ET ILLUSTRATIONS — tu as accès à deux systèmes :\n' +
-          '1. GÉNÉRATION IA (Workers AI FLUX) : <img data-gen="prompt en anglais, style illustration, colors" alt="description" style="width:100%;border-radius:8px;"> ' +
-          'Utilise pour : personnages, scènes thérapeutiques, illustrations enfants, schémas créatifs. ' +
-          'Prompt en anglais, précis, stylistique : ex. "young child sitting with therapist, warm watercolor illustration, soft colors, simple style"\n' +
-          '2. PHOTOS RÉELLES (Pexels) : <img data-pexels="search term in english" alt="description" style="width:100%;border-radius:8px;"> ' +
-          'Utilise pour : photos de familles, enfants réels, environnements cliniques. Term en anglais simple : ex. "children playing therapy"\n' +
-          '3. SVG INLINE : pour les schémas, diagrammes, infographies — créés directement en code SVG.\n' +
-          'Priorité : data-gen > data-pexels > svg selon le contexte. Toujours ajouter style width et border-radius.';
+          '\nILLUSTRATIONS SVG : si le sujet s\'y prête (enfants, schémas, processus, anatomie, cartes), intègre des illustrations SVG inline dans le HTML. ' +
+          'Les SVG sont créés directement en code — pas d\'images externes. Style : lignes claires, couleurs douces de la palette, lisible en noir et blanc aussi. ' +
+          'Exemple : personnages SVG simplifiés pour un document enfants, schéma circulaire pour un processus thérapeutique, timeline pour une séquence.';
       } else if (fmt === 'docx') {
         formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT WORD ===\n'
           + 'Tu dois produire un fichier HTML COMPLET et AUTONOME représentant visuellement un document Word.\n'
@@ -38688,17 +38680,33 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
     const trimmed    = reply.trim();
     const isHtmlDoc  = trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html');
 
+    // ── Résolution universelle images (FLUX + Pexels) ───────────────
+    // Tout HTML produit par le LLM passe ici, quelque soit le format :
+    // pdf, zip, html, pptx, docx, xlsx, carrousel, tableau, fiche, script...
+    // Les <img data-gen> et <img data-pexels> sont résolus avant tout rendu.
+    let resolvedTrimmed = trimmed;
+    if (trimmed.includes('data-gen=') || trimmed.includes('data-pexels=')) {
+      if (isHtmlDoc) {
+        resolvedTrimmed = await adocResolveImages(trimmed);
+      } else {
+        const wrapped = await adocResolveImages('<!DOCTYPE html><html><body>' + trimmed + '</body></html>');
+        const m = wrapped.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        resolvedTrimmed = m ? m[1].trim() : trimmed;
+      }
+    }
+    const isResolvedHtml = resolvedTrimmed.startsWith('<!DOCTYPE') || resolvedTrimmed.startsWith('<html');
+
     // ── Formats binaires : LLM génère HTML → aperçu iframe + fichier binaire via Worker ──
     if (fmt === 'xlsx' || fmt === 'docx' || fmt === 'pptx') {
-      const htmlSrc  = isHtmlDoc ? adocRepairHTML(trimmed) : null;
-      const markdown = isHtmlDoc ? adocHtmlToMarkdown(trimmed) : reply;
+      const htmlSrc  = isResolvedHtml ? adocRepairHTML(resolvedTrimmed) : null;
+      const markdown = isResolvedHtml ? adocHtmlToMarkdown(resolvedTrimmed) : resolvedTrimmed;
       await adocDeliverArtifact({ markdown, html: htmlSrc, topic, fmt, citations, autoGenerate: true });
       return;
     }
 
     // ── Formats HTML-first : PDF, ZIP, HTML natif ──
-    if (isHtmlDoc) {
-      const repairedHtml = adocRepairHTML(trimmed);
+    if (isResolvedHtml) {
+      const repairedHtml = adocRepairHTML(resolvedTrimmed);
       if (fmt === 'pdf') {
         await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'pdf', citations, autoGenerate: true });
       } else if (fmt === 'zip') {
@@ -38709,8 +38717,8 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
       return;
     }
 
-    // ── Chat / texte Markdown ──
-    adocAddMsg('assistant', reply, citations);
+    // ── Chat / texte Markdown (inclut HTML partiel résolu) ──
+    adocAddMsg('assistant', resolvedTrimmed, citations);
   }
 
   // ── Convertit un HTML en Markdown simplifié (pour extraire les tables/listes) ──
@@ -38779,6 +38787,44 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
   }
 
   // ── Orchestrateur : génère le fichier et affiche la carte artifact ──
+    async function adocResolveImages(htmlContent) {
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl || !htmlContent) return htmlContent;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const imgs = doc.querySelectorAll('img[data-gen], img[data-pexels]');
+    if (!imgs.length) return htmlContent;
+    const promises = Array.from(imgs).map(async img => {
+      try {
+        if (img.dataset.gen) {
+          const prompt = img.dataset.gen.trim().substring(0, 500);
+          const r = await fetch(workerUrl + '/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+          });
+          if (!r.ok) throw new Error('FLUX ' + r.status);
+          const d = await r.json();
+          if (d.dataUrl) { img.src = d.dataUrl; img.removeAttribute('data-gen'); }
+        } else if (img.dataset.pexels) {
+          const q = encodeURIComponent(img.dataset.pexels.trim().substring(0, 100));
+          const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1');
+          if (!r.ok) throw new Error('Pexels ' + r.status);
+          const d = await r.json();
+          const photo = d.photos?.[0];
+          if (photo?.url) { img.src = photo.url; img.alt = img.alt || photo.alt; img.removeAttribute('data-pexels'); }
+        }
+      } catch (e) {
+        console.warn('[adocResolveImages]', e.message);
+        const label = img.alt || img.dataset.gen || img.dataset.pexels || 'illustration';
+        img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23EDE8F8"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%235B4A8A" font-family="Montserrat,sans-serif" font-size="14">' + label.substring(0, 40) + '</text></svg>';
+        img.removeAttribute('data-gen'); img.removeAttribute('data-pexels');
+      }
+    });
+    await Promise.all(promises);
+    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+  }
+
   async function adocDeliverArtifact({ html, markdown, topic, fmt, citations, autoGenerate }) {
     const meta = ARTIFACT_META[fmt] || ARTIFACT_META.html;
     const safeName = (topic || 'document')
@@ -38790,9 +38836,6 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
     if (!window._adocArtifacts) window._adocArtifacts = {};
     // Initialiser l'entrée vide pour pouvoir y écrire des propriétés avant le Worker
     window._adocArtifacts[storeKey] = { name: safeName, fmt };
-
-    // ── Résolution des images (FLUX + Pexels) avant génération ──
-    if (html) html = await adocResolveImages(html);
 
     if (!autoGenerate || fmt === 'html') {
       // HTML direct — blob local
@@ -39412,45 +39455,6 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`([^`]+)`/g, '<code style="background:rgba(58,86,88,0.08);padding:1px 4px;border-radius:3px;font-size:11px;">$1</code>');
     }
-  }
-
-  // ── adocResolveImages ─────────────────────────────────────────
-  async function adocResolveImages(htmlContent) {
-    const workerUrl = adocGetWorkerUrl();
-    if (!workerUrl || !htmlContent) return htmlContent;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-    const imgs = doc.querySelectorAll('img[data-gen], img[data-pexels]');
-    if (!imgs.length) return htmlContent;
-    const promises = Array.from(imgs).map(async img => {
-      try {
-        if (img.dataset.gen) {
-          const prompt = img.dataset.gen.trim().substring(0, 500);
-          const r = await fetch(workerUrl + '/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
-          });
-          if (!r.ok) throw new Error('FLUX ' + r.status);
-          const d = await r.json();
-          if (d.dataUrl) { img.src = d.dataUrl; img.removeAttribute('data-gen'); }
-        } else if (img.dataset.pexels) {
-          const q = encodeURIComponent(img.dataset.pexels.trim().substring(0, 100));
-          const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1');
-          if (!r.ok) throw new Error('Pexels ' + r.status);
-          const d = await r.json();
-          const photo = d.photos?.[0];
-          if (photo?.url) { img.src = photo.url; img.alt = img.alt || photo.alt; img.removeAttribute('data-pexels'); }
-        }
-      } catch (e) {
-        console.warn('[adocResolveImages]', e.message);
-        const label = img.alt || img.dataset.gen || img.dataset.pexels || 'illustration';
-        img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23EDE8F8"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%235B4A8A" font-family="Montserrat,sans-serif" font-size="14">' + label.substring(0, 40) + '</text></svg>';
-        img.removeAttribute('data-gen'); img.removeAttribute('data-pexels');
-      }
-    });
-    await Promise.all(promises);
-    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
   }
 
   function adocEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
