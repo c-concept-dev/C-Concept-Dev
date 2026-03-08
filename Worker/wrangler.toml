@@ -1,0 +1,20 @@
+name = "clone-proxy"
+main = "index.js"
+compatibility_date = "2026-03-08"
+compatibility_flags = ["nodejs_compat"]
+
+# ── KV : stockage fichiers temporaires (1h TTL) ──────────────────
+[[kv_namespaces]]
+binding = "CLONE_KV"
+id = "0eed272715364411960a6c7b3a7e1711"
+
+# ── D1 : bibliothèque RAG thérapeutique ──────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "therapeute-library"
+database_id = "5ce316e7-f5c1-406a-ac01-4f773ba8362e"
+
+# ── Secrets (définis via Dashboard ou wrangler secret put) ───────
+# ANTHROPIC_API_KEY
+# CF_ACCOUNT_ID
+# CF_API_TOKEN  (pour Browser Rendering)

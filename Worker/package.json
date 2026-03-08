@@ -1,0 +1,19 @@
+{
+  "name": "clone-proxy-worker",
+  "version": "4.0.0",
+  "description": "C Concept&Dev — Worker Cloudflare avec génération de fichiers réels",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "docx": "^8.5.0",
+    "exceljs": "^4.4.0",
+    "fflate": "^0.8.2",
+    "pptxgenjs": "^3.12.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
