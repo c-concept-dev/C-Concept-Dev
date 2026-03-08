@@ -704,60 +704,59 @@ async function handleGenerateZIP(request, env) {
 async function handleGenerateImage(request, env) {
   if (!env.AI) return jsonErr('AI binding not configured', 500);
 
-  let prompt, width, height;
+  let prompt;
   try {
-    ({ prompt, width = 768, height = 512 } = await request.json());
+    ({ prompt } = await request.json());
     if (!prompt || typeof prompt !== 'string') return jsonErr('prompt required', 400);
   } catch (e) {
     return jsonErr('Invalid JSON body', 400);
   }
 
-  // Sanitize : limiter la taille du prompt
   prompt = prompt.trim().substring(0, 500);
 
   try {
-    // FLUX Schnell : le plus rapide sur Workers AI (~1-2s)
+    // FLUX Schnell — d'après doc CF : retourne { image: base64string }
+    // https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/
     const result = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', {
       prompt,
-      num_steps: 4,   // schnell fonctionne bien avec 4 steps
+      num_steps: 4,
     });
 
-    // result est un ReadableStream ou ArrayBuffer selon la version du binding
-    let bytes;
-    if (result instanceof ReadableStream) {
+    // Cas 1 (doc officielle) : { image: "base64..." }
+    if (result && typeof result === 'object' && result.image) {
+      return json({ dataUrl: 'data:image/png;base64,' + result.image, prompt });
+    }
+
+    // Cas 2 : ReadableStream (ancien binding)
+    if (result && typeof result.getReader === 'function') {
       const reader = result.getReader();
       const chunks = [];
-      let done = false;
-      while (!done) {
-        const { value, done: d } = await reader.read();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
         if (value) chunks.push(value);
-        done = d;
       }
       const total = chunks.reduce((s, c) => s + c.length, 0);
-      bytes = new Uint8Array(total);
+      const bytes = new Uint8Array(total);
       let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.length;
-      }
-    } else if (result instanceof ArrayBuffer) {
-      bytes = new Uint8Array(result);
-    } else if (result?.image) {
-      // Certains modèles retournent { image: base64string }
-      return json({ dataUrl: 'data:image/png;base64,' + result.image, prompt });
-    } else {
-      return jsonErr('Unexpected AI response format', 500);
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+      let b64 = '';
+      const sz = 0x8000;
+      for (let i = 0; i < bytes.length; i += sz) b64 += String.fromCharCode(...bytes.subarray(i, i + sz));
+      return json({ dataUrl: 'data:image/png;base64,' + btoa(b64), prompt });
     }
 
-    // Encoder en base64
-    let b64 = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      b64 += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    // Cas 3 : ArrayBuffer
+    if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)) {
+      const bytes = result instanceof ArrayBuffer ? new Uint8Array(result) : new Uint8Array(result.buffer);
+      let b64 = '';
+      const sz = 0x8000;
+      for (let i = 0; i < bytes.length; i += sz) b64 += String.fromCharCode(...bytes.subarray(i, i + sz));
+      return json({ dataUrl: 'data:image/png;base64,' + btoa(b64), prompt });
     }
-    b64 = btoa(b64);
 
-    return json({ dataUrl: 'data:image/png;base64,' + b64, prompt });
+    // Debug : retourner le type reçu pour diagnostic
+    return jsonErr('Unexpected AI response type: ' + typeof result + ' keys=' + Object.keys(result||{}).join(','), 500);
 
   } catch (err) {
     return jsonErr('Image generation failed: ' + err.message, 500);
