@@ -38260,16 +38260,18 @@ DICTIONNAIRE CLINIQUE — termes à utiliser dans les angles et le SQL :
 - IFS/parties → ifs, self, managers, exilés, firefighters
 - mindfulness/pleine conscience → mbct, méditation, présence, régulation
 
-RÈGLES FORMAT — PRIORITÉ STRICTE (première règle qui matche gagne) :
-1. "xlsx" OU "xls" OU "excel" OU "tableur" OU "feuille de calcul" OU "spreadsheet" → output_format=xlsx, intent=tableau
-2. "pptx" OU "powerpoint" OU "présentation" OU "diaporama" → output_format=pptx, intent=cours
-3. "docx" OU "word" OU "document word" → output_format=docx, intent=document
-4. "pdf" OU "en pdf" OU "format pdf" → output_format=pdf, intent=document
-5. "zip" OU "archive" OU "package" OU "kit" → output_format=zip, intent=document
-6. "cours", "formation", "module" → output_format=html, intent=cours
-7. question courte / conversation → output_format=chat, intent=conseil
-8. par défaut → output_format=html
-max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000, fiche=4000, pptx=6000, xlsx=3000, docx=5000, zip=6000`;
+RÈGLES FORMAT — INFERENCE FORMAT - CC raisonne le format, Haiku suggere :
+Haiku analyse l'intention complete (verbe, objet, audience, contexte) et propose une suggestion de format.
+CC recoit cette suggestion et peut choisir differemment selon son propre raisonnement.
+
+Indices (non exclusifs) :
+- Demande explicite d'un fichier binaire (Excel, Word, PowerPoint) → output_format correspondant
+- Reponse clinique directe, conversationnelle → output_format=chat
+- Document visuel avec photos, mise en page riche → output_format=html-visual
+- Contenu web interactif, fiche, tableau → output_format=html
+- Par defaut si incertain → output_format=html
+
+max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, chat=2000.`;
 
     try {
       const r = await fetch(workerUrl, {
@@ -38574,7 +38576,7 @@ ${commonBase}`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload: {
           model: MODEL,
-          max_tokens: Math.min(maxTok, 8000),
+          max_tokens: Math.max(maxTok || 8000, 8000), // CC dispose toujours d'au moins 8000 tokens
           system: systemPrompt,
           messages
         }})
