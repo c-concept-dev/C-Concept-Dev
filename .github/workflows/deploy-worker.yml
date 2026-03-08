@@ -1,0 +1,44 @@
+# .github/workflows/deploy-worker.yml
+# ═══════════════════════════════════════════════════════════════
+# Auto-déploie le Worker Cloudflare à chaque push sur Worker/**
+# Aucun wrangler en local nécessaire — tout tourne dans GitHub CI
+# ═══════════════════════════════════════════════════════════════
+name: 🚀 Deploy Cloudflare Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Worker/**'          # déclenche SEULEMENT si Worker/ change
+  workflow_dispatch:         # déclenchement manuel possible depuis GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Worker/package.json
+
+      - name: 📦 Install dependencies
+        working-directory: Worker
+        run: npm ci
+
+      - name: 🚀 Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: Worker
+          command: deploy
+
+      - name: ✅ Deploy complete
+        run: echo "Worker déployé sur clone-proxy.11drumboy11.workers.dev"
