@@ -117,6 +117,19 @@ async function handleAnthropicProxy(request, env) {
     body: JSON.stringify(ab),
   });
 
+  // ── Streaming SSE : pipe direct vers le client, pas de res.text() ──
+  if (ab.stream) {
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        ...CORS,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  }
+
   return new Response(await res.text(), {
     status: res.status,
     headers: { ...CORS, 'Content-Type': 'application/json' },
