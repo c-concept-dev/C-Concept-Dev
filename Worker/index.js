@@ -558,37 +558,83 @@ async function handleGeneratePPTX(request, env) {
       });
     }
 
+    // Pré-fetch toutes les images Pexels en parallèle (si image_query présent)
+    const pexelsKey = env.PEXELS_API_KEY;
+    const imageMap = {}; // slide index → base64 data URL
+    if (pexelsKey) {
+      await Promise.all(content.slides.map(async (slide, idx) => {
+        const q = slide.image_query;
+        if (!q) return;
+        try {
+          const safeQ = q.replace(/[^a-zA-Z0-9 \-+]/g, '').substring(0, 80);
+          const resp = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQ)}&per_page=1&orientation=landscape`,
+            { headers: { Authorization: pexelsKey } }
+          );
+          if (!resp.ok) return;
+          const data = await resp.json();
+          const photoUrl = data.photos?.[0]?.src?.large;
+          if (!photoUrl) return;
+          const imgResp = await fetch(photoUrl);
+          if (!imgResp.ok) return;
+          const buf = await imgResp.arrayBuffer();
+          const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+          imageMap[idx] = 'data:image/jpeg;base64,' + b64;
+        } catch {}
+      }));
+    }
+
     for (const slide of content.slides) {
+      const idx = content.slides.indexOf(slide);
+      const hasImage = !!imageMap[idx];
       const s = prs.addSlide();
-      s.background = { color: 'F4F0EA' };
-      s.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 1.1, fill: { color: C_CONCEPT_COLORS.deep } });
+
+      // Fond : image Pexels si disponible, sinon couleur
+      if (hasImage) {
+        s.background = { data: imageMap[idx] };
+        // Overlay sombre pour lisibilité
+        s.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: '100%', h: '100%',
+          fill: { color: '000000', transparency: 45 } });
+      } else {
+        s.background = { color: 'F4F0EA' };
+      }
+
+      // Bande titre
+      const titleBandColor = hasImage ? '000000' : C_CONCEPT_COLORS.deep;
+      const titleBandAlpha = hasImage ? 55 : 0;
+      s.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 1.1,
+        fill: { color: titleBandColor, transparency: titleBandAlpha } });
       s.addText(slide.title || '', {
         x: 0.3, y: 0.15, w: '90%', h: 0.8,
         fontSize: 24, bold: true, color: 'FFFFFF', fontFace: 'Montserrat', valign: 'middle',
       });
 
+      const textColor = hasImage ? 'FFFFFF' : C_CONCEPT_COLORS.text;
+      const contentY  = hasImage ? 1.4 : 1.3;
+      const contentH  = hasImage ? 4.8 : 5;
+
       if (slide.bullets?.length) {
         const bulletText = slide.bullets.map(b => ({ text: b, options: { bullet: true, indentLevel: 0 } }));
         s.addText(bulletText, {
-          x: 0.5, y: 1.3, w: '90%', h: 5,
-          fontSize: 16, color: C_CONCEPT_COLORS.text, valign: 'top', paraSpaceAfter: 8,
+          x: 0.5, y: contentY, w: '90%', h: contentH,
+          fontSize: 16, color: textColor, valign: 'top', paraSpaceAfter: 8,
         });
       }
       if (slide.content) {
         s.addText(slide.content, {
-          x: 0.5, y: 1.3, w: '90%', h: 5,
-          fontSize: 16, color: C_CONCEPT_COLORS.text, valign: 'top', wrap: true,
+          x: 0.5, y: contentY, w: '90%', h: contentH,
+          fontSize: 16, color: textColor, valign: 'top', wrap: true,
         });
       }
       if (slide.columns) {
         const [col1, col2] = slide.columns;
-        s.addText(col1 || '', { x: 0.3, y: 1.4, w: '45%', h: 5, fontSize: 15, color: C_CONCEPT_COLORS.text, wrap: true });
-        s.addText(col2 || '', { x: '52%', y: 1.4, w: '45%', h: 5, fontSize: 15, color: C_CONCEPT_COLORS.text, wrap: true });
+        s.addText(col1 || '', { x: 0.3, y: contentY, w: '45%', h: contentH, fontSize: 15, color: textColor, wrap: true });
+        s.addText(col2 || '', { x: '52%', y: contentY, w: '45%', h: contentH, fontSize: 15, color: textColor, wrap: true });
       }
 
-      s.addText(String(content.slides.indexOf(slide) + 1), {
+      s.addText(String(idx + 1), {
         x: '95%', y: 6.8, w: 0.4, h: 0.35,
-        fontSize: 11, color: C_CONCEPT_COLORS.mer, align: 'right',
+        fontSize: 11, color: hasImage ? 'FFFFFF' : C_CONCEPT_COLORS.mer, align: 'right',
       });
     }
 
