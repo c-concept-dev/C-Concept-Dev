@@ -613,17 +613,28 @@ async function handleGeneratePPTX(request, env) {
       const contentY  = hasImage ? 1.4 : 1.3;
       const contentH  = hasImage ? 4.8 : 5;
 
-      if (slide.bullets?.length) {
-        const bulletText = slide.bullets.map(b => ({ text: b, options: { bullet: true, indentLevel: 0 } }));
-        s.addText(bulletText, {
+      // Fusionner bullets + content dans une seule shape pour éviter les chevauchements
+      if (slide.bullets?.length || slide.content) {
+        const combined = [];
+        if (slide.bullets?.length) {
+          for (const b of slide.bullets) {
+            combined.push({ text: b, options: { bullet: true, indentLevel: 0, paraSpaceAfter: 6 } });
+          }
+        }
+        if (slide.content) {
+          // Séparateur visuel si bullets + content
+          if (slide.bullets?.length) {
+            combined.push({ text: ' ', options: { bullet: false, fontSize: 8 } });
+          }
+          combined.push({ text: slide.content, options: {
+            bullet: false, italic: true,
+            color: hasImage ? 'E8E8E8' : C_CONCEPT_COLORS.muted || '7A8A82',
+            fontSize: 14,
+          }});
+        }
+        s.addText(combined, {
           x: 0.5, y: contentY, w: '90%', h: contentH,
-          fontSize: 16, color: textColor, valign: 'top', paraSpaceAfter: 8,
-        });
-      }
-      if (slide.content) {
-        s.addText(slide.content, {
-          x: 0.5, y: contentY, w: '90%', h: contentH,
-          fontSize: 16, color: textColor, valign: 'top', wrap: true,
+          fontSize: 16, color: textColor, valign: 'top',
         });
       }
       if (slide.columns) {
