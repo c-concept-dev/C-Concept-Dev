@@ -38396,9 +38396,11 @@ TÂCHE : Analyser la demande et retourner UNIQUEMENT un JSON valide (pas de mark
   "approach_filter": "approche principale ou null",
   "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche",
   "clinical_intent": "supervision|analyse_cas|intervention|conceptualisation|bibliographie|production|chat",
-  "output_format": "html|pdf|docx|pptx|xlsx|zip|txt|chat",
+  "output_format": "html|html-visual|pdf|docx|pptx|xlsx|zip|txt|chat",
+  "audience_type": "praticien|etudiant_m2|grand_public|congres|patient",
+  "registre": "clinique|pedagogique|academique|vulgarisation",
   "topic_summary": "résumé en 5 mots max du sujet",
-  "max_tokens": 3000
+  "max_tokens": 4000
 }
 
 RÈGLES CLINICAL_INTENT — détection de la posture clinique demandée :
@@ -38410,6 +38412,29 @@ RÈGLES CLINICAL_INTENT — détection de la posture clinique demandée :
 - "production" : cours, fiche, tableau, livrable documentaire (xlsx/pptx/pdf/docx/html/zip)
 - "chat" : conversation simple, sans enjeu clinique fort
 Par défaut si incertain → "bibliographie"
+
+RÈGLES OUTPUT_FORMAT — raisonner sur le format avant de décider :
+- "pptx" : seulement si demande explicite "PowerPoint", "présentation projetée", "slides", "diaporama"
+- "html-visual" : présentation illustrée, document avec photos/visuels, "2 pages avec photos", infographie, synthèse visuelle — HTML A4 avec design éditorial riche
+- "html" : carrousel, fiche interactive, tableau, contenu web
+- "pdf" : rapport, synthèse imprimable, document à télécharger
+- "docx" : lettre, compte-rendu, document Word
+- "chat" : réponse conversationnelle, pas de livrable structuré
+IMPORTANT : "présentation" + "photos" + "pages" → html-visual, pas pptx. Raisonner, pas matcher un mot-clé.
+
+RÈGLES AUDIENCE/REGISTRE :
+- Instagram / réseaux / grand public / vulgarisation → audience_type: grand_public, registre: vulgarisation
+- Fac / master / cours / étudiants → audience_type: etudiant_m2, registre: pedagogique
+- Congrès / conférence / séminaire / colloque → audience_type: congres, registre: academique
+- Thérapeute / praticien / supervision / collègue → audience_type: praticien, registre: clinique
+- Par défaut → audience_type: praticien, registre: clinique
+
+RÈGLES MAX_TOKENS :
+- chat/bibliographie simple → 2000
+- fiche/tableau/carrousel → 3000
+- document 1 page → 4000
+- document multi-pages / cours complet / rapport → 6000
+- pptx/docx/pdf complexes → 5000
 
 RÈGLES SQL :
 - Utilise LIKE '%terme%' pour le contenu (pas de FTS5)
@@ -38593,170 +38618,91 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
     const ctxHistory = orientations
       ? '\n\nCONTEXTE DES ÉCHANGES PRÉCÉDENTS :\n' + orientations : '';
 
-    // Instruction de format selon le plan
-    let formatInstruction = '';
-    if (plan) {
-      const fmt = plan.output_format;
-      const intent = plan.intent;
-      if (fmt === 'html' || intent === 'cours') {
-        formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT DE REPONSE ===\n' +
-          'Tu dois produire un fichier HTML COMPLET et AUTONOME.\n' +
-          'RÈGLE ABSOLUE : retourne UNIQUEMENT le code HTML. Aucun texte avant ou après. Pas de markdown, pas de backticks.\n' +
-          'La réponse doit commencer par exactement : <!DOCTYPE html>\n' +
-          'et se terminer par : </html>\n\n' +
-          'Structure HTML obligatoire :\n' +
-          '- <head> avec meta charset UTF-8, viewport, title, Google Fonts (Montserrat + Lora), <style> CSS complet embarqué\n' +
-          '- Palette CSS : --mer:#8FAFB1, --deep:#3A5658, --sable:#E6D7C3, --beige:#D8CDBB, --violet:#5B4A8A, --vl:#EDE8F8, --text:#2C3830, --surf:#F4F0EA\n' +
-          '- Header C Concept&Dev sombre avec titre, sous-titre, date\n' +
-          '- Barre dégradée 4px (mer→violet→beige)\n' +
-          '- Contenu complet et exhaustif : h1/h2/h3, p, ul/ol, table, blockquote\n' +
-          '- Schémas simulés en HTML/CSS (divs, flexbox, couleurs palette)\n' +
-          '- Footer C Concept&Dev\n' +
-          '- @media print optimisé\n' +
-          'Sois EXHAUSTIF — cours de formation complet, pas un résumé.\n' +
-          '\nILLUSTRATIONS SVG : si le sujet s\'y prête, intègre des illustrations SVG inline (schémas, personnages, infographies, diagrammes). ' +
-          'Les SVG sont créés directement en code — pas d\'images externes. Palette C Concept&Dev. Lisibles en impression.';
-      } else if (fmt === 'pdf') {
-        // PDF = HTML complet optimisé @media print — même pipeline que html
-        formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT PDF ===\n' +
-          'Tu dois produire un fichier HTML COMPLET et AUTONOME optimisé pour impression PDF.\n' +
-          'RÈGLE ABSOLUE : retourne UNIQUEMENT le code HTML. Aucun texte avant ou après. Pas de markdown, pas de backticks.\n' +
-          'La réponse doit commencer par exactement : <!DOCTYPE html>\n' +
-          'et se terminer par : </html>\n\n' +
-          'Structure HTML obligatoire :\n' +
-          '- <head> avec meta charset UTF-8, viewport, title, Google Fonts (Montserrat + Lora), <style> CSS complet embarqué\n' +
-          '- Palette CSS : --mer:#8FAFB1, --deep:#3A5658, --sable:#E6D7C3, --beige:#D8CDBB, --violet:#5B4A8A, --vl:#EDE8F8, --text:#2C3830, --surf:#F4F0EA\n' +
-          '- Header C Concept&Dev sombre avec titre, sous-titre, date\n' +
-          '- Contenu complet et exhaustif\n' +
-          '- Footer C Concept&Dev\n' +
-          '- @media print optimisé A4 : marges 15mm, sauts de page intelligents (page-break-inside: avoid)\n' +
-          'Sois EXHAUSTIF — document professionnel complet, directement imprimable en PDF.\n' +
-          '\nILLUSTRATIONS SVG : si le sujet s\'y prête (enfants, schémas, processus, anatomie, cartes), intègre des illustrations SVG inline dans le HTML. ' +
-          'Les SVG sont créés directement en code — pas d\'images externes. Style : lignes claires, couleurs douces de la palette, lisible en noir et blanc aussi. ' +
-          'Exemple : personnages SVG simplifiés pour un document enfants, schéma circulaire pour un processus thérapeutique, timeline pour une séquence.';
-      } else if (fmt === 'docx') {
-        formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT WORD ===\n'
-          + 'Tu dois produire un fichier HTML COMPLET et AUTONOME représentant visuellement un document Word.\n'
-          + 'RÈGLE ABSOLUE : retourne UNIQUEMENT le code HTML. Commence par <!DOCTYPE html>, termine par </html>.\n'
-          + '- body max-width:800px, padding:40px 60px, background:white, box-shadow, font Lora/Georgia\n'
-          + '- h1 centré, h2/h3 bleus (#2B579A), paragraphes justifiés, listes structurées\n'
-          + '- Contenu EXHAUSTIF — document professionnel 2+ pages\n'
-          + 'Le HTML servira à la fois d\'aperçu dans le chat ET de source pour générer le fichier Word.';
-      } else if (fmt === 'pptx') {
-        formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT POWERPOINT ===\n'
-          + 'Tu dois produire un fichier HTML COMPLET représentant visuellement des slides PowerPoint.\n'
-          + 'RÈGLE ABSOLUE : retourne UNIQUEMENT du code HTML. Commence par <!DOCTYPE html>, termine par </html>.\n'
-          + 'Structure OBLIGATOIRE en 2 parties :\n'
-          + 'PARTIE 1 — Données JSON machine dans le <head> :\n'
-          + '<scr'+'ipt type="application/json" id="pptx-data">[{"title":"Titre slide","bullets":["point 1","point 2"],"notes":"notes présentateur"},...]<'+'/script>\n'
-          + 'PARTIE 2 — Rendu visuel HTML slides :\n'
-          + '- Chaque slide = <div class="slide"> ratio 16/9, aspect-ratio:16/9, max-width:900px\n'
-          + '- Slide 1 = titre sur fond dégradé #3A5658→#5B4A8A, texte blanc centré\n'
-          + '- 8 à 14 slides, contenu EXHAUSTIF et cliniquement rigoureux\n'
-          + '- Palette Montserrat : --deep:#3A5658, --violet:#5B4A8A, --mer:#8FAFB1\n'
-          + 'Le JSON sera extrait pour générer le .pptx, le HTML pour l\'aperçu.';
-      } else if (fmt === 'xlsx') {
-        formatInstruction = '\n\n=== INSTRUCTION CRITIQUE : FORMAT EXCEL ===\n'
-          + 'Tu dois produire un fichier HTML COMPLET représentant visuellement un tableau Excel.\n'
-          + 'RÈGLE ABSOLUE : retourne UNIQUEMENT du code HTML. Commence par <!DOCTYPE html>, termine par </html>.\n'
-          + 'Structure OBLIGATOIRE en 2 parties :\n'
-          + 'PARTIE 1 — Données JSON machine dans le <head> :\n'
-          + '<scr'+'ipt type="application/json" id="xlsx-data">{"headers":["col1","col2",...],"rows":[["v1","v2",...],...]}<'+'/script>\n'
-          + 'Les données doivent être COMPLÈTES, RÉELLES, PRÉCISES — aucun placeholder, aucun "..."\n'
-          + 'PARTIE 2 — Rendu visuel HTML :\n'
-          + '- <table> avec <th> verts (#217346 fond, texte blanc), lignes alternées (#F0F8F0/white)\n'
-          + '- Toutes les lignes de données affichées\n'
-          + '- Header titre du tableau + note sources en bas\n'
-          + 'Le JSON sera extrait pour générer le .xlsx, le HTML pour l\'aperçu.';
-      } else if (fmt === 'zip') {
-        formatInstruction = '\n\nINSTRUCTION FORMAT : Produis le contenu complet. Pour un ZIP, génère d\'abord le document principal en HTML complet (commençant par <!DOCTYPE html>). L\'interface créera le ZIP automatiquement. À la fin, indique : ✅ Contenu prêt — cliquez sur ⬇ ZIP dans la barre ci-dessous.';
-      }
-    }
+    const _mode = (typeof adocCurrentMode !== 'undefined') ? adocCurrentMode : '';
+    const _modeDesc = (typeof adocModeDescriptions !== 'undefined') ? adocModeDescriptions : {};
+    const modeCtx = _mode && _mode !== 'standard'
+      ? '\n\n── MODE ACTIF : ' + _mode.toUpperCase() + ' ──\n' + (_modeDesc[_mode] || '') : '';
 
-    // Mode actif visible dans le system prompt
-    const modeLabels = { reflexion: 'Réflexion clinique', consultation: 'Consultation', production: 'Production documentaire' };
-    const modeCtx = adocMode !== 'reflexion'
-      ? '\n\n[MODE ACTIF : ' + (modeLabels[adocMode] || adocMode) + ']' : '';
-    const commonBase = ctxSession + ctxPatient + ctxHistory + modeCtx + docCtx + ragCtx + formatInstruction;
-
-    // ── Orientations cliniques selon l'intent détecté par le planner ──
     const clinicalOrientations = {
-      supervision: 'POSTURE : SUPERVISION CLINIQUE\n' +
-        'Ton interlocuteur parle d\'un cas, d\'une séance, d\'une difficulté. Tu n\'es pas là pour valider — tu apportes ce que son regard intérieur ne peut pas voir.\n' +
-        'DÉTECTER LA SITUATION :\n' +
-        'Situation A (cas opaque, début) → identifier la souffrance centrale cachée, formuler une porte d\'entrée, plan phasé avec exercices.\n' +
-        'Situation B (accompagnement avancé qui bute) → ne pas refaire le diagnostic, trouver le déplacement précis, proposer un pivot ciblé.\n' +
-        'CRITIQUE CONSTRUCTIVE : nommer ce qui a peut-être été manqué, évité, travaillé au mauvais niveau. Toujours avec une proposition alternative concrète.\n' +
-        'CONTRE-TRANSFERT : les réactions émotionnelles du thérapeute face au cas sont des données cliniques — les nommer quand perceptibles.\n' +
-        'LIVRABLE DE L\'ÉCHANGE : un exercice précis, une question thérapeutique calibrée, ou un axe utilisable à la prochaine séance.',
-
-      analyse_cas: 'POSTURE : ANALYSE DE CAS\n' +
-        'Construire une lecture multi-niveaux. Identifier la porte d\'entrée la plus pertinente.\n' +
-        'Cas récent ou opaque → formuler UNE hypothèse sur la souffrance centrale (ce qui est sous la plainte manifeste). Proposer 2-3 lectures, argumenter laquelle tu privilégies, traduire en exercice concret.\n' +
-        'Cas avancé qui s\'enlise → ne pas refaire le diagnostic. Identifier le déplacement. Proposer un recadrage ciblé et un outil de déblocage.\n' +
-        'Dans les deux cas : critique directe de ce qui manque dans la lecture actuelle, hypothèses assumées, proposition opérationnelle immédiate.',
-
-      intervention: 'POSTURE : STRATÉGIE D\'INTERVENTION\n' +
-        'Ton interlocuteur décrit un blocage ou cherche la meilleure approche. Proposer des voies concrètes et outillées — pas des principes, des actes.\n' +
-        'Blocage de début → diagnostiquer ce qui maintient l\'immobilité, puis plan phasé avec outils et exercice de démarrage.\n' +
-        'Blocage en cours → identifier le déplacement, proposer un pivot — quel angle non exploré, quelle dimension (somatique, systémique, narratif, attachement) pourrait débloquer.\n' +
-        'Toujours : exercice concret pour la prochaine séance, verbatims possibles, indicateurs de progression.',
-
-      conceptualisation: 'POSTURE : CONCEPTUALISATION INTÉGRATIVE\n' +
-        'Construire ensemble une formulation de cas.\n' +
-        'Nouvelle conceptualisation : 4 dimensions (prédisposants, déclenchants, maintien, protecteurs). Croiser les grilles : schémas Young, hexaflex ACT, parts IFS, attachement, systémique. Aboutir à UNE porte d\'entrée argumentée + plan phasé (stabilisation → travail de fond → consolidation).\n' +
-        'Reconceptualisation en cours : identifier ce qui a émergé que la formulation initiale ne prévoyait pas. Proposer un ajustement ciblé.\n' +
-        'Critiquer la conceptualisation existante si présentée : nommer ce qui manque, proposer ce qui renforcerait ou déplacerait la lecture.',
-
-      bibliographie: 'POSTURE : RÉFLEXION THÉORICO-CLINIQUE\n' +
-        'Synthétiser les apports théoriques de façon utile pour la clinique. Faire des ponts entre auteurs et approches.\n' +
-        'Distinguer ce qui est solidement établi de ce qui reste exploratoire.\n' +
-        'Toujours ramener à : "Concrètement, qu\'est-ce que ça change pour la prise en charge ?"\n' +
-        'Citer explicitement les auteurs, pages quand pertinent. Les références ne sont pas décoratifs — elles argumentent.',
-
-      production: 'POSTURE : PRODUCTION DOCUMENTAIRE\n' +
-        'Produire un livrable complet, directement utilisable.\n' +
-        'Ne JAMAIS dire que tu ne peux pas créer un fichier : le Worker Cloudflare gère tout.\n' +
-        'Quand tu produis un fichier HTML, commence par <!DOCTYPE html> et ne contiens RIEN d\'autre que le code HTML.',
-
+      supervision: 'POSTURE : SUPERVISION CLINIQUE\nTon interlocuteur parle d\'un cas, d\'une séance, d\'une difficulté. Tu n\'es pas là pour valider — tu apportes ce que son regard intérieur ne peut pas voir.\nSituation A → identifier la souffrance centrale, porte d\'entrée, plan phasé\nSituation B → hypothèse sur l\'impasse, reformulation du cas, contre-transfert\nSituation C → stabilisation en priorité, protocole, ressources immédiates',
+      analyse_cas: 'POSTURE : ANALYSE DE CAS\nFormulation intégrative multi-axes : attachement → schémas Young → dynamique défensive → hypothèse étiologique → axes thérapeutiques prioritaires.',
+      intervention: 'POSTURE : INTERVENTION DIRECTE\nImpasse, blocage. Tu proposes une technique, une reformulation, un protocole applicable en séance. Concret et directif. Pas de théorie — une réponse opérationnelle.',
+      conceptualisation: 'POSTURE : CONCEPTUALISATION\nFormulation intégrative complète. Plan phasé. Reconceptualisation si nécessaire. Structure : présentation → formulation → plan phasé → indicateurs.',
+      bibliographie: 'POSTURE : RÉFÉRENT BIBLIOGRAPHIQUE\nQuestion théorique ou auteur. Tu réponds avec précision en mobilisant la bibliothèque.',
+      production: 'POSTURE : PRODUCTION\nLivrable documentaire. Tu produis avec l\'exigence d\'un clinicien senior.',
       chat: ''
     };
 
     const clinIntent = plan?.clinical_intent || 'bibliographie';
     const orientation = clinicalOrientations[clinIntent] || clinicalOrientations.bibliographie;
     const orientationBlock = orientation
-      ? '\n\n── ORIENTATION ACTIVE : ' + clinIntent.toUpperCase().replace('_',' ') + ' ──\n' + orientation
-      : '';
+      ? '\n\n── ORIENTATION : ' + clinIntent.toUpperCase().replace('_',' ') + ' ──\n' + orientation : '';
 
-    return 'Tu es le Conseiller Clinique de C Concept&Dev.\n\n' +
-      'Tu es un clinicien senior avec une pratique longue et dense — individuel, couple, famille, supervision. ' +
-      'Tu as traversé des centaines d\'impasses thérapeutiques et d\'accompagnements transformateurs. ' +
-      'Ton interlocuteur est un thérapeute de haut niveau — pas un débutant à guider, un pair avec qui penser.\n\n' +
-      'Tu n\'es pas là pour valider, enseigner ou impressionner. Tu apportes ce que le regard extérieur permet : ' +
-      'voir ce qui est invisible de l\'intérieur, nommer ce qui n\'a pas encore été nommé, proposer ce qui n\'a pas encore été tenté.\n\n' +
-      '── TON COLLEGE D\'EXPERTS INTERNES ──\n' +
-      'Tu penses à travers les plus grands — pas comme un catalogue, comme un clinicien qui a intégré toutes les gammes et improvise. ' +
-      'HAYES : tu repères l\'évitement expérientiel, la fusion cognitive, tu guides vers la flexibilité psychologique. ' +
-      'LINEHAN : tu ne travailles jamais le cognitif sur un cerveau en feu — stabiliser d\'abord, valider radicalement. ' +
-      'YOUNG : tu lis les schémas précoces comme une partition — abandon, carence, assujettissement, tu les repères dans la première phrase. ' +
-      'VAN DER KOLK / LEVINE : la mémoire du trauma est somatique avant d\'être narrative — le corps garde le score. ' +
-      'GOTTMAN / NEUBURGER : tu entends les cavaliers de l\'apocalypse dans un échange de couple, tu lis les loyautés invisibles dans une famille. ' +
-      'BOWLBY / MAIN : le style d\'attachement est la matrice de tout le reste — anxieux, évitant, désorganisé. ' +
-      'GILBERT : derrière la honte, un système de menace qui n\'a jamais été apaisé — la compassion n\'est pas de la tendresse, c\'est du courage.\n\n' +
-      '── POSTURE ──\n' +
-      'Tu penses AVEC ton interlocuteur, tu ne récites pas. ' +
-      'Tu fais des liens transversaux entre approches. ' +
-      'Tu cites les auteurs pour argumenter, pas pour décorer. ' +
-      'Chaque phrase compte — pas de remplissage. ' +
-      'Pour une question simple : réponse concise et percutante. ' +
-      'Pour une question clinique profonde : tu tiens deux niveaux — le contenu ET le processus.\n\n' +
-      'Tu as accès à une bibliothèque de 213 ouvrages thérapeutiques (20 496 passages). ' +
-      'Tu les mobilises comme un clinicien qui a vraiment lu et intégré ces textes — pas comme une base de données.\n\n' +
-      'Ne JAMAIS dire que tu ne peux pas créer un fichier : le Worker Cloudflare gère tout.\n' +
-      'Quand tu produis un fichier HTML, commence par <!DOCTYPE html> et ne contiens RIEN d\'autre que le code HTML.' +
-      orientationBlock +
-      commonBase;
+    // Contexte planner — information pour CC, pas ordre
+    let plannerCtx = '';
+    if (plan) {
+      plannerCtx = '\n\n── CONTEXTE PLANNER ──\n'
+        + 'Sujet : ' + (plan.topic_summary || '') + '\n'
+        + 'Intent perçu : ' + (plan.intent || '') + '\n'
+        + 'Audience estimée : ' + (plan.audience_type || 'praticien') + '\n'
+        + 'Registre estimé : ' + (plan.registre || 'clinique') + '\n'
+        + 'Format suggéré : ' + (plan.output_format || '') + '\n'
+        + 'Tu utilises ce contexte pour décider — pas pour obéir mécaniquement.';
+    }
+
+    // Contrainte de sortie — règles techniques non négociables
+    const outputConstraint = '\n\n── CONTRAINTES DE SORTIE ──\n'
+      + 'HTML : commence par <!DOCTYPE html>, termine par </html>. Aucun texte avant ou après. Aucune phrase d\'introduction.\n'
+      + 'Texte : réponds directement. Pas de méta-commentaire.\n'
+      + 'A4 : width:210mm, chaque page min-height:297mm, pas max-width:1200px.\n'
+      + 'PHOTOS — architecture du système (lis attentivement) :\n'
+      + 'L\'application hôte contient une fonction adocResolveImages() qui tourne APRÈS ta réponse. '
+      + 'Cette fonction parcourt le DOM du HTML que tu produis, trouve tous les éléments avec data-pexels=, '
+      + 'appelle le Worker Cloudflare sur /fetch-image?q=..., et injecte les vraies URLs dans src= ou background-image. '
+      + 'TON RÔLE : placer uniquement les attributs data-pexels= avec des queries descriptives en anglais. '
+      + 'Le reste est automatique. Tu ne dois PAS écrire de JS pour les photos dans le document produit. '
+      + 'Tu ne dois PAS hardcoder d\'URLs. Tu ne dois PAS simuler le mécanisme.\n'
+      + 'Syntaxe correcte : <img data-pexels="couple therapy session" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="">\n'
+      + 'Syntaxe fond   : <div data-pexels="couple emotional distance" style="height:260px;background-size:cover;background-position:center"></div>\n'
+      + 'JAMAIS : src="https://...", url("https://..."), images.pexels.com, random URL generation, serviceWorker — le Worker Cloudflare gère déjà tout cela.\n'
+      + 'XLSX — données embarquées obligatoires : quand le format est xlsx, tu DOIS inclure dans le head du HTML un bloc JSON avec id=xlsx-data.\n'
+      + 'Format : objet JSON avec clés headers (tableau de strings) et rows (tableau de tableaux de valeurs).\n'
+      + 'Sans ce bloc, seuls les en-têtes arrivent dans le fichier Excel — les données sont perdues.\n'
+      + 'PPTX — données embarquées obligatoires : quand le format est pptx, tu DOIS inclure dans le head du HTML un bloc JSON avec id=pptx-data.\n'
+      + 'Format : tableau de slides, chaque slide = objet avec title (string), bullets (tableau), content (string), image_query (string anglais 3-5 mots).\n'
+      + 'image_query = requête Pexels pour la photo de fond. Le Worker la fetch automatiquement. Pas de image_query = slide sans photo.';
+
+    const commonBase = ctxSession + ctxPatient + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
+
+    return (
+      `Tu es le Conseiller Clinique de C Concept&Dev.
+
+Tu es un clinicien senior avec une pratique dense et longue. Individuel, couple, famille, supervision. Tu as traversé des centaines d'accompagnements transformateurs et d'impasses. Ton interlocuteur est un thérapeute de haut niveau. Tu penses avec lui, pas pour lui.
+
+Tu as intégré Hayes, Linehan, Young, Van der Kolk, Levine, Gottman, Neuburger, Bowlby, Main, Gilbert. Pas comme un catalogue — comme un musicien qui a intégré ses influences. Quand tu parles, c'est une synthèse vivante, pas une référence.
+
+Tu as accès à une bibliothèque de 213 ouvrages thérapeutiques (20 496 passages). Tu la mobilises comme quelqu'un qui a vraiment lu ces livres.
+
+${orientationBlock}
+
+── EXIGENCE DE PRODUCTION ──
+Avant de produire, tu te poses trois questions — silencieusement, sans les écrire :
+1. QUI reçoit ça ? L'audience change tout.
+2. QUEL est l'enjeu ? Former, convaincre, publier, enseigner, soigner, engager.
+3. QU'est-ce qui rend ce livrable mémorable pour CETTE audience et CET enjeu ?
+
+La forme émerge du fond. Tu choisis le format, la structure, le design — et tu assumes.
+
+Pour les livrables HTML :
+— Google Fonts distinctives selon le registre. Jamais Arial/Roboto/Inter seul.
+— Layout éditorial : sidebar colorée, hero header, callouts, citations en bloc.
+— Tout JS self-contained.
+— Le Worker gère PDF, DOCX, PPTX, XLSX. Ne jamais dire qu'on ne peut pas créer un fichier.
+
+${commonBase}`
+    );
   }
+
 
   // ── adocSend — Architecture agentique 2 passes ──
   window.adocSend = async function() {
@@ -38802,7 +38748,7 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
       adocAutoSummarize().catch(() => {});
 
       const workerUrl = adocGetWorkerUrl();
-      const maxTok = plan?.max_tokens || 4000; // unifié
+      const maxTok = plan?.max_tokens || 6000; // CC décide
       // Guard : fenêtre -12, garantir alternance user/assistant, premier message = user
       let messages = adocConversations.slice(-12).map(m => ({ role: m.role, content: m.content }));
       // Supprimer les messages consécutifs de même rôle (garder le dernier)
@@ -38999,38 +38945,97 @@ max_tokens : cours=8000, conseil=4000, document=6000, chat=2000, comparatif=4000
     if (!workerUrl || !htmlContent) return htmlContent;
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
-    const imgs = doc.querySelectorAll('img[data-gen], img[data-pexels]');
-    if (!imgs.length) return htmlContent;
-    const promises = Array.from(imgs).map(async img => {
+
+    // ── 1. Résoudre background-image: url('data-pexels="..."') dans les styles inline et <style>
+    // Convertir en <img data-pexels="..."> injectés dans les éléments concernés
+    const bgPexelsRe = /url\(['"]?data-pexels="([^"]+)"['"]?\)/g;
+
+    // Traitement des éléments avec style inline
+    doc.querySelectorAll('[style]').forEach(el => {
+      const style = el.getAttribute('style');
+      let match;
+      bgPexelsRe.lastIndex = 0;
+      while ((match = bgPexelsRe.exec(style)) !== null) {
+        // Ajouter l'attribut data-pexels-bg pour traitement ultérieur
+        el.setAttribute('data-pexels-bg', match[1]);
+        el.style.backgroundImage = ''; // reset temporaire
+      }
+    });
+
+    // Traitement des blocs <style> — remplacer data-pexels par placeholder
+    doc.querySelectorAll('style').forEach(styleEl => {
+      styleEl.textContent = styleEl.textContent.replace(bgPexelsRe, 'url("")');
+    });
+
+    // ── 2. Collecter tous les éléments à résoudre
+    const imgNodes = Array.from(doc.querySelectorAll('img[data-gen], img[data-pexels]'));
+    const bgNodes  = Array.from(doc.querySelectorAll('[data-pexels-bg]'));
+    const divNodes = Array.from(doc.querySelectorAll('div[data-pexels], section[data-pexels], figure[data-pexels]'));
+
+    const allNodes = [
+      ...imgNodes.map(el => ({ el, type: 'img', q: el.dataset.pexels || el.dataset.gen, isGen: !!el.dataset.gen })),
+      ...bgNodes.map(el  => ({ el, type: 'bg',  q: el.getAttribute('data-pexels-bg'), isGen: false })),
+      ...divNodes.map(el => ({ el, type: 'div', q: el.getAttribute('data-pexels'), isGen: false })),
+    ];
+
+    if (!allNodes.length) return htmlContent;
+
+    const fetchPexels = async (query) => {
+      const q = encodeURIComponent(query.trim().substring(0, 100));
+      const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1');
+      if (!r.ok) throw new Error('Pexels ' + r.status);
+      const d = await r.json();
+      return d.photos?.[0] || null;
+    };
+
+    const fetchFlux = async (prompt) => {
+      const r = await fetch(workerUrl + '/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      if (!r.ok) throw new Error('FLUX ' + r.status);
+      const d = await r.json();
+      return d.dataUrl || null;
+    };
+
+    const svgPlaceholder = (label) =>
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23e2e8f0"/><text x="50%" y="50%" fill="%2394a3b8" font-size="14" text-anchor="middle" dominant-baseline="middle">' + encodeURIComponent(label.substring(0, 40)) + '</text></svg>';
+
+    const promises = allNodes.map(async ({ el, type, q, isGen }) => {
       try {
-        if (img.dataset.gen) {
-          const prompt = img.dataset.gen.trim().substring(0, 500);
-          const r = await fetch(workerUrl + '/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
-          });
-          if (!r.ok) throw new Error('FLUX ' + r.status);
-          const d = await r.json();
-          if (d.dataUrl) { img.src = d.dataUrl; img.removeAttribute('data-gen'); }
-        } else if (img.dataset.pexels) {
-          const q = encodeURIComponent(img.dataset.pexels.trim().substring(0, 100));
-          const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1');
-          if (!r.ok) throw new Error('Pexels ' + r.status);
-          const d = await r.json();
-          const photo = d.photos?.[0];
-          if (photo?.url) { img.src = photo.url; img.alt = img.alt || photo.alt; img.removeAttribute('data-pexels'); }
+        let url = null;
+        if (isGen) {
+          url = await fetchFlux(q);
+        } else {
+          const photo = await fetchPexels(q);
+          url = photo?.url || null;
+        }
+        if (!url) throw new Error('no url');
+
+        if (type === 'img') {
+          el.src = url; el.removeAttribute('data-gen'); el.removeAttribute('data-pexels');
+        } else if (type === 'bg' || type === 'div') {
+          el.style.backgroundImage = 'url(' + url + ')';
+          el.style.backgroundSize = el.style.backgroundSize || 'cover';
+          el.style.backgroundPosition = el.style.backgroundPosition || 'center';
+          el.removeAttribute('data-pexels-bg'); el.removeAttribute('data-pexels');
         }
       } catch (e) {
         console.warn('[adocResolveImages]', e.message);
-        const label = img.alt || img.dataset.gen || img.dataset.pexels || 'illustration';
-        img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23EDE8F8"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%235B4A8A" font-family="Montserrat,sans-serif" font-size="14">' + label.substring(0, 40) + '</text></svg>';
-        img.removeAttribute('data-gen'); img.removeAttribute('data-pexels');
+        const label = q || 'illustration';
+        if (type === 'img') {
+          el.src = svgPlaceholder(label); el.removeAttribute('data-gen'); el.removeAttribute('data-pexels');
+        } else {
+          el.style.backgroundImage = 'url(' + svgPlaceholder(label) + ')';
+          el.removeAttribute('data-pexels-bg'); el.removeAttribute('data-pexels');
+        }
       }
     });
     await Promise.all(promises);
     return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
   }
+
 
   async function adocDeliverArtifact({ html, markdown, topic, fmt, citations, autoGenerate }) {
     const meta = ARTIFACT_META[fmt] || ARTIFACT_META.html;
