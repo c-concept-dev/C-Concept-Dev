@@ -1,5 +1,5 @@
 /**
- * clone-proxy — Worker Cloudflare v4.2
+ * clone-proxy — Worker Cloudflare v4.4
  * C Concept&Dev · Christophe · 2026
  *
  * Routes :
@@ -17,6 +17,8 @@
  *   POST /generate-pptx       → JSON → PPTX (pptxgenjs npm)
  *   POST /generate-xlsx       → JSON → XLSX (exceljs npm)
  *   POST /generate-zip        → [{name,data}] → ZIP (fflate npm)
+ *   POST /generate-image      → prompt → image PNG base64 (Workers AI FLUX)
+ *   GET  /fetch-image         → q= → URL photo Pexels (proxy sans CORS)
  */
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType } from 'docx';
@@ -79,6 +81,8 @@ export default {
     if (p === '/generate-pptx'    && request.method === 'POST') return handleGeneratePPTX(request, env);
     if (p === '/generate-xlsx'    && request.method === 'POST') return handleGenerateXLSX(request, env);
     if (p === '/generate-zip'     && request.method === 'POST') return handleGenerateZIP(request, env);
+    if (p === '/generate-image'   && request.method === 'POST') return handleGenerateImage(request, env);
+    if (p === '/fetch-image'      && request.method === 'GET')  return handleFetchImage(url, env);
     if (request.method === 'POST') return handleAnthropicProxy(request, env);
 
     return jsonErr('Not found', 404);
@@ -690,5 +694,109 @@ async function handleGenerateZIP(request, env) {
     return await storeAndReturn(env, zipped.buffer, filename + '.zip', 'application/zip');
   } catch (err) {
     return jsonErr('ZIP generation failed: ' + err.message, 500);
+  }
+}
+
+// ─── Generate Image (Workers AI FLUX) ────────────────────────────────────────
+// POST /generate-image
+// Body : { prompt: string, width?: number, height?: number }
+// Returns : { dataUrl: "data:image/png;base64,...", prompt }
+async function handleGenerateImage(request, env) {
+  if (!env.AI) return jsonErr('AI binding not configured', 500);
+
+  let prompt, width, height;
+  try {
+    ({ prompt, width = 768, height = 512 } = await request.json());
+    if (!prompt || typeof prompt !== 'string') return jsonErr('prompt required', 400);
+  } catch (e) {
+    return jsonErr('Invalid JSON body', 400);
+  }
+
+  // Sanitize : limiter la taille du prompt
+  prompt = prompt.trim().substring(0, 500);
+
+  try {
+    // FLUX Schnell : le plus rapide sur Workers AI (~1-2s)
+    const result = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', {
+      prompt,
+      num_steps: 4,   // schnell fonctionne bien avec 4 steps
+    });
+
+    // result est un ReadableStream ou ArrayBuffer selon la version du binding
+    let bytes;
+    if (result instanceof ReadableStream) {
+      const reader = result.getReader();
+      const chunks = [];
+      let done = false;
+      while (!done) {
+        const { value, done: d } = await reader.read();
+        if (value) chunks.push(value);
+        done = d;
+      }
+      const total = chunks.reduce((s, c) => s + c.length, 0);
+      bytes = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+    } else if (result instanceof ArrayBuffer) {
+      bytes = new Uint8Array(result);
+    } else if (result?.image) {
+      // Certains modèles retournent { image: base64string }
+      return json({ dataUrl: 'data:image/png;base64,' + result.image, prompt });
+    } else {
+      return jsonErr('Unexpected AI response format', 500);
+    }
+
+    // Encoder en base64
+    let b64 = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      b64 += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    b64 = btoa(b64);
+
+    return json({ dataUrl: 'data:image/png;base64,' + b64, prompt });
+
+  } catch (err) {
+    return jsonErr('Image generation failed: ' + err.message, 500);
+  }
+}
+
+// ─── Fetch Image (Pexels proxy) ───────────────────────────────────────────────
+// GET /fetch-image?q=children+therapy&per_page=3&orientation=landscape
+// Returns : { photos: [{ url, thumb, photographer, alt }] }
+async function handleFetchImage(url, env) {
+  const key = env.PEXELS_API_KEY;
+  if (!key) return jsonErr('PEXELS_API_KEY secret not configured', 500);
+
+  const q           = url.searchParams.get('q') || 'therapy';
+  const perPage     = Math.min(parseInt(url.searchParams.get('per_page') || '3'), 10);
+  const orientation = url.searchParams.get('orientation') || 'landscape'; // landscape | portrait | square
+
+  // Sanitize
+  const safeQ = q.replace(/[^a-zA-Z0-9 \-+éèàâêîôùûïë]/g, '').substring(0, 100);
+
+  try {
+    const pexelsUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQ)}&per_page=${perPage}&orientation=${orientation}`;
+    const resp = await fetch(pexelsUrl, {
+      headers: { Authorization: key }
+    });
+
+    if (!resp.ok) return jsonErr('Pexels API error: ' + resp.status, 502);
+
+    const data = await resp.json();
+    const photos = (data.photos || []).map(p => ({
+      url:          p.src?.large  || p.src?.original || '',
+      thumb:        p.src?.medium || p.src?.small    || '',
+      photographer: p.photographer || '',
+      alt:          p.alt || safeQ,
+    }));
+
+    return json({ photos, total: data.total_results || photos.length, query: safeQ });
+
+  } catch (err) {
+    return jsonErr('Pexels fetch failed: ' + err.message, 500);
   }
 }
