@@ -371,8 +371,9 @@ async function storeAndReturn(env, buffer, filename, mime, ttl = 3600) {
   await env.CLONE_KV.put('file:' + id, buffer, { expirationTtl: ttl });
   await env.CLONE_KV.put('meta:' + id, meta,   { expirationTtl: ttl });
 
-  const url = `https://clone-proxy.11drumboy11.workers.dev/get-file/${id}?dl=1`;
-  return json({ id, url, expires_in: ttl, filename, size: buffer.byteLength || buffer.length });
+  const url         = `https://clone-proxy.11drumboy11.workers.dev/get-file/${id}?dl=1`;
+  const url_preview = `https://clone-proxy.11drumboy11.workers.dev/get-file/${id}`;
+  return json({ id, url, url_preview, expires_in: ttl, filename, size: buffer.byteLength || buffer.length });
 }
 
 // ─── Generate PDF — v4.2 FIX ─────────────────────────────────────────────────
