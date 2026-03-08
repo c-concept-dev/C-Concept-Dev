@@ -1,5 +1,5 @@
 /**
- * clone-proxy — Worker Cloudflare v4.1
+ * clone-proxy — Worker Cloudflare v4.2
  * C Concept&Dev · Christophe · 2026
  *
  * Routes :
@@ -375,9 +375,10 @@ async function storeAndReturn(env, buffer, filename, mime, ttl = 3600) {
   return json({ id, url, expires_in: ttl, filename, size: buffer.byteLength || buffer.length });
 }
 
-// ─── Generate PDF — FIX v4.1 ──────────────────────────────────────────────────
-// L'API REST Cloudflare Browser Rendering n'accepte PAS de clé "options" wrapper.
-// Les paramètres PDF (printBackground, emulateMediaType…) doivent être à la racine du body.
+// ─── Generate PDF — v4.2 FIX ─────────────────────────────────────────────────
+// CORRECTION : printBackground et emulateMediaType ne sont PAS des paramètres
+// valides de l'API REST Browser Rendering. Ce sont des options Puppeteer uniquement.
+// Pour conserver les couleurs de fond en impression : addStyleTag avec print-color-adjust.
 
 async function handleGeneratePDF(request, env) {
   if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN)
@@ -400,8 +401,9 @@ async function handleGeneratePDF(request, env) {
         },
         body: JSON.stringify({
           html: content,
-          printBackground: true,
-          emulateMediaType: 'screen',
+          addStyleTag: [
+            { content: '* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }' },
+          ],
         }),
       }
     );
