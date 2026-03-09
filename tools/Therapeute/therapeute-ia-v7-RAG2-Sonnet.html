@@ -38294,7 +38294,8 @@ RÈGLES VECTOR ANGLES — formulations alternatives sémantiques du même besoin
 
 DICTIONNAIRE CLINIQUE — termes FR ET EN — utiliser les deux dans SQL LIKE et vector_angles :
 - trauma/PTSD → emdr, icv, trauma, Van der Kolk, Levine, dissociation, mémoire traumatique, traumatic memory
-- couple/relation → gottman, imago, systemic, Neuburger, communication, cavaliers apocalypse, Four Horsemen
+- couple/relation → gottman, imago, systemic, Neuburger, Hendrix, Andolfi, Filliozat, Perel, Dallaire, Mimoun, communication, cavaliers apocalypse, Four Horsemen, paradoxe passion
+- sexualité/sexologie → sexology, désir, libido, Nagoski, Perel, Kaufmann, TCC sexuelle, troubles sexuels, vaginisme, éjaculation, orgasme, plaisir, érotique, intimité — NOTE: quand sujet couple+sexualité, utiliser approach_filter=couple ET viser aussi les livres sexology
 - schémas Young — 18 schémas avec termes FR+EN :
   abandon/Abandonment, méfiance/Mistrust, manque affectif/Emotional Deprivation,
   isolement/Social Isolation, défectuosité/Defectiveness, échec/Failure,
@@ -38417,18 +38418,43 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
 
     // ── B) Vector search — topic + angles ──
     const vectorQueries = [plan.topic_summary, ...(plan.vector_angles || [])].filter(Boolean).slice(0, VEC_ANGLES);
+    // Cross-approach vector : couple cherche aussi dans sexology, et vice versa
+    const crossApproachesVec = CROSS_APPROACH[plan.approach_filter] || [];
+    // Si cross-approach : on lance le vector sans filtre d'approach (plus large)
+    // puis on filtre manuellement sur les approaches autorisées
+    const vecApproachFilter = crossApproachesVec.length > 0 ? null : (plan.approach_filter || null);
+    const allowedApproaches = plan.approach_filter
+      ? new Set([plan.approach_filter, ...crossApproachesVec])
+      : null;
+
     const vectorPromises = vectorQueries.map((q, i) =>
-      adocVectorSearch(q, VEC_COUNT, plan.approach_filter || null)
-        .then(r => r.map(x => ({ ...x, _vScore: x.score || 0.5, _vAngle: i })))
+      adocVectorSearch(q, VEC_COUNT, vecApproachFilter)
+        .then(r => r
+          .filter(x => !allowedApproaches || allowedApproaches.has(x.approach))
+          .map(x => ({ ...x, _vScore: x.score || 0.5, _vAngle: i }))
+        )
         .catch(() => [])
     );
 
     // ── C) Sweep adaptatif : TOUS les livres riches pour cours, TOP livres pour chat ──
     // Actif pour toute requête clinique avec approach détectée — pas seulement pour cours
+    // Cross-approach : couple scanne aussi sexology (et vice versa) — les sujets se recoupent
+    const CROSS_APPROACH = {
+      couple:    ['sexology'],
+      sexology:  ['couple'],
+      schema_therapy: ['attachment'],
+      attachment: ['schema_therapy'],
+    };
     let sweepPromises = [];
     if (plan.approach_filter) {
-      const topBooks = (ADOC_CATALOG[plan.approach_filter] || [])
-        .filter(b => (b.n || 0) >= SWEEP_MIN_N)   // seuil adaptatif : 50 pour cours, 100 pour chat
+      // Livres de l'approach principale + livres des approaches croisées
+      const crossApproaches = CROSS_APPROACH[plan.approach_filter] || [];
+      const allApproachBooks = [
+        ...(ADOC_CATALOG[plan.approach_filter] || []),
+        ...crossApproaches.flatMap(a => (ADOC_CATALOG[a] || []).map(b => ({ ...b, _crossApproach: a })))
+      ];
+      const topBooks = allApproachBooks
+        .filter(b => (b.n || 0) >= SWEEP_MIN_N)
         .sort((a, z) => (z.n || 0) - (a.n || 0));
 
       // Termes du topic pour cibler dans chaque livre
@@ -38446,9 +38472,11 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
           ? allTerms.map(t => `content LIKE '%${t.replace(/'/g, "''")}%'`).join(' OR ')
           : '1=1';
         // Si termes présents → ciblé, sinon → ORDER BY chunk_index pour avoir début du livre
+        // Approach réelle du livre (cross-approach : sexology cherché avec 'sexology', pas 'couple')
+        const bookApproach = book._crossApproach || plan.approach_filter;
         const sql = allTerms.length > 0
-          ? `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${plan.approach_filter}' AND (${termClause}) LIMIT ${SWEEP_LIMIT}`
-          : `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${plan.approach_filter}' ORDER BY chunk_index ASC LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
+          ? `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}' AND (${termClause}) LIMIT ${SWEEP_LIMIT}`
+          : `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}' ORDER BY chunk_index ASC LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
         return adocD1Query(sql)
           .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
           .catch(() => []);
@@ -38719,12 +38747,48 @@ ${commonBase}`
       { b: "guide-schema-final-1",                         a: "Unknown",             n: 51  },
     ],
     couple: [
-      { b: "Manuel Clinique des Psychothérapies de Couple", a: "Wright",    n: 925 },
-      { b: "De la solitude au couple",                      a: "Hendrix",   n: 311 },
-      { b: "Therapie du couple Neuburger",                  a: "Neuburger", n: 300 },
-      { b: "Comment aider les couples en crise",            a: "Andolfi",   n: 267 },
-      { b: "Le couple mode d'emploi",                       a: "Hendrix",   n: 241 },
-      { b: "Getting the Love You Want",                     a: "Hendrix",   n: 178 },
+      { b: "Manuel Clinique des Psychothérapies de Couple",                              a: "Wright",             n: 925 },
+      { b: "De la solitude au couple",                                                   a: "Hendrix",            n: 311 },
+      { b: "Therapie du couple Neuburger",                                               a: "Neuburger",          n: 300 },
+      { b: "Comment aider les couples en crise",                                         a: "Andolfi",            n: 267 },
+      { b: "Le couple mode d'emploi",                                                    a: "Hendrix",            n: 241 },
+      { b: "Le defi du couple",                                                          a: "Hendrix",            n: 224 },
+      { b: "Getting the Love You Want",                                                  a: "Hendrix",            n: 178 },
+      { b: "L'agression verbale dans le couple.Patricia Evans",                          a: "Evans",              n: 170 },
+      { b: "Le couple brisé",                                                            a: "Faure",              n: 167 },
+      { b: "Le paradoxe de la passion",                                                  a: "Delis",              n: 155 },
+      { b: "La thérapie de couples — 11 études de cas",                                  a: "Various",            n: 151 },
+      { b: "Pratiquer la therapie du couple",                                            a: "Unknown",            n: 150 },
+      { b: "Grandir en conscience par la therapie imago",                                a: "Trippi",             n: 143 },
+      { b: "J'arrete d'être mal dans mon couple",                                        a: "Ballet de Coquer.",  n: 142 },
+      { b: "L' Intelligence du coeur -  Isabelle Filliozat",                             a: "Filliozat",          n: 142 },
+      { b: "Money for Couples",                                                          a: "Various",            n: 140 },
+      { b: "Les couples heureux ont leurs secrets",                                      a: "Gottman",            n: 137 },
+      { b: "Psychotherapie du couple",                                                   a: "Unknown",            n: 127 },
+      { b: "Biologie du couple - Jean-Didier Vincent",                                   a: "Vincent",            n: 126 },
+      { b: "Qui sont ces couples heureux ?",                                             a: "Dallaire",           n: 125 },
+      { b: "Livre mais tu ne m'avais jamais dit ça - La communication intime dans le couple", a: "Vidal",         n: 112 },
+      { b: "Questions sexuelles pour couples actuels.Geneviève Parent",                  a: "Parent",             n: 97  },
+      { b: "Le mensonge dans le couple.Lisa Letessier",                                  a: "Letessier",          n: 96  },
+    ],
+    sexology: [
+      { b: "Reinventer-sa-vie-intime-apres-Camille-Bataillon-xvgm42",                   a: "Bataillon",          n: 594 },
+      { b: "Je jouis comme je suis",                                                     a: "Nagoski",            n: 209 },
+      { b: "Jouir en choeur_Le guide pour en finir avec les diktats et retrouver une sexualité de couple épanouie", a: "Various", n: 186 },
+      { b: "Sexualité, Couple et TCC — Tome 2",                                          a: "Various",            n: 177 },
+      { b: "L'intelligence érotique",                                                    a: "Perel",              n: 137 },
+      { b: "Sexualité, Couple et TCC — Tome 1",                                          a: "Various",            n: 128 },
+      { b: "L'intelligence intime",                                                      a: "Fried-Filliozat",    n: 122 },
+      { b: "Pas envie ce soir - Jean-Claude Kaufmann",                                   a: "Kaufmann",           n: 122 },
+      { b: "Pour que lamour et la sexualité ne meurent pas",                             a: "Unknown",            n: 105 },
+      { b: "MODULE 13 DIAGNOSTIC PARAPHILIE Partie 1",                                   a: "Unknown",            n: 90  },
+      { b: "MODULE 8 TECHNIQUES DE THÉRAPIE SEXUELLE",                                   a: "Unknown",            n: 86  },
+      { b: "Les cinq langages sexuels",                                                  a: "Fried-Filliozat",    n: 80  },
+      { b: "MODULE 10 EMOTIONS ET PSYCHODYNAMIQUE",                                      a: "Unknown",            n: 78  },
+      { b: "Module 11 TROUBLES SEXUELS MASCULINS",                                       a: "Unknown",            n: 77  },
+      { b: "Module 12 TROUBLES SEXUELS FEMININS",                                        a: "Unknown",            n: 73  },
+      { b: "MODULE 6 TECHNIQUES DE SEXOTHÉRAPIE COGNITIVO",                              a: "Unknown",            n: 70  },
+      { b: "Corvée de sexe",                                                             a: "Castet",             n: 68  },
     ],
     act: [
       { b: "ACT — Applications thérapeutiques",                  a: "Monestès",  n: 271 },
