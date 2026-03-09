@@ -38426,6 +38426,13 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
 
     // ── B) Vector search — topic + angles ──
     const vectorQueries = [plan.topic_summary, ...(plan.vector_angles || [])].filter(Boolean).slice(0, VEC_ANGLES);
+    // Cross-approach map — défini ici, utilisé par vector ET sweep
+    const CROSS_APPROACH = {
+      couple:    ['sexology'],
+      sexology:  ['couple'],
+      schema_therapy: ['attachment'],
+      attachment: ['schema_therapy'],
+    };
     // Cross-approach vector : couple cherche aussi dans sexology, et vice versa
     const crossApproachesVec = CROSS_APPROACH[plan.approach_filter] || [];
     // Si cross-approach : on lance le vector sans filtre d'approach (plus large)
@@ -38446,13 +38453,6 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
 
     // ── C) Sweep adaptatif : TOUS les livres riches pour cours, TOP livres pour chat ──
     // Actif pour toute requête clinique avec approach détectée — pas seulement pour cours
-    // Cross-approach : couple scanne aussi sexology (et vice versa) — les sujets se recoupent
-    const CROSS_APPROACH = {
-      couple:    ['sexology'],
-      sexology:  ['couple'],
-      schema_therapy: ['attachment'],
-      attachment: ['schema_therapy'],
-    };
     let sweepPromises = [];
     if (plan.approach_filter) {
       // Livres de l'approach principale + livres des approaches croisées
