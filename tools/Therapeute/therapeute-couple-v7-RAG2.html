@@ -2126,7 +2126,19 @@
             color: #2C3830;
         }
         .adoc-msg.user .adoc-bubble { background: #3A5658; color: white; border-top-right-radius: 3px; }
-        .adoc-citations { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+        .adoc-stream-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--deep, #3A5658);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: adoc-blink 0.7s step-end infinite;
+  }
+  @keyframes adoc-blink {
+    50% { opacity: 0; }
+  }
+  .adoc-citations { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
         .adoc-cite {
             display: flex; align-items: center; gap: 6px;
             background: #EDF2F2; border-left: 3px solid #3A5658;
@@ -38553,7 +38565,26 @@ function openCoupleOutilTool(toolId) {
         document.getElementById('adoc-stat-appr').textContent   = appr;
         document.getElementById('adoc-rag-badge').textContent   = `📚 ${books} ouvrages`;
         document.getElementById('adoc-rag-status').textContent  = `Bibliothèque : ${books} ouvrages · ${chunks.toLocaleString('fr')} chunks`;
-        adocLibStats = { books, chunks, approaches: d.by_approach?.map(a=>a.approach).join(', ') || '' };
+        // Catalogue complet : livres par approche pour le sweep bibliographique
+        const booksByApproach = {};
+        if (d.books) {
+          d.books.forEach(b => {
+            const appr = b.approach || 'general';
+            if (!booksByApproach[appr]) booksByApproach[appr] = [];
+            booksByApproach[appr].push({ title: b.title || b.book_title, author: b.author, chunks: b.chunk_count || b.chunks || 0 });
+          });
+        }
+        adocLibStats = {
+          books, chunks,
+          approaches: d.by_approach?.map(a=>a.approach).join(', ') || '',
+          booksByApproach,
+          // Format compact pour Haiku : approche → livres principaux (>50 chunks)
+          richBooks: Object.entries(booksByApproach).reduce((acc, [appr, bks]) => {
+            const rich = bks.filter(b => b.chunks >= 50).map(b => b.title).join(', ');
+            if (rich) acc[appr] = rich;
+            return acc;
+          }, {})
+        };
       })
       .catch(() => { document.getElementById('adoc-rag-status').textContent = 'Bibliothèque non disponible'; });
 
@@ -38654,9 +38685,15 @@ function openCoupleOutilTool(toolId) {
     const workerUrl = adocGetWorkerUrl();
     if (!workerUrl) return null;
 
-    // Stats bibliothèque pour le planner
+    // Stats bibliothèque pour le planner — catalogue livres inclus
+    const richBooksCtx = (adocLibStats?.richBooks)
+      ? '\nLivres principaux par approche (>50 chunks) : ' +
+        Object.entries(adocLibStats.richBooks)
+          .map(([appr, titles]) => `${appr}: ${titles}`)
+          .join(' | ')
+      : '';
     const statsCtx = (adocLibStats)
-      ? `La bibliothèque contient ${adocLibStats.books} livres, ${adocLibStats.chunks} chunks, approches disponibles : ${adocLibStats.approaches}.`
+      ? `La bibliothèque contient ${adocLibStats.books} livres, ${adocLibStats.chunks} chunks, approches disponibles : ${adocLibStats.approaches}.${richBooksCtx}`
       : 'Bibliothèque thérapeutique disponible via SQL.';
 
     // ── Contexte clinique dynamique — CDEngine + conversation ──
@@ -38728,23 +38765,45 @@ RÈGLES MAX_TOKENS :
 
 RÈGLES SQL :
 - Utilise LIKE '%terme%' pour le contenu (pas de FTS5)
-- 2-3 requêtes SQL avec angles DIFFÉRENTS : un par mots-clés content, un par approach, un par auteur clé
-- Chaque requête : SELECT book_title, author, page_number, content, approach FROM chunks WHERE ... LIMIT 8
+- 3-4 requêtes SQL avec angles DIFFÉRENTS : termes FR, termes EN, par approach, par auteur clé
+- Chaque requête : SELECT book_title, author, page_number, content, approach FROM chunks WHERE ... LIMIT 10
 - needs_rag=false uniquement si la question est purement conversationnelle sans besoin de références
+- Pour intent=cours/document : ajouter une requête par auteur clé (Young, Pascal, Mehran, Simeone-DiFrancesco...)
+  → ex: SELECT book_title, author, page_number, content, approach FROM chunks WHERE approach='schema_therapy' AND author LIKE '%Young%' LIMIT 10
+- deep_scan=true si intent est cours, document, comparatif, tableau, fiche — déclenche le sweep bibliographique complet
+CHAMP SUPPLÉMENTAIRE À RETOURNER si deep_scan : "deep_scan": true dans le JSON
 
 RÈGLES VECTOR ANGLES — formulations alternatives sémantiques du même besoin :
 - vector_angles : 2 reformulations cliniques de la demande (ex: ["régulation émotionnelle couple", "fenêtre de tolérance relation d'attachement"])
 - Ces angles seront utilisés pour la recherche sémantique vectorielle en parallèle du SQL
 - approach_filter : si la demande est clairement dans une approche (gottman, trauma, schema_therapy, act, attachment...) → indiquer cette approche pour filtrer les vecteurs
 
-DICTIONNAIRE CLINIQUE — termes à utiliser dans les angles et le SQL :
-- trauma/PTSD/TSPT → emdr, icv, trauma, Van der Kolk, Levine, mémoire traumatique, dissociation
-- couple/relation → gottman, imago, systemic, Neuburger, communication, cavaliers apocalypse
-- schémas/Young → schema_therapy, besoins fondamentaux, modes, croyances précoces
-- attachement → attachment, Bowlby, styles, sécurité, hyperactivation
-- ACT/acceptation → act, flexibilité psychologique, valeurs, défusion, métaphores
-- IFS/parties → ifs, self, managers, exilés, firefighters
-- mindfulness/pleine conscience → mbct, méditation, présence, régulation
+DICTIONNAIRE CLINIQUE — termes FR ET EN — utiliser les deux dans SQL LIKE et vector_angles :
+- trauma/PTSD → emdr, icv, trauma, Van der Kolk, Levine, dissociation, mémoire traumatique, traumatic memory
+- couple/relation → gottman, imago, systemic, Neuburger, communication, cavaliers apocalypse, Four Horsemen
+- schémas Young — 18 schémas avec termes FR+EN :
+  abandon/Abandonment, méfiance/Mistrust, manque affectif/Emotional Deprivation,
+  isolement/Social Isolation, défectuosité/Defectiveness, échec/Failure,
+  dépendance/Dependence, vulnérabilité/Vulnerability, enchevêtrement/Enmeshment,
+  assujettissement/Subjugation, abnégation/Self-Sacrifice, inhibition/Emotional Inhibition,
+  idéaux exigeants/Unrelenting Standards, punition/Punitiveness,
+  droits/Entitlement, grandiosité, contrôle de soi/Self-Control, autocontrôle/Insufficient Self-Control,
+  recherche approbation/Approval-Seeking, reconnaissance/Recognition-Seeking
+  → toujours inclure : schema_therapy, Young, modes, besoins fondamentaux, reparentage, confrontation empathique
+- attachement → attachment, Bowlby, Ainsworth, styles, sécurité, hyperactivation, désactivation, désorganisé
+- ACT/acceptation → act, flexibilité psychologique, valeurs, défusion, métaphores, Hayes, hexaflex
+- IFS/parties → ifs, self, managers, exilés, firefighters, Schwartz, parts
+- mindfulness → mbct, méditation, présence, régulation, Kabat-Zinn, pleine conscience
+- hypnose → hypnosis, hypnothérapie, transe, induction, Erickson, suggestion, Roustang
+- EMDR → emdr, retraitement, bilatéral, Shapiro, CIBL, protocole standard
+- CNV → cnv, communication nonviolente, Rosenberg, besoins, observations
+RÈGLE SQL CRITIQUE :
+1. Pour les schémas Young : TOUJOURS 2 requêtes par schéma (terme FR + terme EN : Enmeshment, Entitlement, Self-Control, Approval-Seeking, Defectiveness, Abandonment, Mistrust, Subjugation)
+2. Pour intent=cours ou document : générer 6-8 requêtes SQL, UNE par livre de la liste LIVRES DISPONIBLES — couvrir TOUS les auteurs majeurs
+3. Pour cours schema_therapy : inclure obligatoirement Pascal, Young "Je réinvente ma vie", "La thérapie des schémas en pratique", Simeone-DiFrancesco, Mehran
+4. SQL format : SELECT book_title, author, chapter, content, approach FROM chunks WHERE book_title LIKE '%NomLivre%' AND approach='{app}' AND (content LIKE '%terme1%' OR content LIKE '%terme2%') LIMIT 12
+5. Ne JAMAIS générer 2 requêtes identiques — chaque requête doit cibler un livre différent
+6. CRUCIAL : utiliser les titres EXACTS de la liste LIVRES DISPONIBLES dans les LIKE
 
 RÈGLES FORMAT — INFERENCE FORMAT - CC raisonne le format, Haiku suggere :
 Haiku analyse l'intention complete (verbe, objet, audience, contexte) et propose une suggestion de format.
@@ -38764,17 +38823,33 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload: {
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 600,
+          max_tokens: 800,
           system: plannerSystem,
           messages: [{ role: 'user', content: (() => {
-            // Contexte multi-échanges pour le planner (3 derniers tours)
             const recentPairs = adocConversations.slice(-6)
               .filter(m => m.role === 'user' || m.role === 'assistant')
               .map(m => (m.role === 'user' ? 'Thérapeute: ' : 'Conseiller: ') + m.content.substring(0, 150))
               .join('\n');
-            return recentPairs
+            // Détecter l'approche probable pour injecter le catalog
+            const approachHint = (() => {
+              // Normalise : retire accents + minuscules pour matching robuste
+              const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const q = norm(userMessage);
+              if (q.includes('schema') || q.includes('young') || q.includes('mode') || q.includes('reenventez') || q.includes('reinvente') || q.includes('besoins fondamentaux') || q.includes('reparentage')) return 'schema_therapy';
+              if (q.includes('couple') || q.includes('gottman') || q.includes('neuburger') || q.includes('imago') || q.includes('conjugal')) return 'couple';
+              if (q.includes('act') || q.includes('acceptation') || q.includes('hayes') || q.includes('flexibilite') || q.includes('valeurs')) return 'act';
+              if (q.includes('attach') || q.includes('bowlby') || q.includes('ainsworth') || q.includes('secure')) return 'attachment';
+              if (q.includes('emdr') || q.includes('trauma') || q.includes('traumat') || q.includes('shapiro')) return 'emdr';
+              if (q.includes('ifs') || q.includes('parties') || q.includes('schwartz') || q.includes('exile')) return 'ifs';
+              if (q.includes('hypno') || q.includes('transe') || q.includes('erickson')) return 'hypnosis';
+              if (q.includes('mindful') || q.includes('pleine conscience') || q.includes('mbct') || q.includes('kabat')) return 'mindfulness';
+              return null;
+            })();
+            const catalogCtx = approachHint ? adocCatalogSummary(approachHint) : '';
+            const baseMsg = recentPairs
               ? 'Échanges récents :\n' + recentPairs + '\nDemande actuelle : ' + userMessage
               : userMessage;
+            return baseMsg + (catalogCtx ? '\n' + catalogCtx : '');
           })() }]
         }})
       });
@@ -38785,113 +38860,209 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
     } catch(e) { console.warn('adocPlanQuery:', e); return null; }
   }
 
-  // ── Passe 2 : RAG parallèle — SQL + Vector simultanés + fusion par pertinence ──
+  // ── Passe 2 : RAG industriel v5.3.0 — intent-aware, catalog-pondéré ──
+    // ── Passe 2 : RAG industrialisé v5.3 — SQL + Vector + Full-Sweep bibliographique ──
   async function adocExecutePlan(plan) {
     if (!plan?.needs_rag) return { chunks: [], chunkLen: 900 };
 
-    const seen = new Set();
-    const scored = []; // { chunk, score, source }
+    const isCours   = plan.intent === 'cours' || plan.intent === 'document';
+    const isComp    = plan.intent === 'comparatif' || plan.intent === 'tableau' || plan.intent === 'fiche';
+    const isDeep    = isCours || isComp;
 
-    // ── Lancer SQL et Vector EN PARALLÈLE ──
+    // ── Paramètres adaptatifs par intent ──
+    // cours/document : exhaustif (90 chunks, sweep complet)
+    // comparatif/fiche : large (50 chunks, sweep partiel)
+    // chat/question : scan sérieux (45 chunks, sweep top-5 livres)
+    // → D1 exhaustif pour TOUTE requête clinique, web_search si insuffisant
+    const MAX_CHUNKS   = isCours ? 90 : isComp ? 50 : 45;
+    const VEC_COUNT    = isCours ? 15 : isComp ? 12 : 10;
+    const VEC_ANGLES   = isCours ? 5  : 4;
+    const CHUNK_LEN    = isCours ? 1800 : isComp ? 1200 : 1000;
+    // Nombre de livres à sweeper : tous pour cours, top-5 pour chat
+    const SWEEP_MIN_N  = isCours ? 50 : isComp ? 80 : 100;  // seuil chunks pour entrer dans sweep
+    const SWEEP_LIMIT  = isCours ? 10 : isComp ? 8  : 6;    // chunks max par livre dans sweep
+
+    // Quota par livre — couverture large garantie pour tout intent
+    const bookQuota = (n) => n >= 300 ? (isCours ? 15 : isComp ? 7 : 6)
+                           : n >= 200 ? (isCours ? 12 : isComp ? 6 : 5)
+                           : n >= 100 ? (isCours ? 10 : isComp ? 5 : 4)
+                           : n >= 50  ? (isCours ? 7  : isComp ? 4 : 3)
+                           :            (isCours ? 4  : 2);
+
+    // Bonus scoring : livres riches montent naturellement
+    const catalogBooks = ADOC_CATALOG[plan.approach_filter] || [];
+    const richBonus = (bookTitle) => {
+      const entry = catalogBooks.find(b => bookTitle && bookTitle.includes(b.b.substring(0, 20)));
+      return entry ? Math.min(0.25, Math.log10(entry.n || 1) * 0.08) : 0;
+    };
+
+    // ── A) SQL ciblé Haiku ──
     const sqlPromises = (plan.sql_queries || [])
       .filter(sql => { const up = sql.trim().toUpperCase(); return up.startsWith('SELECT') && up.includes('CHUNKS'); })
       .map(sql => adocD1Query(sql).catch(() => null));
 
-    // Requêtes vectorielles : topic principal + angles cliniques du plan
-    const vectorQueries = [
-      plan.topic_summary,
-      ...(plan.vector_angles || [])
-    ].filter(Boolean).slice(0, 3);
-
+    // ── B) Vector search — topic + angles ──
+    const vectorQueries = [plan.topic_summary, ...(plan.vector_angles || [])].filter(Boolean).slice(0, VEC_ANGLES);
     const vectorPromises = vectorQueries.map((q, i) =>
-      adocVectorSearch(q, 10, plan.approach_filter || null)
-        .then(results => results.map(r => ({ ...r, _vScore: r.score || 0.5, _vAngle: i })))
+      adocVectorSearch(q, VEC_COUNT, plan.approach_filter || null)
+        .then(r => r.map(x => ({ ...x, _vScore: x.score || 0.5, _vAngle: i })))
         .catch(() => [])
     );
 
-    // Attendre tous les résultats en parallèle
-    const [sqlResults, ...vectorResults] = await Promise.all([
+    // ── C) Sweep adaptatif : TOUS les livres riches pour cours, TOP livres pour chat ──
+    // Actif pour toute requête clinique avec approach détectée — pas seulement pour cours
+    let sweepPromises = [];
+    if (plan.approach_filter) {
+      const topBooks = (ADOC_CATALOG[plan.approach_filter] || [])
+        .filter(b => (b.n || 0) >= SWEEP_MIN_N)   // seuil adaptatif : 50 pour cours, 100 pour chat
+        .sort((a, z) => (z.n || 0) - (a.n || 0));
+
+      // Termes du topic pour cibler dans chaque livre
+      // Termes du topic : inclure dès 3 chars, plus 10 termes max
+      const stopWords = new Set(['les','des','une','pour','dans','avec','sur','par','que','qui','est','aux','son','ses']);
+      const topicWords = (plan.topic_summary || '').split(/\s+/).filter(t => t.length > 2 && !stopWords.has(t.toLowerCase()));
+      // Termes EN des angles + topic_summary original
+      const angleTerms = (plan.vector_angles || []).join(' ').split(/\s+/).filter(t => t.length > 3 && !stopWords.has(t.toLowerCase())).slice(0, 8);
+      const allTerms = [...new Set([...topicWords, ...angleTerms])].slice(0, 10);
+
+      sweepPromises = topBooks.map(book => {
+        // Titre complet — pas de troncature pour le LIKE
+        const bookMatch = book.b.replace(/'/g, "''");
+        const termClause = allTerms.length > 0
+          ? allTerms.map(t => `content LIKE '%${t.replace(/'/g, "''")}%'`).join(' OR ')
+          : '1=1';
+        // Si termes présents → ciblé, sinon → ORDER BY chunk_index pour avoir début du livre
+        const sql = allTerms.length > 0
+          ? `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${plan.approach_filter}' AND (${termClause}) LIMIT ${SWEEP_LIMIT}`
+          : `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${plan.approach_filter}' ORDER BY chunk_index ASC LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
+        return adocD1Query(sql)
+          .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
+          .catch(() => []);
+      });
+    }
+
+    // ── Tout en parallèle ──
+    const [sqlRes, vecRes, ...sweepRes] = await Promise.all([
       Promise.all(sqlPromises),
-      ...vectorPromises
+      Promise.all(vectorPromises),
+      ...sweepPromises
     ]);
 
-    // ── Indexer les chunks SQL (score de base = 0.4, bonus approche) ──
-    for (const rows of sqlResults) {
-      if (!rows?.length) continue;
-      for (const row of rows) {
-        const key = (row.book_title || '') + '|' + (row.content || '').substring(0, 60);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const approachBonus = plan.approach_filter && row.approach === plan.approach_filter ? 0.15 : 0;
-        scored.push({ chunk: row, score: 0.4 + approachBonus, source: 'sql' });
+    const seen = new Set();
+    const scored = [];
+
+    const addChunk = (row, score, source) => {
+      const key = (row.book_title || '') + '|' + (row.content || '').substring(0, 60);
+      if (seen.has(key)) {
+        // Boost si concordance multi-source
+        const ex = scored.find(s => s.key === key);
+        if (ex) { ex.score = Math.min(1, ex.score + 0.2); ex.source = ex.source + '+' + source; }
+        return;
+      }
+      seen.add(key);
+      scored.push({ key, chunk: row, score, source });
+    };
+
+    // Indexer SQL
+    for (const rows of (sqlRes || []).flat()) {
+      if (!rows) continue;
+      const approachBonus = plan.approach_filter && rows.approach === plan.approach_filter ? 0.15 : 0;
+      addChunk(rows, 0.4 + approachBonus + richBonus(rows.book_title), 'sql');
+    }
+
+    // Indexer Vector
+    for (const vChunks of (vecRes || []).flat()) {
+      if (!vChunks) continue;
+      addChunk(vChunks, (vChunks._vScore || 0.5) + richBonus(vChunks.book_title), 'vector');
+    }
+
+    // Indexer Sweep (score légèrement inférieur — couvre la bibliographie, pas le meilleur match)
+    for (const sChunks of sweepRes) {
+      for (const r of (sChunks || [])) {
+        addChunk(r, 0.35 + richBonus(r.book_title), 'sweep');
       }
     }
 
-    // ── Indexer les chunks Vector (score sémantique réel) ──
-    for (const vChunks of vectorResults) {
-      for (const r of vChunks) {
-        const key = (r.book_title || '') + '|' + (r.content || '').substring(0, 60);
-        if (seen.has(key)) {
-          // Booster le score du chunk déjà présent (concordance SQL+Vector)
-          const existing = scored.find(s => s.chunk.book_title === r.book_title &&
-            (s.chunk.content||'').substring(0,60) === (r.content||'').substring(0,60));
-          if (existing) { existing.score = Math.min(1, existing.score + r._vScore * 0.5); existing.source = 'sql+vector'; }
-          continue;
-        }
-        seen.add(key);
-        scored.push({ chunk: r, score: r._vScore || 0.5, source: 'vector' });
-      }
-    }
-
-    // ── Tri par score décroissant + diversité des sources ──
+    // ── Tri score + quota adaptatif par livre ──
     scored.sort((a, b) => b.score - a.score);
-
-    // Garantir diversité : max 3 chunks par livre
     const bookCount = {};
     const finalChunks = [];
+
     for (const { chunk, score, source } of scored) {
       const book = chunk.book_title || 'unknown';
+      const bookInfo = catalogBooks.find(b => book.includes(b.b.substring(0, 20)));
+      const quota = bookQuota(bookInfo?.n || 0);
       bookCount[book] = (bookCount[book] || 0) + 1;
-      if (bookCount[book] <= 3) {
-        finalChunks.push({ ...chunk, _score: score, _source: source });
-      }
-      if (finalChunks.length >= 22) break;
+      if (bookCount[book] <= quota) finalChunks.push({ ...chunk, _score: score, _source: source });
+      if (finalChunks.length >= MAX_CHUNKS) break;
     }
 
-    const chunkLen = (plan.intent === 'cours' || plan.intent === 'document') ? 1500
-      : (plan.intent === 'comparatif' || plan.intent === 'tableau') ? 1200 : 1000;
+    // ── Log diagnostic ──
+    const bookDist = {};
+    finalChunks.forEach(c => { const b = c.book_title || '?'; bookDist[b] = (bookDist[b]||0)+1; });
+    console.log(`[RAG v5.3] intent=${plan.intent} chunks=${finalChunks.length}/${MAX_CHUNKS} livres=${Object.keys(bookDist).length} sweep=${sweepRes.length} livres`, bookDist);
 
-    return { chunks: finalChunks, chunkLen, stats: {
-      sql: sqlResults.flat().filter(Boolean).length,
-      vector: vectorResults.flat().length,
-      final: finalChunks.length
+    return { chunks: finalChunks, chunkLen: CHUNK_LEN, isDeep, stats: {
+      sql: (sqlRes || []).flat().filter(Boolean).length,
+      vector: (vecRes || []).flat().length,
+      sweep: sweepRes.flat().length,
+      booksSwept: sweepPromises.length,
+      final: finalChunks.length,
+      books: Object.keys(bookDist).length
     }};
   }
 
+
   function adocBuildRAGCtx(ragResult) {
     if (!ragResult?.chunks?.length) return '';
-    const { chunks, chunkLen, stats } = ragResult;
+    const { chunks, chunkLen, stats, isDeep } = ragResult;
 
-    // Grouper par approche pour une lecture clinique plus fluide
-    const byApproach = {};
-    chunks.forEach(item => {
-      const appr = item.approach || 'general';
-      if (!byApproach[appr]) byApproach[appr] = [];
-      byApproach[appr].push(item);
-    });
+    const statsLine = stats
+      ? `[${stats.final} passages · ${stats.books || '?'} livres · SQL:${stats.sql} Vector:${stats.vector}${stats.booksSwept ? ' Sweep:'+stats.booksSwept+'livres' : ''}]`
+      : '';
 
-    const statsLine = stats ? `[${stats.final} passages · SQL:${stats.sql} Vector:${stats.vector}]` : '';
     let ctx = `\n\n═══ BIBLIOTHÈQUE DOCUMENTAIRE ${statsLine} ═══\n`;
-    ctx += 'Tu as devant toi un clinicien expert. Mobilise ces références avec précision et profondeur.\n';
-    ctx += 'Fais des liens transversaux entre les approches. Cite auteurs et pages quand pertinent.\n\n';
 
-    chunks.forEach((item, i) => {
-      const qual = item._source === 'sql+vector' ? '★★' : item._source === 'vector' ? '★' : '·';
-      ctx += `${qual} ${item.book_title||'Référence'}${item.page_number?', p.'+item.page_number:''}`;
-      ctx += item.author ? ` [${item.author}]` : '';
-      ctx += item.approach ? ` {${item.approach}}` : '';
-      ctx += '\n' + (item.content||'').substring(0, chunkLen).trim() + '\n\n';
-    });
+    if (isDeep) {
+      // Mode cours/document : grouper par livre, instruction de couverture totale
+      const byBook = {};
+      const bookOrder = [];
+      chunks.forEach(item => {
+        const book = item.book_title || 'Référence';
+        if (!byBook[book]) { byBook[book] = []; bookOrder.push(book); }
+        byBook[book].push(item);
+      });
+
+      const bookList = bookOrder.map(b => {
+        const author = byBook[b][0]?.author || '';
+        return `"${b}"${author ? ' ('+author+')' : ''} — ${byBook[b].length} passages`;
+      }).join(', ');
+
+      ctx += `INSTRUCTION : Tu as accès à ${bookOrder.length} ouvrages distincts. MOBILISE-LES TOUS.\n`;
+      ctx += `Ouvrages disponibles : ${bookList}\n`;
+      ctx += `Ne te limite pas à 1-2 sources. Synthétise, confronte les points de vue, cite auteurs et pages.\n\n`;
+
+      bookOrder.forEach(book => {
+        const items = byBook[book];
+        const author = items[0]?.author || '';
+        ctx += `▶ ${book}${author ? ' — ' + author : ''}\n`;
+        items.forEach(item => {
+          const qual = item._source?.includes('vector') ? '★' : '·';
+          ctx += `  ${qual} p.${item.page_number||'?'} · ${(item.content||'').substring(0, chunkLen).trim()}\n\n`;
+        });
+      });
+    } else {
+      // Mode chat/conseil : groupé par approche, compact
+      ctx += 'Tu as devant toi un clinicien expert. Mobilise ces références avec précision.\n';
+      ctx += 'Fais des liens transversaux. Cite auteurs et pages quand pertinent.\n\n';
+      chunks.forEach(item => {
+        const qual = item._source?.includes('+') ? '★★' : item._source === 'vector' ? '★' : '·';
+        ctx += `${qual} ${item.book_title||'Référence'}${item.page_number ? ', p.'+item.page_number : ''}`;
+        ctx += item.author ? ` [${item.author}]` : '';
+        ctx += item.approach ? ` {${item.approach}}` : '';
+        ctx += '\n' + (item.content||'').substring(0, chunkLen).trim() + '\n\n';
+      });
+    }
     return ctx;
   }
 
@@ -39015,15 +39186,86 @@ ${commonBase}`
     const typingId = adocShowTyping();
 
     try {
-      // ── Passe 1 : Planning (modèle rapide) ──
+    
+  // ═══ CATALOG D1 — inventaire réel des livres par approche (auto-maintenu) ═══
+  // Généré depuis D1 : SELECT book_title, author, COUNT(*) as n FROM chunks GROUP BY approach, book_title
+  // Permet à Haiku de cibler les livres riches et de générer des SQL pertinents
+  const ADOC_CATALOG = {
+    schema_therapy: [
+      { b: "La therapie des schemas Pascal",               a: "Pascal",              n: 490 },
+      { b: "Je reinvente ma vie",                          a: "Young",               n: 321 },
+      { b: "La thérapie des schemas en pratique",          a: "Unknown",             n: 269 },
+      { b: "Schema therapy with couples",                  a: "Simeone-DiFrancesco", n: 250 },
+      { b: "Therapie des schemas et des emotions pour les couples", a: "Mehran",     n: 209 },
+      { b: "La thérapie des schémas",                      a: "Young",               n: 207 },
+      { b: "Expérimentez la thérapie des schémas",         a: "Young",               n: 156 },
+      { b: "Pratiquer la thérapie des schémas",            a: "Pascal",              n: 97  },
+      { b: "Thèse schémas",                                a: "Roussin",             n: 86  },
+      { b: "COURS SCHEMAS",                                a: "Unknown",             n: 42  },
+      { b: "guide-schema-final-1",                         a: "Unknown",             n: 51  },
+    ],
+    couple: [
+      { b: "Manuel Clinique des Psychothérapies de Couple", a: "Wright",    n: 925 },
+      { b: "De la solitude au couple",                      a: "Hendrix",   n: 311 },
+      { b: "Therapie du couple Neuburger",                  a: "Neuburger", n: 300 },
+      { b: "Comment aider les couples en crise",            a: "Andolfi",   n: 267 },
+      { b: "Le couple mode d'emploi",                       a: "Hendrix",   n: 241 },
+      { b: "Getting the Love You Want",                     a: "Hendrix",   n: 178 },
+    ],
+    act: [
+      { b: "ACT — Applications thérapeutiques",                  a: "Monestès",  n: 271 },
+      { b: "esprit libéré, Un - Steven C. Hayes",                a: "Hayes",     n: 244 },
+      { b: "Acceptance and Commitment Therapy for Couples",      a: "Lev/McKay", n: 129 },
+      { b: "Apprivoiser la douleur chronique avec l'ACT",        a: "Various",   n: 155 },
+      { b: "Spencer Smith, Steven C. Hayes - Penser moins",      a: "Hayes",     n: 89  },
+    ],
+    attachment: [
+      { b: "Secure Love", a: "Menanno", n: 159 },
+      { b: "Amour et rupture, les destins d", a: "Bowlby", n: 96 },
+    ],
+    emdr:  [{ b: "EMDR protocole", a: "Shapiro", n: 245 }],
+    ifs:   [{ b: "IFS Internal Family Systems", a: "Schwartz", n: 150 }],
+    trauma: [
+      { b: "Le corps n oublie rien", a: "Van der Kolk", n: 300 },
+      { b: "Guérir le traumatisme", a: "Levine", n: 200 },
+    ],
+    systemic: [
+      { b: "Thérapie systémique du couple", a: "Neuburger", n: 200 },
+    ],
+  };
+
+  // Helper : résumé catalog pour injection dans le prompt Haiku
+  function adocCatalogSummary(approach) {
+    const books = ADOC_CATALOG[approach] || [];
+    if (!books.length) return '';
+    return '\nLIVRES DISPONIBLES (' + approach + ') — utiliser ces titres exacts dans les SQL LIKE :\n' +
+      books.slice(0, 8).map(b => `  • "${b.b}" (${b.a}, ${b.n} chunks)`).join('\n');
+  }
+
+
+  // ── Passe 1 : Planning (modèle rapide) ──
       adocUpdateTypingLabel(typingId, '🔍 Analyse de la demande…');
       const plan = await adocPlanQuery(text);
 
       // ── Passe 2 : Récupération chunks D1 ──
       let ragResult = { chunks: [], chunkLen: 900 };
       if (plan?.needs_rag !== false) {
-        adocUpdateTypingLabel(typingId, '📚 Consultation bibliothèque…');
+        // Sweep universel — label selon profondeur
+        const isDeepIntent = ['cours','document','comparatif','tableau','fiche'].includes(plan?.intent);
+        adocUpdateTypingLabel(typingId, isDeepIntent
+          ? '📚 Scan exhaustif bibliothèque…'
+          : '📚 Scan bibliothèque…');
         ragResult = await adocExecutePlan(plan);
+      }
+
+      // ── Passe 2b : Fallback web_search si D1 insuffisant ──
+      // Comme Claude.ai : si la bibliothèque locale ne couvre pas le sujet,
+      // on active web_search sur la passe 3 pour que CC puisse chercher lui-même.
+      // Seuil relevé à 8 : avec sweep universel, <8 chunks = sujet vraiment absent de D1
+      const ragInsuffisant = ragResult.chunks.length < 8;
+      if (ragInsuffisant && plan?.needs_rag !== false) {
+        adocUpdateTypingLabel(typingId, '🌐 Bibliothèque insuffisante — recherche web…');
+        console.log('[RAG Fallback] D1 chunks:', ragResult.chunks.length, '< 5 — activation web_search sur CC');
       }
 
       const ragCtx = adocBuildRAGCtx(ragResult);
@@ -39057,23 +39299,120 @@ ${commonBase}`
       adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
 
       const MODEL = 'claude-sonnet-4-20250514';
+
+      // ── Streaming SSE — plus de timeout 524, tokens en temps réel ──
       const response = await fetch(workerUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload: {
           model: MODEL,
-          max_tokens: Math.max(maxTok || 8000, 8000), // CC dispose toujours d'au moins 8000 tokens
+          max_tokens: 16000,
+          // Streaming désactivé si web_search actif (tool_use multi-turn incompatible stream)
+          stream: !ragInsuffisant,
           system: systemPrompt,
-          messages
+          messages,
+          ...(ragInsuffisant ? {
+            tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+          } : {})
         }})
       });
 
-      const data  = await response.json();
-      let reply = data.content?.[0]?.text || data.error?.message || 'Erreur de réponse.';
-      // Nettoyer les backticks markdown que le modèle ajoute parfois autour du HTML
-      reply = reply.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error('Worker ' + response.status + ': ' + errText.substring(0, 200));
+      }
 
-      adocRemoveTyping(typingId);
+      let reply = '';
+      let streamMsgId = null;
+
+      if (!ragInsuffisant) {
+        // ── Mode streaming SSE (D1 suffisant, pas de tool_use) ──
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        adocRemoveTyping(typingId);
+        streamMsgId = adocAddMsg('assistant', '', [], true);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(data);
+              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+                reply += evt.delta.text;
+                adocUpdateStreamMsg(streamMsgId, reply);
+              }
+              if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || ''));
+            } catch(parseErr) { /* SSE malformée */ }
+          }
+        }
+      } else {
+        // ── Mode JSON + tool_use loop (web_search fallback) ──
+        adocUpdateTypingLabel(typingId, '🌐 CC consulte le web…');
+        const data = await response.json();
+
+        // Boucle tool_use : CC peut appeler web_search plusieurs fois
+        let currentMessages = [...messages];
+        let currentData = data;
+
+        while (currentData.stop_reason === 'tool_use') {
+          const toolUseBlocks = currentData.content.filter(b => b.type === 'tool_use');
+          const toolResults = [];
+
+          for (const block of toolUseBlocks) {
+            // web_search est géré côté API Anthropic — le résultat est dans le prochain turn
+            // On renvoie un tool_result vide pour continuer la boucle
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: block.id,
+              content: block.type === 'web_search_20250305' ? '' : ''
+            });
+          }
+
+          // Continuer la conversation avec les tool_results
+          currentMessages = [
+            ...currentMessages,
+            { role: 'assistant', content: currentData.content },
+            { role: 'user', content: toolResults }
+          ];
+
+          const continueRes = await fetch(workerUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payload: {
+              model: MODEL,
+              max_tokens: 16000,
+              stream: false,
+              system: systemPrompt,
+              messages: currentMessages,
+              tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+            }})
+          });
+          currentData = await continueRes.json();
+        }
+
+        // Extraire le texte final
+        reply = (currentData.content || [])
+          .filter(b => b.type === 'text')
+          .map(b => b.text).join('');
+
+        adocRemoveTyping(typingId);
+        streamMsgId = adocAddMsg('assistant', '', [], true);
+        adocUpdateStreamMsg(streamMsgId, reply);
+        console.log('[RAG Fallback] web_search utilise — chunks D1 etaient insuffisants');
+      }
+
+      // Nettoyer les backticks markdown que le modèle ajoute parfois
+      reply = reply.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      if (!reply) throw new Error('Réponse vide du modèle.');
 
       // ── Pipeline artifact unifié ──
       await adocHandleReply(reply, plan, ragResult?.chunks || []);
@@ -39850,10 +40189,31 @@ ${commonBase}`
   }
 
   // ── Render messages ──
-  function adocAddMsg(role, content, citations) {
+  // ── adocUpdateStreamMsg — mise à jour temps réel du message en cours ──
+  function adocUpdateStreamMsg(msgId, text) {
+    if (!msgId) return;
+    const div = document.getElementById(msgId);
+    if (!div) return;
+    const bubble = div.querySelector('.adoc-bubble');
+    if (!bubble) return;
+    // Affichage brut pendant le streaming (pas de formatMd pour ne pas casser le HTML partiel)
+    // On détecte si c'est du HTML en cours ou du texte
+    const trimmed = text.trimStart();
+    if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<div')) {
+      bubble.innerHTML = '<span style="opacity:0.6;font-size:11px;">⚡ Génération en cours…</span>';
+    } else {
+      bubble.innerHTML = adocFormatMd(text) + '<span class="adoc-stream-cursor">▋</span>';
+    }
+    const area = document.getElementById('adoc-messages');
+    if (area) area.scrollTop = area.scrollHeight;
+  }
+
+  function adocAddMsg(role, content, citations, streaming = false) {
     const area   = document.getElementById('adoc-messages');
     const div    = document.createElement('div');
     div.className = `adoc-msg ${role}`;
+    const msgId = 'adoc-msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+    div.id = msgId;
     const avatar = role === 'assistant' ? '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : '👤';
     const body   = role === 'assistant' ? adocFormatMd(content) : adocEsc(content).replace(/\n/g,'<br>');
 
@@ -39872,6 +40232,7 @@ ${commonBase}`
     div.innerHTML = `<div class="adoc-avatar">${avatar}</div><div><div class="adoc-bubble">${body}</div>${citeHtml}</div>${modeBadge}`;
     area.appendChild(div);
     area.scrollTop = area.scrollHeight;
+    return msgId;
   }
 
   function adocFormatMd(text) {
