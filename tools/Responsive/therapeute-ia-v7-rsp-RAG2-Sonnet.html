@@ -38366,28 +38366,47 @@ window.addEventListener('beforeunload', () => {
   async function adocD1Query(sql, params) {
     const workerUrl = adocGetWorkerUrl();
     if (!workerUrl) return null;
+    // Timeout 4s — évite qu'un cold start D1 bloque tout le sweep parallèle
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 4000);
     try {
       const r = await fetch(workerUrl + '/d1-query', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql, params: params || [] })
+        body: JSON.stringify({ sql, params: params || [] }),
+        signal: ctrl.signal
       });
+      clearTimeout(tid);
       const d = await r.json();
       return d.results || [];
-    } catch(e) { console.warn('adocD1Query:', e); return null; }
+    } catch(e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') console.warn('[RAG] adocD1Query timeout (>4s) — requête ignorée:', sql.substring(0, 80));
+      else console.warn('adocD1Query:', e);
+      return null;
+    }
   }
 
   // ── Vector search fallback ──
   async function adocVectorSearch(query, topK, approach) {
     const workerUrl = adocGetWorkerUrl();
     if (!workerUrl) return [];
+    // Timeout 5s — Vectorize plus lent que D1, cold start possible
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
     try {
       const r = await fetch(workerUrl + '/search-library', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, topK, ...(approach ? { approach } : {}) })
+        body: JSON.stringify({ query, topK, ...(approach ? { approach } : {}) }),
+        signal: ctrl.signal
       });
+      clearTimeout(tid);
       const d = await r.json();
       return d.results || [];
-    } catch(e) { return []; }
+    } catch(e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') console.warn('[RAG] adocVectorSearch timeout (>5s) — angle ignoré:', query.substring(0, 60));
+      return [];
+    }
   }
 
   // ── Passe 1 : Planning agentique ──
@@ -38714,10 +38733,19 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
       addChunk(vChunks, (vChunks._vScore || 0.5) + richBonus(vChunks.book_title), 'vector');
     }
 
-    // Indexer Sweep (score légèrement inférieur — couvre la bibliographie, pas le meilleur match)
+    // Indexer Sweep — score basé sur la pertinence réelle du contenu
+    // Un chunk qui contient 4/5 termes recherchés est mieux scoré qu'un chunk avec 1/5
+    const scoreChunkContent = (content, terms) => {
+      if (!terms || terms.length === 0) return 0.30;
+      const txt = (content || '').toLowerCase();
+      const hits = terms.filter(t => txt.includes(t.toLowerCase())).length;
+      // Score : 0.30 base + jusqu'à 0.45 selon proportion de termes matchés
+      return 0.30 + (hits / terms.length) * 0.45;
+    };
     for (const sChunks of sweepRes) {
       for (const r of (sChunks || [])) {
-        addChunk(r, 0.35 + richBonus(r.book_title), 'sweep');
+        const contentScore = scoreChunkContent(r.content, allTerms);
+        addChunk(r, contentScore + richBonus(r.book_title), 'sweep');
       }
     }
 
