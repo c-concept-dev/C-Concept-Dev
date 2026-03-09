@@ -1,5 +1,5 @@
 /**
- * clone-proxy — Worker Cloudflare v5.13.1
+ * clone-proxy — Worker Cloudflare v5.13.2
  * C Concept&Dev · Christophe · 2026
  *
  * Routes :
@@ -1071,8 +1071,9 @@ async function handleRagSearch(request, env) {
     const [embedResult, ftsRes] = await Promise.all([embedPromise, ftsPromise]);
     if (!embedResult?.data?.[0]) return jsonErr('Embedding failed', 500);
 
+    // Fix v5.13.2 : Vectorize sans filtre approach (les métadonnées peuvent être incomplètes)
+    // On filtre approach côté D1/FTS5 uniquement — plus fiable
     const vq = { topK: Math.min(topK * 3, 60), returnMetadata: 'all' };
-    if (approach) vq.filter = { approach };
     const matches   = await env.VECTOR_INDEX.query(embedResult.data[0], vq);
 
     const vecChunks = (matches.matches || []).map(m => ({
@@ -1083,11 +1084,13 @@ async function handleRagSearch(request, env) {
     }));
     const ftsChunks = (ftsRes.results || []).map(r => ({ ...r, _source: 'fts5', score: 0.7 }));
 
-    // Fusion dédoublonnée
+    // Fusion dédoublonnée + filtre approach post-hoc sur vecChunks
     const seen = new Set();
     const merged = [];
     for (const chunk of [...vecChunks, ...ftsChunks]) {
       if (seen.has(chunk.id)) continue;
+      // Filtre approach sur vecChunks si spécifié (FTS5 filtre déjà en SQL)
+      if (approach && chunk._source === 'vector' && chunk.approach && chunk.approach !== approach) continue;
       seen.add(chunk.id);
       merged.push(chunk);
     }
@@ -1245,8 +1248,10 @@ async function handleGeneratePresentation(request, env) {
 
   try {
     // ── Étape 1 : RAG ─────────────────────────────────────────────────────────
+    // Fix : language='all' pour ne pas filtrer par langue (chunks en fr ET en)
+    // approach passé uniquement au FTS5, pas au filtre Vectorize (métadonnées Vectorize incomplètes)
     const ragReq  = new Request('https://proxy/rag-search', {
-      method:'POST', body:JSON.stringify({ query:topic, approach, language, topK:20, include_content:true }),
+      method:'POST', body:JSON.stringify({ query:topic, approach, language:'all', topK:20, include_content:true }),
       headers:{'Content-Type':'application/json'},
     });
     const ragData = await (await handleRagSearch(ragReq, env)).json();
