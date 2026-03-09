@@ -163,9 +163,8 @@ async function handleLibrarySearch(request, env) {
     const embedResult = await env.AI.run('@cf/baai/bge-m3', { text: [query] });
     if (!embedResult?.data?.[0]) return jsonErr('Embedding generation failed', 500);
 
-    const fetchK = exclude_approach ? Math.min(topK * 3, 60) : Math.min(topK, 20);
+    const fetchK = exclude_approach ? Math.min(topK * 3, 50) : Math.min(topK, 20);
     const vq = { topK: fetchK, returnMetadata: 'all' };
-    if (approach) vq.filter = { approach };
 
     const matches = await env.VECTOR_INDEX.query(embedResult.data[0], vq);
     if (!matches?.matches?.length) return json({ results: [], query, message: 'No matches found' });
