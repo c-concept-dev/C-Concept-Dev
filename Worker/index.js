@@ -1,5 +1,5 @@
 /**
- * clone-proxy — Worker Cloudflare v4.4
+ * clone-proxy — Worker Cloudflare v5.13.1
  * C Concept&Dev · Christophe · 2026
  *
  * Routes :
@@ -83,6 +83,20 @@ export default {
     if (p === '/generate-zip'     && request.method === 'POST') return handleGenerateZIP(request, env);
     if (p === '/generate-image'   && request.method === 'POST') return handleGenerateImage(request, env);
     if (p === '/fetch-image'      && request.method === 'GET')  return handleFetchImage(url, env);
+    if (p === '/session-save'     && request.method === 'POST') return handleSessionSave(request, env);
+    if (p === '/session-load'     && request.method === 'POST') return handleSessionLoad(request, env);
+    if (p === '/session-list'     && request.method === 'POST') return handleSessionList(request, env);
+    if (p === '/sync-check'       && request.method === 'GET')  return handleSyncCheck(request, env);
+
+    // ── Universal RAG API ─────────────────────────────────────────────────────
+    if (p === '/rag-search'            && request.method === 'POST') return handleRagSearch(request, env);
+    if (p === '/rag-stats'             && request.method === 'GET')  return handleRagStats(env);
+    if (p === '/rag-query'             && request.method === 'POST') return handleRagQuery(request, env);
+    if (p === '/llm-proxy'             && request.method === 'POST') return handleLLMProxy(request, env);
+
+    // ── Pipeline présentation ─────────────────────────────────────────────────
+    if (p === '/generate-presentation' && request.method === 'POST') return handleGeneratePresentation(request, env);
+
     if (request.method === 'POST') return handleAnthropicProxy(request, env);
 
     return jsonErr('Not found', 404);
@@ -98,7 +112,18 @@ async function handleAnthropicProxy(request, env) {
   const { payload } = body || {};
   if (!payload) return jsonErr('Missing payload', 400);
 
-  const { model, messages, max_tokens, temperature, system, tools, tool_choice, stream } = payload;
+  const { model, messages, max_tokens, temperature, system, tools, tool_choice, stream, provider } = payload;
+
+  // Routing OpenAI si demandé (rétrocompatibilité HTML legacy)
+  if (provider === 'openai') {
+    const llmReq = new Request('https://proxy/llm-proxy', {
+      method: 'POST',
+      body: JSON.stringify({ provider, model, messages, system, max_tokens, temperature, stream, tools, tool_choice }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return handleLLMProxy(llmReq, env);
+  }
+
   if (!env.ANTHROPIC_API_KEY) return jsonErr('Anthropic API key not configured', 500);
 
   const ab = { model, messages, max_tokens, temperature };
@@ -116,19 +141,6 @@ async function handleAnthropicProxy(request, env) {
     },
     body: JSON.stringify(ab),
   });
-
-  // ── Streaming SSE : pipe direct vers le client, pas de res.text() ──
-  if (ab.stream) {
-    return new Response(res.body, {
-      status: res.status,
-      headers: {
-        ...CORS,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'X-Accel-Buffering': 'no',
-      },
-    });
-  }
 
   return new Response(await res.text(), {
     status: res.status,
@@ -867,5 +879,492 @@ async function handleFetchImage(url, env) {
 
   } catch (err) {
     return jsonErr('Pexels fetch failed: ' + err.message, 500);
+  }
+}
+
+// ─── Session Memory (P1-1) ────────────────────────────────────────────────────
+// Clé KV : session:{patientId}  TTL 30 jours
+// POST /session-save  : { patientId, summary }
+// POST /session-load  : { patientId }
+// POST /session-list  : {}  → liste toutes les clés session:*
+
+const SESSION_TTL = 30 * 24 * 3600; // 30 jours
+
+async function handleSessionSave(request, env) {
+  if (!env.CLONE_KV) return jsonErr('KV binding CLONE_KV not configured', 500);
+  let body;
+  try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
+
+  const { patientId, summary, therapistId } = body;
+  if (!patientId) return jsonErr('Missing patientId', 400);
+  if (!summary)   return jsonErr('Missing summary', 400);
+
+  // P3-3 : namespace par thérapeute si therapistId fourni
+  const key      = therapistId ? 'session:' + therapistId + ':' + patientId : 'session:' + patientId;
+  const existing = await env.CLONE_KV.get(key);
+  let history    = [];
+  if (existing) {
+    try { history = JSON.parse(existing).history || []; } catch {}
+  }
+
+  // Nouvelle séance en tête, 10 séances max
+  history.unshift({ date: new Date().toISOString().slice(0, 10), summary });
+  if (history.length > 10) history = history.slice(0, 10);
+
+  await env.CLONE_KV.put(
+    key,
+    JSON.stringify({ patientId, history, updated: new Date().toISOString() }),
+    { expirationTtl: SESSION_TTL }
+  );
+  return json({ ok: true, patientId, sessions: history.length });
+}
+
+async function handleSessionLoad(request, env) {
+  if (!env.CLONE_KV) return jsonErr('KV binding CLONE_KV not configured', 500);
+  let body;
+  try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
+
+  const { patientId, therapistId } = body;
+  if (!patientId) return jsonErr('Missing patientId', 400);
+
+  // P3-3 : namespace par thérapeute
+  const kvKey = therapistId ? 'session:' + therapistId + ':' + patientId : 'session:' + patientId;
+  const raw = await env.CLONE_KV.get(kvKey);
+  if (!raw) return json({ patientId, history: [], found: false });
+  try {
+    return json({ ...JSON.parse(raw), found: true });
+  } catch {
+    return jsonErr('Corrupted session data', 500);
+  }
+}
+
+async function handleSessionList(request, env) {
+  if (!env.CLONE_KV) return jsonErr('KV binding CLONE_KV not configured', 500);
+  // P3-3 : filtrer par thérapeute ou lister tous
+  let body2 = {};
+  try { body2 = await request.json(); } catch {}
+  const therapistId2 = body2?.therapistId;
+  const prefix = therapistId2 ? 'session:' + therapistId2 + ':' : 'session:';
+  const list = await env.CLONE_KV.list({ prefix });
+  const keys = (list.keys || []).map(k => {
+    const raw = k.name.replace('session:', '');
+    // raw = "therapistId:patientId" ou "patientId" (legacy)
+    const parts = raw.split(':');
+    return {
+      patientId  : parts.length > 1 ? parts.slice(1).join(':') : parts[0],
+      therapistId: parts.length > 1 ? parts[0] : null,
+      key        : k.name,
+      expiration : k.expiration,
+    };
+  });
+  return json({ sessions: keys, count: keys.length });
+}
+
+// ─── Sync-Check D1 ↔ Vectorize (P3-2) ───────────────────────────────────────
+// GET /sync-check
+// Compare COUNT D1 vs COUNT Vectorize par approach
+// Retourne les book_ids potentiellement manquants dans Vectorize
+// Note : Vectorize ne supporte pas COUNT direct → on échantillonne par approach
+
+async function handleSyncCheck(request, env) {
+  if (!env.DB)           return jsonErr('D1 not configured', 500);
+  if (!env.AI)           return jsonErr('AI binding not configured (needed for test embed)', 500);
+  if (!env.VECTOR_INDEX) return jsonErr('VECTOR_INDEX not configured', 500);
+
+  try {
+    // 1. Stats D1 par approach
+    const d1Stats = await env.DB.prepare(
+      'SELECT approach, COUNT(*) as chunks, COUNT(DISTINCT book_id) as livres FROM chunks GROUP BY approach ORDER BY chunks DESC'
+    ).all();
+
+    const d1Total = await env.DB.prepare('SELECT COUNT(*) as n FROM chunks').first();
+
+    // 2. Vérifier Vectorize par sondage — on cherche des IDs D1 dans Vectorize
+    // Prendre 5 IDs aléatoires par approach et vérifier leur présence
+    const approaches = (d1Stats.results || []).map(r => r.approach);
+    const sampleSize = 5;
+    const syncResults = [];
+
+    for (const approach of approaches.slice(0, 8)) { // max 8 approaches pour éviter timeout
+      const sample = await env.DB.prepare(
+        `SELECT id FROM chunks WHERE approach = ? ORDER BY RANDOM() LIMIT ${sampleSize}`
+      ).bind(approach).all();
+
+      const ids = (sample.results || []).map(r => r.id);
+      if (!ids.length) continue;
+
+      // Vérifier dans Vectorize via getByIds
+      let foundCount = 0;
+      try {
+        const vecResults = await env.VECTOR_INDEX.getByIds(ids);
+        foundCount = (vecResults || []).length;
+      } catch {}
+
+      const d1Row = (d1Stats.results || []).find(r => r.approach === approach);
+      syncResults.push({
+        approach,
+        d1_chunks    : d1Row?.chunks || 0,
+        d1_livres    : d1Row?.livres || 0,
+        sample_size  : ids.length,
+        vec_found    : foundCount,
+        sync_rate    : ids.length > 0 ? Math.round((foundCount / ids.length) * 100) : 0,
+        status       : foundCount === ids.length ? 'ok' : foundCount === 0 ? 'missing' : 'partial',
+      });
+    }
+
+    // 3. Résumé global
+    const totalD1  = d1Total?.n || 0;
+    const allOk    = syncResults.every(r => r.status === 'ok');
+    const missing  = syncResults.filter(r => r.status === 'missing').map(r => r.approach);
+    const partial  = syncResults.filter(r => r.status === 'partial').map(r => r.approach);
+
+    return json({
+      d1_total       : totalD1,
+      approaches_checked: syncResults.length,
+      all_synced     : allOk,
+      missing_approaches: missing,
+      partial_approaches: partial,
+      details        : syncResults,
+      note           : 'Sondage par échantillon (5 IDs/approach) — non exhaustif',
+    });
+
+  } catch (err) {
+    return jsonErr('sync-check failed: ' + err.message, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UNIVERSAL RAG API + LLM PROXY + GENERATE-PRESENTATION v5.13.1
+// Fix : Pexels parallèle, timeout protection, meilleure gestion d'erreurs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── /rag-search ──────────────────────────────────────────────────────────────
+async function handleRagSearch(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
+
+  const { query, approach, exclude_approach, language='fr', topK=10, include_content=true, fts_terms, book_title } = body;
+  if (!query) return jsonErr('Missing query', 400);
+  if (!env.AI || !env.VECTOR_INDEX || !env.DB) return jsonErr('Bindings AI, VECTOR_INDEX, DB requis', 500);
+
+  try {
+    // 1. Vectorize + FTS5 en parallèle
+    const embedPromise = env.AI.run('@cf/baai/bge-m3', { text: [query] });
+
+    const terms    = fts_terms || query.split(/\s+/).filter(w => w.length > 3).slice(0, 6);
+    const ftsQuery = terms.map(t => t.replace(/['"]/g, '')).join(' OR ');
+    let ftsPromise = Promise.resolve({ results: [] });
+
+    if (ftsQuery) {
+      let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.content
+        FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
+        WHERE chunks_fts MATCH ?`;
+      const params = [ftsQuery];
+      if (approach)         { sql += ` AND c.approach = ?`;      params.push(approach); }
+      if (exclude_approach) { sql += ` AND c.approach != ?`;     params.push(exclude_approach); }
+      if (book_title)       { sql += ` AND c.book_title LIKE ?`; params.push(book_title + '%'); }
+      if (language !== 'all') { sql += ` AND c.language = ?`;    params.push(language); }
+      sql += ` ORDER BY rank LIMIT ${Math.min(topK * 2, 40)}`;
+      ftsPromise = env.DB.prepare(sql).bind(...params).all().catch(() => ({ results: [] }));
+    }
+
+    const [embedResult, ftsRes] = await Promise.all([embedPromise, ftsPromise]);
+    if (!embedResult?.data?.[0]) return jsonErr('Embedding failed', 500);
+
+    const vq = { topK: Math.min(topK * 3, 60), returnMetadata: 'all' };
+    if (approach) vq.filter = { approach };
+    const matches   = await env.VECTOR_INDEX.query(embedResult.data[0], vq);
+
+    const vecChunks = (matches.matches || []).map(m => ({
+      id: m.id, score: m.score,
+      book_title: m.metadata?.book_title, author: m.metadata?.author,
+      page_number: m.metadata?.page_number, approach: m.metadata?.approach,
+      _source: 'vector',
+    }));
+    const ftsChunks = (ftsRes.results || []).map(r => ({ ...r, _source: 'fts5', score: 0.7 }));
+
+    // Fusion dédoublonnée
+    const seen = new Set();
+    const merged = [];
+    for (const chunk of [...vecChunks, ...ftsChunks]) {
+      if (seen.has(chunk.id)) continue;
+      seen.add(chunk.id);
+      merged.push(chunk);
+    }
+
+    // Enrichir contenu
+    const ids = merged.filter(c => !c.content).map(c => c.id);
+    if (ids.length) {
+      const ph   = ids.map(() => '?').join(',');
+      const rows = await env.DB.prepare(`SELECT id, content FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
+      const cm   = Object.fromEntries((rows.results || []).map(r => [r.id, r.content]));
+      merged.forEach(c => { if (!c.content) c.content = cm[c.id] || ''; });
+    }
+
+    const finalChunks = merged.slice(0, topK).map((c, i) => {
+      const out = { index: i+1, book_title: c.book_title||'', author: c.author||'',
+        page_number: c.page_number||null, approach: c.approach||'',
+        score: Math.round((c.score||0)*1000)/1000, source: c._source||'unknown' };
+      if (include_content) out.content = (c.content||'').substring(0, 800);
+      return out;
+    });
+
+    return json({ query, chunks: finalChunks,
+      stats: { total: finalChunks.length, vector: vecChunks.length, fts5: ftsChunks.length, approach: approach||'all', topK } });
+  } catch (err) {
+    return jsonErr('rag-search failed: ' + err.message, 500);
+  }
+}
+
+// ─── /rag-stats ───────────────────────────────────────────────────────────────
+async function handleRagStats(env) {
+  if (!env.DB) return jsonErr('DB not configured', 500);
+  try {
+    const [stats, total, topBooks] = await Promise.all([
+      env.DB.prepare('SELECT approach, COUNT(*) as chunks, COUNT(DISTINCT book_id) as books FROM chunks GROUP BY approach ORDER BY chunks DESC').all(),
+      env.DB.prepare('SELECT COUNT(*) as n, COUNT(DISTINCT book_id) as b FROM chunks').first(),
+      env.DB.prepare('SELECT book_title, author, approach, COUNT(*) as chunks FROM chunks GROUP BY book_id ORDER BY chunks DESC LIMIT 20').all(),
+    ]);
+    return json({ total_chunks: total?.n||0, total_books: total?.b||0,
+      by_approach: stats.results||[], top_books: topBooks.results||[] });
+  } catch (err) { return jsonErr('rag-stats failed: ' + err.message, 500); }
+}
+
+// ─── /llm-proxy ───────────────────────────────────────────────────────────────
+async function handleLLMProxy(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
+
+  const { provider='anthropic', model, messages, system, max_tokens=4096,
+          temperature=0.7, stream=false, tools, tool_choice } = body;
+  if (!messages?.length) return jsonErr('Missing messages', 400);
+
+  if (provider === 'anthropic') {
+    if (!env.ANTHROPIC_API_KEY) return jsonErr('ANTHROPIC_API_KEY not configured', 500);
+    const ab = { model: model||'claude-sonnet-4-20250514', messages, max_tokens, temperature };
+    if (system) ab.system = system;
+    if (stream) ab.stream = stream;
+    if (tools) ab.tools = tools;
+    if (tool_choice) ab.tool_choice = tool_choice;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json' },
+      body: JSON.stringify(ab),
+    });
+    if (stream) return new Response(res.body, { status:res.status, headers:{...CORS,'Content-Type':'text/event-stream','Cache-Control':'no-cache'} });
+    return new Response(await res.text(), { status:res.status, headers:{...CORS,'Content-Type':'application/json'} });
+  }
+
+  if (provider === 'openai') {
+    if (!env.OPENAI_API_KEY) return jsonErr('OPENAI_API_KEY not configured', 500);
+    const oaiMessages = [];
+    if (system) oaiMessages.push({ role:'system', content:system });
+    for (const m of messages) {
+      const content = Array.isArray(m.content) ? m.content.map(b=>b.text||b.content||'').join('\n') : m.content;
+      oaiMessages.push({ role:m.role, content });
+    }
+    const oaiBody = { model:model||'gpt-4o', messages:oaiMessages, max_tokens, temperature, stream };
+    if (tools) oaiBody.tools = tools.map(t=>({ type:'function', function:{ name:t.name, description:t.description, parameters:t.input_schema||t.parameters||{} } }));
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:'POST',
+      headers:{ 'Authorization':'Bearer '+env.OPENAI_API_KEY,'Content-Type':'application/json' },
+      body: JSON.stringify(oaiBody),
+    });
+    if (stream) return new Response(res.body, { status:res.status, headers:{...CORS,'Content-Type':'text/event-stream','Cache-Control':'no-cache'} });
+    const data = await res.json();
+    if (!res.ok) return new Response(JSON.stringify(data), { status:res.status, headers:{...CORS,'Content-Type':'application/json'} });
+    return json({ id:data.id, type:'message', role:'assistant', model:data.model,
+      content:[{ type:'text', text:data.choices?.[0]?.message?.content||'' }],
+      usage:{ input_tokens:data.usage?.prompt_tokens||0, output_tokens:data.usage?.completion_tokens||0 },
+      stop_reason:data.choices?.[0]?.finish_reason||'end_turn', _provider:'openai' });
+  }
+
+  return jsonErr(`Unknown provider: ${provider}`, 400);
+}
+
+// ─── /rag-query ───────────────────────────────────────────────────────────────
+async function handleRagQuery(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
+  const { question, approach, language='fr', topK=15, provider='anthropic', model, max_tokens=2000, system_extra } = body;
+  if (!question) return jsonErr('Missing question', 400);
+
+  const ragReq = new Request('https://proxy/rag-search', {
+    method:'POST', body:JSON.stringify({ query:question, approach, language, topK, include_content:true }),
+    headers:{'Content-Type':'application/json'},
+  });
+  const ragData = await (await handleRagSearch(ragReq, env)).json();
+  if (!ragData.chunks?.length) return json({ answer:'Aucun document pertinent trouvé.', chunks_used:0, provider });
+
+  const context = ragData.chunks.map(c =>
+    `[${c.index}] ${c.book_title}${c.author?' — '+c.author:''}${c.page_number?', p.'+c.page_number:''} (${c.approach})\n${c.content}`
+  ).join('\n\n');
+
+  const systemPrompt = `Tu es un assistant clinique expert. Cite les sources avec [n] après chaque affirmation. Réponds en ${language==='fr'?'français':language}.`
+    + (system_extra ? '\n'+system_extra : '');
+
+  const llmReq = new Request('https://proxy/llm-proxy', {
+    method:'POST',
+    body:JSON.stringify({ provider, model:model||(provider==='openai'?'gpt-4o':'claude-sonnet-4-20250514'),
+      system:systemPrompt, messages:[{role:'user',content:`Question : ${question}\n\n${context}`}], max_tokens }),
+    headers:{'Content-Type':'application/json'},
+  });
+  const llmData = await (await handleLLMProxy(llmReq, env)).json();
+  return json({ answer:llmData.content?.[0]?.text||'', chunks_used:ragData.chunks.length,
+    sources:ragData.chunks.map(c=>({index:c.index,book:c.book_title,author:c.author,page:c.page_number})),
+    usage:llmData.usage||{}, provider:llmData._provider||provider, model:llmData.model||model });
+}
+
+// ─── /generate-presentation ───────────────────────────────────────────────────
+// Fix v5.13.1 :
+//   - Pexels en parallèle (Promise.all) → réduit le temps de ~4×
+//   - Protection CPU : embedding + FTS5 en parallèle dans RAG
+//   - return_json par défaut false (retourne PPTX binaire direct)
+//   - Meilleure gestion erreurs avec étape précise
+
+async function handleGeneratePresentation(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
+
+  const {
+    topic,
+    approach,
+    nb_slides    = 4,
+    provider     = 'anthropic',
+    model,
+    language     = 'fr',
+    pexels_queries,
+    return_json  = false,
+    filename     = 'presentation',
+    audience     = 'professionnels de santé mentale',
+    style        = 'congrès scientifique',
+  } = body;
+
+  if (!topic) return jsonErr('Missing topic', 400);
+  if (!env.DB || !env.AI || !env.VECTOR_INDEX) return jsonErr('Bindings DB, AI, VECTOR_INDEX requis', 500);
+
+  try {
+    // ── Étape 1 : RAG ─────────────────────────────────────────────────────────
+    const ragReq  = new Request('https://proxy/rag-search', {
+      method:'POST', body:JSON.stringify({ query:topic, approach, language, topK:20, include_content:true }),
+      headers:{'Content-Type':'application/json'},
+    });
+    const ragData = await (await handleRagSearch(ragReq, env)).json();
+    const chunks  = ragData.chunks || [];
+
+    if (chunks.length < 3)
+      return jsonErr(`RAG insuffisant pour "${topic}" — ${chunks.length} chunks. Essayez sans filtrer par approche, ou avec un topic plus large.`, 422);
+
+    // ── Étape 2 : Plan LLM (Haiku pour vitesse + économie) ───────────────────
+    const plannerModel = provider === 'openai' ? (model||'gpt-4o-mini') : 'claude-haiku-4-5-20251001';
+
+    const ragContext = chunks.slice(0, 12).map(c =>
+      `[${c.index}] ${c.book_title}${c.author?' — '+c.author:''}${c.page_number?' p.'+c.page_number:''}\n${c.content}`
+    ).join('\n\n');
+
+    const plannerSystem = `Tu es expert en présentation scientifique. Public: ${audience}. Style: ${style}. Langue: ${language}.
+RÈGLE CRITIQUE : retourne UNIQUEMENT du JSON valide, sans backticks, sans markdown, sans texte avant ou après.`;
+
+    const plannerPrompt =
+`Crée une présentation sur "${topic}" en ${nb_slides} slides en utilisant UNIQUEMENT les extraits ci-dessous.
+
+EXTRAITS :
+${ragContext}
+
+FORMAT JSON (strictement, pas de backticks) :
+{"presentation_title":"...","presentation_subtitle":"...","slides":[{"title":"...","bullets":["...","...","..."],"citation":"Auteur, Titre, p.XX","image_query":"therapy professional calm"}]}`;
+
+    const planReq  = new Request('https://proxy/llm-proxy', {
+      method:'POST',
+      body:JSON.stringify({ provider, model:plannerModel, system:plannerSystem,
+        messages:[{role:'user',content:plannerPrompt}], max_tokens:2000, temperature:0.3 }),
+      headers:{'Content-Type':'application/json'},
+    });
+    const planData = await (await handleLLMProxy(planReq, env)).json();
+    const planText = planData.content?.[0]?.text || '';
+
+    let plan;
+    try {
+      // Nettoyage robuste : supprimer backticks, trouver le JSON entre { }
+      let clean = planText.replace(/```json|```/g, '').trim();
+      const start = clean.indexOf('{');
+      const end   = clean.lastIndexOf('}');
+      if (start >= 0 && end > start) clean = clean.slice(start, end+1);
+      plan = JSON.parse(clean);
+    } catch {
+      return jsonErr('LLM plan invalide — réponse non-JSON: ' + planText.substring(0, 300), 500);
+    }
+    if (!plan?.slides?.length) return jsonErr('Plan vide — pas de slides retournées', 500);
+
+    // ── Étape 3 : Images Pexels en parallèle ─────────────────────────────────
+    if (env.PEXELS_API_KEY) {
+      await Promise.all(plan.slides.map(async (slide, i) => {
+        const q = (pexels_queries?.[i]) || slide.image_query || topic + ' therapy';
+        // Queries plus précises — évite les faux positifs Pexels
+        const safeQ = (q + ' psychology').replace(/[^a-zA-Z0-9 \-+]/g, '').substring(0, 80);
+        try {
+          const pRes = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQ)}&per_page=3&orientation=landscape`,
+            { headers:{ Authorization:env.PEXELS_API_KEY } }
+          );
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            // Prendre la 2ème photo si disponible (moins générique que la 1ère)
+            const photo = pData.photos?.[1] || pData.photos?.[0];
+            slide.image_url = photo?.src?.large2x || photo?.src?.large || null;
+          }
+        } catch (_) { slide.image_url = null; }
+      }));
+    }
+
+    // ── Étape 4 : Assemblage PPTX ─────────────────────────────────────────────
+    const pptxContent = {
+      title    : plan.presentation_title || topic,
+      subtitle : (plan.presentation_subtitle || audience) + ` — ${style}`,
+      slides   : plan.slides.map(s => ({
+        title   : s.title,
+        bullets : s.bullets || [],
+        content : (s.bullets || []).join('\n'),
+        image   : s.image_url || null,
+        footer  : s.citation ? `📚 ${s.citation}` : '',
+        notes   : s.speaker_notes || '',
+      })),
+    };
+
+    const pptxReq = new Request('https://proxy/generate-pptx', {
+      method:'POST', body:JSON.stringify({ content:pptxContent, filename }),
+      headers:{'Content-Type':'application/json'},
+    });
+    const pptxRes = await handleGeneratePPTX(pptxReq, env);
+
+    if (!pptxRes.ok) {
+      const errText = await pptxRes.text();
+      return jsonErr('PPTX generation failed: ' + errText.substring(0, 300), 500);
+    }
+
+    const pptxBuf = await pptxRes.arrayBuffer();
+
+    if (return_json) {
+      return json({
+        ok: true, slides_json: plan,
+        pptx_base64 : btoa(String.fromCharCode(...new Uint8Array(pptxBuf))),
+        chunks_used : chunks.length,
+        sources     : chunks.slice(0, 8).map(c=>({book:c.book_title,author:c.author,page:c.page_number})),
+      });
+    }
+
+    return new Response(pptxBuf, {
+      status:200,
+      headers:{
+        ...CORS,
+        'Content-Type'        : 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'Content-Disposition' : `attachment; filename="${filename}.pptx"`,
+        'X-Chunks-Used'       : String(chunks.length),
+        'X-Sources'           : chunks.slice(0,5).map(c=>c.book_title).join(' | '),
+      },
+    });
+
+  } catch (err) {
+    return jsonErr('generate-presentation error [' + (err.name||'Error') + ']: ' + err.message, 500);
   }
 }
