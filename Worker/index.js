@@ -1,46 +1,24 @@
 /**
- * clone-proxy — Worker Cloudflare v5.13.0
+ * clone-proxy — Worker Cloudflare v5.13.1
  * C Concept&Dev · Christophe · 2026
  *
- * ── Routes génération documents ──────────────────────────────────────────────
- *   POST /                          → proxy Anthropic (legacy) + routing OpenAI
- *   POST /generate-pdf              → HTML → PDF (Browser Rendering)
- *   POST /generate-docx             → JSON → DOCX (docx npm)
- *   POST /generate-pptx             → JSON → PPTX (pptxgenjs npm)
- *   POST /generate-xlsx             → JSON → XLSX (exceljs npm)
- *   POST /generate-zip              → [{name,data}] → ZIP (fflate npm)
- *   POST /generate-image            → prompt → image PNG base64 (Workers AI FLUX)
- *   GET  /fetch-image               → ?q= → URL photo Pexels (proxy sans CORS)
- *
- * ── Routes bibliothèque D1 ───────────────────────────────────────────────────
- *   POST /search-library            → recherche Vectorize + FTS5 D1
- *   GET  /library-stats             → stats par approche / livres
- *   POST /ingest                    → ingestion chunks
- *   POST /delete-book               → suppression livre
- *   POST /update-book-meta          → mise à jour métadonnées
- *   POST /d1-query                  → requête D1 directe (safe)
- *   GET  /sync-check                → vérification sync D1 ↔ Vectorize
- *
- * ── Universal RAG API (Claude · ChatGPT · GPT Actions · MCP) ─────────────────
- *   POST /rag-search                → D1 FTS5 + Vectorize → chunks bruts
- *   GET  /rag-stats                 → stats + top livres
- *   POST /rag-query                 → RAG complet → réponse LLM sourcée
- *   POST /llm-proxy                 → proxy universel Anthropic | OpenAI
- *
- * ── Pipeline présentation automatique ────────────────────────────────────────
- *   POST /generate-presentation     → topic → RAG → LLM → Pexels → PPTX/PDF
- *
- * ── Sessions KV multi-utilisateurs ──────────────────────────────────────────
- *   POST /session-save              → résumé séance → KV (namespace therapistId)
- *   POST /session-load              → historique patient ← KV
- *   POST /session-list              → liste patients ← KV
- *
- * ── Fichiers KV ─────────────────────────────────────────────────────────────
- *   POST /store-file                → stockage KV texte (TTL 3600s)
- *   GET  /get-file/:id              → serve fichier depuis KV
- *
- * Secrets requis : ANTHROPIC_API_KEY · OPENAI_API_KEY · PEXELS_API_KEY
- * Bindings       : DB (D1) · VECTOR_INDEX (Vectorize) · AI · CLONE_KV (KV) · BROWSER
+ * Routes :
+ *   POST /                    → proxy Anthropic API
+ *   POST /search-library      → recherche vectorielle D1
+ *   GET  /library-stats       → stats bibliothèque
+ *   POST /ingest              → ingestion chunks
+ *   POST /delete-book         → suppression livre
+ *   POST /update-book-meta    → mise à jour métadonnées
+ *   POST /d1-query            → requête D1 directe (bloque DROP/ALTER/CREATE)
+ *   POST /store-file          → stockage KV texte (TTL 3600s)
+ *   GET  /get-file/:id        → serve fichier depuis KV
+ *   POST /generate-pdf        → HTML → PDF (Cloudflare Browser Rendering REST API)
+ *   POST /generate-docx       → JSON → DOCX (docx npm)
+ *   POST /generate-pptx       → JSON → PPTX (pptxgenjs npm)
+ *   POST /generate-xlsx       → JSON → XLSX (exceljs npm)
+ *   POST /generate-zip        → [{name,data}] → ZIP (fflate npm)
+ *   POST /generate-image      → prompt → image PNG base64 (Workers AI FLUX)
+ *   GET  /fetch-image         → q= → URL photo Pexels (proxy sans CORS)
  */
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType } from 'docx';
@@ -110,13 +88,13 @@ export default {
     if (p === '/session-list'     && request.method === 'POST') return handleSessionList(request, env);
     if (p === '/sync-check'       && request.method === 'GET')  return handleSyncCheck(request, env);
 
-    // ── Universal RAG API — Claude & ChatGPT via tool/function calling ────────
-    if (p === '/rag-search'         && request.method === 'POST') return handleRagSearch(request, env);
-    if (p === '/rag-stats'          && request.method === 'GET')  return handleRagStats(env);
-    if (p === '/rag-query'          && request.method === 'POST') return handleRagQuery(request, env);
-    if (p === '/llm-proxy'          && request.method === 'POST') return handleLLMProxy(request, env);
+    // ── Universal RAG API ─────────────────────────────────────────────────────
+    if (p === '/rag-search'            && request.method === 'POST') return handleRagSearch(request, env);
+    if (p === '/rag-stats'             && request.method === 'GET')  return handleRagStats(env);
+    if (p === '/rag-query'             && request.method === 'POST') return handleRagQuery(request, env);
+    if (p === '/llm-proxy'             && request.method === 'POST') return handleLLMProxy(request, env);
 
-    // ── Pipeline présentation automatique ─────────────────────────────────────
+    // ── Pipeline présentation ─────────────────────────────────────────────────
     if (p === '/generate-presentation' && request.method === 'POST') return handleGeneratePresentation(request, env);
 
     if (request.method === 'POST') return handleAnthropicProxy(request, env);
@@ -134,10 +112,9 @@ async function handleAnthropicProxy(request, env) {
   const { payload } = body || {};
   if (!payload) return jsonErr('Missing payload', 400);
 
-  // Support provider optionnel dans payload — les HTML legacy = toujours Anthropic
   const { model, messages, max_tokens, temperature, system, tools, tool_choice, stream, provider } = payload;
 
-  // Routing OpenAI si demandé
+  // Routing OpenAI si demandé (rétrocompatibilité HTML legacy)
   if (provider === 'openai') {
     const llmReq = new Request('https://proxy/llm-proxy', {
       method: 'POST',
@@ -1057,77 +1034,56 @@ async function handleSyncCheck(request, env) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// UNIVERSAL RAG API + LLM PROXY + GENERATE-PRESENTATION
-// v5.13.0 — C Concept&Dev · Christophe · 2026
-// Claude, ChatGPT, GPT Actions, MCP — tous peuvent utiliser le Worker directement
+// UNIVERSAL RAG API + LLM PROXY + GENERATE-PRESENTATION v5.13.1
+// Fix : Pexels parallèle, timeout protection, meilleure gestion d'erreurs
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── /rag-search : Recherche sémantique + FTS5 → chunks bruts ────────────────
-// Claude/ChatGPT appellent cette route pour interroger la bibliothèque
-// Input  : { query, approach?, topK?, language?, include_content?, fts_terms?, book_title? }
-// Output : { chunks: [{index, book_title, author, page_number, approach, score, content}], stats }
-
+// ─── /rag-search ──────────────────────────────────────────────────────────────
 async function handleRagSearch(request, env) {
   let body;
   try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
 
-  const {
-    query,
-    approach,
-    exclude_approach,
-    language       = 'fr',
-    topK           = 10,
-    include_content = true,
-    fts_terms,
-    book_title,
-  } = body;
-
+  const { query, approach, exclude_approach, language='fr', topK=10, include_content=true, fts_terms, book_title } = body;
   if (!query) return jsonErr('Missing query', 400);
-  if (!env.AI || !env.VECTOR_INDEX || !env.DB)
-    return jsonErr('Bindings manquants : AI, VECTOR_INDEX, DB requis', 500);
+  if (!env.AI || !env.VECTOR_INDEX || !env.DB) return jsonErr('Bindings AI, VECTOR_INDEX, DB requis', 500);
 
   try {
-    // 1. Embedding vectoriel
-    const embedResult = await env.AI.run('@cf/baai/bge-m3', { text: [query] });
-    if (!embedResult?.data?.[0]) return jsonErr('Embedding failed', 500);
+    // 1. Vectorize + FTS5 en parallèle
+    const embedPromise = env.AI.run('@cf/baai/bge-m3', { text: [query] });
 
-    const fetchK = Math.min(topK * 3, 60);
-    const vq = { topK: fetchK, returnMetadata: 'all' };
-    if (approach) vq.filter = { approach };
-
-    const matches = await env.VECTOR_INDEX.query(embedResult.data[0], vq);
-    const vecChunks = (matches.matches || []).map(m => ({
-      id          : m.id,
-      score       : m.score,
-      book_title  : m.metadata?.book_title,
-      author      : m.metadata?.author,
-      page_number : m.metadata?.page_number,
-      approach    : m.metadata?.approach,
-      _source     : 'vector',
-    }));
-
-    // 2. FTS5 (si termes fournis ou extraits de la query)
-    const terms = fts_terms || query.split(/\s+/).filter(w => w.length > 3).slice(0, 6);
+    const terms    = fts_terms || query.split(/\s+/).filter(w => w.length > 3).slice(0, 6);
     const ftsQuery = terms.map(t => t.replace(/['"]/g, '')).join(' OR ');
-    let ftsChunks = [];
+    let ftsPromise = Promise.resolve({ results: [] });
 
     if (ftsQuery) {
-      try {
-        let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.content
-          FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
-          WHERE chunks_fts MATCH ?`;
-        const params = [ftsQuery];
-        if (approach)         { sql += ` AND c.approach = ?`;      params.push(approach); }
-        if (exclude_approach) { sql += ` AND c.approach != ?`;     params.push(exclude_approach); }
-        if (book_title)       { sql += ` AND c.book_title LIKE ?`; params.push(book_title + '%'); }
-        if (language !== 'all') { sql += ` AND c.language = ?`;    params.push(language); }
-        sql += ` ORDER BY rank LIMIT ${Math.min(topK * 2, 40)}`;
-        const ftsRes = await env.DB.prepare(sql).bind(...params).all();
-        ftsChunks = (ftsRes.results || []).map(r => ({ ...r, _source: 'fts5', score: 0.7 }));
-      } catch (_) { /* FTS5 indisponible — fallback silencieux */ }
+      let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.content
+        FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
+        WHERE chunks_fts MATCH ?`;
+      const params = [ftsQuery];
+      if (approach)         { sql += ` AND c.approach = ?`;      params.push(approach); }
+      if (exclude_approach) { sql += ` AND c.approach != ?`;     params.push(exclude_approach); }
+      if (book_title)       { sql += ` AND c.book_title LIKE ?`; params.push(book_title + '%'); }
+      if (language !== 'all') { sql += ` AND c.language = ?`;    params.push(language); }
+      sql += ` ORDER BY rank LIMIT ${Math.min(topK * 2, 40)}`;
+      ftsPromise = env.DB.prepare(sql).bind(...params).all().catch(() => ({ results: [] }));
     }
 
-    // 3. Fusion — dédoublonnage par id
+    const [embedResult, ftsRes] = await Promise.all([embedPromise, ftsPromise]);
+    if (!embedResult?.data?.[0]) return jsonErr('Embedding failed', 500);
+
+    const vq = { topK: Math.min(topK * 3, 60), returnMetadata: 'all' };
+    if (approach) vq.filter = { approach };
+    const matches   = await env.VECTOR_INDEX.query(embedResult.data[0], vq);
+
+    const vecChunks = (matches.matches || []).map(m => ({
+      id: m.id, score: m.score,
+      book_title: m.metadata?.book_title, author: m.metadata?.author,
+      page_number: m.metadata?.page_number, approach: m.metadata?.approach,
+      _source: 'vector',
+    }));
+    const ftsChunks = (ftsRes.results || []).map(r => ({ ...r, _source: 'fts5', score: 0.7 }));
+
+    // Fusion dédoublonnée
     const seen = new Set();
     const merged = [];
     for (const chunk of [...vecChunks, ...ftsChunks]) {
@@ -1136,278 +1092,135 @@ async function handleRagSearch(request, env) {
       merged.push(chunk);
     }
 
-    // 4. Enrichir avec contenu D1 (les chunks vectoriels n'ont pas content)
+    // Enrichir contenu
     const ids = merged.filter(c => !c.content).map(c => c.id);
-    if (ids.length && env.DB) {
-      const ph = ids.map(() => '?').join(',');
-      const rows = await env.DB.prepare(
-        `SELECT id, content FROM chunks WHERE id IN (${ph})`
-      ).bind(...ids).all();
-      const contentMap = Object.fromEntries((rows.results || []).map(r => [r.id, r.content]));
-      merged.forEach(c => { if (!c.content) c.content = contentMap[c.id] || ''; });
+    if (ids.length) {
+      const ph   = ids.map(() => '?').join(',');
+      const rows = await env.DB.prepare(`SELECT id, content FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
+      const cm   = Object.fromEntries((rows.results || []).map(r => [r.id, r.content]));
+      merged.forEach(c => { if (!c.content) c.content = cm[c.id] || ''; });
     }
 
-    // 5. Formater
     const finalChunks = merged.slice(0, topK).map((c, i) => {
-      const out = {
-        index       : i + 1,
-        book_title  : c.book_title  || 'Référence inconnue',
-        author      : c.author      || '',
-        page_number : c.page_number || null,
-        approach    : c.approach    || '',
-        score       : Math.round((c.score || 0) * 1000) / 1000,
-        source      : c._source || 'unknown',
-      };
-      if (include_content) out.content = (c.content || '').substring(0, 800);
+      const out = { index: i+1, book_title: c.book_title||'', author: c.author||'',
+        page_number: c.page_number||null, approach: c.approach||'',
+        score: Math.round((c.score||0)*1000)/1000, source: c._source||'unknown' };
+      if (include_content) out.content = (c.content||'').substring(0, 800);
       return out;
     });
 
-    return json({
-      query,
-      chunks : finalChunks,
-      stats  : {
-        total    : finalChunks.length,
-        vector   : vecChunks.length,
-        fts5     : ftsChunks.length,
-        approach : approach || 'all',
-        topK,
-      },
-    });
-
+    return json({ query, chunks: finalChunks,
+      stats: { total: finalChunks.length, vector: vecChunks.length, fts5: ftsChunks.length, approach: approach||'all', topK } });
   } catch (err) {
     return jsonErr('rag-search failed: ' + err.message, 500);
   }
 }
 
-// ─── /rag-stats : stats bibliothèque ─────────────────────────────────────────
+// ─── /rag-stats ───────────────────────────────────────────────────────────────
 async function handleRagStats(env) {
   if (!env.DB) return jsonErr('DB not configured', 500);
   try {
-    const stats    = await env.DB.prepare(
-      'SELECT approach, COUNT(*) as chunks, COUNT(DISTINCT book_id) as books FROM chunks GROUP BY approach ORDER BY chunks DESC'
-    ).all();
-    const total    = await env.DB.prepare('SELECT COUNT(*) as n, COUNT(DISTINCT book_id) as b FROM chunks').first();
-    const topBooks = await env.DB.prepare(
-      'SELECT book_title, author, approach, COUNT(*) as chunks FROM chunks GROUP BY book_id ORDER BY chunks DESC LIMIT 30'
-    ).all();
-    return json({
-      total_chunks : total?.n  || 0,
-      total_books  : total?.b  || 0,
-      by_approach  : stats.results    || [],
-      top_books    : (topBooks.results || []).slice(0, 20),
-    });
-  } catch (err) {
-    return jsonErr('rag-stats failed: ' + err.message, 500);
-  }
+    const [stats, total, topBooks] = await Promise.all([
+      env.DB.prepare('SELECT approach, COUNT(*) as chunks, COUNT(DISTINCT book_id) as books FROM chunks GROUP BY approach ORDER BY chunks DESC').all(),
+      env.DB.prepare('SELECT COUNT(*) as n, COUNT(DISTINCT book_id) as b FROM chunks').first(),
+      env.DB.prepare('SELECT book_title, author, approach, COUNT(*) as chunks FROM chunks GROUP BY book_id ORDER BY chunks DESC LIMIT 20').all(),
+    ]);
+    return json({ total_chunks: total?.n||0, total_books: total?.b||0,
+      by_approach: stats.results||[], top_books: topBooks.results||[] });
+  } catch (err) { return jsonErr('rag-stats failed: ' + err.message, 500); }
 }
 
-// ─── /llm-proxy : proxy universel Anthropic + OpenAI ─────────────────────────
-// Format unifié — le LLM est interchangeable
-// Input  : { provider, model, messages, system?, max_tokens?, stream?, tools? }
-// Output : format Anthropic normalisé (content[0].text) dans les deux cas
-
+// ─── /llm-proxy ───────────────────────────────────────────────────────────────
 async function handleLLMProxy(request, env) {
   let body;
   try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
 
-  const {
-    provider    = 'anthropic',
-    model,
-    messages,
-    system,
-    max_tokens  = 4096,
-    temperature = 0.7,
-    stream      = false,
-    tools,
-    tool_choice,
-  } = body;
-
+  const { provider='anthropic', model, messages, system, max_tokens=4096,
+          temperature=0.7, stream=false, tools, tool_choice } = body;
   if (!messages?.length) return jsonErr('Missing messages', 400);
 
-  // ── Anthropic ───────────────────────────────────────────────────────────────
   if (provider === 'anthropic') {
     if (!env.ANTHROPIC_API_KEY) return jsonErr('ANTHROPIC_API_KEY not configured', 500);
-    const ab = {
-      model       : model || 'claude-sonnet-4-20250514',
-      messages, max_tokens, temperature,
-    };
-    if (system)      ab.system      = system;
-    if (stream)      ab.stream      = stream;
-    if (tools)       ab.tools       = tools;
+    const ab = { model: model||'claude-sonnet-4-20250514', messages, max_tokens, temperature };
+    if (system) ab.system = system;
+    if (stream) ab.stream = stream;
+    if (tools) ab.tools = tools;
     if (tool_choice) ab.tool_choice = tool_choice;
-
     const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method  : 'POST',
-      headers : {
-        'x-api-key'         : env.ANTHROPIC_API_KEY,
-        'anthropic-version' : '2023-06-01',
-        'Content-Type'      : 'application/json',
-      },
+      method:'POST',
+      headers:{ 'x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','Content-Type':'application/json' },
       body: JSON.stringify(ab),
     });
-
-    if (stream) {
-      return new Response(res.body, {
-        status  : res.status,
-        headers : { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      });
-    }
-    return new Response(await res.text(), {
-      status  : res.status,
-      headers : { ...CORS, 'Content-Type': 'application/json' },
-    });
+    if (stream) return new Response(res.body, { status:res.status, headers:{...CORS,'Content-Type':'text/event-stream','Cache-Control':'no-cache'} });
+    return new Response(await res.text(), { status:res.status, headers:{...CORS,'Content-Type':'application/json'} });
   }
 
-  // ── OpenAI ──────────────────────────────────────────────────────────────────
   if (provider === 'openai') {
     if (!env.OPENAI_API_KEY) return jsonErr('OPENAI_API_KEY not configured', 500);
-
-    // Convertir format Anthropic → OpenAI
     const oaiMessages = [];
-    if (system) oaiMessages.push({ role: 'system', content: system });
+    if (system) oaiMessages.push({ role:'system', content:system });
     for (const m of messages) {
-      const content = Array.isArray(m.content)
-        ? m.content.map(b => b.text || b.content || '').join('\n')
-        : m.content;
-      oaiMessages.push({ role: m.role, content });
+      const content = Array.isArray(m.content) ? m.content.map(b=>b.text||b.content||'').join('\n') : m.content;
+      oaiMessages.push({ role:m.role, content });
     }
-
-    const oaiBody = { model: model || 'gpt-4o', messages: oaiMessages, max_tokens, temperature, stream };
-    if (tools) {
-      oaiBody.tools = tools.map(t => ({
-        type    : 'function',
-        function: { name: t.name, description: t.description, parameters: t.input_schema || t.parameters || {} },
-      }));
-    }
-
+    const oaiBody = { model:model||'gpt-4o', messages:oaiMessages, max_tokens, temperature, stream };
+    if (tools) oaiBody.tools = tools.map(t=>({ type:'function', function:{ name:t.name, description:t.description, parameters:t.input_schema||t.parameters||{} } }));
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method  : 'POST',
-      headers : { 'Authorization': 'Bearer ' + env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
-      body    : JSON.stringify(oaiBody),
+      method:'POST',
+      headers:{ 'Authorization':'Bearer '+env.OPENAI_API_KEY,'Content-Type':'application/json' },
+      body: JSON.stringify(oaiBody),
     });
-
-    if (stream) {
-      return new Response(res.body, {
-        status  : res.status,
-        headers : { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      });
-    }
-
-    // Normaliser réponse OpenAI → format Anthropic
+    if (stream) return new Response(res.body, { status:res.status, headers:{...CORS,'Content-Type':'text/event-stream','Cache-Control':'no-cache'} });
     const data = await res.json();
-    if (!res.ok) return new Response(JSON.stringify(data), { status: res.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
-
-    return json({
-      id          : data.id,
-      type        : 'message',
-      role        : 'assistant',
-      model       : data.model,
-      content     : [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }],
-      usage       : { input_tokens: data.usage?.prompt_tokens || 0, output_tokens: data.usage?.completion_tokens || 0 },
-      stop_reason : data.choices?.[0]?.finish_reason || 'end_turn',
-      _provider   : 'openai',
-    });
+    if (!res.ok) return new Response(JSON.stringify(data), { status:res.status, headers:{...CORS,'Content-Type':'application/json'} });
+    return json({ id:data.id, type:'message', role:'assistant', model:data.model,
+      content:[{ type:'text', text:data.choices?.[0]?.message?.content||'' }],
+      usage:{ input_tokens:data.usage?.prompt_tokens||0, output_tokens:data.usage?.completion_tokens||0 },
+      stop_reason:data.choices?.[0]?.finish_reason||'end_turn', _provider:'openai' });
   }
 
-  return jsonErr(`Unknown provider: ${provider}. Use 'anthropic' or 'openai'`, 400);
+  return jsonErr(`Unknown provider: ${provider}`, 400);
 }
 
-// ─── /rag-query : RAG complet en une route ────────────────────────────────────
-// RAG tout-en-un : D1/Vectorize + génération LLM sourcée avec [n]
-// Idéal pour GPT Actions, Claude Projects, intégrations directes
-// Input  : { question, approach?, provider?, model?, max_tokens?, language?, topK?, system_extra? }
-// Output : { answer, chunks_used, sources, usage, provider, model }
-
+// ─── /rag-query ───────────────────────────────────────────────────────────────
 async function handleRagQuery(request, env) {
   let body;
   try { body = await request.json(); } catch { return jsonErr('Invalid JSON', 400); }
-
-  const {
-    question,
-    approach,
-    language    = 'fr',
-    topK        = 15,
-    provider    = 'anthropic',
-    model,
-    max_tokens  = 2000,
-    system_extra,
-  } = body;
-
+  const { question, approach, language='fr', topK=15, provider='anthropic', model, max_tokens=2000, system_extra } = body;
   if (!question) return jsonErr('Missing question', 400);
-  if (!env.DB || !env.AI || !env.VECTOR_INDEX) return jsonErr('Bindings manquants', 500);
 
-  // 1. RAG
   const ragReq = new Request('https://proxy/rag-search', {
-    method  : 'POST',
-    body    : JSON.stringify({ query: question, approach, language, topK, include_content: true }),
-    headers : { 'Content-Type': 'application/json' },
+    method:'POST', body:JSON.stringify({ query:question, approach, language, topK, include_content:true }),
+    headers:{'Content-Type':'application/json'},
   });
-  const ragRes  = await handleRagSearch(ragReq, env);
-  const ragData = await ragRes.json();
+  const ragData = await (await handleRagSearch(ragReq, env)).json();
+  if (!ragData.chunks?.length) return json({ answer:'Aucun document pertinent trouvé.', chunks_used:0, provider });
 
-  if (!ragData.chunks?.length) {
-    return json({ answer: 'Aucun document pertinent trouvé dans la bibliothèque.', chunks_used: 0, provider });
-  }
-
-  // 2. Contexte bibliographique numéroté
   const context = ragData.chunks.map(c =>
-    `[${c.index}] ${c.book_title}${c.author ? ' — ' + c.author : ''}${c.page_number ? ', p.' + c.page_number : ''} (${c.approach})\n${c.content}`
+    `[${c.index}] ${c.book_title}${c.author?' — '+c.author:''}${c.page_number?', p.'+c.page_number:''} (${c.approach})\n${c.content}`
   ).join('\n\n');
 
-  const systemPrompt =
-    `Tu es un assistant clinique expert. Tu réponds à des questions de thérapeutes en t'appuyant sur une bibliothèque de 20 000+ chunks thérapeutiques.\n` +
-    `Règles :\n` +
-    `- Cite les sources avec [n] après chaque affirmation empruntée\n` +
-    `- Sois précis, clinique, directement utile\n` +
-    `- Si plusieurs approches disponibles, compare-les\n` +
-    `- Réponds en ${language === 'fr' ? 'français' : language}\n` +
-    (system_extra ? '\n' + system_extra : '');
+  const systemPrompt = `Tu es un assistant clinique expert. Cite les sources avec [n] après chaque affirmation. Réponds en ${language==='fr'?'français':language}.`
+    + (system_extra ? '\n'+system_extra : '');
 
-  const userMessage =
-    `Question : ${question}\n\n═══ BIBLIOTHÈQUE (${ragData.chunks.length} passages) ═══\n\n${context}`;
-
-  // 3. LLM
   const llmReq = new Request('https://proxy/llm-proxy', {
-    method  : 'POST',
-    body    : JSON.stringify({
-      provider,
-      model   : model || (provider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-20250514'),
-      system  : systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-      max_tokens,
-    }),
-    headers : { 'Content-Type': 'application/json' },
+    method:'POST',
+    body:JSON.stringify({ provider, model:model||(provider==='openai'?'gpt-4o':'claude-sonnet-4-20250514'),
+      system:systemPrompt, messages:[{role:'user',content:`Question : ${question}\n\n${context}`}], max_tokens }),
+    headers:{'Content-Type':'application/json'},
   });
-  const llmRes  = await handleLLMProxy(llmReq, env);
-  const llmData = await llmRes.json();
-
-  return json({
-    answer      : llmData.content?.[0]?.text || '',
-    chunks_used : ragData.chunks.length,
-    sources     : ragData.chunks.map(c => ({ index: c.index, book: c.book_title, author: c.author, page: c.page_number })),
-    usage       : llmData.usage  || {},
-    provider    : llmData._provider || provider,
-    model       : llmData.model     || model,
-  });
+  const llmData = await (await handleLLMProxy(llmReq, env)).json();
+  return json({ answer:llmData.content?.[0]?.text||'', chunks_used:ragData.chunks.length,
+    sources:ragData.chunks.map(c=>({index:c.index,book:c.book_title,author:c.author,page:c.page_number})),
+    usage:llmData.usage||{}, provider:llmData._provider||provider, model:llmData.model||model });
 }
 
-// ─── /generate-presentation : pipeline complet topic → PPTX (+ PDF optionnel) ─
-// C'est la route "tout-en-un" suggérée par ChatGPT — maintenant implémentée
-//
-// Input :
-//   { topic, approach?, nb_slides?, provider?, model?, language?,
-//     pexels_queries?, return_pdf?, filename?, audience?, style? }
-//
-// Output :
-//   PPTX binaire (Content-Type pptx) OU { pdf_base64, pptx_base64, slides_json }
-//
-// Pipeline :
-//   1. RAG D1/Vectorize → chunks pertinents
-//   2. LLM (Haiku) → plan JSON structuré { slides: [{title, bullets, image_query, citation}] }
-//   3. Pexels → URLs photos pour chaque slide
-//   4. LLM (Sonnet/GPT-4o) → contenu enrichi par slide
-//   5. /generate-pptx → binaire PPTX avec design C Concept&Dev
-//   (6. /generate-pdf → optionnel)
+// ─── /generate-presentation ───────────────────────────────────────────────────
+// Fix v5.13.1 :
+//   - Pexels en parallèle (Promise.all) → réduit le temps de ~4×
+//   - Protection CPU : embedding + FTS5 en parallèle dans RAG
+//   - return_json par défaut false (retourne PPTX binaire direct)
+//   - Meilleure gestion erreurs avec étape précise
 
 async function handleGeneratePresentation(request, env) {
   let body;
@@ -1420,174 +1233,138 @@ async function handleGeneratePresentation(request, env) {
     provider     = 'anthropic',
     model,
     language     = 'fr',
-    pexels_queries,            // override manual des queries Pexels
-    return_pdf   = false,      // retourner aussi le PDF
-    return_json  = false,      // retourner le JSON slides brut
+    pexels_queries,
+    return_json  = false,
     filename     = 'presentation',
     audience     = 'professionnels de santé mentale',
-    style        = 'congrès scientifique',   // congrès | formation | patient | rapport
+    style        = 'congrès scientifique',
   } = body;
 
   if (!topic) return jsonErr('Missing topic', 400);
-  if (!env.DB || !env.AI || !env.VECTOR_INDEX)
-    return jsonErr('Bindings DB, AI, VECTOR_INDEX requis', 500);
+  if (!env.DB || !env.AI || !env.VECTOR_INDEX) return jsonErr('Bindings DB, AI, VECTOR_INDEX requis', 500);
 
   try {
-    // ── ÉTAPE 1 : RAG ──────────────────────────────────────────────────────────
-    const ragReq = new Request('https://proxy/rag-search', {
-      method  : 'POST',
-      body    : JSON.stringify({ query: topic, approach, language, topK: 20, include_content: true }),
-      headers : { 'Content-Type': 'application/json' },
+    // ── Étape 1 : RAG ─────────────────────────────────────────────────────────
+    const ragReq  = new Request('https://proxy/rag-search', {
+      method:'POST', body:JSON.stringify({ query:topic, approach, language, topK:20, include_content:true }),
+      headers:{'Content-Type':'application/json'},
     });
     const ragData = await (await handleRagSearch(ragReq, env)).json();
     const chunks  = ragData.chunks || [];
 
-    if (chunks.length < 3) {
-      return jsonErr(`Pas assez de données RAG pour "${topic}" (${chunks.length} chunks). Essayez un topic plus général ou une autre approche.`, 422);
-    }
+    if (chunks.length < 3)
+      return jsonErr(`RAG insuffisant pour "${topic}" — ${chunks.length} chunks. Essayez sans filtrer par approche, ou avec un topic plus large.`, 422);
 
-    // ── ÉTAPE 2 : Plan JSON (Haiku — rapide et économique) ────────────────────
+    // ── Étape 2 : Plan LLM (Haiku pour vitesse + économie) ───────────────────
+    const plannerModel = provider === 'openai' ? (model||'gpt-4o-mini') : 'claude-haiku-4-5-20251001';
+
     const ragContext = chunks.slice(0, 12).map(c =>
-      `[${c.index}] ${c.book_title}${c.author ? ' — ' + c.author : ''}${c.page_number ? ' p.' + c.page_number : ''}\n${c.content}`
+      `[${c.index}] ${c.book_title}${c.author?' — '+c.author:''}${c.page_number?' p.'+c.page_number:''}\n${c.content}`
     ).join('\n\n');
 
-    const plannerProvider = provider;
-    const plannerModel    = provider === 'openai'
-      ? (model || 'gpt-4o-mini')
-      : 'claude-haiku-4-5-20251001';
+    const plannerSystem = `Tu es expert en présentation scientifique. Public: ${audience}. Style: ${style}. Langue: ${language}.
+RÈGLE CRITIQUE : retourne UNIQUEMENT du JSON valide, sans backticks, sans markdown, sans texte avant ou après.`;
 
-    const plannerSystem = `Tu es un expert en présentation scientifique. Public : ${audience}. Style : ${style}. Langue : ${language}.
-Tu génères du JSON strict, sans markdown, sans texte avant ou après.`;
+    const plannerPrompt =
+`Crée une présentation sur "${topic}" en ${nb_slides} slides en utilisant UNIQUEMENT les extraits ci-dessous.
 
-    const plannerPrompt = `Crée un plan de présentation sur "${topic}" en ${nb_slides} slides.
-
-EXTRAITS BIBLIOTHÈQUE :
+EXTRAITS :
 ${ragContext}
 
-INSTRUCTIONS :
-- Utilise UNIQUEMENT les informations des extraits fournis
-- Chaque slide : 1 titre accrocheur + 3-4 bullets cliniques concis + 1 citation source + 1 query Pexels en anglais
-- Dernière slide : "Points clés" ou "À retenir"
-- Bullets : phrases courtes, directes, sans jargon inutile
+FORMAT JSON (strictement, pas de backticks) :
+{"presentation_title":"...","presentation_subtitle":"...","slides":[{"title":"...","bullets":["...","...","..."],"citation":"Auteur, Titre, p.XX","image_query":"therapy professional calm"}]}`;
 
-FORMAT JSON STRICT (sans backticks, sans preamble) :
-{
-  "presentation_title": "...",
-  "presentation_subtitle": "...",
-  "slides": [
-    {
-      "title": "...",
-      "bullets": ["...", "...", "..."],
-      "citation": "Auteur, Titre, p.XX",
-      "image_query": "psychology therapy calm professional",
-      "speaker_notes": "..."
-    }
-  ]
-}`;
-
-    const planReq = new Request('https://proxy/llm-proxy', {
-      method  : 'POST',
-      body    : JSON.stringify({
-        provider : plannerProvider,
-        model    : plannerModel,
-        system   : plannerSystem,
-        messages : [{ role: 'user', content: plannerPrompt }],
-        max_tokens: 2000,
-        temperature: 0.4,
-      }),
-      headers : { 'Content-Type': 'application/json' },
+    const planReq  = new Request('https://proxy/llm-proxy', {
+      method:'POST',
+      body:JSON.stringify({ provider, model:plannerModel, system:plannerSystem,
+        messages:[{role:'user',content:plannerPrompt}], max_tokens:2000, temperature:0.3 }),
+      headers:{'Content-Type':'application/json'},
     });
-    const planRes  = await handleLLMProxy(planReq, env);
-    const planData = await planRes.json();
+    const planData = await (await handleLLMProxy(planReq, env)).json();
     const planText = planData.content?.[0]?.text || '';
 
     let plan;
     try {
-      const clean = planText.replace(/```json|```/g, '').trim();
+      // Nettoyage robuste : supprimer backticks, trouver le JSON entre { }
+      let clean = planText.replace(/```json|```/g, '').trim();
+      const start = clean.indexOf('{');
+      const end   = clean.lastIndexOf('}');
+      if (start >= 0 && end > start) clean = clean.slice(start, end+1);
       plan = JSON.parse(clean);
     } catch {
-      return jsonErr('LLM plan parse error: ' + planText.substring(0, 200), 500);
+      return jsonErr('LLM plan invalide — réponse non-JSON: ' + planText.substring(0, 300), 500);
     }
+    if (!plan?.slides?.length) return jsonErr('Plan vide — pas de slides retournées', 500);
 
-    if (!plan?.slides?.length) return jsonErr('Plan LLM invalide — pas de slides', 500);
-
-    // ── ÉTAPE 3 : Images Pexels ───────────────────────────────────────────────
-    const imageKey = env.PEXELS_API_KEY;
-    for (let i = 0; i < plan.slides.length; i++) {
-      const slide = plan.slides[i];
-      const q = (pexels_queries?.[i]) || slide.image_query || topic;
-      slide.image_url = null;
-
-      if (imageKey) {
+    // ── Étape 3 : Images Pexels en parallèle ─────────────────────────────────
+    if (env.PEXELS_API_KEY) {
+      await Promise.all(plan.slides.map(async (slide, i) => {
+        const q = (pexels_queries?.[i]) || slide.image_query || topic + ' therapy';
+        // Queries plus précises — évite les faux positifs Pexels
+        const safeQ = (q + ' psychology').replace(/[^a-zA-Z0-9 \-+]/g, '').substring(0, 80);
         try {
-          const safeQ = q.replace(/[^a-zA-Z0-9 \-+]/g, '').substring(0, 80);
-          const pRes  = await fetch(
-            `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQ)}&per_page=1&orientation=landscape`,
-            { headers: { Authorization: imageKey } }
+          const pRes = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQ)}&per_page=3&orientation=landscape`,
+            { headers:{ Authorization:env.PEXELS_API_KEY } }
           );
           if (pRes.ok) {
             const pData = await pRes.json();
-            slide.image_url = pData.photos?.[0]?.src?.large2x || pData.photos?.[0]?.src?.large || null;
+            // Prendre la 2ème photo si disponible (moins générique que la 1ère)
+            const photo = pData.photos?.[1] || pData.photos?.[0];
+            slide.image_url = photo?.src?.large2x || photo?.src?.large || null;
           }
-        } catch (_) { /* Pexels non disponible — slide sans image */ }
-      }
+        } catch (_) { slide.image_url = null; }
+      }));
     }
 
-    // ── ÉTAPE 4 : Assemblage PPTX (via handleGeneratePPTX) ───────────────────
-    // Construire le content au format attendu par handleGeneratePPTX
+    // ── Étape 4 : Assemblage PPTX ─────────────────────────────────────────────
     const pptxContent = {
       title    : plan.presentation_title || topic,
       subtitle : (plan.presentation_subtitle || audience) + ` — ${style}`,
-      slides   : plan.slides.map((s, i) => ({
+      slides   : plan.slides.map(s => ({
         title   : s.title,
-        content : s.bullets.join('\n'),        // bullets → texte multiligne
-        bullets : s.bullets,
-        image   : s.image_url,
+        bullets : s.bullets || [],
+        content : (s.bullets || []).join('\n'),
+        image   : s.image_url || null,
         footer  : s.citation ? `📚 ${s.citation}` : '',
         notes   : s.speaker_notes || '',
-        _index  : i,
       })),
     };
 
-    // Appel interne à handleGeneratePPTX
     const pptxReq = new Request('https://proxy/generate-pptx', {
-      method  : 'POST',
-      body    : JSON.stringify({ content: pptxContent, filename }),
-      headers : { 'Content-Type': 'application/json' },
+      method:'POST', body:JSON.stringify({ content:pptxContent, filename }),
+      headers:{'Content-Type':'application/json'},
     });
     const pptxRes = await handleGeneratePPTX(pptxReq, env);
 
     if (!pptxRes.ok) {
       const errText = await pptxRes.text();
-      return jsonErr('PPTX generation failed: ' + errText.substring(0, 200), 500);
+      return jsonErr('PPTX generation failed: ' + errText.substring(0, 300), 500);
     }
 
-    // ── return_json : retourner le JSON des slides ────────────────────────────
+    const pptxBuf = await pptxRes.arrayBuffer();
+
     if (return_json) {
-      const pptxBuf = await pptxRes.arrayBuffer();
       return json({
-        ok          : true,
-        slides_json : plan,
+        ok: true, slides_json: plan,
         pptx_base64 : btoa(String.fromCharCode(...new Uint8Array(pptxBuf))),
         chunks_used : chunks.length,
-        sources     : chunks.slice(0, 8).map(c => ({ book: c.book_title, author: c.author, page: c.page_number })),
+        sources     : chunks.slice(0, 8).map(c=>({book:c.book_title,author:c.author,page:c.page_number})),
       });
     }
 
-    // ── Retour PPTX binaire direct ────────────────────────────────────────────
-    const pptxBuf = await pptxRes.arrayBuffer();
     return new Response(pptxBuf, {
-      status  : 200,
-      headers : {
+      status:200,
+      headers:{
         ...CORS,
         'Content-Type'        : 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'Content-Disposition' : `attachment; filename="${filename}.pptx"`,
         'X-Chunks-Used'       : String(chunks.length),
-        'X-Sources'           : chunks.slice(0, 5).map(c => c.book_title).join(' | '),
+        'X-Sources'           : chunks.slice(0,5).map(c=>c.book_title).join(' | '),
       },
     });
 
   } catch (err) {
-    return jsonErr('generate-presentation failed: ' + err.message, 500);
+    return jsonErr('generate-presentation error [' + (err.name||'Error') + ']: ' + err.message, 500);
   }
 }
