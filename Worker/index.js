@@ -55757,13 +55757,45 @@ async function handleGeneratePDF(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { content, filename = "document" } = body;
+  const { content, filename = "document", pexels_queries = [] } = body;
   if (!content)
     return jsonErr("Missing content (HTML string)", 400);
+
+  // ── Pexels : fetch images en base64 avant Browser Rendering ──────────
+  let pexelsB64 = [];
+  if (pexels_queries.length > 0 && env2.PEXELS_API_KEY) {
+    pexelsB64 = await Promise.all(pexels_queries.map(async (q) => {
+      try {
+        const safeQ = (q || "therapy").replace(/[^a-zA-Z0-9 \-+éèàâêîôùûïë]/g, "").substring(0, 100);
+        const pRes = await fetch(
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQ)}&per_page=3&orientation=landscape`,
+          { headers: { Authorization: env2.PEXELS_API_KEY } }
+        );
+        if (!pRes.ok) return null;
+        const pData = await pRes.json();
+        const photoUrl = pData.photos?.[1]?.src?.large || pData.photos?.[0]?.src?.large;
+        if (!photoUrl) return null;
+        const imgRes = await fetch(photoUrl);
+        if (!imgRes.ok) return null;
+        const buf = await imgRes.arrayBuffer();
+        return "data:image/jpeg;base64," + btoa(String.fromCharCode(...new Uint8Array(buf)));
+      } catch { return null; }
+    }));
+  }
+
+  // Remplacer les placeholders data-pexels="N" par les src base64
+  let htmlWithImages = content;
+  if (pexelsB64.length > 0) {
+    htmlWithImages = content.replace(/(<img[^>]*?)\sdata-pexels="(\d+)"([^>]*?>)/g, (match, pre, idx, post) => {
+      const b64 = pexelsB64[parseInt(idx)];
+      return b64 ? `${pre} src="${b64}"${post}` : match;
+    });
+  }
+
   try {
     // ── Préprocesseur HTML : nettoyage avant envoi à Browser Rendering ──
   const cleanedContent = (() => {
-    let h = content;
+    let h = htmlWithImages;
 
     // 1. Supprimer les numéros de page parasites (<p>1</p>, <p> 2 </p>, etc.)
     h = h.replace(/<p[^>]*>\s*\d{1,3}\s*<\/p>/gi, '');
