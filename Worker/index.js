@@ -55666,7 +55666,29 @@ async function handleD1Query(request2, env2) {
     const result = upper.startsWith("SELECT") || upper.startsWith("WITH") ? await stmt.all() : await stmt.run();
     return json(result);
   } catch (err2) {
-    return jsonErr("D1_ERROR: " + err2.message, 500);
+    console.error("[D1_FAIL] SQL:", sql.substring(0, 300), "| ERR:", err2.message);
+    // ── Fallback intelligent : si SQL avec MATCH échoue → retry FTS5 sécurisé ──
+    if (/\bMATCH\b/i.test(sql)) {
+      try {
+        const matchTerm = (sql.match(/MATCH\s+'([^']+)'/i) || [])[1] || '';
+        const safeTerms = matchTerm
+          .replace(/['"\\]/g, '').trim()
+          .split(/\s+/).filter(Boolean).slice(0, 5)
+          .map(t => '"' + t.replace(/"/g,'') + '"').join(' OR ');
+        if (safeTerms) {
+          const fbSql = "SELECT c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach " +
+            "FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid " +
+            "WHERE chunks_fts MATCH '" + safeTerms + "' LIMIT 15";
+          const fb = await env2.DB.prepare(fbSql).all();
+          console.warn("[D1_FALLBACK] OK — safeTerms:", safeTerms);
+          return json(fb);
+        }
+      } catch (fbErr) {
+        console.error("[D1_FALLBACK] aussi échoué:", fbErr.message);
+      }
+    }
+    // Retourner tableau vide proprement — évite le 500 qui bloque le RAG
+    return json({ results: [], error: err2.message });
   }
 }
 __name(handleD1Query, "handleD1Query");
