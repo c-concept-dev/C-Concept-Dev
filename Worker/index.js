@@ -55594,10 +55594,9 @@ async function handleD1Query(request2, env2) {
     return jsonErr("DDL statements not allowed", 403);
 
   // ── Sanitisation SQL côté Worker ──
-  // Ordre impératif : 1) multi-termes MATCH → 2) apostrophes LIKE only → 3) LIKE trop long
+  // Ordre : 1) MATCH multi-termes → 2) apostrophes toutes strings → 3) LIKE trop long
 
   // 1. Fix FTS5 MATCH multi-termes sans opérateur → "terme1" OR "terme2"
-  //    (AVANT le fix apostrophes pour ne pas casser les " générés)
   sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
     const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
     const hasQuoted = terms.includes('"');
@@ -55608,13 +55607,14 @@ async function handleD1Query(request2, env2) {
     return m;
   });
 
-  // 2. Fix apostrophes dans LIKE uniquement (pas MATCH — FTS5 gère ses propres quotes)
-  sql = sql.replace(/\bLIKE\s+'((?:[^']|'')*)'/gi, (m, inner) => {
+  // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
+  //    Remplace les ' isolées (non doublées) dans toute valeur entre quotes simples
+  sql = sql.replace(/'((?:[^']|'')*)'/g, (m, inner) => {
     const fixed = inner.replace(/(?<!')'(?!')/g, "''");
-    return fixed !== inner ? "LIKE '" + fixed + "'" : m;
+    return fixed !== inner ? "'" + fixed + "'" : m;
   });
 
-  // 3. Fix LIKE trop complexe (>40 chars) → tronquer
+  // 3. Fix LIKE trop complexe (>40 chars) → tronquer le pattern
   sql = sql.replace(/\bLIKE\s+'([^']{40,})'/gi, (m, pattern) => {
     const simplified = pattern.replace(/%/g, '').trim().substring(0, 35);
     return "LIKE '%" + simplified + "%'";
