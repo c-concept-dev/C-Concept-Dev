@@ -55614,9 +55614,9 @@ async function handleD1Query(request2, env2) {
     return fixed !== inner ? "LIKE '" + fixed + "'" : m;
   });
 
-  // 3. Fix LIKE trop complexe (>80 chars) → tronquer
-  sql = sql.replace(/\bLIKE\s+'([^']{80,})'/gi, (m, pattern) => {
-    const simplified = pattern.replace(/%/g, '').trim().substring(0, 50);
+  // 3. Fix LIKE trop complexe (>40 chars) → tronquer
+  sql = sql.replace(/\bLIKE\s+'([^']{40,})'/gi, (m, pattern) => {
+    const simplified = pattern.replace(/%/g, '').trim().substring(0, 35);
     return "LIKE '%" + simplified + "%'";
   });
 
