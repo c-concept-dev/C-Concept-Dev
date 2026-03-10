@@ -2179,7 +2179,25 @@
   @keyframes adoc-blink {
     50% { opacity: 0; }
   }
-  .adoc-citations { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  sup.adoc-ref {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #8FAFB1;
+            color: #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+            margin: 0 1px;
+            vertical-align: super;
+            line-height: 1;
+            transition: background .2s;
+        }
+        sup.adoc-ref:hover { background: #5B4A8A; }
+        .adoc-citations { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
         .adoc-cite {
             display: flex; align-items: center; gap: 6px;
             background: #EDF2F2; border-left: 3px solid #3A5658;
@@ -6132,7 +6150,7 @@ Résumé concis:`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-20250514',
+                        model: 'claude-sonnet-4-5-20251001',
                         max_tokens: 400,
                         temperature: 0.7,
                         messages: [{ role: 'user', content: prompt }]
@@ -7063,7 +7081,7 @@ class MemorySystem {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-20250514',
+                        model: 'claude-sonnet-4-5-20251001',
                         max_tokens: 2000,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -8956,7 +8974,7 @@ Retourne UNIQUEMENT le JSON.`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-20250514',
+                        model: 'claude-sonnet-4-5-20251001',
                         max_tokens: maxTokens,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -18231,7 +18249,7 @@ class ConversationalSystem {
             // Appeler Claude API
             const isCollab = window._operatingMode === 'collaborateur';
             // FIX 5: Opus pour le mode collaborateur (raisonnement clinique profond)
-            const apiModel = isCollab ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
+            const apiModel = isCollab ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-5-20251001';
             // Note: Remplacer par 'claude-opus-4-0-20250514' quand disponible via le proxy
             // Pour l'instant on utilise Sonnet avec max_tokens augmenté
             
@@ -36314,7 +36332,7 @@ async function v19GenerateResumeMessage(convSystem) {
             body: JSON.stringify({
                 payload: {
                     provider: 'anthropic',
-                    model: 'claude-sonnet-4-20250514',
+                    model: 'claude-sonnet-4-5-20251001',
                     max_tokens: 150,
                     temperature: 0.7,
                     system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
@@ -37430,7 +37448,7 @@ async function generateCloneBrain() {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-20250514',
+                        model: 'claude-sonnet-4-5-20251001',
                         max_tokens: maxTokens || 2500,
                         temperature: 0.3,
                         system: prompt,
@@ -38175,6 +38193,11 @@ window.addEventListener('beforeunload', () => {
   // N2 — Contexte de session
   let adocSessionContext = '';
   let adocPatientContext = '';
+  let adocKvPatientId    = null;  // ID patient pour mémoire KV inter-sessions
+  let adocKvTherapistId  = null;  // P3-3 : ID thérapeute pour namespace KV
+  let adocKvHistory      = [];    // historique séances chargé depuis KV
+  let adocLastUsage      = null;  // P2-3 : derniers tokens input/output CC
+  let adocTotalCost      = 0;     // P2-3 : coût cumulé session (€ estimé)
 
   // ── Ouvrir / Fermer ──
   window.openAssistDoc = function() {
@@ -38493,7 +38516,7 @@ RÈGLES MAX_TOKENS :
 - pptx/docx/pdf complexes → 5000
 
 RÈGLES SQL :
-- Utilise LIKE '%terme%' pour le contenu (pas de FTS5)
+- Utilise FTS5 via chunks_fts MATCH 'terme1 OR terme2' (index full-text actif)
 - 3-4 requêtes SQL avec angles DIFFÉRENTS : termes FR, termes EN, par approach, par auteur clé
 - Chaque requête : SELECT book_title, author, page_number, content, approach FROM chunks WHERE ... LIMIT 10
 - needs_rag=false uniquement si la question est purement conversationnelle sans besoin de références
@@ -38552,7 +38575,13 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
       const r = await fetch(workerUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload: {
-          model: 'claude-haiku-4-5-20251001',
+          // P2-4 : Sonnet pour supervision/analyse_cas, Haiku sinon
+          model: (() => {
+            const ci = (adocSessionContext + ' ' + userMessage).toLowerCase();
+            return (ci.includes('supervision') || ci.includes('analyse de cas') || ci.includes('analyse_cas') || ci.includes('conceptualisation'))
+              ? 'claude-sonnet-4-5-20251001'
+              : 'claude-haiku-4-5-20251001';
+          })(),
           max_tokens: 800,
           system: plannerSystem,
           messages: [{ role: 'user', content: (() => {
@@ -38590,7 +38619,7 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
     } catch(e) { console.warn('adocPlanQuery:', e); return null; }
   }
 
-  // ── Passe 2 : RAG industriel v5.3.0 — intent-aware, catalog-pondéré ──
+  // ── Passe 2 : RAG industriel v5.8.0 — intent-aware, catalog-pondéré — 09/03/2026 ──
     // ── Passe 2 : RAG industrialisé v5.3 — SQL + Vector + Full-Sweep bibliographique ──
   async function adocExecutePlan(plan) {
     if (!plan?.needs_rag) return { chunks: [], chunkLen: 900 };
@@ -38681,20 +38710,47 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
       const allTerms = [...new Set([...topicWords, ...angleTerms])].slice(0, 10);
 
       sweepPromises = topBooks.map(book => {
-        // Titre complet — pas de troncature pour le LIKE
-        const bookMatch = book.b.replace(/'/g, "''");
-        const termClause = allTerms.length > 0
-          ? allTerms.map(t => `content LIKE '%${t.replace(/'/g, "''")}%'`).join(' OR ')
-          : '1=1';
-        // Si termes présents → ciblé, sinon → ORDER BY chunk_index pour avoir début du livre
-        // Approach réelle du livre (cross-approach : sexology cherché avec 'sexology', pas 'couple')
+        // P2-1 : FTS5 avec fallback LIKE si FTS5 indisponible
+        const bookMatch  = book.b.replace(/'/g, "''");
         const bookApproach = book._crossApproach || plan.approach_filter;
-        const sql = allTerms.length > 0
-          ? `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}' AND (${termClause}) LIMIT ${SWEEP_LIMIT}`
-          : `SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}' ORDER BY chunk_index ASC LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
+
+        let sql;
+        if (allTerms.length > 0) {
+          // FTS5 : termes joints en OR, filtre book_title + approach en JOIN
+          const ftsQuery = allTerms
+            .map(t => t.replace(/['"]/g, ' ').trim())
+            .filter(Boolean)
+            .join(' OR ');
+          // Requête FTS5 : JOIN chunks_fts → chunks pour avoir les colonnes complètes
+          // rank BM25 trié, filtre book_title + approach sur la table chunks
+          sql = `SELECT c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach
+            FROM chunks_fts
+            JOIN chunks c ON c.rowid = chunks_fts.rowid
+            WHERE chunks_fts MATCH '${ftsQuery}'
+              AND c.book_title LIKE '${bookMatch}%'
+              AND c.approach = '${bookApproach}'
+            ORDER BY rank
+            LIMIT ${SWEEP_LIMIT}`;
+        } else {
+          // Pas de termes → début du livre en ordre linéaire
+          sql = `SELECT book_title, author, chapter, page_number, content, approach
+            FROM chunks
+            WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}'
+            ORDER BY chunk_index ASC
+            LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
+        }
         return adocD1Query(sql)
           .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
-          .catch(() => []);
+          .catch(() => {
+            // Fallback LIKE si FTS5 échoue (ex: table non encore créée)
+            const termClause = allTerms.map(t => `content LIKE '%${t.replace(/'/g, "''")}%'`).join(' OR ') || '1=1';
+            const sqlFallback = `SELECT book_title, author, chapter, page_number, content, approach
+              FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}'
+              AND (${termClause}) LIMIT ${SWEEP_LIMIT}`;
+            return adocD1Query(sqlFallback)
+              .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
+              .catch(() => []);
+          });
       });
     }
 
@@ -38779,8 +38835,83 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
   }
 
 
+  // ── P1-2 : Re-ranking post-RAG par Haiku ──────────────────────────────────
+  // Reçoit les finalChunks bruts (triés par score mécanique)
+  // Haiku lit les titres + premières lignes et retourne les IDs vraiment utiles
+  // Réduit 50-90 chunks → 20-30 ultra-ciblés avant envoi à CC
+  async function adocRerankChunks(ragResult, plan, workerUrl) {
+    if (!ragResult?.chunks?.length || !workerUrl) return ragResult;
+    const chunks = ragResult.chunks;
+
+    // Construire le catalogue pour Haiku (titre + auteur + début contenu)
+    const catalog = chunks.map((c, i) =>
+      `[${i}] ${c.book_title || '?'} (${c.author || '?'}) p.${c.page_number || '?'} — ${(c.content || '').substring(0, 120).replace(/
+/g, ' ')}`
+    ).join('
+');
+
+    const prompt =
+      `Tu es un assistant de tri clinique. La question du thérapeute est : "${plan.topic_summary || plan.intent}"
+
+` +
+      `Voici ${chunks.length} passages issus de la bibliothèque thérapeutique.
+` +
+      `Retourne UNIQUEMENT un JSON : { "keep": [indices des passages vraiment utiles pour répondre à cette question] }
+` +
+      `Règles : garde 15 à 30 passages max. Priorité : pertinence directe à la question, diversité des sources, évite les doublons thématiques.
+
+` +
+      `Passages :
+${catalog}`;
+
+    try {
+      adocUpdateTypingLabel && adocUpdateTypingLabel(
+        document.querySelector('.adoc-typing')?.id,
+        '🎯 Sélection passages clés…'
+      );
+      const r = await fetch(workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: {
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          messages: [{ role: 'user', content: prompt }]
+        }})
+      });
+      const data  = await r.json();
+      const raw   = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+      const result = JSON.parse(raw);
+      const keep   = (result.keep || []).filter(i => Number.isInteger(i) && i >= 0 && i < chunks.length);
+
+      if (keep.length >= 10) {
+        // Re-ranking réussi — garder uniquement les chunks sélectionnés, dans l'ordre de pertinence
+        const reranked = keep.map(i => chunks[i]);
+        console.log(`[P1-2 Rerank] ${chunks.length} → ${reranked.length} chunks (Haiku)`);
+        return { ...ragResult, chunks: reranked, stats: { ...ragResult.stats, reranked: reranked.length } };
+      }
+    } catch(e) {
+      console.warn('[P1-2 Rerank] échec silencieux:', e.message);
+    }
+    // Fallback : retourner ragResult intact si Haiku échoue
+    return ragResult;
+  }
+
+  // adocLastRefMap : stocke la map {n → {book_title, author, page_number}}
+  // générée par adocBuildRAGCtx pour être utilisée lors du rendu des citations
+  let adocLastRefMap = {};
+
   function adocBuildRAGCtx(ragResult) {
     if (!ragResult?.chunks?.length) return '';
+    // Construire la refMap pour les citations inline [REF:n]
+    adocLastRefMap = {};
+    ragResult.chunks.forEach((c, i) => {
+      adocLastRefMap[i + 1] = {
+        book_title : c.book_title || 'Référence',
+        author     : c.author || '',
+        page_number: c.page_number || '',
+        approach   : c.approach || '',
+      };
+    });
     const { chunks, chunkLen, stats, isDeep } = ragResult;
 
     const statsLine = stats
@@ -38812,18 +38943,20 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
         const items = byBook[book];
         const author = items[0]?.author || '';
         ctx += `▶ ${book}${author ? ' — ' + author : ''}\n`;
-        items.forEach(item => {
+        items.forEach((item, j) => {
+          const refN = ragResult.chunks.indexOf(item) + 1;
           const qual = item._source?.includes('vector') ? '★' : '·';
-          ctx += `  ${qual} p.${item.page_number||'?'} · ${(item.content||'').substring(0, chunkLen).trim()}\n\n`;
+          ctx += `  [${refN}] ${qual} p.${item.page_number||'?'} · ${(item.content||'').substring(0, chunkLen).trim()}\n\n`;
         });
       });
     } else {
       // Mode chat/conseil : groupé par approche, compact
       ctx += 'Tu as devant toi un clinicien expert. Mobilise ces références avec précision.\n';
       ctx += 'Fais des liens transversaux. Cite auteurs et pages quand pertinent.\n\n';
-      chunks.forEach(item => {
+      chunks.forEach((item, idx) => {
+        const refN = idx + 1;
         const qual = item._source?.includes('+') ? '★★' : item._source === 'vector' ? '★' : '·';
-        ctx += `${qual} ${item.book_title||'Référence'}${item.page_number ? ', p.'+item.page_number : ''}`;
+        ctx += `[${refN}] ${qual} ${item.book_title||'Référence'}${item.page_number ? ', p.'+item.page_number : ''}`;
         ctx += item.author ? ` [${item.author}]` : '';
         ctx += item.approach ? ` {${item.approach}}` : '';
         ctx += '\n' + (item.content||'').substring(0, chunkLen).trim() + '\n\n';
@@ -38838,6 +38971,13 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
       ? '\n\nCONTEXTE DE TRAVAIL : ' + adocSessionContext : '';
     const ctxPatient = adocPatientContext
       ? '\n\nDOSSIER PATIENT ACTIF :\n' + adocPatientContext : '';
+    // Mémoire KV inter-sessions : injecter les 3 dernières séances
+    const ctxKvMemory = (adocKvHistory && adocKvHistory.length > 0)
+      ? '\n\nMÉMOIRE INTER-SESSIONS (patient : ' + adocKvPatientId + ') :\n' +
+        adocKvHistory.slice(0, 3).map((s, i) =>
+          `Séance ${i === 0 ? 'dernière' : i === 1 ? 'avant-dernière' : 'J-3'} (${s.date}) :\n${s.summary}`
+        ).join('\n\n')
+      : '';
 
     const orientations = adocConversations
       .filter(m => m.role === 'user')
@@ -38894,6 +39034,10 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
       + 'Syntaxe correcte : <img data-pexels="couple therapy session" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="">\n'
       + 'Syntaxe fond   : <div data-pexels="couple emotional distance" style="height:260px;background-size:cover;background-position:center"></div>\n'
       + 'JAMAIS : src="https://...", url("https://..."), images.pexels.com, random URL generation, serviceWorker — le Worker Cloudflare gère déjà tout cela.\n'
+      + '── CITATIONS BIBLIOGRAPHIQUES ──\n'
+      + 'Quand tu t\'appuies sur un passage numéroté [n] de la bibliothèque, insère [REF:n] directement après l\'affirmation dans ta réponse.\n'
+      + 'Exemples : « L\'hypervigilance est une réponse d\'attachement anxieux [REF:3]. » ou « Young distingue 18 schémas précoces [REF:7][REF:12]. »\n'
+      + 'Ne cite que les passages que tu mobilises vraiment. Pas plus de 8 citations par réponse. Pas de [REF:n] dans les titres ou sous-titres.\n'
       + 'XLSX — données embarquées obligatoires : quand le format est xlsx, tu DOIS inclure dans le head du HTML un bloc JSON avec id=xlsx-data.\n'
       + 'Format : objet JSON avec clés headers (tableau de strings) et rows (tableau de tableaux de valeurs).\n'
       + 'Sans ce bloc, seuls les en-têtes arrivent dans le fichier Excel — les données sont perdues.\n'
@@ -38901,7 +39045,7 @@ max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, cha
       + 'Format : tableau de slides, chaque slide = objet avec title (string), bullets (tableau), content (string), image_query (string anglais 3-5 mots).\n'
       + 'image_query = requête Pexels pour la photo de fond. Le Worker la fetch automatiquement. Pas de image_query = slide sans photo.';
 
-    const commonBase = ctxSession + ctxPatient + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
+    const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
 
     return (
       `Tu es le Conseiller Clinique de C Concept&Dev.
@@ -39025,14 +39169,77 @@ ${commonBase}`
       { b: "Secure Love", a: "Menanno", n: 159 },
       { b: "Amour et rupture, les destins d", a: "Bowlby", n: 96 },
     ],
-    emdr:  [{ b: "EMDR protocole", a: "Shapiro", n: 245 }],
-    ifs:   [{ b: "IFS Internal Family Systems", a: "Schwartz", n: 150 }],
+    emdr:   [{ b: "EMDR protocole", a: "Shapiro", n: 245 }],
+    ifs:    [{ b: "IFS Internal Family Systems", a: "Schwartz", n: 150 }],
+
     trauma: [
-      { b: "Le corps n oublie rien", a: "Van der Kolk", n: 300 },
-      { b: "Guérir le traumatisme", a: "Levine", n: 200 },
+      { b: "Bessel van der Kolk - Le corps n'oublie rien",                         a: "Van der Kolk",   n: 444 },
+      { b: "Psychotherapie des traumas complexes",                                  a: "Piedfort-Marin", n: 212 },
+      { b: "Trauma et memoire",                                                     a: "Levine",         n: 135 },
+      { b: "Psychogenealogie",                                                      a: "Schützenberger", n: 117 },
+      { b: "Votre corps a une memoire",                                             a: "Brousse",        n: 111 },
     ],
     systemic: [
-      { b: "Thérapie systémique du couple", a: "Neuburger", n: 200 },
+      { b: "L_Emprise-familiale-Marie-Andersen",                                    a: "Andersen",       n: 228 },
+      { b: "Paul Watzlawick, Giorgio Nardonne. Stratégie de la thérapie brève",     a: "Watzlawick",     n: 225 },
+      { b: "Si tu m'aimes ne m'aime pas",                                           a: "Elkaim",         n: 149 },
+      { b: "Les objets flottants",                                                  a: "Caillé",         n: 134 },
+      { b: "Comment survivre a sa propre famille",                                  a: "Elkaim",         n: 91  },
+    ],
+    act: [
+      { b: "ACT — Applications thérapeutiques",                                     a: "Monestès",       n: 271 },
+      { b: "esprit libéré, Un - Steven C. Hayes",                                   a: "Hayes",          n: 215 },
+      { b: "Apprivoiser la douleur chronique avec l'ACT",                           a: "Various",        n: 155 },
+      { b: "Acceptance and Commitment Therapy for Couples",                         a: "Lev/McKay",      n: 129 },
+      { b: "Spencer Smith, Steven C. Hayes - Penser moins pour être heureux",       a: "Hayes",          n: 89  },
+      { b: "Théorie ACT — Que sais-je ?",                                           a: "Monestès",       n: 51  },
+    ],
+    attachment: [
+      { b: "Secure Love: Create a Relationship That Lasts a Lifetime",              a: "Menanno",        n: 159 },
+      { b: "Amour et rupture, les destins d - Bowlby, John",                        a: "Bowlby",         n: 96  },
+    ],
+    cnv: [
+      { b: "Les mots sont des fenetres (ou bien des murs) - Rosenberg, Marshall B", a: "Rosenberg",      n: 163 },
+      { b: "Cessez d'etre gentil, soyez vrai - Thomas d'Ansembourg",                a: "D'Ansembourg",   n: 105 },
+    ],
+    coherence: [
+      { b: "Reconsolidation therapeutique de la mémoire",                           a: "Côté/Cousineau", n: 436 },
+      { b: "Lecture_sur_la_méthodologie__-_Ecker_2018_(ENG)_(1)",                   a: "Ecker",          n: 161 },
+      { b: "Lecture_sur_la_theorie_-_Ecker_2014_(ENG)",                             a: "Ecker",          n: 85  },
+      { b: "Therapie_de_la_coherence",                                              a: "Côté",           n: 43  },
+    ],
+    general: [
+      { b: "DSM-5 — Manuel diagnostique et statistique",                            a: "APA",            n: 957 },
+      { b: "Guerir son enfant interieur",                                           a: "Nabati",         n: 234 },
+    ],
+    icv: [
+      { b: "La régulation des émotions dans la famille",                            a: "Smith",          n: 236 },
+      { b: "Applications cliniques en ICV",                                         a: "Unknown",        n: 218 },
+      { b: "Les stratégies thérapeutiques de l'ICV",                                a: "Clément",        n: 170 },
+      { b: "Pratiquer l'ICV",                                                       a: "Pace",           n: 114 },
+      { b: "20210829_Manuel_N3_PRS_LM -1-",                                         a: "Lifespan",       n: 101 },
+      { b: "Le présent au secours du passé — L'ICV",                                a: "Clément",        n: 93  },
+      { b: "La puissance reparatrice de votre cerveau",                             a: "Smith",          n: 87  },
+      { b: "Mémoire ICV Belanger_Francoise_DPs_2020",                               a: "Belanger",       n: 64  },
+      { b: "2020 Livret Stagiaire -2-",                                             a: "Unknown",        n: 56  },
+      { b: "Manuel N1 ICV2020",                                                     a: "Unknown",        n: 55  },
+    ],
+    mbct: [
+      { b: "Où tu vas, tu es - Jon Kabat-Zinn",                                     a: "Kabat-Zinn",     n: 99  },
+    ],
+    personal_development: [
+      { b: "Imparfaits, libres et heureux",                                         a: "André",          n: 281 },
+      { b: "Victime des autres, bourreau de soi-même",                              a: "Corneau",        n: 242 },
+      { b: "Le bonheur d'etre soi",                                                 a: "Nabati",         n: 204 },
+      { b: "Les 7 etapes du pardon",                                                a: "Lumera",         n: 104 },
+      { b: "La maitrise de l'amour",                                                a: "Ruiz",           n: 98  },
+    ],
+    pnl: [
+      { b: "PNL pour les nuls",                                                     a: "Unknown",        n: 233 },
+      { b: "PNL mode d'emploi",                                                     a: "Unknown",        n: 175 },
+    ],
+    at: [
+      { b: "Cours AT",                                                              a: "Unknown",        n: 107 },
     ],
   };
 
@@ -39058,6 +39265,13 @@ ${commonBase}`
           ? '📚 Scan exhaustif bibliothèque…'
           : '📚 Scan bibliothèque…');
         ragResult = await adocExecutePlan(plan);
+
+        // ── Passe 2.5 : Re-ranking Haiku (P1-2) ──
+        // Uniquement pour intents exhaustifs (cours/document/comparatif/fiche/tableau)
+        // et si le volume de chunks justifie le filtrage (> 20)
+        if (isDeepIntent && ragResult?.chunks?.length > 20) {
+          ragResult = await adocRerankChunks(ragResult, plan, workerUrl);
+        }
       }
 
       // ── Passe 2b : Fallback web_search si D1 insuffisant ──
@@ -39100,7 +39314,7 @@ ${commonBase}`
 
       adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
 
-      const MODEL = 'claude-sonnet-4-20250514';
+      const MODEL = 'claude-sonnet-4-5-20251001';
 
       // ── Streaming SSE — plus de timeout 524, tokens en temps réel ──
       const response = await fetch(workerUrl, {
@@ -39151,6 +39365,14 @@ ${commonBase}`
               if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
                 reply += evt.delta.text;
                 adocUpdateStreamMsg(streamMsgId, reply);
+              }
+              // P2-3 : capturer les tokens depuis message_delta et message_start
+              if (evt.type === 'message_start' && evt.message?.usage) {
+                adocLastUsage = { input: evt.message.usage.input_tokens || 0, output: 0 };
+              }
+              if (evt.type === 'message_delta' && evt.usage) {
+                if (!adocLastUsage) adocLastUsage = { input: 0, output: 0 };
+                adocLastUsage.output = evt.usage.output_tokens || 0;
               }
               if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || ''));
             } catch(parseErr) { /* SSE malformée */ }
@@ -39206,6 +39428,10 @@ ${commonBase}`
           .filter(b => b.type === 'text')
           .map(b => b.text).join('');
 
+        // P2-3 : capturer usage en mode JSON
+        if (currentData.usage) {
+          adocLastUsage = { input: currentData.usage.input_tokens || 0, output: currentData.usage.output_tokens || 0 };
+        }
         adocRemoveTyping(typingId);
         streamMsgId = adocAddMsg('assistant', '', [], true);
         adocUpdateStreamMsg(streamMsgId, reply);
@@ -39218,8 +39444,21 @@ ${commonBase}`
 
       // ── Pipeline artifact unifié ──
       await adocHandleReply(reply, plan, ragResult?.chunks || []);
+      // P2-3 : afficher coût estimé sous la réponse
+      if (adocLastUsage) adocShowCost(streamMsgId, adocLastUsage);
       adocConversations.push({ role: 'assistant', content: reply });
       adocExchangeCount++;
+
+      // ── P1-3 : Accumulateur contexte session — extraction post-réponse ──
+      // Toutes les 4 réponses, Haiku distille les entités clés de la conversation
+      if (adocExchangeCount % 4 === 0 && adocExchangeCount > 0) {
+        adocAccumulateSessionContext(plan, reply).catch(() => {});
+      }
+
+      // ── Mémoire KV : auto-save toutes les 3 réponses si patient ID défini ──
+      if (adocKvPatientId && adocExchangeCount % 3 === 0) {
+        adocKvAutoSave().catch(()=>{});
+      }
 
     } catch(e) {
       adocRemoveTyping(typingId);
@@ -40017,7 +40256,11 @@ ${commonBase}`
     const msgId = 'adoc-msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
     div.id = msgId;
     const avatar = role === 'assistant' ? '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : '👤';
-    const body   = role === 'assistant' ? adocFormatMd(content) : adocEsc(content).replace(/\n/g,'<br>');
+    // P3-1 : snapshots la refMap au moment de l'affichage (Haiku rerank peut changer adocLastRefMap)
+    const msgRefMap = JSON.parse(JSON.stringify(adocLastRefMap || {}));
+    const body   = role === 'assistant'
+      ? adocRenderCiteInline(adocFormatMd(content), msgRefMap)
+      : adocEsc(content).replace(/\n/g,'<br>');
 
     let citeHtml = '';
     if (role === 'assistant' && citations?.length) {
@@ -40035,6 +40278,16 @@ ${commonBase}`
     area.appendChild(div);
     area.scrollTop = area.scrollHeight;
     return msgId;
+  }
+
+  function adocRenderCiteInline(html, refMap) {
+    const map = refMap || adocLastRefMap;
+    return html.replace(/\[REF:(\d+)\]/g, (match, n) => {
+      const ref = map[parseInt(n)];
+      if (!ref) return '';
+      const tip = `${ref.book_title}${ref.author ? ' — ' + ref.author : ''}${ref.page_number ? ', p.' + ref.page_number : ''}`;
+      return `<sup class="adoc-ref" data-ref="${n}" title="${tip.replace(/"/g,"'")}" onclick="adocShowRefPanel(${n},${JSON.stringify(map).replace(/"/g,"'")})">${n}</sup>`;
+    });
   }
 
   function adocFormatMd(text) {
@@ -41307,6 +41560,311 @@ ${body}
       </div></div>`;
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MÉMOIRE INTER-SESSIONS (P1-1) — fonctions KV
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  window.adocKvTherapistIdChange = function(val) {
+    adocKvTherapistId = val.trim() || null;
+    try {
+      if (adocKvTherapistId) localStorage.setItem('adoc_therapist_id', adocKvTherapistId);
+      else                   localStorage.removeItem('adoc_therapist_id');
+    } catch {}
+  };
+  (function() {
+    try {
+      const saved = localStorage.getItem('adoc_therapist_id');
+      if (saved) {
+        adocKvTherapistId = saved;
+        const el = document.getElementById('adoc-kv-therapist-id');
+        if (el) el.value = saved;
+      }
+    } catch {}
+  })();
+  window.adocKvPatientIdChange = function(val) {
+    adocKvPatientId = val.trim() || null;
+    document.getElementById('adoc-kv-status').textContent =
+      adocKvPatientId ? `ID : ${adocKvPatientId}` : '';
+    document.getElementById('adoc-kv-history').style.display = 'none';
+    adocKvHistory = [];
+  };
+
+  window.adocKvLoad = async function() {
+    if (!adocKvPatientId) {
+      document.getElementById('adoc-kv-status').textContent = '⚠️ Saisir un ID patient';
+      return;
+    }
+    const statusEl = document.getElementById('adoc-kv-status');
+    statusEl.textContent = '⏳ Chargement…';
+    try {
+      const resp = await fetch(adocGetWorkerUrl() + '/session-load', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ patientId: adocKvPatientId, ...(adocKvTherapistId ? { therapistId: adocKvTherapistId } : {}) })
+      });
+      const data = await resp.json();
+      if (!data.found || !data.history?.length) {
+        statusEl.textContent = '📭 Aucune séance enregistrée';
+        adocKvHistory = [];
+        document.getElementById('adoc-kv-history').style.display = 'none';
+        return;
+      }
+      adocKvHistory = data.history;
+      statusEl.textContent = `✅ ${data.history.length} séance(s) chargée(s)`;
+      // Afficher résumé dans la sidebar
+      const histEl = document.getElementById('adoc-kv-history');
+      histEl.style.display = 'block';
+      histEl.innerHTML = data.history.slice(0, 3).map(s =>
+        `<div style="margin-bottom:6px;padding:5px 7px;background:#EDE8F8;border-radius:4px;font-size:10px;">
+          <span style="font-weight:600;color:#5B4A8A;">${s.date}</span><br>
+          ${s.summary.substring(0, 120)}${s.summary.length > 120 ? '…' : ''}
+        </div>`
+      ).join('');
+    } catch(e) {
+      statusEl.textContent = '❌ Erreur : ' + e.message;
+    }
+  };
+
+  window.adocKvSaveNow = async function() {
+    await adocKvAutoSave(true);
+  };
+
+  async function adocKvAutoSave(force = false) {
+    if (!adocKvPatientId) return;
+    const exchanges = adocConversations.filter(m => m.role === 'user');
+    if (!force && exchanges.length < 2) return; // Trop peu d'échanges
+
+    const statusEl = document.getElementById('adoc-kv-status');
+    if (statusEl) statusEl.textContent = '💾 Résumé en cours…';
+
+    // Demander à Haiku de résumer la session
+    const recent = adocConversations.slice(-12).map(m =>
+      (m.role === 'user' ? 'Thérapeute : ' : 'CC : ') + m.content.substring(0, 300)
+    ).join('\n');
+
+    const summaryPayload = {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `Résume cette session thérapeutique en 150 mots max, en 3 parties : (1) Sujet principal traité, (2) Concepts/outils cliniques mobilisés, (3) Points importants à retenir pour la prochaine séance. Sois concis et factuel.\n\nSession :\n${recent}`
+      }]
+    };
+
+    try {
+      const resp = await fetch(adocGetWorkerUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify(summaryPayload)
+      });
+      const data = await resp.json();
+      const summary = data.content?.[0]?.text || 'Session sans résumé automatique.';
+
+      // Sauvegarder dans KV
+      const saveResp = await fetch(adocGetWorkerUrl() + '/session-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ patientId: adocKvPatientId, summary, ...(adocKvTherapistId ? { therapistId: adocKvTherapistId } : {}) })
+      });
+      const saveData = await saveResp.json();
+      if (statusEl) statusEl.textContent = `✅ Sauvegardé (${saveData.sessions} séance(s))`;
+      // Mettre à jour l'historique local
+      adocKvHistory.unshift({ date: new Date().toISOString().slice(0, 10), summary });
+      if (adocKvHistory.length > 10) adocKvHistory = adocKvHistory.slice(0, 10);
+    } catch(e) {
+      if (statusEl) statusEl.textContent = '❌ Sauvegarde échouée';
+    }
+  };
+
+  // ── P2-3 : Affichage coût estimé ──────────────────────────────────────────
+  // Tarifs approximatifs en € (mars 2026) — Sonnet 4 / Opus 4
+  const COST_RATES = {
+    'claude-sonnet-4-5-20251001': { in: 0.000003,   out: 0.000015   },  // $3/$15 per Mtok
+    'claude-opus-4-5-20251001':   { in: 0.000015,   out: 0.000075   },  // $15/$75 per Mtok
+    'claude-haiku-4-5-20251001':  { in: 0.00000025, out: 0.00000125 },  // $0.25/$1.25 per Mtok
+    'default':                    { in: 0.000003,   out: 0.000015   },
+  };
+  const EUR_RATE = 0.92; // 1 USD ≈ 0.92 EUR approximatif
+
+  function adocShowCost(msgId, usage) {
+    if (!msgId || !usage) return;
+    const msgEl = document.getElementById(msgId);
+    if (!msgEl) return;
+    const model   = window._adocCurrentModel || MODEL;
+    const rates   = COST_RATES[model] || COST_RATES['default'];
+    const costUsd = (usage.input * rates.in) + (usage.output * rates.out);
+    const costEur = costUsd * EUR_RATE;
+    adocTotalCost += costEur;
+
+    // Supprimer un éventuel footer précédent
+    const old = msgEl.querySelector('.adoc-cost-footer');
+    if (old) old.remove();
+
+    const footer = document.createElement('div');
+    footer.className = 'adoc-cost-footer';
+    footer.style.cssText = 'font-size:10px;color:#9AA8A0;margin-top:4px;padding:2px 8px;text-align:right;opacity:0.8;';
+    footer.innerHTML =
+      `<span title="Input: ${usage.input.toLocaleString()} tokens · Output: ${usage.output.toLocaleString()} tokens">` +
+      `${(usage.input + usage.output).toLocaleString()} tokens · ` +
+      `~${costEur < 0.01 ? (costEur * 100).toFixed(3) + '¢' : costEur.toFixed(3) + '€'} · ` +
+      `session: ~${adocTotalCost < 0.01 ? (adocTotalCost * 100).toFixed(2) + '¢' : adocTotalCost.toFixed(3) + '€'}` +
+      `</span>`;
+    msgEl.appendChild(footer);
+    // Stocker le modèle utilisé pour le calcul suivant
+    window._adocCurrentModel = null;
+  }
+
+  // ── P1-3 : Accumulateur contexte session ───────────────────────────────────
+  // Après chaque groupe de 4 échanges, Haiku distille les entités clés
+  // et les ajoute à adocSessionContext (injecté dans chaque system prompt)
+  async function adocAccumulateSessionContext(plan, lastReply) {
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl) return;
+
+    // Extraire les 8 derniers échanges pour Haiku
+    const recent = adocConversations.slice(-8).map(m =>
+      (m.role === 'user' ? 'Clinicien : ' : 'CC : ') + m.content.substring(0, 250)
+    ).join('
+');
+
+    const prompt = `Tu es un assistant clinique. Extrait les éléments clés de cette conversation thérapeutique en JSON strict.
+Réponds UNIQUEMENT avec ce JSON, sans aucun texte avant ou après :
+{
+  "approche_active": "approche thérapeutique principale détectée ou null",
+  "schemas_detectes": ["schema1", "schema2"],
+  "style_attachement": "style ou null",
+  "hypothese_courante": "hypothèse clinique principale en 1 phrase ou null",
+  "axes_travail": ["axe1", "axe2"],
+  "mots_cles": ["mot1", "mot2", "mot3"]
+}
+
+Conversation :
+${recent}`;
+
+    try {
+      const r = await fetch(workerUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: {
+          model: 'claude-haiku-4-5-20251001', max_tokens: 300,
+          messages: [{ role: 'user', content: prompt }]
+        }})
+      });
+      const data = await r.json();
+      const raw  = data.content?.[0]?.text || '';
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const ctx   = JSON.parse(clean);
+
+      // Construire le contexte accumulé
+      const parts = [];
+      if (ctx.approche_active)    parts.push(`Approche : ${ctx.approche_active}`);
+      if (ctx.schemas_detectes?.length)  parts.push(`Schémas : ${ctx.schemas_detectes.join(', ')}`);
+      if (ctx.style_attachement)  parts.push(`Attachement : ${ctx.style_attachement}`);
+      if (ctx.hypothese_courante) parts.push(`Hypothèse : ${ctx.hypothese_courante}`);
+      if (ctx.axes_travail?.length)      parts.push(`Axes : ${ctx.axes_travail.join(', ')}`);
+
+      if (parts.length) {
+        adocSessionContext = parts.join(' · ');
+        // Mettre à jour le champ UI contexte si visible
+        const inp = document.getElementById('adoc-context-inp');
+        if (inp && !inp.value) inp.value = adocSessionContext;
+        console.log('[P1-3 SessionCtx]', adocSessionContext);
+      }
+    } catch(e) {
+      console.warn('[P1-3] accumulateur contexte:', e.message);
+    }
+  }
+
+  // ── P3-2 : Sync-check D1 ↔ Vectorize ────────────────────────────────────────
+  // P3-1 : Panel de référence bibliographique au clic sur [REF:n]
+  window.adocShowRefPanel = function(n, refMapStr) {
+    let map = {};
+    try { map = typeof refMapStr === 'object' ? refMapStr : JSON.parse(refMapStr.replace(/'/g, '"')); } catch {}
+    const ref = map[n] || adocLastRefMap[n];
+    if (!ref) return;
+    // Enlever ancien panel
+    const old = document.getElementById('adoc-ref-panel');
+    if (old) old.remove();
+    const panel = document.createElement('div');
+    panel.id = 'adoc-ref-panel';
+    panel.style.cssText = 'position:fixed;bottom:80px;right:20px;background:#fff;border:1px solid #C8D0C3;border-radius:10px;padding:14px 18px;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;font-size:12px;line-height:1.5';
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span style="font-weight:700;color:#5B4A8A">📚 Référence [${n}]</span>
+        <span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;color:#999;font-size:16px;margin-left:12px">×</span>
+      </div>
+      <div style="color:#2C3E50;font-weight:600">${ref.book_title}</div>
+      ${ref.author ? `<div style="color:#7A8A82">${ref.author}</div>` : ''}
+      ${ref.page_number ? `<div style="color:#8FAFB1">Page ${ref.page_number}</div>` : ''}
+      ${ref.approach ? `<div style="margin-top:4px;background:#E6D7C3;padding:2px 8px;border-radius:20px;display:inline-block;font-size:10px;color:#5A4A3A">${ref.approach}</div>` : ''}
+    `;
+    document.body.appendChild(panel);
+    // Auto-fermeture 6s
+    setTimeout(() => panel.remove(), 6000);
+  };
+
+  window.adocRunSyncCheck = async function() {
+    const btn = document.getElementById('adoc-sync-btn');
+    const res = document.getElementById('adoc-sync-result');
+    if (!btn || !res) return;
+
+    btn.disabled    = true;
+    btn.textContent = '⏳ Vérification…';
+    res.style.display = 'none';
+
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const resp = await fetch(workerUrl + '/sync-check', { method: 'GET' });
+      const data = await resp.json();
+
+      if (data.error) {
+        res.innerHTML = `❌ ${data.error}`;
+        res.style.display = 'block';
+        return;
+      }
+
+      const icon    = data.all_synced ? '✅' : (data.missing_approaches?.length ? '❌' : '⚠️');
+      const status  = data.all_synced ? 'Synchronisé' : 'Désynchronisé';
+      const missing = data.missing_approaches?.length
+        ? `<br>❌ Manquants : ${data.missing_approaches.join(', ')}`
+        : '';
+      const partial = data.partial_approaches?.length
+        ? `<br>⚠️ Partiels : ${data.partial_approaches.join(', ')}`
+        : '';
+
+      // Tableau des résultats par approche
+      const rows = (data.details || []).map(d =>
+        `<tr>
+          <td style="padding:1px 4px">${d.approach}</td>
+          <td style="padding:1px 4px;text-align:right">${d.d1_chunks.toLocaleString('fr')}</td>
+          <td style="padding:1px 4px;text-align:center">${d.status === 'ok' ? '✅' : d.status === 'missing' ? '❌' : '⚠️'} ${d.sync_rate}%</td>
+        </tr>`
+      ).join('');
+
+      res.innerHTML =
+        `<strong>${icon} ${status}</strong> · D1: ${(data.d1_total||0).toLocaleString('fr')} chunks${missing}${partial}` +
+        (rows ? `<br><table style="width:100%;margin-top:4px;font-size:9px;border-collapse:collapse">
+          <tr style="color:#5B4A8A;font-weight:600"><td>Approche</td><td style="text-align:right">D1</td><td style="text-align:center">Sync</td></tr>
+          ${rows}
+        </table>` : '');
+      res.style.display = 'block';
+
+    } catch(e) {
+      res.innerHTML = `❌ Erreur : ${e.message}`;
+      res.style.display = 'block';
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '🔍 Vérifier sync D1↔Vector';
+    }
+  };
+
+  window.adocKvClear = function() {
+    adocKvPatientId = null;
+    adocKvHistory   = [];
+    document.getElementById('adoc-kv-patient-id').value = '';
+    document.getElementById('adoc-kv-status').textContent = '';
+    document.getElementById('adoc-kv-history').style.display = 'none';
+  };
+
 })(); // fin IIFE Assistant Doc v2
 </script>
 </body>
@@ -41358,6 +41916,36 @@ ${body}
         <div class="adoc-patient-box" id="adoc-patient-box"></div>
       </div>
 
+      <!-- Mémoire KV inter-sessions (P1-1) -->
+      <div class="adoc-sidebar-section">
+        <div class="adoc-sidebar-title">🧠 Mémoire patient</div>
+        <!-- P3-3 : ID thérapeute -->
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">
+          <input id="adoc-kv-therapist-id" type="text" placeholder="ID thérapeute (optionnel)"
+            style="flex:1;padding:4px 8px;border:1px solid #C8D0C3;border-radius:5px;font-size:10px;background:#f9f6f1;color:#7A8A82;"
+            oninput="adocKvTherapistIdChange(this.value)" />
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+          <input id="adoc-kv-patient-id" type="text" placeholder="ID patient (ex: dupont-marie)"
+            style="flex:1;padding:5px 8px;border:1px solid #C8D0C3;border-radius:5px;font-size:11px;background:#fff;"
+            oninput="adocKvPatientIdChange(this.value)" />
+          <button onclick="adocKvLoad()" title="Charger le dossier"
+            style="padding:4px 8px;background:#3A5658;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">↓</button>
+        </div>
+        <div id="adoc-kv-status" style="font-size:10px;color:#7A8A82;min-height:14px;"></div>
+        <div id="adoc-kv-history" style="display:none;margin-top:6px;"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button onclick="adocKvSaveNow()" title="Sauvegarder la session maintenant"
+            style="flex:1;padding:4px;background:#8FAFB1;color:#2A3A3C;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
+            💾 Sauvegarder
+          </button>
+          <button onclick="adocKvClear()" title="Effacer ID patient"
+            style="padding:4px 8px;background:#E6D7C3;color:#6A5A4A;border:none;border-radius:5px;font-size:10px;cursor:pointer;">
+            ✕
+          </button>
+        </div>
+      </div>
+
       <div class="adoc-docs-list" id="adoc-docs-list">
         <div style="text-align:center;padding:16px 8px;font-size:10px;color:#7A8A82;opacity:0.7;">Aucun document importé</div>
       </div>
@@ -41376,6 +41964,14 @@ ${body}
         <div class="adoc-stat-row"><span>Ouvrages</span><span class="adoc-stat-val" id="adoc-stat-books">—</span></div>
         <div class="adoc-stat-row"><span>Chunks</span><span class="adoc-stat-val" id="adoc-stat-chunks">—</span></div>
         <div class="adoc-stat-row"><span>Index</span><span class="adoc-stat-val" id="adoc-stat-appr">—</span></div>
+        <!-- P3-2 : Sync-check D1↔Vectorize -->
+        <div style="margin-top:8px;">
+          <button onclick="adocRunSyncCheck()" id="adoc-sync-btn"
+            style="width:100%;padding:4px;background:#E6D7C3;color:#5A4A3A;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
+            🔍 Vérifier sync D1↔Vector
+          </button>
+          <div id="adoc-sync-result" style="font-size:9px;color:#7A8A82;margin-top:4px;display:none;line-height:1.5;"></div>
+        </div>
       </div>
     </div>
 
