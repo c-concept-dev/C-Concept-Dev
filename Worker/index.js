@@ -55623,6 +55623,28 @@ async function handleD1Query(request2, env2) {
     return m;
   });
 
+  // 1c. Fix MATCH sur table chunks (non-FTS5) → réécrire vers chunks_fts + JOIN
+  //     ex: FROM chunks WHERE content MATCH 'X'
+  //      → FROM chunks_fts JOIN chunks c ON c.rowid=chunks_fts.rowid WHERE chunks_fts MATCH 'X'
+  if (/\bFROM\s+chunks\b/i.test(sql) && /\bMATCH\b/i.test(sql) && !/chunks_fts/i.test(sql)) {
+    // Réécrire le FROM + le MATCH
+    sql = sql.replace(
+      /SELECT\s+(.*?)\s+FROM\s+chunks\s+((?:WHERE|JOIN|ORDER|LIMIT)[\s\S]*?)$/i,
+      (m, cols, rest) => {
+        // Normaliser les colonnes : préfixer c. si pas déjà qualifiées
+        const safeCols = cols === '*'
+          ? 'c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach'
+          : cols.replace(/\b(book_title|author|chapter|page_number|content|approach|chunk_index|rowid)\b/g, 'c.$1');
+        // Remplacer content MATCH → chunks_fts MATCH
+        const safeRest = rest
+          .replace(/\bFROM\s+chunks\b/gi, '')
+          .replace(/\bcontent\s+MATCH\b/gi, 'chunks_fts MATCH')
+          .replace(/^\s*WHERE\s+/i, '');
+        return \`SELECT \${safeCols} FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid WHERE \${safeRest}\`;
+      }
+    );
+  }
+
   // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
   //    Remplace les ' isolées (non doublées) dans toute valeur entre quotes simples
   sql = sql.replace(/'((?:[^']|'')*)'/g, (m, inner) => {
