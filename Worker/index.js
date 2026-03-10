@@ -55581,14 +55581,43 @@ async function handleD1Query(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { sql, params } = body;
+  let { sql, params } = body;
   if (!sql)
     return jsonErr("Missing sql", 400);
   if (!env2.DB)
     return jsonErr("D1 not configured", 500);
-  const upper = sql.toUpperCase().trim();
-  if (upper.includes("DROP ") || upper.includes("ALTER ") || upper.includes("CREATE "))
+
+  // ── DDL guard : ignorer le contenu des strings SQL (multilignes) ──
+  const sqlNoStrings = sql.replace(/'(?:[^']|'')*'/gs, "''");
+  const upperNoStrings = sqlNoStrings.toUpperCase();
+  if (upperNoStrings.includes("DROP ") || upperNoStrings.includes("ALTER ") || upperNoStrings.includes("CREATE "))
     return jsonErr("DDL statements not allowed", 403);
+
+  // ── Sanitisation SQL côté Worker ──
+  // 1. Fix apostrophes dans LIKE/MATCH : apostrophe simple → doublée (sauf si déjà doublée)
+  sql = sql.replace(/\b(LIKE|MATCH)\s+'((?:[^']|'')*)'/gi, (m, kw, inner) => {
+    const fixed = inner.replace(/(?<!')'(?!')/g, "''");
+    return fixed !== inner ? kw + " '" + fixed + "'" : m;
+  });
+
+  // 2. Fix FTS5 MATCH multi-termes sans opérateur → OR explicite avec termes quotés
+  sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
+    const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
+    const hasQuoted = terms.includes('"');
+    if (!hasOp && !hasQuoted && /\s/.test(terms.trim())) {
+      const termList = terms.trim().split(/\s+/).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
+      return "MATCH '" + termList + "'";
+    }
+    return m;
+  });
+
+  // 3. Fix LIKE trop complexe (>80 chars) → tronquer
+  sql = sql.replace(/\bLIKE\s+'([^']{80,})'/gi, (m, pattern) => {
+    const simplified = pattern.replace(/%/g, '').trim().substring(0, 50);
+    return "LIKE '%" + simplified + "%'";
+  });
+
+  const upper = sql.toUpperCase().trim();
   try {
     let stmt = env2.DB.prepare(sql);
     if (params?.length)
@@ -55596,7 +55625,7 @@ async function handleD1Query(request2, env2) {
     const result = upper.startsWith("SELECT") || upper.startsWith("WITH") ? await stmt.all() : await stmt.run();
     return json(result);
   } catch (err2) {
-    return jsonErr(err2.message, 500);
+    return jsonErr("D1_ERROR: " + err2.message, 500);
   }
 }
 __name(handleD1Query, "handleD1Query");
