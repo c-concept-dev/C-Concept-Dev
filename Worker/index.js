@@ -55596,15 +55596,17 @@ async function handleD1Query(request2, env2) {
   // ── Sanitisation SQL côté Worker ──
   // Ordre : 1) MATCH multi-termes → 2) apostrophes toutes strings → 3) LIKE trop long
 
-  // 1. Fix FTS5 MATCH multi-termes sans opérateur → "terme1" OR "terme2"
+  // 1. Fix FTS5 MATCH : strip préfixes colonne invalides (word:terme) + multi-termes sans opérateur
   sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
+    // Strip préfixes colonne FTS5 (ex: content:mot, attachement:mot)
+    terms = terms.replace(/\b\w+:/g, '');
     const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
     const hasQuoted = terms.includes('"');
     if (!hasOp && !hasQuoted && /\s/.test(terms.trim())) {
-      const termList = terms.trim().split(/\s+/).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
+      const termList = terms.trim().split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
       return "MATCH '" + termList + "'";
     }
-    return m;
+    return "MATCH '" + terms + "'";
   });
 
   // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
