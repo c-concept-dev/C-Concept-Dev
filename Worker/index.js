@@ -56438,7 +56438,7 @@ async function handleLLMProxy(request2, env2) {
   if (provider === "anthropic") {
     if (!env2.ANTHROPIC_API_KEY)
       return jsonErr("ANTHROPIC_API_KEY not configured", 500);
-    const ab = { model: model || "claude-sonnet-4-20250514", messages, max_tokens, temperature };
+    const ab = { model: model || "claude-sonnet-4-5-20250929", messages, max_tokens, temperature };
     if (system)
       ab.system = system;
     if (stream)
@@ -56520,7 +56520,7 @@ ${c.content}`
     method: "POST",
     body: JSON.stringify({
       provider,
-      model: model || (provider === "openai" ? "gpt-4o" : "claude-sonnet-4-20250514"),
+      model: model || (provider === "openai" ? "gpt-4o" : "claude-sonnet-4-5-20250929"),
       system: systemPrompt,
       messages: [{ role: "user", content: `Question : ${question}
 
