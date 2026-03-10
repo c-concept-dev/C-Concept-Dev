@@ -55278,6 +55278,12 @@ var Worker_default = {
       return new Response(null, { headers: CORS });
     const url = new URL(request2.url);
     const p = url.pathname;
+    const _protected = ['/rag-query','/rag-search','/generate-presentation','/llm-proxy','/rag-stats'];
+    if (_protected.some(r => p.startsWith(r))) {
+      const k = request2.headers.get('X-API-Key') || request2.headers.get('x-api-key');
+      if (env2.WORKER_API_KEY && k !== env2.WORKER_API_KEY)
+        return new Response(JSON.stringify({error:'Unauthorized'}), {status:401, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+    }
     if (p === "/search-library" && request2.method === "POST")
       return handleLibrarySearch(request2, env2);
     if (p === "/library-stats" && request2.method === "GET")
