@@ -55635,7 +55635,8 @@ async function handleD1Query(request2, env2) {
     const result = upper.startsWith("SELECT") || upper.startsWith("WITH") ? await stmt.all() : await stmt.run();
     return json(result);
   } catch (err2) {
-    return jsonErr("D1_ERROR: " + err2.message, 500);
+    const msg2 = err2.message.startsWith("D1_ERROR:") ? err2.message : "D1_ERROR: " + err2.message;
+    return jsonErr(msg2, 500);
   }
 }
 __name(handleD1Query, "handleD1Query");
@@ -55664,23 +55665,27 @@ async function handleGetFile(url, env2) {
   const id = url.pathname.replace("/get-file/", "").split("/")[0];
   if (!id)
     return new Response("Missing file ID", { status: 400 });
-  const [content, metaStr] = await Promise.all([
-    env2.CLONE_KV.get("file:" + id, { type: "arrayBuffer" }),
-    env2.CLONE_KV.get("meta:" + id)
-  ]);
-  if (!content)
-    return new Response("File not found or expired (TTL 1h)", { status: 404 });
-  const meta = metaStr ? JSON.parse(metaStr) : { filename: "document", mime: "text/html;charset=utf-8" };
-  const dl = url.searchParams.get("dl") === "1";
-  return new Response(content, {
-    status: 200,
-    headers: {
-      "Content-Type": meta.mime,
-      "Content-Disposition": `${dl ? "attachment" : "inline"}; filename="${encodeURIComponent(meta.filename)}"`,
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-store"
-    }
-  });
+  try {
+    const [content, metaStr] = await Promise.all([
+      env2.CLONE_KV.get("file:" + id, { type: "arrayBuffer" }),
+      env2.CLONE_KV.get("meta:" + id)
+    ]);
+    if (!content)
+      return new Response("File not found or expired (TTL 1h)", { status: 404 });
+    const meta = metaStr ? JSON.parse(metaStr) : { filename: "document", mime: "text/html;charset=utf-8" };
+    const dl = url.searchParams.get("dl") === "1";
+    return new Response(content, {
+      status: 200,
+      headers: {
+        "Content-Type": meta.mime,
+        "Content-Disposition": `${dl ? "attachment" : "inline"}; filename="${encodeURIComponent(meta.filename)}"`,
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store"
+      }
+    });
+  } catch (err2) {
+    return new Response("Error retrieving file: " + err2.message, { status: 500, headers: { "Access-Control-Allow-Origin": "*" } });
+  }
 }
 __name(handleGetFile, "handleGetFile");
 async function storeAndReturn(env2, buffer2, filename, mime, ttl = 3600) {
@@ -56349,7 +56354,7 @@ async function handleRagSearch(request2, env2) {
   try {
     const embedPromise = env2.AI.run("@cf/baai/bge-m3", { text: [query] });
     const terms = fts_terms || query.split(/\s+/).filter((w) => w.length > 3).slice(0, 6);
-    const ftsQuery = terms.map((t) => t.replace(/['"]/g, "")).join(" OR ");
+    const ftsQuery = terms.map((t) => '"' + t.replace(/['"]/g, "") + '"').join(" OR ");
     let ftsPromise = Promise.resolve({ results: [] });
     if (ftsQuery) {
       let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.content
