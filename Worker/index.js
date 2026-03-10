@@ -55601,8 +55601,8 @@ async function handleD1Query(request2, env2) {
   sql = sql.replace(/\bMATCH\s+((?:"[^"]*"(?:\s+(?:OR|AND|NOT)\s+"[^"]*")*)+)/gi, (m, grp) => "MATCH '" + grp + "'");
   // 0B : MATCH "terme_seul"
   sql = sql.replace(/\bMATCH\s+"([^"]*)"/gi, (m, t) => "MATCH '\"" + t.replace(/'/g, "''") + "\"'");
-  // 0C : MATCH mot_sans_quote (terme(s) accentués jusqu'au prochain mot-clé SQL)
-  sql = sql.replace(/\bMATCH\s+(?!['"])((?:[\w\u00C0-\u024F][\w\u00C0-\u024F\-]*\s*)+?)(?=\s+(?:ORDER|LIMIT|AND\s+\w|WHERE|GROUP|HAVING)|\s*;|\s*$)/gi,
+  // 0C : MATCH mot_sans_quote avec negative lookahead pour mots-clés SQL
+  sql = sql.replace(/\bMATCH\s+(?!['"])((?:(?!(?:ORDER|LIMIT|AND|OR|WHERE|GROUP|HAVING|ON|JOIN|FROM|SELECT|IN|NOT)\b)[\w\u00C0-\u024F][\w\u00C0-\u024F\-]*)(?:\s+(?!(?:ORDER|LIMIT|AND|OR|WHERE|GROUP|HAVING|ON|JOIN|FROM|SELECT|IN|NOT)\b)[\w\u00C0-\u024F][\w\u00C0-\u024F\-]*)*)(?=\s+(?:ORDER|LIMIT|AND|OR|WHERE|GROUP|HAVING|ON|JOIN|FROM|SELECT|IN|NOT)\b|\s*;|\s*$)/gi,
     (m, grp) => "MATCH '" + grp.trim() + "'");
 
   // 1. Fix FTS5 MATCH '...' : strip préfixes colonne, virgules, termes non-quotés
