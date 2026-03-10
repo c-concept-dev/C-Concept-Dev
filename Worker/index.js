@@ -55252,14 +55252,15 @@ var CORS = {
   "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization"
 };
 var C_CONCEPT_COLORS = {
-  deep: "3A5658",
-  mer: "8FAFB1",
-  sable: "E6D7C3",
-  beige: "D8CDBB",
-  violet: "5B4A8A",
-  vl: "EDE8F8",
-  text: "2C3830",
-  surf: "F4F0EA"
+  deep:       "3A5658",  // Vert profond — titres, en-têtes
+  mer:        "8FAFB1",  // Mer (bleu-vert doux) — accents, bordures
+  vertSauge:  "C8D0C3",  // Vert sauge clair — sections secondaires
+  beige:      "D8CDBB",  // Beige sable — zones interprétation
+  sable:      "E6D7C3",  // Sable — fond général
+  surf:       "F4F0EA",  // Surface douce — fond app
+  text:       "2C3830",  // Texte principal
+  muted:      "7A8A82",  // Texte secondaire
+  white:      "FFFFFF"
 };
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -55593,43 +55594,30 @@ async function handleD1Query(request2, env2) {
   if (upperNoStrings.includes("DROP ") || upperNoStrings.includes("ALTER ") || upperNoStrings.includes("CREATE "))
     return jsonErr("DDL statements not allowed", 403);
 
-  // ── Sanitisation SQL côté Worker v8 ──
-  // Ordre : 0) normaliser MATCH sans quotes → 1) MATCH fix → 2) apostrophes → 3) LIKE
+  // ── Sanitisation SQL côté Worker ──
+  // Ordre : 1) MATCH multi-termes → 2) apostrophes toutes strings → 3) LIKE trop long
 
-  // 0. Normaliser MATCH sans single-quotes vers MATCH '...'
-  // 0A : MATCH "a" OR "b" OR "c"
-  sql = sql.replace(/\bMATCH\s+((?:"[^"]*"(?:\s+(?:OR|AND|NOT)\s+"[^"]*")*)+)/gi, (m, grp) => "MATCH '" + grp + "'");
-  // 0B : MATCH "terme_seul"
-  sql = sql.replace(/\bMATCH\s+"([^"]*)"/gi, (m, t) => "MATCH '\"" + t.replace(/'/g, "''") + "\"'");
-  // 0C : MATCH mot_sans_quote avec negative lookahead pour mots-clés SQL
-  sql = sql.replace(/\bMATCH\s+(?!['"])((?:(?!(?:ORDER|LIMIT|AND|OR|WHERE|GROUP|HAVING|ON|JOIN|FROM|SELECT|IN|NOT)\b)[\w\u00C0-\u024F][\w\u00C0-\u024F\-]*)(?:\s+(?!(?:ORDER|LIMIT|AND|OR|WHERE|GROUP|HAVING|ON|JOIN|FROM|SELECT|IN|NOT)\b)[\w\u00C0-\u024F][\w\u00C0-\u024F\-]*)*)(?=\s+(?:ORDER|LIMIT|AND|OR|WHERE|GROUP|HAVING|ON|JOIN|FROM|SELECT|IN|NOT)\b|\s*;|\s*$)/gi,
-    (m, grp) => "MATCH '" + grp.trim() + "'");
-
-  // 1. Fix FTS5 MATCH '...' : strip préfixes colonne, virgules, termes non-quotés
+  // 1. Fix FTS5 MATCH : strip préfixes colonne invalides (word:terme) + multi-termes sans opérateur
   sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
+    // Strip préfixes colonne FTS5 (ex: content:mot, attachement:mot)
     terms = terms.replace(/\b\w+:/g, '');
-    terms = terms.replace(/,/g, ' ');
-    terms = terms.replace(/\s+/g, ' ').trim();
     const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
     const hasQuoted = terms.includes('"');
-    const hasParens = terms.includes('(');
-    if (!hasOp && !hasQuoted && !hasParens) {
-      if (/\s/.test(terms)) {
-        const termList = terms.split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
-        return "MATCH '" + termList + "'";
-      }
-      return "MATCH '\"" + terms.replace(/"/g, '') + "\"'";
+    if (!hasOp && !hasQuoted && /\s/.test(terms.trim())) {
+      const termList = terms.trim().split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
+      return "MATCH '" + termList + "'";
     }
     return "MATCH '" + terms + "'";
   });
 
-  // 2. Fix apostrophes dans TOUTES les strings SQL
+  // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
+  //    Remplace les ' isolées (non doublées) dans toute valeur entre quotes simples
   sql = sql.replace(/'((?:[^']|'')*)'/g, (m, inner) => {
     const fixed = inner.replace(/(?<!')'(?!')/g, "''");
     return fixed !== inner ? "'" + fixed + "'" : m;
   });
 
-  // 3. Fix LIKE trop complexe (>40 chars)
+  // 3. Fix LIKE trop complexe (>40 chars) → tronquer le pattern
   sql = sql.replace(/\bLIKE\s+'([^']{40,})'/gi, (m, pattern) => {
     const simplified = pattern.replace(/%/g, '').trim().substring(0, 35);
     return "LIKE '%" + simplified + "%'";
@@ -55643,8 +55631,7 @@ async function handleD1Query(request2, env2) {
     const result = upper.startsWith("SELECT") || upper.startsWith("WITH") ? await stmt.all() : await stmt.run();
     return json(result);
   } catch (err2) {
-    const msg2 = err2.message.startsWith("D1_ERROR:") ? err2.message : "D1_ERROR: " + err2.message;
-    return jsonErr(msg2, 500);
+    return jsonErr("D1_ERROR: " + err2.message, 500);
   }
 }
 __name(handleD1Query, "handleD1Query");
@@ -55673,27 +55660,23 @@ async function handleGetFile(url, env2) {
   const id = url.pathname.replace("/get-file/", "").split("/")[0];
   if (!id)
     return new Response("Missing file ID", { status: 400 });
-  try {
-    const [content, metaStr] = await Promise.all([
-      env2.CLONE_KV.get("file:" + id, { type: "arrayBuffer" }),
-      env2.CLONE_KV.get("meta:" + id)
-    ]);
-    if (!content)
-      return new Response("File not found or expired (TTL 1h)", { status: 404 });
-    const meta = metaStr ? JSON.parse(metaStr) : { filename: "document", mime: "text/html;charset=utf-8" };
-    const dl = url.searchParams.get("dl") === "1";
-    return new Response(content, {
-      status: 200,
-      headers: {
-        "Content-Type": meta.mime,
-        "Content-Disposition": `${dl ? "attachment" : "inline"}; filename="${encodeURIComponent(meta.filename)}"`,
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-store"
-      }
-    });
-  } catch (err2) {
-    return new Response("Error retrieving file: " + err2.message, { status: 500, headers: { "Access-Control-Allow-Origin": "*" } });
-  }
+  const [content, metaStr] = await Promise.all([
+    env2.CLONE_KV.get("file:" + id, { type: "arrayBuffer" }),
+    env2.CLONE_KV.get("meta:" + id)
+  ]);
+  if (!content)
+    return new Response("File not found or expired (TTL 1h)", { status: 404 });
+  const meta = metaStr ? JSON.parse(metaStr) : { filename: "document", mime: "text/html;charset=utf-8" };
+  const dl = url.searchParams.get("dl") === "1";
+  return new Response(content, {
+    status: 200,
+    headers: {
+      "Content-Type": meta.mime,
+      "Content-Disposition": `${dl ? "attachment" : "inline"}; filename="${encodeURIComponent(meta.filename)}"`,
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-store"
+    }
+  });
 }
 __name(handleGetFile, "handleGetFile");
 async function storeAndReturn(env2, buffer2, filename, mime, ttl = 3600) {
@@ -55732,7 +55715,9 @@ async function handleGeneratePDF(request2, env2) {
         body: JSON.stringify({
           html: content,
           addStyleTag: [
-            { content: "* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }" }
+            { content: "* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }" },
+            { url: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" },
+            { content: ":root{--mer:#8FAFB1;--deep:#3A5658;--sable:#E6D7C3;--beige:#D8CDBB;--surf:#F4F0EA;--text:#2C3830;--muted:#7A8A82;}body,p,li,td,th{font-family:'Montserrat','Segoe UI',sans-serif;color:var(--text);}h1,h2{color:var(--deep);font-family:'Montserrat',sans-serif;}h3{color:var(--text);}@page{size:A4;margin:15mm 18mm;}table{width:100%;border-collapse:collapse;}th{background:var(--deep);color:#fff;padding:8px 10px;font-weight:600;}td{padding:7px 10px;border-bottom:1px solid var(--beige);}tr:nth-child(even) td{background:var(--sable);}.adoc-ref{color:var(--deep)!important;}" }
           ]
         })
       }
@@ -55762,7 +55747,7 @@ async function handleGenerateDOCX(request2, env2) {
     const children = [];
     if (content.title) {
       children.push(new Paragraph({
-        text: content.title,
+        children: [new TextRun({ text: content.title, bold: true, color: C_CONCEPT_COLORS.deep, size: 52, font: "Calibri" })],
         heading: HeadingLevel.TITLE,
         alignment: AlignmentType.CENTER,
         spacing: { after: 400 }
@@ -55778,14 +55763,14 @@ async function handleGenerateDOCX(request2, env2) {
     for (const section of content.sections || []) {
       if (section.heading) {
         children.push(new Paragraph({
-          text: section.heading,
+          children: [new TextRun({ text: section.heading, bold: true, color: C_CONCEPT_COLORS.deep, size: 32, font: "Calibri" })],
           heading: HeadingLevel.HEADING_1,
           spacing: { before: 400, after: 200 }
         }));
       }
       if (section.subheading) {
         children.push(new Paragraph({
-          text: section.subheading,
+          children: [new TextRun({ text: section.subheading, bold: true, color: C_CONCEPT_COLORS.mer, size: 26, font: "Calibri" })],
           heading: HeadingLevel.HEADING_2,
           spacing: { before: 200, after: 160 }
         }));
@@ -55798,7 +55783,7 @@ async function handleGenerateDOCX(request2, env2) {
       }
       if (section.bullets) {
         for (const bullet of section.bullets) {
-          children.push(new Paragraph({ text: bullet, bullet: { level: 0 }, spacing: { after: 80 } }));
+          children.push(new Paragraph({ children: [new TextRun({ text: bullet, color: C_CONCEPT_COLORS.text, size: 22 })], bullet: { level: 0 }, spacing: { after: 80 } }));
         }
       }
       if (section.table) {
@@ -55861,7 +55846,7 @@ async function handleGeneratePPTX(request2, env2) {
   try {
     const prs = new PptxGenJS();
     prs.layout = "LAYOUT_WIDE";
-    prs.theme = { headFontFace: "Montserrat", bodyFontFace: "Calibri" };
+    prs.theme = { headFontFace: "Montserrat", bodyFontFace: "Montserrat" };
     if (content.title) {
       const titleSlide = prs.addSlide();
       titleSlide.background = { color: C_CONCEPT_COLORS.deep };
@@ -55942,7 +55927,7 @@ async function handleGeneratePPTX(request2, env2) {
           fill: { color: "000000", transparency: 45 }
         });
       } else {
-        s.background = { color: "F4F0EA" };
+        s.background = { color: C_CONCEPT_COLORS.sable }; // sable charte
       }
       const titleBandColor = hasImage ? "000000" : C_CONCEPT_COLORS.deep;
       const titleBandAlpha = hasImage ? 55 : 0;
@@ -56057,7 +56042,7 @@ async function handleGenerateXLSX(request2, env2) {
         const excelRow = sheet.addRow(sheetDef.rows[ri]);
         if (ri % 2 === 0) {
           excelRow.eachCell((cell) => {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4F0EA" } };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.sable }  // sable charte };
           });
         }
         excelRow.eachCell((cell) => {
@@ -56069,7 +56054,7 @@ async function handleGenerateXLSX(request2, env2) {
         for (const f of sheetDef.formulas) {
           const cell = sheet.getCell(f.cell);
           cell.value = { formula: f.formula };
-          cell.font = { bold: true, color: { argb: "FF" + C_CONCEPT_COLORS.violet } };
+          cell.font = { bold: true, color: { argb: "FF" + C_CONCEPT_COLORS.deep } };
         }
       }
       if (sheetDef.headers) {
@@ -56362,7 +56347,7 @@ async function handleRagSearch(request2, env2) {
   try {
     const embedPromise = env2.AI.run("@cf/baai/bge-m3", { text: [query] });
     const terms = fts_terms || query.split(/\s+/).filter((w) => w.length > 3).slice(0, 6);
-    const ftsQuery = terms.map((t) => '"' + t.replace(/['"]/g, "") + '"').join(" OR ");
+    const ftsQuery = terms.map((t) => t.replace(/['"]/g, "")).join(" OR ");
     let ftsPromise = Promise.resolve({ results: [] });
     if (ftsQuery) {
       let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.content
