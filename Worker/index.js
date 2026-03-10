@@ -56203,7 +56203,7 @@ async function handleGenerateXLSX(request2, env2) {
         const excelRow = sheet.addRow(sheetDef.rows[ri]);
         if (ri % 2 === 0) {
           excelRow.eachCell((cell) => {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.sable }  // sable charte };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.sable } }; // sable charte
           });
         }
         excelRow.eachCell((cell) => {
