@@ -55704,7 +55704,62 @@ async function handleGeneratePDF(request2, env2) {
   if (!content)
     return jsonErr("Missing content (HTML string)", 400);
   try {
-    const pdfRes = await fetch(
+    // ── Préprocesseur HTML : nettoyage avant envoi à Browser Rendering ──
+  const cleanedContent = (() => {
+    let h = content;
+
+    // 1. Supprimer les numéros de page parasites (<p>1</p>, <p> 2 </p>, etc.)
+    h = h.replace(/<p[^>]*>\s*\d{1,3}\s*<\/p>/gi, '');
+
+    // 2. Injecter un script DOM qui s'exécute avant le rendu PDF
+    //    Chromium headless exécute le JS synchrone avant la capture PDF
+    const domScript = `<script>
+(function(){
+  // Forcer break-inside:avoid sur tous les blocs visuels avec fond ou bordure
+  var all = document.querySelectorAll('div,section,aside,article,blockquote,table,figure');
+  for(var i=0;i<all.length;i++){
+    var st = all[i].style;
+    var cs = window.getComputedStyle(all[i]);
+    var hasBg = st.backgroundColor || st.background ||
+                (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent');
+    var hasBorder = st.borderLeft || st.border || st.borderLeftWidth;
+    var hasClass = all[i].className && /callout|note|encadre|clinical|principe|observation|anatomie|cycle|axe|reflexion/i.test(all[i].className);
+    if(hasBg || hasBorder || hasClass){
+      all[i].style.pageBreakInside = 'avoid';
+      all[i].style.breakInside = 'avoid';
+    }
+  }
+  // Supprimer les éléments qui ne contiennent que 1-3 chiffres
+  var ps = document.querySelectorAll('p,div,span');
+  for(var j=0;j<ps.length;j++){
+    if(/^\s*\d{1,3}\s*$/.test(ps[j].textContent) && ps[j].children.length === 0){
+      ps[j].style.display = 'none';
+    }
+  }
+  // Limiter la hauteur des images pour éviter les coupures
+  var imgs = document.querySelectorAll('img');
+  for(var k=0;k<imgs.length;k++){
+    imgs[k].style.maxHeight = '260px';
+    imgs[k].style.width = '100%';
+    imgs[k].style.objectFit = 'cover';
+    imgs[k].style.display = 'block';
+    imgs[k].style.pageBreakInside = 'avoid';
+    imgs[k].style.breakInside = 'avoid';
+  }
+})();
+<\/script>`;
+
+    // Injecter le script juste avant </body> ou à la fin
+    if(h.includes('</body>')) {
+      h = h.replace('</body>', domScript + '</body>');
+    } else {
+      h = h + domScript;
+    }
+
+    return h;
+  })();
+
+  const pdfRes = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${env2.CF_ACCOUNT_ID}/browser-rendering/pdf`,
       {
         method: "POST",
@@ -55713,11 +55768,117 @@ async function handleGeneratePDF(request2, env2) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          html: content,
+          html: cleanedContent,
           addStyleTag: [
             { content: "* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }" },
             { url: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" },
-            { content: ":root{--mer:#8FAFB1;--deep:#3A5658;--sable:#E6D7C3;--beige:#D8CDBB;--surf:#F4F0EA;--text:#2C3830;--muted:#7A8A82;}body,p,li,td,th{font-family:'Montserrat','Segoe UI',sans-serif;color:var(--text);}h1,h2{color:var(--deep);font-family:'Montserrat',sans-serif;}h3{color:var(--text);}@page{size:A4;margin:15mm 18mm;}table{width:100%;border-collapse:collapse;}th{background:var(--deep);color:#fff;padding:8px 10px;font-weight:600;}td{padding:7px 10px;border-bottom:1px solid var(--beige);}tr:nth-child(even) td{background:var(--sable);}.adoc-ref{color:var(--deep)!important;}" }
+            { content: `
+:root{
+  --mer:#8FAFB1; --deep:#3A5658; --sable:#E6D7C3;
+  --beige:#D8CDBB; --surf:#F4F0EA; --text:#2C3830; --muted:#7A8A82;
+}
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+body, p, li, td, th, div, span {
+  font-family: 'Montserrat', 'Segoe UI', sans-serif !important;
+  color: var(--text);
+  line-height: 1.8;
+}
+body { background: #fff; font-size: 14px; margin: 0; padding: 0; }
+p { margin: 0 0 16px 0; }
+
+/* ── Titres ── */
+h1 { font-size: 2em; font-weight: 700; color: var(--deep); margin: 0 0 20px 0; }
+h2 {
+  font-size: 1.5em; font-weight: 700; color: var(--deep);
+  border-bottom: 3px solid var(--mer); padding-bottom: 8px;
+  margin: 32px 0 18px 0; page-break-after: avoid;
+}
+h3 {
+  font-size: 1.1em; font-weight: 600; color: var(--deep);
+  margin: 24px 0 10px 0; page-break-after: avoid;
+}
+h4 { font-size: 1em; font-weight: 600; color: var(--muted); margin: 16px 0 8px 0; }
+
+/* ── Séparateurs ── */
+hr {
+  border: none; border-top: 2px solid var(--mer);
+  margin: 32px 0; opacity: 0.5;
+}
+
+/* ── Tableaux ── */
+table { width: 100%; border-collapse: collapse; margin: 20px 0; page-break-inside: avoid; }
+th {
+  background: var(--deep) !important; color: #fff !important;
+  font-weight: 700; padding: 10px 14px; text-align: left;
+  font-family: 'Montserrat', sans-serif !important;
+}
+td {
+  padding: 9px 14px; border-bottom: 1px solid var(--beige);
+  vertical-align: top;
+}
+tr:nth-child(even) td { background: var(--sable) !important; }
+
+/* ── Encadrés / Callouts ── */
+.callout, .note, .principe, .observation, .reflexion, .clinical-note,
+[class*="callout"], [class*="note-"], [class*="encadre"] {
+  border-radius: 8px; padding: 18px 20px;
+  margin: 24px 0; page-break-inside: avoid;
+}
+/* Fond sable par défaut pour tous les encadrés sans fond explicite */
+blockquote {
+  background: var(--sable); border-left: 5px solid var(--mer);
+  border-radius: 8px; padding: 18px 20px; margin: 24px 0;
+  page-break-inside: avoid; font-style: normal;
+}
+
+/* ── Listes ── */
+ul { list-style: none; padding: 0; margin: 12px 0; }
+ul li { padding: 4px 0 4px 24px; position: relative; }
+ul li::before {
+  content: "→"; color: var(--mer); font-weight: 700;
+  position: absolute; left: 0;
+}
+ol li { padding: 4px 0; margin-left: 20px; }
+
+/* ── Superscripts REF ── */
+sup { font-size: 0.6em; color: var(--deep); font-weight: 700; vertical-align: super; }
+
+/* ── Images ── */
+img {
+  width: 100%; height: auto; object-fit: cover;
+  border-radius: 10px; margin: 24px 0; display: block;
+}
+
+/* ── Footer ── */
+footer {
+  text-align: center; margin-top: 40px; padding-top: 20px;
+  border-top: 2px solid var(--beige); font-size: 11px;
+  color: var(--muted); font-family: 'Montserrat', sans-serif !important;
+}
+
+/* ── Anti-artefacts ── */
+/* Supprimer les éléments vides */
+p:empty { display: none !important; }
+/* Numéros isolés — cachés par CSS (le JS fait le vrai nettoyage) */
+p:only-child:not([class]):not([style]) { orphans: 3; widows: 3; }
+/* Orphelins et veuves */
+p { orphans: 4; widows: 4; }
+
+/* ── Page breaks — Chromium headless robuste ── */
+/* Propriétés modernes ET anciennes simultanément */
+section, article, aside, figure, blockquote, table,
+div[style*="background"], div[style*="border"],
+div[style*="border-left"], div[style*="padding"] {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+.page-break { break-before: page; page-break-before: always; }
+/* Images : jamais coupées */
+img { break-inside: avoid !important; page-break-inside: avoid !important; max-height: 260px !important; }
+/* Titres : toujours avec leur contenu suivant */
+h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+` }
           ]
         })
       }
