@@ -55610,6 +55610,19 @@ async function handleD1Query(request2, env2) {
     return "MATCH '" + terms + "'";
   });
 
+  // 1b. Fix FTS5 MATCH terme unique — tiret ou accent → guillemets FTS5
+  //     ex: MATCH 'poursuite-retrait' → MATCH '"poursuite-retrait"'
+  //     ex: MATCH 'évitant'           → MATCH '"évitant"'
+  //     Sans guillemets : FTS5 interprète '-' comme NOT → syntax error 500
+  sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
+    if (terms.includes('"') || /\b(OR|AND|NOT)\b/i.test(terms)) return m;
+    const trimmed = terms.trim();
+    if (!trimmed.includes(' ')) {
+      return "MATCH '\"" + trimmed.replace(/"/g, '') + "\"'";
+    }
+    return m;
+  });
+
   // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
   //    Remplace les ' isolées (non doublées) dans toute valeur entre quotes simples
   sql = sql.replace(/'((?:[^']|'')*)'/g, (m, inner) => {
