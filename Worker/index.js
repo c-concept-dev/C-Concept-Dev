@@ -55640,7 +55640,7 @@ async function handleD1Query(request2, env2) {
           .replace(/\bFROM\s+chunks\b/gi, '')
           .replace(/\bcontent\s+MATCH\b/gi, 'chunks_fts MATCH')
           .replace(/^\s*WHERE\s+/i, '');
-        return \`SELECT \${safeCols} FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid WHERE \${safeRest}\`;
+        return "SELECT " + safeCols + " FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid WHERE " + safeRest;
       }
     );
   }
