@@ -55600,10 +55600,15 @@ async function handleD1Query(request2, env2) {
   sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
     // Strip préfixes colonne FTS5 (ex: content:mot, attachement:mot)
     terms = terms.replace(/\b\w+:/g, '');
+    // Virgules → espace (FTS5 n'accepte pas les virgules)
+    terms = terms.replace(/,/g, ' ');
+    // Normaliser espaces multiples
+    terms = terms.replace(/\s+/g, ' ').trim();
     const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
     const hasQuoted = terms.includes('"');
-    if (!hasOp && !hasQuoted && /\s/.test(terms.trim())) {
-      const termList = terms.trim().split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
+    const hasParens = terms.includes('(');
+    if (!hasOp && !hasQuoted && !hasParens && /\s/.test(terms)) {
+      const termList = terms.split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
       return "MATCH '" + termList + "'";
     }
     return "MATCH '" + terms + "'";
