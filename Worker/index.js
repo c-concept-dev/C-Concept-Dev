@@ -55593,35 +55593,43 @@ async function handleD1Query(request2, env2) {
   if (upperNoStrings.includes("DROP ") || upperNoStrings.includes("ALTER ") || upperNoStrings.includes("CREATE "))
     return jsonErr("DDL statements not allowed", 403);
 
-  // ── Sanitisation SQL côté Worker ──
-  // Ordre : 1) MATCH multi-termes → 2) apostrophes toutes strings → 3) LIKE trop long
+  // ── Sanitisation SQL côté Worker v8 ──
+  // Ordre : 0) normaliser MATCH sans quotes → 1) MATCH fix → 2) apostrophes → 3) LIKE
 
-  // 1. Fix FTS5 MATCH : strip préfixes colonne invalides (word:terme) + multi-termes sans opérateur
+  // 0. Normaliser MATCH sans single-quotes vers MATCH '...'
+  // 0A : MATCH "a" OR "b" OR "c"
+  sql = sql.replace(/\bMATCH\s+((?:"[^"]*"(?:\s+(?:OR|AND|NOT)\s+"[^"]*")*)+)/gi, (m, grp) => "MATCH '" + grp + "'");
+  // 0B : MATCH "terme_seul"
+  sql = sql.replace(/\bMATCH\s+"([^"]*)"/gi, (m, t) => "MATCH '\"" + t.replace(/'/g, "''") + "\"'");
+  // 0C : MATCH mot_sans_quote (terme(s) accentués jusqu'au prochain mot-clé SQL)
+  sql = sql.replace(/\bMATCH\s+(?!['"])((?:[\w\u00C0-\u024F][\w\u00C0-\u024F\-]*\s*)+?)(?=\s+(?:ORDER|LIMIT|AND\s+\w|WHERE|GROUP|HAVING)|\s*;|\s*$)/gi,
+    (m, grp) => "MATCH '" + grp.trim() + "'");
+
+  // 1. Fix FTS5 MATCH '...' : strip préfixes colonne, virgules, termes non-quotés
   sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
-    // Strip préfixes colonne FTS5 (ex: content:mot, attachement:mot)
     terms = terms.replace(/\b\w+:/g, '');
-    // Virgules → espace (FTS5 n'accepte pas les virgules)
     terms = terms.replace(/,/g, ' ');
-    // Normaliser espaces multiples
     terms = terms.replace(/\s+/g, ' ').trim();
     const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
     const hasQuoted = terms.includes('"');
     const hasParens = terms.includes('(');
-    if (!hasOp && !hasQuoted && !hasParens && /\s/.test(terms)) {
-      const termList = terms.split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
-      return "MATCH '" + termList + "'";
+    if (!hasOp && !hasQuoted && !hasParens) {
+      if (/\s/.test(terms)) {
+        const termList = terms.split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
+        return "MATCH '" + termList + "'";
+      }
+      return "MATCH '\"" + terms.replace(/"/g, '') + "\"'";
     }
     return "MATCH '" + terms + "'";
   });
 
-  // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
-  //    Remplace les ' isolées (non doublées) dans toute valeur entre quotes simples
+  // 2. Fix apostrophes dans TOUTES les strings SQL
   sql = sql.replace(/'((?:[^']|'')*)'/g, (m, inner) => {
     const fixed = inner.replace(/(?<!')'(?!')/g, "''");
     return fixed !== inner ? "'" + fixed + "'" : m;
   });
 
-  // 3. Fix LIKE trop complexe (>40 chars) → tronquer le pattern
+  // 3. Fix LIKE trop complexe (>40 chars)
   sql = sql.replace(/\bLIKE\s+'([^']{40,})'/gi, (m, pattern) => {
     const simplified = pattern.replace(/%/g, '').trim().substring(0, 35);
     return "LIKE '%" + simplified + "%'";
