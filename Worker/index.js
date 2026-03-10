@@ -56755,9 +56755,10 @@ async function handleRagQuery(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { question, approach, language = "fr", topK = 15, provider = "anthropic", model, max_tokens = 2e3, system_extra } = body;
+  const { question: _question, query: _query, approach, language = "fr", topK = 15, provider = "anthropic", model, max_tokens = 2e3, system_extra } = body;
+  const question = _question || _query;
   if (!question)
-    return jsonErr("Missing question", 400);
+    return jsonErr("Missing question or query", 400);
   const ragReq = new Request("https://proxy/rag-search", {
     method: "POST",
     body: JSON.stringify({ query: question, approach, language, topK, include_content: true }),
