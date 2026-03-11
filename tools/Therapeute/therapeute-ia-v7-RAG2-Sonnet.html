@@ -2288,7 +2288,7 @@
                 <span class="collab-submode" onclick="selectCollabMode(this, 'intervention')" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: white; color: var(--mer); border: 2px solid var(--sable);">Stratégie</span>
                 <span class="collab-submode" onclick="selectCollabMode(this, 'conceptualisation')" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: white; color: var(--mer); border: 2px solid var(--sable);">Conceptualisation</span>
                 <span class="collab-submode" onclick="selectCollabMode(this, 'bibliographie')" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: white; color: var(--mer); border: 2px solid var(--sable);">Bibliographie</span>
-                <span class="collab-submode" onclick="openAssistDoc()" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: #5B4A8A; color: white; border: 2px solid #5B4A8A;">📚 Assistant Doc</span>
+                <span class="collab-submode" onclick="if(typeof openAssistDoc==='function') openAssistDoc()" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: #5B4A8A; color: white; border: 2px solid #5B4A8A;">📚 Assistant Doc</span>
             </div>
         </div>
         
@@ -2401,7 +2401,7 @@
             <button onclick="window._collabMode='intervention'; document.getElementById('collab-mode-label').textContent='Stratégie';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Stratégie</button>
             <button onclick="window._collabMode='conceptualisation'; document.getElementById('collab-mode-label').textContent='Conceptualisation';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Concept°</button>
             <button onclick="window._collabMode='bibliographie'; document.getElementById('collab-mode-label').textContent='Bibliographie';" style="background:none;border:none;color:white;cursor:pointer;font-size:11px;margin-left:4px;opacity:0.8;font-family:inherit;">Biblio</button>
-            <button onclick="openAssistDoc()" style="background:rgba(91,74,138,0.4);border:1px solid rgba(91,74,138,0.7);color:white;cursor:pointer;font-size:11px;margin-left:8px;font-family:inherit;border-radius:4px;padding:2px 8px;font-weight:700;">📚 Doc</button>
+            <button onclick="if(typeof openAssistDoc==='function') openAssistDoc()" style="background:rgba(91,74,138,0.4);border:1px solid rgba(91,74,138,0.7);color:white;cursor:pointer;font-size:11px;margin-left:8px;font-family:inherit;border-radius:4px;padding:2px 8px;font-weight:700;">📚 Doc</button>
         </div>
         <!-- PROGRESS v17.3.3 - Badges discrets charte -->
         <div class="progress-section" style="background: transparent; padding: 15px 20px; margin-bottom: 20px;">
@@ -2839,7 +2839,7 @@
 // ============================================================================
 const CONFIG = {
     WORKER_URL: 'https://clone-proxy.11drumboy11.workers.dev/',
-    MODEL: 'claude-sonnet-4-5-20251001',
+    MODEL: 'claude-sonnet-4-5-20250929',
     TARGET_QUESTIONS: 40,
     MIN_WORDS: 10,
     CONCORDANCE_BASE: 0.85,
@@ -6015,7 +6015,7 @@ Résumé concis:`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20251001',
+                        model: 'claude-sonnet-4-5-20250929',
                         max_tokens: 400,
                         temperature: 0.7,
                         messages: [{ role: 'user', content: prompt }]
@@ -6946,7 +6946,7 @@ class MemorySystem {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20251001',
+                        model: 'claude-sonnet-4-5-20250929',
                         max_tokens: 2000,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -8839,7 +8839,7 @@ Retourne UNIQUEMENT le JSON.`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20251001',
+                        model: 'claude-sonnet-4-5-20250929',
                         max_tokens: maxTokens,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -18114,7 +18114,7 @@ class ConversationalSystem {
             // Appeler Claude API
             const isCollab = window._operatingMode === 'collaborateur';
             // FIX 5: Opus pour le mode collaborateur (raisonnement clinique profond)
-            const apiModel = isCollab ? 'claude-sonnet-4-5-20251001' : 'claude-sonnet-4-5-20251001';
+            const apiModel = isCollab ? 'claude-sonnet-4-5-20250929' : 'claude-sonnet-4-5-20250929';
             // Note: Remplacer par 'claude-opus-4-0-20250514' quand disponible via le proxy
             // Pour l'instant on utilise Sonnet avec max_tokens augmenté
             
@@ -36197,7 +36197,7 @@ async function v19GenerateResumeMessage(convSystem) {
             body: JSON.stringify({
                 payload: {
                     provider: 'anthropic',
-                    model: 'claude-sonnet-4-5-20251001',
+                    model: 'claude-sonnet-4-5-20250929',
                     max_tokens: 150,
                     temperature: 0.7,
                     system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
@@ -37313,7 +37313,7 @@ async function generateCloneBrain() {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20251001',
+                        model: 'claude-sonnet-4-5-20250929',
                         max_tokens: maxTokens || 2500,
                         temperature: 0.3,
                         system: prompt,
@@ -37944,964 +37944,6 @@ window.addEventListener('beforeunload', () => {
 (function() {
   'use strict';
 
-  // ── State ──
-  let adocConversations = [];
-  let adocDocs = [];
-  let adocActiveDoc = null;
-  let adocThinking = false;
-  let adocExchangeCount = 0;
-  let adocInitDone = false;
-  let adocLibStats = null; // stats bibliothèque pour le planner
-  let adocSessionSummary = null; // résumé automatique après 20 messages
-  let adocSummarizing = false;
-
-  // ── Résumé automatique de session CC (> 20 messages) ──
-  async function adocAutoSummarize() {
-    if (adocSummarizing || adocSessionSummary) return;
-    if (adocConversations.filter(m => m.role === 'user').length < 20) return;
-    adocSummarizing = true;
-    try {
-      const wUrl = adocGetWorkerUrl();
-      if (!wUrl) return;
-      const convText = adocConversations.slice(0, -8)
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => (m.role === 'user' ? 'Therapeute' : 'Conseiller') + ': ' + m.content.substring(0, 300))
-        .join('\n');
-      const prompt = 'Resume cette conversation clinique en 10 lignes. Garde: cas cliniques, approches, decisions.\n\n' + convText + '\n\nResume:';
-      const r = await fetch(wUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: { model: 'claude-haiku-4-5-20251001', max_tokens: 400,
-          messages: [{ role: 'user', content: prompt }] }})
-      });
-      const d = await r.json();
-      const summary = d.content?.[0]?.text;
-      if (summary) {
-        adocSessionSummary = summary;
-        const last8 = adocConversations.slice(-8);
-        adocConversations = [
-          { role: 'user', content: '[RESUME SESSION]\n' + summary },
-          { role: 'assistant', content: 'Resume integre.' },
-          ...last8
-        ];
-      }
-    } catch(e) { console.warn('[CC] Summarize:', e.message); }
-    adocSummarizing = false;
-  }
-
-  // N3 — Mode actif
-  let adocMode = 'reflexion'; // 'reflexion' | 'consultation' | 'production'
-
-  // N2 — Contexte de session
-  let adocSessionContext = '';
-  let adocPatientContext = '';
-  let adocKvPatientId    = null;  // ID patient pour mémoire KV inter-sessions
-  let adocKvTherapistId  = null;  // P3-3 : ID thérapeute pour namespace KV
-  let adocKvHistory      = [];    // historique séances chargé depuis KV
-  let adocLastUsage      = null;  // P2-3 : derniers tokens input/output CC
-  let adocTotalCost      = 0;     // P2-3 : coût cumulé session (€ estimé)
-
-  // ── Ouvrir / Fermer ──
-  window.openAssistDoc = function() {
-    document.getElementById('assistdoc-screen').classList.add('active');
-    if (!adocInitDone) { adocInit(); adocInitDone = true; }
-    adocLoadPatientContext();
-    // Restaurer les badges d'expiration pour les fichiers déjà générés
-    const now = Date.now();
-    for (const [key, art] of Object.entries(window._adocArtifacts || {})) {
-      if (art.expiresAt) {
-        const remaining = art.expiresAt - now;
-        if (remaining <= 0) {
-          adocMarkExpired(key); // déjà expiré
-        } else {
-          setTimeout(() => adocMarkExpired(key), remaining); // reprogrammer
-        }
-      }
-    }
-    setTimeout(() => document.getElementById('adoc-input')?.focus(), 120);
-  };
-
-  window.closeAssistDoc = function() {
-    document.getElementById('assistdoc-screen').classList.remove('active');
-  };
-
-  // ── Mode unifié (modes supprimés — tout passe par le prompt unique) ──
-  window.adocSetMode = function(mode) { /* no-op — modes unifiés */ };
-
-  // ── N2 — Contexte de session ──
-  window.adocSetContext = function(val) {
-    adocSessionContext = val.trim();
-  };
-
-  // ── Helper URL Worker (fallback hardcodé) ──
-  function adocGetWorkerUrl() {
-    return (
-      window.conversationalSystem?.WORKER_URL ||
-      window._therapyWorkerUrl ||
-      window.CONFIG?.WORKER_URL ||
-      localStorage.getItem('workerUrl') ||
-      'https://clone-proxy.11drumboy11.workers.dev'
-    ).replace(/\/$/, '');
-  }
-
-  // N2 — Charger dossier patient depuis le système thérapeutique
-  function adocLoadPatientContext() {
-    try {
-      // Guard défensif — le Collab peut ne pas être actif
-      const cs = window.conversationalSystem;
-      const patSection = document.getElementById('adoc-patient-section');
-      const patBox = document.getElementById('adoc-patient-box');
-      if (!cs) return; // CC ouvert sans Collab — normal
-      if (!patSection || !patBox) return;
-
-      // Tente d'extraire infos patient depuis l'état Collab
-      let info = '';
-      if (cs.currentPatient) {
-        const p = cs.currentPatient;
-        info += p.name ? `<strong>Patient :</strong> ${p.name}<br>` : '';
-        info += p.age ? `<strong>Âge :</strong> ${p.age} ans<br>` : '';
-        info += p.motif ? `<strong>Motif :</strong> ${p.motif}<br>` : '';
-        info += p.approche ? `<strong>Approche :</strong> ${p.approche}<br>` : '';
-        info += p.notes ? `<strong>Notes :</strong> ${p.notes}` : '';
-      } else if (cs.patientContext || cs.currentContext) {
-        const ctx = cs.patientContext || cs.currentContext;
-        if (typeof ctx === 'string' && ctx.length > 10) {
-          info = ctx.substring(0, 400);
-        }
-      }
-      // Cherche aussi dans les messages récents
-      if (!info && cs.conversationHistory?.length) {
-        const systemMsg = cs.conversationHistory.find(m => m.role === 'system' || (m.content && m.content.includes('patient')));
-        if (systemMsg?.content) {
-          info = systemMsg.content.substring(0, 300);
-        }
-      }
-      if (info) {
-        adocPatientContext = info.replace(/<[^>]+>/g, ' ').trim();
-        patBox.innerHTML = info;
-        patSection.style.display = 'block';
-      } else {
-        patSection.style.display = 'none';
-        adocPatientContext = '';
-      }
-    } catch(e) { /* pas de dossier patient — silencieux */ }
-  }
-
-  // ── Init : charger stats bibliothèque ──
-  function adocInit() {
-    const workerUrl = adocGetWorkerUrl();
-    if (!workerUrl || workerUrl === 'undefined') { document.getElementById('adoc-rag-status').textContent = 'Worker non configuré'; return; }
-
-    fetch(workerUrl.replace(/\/$/, '') + '/library-stats')
-      .then(r => r.json())
-      .then(d => {
-        const books  = d.total_books || (d.books?.length) || 0;
-        const chunks = d.total_chunks || 0;
-        const appr   = d.by_approach?.length || d.approaches?.length || 0;
-        document.getElementById('adoc-stat-books').textContent  = books;
-        document.getElementById('adoc-stat-chunks').textContent = chunks.toLocaleString('fr');
-        document.getElementById('adoc-stat-appr').textContent   = appr;
-        document.getElementById('adoc-rag-badge').textContent   = `📚 ${books} ouvrages`;
-        document.getElementById('adoc-rag-status').textContent  = `Bibliothèque : ${books} ouvrages · ${chunks.toLocaleString('fr')} chunks`;
-        // Catalogue complet : livres par approche pour le sweep bibliographique
-        const booksByApproach = {};
-        if (d.books) {
-          d.books.forEach(b => {
-            const appr = b.approach || 'general';
-            if (!booksByApproach[appr]) booksByApproach[appr] = [];
-            booksByApproach[appr].push({ title: b.title || b.book_title, author: b.author, chunks: b.chunk_count || b.chunks || 0 });
-          });
-        }
-        adocLibStats = {
-          books, chunks,
-          approaches: d.by_approach?.map(a=>a.approach).join(', ') || '',
-          booksByApproach,
-          // Format compact pour Haiku : approche → livres principaux (>50 chunks)
-          richBooks: Object.entries(booksByApproach).reduce((acc, [appr, bks]) => {
-            const rich = bks.filter(b => b.chunks >= 50).map(b => b.title).join(', ');
-            if (rich) acc[appr] = rich;
-            return acc;
-          }, {})
-        };
-      })
-      .catch(() => { document.getElementById('adoc-rag-status').textContent = 'Bibliothèque non disponible'; });
-
-    // Drag & drop
-    const zone = document.getElementById('adoc-upload-zone');
-    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.style.borderColor = '#8FAFB1'; });
-    zone.addEventListener('dragleave', () => { zone.style.borderColor = '#D8CDBB'; });
-    zone.addEventListener('drop',      e => { e.preventDefault(); zone.style.borderColor = '#D8CDBB'; adocHandleUpload(e.dataTransfer.files); });
-  }
-
-  // ── Upload ──
-  window.adocHandleUpload = async function(files) {
-    for (const file of files) {
-      const ext = file.name.split('.').pop().toLowerCase();
-      try {
-        const content = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result);
-          r.onerror = rej;
-          r.readAsText(file, 'utf-8');
-        });
-        adocDocs.push({ name: file.name, content: content.substring(0, 50000), type: ext, words: content.split(/\s+/).length });
-        adocRenderDocs();
-      } catch(e) { console.warn('adoc upload:', e); }
-    }
-  };
-
-  function adocRenderDocs() {
-    const list = document.getElementById('adoc-docs-list');
-    if (!adocDocs.length) { list.innerHTML = '<div style="text-align:center;padding:14px 8px;font-size:10px;color:#7A8A82;opacity:0.7;">Aucun document importé</div>'; return; }
-    const icons = { pdf:'📄', docx:'📝', txt:'📃', json:'🔧', html:'🌐', md:'📋', csv:'📊' };
-    list.innerHTML = adocDocs.map((d, i) => `
-      <div class="adoc-doc-item ${adocActiveDoc===i?'active':''}" onclick="adocSetDoc(${i})">
-        <span>${icons[d.type]||'📁'}</span>
-        <div style="flex:1;min-width:0">
-          <div class="adoc-doc-name" title="${d.name}">${d.name}</div>
-          <div class="adoc-doc-meta">${d.words?.toLocaleString('fr')||'?'} mots</div>
-        </div>
-        <span class="adoc-doc-rm" onclick="adocRemoveDoc(event,${i})">✕</span>
-      </div>`).join('');
-  }
-
-  window.adocSetDoc = function(i) {
-    adocActiveDoc = (adocActiveDoc === i) ? null : i;
-    adocRenderDocs();
-    const banner = document.getElementById('adoc-doc-banner');
-    if (adocActiveDoc !== null) {
-      document.getElementById('adoc-doc-banner-name').textContent = `📄 ${adocDocs[adocActiveDoc].name}`;
-      banner.classList.add('visible');
-    } else { banner.classList.remove('visible'); }
-  };
-
-  window.adocClearDoc  = function() { adocActiveDoc = null; adocRenderDocs(); document.getElementById('adoc-doc-banner').classList.remove('visible'); };
-  window.adocRemoveDoc = function(e, i) {
-    e.stopPropagation();
-    adocDocs.splice(i, 1);
-    if (adocActiveDoc === i) { adocActiveDoc = null; document.getElementById('adoc-doc-banner').classList.remove('visible'); }
-    else if (adocActiveDoc > i) adocActiveDoc--;
-    adocRenderDocs();
-  };
-
-  // ── AGENTIC RAG v3 — SQL direct + Vector fallback ──
-  // Architecture 2 passes :
-  // 1. Planning  → Claude génère les SQL + détecte l'intent/format
-  // 2. Exécution → SQL sur /d1-query, chunks → Claude produit la réponse finale
-  // ────────────────────────────────────────────────────────────────────────────
-
-  // ── D1 Query direct ──
-  async function adocD1Query(sql, params) {
-    const workerUrl = adocGetWorkerUrl();
-    if (!workerUrl) return null;
-    // Timeout 4s — évite qu'un cold start D1 bloque tout le sweep parallèle
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 4000);
-    try {
-      const r = await fetch(workerUrl + '/d1-query', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql, params: params || [] }),
-        signal: ctrl.signal
-      });
-      clearTimeout(tid);
-      const d = await r.json();
-      return d.results || [];
-    } catch(e) {
-      clearTimeout(tid);
-      if (e.name === 'AbortError') console.warn('[RAG] adocD1Query timeout (>4s) — requête ignorée:', sql.substring(0, 80));
-      else console.warn('adocD1Query:', e);
-      return null;
-    }
-  }
-
-  // ── Vector search fallback ──
-  async function adocVectorSearch(query, topK, approach) {
-    const workerUrl = adocGetWorkerUrl();
-    if (!workerUrl) return [];
-    // Timeout 5s — Vectorize plus lent que D1, cold start possible
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 5000);
-    try {
-      const r = await fetch(workerUrl + '/search-library', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, topK, ...(approach ? { approach } : {}) }),
-        signal: ctrl.signal
-      });
-      clearTimeout(tid);
-      const d = await r.json();
-      return d.results || [];
-    } catch(e) {
-      clearTimeout(tid);
-      if (e.name === 'AbortError') console.warn('[RAG] adocVectorSearch timeout (>5s) — angle ignoré:', query.substring(0, 60));
-      return [];
-    }
-  }
-
-  // ── Passe 1 : Planning agentique ──
-  async function adocPlanQuery(userMessage) {
-    const workerUrl = adocGetWorkerUrl();
-    if (!workerUrl) return null;
-
-    // Stats bibliothèque pour le planner — catalogue livres inclus
-    const richBooksCtx = (adocLibStats?.richBooks)
-      ? '\nLivres principaux par approche (>50 chunks) : ' +
-        Object.entries(adocLibStats.richBooks)
-          .map(([appr, titles]) => `${appr}: ${titles}`)
-          .join(' | ')
-      : '';
-    const statsCtx = (adocLibStats)
-      ? `La bibliothèque contient ${adocLibStats.books} livres, ${adocLibStats.chunks} chunks, approches disponibles : ${adocLibStats.approaches}.${richBooksCtx}`
-      : 'Bibliothèque thérapeutique disponible via SQL.';
-
-    // ── Contexte clinique dynamique — CDEngine + conversation ──
-    const mdc = window.clinicalDecisionEngine;
-    const activeApproach = mdc?.activeApproach || mdc?.recommendation?.approach || null;
-    const detectedSchemas = window.schemaDetector?.getDominantSchemas?.()?.slice(0,3).map(s => s.name).join(', ') || null;
-    const attachStyle = window.attachmentAnalyzer?.classifyAttachment?.() || null;
-    const lastUserMsgs = adocConversations.filter(m => m.role === 'user').slice(-3).map(m => m.content.substring(0,120)).join(' | ');
-
-    let clinCtx = '';
-    if (activeApproach) clinCtx += `\nApproche thérapeutique active : ${activeApproach}.`;
-    if (detectedSchemas) clinCtx += `\nSchémas Young détectés : ${detectedSchemas}.`;
-    if (attachStyle) clinCtx += `\nStyle d'attachement détecté : ${attachStyle}.`;
-    if (lastUserMsgs) clinCtx += `\nContexte conversationnel récent : ${lastUserMsgs}.`;
-
-    const plannerSystem = `Tu es un orchestrateur de recherche documentaire clinique.
-${statsCtx}${clinCtx}
-
-La table D1 "chunks" a les colonnes : id, book_id, book_title, author, language, chapter, page_number, chunk_index, content, approach, tags, created_at.
-Valeurs "approach" connues : trauma, emdr, couple, act, schema_therapy, attachment, icv, ifs, mbct, hypnosis, cnv, systemic, general, coherence, gottman, imago.
-
-TÂCHE : Analyser la demande et retourner UNIQUEMENT un JSON valide (pas de markdown, pas de texte avant ou après) :
-{
-  "needs_rag": true/false,
-  "sql_queries": ["SELECT ... FROM chunks WHERE ... LIMIT ..."],
-  "vector_angles": ["formulation sémantique 1", "formulation sémantique 2"],
-  "approach_filter": "approche principale ou null",
-  "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche",
-  "clinical_intent": "supervision|analyse_cas|intervention|conceptualisation|bibliographie|production|chat",
-  "output_format": "html|html-visual|pdf|docx|pptx|xlsx|zip|txt|chat",
-  "audience_type": "praticien|etudiant_m2|grand_public|congres|patient",
-  "registre": "clinique|pedagogique|academique|vulgarisation",
-  "topic_summary": "résumé en 5 mots max du sujet",
-  "max_tokens": 4000
-}
-
-RÈGLES CLINICAL_INTENT — détection de la posture clinique demandée :
-- "supervision" : thérapeute parle d'un cas en cours, d'une séance, d'une difficulté avec un patient
-- "analyse_cas" : demande d'analyse, de lecture, de formulation d'un cas clinique
-- "intervention" : blocage, impasse, "que faire ?", stratégie, technique concrète à appliquer
-- "conceptualisation" : formulation intégrative, plan phasé, reconceptualisation
-- "bibliographie" : question théorique, auteur, approche, littérature, "qu'est-ce que..."
-- "production" : cours, fiche, tableau, livrable documentaire (xlsx/pptx/pdf/docx/html/zip)
-- "chat" : conversation simple, sans enjeu clinique fort
-Par défaut si incertain → "bibliographie"
-
-RÈGLES OUTPUT_FORMAT — raisonner sur le format avant de décider :
-- "pptx" : seulement si demande explicite "PowerPoint", "présentation projetée", "slides", "diaporama"
-- "html-visual" : présentation illustrée, document avec photos/visuels, "2 pages avec photos", infographie, synthèse visuelle — HTML A4 avec design éditorial riche
-- "html" : carrousel, fiche interactive, tableau, contenu web
-- "pdf" : rapport, synthèse imprimable, document à télécharger
-- "docx" : lettre, compte-rendu, document Word
-- "chat" : réponse conversationnelle, pas de livrable structuré
-IMPORTANT : "présentation" + "photos" + "pages" → html-visual, pas pptx. Raisonner, pas matcher un mot-clé.
-
-RÈGLES AUDIENCE/REGISTRE :
-- Instagram / réseaux / grand public / vulgarisation → audience_type: grand_public, registre: vulgarisation
-- Fac / master / cours / étudiants → audience_type: etudiant_m2, registre: pedagogique
-- Congrès / conférence / séminaire / colloque → audience_type: congres, registre: academique
-- Thérapeute / praticien / supervision / collègue → audience_type: praticien, registre: clinique
-- Par défaut → audience_type: praticien, registre: clinique
-
-RÈGLES MAX_TOKENS :
-- chat/bibliographie simple → 2000
-- fiche/tableau/carrousel → 3000
-- document 1 page → 4000
-- document multi-pages / cours complet / rapport → 6000
-- pptx/docx/pdf complexes → 5000
-
-RÈGLES SQL :
-- Utilise FTS5 via chunks_fts MATCH 'terme1 OR terme2' (index full-text actif)
-- 3-4 requêtes SQL avec angles DIFFÉRENTS : termes FR, termes EN, par approach, par auteur clé
-- Chaque requête : SELECT book_title, author, page_number, content, approach FROM chunks WHERE ... LIMIT 10
-- needs_rag=false uniquement si la question est purement conversationnelle sans besoin de références
-- Pour intent=cours/document : ajouter une requête par auteur clé (Young, Pascal, Mehran, Simeone-DiFrancesco...)
-  → ex: SELECT book_title, author, page_number, content, approach FROM chunks WHERE approach='schema_therapy' AND author LIKE '%Young%' LIMIT 10
-- deep_scan=true si intent est cours, document, comparatif, tableau, fiche — déclenche le sweep bibliographique complet
-CHAMP SUPPLÉMENTAIRE À RETOURNER si deep_scan : "deep_scan": true dans le JSON
-
-RÈGLES VECTOR ANGLES — formulations alternatives sémantiques du même besoin :
-- vector_angles : 2 reformulations cliniques de la demande (ex: ["régulation émotionnelle couple", "fenêtre de tolérance relation d'attachement"])
-- Ces angles seront utilisés pour la recherche sémantique vectorielle en parallèle du SQL
-- approach_filter : si la demande est clairement dans une approche (gottman, trauma, schema_therapy, act, attachment...) → indiquer cette approche pour filtrer les vecteurs
-
-DICTIONNAIRE CLINIQUE — termes FR ET EN — utiliser les deux dans SQL LIKE et vector_angles :
-- trauma/PTSD → emdr, icv, trauma, Van der Kolk, Levine, dissociation, mémoire traumatique, traumatic memory
-- couple/relation → gottman, imago, systemic, Neuburger, Hendrix, Andolfi, Filliozat, Perel, Dallaire, Mimoun, communication, cavaliers apocalypse, Four Horsemen, paradoxe passion
-- sexualité/sexologie → sexology, désir, libido, Nagoski, Perel, Kaufmann, TCC sexuelle, troubles sexuels, vaginisme, éjaculation, orgasme, plaisir, érotique, intimité — NOTE: quand sujet couple+sexualité, utiliser approach_filter=couple ET viser aussi les livres sexology
-- schémas Young — 18 schémas avec termes FR+EN :
-  abandon/Abandonment, méfiance/Mistrust, manque affectif/Emotional Deprivation,
-  isolement/Social Isolation, défectuosité/Defectiveness, échec/Failure,
-  dépendance/Dependence, vulnérabilité/Vulnerability, enchevêtrement/Enmeshment,
-  assujettissement/Subjugation, abnégation/Self-Sacrifice, inhibition/Emotional Inhibition,
-  idéaux exigeants/Unrelenting Standards, punition/Punitiveness,
-  droits/Entitlement, grandiosité, contrôle de soi/Self-Control, autocontrôle/Insufficient Self-Control,
-  recherche approbation/Approval-Seeking, reconnaissance/Recognition-Seeking
-  → toujours inclure : schema_therapy, Young, modes, besoins fondamentaux, reparentage, confrontation empathique
-- attachement → attachment, Bowlby, Ainsworth, styles, sécurité, hyperactivation, désactivation, désorganisé
-- ACT/acceptation → act, flexibilité psychologique, valeurs, défusion, métaphores, Hayes, hexaflex
-- IFS/parties → ifs, self, managers, exilés, firefighters, Schwartz, parts
-- mindfulness → mbct, méditation, présence, régulation, Kabat-Zinn, pleine conscience
-- hypnose → hypnosis, hypnothérapie, transe, induction, Erickson, suggestion, Roustang
-- EMDR → emdr, retraitement, bilatéral, Shapiro, CIBL, protocole standard
-- CNV → cnv, communication nonviolente, Rosenberg, besoins, observations
-RÈGLE SQL CRITIQUE :
-1. Pour les schémas Young : TOUJOURS 2 requêtes par schéma (terme FR + terme EN : Enmeshment, Entitlement, Self-Control, Approval-Seeking, Defectiveness, Abandonment, Mistrust, Subjugation)
-2. Pour intent=cours ou document : générer 6-8 requêtes SQL, UNE par livre de la liste LIVRES DISPONIBLES — couvrir TOUS les auteurs majeurs
-3. Pour cours schema_therapy : inclure obligatoirement Pascal, Young "Je réinvente ma vie", "La thérapie des schémas en pratique", Simeone-DiFrancesco, Mehran
-4. SQL format : SELECT book_title, author, chapter, content, approach FROM chunks WHERE book_title LIKE '%NomLivre%' AND approach='{app}' AND (content LIKE '%terme1%' OR content LIKE '%terme2%') LIMIT 12
-5. Ne JAMAIS générer 2 requêtes identiques — chaque requête doit cibler un livre différent
-6. CRUCIAL : utiliser les titres EXACTS de la liste LIVRES DISPONIBLES dans les LIKE
-
-RÈGLES FORMAT — INFERENCE FORMAT - CC raisonne le format, Haiku suggere :
-Haiku analyse l'intention complete (verbe, objet, audience, contexte) et propose une suggestion de format.
-CC recoit cette suggestion et peut choisir differemment selon son propre raisonnement.
-
-Indices (non exclusifs) :
-- Demande explicite d'un fichier binaire (Excel, Word, PowerPoint) → output_format correspondant
-- Reponse clinique directe, conversationnelle → output_format=chat
-- Document visuel avec photos, mise en page riche → output_format=html-visual
-- Contenu web interactif, fiche, tableau → output_format=html
-- Par defaut si incertain → output_format=html
-
-max_tokens : estime la complexite. Complexe=8000, standard=6000, court=4000, chat=2000.`;
-
-    try {
-      const r = await fetch(workerUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: {
-          // P2-4 : Sonnet pour supervision/analyse_cas, Haiku sinon
-          model: (() => {
-            const ci = (adocSessionContext + ' ' + userMessage).toLowerCase();
-            return (ci.includes('supervision') || ci.includes('analyse de cas') || ci.includes('analyse_cas') || ci.includes('conceptualisation'))
-              ? 'claude-sonnet-4-5-20251001'
-              : 'claude-haiku-4-5-20251001';
-          })(),
-          max_tokens: 800,
-          system: plannerSystem,
-          messages: [{ role: 'user', content: (() => {
-            const recentPairs = adocConversations.slice(-6)
-              .filter(m => m.role === 'user' || m.role === 'assistant')
-              .map(m => (m.role === 'user' ? 'Thérapeute: ' : 'Conseiller: ') + m.content.substring(0, 150))
-              .join('\n');
-            // Détecter l'approche probable pour injecter le catalog
-            const approachHint = (() => {
-              // Normalise : retire accents + minuscules pour matching robuste
-              const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-              const q = norm(userMessage);
-              if (q.includes('schema') || q.includes('young') || q.includes('mode') || q.includes('reenventez') || q.includes('reinvente') || q.includes('besoins fondamentaux') || q.includes('reparentage')) return 'schema_therapy';
-              if (q.includes('couple') || q.includes('gottman') || q.includes('neuburger') || q.includes('imago') || q.includes('conjugal')) return 'couple';
-              if (q.includes('act') || q.includes('acceptation') || q.includes('hayes') || q.includes('flexibilite') || q.includes('valeurs')) return 'act';
-              if (q.includes('attach') || q.includes('bowlby') || q.includes('ainsworth') || q.includes('secure')) return 'attachment';
-              if (q.includes('emdr') || q.includes('trauma') || q.includes('traumat') || q.includes('shapiro')) return 'emdr';
-              if (q.includes('ifs') || q.includes('parties') || q.includes('schwartz') || q.includes('exile')) return 'ifs';
-              if (q.includes('hypno') || q.includes('transe') || q.includes('erickson')) return 'hypnosis';
-              if (q.includes('mindful') || q.includes('pleine conscience') || q.includes('mbct') || q.includes('kabat')) return 'mindfulness';
-              return null;
-            })();
-            const catalogCtx = approachHint ? adocCatalogSummary(approachHint) : '';
-            const baseMsg = recentPairs
-              ? 'Échanges récents :\n' + recentPairs + '\nDemande actuelle : ' + userMessage
-              : userMessage;
-            return baseMsg + (catalogCtx ? '\n' + catalogCtx : '');
-          })() }]
-        }})
-      });
-      const d = await r.json();
-      const txt = d.content?.[0]?.text || '{}';
-      const clean = txt.replace(/```json|```/g, '').trim();
-      return JSON.parse(clean);
-    } catch(e) { console.warn('adocPlanQuery:', e); return null; }
-  }
-
-  // ── Passe 2 : RAG industriel v5.8.0 — intent-aware, catalog-pondéré — 09/03/2026 ──
-    // ── Passe 2 : RAG industrialisé v5.3 — SQL + Vector + Full-Sweep bibliographique ──
-  async function adocExecutePlan(plan) {
-    if (!plan?.needs_rag) return { chunks: [], chunkLen: 900 };
-
-    const isCours   = plan.intent === 'cours' || plan.intent === 'document';
-    const isComp    = plan.intent === 'comparatif' || plan.intent === 'tableau' || plan.intent === 'fiche';
-    const isDeep    = isCours || isComp;
-
-    // ── Paramètres adaptatifs par intent ──
-    // cours/document : exhaustif (90 chunks, sweep complet)
-    // comparatif/fiche : large (50 chunks, sweep partiel)
-    // chat/question : scan sérieux (45 chunks, sweep top-5 livres)
-    // → D1 exhaustif pour TOUTE requête clinique, web_search si insuffisant
-    const MAX_CHUNKS   = isCours ? 90 : isComp ? 50 : 45;
-    const VEC_COUNT    = isCours ? 15 : isComp ? 12 : 10;
-    const VEC_ANGLES   = isCours ? 5  : 4;
-    const CHUNK_LEN    = isCours ? 1800 : isComp ? 1200 : 1000;
-    // Nombre de livres à sweeper : tous pour cours, top-5 pour chat
-    const SWEEP_MIN_N  = isCours ? 50 : isComp ? 80 : 100;  // seuil chunks pour entrer dans sweep
-    const SWEEP_LIMIT  = isCours ? 10 : isComp ? 8  : 6;    // chunks max par livre dans sweep
-
-    // Quota par livre — couverture large garantie pour tout intent
-    const bookQuota = (n) => n >= 300 ? (isCours ? 15 : isComp ? 7 : 6)
-                           : n >= 200 ? (isCours ? 12 : isComp ? 6 : 5)
-                           : n >= 100 ? (isCours ? 10 : isComp ? 5 : 4)
-                           : n >= 50  ? (isCours ? 7  : isComp ? 4 : 3)
-                           :            (isCours ? 4  : 2);
-
-    // Bonus scoring : livres riches montent naturellement
-    const catalogBooks = ADOC_CATALOG[plan.approach_filter] || [];
-    const richBonus = (bookTitle) => {
-      const entry = catalogBooks.find(b => bookTitle && bookTitle.includes(b.b.substring(0, 20)));
-      return entry ? Math.min(0.25, Math.log10(entry.n || 1) * 0.08) : 0;
-    };
-
-    // ── A) SQL ciblé Haiku ──
-    const sqlPromises = (plan.sql_queries || [])
-      .filter(sql => { const up = sql.trim().toUpperCase(); return up.startsWith('SELECT') && up.includes('CHUNKS'); })
-      .map(sql => adocD1Query(sql).catch(() => null));
-
-    // ── B) Vector search — topic + angles ──
-    const vectorQueries = [plan.topic_summary, ...(plan.vector_angles || [])].filter(Boolean).slice(0, VEC_ANGLES);
-    // Cross-approach map — défini ici, utilisé par vector ET sweep
-    const CROSS_APPROACH = {
-      couple:    ['sexology'],
-      sexology:  ['couple'],
-      schema_therapy: ['attachment'],
-      attachment: ['schema_therapy'],
-    };
-    // Cross-approach vector : couple cherche aussi dans sexology, et vice versa
-    const crossApproachesVec = CROSS_APPROACH[plan.approach_filter] || [];
-    // Si cross-approach : on lance le vector sans filtre d'approach (plus large)
-    // puis on filtre manuellement sur les approaches autorisées
-    const vecApproachFilter = crossApproachesVec.length > 0 ? null : (plan.approach_filter || null);
-    const allowedApproaches = plan.approach_filter
-      ? new Set([plan.approach_filter, ...crossApproachesVec])
-      : null;
-
-    const vectorPromises = vectorQueries.map((q, i) =>
-      adocVectorSearch(q, VEC_COUNT, vecApproachFilter)
-        .then(r => r
-          .filter(x => !allowedApproaches || allowedApproaches.has(x.approach))
-          .map(x => ({ ...x, _vScore: x.score || 0.5, _vAngle: i }))
-        )
-        .catch(() => [])
-    );
-
-    // ── C) Sweep adaptatif : TOUS les livres riches pour cours, TOP livres pour chat ──
-    // Actif pour toute requête clinique avec approach détectée — pas seulement pour cours
-    let sweepPromises = [];
-    if (plan.approach_filter) {
-      // Livres de l'approach principale + livres des approaches croisées
-      const crossApproaches = CROSS_APPROACH[plan.approach_filter] || [];
-      const allApproachBooks = [
-        ...(ADOC_CATALOG[plan.approach_filter] || []),
-        ...crossApproaches.flatMap(a => (ADOC_CATALOG[a] || []).map(b => ({ ...b, _crossApproach: a })))
-      ];
-      const topBooks = allApproachBooks
-        .filter(b => (b.n || 0) >= SWEEP_MIN_N)
-        .sort((a, z) => (z.n || 0) - (a.n || 0));
-
-      // Termes du topic pour cibler dans chaque livre
-      // Termes du topic : inclure dès 3 chars, plus 10 termes max
-      const stopWords = new Set(['les','des','une','pour','dans','avec','sur','par','que','qui','est','aux','son','ses']);
-      const topicWords = (plan.topic_summary || '').split(/\s+/).filter(t => t.length > 2 && !stopWords.has(t.toLowerCase()));
-      // Termes EN des angles + topic_summary original
-      const angleTerms = (plan.vector_angles || []).join(' ').split(/\s+/).filter(t => t.length > 3 && !stopWords.has(t.toLowerCase())).slice(0, 8);
-      const allTerms = [...new Set([...topicWords, ...angleTerms])].slice(0, 10);
-
-      sweepPromises = topBooks.map(book => {
-        // P2-1 : FTS5 avec fallback LIKE si FTS5 indisponible
-        const bookMatch  = book.b.replace(/'/g, "''");
-        const bookApproach = book._crossApproach || plan.approach_filter;
-
-        let sql;
-        if (allTerms.length > 0) {
-          // FTS5 : termes joints en OR, filtre book_title + approach en JOIN
-          const ftsQuery = allTerms
-            .map(t => t.replace(/['"]/g, ' ').trim())
-            .filter(Boolean)
-            .join(' OR ');
-          // Requête FTS5 : JOIN chunks_fts → chunks pour avoir les colonnes complètes
-          // rank BM25 trié, filtre book_title + approach sur la table chunks
-          sql = `SELECT c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach
-            FROM chunks_fts
-            JOIN chunks c ON c.rowid = chunks_fts.rowid
-            WHERE chunks_fts MATCH '${ftsQuery}'
-              AND c.book_title LIKE '${bookMatch}%'
-              AND c.approach = '${bookApproach}'
-            ORDER BY rank
-            LIMIT ${SWEEP_LIMIT}`;
-        } else {
-          // Pas de termes → début du livre en ordre linéaire
-          sql = `SELECT book_title, author, chapter, page_number, content, approach
-            FROM chunks
-            WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}'
-            ORDER BY chunk_index ASC
-            LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
-        }
-        return adocD1Query(sql)
-          .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
-          .catch(() => {
-            // Fallback LIKE si FTS5 échoue (ex: table non encore créée)
-            const termClause = allTerms.map(t => `content LIKE '%${t.replace(/'/g, "''")}%'`).join(' OR ') || '1=1';
-            const sqlFallback = `SELECT book_title, author, chapter, page_number, content, approach
-              FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}'
-              AND (${termClause}) LIMIT ${SWEEP_LIMIT}`;
-            return adocD1Query(sqlFallback)
-              .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
-              .catch(() => []);
-          });
-      });
-    }
-
-    // ── Tout en parallèle ──
-    const [sqlRes, vecRes, ...sweepRes] = await Promise.all([
-      Promise.all(sqlPromises),
-      Promise.all(vectorPromises),
-      ...sweepPromises
-    ]);
-
-    const seen = new Set();
-    const scored = [];
-
-    const addChunk = (row, score, source) => {
-      const key = (row.book_title || '') + '|' + (row.content || '').substring(0, 60);
-      if (seen.has(key)) {
-        // Boost si concordance multi-source
-        const ex = scored.find(s => s.key === key);
-        if (ex) { ex.score = Math.min(1, ex.score + 0.2); ex.source = ex.source + '+' + source; }
-        return;
-      }
-      seen.add(key);
-      scored.push({ key, chunk: row, score, source });
-    };
-
-    // Indexer SQL
-    for (const rows of (sqlRes || []).flat()) {
-      if (!rows) continue;
-      const approachBonus = plan.approach_filter && rows.approach === plan.approach_filter ? 0.15 : 0;
-      addChunk(rows, 0.4 + approachBonus + richBonus(rows.book_title), 'sql');
-    }
-
-    // Indexer Vector
-    for (const vChunks of (vecRes || []).flat()) {
-      if (!vChunks) continue;
-      addChunk(vChunks, (vChunks._vScore || 0.5) + richBonus(vChunks.book_title), 'vector');
-    }
-
-    // Indexer Sweep — score basé sur la pertinence réelle du contenu
-    // Un chunk qui contient 4/5 termes recherchés est mieux scoré qu'un chunk avec 1/5
-    const scoreChunkContent = (content, terms) => {
-      if (!terms || terms.length === 0) return 0.30;
-      const txt = (content || '').toLowerCase();
-      const hits = terms.filter(t => txt.includes(t.toLowerCase())).length;
-      // Score : 0.30 base + jusqu'à 0.45 selon proportion de termes matchés
-      return 0.30 + (hits / terms.length) * 0.45;
-    };
-    for (const sChunks of sweepRes) {
-      for (const r of (sChunks || [])) {
-        const contentScore = scoreChunkContent(r.content, allTerms);
-        addChunk(r, contentScore + richBonus(r.book_title), 'sweep');
-      }
-    }
-
-    // ── Tri score + quota adaptatif par livre ──
-    scored.sort((a, b) => b.score - a.score);
-    const bookCount = {};
-    const finalChunks = [];
-
-    for (const { chunk, score, source } of scored) {
-      const book = chunk.book_title || 'unknown';
-      const bookInfo = catalogBooks.find(b => book.includes(b.b.substring(0, 20)));
-      const quota = bookQuota(bookInfo?.n || 0);
-      bookCount[book] = (bookCount[book] || 0) + 1;
-      if (bookCount[book] <= quota) finalChunks.push({ ...chunk, _score: score, _source: source });
-      if (finalChunks.length >= MAX_CHUNKS) break;
-    }
-
-    // ── Log diagnostic ──
-    const bookDist = {};
-    finalChunks.forEach(c => { const b = c.book_title || '?'; bookDist[b] = (bookDist[b]||0)+1; });
-    console.log(`[RAG v5.3] intent=${plan.intent} chunks=${finalChunks.length}/${MAX_CHUNKS} livres=${Object.keys(bookDist).length} sweep=${sweepRes.length} livres`, bookDist);
-
-    return { chunks: finalChunks, chunkLen: CHUNK_LEN, isDeep, stats: {
-      sql: (sqlRes || []).flat().filter(Boolean).length,
-      vector: (vecRes || []).flat().length,
-      sweep: sweepRes.flat().length,
-      booksSwept: sweepPromises.length,
-      final: finalChunks.length,
-      books: Object.keys(bookDist).length
-    }};
-  }
-
-
-  // ── P1-2 : Re-ranking post-RAG par Haiku ──────────────────────────────────
-  // Reçoit les finalChunks bruts (triés par score mécanique)
-  // Haiku lit les titres + premières lignes et retourne les IDs vraiment utiles
-  // Réduit 50-90 chunks → 20-30 ultra-ciblés avant envoi à CC
-  async function adocRerankChunks(ragResult, plan, workerUrl) {
-    if (!ragResult?.chunks?.length || !workerUrl) return ragResult;
-    const chunks = ragResult.chunks;
-
-    // Construire le catalogue pour Haiku (titre + auteur + début contenu)
-    const catalog = chunks.map((c, i) =>
-      `[${i}] ${c.book_title || '?'} (${c.author || '?'}) p.${c.page_number || '?'} — ${(c.content || '').substring(0, 120).replace(/
-/g, ' ')}`
-    ).join('
-');
-
-    const prompt =
-      `Tu es un assistant de tri clinique. La question du thérapeute est : "${plan.topic_summary || plan.intent}"
-
-` +
-      `Voici ${chunks.length} passages issus de la bibliothèque thérapeutique.
-` +
-      `Retourne UNIQUEMENT un JSON : { "keep": [indices des passages vraiment utiles pour répondre à cette question] }
-` +
-      `Règles : garde 15 à 30 passages max. Priorité : pertinence directe à la question, diversité des sources, évite les doublons thématiques.
-
-` +
-      `Passages :
-${catalog}`;
-
-    try {
-      adocUpdateTypingLabel && adocUpdateTypingLabel(
-        document.querySelector('.adoc-typing')?.id,
-        '🎯 Sélection passages clés…'
-      );
-      const r = await fetch(workerUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: {
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 400,
-          messages: [{ role: 'user', content: prompt }]
-        }})
-      });
-      const data  = await r.json();
-      const raw   = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
-      const result = JSON.parse(raw);
-      const keep   = (result.keep || []).filter(i => Number.isInteger(i) && i >= 0 && i < chunks.length);
-
-      if (keep.length >= 10) {
-        // Re-ranking réussi — garder uniquement les chunks sélectionnés, dans l'ordre de pertinence
-        const reranked = keep.map(i => chunks[i]);
-        console.log(`[P1-2 Rerank] ${chunks.length} → ${reranked.length} chunks (Haiku)`);
-        return { ...ragResult, chunks: reranked, stats: { ...ragResult.stats, reranked: reranked.length } };
-      }
-    } catch(e) {
-      console.warn('[P1-2 Rerank] échec silencieux:', e.message);
-    }
-    // Fallback : retourner ragResult intact si Haiku échoue
-    return ragResult;
-  }
-
-  // adocLastRefMap : stocke la map {n → {book_title, author, page_number}}
-  // générée par adocBuildRAGCtx pour être utilisée lors du rendu des citations
-  let adocLastRefMap = {};
-
-  function adocBuildRAGCtx(ragResult) {
-    if (!ragResult?.chunks?.length) return '';
-    // Construire la refMap pour les citations inline [REF:n]
-    adocLastRefMap = {};
-    ragResult.chunks.forEach((c, i) => {
-      adocLastRefMap[i + 1] = {
-        book_title : c.book_title || 'Référence',
-        author     : c.author || '',
-        page_number: c.page_number || '',
-        approach   : c.approach || '',
-      };
-    });
-    const { chunks, chunkLen, stats, isDeep } = ragResult;
-
-    const statsLine = stats
-      ? `[${stats.final} passages · ${stats.books || '?'} livres · SQL:${stats.sql} Vector:${stats.vector}${stats.booksSwept ? ' Sweep:'+stats.booksSwept+'livres' : ''}]`
-      : '';
-
-    let ctx = `\n\n═══ BIBLIOTHÈQUE DOCUMENTAIRE ${statsLine} ═══\n`;
-
-    if (isDeep) {
-      // Mode cours/document : grouper par livre, instruction de couverture totale
-      const byBook = {};
-      const bookOrder = [];
-      chunks.forEach(item => {
-        const book = item.book_title || 'Référence';
-        if (!byBook[book]) { byBook[book] = []; bookOrder.push(book); }
-        byBook[book].push(item);
-      });
-
-      const bookList = bookOrder.map(b => {
-        const author = byBook[b][0]?.author || '';
-        return `"${b}"${author ? ' ('+author+')' : ''} — ${byBook[b].length} passages`;
-      }).join(', ');
-
-      ctx += `INSTRUCTION : Tu as accès à ${bookOrder.length} ouvrages distincts. MOBILISE-LES TOUS.\n`;
-      ctx += `Ouvrages disponibles : ${bookList}\n`;
-      ctx += `Ne te limite pas à 1-2 sources. Synthétise, confronte les points de vue, cite auteurs et pages.\n\n`;
-
-      bookOrder.forEach(book => {
-        const items = byBook[book];
-        const author = items[0]?.author || '';
-        ctx += `▶ ${book}${author ? ' — ' + author : ''}\n`;
-        items.forEach((item, j) => {
-          const refN = ragResult.chunks.indexOf(item) + 1;
-          const qual = item._source?.includes('vector') ? '★' : '·';
-          ctx += `  [${refN}] ${qual} p.${item.page_number||'?'} · ${(item.content||'').substring(0, chunkLen).trim()}\n\n`;
-        });
-      });
-    } else {
-      // Mode chat/conseil : groupé par approche, compact
-      ctx += 'Tu as devant toi un clinicien expert. Mobilise ces références avec précision.\n';
-      ctx += 'Fais des liens transversaux. Cite auteurs et pages quand pertinent.\n\n';
-      chunks.forEach((item, idx) => {
-        const refN = idx + 1;
-        const qual = item._source?.includes('+') ? '★★' : item._source === 'vector' ? '★' : '·';
-        ctx += `[${refN}] ${qual} ${item.book_title||'Référence'}${item.page_number ? ', p.'+item.page_number : ''}`;
-        ctx += item.author ? ` [${item.author}]` : '';
-        ctx += item.approach ? ` {${item.approach}}` : '';
-        ctx += '\n' + (item.content||'').substring(0, chunkLen).trim() + '\n\n';
-      });
-    }
-    return ctx;
-  }
-
-  // ── System prompt unifié ──
-  function adocBuildSystemPrompt(ragCtx, docCtx, plan) {
-    const ctxSession = adocSessionContext
-      ? '\n\nCONTEXTE DE TRAVAIL : ' + adocSessionContext : '';
-    const ctxPatient = adocPatientContext
-      ? '\n\nDOSSIER PATIENT ACTIF :\n' + adocPatientContext : '';
-    // Mémoire KV inter-sessions : injecter les 3 dernières séances
-    const ctxKvMemory = (adocKvHistory && adocKvHistory.length > 0)
-      ? '\n\nMÉMOIRE INTER-SESSIONS (patient : ' + adocKvPatientId + ') :\n' +
-        adocKvHistory.slice(0, 3).map((s, i) =>
-          `Séance ${i === 0 ? 'dernière' : i === 1 ? 'avant-dernière' : 'J-3'} (${s.date}) :\n${s.summary}`
-        ).join('\n\n')
-      : '';
-
-    const orientations = adocConversations
-      .filter(m => m.role === 'user')
-      .slice(-4)
-      .map(m => '- ' + m.content.substring(0, 120))
-      .join('\n');
-    const ctxHistory = orientations
-      ? '\n\nCONTEXTE DES ÉCHANGES PRÉCÉDENTS :\n' + orientations : '';
-
-    const _mode = (typeof adocCurrentMode !== 'undefined') ? adocCurrentMode : '';
-    const _modeDesc = (typeof adocModeDescriptions !== 'undefined') ? adocModeDescriptions : {};
-    const modeCtx = _mode && _mode !== 'standard'
-      ? '\n\n── MODE ACTIF : ' + _mode.toUpperCase() + ' ──\n' + (_modeDesc[_mode] || '') : '';
-
-    const clinicalOrientations = {
-      supervision: 'POSTURE : SUPERVISION CLINIQUE\nTon interlocuteur parle d\'un cas, d\'une séance, d\'une difficulté. Tu n\'es pas là pour valider — tu apportes ce que son regard intérieur ne peut pas voir.\nSituation A → identifier la souffrance centrale, porte d\'entrée, plan phasé\nSituation B → hypothèse sur l\'impasse, reformulation du cas, contre-transfert\nSituation C → stabilisation en priorité, protocole, ressources immédiates',
-      analyse_cas: 'POSTURE : ANALYSE DE CAS\nFormulation intégrative multi-axes : attachement → schémas Young → dynamique défensive → hypothèse étiologique → axes thérapeutiques prioritaires.',
-      intervention: 'POSTURE : INTERVENTION DIRECTE\nImpasse, blocage. Tu proposes une technique, une reformulation, un protocole applicable en séance. Concret et directif. Pas de théorie — une réponse opérationnelle.',
-      conceptualisation: 'POSTURE : CONCEPTUALISATION\nFormulation intégrative complète. Plan phasé. Reconceptualisation si nécessaire. Structure : présentation → formulation → plan phasé → indicateurs.',
-      bibliographie: 'POSTURE : RÉFÉRENT BIBLIOGRAPHIQUE\nQuestion théorique ou auteur. Tu réponds avec précision en mobilisant la bibliothèque.',
-      production: 'POSTURE : PRODUCTION\nLivrable documentaire. Tu produis avec l\'exigence d\'un clinicien senior.',
-      chat: ''
-    };
-
-    const clinIntent = plan?.clinical_intent || 'bibliographie';
-    const orientation = clinicalOrientations[clinIntent] || clinicalOrientations.bibliographie;
-    const orientationBlock = orientation
-      ? '\n\n── ORIENTATION : ' + clinIntent.toUpperCase().replace('_',' ') + ' ──\n' + orientation : '';
-
-    // Contexte planner — information pour CC, pas ordre
-    let plannerCtx = '';
-    if (plan) {
-      plannerCtx = '\n\n── CONTEXTE PLANNER ──\n'
-        + 'Sujet : ' + (plan.topic_summary || '') + '\n'
-        + 'Intent perçu : ' + (plan.intent || '') + '\n'
-        + 'Audience estimée : ' + (plan.audience_type || 'praticien') + '\n'
-        + 'Registre estimé : ' + (plan.registre || 'clinique') + '\n'
-        + 'Format suggéré : ' + (plan.output_format || '') + '\n'
-        + 'Tu utilises ce contexte pour décider — pas pour obéir mécaniquement.';
-    }
-
-    // Contrainte de sortie — règles techniques non négociables
-    const outputConstraint = '\n\n── CONTRAINTES DE SORTIE ──\n'
-      + 'HTML : commence par <!DOCTYPE html>, termine par </html>. Aucun texte avant ou après. Aucune phrase d\'introduction.\n'
-      + 'Texte : réponds directement. Pas de méta-commentaire.\n'
-      + 'A4 : width:210mm, chaque page min-height:297mm, pas max-width:1200px.\n'
-      + 'PHOTOS — architecture du système (lis attentivement) :\n'
-      + 'L\'application hôte contient une fonction adocResolveImages() qui tourne APRÈS ta réponse. '
-      + 'Cette fonction parcourt le DOM du HTML que tu produis, trouve tous les éléments avec data-pexels=, '
-      + 'appelle le Worker Cloudflare sur /fetch-image?q=..., et injecte les vraies URLs dans src= ou background-image. '
-      + 'TON RÔLE : placer uniquement les attributs data-pexels= avec des queries descriptives en anglais. '
-      + 'Le reste est automatique. Tu ne dois PAS écrire de JS pour les photos dans le document produit. '
-      + 'Tu ne dois PAS hardcoder d\'URLs. Tu ne dois PAS simuler le mécanisme.\n'
-      + 'Syntaxe correcte : <img data-pexels="couple therapy session" style="width:100%;height:220px;object-fit:cover;border-radius:8px" alt="">\n'
-      + 'Syntaxe fond   : <div data-pexels="couple emotional distance" style="height:260px;background-size:cover;background-position:center"></div>\n'
-      + 'JAMAIS : src="https://...", url("https://..."), images.pexels.com, random URL generation, serviceWorker — le Worker Cloudflare gère déjà tout cela.\n'
-      + '── CITATIONS BIBLIOGRAPHIQUES ──\n'
-      + 'Quand tu t\'appuies sur un passage numéroté [n] de la bibliothèque, insère [REF:n] directement après l\'affirmation dans ta réponse.\n'
-      + 'Exemples : « L\'hypervigilance est une réponse d\'attachement anxieux [REF:3]. » ou « Young distingue 18 schémas précoces [REF:7][REF:12]. »\n'
-      + 'Ne cite que les passages que tu mobilises vraiment. Pas plus de 8 citations par réponse. Pas de [REF:n] dans les titres ou sous-titres.\n'
-      + 'XLSX — données embarquées obligatoires : quand le format est xlsx, tu DOIS inclure dans le head du HTML un bloc JSON avec id=xlsx-data.\n'
-      + 'Format : objet JSON avec clés headers (tableau de strings) et rows (tableau de tableaux de valeurs).\n'
-      + 'Sans ce bloc, seuls les en-têtes arrivent dans le fichier Excel — les données sont perdues.\n'
-      + 'PPTX — données embarquées obligatoires : quand le format est pptx, tu DOIS inclure dans le head du HTML un bloc JSON avec id=pptx-data.\n'
-      + 'Format : tableau de slides, chaque slide = objet avec title (string), bullets (tableau), content (string), image_query (string anglais 3-5 mots).\n'
-      + 'image_query = requête Pexels pour la photo de fond. Le Worker la fetch automatiquement. Pas de image_query = slide sans photo.';
-
-    const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
-
-    return (
-      `Tu es le Conseiller Clinique de C Concept&Dev.
-
-Tu es un clinicien senior avec une pratique dense et longue. Individuel, couple, famille, supervision. Tu as traversé des centaines d'accompagnements transformateurs et d'impasses. Ton interlocuteur est un thérapeute de haut niveau. Tu penses avec lui, pas pour lui.
-
-Tu as intégré Hayes, Linehan, Young, Van der Kolk, Levine, Gottman, Neuburger, Bowlby, Main, Gilbert. Pas comme un catalogue — comme un musicien qui a intégré ses influences. Quand tu parles, c'est une synthèse vivante, pas une référence.
-
-Tu as accès à une bibliothèque de 213 ouvrages thérapeutiques (20 496 passages). Tu la mobilises comme quelqu'un qui a vraiment lu ces livres.
-
-${orientationBlock}
-
-── EXIGENCE DE PRODUCTION ──
-Avant de produire, tu te poses trois questions — silencieusement, sans les écrire :
-1. QUI reçoit ça ? L'audience change tout.
-2. QUEL est l'enjeu ? Former, convaincre, publier, enseigner, soigner, engager.
-3. QU'est-ce qui rend ce livrable mémorable pour CETTE audience et CET enjeu ?
-
-La forme émerge du fond. Tu choisis le format, la structure, le design — et tu assumes.
-
-Pour les livrables HTML :
-— Google Fonts distinctives selon le registre. Jamais Arial/Roboto/Inter seul.
-— Layout éditorial : sidebar colorée, hero header, callouts, citations en bloc.
-— Tout JS self-contained.
-— Le Worker gère PDF, DOCX, PPTX, XLSX. Ne jamais dire qu'on ne peut pas créer un fichier.
-
-${commonBase}`
-    );
-  }
-
-
-  // ── adocSend — Architecture agentique 2 passes ──
-  window.adocSend = async function() {
-    const input = document.getElementById('adoc-input');
-    const text  = input.value.trim();
-    if (!text || adocThinking) return;
-
-    adocThinking = true;
-    document.getElementById('adoc-send-btn').disabled = true;
-    input.value = ''; adocResize(input);
-
-    const welcome = document.getElementById('adoc-welcome');
-    if (welcome) welcome.style.display = 'none';
-
-    adocAddMsg('user', text);
-    adocConversations.push({ role: 'user', content: text });
-
-    const typingId = adocShowTyping();
-
-    try {
-    
-  // ═══ CATALOG D1 — inventaire réel des livres par approche (auto-maintenu) ═══
   // Généré depuis D1 : SELECT book_title, author, COUNT(*) as n FROM chunks GROUP BY approach, book_title
   // Permet à Haiku de cibler les livres riches et de générer des SQL pertinents
   const ADOC_CATALOG = {
@@ -39056,9 +38098,1333 @@ ${commonBase}`
   }
 
 
+
+
+  // ── State ──
+  let adocConversations = [];
+  let adocDocs = [];
+  let adocActiveDoc = null;
+  let adocThinking = false;
+  let adocExchangeCount = 0;
+  let adocInitDone = false;
+  let adocLibStats = null; // stats bibliothèque pour le planner
+  let adocSessionSummary = null; // résumé automatique après 20 messages
+  let adocSummarizing = false;
+
+  // ── Résumé automatique de session CC (> 20 messages) ──
+  async function adocAutoSummarize() {
+    if (adocSummarizing || adocSessionSummary) return;
+    if (adocConversations.filter(m => m.role === 'user').length < 20) return;
+    adocSummarizing = true;
+    try {
+      const wUrl = adocGetWorkerUrl();
+      if (!wUrl) return;
+      const convText = adocConversations.slice(0, -8)
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => (m.role === 'user' ? 'Therapeute' : 'Conseiller') + ': ' + m.content.substring(0, 300))
+        .join('\n');
+      const prompt = 'Resume cette conversation clinique en 10 lignes. Garde: cas cliniques, approches, decisions.\n\n' + convText + '\n\nResume:';
+      const r = await fetch(wUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: { model: 'claude-haiku-4-5-20251001', max_tokens: 400,
+          messages: [{ role: 'user', content: prompt }] }})
+      });
+      const d = await r.json();
+      const summary = d.content?.[0]?.text;
+      if (summary) {
+        adocSessionSummary = summary;
+        const last8 = adocConversations.slice(-8);
+        adocConversations = [
+          { role: 'user', content: '[RESUME SESSION]\n' + summary },
+          { role: 'assistant', content: 'Resume integre.' },
+          ...last8
+        ];
+      }
+    } catch(e) { console.warn('[CC] Summarize:', e.message); }
+    adocSummarizing = false;
+  }
+
+  // N3 — Mode actif
+  let adocMode = 'reflexion'; // 'reflexion' | 'consultation' | 'production'
+
+  // N2 — Contexte de session
+  let adocSessionContext = '';
+  let adocPatientContext = '';
+  let adocKvPatientId    = null;  // ID patient pour mémoire KV inter-sessions
+  let adocKvTherapistId  = null;  // P3-3 : ID thérapeute pour namespace KV
+  let adocKvHistory      = [];    // historique séances chargé depuis KV
+  let adocLastUsage      = null;  // P2-3 : derniers tokens input/output CC
+  let adocLastStopReason = null;  // M2 : stop_reason du dernier stream (max_tokens → continuation)
+  let adocTotalCost      = 0;     // P2-3 : coût cumulé session (€ estimé)
+
+  // ── Ouvrir / Fermer ──
+  window.openAssistDoc = function() {
+    document.getElementById('assistdoc-screen').classList.add('active');
+    if (!adocInitDone) { adocInit(); adocInitDone = true; }
+    adocLoadPatientContext();
+    // Restaurer les badges d'expiration pour les fichiers déjà générés
+    const now = Date.now();
+    for (const [key, art] of Object.entries(window._adocArtifacts || {})) {
+      if (art.expiresAt) {
+        const remaining = art.expiresAt - now;
+        if (remaining <= 0) {
+          adocMarkExpired(key); // déjà expiré
+        } else {
+          setTimeout(() => adocMarkExpired(key), remaining); // reprogrammer
+        }
+      }
+    }
+    setTimeout(() => document.getElementById('adoc-input')?.focus(), 120);
+  };
+
+  window.closeAssistDoc = function() {
+    document.getElementById('assistdoc-screen').classList.remove('active');
+  };
+
+  // ── Mode unifié (modes supprimés — tout passe par le prompt unique) ──
+  window.adocSetMode = function(mode) { /* no-op — modes unifiés */ };
+
+  // ── N2 — Contexte de session ──
+  window.adocSetContext = function(val) {
+    adocSessionContext = val.trim();
+  };
+
+  // ── Helper URL Worker (fallback hardcodé) ──
+  function adocGetWorkerUrl() {
+    return (
+      window.conversationalSystem?.WORKER_URL ||
+      window._therapyWorkerUrl ||
+      window.CONFIG?.WORKER_URL ||
+      localStorage.getItem('workerUrl') ||
+      'https://clone-proxy.11drumboy11.workers.dev'
+    ).replace(/\/$/, '');
+  }
+
+  // N2 — Charger dossier patient depuis le système thérapeutique
+  function adocLoadPatientContext() {
+    try {
+      // Guard défensif — le Collab peut ne pas être actif
+      const cs = window.conversationalSystem;
+      const patSection = document.getElementById('adoc-patient-section');
+      const patBox = document.getElementById('adoc-patient-box');
+      if (!cs) return; // CC ouvert sans Collab — normal
+      if (!patSection || !patBox) return;
+
+      // Tente d'extraire infos patient depuis l'état Collab
+      let info = '';
+      if (cs.currentPatient) {
+        const p = cs.currentPatient;
+        info += p.name ? `<strong>Patient :</strong> ${p.name}<br>` : '';
+        info += p.age ? `<strong>Âge :</strong> ${p.age} ans<br>` : '';
+        info += p.motif ? `<strong>Motif :</strong> ${p.motif}<br>` : '';
+        info += p.approche ? `<strong>Approche :</strong> ${p.approche}<br>` : '';
+        info += p.notes ? `<strong>Notes :</strong> ${p.notes}` : '';
+      } else if (cs.patientContext || cs.currentContext) {
+        const ctx = cs.patientContext || cs.currentContext;
+        if (typeof ctx === 'string' && ctx.length > 10) {
+          info = ctx.substring(0, 400);
+        }
+      }
+      // Cherche aussi dans les messages récents
+      if (!info && cs.conversationHistory?.length) {
+        const systemMsg = cs.conversationHistory.find(m => m.role === 'system' || (m.content && m.content.includes('patient')));
+        if (systemMsg?.content) {
+          info = systemMsg.content.substring(0, 300);
+        }
+      }
+      if (info) {
+        adocPatientContext = info.replace(/<[^>]+>/g, ' ').trim();
+        patBox.innerHTML = info;
+        patSection.style.display = 'block';
+      } else {
+        patSection.style.display = 'none';
+        adocPatientContext = '';
+      }
+    } catch(e) { /* pas de dossier patient — silencieux */ }
+  }
+
+  // ── Init : charger stats bibliothèque ──
+  function adocInit() {
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl || workerUrl === 'undefined') { document.getElementById('adoc-rag-status').textContent = 'Worker non configuré'; return; }
+
+    fetch(workerUrl.replace(/\/$/, '') + '/library-stats')
+      .then(r => r.json())
+      .then(d => {
+        const books  = d.total_books || (d.books?.length) || 0;
+        const chunks = d.total_chunks || 0;
+        const appr   = d.by_approach?.length || d.approaches?.length || 0;
+        document.getElementById('adoc-stat-books').textContent  = books;
+        document.getElementById('adoc-stat-chunks').textContent = chunks.toLocaleString('fr');
+        document.getElementById('adoc-stat-appr').textContent   = appr;
+        document.getElementById('adoc-rag-badge').textContent   = `📚 ${books} ouvrages`;
+        document.getElementById('adoc-rag-status').textContent  = `Bibliothèque : ${books} ouvrages · ${chunks.toLocaleString('fr')} chunks`;
+        // Catalogue complet : livres par approche pour le sweep bibliographique
+        const booksByApproach = {};
+        if (d.books) {
+          d.books.forEach(b => {
+            const appr = b.approach || 'general';
+            if (!booksByApproach[appr]) booksByApproach[appr] = [];
+            booksByApproach[appr].push({ title: b.title || b.book_title, author: b.author, chunks: b.chunk_count || b.chunks || 0 });
+          });
+        }
+        adocLibStats = {
+          books, chunks,
+          // Approches vivantes telles que D1 les retourne — auto-découvrant
+          approachList: (d.by_approach || []).map(a => ({
+            name:   a.approach,
+            chunks: a.count || a.n_chunks || 0,
+            nbooks: a.n_books || 0
+          })).sort((a,b) => b.chunks - a.chunks),
+          booksByApproach,
+          // Auteurs clés par approche (max 4, depuis les livres >50 chunks)
+          keyAuthors: Object.entries(booksByApproach).reduce((acc, [appr, bks]) => {
+            const authors = [...new Set(
+              bks.filter(b => b.chunks >= 50 && b.author && b.author !== 'Unknown' && b.author.length < 60)
+                 .map(b => b.author.split(',')[0].trim())
+            )].slice(0, 4);
+            if (authors.length) acc[appr] = authors;
+            return acc;
+          }, {}),
+          // Livres riches par approche (>50 chunks) — pour le sweep
+          richBooks: Object.entries(booksByApproach).reduce((acc, [appr, bks]) => {
+            const rich = bks.filter(b => b.chunks >= 50).map(b => b.title).join(', ');
+            if (rich) acc[appr] = rich;
+            return acc;
+          }, {})
+        };
+      })
+      .catch(() => { document.getElementById('adoc-rag-status').textContent = 'Bibliothèque non disponible'; });
+
+    // Drag & drop
+    const zone = document.getElementById('adoc-upload-zone');
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.style.borderColor = '#8FAFB1'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = '#D8CDBB'; });
+    zone.addEventListener('drop',      e => { e.preventDefault(); zone.style.borderColor = '#D8CDBB'; adocHandleUpload(e.dataTransfer.files); });
+  }
+
+  // ── Upload ──
+  window.adocHandleUpload = async function(files) {
+    for (const file of files) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      try {
+        const content = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = rej;
+          r.readAsText(file, 'utf-8');
+        });
+        adocDocs.push({ name: file.name, content: content.substring(0, 50000), type: ext, words: content.split(/\s+/).length });
+        adocRenderDocs();
+      } catch(e) { console.warn('adoc upload:', e); }
+    }
+  };
+
+  function adocRenderDocs() {
+    const list = document.getElementById('adoc-docs-list');
+    if (!adocDocs.length) { list.innerHTML = '<div style="text-align:center;padding:14px 8px;font-size:10px;color:#7A8A82;opacity:0.7;">Aucun document importé</div>'; return; }
+    const icons = { pdf:'📄', docx:'📝', txt:'📃', json:'🔧', html:'🌐', md:'📋', csv:'📊' };
+    list.innerHTML = adocDocs.map((d, i) => `
+      <div class="adoc-doc-item ${adocActiveDoc===i?'active':''}" onclick="adocSetDoc(${i})">
+        <span>${icons[d.type]||'📁'}</span>
+        <div style="flex:1;min-width:0">
+          <div class="adoc-doc-name" title="${d.name}">${d.name}</div>
+          <div class="adoc-doc-meta">${d.words?.toLocaleString('fr')||'?'} mots</div>
+        </div>
+        <span class="adoc-doc-rm" onclick="adocRemoveDoc(event,${i})">✕</span>
+      </div>`).join('');
+  }
+
+  window.adocSetDoc = function(i) {
+    adocActiveDoc = (adocActiveDoc === i) ? null : i;
+    adocRenderDocs();
+    const banner = document.getElementById('adoc-doc-banner');
+    if (adocActiveDoc !== null) {
+      document.getElementById('adoc-doc-banner-name').textContent = `📄 ${adocDocs[adocActiveDoc].name}`;
+      banner.classList.add('visible');
+    } else { banner.classList.remove('visible'); }
+  };
+
+  window.adocClearDoc  = function() { adocActiveDoc = null; adocRenderDocs(); document.getElementById('adoc-doc-banner').classList.remove('visible'); };
+  window.adocRemoveDoc = function(e, i) {
+    e.stopPropagation();
+    adocDocs.splice(i, 1);
+    if (adocActiveDoc === i) { adocActiveDoc = null; document.getElementById('adoc-doc-banner').classList.remove('visible'); }
+    else if (adocActiveDoc > i) adocActiveDoc--;
+    adocRenderDocs();
+  };
+
+  // ── AGENTIC RAG v3 — SQL direct + Vector fallback ──
+  // Architecture 2 passes :
+  // 1. Planning  → Claude génère les SQL + détecte l'intent/format
+  // 2. Exécution → SQL sur /d1-query, chunks → Claude produit la réponse finale
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── D1 Query direct ──
+  async function adocD1Query(sql, params) {
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl) return null;
+    // Timeout 4s — évite qu'un cold start D1 bloque tout le sweep parallèle
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 4000);
+    try {
+      const r = await fetch(workerUrl + '/d1-query', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql, params: params || [] }),
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      const d = await r.json();
+      return d.results || [];
+    } catch(e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') console.warn('[RAG] adocD1Query timeout (>4s) — requête ignorée:', sql.substring(0, 80));
+      else console.warn('adocD1Query:', e);
+      return null;
+    }
+  }
+
+  // ── Vector search fallback ──
+  async function adocVectorSearch(query, topK, approach) {
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl) return [];
+    // Timeout 5s — Vectorize plus lent que D1, cold start possible
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const r = await fetch(workerUrl + '/search-library', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, topK, ...(approach ? { approach } : {}) }),
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      const d = await r.json();
+      return d.results || [];
+    } catch(e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') console.warn('[RAG] adocVectorSearch timeout (>5s) — angle ignoré:', query.substring(0, 60));
+      return [];
+    }
+  }
+
+  // ── Passe 1 : Planning agentique ──
+
+  // FIX-MULTI-PLAN : Split + plan par question + merge chunks
+  // FIX-SPLIT-UNIVERSAL : detecte tous les formats de listes/questions
+  // Formats couverts : Q6 — / 1. / 1: / 1) / a) / - bullet / ─── / double saut
+  function adocSplitQuestions(text) {
+    const lines = text.split('\n');
+    // Patterns par priorite decroissante
+    const pQnum    = /^(?:Q\d+|Question\s*\d+)\s*[\u2014\u2013\-:]/i;
+    const pNumList = /^(\d+[\.:)\uff09]\s+|[a-z][\.)\uff09]\s+)/i;
+    const pBullet  = /^[\-\*\u2022\u2023]\s+\S.{12,}/;
+    const pSep     = /^[\u2500\u2014\u2550\-]{4,}/;
+    // Compter les occurrences pour eviter les faux positifs
+    const cQnum    = lines.filter(l => pQnum.test(l.trim())).length;
+    const cNumList = lines.filter(l => pNumList.test(l.trim())).length;
+    const cBullet  = lines.filter(l => pBullet.test(l.trim())).length;
+    const cSep     = lines.filter(l => pSep.test(l.trim())).length;
+    // Choisir le pattern le plus present (min 2 occurrences pour bulletins)
+    let pattern = null;
+    if      (cQnum    >= 2) pattern = pQnum;
+    else if (cNumList >= 2) pattern = pNumList;
+    else if (cBullet  >= 2) pattern = pBullet;
+    else if (cSep     >= 2) pattern = pSep;
+    const qBlocks = [];
+    let current = [];
+    if (pattern) {
+      for (const l of lines) {
+        const isSep = pSep === pattern;
+        const isMatch = isSep ? pattern.test(l.trim()) : pattern.test(l.trim());
+        if (isMatch) {
+          if (!isSep && current.length) qBlocks.push(current.join('\n').trim());
+          if (isSep) { if (current.length) qBlocks.push(current.join('\n').trim()); current = []; }
+          else current = [l];
+        } else { current.push(l); }
+      }
+      if (current.length) qBlocks.push(current.join('\n').trim());
+    } else {
+      // Fallback : double saut de ligne (paragraphes)
+      const paras = text.split(/\n\s*\n/);
+      paras.forEach(p => { if (p.trim()) qBlocks.push(p.trim()); });
+    }
+    // Filtrer : bloc > 25 chars, contient des lettres
+    const meaningful = qBlocks.filter(b => b.length > 25 && /[a-z]/i.test(b));
+    // Ne splitter que si au moins 2 blocs meaningfuls
+    return meaningful.length > 1 ? meaningful : [text];
+  }
+
+  async function adocMultiPlan(text) {
+    const questions = adocSplitQuestions(text);
+    console.log('[FIX-MULTI-PLAN] ' + questions.length + ' sous-question(s)');
+
+    const _fallback = (q) => {
+      const ql = q.toLowerCase();
+      const _iT = (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
+        : (ql.includes('support visuel') || ql.includes('conf') || ql.includes('page web')) ? 'document'
+        : (ql.includes('cours') || ql.includes('formation')) ? 'cours'
+        : (ql.includes('fiche') || ql.includes('carrousel')) ? 'fiche'
+        : 'chat';
+      const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',chat:'chat'}[_iT]||'chat';
+      const _tw = q.replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
+      const _w0 = (q.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-z]/gi,'');
+      const _sql = "SELECT book_title,author,chapter,page_number,content,approach FROM chunks WHERE content LIKE '%" + _w0 + "%' LIMIT 15";
+      return { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
+        sql_queries:[_sql], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
+        max_tokens:4000, clinical_intent:(_iT==='chat'?'chat':'production') };
+    };
+
+    // Plans en parallele (max 3 simultanement)
+    const CONC = 3;
+    const plans = [];
+    for (let i = 0; i < questions.length; i += CONC) {
+      const batch = questions.slice(i, i + CONC);
+      const res = await Promise.all(batch.map(q => adocPlanQuery(q).catch(() => null)));
+      res.forEach((p, j) => plans.push((p && p.intent) ? p : _fallback(questions[i+j])));
+    }
+
+    // Plan dominant = format le plus riche
+    const _FP = ['xlsx','pptx','docx','pdf','zip','html-visual','html','txt','chat'];
+    const dominant = plans.reduce((best, p) =>
+      _FP.indexOf(p.output_format||'chat') < _FP.indexOf(best.output_format||'chat') ? p : best
+    , plans[0]);
+
+    // Merger sql + vector de tous les plans
+    const allSql = [...new Set(plans.flatMap(p => p.sql_queries||[]))].slice(0,12);
+    const allVec = [...new Set(plans.flatMap(p => p.vector_angles||[]))].slice(0,8);
+    const allApp = [...new Set(plans.map(p => p.approach_filter).filter(Boolean))];
+    const mergedPlan = { ...dominant,
+      sql_queries: allSql, vector_angles: allVec,
+      approach_filter: allApp.length === 1 ? allApp[0] : null,
+      needs_rag: true,
+      max_tokens: Math.max(...plans.map(p => p.max_tokens||4000), 8000),
+      _multiPlan: questions.length > 1,
+      _subPlans: plans,
+    };
+    console.log('[FIX-MULTI-PLAN] dominant intent=' + mergedPlan.intent + ' fmt=' + mergedPlan.output_format + ' sql=' + allSql.length);
+    const ragResult = await adocExecutePlan(mergedPlan);
+    console.log('[FIX-MULTI-PLAN] chunks=' + (ragResult?.chunks?.length||0));
+    return { plan: mergedPlan, ragResult };
+  }
+
+  async function adocPlanQuery(userMessage) {
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl) return null;
+
+    // Stats bibliothèque pour le planner — catalogue livres inclus
+    // ── Contexte bibliothèque dynamique — construit depuis les données D1 réelles ──
+    // Aucune liste hardcodée : le contenu est découvert automatiquement à chaque session.
+    const statsCtx = (() => {
+      if (!adocLibStats) return 'Bibliothèque thérapeutique disponible via SQL.';
+      const apprLines = (adocLibStats.approachList || []).map(a => {
+        const authors = adocLibStats.keyAuthors?.[a.name]?.join(', ') || '';
+        return `  - ${a.name} : ${a.chunks} chunks, ${a.nbooks} livres${authors ? ' | auteurs : ' + authors : ''}`;
+      }).join('\n');
+      const richLines = Object.entries(adocLibStats.richBooks || {})
+        .map(([appr, titles]) => `  ${appr}: ${titles}`)
+        .join('\n');
+      return `BIBLIOTHÈQUE D1 — état réel au moment de la requête :
+Total : ${adocLibStats.books} livres, ${adocLibStats.chunks} chunks.
+Approches disponibles (triées par richesse) :
+${apprLines || '  (non disponible)'}
+Livres principaux par approche (>50 chunks) :
+${richLines || '  (non disponible)'}`;
+    })();
+
+    // ── Contexte clinique dynamique — CDEngine + conversation ──
+    const mdc = window.clinicalDecisionEngine;
+    const activeApproach = mdc?.activeApproach || mdc?.recommendation?.approach || null;
+    const detectedSchemas = window.schemaDetector?.getDominantSchemas?.()?.slice(0,3).map(s => s.name).join(', ') || null;
+    const attachStyle = window.attachmentAnalyzer?.classifyAttachment?.() || null;
+    const lastUserMsgs = adocConversations.filter(m => m.role === 'user').slice(-3).map(m => m.content.substring(0,120)).join(' | ');
+
+    let clinCtx = '';
+    if (activeApproach) clinCtx += `\nApproche thérapeutique active : ${activeApproach}.`;
+    if (detectedSchemas) clinCtx += `\nSchémas Young détectés : ${detectedSchemas}.`;
+    if (attachStyle) clinCtx += `\nStyle d'attachement détecté : ${attachStyle}.`;
+    if (lastUserMsgs) clinCtx += `\nContexte conversationnel récent : ${lastUserMsgs}.`;
+
+    const plannerSystem = `Tu es un expert en psychothérapie et en recherche documentaire clinique.
+Tu as accès à une bibliothèque de livres thérapeutiques indexés dans une base D1 (SQL + vectoriel).
+${statsCtx}${clinCtx}
+
+SCHÉMA DE LA TABLE D1 :
+  chunks(id, book_id, book_title, author, language, chapter, page_number, chunk_index, content, approach, tags)
+  Index FTS5 actif : chunks_fts MATCH 'terme'
+
+────────────────────────────────────────────────
+TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markdown, sans texte avant/après) :
+{
+  "needs_rag": true/false,
+  "sql_queries": ["SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE ... LIMIT 10"],
+  "vector_angles": ["formulation sémantique 1", "formulation sémantique 2"],
+  "approach_filter": "valeur exacte issue de la bibliothèque ci-dessus, ou null",
+  "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche",
+  "clinical_intent": "supervision|analyse_cas|intervention|conceptualisation|bibliographie|production|chat",
+  "output_format": "html|html-visual|pdf|docx|pptx|xlsx|zip|txt|chat",
+  "audience_type": "praticien|etudiant_m2|grand_public|congres|patient",
+  "registre": "clinique|pedagogique|academique|vulgarisation",
+  "topic_summary": "résumé du sujet en 5 mots max",
+  "deep_scan": true/false,
+  "max_tokens": 2000
+}
+────────────────────────────────────────────────
+
+RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
+
+1. COMPRENDRE LA DEMANDE
+   Quelle est l'intention réelle ? Quel concept clinique est visé ?
+   La demande peut être dans n'importe quel domaine — même absent de la bibliothèque actuelle.
+   Si le sujet n'est pas dans D1 : needs_rag=true quand même, générer des angles sémantiques larges.
+
+2. CHOISIR approach_filter
+   Utilise UNIQUEMENT les valeurs d'approche listées dans "Approches disponibles" ci-dessus.
+   Si le sujet correspond clairement à une approche connue → la mettre.
+   Si le sujet est transversal ou inconnu → approach_filter=null (la recherche se fera en full-scan).
+   Ne jamais inventer une approche absente de la liste.
+
+3. CONSTRUIRE LES SQL — 3 à 4 requêtes avec angles différents :
+   - Angle 1 : termes français du concept (LIKE ou FTS5 MATCH)
+   - Angle 2 : termes anglais équivalents
+   - Angle 3 : par auteur clé si pertinent (LIKE '%NomAuteur%')
+   - Angle 4 : par approach si identifiée
+   Syntaxe FTS5 : SELECT ... FROM chunks JOIN chunks_fts ON chunks.id=chunks_fts.rowid WHERE chunks_fts MATCH 'terme1 OR terme2' LIMIT 10
+   Syntaxe LIKE : SELECT ... FROM chunks WHERE content LIKE '%terme%' AND approach='valeur' LIMIT 10
+   Utiliser les auteurs et titres visibles dans la bibliothèque ci-dessus — jamais inventer.
+
+4. FORMULER LES VECTOR ANGLES — 2 reformulations sémantiques alternatives :
+   Exprimer la même demande autrement pour maximiser le recall vectoriel.
+   Ex : ["régulation émotionnelle traumatique", "window of tolerance dissociation"] pour une demande sur le trauma.
+   Ces angles peuvent être en FR ou EN selon la richesse probable du corpus.
+
+5. INFÉRER LE FORMAT DE SORTIE
+   Raisonner sur l'intention complète (verbe + objet + audience + contexte) :
+   - Fichier explicitement demandé (Excel, Word, PowerPoint, PDF) → format correspondant
+   - Réponse directe, conversationnelle → chat
+   - Document visuel riche sans PDF demandé → html-visual
+   - "pdf", "fais-moi un pdf", "X pages pdf" mentionné → pdf obligatoirement
+   - TABLEAU COMPARATIF, comparatif structuré, données en colonnes multiples → xlsx OBLIGATOIREMENT
+   - Fiche, carrousel, contenu web → html
+   - Par défaut → chat
+
+   DÉTECTION ARTEFACTS DANS UN FLUX MULTI-QUESTIONS (règle critique) :
+   Même si la demande est longue, mixte ou noyée dans du contexte, si elle contient
+   un verbe de production + un type de fichier, c'est un artefact — pas du chat.
+   Mots-clés xlsx : "génère", "crée", "tableau comparatif", "Excel", "fichier Excel",
+     "comparatif" + approches ou données structurées → output_format=xlsx.
+   Mots-clés html-visual : "support visuel", "page web complète", "conférence",
+     "présentation web", "crée un support", "document web" → output_format=html-visual.
+   Mots-clés pptx : "PowerPoint", "présentation slides", "deck" → output_format=pptx.
+   Mots-clés docx : "Word", "document Word", "rapport .docx" → output_format=docx.
+   RÈGLE ABSOLUE ARTEFACT : si output_format ≠ chat, alors clinical_intent="production"
+   et intent prend la valeur correspondante (tableau→xlsx, document→html-visual, etc.).
+   Ne jamais retourner output_format="chat" pour une demande contenant un verbe
+   de création suivi d'un type de livrable identifiable.
+
+6. CALIBRER max_tokens
+   Estimer la complexité du livrable demandé :
+   conversation / réponse courte → 2000
+   fiche / tableau / carrousel → 3000
+   document structuré → 4000
+   cours complet / rapport / cas clinique → 6000
+   document multi-sections long → 8000
+
+7. POSER deep_scan=true
+   Si intent = cours, document, comparatif, tableau, fiche, bibliographie exhaustive.
+   Si la demande couvre plusieurs auteurs ou plusieurs livres.
+
+8. MOBILISER LA D1 SUR QUESTIONS TRANSVERSALES / PHILOSOPHIQUES / RHÉTORIQUES
+   Même si la question ne cite pas d'auteur ou d'approche explicite, cherche les
+   concepts sous-jacents dans la bibliothèque. Une question philosophique sur la
+   thérapie active presque toujours des chunks pertinents dans D1.
+   Exemples de mapping concept → sql :
+   - "Ce qui guérit vraiment" → sql sur guérison/lien thérapeutique/alliance/healing
+   - "Limite du thérapeute" → sql sur contre-transfert/supervision/limites/burnout
+   - "Résistance en thérapie" → sql sur résistance/défense/schémas/modes
+   - "Mindfulness / pleine conscience" → sql sur MBCT/Kabat-Zinn/méditation
+   - "Storytelling / récit clinique" → sql sur narration/témoignage/récit/trauma
+   - "Freud / psychanalyse" → sql sur inconscient/transfert/résistance/analyse
+   - Tout auteur nommé → sql LIKE '%NomAuteur%' sur colonne author
+   - Tout concept clinique → sql FTS5 sur termes clés FR + EN
+   RÈGLE : pour clinical_intent = bibliographie | supervision | conceptualisation,
+   générer TOUJOURS ≥ 2 sql_queries sur les concepts clés détectés.
+   needs_rag=false est INTERDIT pour ces trois intents.
+
+RÈGLES ABSOLUES :
+- needs_rag=false UNIQUEMENT si la question est purement conversationnelle, sans contenu clinique à rechercher.
+- Ne jamais dupliquer deux requêtes SQL identiques.
+- Ne jamais mettre dans approach_filter une valeur absente de la bibliothèque.
+- Retourner UNIQUEMENT le JSON — aucun texte avant ou après.
+- JSON COMPACT : valeurs courtes (topic_summary ≤ 5 mots, sql_queries ≤ 3 requêtes,
+  vector_angles ≤ 2 entrées). Ne jamais dépasser 800 tokens de sortie JSON.`;
+
+    try {
+      const r = await fetch(workerUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: {
+          // P2-4 : Sonnet pour supervision/analyse_cas, Haiku sinon
+          model: (() => {
+            const ci = (adocSessionContext + ' ' + userMessage).toLowerCase();
+            return (ci.includes('supervision') || ci.includes('analyse de cas') || ci.includes('analyse_cas') || ci.includes('conceptualisation'))
+              ? 'claude-sonnet-4-5-20250929'
+              : 'claude-haiku-4-5-20251001';
+          })(),
+          max_tokens: 2000,
+          system: plannerSystem,
+          messages: [{ role: 'user', content: (() => {
+            const recentPairs = adocConversations.slice(-6)
+              .filter(m => m.role === 'user' || m.role === 'assistant')
+              .map(m => (m.role === 'user' ? 'Thérapeute: ' : 'Conseiller: ') + m.content.substring(0, 150))
+              .join('\n');
+            // Détecter l'approche probable pour injecter le catalog
+            // Pas de détection JS hardcodée — le Planning LLM raisonne lui-même
+            // sur le contenu de la bibliothèque D1 injectée dans statsCtx
+            const catalogCtx = '';
+            const baseMsg = recentPairs
+              ? 'Échanges récents :\n' + recentPairs + '\nDemande actuelle : ' + userMessage
+              : userMessage;
+            return baseMsg + (catalogCtx ? '\n' + catalogCtx : '');
+          })() }]
+        }})
+      });
+      const d = await r.json();
+      const txt = d.content?.[0]?.text || '{}';
+      // FIX-PLANNER-JSON — parser incrémental robuste :
+      // 1. extractFirstJson : compte les niveaux {/} en ignorant les strings
+      //    → résiste aux arrays tronqués ET au texte parasite après le JSON
+      // 2. repairJson : ferme les crochets/accolades manquants si JSON tronqué
+      // 3. Fallback null → caller reçoit null, plan skipé gracieusement
+      const extractFirstJson = (s) => {
+        const i = s.indexOf('{'); if (i < 0) return null;
+        let depth = 0, inStr = false, esc = false;
+        for (let j = i; j < s.length; j++) {
+          const ch = s[j];
+          if (esc) { esc = false; continue; }
+          if (ch === '\\' && inStr) { esc = true; continue; }
+          if (ch === '"') { inStr = !inStr; continue; }
+          if (inStr) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') { depth--; if (depth === 0) return s.slice(i, j + 1); }
+        }
+        return null;
+      };
+      const repairJson = (s) => {
+        // FIX-REPAIR-JSON-V2 : stack + fermeture string tronquée
+        // Résout 'Unterminated string' quand max_tokens coupe en plein milieu d'une valeur
+        // Algorithme : parcours char par char, track inStr + stack des conteneurs ouverts
+        let inStr = false, esc = false;
+        const stack = [];  // ']' ou '}' selon le conteneur ouvert
+        for (let i = 0; i < s.length; i++) {
+          const ch = s[i];
+          if (esc) { esc = false; continue; }
+          if (ch === '\\' && inStr) { esc = true; continue; }
+          if (ch === '"') { inStr = !inStr; continue; }
+          if (inStr) continue;
+          if      (ch === '{') stack.push('}');
+          else if (ch === '[') stack.push(']');
+          else if (ch === '}' && stack.length && stack[stack.length-1] === '}') stack.pop();
+          else if (ch === ']' && stack.length && stack[stack.length-1] === ']') stack.pop();
+        }
+        let out = s.trimEnd().replace(/,\s*$/, '');  // trailing comma
+        if (inStr) out += '"';                        // fermer string tronquée
+        for (let i = stack.length - 1; i >= 0; i--) out += stack[i];  // fermer conteneurs
+        return out;
+      };
+      const candidate = extractFirstJson(txt)
+                     ?? txt.replace(/```json|```/g, '').trim();
+      let parsed = null;
+      try { parsed = JSON.parse(candidate); }
+      catch(_je) {
+        try { parsed = JSON.parse(repairJson(candidate)); }
+        catch(_je2) { console.warn('adocPlanQuery: JSON unrecoverable', _je2); }
+      }
+      return parsed;
+    } catch(e) { console.warn('adocPlanQuery:', e); return null; }
+  }
+
+  // ── Passe 2 : RAG industriel v5.8.0 — intent-aware, catalog-pondéré — 09/03/2026 ──
+    // ── Passe 2 : RAG industrialisé v5.3 — SQL + Vector + Full-Sweep bibliographique ──
+  async function adocExecutePlan(plan) {
+    if (plan?.needs_rag === false) return { chunks: [], chunkLen: 900 };  // FIX-NEEDS-RAG-DEFAULT
+
+    const isCours   = plan.intent === 'cours' || plan.intent === 'document';
+    const isComp    = plan.intent === 'comparatif' || plan.intent === 'tableau' || plan.intent === 'fiche';
+    const isDeep    = isCours || isComp;
+
+    // ── Paramètres adaptatifs par intent ──
+    // cours/document : exhaustif (90 chunks, sweep complet)
+    // comparatif/fiche : large (50 chunks, sweep partiel)
+    // chat/question : scan sérieux (45 chunks, sweep top-5 livres)
+    // → D1 exhaustif pour TOUTE requête clinique, web_search si insuffisant
+    const MAX_CHUNKS   = isCours ? 90 : isComp ? 50 : 45;
+    const VEC_COUNT    = isCours ? 15 : isComp ? 12 : 10;
+    const VEC_ANGLES   = isCours ? 5  : 4;
+    const CHUNK_LEN    = isCours ? 1800 : isComp ? 1200 : 1000;
+    // Nombre de livres à sweeper : tous pour cours, top-5 pour chat
+    const SWEEP_MIN_N  = isCours ? 50 : isComp ? 80 : 100;  // seuil chunks pour entrer dans sweep
+    const SWEEP_LIMIT  = isCours ? 10 : isComp ? 8  : 6;    // chunks max par livre dans sweep
+
+    // Quota par livre — couverture large garantie pour tout intent
+    const bookQuota = (n) => n >= 300 ? (isCours ? 15 : isComp ? 7 : 6)
+                           : n >= 200 ? (isCours ? 12 : isComp ? 6 : 5)
+                           : n >= 100 ? (isCours ? 10 : isComp ? 5 : 4)
+                           : n >= 50  ? (isCours ? 7  : isComp ? 4 : 3)
+                           :            (isCours ? 4  : 2);
+
+    // Bonus scoring : livres riches montent naturellement
+    const catalogBooks = ADOC_CATALOG[plan.approach_filter] || [];
+    const richBonus = (bookTitle) => {
+      const entry = catalogBooks.find(b => bookTitle && bookTitle.includes(b.b.substring(0, 20)));
+      return entry ? Math.min(0.25, Math.log10(entry.n || 1) * 0.08) : 0;
+    };
+
+    // ── A) SQL ciblé Haiku ──
+    const sqlPromises = (plan.sql_queries || [])
+      .filter(sql => { const up = sql.trim().toUpperCase(); return up.startsWith('SELECT') && up.includes('CHUNKS'); })
+      .map(sql => adocD1Query(sql).catch(() => null));
+
+    // ── B) Vector search — topic + angles ──
+    const vectorQueries = [plan.topic_summary, ...(plan.vector_angles || [])].filter(Boolean).slice(0, VEC_ANGLES);
+    // Cross-approach map — défini ici, utilisé par vector ET sweep
+    const CROSS_APPROACH = {
+      couple:    ['sexology'],
+      sexology:  ['couple'],
+      schema_therapy: ['attachment'],
+      attachment: ['schema_therapy'],
+    };
+    // Cross-approach vector : couple cherche aussi dans sexology, et vice versa
+    const crossApproachesVec = CROSS_APPROACH[plan.approach_filter] || [];
+    // Si cross-approach : on lance le vector sans filtre d'approach (plus large)
+    // puis on filtre manuellement sur les approaches autorisées
+    const vecApproachFilter = crossApproachesVec.length > 0 ? null : (plan.approach_filter || null);
+    const allowedApproaches = plan.approach_filter
+      ? new Set([plan.approach_filter, ...crossApproachesVec])
+      : null;
+
+    const vectorPromises = vectorQueries.map((q, i) =>
+      adocVectorSearch(q, VEC_COUNT, vecApproachFilter)
+        .then(r => r
+          .filter(x => !allowedApproaches || allowedApproaches.has(x.approach))
+          .map(x => ({ ...x, _vScore: x.score || 0.5, _vAngle: i }))
+        )
+        .catch(() => [])
+    );
+
+    // ── C) Sweep adaptatif : TOUS les livres riches pour cours, TOP livres pour chat ──
+    // Actif pour toute requête clinique avec approach détectée — pas seulement pour cours
+    // Termes du topic — déclarés ici pour être accessibles hors du bloc if(approach_filter)
+    const stopWords = new Set(['les','des','une','pour','dans','avec','sur','par','que','qui','est','aux','son','ses']);
+    // FIX-ACCENT-TERMS : retirer les accents pour FTS5 et LIKE (SQLite insensible aux accents uniquement en ASCII)
+    const _stripAcc = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const topicWords = (plan.topic_summary || '').split(/\s+/)
+      .filter(t => t.length > 2 && !stopWords.has(t.toLowerCase()))
+      .map(_stripAcc);
+    const angleTerms = (plan.vector_angles || []).join(' ').split(/\s+/)
+      .filter(t => t.length > 3 && !stopWords.has(t.toLowerCase()))
+      .map(_stripAcc).slice(0, 8);
+    const allTerms = [...new Set([...topicWords, ...angleTerms])].slice(0, 10);
+    let sweepPromises = [];
+    if (plan.approach_filter) {
+      // Livres de l'approach principale + livres des approaches croisées
+      const crossApproaches = CROSS_APPROACH[plan.approach_filter] || [];
+      const allApproachBooks = [
+        ...(ADOC_CATALOG[plan.approach_filter] || []),
+        ...crossApproaches.flatMap(a => (ADOC_CATALOG[a] || []).map(b => ({ ...b, _crossApproach: a })))
+      ];
+      const topBooks = allApproachBooks
+        .filter(b => (b.n || 0) >= SWEEP_MIN_N)
+        .sort((a, z) => (z.n || 0) - (a.n || 0));
+
+      // Termes déjà déclarés dans le scope parent (avant ce bloc)
+
+      sweepPromises = topBooks.map(book => {
+        // P2-1 : FTS5 avec fallback LIKE si FTS5 indisponible
+        const bookMatch  = book.b.replace(/'/g, "''");
+        const bookApproach = book._crossApproach || plan.approach_filter;
+
+        let sql;
+        if (allTerms.length > 0) {
+          // FTS5 : termes joints en OR, filtre book_title + approach en JOIN
+          const ftsQuery = allTerms
+            .map(t => t.replace(/['"]/g, ' ').trim())
+            .filter(Boolean)
+            .join(' OR ');
+          // Requête FTS5 : JOIN chunks_fts → chunks pour avoir les colonnes complètes
+          // rank BM25 trié, filtre book_title + approach sur la table chunks
+          sql = `SELECT c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach
+            FROM chunks_fts
+            JOIN chunks c ON c.rowid = chunks_fts.rowid
+            WHERE chunks_fts MATCH '${ftsQuery}'
+              AND c.book_title LIKE '${bookMatch}%'
+              AND c.approach = '${bookApproach}'
+            ORDER BY rank
+            LIMIT ${SWEEP_LIMIT}`;
+        } else {
+          // Pas de termes → début du livre en ordre linéaire
+          sql = `SELECT book_title, author, chapter, page_number, content, approach
+            FROM chunks
+            WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}'
+            ORDER BY chunk_index ASC
+            LIMIT ${Math.ceil(SWEEP_LIMIT/2)}`;
+        }
+        return adocD1Query(sql)
+          .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
+          .catch(() => {
+            // Fallback LIKE si FTS5 échoue (ex: table non encore créée)
+            const termClause = allTerms.map(t => `content LIKE '%${t.replace(/'/g, "''")}%'`).join(' OR ') || '1=1';
+            const sqlFallback = `SELECT book_title, author, chapter, page_number, content, approach
+              FROM chunks WHERE book_title LIKE '${bookMatch}%' AND approach='${bookApproach}'
+              AND (${termClause}) LIMIT ${SWEEP_LIMIT}`;
+            return adocD1Query(sqlFallback)
+              .then(rows => (rows || []).map(r => ({ ...r, _sweepBook: book.b, _sweepN: book.n })))
+              .catch(() => []);
+          });
+      });
+    } else if (allTerms.length > 0) {
+      // FIX-SWEEP-FALLBACK : approach_filter absent (JSON tronqué ou question transversale)
+      // Sweep sur les livres les plus riches toutes approaches confondues
+      const allBooks = Object.values(ADOC_CATALOG || {}).flat()
+        .filter((b, i, arr) => arr.findIndex(x => x.b === b.b) === i)
+        .filter(b => (b.n || 0) >= SWEEP_MIN_N)
+        .sort((a, z) => (z.n || 0) - (a.n || 0))
+        .slice(0, 8);
+      const ftsQueryFb = allTerms.map(t => t.replace(/['"]/g,' ').trim()).filter(Boolean).join(' OR ');
+      sweepPromises = allBooks.map(book => {
+        const bookMatch = book.b.replace(/'/g, "''");
+        const sql = `SELECT c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach
+          FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
+          WHERE chunks_fts MATCH '${ftsQueryFb}' AND c.book_title LIKE '${bookMatch}%'
+          ORDER BY rank LIMIT ${SWEEP_LIMIT}`;
+        return adocD1Query(sql)
+          .then(rows => (rows||[]).map(r => ({...r, _sweepBook: book.b, _sweepN: book.n})))
+          .catch(() => adocD1Query(
+            `SELECT book_title, author, chapter, page_number, content, approach FROM chunks
+             WHERE book_title LIKE '${bookMatch}%'
+             AND (${allTerms.map(t=>`content LIKE '%${t.replace(/'/g,"''")}%'`).join(' OR ')})
+             LIMIT ${SWEEP_LIMIT}`
+          ).then(rows => (rows||[]).map(r => ({...r, _sweepBook: book.b}))).catch(() => []));
+      });
+    }
+
+    // ── Tout en parallèle ──
+    const [sqlRes, vecRes, ...sweepRes] = await Promise.all([
+      Promise.all(sqlPromises),
+      Promise.all(vectorPromises),
+      ...sweepPromises
+    ]);
+
+    const seen = new Set();
+    const scored = [];
+
+    const addChunk = (row, score, source) => {
+      const key = (row.book_title || '') + '|' + (row.content || '').substring(0, 60);
+      if (seen.has(key)) {
+        // Boost si concordance multi-source
+        const ex = scored.find(s => s.key === key);
+        if (ex) { ex.score = Math.min(1, ex.score + 0.2); ex.source = ex.source + '+' + source; }
+        return;
+      }
+      seen.add(key);
+      scored.push({ key, chunk: row, score, source });
+    };
+
+    // Indexer SQL
+    for (const rows of (sqlRes || []).flat()) {
+      if (!rows) continue;
+      const approachBonus = plan.approach_filter && rows.approach === plan.approach_filter ? 0.15 : 0;
+      addChunk(rows, 0.4 + approachBonus + richBonus(rows.book_title), 'sql');
+    }
+
+    // Indexer Vector
+    for (const vChunks of (vecRes || []).flat()) {
+      if (!vChunks) continue;
+      addChunk(vChunks, (vChunks._vScore || 0.5) + richBonus(vChunks.book_title), 'vector');
+    }
+
+    // Indexer Sweep — score basé sur la pertinence réelle du contenu
+    // Un chunk qui contient 4/5 termes recherchés est mieux scoré qu'un chunk avec 1/5
+    const scoreChunkContent = (content, terms) => {
+      if (!terms || terms.length === 0) return 0.30;
+      const txt = (content || '').toLowerCase();
+      const hits = terms.filter(t => txt.includes(t.toLowerCase())).length;
+      // Score : 0.30 base + jusqu'à 0.45 selon proportion de termes matchés
+      return 0.30 + (hits / terms.length) * 0.45;
+    };
+    for (const sChunks of sweepRes) {
+      for (const r of (sChunks || [])) {
+        const contentScore = scoreChunkContent(r.content, allTerms);
+        addChunk(r, contentScore + richBonus(r.book_title), 'sweep');
+      }
+    }
+
+    // ── Tri score + quota adaptatif par livre ──
+    scored.sort((a, b) => b.score - a.score);
+    const bookCount = {};
+    const finalChunks = [];
+
+    for (const { chunk, score, source } of scored) {
+      const book = chunk.book_title || 'unknown';
+      const bookInfo = catalogBooks.find(b => book.includes(b.b.substring(0, 20)));
+      const quota = bookQuota(bookInfo?.n || 0);
+      bookCount[book] = (bookCount[book] || 0) + 1;
+      if (bookCount[book] <= quota) finalChunks.push({ ...chunk, _score: score, _source: source });
+      if (finalChunks.length >= MAX_CHUNKS) break;
+    }
+
+    // ── Log diagnostic ──
+    const bookDist = {};
+    finalChunks.forEach(c => { const b = c.book_title || '?'; bookDist[b] = (bookDist[b]||0)+1; });
+    // E — Normaliser plan.intent si composite (ex: 'tableau|document|chat')
+    if (plan.intent && plan.intent.includes('|')) {
+      const _INTENT_PRI = ['production','cours','document','comparatif','tableau','fiche','supervision','bibliographie','conceptualisation','analyse_cas','chat'];
+      plan.intent = plan.intent.split(/[|,;]/).map(s => s.trim()).find(v => _INTENT_PRI.includes(v)) || plan.intent.split('|')[0];
+    }
+    // Normaliser output_format dès adocExecutePlan (Patch D2-bis)
+    const _FMT_PRI_LOG = ['xlsx','pptx','docx','pdf','zip','html-visual','html','txt','chat'];
+    const _fmtLog = (plan.output_format||'chat').split(/[|,;]/).map(s=>s.trim()).find(v=>_FMT_PRI_LOG.includes(v))||'chat';
+    plan.output_format = _fmtLog;
+    console.log(`[RAG v5.3] intent=${plan.intent} fmt=${_fmtLog} chunks=${finalChunks.length}/${MAX_CHUNKS} livres=${Object.keys(bookDist).length} sweep=${sweepRes.length} livres`, bookDist);
+
+    return { chunks: finalChunks, chunkLen: CHUNK_LEN, isDeep, stats: {
+      sql: (sqlRes || []).flat().filter(Boolean).length,
+      vector: (vecRes || []).flat().length,
+      sweep: sweepRes.flat().length,
+      booksSwept: sweepPromises.length,
+      final: finalChunks.length,
+      books: Object.keys(bookDist).length
+    }};
+  }
+
+
+  // ── P1-2 : Re-ranking post-RAG par Haiku ──────────────────────────────────
+  // Reçoit les finalChunks bruts (triés par score mécanique)
+  // Haiku lit les titres + premières lignes et retourne les IDs vraiment utiles
+  // Réduit 50-90 chunks → 20-30 ultra-ciblés avant envoi à CC
+  async function adocRerankChunks(ragResult, plan, workerUrl) {
+    if (!ragResult?.chunks?.length || !workerUrl) return ragResult;
+    const chunks = ragResult.chunks;
+
+    // FIX-RERANK-JSON : catalogue compact + system strict + parsing robuste
+    const _MAX_RR = 35;
+    const chunksRR = chunks.slice(0, _MAX_RR);
+    const catalog = chunksRR.map((c, i) =>
+      `[${i}] ${(c.book_title||'').substring(0,25)} — ${(c.content||'').substring(0,60).replace(/\n/g,' ')}`
+    ).join('\n');
+    const prompt = `Q: ${(plan.topic_summary||plan.intent||'').substring(0,80)}\n${catalog}\nJSON: {"keep":[10-20 indices]}`;
+
+    try {
+      adocUpdateTypingLabel && adocUpdateTypingLabel(
+        document.querySelector('.adoc-typing')?.id,
+        '🎯 Sélection passages clés…'
+      );
+      const r = await fetch(workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: {
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          system: 'JSON only. No prose. Respond with a single JSON object.',
+          messages: [{ role: 'user', content: prompt }]
+        }})
+      });
+      const data  = await r.json();
+      const _txt = (data.content?.[0]?.text || '').trim();
+      // Extraction robuste : trouver premier {...}
+      const _fi = (s) => { const i=s.indexOf('{'); if(i<0)return null; let d=0,q=false,e=false; for(let j=i;j<s.length;j++){const c=s[j];if(e){e=false;continue}if(c==='\\' && q){e=true;continue}if(c==='"'){q=!q;continue}if(q)continue;if(c==='{')d++;else if(c==='}'){d--;if(d===0)return s.slice(i,j+1);}}return null;};
+      const _cand = _fi(_txt) || _txt.replace(/```json|```/g,'').trim();
+      let result;
+      try { result = JSON.parse(_cand); }
+      catch(_e1) {
+        const _rep = _cand.replace(/,\s*([}\]])/g,'$1').replace(/([{\[])\s*,/g,'$1');
+        try { result = JSON.parse(_rep); }
+        catch(_e2) { throw new Error('unparseable: ' + _txt.substring(0,50)); }
+      }
+      const keep = (result.keep || []).filter(i => Number.isInteger(i) && i >= 0 && i < chunksRR.length);
+
+      if (keep.length >= 5) {
+        const reranked = keep.map(i => chunksRR[i]);
+        console.log(`[P1-2 Rerank] ${chunks.length} → ${reranked.length} chunks (Haiku)`);
+        return { ...ragResult, chunks: reranked, stats: { ...ragResult.stats, reranked: reranked.length } };
+      }
+    } catch(e) {
+      console.warn('[P1-2 Rerank] échec silencieux:', e.message);
+    }
+    // Fallback : retourner ragResult intact si Haiku échoue
+    // Fallback : retourner ragResult intact si Haiku échoue
+    return ragResult;
+  }
+
+  // adocLastRefMap : stocke la map {n → {book_title, author, page_number}}
+  // générée par adocBuildRAGCtx pour être utilisée lors du rendu des citations
+  let adocLastRefMap = {};
+
+  function adocBuildRAGCtx(ragResult) {
+    if (!ragResult?.chunks?.length) return '';
+    // Construire la refMap pour les citations inline [REF:n]
+    adocLastRefMap = {};
+    ragResult.chunks.forEach((c, i) => {
+      adocLastRefMap[i + 1] = {
+        book_title : c.book_title || 'Référence',
+        author     : c.author || '',
+        page_number: c.page_number || '',
+        approach   : c.approach || '',
+      };
+    });
+    const { chunks, chunkLen, stats, isDeep } = ragResult;
+
+    const statsLine = stats
+      ? `[${stats.final} passages · ${stats.books || '?'} livres · SQL:${stats.sql} Vector:${stats.vector}${stats.booksSwept ? ' Sweep:'+stats.booksSwept+'livres' : ''}]`
+      : '';
+
+    let ctx = `\n\n═══ BIBLIOTHÈQUE DOCUMENTAIRE ${statsLine} ═══\n`;
+
+    if (isDeep) {
+      // Mode cours/document : grouper par livre, instruction de couverture totale
+      const byBook = {};
+      const bookOrder = [];
+      chunks.forEach(item => {
+        const book = item.book_title || 'Référence';
+        if (!byBook[book]) { byBook[book] = []; bookOrder.push(book); }
+        byBook[book].push(item);
+      });
+
+      const bookList = bookOrder.map(b => {
+        const author = byBook[b][0]?.author || '';
+        return `"${b}"${author ? ' ('+author+')' : ''} — ${byBook[b].length} passages`;
+      }).join(', ');
+
+      ctx += `MATÉRIAUX DISPONIBLES — ${bookOrder.length} ouvrages dans ta bibliothèque privée.\n`;
+      ctx += `Tu choisis ce qui nourrit vraiment ton propos : ${bookList}\n`;
+      ctx += `Utilise ce qui est pertinent. Ignore ce qui n'apporte rien. Va au-delà si nécessaire.\n\n`;
+
+      bookOrder.forEach(book => {
+        const items = byBook[book];
+        const author = items[0]?.author || '';
+        ctx += `▶ ${book}${author ? ' — ' + author : ''}\n`;
+        items.forEach((item, j) => {
+          const refN = ragResult.chunks.indexOf(item) + 1;
+          const qual = item._source?.includes('vector') ? '★' : '·';
+          ctx += `  [${refN}] ${qual} p.${item.page_number||'?'} · ${(item.content||'').substring(0, chunkLen).trim()}\n\n`;
+        });
+      });
+    } else {
+      // Mode chat/conseil : groupé par approche, compact
+      ctx += 'Matériaux de ta bibliothèque — utilise ce qui sert ton raisonnement.\n\n';
+      chunks.forEach((item, idx) => {
+        const refN = idx + 1;
+        const qual = item._source?.includes('+') ? '★★' : item._source === 'vector' ? '★' : '·';
+        ctx += `[${refN}] ${qual} ${item.book_title||'Référence'}${item.page_number ? ', p.'+item.page_number : ''}`;
+        ctx += item.author ? ` [${item.author}]` : '';
+        ctx += item.approach ? ` {${item.approach}}` : '';
+        ctx += '\n' + (item.content||'').substring(0, chunkLen).trim() + '\n\n';
+      });
+    }
+    return ctx;
+  }
+
+  // ── System prompt unifié ──
+  function adocBuildSystemPrompt(ragCtx, docCtx, plan) {
+    const ctxSession = adocSessionContext
+      ? '\n\nCONTEXTE DE TRAVAIL : ' + adocSessionContext : '';
+    const ctxPatient = adocPatientContext
+      ? '\n\nDOSSIER PATIENT ACTIF :\n' + adocPatientContext : '';
+    // Mémoire KV inter-sessions : injecter les 3 dernières séances
+    const ctxKvMemory = (adocKvHistory && adocKvHistory.length > 0)
+      ? '\n\nMÉMOIRE INTER-SESSIONS (patient : ' + adocKvPatientId + ') :\n' +
+        adocKvHistory.slice(0, 3).map((s, i) =>
+          `Séance ${i === 0 ? 'dernière' : i === 1 ? 'avant-dernière' : 'J-3'} (${s.date}) :\n${s.summary}`
+        ).join('\n\n')
+      : '';
+
+    const orientations = adocConversations
+      .filter(m => m.role === 'user')
+      .slice(-4)
+      .map(m => '- ' + m.content.substring(0, 120))
+      .join('\n');
+    const ctxHistory = orientations
+      ? '\n\nCONTEXTE DES ÉCHANGES PRÉCÉDENTS :\n' + orientations : '';
+
+    const _mode = (typeof adocCurrentMode !== 'undefined') ? adocCurrentMode : '';
+    const _modeDesc = (typeof adocModeDescriptions !== 'undefined') ? adocModeDescriptions : {};
+    const modeCtx = _mode && _mode !== 'standard'
+      ? '\n\n── MODE ACTIF : ' + _mode.toUpperCase() + ' ──\n' + (_modeDesc[_mode] || '') : '';
+
+    const clinicalOrientations = {
+      supervision: 'POSTURE : SUPERVISION CLINIQUE\nTon interlocuteur parle d\'un cas, d\'une séance, d\'une difficulté clinique. Tu n\'es pas là pour valider — tu apportes ce que son regard intérieur ne peut pas voir.\nTu penses à voix haute avec lui : hypothèses multiples, contre-transfert, angles non vus.\nTu poses des questions qui déplacent, pas qui rassurent.',
+      analyse_cas: 'POSTURE : ANALYSE DE CAS\nFormulation intégrative multi-axes : attachement → schémas → dynamique défensive → hypothèse étiologique → axes prioritaires.\nTon analyse doit apporter quelque chose que le thérapeute n\'avait pas vu. Pas résumer ce qu\'il sait déjà.',
+      intervention: 'POSTURE : INTERVENTION DIRECTE\nImpasse, blocage. Tu proposes une technique, une reformulation, un protocole applicable maintenant. Concret, directif, incarné. Pas de théorie — une réponse qui peut être utilisée dans les 24h.',
+      conceptualisation: 'POSTURE : CONCEPTUALISATION\nFormulation intégrative complète. Plan phasé. Reconceptualisation si nécessaire. Tu oses une lecture du cas que le thérapeute n\'a pas encore formulée.',
+      bibliographie: 'POSTURE : PENSEUR\nQuestion théorique, auteur, concept. Tu réponds avec ta propre compréhension — nourrie par la littérature, mais exprimée avec ta voix. Tu peux nuancer, corriger, ou enrichir ce que les livres disent.',
+      production: 'POSTURE : CRÉATEUR DE NIVEAU MONDIAL\nLivrable : conférence, formation, document professionnel, support orateur.\nLe standard n\'est pas académique — c\'est TED Global, Davos, AFPEP, séminaire international.\nTu crées un document qui transforme la pensée de l\'audience, pas qui la résume.\nThèse centrale originale. Progression narrative. Mémorabilité. Christophe parlera devant des professionnels exigeants — donne-lui un outil à la hauteur.',
+      chat: ''
+    };
+
+    const clinIntent = plan?.clinical_intent || 'bibliographie';
+    const orientation = clinicalOrientations[clinIntent] || clinicalOrientations.bibliographie;
+    const orientationBlock = orientation
+      ? '\n\n── ORIENTATION : ' + clinIntent.toUpperCase().replace('_',' ') + ' ──\n' + orientation : '';
+
+    // Contexte planner — information pour CC, pas ordre
+    let plannerCtx = '';
+    if (plan) {
+      plannerCtx = '\n\n── CONTEXTE PLANNER ──\n'
+        + 'Sujet : ' + (plan.topic_summary || '') + '\n'
+        + 'Intent perçu : ' + (plan.intent || '') + '\n'
+        + 'Audience estimée : ' + (plan.audience_type || 'praticien') + '\n'
+        + 'Registre estimé : ' + (plan.registre || 'clinique') + '\n'
+        + 'Format suggéré : ' + (plan.output_format || '') + '\n'
+        + 'Tu utilises ce contexte pour décider — pas pour obéir mécaniquement.';
+    }
+
+    // Contrainte de sortie — règles techniques non négociables
+    // ── CONTRAT DE SORTIE DYNAMIQUE v1.0 ────────────────────────────────────────────
+    // CC comprend son contexte d'execution et adapte sa sortie naturellement.
+    // MODE CHAT    : sortie texte/Markdown  → app hote gere rendu, citations, CSS
+    // MODE ARTEFACT: sortie HTML autonome   → fichier seul dans navigateur, self-contained
+    // FIX-XLSX-INTENT : intent tableau/comparatif force xlsx
+    const _fmtFromIntent = {
+      tableau: 'xlsx', comparatif: 'xlsx',
+      cours: 'html-visual', document: 'html-visual',
+      fiche: 'html', bibliographie: 'html',
+      supervision: 'chat', analyse_cas: 'chat',
+      intervention: 'chat', conceptualisation: 'chat', chat: 'chat'
+    };
+    const _intentOverridesXlsx = ['tableau', 'comparatif'].includes(plan?.intent);
+    const fmt = _intentOverridesXlsx
+      ? 'xlsx'
+      : (plan?.output_format || _fmtFromIntent[plan?.intent] || 'chat');
+
+    const _photoCtx = 'PHOTOS — systeme de resolution automatique :\n'
+      + "L'app hote (adocResolveImages) remplace data-pexels= par des vraies URLs apres ta reponse.\n"
+      + 'Syntaxe img  : <img data-pexels="couple therapy session" style="width:100%;height:220px;object-fit:cover" alt="">\n'
+      + 'Syntaxe fond : <div data-pexels="emotional distance couple" style="height:260px;background-size:cover;background-position:center"></div>\n'
+      + 'JAMAIS hardcoder une URL. JAMAIS JS pour les photos. Le Worker gere tout.';
+
+    const _isHtmlArtifact = ['html', 'html-visual', 'zip', 'pdf', 'xlsx', 'docx', 'pptx'].includes(fmt);
+    const _isHtmlDirect   = ['html', 'html-visual', 'zip', 'pdf'].includes(fmt);
+    const _isDataEmbed    = ['xlsx', 'docx', 'pptx'].includes(fmt);
+
+    const _execContext = _isHtmlDirect
+      ? "\nFORMAT : fichier HTML autonome. REGLE ABSOLUE :\n"
+        + "INTERDIT : backticks ```html ou ```excel, \"Je vais generer\", tout preambule ou commentaire.\n"
+        + "OBLIGATOIRE : premiere ligne = <!DOCTYPE html> — rien avant. Derniere ligne = </html>.\n"
+        + "Le fichier vivra SEUL dans un navigateur. Consequences :\n"
+        + "-> [REF:n] illisible hors app. Remplace par <sup title=\"Auteur, p.XX\">n</sup>.\n"
+        + "-> Charte C Concept&Dev OBLIGATOIRE : Montserrat + :root { --mer:#8FAFB1; --deep:#3A5658;\n"
+        + "   --vert-sauge:#C8D0C3; --beige:#D8CDBB; --sable:#E6D7C3; --surf:#F4F0EA;\n"
+        + "   --text:#2C3830; --muted:#7A8A82; --blanc:#FFFFFF }\n"
+        + "   body background: var(--sable). JAMAIS fond noir ni or ni violet.\n"
+        + "-> Layout editorial professionnel. JS self-contained.\n"
+        + "-> Fonctions app hote INEXISTANTES : openAssistDoc(), adocRenderCiteInline(), adocAddMsg()."
+      : _isDataEmbed
+      ? "\nFORMAT : HTML avec donnees embarquees. REGLE ABSOLUE :\n"
+        + "INTERDIT : backticks ```html, ```excel, Markdown, tableau Markdown, tout preambule.\n"
+        + "OBLIGATOIRE : premiere ligne = <!DOCTYPE html>. Donnees JSON dans <head>.\n"
+        + "Le systeme lit UNIQUEMENT le contenu du script id=xlsx-data ou script id=pptx-data.\n"
+        + "Si ce script est absent ou mal forme, le fichier ne sera PAS cree. Zero tolerance."
+      : "\nTu produis du texte rendu par l'application hote.\n"
+        + "L'app transforme [REF:n] en citations cliquables, Markdown en HTML.\n"
+        + "-> Citations : [REF:n] apres l'affirmation. Max 8. Pas dans les titres.\n"
+        + "-> Exemples : l'hypervigilance [REF:3]. Young pose 18 schemas [REF:7][REF:12].\n"
+        + "-> Reponds directement. Pas de meta-commentaire. Pas de \"Je vais\" ni preambule.";
+
+    const _fmtSpecific = fmt === 'xlsx'
+      ? "\nXLSX — STRUCTURE OBLIGATOIRE dans <head> :\n"
+        + "<scr" + "ipt id=\"xlsx-data\" type=\"application/json\">\n"
+        + '{"headers":["Col A","Col B","Col C"],"rows":[["val1","val2","val3"],["val4","val5","val6"]]}<\/script>\n'
+        + "headers = tableau de strings (noms colonnes).\n"
+        + "rows = tableau de tableaux (une ligne = un sous-tableau).\n"
+        + "INTERDIT : Markdown, tableau ASCII, texte libre. UNIQUEMENT ce JSON dans ce script."
+      : fmt === 'pptx'
+      ? "\nPPTX — STRUCTURE OBLIGATOIRE dans <head> :\n"
+        + "<scr" + "ipt id=\"pptx-data\" type=\"application/json\">\n"
+        + '[{"title":"Titre slide","bullets":["point 1","point 2"],"content":"texte","image_query":"3 mots anglais"}]<\/script>\n'
+        + "INTERDIT : Markdown, texte libre. UNIQUEMENT ce JSON dans ce script."
+      : fmt === 'pdf'
+      ? "\nPDF — format A4 : body max-width:210mm. Print-ready."
+      : fmt === 'docx'
+      ? "\nDOCX — HTML semantique : <h1>, <h2>, <p>, <table>, <ul>. Pas de styles inline complexes."
+      : '';
+
+    const outputConstraint = '\n\n── CONTRAT DE SORTIE ──\n'
+      + _execContext + '\n'
+      + _photoCtx + '\n'
+      + _fmtSpecific;
+
+    const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
+
+    return (
+      `Tu es le Conseiller Clinique (CC) de C Concept&Dev — Christophe Cattelain.
+
+Tu es un penseur de premier plan en psychothérapie, sciences humaines et communication.
+Tu penses en natif. Tu raisonnes, tu crées, tu questionnes.
+Ton niveau de référence : ce qu'on attend d'un conférencier ou auteur de rang mondial.
+
+─────────────────────────────────────────────────────
+TA POSTURE FONDAMENTALE
+─────────────────────────────────────────────────────
+Tu n'es pas une base de données. Tu n'es pas un compilateur de sources.
+Tu es un interlocuteur intellectuel de haut niveau.
+
+Quand on te pose une question, tu PENSES D'ABORD :
+— Quelle est la vraie question sous la question ?
+— Quel angle original, contre-intuitif, ou profondément juste personne ne voit encore ?
+— Qu'est-ce qu'un esprit de niveau Nobel ou TED Global dirait sur ce sujet ?
+
+La bibliothèque D1 (tes livres) est un matériau — comme un musicien a ses partitions.
+Un musicien qui a intégré Bach, Miles Davis et Coltrane ne "cite" pas quand il joue.
+Il crée. Les influences sont invisibles dans le résultat — elles le rendent meilleur.
+C'est exactement ça : tu as lu ces livres, ils t'ont formé, mais tu parles avec ta voix.
+
+─────────────────────────────────────────────────────
+CE QUE ÇA CHANGE CONCRÈTEMENT
+─────────────────────────────────────────────────────
+POUR UNE QUESTION CLINIQUE :
+  Ne commence pas par "selon Young" ou "Gottman dit que".
+  Commence par ta propre formulation du problème — puis tu peux appuyer sur une référence.
+
+POUR UN DOCUMENT DE FORMATION / CONFÉRENCE :
+  Le niveau de référence n'est pas "bon cours universitaire".
+  C'est : Jonathan Haidt sur les réseaux sociaux, Bessel van der Kolk au TED,
+  Brené Brown sur la vulnérabilité, Robert Sapolsky sur le comportement humain.
+  Des documents qui changent la façon dont les gens pensent — pas qui résument des livres.
+
+POUR UN LIVRABLE PROFESSIONNEL :
+  Tu te poses ces questions AVANT d'écrire — silencieusement :
+  1. Quelle est l'idée centrale que personne dans la salle n'a encore formulée ainsi ?
+  2. Quel est le moment "aha" que je veux provoquer chez cette audience précise ?
+  3. Quelle est la phrase ou l'image qui restera dans les têtes dans 6 mois ?
+  La forme suit cette réponse — jamais l'inverse.
+
+─────────────────────────────────────────────────────
+COMMENT UTILISER LA BIBLIOTHÈQUE D1
+─────────────────────────────────────────────────────
+Les passages D1 ci-dessous sont des matériaux bruts à ta disposition.
+Tu les utilises comme un orateur utilise ses fiches : pour nourrir ton propos,
+pas pour le construire. Tu choisis ce qui sert — tu ignores ce qui n'apporte rien.
+Tu peux aller au-delà, contredire, reformuler, enrichir avec tes propres connaissances
+et avec ce que tu trouves sur le web. La vérité n'est pas dans les livres — elle émerge
+du raisonnement.
+
+─────────────────────────────────────────────────────
+STANDARD DE QUALITÉ POUR LES LIVRABLES
+─────────────────────────────────────────────────────
+Un document de niveau mondial a :
+— Une thèse centrale claire et originale (pas un plan en trois parties académique)
+— Une progression narrative qui crée de la tension et de la résolution
+— Des exemples concrets, incarnés, mémorables — pas des définitions
+— Un registre adapté à l'audience sans jamais être condescendant
+— Une conclusion qui ouvre, pas qui ferme
+
+Pour Christophe en tant qu'orateur (conférences, formations, séminaires) :
+— Penser slides comme scénario, pas comme notes de cours
+— Chaque section = une transformation de la pensée de l'audience
+— Le "takeaway" doit être formulable en une phrase par chaque participant
+— L'émotion et le raisonnement doivent coexister
+
+Pour les livrables HTML visuels :
+— CHARTE GRAPHIQUE C CONCEPT&DEV — OBLIGATOIRE pour tout HTML produit :
+  Police principale : Montserrat (Google Fonts, weights 400/600/700)
+  Variables CSS à déclarer en :root :
+    --mer: #8FAFB1;        /* titres, bordures, boutons, accents */
+    --deep: #3A5658;       /* H1/H2, en-têtes tableau */
+    --vert-sauge: #C8D0C3; /* sections secondaires */
+    --beige: #D8CDBB;      /* zones interprétation */
+    --sable: #E6D7C3;      /* fond général */
+    --surf: #F4F0EA;       /* fond app */
+    --text: #2C3830;       /* corps de texte */
+    --muted: #7A8A82;      /* texte secondaire */
+    --blanc: #FFFFFF;      /* fond zones texte */
+  Fond body : var(--sable) ou var(--surf). JAMAIS fond noir #0a0a0a.
+  Accents : var(--mer) et var(--deep). JAMAIS or #d4af37 ni violet.
+  Cette charte est non négociable — identité visuelle C Concept&Dev.
+— Layout éditorial : hero header, sidebar colorée, callouts, citations en bloc
+— Design qui donne envie de lire — pas qui signale "c'est un rapport"
+— Tout JS self-contained
+
+${orientationBlock}
+
+${commonBase}`
+    );
+  }
+
+
+  // ── adocSend — Architecture agentique 2 passes ──
+  window.adocSend = async function() {
+    const input = document.getElementById('adoc-input');
+    const text  = input.value.trim();
+    if (!text || adocThinking) return;
+
+    adocThinking = true;
+    document.getElementById('adoc-send-btn').disabled = true;
+    input.value = ''; adocResize(input);
+
+    const welcome = document.getElementById('adoc-welcome');
+    if (welcome) welcome.style.display = 'none';
+
+    adocAddMsg('user', text);
+    adocConversations.push({ role: 'user', content: text });
+
+    const typingId = adocShowTyping();
+
+    try {
+    
+      const workerUrl = adocGetWorkerUrl();
+
   // ── Passe 1 : Planning (modèle rapide) ──
       adocUpdateTypingLabel(typingId, '🔍 Analyse de la demande…');
-      const plan = await adocPlanQuery(text);
+      // FIX-MULTI-PLAN : orchestre split + plan par Q + merge
+      let _multiResult = null;
+      try { _multiResult = await adocMultiPlan(text); } catch(_me) { console.warn('[FIX-MULTI-PLAN] err', _me); }
+      let plan = _multiResult?.plan || null;
+      let _precomputedRag = _multiResult?.ragResult || null;
+      console.log('[Planner]', plan ? JSON.stringify({intent:plan.intent,fmt:plan.output_format,multi:plan._multiPlan}) : 'NULL');
+      // FIX-PLAN-FALLBACK legacy guard
+      if (!plan || !plan.intent) {  // FIX-EMPTY-PLAN
+        const _q = text.toLowerCase();
+        const _iT = (_q.includes('excel') || _q.includes('tableau comparatif') || _q.includes('comparatif')) ? 'tableau'
+          : (_q.includes('support visuel') || _q.includes('conférence') || _q.includes('page web')) ? 'document'
+          : (_q.includes('cours') || _q.includes('formation')) ? 'cours'
+          : (_q.includes('fiche') || _q.includes('carrousel')) ? 'fiche'
+          : 'chat';
+        const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',chat:'chat'}[_iT]||'chat';
+        const _tw = text.replace(/[^a-z0-9\u00C0-\u024F\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
+        const _w0 = text.split(/\s+/)[0] || 'therapie';
+        const _sql = 'SELECT book_title,author,chapter,page_number,content,approach FROM chunks WHERE content LIKE \'%'+_w0+'%\' LIMIT 15';
+        plan = { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
+          sql_queries:[_sql], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
+          max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production') };
+        console.warn('[FIX-PLAN-FALLBACK] plan reconstruit :', _iT, _fT);
+      }
+
+      // ── M1 : Enrichissement SQL parallèle — Unlimited Token System ──
+      // Second Haiku génère 3 SQL supplémentaires (angles différents)
+      // lancé EN MÊME TEMPS que adocExecutePlan via Promise.all — zéro latence
+      const adocEnrichSql = async (basePlan) => {
+        if (!basePlan?.needs_rag || !basePlan?.topic_summary) return [];
+        try {
+          const enrichPrompt = 'Tu es expert en recherche documentaire clinique.\n'
+            + 'Requête planifiée — topic: ' + basePlan.topic_summary
+            + ', intent: ' + basePlan.intent
+            + ', approach: ' + (basePlan.approach_filter || 'null') + '\n'
+            + 'SQL existantes: ' + JSON.stringify(basePlan.sql_queries || []) + '\n\n'
+            + 'Génère 3 nouvelles SQL DIFFÉRENTES (synonymes, termes anglais, auteurs connexes).\n'
+            + 'Syntaxe : SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE content LIKE \'%terme%\' LIMIT 10\n'
+            + 'Réponds UNIQUEMENT avec un tableau JSON : ["sql1","sql2","sql3"]';
+          const r = await fetch(adocGetWorkerUrl(), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payload: {
+              model: 'claude-haiku-4-5-20251001', max_tokens: 600,
+              messages: [{ role: 'user', content: enrichPrompt }]
+            }})
+          });
+          const d = await r.json();
+          const txt = d.content?.[0]?.text || '[]';
+          const jsonMatch = txt.match(/\[[\s\S]*\]/);
+          const extra = JSON.parse(jsonMatch ? jsonMatch[0] : '[]');
+          return Array.isArray(extra) ? extra.filter(s => typeof s === 'string' && s.toUpperCase().includes('SELECT')) : [];
+        } catch(e) { return []; }
+      };
 
       // ── Passe 2 : Récupération chunks D1 ──
       let ragResult = { chunks: [], chunkLen: 900 };
@@ -39068,7 +39434,26 @@ ${commonBase}`
         adocUpdateTypingLabel(typingId, isDeepIntent
           ? '📚 Scan exhaustif bibliothèque…'
           : '📚 Scan bibliothèque…');
-        ragResult = await adocExecutePlan(plan);
+        // M1 : adocExecutePlan + adocEnrichSql en parallèle (Promise.all)
+        const [ragRes, extraSql] = await Promise.all([
+          _precomputedRag ? Promise.resolve(_precomputedRag) : adocExecutePlan(plan),
+          adocEnrichSql(plan)
+        ]);  // FIX-MULTI-PLAN : rag precompute si multi
+        ragResult = ragRes;
+        // Fusionner chunks des SQL supplémentaires (sans doublons)
+        if (extraSql.length > 0) {
+          const seenSql = new Set((plan.sql_queries || []).map(s => s.trim().toLowerCase().substring(0, 60)));
+          const newSql = extraSql.filter(s => !seenSql.has(s.trim().toLowerCase().substring(0, 60)));
+          if (newSql.length > 0) {
+            const extraResults = await Promise.all(newSql.map(sql => adocD1Query(sql).catch(() => null)));
+            const extraChunks = extraResults.flat().filter(Boolean)
+              .filter(r => r.content && !ragResult.chunks.some(c => c.content === r.content));
+            if (extraChunks.length > 0) {
+              ragResult = { ...ragResult, chunks: [...ragResult.chunks, ...extraChunks].slice(0, 120) };
+            }
+          }
+        }
+        ragResult = ragResult;
 
         // ── Passe 2.5 : Re-ranking Haiku (P1-2) ──
         // Uniquement pour intents exhaustifs (cours/document/comparatif/fiche/tableau)
@@ -39078,17 +39463,31 @@ ${commonBase}`
         }
       }
 
-      // ── Passe 2b : Fallback web_search si D1 insuffisant ──
-      // Comme Claude.ai : si la bibliothèque locale ne couvre pas le sujet,
-      // on active web_search sur la passe 3 pour que CC puisse chercher lui-même.
-      // Seuil relevé à 8 : avec sweep universel, <8 chunks = sujet vraiment absent de D1
-      const ragInsuffisant = ragResult.chunks.length < 8;
-      if (ragInsuffisant && plan?.needs_rag !== false) {
-        adocUpdateTypingLabel(typingId, '🌐 Bibliothèque insuffisante — recherche web…');
-        console.log('[RAG Fallback] D1 chunks:', ragResult.chunks.length, '< 5 — activation web_search sur CC');
+      // ── Passe 3 : Architecture Mixte Permanente ──────────────────────────────
+      // CC = meilleur des trois mondes, toujours simultanément :
+      //   • Bibliothèque D1   → contexte documentaire injecté dans le system
+      //   • web_search        → toujours disponible, CC décide s'il l'utilise
+      //   • Raisonnement LLM  → ses propres connaissances, jamais bridées
+      // Il n'y a plus de "fallback" — tout est mixte par défaut.
+      // ─────────────────────────────────────────────────────────────────────────
+      const d1Coverage = ragResult.chunks.length;
+      if (d1Coverage < 5) {
+        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 Raisonnement + 🌐 Web…');
+      } else if (d1Coverage < 15) {
+        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🌐 Web disponible…');
+      } else {
+        adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
       }
 
+      // FIX-DEBUG-PIPELINE : log avant chaque etape pour diagnostiquer troncature
+      console.log('[Pipeline] chunks avant systemPrompt:', ragResult?.chunks?.length || 0);
+      // Guard : limiter chunks si trop nombreux (evite system prompt > 100k tokens)
+      if (ragResult?.chunks?.length > 50) {
+        ragResult = { ...ragResult, chunks: ragResult.chunks.slice(0, 50) };
+        console.log('[Pipeline] chunks limites a 50 (guard token overflow)');
+      }
       const ragCtx = adocBuildRAGCtx(ragResult);
+      console.log('[Pipeline] ragCtx length:', ragCtx?.length || 0);
 
       let docCtx = '';
       if (adocActiveDoc !== null) {
@@ -39101,39 +39500,54 @@ ${commonBase}`
       // Auto-résumé si session longue (async, non bloquant)
       adocAutoSummarize().catch(() => {});
 
-      const workerUrl = adocGetWorkerUrl();
-      const maxTok = plan?.max_tokens || 6000; // CC décide librement — assez de tokens pour un doc riche
       // Guard : fenêtre -12, garantir alternance user/assistant, premier message = user
       let messages = adocConversations.slice(-12).map(m => ({ role: m.role, content: m.content }));
-      // Supprimer les messages consécutifs de même rôle (garder le dernier)
       messages = messages.filter((m, i, arr) => i === 0 || m.role !== arr[i-1].role);
-      // Garantir que le premier message est 'user'
       if (messages.length > 0 && messages[0].role === 'assistant') {
         messages.unshift({ role: 'user', content: '[contexte précédent]' });
       }
-      // Garantir que le dernier message est 'user' (le message courant)
       if (messages.length === 0 || messages[messages.length-1].role !== 'user') {
         messages.push({ role: 'user', content: text });
       }
 
-      adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
+      // ── M3 : Route vers adocLongDoc pour documents longs ────────────
+      // Critère : intent=cours|document ET max_tokens planifiés >= 4000
+      const _isLongDoc = ['cours','document'].includes(plan?.intent)
+        && (plan?.max_tokens || 0) >= 4000;
 
-      const MODEL = 'claude-sonnet-4-5-20251001';
+      if (_isLongDoc && typeof adocLongDoc === 'function') {
+        adocUpdateTypingLabel(typingId, '📖 Génération document long par chapitres…');
+        const longDocMsgId = adocAddMsg('assistant', '', [], true);
+        const systemPromptLD = adocBuildSystemPrompt(ragCtx, plan, docCtx);
+        const fullDocResult = await adocLongDoc(text, plan, ragResult, systemPromptLD, longDocMsgId, workerUrl);
+        if (fullDocResult) {
+          if (adocLastUsage) adocShowCost(longDocMsgId, adocLastUsage);
+          adocConversations.push({ role: 'assistant', content: fullDocResult });
+          adocExchangeCount++;
+          if (adocExchangeCount % 4 === 0) adocAccumulateSessionContext(plan, fullDocResult).catch(()=>{});
+          if (adocKvPatientId && adocExchangeCount % 3 === 0) adocKvAutoSave().catch(()=>{});
+          return;
+        }
+        // Si adocLongDoc échoue → fallback vers stream normal ci-dessous
+      }
 
-      // ── Streaming SSE — plus de timeout 524, tokens en temps réel ──
+      const MODEL = 'claude-sonnet-4-5-20250929';
+      window._adocCurrentModel = MODEL;
+
+      // ── Appel streaming mixte — web_search toujours disponible ──
+      // tool_choice:auto → CC décide librement s'il cherche sur le web
+      // Le streaming SSE gère nativement les blocs text + tool_use interleaved
       const response = await fetch(workerUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload: {
           model: MODEL,
           max_tokens: 16000,
-          // Streaming désactivé si web_search actif (tool_use multi-turn incompatible stream)
-          stream: !ragInsuffisant,
+          stream: true,
           system: systemPrompt,
           messages,
-          ...(ragInsuffisant ? {
-            tools: [{ type: 'web_search_20250305', name: 'web_search' }]
-          } : {})
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          tool_choice: { type: 'auto' }
         }})
       });
 
@@ -39144,88 +39558,145 @@ ${commonBase}`
 
       let reply = '';
       let streamMsgId = null;
+      let usedWebSearch = false;
 
-      if (!ragInsuffisant) {
-        // ── Mode streaming SSE (D1 suffisant) ──
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+      // ── Streaming SSE unifié — gère text_delta + tool_use en temps réel ──
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
 
-        adocRemoveTyping(typingId);
-        streamMsgId = adocAddMsg('assistant', '', [], true);
+      adocRemoveTyping(typingId);
+      streamMsgId = adocAddMsg('assistant', '', [], true);
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop();
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') continue;
-            try {
-              const evt = JSON.parse(data);
-              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-                reply += evt.delta.text;
-                adocUpdateStreamMsg(streamMsgId, reply);
-              }
-              // P2-3 : capturer les tokens depuis message_delta et message_start
-              if (evt.type === 'message_start' && evt.message?.usage) {
-                adocLastUsage = { input: evt.message.usage.input_tokens || 0, output: 0 };
-              }
-              if (evt.type === 'message_delta' && evt.usage) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const evt = JSON.parse(data);
+
+            // Texte normal — affiché en streaming temps réel
+            if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+              reply += evt.delta.text;
+              adocUpdateStreamMsg(streamMsgId, reply);
+            }
+
+            // CC déclenche une recherche web — indicateur discret dans l'UI
+            if (evt.type === 'content_block_start' && evt.content_block?.type === 'tool_use'
+                && evt.content_block.name === 'web_search') {
+              usedWebSearch = true;
+              const ind = document.createElement('div');
+              ind.id = 'adoc-ws-ind-' + streamMsgId;
+              ind.style.cssText = 'font-size:10px;color:#8FAFB1;padding:3px 10px;opacity:0.8;font-style:italic;';
+              ind.textContent = '🌐 CC consulte le web…';
+              const msgEl = document.getElementById(streamMsgId);
+              if (msgEl && !document.getElementById(ind.id)) msgEl.appendChild(ind);
+            }
+
+            // Recherche web terminée — retirer l'indicateur
+            if (evt.type === 'content_block_stop') {
+              const ind = document.getElementById('adoc-ws-ind-' + streamMsgId);
+              if (ind) ind.remove();
+            }
+
+            // Tokens usage
+            if (evt.type === 'message_start' && evt.message?.usage) {
+              adocLastUsage = { input: evt.message.usage.input_tokens || 0, output: 0 };
+            }
+            if (evt.type === 'message_delta') {
+              if (evt.usage) {
                 if (!adocLastUsage) adocLastUsage = { input: 0, output: 0 };
                 adocLastUsage.output = evt.usage.output_tokens || 0;
               }
-              if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || ''));
-            } catch(parseErr) { /* SSE malformée */ }
-          }
+              if (evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
+            }
+            if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || ''));
+          } catch(parseErr) { /* SSE malformée — ignorer */ }
         }
-      } else {
-        // ── Mode JSON + web_search fallback (D1 insuffisant) ──
-        adocUpdateTypingLabel(typingId, '🌐 CC consulte le web…');
-        const data = await response.json();
-
-        let currentMessages = [...messages];
-        let currentData = data;
-
-        while (currentData.stop_reason === 'tool_use') {
-          const toolUseBlocks = currentData.content.filter(b => b.type === 'tool_use');
-          const toolResults = toolUseBlocks.map(block => ({
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content: ''
-          }));
-          currentMessages = [
-            ...currentMessages,
-            { role: 'assistant', content: currentData.content },
-            { role: 'user', content: toolResults }
-          ];
-          const continueRes = await fetch(workerUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload: {
-              model: MODEL, max_tokens: 16000, stream: false,
-              system: systemPrompt, messages: currentMessages,
-              tools: [{ type: 'web_search_20250305', name: 'web_search' }]
-            }})
-          });
-          currentData = await continueRes.json();
-        }
-
-        reply = (currentData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-        // P2-3 : capturer usage en mode JSON
-        if (currentData.usage) {
-          adocLastUsage = { input: currentData.usage.input_tokens || 0, output: currentData.usage.output_tokens || 0 };
-        }
-        adocRemoveTyping(typingId);
-        streamMsgId = adocAddMsg('assistant', '', [], true);
-        adocUpdateStreamMsg(streamMsgId, reply);
-        console.log('[RAG Fallback] web_search utilise — D1 chunks insuffisants');
       }
 
+      console.log('[Mixte]', usedWebSearch ? 'web_search utilisé' : 'pas de web_search', '— D1:', d1Coverage, 'chunks');
+
       if (!reply) throw new Error('Réponse vide du modèle.');
+
+      // ── M2 : Continuation automatique — Unlimited Token System v1.0 ──────
+      // Si Sonnet s'arrête sur max_tokens → on continue immédiatement, jusqu'à 8 fois
+      const MAX_CONTINUATIONS = 8;
+      let continuationCount = 0;
+      while (adocLastStopReason === 'max_tokens' && continuationCount < MAX_CONTINUATIONS) {
+        continuationCount++;
+        adocLastStopReason = null;
+
+        // Badge discret [suite N] dans l'UI
+        const badgeEl = document.createElement('span');
+        badgeEl.style.cssText = 'display:inline-block;font-size:10px;color:#8FAFB1;background:rgba(143,175,177,0.15);border:1px solid rgba(143,175,177,0.3);border-radius:10px;padding:1px 8px;margin:4px 0;font-style:italic;';
+        badgeEl.textContent = `▶ suite ${continuationCount}`;
+        const msgEl = document.getElementById(streamMsgId);
+        if (msgEl) msgEl.appendChild(badgeEl);
+
+        // Appel continuation — on passe le texte déjà généré comme dernier assistant
+        const contMessages = [
+          ...adocConversations.slice(-10).map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: text },
+          { role: 'assistant', content: reply }
+        ];
+        // Dédoublonner les rôles adjacents
+        const contMsgsSafe = contMessages.filter((m, i, arr) => i === 0 || m.role !== arr[i-1].role);
+
+        const contResp = await fetch(workerUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload: {
+            model: MODEL,
+            max_tokens: 16000,
+            stream: true,
+            system: systemPrompt,
+            messages: [...contMsgsSafe, { role: 'user', content: 'Continue exactement là où tu t\'en étais arrêté, sans résumer ni répéter.' }],
+            tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+            tool_choice: { type: 'auto' }
+          }})
+        });
+
+        if (!contResp.ok) break; // échec silencieux — on garde ce qu'on a
+
+        const contReader = contResp.body.getReader();
+        let contBuffer = '';
+        let contChunk = '';
+
+        while (true) {
+          const { done, value } = await contReader.read();
+          if (done) break;
+          contBuffer += decoder.decode(value, { stream: true });
+          const cLines = contBuffer.split('\n');
+          contBuffer = cLines.pop();
+          for (const cl of cLines) {
+            if (!cl.startsWith('data: ')) continue;
+            const cd = cl.slice(6).trim();
+            if (cd === '[DONE]') continue;
+            try {
+              const ce = JSON.parse(cd);
+              if (ce.type === 'content_block_delta' && ce.delta?.type === 'text_delta') {
+                contChunk += ce.delta.text;
+                adocUpdateStreamMsg(streamMsgId, reply + contChunk);
+              }
+              if (ce.type === 'message_delta') {
+                if (ce.usage && adocLastUsage) adocLastUsage.output += ce.usage.output_tokens || 0;
+                if (ce.delta?.stop_reason) adocLastStopReason = ce.delta.stop_reason;
+              }
+            } catch(e) { /* SSE malformée */ }
+          }
+        }
+        reply += contChunk;
+        adocUpdateStreamMsg(streamMsgId, reply);
+      }
+      // ── Fin M2 ───────────────────────────────────────────────────────────────────
 
       // ── Pipeline artifact unifié ──
       await adocHandleReply(reply, plan, ragResult?.chunks || []);
@@ -39284,12 +39755,101 @@ ${commonBase}`
 
   // ── Entrée principale : appelée après chaque réponse LLM ──
   // RÈGLE : le fmt déclaré par le planner a TOUJOURS priorité sur la forme de la réponse
-  async function adocHandleReply(reply, plan, citations) {
-    const fmt   = plan?.output_format || 'chat';
-    const topic = plan?.topic_summary || 'Document';
-    const trimmed    = reply.trim();
-    const isHtmlDoc  = trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html');
+  // ── adocExtractPayload — Normalisation robuste des réponses LLM ─────────────
+  // Problème : le LLM enveloppe parfois les livrables dans ```html, ```excel,
+  // ou préfixe avec "Je vais générer..." avant de livrer le contenu.
+  // Solution : extraire intelligemment le payload réel selon le fmt attendu.
+  // RÈGLE : toute string JS contenant la balise script (ouvrante ou fermante)
+  // doit la décomposer par concaténation (ex: "<" + "script") — sinon le parser HTML
+  // ferme le bloc courant et casse window.openAssistDoc.
+  function adocExtractPayload(raw, fmt) {
+    const t = raw.trim();
 
+    // ── 1. Extraction depuis backticks ────────────────────────────────
+    // ```html ... ```, ```excel ..., ```json ..., etc.
+    const backtickMatch = t.match(/```(?:\w+)?\s*([\s\S]*?)```/i);  // FIX-BT-UNIVERSAL
+    if (backtickMatch) {
+      const inner = backtickMatch[1].trim();
+      if (inner.length > 50) return adocExtractPayload(inner, fmt);
+    }
+
+    // ── 2. Extraction HTML depuis préambule conversationnel ───────────
+    // "Je vais générer... Voici : <!DOCTYPE html>..."
+    const htmlStart = t.search(/<!DOCTYPE\s+html|<html[\s>]/i);
+    if (htmlStart >= 0) {
+      return t.slice(htmlStart).trim();
+    }
+
+    // ── 3. Pour xlsx/pptx/docx : extraire le script de données ───────
+    // IMPORTANT : balises script décomposées par concaténation pour ne pas fermer le bloc JS courant
+    if (['xlsx','pptx','docx'].includes(fmt)) {
+      const dataId = fmt === 'pptx' ? 'pptx-data' : fmt === 'docx' ? 'docx-data' : 'xlsx-data';
+      // Regex avec balises décomposées (concaténation) pour ne pas casser le parser HTML
+      const reScript = new RegExp('<scr' + 'ipt[^>]+id=["\']' + dataId + '["\'][^>]*>([\s\S]*?)<\/sc' + 'ript>', 'i');
+      const scriptMatch = t.match(reScript);
+      if (scriptMatch) {
+        // Reconstruire HTML minimal — balises construites par concaténation (jamais littérales)
+        const open  = '<' + 'script id="' + dataId + '" type="application/json">';
+        const close = '<' + '/script>';
+        return '<!DOCTYPE html><html><head>' + open + scriptMatch[1].trim() + close + '</head><body></body></html>';
+      }
+      // Fallback : JSON brut produit par le LLM
+      const jsonMatch = t.match(/(\{[\s\S]{20,}\}|\[[\s\S]{20,}\])/);
+      if (jsonMatch) {
+        const open  = '<' + 'script id="' + dataId + '" type="application/json">';
+        const close = '<' + '/script>';
+        return '<!DOCTYPE html><html><head>' + open + jsonMatch[1].trim() + close + '</head><body></body></html>';
+      }
+    }
+
+    // ── 4. Aucune transformation nécessaire ───────────────────────────
+    return t;
+  }
+  async function adocHandleReply(reply, plan, citations) {
+    // FIX-HANDLE-REPLY-FMT : intent override + normalisation format composite
+    const _fmtRaw = plan?.output_format || 'chat';
+    const _FMT_PRIORITY = ['xlsx','pptx','docx','pdf','zip','html-visual','html','txt','chat'];
+    const _fmtNorm = _fmtRaw.split(/[|,;]/).map(s => s.trim())
+      .find(v => _FMT_PRIORITY.includes(v)) || 'chat';
+    // Override : intent tableau/comparatif -> xlsx ; cours/document -> html-visual
+    // Couvre le cas Planner Haiku retourne output_format=chat/html pour ces intents
+    const _INTENT_FMT_OVERRIDE = {
+      tableau: 'xlsx', comparatif: 'xlsx',
+      cours: 'html-visual', document: 'html-visual'
+    };
+    const fmt = _INTENT_FMT_OVERRIDE[plan?.intent] || _fmtNorm;
+    const topic = plan?.topic_summary || 'Document';
+
+    // ── Court-circuit data URI — LLM a produit directement le fichier binaire ──
+    // Détection universelle : data:application/vnd.*, data:application/zip, data:application/octet-stream
+    // Peut être dans le texte brut ou extrait des backticks par le LLM
+    const _dataUriMatch = reply.match(/data:(application\/(?:vnd\.[\w.+-]+|zip|octet-stream|x-[\w-]+));base64,([A-Za-z0-9+\/]+=*)/i);
+    if (_dataUriMatch && !['chat','html','html-visual','txt'].includes(fmt)) {  // FIX-BINARY-COND-UNIVERSAL
+      try {
+        const _mime = _dataUriMatch[1];
+        const _b64  = _dataUriMatch[2];
+        const _bin  = atob(_b64);
+        const _arr  = new Uint8Array(_bin.length);
+        for (let i = 0; i < _bin.length; i++) _arr[i] = _bin.charCodeAt(i);
+        const _blob = new Blob([_arr], { type: _mime });
+        const _url  = URL.createObjectURL(_blob);
+        const _ext  = '.' + fmt;  // FIX-EXT-UNIVERSAL — fmt normalisé par _FMT_PRIORITY
+        const _slug = (topic || 'document').replace(/[^a-z0-9_\-\s]/gi,'').trim().replace(/\s+/g,'-') || 'document';
+        const _a    = document.createElement('a');
+        _a.href     = _url;
+        _a.download = _slug + _ext;
+        document.body.appendChild(_a);
+        _a.click();
+        document.body.removeChild(_a);
+        setTimeout(() => URL.revokeObjectURL(_url), 5000);
+        adocAddMsg('assistant', '✅ Fichier `' + _a.download + '` généré directement par le modèle et téléchargé.', citations);
+        return;
+      } catch(_e) { console.warn('[adocHandleReply] data URI decode failed:', _e); }
+    }
+
+    // ── Extraction robuste — indépendante de la discipline du LLM ──
+    const trimmed   = adocExtractPayload(reply.trim(), fmt);
+    const isHtmlDoc = trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html');
     // ── Résolution universelle images (FLUX + Pexels) ───────────────
     // Tout HTML produit par le LLM passe ici, quelque soit le format :
     // pdf, zip, html, pptx, docx, xlsx, carrousel, tableau, fiche, script...
@@ -39311,6 +39871,50 @@ ${commonBase}`
       const htmlSrc  = isResolvedHtml ? adocRepairHTML(resolvedTrimmed) : null;
       const markdown = isResolvedHtml ? adocHtmlToMarkdown(resolvedTrimmed) : resolvedTrimmed;
       await adocDeliverArtifact({ markdown, html: htmlSrc, topic, fmt, citations, autoGenerate: true });
+      // FIX-MULTI-RENDER : scanner le reply brut pour d'autres blocs HTML (ex: Q10 html-visual)
+      // Un message multi-Q peut contenir xlsx (Q6) + page HTML (Q10) + texte (Q9/Q15/Q18)
+      if (plan?._multiPlan) {
+        const _replyFull = reply || '';
+        // Trouver tous les blocs <!DOCTYPE html>...(fin naturelle) dans le reply
+        // Heuristique : chercher <!DOCTYPE html> ou ```html ... ``` apres le premier bloc
+        const _htmlBlocks = [];
+        // Chercher blocs backtick html
+        const _btRe = /```html([\s\S]*?)```/gi;
+        let _btm;
+        while ((_btm = _btRe.exec(_replyFull)) !== null) {
+          const _blk = _btm[1].trim();
+          if (_blk.startsWith('<!DOCTYPE') || _blk.startsWith('<html')) _htmlBlocks.push(_blk);
+        }
+        // Chercher blocs DOCTYPE nus (pas dans backticks)
+        const _dtRe = /<!DOCTYPE\s+html[\s\S]{500,}?(?=\n#{1,3}\s|\nQ\d+|\n\d+[\.:)]|\n---+|$)/gi;
+        let _dtm;
+        while ((_dtm = _dtRe.exec(_replyFull)) !== null) {
+          const _blk = _dtm[0].trim();
+          // Eviter de re-livrer le bloc xlsx deja traite
+          if (!_blk.includes('xlsx-data') && !_blk.includes('docx-data') && !_blk.includes('pptx-data')) {
+            _htmlBlocks.push(_blk);
+          }
+        }
+        // Livrer chaque bloc HTML trouve
+        for (const _hblk of _htmlBlocks) {
+          if (_hblk.length > 200) {
+            console.log('[FIX-MULTI-RENDER] livraison bloc html-visual (' + _hblk.length + ' chars)');
+            const _subPlans = plan._subPlans || [];
+            const _htmlPlan = _subPlans.find(p => p.output_format === 'html-visual' || p.output_format === 'html');
+            const _htmlTopic = _htmlPlan?.topic_summary || topic;
+            await adocDeliverArtifact({ html: adocRepairHTML(_hblk), topic: _htmlTopic, fmt: 'zip', citations, autoGenerate: true });
+          }
+        }
+        // Livrer aussi le texte conversationnel residuel (Q9/Q15/Q18)
+        const _textOnly = _replyFull
+          .replace(/```html[\s\S]*?```/gi, '')
+          .replace(/<!DOCTYPE\s+html[\s\S]{500,}?(?=\nQ\d+|\n\d+[\.:)]|\n---+|$)/gi, '')
+          .replace(new RegExp('<scr' + 'ipt[^>]*id=["\']xlsx-data["\'],[\\s\\S]*?<\/sc' + 'ript>', 'gi'), '')
+          .trim();
+        if (_textOnly.length > 100 && !/^<!DOCTYPE/i.test(_textOnly)) {
+          adocAddMsg('assistant', _textOnly, citations);
+        }
+      }
       return;
     }
 
@@ -39319,6 +39923,9 @@ ${commonBase}`
       const repairedHtml = adocRepairHTML(resolvedTrimmed);
       if (fmt === 'pdf') {
         await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'pdf', citations, autoGenerate: true });
+      } else if (fmt === 'html-visual') {
+        // html-visual → ZIP (HTML standalone téléchargeable, pas besoin de Browser Rendering)
+        await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'zip', citations, autoGenerate: true });
       } else if (fmt === 'zip') {
         await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'zip', citations, autoGenerate: true });
       } else {
@@ -39601,8 +40208,25 @@ ${commonBase}`
       setTimeout(() => adocMarkExpired(storeKey), _expDelay);
 
     } catch (err) {
-      adocUpdateArtifactCardError(storeKey, err.message);
       console.error('Artifact error:', err);
+      // ── FALLBACK PDF : si le Worker /generate-pdf échoue, ouvrir en mode impression ──
+      if (fmt === 'pdf' && html) {
+        console.warn('[PDF-FALLBACK] Worker indisponible, basculement sur impression navigateur');
+        const printCSS = '<style>@media print{body{margin:0}}.adoc-print-bar{position:fixed;top:0;left:0;right:0;background:#3A5658;color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;}</style>';
+        const printBar = '<div class="adoc-print-bar"><span>📄 Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:#8FAFB1;color:#2C3830;border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">🖨️ Enregistrer PDF</button></div>';
+        const repairedHtml = adocRepairHTML(html);
+        const htmlWithPrint = repairedHtml.replace('</head>', printCSS + '</head>').replace('<body', '<body').replace(/>/, '>' + printBar);
+        const blobUrl = URL.createObjectURL(new Blob([htmlWithPrint], { type: 'text/html;charset=utf-8' }));
+        // Mettre à jour la carte avec mode fallback
+        window._adocArtifacts[storeKey] = Object.assign(window._adocArtifacts[storeKey] || {}, { html: repairedHtml, htmlBlobUrl: blobUrl, name: safeName, fmt: 'pdf-fallback' });
+        adocUpdateArtifactCard(storeKey, null, blobUrl, 'pdf', null);
+        adocAddSidebarEntry(topic, 'pdf', storeKey, null);
+        // Ouvrir directement dans un nouvel onglet
+        const w = window.open(blobUrl, '_blank');
+        if (!w) { const a = document.createElement('a'); a.href = blobUrl; a.target = '_blank'; a.click(); }
+      } else {
+        adocUpdateArtifactCardError(storeKey, err.message);
+      }
     }
   }
 
@@ -39721,7 +40345,9 @@ ${commonBase}`
           + '</p></object>'
           + '<div style="position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,rgba(255,255,255,0.8));pointer-events:none;"></div>'
         + '</div>';
-    } else if (fmt === 'zip' && artSrc?.htmlBlobUrl) {
+    } else if (fmt === 'pdf' && !embedUrl && artSrc?.htmlBlobUrl) {
+      // Fallback PDF : aperçu iframe du HTML source
+      previewHtml = '<div style="position:relative;height:340px;background:#F4F0EA;border-bottom:1px solid #D8CDBB;">'        + '<iframe src="' + artSrc.htmlBlobUrl + '" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-same-origin allow-scripts" loading="lazy"></iframe>'        + '<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,rgba(244,240,234,0.9));pointer-events:none;"></div>'        + '<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:3px 8px;border-radius:4px;">⚠️ Mode impression (Worker PDF indisponible)</div>'        + '</div>';    } else if (fmt === 'zip' && artSrc?.htmlBlobUrl) {
       previewHtml = '<div style="border-bottom:1px solid #D8CDBB;">'
         + '<div style="padding:6px 12px;background:#EDE8F8;font-size:10px;color:#5B4A8A;font-weight:700;">'
         + '📦 Contenu de l\u0027archive : <code style="background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">index.html</code> '
@@ -39748,7 +40374,9 @@ ${commonBase}`
         '</div>' +
         (downloadUrl
           ? '<button data-key="' + storeKey + '" data-action="download" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ Télécharger</button>'
-          : '<span style="font-size:11px;opacity:0.7;">⏳ Génération…</span>') +
+          : (artSrc?.htmlBlobUrl && (fmt === 'pdf' || artSrc?.fmt === 'pdf-fallback'))
+            ? '<button onclick="(function(){var w=window.open(window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl,\'_blank\');if(!w){var a=document.createElement(\'a\');a.href=window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl;a.target=\'_blank\';a.click();}})()" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️ Imprimer → PDF</button>'
+            : '<span style="font-size:11px;opacity:0.7;">⏳ Génération…</span>') +
       '</div>' +
       previewHtml +
     '</div>';
@@ -40737,7 +41365,7 @@ ${body}
     const art = window._adocArtifacts?.[storeKey];
     if (!art) return;
     const printCSS = '<style>@media print { @page { size: A4; margin: 15mm 18mm; } body { font-family: Arial, sans-serif; font-size: 11pt; } h1{font-size:20pt;} h2{font-size:15pt;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ccc;padding:5pt;} .no-print{display:none!important;} }</style>'
-      + '<script>window.addEventListener("load",function(){var b=document.createElement("div");b.style.cssText="position:fixed;top:0;left:0;right:0;background:#3A5658;color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;";b.innerHTML=\'<span>📄 Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:#8FAFB1;color:#2C3830;border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">🖨️ Enregistrer PDF</button>\';document.body.insertBefore(b,document.body.firstChild);document.body.style.paddingTop="50px";});<\/script>';
+      + '<scr' + 'ipt>window.addEventListener("load",function(){var b=document.createElement("div");b.style.cssText="position:fixed;top:0;left:0;right:0;background:#3A5658;color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;";b.innerHTML=\'<span>📄 Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:#8FAFB1;color:#2C3830;border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">🖨️ Enregistrer PDF</button>\';document.body.insertBefore(b,document.body.firstChild);document.body.style.paddingTop="50px";});<\/script>';
     const repairedHtml = adocRepairHTML(art.html);
     const htmlWithPrint = repairedHtml.replace('</head>', printCSS + '</head>');
     const blob = new Blob([htmlWithPrint], { type: 'text/html;charset=utf-8' });
@@ -41000,7 +41628,7 @@ ${body}
   // ── P2-3 : Affichage coût estimé ──────────────────────────────────────────
   // Tarifs approximatifs en € (mars 2026) — Sonnet 4 / Opus 4
   const COST_RATES = {
-    'claude-sonnet-4-5-20251001': { in: 0.000003,   out: 0.000015   },  // $3/$15 per Mtok
+    'claude-sonnet-4-5-20250929': { in: 0.000003,   out: 0.000015   },  // $3/$15 per Mtok
     'claude-opus-4-5-20251001':   { in: 0.000015,   out: 0.000075   },  // $15/$75 per Mtok
     'claude-haiku-4-5-20251001':  { in: 0.00000025, out: 0.00000125 },  // $0.25/$1.25 per Mtok
     'default':                    { in: 0.000003,   out: 0.000015   },
@@ -41045,8 +41673,7 @@ ${body}
     // Extraire les 8 derniers échanges pour Haiku
     const recent = adocConversations.slice(-8).map(m =>
       (m.role === 'user' ? 'Clinicien : ' : 'CC : ') + m.content.substring(0, 250)
-    ).join('
-');
+    ).join('\n');
 
     const prompt = `Tu es un assistant clinique. Extrait les éléments clés de cette conversation thérapeutique en JSON strict.
 Réponds UNIQUEMENT avec ce JSON, sans aucun texte avant ou après :
@@ -41184,6 +41811,131 @@ ${recent}`;
     document.getElementById('adoc-kv-patient-id').value = '';
     document.getElementById('adoc-kv-status').textContent = '';
     document.getElementById('adoc-kv-history').style.display = 'none';
+  };
+
+  // ── M3 : adocLongDoc — Génération par chapitres avec continuation M2 ──
+  // Triggered pour intent=cours|document avec max_tokens >= 4000
+  // 1) Haiku génère un plan de chapitres JSON (4-8 chapitres)
+  // 2) Chaque chapitre streamé séquentiellement avec Sonnet
+  // 3) Continuation M2 par chapitre (5 max) → jamais bloqué
+  // 4) Assemblage final → adocHandleReply
+  window.adocLongDoc = async function(text, plan, ragResult, systemPrompt, streamMsgId, workerUrl) {
+    const MODEL = 'claude-sonnet-4-5-20250929';
+    const MAX_CHAP_CONT = 5;
+    const decoder = new TextDecoder();
+
+    // ── Plan de chapitres via Haiku ──
+    let chapters = [];
+    try {
+      const chapPrompt = 'Planifie un document long sur : "' + plan.topic_summary + '".\n'
+        + 'Intent : ' + plan.intent + '. Audience : ' + (plan.audience_type || 'praticien') + '.\n'
+        + 'Génère 4 à 8 chapitres. Réponds UNIQUEMENT avec :\n'
+        + '[{"titre":"Chapitre 1 : ...","instructions":"contenu attendu en 2-3 phrases"},...]';
+      const cr = await fetch(workerUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: {
+          model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+          messages: [{ role: 'user', content: chapPrompt }]
+        }})
+      });
+      const cd = await cr.json();
+      const ct = cd.content?.[0]?.text || '[]';
+      const cm = ct.match(/\[[\s\S]*\]/);
+      chapters = JSON.parse(cm ? cm[0] : '[]');
+    } catch(e) { chapters = []; }
+
+    if (!Array.isArray(chapters) || !chapters.length) {
+      chapters = [
+        { titre: 'Introduction et fondements théoriques', instructions: 'Contexte, définitions, enjeux cliniques.' },
+        { titre: 'Modèles et approches', instructions: 'Théories principales, auteurs clés, comparaisons.' },
+        { titre: 'Applications et techniques cliniques', instructions: 'Protocoles, outils, cas pratiques.' },
+        { titre: 'Synthèse et perspectives', instructions: 'Conclusion, limites, orientations futures.' }
+      ];
+    }
+
+    // Badge plan dans l'UI
+    const msgEl = document.getElementById(streamMsgId);
+    const planBadge = document.createElement('div');
+    planBadge.style.cssText = 'font-size:11px;color:var(--muted,#7A8A82);padding:4px 10px;font-style:italic;border-left:2px solid var(--mer,#8FAFB1);margin:4px 0;';
+    planBadge.textContent = '\u{1F4CB} Document ' + chapters.length + ' chapitres — génération en cours…';
+    if (msgEl) msgEl.appendChild(planBadge);
+
+    // ── Génération chapitre par chapitre ──
+    let fullDoc = '';
+
+    for (let ci = 0; ci < chapters.length; ci++) {
+      const chap = chapters[ci];
+      const chapBadge = document.createElement('div');
+      chapBadge.style.cssText = 'font-size:11px;color:var(--mer,#8FAFB1);padding:2px 10px;font-weight:600;margin:2px 0;';
+      chapBadge.textContent = '\u270D\uFE0F ' + chap.titre + '…';
+      if (msgEl) msgEl.appendChild(chapBadge);
+
+      const chapUserMsg = chap.titre + '\n\nInstructions : ' + chap.instructions
+        + (fullDoc.length > 100 ? '\n\nContexte déjà rédigé (fin) :\n' + fullDoc.substring(fullDoc.length - 1200) : '');
+      let chapMsgs = [{ role: 'user', content: text }, { role: 'user', content: chapUserMsg }];
+
+      let chapText = '';
+      let chapStop = null;
+
+      const streamChap = async (msgs) => {
+        const r = await fetch(workerUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload: {
+            model: MODEL, max_tokens: 16000, stream: true,
+            system: systemPrompt, messages: msgs,
+            tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+            tool_choice: { type: 'auto' }
+          }})
+        });
+        if (!r.ok) return;
+        const rdr = r.body.getReader();
+        let buf = '';
+        while (true) {
+          const { done, value } = await rdr.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const ls = buf.split('\n'); buf = ls.pop();
+          for (const l of ls) {
+            if (!l.startsWith('data: ')) continue;
+            const dat = l.slice(6).trim();
+            if (dat === '[DONE]') continue;
+            try {
+              const ev = JSON.parse(dat);
+              if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+                chapText += ev.delta.text;
+                adocUpdateStreamMsg(streamMsgId, fullDoc + chapText);
+              }
+              if (ev.type === 'message_delta' && ev.delta?.stop_reason) chapStop = ev.delta.stop_reason;
+            } catch(ex) {}
+          }
+        }
+      };
+
+      await streamChap(chapMsgs);
+
+      // Continuation M2 par chapitre
+      let chapContN = 0;
+      while (chapStop === 'max_tokens' && chapContN < MAX_CHAP_CONT) {
+        chapContN++;
+        chapStop = null;
+        const contBadge = document.createElement('span');
+        contBadge.style.cssText = 'font-size:10px;color:#8FAFB1;background:rgba(143,175,177,0.15);border:1px solid rgba(143,175,177,0.3);border-radius:10px;padding:1px 8px;margin:2px;';
+        contBadge.textContent = '\u25B6 suite ch.' + (ci+1) + '.' + chapContN;
+        if (msgEl) msgEl.appendChild(contBadge);
+        const contMsgs = [...chapMsgs,
+          { role: 'assistant', content: chapText },
+          { role: 'user', content: 'Continue exactement là où tu t\'en étais arrêté.' }
+        ];
+        await streamChap(contMsgs);
+      }
+
+      fullDoc += '\n\n' + chapText;
+      chapBadge.textContent = '\u2705 ' + chap.titre;
+    }
+
+    planBadge.textContent = '\u2705 Document complet — ' + chapters.length + ' chapitres';
+    adocUpdateStreamMsg(streamMsgId, fullDoc.trim());
+    return fullDoc.trim();
   };
 
 })(); // fin IIFE Assistant Doc v2
