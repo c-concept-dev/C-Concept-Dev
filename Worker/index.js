@@ -55360,8 +55360,14 @@ async function handleAnthropicProxy(request2, env2) {
   if (!env2.ANTHROPIC_API_KEY)
     return jsonErr("Anthropic API key not configured", 500);
   const ab = { model, messages, max_tokens, temperature };
-  if (system)
-    ab.system = system;
+  // ── CACHE v1 : system prompt mis en cache (ephemeral 5min) ──
+  if (system) {
+    if (typeof system === "string" && system.length > 500) {
+      ab.system = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+    } else {
+      ab.system = system;
+    }
+  }
   if (tools)
     ab.tools = tools;
   if (tool_choice)
@@ -55373,6 +55379,7 @@ async function handleAnthropicProxy(request2, env2) {
     headers: {
       "x-api-key": env2.ANTHROPIC_API_KEY,
       "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
       "Content-Type": "application/json"
     },
     body: JSON.stringify(ab)
@@ -56734,9 +56741,13 @@ async function handleLLMProxy(request2, env2) {
       ab.tools = tools;
     if (tool_choice)
       ab.tool_choice = tool_choice;
+    // ── CACHE v1 : system prompt mis en cache si > 500 chars ──
+    if (ab.system && typeof ab.system === "string" && ab.system.length > 500) {
+      ab.system = [{ type: "text", text: ab.system, cache_control: { type: "ephemeral" } }];
+    }
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "x-api-key": env2.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+      headers: { "x-api-key": env2.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-beta": "prompt-caching-2024-07-31", "Content-Type": "application/json" },
       body: JSON.stringify(ab)
     });
     if (stream)
