@@ -39866,13 +39866,14 @@ ${commonBase}`
       //   • Raisonnement LLM  → ses propres connaissances, jamais bridées
       // Il n'y a plus de "fallback" — tout est mixte par défaut.
       // ─────────────────────────────────────────────────────────────────────────
+      // FIX-PIPELINE-BADGE : les 3 sources sont toujours actives — l'afficher clairement
       const d1Coverage = ragResult.chunks.length;
       if (d1Coverage < 5) {
-        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 Raisonnement + 🌐 Web…');
+        adocUpdateTypingLabel(typingId, '🧠 IA + 🌐 Web + 📚 Bibliothèque…');
       } else if (d1Coverage < 15) {
-        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🌐 Web disponible…');
+        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 IA + 🌐 Web…');
       } else {
-        adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
+        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 IA + 🌐 Web…');
       }
 
       // FIX-DEBUG-PIPELINE : guard overflow chunks
@@ -39907,8 +39908,10 @@ ${commonBase}`
 
       // ── M3 : Route vers adocLongDoc pour documents longs ────────────
       // Critère : intent=cours|document ET max_tokens planifiés >= 4000
+      // FIX-ISLONGDOC-FORMAT : pdf/docx/pptx/xlsx ont leur propre route Worker — pas de long doc
       const _isLongDoc = ['cours','document'].includes(plan?.intent)
-        && (plan?.max_tokens || 0) >= 4000;
+        && (plan?.max_tokens || 0) >= 4000
+        && !['pdf','docx','pptx','xlsx'].includes(plan?.output_format);
 
       if (_isLongDoc && typeof adocLongDoc === 'function') {
         adocUpdateTypingLabel(typingId, '📖 Génération document long par chapitres…');
@@ -40171,10 +40174,23 @@ ${commonBase}`
     }
 
     // ── 2. Extraction HTML depuis préambule conversationnel ───────────
-    // "Je vais générer... Voici : <!DOCTYPE html>..."
+    // FIX-MULTIBLOCK-EXTRACT: extraire le PREMIER bloc HTML complet
+    // (jusqu'à </html>) au lieu de tout prendre jusqu'à la fin du reply
     const htmlStart = t.search(/<!DOCTYPE\s+html|<html[\s>]/i);
     if (htmlStart >= 0) {
-      return t.slice(htmlStart).trim();
+      const afterStart = t.slice(htmlStart);
+      // Chercher la fin du premier document HTML complet
+      const htmlEndMatch = afterStart.match(/<\/html\s*>/i);
+      if (htmlEndMatch) {
+        const htmlEndIdx = htmlEndMatch.index + htmlEndMatch[0].length;
+        return afterStart.slice(0, htmlEndIdx).trim();
+      }
+      // Fallback: si pas de </html>, prendre jusqu'au prochain marqueur de question
+      const nextQMarker = afterStart.search(/\n(?:Q\d+|#{1,3}\s|\d+[\.:\)]\s*[A-Z])/);
+      if (nextQMarker > 500) {
+        return afterStart.slice(0, nextQMarker).trim();
+      }
+      return afterStart.trim();
     }
 
     // ── 3. Pour xlsx/pptx/docx : extraire le script de données ───────
@@ -40208,13 +40224,16 @@ ${commonBase}`
     const _FMT_PRIORITY = ['xlsx','pptx','docx','pdf','zip','html-visual','html','txt','chat'];
     const _fmtNorm = _fmtRaw.split(/[|,;]/).map(s => s.trim())
       .find(v => _FMT_PRIORITY.includes(v)) || 'chat';
-    // Override : intent tableau/comparatif -> xlsx ; cours/document -> html-visual
-    // Couvre le cas Planner Haiku retourne output_format=chat/html pour ces intents
+    // FIX-INTENT-FMT-OVERRIDE : override uniquement si format implicite (chat/html)
+    // Ne jamais écraser un format explicite du planner (pdf/docx/pptx/xlsx/zip/html-visual)
+    const _EXPLICIT_FORMATS = ['pdf','docx','pptx','xlsx','zip','html-visual'];
     const _INTENT_FMT_OVERRIDE = {
       tableau: 'xlsx', comparatif: 'xlsx',
       cours: 'html-visual', document: 'html-visual'
     };
-    const fmt = _INTENT_FMT_OVERRIDE[plan?.intent] || _fmtNorm;
+    const fmt = _EXPLICIT_FORMATS.includes(_fmtNorm)
+      ? _fmtNorm  // format explicite → respecter tel quel
+      : (_INTENT_FMT_OVERRIDE[plan?.intent] || _fmtNorm); // format implicite → intent override
     const topic = plan?.topic_summary || 'Document';
 
     // ── Court-circuit data URI — LLM a produit directement le fichier binaire ──
@@ -40268,47 +40287,58 @@ ${commonBase}`
       const htmlSrc  = isResolvedHtml ? adocRepairHTML(resolvedTrimmed) : null;
       const markdown = isResolvedHtml ? adocHtmlToMarkdown(resolvedTrimmed) : resolvedTrimmed;
       await adocDeliverArtifact({ markdown, html: htmlSrc, topic, fmt, citations, autoGenerate: true });
-      // FIX-MULTI-RENDER : scanner le reply brut pour d'autres blocs HTML (ex: Q10 html-visual)
-      // Un message multi-Q peut contenir xlsx (Q6) + page HTML (Q10) + texte (Q9/Q15/Q18)
+      // FIX-MULTIBLOCK-RENDER : scanner le reply pour TOUS les blocs HTML
+      // Pipeline multi-Q : texte Q1-Q5 + HTML Q6 (xlsx) + texte Q7-Q9 + HTML Q10 (html-visual) + texte Q11-Q18
       if (plan?._multiPlan) {
         const _replyFull = reply || '';
-        // Trouver tous les blocs <!DOCTYPE html>...(fin naturelle) dans le reply
-        // Heuristique : chercher <!DOCTYPE html> ou ```html ... ``` apres le premier bloc
-        const _htmlBlocks = [];
-        // Chercher blocs backtick html
+        const _allHtmlBlocks = [];
+
+        // Méthode 1 : blocs ```html ... ```
         const _btRe = /```html([\s\S]*?)```/gi;
         let _btm;
         while ((_btm = _btRe.exec(_replyFull)) !== null) {
           const _blk = _btm[1].trim();
-          if (_blk.startsWith('<!DOCTYPE') || _blk.startsWith('<html')) _htmlBlocks.push(_blk);
+          if ((_blk.startsWith('<!DOCTYPE') || _blk.startsWith('<html')) && _blk.length > 200) {
+            _allHtmlBlocks.push({ raw: _blk, start: _btm.index, end: _btm.index + _btm[0].length });
+          }
         }
-        // Chercher blocs DOCTYPE nus (pas dans backticks)
-        const _dtRe = /<!DOCTYPE\s+html[\s\S]{500,}?(?=\n#{1,3}\s|\nQ\d+|\n\d+[\.:)]|\n---+|$)/gi;
+
+        // Méthode 2 : blocs <!DOCTYPE html> ... </html> complets (pas dans backticks)
+        const _dtRe = /<!DOCTYPE\s+html>[\s\S]*?<\/html\s*>/gi;
         let _dtm;
         while ((_dtm = _dtRe.exec(_replyFull)) !== null) {
           const _blk = _dtm[0].trim();
-          // Eviter de re-livrer le bloc xlsx deja traite
-          if (!_blk.includes('xlsx-data') && !_blk.includes('docx-data') && !_blk.includes('pptx-data')) {
-            _htmlBlocks.push(_blk);
+          // Vérifier que ce bloc n'est pas déjà capturé par les backticks
+          const _alreadyCaptured = _allHtmlBlocks.some(b => 
+            _dtm.index >= b.start && _dtm.index < b.end
+          );
+          if (!_alreadyCaptured && _blk.length > 200) {
+            _allHtmlBlocks.push({ raw: _blk, start: _dtm.index, end: _dtm.index + _dtm[0].length });
           }
         }
-        // Livrer chaque bloc HTML trouve
-        for (const _hblk of _htmlBlocks) {
-          if (_hblk.length > 200) {
-            console.log('[FIX-MULTI-RENDER] livraison bloc html-visual (' + _hblk.length + ' chars)');
-            const _subPlans = plan._subPlans || [];
-            const _htmlPlan = _subPlans.find(p => p.output_format === 'html-visual' || p.output_format === 'html');
-            const _htmlTopic = _htmlPlan?.topic_summary || topic;
-            await adocDeliverArtifact({ html: adocRepairHTML(_hblk), topic: _htmlTopic, fmt: 'zip', citations, autoGenerate: true });
-          }
+
+        // Livrer chaque bloc HTML supplémentaire (le premier xlsx est déjà livré ci-dessus)
+        for (const _hEntry of _allHtmlBlocks) {
+          const _blk = _hEntry.raw;
+          // Ne pas re-livrer le bloc xlsx/docx/pptx déjà traité par le pipeline principal
+          if (_blk.includes('xlsx-data') || _blk.includes('docx-data') || _blk.includes('pptx-data')) continue;
+          console.log('[FIX-MULTIBLOCK-RENDER] livraison bloc html-visual (' + _blk.length + ' chars)');
+          const _subPlans = plan._subPlans || [];
+          const _htmlPlan = _subPlans.find(p => p.output_format === 'html-visual' || p.output_format === 'html');
+          const _htmlTopic = _htmlPlan?.topic_summary || topic;
+          await adocDeliverArtifact({ html: adocRepairHTML(_blk), topic: _htmlTopic, fmt: 'zip', citations, autoGenerate: true });
         }
-        // Livrer aussi le texte conversationnel residuel (Q9/Q15/Q18)
-        const _textOnly = _replyFull
-          .replace(/```html[\s\S]*?```/gi, '')
-          .replace(/<!DOCTYPE\s+html[\s\S]{500,}?(?=\nQ\d+|\n\d+[\.:)]|\n---+|$)/gi, '')
-          .replace(new RegExp('<scr' + 'ipt[^>]*id=["\']xlsx-data["\'],[\\s\\S]*?<\/sc' + 'ript>', 'gi'), '')
-          .trim();
-        if (_textOnly.length > 100 && !/^<!DOCTYPE/i.test(_textOnly)) {
+
+        // Livrer le texte conversationnel résiduel (Q1-Q5, Q7-Q9, Q11-Q18)
+        let _textOnly = _replyFull;
+        // Retirer tous les blocs HTML identifiés
+        const _sortedBlocks = [..._allHtmlBlocks].sort((a, b) => b.start - a.start);
+        for (const _bk of _sortedBlocks) {
+          _textOnly = _textOnly.slice(0, _bk.start) + _textOnly.slice(_bk.end);
+        }
+        // Retirer aussi le bloc xlsx/docx/pptx principal (celui extrait par adocExtractPayload)
+        _textOnly = _textOnly.replace(/<!DOCTYPE\s+html>[\s\S]*?<\/html\s*>/gi, '').trim();
+        if (_textOnly.length > 100) {
           adocAddMsg('assistant', _textOnly, citations);
         }
       }
@@ -41047,11 +41077,24 @@ ${commonBase}`
     if (!div) return;
     const bubble = div.querySelector('.adoc-bubble');
     if (!bubble) return;
-    // Affichage brut pendant le streaming (pas de formatMd pour ne pas casser le HTML partiel)
-    // On détecte si c'est du HTML en cours ou du texte
+    // FIX-MULTIBLOCK-STREAM : détecter HTML n'importe où dans le texte (pas juste au début)
+    // En multi-question, le HTML Q6/Q10 arrive après du texte Q1-Q5
     const trimmed = text.trimStart();
-    if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || trimmed.startsWith('<div')) {
-      bubble.innerHTML = '<span style="opacity:0.6;font-size:11px;">⚡ Génération en cours…</span>';
+    const _hasHtmlBlock = /<!DOCTYPE\s+html|<html[\s>]/.test(trimmed);
+    if (_hasHtmlBlock) {
+      // Séparer texte conversationnel et blocs HTML pour l'affichage streaming
+      const _textParts = trimmed.split(/(?=<!DOCTYPE\s+html)/i);
+      const _displayParts = [];
+      let _htmlCount = 0;
+      for (const _part of _textParts) {
+        if (/^<!DOCTYPE\s+html/i.test(_part.trim())) {
+          _htmlCount++;
+          _displayParts.push('<div style="margin:8px 0;padding:10px 14px;background:#F4F0EA;border-left:3px solid #8FAFB1;border-radius:4px;font-size:11px;color:#3A5658;">⚡ Document ' + _htmlCount + ' en cours de génération…</div>');
+        } else if (_part.trim().length > 0) {
+          _displayParts.push(adocFormatMd(_part));
+        }
+      }
+      bubble.innerHTML = _displayParts.join('') + '<span class="adoc-stream-cursor">▋</span>';
     } else {
       bubble.innerHTML = adocFormatMd(text) + '<span class="adoc-stream-cursor">▋</span>';
     }
@@ -42797,8 +42840,12 @@ ${recent}`;
     }
 
     planBadge.textContent = '\u2705 Document complet — ' + chapters.length + ' chapitres';
-    adocUpdateStreamMsg(streamMsgId, fullDoc.trim());
-    return fullDoc.trim();
+    // FIX-LONGDOC-REF : résoudre les [REF:n] en citations cliquables avant rendu final
+    const fullDocRendered = (typeof adocRenderCiteInline === 'function')
+      ? adocRenderCiteInline(fullDoc.trim(), adocLastRefMap)
+      : fullDoc.trim();
+    adocUpdateStreamMsg(streamMsgId, fullDocRendered);
+    return fullDocRendered;
   };
 
 })(); // fin IIFE Assistant Doc v2
