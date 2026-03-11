@@ -42079,7 +42079,9 @@ ${recent}`;
 
       const chapUserMsg = chap.titre + '\n\nInstructions : ' + chap.instructions
         + (fullDoc.length > 100 ? '\n\nContexte déjà rédigé (fin) :\n' + fullDoc.substring(fullDoc.length - 1200) : '');
-      let chapMsgs = [{ role: 'user', content: text }, { role: 'user', content: chapUserMsg }];
+      // FIX-LONGDOC-MSGS : fusion en un seul message user (2 user consécutifs = erreur API silencieuse)
+      const chapUserFull = text + '\n\n---\n\n' + chapUserMsg;
+      let chapMsgs = [{ role: 'user', content: chapUserFull }];
 
       let chapText = '';
       let chapStop = null;
