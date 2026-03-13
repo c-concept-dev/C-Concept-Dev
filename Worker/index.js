@@ -55360,10 +55360,13 @@ async function handleAnthropicProxy(request2, env2) {
   if (!env2.ANTHROPIC_API_KEY)
     return jsonErr("Anthropic API key not configured", 500);
   const ab = { model, messages, max_tokens, temperature };
-  // ── CACHE v1 : system prompt mis en cache (ephemeral 5min) ──
   if (system) {
-    if (typeof system === "string" && system.length > 500) {
+    // ═══ PROMPT CACHING — cache le system prompt (5min TTL, ~90% économie) ═══
+    if (typeof system === 'string') {
       ab.system = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+    } else if (Array.isArray(system)) {
+      // Si déjà un tableau, ajouter cache_control au dernier bloc
+      ab.system = system.map((block, i) => i === system.length - 1 ? { ...block, cache_control: { type: "ephemeral" } } : block);
     } else {
       ab.system = system;
     }
@@ -56733,18 +56736,22 @@ async function handleLLMProxy(request2, env2) {
     if (!env2.ANTHROPIC_API_KEY)
       return jsonErr("ANTHROPIC_API_KEY not configured", 500);
     const ab = { model: model || "claude-sonnet-4-5-20250929", messages, max_tokens, temperature };
-    if (system)
-      ab.system = system;
+    if (system) {
+      // ═══ PROMPT CACHING — cache le system prompt (5min TTL) ═══
+      if (typeof system === 'string') {
+        ab.system = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+      } else if (Array.isArray(system)) {
+        ab.system = system.map((block, i) => i === system.length - 1 ? { ...block, cache_control: { type: "ephemeral" } } : block);
+      } else {
+        ab.system = system;
+      }
+    }
     if (stream)
       ab.stream = stream;
     if (tools)
       ab.tools = tools;
     if (tool_choice)
       ab.tool_choice = tool_choice;
-    // ── CACHE v1 : system prompt mis en cache si > 500 chars ──
-    if (ab.system && typeof ab.system === "string" && ab.system.length > 500) {
-      ab.system = [{ type: "text", text: ab.system, cache_control: { type: "ephemeral" } }];
-    }
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": env2.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-beta": "prompt-caching-2024-07-31", "Content-Type": "application/json" },
