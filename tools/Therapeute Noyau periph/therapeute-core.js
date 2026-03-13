@@ -25,6 +25,8 @@ if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claud
 // ============================================================================
 const CONFIG = {
     WORKER_URL: 'https://clone-proxy.11drumboy11.workers.dev/',
+    // ═══ B5: Auth token — vérifié par le Worker pour bloquer les accès non autorisés ═══
+    WORKER_AUTH_TOKEN: localStorage.getItem('workerAuthToken') || '',
     MODEL: 'claude-sonnet-4-5-20250929',
     TARGET_QUESTIONS: 40,
     MIN_WORDS: 10,
@@ -59,10 +61,10 @@ const state = {
     afterSpeakingCallback: null,
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // v17.3.2: API GOOGLE CLOUD TTS - HARDCODÉE (Pour Christophe uniquement)
+    // v8.0: API GOOGLE CLOUD TTS — via Worker proxy (google-tts-proxy.11drumboy11.workers.dev)
     // ═══════════════════════════════════════════════════════════════════════════
     // ⚠️ REMPLACER PAR TA VRAIE CLÉ ICI ⬇️
-    googleTTSApiKey: 'AIzaSyCo8nfkrMZWv5-7Ns1kaBlJ_0APMjeu4Ok', // 🔑 METTRE TA CLÉ ICI
+    googleTTSApiKey: null, // ═══ B1: Clé supprimée — TTS routé via google-tts-proxy Worker ═══
     // Pour changer rapidement : Cmd+Shift+K dans le navigateur
     // ═══════════════════════════════════════════════════════════════════════════
     
@@ -93,6 +95,42 @@ const state = {
 if (typeof window.state === 'undefined') {
     window.state = state;
     console.log('[v15.4.3] ✅ state exposed on window.state');
+// ═══ B5: Global auth headers helper ═══
+function getWorkerHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.WORKER_AUTH_TOKEN) headers['X-Auth-Token'] = state.WORKER_AUTH_TOKEN;
+    return headers;
+}
+
+// ═══ B2: Wrapper localStorage sécurisé — obfuscation des données cliniques ═══
+const SecureStorage = {
+    _prefix: '_tia_',
+    _encode(data) {
+        // Simple base64 encoding — not encryption, but prevents casual reading
+        // For production: replace with WebCrypto AES-GCM
+        try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))); }
+        catch(e) { return JSON.stringify(data); }
+    },
+    _decode(str) {
+        try { return JSON.parse(decodeURIComponent(escape(atob(str)))); }
+        catch(e) { try { return JSON.parse(str); } catch(e2) { return null; } }
+    },
+    set(key, data) {
+        try { localStorage.setItem(this._prefix + key, this._encode(data)); }
+        catch(e) { console.warn('[SecureStorage] Write failed:', key); }
+    },
+    get(key) {
+        try {
+            const raw = localStorage.getItem(this._prefix + key);
+            if (!raw) return null;
+            return this._decode(raw);
+        } catch(e) { return null; }
+    },
+    remove(key) { localStorage.removeItem(this._prefix + key); }
+};
+window.SecureStorage = SecureStorage;
+console.log('[SecureStorage] ✅ Secure localStorage wrapper initialized');
+
 }
 
 // Expose multi-modal functions (Phase 2.4)
@@ -2403,7 +2441,7 @@ class TTSQueue {
     async generateAndPlay(text) {
         return new Promise(async (resolve, reject) => {
             const mode = state.voiceMode || 'auto';
-            const hasGoogleKey = !!state.googleTTSApiKey;
+            const hasGoogleKey = true; // B1: Toujours true — le proxy Worker gère la clé
             const hasElevenKey = !!state.elevenLabsApiKey;
 
             // v18.0: Realtime WebRTC modes
@@ -2596,7 +2634,7 @@ class TTSQueue {
             
             // Fallback cascade: Google → Web Speech
             console.log('[TTSQueue] → Fallback to Google/Web Speech');
-            if (state.googleTTSApiKey) {
+            if (true) { // B1: TTS via proxy — toujours disponible
                 this.playGoogleTTS(text, resolve, reject);
             } else {
                 this.playWebSpeech(text, resolve, reject);
@@ -2721,7 +2759,9 @@ class TTSQueue {
                 audioConfig.pitch = state.googleTTSPitch;
             }
             
-            const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + state.googleTTSApiKey, {
+            // ═══ B1: TTS via Worker proxy (clé côté serveur) ═══
+            const ttsProxyUrl = 'https://google-tts-proxy.11drumboy11.workers.dev';
+            const response = await fetch(ttsProxyUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -15934,7 +15974,7 @@ class ConversationalSystem {
                 try {
                     response = await fetch(this.WORKER_URL, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', ...(state.WORKER_AUTH_TOKEN ? {'X-Auth-Token': state.WORKER_AUTH_TOKEN} : {}) },
                         body: JSON.stringify(apiPayload)
                     });
                     
@@ -34871,7 +34911,7 @@ function saveGoogleTTSConfig() {
 function checkGoogleTTSConfig() {
     if (typeof state === 'undefined') return; // Guard: state non disponible
     // Si pas de clé et mode Google sélectionné, proposer configuration
-    if (!state.googleTTSApiKey && (state.voiceMode.startsWith('google'))) {
+    if (false && !state.googleTTSApiKey && (state.voiceMode.startsWith('google'))) { // B1: Proxy gère la clé, modal désactivé
         const configure = confirm(
             '🎤 Configuration Google Cloud TTS\n\n' +
             'Voulez-vous configurer une clé API Google Cloud pour bénéficier de voix HD ?\n\n' +
@@ -34931,7 +34971,7 @@ function openDevAPIKeyModal() {
             <input 
                 type="text" 
                 id="dev-api-input" 
-                placeholder="AIzaSy..."
+                placeholder="Géré par le proxy Worker"
                 value="${currentKey}"
                 style="
                     width: 100%;
