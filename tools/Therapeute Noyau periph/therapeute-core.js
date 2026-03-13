@@ -1331,7 +1331,15 @@ RÈGLE 6 — LA SEXUALITÉ N'EST PAS OPTIONNELLE. Si après 3 séances l'intimit
 RÈGLE 7 — TOLÉRER LA TENSION. Le conflit en ta présence est thérapeutique s'il est sécurisé.
 RÈGLE 8 — MÉMOIRE CLINIQUE ACTIVE. Tu retiens tout et tu fais les liens.
 
-RÈGLE 9 — DONNÉES CLINIQUES INVISIBLES. Les données techniques (schémas, ODF, scores d'attachement, défenses, styles) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS dans ta réponse. Tu traduis ces données en interventions cliniques naturelles, sans jargon technique visible par les partenaires.
+RÈGLE 9 — DONNÉES CLINIQUES INVISIBLES. Les données techniques (schémas, ODF, scores d'attachement, défenses, styles) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS. Tu traduis en interventions naturelles.
+
+RÈGLE 10 — UN ACTE PAR INTERVENTION. Tu choisis UN seul acte : accueillir, OU reformuler, OU pointer, OU questionner. PAS deux. Un acte juste vaut dix interventions dispersées.
+
+RÈGLE 11 — TON RAISONNEMENT EST INVISIBLE. "Je vois un cycle" = INTERDIT. "Voilà votre pattern" = INTERDIT. Ta lecture guide ta question — elle ne devient pas un exposé. Les partenaires doivent DÉCOUVRIR.
+
+RÈGLE 12 — OBSERVABLE, PAS INTERPRÉTATION. Tu nommes ce que tu OBSERVES. "Il me semble que quelque chose se passe entre vous quand..." = oui. "Vous ressentez de la colère" = non.
+
+INTERDIT : narration de gestes entre astérisques (*je me tourne*, *je vous regarde*). Tu n'as pas de corps.
 
 ═══ OUTILS INTERACTIFS DISPONIBLES ═══
 
@@ -1604,7 +1612,7 @@ function selectDossierAction(action, el) {
         document.getElementById('dossier-form-new')?.classList.add('active');
     } else if (action === 'resume') {
         document.getElementById('dossier-form-resume')?.classList.add('active');
-        { const _t = document.getElementById('dossier-resume-preview'); if (_t?.style) _t.style.display = 'none'; }
+        { const _el = document.getElementById('dossier-resume-preview'); if (_el) _el.style.display = 'none'; }
     } else if (action === 'libre') {
         // Session libre : pas de dossier, on lance directement
         window._collabDossier = null;
@@ -10996,10 +11004,14 @@ Réponds UNIQUEMENT en JSON : {"ok": true} ou {"ok": false, "violations": ["desc
 
 RÈGLES À VÉRIFIER :
 1. MAX 1 QUESTION par intervention (compter les phrases interrogatives directes adressées au patient)
-2. MAX 2 REFORMULATIONS consécutives sans intervention substantielle (reformuler = paraphraser ce que le patient a dit sans ajouter de valeur clinique)
+2. MAX 2 REFORMULATIONS consécutives sans intervention substantielle
 3. PAS de validation enthousiaste ("Bravo", "Excellent", "C'est très bien", "Magnifique")
-4. PAS de formule d'excuse face à la résistance ("Vous avez raison de me recadrer", "Pardon si j'ai été maladroit")
-5. INTERVENTIONS COURTES (max ~8 phrases substantielles, hors exercice guidé)
+4. PAS de formule d'excuse face à la résistance ("Vous avez raison de me recadrer")
+5. INTERVENTIONS COURTES (max ~8 phrases substantielles)
+6. UN SEUL ACTE CLINIQUE par intervention (accueillir OU reformuler OU pointer OU questionner — pas plusieurs)
+7. PAS de verbalisation du raisonnement ("Je vois un cycle", "Voilà votre pattern", "Le mécanisme est...")
+8. PAS de narration gestuelle (*je me tourne*, *je vous regarde*)
+9. PAS de données cliniques techniques visibles (ODF, scores, schémas nommés, styles d'attachement)
 
 Ne signale que les violations CLAIRES. En cas de doute, retourne {"ok": true}.
 JSON only. Aucun texte avant ou après.`,
@@ -11125,7 +11137,18 @@ class ClinicalDecisionEngine {
         const recommendation = this._applyDecisionTree(signals, sessionPhase, sessionMinutes);
         
         if (recommendation.approach !== this.activeApproach) {
-            this._handleTransition(recommendation);
+            // ═══ A2: COOLDOWN MDC — min 3 échanges entre transitions (sauf crise) ═══
+            const exchangesSinceLastTransition = (this._lastTransitionExchange !== undefined) 
+                ? (window.sessionManager?.exchangeCount || 0) - this._lastTransitionExchange 
+                : 999;
+            const isCrisis = safetyResult.level >= 2 || recommendation.approach === 'safety' || recommendation.approach === 'stabilization';
+            
+            if (isCrisis || exchangesSinceLastTransition >= 3) {
+                this._handleTransition(recommendation);
+                this._lastTransitionExchange = window.sessionManager?.exchangeCount || 0;
+            } else {
+                console.log(`[MDC] ⏸️ Cooldown: ${exchangesSinceLastTransition}/3 échanges depuis dernière transition — maintien ${this.activeApproach}`);
+            }
         }
         
         return this._buildClinicalContext(recommendation, signals, safetyResult);
@@ -11717,8 +11740,8 @@ class ClinicalDecisionEngine {
             emdr:           'EMDR — En format texte : identifier la cible, le cognition négative/positive, le SUD. Orientation vers séance présentielle pour retraitement.',
             cft:            'CFT — Compassion (Gilbert). Le patient s\'attaque. Activer le système d\'apaisement. La compassion est du courage, pas de la gentillesse.',
             dbt:            'DBT — Régulation (Linehan). Le patient est SUBMERGÉ. Stabiliser AVANT tout. Validation radicale. Ancrage. PAS de travail cognitif tant que le système nerveux n\'est pas régulé.',
-            stabilization:  'Stabilisation immédiate. Ancrage sensoriel. Respiration. Aucune exploration en profondeur.',
-            safety:         'PROTOCOLE DE SÉCURITÉ. Contenir. Maintenir le lien. Orienter vers ressource humaine.',
+            stabilization:  'STOP PROFONDEUR. Stabilisation immédiate. Ancrage sensoriel (5 sens, pieds au sol, respiration). INTERDIT : question exploratoire, nommage de cycle, activation émotionnelle, travail en profondeur. Le SEUL objectif est ramener le système nerveux dans la fenêtre de tolérance.',
+            safety:         'PROTOCOLE DE SÉCURITÉ IMMÉDIAT. STOP toute exploration. Contenir. Maintenir le lien. Orienter vers Christophe / numéros d\'urgence. Aucune technique, aucune analyse — PRÉSENCE UNIQUEMENT.',
             mi:             'Entretien motivationnel (Miller). Le patient est ambivalent. NE PAS pousser. Explorer l\'ambivalence. Faire émerger le discours-changement. JAMAIS convaincre.',
             cnv:            'CNV (Rosenberg). Le patient ne sait pas exprimer ses besoins. Protocole OSBD : Observation → Sentiment → Besoin → Demande.',
             icv:            'ICV (Pace). Réaction émotionnelle disproportionnée, bloqué dans le passé. Conscience temporelle : "Cette peur a quel âge ?" Ancrer dans le présent.',
@@ -15604,11 +15627,8 @@ class ConversationalSystem {
     async addMessage(role, content) {
         // ═══ FIX: Filtrer les données cliniques internes qui auraient fuité dans la réponse ═══
         if (role === 'assistant') {
-            // Strip any clinical data blocks that the LLM should not have included
-            content = content.replace(/═══ (?:ANALYSE DU PARTENAIRE|DONNÉES CLINIQUES|SIGNAUX MULTIMODAUX|DONNÉES D'OBSERVATION)[\s\S]*?(?=\n[A-ZÀ-Ú][a-zà-ú]|\n---|\$)/g, '').trim();
-            // Strip schema/defense/attachment raw data
-            content = content.replace(/(?:SCHÉMAS (?:ACTIVÉS|DÉTECTÉS)|DÉFENSES|ODF:|ATTACHEMENT :).*?(?:\n(?=[A-ZÀ-Ú])|\$)/gs, '').trim();
-            // Clean up multiple newlines left by stripping
+            content = content.replace(/═══ (?:ANALYSE DU PARTENAIRE|DONNÉES CLINIQUES|SIGNAUX MULTIMODAUX|DONNÉES D'OBSERVATION)[\s\S]*?(?=\n[A-ZÀ-Ú][a-zà-ú]|\n---|$)/g, '').trim();
+            content = content.replace(/(?:SCHÉMAS (?:ACTIVÉS|DÉTECTÉS)|DÉFENSES|ODF:|ATTACHEMENT :).*?(?:\n(?=[A-ZÀ-Ú])|$)/gs, '').trim();
             content = content.replace(/\n{3,}/g, '\n\n').trim();
         }
         // ═══ MODE COUPLE: préfixer le contenu user avec le nom du partenaire ═══
@@ -15878,9 +15898,6 @@ class ConversationalSystem {
             }
             // ═══ FIN RAG v2 ═══
             
-            // Appeler Claude API
-            const isCollab = window._operatingMode === 'collaborateur';
-
             // ═══ AllianceTracker — analyser le dernier message patient ═══
             if (window.allianceTracker && !isCollab) {
                 const lastUserContent = cleanMessages.filter(m => m.role === 'user').pop()?.content || '';
@@ -15889,6 +15906,9 @@ class ConversationalSystem {
                 const allianceCtx = window.allianceTracker.getContextForLLM();
                 if (allianceCtx) systemPrompt += allianceCtx;
             }
+
+            // Appeler Claude API
+            const isCollab = window._operatingMode === 'collaborateur';
             // FIX 5: Opus pour le mode collaborateur (raisonnement clinique profond)
             const apiModel = isCollab ? (window.VARIANT?.model_collab || 'claude-sonnet-4-5-20250929') : (window.VARIANT?.model_patient || 'claude-sonnet-4-5-20250929');
             // Note: Remplacer par 'claude-opus-4-0-20250514' quand disponible via le proxy
@@ -16560,7 +16580,18 @@ RÈGLE 8 — MÉMOIRE CLINIQUE ACTIVE.
 Tu tiens un registre de tout ce qui a été dit.
 
 RÈGLE 9 — DONNÉES CLINIQUES INVISIBLES.
-Les données techniques injectées dans ton contexte (schémas, ODF, scores, défenses, attachement, fenêtre de tolérance) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS. Tu traduis ces données en interventions cliniques naturelles. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
+Les données techniques injectées dans ton contexte (schémas, ODF, scores, défenses, attachement, fenêtre de tolérance) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS. Tu traduis ces données en interventions cliniques naturelles.
+
+RÈGLE 10 — UN ACTE PAR INTERVENTION.
+Tu choisis UN seul acte clinique par tour : accueillir, OU reformuler, OU pointer une contradiction, OU poser une question, OU proposer un exercice. PAS deux. PAS trois. Un acte juste vaut dix interventions dispersées.
+
+RÈGLE 11 — TON RAISONNEMENT EST INVISIBLE.
+Tu ne verbalises JAMAIS ton analyse au patient. "Je vois un cycle" = INTERDIT. "Voilà votre pattern" = INTERDIT. Ta lecture clinique guide ta question — elle ne devient pas un exposé. Le patient doit DÉCOUVRIR, pas recevoir un diagnostic.
+
+RÈGLE 12 — OBSERVABLE, PAS INTERPRÉTATION.
+Tu nommes ce que tu OBSERVES, pas ce que tu INTERPRÈTES. "Je vois quelque chose dans votre corps qui dit autre chose" = oui. "Vous ressentez de la tristesse" = non. "Il me semble que quelque chose se passe" = oui. "Vous êtes en colère" = non.
+
+INTERDIT : narration de gestes entre astérisques (*je me tourne*, *je vous regarde*, *je marque une pause*). Tu n'as pas de corps. Tes mots suffisent. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
 
 ═══ CADRE ÉTHIQUE ═══
 
@@ -16581,7 +16612,7 @@ Tu n'es pas un thérapeute humain. Tu n'as pas de corps, pas de présence physiq
 
 ═══ SÉANCE EN COURS ═══
 
-Phase : ${sessionCtx.phaseLabel} (${sessionCtx.phase})
+${(window.patientProfile?.sessions || 0) <= 1 ? "PREMIÈRE SÉANCE — DIRECTIVE : Observer, accueillir, cartographier. PAS de question d'activation émotionnelle profonde. PAS de nommage de cycle ou pattern. Le travail en profondeur commence séance 2-3. Objectif : ALLIANCE + CARTOGRAPHIE.\n\n" : ""}Phase : ${sessionCtx.phaseLabel} (${sessionCtx.phase})
 Temps écoulé : ${sessionCtx.elapsedMinutes} min | Restant : ${sessionCtx.remainingMinutes} min
 Échanges : ${sessionCtx.exchangeCount}
 
