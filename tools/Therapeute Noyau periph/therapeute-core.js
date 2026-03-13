@@ -131,6 +131,114 @@ const SecureStorage = {
 window.SecureStorage = SecureStorage;
 console.log('[SecureStorage] ✅ Secure localStorage wrapper initialized');
 
+// ═══ B4: ReviewExporter — Supervision formalisée ═══
+class ReviewExporter {
+    constructor() {
+        this.sessionLog = [];
+        this.mdcTransitions = [];
+        this.guardRailsTriggers = [];
+        this.allianceScores = [];
+        this.reviewed = false;
+        console.log('[ReviewExporter] ✅ Initialized — supervision formalisée active');
+    }
+    
+    logEvent(layer, type, data) {
+        this.sessionLog.push({
+            timestamp: new Date().toISOString(),
+            layer: layer, // 'signal_brut' | 'hypothese' | 'acte_clinique'
+            type: type,
+            data: data
+        });
+    }
+    
+    logMDCTransition(from, to, reason, exchangeCount) {
+        const entry = { timestamp: new Date().toISOString(), from, to, reason, exchangeCount };
+        this.mdcTransitions.push(entry);
+        this.logEvent('hypothese', 'mdc_transition', entry);
+        console.log(`[Review] 📋 MDC: ${from} → ${to} (échange ${exchangeCount})`);
+    }
+    
+    logGuardRailTrigger(violations, action) {
+        const entry = { timestamp: new Date().toISOString(), violations, action };
+        this.guardRailsTriggers.push(entry);
+        this.logEvent('acte_clinique', 'guardrail_trigger', entry);
+        console.log(`[Review] 🛡️ Garde-fou: ${violations.join(', ')} → ${action}`);
+    }
+    
+    logAllianceScore(score, context) {
+        const entry = { timestamp: new Date().toISOString(), score, context };
+        this.allianceScores.push(entry);
+        this.logEvent('hypothese', 'alliance_score', entry);
+    }
+    
+    markReviewed(reviewer = 'Christophe') {
+        this.reviewed = true;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = new Date().toISOString();
+        console.log(`[Review] ✅ Séance marquée comme supervisée par ${reviewer}`);
+    }
+    
+    exportReview() {
+        const review = {
+            version: 'v8.0',
+            exported: new Date().toISOString(),
+            reviewed: this.reviewed,
+            reviewedBy: this.reviewedBy || null,
+            reviewedAt: this.reviewedAt || null,
+            summary: {
+                totalEvents: this.sessionLog.length,
+                mdcTransitions: this.mdcTransitions.length,
+                guardRailsTriggers: this.guardRailsTriggers.length,
+                allianceScores: this.allianceScores.length,
+                layers: {
+                    signal_brut: this.sessionLog.filter(e => e.layer === 'signal_brut').length,
+                    hypothese: this.sessionLog.filter(e => e.layer === 'hypothese').length,
+                    acte_clinique: this.sessionLog.filter(e => e.layer === 'acte_clinique').length
+                }
+            },
+            mdcTransitions: this.mdcTransitions,
+            guardRailsTriggers: this.guardRailsTriggers,
+            allianceScores: this.allianceScores,
+            fullLog: this.sessionLog
+        };
+        return review;
+    }
+    
+    downloadReview() {
+        const review = this.exportReview();
+        const blob = new Blob([JSON.stringify(review, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const date = new Date().toISOString().split('T')[0];
+        a.href = url;
+        a.download = `review-clinique_${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        console.log('[Review] 📥 Review clinique exportée');
+    }
+}
+
+window.reviewExporter = new ReviewExporter();
+// ═══ B4: Commandes de supervision — Console ═══
+window.ReviewAPI = {
+    export: () => window.reviewExporter?.downloadReview(),
+    markReviewed: (by) => window.reviewExporter?.markReviewed(by || 'Christophe'),
+    status: () => {
+        const r = window.reviewExporter;
+        if (!r) return 'ReviewExporter non initialisé';
+        return { 
+            events: r.sessionLog.length, 
+            transitions: r.mdcTransitions.length,
+            guardRails: r.guardRailsTriggers.length,
+            reviewed: r.reviewed 
+        };
+    },
+    help: () => console.log('[ReviewAPI] Commandes: ReviewAPI.export() | ReviewAPI.markReviewed() | ReviewAPI.status()')
+};
+console.log('[ReviewAPI] ✅ Console commands ready — tapez ReviewAPI.help()');
+
+
+
 }
 
 // Expose multi-modal functions (Phase 2.4)
@@ -5924,8 +6032,8 @@ class MultimodalFusionEngine {
         const facialConf = context.emotional_engagement !== undefined ? (window.videoDetections?.slice(-50) || []).reduce((s, d) => s + (d.confidence || 0), 0) / Math.max(1, (window.videoDetections?.slice(-50) || []).length) : 0;
         const MIN_FACIAL_CONFIDENCE = 0.6;
         
-        let formatted = "\n── SIGNAUX MULTIMODAUX (" + reliability + " — audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) ──\n";
-        formatted += "(Signaux automatiques — formuler en HYPOTHÈSES ouvertes, JAMAIS en affirmations.)\n\n";
+        let formatted = "\n── SIGNAUX MULTIMODAUX [COUCHE 1 : SIGNAL_BRUT] (" + reliability + " — audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) ──\n";
+        formatted += "(Capteurs automatiques — données BRUTES, NON interprétées. Formuler en HYPOTHÈSES ouvertes, JAMAIS en affirmations.)\n\n";
         
         formatted += `Énergie vocale : ${context.vocal_energy.toFixed(1)}/10 | Stabilité : ${context.vocal_stability.toFixed(1)}/10\n`;
         
@@ -11187,7 +11295,7 @@ class ClinicalDecisionEngine {
                 this._handleTransition(recommendation);
                 this._lastTransitionExchange = window.sessionManager?.exchangeCount || 0;
             } else {
-                console.log(`[MDC] ⏸️ Cooldown: ${exchangesSinceLastTransition}/3 échanges depuis dernière transition — maintien ${this.activeApproach}`);
+                console.log(`[COUCHE 2] ⏸️ Cooldown: ${exchangesSinceLastTransition}/3 échanges depuis dernière transition — maintien ${this.activeApproach}`);
             }
         }
         
@@ -11733,6 +11841,13 @@ class ClinicalDecisionEngine {
     }
     
     _handleTransition(recommendation) {
+        // B4: Log transition for supervision
+        if (window.reviewExporter) {
+            window.reviewExporter.logMDCTransition(
+                this.activeApproach, recommendation.approach, 
+                recommendation.reason, window.sessionManager?.exchangeCount || 0
+            );
+        }
         const previousApproach = this.activeApproach;
         const now = Date.now();
         if (this.lastTransitionTime && (now - this.lastTransitionTime) < 30000) {
@@ -11788,7 +11903,7 @@ class ClinicalDecisionEngine {
             systemic:       'Systémique. Penser en BOUCLES, pas en individus. Identifier les tentatives de solution qui maintiennent le problème. Question circulaire.'
         };
         const _constraint = _mdcConstraints[recommendation.approach] || '';
-        context += `\n═══ CONTRAINTE CLINIQUE : ${approachInfo?.name || recommendation.approach} ═══\n`;
+        context += `\n═══ CONTRAINTE CLINIQUE [COUCHE 2 : HYPOTHÈSE_CLINIQUE] : ${approachInfo?.name || recommendation.approach} ═══\n`;
         context += `DIRECTIVE : Cette intervention utilise UNIQUEMENT le cadre ${approachInfo?.name || recommendation.approach}. Les autres cadres sont en arrière-plan.\n`;
         if (_constraint) context += `POSTURE : ${_constraint}\n`;
         context += `Raison clinique : ${recommendation.reason}\n`;
@@ -11806,7 +11921,7 @@ class ClinicalDecisionEngine {
         }
         
         if (signals.schemas.length > 0) {
-            context += `\n── SCHÉMAS ACTIVÉS ──\n`;
+            context += `\n── SCHÉMAS ACTIVÉS [COUCHE 2 : HYPOTHÈSE — confiance variable] ──\n`;
             signals.schemas.forEach(s => {
                 context += `  • ${s.name} (${s.score.toFixed(1)}/6)`;
                 if (s.evidence.length > 0) context += ` — ${s.evidence.join(' | ')}`;
@@ -11815,18 +11930,18 @@ class ClinicalDecisionEngine {
         }
         
         if (signals.defenses.length > 0) {
-            context += `\n── DÉFENSES EN ACTION ──\n`;
+            context += `\n── DÉFENSES EN ACTION [COUCHE 2 : HYPOTHÈSE — basé sur analyse linguistique] ──\n`;
             context += `  ODF : ${signals.odf?.toFixed(1) || '?'}/7\n`;
             signals.defenses.forEach(d => { context += `  • ${d.name} (niveau ${d.level}, freq. ${d.frequency.toFixed(1)})\n`; });
         }
         
-        context += `\n── FENÊTRE DE TOLÉRANCE : ${signals.toleranceWindow} ──\n`;
+        context += `\n── FENÊTRE DE TOLÉRANCE [COUCHE 2 : HYPOTHÈSE] : ${signals.toleranceWindow} ──\n`;
         if (signals.toleranceWindow === 'narrow') context += `  → Interventions douces. Pas de travail en profondeur.\n`;
         else if (signals.toleranceWindow === 'exceeded') context += `  → STABILISATION IMMÉDIATE. Ancrage sensoriel.\n`;
         
         // v7.1 — Alliance thérapeutique
         if (signals.allianceRupture) {
-            context += `\n── ALLIANCE THÉRAPEUTIQUE : ${signals.allianceRupture} ──\n`;
+            context += `\n── ALLIANCE THÉRAPEUTIQUE [COUCHE 2 : HYPOTHÈSE] : ${signals.allianceRupture} ──\n`;
             if (signals.allianceRupture === 'explicit') context += `  → RUPTURE EXPLICITE. Arrête toute technique. La réparation d'alliance EST le travail.\n`;
             else if (signals.allianceRupture === 'implicit') context += `  → Désengagement progressif. Vérifie : "Mon rythme te convient ?"\n`;
             else if (signals.allianceRupture === 'warning') context += `  → Léger retrait détecté. Reste attentif, propose un ajustement.\n`;
@@ -15943,6 +16058,7 @@ class ConversationalSystem {
                 const lastUserContent = cleanMessages.filter(m => m.role === 'user').pop()?.content || '';
                 const prevTopic = window._lastTherapyTopic || '';
                 window.allianceTracker.analyze(lastUserContent, prevTopic);
+                if (window.reviewExporter) window.reviewExporter.logAllianceScore(window.allianceTracker.score, window.allianceTracker.lastAnalysis);
                 const allianceCtx = window.allianceTracker.getContextForLLM();
                 if (allianceCtx) systemPrompt += allianceCtx;
             }
@@ -16028,6 +16144,7 @@ class ConversationalSystem {
                     const guardResult = await window.ClinicalGuardRails.verify(question, this.WORKER_URL);
                     if (!guardResult.ok && guardResult.violations?.length > 0 && !window._guardRetried) {
                         console.log('[GuardRails] 🔄 Re-génération avec contraintes...');
+                        if (window.reviewExporter) window.reviewExporter.logGuardRailTrigger(guardResult.violations, 're-generation');
                         window._guardRetried = true;
                         const constraint = window.ClinicalGuardRails.buildConstraint(guardResult.violations);
                         const retryPayload = {
@@ -16267,6 +16384,7 @@ OBJECTIFS DIAGNOSTIQUES :`;
             
             // Injecter les détecteurs cliniques (schémas, défenses, attachement du partenaire qui parle)
             let coupleDetectors = '\n\n═══ DONNÉES CLINIQUES INTERNES (INVISIBLES POUR LES PARTENAIRES) ═══\n';
+            coupleDetectors += '[COUCHE 2 : HYPOTHÈSES CLINIQUES — données de profilage automatique]\n';
             coupleDetectors += 'DIRECTIVE ABSOLUE : ces données sont pour ton raisonnement UNIQUEMENT. Tu ne les affiches JAMAIS, tu ne les cites JAMAIS, tu ne mentionnes JAMAIS les scores, ODF, styles d\'attachement, ou noms de schémas dans ta réponse visible. Tu les utilises silencieusement pour guider tes interventions.\n\n';
             coupleDetectors += `(Partenaire actif : ${window._partnerNames?.[window._activePartner] || 'inconnu'})\n\n`;
             let hasData = false;
@@ -16860,6 +16978,8 @@ MOTS ET EXPRESSIONS INTERDITS :
 - "votre système" / "votre système nerveux" → Jargon polyvagal. Dis "vous" ou "votre corps".
 - "Je sens que" / "J'observe que" / "Cela pourrait signifier" → Monologue clinique. AGIS sur ce que tu observes, ne le DÉCRIS pas.
 - Toute formulation entre astérisques *comme ceci* → Le patient ne doit JAMAIS voir tes hypothèses ou ton raisonnement interne.
+
+═══ [COUCHE 3 : ACTE CLINIQUE — Ces règles gouvernent ta réponse visible] ═══
 
 ═══ ARSENAL INVISIBLE ═══
 
