@@ -15867,6 +15867,9 @@ class ConversationalSystem {
             }
             // ═══ FIN RAG v2 ═══
             
+            // Appeler Claude API
+            const isCollab = window._operatingMode === 'collaborateur';
+
             // ═══ AllianceTracker — analyser le dernier message patient ═══
             if (window.allianceTracker && !isCollab) {
                 const lastUserContent = cleanMessages.filter(m => m.role === 'user').pop()?.content || '';
@@ -15875,9 +15878,6 @@ class ConversationalSystem {
                 const allianceCtx = window.allianceTracker.getContextForLLM();
                 if (allianceCtx) systemPrompt += allianceCtx;
             }
-
-            // Appeler Claude API
-            const isCollab = window._operatingMode === 'collaborateur';
             // FIX 5: Opus pour le mode collaborateur (raisonnement clinique profond)
             const apiModel = isCollab ? (window.VARIANT?.model_collab || 'claude-sonnet-4-5-20250929') : (window.VARIANT?.model_patient || 'claude-sonnet-4-5-20250929');
             // Note: Remplacer par 'claude-opus-4-0-20250514' quand disponible via le proxy
