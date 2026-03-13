@@ -2810,7 +2810,7 @@
                 type="text" 
                 id="google-tts-api-key" 
                 class="config-input" 
-                placeholder="AIzaSy..."
+                placeholder="Géré par le proxy Worker"
             />
             <div class="config-help">
                 Pour obtenir une clé API gratuite :<br>
@@ -2873,10 +2873,10 @@ const state = {
     afterSpeakingCallback: null,
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // v17.3.2: API GOOGLE CLOUD TTS - HARDCODÉE (Pour Christophe uniquement)
+    // v8.0: API GOOGLE CLOUD TTS — via Worker proxy (google-tts-proxy.11drumboy11.workers.dev)
     // ═══════════════════════════════════════════════════════════════════════════
     // ⚠️ REMPLACER PAR TA VRAIE CLÉ ICI ⬇️
-    googleTTSApiKey: 'AIzaSyCo8nfkrMZWv5-7Ns1kaBlJ_0APMjeu4Ok', // 🔑 METTRE TA CLÉ ICI
+    googleTTSApiKey: null, // ═══ B1: Clé supprimée — TTS routé via google-tts-proxy Worker ═══
     // Pour changer rapidement : Cmd+Shift+K dans le navigateur
     // ═══════════════════════════════════════════════════════════════════════════
     
@@ -5000,7 +5000,7 @@ class TTSQueue {
     async generateAndPlay(text) {
         return new Promise(async (resolve, reject) => {
             const mode = state.voiceMode || 'auto';
-            const hasGoogleKey = !!state.googleTTSApiKey;
+            const hasGoogleKey = true; // B1: Toujours true — le proxy Worker gère la clé
             const hasElevenKey = !!state.elevenLabsApiKey;
 
             // v18.0: Realtime WebRTC modes
@@ -5193,7 +5193,7 @@ class TTSQueue {
             
             // Fallback cascade: Google → Web Speech
             console.log('[TTSQueue] → Fallback to Google/Web Speech');
-            if (state.googleTTSApiKey) {
+            if (true) { // B1: TTS via proxy — toujours disponible
                 this.playGoogleTTS(text, resolve, reject);
             } else {
                 this.playWebSpeech(text, resolve, reject);
@@ -5318,7 +5318,8 @@ class TTSQueue {
                 audioConfig.pitch = state.googleTTSPitch;
             }
             
-            const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + state.googleTTSApiKey, {
+            const ttsProxyUrl = 'https://google-tts-proxy.11drumboy11.workers.dev';
+            const response = await fetch(ttsProxyUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -8483,7 +8484,7 @@ class MultimodalFusionEngine {
         const facialConf = context.emotional_engagement !== undefined ? (window.videoDetections?.slice(-50) || []).reduce((s, d) => s + (d.confidence || 0), 0) / Math.max(1, (window.videoDetections?.slice(-50) || []).length) : 0;
         const MIN_FACIAL_CONFIDENCE = 0.6; // 60% minimum pour remonter les données faciales
         
-        let formatted = "\n── SIGNAUX MULTIMODAUX (" + reliability + " — audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) ──\n";
+        let formatted = "\n── SIGNAUX MULTIMODAUX [COUCHE 1 : SIGNAL_BRUT] (" + reliability + " — audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) ──\n";
         formatted += "(Signaux automatiques — formuler en HYPOTHÈSES ouvertes, JAMAIS en affirmations.)\n\n";
         
         // Audio : toujours remonté si MODÉRÉE+ (Meyda est plus fiable que face-api)
@@ -13607,10 +13608,14 @@ Réponds UNIQUEMENT en JSON : {"ok": true} ou {"ok": false, "violations": ["desc
 
 RÈGLES À VÉRIFIER :
 1. MAX 1 QUESTION par intervention (compter les phrases interrogatives directes adressées au patient)
-2. MAX 2 REFORMULATIONS consécutives sans intervention substantielle (reformuler = paraphraser ce que le patient a dit sans ajouter de valeur clinique)
+2. MAX 2 REFORMULATIONS consécutives sans intervention substantielle
 3. PAS de validation enthousiaste ("Bravo", "Excellent", "C'est très bien", "Magnifique")
-4. PAS de formule d'excuse face à la résistance ("Vous avez raison de me recadrer", "Pardon si j'ai été maladroit")
-5. INTERVENTIONS COURTES (max ~8 phrases substantielles, hors exercice guidé)
+4. PAS de formule d'excuse face à la résistance ("Vous avez raison de me recadrer")
+5. INTERVENTIONS COURTES (max ~8 phrases substantielles)
+6. UN SEUL ACTE CLINIQUE par intervention (accueillir OU reformuler OU pointer OU questionner — pas plusieurs)
+7. PAS de verbalisation du raisonnement ("Je vois un cycle", "Voilà votre pattern", "Le mécanisme est...")
+8. PAS de narration gestuelle (*je me tourne*, *je vous regarde*)
+9. PAS de données cliniques techniques visibles (ODF, scores, schémas nommés, styles d'attachement)
 
 Ne signale que les violations CLAIRES. En cas de doute, retourne {"ok": true}.
 JSON only. Aucun texte avant ou après.`,
@@ -13736,7 +13741,18 @@ class ClinicalDecisionEngine {
         const recommendation = this._applyDecisionTree(signals, sessionPhase, sessionMinutes);
         
         if (recommendation.approach !== this.activeApproach) {
-            this._handleTransition(recommendation);
+            // ═══ A2: COOLDOWN MDC — min 3 échanges entre transitions (sauf crise) ═══
+            const exchangesSinceLastTransition = (this._lastTransitionExchange !== undefined) 
+                ? (window.sessionManager?.exchangeCount || 0) - this._lastTransitionExchange 
+                : 999;
+            const isCrisis = safetyResult.level >= 2 || recommendation.approach === 'safety' || recommendation.approach === 'stabilization';
+            
+            if (isCrisis || exchangesSinceLastTransition >= 3) {
+                this._handleTransition(recommendation);
+                this._lastTransitionExchange = window.sessionManager?.exchangeCount || 0;
+            } else {
+                console.log(`[MDC] ⏸️ Cooldown: ${exchangesSinceLastTransition}/3 échanges depuis dernière transition — maintien ${this.activeApproach}`);
+            }
         }
         
         return this._buildClinicalContext(recommendation, signals, safetyResult);
@@ -14328,15 +14344,15 @@ class ClinicalDecisionEngine {
             emdr:           'EMDR — En format texte : identifier la cible, le cognition négative/positive, le SUD. Orientation vers séance présentielle pour retraitement.',
             cft:            'CFT — Compassion (Gilbert). Le patient s\'attaque. Activer le système d\'apaisement. La compassion est du courage, pas de la gentillesse.',
             dbt:            'DBT — Régulation (Linehan). Le patient est SUBMERGÉ. Stabiliser AVANT tout. Validation radicale. Ancrage. PAS de travail cognitif tant que le système nerveux n\'est pas régulé.',
-            stabilization:  'Stabilisation immédiate. Ancrage sensoriel. Respiration. Aucune exploration en profondeur.',
-            safety:         'PROTOCOLE DE SÉCURITÉ. Contenir. Maintenir le lien. Orienter vers ressource humaine.',
+            stabilization:  'STOP PROFONDEUR. Stabilisation immédiate. Ancrage sensoriel (5 sens, pieds au sol, respiration). INTERDIT : question exploratoire, nommage de cycle, activation émotionnelle, travail en profondeur. Le SEUL objectif est ramener le système nerveux dans la fenêtre de tolérance.',
+            safety:         'PROTOCOLE DE SÉCURITÉ IMMÉDIAT. STOP toute exploration. Contenir. Maintenir le lien. Orienter vers Christophe / numéros d\'urgence. Aucune technique, aucune analyse — PRÉSENCE UNIQUEMENT.',
             mi:             'Entretien motivationnel (Miller). Le patient est ambivalent. NE PAS pousser. Explorer l\'ambivalence. Faire émerger le discours-changement. JAMAIS convaincre.',
             cnv:            'CNV (Rosenberg). Le patient ne sait pas exprimer ses besoins. Protocole OSBD : Observation → Sentiment → Besoin → Demande.',
             icv:            'ICV (Pace). Réaction émotionnelle disproportionnée, bloqué dans le passé. Conscience temporelle : "Cette peur a quel âge ?" Ancrer dans le présent.',
             systemic:       'Systémique. Penser en BOUCLES, pas en individus. Identifier les tentatives de solution qui maintiennent le problème. Question circulaire.'
         };
         const _constraint = _mdcConstraints[recommendation.approach] || '';
-        context += `\n═══ CONTRAINTE CLINIQUE : ${approachInfo?.name || recommendation.approach} ═══\n`;
+        context += `\n═══ CONTRAINTE CLINIQUE [COUCHE 2 : HYPOTHÈSE_CLINIQUE] : ${approachInfo?.name || recommendation.approach} ═══\n`;
         context += `DIRECTIVE : Cette intervention utilise UNIQUEMENT le cadre ${approachInfo?.name || recommendation.approach}. Les autres cadres sont en arrière-plan.\n`;
         if (_constraint) context += `POSTURE : ${_constraint}\n`;
         context += `Raison clinique : ${recommendation.reason}\n`;
@@ -14354,7 +14370,7 @@ class ClinicalDecisionEngine {
         }
         
         if (signals.schemas.length > 0) {
-            context += `\n── SCHÉMAS ACTIVÉS ──\n`;
+            context += `\n── SCHÉMAS ACTIVÉS [COUCHE 2 : HYPOTHÈSE — confiance variable] ──\n`;
             signals.schemas.forEach(s => {
                 context += `  • ${s.name} (${s.score.toFixed(1)}/6)`;
                 if (s.evidence.length > 0) context += ` — ${s.evidence.join(' | ')}`;
@@ -14363,18 +14379,18 @@ class ClinicalDecisionEngine {
         }
         
         if (signals.defenses.length > 0) {
-            context += `\n── DÉFENSES EN ACTION ──\n`;
+            context += `\n── DÉFENSES EN ACTION [COUCHE 2 : HYPOTHÈSE — basé sur analyse linguistique] ──\n`;
             context += `  ODF : ${signals.odf?.toFixed(1) || '?'}/7\n`;
             signals.defenses.forEach(d => { context += `  • ${d.name} (niveau ${d.level}, freq. ${d.frequency.toFixed(1)})\n`; });
         }
         
-        context += `\n── FENÊTRE DE TOLÉRANCE : ${signals.toleranceWindow} ──\n`;
+        context += `\n── FENÊTRE DE TOLÉRANCE [COUCHE 2 : HYPOTHÈSE] : ${signals.toleranceWindow} ──\n`;
         if (signals.toleranceWindow === 'narrow') context += `  → Interventions douces. Pas de travail en profondeur.\n`;
         else if (signals.toleranceWindow === 'exceeded') context += `  → STABILISATION IMMÉDIATE. Ancrage sensoriel.\n`;
         
         // v7.1 — Alliance thérapeutique
         if (signals.allianceRupture) {
-            context += `\n── ALLIANCE THÉRAPEUTIQUE : ${signals.allianceRupture} ──\n`;
+            context += `\n── ALLIANCE THÉRAPEUTIQUE [COUCHE 2 : HYPOTHÈSE] : ${signals.allianceRupture} ──\n`;
             if (signals.allianceRupture === 'explicit') context += `  → RUPTURE EXPLICITE. Arrête toute technique. La réparation d'alliance EST le travail.\n`;
             else if (signals.allianceRupture === 'implicit') context += `  → Désengagement progressif. Vérifie : "Mon rythme te convient ?"\n`;
             else if (signals.allianceRupture === 'warning') context += `  → Léger retrait détecté. Reste attentif, propose un ajustement.\n`;
@@ -18213,6 +18229,12 @@ class ConversationalSystem {
      * Ajouter message dans le chat
      */
     async addMessage(role, content) {
+        // ═══ FIX: Filtrer les données cliniques internes qui auraient fuité dans la réponse ═══
+        if (role === 'assistant') {
+            content = content.replace(/═══ (?:ANALYSE DU PARTENAIRE|DONNÉES CLINIQUES|SIGNAUX MULTIMODAUX|DONNÉES D'OBSERVATION)[\s\S]*?(?=\n[A-ZÀ-Ú][a-zà-ú]|\n---|$)/g, '').trim();
+            content = content.replace(/(?:SCHÉMAS (?:ACTIVÉS|DÉTECTÉS)|DÉFENSES|ODF:|ATTACHEMENT :).*?(?:\n(?=[A-ZÀ-Ú])|$)/gs, '').trim();
+            content = content.replace(/\n{3,}/g, '\n\n').trim();
+        }
         const message = {
             role: role,
             content: content,
@@ -18739,7 +18761,8 @@ OBJECTIFS DIAGNOSTIQUES :`;
             // Ces données captent les patterns de la PSYCHOLOGUE (pas de son patient)
             // → utiles pour détecter le contre-transfert, l'identification projective, etc.
             let collabDetectors = '\n\n═══ DONNÉES D\'OBSERVATION DE VOTRE COLLÈGUE (temps réel) ═══\n';
-            collabDetectors += '(Ces données reflètent les patterns émotionnels et psychologiques de la psychologue pendant qu\'elle vous parle — à utiliser pour identifier le contre-transfert, les zones de résonance personnelle, les angles morts possibles.)\n\n';
+            collabDetectors += '(Ces données reflètent les patterns émotionnels et psychologiques de la psychologue pendant qu\'elle vous parle — à utiliser pour identifier le contre-transfert, les zones de résonance personnelle, les angles morts possibles.)\n';
+            collabDetectors += '(INTÉGRER dans votre analyse clinique — ne PAS afficher les scores bruts dans votre réponse.)\n\n';
             
             let hasDetectorData = false;
             
@@ -19042,7 +19065,21 @@ RÈGLE 7 — HYPOTHÈSES PROGRESSIVES. Vérifie avant d'asséner.
 Une hypothèse non vérifiée est une projection. Tu la formules légèrement : "Il me semble que..." — et tu observes la réponse. Confirmation ou infirmation : les deux sont précieuses.
 
 RÈGLE 8 — MÉMOIRE CLINIQUE ACTIVE.
-Tu tiens un registre de tout ce qui a été dit. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
+Tu tiens un registre de tout ce qui a été dit.
+
+RÈGLE 9 — DONNÉES CLINIQUES INVISIBLES.
+Les données techniques injectées dans ton contexte (schémas, ODF, scores, défenses, attachement, fenêtre de tolérance) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS. Tu traduis ces données en interventions cliniques naturelles.
+
+RÈGLE 10 — UN ACTE PAR INTERVENTION.
+Tu choisis UN seul acte clinique par tour : accueillir, OU reformuler, OU pointer une contradiction, OU poser une question, OU proposer un exercice. PAS deux. PAS trois. Un acte juste vaut dix interventions dispersées.
+
+RÈGLE 11 — TON RAISONNEMENT EST INVISIBLE.
+Tu ne verbalises JAMAIS ton analyse au patient. "Je vois un cycle" = INTERDIT. "Voilà votre pattern" = INTERDIT. Ta lecture clinique guide ta question — elle ne devient pas un exposé. Le patient doit DÉCOUVRIR, pas recevoir un diagnostic.
+
+RÈGLE 12 — OBSERVABLE, PAS INTERPRÉTATION.
+Tu nommes ce que tu OBSERVES, pas ce que tu INTERPRÈTES. "Je vois quelque chose dans votre corps qui dit autre chose" = oui. "Vous ressentez de la tristesse" = non. "Il me semble que quelque chose se passe" = oui. "Vous êtes en colère" = non.
+
+INTERDIT : narration de gestes entre astérisques (*je me tourne*, *je vous regarde*, *je marque une pause*). Tu n'as pas de corps. Tes mots suffisent. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
 
 ═══ CADRE ÉTHIQUE ═══
 
@@ -19065,7 +19102,7 @@ Tu n'es pas un thérapeute humain. Tu n'as pas de corps, pas de présence physiq
 
 ═══ SÉANCE EN COURS ═══
 
-Phase : ${sessionCtx.phaseLabel} (${sessionCtx.phase})
+${(window.patientProfile?.sessions || 0) <= 1 ? "PREMIÈRE SÉANCE — DIRECTIVE : Observer, accueillir, cartographier. PAS de question d'activation émotionnelle profonde. PAS de nommage de cycle ou pattern. Le travail en profondeur commence séance 2-3. Objectif : ALLIANCE + CARTOGRAPHIE.\n\n" : ""}Phase : ${sessionCtx.phaseLabel} (${sessionCtx.phase})
 Temps écoulé : ${sessionCtx.elapsedMinutes} min | Restant : ${sessionCtx.remainingMinutes} min
 Échanges : ${sessionCtx.exchangeCount}
 
@@ -19273,6 +19310,8 @@ MOTS ET EXPRESSIONS INTERDITS :
 - "votre système" / "votre système nerveux" → Jargon polyvagal. Dis "vous" ou "votre corps".
 - "Je sens que" / "J'observe que" / "Cela pourrait signifier" → Monologue clinique. AGIS sur ce que tu observes, ne le DÉCRIS pas.
 - Toute formulation entre astérisques *comme ceci* → Le patient ne doit JAMAIS voir tes hypothèses ou ton raisonnement interne.
+
+═══ [COUCHE 3 : ACTE CLINIQUE — Ces règles gouvernent ta réponse visible] ═══
 
 ═══ ARSENAL INVISIBLE ═══
 
@@ -37448,7 +37487,7 @@ function saveGoogleTTSConfig() {
 function checkGoogleTTSConfig() {
     if (typeof state === 'undefined') return; // Guard: state non disponible
     // Si pas de clé et mode Google sélectionné, proposer configuration
-    if (!state.googleTTSApiKey && (state.voiceMode.startsWith('google'))) {
+    if (false && !state.googleTTSApiKey && (state.voiceMode.startsWith('google'))) { // B1: Proxy gère la clé
         const configure = confirm(
             '🎤 Configuration Google Cloud TTS\n\n' +
             'Voulez-vous configurer une clé API Google Cloud pour bénéficier de voix HD ?\n\n' +
@@ -37508,7 +37547,7 @@ function openDevAPIKeyModal() {
             <input 
                 type="text" 
                 id="dev-api-input" 
-                placeholder="AIzaSy..."
+                placeholder="Géré par le proxy Worker"
                 value="${currentKey}"
                 style="
                     width: 100%;
