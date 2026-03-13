@@ -178,7 +178,7 @@ function initVoices() {
         console.warn('[Voice] ❌ Speech Synthesis not supported');
         state.voiceSupported = false;
         document.getElementById('voice-toggle').disabled = true;
-        document.getElementById('voice-toggle').textContent = 'NON SUPPORTÉ';
+        { const _el = document.getElementById('voice-toggle'); if (_el) _el.textContent = 'NON SUPPORTÉ'; }
         return;
     }
     
@@ -631,11 +631,11 @@ function showElevenLabsConfig() {
     }
     
     // Show modal
-    document.getElementById('elevenlabs-config-modal').classList.add('active');
+    document.getElementById('elevenlabs-config-modal')?.classList.add('active');
 }
 
 function closeElevenLabsConfig() {
-    document.getElementById('elevenlabs-config-modal').classList.remove('active');
+    document.getElementById('elevenlabs-config-modal')?.classList.remove('active');
 }
 
 async function saveElevenLabsConfig() {
@@ -1331,6 +1331,8 @@ RÈGLE 6 — LA SEXUALITÉ N'EST PAS OPTIONNELLE. Si après 3 séances l'intimit
 RÈGLE 7 — TOLÉRER LA TENSION. Le conflit en ta présence est thérapeutique s'il est sécurisé.
 RÈGLE 8 — MÉMOIRE CLINIQUE ACTIVE. Tu retiens tout et tu fais les liens.
 
+RÈGLE 9 — DONNÉES CLINIQUES INVISIBLES. Les données techniques (schémas, ODF, scores d'attachement, défenses, styles) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS dans ta réponse. Tu traduis ces données en interventions cliniques naturelles, sans jargon technique visible par les partenaires.
+
 ═══ OUTILS INTERACTIFS DISPONIBLES ═══
 
 Pour proposer un outil, insère EXACTEMENT la balise [OUTIL:nom_outil]. UN outil max par intervention, au moment cliniquement pertinent.
@@ -1579,12 +1581,12 @@ function generateDossierID(initiales, age) {
  * PHASE 1 — Affiche l'écran de sélection/création de dossier
  */
 function showCollabDossierScreen() {
-    document.getElementById('welcome-screen').classList.remove('active');
-    document.getElementById('collab-dossier-screen').classList.add('active');
+    document.getElementById('welcome-screen')?.classList.remove('active');
+    document.getElementById('collab-dossier-screen')?.classList.add('active');
     // Reset
     document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('dossier-form-new').classList.remove('active');
-    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.getElementById('dossier-form-new')?.classList.remove('active');
+    document.getElementById('dossier-form-resume')?.classList.remove('active');
     console.log('[Dossier] 📋 Écran dossier patient affiché');
 }
 
@@ -1595,21 +1597,21 @@ function selectDossierAction(action, el) {
     document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
     
-    document.getElementById('dossier-form-new').classList.remove('active');
-    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.getElementById('dossier-form-new')?.classList.remove('active');
+    document.getElementById('dossier-form-resume')?.classList.remove('active');
     
     if (action === 'new') {
-        document.getElementById('dossier-form-new').classList.add('active');
+        document.getElementById('dossier-form-new')?.classList.add('active');
     } else if (action === 'resume') {
-        document.getElementById('dossier-form-resume').classList.add('active');
-        document.getElementById('dossier-resume-preview').style.display = 'none';
+        document.getElementById('dossier-form-resume')?.classList.add('active');
+        { const _t = document.getElementById('dossier-resume-preview'); if (_t?.style) _t.style.display = 'none'; }
     } else if (action === 'libre') {
         // Session libre : pas de dossier, on lance directement
         window._collabDossier = null;
         window._collabSessionHistory = [];
         window._collabSessionNumber = 1;
         window._collabDossierDone = true;
-        document.getElementById('collab-dossier-screen').classList.remove('active');
+        document.getElementById('collab-dossier-screen')?.classList.remove('active');
         showModeSelection();
     }
 }
@@ -1618,16 +1620,16 @@ function selectDossierAction(action, el) {
  * Retour au welcome screen
  */
 function backToWelcome() {
-    document.getElementById('collab-dossier-screen').classList.remove('active');
-    document.getElementById('welcome-screen').classList.add('active');
+    document.getElementById('collab-dossier-screen')?.classList.remove('active');
+    document.getElementById('welcome-screen')?.classList.add('active');
 }
 
 /**
  * Ferme le formulaire dossier et revient aux 3 cartes
  */
 function closeDossierForm() {
-    document.getElementById('dossier-form-new').classList.remove('active');
-    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.getElementById('dossier-form-new')?.classList.remove('active');
+    document.getElementById('dossier-form-resume')?.classList.remove('active');
     document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
 }
 
@@ -1674,7 +1676,7 @@ function createNewDossier() {
     }
     
     // Passer au choix du mode (texte/audio/vidéo)
-    document.getElementById('collab-dossier-screen').classList.remove('active');
+    document.getElementById('collab-dossier-screen')?.classList.remove('active');
     window._collabDossierDone = true;
     showModeSelection();
 }
@@ -1809,7 +1811,7 @@ function loadDossierFromJSON(data) {
     }
     
     closeDossierConfirm();
-    document.getElementById('collab-dossier-screen').classList.remove('active');
+    document.getElementById('collab-dossier-screen')?.classList.remove('active');
     window._collabDossierDone = true;
     showModeSelection();
 }
@@ -15600,6 +15602,15 @@ class ConversationalSystem {
      * Ajouter message dans le chat
      */
     async addMessage(role, content) {
+        // ═══ FIX: Filtrer les données cliniques internes qui auraient fuité dans la réponse ═══
+        if (role === 'assistant') {
+            // Strip any clinical data blocks that the LLM should not have included
+            content = content.replace(/═══ (?:ANALYSE DU PARTENAIRE|DONNÉES CLINIQUES|SIGNAUX MULTIMODAUX|DONNÉES D'OBSERVATION)[\s\S]*?(?=\n[A-ZÀ-Ú][a-zà-ú]|\n---|\$)/g, '').trim();
+            // Strip schema/defense/attachment raw data
+            content = content.replace(/(?:SCHÉMAS (?:ACTIVÉS|DÉTECTÉS)|DÉFENSES|ODF:|ATTACHEMENT :).*?(?:\n(?=[A-ZÀ-Ú])|\$)/gs, '').trim();
+            // Clean up multiple newlines left by stripping
+            content = content.replace(/\n{3,}/g, '\n\n').trim();
+        }
         // ═══ MODE COUPLE: préfixer le contenu user avec le nom du partenaire ═══
         let taggedContent = content;
         if (window._operatingMode === 'couple' && role === 'user') {
@@ -16195,7 +16206,8 @@ OBJECTIFS DIAGNOSTIQUES :`;
             let prompt = buildCouplePrompt(multimodalContext);
             
             // Injecter les détecteurs cliniques (schémas, défenses, attachement du partenaire qui parle)
-            let coupleDetectors = '\n\n═══ ANALYSE DU PARTENAIRE QUI PARLE ═══\n';
+            let coupleDetectors = '\n\n═══ DONNÉES CLINIQUES INTERNES (INVISIBLES POUR LES PARTENAIRES) ═══\n';
+            coupleDetectors += 'DIRECTIVE ABSOLUE : ces données sont pour ton raisonnement UNIQUEMENT. Tu ne les affiches JAMAIS, tu ne les cites JAMAIS, tu ne mentionnes JAMAIS les scores, ODF, styles d\'attachement, ou noms de schémas dans ta réponse visible. Tu les utilises silencieusement pour guider tes interventions.\n\n';
             coupleDetectors += `(Partenaire actif : ${window._partnerNames?.[window._activePartner] || 'inconnu'})\n\n`;
             let hasData = false;
             
@@ -16241,7 +16253,8 @@ OBJECTIFS DIAGNOSTIQUES :`;
             // Ces données captent les patterns de la PSYCHOLOGUE (pas de son patient)
             // → utiles pour détecter le contre-transfert, l'identification projective, etc.
             let collabDetectors = '\n\n═══ DONNÉES D\'OBSERVATION DE VOTRE COLLÈGUE (temps réel) ═══\n';
-            collabDetectors += '(Ces données reflètent les patterns émotionnels et psychologiques de la psychologue pendant qu\'elle vous parle — à utiliser pour identifier le contre-transfert, les zones de résonance personnelle, les angles morts possibles.)\n\n';
+            collabDetectors += '(Ces données reflètent les patterns émotionnels et psychologiques de la psychologue pendant qu\'elle vous parle — à utiliser pour identifier le contre-transfert, les zones de résonance personnelle, les angles morts possibles.)\n';
+            collabDetectors += '(INTÉGRER dans votre analyse clinique — ne PAS afficher les scores bruts dans votre réponse.)\n\n';
             
             let hasDetectorData = false;
             
@@ -16544,7 +16557,10 @@ RÈGLE 7 — HYPOTHÈSES PROGRESSIVES. Vérifie avant d'asséner.
 Une hypothèse non vérifiée est une projection. Tu la formules légèrement : "Il me semble que..." — et tu observes la réponse. Confirmation ou infirmation : les deux sont précieuses.
 
 RÈGLE 8 — MÉMOIRE CLINIQUE ACTIVE.
-Tu tiens un registre de tout ce qui a été dit. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
+Tu tiens un registre de tout ce qui a été dit.
+
+RÈGLE 9 — DONNÉES CLINIQUES INVISIBLES.
+Les données techniques injectées dans ton contexte (schémas, ODF, scores, défenses, attachement, fenêtre de tolérance) sont pour ton raisonnement SILENCIEUX. Tu ne les affiches JAMAIS. Tu traduis ces données en interventions cliniques naturelles. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
 
 ═══ CADRE ÉTHIQUE ═══
 
@@ -17922,7 +17938,7 @@ async function startInterview() {
     document.getElementById('mode-modal').classList.remove('active');
     
     // Show interview screen
-    document.getElementById('welcome-screen').classList.remove('active');
+    document.getElementById('welcome-screen')?.classList.remove('active');
     document.getElementById('interview-screen').classList.add('active');
     
     // ═══ MODE COLLABORATEUR — Activer les indicateurs ═══
