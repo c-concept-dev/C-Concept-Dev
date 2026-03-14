@@ -2974,6 +2974,8 @@
 // ============================================================================
 const CONFIG = {
     WORKER_URL: 'https://clone-proxy.11drumboy11.workers.dev/',
+    // ═══ B5: Auth token — vérifié par le Worker ═══
+    WORKER_AUTH_TOKEN: localStorage.getItem('workerAuthToken') || '',
     MODEL: 'claude-sonnet-4-5-20250929',
     TARGET_QUESTIONS: 40,
     MIN_WORDS: 10,
@@ -3042,6 +3044,90 @@ const state = {
 if (typeof window.state === 'undefined') {
     window.state = state;
     console.log('[v15.4.3] ✅ state exposed on window.state');
+// ═══ B5: Global auth headers helper ═══
+function getWorkerHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.WORKER_AUTH_TOKEN) headers['X-Auth-Token'] = state.WORKER_AUTH_TOKEN;
+    return headers;
+}
+
+// ═══ B2: Wrapper localStorage sécurisé ═══
+const SecureStorage = {
+    _prefix: '_tia_',
+    _encode(data) {
+        try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))); }
+        catch(e) { return JSON.stringify(data); }
+    },
+    _decode(str) {
+        try { return JSON.parse(decodeURIComponent(escape(atob(str)))); }
+        catch(e) { try { return JSON.parse(str); } catch(e2) { return null; } }
+    },
+    set(key, data) {
+        try { localStorage.setItem(this._prefix + key, this._encode(data)); }
+        catch(e) { console.warn('[SecureStorage] Write failed:', key); }
+    },
+    get(key) {
+        try {
+            const raw = localStorage.getItem(this._prefix + key);
+            if (!raw) return null;
+            return this._decode(raw);
+        } catch(e) { return null; }
+    },
+    remove(key) { localStorage.removeItem(this._prefix + key); }
+};
+window.SecureStorage = SecureStorage;
+console.log('[SecureStorage] ✅ Secure localStorage wrapper initialized');
+
+// ═══ B4: ReviewExporter — Supervision formalisée ═══
+class ReviewExporter {
+    constructor() {
+        this.sessionLog = [];
+        this.mdcTransitions = [];
+        this.guardRailsTriggers = [];
+        this.allianceScores = [];
+        this.reviewed = false;
+        console.log('[ReviewExporter] ✅ Initialized');
+    }
+    logEvent(layer, type, data) {
+        this.sessionLog.push({ timestamp: new Date().toISOString(), layer, type, data });
+    }
+    logMDCTransition(from, to, reason, exchangeCount) {
+        const entry = { timestamp: new Date().toISOString(), from, to, reason, exchangeCount };
+        this.mdcTransitions.push(entry);
+        this.logEvent('hypothese', 'mdc_transition', entry);
+    }
+    logGuardRailTrigger(violations, action) {
+        const entry = { timestamp: new Date().toISOString(), violations, action };
+        this.guardRailsTriggers.push(entry);
+        this.logEvent('acte_clinique', 'guardrail_trigger', entry);
+    }
+    logAllianceScore(score, context) {
+        this.allianceScores.push({ timestamp: new Date().toISOString(), score, context });
+    }
+    markReviewed(reviewer = 'Christophe') {
+        this.reviewed = true; this.reviewedBy = reviewer; this.reviewedAt = new Date().toISOString();
+    }
+    exportReview() {
+        return {
+            version: 'v8.0', exported: new Date().toISOString(), reviewed: this.reviewed,
+            summary: { events: this.sessionLog.length, transitions: this.mdcTransitions.length, guardRails: this.guardRailsTriggers.length },
+            mdcTransitions: this.mdcTransitions, guardRailsTriggers: this.guardRailsTriggers, fullLog: this.sessionLog
+        };
+    }
+    downloadReview() {
+        const blob = new Blob([JSON.stringify(this.exportReview(), null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'review-clinique_' + new Date().toISOString().split('T')[0] + '.json'; a.click();
+    }
+}
+window.reviewExporter = new ReviewExporter();
+window.ReviewAPI = {
+    export: () => window.reviewExporter?.downloadReview(),
+    markReviewed: (by) => window.reviewExporter?.markReviewed(by || 'Christophe'),
+    status: () => { const r = window.reviewExporter; return r ? { events: r.sessionLog.length, transitions: r.mdcTransitions.length, reviewed: r.reviewed } : 'N/A'; }
+};
+
+
 }
 
 // Expose multi-modal functions (Phase 2.4)
@@ -3127,7 +3213,7 @@ function initVoices() {
         console.warn('[Voice] ❌ Speech Synthesis not supported');
         state.voiceSupported = false;
         document.getElementById('voice-toggle').disabled = true;
-        document.getElementById('voice-toggle').textContent = 'NON SUPPORTÉ';
+        { const _el = document.getElementById('voice-toggle'); if (_el) _el.textContent = 'NON SUPPORTÉ'; }
         return;
     }
     
@@ -3580,11 +3666,11 @@ function showElevenLabsConfig() {
     }
     
     // Show modal
-    document.getElementById('elevenlabs-config-modal').classList.add('active');
+    document.getElementById('elevenlabs-config-modal')?.classList.add('active');
 }
 
 function closeElevenLabsConfig() {
-    document.getElementById('elevenlabs-config-modal').classList.remove('active');
+    document.getElementById('elevenlabs-config-modal')?.classList.remove('active');
 }
 
 async function saveElevenLabsConfig() {
@@ -4537,12 +4623,12 @@ function generateDossierID(initiales, age) {
  * PHASE 1 — Affiche l'écran de sélection/création de dossier
  */
 function showCollabDossierScreen() {
-    document.getElementById('welcome-screen').classList.remove('active');
-    document.getElementById('collab-dossier-screen').classList.add('active');
+    document.getElementById('welcome-screen')?.classList.remove('active');
+    document.getElementById('collab-dossier-screen')?.classList.add('active');
     // Reset
     document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('dossier-form-new').classList.remove('active');
-    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.getElementById('dossier-form-new')?.classList.remove('active');
+    document.getElementById('dossier-form-resume')?.classList.remove('active');
     console.log('[Dossier] 📋 Écran dossier patient affiché');
 }
 
@@ -4553,21 +4639,21 @@ function selectDossierAction(action, el) {
     document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
     
-    document.getElementById('dossier-form-new').classList.remove('active');
-    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.getElementById('dossier-form-new')?.classList.remove('active');
+    document.getElementById('dossier-form-resume')?.classList.remove('active');
     
     if (action === 'new') {
-        document.getElementById('dossier-form-new').classList.add('active');
+        document.getElementById('dossier-form-new')?.classList.add('active');
     } else if (action === 'resume') {
-        document.getElementById('dossier-form-resume').classList.add('active');
-        document.getElementById('dossier-resume-preview').style.display = 'none';
+        document.getElementById('dossier-form-resume')?.classList.add('active');
+        { const _el = document.getElementById('dossier-resume-preview'); if (_el) _el.style.display = 'none'; }
     } else if (action === 'libre') {
         // Session libre : pas de dossier, on lance directement
         window._collabDossier = null;
         window._collabSessionHistory = [];
         window._collabSessionNumber = 1;
         window._collabDossierDone = true;
-        document.getElementById('collab-dossier-screen').classList.remove('active');
+        document.getElementById('collab-dossier-screen')?.classList.remove('active');
         showModeSelection();
     }
 }
@@ -4576,16 +4662,16 @@ function selectDossierAction(action, el) {
  * Retour au welcome screen
  */
 function backToWelcome() {
-    document.getElementById('collab-dossier-screen').classList.remove('active');
-    document.getElementById('welcome-screen').classList.add('active');
+    document.getElementById('collab-dossier-screen')?.classList.remove('active');
+    document.getElementById('welcome-screen')?.classList.add('active');
 }
 
 /**
  * Ferme le formulaire dossier et revient aux 3 cartes
  */
 function closeDossierForm() {
-    document.getElementById('dossier-form-new').classList.remove('active');
-    document.getElementById('dossier-form-resume').classList.remove('active');
+    document.getElementById('dossier-form-new')?.classList.remove('active');
+    document.getElementById('dossier-form-resume')?.classList.remove('active');
     document.querySelectorAll('#collab-dossier-screen .dossier-action-card').forEach(c => c.classList.remove('selected'));
 }
 
@@ -4632,7 +4718,7 @@ function createNewDossier() {
     }
     
     // Passer au choix du mode (texte/audio/vidéo)
-    document.getElementById('collab-dossier-screen').classList.remove('active');
+    document.getElementById('collab-dossier-screen')?.classList.remove('active');
     window._collabDossierDone = true;
     showModeSelection();
 }
@@ -4767,7 +4853,7 @@ function loadDossierFromJSON(data) {
     }
     
     closeDossierConfirm();
-    document.getElementById('collab-dossier-screen').classList.remove('active');
+    document.getElementById('collab-dossier-screen')?.classList.remove('active');
     window._collabDossierDone = true;
     showModeSelection();
 }
@@ -20925,7 +21011,7 @@ async function startInterview() {
     document.getElementById('mode-modal').classList.remove('active');
     
     // Show interview screen
-    document.getElementById('welcome-screen').classList.remove('active');
+    document.getElementById('welcome-screen')?.classList.remove('active');
     document.getElementById('interview-screen').classList.add('active');
     
     // ═══ MODE COLLABORATEUR — Activer les indicateurs ═══
