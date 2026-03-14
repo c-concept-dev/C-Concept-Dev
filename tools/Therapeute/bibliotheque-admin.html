@@ -238,9 +238,9 @@
         <div class="tab-content active" id="tab-upload">
             <div class="dropzone" id="dropzone">
                 <span class="dropzone-icon">📄</span>
-                <div class="dropzone-text">Glissez vos PDF ici</div>
-                <div class="dropzone-hint">Plusieurs fichiers acceptés — extraction et indexation automatiques</div>
-                <input type="file" id="fileInput" accept=".pdf" multiple>
+                <div class="dropzone-text">Glissez vos PDF ou HTML ici</div>
+                <div class="dropzone-hint">PDF et HTML acceptés — extraction et indexation automatiques</div>
+                <input type="file" id="fileInput" accept=".pdf,.html,.htm" multiple>
             </div>
 
             <div id="dupAlerts"></div>
@@ -484,29 +484,35 @@ fileInput.addEventListener('change', () => {
 });
 
 function addFiles(files) {
-    const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
-    if (pdfs.length === 0) return;
+    const accepted = files.filter(f => {
+        const name = f.name.toLowerCase();
+        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm');
+    });
+    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF ou HTML détecté'); return; }
 
-    for (const f of pdfs) {
+    for (const f of accepted) {
         if (queue.find(q => q.file.name === f.name)) continue;
         const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
-        const bookId = f.name.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+        const bookId = f.name.replace(/\.(pdf|html?)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        const isHTML = ext === '.html' || ext === '.htm';
         queue.push({
             id, file: f,
+            fileType: isHTML ? 'html' : 'pdf',
             meta: {
                 book_id: bookId,
-                title: f.name.replace(/\.pdf$/i, ''),
+                title: f.name.replace(/\.(pdf|html?)$/i, ''),
                 author: '',
                 language: 'fr',
-                approach: 'general',
-                tags: []
+                approach: isHTML ? 'outils_couple' : 'general',
+                tags: isHTML ? ['outil', 'couple', 'exercice'] : []
             },
             status: 'pending', chunks: [], error: null
         });
     }
     renderQueue();
     document.getElementById('actionBar').style.display = 'flex';
-    log(`${pdfs.length} PDF ajouté(s) à la file d'attente`);
+    log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML)`);
 }
 
 // ── Queue Render ──
@@ -595,6 +601,77 @@ async function extractPDFText(file, progressCb) {
     }
 
     return { pages, fullText: allText, numPages };
+}
+
+// ── Extract HTML text (outils couple, exercices) ──
+async function extractHTMLText(file, progressCb) {
+    const text = await file.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+    
+    // Remove scripts, styles, and hidden elements
+    doc.querySelectorAll('script, style, noscript, [hidden]').forEach(el => el.remove());
+    
+    // Extract structured content
+    const pages = [];
+    let pageNum = 1;
+    
+    // Try to extract by sections (h1, h2, h3)
+    const sections = doc.querySelectorAll('h1, h2, h3, h4');
+    if (sections.length > 0) {
+        // Extract title
+        const title = doc.querySelector('title')?.textContent?.trim() || 
+                      doc.querySelector('h1')?.textContent?.trim() || file.name;
+        
+        sections.forEach((section, idx) => {
+            let sectionText = section.textContent.trim() + '\n\n';
+            // Get all text until next section
+            let el = section.nextElementSibling;
+            while (el && !['H1','H2','H3','H4'].includes(el.tagName)) {
+                const t = el.textContent?.trim();
+                if (t && t.length > 10) sectionText += t + '\n';
+                el = el.nextElementSibling;
+            }
+            if (sectionText.trim().length > 30) {
+                pages.push({ page: pageNum++, text: sectionText.trim() });
+            }
+        });
+    }
+    
+    // Fallback: extract all text content by major blocks
+    if (pages.length === 0) {
+        const blocks = doc.querySelectorAll('p, li, td, label, .question, .instruction, .description, div > span');
+        let currentText = '';
+        blocks.forEach((block, idx) => {
+            const t = block.textContent?.trim();
+            if (t && t.length > 5) currentText += t + '\n';
+            if (currentText.length > 500 || idx === blocks.length - 1) {
+                if (currentText.trim().length > 30) {
+                    pages.push({ page: pageNum++, text: currentText.trim() });
+                }
+                currentText = '';
+            }
+        });
+    }
+    
+    // Last fallback: body textContent
+    if (pages.length === 0) {
+        const bodyText = doc.body?.textContent?.trim() || '';
+        if (bodyText.length > 50) {
+            // Split into ~500 word chunks
+            const words = bodyText.split(/\s+/);
+            for (let i = 0; i < words.length; i += 400) {
+                const chunk = words.slice(i, i + 500).join(' ');
+                if (chunk.length > 50) pages.push({ page: pageNum++, text: chunk });
+            }
+        }
+    }
+    
+    const fullText = pages.map(p => p.text).join('\n\n');
+    if (progressCb) progressCb(100);
+    
+    log(`  📄 HTML: ${pages.length} sections extraites, ${fullText.split(/\s+/).length} mots`);
+    return { pages, fullText, numPages: pages.length };
 }
 
 // ── Chunking intelligent (respecte les paragraphes) ──
@@ -751,12 +828,24 @@ async function startIngestion() {
             renderQueue();
             log(`📄 Extraction: ${q.meta.title}...`);
 
-            const { pages, numPages } = await extractPDFText(q.file, pct => {
-                const bar = document.getElementById('qp-' + q.id);
-                if (bar) bar.style.width = pct + '%';
-            });
+            let pages, numPages;
+            if (q.fileType === 'html') {
+                const result = await extractHTMLText(q.file, pct => {
+                    const bar = document.getElementById('qp-' + q.id);
+                    if (bar) bar.style.width = pct + '%';
+                });
+                pages = result.pages;
+                numPages = result.numPages;
+            } else {
+                const result = await extractPDFText(q.file, pct => {
+                    const bar = document.getElementById('qp-' + q.id);
+                    if (bar) bar.style.width = pct + '%';
+                });
+                pages = result.pages;
+                numPages = result.numPages;
+            }
 
-            if (pages.length === 0) throw new Error('Aucun texte extrait (PDF scanné ou protégé)');
+            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : 'Aucun texte extrait (PDF scanné ou protégé)');
 
             // Phase 1b: Auto-detect metadata
             if (!q.meta.author || q.meta.approach === 'general') {
