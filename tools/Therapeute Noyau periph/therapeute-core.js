@@ -1470,7 +1470,7 @@ PROCESSUS > CONTENU : Ce dont ils parlent (courses, enfants, argent) n'est presq
 
 RÈGLE 1 — ÉQUILIBRE STRICT. Chaque partenaire entendu à parts égales.
 RÈGLE 2 — UNE SEULE QUESTION PAR INTERVENTION. Absolue.
-RÈGLE 3 — INTERVENTIONS COURTES ET CIBLÉES. Maximum 6-8 phrases.
+RÈGLE 3 — INTERVENTIONS COURTES ET CIBLÉES. Maximum 4-5 phrases en mode vocal, 6-8 en mode texte. En situation de crise, tu peux aller jusqu'à 8-10 phrases si nécessaire (protocole de sécurité), mais JAMAIS au-delà.
 RÈGLE 4 — JAMAIS DE COALITION. Même involontaire.
 RÈGLE 5 — NOMMER LES CYCLES, PAS LES FAUTES.
 RÈGLE 6 — LA SEXUALITÉ N'EST PAS OPTIONNELLE. Si après 3 séances l'intimité physique n'a pas été abordée, tu poses la question.
@@ -1495,6 +1495,10 @@ TRANSITIONS : n'annonce JAMAIS qu'un moment est "important" ou "essentiel". Entr
 REFORMULATIONS : si ta reformulation ne fait que signaler ta compréhension sans faire avancer, supprime-la. Ta question suffit.
 
 SILENCE ET PRÉSENCE : le silence existe, tu ne le décris pas. Pas de mise en scène — ni astérisques, ni parenthèses, ni narration de gestes, regards, postures ou actions physiques. Aucun format.
+
+EN MODE CRISE : quand la tension monte (violence, effondrement, rupture), ta tentation est de narrer ta posture. RÉSISTE. "Stop." suffit. "Je vais être clair." suffit. Le patient entend ta voix.
+
+TAGS INTERNES : JAMAIS de [SIGNAL CLINIQUE], [ARRÊT DE LA SÉANCE], [PROTOCOLE]. Ta décision clinique se traduit en MOTS au patient, pas en étiquettes de système.
 
 ═══ OUTILS INTERACTIFS DISPONIBLES ═══
 
@@ -2509,6 +2513,8 @@ class TTSQueue {
      * Ajouter texte à la queue et jouer
      */
     async play(text, onDone) {
+        // ═══ SANITIZER TTS — nettoyer AVANT vocalisation ═══
+        text = this.sanitizeForTTS(text);
         console.log('[TTSQueue] 📝 Adding to queue:', text.substring(0, 50) + '...');
         
         this.queue.push({ text, onDone });
@@ -2519,6 +2525,26 @@ class TTSQueue {
         }
     }
     
+    /**
+     * Nettoyer le texte AVANT vocalisation — le patient ENTEND ça
+     */
+    sanitizeForTTS(text) {
+        // Tags internes système
+        text = text.replace(/\*?\*?\[(?:SIGNAL CLINIQUE|ARRÊT DE LA SÉANCE|PROTOCOLE|ALERTE|WARNING|NOTE CLINIQUE)[^\]]*\]\*?\*?/gi, '');
+        // Emotes entre astérisques
+        text = text.replace(/\*\([^)]*\)\*/g, '');
+        text = text.replace(/\*[^*]*(?:silence|pause|regard|tourne|lève|ancré|posé|voix|ton |reste|ne bouge|j'attends)[^*]*\*/gi, '');
+        // Emotes entre parenthèses
+        text = text.replace(/\([^)]*(?:silence|pause|regard|tourne|lève|ancré|posé|voix douce|ton |se tourne|je laisse|j'attends|reste assis)[^)]*\)/gi, '');
+        // Bold markdown
+        text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+        // Symboles techniques
+        text = text.replace(/═+/g, '').replace(/──+/g, '').replace(/\[COUCHE \d[^\]]*\]/g, '');
+        // Nettoyage espaces multiples et lignes vides
+        text = text.replace(/  +/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+        return text;
+    }
+
     /**
      * Traiter la file d'attente
      */
@@ -11167,7 +11193,8 @@ RÈGLES À VÉRIFIER :
 5. INTERVENTIONS COURTES (max ~8 phrases substantielles)
 6. UN SEUL ACTE CLINIQUE par intervention (accueillir OU reformuler OU pointer OU questionner — pas plusieurs)
 7. PAS de verbalisation du raisonnement ("Je vois un cycle", "Voilà votre pattern", "Le mécanisme est...")
-8. PAS de mise en scène : ni narration gestuelle (*je me tourne*), ni description de silence (*(un silence)*), ni action physique — sous AUCUN format (astérisques, parenthèses, narration)
+8. PAS de mise en scène : ni narration gestuelle, ni description de silence, ni action physique, ni didascalie de posture — sous AUCUN format (astérisques *...*, parenthèses (...), narration libre). Inclut : *(ton calme)*, *(reste ancré)*, (un silence s'installe), etc.
+8b. PAS de tags internes visibles : [SIGNAL CLINIQUE], [ARRÊT DE LA SÉANCE], [PROTOCOLE], [ALERTE], [WARNING]. Ces tags sont du raisonnement interne et ne doivent JAMAIS apparaître dans la réponse au patient.
 9. PAS de données cliniques techniques visibles (ODF, scores, schémas nommés, styles d'attachement)
 10. PAS de panneau indicateur ("vous venez de dire quelque chose d'important", "c'est essentiel", "j'entends quelque chose de fort"). La question MONTRE l'importance — pas une annonce.
 11. REFORMULATIONS : une reformulation qui ne fait que signaler la compréhension sans déplacer le sens = violation. Citer 3-5 mots du patient puis enchaîner la question = correct.
@@ -15792,10 +15819,24 @@ class ConversationalSystem {
      * Ajouter message dans le chat
      */
     async addMessage(role, content) {
-        // ═══ FIX: Filtrer les données cliniques internes qui auraient fuité dans la réponse ═══
+        // ═══ FIX: Filtrer TOUT ce qui ne doit pas être vu/entendu par le patient ═══
         if (role === 'assistant') {
+            // 1. Données cliniques internes
             content = content.replace(/═══ (?:ANALYSE DU PARTENAIRE|DONNÉES CLINIQUES|SIGNAUX MULTIMODAUX|DONNÉES D'OBSERVATION)[\s\S]*?(?=\n[A-ZÀ-Ú][a-zà-ú]|\n---|$)/g, '').trim();
             content = content.replace(/(?:SCHÉMAS (?:ACTIVÉS|DÉTECTÉS)|DÉFENSES|ODF:|ATTACHEMENT :).*?(?:\n(?=[A-ZÀ-Ú])|$)/gs, '').trim();
+            
+            // 2. Tags internes système (CRITIQUE pour le TTS — ne doivent JAMAIS être lus à voix haute)
+            content = content.replace(/\*?\*?\[(?:SIGNAL CLINIQUE|ARRÊT DE LA SÉANCE|PROTOCOLE|ALERTE|WARNING|NOTE CLINIQUE)[^\]]*\]\*?\*?\n?/gi, '').trim();
+            
+            // 3. Emotes narratives — tout format (astérisques, parenthèses, narration de geste/posture)
+            content = content.replace(/\*\([^)]*\)\*/g, '').trim();           // *(ton calme, ferme)*
+            content = content.replace(/\*[^*]*(?:silence|pause|regard|tourne|lève|ancré|posé|voix|ton |se tourne|me tourne|reste assis|ne bouge)[^*]*\*/gi, '').trim();  // *narration gestuelle*
+            content = content.replace(/\([^)]*(?:silence|pause|regard|tourne|lève|ancré|posé|voix douce|ton |se tourne|je laisse|j'attends|reste)[^)]*\)/gi, '').trim();  // (narration gestuelle)
+            
+            // 4. Bold markdown → texte simple (pour affichage ET TTS)
+            content = content.replace(/\*\*([^*]+)\*\*/g, '$1').trim();
+            
+            // 5. Nettoyage lignes vides multiples
             content = content.replace(/\n{3,}/g, '\n\n').trim();
         }
         // ═══ MODE COUPLE: préfixer le contenu user avec le nom du partenaire ═══
@@ -16774,7 +16815,11 @@ REFORMULATIONS : si ta reformulation ne fait que signaler ta compréhension sans
 
 SILENCE : le silence entre la parole du patient et ta question EST ton intervention. Tu ne le remplis pas. Pas de mise en scène du silence — ni entre astérisques (*un silence*), ni entre parenthèses (*(je laisse le silence)*), ni en narration ("Un silence s'installe"). Le silence existe. Tu ne le décris pas.
 
-PRÉSENCE : tu n'as pas de corps. Tu ne lèves pas la main, tu ne te tournes pas, tu ne regardes pas. Aucune narration de geste, regard, posture ou action physique — sous AUCUN format (astérisques, parenthèses, italique, narration). Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
+PRÉSENCE : tu n'as pas de corps. Tu ne lèves pas la main, tu ne te tournes pas, tu ne regardes pas. Aucune narration de geste, regard, posture ou action physique — sous AUCUN format (astérisques, parenthèses, italique, narration).
+
+EN MODE CRISE : cette règle s'applique ENCORE PLUS. Quand la tension monte, ta tentation est de "marquer ta posture" — *(ton ferme)*, *(reste ancré)*. RÉSISTE. Ta fermeté passe par TES MOTS, pas par une didascalie. "Stop." suffit. "Je vais être clair." suffit. Le patient entend ta voix — il n'a pas besoin qu'on lui décrive ton attitude.
+
+TAGS INTERNES : tu ne produis JAMAIS de tags comme [SIGNAL CLINIQUE], [ARRÊT DE LA SÉANCE], [PROTOCOLE]. Ce sont des marqueurs de ton raisonnement interne. Le patient n'a pas à savoir que tu as activé un protocole — il doit juste entendre ta décision. Si un fil clinique significatif a été posé dans les premiers échanges et n'a pas été repris depuis 3 messages, tu le réintroduis : "Vous m'avez mentionné X tout à l'heure — je pense que c'est directement lié à ce que vous décrivez maintenant." Un thérapeute qui perd ses fils perd la continuité thérapeutique.
 
 ═══ CADRE ÉTHIQUE ═══
 
