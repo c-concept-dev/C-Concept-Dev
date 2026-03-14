@@ -2529,8 +2529,12 @@ class TTSQueue {
      * Nettoyer le texte AVANT vocalisation — le patient ENTEND ça
      */
     sanitizeForTTS(text) {
-        // Tags internes système
-        text = text.replace(/\*?\*?\[(?:SIGNAL CLINIQUE|ARRÊT DE LA SÉANCE|PROTOCOLE|ALERTE|WARNING|NOTE CLINIQUE)[^\]]*\]\*?\*?/gi, '');
+        // Tags internes système + analyses cliniques
+        text = text.replace(/\*?\*?\[(?:SIGNAL CLINIQUE|ARRÊT DE LA SÉANCE|PROTOCOLE|ALERTE|WARNING|NOTE CLINIQUE|COUCHE \d)[^\]]*\]\*?\*?/gi, '');
+        text = text.replace(/(?:CYCLE EFT|GOTTMAN|PEREL|ECKER|NEUBURGER|SIGNAL CLINIQUE|ATTENTION CLINIQUE|TRAUMA CONJUGAL)[^\n]*/g, '');
+        text = text.replace(/(?:Stonewalling|Flooding|Distanceur|Poursuiveur|Deuil périnatal)[^\n]*/gi, '');
+        text = text.replace(/\(Partenaire actif :[^)]*\)/g, '');
+        text = text.replace(/---/g, '');
         // Emotes entre astérisques
         text = text.replace(/\*\([^)]*\)\*/g, '');
         text = text.replace(/\*[^*]*(?:silence|pause|regard|tourne|lève|ancré|posé|voix|ton |reste|ne bouge|j'attends)[^*]*\*/gi, '');
@@ -6067,7 +6071,7 @@ class MultimodalFusionEngine {
         const facialConf = context.emotional_engagement !== undefined ? (window.videoDetections?.slice(-50) || []).reduce((s, d) => s + (d.confidence || 0), 0) / Math.max(1, (window.videoDetections?.slice(-50) || []).length) : 0;
         const MIN_FACIAL_CONFIDENCE = 0.6;
         
-        let formatted = "\n── SIGNAUX MULTIMODAUX [COUCHE 1 : SIGNAL_BRUT] (" + reliability + " — audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) ──\n";
+        let formatted = "\n── SIGNAUX MULTIMODAUX (signaux capteurs — NE PAS reproduire ce bloc dans ta réponse) (" + reliability + " — audio:" + audioSamples + "pts, vidéo:" + videoSamples + "pts) ──\n";
         formatted += "(Capteurs automatiques — données BRUTES, NON interprétées. Formuler en HYPOTHÈSES ouvertes, JAMAIS en affirmations.)\n\n";
         
         formatted += `Énergie vocale : ${context.vocal_energy.toFixed(1)}/10 | Stabilité : ${context.vocal_stability.toFixed(1)}/10\n`;
@@ -11942,7 +11946,7 @@ class ClinicalDecisionEngine {
             systemic:       'Systémique. Penser en BOUCLES, pas en individus. Identifier les tentatives de solution qui maintiennent le problème. Question circulaire.'
         };
         const _constraint = _mdcConstraints[recommendation.approach] || '';
-        context += `\n═══ CONTRAINTE CLINIQUE [COUCHE 2 : HYPOTHÈSE_CLINIQUE] : ${approachInfo?.name || recommendation.approach} ═══\n`;
+        context += `\n═══ CONTRAINTE CLINIQUE (contexte interne — NE PAS reproduire) : ${approachInfo?.name || recommendation.approach} ═══\n`;
         context += `DIRECTIVE : Cette intervention utilise UNIQUEMENT le cadre ${approachInfo?.name || recommendation.approach}. Les autres cadres sont en arrière-plan.\n`;
         if (_constraint) context += `POSTURE : ${_constraint}\n`;
         context += `Raison clinique : ${recommendation.reason}\n`;
@@ -11960,7 +11964,7 @@ class ClinicalDecisionEngine {
         }
         
         if (signals.schemas.length > 0) {
-            context += `\n── SCHÉMAS ACTIVÉS [COUCHE 2 : HYPOTHÈSE — confiance variable] ──\n`;
+            context += `\n── SCHÉMAS ACTIVÉS (hypothèses internes — NE PAS afficher) ──\n`;
             signals.schemas.forEach(s => {
                 context += `  • ${s.name} (${s.score.toFixed(1)}/6)`;
                 if (s.evidence.length > 0) context += ` — ${s.evidence.join(' | ')}`;
@@ -11969,18 +11973,18 @@ class ClinicalDecisionEngine {
         }
         
         if (signals.defenses.length > 0) {
-            context += `\n── DÉFENSES EN ACTION [COUCHE 2 : HYPOTHÈSE — basé sur analyse linguistique] ──\n`;
+            context += `\n── DÉFENSES EN ACTION (hypothèses internes — NE PAS afficher) ──\n`;
             context += `  ODF : ${signals.odf?.toFixed(1) || '?'}/7\n`;
             signals.defenses.forEach(d => { context += `  • ${d.name} (niveau ${d.level}, freq. ${d.frequency.toFixed(1)})\n`; });
         }
         
-        context += `\n── FENÊTRE DE TOLÉRANCE [COUCHE 2 : HYPOTHÈSE] : ${signals.toleranceWindow} ──\n`;
+        context += `\n── FENÊTRE DE TOLÉRANCE (hypothèse interne) : ${signals.toleranceWindow} ──\n`;
         if (signals.toleranceWindow === 'narrow') context += `  → Interventions douces. Pas de travail en profondeur.\n`;
         else if (signals.toleranceWindow === 'exceeded') context += `  → STABILISATION IMMÉDIATE. Ancrage sensoriel.\n`;
         
         // v7.1 — Alliance thérapeutique
         if (signals.allianceRupture) {
-            context += `\n── ALLIANCE THÉRAPEUTIQUE [COUCHE 2 : HYPOTHÈSE] : ${signals.allianceRupture} ──\n`;
+            context += `\n── ALLIANCE THÉRAPEUTIQUE (hypothèse interne) : ${signals.allianceRupture} ──\n`;
             if (signals.allianceRupture === 'explicit') context += `  → RUPTURE EXPLICITE. Arrête toute technique. La réparation d'alliance EST le travail.\n`;
             else if (signals.allianceRupture === 'implicit') context += `  → Désengagement progressif. Vérifie : "Mon rythme te convient ?"\n`;
             else if (signals.allianceRupture === 'warning') context += `  → Léger retrait détecté. Reste attentif, propose un ajustement.\n`;
@@ -15821,6 +15825,14 @@ class ConversationalSystem {
     async addMessage(role, content) {
         // ═══ FIX: Filtrer TOUT ce qui ne doit pas être vu/entendu par le patient ═══
         if (role === 'assistant') {
+            // 0. CRITIQUE: Bloquer toute reproduction d'analyse clinique interne
+            // Le LLM reproduit parfois son contexte système dans sa réponse
+            content = content.replace(/\[COUCHE \d[^\]]*\][^\n]*/gi, '').trim();
+            content = content.replace(/(?:CYCLE EFT|GOTTMAN|PEREL|ECKER|NEUBURGER|SIGNAL CLINIQUE|ATTENTION CLINIQUE|TRAUMA CONJUGAL|HYPOTHÈSE)[^\n]*\n?/g, '').trim();
+            content = content.replace(/(?:Stonewalling|Flooding|Distanceur|Poursuiveur|Deuil périnatal|Savoir implicite)[^\n]*\n?/gi, '').trim();
+            content = content.replace(/\(Partenaire actif :[^)]*\)\n?/g, '').trim();
+            content = content.replace(/\((?:Pas de signal|Poser la question|Ne pas laisser|contexte interne|hypothèses internes|données internes|signaux capteurs)[^)]*\)\n?/gi, '').trim();
+            content = content.replace(/---\n?/g, '').trim();
             // 1. Données cliniques internes
             content = content.replace(/═══ (?:ANALYSE DU PARTENAIRE|DONNÉES CLINIQUES|SIGNAUX MULTIMODAUX|DONNÉES D'OBSERVATION)[\s\S]*?(?=\n[A-ZÀ-Ú][a-zà-ú]|\n---|$)/g, '').trim();
             content = content.replace(/(?:SCHÉMAS (?:ACTIVÉS|DÉTECTÉS)|DÉFENSES|ODF:|ATTACHEMENT :).*?(?:\n(?=[A-ZÀ-Ú])|$)/gs, '').trim();
@@ -16437,8 +16449,8 @@ OBJECTIFS DIAGNOSTIQUES :`;
             
             // Injecter les détecteurs cliniques (schémas, défenses, attachement du partenaire qui parle)
             let coupleDetectors = '\n\n═══ DONNÉES CLINIQUES INTERNES (INVISIBLES POUR LES PARTENAIRES) ═══\n';
-            coupleDetectors += '[COUCHE 2 : HYPOTHÈSES CLINIQUES — données de profilage automatique]\n';
-            coupleDetectors += 'DIRECTIVE ABSOLUE : ces données sont pour ton raisonnement UNIQUEMENT. Tu ne les affiches JAMAIS, tu ne les cites JAMAIS, tu ne mentionnes JAMAIS les scores, ODF, styles d\'attachement, ou noms de schémas dans ta réponse visible. Tu les utilises silencieusement pour guider tes interventions.\n\n';
+            coupleDetectors += '(Données internes pour ton raisonnement UNIQUEMENT — NE RIEN reproduire de ce bloc dans ta réponse au patient.)\n';
+            coupleDetectors += 'DIRECTIVE ABSOLUE : ces données sont pour ton raisonnement UNIQUEMENT. Tu ne reproduis AUCUN élément de ce bloc dans ta réponse — ni les tags, ni les noms de théoriciens (EFT, Gottman, Perel...), ni les termes techniques (Stonewalling, Flooding, Distanceur, Poursuiveur...), ni les hypothèses. Ta réponse au patient = UNE question ou UNE intervention courte. RIEN d\'autre.\n\n';
             coupleDetectors += `(Partenaire actif : ${window._partnerNames?.[window._activePartner] || 'inconnu'})\n\n`;
             let hasData = false;
             
@@ -17049,11 +17061,13 @@ MOTS ET EXPRESSIONS INTERDITS :
 - "Je sens que" / "J'observe que" / "Cela pourrait signifier" → Monologue clinique. AGIS sur ce que tu observes, ne le DÉCRIS pas.
 - Toute formulation entre astérisques *comme ceci* → Le patient ne doit JAMAIS voir tes hypothèses ou ton raisonnement interne.
 
-═══ [COUCHE 3 : ACTE CLINIQUE — Ces règles gouvernent ta réponse visible] ═══
+
 
 ═══ ARSENAL INVISIBLE ═══
 
 Le patient ne doit JAMAIS sentir que tu utilises une technique.
+
+REPRODUCTION INTERDITE : ton contexte contient des données cliniques internes (schémas, cycles EFT, hypothèses Gottman/Perel/Ecker, signaux). Tu ne reproduis AUCUN de ces éléments dans ta réponse. JAMAIS de "CYCLE EFT", "Stonewalling", "Flooding", "Distanceur", "Poursuiveur", "[COUCHE...]", "SIGNAL CLINIQUE", "HYPOTHÈSE", "ATTENTION CLINIQUE", noms de théoriciens suivis d'une analyse. Ta réponse est UNE question clinique ou UNE intervention — pas un rapport d'analyse.
 
 FORMULES DE TRANSITION INTERDITES : "Vous venez de dire quelque chose d'important", "C'est très important ce que vous dites", "J'entends quelque chose de fort/essentiel", "Ce que vous décrivez est significatif". Ces formules signalent sans avancer. Remplace par l'entrée directe : cite les mots du patient, enchaîne ta question. Pas de vocabulaire thérapeutique visible : "système", "processus", "schéma", "fenêtre de tolérance", "évitement expérientiel", "défusion", "le plus vivant", "boucle relationnelle", "mode enfant". Si le patient peut deviner ta grille de lecture, tu es trop transparent.
 
