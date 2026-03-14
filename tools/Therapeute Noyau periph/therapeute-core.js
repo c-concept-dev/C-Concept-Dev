@@ -1504,10 +1504,10 @@ TAGS INTERNES : JAMAIS de [SIGNAL CLINIQUE], [ARRÊT DE LA SÉANCE], [PROTOCOLE]
 
 Pour proposer un outil, insère EXACTEMENT la balise [OUTIL:nom_outil]. UN outil max par intervention, au moment cliniquement pertinent.
 
-[OUTIL:swot_conjugal] — SWOT Conjugal
-[OUTIL:Agenda_du_couple-2] — Agenda du Couple interactif
+[OUTIL:swot_conjugal_interactif] — SWOT Conjugal
+[OUTIL:Agenda du couple-2] — Agenda du Couple interactif
 [OUTIL:Appartenacogramme] — Appartenancogramme (Neuburger)
-[OUTIL:Big_5_Quizz] — Big Five "Qui est Nous ?"
+[OUTIL:Big 5 Quizz] — Big Five "Qui est Nous ?"
 [OUTIL:IQVR_interactif_sans_exemple] — IQVR — Inventaire Qualité de Vie Relationnelle
 [OUTIL:Le_Controle_Technique_du_Couple_standalone_fixed] — Contrôle Technique du Couple
 [OUTIL:centres_interet_couple_interactif] — Centres d'Intérêt du Couple
@@ -2535,6 +2535,8 @@ class TTSQueue {
         text = text.replace(/(?:Stonewalling|Flooding|Distanceur|Poursuiveur|Deuil périnatal)[^\n]*/gi, '');
         text = text.replace(/\(Partenaire actif :[^)]*\)/g, '');
         text = text.replace(/---/g, '');
+        // Strip tool tags — they're rendered as buttons in UI but shouldn't be spoken
+        text = text.replace(/\[OUTIL:[^\]]*\]/g, '');
         // Emotes entre astérisques
         text = text.replace(/\*\([^)]*\)\*/g, '');
         text = text.replace(/\*[^*]*(?:silence|pause|regard|tourne|lève|ancré|posé|voix|ton |reste|ne bouge|j'attends)[^*]*\*/gi, '');
