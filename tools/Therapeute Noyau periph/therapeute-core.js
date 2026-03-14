@@ -11160,6 +11160,7 @@ RÈGLES À VÉRIFIER :
 7. PAS de verbalisation du raisonnement ("Je vois un cycle", "Voilà votre pattern", "Le mécanisme est...")
 8. PAS de narration gestuelle (*je me tourne*, *je vous regarde*)
 9. PAS de données cliniques techniques visibles (ODF, scores, schémas nommés, styles d'attachement)
+10. PAS de coalition (en mode couple : interdit d'affirmer ce dont un partenaire "a besoin" en s'adressant à l'autre, de valider un partenaire au détriment de l'autre, ou de prendre explicitement son parti)
 
 Ne signale que les violations CLAIRES. En cas de doute, retourne {"ok": true}.
 JSON only. Aucun texte avant ou après.`,
