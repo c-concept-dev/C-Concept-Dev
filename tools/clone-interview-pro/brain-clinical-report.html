@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rapport Clinique de Personnalite v3 — C Concept&Dev</title>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:wght@400;500;600;700&display=swap');
+:root{--mer:#8FAFB1;--vert-sauge:#C8D0C3;--beige-sable:#D8CDBB;--sable:#E6D7C3;--blanc:#FFFFFF;--noir:#1a1a1a;--gris:#555;--gris-l:#888;--accent:#6B8E8F;--danger:#B85C5C;--warn:#C4956A;--ok:#7A9E7E}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f4f0eb;color:var(--noir);min-height:100vh}
+
+.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem}
+.screen.hidden{display:none}
+h1.title{font-family:'EB Garamond',serif;font-size:2.6rem;font-weight:700;color:var(--noir);margin-bottom:.2rem;letter-spacing:-.02em}
+.subtitle{font-size:.85rem;color:var(--gris-l);margin-bottom:3rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+
+.drop-zone{width:min(480px,88vw);border:2px dashed var(--beige-sable);border-radius:16px;padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--blanc)}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:#faf8f5;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+.drop-zone p{font-size:1rem;color:var(--gris)}
+.drop-zone .hint{font-size:.78rem;color:var(--gris-l);margin-top:.6rem}
+.drop-zone input{display:none}
+
+.config-panel{width:min(480px,88vw);margin-top:1.5rem;padding:1rem 1.2rem;background:var(--blanc);border-radius:12px;border-left:3px solid var(--accent)}
+.config-panel label{display:block;color:var(--accent);font-size:.8rem;font-weight:600;margin-bottom:.4rem}
+.config-panel input{width:100%;padding:.5rem .8rem;border:1px solid #ddd;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem}
+
+.steps{width:min(440px,85vw);margin-top:1.5rem;text-align:left}
+.step{padding:.5rem 0;font-size:.88rem;color:var(--gris-l);display:flex;align-items:center;gap:.6rem;transition:color .3s}
+.step .icon{width:22px;text-align:center;font-size:.9rem}
+.step.active{color:var(--noir);font-weight:600}
+.step.done{color:var(--ok)}
+.bar{width:min(440px,85vw);height:4px;background:#e0dcd7;border-radius:4px;margin-top:1rem;overflow:hidden}
+.bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--mer));border-radius:4px;transition:width .5s ease}
+#statusText{font-size:.82rem;color:var(--gris-l);margin-top:.8rem;text-align:center}
+#errorMsg{color:var(--danger);font-size:.85rem;margin-top:1rem;text-align:center}
+#doneButtons{display:none;gap:10px;margin-top:1.5rem;justify-content:center}
+
+.btn{padding:.7rem 1.6rem;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .3s}
+.btn-primary{background:var(--accent);color:var(--blanc);border-color:var(--accent)}
+.btn-primary:hover{background:#5a7b7c}
+.btn-secondary{background:transparent;color:var(--accent);border-color:var(--accent)}
+.btn-secondary:hover{background:var(--accent);color:var(--blanc)}
+
+.preview-screen{display:none;background:#f4f0eb;min-height:100vh;padding:2.5rem 1rem}
+.preview-bar{text-align:center;margin-bottom:2rem;position:sticky;top:0;z-index:10;padding:.8rem;background:rgba(244,240,235,.95);backdrop-filter:blur(6px)}
+.report{max-width:760px;margin:0 auto;background:var(--blanc);padding:3.5rem 3rem;border-radius:12px;box-shadow:0 4px 30px rgba(0,0,0,.06);line-height:1.75}
+.report h1{font-family:'EB Garamond',serif;font-size:2rem;color:var(--noir);margin-bottom:.3rem;text-align:center}
+.report .doc-meta{text-align:center;font-size:.82rem;color:var(--gris-l);margin-bottom:2.5rem;line-height:1.6;padding-bottom:1.5rem;border-bottom:1px solid #e8e4df}
+.report h2{font-family:'EB Garamond',serif;font-size:1.35rem;color:var(--accent);margin:2.2rem 0 .8rem;padding-bottom:.3rem;border-bottom:1px solid #ece8e3}
+.report p{font-size:.92rem;margin-bottom:.8rem;text-align:justify}
+.report em{color:var(--accent);font-style:italic}
+.report table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0}
+.report th{background:var(--accent);color:var(--blanc);padding:.5rem .7rem;text-align:left;font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.report td{padding:.45rem .7rem;border-bottom:1px solid #eee}
+.report tr:hover td{background:#faf8f5}
+.report .sc{font-weight:700;color:var(--noir)}
+.report .conf-bar{display:inline-block;width:50px;height:6px;background:#eee;border-radius:3px;vertical-align:middle;margin-left:6px;overflow:hidden}
+.report .conf-bar .fill{height:100%;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- UPLOAD -->
+<div class="screen" id="uploadScreen">
+  <h1 class="title">Audit de Personnalite</h1>
+  <p class="subtitle">Clinical Grade v3 — C Concept&Dev</p>
+  <div class="drop-zone" id="dropZone">
+    <p>Deposez le <strong>brain_personality.json</strong></p>
+    <p class="hint">CLONE-BRAIN-1.0 ou format v18/v19</p>
+    <input type="file" id="fileInput" accept=".json">
+  </div>
+  <div class="config-panel">
+    <label>Worker URL</label>
+    <input id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev/">
+  </div>
+</div>
+
+<!-- PROCESSING -->
+<div class="screen hidden" id="processingScreen">
+  <h1 class="title" style="font-size:1.8rem">Generation en cours</h1>
+  <div class="steps">
+    <div class="step" id="s1"><span class="icon">...</span> Structuration des donnees</div>
+    <div class="step" id="s2"><span class="icon">...</span> Presentation clinique + cadre</div>
+    <div class="step" id="s3"><span class="icon">...</span> Fonctionnement cognitif + emotionnel</div>
+    <div class="step" id="s4"><span class="icon">...</span> Identite + relations + dynamique profonde</div>
+    <div class="step" id="s5"><span class="icon">...</span> Forces, vulnerabilites, angles morts</div>
+    <div class="step" id="s6"><span class="icon">...</span> Fiabilite, conclusion, assemblage</div>
+  </div>
+  <div class="bar"><div class="fill" id="progressFill" style="width:0"></div></div>
+  <p id="statusText">Initialisation...</p>
+  <p id="errorMsg"></p>
+  <div id="doneButtons">
+    <button class="btn btn-primary" onclick="downloadPDF()">Telecharger le PDF</button>
+    <button class="btn btn-secondary" onclick="showPreview()">Apercu</button>
+  </div>
+</div>
+
+<!-- PREVIEW -->
+<div class="preview-screen" id="previewScreen">
+  <div class="preview-bar">
+    <button class="btn btn-primary" onclick="downloadPDF()" style="padding:.5rem 1.2rem;font-size:.85rem">PDF</button>
+    <button class="btn btn-secondary" onclick="location.reload()" style="padding:.5rem 1.2rem;font-size:.85rem;margin-left:8px">Nouveau</button>
+  </div>
+  <div class="report" id="reportContainer"></div>
+</div>
+
+<script>
+let brainData=null,reportSections={},reportHTML='';
+
+const dz=document.getElementById('dropZone'),fi=document.getElementById('fileInput');
+dz.addEventListener('click',()=>fi.click());
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length)loadFile(e.dataTransfer.files[0])});
+fi.addEventListener('change',e=>{if(e.target.files.length)loadFile(e.target.files[0])});
+
+function loadFile(f){const r=new FileReader();r.onload=e=>{try{brainData=JSON.parse(e.target.result);startGeneration()}catch(err){alert('Erreur JSON: '+err.message)}};r.readAsText(f)}
+
+function setStep(n,st){const el=document.getElementById('s'+n);el.className='step '+st;el.querySelector('.icon').textContent=st==='done'?'OK':st==='active'?'...':'--'}
+function setProgress(p){document.getElementById('progressFill').style.width=p+'%'}
+function setStatus(t){document.getElementById('statusText').textContent=t}
+
+async function callClaude(sys,usr,maxTok=4500){
+  const resp=await fetch(document.getElementById('workerUrl').value.trim(),{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({payload:{provider:'anthropic',model:'claude-sonnet-4-20250514',max_tokens:maxTok,temperature:0.35,system:sys,messages:[{role:'user',content:usr}]}})
+  });
+  if(!resp.ok)throw new Error('API '+resp.status);
+  const data=await resp.json();
+  if(Array.isArray(data?.content))return data.content.filter(c=>c.type==='text').map(c=>c.text||'').join('\n').trim();
+  return(data?.content||data?.text||'').trim();
+}
+
+// ================================================================
+// PREPARATION DES DONNEES — Brain v2 + retrocompatibilite v18/v19
+// ================================================================
+function prepareData(b){
+  let d='';
+  const n=b.identity?.display_name||'Sujet';
+  const iv=b.source_interview||{};
+  const conf=b.confidence||{};
+  
+  d+=`SUJET: ${n}\n`;
+  d+=`INTERVIEW: ${iv.questions_count||'?'} questions, ${iv.total_user_words||'?'} mots, mode ${iv.mode||'?'}\n`;
+  if(conf.global) d+=`CONFIANCE GLOBALE: ${conf.global}% (grade ${conf.global_grade||'?'})\n`;
+  if(conf.warnings?.length) d+=`AVERTISSEMENTS: ${conf.warnings.join(' | ')}\n`;
+  d+='\n';
+
+  // Portrait narratif (v19)
+  const p=b.portrait||{};
+  const portraitFields=['portrait_clinique','architecture_cognitive','paysage_emotionnel','identite_narrative','rapport_a_lautre','dynamique_profonde','signatures_verbales','contradictions_vivantes','angles_morts','instructions_incarnation'];
+  for(const f of portraitFields){
+    if(p[f]){
+      const label=f.replace(/_/g,' ').toUpperCase();
+      d+=`[${label}]\n${typeof p[f]==='string'?p[f]:JSON.stringify(p[f],null,1)}\n\n`;
+    }
+  }
+  
+  // Big Five
+  if(b.temperament) d+=`[BIG FIVE]\n${JSON.stringify(b.temperament,null,1)}\n\n`;
+  if(b.communication_style) d+=`[STYLE DE COMMUNICATION]\n${JSON.stringify(b.communication_style,null,1)}\n\n`;
+  if(b.thinking_patterns) d+=`[PATTERNS COGNITIFS]\n${JSON.stringify(b.thinking_patterns,null,1)}\n\n`;
+  if(b.emotional_profile) d+=`[PROFIL EMOTIONNEL]\n${JSON.stringify(b.emotional_profile,null,1)}\n\n`;
+  if(b.values) d+=`[VALEURS SCHWARTZ]\n${JSON.stringify(b.values,null,1)}\n\n`;
+
+  // v19_personality (ancien format)
+  const v=b.v19_personality||{};
+  for(const[k,label] of [['hexaco','HEXACO'],['schemas','SCHEMAS YOUNG'],['attachment','ATTACHEMENT'],['defenses','DEFENSES DMRS'],['values','VALEURS CLINIQUES'],['clinical','CONSTRUITS CLINIQUES (TAS-20, RF, IRI, Dark Triad, Resilience, Coping, Locus)'],['linguisticProfile','PROFIL LINGUISTIQUE'],['triangulation','TRIANGULATION'],['responseBiases','BIAIS DE REPONSE'],['debiasedProfile','PROFIL DEBIAISE']]){
+    if(v[k]) d+=`[${label}]\n${JSON.stringify(v[k],null,1)}\n\n`;
+  }
+
+  // v20 — Analyseurs locaux temps reel (NOUVEAU)
+  const la=b.v20_local_analyzers||{};
+  if(la.schemas_young){
+    d+=`[ANALYSEUR LOCAL — SCHEMAS YOUNG (temps reel)]\n`;
+    d+=`Schemas actifs: ${JSON.stringify(la.schemas_young.active_schemas)}\n`;
+    d+=`Couverture domaines: ${JSON.stringify(la.schemas_young.domain_coverage)}\n\n`;
+  }
+  if(la.defenses_dmrs){
+    d+=`[ANALYSEUR LOCAL — DEFENSES DMRS (temps reel)]\n`;
+    d+=`ODF: ${la.defenses_dmrs.odf} (${la.defenses_dmrs.odf_interpretation})\n`;
+    d+=`Dominantes: ${JSON.stringify(la.defenses_dmrs.dominant)}\n`;
+    d+=`Distribution niveaux: ${JSON.stringify(la.defenses_dmrs.level_distribution)}\n\n`;
+  }
+  if(la.attachment){
+    d+=`[ANALYSEUR LOCAL — ATTACHEMENT AAI (temps reel)]\n`;
+    d+=`Style: ${la.attachment.style}\n`;
+    d+=`Anxiete: ${la.attachment.anxiety_score}, Evitement: ${la.attachment.avoidance_score}\n`;
+    d+=`Coherence narrative: ${la.attachment.narrative_coherence}\n`;
+    d+=`Famille mentionnee: ${la.attachment.family_mentioned}\n\n`;
+  }
+  if(la.hexaco) d+=`[ANALYSEUR LOCAL — HEXACO (temps reel)]\n${JSON.stringify(la.hexaco,null,1)}\n\n`;
+  if(la.motivations) d+=`[ANALYSEUR LOCAL — MOTIVATIONS (temps reel)]\n${JSON.stringify(la.motivations,null,1)}\n\n`;
+  if(la.linguistic) d+=`[ANALYSEUR LOCAL — LINGUISTIQUE (temps reel)]\n${JSON.stringify(la.linguistic,null,1)}\n\n`;
+  if(la.deep_personality){
+    d+=`[ANALYSEUR LOCAL — DEEP PERSONALITY (temps reel)]\n`;
+    d+=`Reticence: ${la.deep_personality.reticence_score}%\n`;
+    d+=`Contradictions verbales: ${JSON.stringify(la.deep_personality.verbal_contradictions)}\n`;
+    d+=`Contradictions modales: ${JSON.stringify(la.deep_personality.modal_contradictions)}\n`;
+    d+=`Patterns d'evasion: ${JSON.stringify(la.deep_personality.evasion_patterns)}\n\n`;
+  }
+  
+  // v20 — Persona draft (materiau autobiographique)
+  const pd=b.persona_draft||{};
+  if(pd.people_mentioned?.length || pd.places_mentioned?.length || pd.anecdotes?.length){
+    d+=`[MATERIAU AUTOBIOGRAPHIQUE (persona draft)]\n`;
+    if(pd.people_mentioned?.length) d+=`Personnes mentionnees: ${pd.people_mentioned.join(', ')}\n`;
+    if(pd.places_mentioned?.length) d+=`Lieux mentionnes: ${pd.places_mentioned.join(', ')}\n`;
+    if(pd.time_references?.length) d+=`References temporelles: ${pd.time_references.map(t=>t.ref).join(', ')}\n`;
+    if(pd.anecdotes?.length) d+=`Anecdotes captees: ${pd.anecdotes.length}\n`;
+    if(pd.emotions_expressed?.length) d+=`Emotions exprimees: ${pd.emotions_expressed.map(e=>e.expression).join(', ')}\n`;
+    d+='\n';
+  }
+
+  // v20 — Confiance calibree par pilier
+  if(conf.pillars){
+    d+=`[CONFIANCE CALIBREE PAR PILIER]\n`;
+    for(const[k,c] of Object.entries(conf.pillars)){
+      d+=`${k}: ${c.score}% (grade ${c.grade}) — couverture=${c.components?.coverage||'?'}% coherence=${c.components?.coherence||'?'}% profondeur=${c.components?.depth||'?'}% authenticite=${c.components?.authenticity||'?'}%\n`;
+    }
+    d+='\n';
+  }
+  
+  // Qualite
+  if(b.data_quality) d+=`[QUALITE]\n${JSON.stringify(b.data_quality,null,1)}\n\n`;
+
+  return d.length>85000?d.substring(0,85000)+'\n[...tronque]':d;
+}
+
+// ================================================================
+// SYSTEME DE PROMPTS — NIVEAU EXPERT MONDIAL
+// ================================================================
+const SYS=`Tu es un collectif de 4 cliniciens de rang mondial redigeant un rapport professionnel :
+— Un neuropsychologue (architecture cognitive, fonctions executives, traitement de l'information)
+— Un psychiatre psychodynamicien (structures defensives, conflits inconscients, dynamique profonde)
+— Un psychologue clinicien integratif (attachement, schemas, identite narrative, valeurs)
+— Un analyste comportementaliste (patterns observables, biais, strategies de coping, coherence comportementale)
+
+Chacun apporte sa grille de lecture. Le rapport integre les 4 perspectives sans les juxtaposer — il les tisse en une analyse unifiee.
+
+REGLES DE REDACTION :
+1. PROSE CLINIQUE UNIQUEMENT — pas de bullet points, pas de listes, pas de tirets, pas de numerotation interne. Des paragraphes fluides.
+2. Chaque affirmation est etayee par une citation exacte (entre guillemets francais) ou une donnee mesuree.
+3. Le ton est precis, bienveillant, rigoureux. On ne cache rien, on contextualise.
+4. On parle du sujet a la 3eme personne.
+5. Les scores sont integres DANS le texte, jamais listes.
+6. Tu NE commences JAMAIS par "Section" ou un titre — tu commences directement par la prose.
+7. Tu separes les sections demandees par une ligne contenant uniquement "---SECTION---"
+8. Chaque section fait 400-700 mots — dense, riche, cliniquement pertinente.
+9. DETECTION FINE : tu ne te contentes pas de restituer les scores. Tu cherches les INCOHERENCES entre les donnees (ex: score d'ouverture eleve mais pattern de pensee rigide), les CONTRADICTIONS entre ce que la personne dit et ce que les analyseurs detectent, et les ANGLES MORTS que la personne ne voit pas.
+10. CONFIANCE : quand la confiance sur un pilier est faible (<60%), tu le signales explicitement et tu modules ton affirmation ("les donnees suggerent..." au lieu de "le sujet est...").
+11. TRIANGULATION : quand plusieurs sources (Big Five, HEXACO, analyseurs locaux, donnees cliniques) convergent, c'est une donnee forte. Quand elles divergent, c'est une donnee encore plus interessante — explore pourquoi.
+12. MATERIAU AUTOBIOGRAPHIQUE : si des anecdotes, personnes ou lieux sont mentionnes dans le persona draft, utilise-les pour ancrer le portrait dans du vecu concret.
+13. Tu ecris comme un clinicien qui connait VRAIMENT cette personne apres un entretien approfondi — pas comme un algorithme qui restitue des scores.`;
+
+async function startGeneration(){
+  document.getElementById('uploadScreen').classList.add('hidden');
+  const ps=document.getElementById('processingScreen');ps.classList.remove('hidden');ps.style.display='flex';
+  const name=brainData.identity?.display_name||'Sujet';
+  const data=prepareData(brainData);
+
+  try{
+    setStep(1,'active');setProgress(5);setStatus('Structuration des donnees...');
+    await new Promise(r=>setTimeout(r,300));
+    setStep(1,'done');setProgress(8);
+
+    // BATCH 1: Cadre + Presentation clinique
+    setStep(2,'active');setProgress(10);setStatus('Redaction : cadre et presentation clinique...');
+    reportSections.batch1=await callClaude(SYS,
+      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
+      `Redige ces 2 sections separees par ---SECTION---\n\n`+
+      `PREMIERE SECTION — CADRE DE L'EVALUATION (2-3 paragraphes) :\n`+
+      `Le cadre methodologique : interview conversationnelle approfondie via Clone Interview Pro V20. Methode : detection linguistique temps reel (7 analyseurs psychometriques actifs pendant l'entretien : schemas Young, defenses DMRS, attachement AAI, HEXACO, motivations, profil linguistique, deep personality), 5 analyses post-entretien par IA (Big Five facettes, valeurs Schwartz, style de communication, patterns cognitifs, profil emotionnel), triangulation systematique. Duree, volume, mode. Puis les limites methodologiques ET les forces specifiques de cette methode. Mentionne le grade de qualite et la confiance globale si disponibles. Si certains piliers sont a faible confiance, dis-le ici.\n\n`+
+      `DEUXIEME SECTION — PRESENTATION CLINIQUE (5-6 paragraphes) :\n`+
+      `Qui EST cette personne ? L'impression clinique de premiere rencontre. Le style du contact : comment elle entre dans l'echange, comment elle occupe l'espace verbal, ce qu'elle offre spontanement et ce qu'elle protege. Le style defensif dominant (les 2-3 defenses les plus frequentes et ce qu'elles revelent). Les signatures verbales — les expressions exactes qui la caracterisent. La dynamique de l'interview : est-elle allée en profondeur ou est-elle restee en surface ? Les biais de reponse detectes (reticence, desirabilite sociale, acquiescence). Si des contradictions entre le verbal et d'autres indices ont ete detectees, explore-les. Cite abondamment des expressions exactes du sujet.`,5000);
+    setStep(2,'done');setProgress(28);
+
+    // BATCH 2: Cognitif + Emotionnel
+    setStep(3,'active');setProgress(30);setStatus('Redaction : fonctionnement cognitif et emotionnel...');
+    reportSections.batch2=await callClaude(SYS,
+      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
+      `Redige ces 2 sections separees par ---SECTION---\n\n`+
+      `PREMIERE SECTION — ARCHITECTURE COGNITIVE (4-5 paragraphes) :\n`+
+      `Le fonctionnement cognitif en profondeur. Mode de traitement dominant (analytique vs intuitif vs hybride). Vitesse cognitive et style decisionnel. Rapport a l'incertitude et au controle. Biais cognitifs principaux et comment ils se manifestent concretement dans les reponses. Metacognition : la personne se connait-elle bien ou y a-t-il un decalage entre image de soi et donnees ? Flexibilite cognitive. Integre Big Five (O, C), HEXACO (O, C), patterns cognitifs, locus de controle. Si les analyseurs locaux et les analyses IA donnent des resultats differents sur un meme trait, c'est une donnee precieuse — explore l'ecart.\n\n`+
+      `DEUXIEME SECTION — PAYSAGE EMOTIONNEL (5-7 paragraphes) :\n`+
+      `Le paysage emotionnel complet. Quelles emotions sont accessibles et lesquelles restent barrees. Par quel canal l'emotion s'exprime quand les mots ne viennent pas. Le pattern de regulation emotionnelle. Le rapport a la vulnerabilite. Integre le nevrosisme/emotivite Big Five et HEXACO, les defenses DMRS (ODF, defenses dominantes, distribution par niveau), la mentalisation RF, l'alexithymie TAS-20, la regulation Gross. Les moments dans l'interview ou l'emotion a perce les defenses — utilise les donnees de contradictions modales et les emotions exprimees du persona draft si disponibles. Comment les emotions des autres l'affectent (empathie IRI). N'oublie pas de COMPARER les donnees des analyseurs temps reel avec les analyses post-entretien — les divergences sont plus informatives que les convergences.`,5500);
+    setStep(3,'done');setProgress(50);
+
+    // BATCH 3: Identite + Relations + Dynamique profonde
+    setStep(4,'active');setProgress(52);setStatus('Redaction : identite, relations, dynamique profonde...');
+    reportSections.batch3=await callClaude(SYS,
+      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
+      `Redige ces 3 sections separees par ---SECTION---\n\n`+
+      `PREMIERE SECTION — IDENTITE ET RECIT DE SOI (4-5 paragraphes) :\n`+
+      `L'identite narrative de cette personne — comment elle se raconte. Quel est son mythe personnel ? Se voit-elle comme un heros, un survivant, un eternel en quete ? Les roles qu'elle s'attribue et celui qu'elle refuse. La coherence ou les fissures de ce recit identitaire. Integre les valeurs Schwartz, les motivations (SDT/McClelland si disponibles), la coherence narrative de l'attachement. Si le persona draft contient des references temporelles et des anecdotes, utilise-les pour ancrer le portrait dans du vecu concret. Les 3 niveaux de McAdams : traits dispositionnels (niveau 1), adaptations caracteristiques (niveau 2), identite narrative (niveau 3).\n\n`+
+      `DEUXIEME SECTION — FONCTIONNEMENT RELATIONNEL (4-6 paragraphes) :\n`+
+      `Comment cette personne entre en relation. Son style d'attachement (anxiete, evitement, coherence narrative) — compare les donnees de l'analyseur temps reel AAI avec le profil emotionnel post-entretien. Ce qu'elle offre spontanement vs ce qu'elle protege. Ses attentes implicites et ses peurs relationnelles. Comment elle gere le desaccord et le conflit. Sa capacite d'intimite. Integre les schemas Young dominants (avec leurs domaines), l'empathie IRI, l'honnetete-humilite HEXACO, l'agreabilite Big Five. Si les personnes mentionnees dans le persona draft revelent un pattern (ex: que des figures masculines, ou que des collegues mais jamais de famille), c'est une donnee precieuse.\n\n`+
+      `TROISIEME SECTION — DYNAMIQUE PROFONDE (4-5 paragraphes) :\n`+
+      `La lecture la plus profonde et la plus courageuse. Le moteur cache. Ce que cette personne fuit. Le conflit nucleaire entre deux parts d'elle-meme. Le besoin vital et la strategie de survie psychique. Le schema Young le plus actif et le mode de coping qu'il genere. Integre Dark Triad, resilience, coping dominant, locus de controle. Relie les schemas aux defenses — si le schema dominant est "abandon" et la defense dominante est "auto-suffisance", c'est le meme mecanisme vu sous deux angles. Termine par ce que cette tension fondamentale produit dans la vie quotidienne.`,6000);
+    setStep(4,'done');setProgress(72);
+
+    // BATCH 4: Forces + Vulnerabilites + Angles morts + Fiabilite + Conclusion
+    setStep(5,'active');setProgress(74);setStatus('Redaction : forces, vulnerabilites, angles morts...');
+    reportSections.batch4=await callClaude(SYS,
+      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
+      `Redige ces 3 sections separees par ---SECTION---\n\n`+
+      `PREMIERE SECTION — FORCES ET RESSOURCES PSYCHIQUES (3-4 paragraphes) :\n`+
+      `Les forces de cette personne — pas en liste mais en portrait. Ce sur quoi elle peut compter. Sa resilience et d'ou elle vient. Ses capacites de mentalisation et d'empathie. Son style de coping le plus adaptatif. Les valeurs qui la portent. Les defenses matures qu'elle utilise. Ce que les personnes qui la connaissent diraient d'elle en termes positifs.\n\n`+
+      `DEUXIEME SECTION — VULNERABILITES ET ANGLES MORTS (4-6 paragraphes) :\n`+
+      `Les zones de fragilite — avec bienveillance mais sans les minimiser. Les schemas Young actifs et leur impact concret. Les defenses immatures et ce qu'elles coutent. Les evitements (les sujets que la personne a esquives pendant l'interview sont des donnees — utilise les patterns d'evasion et la reticence du deep personality si disponibles). Puis les ANGLES MORTS — ce que cette personne ne voit pas d'elle-meme. Les contradictions internes non pas comme des defauts mais comme sa complexite vivante. Si les donnees de triangulation montrent un ecart entre image de soi et profil mesure, c'est l'angle mort central.\n\n`+
+      `TROISIEME SECTION — NOTE SUR LA FIABILITE DES DONNEES (2-3 paragraphes) :\n`+
+      `Un paragraphe sur la fiabilite de ce rapport. Quels piliers sont solides (confiance >75%) et lesquels sont fragiles. Si la reticence etait elevee, que signifie-t-elle — protection ou manque d'engagement ? Si la desirabilite sociale etait elevee, quelles sections du rapport sont les plus vulnerables a ce biais ? Quelles donnees ont ete triangulees (convergence entre analyseurs temps reel et analyses post-entretien) et lesquelles reposent sur une seule source ? Ce paragraphe n'est pas un disclaimer juridique — c'est une analyse clinique de la fiabilite.`,5500);
+    setStep(5,'done');setProgress(88);
+
+    // BATCH 5: Conclusion
+    setStep(6,'active');setProgress(90);setStatus('Conclusion et assemblage...');
+    reportSections.batch5=await callClaude(SYS,
+      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
+      `Redige cette section :\n\n`+
+      `CONCLUSION (3 paragraphes) :\n`+
+      `Premier paragraphe : une synthese dense de qui EST cette personne — en quelques phrases qui la capturent entierement, avec sa complexite, ses forces, ses fragilites. Pas un resume du rapport — un PORTRAIT. Si tu ne devais retenir que 5 phrases pour decrire cette personne a quelqu'un qui ne la connait pas, ce serait ces 5 phrases.\n`+
+      `Deuxieme paragraphe : des pistes de developpement personnel formulees avec tact et specifiques a cette personne. Pas des recommandations generiques. Des axes concrets lies a ses schemas, ses defenses, ses angles morts. Formulees comme des invitations, pas comme des prescriptions.\n`+
+      `Troisieme paragraphe : ce qui pourrait completer cette evaluation — entretien clinique en face-a-face, tests standardises specifiques, observation comportementale en situation.`,3000);
+    
+    // Table psychometrique
+    reportSections.table=buildTable(brainData);
+    reportHTML=assembleHTML(name,brainData,reportSections);
+    setStep(6,'done');setProgress(100);setStatus('Rapport pret.');
+    document.getElementById('doneButtons').style.display='flex';
+
+  }catch(err){
+    document.getElementById('errorMsg').textContent='Erreur: '+err.message;
+    console.error(err);
+  }
+}
+
+// ================================================================
+// TABLE PSYCHOMETRIQUE — enrichie v2
+// ================================================================
+function buildTable(b){
+  const v=b.v19_personality||{},t=b.temperament||{},la=b.v20_local_analyzers||{},conf=b.confidence?.pillars||{},rows=[];
+  const add=(inst,dim,sc,note,confScore)=>rows.push({i:inst,d:dim,s:sc,n:note||'',c:confScore});
+  
+  // Big Five
+  for(const[k,l]of Object.entries({openness:'Ouverture',conscientiousness:'Conscienciosite',extraversion:'Extraversion',agreeableness:'Agreabilite',neuroticism:'Nevrosisme'}))
+    if(t[k])add('Big Five',l,t[k].score+'/100',t[k].level||'',conf.traits?.score);
+  
+  // HEXACO
+  if(v.hexaco)for(const[k,l]of Object.entries({H:'Honnetete-Humilite',E:'Emotivite',X:'Extraversion',A:'Agreabilite',C:'Conscienciosite',O:'Ouverture'}))
+    if(v.hexaco[k])add('HEXACO',l,(v.hexaco[k].global*100).toFixed(0)+'%','conf.'+Math.round(v.hexaco[k].confidence||0)+'%');
+  // HEXACO local
+  if(la.hexaco){
+    for(const[k,data] of Object.entries(la.hexaco)){
+      if(typeof data==='object'&&data.score!=null) add('HEXACO local',k,Math.round(data.score*100)+'%','temps reel');
+    }
+  }
+  
+  // Attachement
+  if(v.attachment){add('Attachement IA','Style',v.attachment.styleLabel||v.attachment.style,'');add('Attachement IA','Anxiete',s01(v.attachment.anxiety),'');add('Attachement IA','Evitement',s01(v.attachment.avoidance),'')}
+  if(la.attachment){add('Attachement local','Style',la.attachment.style,'temps reel',conf.attachment?.score);add('Attachement local','Anxiete',la.attachment.anxiety_score?.toFixed(2),'');add('Attachement local','Evitement',la.attachment.avoidance_score?.toFixed(2),'');add('Attachement local','Coherence narrative',la.attachment.narrative_coherence?.toFixed(2),'')}
+  
+  // DMRS
+  if(v.defenses)add('DMRS IA','ODF',v.defenses.odf?.toFixed(2)||'?',v.defenses.odfLabel||'');
+  if(la.defenses_dmrs)add('DMRS local','ODF',la.defenses_dmrs.odf?.toFixed(2)||'?',la.defenses_dmrs.odf_interpretation||'temps reel',conf.defenses?.score);
+  
+  // Young
+  if(v.schemas?.dominant)v.schemas.dominant.slice(0,4).forEach(s=>add('Young IA',s.name||s.id,s.score?.toFixed(1)+'/6',s.domain||''));
+  if(la.schemas_young?.active_schemas?.length) la.schemas_young.active_schemas.slice(0,4).forEach(s=>add('Young local',s.name||s.id,s.score?.toFixed(1),'temps reel',conf.schemas?.score));
+  
+  // Clinique
+  if(v.clinical){const c=v.clinical;
+    if(c.alexithymia)add('TAS-20','Alexithymie',s01(c.alexithymia.global),c.alexithymia.risk||'');
+    if(c.mentalization)add('RF Fonagy','Mentalisation',c.mentalization.rf_global?.toFixed(1)+'/9','');
+    if(c.empathy){add('IRI','Prise perspective',s01(c.empathy.perspective_taking),'');add('IRI','Souci empathique',s01(c.empathy.empathic_concern),'');add('IRI','Detresse personnelle',s01(c.empathy.personal_distress),'')}
+    if(c.coping)add('CISS','Coping dominant',c.coping.dominant||'?','');
+    if(c.locusOfControl)add('Rotter','Locus de controle',c.locusOfControl.dominant||'?','');
+    if(c.darkTriad){add('SD3','Narcissisme',s01(c.darkTriad.narcissism),'');add('SD3','Machiavellisme',s01(c.darkTriad.machiavellianism),'');add('SD3','Psychopathie',s01(c.darkTriad.psychopathy),'')}
+    if(c.resilience)add('CD-RISC','Resilience',s01(c.resilience.global),'');
+  }
+  
+  // Deep personality
+  if(la.deep_personality){
+    add('Deep','Reticence',la.deep_personality.reticence_score+'%','');
+    add('Deep','Contradictions verbales',la.deep_personality.verbal_contradictions?.length||0,'');
+    add('Deep','Contradictions modales',la.deep_personality.modal_contradictions?.length||0,'');
+  }
+  
+  // Valeurs Schwartz top 3
+  if(b.values?.hierarchy){
+    b.values.hierarchy.slice(0,3).forEach((v,i)=>add('Schwartz','#'+(i+1)+' '+v.value,v.score+'/100',v.manifestation?.substring(0,40)||'',conf.values?.score));
+  }
+  
+  return rows;
+}
+
+function s01(v){if(v==null)return'--';if(typeof v==='number'&&v>=0&&v<=1)return(v*100).toFixed(0)+'%';if(typeof v==='number')return v.toFixed(2);return String(v)}
+
+function splitSections(text){return(text||'').split(/---SECTION---/i).map(s=>s.trim()).filter(Boolean)}
+
+function textToHTML(t){
+  if(!t)return'<p style="color:var(--gris-l)"><em>Section non generee.</em></p>';
+  return t.split(/\n\n+/).filter(p=>p.trim()).map(p=>{
+    let s=p.trim().replace(/^(PREMI[EÈ]RE|DEUXI[EÈ]ME|TROISI[EÈ]ME)\s+SECTION[^\n]*/i,'').trim();
+    if(!s)return'';
+    s=s.replace(/[«]([^»]+)[»]/g,'<em>&#171;&#160;$1&#160;&#187;</em>');
+    return'<p>'+s+'</p>';
+  }).filter(Boolean).join('\n');
+}
+
+function assembleHTML(name,b,sec){
+  const date=b._clone?.generated?new Date(b._clone.generated).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'}):b.generated_at_utc?new Date(b.generated_at_utc).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('fr-FR');
+  const iv=b.source_interview||{};
+  const conf=b.confidence||{};
+  const grade=conf.global_grade||b.data_quality?.grade||'?';
+
+  let h=`<h1>Audit de Personnalite</h1>\n`;
+  h+=`<div class="doc-meta"><strong>${name}</strong><br>\n`;
+  h+=`${date} | ${iv.questions_count||'?'} questions | ${iv.total_user_words||'?'} mots | mode ${iv.mode||'?'}<br>\n`;
+  h+=`Grade de fiabilite : <strong>${grade}</strong> | Confiance globale : <strong>${conf.global||'?'}%</strong><br>\n`;
+  h+=`Clone Interview Pro V20 Clinical Grade — C Concept&Dev<br><em>CONFIDENTIEL</em></div>\n`;
+
+  const b1=splitSections(sec.batch1),b2=splitSections(sec.batch2),b3=splitSections(sec.batch3),b4=splitSections(sec.batch4),b5=splitSections(sec.batch5||'');
+  
+  const titles=['1. Cadre de l\'Evaluation','2. Presentation Clinique','3. Architecture Cognitive','4. Paysage Emotionnel','5. Identite et Recit de Soi','6. Fonctionnement Relationnel','7. Dynamique Profonde','8. Synthese Psychometrique','9. Forces et Ressources','10. Vulnerabilites et Angles Morts','11. Fiabilite des Donnees','12. Conclusion'];
+  const texts=[b1[0],b1[1],b2[0],b2[1],b3[0],b3[1],b3[2],null,b4[0],b4[1],b4[2],b5[0]];
+  
+  for(let i=0;i<titles.length;i++){
+    h+=`<h2>${titles[i]}</h2>\n`;
+    if(i===7){
+      // Table psychometrique
+      h+=`<p>Le tableau ci-dessous rassemble les scores dimensionnels issus des analyseurs temps reel et des analyses post-entretien. La colonne "Conf." indique la confiance calibree sur le pilier correspondant. Les divergences entre sources (IA vs local) sont cliniquement significatives.</p>\n`;
+      h+=`<table><thead><tr><th>Source</th><th>Dimension</th><th>Score</th><th>Note</th></tr></thead><tbody>`;
+      sec.table.forEach(r=>{h+=`<tr><td>${r.i}</td><td>${r.d}</td><td class="sc">${r.s}</td><td>${r.n}</td></tr>`});
+      h+=`</tbody></table>`;
+    } else {
+      h+=textToHTML(texts[i]);
+    }
+  }
+  return h;
+}
+
+function showPreview(){
+  document.getElementById('processingScreen').style.display='none';
+  const ps=document.getElementById('previewScreen');ps.style.display='block';
+  document.getElementById('reportContainer').innerHTML=reportHTML;
+}
+
+// ================================================================
+// EXPORT PDF (jsPDF)
+// ================================================================
+function downloadPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,H=297,ML=25,MR=25,MT=30,MB=25,CW=W-ML-MR;
+  let y=MT;
+
+  const INK=[30,30,30],MU=[100,100,100],CL=[143,175,177],SB=[230,215,195],VS=[200,208,195];
+  
+  function foot(){doc.setFillColor(248,245,240);doc.rect(0,H-15,W,15,'F');doc.setFontSize(7);doc.setTextColor(...MU);doc.setFont('helvetica','normal');doc.text('Audit de Personnalite — C Concept&Dev — CONFIDENTIEL',W/2,H-7,{align:'center'});doc.text(''+doc.getNumberOfPages(),W-15,H-7)}
+  function chk(need){if(y+need>H-MB){doc.addPage();y=MT;foot()}}
+  function secTitle(t){chk(18);y+=6;doc.setFontSize(12);doc.setTextColor(...CL);doc.setFont('helvetica','bold');doc.text(t,ML,y);y+=2;doc.setDrawColor(...CL);doc.setLineWidth(0.4);doc.line(ML,y,ML+CW,y);y+=6}
+  function prose(t){if(!t)return;doc.setFontSize(9.5);doc.setTextColor(...INK);doc.setFont('helvetica','normal');const ps=t.split(/\n\n+/).filter(p=>p.trim());ps.forEach(p=>{let s=p.trim().replace(/^(PREMI|DEUXI|TROISI)[^\n]*/i,'').trim();if(!s)return;const ls=doc.splitTextToSize(s,CW);ls.forEach(l=>{chk(4.2);doc.text(l,ML,y);y+=4.2});y+=2.5})}
+  function writeTable(rows){if(!rows?.length)return;doc.setFontSize(8);chk(8);doc.setFillColor(...CL);doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.rect(ML,y-3.5,CW,5.5,'F');['Source','Dimension','Score','Note'].forEach((h,i)=>doc.text(h,ML+[0,32,95,125][i],y));y+=4;doc.setTextColor(...INK);doc.setFont('helvetica','normal');rows.forEach(r=>{chk(5);if(rows.indexOf(r)%2===0){doc.setFillColor(250,248,245);doc.rect(ML,y-3.2,CW,4.8,'F')}doc.text(String(r.i).substring(0,18),ML,y);doc.text(String(r.d).substring(0,30),ML+32,y);doc.setFont('helvetica','bold');doc.text(String(r.s),ML+95,y);doc.setFont('helvetica','normal');doc.text(String(r.n).substring(0,25),ML+125,y);y+=4.8})}
+
+  const name=brainData.identity?.display_name||'Sujet';
+  const iv=brainData.source_interview||{};
+  const conf=brainData.confidence||{};
+  const date=brainData._clone?.generated?new Date(brainData._clone.generated).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('fr-FR');
+
+  // COUVERTURE
+  doc.setFillColor(...SB);doc.rect(0,0,W,H,'F');
+  doc.setFillColor(255,255,255);doc.rect(30,40,150,200,'F');
+  doc.setDrawColor(...CL);doc.setLineWidth(0.8);doc.rect(30,40,150,200,'S');
+  doc.setFontSize(11);doc.setTextColor(...CL);doc.setFont('helvetica','bold');doc.text('AUDIT DE PERSONNALITE',W/2,75,{align:'center'});
+  doc.setDrawColor(...VS);doc.setLineWidth(0.6);doc.line(50,82,160,82);
+  doc.setFontSize(20);doc.setTextColor(...INK);doc.setFont('helvetica','bold');doc.text(name,W/2,100,{align:'center'});
+  doc.setFontSize(10);doc.setTextColor(...MU);doc.setFont('helvetica','normal');
+  doc.text(date,W/2,115,{align:'center'});
+  doc.text(`${iv.questions_count||'?'} questions  |  ${iv.total_user_words||'?'} mots  |  mode ${iv.mode||'?'}`,W/2,123,{align:'center'});
+  if(conf.global) doc.text(`Grade ${conf.global_grade||'?'}  |  Confiance ${conf.global}%`,W/2,131,{align:'center'});
+  doc.setFontSize(9);doc.setTextColor(...CL);doc.setFont('helvetica','bold');doc.text('CONFIDENTIEL',W/2,155,{align:'center'});
+  doc.setFontSize(8);doc.setTextColor(...MU);doc.setFont('helvetica','normal');
+  doc.text('Clone Interview Pro V20 Clinical Grade',W/2,210,{align:'center'});
+  doc.text('C Concept&Dev',W/2,217,{align:'center'});
+  const disc=doc.splitTextToSize('Ce document constitue un outil d\'aide a la comprehension de la personnalite. Il ne remplace pas un diagnostic clinique realise par un professionnel qualifie.',CW-30);
+  disc.forEach((l,i)=>doc.text(l,W/2,228+i*3.5,{align:'center'}));
+
+  // CONTENU
+  doc.addPage();y=MT;foot();
+  const b1=splitSections(reportSections.batch1),b2=splitSections(reportSections.batch2),b3=splitSections(reportSections.batch3),b4=splitSections(reportSections.batch4),b5=splitSections(reportSections.batch5||'');
+
+  secTitle('1. Cadre de l\'Evaluation');prose(b1[0]);
+  secTitle('2. Presentation Clinique');prose(b1[1]);
+  secTitle('3. Architecture Cognitive');prose(b2[0]);
+  secTitle('4. Paysage Emotionnel');prose(b2[1]);
+  secTitle('5. Identite et Recit de Soi');prose(b3[0]);
+  secTitle('6. Fonctionnement Relationnel');prose(b3[1]);
+  secTitle('7. Dynamique Profonde');prose(b3[2]);
+
+  secTitle('8. Synthese Psychometrique');
+  doc.setFontSize(9);doc.setTextColor(...INK);doc.setFont('helvetica','italic');
+  const intro=doc.splitTextToSize('Les scores ci-dessous proviennent de deux sources distinctes : les analyseurs temps reel (actifs pendant l\'entretien) et les analyses post-entretien (IA). Les divergences entre sources sont cliniquement significatives.',CW);
+  intro.forEach(l=>{doc.text(l,ML,y);y+=3.8});y+=3;
+  writeTable(reportSections.table);
+
+  secTitle('9. Forces et Ressources');prose(b4[0]);
+  secTitle('10. Vulnerabilites et Angles Morts');prose(b4[1]);
+  secTitle('11. Fiabilite des Donnees');prose(b4[2]);
+  secTitle('12. Conclusion');prose(b5[0]);
+
+  chk(25);y+=6;doc.setDrawColor(...MU);doc.setLineWidth(0.2);doc.line(ML,y,ML+CW,y);y+=5;
+  doc.setFontSize(7.5);doc.setTextColor(...MU);doc.setFont('helvetica','italic');
+  const fd=doc.splitTextToSize('Ce rapport a ete genere par Clone Interview Pro V20 Clinical Grade (C Concept&Dev). Il constitue un outil d\'aide a la comprehension de la personnalite, base sur une interview conversationnelle analysee par intelligence artificielle et 7 analyseurs psychometriques temps reel. Il ne remplace en aucun cas un diagnostic clinique realise par un professionnel de sante mentale qualifie.',CW);
+  fd.forEach(l=>{chk(4);doc.text(l,ML,y);y+=3.2});
+
+  doc.save(`audit-personnalite-${name.toLowerCase().replace(/[^a-z0-9]/g,'-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+}
+</script>
+</body>
+</html>
