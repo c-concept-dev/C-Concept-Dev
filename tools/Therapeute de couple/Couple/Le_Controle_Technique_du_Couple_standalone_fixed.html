@@ -3,384 +3,526 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
 <title>Le Contrôle Technique du Couple</title>
 <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+ * {
+ margin: 0;
+ padding: 0;
+ box-sizing: border-box;
+ }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
-            min-height: 100vh;
-            padding: 20px;
-            line-height: 1.6;
-        }
+ body {
+ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+ background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
+ min-height: 100vh;
+ padding: 20px;
+ line-height: 1.6;
+ }
 
-        .container {
-            max-width: 1800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
+ .container {
+ max-width: 1800px;
+ margin: 0 auto;
+ background: white;
+ border-radius: 20px;
+ box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+ overflow: hidden;
+ }
 
-        .header {
-            background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
+ .header {
+ background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
+ color: white;
+ padding: 40px 30px;
+ text-align: center;
+ }
 
-        .header h1 {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
+ .header h1 {
+ font-size: 2em;
+ margin-bottom: 10px;
+ }
 
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.95;
-        }
+ .header p {
+ font-size: 1.1em;
+ opacity: 0.95;
+ }
 
-        .content {
-            padding: 40px 30px;
-        }
+ .content {
+ padding: 40px 30px;
+ }
 
-        .intro {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            border-left: 4px solid #2A6D74;
-        }
+ .intro {
+ background: #f8f9fa;
+ padding: 20px;
+ border-radius: 10px;
+ margin-bottom: 30px;
+ border-left: 4px solid #2A6D74;
+ }
 
-        .intro h3 {
-            color: #2A6D74;
-            margin-bottom: 15px;
-        }
+ .intro h3 {
+ color: #2A6D74;
+ margin-bottom: 15px;
+ }
 
-        .scale {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 30px;
-            padding: 15px;
-            background: #e9ecef;
-            border-radius: 8px;
-        }
+ .scale {
+ display: flex;
+ justify-content: space-between;
+ flex-wrap: wrap;
+ gap: 10px;
+ margin-bottom: 30px;
+ padding: 15px;
+ background: #e9ecef;
+ border-radius: 8px;
+ }
 
-        .scale-item {
-            font-size: 0.9em;
-            color: #495057;
-        }
+ .scale-item {
+ font-size: 0.9em;
+ color: #495057;
+ }
 
-        .partners-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 30px;
-        }
+ .partners-container {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 30px;
+ margin-top: 30px;
+ }
 
-        .partner-section {
-            border: 2px solid #e9ecef;
-            border-radius: 15px;
-            padding: 20px;
-            background: #f8f9fa;
-        }
+ .partner-section {
+ border: 2px solid #e9ecef;
+ border-radius: 15px;
+ padding: 20px;
+ background: #f8f9fa;
+ }
 
-        .partner-header {
-            background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.3em;
-            font-weight: 600;
-        }
+ .partner-header {
+ background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
+ color: white;
+ padding: 15px;
+ border-radius: 10px;
+ text-align: center;
+ margin-bottom: 20px;
+ font-size: 1.3em;
+ font-weight: 600;
+ }
 
-        .question {
-            background: #ffffff;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-        }
+ .question {
+ background: #ffffff;
+ border: 2px solid #e9ecef;
+ border-radius: 10px;
+ padding: 15px;
+ margin-bottom: 15px;
+ transition: all 0.3s ease;
+ }
 
-        .question:hover {
-            border-color: #2A6D74;
-            box-shadow: 0 5px 15px rgba(42, 109, 116, 0.1);
-        }
+ .question:hover {
+ border-color: #2A6D74;
+ box-shadow: 0 5px 15px rgba(42, 109, 116, 0.1);
+ }
 
-        .question-text {
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 12px;
-            font-size: 0.95em;
-        }
+ .question-text {
+ font-weight: 600;
+ color: #2c3e50;
+ margin-bottom: 12px;
+ font-size: 0.95em;
+ }
 
-        .question-number {
-            color: #2A6D74;
-            margin-right: 8px;
-        }
+ .question-number {
+ color: #2A6D74;
+ margin-right: 8px;
+ }
 
-        .options {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+ .options {
+ display: flex;
+ gap: 8px;
+ flex-wrap: wrap;
+ }
 
-        .option {
-            flex: 1;
-            min-width: 60px;
-        }
+ .option {
+ flex: 1;
+ min-width: 60px;
+ }
 
-        .option input[type="radio"] {
-            display: none;
-        }
+ .option input[type="radio"] {
+ display: none;
+ }
 
-        .option label {
-            display: block;
-            padding: 10px 6px;
-            text-align: center;
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            font-size: 0.9em;
-        }
+ .option label {
+ display: block;
+ padding: 10px 6px;
+ text-align: center;
+ background: #f8f9fa;
+ border: 2px solid #dee2e6;
+ border-radius: 8px;
+ cursor: pointer;
+ transition: all 0.3s ease;
+ font-weight: 500;
+ font-size: 0.9em;
+ }
 
-        .option input[type="radio"]:checked + label {
-            background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
-            color: white;
-            border-color: #2A6D74;
-            transform: scale(1.05);
-        }
+ .option input[type="radio"]:checked + label {
+ background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
+ color: white;
+ border-color: #2A6D74;
+ transform: scale(1.05);
+ }
 
-        .option label:hover {
-            border-color: #2A6D74;
-            background: #e6f4f5;
-        }
+ .option label:hover {
+ border-color: #2A6D74;
+ background: #e6f4f5;
+ }
 
-        .option input[type="radio"]:checked + label:hover {
-            background: linear-gradient(135deg, #236168 0%, #143b3f 100%);
-        }
+ .option input[type="radio"]:checked + label:hover {
+ background: linear-gradient(135deg, #236168 0%, #143b3f 100%);
+ }
 
-        .calculate-btn {
-            background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.1em;
-            border-radius: 50px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(42, 109, 116, 0.4);
-        }
+ .calculate-btn {
+ background: linear-gradient(135deg, #2A6D74 0%, #1a4d52 100%);
+ color: white;
+ border: none;
+ padding: 15px 30px;
+ font-size: 1.1em;
+ border-radius: 50px;
+ cursor: pointer;
+ width: 100%;
+ margin-top: 20px;
+ font-weight: 600;
+ transition: all 0.3s ease;
+ box-shadow: 0 5px 15px rgba(42, 109, 116, 0.4);
+ }
 
-        .calculate-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(42, 109, 116, 0.5);
-        }
+ .calculate-btn:hover {
+ transform: translateY(-2px);
+ box-shadow: 0 8px 20px rgba(42, 109, 116, 0.5);
+ }
 
-        .calculate-btn:active {
-            transform: translateY(0);
-        }
+ .calculate-btn:active {
+ transform: translateY(0);
+ }
 
-        .results-container {
-            display: none;
-            margin-top: 40px;
-            padding: 30px;
-            background: #f8f9fa;
-            border-radius: 15px;
-        }
+ .results-container {
+ display: none;
+ margin-top: 40px;
+ padding: 30px;
+ background: #f8f9fa;
+ border-radius: 15px;
+ }
 
-        .results-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
+ .results-grid {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 30px;
+ margin-bottom: 30px;
+ }
 
-        .result {
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-        }
+ .result {
+ padding: 30px;
+ border-radius: 15px;
+ text-align: center;
+ }
 
-        .result h2 {
-            font-size: 1.5em;
-            margin-bottom: 15px;
-        }
+ .result h2 {
+ font-size: 1.5em;
+ margin-bottom: 15px;
+ }
 
-        .result .score {
-            font-size: 3.5em;
-            font-weight: bold;
-            margin: 20px 0;
-        }
+ .result .score {
+ font-size: 3.5em;
+ font-weight: bold;
+ margin: 20px 0;
+ }
 
-        .result .interpretation {
-            font-size: 1em;
-            margin-top: 20px;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            text-align: left;
-        }
+ .result .interpretation {
+ font-size: 1em;
+ margin-top: 20px;
+ padding: 20px;
+ background: white;
+ border-radius: 10px;
+ text-align: left;
+ }
 
-        .result.excellent {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-        }
+ .result.excellent {
+ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+ color: white;
+ }
 
-        .result.good {
-            background: linear-gradient(135deg, #2A6D74 0%, #4facfe 100%);
-            color: white;
-        }
+ .result.good {
+ background: linear-gradient(135deg, #2A6D74 0%, #4facfe 100%);
+ color: white;
+ }
 
-        .result.warning {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            color: white;
-        }
+ .result.warning {
+ background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+ color: white;
+ }
 
-        .result.critical {
-            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
-            color: white;
-        }
+ .result.critical {
+ background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+ color: white;
+ }
 
-        .comparison {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
+ .comparison {
+ background: white;
+ padding: 30px;
+ border-radius: 15px;
+ margin-top: 20px;
+ }
 
-        .comparison h3 {
-            color: #2A6D74;
-            margin-bottom: 20px;
-            text-align: center;
-            font-size: 1.5em;
-        }
+ .comparison h3 {
+ color: #2A6D74;
+ margin-bottom: 20px;
+ text-align: center;
+ font-size: 1.5em;
+ }
 
-        .comparison-content {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
+ .comparison-content {
+ display: flex;
+ justify-content: space-around;
+ align-items: center;
+ flex-wrap: wrap;
+ gap: 20px;
+ }
 
-        .comparison-stat {
-            text-align: center;
-        }
+ .comparison-stat {
+ text-align: center;
+ }
 
-        .comparison-label {
-            font-size: 0.9em;
-            color: #6c757d;
-            margin-bottom: 10px;
-        }
+ .comparison-label {
+ font-size: 0.9em;
+ color: #6c757d;
+ margin-bottom: 10px;
+ }
 
-        .comparison-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #2A6D74;
-        }
+ .comparison-value {
+ font-size: 2em;
+ font-weight: bold;
+ color: #2A6D74;
+ }
 
-        .reset-btn {
-            background: white;
-            color: #2A6D74;
-            border: 2px solid #2A6D74;
-            padding: 12px 30px;
-            border-radius: 50px;
-            cursor: pointer;
-            margin-top: 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
+ .reset-btn {
+ background: white;
+ color: #2A6D74;
+ border: 2px solid #2A6D74;
+ padding: 12px 30px;
+ border-radius: 50px;
+ cursor: pointer;
+ margin-top: 20px;
+ font-weight: 600;
+ transition: all 0.3s ease;
+ display: block;
+ margin-left: auto;
+ margin-right: auto;
+ }
 
-        .reset-btn:hover {
-            background: #2A6D74;
-            color: white;
-        }
+ .reset-btn:hover {
+ background: #2A6D74;
+ color: white;
+ }
 
-        .error-message {
-            color: #dc3545;
-            background: #f8d7da;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            display: none;
-            border: 1px solid #f5c6cb;
-        }
+ .error-message {
+ color: #dc3545;
+ background: #f8d7da;
+ padding: 15px;
+ border-radius: 8px;
+ margin-top: 20px;
+ display: none;
+ border: 1px solid #f5c6cb;
+ }
 
-        @media (max-width: 1400px) {
-            .partners-container {
-                grid-template-columns: 1fr;
-            }
+ @media (max-width: 1400px) {
+ .partners-container {
+ grid-template-columns: 1fr;
+ }
 
-            .results-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+ .results-grid {
+ grid-template-columns: 1fr;
+ }
+ }
 
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.5em;
-            }
+ @media (max-width: 768px) {
+ .header h1 {
+ font-size: 1.5em;
+ }
 
-            .content {
-                padding: 20px 15px;
-            }
+ .content {
+ padding: 20px 15px;
+ }
 
-            .options {
-                flex-direction: column;
-            }
+ .options {
+ flex-direction: column;
+ }
 
-            .option {
-                min-width: 100%;
-            }
+ .option {
+ min-width: 100%;
+ }
 
-            .scale {
-                flex-direction: column;
-            }
+ .scale {
+ flex-direction: column;
+ }
 
-            .result .score {
-                font-size: 2.5em;
-            }
+ .result .score {
+ font-size: 2.5em;
+ }
 
-            .comparison-value {
-                font-size: 1.5em;
-            }
-        }
-    
-    .logo-container {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 10;
-    }
+ .comparison-value {
+ font-size: 1.5em;
+ }
+ }
+ 
+ .logo-container {
+ position: absolute;
+ top: 20px;
+ right: 20px;
+ z-index: 10;
+ }
 
-    .logo-container img {
-        max-width: 150px;
-        height: auto;
-        border-radius: 8px;
-    }
+ .logo-container img {
+ max-width: 150px;
+ height: auto;
+ border-radius: 8px;
+ }
 
-    .container {
-        position: relative;
-    }
-    </style>
+ .container {
+ position: relative;
+ }
+ 
+/* === TOOLTIPS CONTEXTUELS — MODE D'EMPLOI === */
+.tooltip-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #8FAFB1;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 8px;
+    vertical-align: middle;
+    position: relative;
+    transition: background 0.25s, transform 0.2s, box-shadow 0.25s;
+    box-shadow: 0 2px 6px rgba(143,175,177,0.3);
+    user-select: none;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.tooltip-trigger:hover,
+.tooltip-trigger[aria-expanded="true"] {
+    background: #333;
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(51,51,51,0.3);
+}
+.tooltip-bubble {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    background: #333;
+    color: #fff;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.6;
+    width: 300px;
+    max-width: 90vw;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
+    z-index: 1000;
+    pointer-events: none;
+    text-align: left;
+    font-family: 'Montserrat', 'Segoe UI', sans-serif;
+}
+.tooltip-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #333;
+}
+.tooltip-bubble.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+.tooltip-bubble.flip-down {
+    bottom: auto;
+    top: calc(100% + 12px);
+    transform: translateX(-50%) translateY(-6px);
+}
+.tooltip-bubble.flip-down.visible {
+    transform: translateX(-50%) translateY(0);
+}
+.tooltip-bubble.flip-down::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: #333;
+}
+.tooltip-bubble.align-left {
+    left: 0;
+    transform: translateX(0) translateY(6px);
+}
+.tooltip-bubble.align-left.visible {
+    transform: translateX(0) translateY(0);
+}
+.tooltip-bubble.align-left::after {
+    left: 16px;
+    transform: none;
+}
+.tooltip-bubble .tip-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 6px;
+    color: #C8D0C3;
+}
+.tooltip-bubble .tip-example {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-style: italic;
+    font-size: 12px;
+    opacity: 0.85;
+}
+.help-banner-tooltip {
+    background: linear-gradient(135deg, #8FAFB1 0%, rgba(143,175,177,0.85) 100%);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin: 0 0 25px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 3px 12px rgba(143,175,177,0.25);
+    font-family: 'Montserrat', 'Segoe UI', sans-serif;
+}
+.help-banner-tooltip .dismiss-help {
+    margin-left: auto;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.help-banner-tooltip .dismiss-help:hover {
+    background: rgba(255,255,255,0.35);
+}
+@media print {
+    .tooltip-trigger, .tooltip-bubble, .help-banner-tooltip { display: none !important; }
+}
+</style>
 <script>
 (()=>{"use strict";var t;!function(t){t.KEY_TOO_LARGE="KEY_TOO_LARGE",t.VALUE_TOO_LARGE="VALUE_TOO_LARGE",t.TOTAL_VALUE_TOO_LARGE="TOTAL_VALUE_TOO_LARGE",t.MUTATOR_ERROR="MUTATOR_ERROR",t.SYNCED_STORE_ERROR="SYNCED_STORE_ERROR",t.SYNCED_STORE_INTERNAL_ERROR="SYNCED_STORE_INTERNAL_ERROR",t.UNKNOWN="UNKNOWN"}(t||(t={}));function e(t,e){for(const n of t)if(e.has(n))return!0;return!1}const n=t=>{const n=new Map;function i(i,s){return o=this,r=void 0,u=function*(){try{const o=yield t(),r=n.get(i);if(!r)return;const a=yield i(o),u=r.lastResult,l=r.lastReadTransaction;if(r.lastReadTransaction=o,r.lastResult=a,!l)return void r.onResult(a);if(a!==u)return void r.onResult(a);if(e(o._readKeys,s)||e(s,o._readKeys)||function(t,e){for(const n of t)if(!e.has(n))return!0;return!1}(l._readKeys,o._readKeys))return void r.onResult(a)}catch(t){console.error("SyncedState | error running subscription",t)}},new((a=void 0)||(a=Promise))((function(t,e){function n(t){try{s(u.next(t))}catch(t){e(t)}}function i(t){try{s(u.throw(t))}catch(t){e(t)}}function s(e){var s;e.done?t(e.value):(s=e.value,s instanceof a?s:new a((function(t){t(s)}))).then(n,i)}s((u=u.apply(o,r||[])).next())}));var o,r,a,u}return{subscribe:(t,e)=>(n.set(t,{onResult:e,lastReadTransaction:null,lastResult:null}),i(t,new Set),()=>{n.delete(t)}),unsubscribe:t=>{n.delete(t)},notifySubscribers:t=>{n.forEach(((e,n)=>{i(n,t)}))}}};function i(t,e){return`${t}/${e}`}function s(t,e){const n=`${t}/`;if(!e.startsWith(n))throw new Error(`Key "${e}" does not start with table prefix "${n}"`);return e.substring(n.length)}var o=function(t,e,n,i){return new(n||(n=Promise))((function(s,o){function r(t){try{u(i.next(t))}catch(t){o(t)}}function a(t){try{u(i.throw(t))}catch(t){o(t)}}function u(t){var e;t.done?s(t.value):(e=t.value,e instanceof n?e:new n((function(t){t(e)}))).then(r,a)}u((i=i.apply(t,e||[])).next())}))};function r(t,e){const n=new Set,i=new Set;return{clientId:e.clientId,userId:e.userId,isServer:e.isServer,get:e=>(n.add(e),Promise.resolve(t.get(e))),has:e=>(n.add(e),Promise.resolve(t.has(e))),scan(e){const{prefix:n,limit:i,afterKey:s}=e||{};let o=Array.from(t.keys()).sort(((t,e)=>t.localeCompare(e)));n&&(o=o.filter((t=>t.startsWith(n)))),s&&(o=o.filter((t=>t>s))),void 0!==i&&(o=o.slice(0,i));const r=h((e=>Promise.resolve(t.get(o[e]))),o.length);return Object.assign({keys:()=>h((t=>Promise.resolve(o[t])),o.length),values:()=>r,entries:()=>h((e=>Promise.resolve([o[e],t.get(o[e])])),o.length)},r)},_readKeys:n,_scannedKeys:i}}function a(t,e){return n=r(t,e),Object.assign(Object.assign({},n),{table:t=>u(n,t),privateOfUser:t=>({table:e=>u(n,`$$pu/${t}/${e}`)})});var n}function u(t,e){const n=function(t){return`${t}/`}(e);return{get(n){return o(this,void 0,void 0,(function*(){const s=i(e,n);return yield t.get(s)}))},has(n){return o(this,void 0,void 0,(function*(){const s=i(e,n);return yield t.has(s)}))},scan(n){const o=i(e,(null==n?void 0:n.prefix)||""),r=t.scan(Object.assign(Object.assign({},n),{prefix:o}));return Object.assign({keys:()=>l(r.keys(),(t=>s(e,t))),values:()=>r.values(),entries:()=>l(r.entries(),(([t,n])=>[s(e,t),n]))},r.values())},entries:()=>l(t.scan({prefix:n}).entries(),(([t,n])=>[s(e,t),n])),keys:()=>l(t.scan({prefix:n}).keys(),(t=>s(e,t)))}}function l(t,e){return{next(){return o(this,void 0,void 0,(function*(){const n=yield t.next();return n.done?n:{value:e(n.value),done:!1}}))},[Symbol.asyncIterator](){return this},toArray(){return o(this,void 0,void 0,(function*(){return(yield t.toArray()).map(e)}))}}}function h(t,e){let n=0;const i={next(){return o(this,void 0,void 0,(function*(){return n>=e?{value:void 0,done:!0}:{value:yield t(n++),done:!1}}))},[Symbol.asyncIterator]:()=>i,toArray(){const n=[];for(let i=0;i<e;i++)n.push(t(i));return Promise.all(n)}};return i}Symbol("done");class c extends Error{constructor(t,e){super(t),this.name="PoeSyncedStoreError",this.errorType=e}}var d=function(t,e,n,i){return new(n||(n=Promise))((function(s,o){function r(t){try{u(i.next(t))}catch(t){o(t)}}function a(t){try{u(i.throw(t))}catch(t){o(t)}}function u(t){var e;t.done?s(t.value):(e=t.value,e instanceof n?e:new n((function(t){t(e)}))).then(r,a)}u((i=i.apply(t,e||[])).next())}))};function f(t,e){const n=r(t,e),i=new Map,s=Object.assign(Object.assign({},n),{context:e,set:(e,n)=>(t.set(e,n),i.set(e,{op:"set",key:e,value:n}),Promise.resolve()),del:e=>(t.delete(e),i.set(e,{op:"del",key:e}),Promise.resolve()),delete(t){return this.del(t)},patches:i});return o=s,Object.assign(Object.assign({},o),{table:t=>m(o,t),privateOfUser:t=>({table:e=>m(o,`$$pu/${t}/${e}`)})});var o}function m(e,n){const s=u(e,n);return Object.assign(Object.assign({},s),{set(s,o){return d(this,void 0,void 0,(function*(){const r=e.context,a=n.length+s.length;if(a>r.maxKeyLength)throw new c(`Key size limit exceeded: ${a} > ${r.maxKeyLength}`,t.KEY_TOO_LARGE);const u=JSON.stringify(o).length;if(u>r.maxValueLength)throw new c(`Value size limit exceeded: ${u} > ${r.maxValueLength}`,t.VALUE_TOO_LARGE);const l=i(n,s);yield e.set(l,o)}))},delete(t){return d(this,void 0,void 0,(function*(){const s=i(n,t);yield e.del(s)}))}})}var y=function(t,e,n,i){return new(n||(n=Promise))((function(s,o){function r(t){try{u(i.next(t))}catch(t){o(t)}}function a(t){try{u(i.throw(t))}catch(t){o(t)}}function u(t){var e;t.done?s(t.value):(e=t.value,e instanceof n?e:new n((function(t){t(e)}))).then(r,a)}u((i=i.apply(t,e||[])).next())}))};function v(t,e){for(const n of e)"set"===n.op?t.set(n.key,n.value):"del"===n.op&&t.delete(n.key)}class g{constructor(t){this.version=-1,this.lastPushVersion=-1,this.localMutationId=-1,this.lastPushedMutationId=-1,this.state=new Map,this.mutations=[],this._failedMutationsSubscribers=new Set,this._pendingMutationsSubscribers=new Set,this.mutators=t.mutators,this._initialDataPromise=t.initialDataPromise,this.getTransactionContext=()=>t.getClientInfo().then((t=>Object.assign(Object.assign({},t),{isServer:!1}))),this.subscriptionManager=n((()=>y(this,void 0,void 0,(function*(){return a(this.createSnapshot(),yield this.getTransactionContext())}))))}createSnapshot(){const t=new Map(this.state);for(const e of this.mutations)v(t,e.mutationPatches);return t}consumePoke(t){return y(this,void 0,void 0,(function*(){var e;if(this.version+1!=Math.min(t.includedVersions))return{needsPull:!0};this.version=Math.max(t.includedVersions);const n=(yield this.getTransactionContext()).clientId,i=null!==(e=t.clientIdToLastMutationId[n])&&void 0!==e?e:-1;return yield this.rollbackMutationsAndApplyPatches(i,t.patches),{needsPull:!1}}))}handleFailedMutation(t){return y(this,void 0,void 0,(function*(){var e;if(!t)return;const n=this.mutations.find((e=>{var n;return e.mutation.id===(null===(n=t.mutation)||void 0===n?void 0:n.id)}));if(n&&this._failedMutationsSubscribers.size>0){const e={mutation:{name:n.mutation.name,args:n.mutation.args},error:{message:t.error.errorMessage,errorType:this.convertMutationErrorType(t.error.errorType)}};this._failedMutationsSubscribers.forEach((t=>t(e)))}if("mismatched_client_version"!==t.error.errorType){const n=null===(e=t.mutation)||void 0===e?void 0:e.id;"number"==typeof n&&(yield this.revertFailedMutations([n]))}}))}revertFailedMutations(t){return y(this,void 0,void 0,(function*(){let e=this.mutations.length;this.mutations=this.mutations.filter((e=>!t.includes(e.mutation.id))),this.mutations.length<e&&(yield this.notifyStateOrMutationsChanged([]))}))}convertMutationErrorType(e){switch(e){case"no_access":case"no_mutations_found":case"mismatched_client_version":return t.SYNCED_STORE_INTERNAL_ERROR;case"key_too_long":return t.KEY_TOO_LARGE;case"value_too_large":return t.VALUE_TOO_LARGE;case"total_size_limit_exceeded":return t.TOTAL_VALUE_TOO_LARGE;case"synced_store_error":return t.SYNCED_STORE_ERROR;default:return t.UNKNOWN}}consumePushResponse(t){return y(this,void 0,void 0,(function*(){var e;return yield this.handleFailedMutation(t.failedMutation),this.lastPushedMutationId=Math.max(this.lastPushedMutationId,t.lastMutationId),t.lastMutationId>this.localMutationId&&console.error("Synced State | Push response last mutation id is greater than local mutation id",t.lastMutationId,this.localMutationId),this.localMutationId=Math.max(this.localMutationId,this.lastPushedMutationId),this.lastPushVersion=Math.max(this.lastPushVersion,t.version),{needsPullBeforeRepush:"mismatched_client_version"===(null===(e=t.failedMutation)||void 0===e?void 0:e.error.errorType)}}))}onIsSyncingChanged(t){this.subscriptionManager.subscribe((t=>y(this,void 0,void 0,(function*(){return this.mutations.length>0}))),t)}getPendingMutations(){return y(this,void 0,void 0,(function*(){return yield this.waitForInitialData(),this.mutations.map((t=>({id:t.mutation.id,name:t.mutation.name,args:t.mutation.args})))}))}onPendingMutationsChanged(t){return this._pendingMutationsSubscribers.add(t),t(this.mutations.map((t=>({id:t.mutation.id,name:t.mutation.name,args:t.mutation.args})))),()=>{this._pendingMutationsSubscribers.delete(t)}}notifyPendingMutationsChanged(){const t=this.mutations.map((t=>({id:t.mutation.id,name:t.mutation.name,args:t.mutation.args})));for(const e of this._pendingMutationsSubscribers)e(t)}rollbackMutationsAndApplyPatches(t,e){return y(this,void 0,void 0,(function*(){this.lastPushedMutationId=Math.max(this.lastPushedMutationId,t),this.mutations=this.mutations.filter((e=>e.mutation.id>t)),yield this.notifyStateOrMutationsChanged(e)}))}notifyStateOrMutationsChanged(t){return y(this,void 0,void 0,(function*(){v(this.state,t);const{changedKeys:e}=yield this.rebaseMutations();t.forEach((t=>e.add(t.key))),this.subscriptionManager.notifySubscribers(e),this.notifyPendingMutationsChanged()}))}consumePullResponse(t){return y(this,void 0,void 0,(function*(){this.version=t.version,yield this.rollbackMutationsAndApplyPatches(this.lastPushedMutationId,t.patches)}))}getUnpushedMutations(){return this.mutations.filter((t=>t.mutation.id>this.lastPushedMutationId)).map((t=>Object.assign(Object.assign({},t.mutation),{patches:t.mutationPatches})))}hasMoreMutationsToPush(){return this.getUnpushedMutations().length>0}rebaseMutations(){return y(this,void 0,void 0,(function*(){const t=new Map(this.state),e={changedKeys:new Set};for(const n of this.mutations){const i=this.mutators[n.mutation.name];if(!i)return console.error("Synced State | Mutator not found",n.mutation.name),e;const s=f(t,yield this.getTransactionContext());try{yield i(s,n.mutation.args)}catch(t){console.error("Synced State | Error rebasing mutation",t)}n.mutationPatches=Array.from(s.patches.values()),e.changedKeys.add(n.mutation.name)}return e}))}query(t){return y(this,void 0,void 0,(function*(){yield this.waitForInitialData();const e=a(this.createSnapshot(),yield this.getTransactionContext());return yield t(e)}))}subscribe(t,e){let n=!1,i=null;return this.waitForInitialData().then((()=>{n||(n=!0,i=this.subscriptionManager.subscribe(t,e))})),()=>{n=!0,i&&i()}}waitForInitialData(){return y(this,void 0,void 0,(function*(){try{yield this._initialDataPromise}catch(t){console.error("Synced State | Error waiting for initial data",t)}}))}mutate(t,e){return y(this,void 0,void 0,(function*(){const n=this.mutators[t];if(!n)return void console.error("Synced State | Mutator not found",t);yield this.waitForInitialData();const i=f(this.createSnapshot(),yield this.getTransactionContext());try{yield n(i,e)}catch(n){if(this.handleClientMutationError(t,e,n),n instanceof c)throw n;return}this.mutations.push({mutation:{name:t,args:null!=e?e:null,id:++this.localMutationId},mutationPatches:Array.from(i.patches.values())}),this.subscriptionManager.notifySubscribers(new Set(i.patches.keys())),this.notifyPendingMutationsChanged()}))}setOnFailedMutationCallback(t){return this._failedMutationsSubscribers.add(t),()=>{this._failedMutationsSubscribers.delete(t)}}handleClientMutationError(e,n,i){if(i instanceof c){let s=t.SYNCED_STORE_ERROR,o=i.message;"KEY_TOO_LARGE"===i.errorType?(s=t.KEY_TOO_LARGE,o="Key is too long. Please use a shorter key."):"VALUE_TOO_LARGE"===i.errorType&&(s=t.VALUE_TOO_LARGE,o="Value is too large. Please use a smaller value."),this._failedMutationsSubscribers.forEach((t=>t({mutation:{name:e,args:n},error:{errorType:s,message:o}})))}}}class p{constructor(){this.promise=new Promise(((t,e)=>{this.resolve=t,this.reject=e}))}}function _(t){return new Promise((e=>setTimeout(e,t)))}var M=function(t,e,n,i){return new(n||(n=Promise))((function(s,o){function r(t){try{u(i.next(t))}catch(t){o(t)}}function a(t){try{u(i.throw(t))}catch(t){o(t)}}function u(t){var e;t.done?s(t.value):(e=t.value,e instanceof n?e:new n((function(t){t(e)}))).then(r,a)}u((i=i.apply(t,e||[])).next())}))};class O{constructor(){this.tasks=[],this.running=!1}addTask(t,e){const n={name:t,run:e,deferred:new p};return this.tasks.push(n),this.process(),{done:()=>n.deferred.promise}}run(){return M(this,void 0,void 0,(function*(){for(const t of this.tasks)yield t.run()}))}process(){return M(this,void 0,void 0,(function*(){if(!this.running){for(this.running=!0;this.tasks.length>0;){const t=this.tasks.shift();if(t)try{yield t.run(),t.deferred.resolve()}catch(e){t.deferred.reject(e)}}this.running=!1}}))}ensureEnqueuedWithDelay(t){const{name:e,runFn:n,delayMs:i}=t,s=this.tasks.filter((t=>t.name===e)),o=this.tasks.at(0),r=this.tasks.filter((t=>t.name===e&&t!==o));return r.length>0?{done:()=>r.at(-1).deferred.promise}:this.addTask(e,(()=>M(this,void 0,void 0,(function*(){var t;yield null===(t=s.at(-1))||void 0===t?void 0:t.deferred.promise.catch((()=>{})).then((()=>_(i))),yield n()}))))}debugAllSettled(){return M(this,void 0,void 0,(function*(){for(yield _(10);this.tasks.length>0;)yield Promise.allSettled(this.tasks.map((t=>t.deferred.promise))),yield _(10)}))}}function b(t,e){const n=[],i=[],s=[];for(const[i,o]of e)t.has(i)?t.get(i)!==o&&s.push([i,o]):n.push([i,o]);for(const[n,s]of t)e.has(n)||i.push([n,s]);return{added:n,removed:i,modified:s}}class P{constructor(){this._mutationIdToPushAttempts=new Map}increment(t){this._mutationIdToPushAttempts.set(t,(this._mutationIdToPushAttempts.get(t)||0)+1)}get(t){return this._mutationIdToPushAttempts.get(t)||0}}var w=function(t,e,n,i){return new(n||(n=Promise))((function(s,o){function r(t){try{u(i.next(t))}catch(t){o(t)}}function a(t){try{u(i.throw(t))}catch(t){o(t)}}function u(t){var e;t.done?s(t.value):(e=t.value,e instanceof n?e:new n((function(t){t(e)}))).then(r,a)}u((i=i.apply(t,e||[])).next())}))};"undefined"!=typeof window&&(window.Poe_internal_SyncedState=class{_doPull(){return w(this,void 0,void 0,(function*(){try{const t=yield this.networkClient.pull({spaceId:this._spaceId,afterVersion:this.core.version});yield this.core.consumePullResponse(t)}catch(t){console.error("Synced State | Pull Error",t)}}))}getRetryDelayMs(t){return Math.min(this._mutationIdToPushAttempts.get(t),1)*this._retryDelayMultiplierInMs}_doPush(){return w(this,void 0,void 0,(function*(){const t=this.core.getUnpushedMutations();if(0===t.length)return;const e=t[0].id;this._mutationIdToPushAttempts.increment(e);try{const n=yield this.getClientInfo(),i=yield this.networkClient.push({spaceId:this._spaceId,mutations:t,clientId:n.clientId,clientVersion:Math.max(this.core.version,this.core.lastPushVersion)}),{needsPullBeforeRepush:s}=yield this.core.consumePushResponse(i);this.core.hasMoreMutationsToPush()&&this._scheduleRepush({timeoutMs:this.getRetryDelayMs(e),shouldPull:s})}catch(t){console.error("Synced State | Push Error",t)}}))}_scheduleRepush({timeoutMs:t,shouldPull:e}){clearTimeout(this._timeoutId),this._timeoutId=setTimeout((()=>w(this,void 0,void 0,(function*(){e&&(yield this.pull()),this.isOnline&&(yield this.push())}))),t)}_debugClientId(){return this.getClientInfo().then((t=>t.clientId))}constructor(t){var e;this.queue=new O,this._isOnline=!1,this._onOnlineChanged=new Set,this._mutationIdToPushAttempts=new P,this._timeoutId=void 0,this._spaceId=t.spaceId||"main-canvas-tab-space",this.networkClient=t.networkClient,this.getClientInfo=function(t){let e=null;return()=>(e||(e=t().catch((t=>{throw console.error("Poe:Error loading client info",t),e=null,t}))),e)}(t.getClientInfo),this._retryDelayMultiplierInMs=null!==(e=t.retryDelayMultiplierInMs)&&void 0!==e?e:1e3,this.pull=()=>this.queue.ensureEnqueuedWithDelay({name:"pull",runFn:()=>w(this,void 0,void 0,(function*(){yield this._doPull()})),delayMs:t.pullDelayMs||200}).done(),this.push=()=>this.queue.ensureEnqueuedWithDelay({name:"push",runFn:()=>w(this,void 0,void 0,(function*(){yield this._doPush()})),delayMs:t.pushDelayMs||200}).done(),this._initialPullPromise=Promise.resolve().then((()=>this.pull())),this.core=new g({mutators:t.mutators,getClientInfo:this.getClientInfo,initialDataPromise:this._initialPullPromise}),this.query=this.core.query.bind(this.core),this.subscribe=this.core.subscribe.bind(this.core),this.getPendingMutations=this.core.getPendingMutations.bind(this.core),this.onPendingMutationsChanged=this.core.onPendingMutationsChanged.bind(this.core),this.networkClient.subscribeToPokes(this._spaceId,(t=>w(this,void 0,void 0,(function*(){try{const{needsPull:e}=yield this.core.consumePoke(t);e&&this.pull()}catch(t){console.error("Synced State | Poke Error",t)}})))),this._isOnline=navigator.onLine;const n=t=>{const e=this._isOnline;this._isOnline=navigator.onLine,!e&&this._isOnline&&setTimeout((()=>{this.push()}),1e3),e!==this._isOnline&&this.notifyOnlineChanged(this._isOnline)};if(window.addEventListener("offline",n),window.addEventListener("online",n),window.parent!==window)try{window.parent.addEventListener("offline",n),window.parent.addEventListener("online",n)}catch(t){}setInterval((()=>{this._isOnline!==navigator.onLine&&n()}),3e4)}isReady(){return this._initialPullPromise.then((()=>!0)).catch((()=>!1))}waitUntilReady(){return this._initialPullPromise}get mutate(){return new Proxy({},{get:(t,e)=>t=>w(this,void 0,void 0,(function*(){yield this.core.mutate(e,t),this.push()}))})}onOnlineChanged(t){return this._onOnlineChanged.add(t),()=>{this._onOnlineChanged.delete(t)}}notifyOnlineChanged(t){this._onOnlineChanged.forEach((e=>e(t)))}get isOnline(){return this._isOnline}checkConnectionStatus(){const t=this._isOnline;this._isOnline=navigator.onLine,!t&&this._isOnline&&setTimeout((()=>{this.push()}),1e3),t!==this._isOnline&&this.notifyOnlineChanged(this._isOnline)}subscribeToScanEntries(t,e){let n=new Map;return this.core.subscribe((e=>e.scan({prefix:t}).entries().toArray()),(t=>{const i=new Map(t),s=b(n,i);n=i,e(t,s)}))}subscribeToTable(t,e){let n=new Map;return this.core.subscribe((e=>e.table(t).entries().toArray()),(t=>{const i=new Map(t),s=b(n,i);n=i,e(t,s)}))}id(){return`${Date.now().toString(36)}${Math.random().toString(36).substring(2,8)}`}onFailedMutation(t){return this.core.setOnFailedMutationCallback(t)}})})();
 </script></head>
@@ -388,20 +530,18 @@
 <div class="container">
 <div class="header">
 <h1>Le Contrôle Technique du Couple</h1>
-<p>Évaluez votre satisfaction conjugale - Version Couple</p>
-</div>
+<p>Évaluez votre satisfaction conjugale - Version Couple</p></div>
 <div class="content">
 <div class="intro">
-<h3>Instructions</h3>
-<p>Chaque partenaire évalue individuellement son degré de satisfaction à propos des vingt-cinq items ci-dessous à partir de l'échelle suivante :</p>
-</div>
+<h3 style="display:flex;align-items:center;gap:4px;">Instructions <span class="tooltip-trigger" role="button" aria-expanded="false" aria-label="Aide : Comment fonctionne le Contrôle Technique ?">?<div class="tooltip-bubble"><div class="tip-title">Comment fonctionne le Contrôle Technique ?</div>Comme le contrôle technique d'un véhicule, cet outil évalue l'état de votre couple sur plusieurs points de vérification. Chaque partenaire répond de son côté, puis les résultats sont comparés. Les écarts révèlent les zones de perception différente.</div></span></h3>
+<p>Chaque partenaire évalue individuellement son degré de satisfaction à propos des vingt-cinq items ci-dessous à partir de l'échelle suivante :</p></div>
 <div class="scale">
 <div class="scale-item"><strong>0.</strong> Très insatisfait</div>
 <div class="scale-item"><strong>1.</strong> Peu satisfait</div>
 <div class="scale-item"><strong>2.</strong> Neutre</div>
 <div class="scale-item"><strong>3.</strong> Satisfait</div>
-<div class="scale-item"><strong>4.</strong> Très satisfait</div>
-</div>
+<div class="scale-item"><strong>4.</strong> Très satisfait</div></div>
+<div class="help-banner-tooltip"><span style="font-size:16px;flex-shrink:0;">?</span><span>Survolez ou appuyez sur les icônes <strong>?</strong> pour obtenir les conseils de remplissage.</span><button class="dismiss-help" onclick="this.parentElement.style.display='none'" aria-label="Fermer">×</button></div>
 <div class="partners-container">
 <!-- Partenaire 1 -->
 <div class="partner-section">
@@ -414,9 +554,7 @@
 <div class="option"><input id="p1_q1_1" name="p1_q1" type="radio" value="1"><label for="p1_q1_1">1</label></div>
 <div class="option"><input id="p1_q1_2" name="p1_q1" type="radio" value="2"><label for="p1_q1_2">2</label></div>
 <div class="option"><input id="p1_q1_3" name="p1_q1" type="radio" value="3"><label for="p1_q1_3">3</label></div>
-<div class="option"><input id="p1_q1_4" name="p1_q1" type="radio" value="4"><label for="p1_q1_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q1_4" name="p1_q1" type="radio" value="4"><label for="p1_q1_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">2.</span>Le respect de mon territoire et de mes habitudes</div>
 <div class="options">
@@ -424,9 +562,7 @@
 <div class="option"><input id="p1_q2_1" name="p1_q2" type="radio" value="1"><label for="p1_q2_1">1</label></div>
 <div class="option"><input id="p1_q2_2" name="p1_q2" type="radio" value="2"><label for="p1_q2_2">2</label></div>
 <div class="option"><input id="p1_q2_3" name="p1_q2" type="radio" value="3"><label for="p1_q2_3">3</label></div>
-<div class="option"><input id="p1_q2_4" name="p1_q2" type="radio" value="4"><label for="p1_q2_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q2_4" name="p1_q2" type="radio" value="4"><label for="p1_q2_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">3.</span>Sentiment d'admiration pour mon partenaire</div>
 <div class="options">
@@ -434,9 +570,7 @@
 <div class="option"><input id="p1_q3_1" name="p1_q3" type="radio" value="1"><label for="p1_q3_1">1</label></div>
 <div class="option"><input id="p1_q3_2" name="p1_q3" type="radio" value="2"><label for="p1_q3_2">2</label></div>
 <div class="option"><input id="p1_q3_3" name="p1_q3" type="radio" value="3"><label for="p1_q3_3">3</label></div>
-<div class="option"><input id="p1_q3_4" name="p1_q3" type="radio" value="4"><label for="p1_q3_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q3_4" name="p1_q3" type="radio" value="4"><label for="p1_q3_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">4.</span>Sentiment que mon partenaire m'admire</div>
 <div class="options">
@@ -444,9 +578,7 @@
 <div class="option"><input id="p1_q4_1" name="p1_q4" type="radio" value="1"><label for="p1_q4_1">1</label></div>
 <div class="option"><input id="p1_q4_2" name="p1_q4" type="radio" value="2"><label for="p1_q4_2">2</label></div>
 <div class="option"><input id="p1_q4_3" name="p1_q4" type="radio" value="3"><label for="p1_q4_3">3</label></div>
-<div class="option"><input id="p1_q4_4" name="p1_q4" type="radio" value="4"><label for="p1_q4_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q4_4" name="p1_q4" type="radio" value="4"><label for="p1_q4_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">5.</span>Sentiment de complicité avec mon partenaire</div>
 <div class="options">
@@ -454,9 +586,7 @@
 <div class="option"><input id="p1_q5_1" name="p1_q5" type="radio" value="1"><label for="p1_q5_1">1</label></div>
 <div class="option"><input id="p1_q5_2" name="p1_q5" type="radio" value="2"><label for="p1_q5_2">2</label></div>
 <div class="option"><input id="p1_q5_3" name="p1_q5" type="radio" value="3"><label for="p1_q5_3">3</label></div>
-<div class="option"><input id="p1_q5_4" name="p1_q5" type="radio" value="4"><label for="p1_q5_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q5_4" name="p1_q5" type="radio" value="4"><label for="p1_q5_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">6.</span>Notre entente sur nos projets à court, moyen et long terme</div>
 <div class="options">
@@ -464,9 +594,7 @@
 <div class="option"><input id="p1_q6_1" name="p1_q6" type="radio" value="1"><label for="p1_q6_1">1</label></div>
 <div class="option"><input id="p1_q6_2" name="p1_q6" type="radio" value="2"><label for="p1_q6_2">2</label></div>
 <div class="option"><input id="p1_q6_3" name="p1_q6" type="radio" value="3"><label for="p1_q6_3">3</label></div>
-<div class="option"><input id="p1_q6_4" name="p1_q6" type="radio" value="4"><label for="p1_q6_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q6_4" name="p1_q6" type="radio" value="4"><label for="p1_q6_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">7.</span>La communication verbale émotive</div>
 <div class="options">
@@ -474,9 +602,7 @@
 <div class="option"><input id="p1_q7_1" name="p1_q7" type="radio" value="1"><label for="p1_q7_1">1</label></div>
 <div class="option"><input id="p1_q7_2" name="p1_q7" type="radio" value="2"><label for="p1_q7_2">2</label></div>
 <div class="option"><input id="p1_q7_3" name="p1_q7" type="radio" value="3"><label for="p1_q7_3">3</label></div>
-<div class="option"><input id="p1_q7_4" name="p1_q7" type="radio" value="4"><label for="p1_q7_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q7_4" name="p1_q7" type="radio" value="4"><label for="p1_q7_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">8.</span>La fréquence de nos rapports sexuels</div>
 <div class="options">
@@ -484,9 +610,7 @@
 <div class="option"><input id="p1_q8_1" name="p1_q8" type="radio" value="1"><label for="p1_q8_1">1</label></div>
 <div class="option"><input id="p1_q8_2" name="p1_q8" type="radio" value="2"><label for="p1_q8_2">2</label></div>
 <div class="option"><input id="p1_q8_3" name="p1_q8" type="radio" value="3"><label for="p1_q8_3">3</label></div>
-<div class="option"><input id="p1_q8_4" name="p1_q8" type="radio" value="4"><label for="p1_q8_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q8_4" name="p1_q8" type="radio" value="4"><label for="p1_q8_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">9.</span>La qualité de nos rapports sexuels</div>
 <div class="options">
@@ -494,9 +618,7 @@
 <div class="option"><input id="p1_q9_1" name="p1_q9" type="radio" value="1"><label for="p1_q9_1">1</label></div>
 <div class="option"><input id="p1_q9_2" name="p1_q9" type="radio" value="2"><label for="p1_q9_2">2</label></div>
 <div class="option"><input id="p1_q9_3" name="p1_q9" type="radio" value="3"><label for="p1_q9_3">3</label></div>
-<div class="option"><input id="p1_q9_4" name="p1_q9" type="radio" value="4"><label for="p1_q9_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q9_4" name="p1_q9" type="radio" value="4"><label for="p1_q9_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">10.</span>Nos moments de tendresse, hors sexualité</div>
 <div class="options">
@@ -504,9 +626,7 @@
 <div class="option"><input id="p1_q10_1" name="p1_q10" type="radio" value="1"><label for="p1_q10_1">1</label></div>
 <div class="option"><input id="p1_q10_2" name="p1_q10" type="radio" value="2"><label for="p1_q10_2">2</label></div>
 <div class="option"><input id="p1_q10_3" name="p1_q10" type="radio" value="3"><label for="p1_q10_3">3</label></div>
-<div class="option"><input id="p1_q10_4" name="p1_q10" type="radio" value="4"><label for="p1_q10_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q10_4" name="p1_q10" type="radio" value="4"><label for="p1_q10_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">11.</span>L'éducation de nos enfants (actuels ou à venir)</div>
 <div class="options">
@@ -514,9 +634,7 @@
 <div class="option"><input id="p1_q11_1" name="p1_q11" type="radio" value="1"><label for="p1_q11_1">1</label></div>
 <div class="option"><input id="p1_q11_2" name="p1_q11" type="radio" value="2"><label for="p1_q11_2">2</label></div>
 <div class="option"><input id="p1_q11_3" name="p1_q11" type="radio" value="3"><label for="p1_q11_3">3</label></div>
-<div class="option"><input id="p1_q11_4" name="p1_q11" type="radio" value="4"><label for="p1_q11_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q11_4" name="p1_q11" type="radio" value="4"><label for="p1_q11_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">12.</span>Notre entente financière</div>
 <div class="options">
@@ -524,9 +642,7 @@
 <div class="option"><input id="p1_q12_1" name="p1_q12" type="radio" value="1"><label for="p1_q12_1">1</label></div>
 <div class="option"><input id="p1_q12_2" name="p1_q12" type="radio" value="2"><label for="p1_q12_2">2</label></div>
 <div class="option"><input id="p1_q12_3" name="p1_q12" type="radio" value="3"><label for="p1_q12_3">3</label></div>
-<div class="option"><input id="p1_q12_4" name="p1_q12" type="radio" value="4"><label for="p1_q12_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q12_4" name="p1_q12" type="radio" value="4"><label for="p1_q12_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">13.</span>Le partage des tâches ménagères</div>
 <div class="options">
@@ -534,9 +650,7 @@
 <div class="option"><input id="p1_q13_1" name="p1_q13" type="radio" value="1"><label for="p1_q13_1">1</label></div>
 <div class="option"><input id="p1_q13_2" name="p1_q13" type="radio" value="2"><label for="p1_q13_2">2</label></div>
 <div class="option"><input id="p1_q13_3" name="p1_q13" type="radio" value="3"><label for="p1_q13_3">3</label></div>
-<div class="option"><input id="p1_q13_4" name="p1_q13" type="radio" value="4"><label for="p1_q13_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q13_4" name="p1_q13" type="radio" value="4"><label for="p1_q13_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">14.</span>Mes liens avec la belle-famille</div>
 <div class="options">
@@ -544,9 +658,7 @@
 <div class="option"><input id="p1_q14_1" name="p1_q14" type="radio" value="1"><label for="p1_q14_1">1</label></div>
 <div class="option"><input id="p1_q14_2" name="p1_q14" type="radio" value="2"><label for="p1_q14_2">2</label></div>
 <div class="option"><input id="p1_q14_3" name="p1_q14" type="radio" value="3"><label for="p1_q14_3">3</label></div>
-<div class="option"><input id="p1_q14_4" name="p1_q14" type="radio" value="4"><label for="p1_q14_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q14_4" name="p1_q14" type="radio" value="4"><label for="p1_q14_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">15.</span>Les activités de loisirs</div>
 <div class="options">
@@ -554,9 +666,7 @@
 <div class="option"><input id="p1_q15_1" name="p1_q15" type="radio" value="1"><label for="p1_q15_1">1</label></div>
 <div class="option"><input id="p1_q15_2" name="p1_q15" type="radio" value="2"><label for="p1_q15_2">2</label></div>
 <div class="option"><input id="p1_q15_3" name="p1_q15" type="radio" value="3"><label for="p1_q15_3">3</label></div>
-<div class="option"><input id="p1_q15_4" name="p1_q15" type="radio" value="4"><label for="p1_q15_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q15_4" name="p1_q15" type="radio" value="4"><label for="p1_q15_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">16.</span>La vie au jour le jour</div>
 <div class="options">
@@ -564,9 +674,7 @@
 <div class="option"><input id="p1_q16_1" name="p1_q16" type="radio" value="1"><label for="p1_q16_1">1</label></div>
 <div class="option"><input id="p1_q16_2" name="p1_q16" type="radio" value="2"><label for="p1_q16_2">2</label></div>
 <div class="option"><input id="p1_q16_3" name="p1_q16" type="radio" value="3"><label for="p1_q16_3">3</label></div>
-<div class="option"><input id="p1_q16_4" name="p1_q16" type="radio" value="4"><label for="p1_q16_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q16_4" name="p1_q16" type="radio" value="4"><label for="p1_q16_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">17.</span>La prise de décision</div>
 <div class="options">
@@ -574,9 +682,7 @@
 <div class="option"><input id="p1_q17_1" name="p1_q17" type="radio" value="1"><label for="p1_q17_1">1</label></div>
 <div class="option"><input id="p1_q17_2" name="p1_q17" type="radio" value="2"><label for="p1_q17_2">2</label></div>
 <div class="option"><input id="p1_q17_3" name="p1_q17" type="radio" value="3"><label for="p1_q17_3">3</label></div>
-<div class="option"><input id="p1_q17_4" name="p1_q17" type="radio" value="4"><label for="p1_q17_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q17_4" name="p1_q17" type="radio" value="4"><label for="p1_q17_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">18.</span>La résolution de nos conflits</div>
 <div class="options">
@@ -584,9 +690,7 @@
 <div class="option"><input id="p1_q18_1" name="p1_q18" type="radio" value="1"><label for="p1_q18_1">1</label></div>
 <div class="option"><input id="p1_q18_2" name="p1_q18" type="radio" value="2"><label for="p1_q18_2">2</label></div>
 <div class="option"><input id="p1_q18_3" name="p1_q18" type="radio" value="3"><label for="p1_q18_3">3</label></div>
-<div class="option"><input id="p1_q18_4" name="p1_q18" type="radio" value="4"><label for="p1_q18_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q18_4" name="p1_q18" type="radio" value="4"><label for="p1_q18_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">19.</span>La quantité de temps passé ensemble</div>
 <div class="options">
@@ -594,9 +698,7 @@
 <div class="option"><input id="p1_q19_1" name="p1_q19" type="radio" value="1"><label for="p1_q19_1">1</label></div>
 <div class="option"><input id="p1_q19_2" name="p1_q19" type="radio" value="2"><label for="p1_q19_2">2</label></div>
 <div class="option"><input id="p1_q19_3" name="p1_q19" type="radio" value="3"><label for="p1_q19_3">3</label></div>
-<div class="option"><input id="p1_q19_4" name="p1_q19" type="radio" value="4"><label for="p1_q19_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q19_4" name="p1_q19" type="radio" value="4"><label for="p1_q19_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">20.</span>La qualité de temps passé ensemble</div>
 <div class="options">
@@ -604,9 +706,7 @@
 <div class="option"><input id="p1_q20_1" name="p1_q20" type="radio" value="1"><label for="p1_q20_1">1</label></div>
 <div class="option"><input id="p1_q20_2" name="p1_q20" type="radio" value="2"><label for="p1_q20_2">2</label></div>
 <div class="option"><input id="p1_q20_3" name="p1_q20" type="radio" value="3"><label for="p1_q20_3">3</label></div>
-<div class="option"><input id="p1_q20_4" name="p1_q20" type="radio" value="4"><label for="p1_q20_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q20_4" name="p1_q20" type="radio" value="4"><label for="p1_q20_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">21.</span>Le support obtenu lors de moments difficiles</div>
 <div class="options">
@@ -614,9 +714,7 @@
 <div class="option"><input id="p1_q21_1" name="p1_q21" type="radio" value="1"><label for="p1_q21_1">1</label></div>
 <div class="option"><input id="p1_q21_2" name="p1_q21" type="radio" value="2"><label for="p1_q21_2">2</label></div>
 <div class="option"><input id="p1_q21_3" name="p1_q21" type="radio" value="3"><label for="p1_q21_3">3</label></div>
-<div class="option"><input id="p1_q21_4" name="p1_q21" type="radio" value="4"><label for="p1_q21_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q21_4" name="p1_q21" type="radio" value="4"><label for="p1_q21_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">22.</span>Les relations avec nos couples amis ou nos amis personnels réciproques</div>
 <div class="options">
@@ -624,9 +722,7 @@
 <div class="option"><input id="p1_q22_1" name="p1_q22" type="radio" value="1"><label for="p1_q22_1">1</label></div>
 <div class="option"><input id="p1_q22_2" name="p1_q22" type="radio" value="2"><label for="p1_q22_2">2</label></div>
 <div class="option"><input id="p1_q22_3" name="p1_q22" type="radio" value="3"><label for="p1_q22_3">3</label></div>
-<div class="option"><input id="p1_q22_4" name="p1_q22" type="radio" value="4"><label for="p1_q22_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q22_4" name="p1_q22" type="radio" value="4"><label for="p1_q22_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">23.</span>Nos périodes de vacances en couples ou seul, sans la famille</div>
 <div class="options">
@@ -634,9 +730,7 @@
 <div class="option"><input id="p1_q23_1" name="p1_q23" type="radio" value="1"><label for="p1_q23_1">1</label></div>
 <div class="option"><input id="p1_q23_2" name="p1_q23" type="radio" value="2"><label for="p1_q23_2">2</label></div>
 <div class="option"><input id="p1_q23_3" name="p1_q23" type="radio" value="3"><label for="p1_q23_3">3</label></div>
-<div class="option"><input id="p1_q23_4" name="p1_q23" type="radio" value="4"><label for="p1_q23_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q23_4" name="p1_q23" type="radio" value="4"><label for="p1_q23_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">24.</span>Notre engagement réciproque et notre partage du pouvoir</div>
 <div class="options">
@@ -644,9 +738,7 @@
 <div class="option"><input id="p1_q24_1" name="p1_q24" type="radio" value="1"><label for="p1_q24_1">1</label></div>
 <div class="option"><input id="p1_q24_2" name="p1_q24" type="radio" value="2"><label for="p1_q24_2">2</label></div>
 <div class="option"><input id="p1_q24_3" name="p1_q24" type="radio" value="3"><label for="p1_q24_3">3</label></div>
-<div class="option"><input id="p1_q24_4" name="p1_q24" type="radio" value="4"><label for="p1_q24_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p1_q24_4" name="p1_q24" type="radio" value="4"><label for="p1_q24_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">25.</span>Mon sentiment de liberté dans mon couple</div>
 <div class="options">
@@ -654,11 +746,8 @@
 <div class="option"><input id="p1_q25_1" name="p1_q25" type="radio" value="1"><label for="p1_q25_1">1</label></div>
 <div class="option"><input id="p1_q25_2" name="p1_q25" type="radio" value="2"><label for="p1_q25_2">2</label></div>
 <div class="option"><input id="p1_q25_3" name="p1_q25" type="radio" value="3"><label for="p1_q25_3">3</label></div>
-<div class="option"><input id="p1_q25_4" name="p1_q25" type="radio" value="4"><label for="p1_q25_4">4</label></div>
-</div>
-</div>
-</form>
-</div>
+<div class="option"><input id="p1_q25_4" name="p1_q25" type="radio" value="4"><label for="p1_q25_4">4</label></div></div></div>
+</form></div>
 <!-- Partenaire 2 -->
 <div class="partner-section">
 <div class="partner-header">Partenaire 2</div>
@@ -670,9 +759,7 @@
 <div class="option"><input id="p2_q1_1" name="p2_q1" type="radio" value="1"><label for="p2_q1_1">1</label></div>
 <div class="option"><input id="p2_q1_2" name="p2_q1" type="radio" value="2"><label for="p2_q1_2">2</label></div>
 <div class="option"><input id="p2_q1_3" name="p2_q1" type="radio" value="3"><label for="p2_q1_3">3</label></div>
-<div class="option"><input id="p2_q1_4" name="p2_q1" type="radio" value="4"><label for="p2_q1_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q1_4" name="p2_q1" type="radio" value="4"><label for="p2_q1_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">2.</span>Le respect de mon territoire et de mes habitudes</div>
 <div class="options">
@@ -680,9 +767,7 @@
 <div class="option"><input id="p2_q2_1" name="p2_q2" type="radio" value="1"><label for="p2_q2_1">1</label></div>
 <div class="option"><input id="p2_q2_2" name="p2_q2" type="radio" value="2"><label for="p2_q2_2">2</label></div>
 <div class="option"><input id="p2_q2_3" name="p2_q2" type="radio" value="3"><label for="p2_q2_3">3</label></div>
-<div class="option"><input id="p2_q2_4" name="p2_q2" type="radio" value="4"><label for="p2_q2_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q2_4" name="p2_q2" type="radio" value="4"><label for="p2_q2_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">3.</span>Sentiment d'admiration pour mon partenaire</div>
 <div class="options">
@@ -690,9 +775,7 @@
 <div class="option"><input id="p2_q3_1" name="p2_q3" type="radio" value="1"><label for="p2_q3_1">1</label></div>
 <div class="option"><input id="p2_q3_2" name="p2_q3" type="radio" value="2"><label for="p2_q3_2">2</label></div>
 <div class="option"><input id="p2_q3_3" name="p2_q3" type="radio" value="3"><label for="p2_q3_3">3</label></div>
-<div class="option"><input id="p2_q3_4" name="p2_q3" type="radio" value="4"><label for="p2_q3_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q3_4" name="p2_q3" type="radio" value="4"><label for="p2_q3_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">4.</span>Sentiment que mon partenaire m'admire</div>
 <div class="options">
@@ -700,9 +783,7 @@
 <div class="option"><input id="p2_q4_1" name="p2_q4" type="radio" value="1"><label for="p2_q4_1">1</label></div>
 <div class="option"><input id="p2_q4_2" name="p2_q4" type="radio" value="2"><label for="p2_q4_2">2</label></div>
 <div class="option"><input id="p2_q4_3" name="p2_q4" type="radio" value="3"><label for="p2_q4_3">3</label></div>
-<div class="option"><input id="p2_q4_4" name="p2_q4" type="radio" value="4"><label for="p2_q4_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q4_4" name="p2_q4" type="radio" value="4"><label for="p2_q4_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">5.</span>Sentiment de complicité avec mon partenaire</div>
 <div class="options">
@@ -710,9 +791,7 @@
 <div class="option"><input id="p2_q5_1" name="p2_q5" type="radio" value="1"><label for="p2_q5_1">1</label></div>
 <div class="option"><input id="p2_q5_2" name="p2_q5" type="radio" value="2"><label for="p2_q5_2">2</label></div>
 <div class="option"><input id="p2_q5_3" name="p2_q5" type="radio" value="3"><label for="p2_q5_3">3</label></div>
-<div class="option"><input id="p2_q5_4" name="p2_q5" type="radio" value="4"><label for="p2_q5_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q5_4" name="p2_q5" type="radio" value="4"><label for="p2_q5_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">6.</span>Notre entente sur nos projets à court, moyen et long terme</div>
 <div class="options">
@@ -720,9 +799,7 @@
 <div class="option"><input id="p2_q6_1" name="p2_q6" type="radio" value="1"><label for="p2_q6_1">1</label></div>
 <div class="option"><input id="p2_q6_2" name="p2_q6" type="radio" value="2"><label for="p2_q6_2">2</label></div>
 <div class="option"><input id="p2_q6_3" name="p2_q6" type="radio" value="3"><label for="p2_q6_3">3</label></div>
-<div class="option"><input id="p2_q6_4" name="p2_q6" type="radio" value="4"><label for="p2_q6_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q6_4" name="p2_q6" type="radio" value="4"><label for="p2_q6_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">7.</span>La communication verbale émotive</div>
 <div class="options">
@@ -730,9 +807,7 @@
 <div class="option"><input id="p2_q7_1" name="p2_q7" type="radio" value="1"><label for="p2_q7_1">1</label></div>
 <div class="option"><input id="p2_q7_2" name="p2_q7" type="radio" value="2"><label for="p2_q7_2">2</label></div>
 <div class="option"><input id="p2_q7_3" name="p2_q7" type="radio" value="3"><label for="p2_q7_3">3</label></div>
-<div class="option"><input id="p2_q7_4" name="p2_q7" type="radio" value="4"><label for="p2_q7_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q7_4" name="p2_q7" type="radio" value="4"><label for="p2_q7_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">8.</span>La fréquence de nos rapports sexuels</div>
 <div class="options">
@@ -740,9 +815,7 @@
 <div class="option"><input id="p2_q8_1" name="p2_q8" type="radio" value="1"><label for="p2_q8_1">1</label></div>
 <div class="option"><input id="p2_q8_2" name="p2_q8" type="radio" value="2"><label for="p2_q8_2">2</label></div>
 <div class="option"><input id="p2_q8_3" name="p2_q8" type="radio" value="3"><label for="p2_q8_3">3</label></div>
-<div class="option"><input id="p2_q8_4" name="p2_q8" type="radio" value="4"><label for="p2_q8_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q8_4" name="p2_q8" type="radio" value="4"><label for="p2_q8_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">9.</span>La qualité de nos rapports sexuels</div>
 <div class="options">
@@ -750,9 +823,7 @@
 <div class="option"><input id="p2_q9_1" name="p2_q9" type="radio" value="1"><label for="p2_q9_1">1</label></div>
 <div class="option"><input id="p2_q9_2" name="p2_q9" type="radio" value="2"><label for="p2_q9_2">2</label></div>
 <div class="option"><input id="p2_q9_3" name="p2_q9" type="radio" value="3"><label for="p2_q9_3">3</label></div>
-<div class="option"><input id="p2_q9_4" name="p2_q9" type="radio" value="4"><label for="p2_q9_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q9_4" name="p2_q9" type="radio" value="4"><label for="p2_q9_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">10.</span>Nos moments de tendresse, hors sexualité</div>
 <div class="options">
@@ -760,9 +831,7 @@
 <div class="option"><input id="p2_q10_1" name="p2_q10" type="radio" value="1"><label for="p2_q10_1">1</label></div>
 <div class="option"><input id="p2_q10_2" name="p2_q10" type="radio" value="2"><label for="p2_q10_2">2</label></div>
 <div class="option"><input id="p2_q10_3" name="p2_q10" type="radio" value="3"><label for="p2_q10_3">3</label></div>
-<div class="option"><input id="p2_q10_4" name="p2_q10" type="radio" value="4"><label for="p2_q10_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q10_4" name="p2_q10" type="radio" value="4"><label for="p2_q10_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">11.</span>L'éducation de nos enfants (actuels ou à venir)</div>
 <div class="options">
@@ -770,9 +839,7 @@
 <div class="option"><input id="p2_q11_1" name="p2_q11" type="radio" value="1"><label for="p2_q11_1">1</label></div>
 <div class="option"><input id="p2_q11_2" name="p2_q11" type="radio" value="2"><label for="p2_q11_2">2</label></div>
 <div class="option"><input id="p2_q11_3" name="p2_q11" type="radio" value="3"><label for="p2_q11_3">3</label></div>
-<div class="option"><input id="p2_q11_4" name="p2_q11" type="radio" value="4"><label for="p2_q11_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q11_4" name="p2_q11" type="radio" value="4"><label for="p2_q11_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">12.</span>Notre entente financière</div>
 <div class="options">
@@ -780,9 +847,7 @@
 <div class="option"><input id="p2_q12_1" name="p2_q12" type="radio" value="1"><label for="p2_q12_1">1</label></div>
 <div class="option"><input id="p2_q12_2" name="p2_q12" type="radio" value="2"><label for="p2_q12_2">2</label></div>
 <div class="option"><input id="p2_q12_3" name="p2_q12" type="radio" value="3"><label for="p2_q12_3">3</label></div>
-<div class="option"><input id="p2_q12_4" name="p2_q12" type="radio" value="4"><label for="p2_q12_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q12_4" name="p2_q12" type="radio" value="4"><label for="p2_q12_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">13.</span>Le partage des tâches ménagères</div>
 <div class="options">
@@ -790,9 +855,7 @@
 <div class="option"><input id="p2_q13_1" name="p2_q13" type="radio" value="1"><label for="p2_q13_1">1</label></div>
 <div class="option"><input id="p2_q13_2" name="p2_q13" type="radio" value="2"><label for="p2_q13_2">2</label></div>
 <div class="option"><input id="p2_q13_3" name="p2_q13" type="radio" value="3"><label for="p2_q13_3">3</label></div>
-<div class="option"><input id="p2_q13_4" name="p2_q13" type="radio" value="4"><label for="p2_q13_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q13_4" name="p2_q13" type="radio" value="4"><label for="p2_q13_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">14.</span>Mes liens avec la belle-famille</div>
 <div class="options">
@@ -800,9 +863,7 @@
 <div class="option"><input id="p2_q14_1" name="p2_q14" type="radio" value="1"><label for="p2_q14_1">1</label></div>
 <div class="option"><input id="p2_q14_2" name="p2_q14" type="radio" value="2"><label for="p2_q14_2">2</label></div>
 <div class="option"><input id="p2_q14_3" name="p2_q14" type="radio" value="3"><label for="p2_q14_3">3</label></div>
-<div class="option"><input id="p2_q14_4" name="p2_q14" type="radio" value="4"><label for="p2_q14_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q14_4" name="p2_q14" type="radio" value="4"><label for="p2_q14_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">15.</span>Les activités de loisirs</div>
 <div class="options">
@@ -810,9 +871,7 @@
 <div class="option"><input id="p2_q15_1" name="p2_q15" type="radio" value="1"><label for="p2_q15_1">1</label></div>
 <div class="option"><input id="p2_q15_2" name="p2_q15" type="radio" value="2"><label for="p2_q15_2">2</label></div>
 <div class="option"><input id="p2_q15_3" name="p2_q15" type="radio" value="3"><label for="p2_q15_3">3</label></div>
-<div class="option"><input id="p2_q15_4" name="p2_q15" type="radio" value="4"><label for="p2_q15_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q15_4" name="p2_q15" type="radio" value="4"><label for="p2_q15_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">16.</span>La vie au jour le jour</div>
 <div class="options">
@@ -820,9 +879,7 @@
 <div class="option"><input id="p2_q16_1" name="p2_q16" type="radio" value="1"><label for="p2_q16_1">1</label></div>
 <div class="option"><input id="p2_q16_2" name="p2_q16" type="radio" value="2"><label for="p2_q16_2">2</label></div>
 <div class="option"><input id="p2_q16_3" name="p2_q16" type="radio" value="3"><label for="p2_q16_3">3</label></div>
-<div class="option"><input id="p2_q16_4" name="p2_q16" type="radio" value="4"><label for="p2_q16_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q16_4" name="p2_q16" type="radio" value="4"><label for="p2_q16_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">17.</span>La prise de décision</div>
 <div class="options">
@@ -830,9 +887,7 @@
 <div class="option"><input id="p2_q17_1" name="p2_q17" type="radio" value="1"><label for="p2_q17_1">1</label></div>
 <div class="option"><input id="p2_q17_2" name="p2_q17" type="radio" value="2"><label for="p2_q17_2">2</label></div>
 <div class="option"><input id="p2_q17_3" name="p2_q17" type="radio" value="3"><label for="p2_q17_3">3</label></div>
-<div class="option"><input id="p2_q17_4" name="p2_q17" type="radio" value="4"><label for="p2_q17_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q17_4" name="p2_q17" type="radio" value="4"><label for="p2_q17_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">18.</span>La résolution de nos conflits</div>
 <div class="options">
@@ -840,9 +895,7 @@
 <div class="option"><input id="p2_q18_1" name="p2_q18" type="radio" value="1"><label for="p2_q18_1">1</label></div>
 <div class="option"><input id="p2_q18_2" name="p2_q18" type="radio" value="2"><label for="p2_q18_2">2</label></div>
 <div class="option"><input id="p2_q18_3" name="p2_q18" type="radio" value="3"><label for="p2_q18_3">3</label></div>
-<div class="option"><input id="p2_q18_4" name="p2_q18" type="radio" value="4"><label for="p2_q18_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q18_4" name="p2_q18" type="radio" value="4"><label for="p2_q18_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">19.</span>La quantité de temps passé ensemble</div>
 <div class="options">
@@ -850,9 +903,7 @@
 <div class="option"><input id="p2_q19_1" name="p2_q19" type="radio" value="1"><label for="p2_q19_1">1</label></div>
 <div class="option"><input id="p2_q19_2" name="p2_q19" type="radio" value="2"><label for="p2_q19_2">2</label></div>
 <div class="option"><input id="p2_q19_3" name="p2_q19" type="radio" value="3"><label for="p2_q19_3">3</label></div>
-<div class="option"><input id="p2_q19_4" name="p2_q19" type="radio" value="4"><label for="p2_q19_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q19_4" name="p2_q19" type="radio" value="4"><label for="p2_q19_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">20.</span>La qualité de temps passé ensemble</div>
 <div class="options">
@@ -860,9 +911,7 @@
 <div class="option"><input id="p2_q20_1" name="p2_q20" type="radio" value="1"><label for="p2_q20_1">1</label></div>
 <div class="option"><input id="p2_q20_2" name="p2_q20" type="radio" value="2"><label for="p2_q20_2">2</label></div>
 <div class="option"><input id="p2_q20_3" name="p2_q20" type="radio" value="3"><label for="p2_q20_3">3</label></div>
-<div class="option"><input id="p2_q20_4" name="p2_q20" type="radio" value="4"><label for="p2_q20_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q20_4" name="p2_q20" type="radio" value="4"><label for="p2_q20_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">21.</span>Le support obtenu lors de moments difficiles</div>
 <div class="options">
@@ -870,9 +919,7 @@
 <div class="option"><input id="p2_q21_1" name="p2_q21" type="radio" value="1"><label for="p2_q21_1">1</label></div>
 <div class="option"><input id="p2_q21_2" name="p2_q21" type="radio" value="2"><label for="p2_q21_2">2</label></div>
 <div class="option"><input id="p2_q21_3" name="p2_q21" type="radio" value="3"><label for="p2_q21_3">3</label></div>
-<div class="option"><input id="p2_q21_4" name="p2_q21" type="radio" value="4"><label for="p2_q21_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q21_4" name="p2_q21" type="radio" value="4"><label for="p2_q21_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">22.</span>Les relations avec nos couples amis ou nos amis personnels réciproques</div>
 <div class="options">
@@ -880,9 +927,7 @@
 <div class="option"><input id="p2_q22_1" name="p2_q22" type="radio" value="1"><label for="p2_q22_1">1</label></div>
 <div class="option"><input id="p2_q22_2" name="p2_q22" type="radio" value="2"><label for="p2_q22_2">2</label></div>
 <div class="option"><input id="p2_q22_3" name="p2_q22" type="radio" value="3"><label for="p2_q22_3">3</label></div>
-<div class="option"><input id="p2_q22_4" name="p2_q22" type="radio" value="4"><label for="p2_q22_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q22_4" name="p2_q22" type="radio" value="4"><label for="p2_q22_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">23.</span>Nos périodes de vacances en couples ou seul, sans la famille</div>
 <div class="options">
@@ -890,9 +935,7 @@
 <div class="option"><input id="p2_q23_1" name="p2_q23" type="radio" value="1"><label for="p2_q23_1">1</label></div>
 <div class="option"><input id="p2_q23_2" name="p2_q23" type="radio" value="2"><label for="p2_q23_2">2</label></div>
 <div class="option"><input id="p2_q23_3" name="p2_q23" type="radio" value="3"><label for="p2_q23_3">3</label></div>
-<div class="option"><input id="p2_q23_4" name="p2_q23" type="radio" value="4"><label for="p2_q23_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q23_4" name="p2_q23" type="radio" value="4"><label for="p2_q23_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">24.</span>Notre engagement réciproque et notre partage du pouvoir</div>
 <div class="options">
@@ -900,9 +943,7 @@
 <div class="option"><input id="p2_q24_1" name="p2_q24" type="radio" value="1"><label for="p2_q24_1">1</label></div>
 <div class="option"><input id="p2_q24_2" name="p2_q24" type="radio" value="2"><label for="p2_q24_2">2</label></div>
 <div class="option"><input id="p2_q24_3" name="p2_q24" type="radio" value="3"><label for="p2_q24_3">3</label></div>
-<div class="option"><input id="p2_q24_4" name="p2_q24" type="radio" value="4"><label for="p2_q24_4">4</label></div>
-</div>
-</div>
+<div class="option"><input id="p2_q24_4" name="p2_q24" type="radio" value="4"><label for="p2_q24_4">4</label></div></div></div>
 <div class="question">
 <div class="question-text"><span class="question-number">25.</span>Mon sentiment de liberté dans mon couple</div>
 <div class="options">
@@ -910,139 +951,170 @@
 <div class="option"><input id="p2_q25_1" name="p2_q25" type="radio" value="1"><label for="p2_q25_1">1</label></div>
 <div class="option"><input id="p2_q25_2" name="p2_q25" type="radio" value="2"><label for="p2_q25_2">2</label></div>
 <div class="option"><input id="p2_q25_3" name="p2_q25" type="radio" value="3"><label for="p2_q25_3">3</label></div>
-<div class="option"><input id="p2_q25_4" name="p2_q25" type="radio" value="4"><label for="p2_q25_4">4</label></div>
-</div>
-</div>
-</form>
-</div>
-</div>
+<div class="option"><input id="p2_q25_4" name="p2_q25" type="radio" value="4"><label for="p2_q25_4">4</label></div></div></div>
+</form></div></div>
 <div class="error-message" id="errorMessage">
-                Veuillez répondre à toutes les questions pour les deux partenaires avant de calculer les résultats.
-            </div>
+ Veuillez répondre à toutes les questions pour les deux partenaires avant de calculer les résultats.</div>
 <button class="calculate-btn" onclick="calculateResults()" type="button">Calculer nos résultats</button>
 <div class="results-container" id="resultsContainer">
 <div class="results-grid">
 <div class="result" id="result1">
 <h2>Partenaire 1</h2>
 <div class="score" id="scoreDisplay1"></div>
-<div class="interpretation" id="interpretationText1"></div>
-</div>
+<div class="interpretation" id="interpretationText1"></div></div>
 <div class="result" id="result2">
 <h2>Partenaire 2</h2>
 <div class="score" id="scoreDisplay2"></div>
-<div class="interpretation" id="interpretationText2"></div>
-</div>
-</div>
+<div class="interpretation" id="interpretationText2"></div></div></div>
 <div class="comparison">
 <h3>Comparaison des résultats</h3>
 <div class="comparison-content">
 <div class="comparison-stat">
 <div class="comparison-label">Score moyen du couple</div>
-<div class="comparison-value" id="averageScore"></div>
-</div>
+<div class="comparison-value" id="averageScore"></div></div>
 <div class="comparison-stat">
 <div class="comparison-label">Écart entre les partenaires</div>
-<div class="comparison-value" id="scoreDifference"></div>
-</div>
-</div>
-</div>
-<button class="reset-btn" onclick="resetTest()">Refaire le test</button>
-</div>
-</div>
-</div>
+<div class="comparison-value" id="scoreDifference"></div></div></div></div>
+<button class="reset-btn" onclick="resetTest()">Refaire le test</button></div></div></div>
 <script>
-        function calculateScore(formId, prefix) {
-            const form = document.getElementById(formId);
-            let total = 0;
-            let answeredQuestions = 0;
+ function calculateScore(formId, prefix) {
+ const form = document.getElementById(formId);
+ let total = 0;
+ let answeredQuestions = 0;
 
-            for (let i = 1; i <= 25; i++) {
-                const answer = form.querySelector(`input[name="${prefix}_q${i}"]:checked`);
-                if (answer) {
-                    total += parseInt(answer.value);
-                    answeredQuestions++;
-                }
-            }
+ for (let i = 1; i <= 25; i++) {
+ const answer = form.querySelector(`input[name="${prefix}_q${i}"]:checked`);
+ if (answer) {
+ total += parseInt(answer.value);
+ answeredQuestions++;
+ }
+ }
 
-            return { total, answeredQuestions };
+ return { total, answeredQuestions };
+ }
+
+ function getInterpretation(percentage) {
+ let interpretation = '';
+ let resultClass = '';
+
+ if (percentage >= 75) {
+ resultClass = 'excellent';
+ interpretation = '<h3>Couple très heureux</h3><p>Félicitations ! Votre satisfaction conjugale est excellente. Plus vous approchez 100%, plus votre relation est épanouie et harmonieuse.</p>';
+ } else if (percentage >= 51) {
+ resultClass = 'good';
+ if (percentage <= 55) {
+ interpretation = '<h3>Couple heureux avec des hauts et des bas</h3><p>Votre couple connaît des moments de bonheur mais aussi des défis. Attention : vous approchez du seuil de 51%. Il serait bénéfique de travailler sur certains aspects de votre relation.</p>';
+ } else {
+ interpretation = '<h3>Couple heureux avec des hauts et des bas</h3><p>Votre couple connaît des moments de bonheur mais aussi des défis. Il existe des domaines qui méritent votre attention pour renforcer votre relation.</p>';
+ }
+ } else if (percentage >= 25) {
+ resultClass = 'warning';
+ interpretation = '<h3>Couple en difficulté</h3><p>Votre satisfaction conjugale est faible. Il serait sage de considérer un accompagnement professionnel (thérapie de couple) pour vous aider à surmonter ces difficultés.</p>';
+ } else {
+ resultClass = 'critical';
+ interpretation = '<h3>Couple en situation critique</h3><p>Votre niveau de satisfaction est très préoccupant. Il est fortement recommandé de consulter un professionnel pour évaluer vos options et prendre des décisions éclairées.</p>';
+ }
+
+ return { interpretation, resultClass };
+ }
+
+ function calculateResults() {
+ const errorMessage = document.getElementById('errorMessage');
+ 
+ // Calculer les scores des deux partenaires
+ const partner1 = calculateScore('testForm1', 'p1');
+ const partner2 = calculateScore('testForm2', 'p2');
+
+ // Vérifier que toutes les questions sont répondues
+ if (partner1.answeredQuestions < 25 || partner2.answeredQuestions < 25) {
+ errorMessage.style.display = 'block';
+ errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+ return;
+ }
+
+ errorMessage.style.display = 'none';
+
+ // Calculer les pourcentages
+ const percentage1 = (partner1.total / 100) * 100;
+ const percentage2 = (partner2.total / 100) * 100;
+
+ // Afficher les résultats du partenaire 1
+ const result1 = getInterpretation(percentage1);
+ document.getElementById('scoreDisplay1').textContent = percentage1.toFixed(0) + '%';
+ document.getElementById('interpretationText1').innerHTML = result1.interpretation;
+ document.getElementById('result1').className = 'result ' + result1.resultClass;
+
+ // Afficher les résultats du partenaire 2
+ const result2 = getInterpretation(percentage2);
+ document.getElementById('scoreDisplay2').textContent = percentage2.toFixed(0) + '%';
+ document.getElementById('interpretationText2').innerHTML = result2.interpretation;
+ document.getElementById('result2').className = 'result ' + result2.resultClass;
+
+ // Calculer et afficher les statistiques comparatives
+ const average = ((percentage1 + percentage2) / 2).toFixed(0);
+ const difference = Math.abs(percentage1 - percentage2).toFixed(0);
+
+ document.getElementById('averageScore').textContent = average + '%';
+ document.getElementById('scoreDifference').textContent = difference + '%';
+
+ // Afficher le conteneur des résultats
+ const resultsContainer = document.getElementById('resultsContainer');
+ resultsContainer.style.display = 'block';
+ resultsContainer.scrollIntoView({ behavior: 'smooth' });
+ }
+
+ function resetTest() {
+ document.getElementById('testForm1').reset();
+ document.getElementById('testForm2').reset();
+ document.getElementById('resultsContainer').style.display = 'none';
+ document.getElementById('errorMessage').style.display = 'none';
+ window.scrollTo({ top: 0, behavior: 'smooth' });
+ }
+ </script>
+
+<script>
+/* === TOOLTIPS CONTEXTUELS === */
+(function(){
+    var active=null;
+    function closeAll(){
+        document.querySelectorAll('.tooltip-bubble.visible').forEach(function(b){b.classList.remove('visible','flip-down','align-left');});
+        document.querySelectorAll('.tooltip-trigger[aria-expanded="true"]').forEach(function(t){t.setAttribute('aria-expanded','false');});
+        active=null;
+    }
+    function position(bubble){
+        bubble.classList.remove('flip-down','align-left');
+        var r=bubble.getBoundingClientRect();
+        if(r.top<10) bubble.classList.add('flip-down');
+        if(r.left<10) bubble.classList.add('align-left');
+    }
+    function toggle(trigger){
+        var bubble=trigger.querySelector('.tooltip-bubble');
+        if(!bubble) return;
+        var isOpen=bubble.classList.contains('visible');
+        closeAll();
+        if(!isOpen){
+            bubble.classList.add('visible');
+            trigger.setAttribute('aria-expanded','true');
+            active=bubble;
+            requestAnimationFrame(function(){position(bubble);});
         }
-
-        function getInterpretation(percentage) {
-            let interpretation = '';
-            let resultClass = '';
-
-            if (percentage >= 75) {
-                resultClass = 'excellent';
-                interpretation = '<h3>Couple très heureux</h3><p>Félicitations ! Votre satisfaction conjugale est excellente. Plus vous approchez 100%, plus votre relation est épanouie et harmonieuse.</p>';
-            } else if (percentage >= 51) {
-                resultClass = 'good';
-                if (percentage <= 55) {
-                    interpretation = '<h3>Couple heureux avec des hauts et des bas</h3><p>Votre couple connaît des moments de bonheur mais aussi des défis. Attention : vous approchez du seuil de 51%. Il serait bénéfique de travailler sur certains aspects de votre relation.</p>';
-                } else {
-                    interpretation = '<h3>Couple heureux avec des hauts et des bas</h3><p>Votre couple connaît des moments de bonheur mais aussi des défis. Il existe des domaines qui méritent votre attention pour renforcer votre relation.</p>';
-                }
-            } else if (percentage >= 25) {
-                resultClass = 'warning';
-                interpretation = '<h3>Couple en difficulté</h3><p>Votre satisfaction conjugale est faible. Il serait sage de considérer un accompagnement professionnel (thérapie de couple) pour vous aider à surmonter ces difficultés.</p>';
-            } else {
-                resultClass = 'critical';
-                interpretation = '<h3>Couple en situation critique</h3><p>Votre niveau de satisfaction est très préoccupant. Il est fortement recommandé de consulter un professionnel pour évaluer vos options et prendre des décisions éclairées.</p>';
-            }
-
-            return { interpretation, resultClass };
-        }
-
-        function calculateResults() {
-            const errorMessage = document.getElementById('errorMessage');
-            
-            // Calculer les scores des deux partenaires
-            const partner1 = calculateScore('testForm1', 'p1');
-            const partner2 = calculateScore('testForm2', 'p2');
-
-            // Vérifier que toutes les questions sont répondues
-            if (partner1.answeredQuestions < 25 || partner2.answeredQuestions < 25) {
-                errorMessage.style.display = 'block';
-                errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return;
-            }
-
-            errorMessage.style.display = 'none';
-
-            // Calculer les pourcentages
-            const percentage1 = (partner1.total / 100) * 100;
-            const percentage2 = (partner2.total / 100) * 100;
-
-            // Afficher les résultats du partenaire 1
-            const result1 = getInterpretation(percentage1);
-            document.getElementById('scoreDisplay1').textContent = percentage1.toFixed(0) + '%';
-            document.getElementById('interpretationText1').innerHTML = result1.interpretation;
-            document.getElementById('result1').className = 'result ' + result1.resultClass;
-
-            // Afficher les résultats du partenaire 2
-            const result2 = getInterpretation(percentage2);
-            document.getElementById('scoreDisplay2').textContent = percentage2.toFixed(0) + '%';
-            document.getElementById('interpretationText2').innerHTML = result2.interpretation;
-            document.getElementById('result2').className = 'result ' + result2.resultClass;
-
-            // Calculer et afficher les statistiques comparatives
-            const average = ((percentage1 + percentage2) / 2).toFixed(0);
-            const difference = Math.abs(percentage1 - percentage2).toFixed(0);
-
-            document.getElementById('averageScore').textContent = average + '%';
-            document.getElementById('scoreDifference').textContent = difference + '%';
-
-            // Afficher le conteneur des résultats
-            const resultsContainer = document.getElementById('resultsContainer');
-            resultsContainer.style.display = 'block';
-            resultsContainer.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function resetTest() {
-            document.getElementById('testForm1').reset();
-            document.getElementById('testForm2').reset();
-            document.getElementById('resultsContainer').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'none';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    </script>
+    }
+    document.addEventListener('click',function(e){
+        var trig=e.target.closest('.tooltip-trigger');
+        if(trig){e.stopPropagation();toggle(trig);return;}
+        closeAll();
+    });
+    if(window.matchMedia('(hover:hover)').matches){
+        document.addEventListener('mouseover',function(e){
+            var trig=e.target.closest('.tooltip-trigger');
+            if(trig){closeAll();var b=trig.querySelector('.tooltip-bubble');if(b){b.classList.add('visible');trig.setAttribute('aria-expanded','true');active=b;requestAnimationFrame(function(){position(b);});}}
+        });
+        document.addEventListener('mouseout',function(e){
+            var trig=e.target.closest('.tooltip-trigger');
+            if(trig) closeAll();
+        });
+    }
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll();});
+})();
+</script>
 </body></html>
