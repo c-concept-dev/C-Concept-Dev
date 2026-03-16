@@ -8858,48 +8858,56 @@ class ProfilingDecisionEngine {
         const contradictions = dp ? dp.verbalContradictions.length : 0;
         const responseCount = dp ? dp.responseSnapshots.length : questionCount;
         
-        // Decider la strategie
+        // Calculer des metriques RELATIVES (pas de seuils absolus)
+        const avgConfidence = weakest.length > 0
+            ? weakest.reduce((s, k) => s + (pillarData[k]?.confidence || 0), 0) / weakest.length : 50;
+        const confidenceSpread = weakest.length > 1
+            ? (pillarData[weakest[weakest.length-1]]?.confidence || 0) - (pillarData[weakest[0]]?.confidence || 0) : 0;
+        const isEarlyPhase = questionCount <= Math.max(8, Math.round(responseCount * 0.25)); // 25% premiers echanges
+        const hasSignificantReticence = reticence > avgConfidence; // reticence RELATIVE au niveau de confiance
+        const hasContradictions = contradictions > 0 && questionCount > Math.round(responseCount * 0.4);
+        const weakestPillar = weakest.length > 0 ? weakest[0] : null;
+        const weakestConf = weakestPillar ? (pillarData[weakestPillar]?.confidence || 0) : 100;
+        const isWeakestFarBehind = confidenceSpread > 25; // un pilier est TRES en retard sur les autres
+        
+        // Decider la strategie par PRIORITE CONTEXTUELLE (pas par seuils fixes)
         let strategy = '';
         let reason = '';
         
-        // Phase de pacing (8 premieres questions)
-        if (questionCount <= 8) {
+        if (isEarlyPhase) {
             strategy = 'PACING';
-            reason = 'Questions 1-8 : construire la securite. Rester en surface, quotidien, identite declaree.';
+            reason = 'Phase initiale (Q' + questionCount + ') : construire la securite. Rester sur le quotidien et l\'identite declaree.';
         }
-        // Reticence elevee — changer d'approche
-        else if (reticence > 60) {
+        else if (hasSignificantReticence && !hasContradictions) {
             strategy = 'CONTOURNEMENT';
-            reason = 'Reticence a ' + Math.round(reticence) + '% — la personne se protege. Utiliser des questions projectives ou narratives au lieu de questions directes.';
+            reason = 'Reticence (' + Math.round(reticence) + '%) superieure a la confiance moyenne (' + Math.round(avgConfidence) + '%). La personne se protege. Questions projectives ou narratives au lieu de questions directes.';
         }
-        // Contradictions detectees — confronter doucement
-        else if (contradictions >= 2 && questionCount > 15) {
+        else if (hasContradictions) {
             strategy = 'CONFRONTATION_DOUCE';
-            const lastContradiction = dp.verbalContradictions[dp.verbalContradictions.length - 1];
-            reason = 'Contradictions detectees (' + contradictions + '). Verifier : "Tu m\'as dit X et aussi Y — comment ces deux coexistent ?"';
+            reason = contradictions + ' contradiction(s) detectee(s). Verifier avec douceur les incoherences observees.';
         }
-        // Pilier tres faible — ciblage direct
-        else if (target && targetConf < 30) {
-            strategy = 'CIBLAGE_' + target.toUpperCase();
-            reason = this._getPillarStrategy(target, targetConf);
+        else if (isWeakestFarBehind && weakestPillar) {
+            strategy = 'CIBLAGE_' + weakestPillar.toUpperCase();
+            reason = this._getPillarStrategy(weakestPillar, weakestConf) + ' (ecart de ' + Math.round(confidenceSpread) + ' points avec les autres piliers)';
         }
-        // Pilier moderement faible — exploration progressive
-        else if (target && targetConf < 60) {
-            strategy = 'EXPLORATION_' + target.toUpperCase();
-            reason = this._getPillarStrategy(target, targetConf);
+        else if (weakestPillar && weakestConf < avgConfidence) {
+            strategy = 'EXPLORATION_' + weakestPillar.toUpperCase();
+            reason = this._getPillarStrategy(weakestPillar, weakestConf);
         }
-        // Bonne completude — approfondir et croiser
-        else if (targetConf >= 60) {
+        else {
             strategy = 'APPROFONDISSEMENT';
-            reason = 'Tous les piliers sont au-dessus de 60%. Croiser les donnees, tester les hypotheses, chercher les nuances et contradictions.';
+            reason = 'Couverture relativement equilibree (moyenne ' + Math.round(avgConfidence) + '%). Croiser les donnees, tester les hypotheses, verifier les zones grises.';
         }
         
-        // Anti-repetition : si meme strategie 3 fois de suite, forcer un changement
+        // Anti-repetition adaptative (s'active plus vite quand la reticence est haute)
+        const maxRepetitions = hasSignificantReticence ? 2 : 3;
         if (strategy === this.lastStrategy) {
             this.consecutiveSameStrategy++;
-            if (this.consecutiveSameStrategy >= 3) {
-                strategy = 'VARIATION';
-                reason = 'Meme strategie depuis 3 questions. Changer d\'angle pour eviter la lassitude. Explorer un pilier different ou poser une question de contraste inattendue.';
+            if (this.consecutiveSameStrategy >= maxRepetitions) {
+                // Choisir un pilier DIFFERENT du dernier cible
+                const altPillar = weakest.find(k => k !== target) || weakest[0];
+                strategy = 'VARIATION_' + (altPillar || 'TRANSVERSAL').toUpperCase();
+                reason = 'Meme approche depuis ' + this.consecutiveSameStrategy + ' questions. Changer d\'angle. ' + (altPillar ? this._getPillarStrategy(altPillar, pillarData[altPillar]?.confidence || 0) : 'Explorer un theme transversal.');
                 this.consecutiveSameStrategy = 0;
             }
         } else {
@@ -8907,29 +8915,27 @@ class ProfilingDecisionEngine {
         }
         
         this.lastStrategy = strategy;
-        this.history.push({ q: questionCount, strategy, target, targetConf: Math.round(targetConf) });
+        this.history.push({ q: questionCount, strategy, target, targetConf: Math.round(targetConf), avgConf: Math.round(avgConfidence), reticence: Math.round(reticence) });
         
-        // Formater la recommandation pour injection dans le prompt
+        // Formater la recommandation — contexte adaptatif, pas de regles hardcodees
         let rec = '\n--- RECOMMANDATION DU MOTEUR DE PROFILAGE ---\n';
         rec += 'Strategie: ' + strategy + '\n';
         rec += reason + '\n';
         
-        // Ajouter l'etat des piliers
+        // Etat des piliers (relatif)
         rec += 'Piliers: ';
         for (const k of mandatory) {
             const conf = Math.round(pillarData[k]?.confidence || 0);
             rec += k + '=' + conf + '% ';
         }
+        rec += '| Moyenne=' + Math.round(avgConfidence) + '% | Reticence=' + Math.round(reticence) + '%';
         
-        // v20.1 — WARNING BIAIS DE RESISTANCE
-        if (reticence > 40) {
-            rec += '\n\nATTENTION BIAIS : Reticence a ' + Math.round(reticence) + '%. ';
-            rec += 'La personne est RESISTANTE a l\'entretien. Cela NE signifie PAS qu\'elle est evitante, desagreable, ou anxieuse dans sa vie. ';
-            rec += 'Ne confonds PAS la resistance a l\'interview avec un trait de personnalite. ';
-            rec += 'Cherche des INDICES DE VIE REELLE (anecdotes, descriptions de relations) avant de coder un trait. ';
-            if (reticence > 60) {
-                rec += 'La fiabilite des scores d\'Agreabilite, Attachement et Nevrosisme est FAIBLE tant que la resistance est elevee — privilege les questions comportementales concretes sur la vie quotidienne plutot que les questions directes sur les emotions.';
-            }
+        // Contexte adaptatif (pas de seuils fixes, description de l'etat)
+        if (hasSignificantReticence) {
+            rec += '\nContexte : La reticence est SIGNIFICATIVE par rapport au niveau de confiance. Les dimensions les plus affectees par ce biais sont l\'agreabilite, l\'attachement et l\'extraversion. Privilege les anecdotes de vie reelle.';
+        }
+        if (isWeakestFarBehind) {
+            rec += '\nContexte : Le pilier ' + weakestPillar + ' est nettement EN RETARD sur les autres (' + Math.round(confidenceSpread) + ' points d\'ecart). Prioriser son exploration.';
         }
         
         rec += '\n--- FIN RECOMMANDATION ---\n';
@@ -8939,11 +8945,11 @@ class ProfilingDecisionEngine {
     
     _getPillarStrategy(pillar, confidence) {
         const strategies = {
-            traits: 'TRAITS a ' + Math.round(confidence) + '% — Poser des questions comportementales : reactions sociales, habitudes, organisation, gestion du stress. Pas de questions abstraites ("es-tu organise ?") mais des situations concretes.',
-            schemas: 'SCHEMAS a ' + Math.round(confidence) + '% — Explorer l\'enfance et les patterns precoces. Questions sur la famille, les regles non-dites, les souvenirs marquants. Utiliser le pont biographique.',
-            attachment: 'ATTACHEMENT a ' + Math.round(confidence) + '% — Explorer les relations proches, la separation, la demande d\'aide, la confiance. Questions narratives sur les personnes importantes.',
-            defenses: 'DEFENSES a ' + Math.round(confidence) + '% — Observer le STYLE de reponse, pas poser de questions directes. Reperer l\'humour defensif, l\'intellectualisation, la minimisation. Puis nommer doucement.',
-            values: 'VALEURS a ' + Math.round(confidence) + '% — Poser des dilemmes et des choix forces. "Si tu devais choisir entre X et Y..." Les valeurs se revelent dans les arbitrages, pas dans les declarations.'
+            traits: 'TRAITS a ' + Math.round(confidence) + '% — Questions comportementales sur des situations concretes. Pas de questions abstraites.',
+            schemas: 'SCHEMAS a ' + Math.round(confidence) + '% — Explorer l\'enfance et les patterns precoces par le pont biographique.',
+            attachment: 'ATTACHEMENT a ' + Math.round(confidence) + '% — Questions narratives sur les relations proches, la separation, la demande d\'aide.',
+            defenses: 'DEFENSES a ' + Math.round(confidence) + '% — Observer le STYLE de reponse. Reperer et nommer doucement les mecanismes.',
+            values: 'VALEURS a ' + Math.round(confidence) + '% — Dilemmes et choix forces. Les valeurs se revelent dans les arbitrages.'
         };
         return strategies[pillar] || 'Pilier ' + pillar + ' a ' + Math.round(confidence) + '% — explorer.';
     }
@@ -9833,64 +9839,50 @@ Les indices les MOINS fiables sont :
 — Le ton laconique (confondu avec faible Agreabilite)
 — L'absence d'emotion verbalisee (confondue avec haut Nevrosisme ou alexithymie)
 
-CONFUSIONS SPECIFIQUES A EVITER :
+RAISONNEMENT SUR LES BIAIS — A EXECUTER POUR CHAQUE EVALUATION
 
-1. EMOTIONNALITE ≠ NEVROSISME
-Une personne qui EXPRIME facilement ses emotions n'est PAS necessairement anxieuse ou instable.
-Emotionnalite haute = la personne verbalise ses affects, pleure, rit, s'emeut → c'est de l'ouverture emotionnelle.
-Nevrosisme haut = la personne est ENVAHIE par ses emotions, a du mal a REGULER, est submergee par l'anxiete.
-La difference : l'emotionnel sain CHOISIT de partager. Le nevrotique est EMPORTE malgre lui.
-Si la personne parle de ses emotions avec lucidite et recul, c'est de la mentalisation, PAS du nevrosisme.
-Si la personne est submergee, perd le fil, ne peut pas prendre de recul → la, c'est du nevrosisme.
+Le systeme de profilage a un biais structurel : il confond ce que la personne MONTRE EN INTERVIEW avec ce qu'elle EST DANS LA VIE. Ce raisonnement est ton antidote. Tu l'executes silencieusement pour chaque dimension que tu evalues.
 
-2. PERFECTIONNISME ≠ HAUTE CONSCIENCIOSITE
-Le perfectionnisme peut etre DEFENSIF (schema imperfection : "si je suis parfait, on ne me rejettera pas") ou ORGANISATIONNEL (haute C : "j'aime que les choses soient bien faites").
-Pour les distinguer : quelle est la CONSEQUENCE de l'imperfection ?
-Si c'est de l'anxiete, de la honte, de la peur du jugement → perfectionnisme defensif → schema imperfection, PAS haute C.
-Si c'est de l'insatisfaction professionnelle sans charge emotionnelle → haute C.
-Des routines + du perfectionnisme chez une personne anxieuse = probablement des mecanismes de controle, pas de la conscienciosite naturelle.
+PRINCIPE UNIQUE : Avant de coder un trait, pose-toi cette question :
+"Ce que j'observe ici est-il un TEMPERAMENT STABLE ou une REACTION A LA SITUATION D'ENTRETIEN ?"
 
-3. ATTACHEMENT ANXIEUX ≠ EVITANT-CRAINTIF
-Les deux ont peur de l'abandon. La difference est la DIRECTION DU MOUVEMENT :
-Anxieux : court VERS les autres, cherche la reassurance, a besoin de contact, proteste quand on s'eloigne.
-Evitant-craintif : FUIT les relations malgre un desir d'intimite, s'isole pour se proteger.
-Evitant detache : ne ressent PAS de manque, valorise l'independance, minimise l'importance des relations.
-Pour les distinguer : "Quand tu te sens seul(e), tu fais quoi ?" 
-Anxieux : appelle quelqu'un, cherche du contact, scrolle les reseaux.
-Evitant-craintif : reste seul mais souffre.
-Evitant detache : reste seul et ca lui convient.
-NE CODE PAS "evitant" juste parce que la personne est introvertie ou vit seule. L'introversion est un TRAIT, l'evitement d'attachement est une STRATEGIE RELATIONNELLE.
+Pour y repondre, utilise ce test en 3 niveaux :
 
-4. ROUTINES DEFENSIVES ≠ HAUTE CONSCIENCIOSITE
-Des routines strictes, de la fiabilite au travail, et de l'organisation peuvent etre du CONTROLE DEFENSIF (schema controle excessif, defense contre l'anxiete) plutot que de la haute Conscienciosite.
-Pour les distinguer : que se passe-t-il quand la routine est BRISEE ?
-Si c'est de l'irritation moderee → haute C naturelle.
-Si c'est de l'anxiete, de la colere, un effondrement → strategie defensive de controle, PAS haute C.
-Un technicien fiable au travail mais rigide face aux imprevus = probablement C modere + schema controle, pas C 78.
-REGLE : Si la personne a des schemas de type controle, mefiance, ou vulnerabilite, REDUIRE le score C de 10-15 points car une partie de l'organisation observee est defensive, pas temperamentale.
+NIVEAU 1 — DISTINCTION TRAIT vs ETAT
+Un TRAIT est stable dans le temps et dans les contextes. Un ETAT est transitoire et contextuel.
+"La personne est-elle comme ca AUSSI avec ses proches, au travail, dans des contextes securises ?"
+Si OUI → c'est probablement un trait.
+Si NON ou PAS DE DONNEES → c'est peut-etre un etat situationnel. Baisser la confiance.
+Si la personne DECRIT un fonctionnement different dans d'autres contextes ("avec mes amis je suis plus detendu") → utiliser CE fonctionnement pour coder le trait, pas le comportement en interview.
 
-5. MEFIANCE SCHEMATIQUE ≠ FAIBLE AGREABILITE TRAIT
-Un schema de mefiance (Young) s'ACTIVE en situation de vulnerabilite ou avec des inconnus. Le trait d'Agreabilite (Big Five) est le fonctionnement DE BASE dans des contextes neutres.
-Une personne avec A=45 et schema mefiance peut etre: dure et mefiante avec des inconnus (schema actif) MAIS cooperative et chaleureuse avec ses proches (trait de base).
-En entretien, le schema est probablement ACTIF (l'interviewer est un inconnu). Donc les reponses mefiantes revelent le SCHEMA, pas le TRAIT.
-Pour coder l'Agreabilite reelle, chercher comment la personne decrit ses relations QUAND ELLE EST EN SECURITE (collegues de confiance, famille, amis proches).
-Si pas de donnees de vie reelle → mettre A plus haut que ce que l'interview suggere et baisser la confiance sur ce pilier.
-
-6. ISOLEMENT PROTECTEUR ≠ BASSE EXTRAVERSION TRAIT
-Une personne qui s'isole par protection (schema mefiance, attachement evitant, blessure relationnelle) n'est pas necessairement introvertie par temperament.
-L'Extraversion trait se mesure par l'ENERGIE que la personne tire des interactions sociales, pas par sa frequence de contact actuelle.
-"Je sors pas beaucoup" apres un divorce ≠ E=15. Cela peut etre E=30 + evitement post-traumatique.
-Pour coder l'Extraversion reelle : "Avant ton divorce / Quand tu etais plus jeune / Dans les contextes ou tu te sens en securite — tu preferes etre entoure ou seul ?"
-
-REGLE FONDAMENTALE — SCHEMAS ≠ TRAITS :
+NIVEAU 2 — DISTINCTION TRAIT vs SCHEMA
 Les schemas Young et les defenses MODULENT l'expression des traits mais NE SONT PAS des traits.
-Un score Big Five doit refleter le fonctionnement HORS activation schematique.
-Si un schema est actif sur une dimension, le score observe EN INTERVIEW doit etre CORRIGE :
-- Schema mefiance actif → Agreabilite observee est SOUS-ESTIMEE
-- Schema controle actif → Conscienciosite observee est SUR-ESTIMEE
-- Schema abandon/carence actif → Nevrosisme observe est SUR-ESTIME
-- Isolement defensif actif → Extraversion observee est SOUS-ESTIMEE
-Quand tu codes un trait, demande-toi : "Ce score reflete-t-il le TEMPERAMENT de base ou l'ACTIVATION D'UN SCHEMA ?"
+Quand un schema est actif, le trait observe en interview est DEFORME :
+— Une personne mefiante (schema) peut paraitre desagreable en interview alors que son agreabilite de base est correcte.
+— Une personne qui controle (schema) peut paraitre tres consciencieuse alors que c'est de l'anxiete deguisee.
+— Une personne qui s'isole par blessure peut paraitre tres introvertie alors que son extraversion naturelle est moderee.
+— Une personne qui exprime beaucoup d'emotion peut paraitre nevrotique alors qu'elle est simplement ouverte emotionnellement.
+
+Pour CHAQUE dimension du Big Five, raisonne :
+"Est-ce que le score que je m'apprete a donner reflete le TEMPERAMENT DE BASE ou l'ACTIVATION D'UN SCHEMA ?"
+Si un schema est actif dans la zone de cette dimension → le score observe est probablement deforme.
+Dans ce cas, cherche des INDICES DE VIE REELLE (anecdotes, descriptions de relations, comportements hors interview) pour estimer le score de base.
+Si tu n'as pas d'indices de vie reelle → donne un score PLUS MODERE (plus proche de 50) et baisse la confiance.
+
+NIVEAU 3 — TESTS DIAGNOSTIQUES SPECIFIQUES
+Pour CHAQUE dimension, il existe un TEST DE RAISONNEMENT qui distingue le trait du biais :
+
+OUVERTURE : La personne explore-t-elle des idees nouvelles SPONTANEMENT dans ses recits de vie, ou seulement quand je lui pose la question ? Si spontanement → haute O trait. Si seulement sur demande → O modere.
+
+CONSCIENCIOSITE : Que se passe-t-il quand la routine est BRISEE ? Irritation moderee → haute C trait. Anxiete, colere, effondrement → controle defensif, pas haute C. Chercher : la personne organise-t-elle par PLAISIR ou par PEUR DU DESORDRE ?
+
+EXTRAVERSION : D'ou la personne tire-t-elle son ENERGIE ? Si elle decrit des moments sociaux comme energisants → E modere-haut meme si elle est reservee en interview. Si elle decrit la solitude comme ressourcante ET les interactions comme fatigantes → basse E trait.
+
+AGREABILITE : Comment la personne decrit-elle ses PROCHES (pas les inconnus) ? Cooperation, empathie, chaleur dans les descriptions → A plus haute que ce que l'interview montre. Mefiance generalisee MEME envers les proches → A basse trait.
+
+NEVROSISME : La personne est-elle SUBMERGEE par ses emotions ou les VERBALISE-T-ELLE avec recul ? Si elle pleure MAIS garde sa lucidite → emotionnalite ouverte, pas haut N. Si elle perd le fil, s'embourbe, ne peut pas prendre de recul → haut N trait.
+
+ATTACHEMENT : Quelle est la DIRECTION DU MOUVEMENT quand la personne souffre ? Vers les autres (cherche du contact, de la reassurance) → anxieux. Loin des autres MALGRE un desir de connexion → evitant-craintif. Loin des autres SANS manque ressenti → evitant detache. Important : l'introversion n'est PAS de l'evitement. La pudeur n'est PAS de l'evitement.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERDITS
