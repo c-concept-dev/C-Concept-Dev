@@ -8500,84 +8500,137 @@ async function generateCloneBrain() {
         // Plus de seuils fixes ni de corrections numeriques hardcodees
         // Le LLM raisonne sur le contexte specifique de CET entretien
         
-        // v20.5 — POSTURE PHOTOGRAPHE : on traduit les signaux cliniques en signaux comportementaux neutres
-        // Plus de vocabulaire clinique injecte dans le contexte LLM
+        // v20.6 — POSTURE PHOTOGRAPHE : collecte et traduction de tous les signaux temps réel
+        // Zéro vocabulaire clinique injecté dans les prompts LLM
         const schemasDetected = window.schemaDetector ? window.schemaDetector.getActiveSchemas() : [];
         const defensesDetected = window.defenseDetector ? window.defenseDetector.getActiveDefenses() : [];
         const attachStyle = window.attachmentAnalyzer ? window.attachmentAnalyzer.classifyAttachment() : 'unknown';
+        const hexacoData = window.hexacoAnalyzer ? window.hexacoAnalyzer.toJSON() : null;
+        const motivData = window.motivationAnalyzer ? window.motivationAnalyzer.toJSON() : null;
+        const linguData = window.linguisticAnalyzer ? window.linguisticAnalyzer.toJSON() : null;
 
-        let contextInfo = '\n\n=== CONTEXTE DE CET ENTRETIEN ===\n';
-        contextInfo += 'Niveau de reserve de la personne pendant l\'entretien : ' + Math.round(dpReticence) + '% (0=totalement ouvert, 100=tres ferme)\n';
+        // Traduction schema → signal comportemental neutre
+        const schemaToSignal = {
+            'abandonment':              'surveille les signaux de distanciation dans les relations, a besoin de continuite',
+            'mistrust_abuse':           'prudence relationnelle marquee — verifie avant de faire confiance, peu d\'informations spontanees sur sa vie intime',
+            'emotional_deprivation':    'sensible au manque de reconnaissance, peut sembler attendre validation sans la demander',
+            'defectiveness_shame':      'standards personnels eleves, tend a minimiser ses reussites',
+            'social_isolation':         'maintient une certaine distance sociale, prefere les cercles restreints',
+            'dependence_incompetence':  'cherche un cadre fiable, a du mal a trancher seul sur les sujets complexes',
+            'vulnerability':            'vigilant aux risques, prefere anticiper les problemes',
+            'enmeshment':               'references frequentes aux attentes des proches dans ses choix',
+            'failure':                  'prudence face aux nouveaux defis, prefere le connu',
+            'entitlement':              's\'exprime avec assurance sur ses droits et attentes',
+            'insufficient_self_control':'impulses dans l\'expression, difficulte a se refreiner sur certains sujets',
+            'subjugation':              'minimise ses propres preferences au profit des attentes percues',
+            'self_sacrifice':           'decrit souvent ses actions en termes de service aux autres',
+            'approval_seeking':         'sensible aux reactions de l\'interlocuteur, ajuste son discours',
+            'negativity_pessimism':     'anticipe les obstacles, cadre les situations par le risque',
+            'emotional_inhibition':     'exprime peu ses emotions directement, prefere les faits',
+            'unrelenting_standards':    'exigeant dans ses descriptions, peu tolerant a l\'imprecision',
+            'punitiveness_self':        'peu indulgent face a ses propres erreurs',
+            'punitiveness_other':       'intolerant aux manquements des autres',
+            'fear_losing_control':      'besoin de maitrise, inconfort face a l\'imprevisiblite'
+        };
 
-        // Traduire schemas → patterns comportementaux observables, sans vocabulaire clinique
-        if (schemasDetected.length > 0) {
-            const schemaToSignal = {
-                'mefiance':       'prudence relationnelle marquee — verifie avant de faire confiance, peu d\'informations spontanees sur sa vie intime',
-                'controle':       'besoin de maitrise de son environnement — inconfort face a l\'imprévu, structure ses reponses',
-                'abandon':        'vigilance aux signaux de rejet — a besoin de reassurance implicite pour s\'ouvrir',
-                'carence':        'recherche de validation — sensible au manque de reconnaissance',
-                'imperfection':   'standards personnels eleves — tend a minimiser ses reussites ou a se critiquer',
-                'isolement':      'preference pour l\'autonomie — maintient une certaine distance dans les echanges',
-                'dependance':     'cherche un cadre fiable — a du mal a se positionner sans appui externe',
-                'echec':          'prudence face aux nouveaux defis — prefere le connu au risque d\'echouer',
-                'punition':       'exigeant envers lui-meme — peu indulgent face a ses propres erreurs'
-            };
-            const behavioralSignals = schemasDetected.map(s => {
-                const key = (s.name || s.id || '').toLowerCase();
-                return schemaToSignal[key] || 'pattern observe pendant l\'entretien : ' + (s.name || s.id);
-            });
-            contextInfo += 'Comportements observes pendant l\'entretien : ' + behavioralSignals.join(' | ') + '\n';
-        }
+        // Traduction défense → style de réponse observable
+        const defToSignal = {
+            'humour':              'utilise l\'humour pour desamorcer les questions intimes',
+            'intellectualisation': 'prefere analyser et conceptualiser plutot qu\'exprimer directement ce qu\'il ressent',
+            'minimisation':        'relativise ses propres experiences ("c\'est normal", "tout le monde fait ca")',
+            'projection':          'ramene facilement les sujets personnels vers le general ou les autres',
+            'rationalisation':     'explique ses emotions par des causes logiques plutot que de les reconnaitre',
+            'deni':                'ecarte certains sujets par des affirmations tranchantes sans les explorer',
+            'clivage':             'voit les situations de maniere tranchee, peu de nuances',
+            'formation_reactive':  'exprime l\'oppose de ce qu\'il ressemble probablement a ressentir',
+            'sublimation':         'canalise les tensions vers des activites constructives',
+            'isolation':           'decrit des evenements difficiles de maniere detachee, sans affect'
+        };
 
-        // Traduire defenses → style de reponse aux questions intimes
-        if (defensesDetected.length > 0) {
-            const defToSignal = {
-                'humour':              'utilise l\'humour pour desamorcer les questions intimes',
-                'intellectualisation': 'prefere analyser et conceptualiser plutot qu\'exprimer directement ce qu\'il ressent',
-                'minimisation':        'relativise ses propres experiences ("c\'est normal", "tout le monde fait ca")',
-                'projection':          'ramene facilement les sujets personnels vers le general ou les autres',
-                'rationalisation':     'explique ses emotions par des causes logiques plutot que de les reconnaitre',
-                'deni':                'ecarte certains sujets par des affirmations tranchantes sans les explorer',
-                'clivage':             'voit les situations de maniere tranchee, peu de nuances'
-            };
-            const defSignals = defensesDetected.map(d => {
-                const key = (d.name || d.id || '').toLowerCase();
-                return defToSignal[key] || (d.name || d.id);
-            });
-            contextInfo += 'Style de reponse aux questions intimes : ' + defSignals.join(', ') + '\n';
-        }
-
-        // Style relationnel observable — sans label clinique
+        // Traduction style relationnel → description comportementale
         const attachToNeutral = {
-            'secure':           'a l\'aise avec la proximite et l\'autonomie, equilibre dans ses relations',
-            'anxious':          'recherche de connexion, sensible a la disponibilite des proches',
-            'avoidant':         'prefere l\'independance, maintient une certaine distance emotionnelle',
-            'fearful-avoidant': 'desire la connexion mais s\'en protege, ambivalent dans les relations intimes',
+            'secure':           'a l\'aise avec la proximite et l\'autonomie, equilibre dans ses relations, recourt facilement au soutien',
+            'anxious':          'recherche active de connexion, sensible a la disponibilite des proches, exprime facilement ses besoins relationnels',
+            'avoidant':         'prefere l\'independance, maintient une certaine distance emotionnelle, minimise ses besoins de soutien',
+            'fearful-avoidant': 'desire la connexion mais s\'en protege, ambivalent dans les relations intimes, hesite entre s\'approcher et se retirer',
             'unknown':          'style relationnel non encore determine avec certitude'
         };
+
+        // Construire le contextInfo photographe
+        let contextInfo = '\n\n=== CONTEXTE DE CET ENTRETIEN ===\n';
+        contextInfo += 'Niveau de reserve pendant l\'entretien : ' + Math.round(dpReticence) + '% (0=ouvert, 100=tres ferme)\n';
+
+        if (schemasDetected.length > 0) {
+            const signals = schemasDetected.map(s => schemaToSignal[(s.id || s.name || '').toLowerCase()] || ('pattern : ' + (s.name || s.id))).filter(Boolean);
+            if (signals.length > 0) contextInfo += 'Patterns comportementaux observes : ' + signals.join(' | ') + '\n';
+        }
+
+        if (defensesDetected.length > 0) {
+            const defSignals = defensesDetected.map(d => defToSignal[(d.id || d.name || '').toLowerCase()] || (d.name || d.id)).filter(Boolean);
+            if (defSignals.length > 0) contextInfo += 'Style face aux questions intimes : ' + defSignals.join(', ') + '\n';
+        }
+
         contextInfo += 'Style relationnel observable : ' + (attachToNeutral[attachStyle] || attachStyle) + '\n';
+
+        // Injecter HEXACO si disponible (signal temps réel précieux)
+        if (hexacoData && hexacoData.dimensions) {
+            const hd = hexacoData.dimensions;
+            const hexLines = [];
+            if (hd.H && hd.H.confidence > 0.1) hexLines.push('Honnêteté-Humilité=' + Math.round(hd.H.globalScore * 100) + '%');
+            if (hd.E && hd.E.confidence > 0.1) hexLines.push('Émotivité=' + Math.round(hd.E.globalScore * 100) + '%');
+            if (hd.X && hd.X.confidence > 0.1) hexLines.push('Extraversion=' + Math.round(hd.X.globalScore * 100) + '%');
+            if (hd.A && hd.A.confidence > 0.1) hexLines.push('Agréabilité=' + Math.round(hd.A.globalScore * 100) + '%');
+            if (hd.C && hd.C.confidence > 0.1) hexLines.push('Conscience=' + Math.round(hd.C.globalScore * 100) + '%');
+            if (hd.O && hd.O.confidence > 0.1) hexLines.push('Ouverture=' + Math.round(hd.O.globalScore * 100) + '%');
+            if (hexLines.length > 0) contextInfo += 'Signal HEXACO temps reel (reference independante) : ' + hexLines.join(', ') + '\n';
+        }
+
+        // Injecter motivations SDT si disponibles
+        if (motivData && motivData.sdt) {
+            const sdt = motivData.sdt;
+            const sdtLines = [];
+            if (sdt.autonomy && sdt.autonomy.evidence > 1) sdtLines.push('autonomie=' + Math.round(sdt.autonomy.score * 100) + '%');
+            if (sdt.competence && sdt.competence.evidence > 1) sdtLines.push('competence=' + Math.round(sdt.competence.score * 100) + '%');
+            if (sdt.relatedness && sdt.relatedness.evidence > 1) sdtLines.push('connexion=' + Math.round(sdt.relatedness.score * 100) + '%');
+            if (sdtLines.length > 0) contextInfo += 'Motivations fondamentales observees (SDT) : ' + sdtLines.join(', ') + '\n';
+        }
+
+        // Injecter style linguistique si disponible
+        if (linguData) {
+            if (linguData.avgWordCount) contextInfo += 'Longueur moyenne des reponses : ' + Math.round(linguData.avgWordCount) + ' mots\n';
+            if (linguData.formalityScore !== undefined) contextInfo += 'Niveau de formalite linguistique : ' + Math.round(linguData.formalityScore * 100) + '%\n';
+        }
+
         contextInfo += '=== FIN CONTEXTE ===\n\n';
 
-        // v20.5 — INSTRUCTIONS PHOTOGRAPHE (remplace les anciennes instructions cliniciennes)
-        contextInfo += '=== INSTRUCTIONS PHOTOGRAPHE ===\n';
-        contextInfo += 'Tu es un photographe de personnalite, pas un clinicien. Ta mission : capturer qui est cette personne dans sa vie reelle, pas comment elle se comporte sous la pression de cet entretien.\n\n';
-        contextInfo += 'REGLE 1 — SEPARER LE COMPORTEMENT D\'ENTRETIEN DU TRAIT STABLE\n';
-        contextInfo += 'Niveau de reserve = ' + Math.round(dpReticence) + '%. Plus ce chiffre est eleve, plus les attitudes pendant l\'entretien sont peu fiables comme indicateurs de traits. Dans ce cas, concentre-toi EXCLUSIVEMENT sur ce que la personne raconte de sa vie reelle (anecdotes, relations, comportements habituels).\n';
-        contextInfo += 'Ce que la personne FAIT pendant l\'entretien (se ferme, esquive, minimise, plaisante) = style sous contrainte situationnelle. NE PAS scorer comme trait.\n';
-        contextInfo += 'Ce que la personne RACONTE de sa vie (avec sa famille, ses amis, au travail, dans ses loisirs) = trait stable a capturer.\n\n';
-        contextInfo += 'REGLE 2 — LES ANECDOTES CONCRÉTES BATTENT LES ATTITUDES D\'ENTRETIEN\n';
-        contextInfo += 'Une anecdote concrete vaut plus que dix attitudes observees pendant l\'entretien.\n';
-        contextInfo += 'Exemple : si quelqu\'un esquive les questions mais raconte qu\'il organise des dîners pour ses amis chaque semaine, son extraversion reelle est probablement elevee malgre son attitude reservee ici.\n\n';
-        contextInfo += 'REGLE 3 — DOUTE = SCORE CENTRE (40-60), JAMAIS D\'EXTREME SANS PREUVE\n';
-        contextInfo += 'Si tu n\'as pas d\'anecdotes de vie reelle pour confirmer un trait, donne un score entre 40 et 60. Un score extreme (< 25 ou > 75) exige au moins 2 anecdotes concretes de la vie quotidienne de la personne.\n\n';
-        contextInfo += 'REGLE 4 — EXTRAVERSION = ENERGIE SOCIALE EN VIE REELLE, PAS PENDANT L\'ENTRETIEN\n';
-        contextInfo += 'Etre peu loquace ou reserve ici ≠ etre introverti dans la vie. Cherche : comment cette personne se comporte-t-elle avec ses proches, ses collegues, ses amis ?\n\n';
-        contextInfo += 'REGLE 5 — STABILITE EMOTIONNELLE = FONCTIONNEMENT HABITUEL, PAS CONFORT SOUS QUESTIONNEMENT\n';
-        contextInfo += 'Etre mal a l\'aise pendant l\'entretien ≠ instabilite emotionnelle chronique. Cherche : est-ce que cette personne decrit un quotidien stable, des relations durables, une capacite a gerer les defis de sa vie ?\n\n';
-        contextInfo += 'REGLE 6 — AGREEABILITE = COMPORTEMENT ENVERS LES PROCHES, PAS ENVERS L\'INTERVIEWER\n';
-        contextInfo += 'Etre peu cooperatif ici ≠ etre peu agreable en general. Cherche : comment traite-t-il sa famille, ses collegues, ses amis ? Est-il decrit comme attentionne, genereux, aidant ?\n';
+        // INSTRUCTIONS PHOTOGRAPHE v20.6
+        contextInfo += '=== INSTRUCTIONS PHOTOGRAPHE v20.6 ===\n';
+        contextInfo += 'Tu es un photographe de personnalite, pas un clinicien. Mission : capturer les traits STABLES de cette personne dans sa vie reelle, pas sous la pression de cet entretien.\n\n';
+
+        contextInfo += 'REGLE 1 — SEPARER COMPORTEMENT D\'ENTRETIEN ET TRAIT STABLE\n';
+        contextInfo += 'Reserve=' + Math.round(dpReticence) + '%. Plus ce chiffre est eleve, plus les attitudes pendant l\'entretien sont peu fiables. Concentre-toi sur les ANECDOTES DE VIE REELLE.\n';
+        contextInfo += 'COMPORTEMENT D\'ENTRETIEN (se ferme, esquive, minimise) = situation sous contrainte. NE PAS scorer comme trait.\n';
+        contextInfo += 'ANECDOTES DE VIE (famille, amis, travail, loisirs) = trait stable a capturer.\n\n';
+
+        contextInfo += 'REGLE 2 — ANECDOTES > ATTITUDES\n';
+        contextInfo += 'Une anecdote concrete bat dix attitudes d\'entretien. Ex: si la personne esquive les questions MAIS raconte qu\'elle organise des dinners pour ses amis : extraversion reelle probablement elevee.\n\n';
+
+        contextInfo += 'REGLE 3 — CONVERGENCE MULTI-SOURCES\n';
+        contextInfo += 'Tu as acces a des signaux temps reel (HEXACO, SDT, style linguistique) dans le contexte ci-dessus. Si ces signaux convergent avec les anecdotes de vie : score confiant. S\'ils divergent : score centre (40-60) et note l\'incertitude.\n\n';
+
+        contextInfo += 'REGLE 4 — DOUTE = CENTRE (40-60), EXTREME EXIGE 2+ PREUVES DE VIE REELLE\n';
+        contextInfo += 'Un score < 25 ou > 75 exige au minimum 2 anecdotes concretes de la vie quotidienne. Sans ca : reste entre 40 et 60.\n\n';
+
+        contextInfo += 'REGLE 5 — EXTRAVERSION = ENERGIE SOCIALE EN VIE REELLE\n';
+        contextInfo += 'Peu loquace ici ≠ introverti dans la vie. Cherche : comment cette personne se comporte avec ses proches, collegues, amis ?\n\n';
+
+        contextInfo += 'REGLE 6 — STABILITE EMOTIONNELLE = FONCTIONNEMENT HABITUEL\n';
+        contextInfo += 'Inconfort pendant l\'entretien ≠ instabilite emotionnelle chronique. Cherche : quotidien stable ? Relations durables ? Capacite a gerer les defis ?\n\n';
+
+        contextInfo += 'REGLE 7 — AGREABILITE = COMPORTEMENT ENVERS LES PROCHES\n';
+        contextInfo += 'Peu cooperatif ici ≠ peu agreable en general. Cherche : comment traite-t-il famille, collegues, amis ?\n';
         contextInfo += '=== FIN INSTRUCTIONS PHOTOGRAPHE ===\n\n';
-        
+
         conversation = contextInfo + conversation;
         
         async function callClaudeForAnalysis(prompt, maxTokens) {
@@ -8614,8 +8667,8 @@ async function generateCloneBrain() {
         statusEl.textContent = 'Analyse du temperament (Big Five)...';
         
         const p1 = callClaudeForAnalysis(
-            // v20.5 — Posture photographe : capture les traits stables, ignore le comportement d'entretien
-            'Tu es un photographe de personnalite. Tu captures les traits STABLES de cette personne tels qu\'ils se manifestent dans sa vie reelle ordinaire — pas tels qu\'ils apparaissent pendant cet entretien sous contrainte.\n\nLis attentivement les INSTRUCTIONS PHOTOGRAPHE incluses dans la conversation avant de scorer. Elles definissent comment separer le comportement d\'entretien du trait reel.\n\nPOUR CHAQUE TRAIT, reponds mentalement a cette question avant de scorer :\n"Dans la vie de tous les jours de cette personne — avec sa famille, ses amis, au travail, dans ses loisirs — comment ce trait se manifeste-t-il concrètement ?"\n\nNE te base PAS sur : comment la personne parle pendant cet entretien, si elle est cooperative ou resistante, si elle s\'ouvre ou se ferme.\nBASE-TOI SUR : les anecdotes de vie reelle qu\'elle raconte, les comportements qu\'elle decrit chez elle, les relations qu\'elle mentionne.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON :\n{\n  "openness": { "score": 75, "level": "high", "facets": { "imagination": 80, "artistic_interests": 70, "emotionality": 65, "adventurousness": 75, "intellect": 85, "liberalism": 70 }, "summary": "Description 2 phrases basee sur la vie reelle", "evidence": ["anecdote ou comportement concret cite par la personne 1", "anecdote ou comportement concret cite par la personne 2"], "confidence_note": "pourquoi tu es sur ou incertain de ce score" },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nIMPORTANT : dans evidence, cite uniquement des COMPORTEMENTS REELS ou ANECDOTES DE VIE, jamais des attitudes d\'entretien.\nSi tu n\'as pas d\'evidence de vie reelle pour un trait, score entre 40 et 60 et note-le dans confidence_note.\nRetourne UNIQUEMENT le JSON.', 3500
+            // v20.6 — Posture photographe, convergence multi-sources
+            'Tu es un photographe de personnalite. Tu captures les traits STABLES de cette personne dans sa vie reelle ordinaire — pas ses attitudes pendant cet entretien sous contrainte.\n\nLis les INSTRUCTIONS PHOTOGRAPHE v20.6 incluses dans la conversation. Elles contiennent aussi des signaux temps reel (HEXACO, SDT, style linguistique) qui te donnent une reference independante.\n\nPOUR CHAQUE TRAIT :\n1. Identifie les ANECDOTES DE VIE REELLE mentionnees (comportements avec famille, amis, travail, loisirs)\n2. Verifie la CONVERGENCE avec les signaux temps reel du contexte\n3. Si convergence : score confiant. Si divergence : score centre (40-60) + note l\'incertitude\n4. Score extreme (< 25 ou > 75) exige 2+ anecdotes concretes de vie reelle\n\nNE te base PAS sur les attitudes d\'entretien. BASE-TOI SUR les anecdotes et comportements decrits dans la vie ordinaire.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON :\n{\n  "openness": {\n    "score": 66,\n    "level": "medium-high",\n    "facets": { "imagination": 70, "artistic_interests": 60, "emotionality": 55, "adventurousness": 65, "intellect": 80, "liberalism": 60 },\n    "summary": "2 phrases basees sur comportements de vie reelle",\n    "evidence": ["anecdote ou comportement concret de la vie ordinaire", "2e anecdote"],\n    "confidence_note": "convergent avec HEXACO/SDT / divergent — pourquoi"\n  },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nEvidence = anecdotes de vie reelle uniquement, jamais attitudes d\'entretien.\nRetourne UNIQUEMENT le JSON.', 3500
         ).then(r => { setCloneStep(1, 'done'); return r; });
         
         setCloneStep(2, 'active');
@@ -8661,70 +8714,174 @@ async function generateCloneBrain() {
         // COLLECTE DES ANALYSEURS LOCAUX
         const localAnalyzers = {};
         
+        // v20.6 — Labels neutres (photographe) + tous analyseurs exploités
+
+        // 1. Patterns comportementaux (ex SchemaDetector)
         if (window.schemaDetector) {
             try {
                 const sd = window.schemaDetector.toJSON();
-                localAnalyzers.schemas_young = {
-                    active_schemas: sd.stats.dominant || [],
+                // Traduire les schemas en patterns comportementaux observables
+                const schemaToSignalMap = {
+                    'abandonment': 'surveille les signaux de distanciation, besoin de continuite',
+                    'mistrust_abuse': 'prudence relationnelle, verifie avant de faire confiance',
+                    'emotional_deprivation': 'sensible au manque de reconnaissance',
+                    'defectiveness_shame': 'standards eleves, minimise ses reussites',
+                    'social_isolation': 'prefere les cercles restreints',
+                    'dependence_incompetence': 'cherche un cadre fiable',
+                    'vulnerability': 'vigilant aux risques, anticipe les problemes',
+                    'enmeshment': 'references aux attentes des proches dans ses choix',
+                    'failure': 'prudence face aux nouveaux defis',
+                    'entitlement': 's\'exprime avec assurance sur ses droits',
+                    'insufficient_self_control': 'impulsif dans l\'expression',
+                    'subjugation': 'minimise ses preferences au profit des attentes',
+                    'self_sacrifice': 'decrit ses actions en termes de service aux autres',
+                    'approval_seeking': 'ajuste son discours selon les reactions',
+                    'negativity_pessimism': 'anticipe les obstacles',
+                    'emotional_inhibition': 'exprime peu ses emotions, prefere les faits',
+                    'unrelenting_standards': 'exigeant, peu tolerant a l\'imprecision',
+                    'punitiveness_self': 'peu indulgent face a ses propres erreurs',
+                    'punitiveness_other': 'intolerant aux manquements des autres',
+                    'fear_losing_control': 'besoin de maitrise, inconfort face a l\'imprevisiblite'
+                };
+                const dominantPatterns = (sd.stats.dominant || []).map(id => ({
+                    id,
+                    behavioral_signal: schemaToSignalMap[id] || id,
+                    score: sd.schemas?.[id]?.score || 0,
+                    evidence_count: sd.schemas?.[id]?.evidenceCount || 0
+                }));
+                localAnalyzers.behavioral_patterns = {
+                    dominant: dominantPatterns,
                     domain_coverage: sd.stats.domainCoverage || {},
                     explored_count: sd.stats.explored || 0,
-                    raw: sd
+                    _raw_for_scoring: sd  // conservé pour le 6e appel LLM
                 };
             } catch(e) { console.warn('[CloneBrain v2] SchemaDetector export failed:', e); }
         }
-        
+
+        // 2. Style de réponse (ex DefenseDetector)
         if (window.defenseDetector) {
             try {
                 const dd = window.defenseDetector.toJSON();
-                localAnalyzers.defenses_dmrs = {
-                    odf: dd.odf,
-                    odf_interpretation: dd.odfInterpretation || '',
-                    dominant: dd.dominantDefenses || [],
+                const defToSignalMap = {
+                    'humour': 'utilise l\'humour pour desamorcer les questions intimes',
+                    'intellectualisation': 'prefere analyser plutot qu\'exprimer directement',
+                    'minimisation': 'relativise ses experiences',
+                    'projection': 'ramene le personnel vers le general',
+                    'rationalisation': 'explique ses emotions par des causes logiques',
+                    'deni': 'ecarte certains sujets par des affirmations tranchantes',
+                    'clivage': 'voit les situations de maniere tranchee',
+                    'isolation': 'decrit les evenements difficiles sans affect'
+                };
+                const dominantStyles = (dd.dominantDefenses || []).map(d => ({
+                    id: d.id || d,
+                    response_style: defToSignalMap[d.id || d] || (d.id || d),
+                    level: d.level || 'unknown'
+                }));
+                localAnalyzers.response_style_patterns = {
+                    dominant: dominantStyles,
+                    openness_flexibility_score: dd.odf || 0,
                     level_distribution: dd.levelDistribution || {},
-                    raw: dd
+                    _raw_for_scoring: dd
                 };
             } catch(e) { console.warn('[CloneBrain v2] DefenseDetector export failed:', e); }
         }
-        
+
+        // 3. Style relationnel (ex AttachmentAnalyzer)
         if (window.attachmentAnalyzer) {
             try {
                 const aa = window.attachmentAnalyzer.toJSON();
-                localAnalyzers.attachment = {
+                const attachToDesc = {
+                    'secure': 'a l\'aise avec proximite et autonomie, recourt facilement au soutien',
+                    'anxious': 'recherche active de connexion, exprime facilement ses besoins relationnels',
+                    'avoidant': 'prefere l\'independance, minimise ses besoins de soutien',
+                    'fearful-avoidant': 'desire la connexion mais s\'en protege, ambivalent dans les relations intimes',
+                    'unknown': 'non determine'
+                };
+                localAnalyzers.relational_style = {
                     style: aa.style || 'unknown',
-                    anxiety_score: aa.anxietyScore || 0,
-                    avoidance_score: aa.avoidanceScore || 0,
+                    description: attachToDesc[aa.style] || aa.style,
+                    anxiety_axis: aa.anxietyScore || 0,   // 0-7
+                    avoidance_axis: aa.avoidanceScore || 0, // 0-7
                     narrative_coherence: aa.narrativeCoherence || 0.5,
                     family_mentioned: aa.familyMentioned || false,
-                    profile: aa.profile || {},
-                    raw: aa
+                    _raw_for_scoring: aa
                 };
             } catch(e) { console.warn('[CloneBrain v2] AttachmentAnalyzer export failed:', e); }
         }
-        
+
+        // 4. HEXACO — signal indépendant exploité (pas seulement collecté)
         if (window.hexacoAnalyzer) {
-            try { localAnalyzers.hexaco = window.hexacoAnalyzer.toJSON(); }
-            catch(e) {}
+            try {
+                const hx = window.hexacoAnalyzer.toJSON();
+                const dims = hx.dimensions || {};
+                localAnalyzers.hexaco_signal = {
+                    dimensions: {
+                        H_honesty_humility: { score: Math.round((dims.H?.globalScore || 0.5) * 100), confidence: dims.H?.confidence || 0 },
+                        E_emotionality: { score: Math.round((dims.E?.globalScore || 0.5) * 100), confidence: dims.E?.confidence || 0 },
+                        X_extraversion: { score: Math.round((dims.X?.globalScore || 0.5) * 100), confidence: dims.X?.confidence || 0 },
+                        A_agreeableness: { score: Math.round((dims.A?.globalScore || 0.5) * 100), confidence: dims.A?.confidence || 0 },
+                        C_conscientiousness: { score: Math.round((dims.C?.globalScore || 0.5) * 100), confidence: dims.C?.confidence || 0 },
+                        O_openness: { score: Math.round((dims.O?.globalScore || 0.5) * 100), confidence: dims.O?.confidence || 0 }
+                    },
+                    // Correspondances HEXACO → Big Five pour le 6e appel de convergence
+                    bigfive_hints: {
+                        O_hint: Math.round((dims.O?.globalScore || 0.5) * 100),
+                        C_hint: Math.round((dims.C?.globalScore || 0.5) * 100),
+                        E_hint: Math.round((dims.X?.globalScore || 0.5) * 100),  // HEXACO X → BF E
+                        A_hint: Math.round((dims.A?.globalScore || 0.5) * 100),
+                        N_hint: Math.round((dims.E?.globalScore || 0.5) * 100)   // HEXACO E → BF N
+                    },
+                    _raw: hx
+                };
+            } catch(e) { console.warn('[CloneBrain v2] HEXACOAnalyzer export failed:', e); }
         }
-        
+
+        // 5. Motivations fondamentales — exploitées
         if (window.motivationAnalyzer) {
-            try { localAnalyzers.motivations = window.motivationAnalyzer.toJSON(); }
-            catch(e) {}
+            try {
+                const mv = window.motivationAnalyzer.toJSON();
+                localAnalyzers.core_motivations_signal = {
+                    sdt: {
+                        autonomy: { score: Math.round((mv.sdt?.autonomy?.score || 0.5) * 100), evidence: mv.sdt?.autonomy?.evidence || 0 },
+                        competence: { score: Math.round((mv.sdt?.competence?.score || 0.5) * 100), evidence: mv.sdt?.competence?.evidence || 0 },
+                        relatedness: { score: Math.round((mv.sdt?.relatedness?.score || 0.5) * 100), evidence: mv.sdt?.relatedness?.evidence || 0 }
+                    },
+                    mcclelland: {
+                        achievement: { score: Math.round((mv.mcclelland?.achievement?.score || 0.5) * 100), evidence: mv.mcclelland?.achievement?.evidence || 0 },
+                        affiliation: { score: Math.round((mv.mcclelland?.affiliation?.score || 0.5) * 100), evidence: mv.mcclelland?.affiliation?.evidence || 0 },
+                        power: { score: Math.round((mv.mcclelland?.power?.score || 0.5) * 100), evidence: mv.mcclelland?.power?.evidence || 0 }
+                    },
+                    _raw: mv
+                };
+            } catch(e) { console.warn('[CloneBrain v2] MotivationAnalyzer export failed:', e); }
         }
-        
+
+        // 6. Style linguistique — exploité
         if (window.linguisticAnalyzer) {
-            try { localAnalyzers.linguistic = window.linguisticAnalyzer.toJSON(); }
-            catch(e) {}
+            try {
+                const lg = window.linguisticAnalyzer.toJSON();
+                localAnalyzers.linguistic_signal = {
+                    avg_words_per_response: Math.round(lg.avgWordCount || 0),
+                    formality_score: Math.round((lg.formalityScore || 0.5) * 100),
+                    vocabulary_richness: Math.round((lg.vocabularyRichness || 0.5) * 100),
+                    emotional_density: Math.round((lg.emotionalDensity || 0) * 100),
+                    characteristic_markers: lg.characteristicMarkers || [],
+                    _raw: lg
+                };
+            } catch(e) { console.warn('[CloneBrain v2] LinguisticAnalyzer export failed:', e); }
         }
-        
+
+        // 7. DeepPersonality — réticence et contradictions
         if (window.deepPersonalityAnalyzer) {
             try {
-                const dp = window.deepPersonalityAnalyzer;
-                localAnalyzers.deep_personality = {
-                    reticence_score: dp.reticenceScore || 0,
-                    verbal_contradictions: dp.verbalContradictions || [],
-                    modal_contradictions: dp.modalContradictions || [],
-                    evasion_patterns: dp.evasionPatterns || [],
-                    response_snapshots_count: (dp.responseSnapshots || []).length
+                const dp2 = window.deepPersonalityAnalyzer;
+                localAnalyzers.interview_dynamics = {
+                    reticence_score: dp2.reticenceScore || 0,
+                    verbal_contradictions: dp2.verbalContradictions || [],
+                    modal_contradictions: dp2.modalContradictions || [],
+                    evasion_patterns: dp2.evasionPatterns || [],
+                    response_snapshots_count: (dp2.responseSnapshots || []).length,
+                    current_strategy: dp2.currentStrategy || 'unknown'
                 };
             } catch(e) {}
         }
@@ -8814,7 +8971,7 @@ async function generateCloneBrain() {
             _schema: {
                 confidence: 'score 0-100, grade A-F. Components: coverage, coherence, depth, authenticity',
                 evidence: 'Citations exactes de la personne interviewee',
-                local_analyzers: 'Donnees temps reel (schemas Young, defenses DMRS, attachement AAI, HEXACO, motivations)',
+                local_analyzers: 'Signaux temps reel : behavioral_patterns, response_style_patterns, relational_style, hexaco_signal, core_motivations_signal, linguistic_signal, interview_dynamics',
                 ai_analyses: 'Donnees extraites par Claude post-entretien (Big Five, Schwartz, communication, cognition, emotions)'
             },
             identity: { display_name: displayName, languages: ['Francais'] },
@@ -8834,7 +8991,7 @@ async function generateCloneBrain() {
             communication_style: communication,
             thinking_patterns: thinking,
             emotional_profile: emotional,
-            v20_local_analyzers: localAnalyzers,
+            realtime_signals: localAnalyzers,  // v20.6 — tous signaux temps réel exploités
             persona_draft: personaDraft,
             confidence: {
                 global: globalConfidence,
@@ -8864,6 +9021,82 @@ async function generateCloneBrain() {
             }
         };
         
+        // STEP 7 — v20.6 : CONVERGENCE MULTI-SOURCES (6e appel LLM)
+        // Raisonnement adaptatif sur les divergences entre signaux temps réel et scoring LLM
+        setCloneStep(6, 'active');
+        statusEl.textContent = 'Convergence multi-sources...';
+
+        try {
+            const hexaHints = localAnalyzers.hexaco_signal?.bigfive_hints || null;
+            const sdtData = localAnalyzers.core_motivations_signal?.sdt || null;
+            const reticence = localAnalyzers.interview_dynamics?.reticence_score || 0;
+            const contradictions = localAnalyzers.interview_dynamics?.verbal_contradictions?.length || 0;
+            const relStyle = localAnalyzers.relational_style || null;
+
+            // Construire le prompt de convergence
+            let convergencePrompt = 'Tu es un analyste de coherence de personnalite. Tu recois deux sources independantes de scoring de traits et tu dois decider : convergent-elles ? Faut-il ajuster ?\n\n';
+            convergencePrompt += 'SOURCE 1 — Scoring LLM (base sur la conversation, posture photographe) :\n';
+            if (window._cloneBrainJSON?.temperament) {
+                const t = window._cloneBrainJSON.temperament;
+                convergencePrompt += 'O=' + (t.openness?.score || '?') + ' C=' + (t.conscientiousness?.score || '?') + ' E=' + (t.extraversion?.score || '?') + ' A=' + (t.agreeableness?.score || '?') + ' N=' + (t.neuroticism?.score || '?') + '\n';
+            }
+
+            convergencePrompt += '\nSOURCE 2 — Signaux temps reel independants (detectes pendant l\'entretien, pas bases sur le contenu des reponses) :\n';
+            if (hexaHints) {
+                convergencePrompt += 'HEXACO (reference independante) : O_hint=' + hexaHints.O_hint + ' C_hint=' + hexaHints.C_hint + ' E_hint=' + hexaHints.E_hint + ' A_hint=' + hexaHints.A_hint + ' N_hint=' + hexaHints.N_hint + '\n';
+            }
+            if (sdtData) {
+                convergencePrompt += 'SDT motivations : autonomie=' + sdtData.autonomy?.score + '% competence=' + sdtData.competence?.score + '% connexion=' + sdtData.relatedness?.score + '%\n';
+            }
+            if (relStyle) {
+                convergencePrompt += 'Style relationnel : ' + relStyle.description + ' (anxiete=' + relStyle.anxiety_axis + '/7 evitement=' + relStyle.avoidance_axis + '/7)\n';
+            }
+            convergencePrompt += 'Niveau de reserve pendant l\'entretien : ' + Math.round(reticence) + '%\n';
+            convergencePrompt += 'Contradictions detectees : ' + contradictions + '\n';
+
+            convergencePrompt += '\nTACHE : Pour chaque trait Big Five, determine si les deux sources CONVERGENT ou DIVERGENT.\n';
+            convergencePrompt += '- CONVERGENCE (ecart < 15 points) : conserver le score LLM.\n';
+            convergencePrompt += '- DIVERGENCE (ecart >= 15 points) : calculer la MOYENNE PONDEREE (LLM = 60%, signal temps reel = 40%) et l\'indiquer.\n';
+            convergencePrompt += '- Si reserve > 60% : augmenter le poids signal temps reel a 50%.\n';
+            convergencePrompt += 'Raisonne librement. Ne hardcode aucune regle. Adapte ton jugement au contexte specifique de cet entretien.\n\n';
+            convergencePrompt += 'Retourne UNIQUEMENT ce JSON :\n';
+            convergencePrompt += '{\n';
+            convergencePrompt += '  "O": { "llm": 66, "signal": 70, "delta": 4, "verdict": "convergent", "final": 66, "note": "..." },\n';
+            convergencePrompt += '  "C": { "llm": 78, "signal": 39, "delta": 39, "verdict": "divergent", "final": 62, "note": "..." },\n';
+            convergencePrompt += '  "E": { ... },\n';
+            convergencePrompt += '  "A": { ... },\n';
+            convergencePrompt += '  "N": { ... },\n';
+            convergencePrompt += '  "attachment": { "llm_style": "...", "signal_axes": "anxiete=X evitement=Y", "verdict": "convergent|divergent", "final_style": "...", "note": "..." },\n';
+            convergencePrompt += '  "overall_confidence": "high|medium|low",\n';
+            convergencePrompt += '  "main_insight": "phrase resument ce que la convergence/divergence revele sur cette personne"\n';
+            convergencePrompt += '}';
+
+            const convergenceResult = await callClaudeForAnalysis(convergencePrompt, 2000);
+
+            // Appliquer les ajustements si divergence
+            if (convergenceResult && window._cloneBrainJSON?.temperament) {
+                const t = window._cloneBrainJSON.temperament;
+                const traitMap = { O: 'openness', C: 'conscientiousness', E: 'extraversion', A: 'agreeableness', N: 'neuroticism' };
+                for (const [key, traitName] of Object.entries(traitMap)) {
+                    const cr = convergenceResult[key];
+                    if (cr && cr.verdict === 'divergent' && cr.final !== undefined && t[traitName]) {
+                        const originalScore = t[traitName].score;
+                        t[traitName].score = cr.final;
+                        t[traitName].convergence_note = cr.note || '';
+                        t[traitName].convergence_adjusted = true;
+                        t[traitName].original_llm_score = originalScore;
+                        console.log('[Convergence] ' + key + ' ajuste : ' + originalScore + ' → ' + cr.final + ' (' + cr.note + ')');
+                    }
+                }
+                // Attacher le rapport de convergence au brain
+                window._cloneBrainJSON.convergence_report = convergenceResult;
+                window._cloneBrainJSON.convergence_report._generated = new Date().toISOString();
+                console.log('[Convergence] Rapport attaché. Insight:', convergenceResult.main_insight);
+            }
+        } catch(convErr) {
+            console.warn('[Convergence] Appel LLM echoue, scores non ajustes:', convErr.message);
+        }
+
         window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
         
         setCloneStep(6, 'done');
@@ -8890,19 +9123,20 @@ async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
     if (callClaudeForAnalysis && allUserText.length > 100) {
         try {
             const personaResult = await callClaudeForAnalysis(
-                // v20.5 — PersonaExtractor posture photographe
-                'Tu es un archiviste de vie. Tu extrais les faits concrets mentionnes par une personne sur sa vie reelle. Tu ne juges pas, tu ne diagnostiques pas, tu ne deduis pas. Tu collectes les materiaux bruts : qui, quoi, quand, comment cette personne vit et se comporte dans son quotidien.\n\n' +
+                // v20.6 — Archiviste de vie : collecte des faits bruts, posture neutre
+                'Tu es un archiviste de vie. Tu collectes les faits concrets mentionnes par une personne sur sa vie reelle. Tu ne juges pas, tu ne diagnostiques pas, tu ne deduis aucune pathologie. Tu captures : qui, quoi, quand, comment cette personne vit et se comporte dans son quotidien.\n\n' +
                 'REPONSES DE LA PERSONNE :\n' + allUserText.substring(0, 8000) + '\n\n' +
                 'Genere un JSON avec cette structure :\n' +
                 '{\n' +
-                '  "people_mentioned": [{"name": "...", "role": "mere/pere/ami/collegue/...", "context": "phrase ou la personne est mentionnee"}],\n' +
-                '  "places_mentioned": [{"name": "...", "context": "..."}],\n' +
+                '  "people_mentioned": [{"name": "...", "role": "mere/pere/ami/collegue/...", "context": "phrase ou la personne est mentionnee", "relationship_quality": "positive/neutre/tendue/complexe"}],\n' +
+                '  "places_mentioned": [{"name": "...", "context": "...", "emotional_valence": "positive/neutre/negative"}],\n' +
                 '  "time_references": [{"period": "enfance/adolescence/20-30 ans/...", "event": "...", "context": "..."}],\n' +
-                '  "anecdotes": [{"summary": "resume factuel en 1 phrase", "what_it_reveals": "comportement concret observable (ce que la personne fait, pas ce qu\'elle ressent ou son pathologie)", "question_index": 0}],\n' +
-                '  "emotions_expressed": [{"emotion": "...", "trigger": "...", "intensity": "faible/moderee/forte"}],\n' +
-                '  "relationships_described": [{"person": "...", "quality": "positive/ambivalente/negative/complexe", "pattern": "..."}]\n' +
+                '  "anecdotes": [{"summary": "resume factuel en 1 phrase", "what_it_reveals": "comportement concret observable dans cette anecdote (ce que la personne FAIT, pas ce qu\'elle ressent ou un diagnostic)", "life_domain": "famille/travail/amis/loisirs/enfance", "question_index": 0}],\n' +
+                '  "habitual_behaviors": [{"behavior": "comportement recurrent decrit", "context": "dans quel contexte", "frequency": "quotidien/hebdo/occasionnel"}],\n' +
+                '  "emotions_expressed": [{"emotion": "...", "trigger": "...", "intensity": "faible/moderee/forte", "how_managed": "comment la personne gere cette emotion"}],\n' +
+                '  "relationships_described": [{"person": "...", "quality": "positive/ambivalente/negative/complexe", "pattern": "comportement observable dans cette relation"}]\n' +
                 '}\n' +
-                'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne dans les reponses. Ne devines pas. Ne deduis pas de pathologie ou de trouble. Capture les FAITS DE VIE. Retourne UNIQUEMENT le JSON.', 2000
+                'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne. Ne devines pas. Ne deduis aucun trouble ou pathologie. Capture les FAITS DE VIE. Retourne UNIQUEMENT le JSON.', 2500
             );
             if (personaResult && typeof personaResult === 'object') {
                 console.log('[PersonaExtractor] LLM extraction: OK');
@@ -9114,4 +9348,4 @@ window.CloneBrain = {
     }
 };
 
-console.log('[CloneBrain] v20.5 loaded — CLONE-BRAIN-1.0 | posture photographe active');
+console.log('[CloneBrain] v20.6 loaded — CLONE-BRAIN-1.0 | photographe | convergence multi-sources | tous analyseurs exploites');
