@@ -8920,6 +8920,18 @@ class ProfilingDecisionEngine {
             const conf = Math.round(pillarData[k]?.confidence || 0);
             rec += k + '=' + conf + '% ';
         }
+        
+        // v20.1 — WARNING BIAIS DE RESISTANCE
+        if (reticence > 40) {
+            rec += '\n\nATTENTION BIAIS : Reticence a ' + Math.round(reticence) + '%. ';
+            rec += 'La personne est RESISTANTE a l\'entretien. Cela NE signifie PAS qu\'elle est evitante, desagreable, ou anxieuse dans sa vie. ';
+            rec += 'Ne confonds PAS la resistance a l\'interview avec un trait de personnalite. ';
+            rec += 'Cherche des INDICES DE VIE REELLE (anecdotes, descriptions de relations) avant de coder un trait. ';
+            if (reticence > 60) {
+                rec += 'La fiabilite des scores d\'Agreabilite, Attachement et Nevrosisme est FAIBLE tant que la resistance est elevee — privilege les questions comportementales concretes sur la vie quotidienne plutot que les questions directes sur les emotions.';
+            }
+        }
+        
         rec += '\n--- FIN RECOMMANDATION ---\n';
         
         return rec;
@@ -9789,6 +9801,37 @@ EMPATHIE DE LA PERSONNE ENVERS L'AUTRE
 Quand la personne montre de l'empathie pour quelqu'un d'autre (conjoint, parent, enfant), ne l'interprete PAS automatiquement comme de l'evitement. Parfois comprendre l'autre EST la facon dont cette personne fonctionne. C'est une DONNEE sur sa personnalite (agreabilite elevee, style d'attachement, loyaute).
 
 CORRECT : accueillir l'empathie, la nommer ("Tu la comprends bien"), puis relier doucement ("Et toi, dans tout ca ?").
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BIAIS DE SITUATION — ERREUR FONDAMENTALE D'ATTRIBUTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REGLE CRITIQUE : Le comportement dans cet entretien N'EST PAS la personnalite.
+
+Une personne qui repond COURT a tes questions n'est pas necessairement introvertie — elle est peut-etre pudique, mefiante envers l'exercice, ou simplement concise par nature.
+
+Une personne qui ESQUIVE un sujet intime n'est pas necessairement evitante en attachement — elle peut etre secure mais reservee face a un inconnu. Un style secure avec de la pudeur produit EXACTEMENT les memes reponses qu'un style evitant.
+
+Une personne RESISTANTE n'est pas necessairement desagreable — elle peut avoir une agreabilite elevee dans sa vie mais ne pas se livrer facilement dans un entretien artificiel.
+
+Une personne qui ne montre PAS d'emotion dans ses reponses n'est pas necessairement alexithymique ou a haut nevrosisme — elle peut juste ne pas verbaliser ses affects dans ce contexte.
+
+AVANT de coder un trait, verifie :
+"Est-ce que j'observe ce trait, ou est-ce que j'observe une REACTION A LA SITUATION D'ENTRETIEN ?"
+"Si cette personne etait avec un ami proche au lieu de moi, se comporterait-elle de la meme facon ?"
+"Ai-je des indices de COMPORTEMENT DANS LA VIE REELLE (anecdotes, relations decrites) qui confirment ce trait, ou seulement son comportement ici ?"
+
+Les indices les plus FIABLES sont :
+— Les anecdotes spontanees ("une fois avec mes collegues j'ai...")
+— Les descriptions de relations par la personne ("ma copine dit que je suis...")
+— Les reactions emotionnelles involontaires (changement de ton, rire, silence soudain)
+— Les contradictions entre ce qu'elle dit et comment elle le dit
+
+Les indices les MOINS fiables sont :
+— La longueur des reponses (confondue avec Extraversion)
+— La resistance aux questions sensibles (confondue avec Evitement d'attachement)
+— Le ton laconique (confondu avec faible Agreabilite)
+— L'absence d'emotion verbalisee (confondue avec haut Nevrosisme ou alexithymie)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERDITS
