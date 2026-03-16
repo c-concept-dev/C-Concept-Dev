@@ -8818,23 +8818,19 @@ async function generateCloneBrain() {
         // AXE 3 — Métriques concrètes de longueur/profondeur (calculées, pas inférées)
         const _responseLengths = userMsgs.map(m => (m.content || '').split(/\s+/).filter(Boolean).length);
         const _avgWords = _responseLengths.length > 0
-            ? Math.round(_responseLengths.reduce((a, b) => a + b, 0) / _responseLengths.length)
-            : 0;
+            ? Math.round(_responseLengths.reduce((a, b) => a + b, 0) / _responseLengths.length) : 0;
         const _sortedLengths = [..._responseLengths].sort((a, b) => a - b);
         const _p25 = _sortedLengths[Math.floor(_sortedLengths.length * 0.25)] || _avgWords;
         const _p75 = _sortedLengths[Math.floor(_sortedLengths.length * 0.75)] || _avgWords;
-        const _shortResponses = _responseLengths.filter(n => n < 25).length;
-        const _longResponses  = _responseLengths.filter(n => n > 60).length;
-        const _shortRatio = _responseLengths.length > 0 ? Math.round((_shortResponses / _responseLengths.length) * 100) : 0;
-        const _longRatio  = _responseLengths.length > 0 ? Math.round((_longResponses  / _responseLengths.length) * 100) : 0;
-        // Contraintes opérationnelles pour le prompt directeur du clone
+        const _shortRatio = _responseLengths.length > 0 ? Math.round((_responseLengths.filter(n => n < 25).length / _responseLengths.length) * 100) : 0;
+        const _longRatio  = _responseLengths.length > 0 ? Math.round((_responseLengths.filter(n => n > 60).length  / _responseLengths.length) * 100) : 0;
         const _minWords = Math.max(10, _p25 - 5);
         const _maxWords = Math.min(150, _p75 + 15);
         const _concreteLength = {
             avg_words_per_response: _avgWords,
             typical_range_words: _minWords + '-' + _maxWords,
-            short_response_ratio_pct: _shortRatio,   // % réponses < 25 mots
-            long_response_ratio_pct:  _longRatio,    // % réponses > 60 mots
+            short_response_ratio_pct: _shortRatio,
+            long_response_ratio_pct:  _longRatio,
             constraint_min_words: _minWords,
             constraint_max_words: _maxWords,
             constraint_label: _avgWords < 30 ? 'très_concis' : _avgWords < 50 ? 'concis' : _avgWords < 80 ? 'modéré' : 'verbeux'
@@ -9109,25 +9105,29 @@ async function generateCloneBrain() {
         const coverageGrade = coverageScore >= 7 ? 'A' : coverageScore >= 5 ? 'B' : coverageScore >= 3 ? 'C' : 'D';
 
         // Extraire communication sans clone_instructions (données pures uniquement)
-        // AXE 1 — grammaire générative : mesures calculées sur le corpus réel
+        // AXE 1 — grammaire générative : mesures calculées sur corpus réel
         const _allUserRaw = userMsgs.map(m => m.content || '');
         const _allSentences = _allUserRaw.join(' ').split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 3);
-        // Ratio "quoi" en fin de phrase (marqueur de validation/résignation)
-        const _quoiCount = _allUserRaw.filter(r => /\bquoi\s*[.!?,*]?\s*$/.test(r.trim())).length;
+        // FIX-QUOI-REGEX — "quoi" dans les 5 derniers mots (pas seulement dernier mot absolu)
+        const _quoiCount = _allUserRaw.filter(r => {
+            const words = r.trim().split(/\s+/);
+            const tail = words.slice(-5).join(' ');
+            return /\bquoi\b/i.test(tail);
+        }).length;
         const _quoiRatio = userMsgs.length > 0 ? Math.round((_quoiCount / userMsgs.length) * 100) : 0;
-        // Densité d'emotes (actions entre astérisques : *rit*, *hausse les épaules*...)
+        // Densité d'emotes (actions entre astérisques)
         const _emoteMatches = _allUserRaw.join('\n').match(/\*[^*]{2,30}\*/g) || [];
         const _emoteDensity = userMsgs.length > 0 ? Math.round((_emoteMatches.length / userMsgs.length) * 100) : 0;
-        // Ratio phrases courtes (<8 mots) vs longues (>15 mots) dans le corpus
+        const _emoteFreq = {};
+        _emoteMatches.forEach(e => { _emoteFreq[e] = (_emoteFreq[e] || 0) + 1; });
+        const _topEmotes = Object.entries(_emoteFreq).sort((a,b) => b[1]-a[1]).slice(0,5).map(([e,n]) => e + '×' + n);
+        // Ratio phrases courtes/longues
         const _shortSentences = _allSentences.filter(s => s.split(/\s+/).length < 8).length;
         const _longSentences  = _allSentences.filter(s => s.split(/\s+/).length > 15).length;
         const _sentenceRatio  = _allSentences.length > 0
             ? Math.round((_shortSentences / _allSentences.length) * 100) + '% courtes / ' + Math.round((_longSentences / _allSentences.length) * 100) + '% longues'
             : 'indéterminé';
-        // Emotes les plus fréquentes
-        const _emoteFreq = {};
-        _emoteMatches.forEach(e => { _emoteFreq[e] = (_emoteFreq[e] || 0) + 1; });
-        const _topEmotes = Object.entries(_emoteFreq).sort((a,b) => b[1]-a[1]).slice(0,5).map(([e,n]) => e + '×' + n);
+        console.log('[AXE1] Grammaire — quoi%:' + _quoiRatio + ' emote/100:' + _emoteDensity + ' phrases:' + _sentenceRatio);
 
         const communicationPure = {
             tone: communication?.tone || {},
@@ -9141,15 +9141,14 @@ async function generateCloneBrain() {
             interaction_style: communication?.interaction_style || {},
             // AXE 1 — Grammaire générative (mesures calculées sur corpus réel)
             generative_grammar: {
-                end_particle_quoi_ratio_pct: _quoiRatio,     // % réponses terminant par "quoi"
-                emote_density_per_100_responses: _emoteDensity, // nb emotes/*action* pour 100 réponses
-                top_emotes: _topEmotes,                        // emotes les plus fréquentes
-                sentence_length_ratio: _sentenceRatio,         // ratio phrases courtes/longues
-                // AXE 3 — Contraintes opérationnelles longueur (issues des métriques calculées)
+                end_particle_quoi_ratio_pct: _quoiRatio,
+                emote_density_per_100_responses: _emoteDensity,
+                top_emotes: _topEmotes,
+                sentence_length_ratio: _sentenceRatio,
+                // AXE 3 — Contraintes opérationnelles longueur
                 response_length: _concreteLength
             }
         };
-        console.log('[AXE1] Grammaire générative — quoi%:' + _quoiRatio + ' emote/100:' + _emoteDensity + ' emotes:' + _topEmotes.join(',') + ' phrases:' + _sentenceRatio);
 
         // Extraire les signaux temps réel pertinents (données observées)
         const realtimeObserved = {
