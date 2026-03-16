@@ -9861,6 +9861,37 @@ Evitant-craintif : reste seul mais souffre.
 Evitant detache : reste seul et ca lui convient.
 NE CODE PAS "evitant" juste parce que la personne est introvertie ou vit seule. L'introversion est un TRAIT, l'evitement d'attachement est une STRATEGIE RELATIONNELLE.
 
+4. ROUTINES DEFENSIVES ≠ HAUTE CONSCIENCIOSITE
+Des routines strictes, de la fiabilite au travail, et de l'organisation peuvent etre du CONTROLE DEFENSIF (schema controle excessif, defense contre l'anxiete) plutot que de la haute Conscienciosite.
+Pour les distinguer : que se passe-t-il quand la routine est BRISEE ?
+Si c'est de l'irritation moderee → haute C naturelle.
+Si c'est de l'anxiete, de la colere, un effondrement → strategie defensive de controle, PAS haute C.
+Un technicien fiable au travail mais rigide face aux imprevus = probablement C modere + schema controle, pas C 78.
+REGLE : Si la personne a des schemas de type controle, mefiance, ou vulnerabilite, REDUIRE le score C de 10-15 points car une partie de l'organisation observee est defensive, pas temperamentale.
+
+5. MEFIANCE SCHEMATIQUE ≠ FAIBLE AGREABILITE TRAIT
+Un schema de mefiance (Young) s'ACTIVE en situation de vulnerabilite ou avec des inconnus. Le trait d'Agreabilite (Big Five) est le fonctionnement DE BASE dans des contextes neutres.
+Une personne avec A=45 et schema mefiance peut etre: dure et mefiante avec des inconnus (schema actif) MAIS cooperative et chaleureuse avec ses proches (trait de base).
+En entretien, le schema est probablement ACTIF (l'interviewer est un inconnu). Donc les reponses mefiantes revelent le SCHEMA, pas le TRAIT.
+Pour coder l'Agreabilite reelle, chercher comment la personne decrit ses relations QUAND ELLE EST EN SECURITE (collegues de confiance, famille, amis proches).
+Si pas de donnees de vie reelle → mettre A plus haut que ce que l'interview suggere et baisser la confiance sur ce pilier.
+
+6. ISOLEMENT PROTECTEUR ≠ BASSE EXTRAVERSION TRAIT
+Une personne qui s'isole par protection (schema mefiance, attachement evitant, blessure relationnelle) n'est pas necessairement introvertie par temperament.
+L'Extraversion trait se mesure par l'ENERGIE que la personne tire des interactions sociales, pas par sa frequence de contact actuelle.
+"Je sors pas beaucoup" apres un divorce ≠ E=15. Cela peut etre E=30 + evitement post-traumatique.
+Pour coder l'Extraversion reelle : "Avant ton divorce / Quand tu etais plus jeune / Dans les contextes ou tu te sens en securite — tu preferes etre entoure ou seul ?"
+
+REGLE FONDAMENTALE — SCHEMAS ≠ TRAITS :
+Les schemas Young et les defenses MODULENT l'expression des traits mais NE SONT PAS des traits.
+Un score Big Five doit refleter le fonctionnement HORS activation schematique.
+Si un schema est actif sur une dimension, le score observe EN INTERVIEW doit etre CORRIGE :
+- Schema mefiance actif → Agreabilite observee est SOUS-ESTIMEE
+- Schema controle actif → Conscienciosite observee est SUR-ESTIMEE
+- Schema abandon/carence actif → Nevrosisme observe est SUR-ESTIME
+- Isolement defensif actif → Extraversion observee est SOUS-ESTIMEE
+Quand tu codes un trait, demande-toi : "Ce score reflete-t-il le TEMPERAMENT de base ou l'ACTIVATION D'UN SCHEMA ?"
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERDITS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
