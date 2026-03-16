@@ -8496,27 +8496,37 @@ async function generateCloneBrain() {
         const dpReticence = window.deepPersonalityAnalyzer ? window.deepPersonalityAnalyzer.reticenceScore : 0;
         const dpEmotionality = window.deepPersonalityAnalyzer ? (window.deepPersonalityAnalyzer.responseSnapshots || []).filter(s => s.emotionalIntensity > 0.5).length : 0;
         
-        // v20.2 — AVERTISSEMENT TOUJOURS PRESENT (pas seulement si reticence > 40)
-        // Les biais emotionnalite/nevrosisme et attachement existent meme sans reticence
-        let methodWarning = '\n\n=== AVERTISSEMENT METHODOLOGIQUE ===\n';
+        // v20.4 — INSTRUCTIONS DE RAISONNEMENT ADAPTATIVES
+        // Plus de seuils fixes ni de corrections numeriques hardcodees
+        // Le LLM raisonne sur le contexte specifique de CET entretien
         
-        if (dpReticence > 40) {
-            methodWarning += 'RETICENCE DETECTEE : ' + Math.round(dpReticence) + '%. La personne etait resistante a l\'entretien.\n';
-            methodWarning += '- Reponses courtes ≠ introversion ou faible agreabilite.\n';
-            methodWarning += '- Esquive des sujets intimes ≠ attachement evitant.\n';
+        let contextInfo = '\n\n=== CONTEXTE DE CET ENTRETIEN ===\n';
+        contextInfo += 'Reticence mesuree : ' + Math.round(dpReticence) + '%\n';
+        
+        // Injecter les donnees des analyseurs temps reel pour que le LLM raisonne dessus
+        const schemasDetected = window.schemaDetector ? window.schemaDetector.getActiveSchemas() : [];
+        const defensesDetected = window.defenseDetector ? window.defenseDetector.getActiveDefenses() : [];
+        const attachStyle = window.attachmentAnalyzer ? window.attachmentAnalyzer.classifyAttachment() : 'unknown';
+        
+        if (schemasDetected.length > 0) {
+            contextInfo += 'Schemas Young ACTIFS detectes en temps reel : ' + schemasDetected.map(s => s.name || s.id).join(', ') + '\n';
         }
+        if (defensesDetected.length > 0) {
+            contextInfo += 'Defenses dominantes detectees en temps reel : ' + defensesDetected.map(d => d.name || d.id).join(', ') + '\n';
+        }
+        contextInfo += 'Style d\'attachement detecte en temps reel : ' + attachStyle + '\n';
+        contextInfo += '=== FIN CONTEXTE ===\n\n';
         
-        methodWarning += '\nREGLES ANTI-BIAIS OBLIGATOIRES :\n';
-        methodWarning += '1. EMOTIONNALITE ≠ NEVROSISME. Exprimer ses emotions avec lucidite = ouverture emotionnelle. Nevrosisme = etre SUBMERGE, incapable de reguler. Si la personne prend du recul sur ses emotions → ne pas gonfler N.\n';
-        methodWarning += '2. ROUTINES DEFENSIVES ≠ CONSCIENCIOSITE. Des routines strictes + fiabilite professionnelle PEUVENT etre du controle defensif (schema controle, anxiete) plutot que de la haute C. Si la personne montre de l\'anxiete face aux imprevus ou un besoin de controle → reduire C de 10-15 points.\n';
-        methodWarning += '3. MEFIANCE SCHEMATIQUE ≠ FAIBLE AGREABILITE. Un schema de mefiance s\'active en interview (face a un inconnu) mais le trait A reflette le fonctionnement avec les proches. Chercher comment la personne decrit ses relations QUAND ELLE EST EN SECURITE. Si reponses mefiantes en interview mais relations decrites comme cooperatives → A est plus haut que l\'impression d\'interview.\n';
-        methodWarning += '4. ISOLEMENT PROTECTEUR ≠ BASSE EXTRAVERSION. Isolation apres divorce/blessure ≠ introversion temperamentale. Chercher le niveau d\'energie sociale AVANT la blessure ou dans des contextes securises.\n';
-        methodWarning += '5. ATTACHEMENT : distinguer ANXIEUX (court vers les autres) vs EVITANT-CRAINTIF (fuit malgre desir) vs EVITANT DETACHE (pas de manque). Introversion ≠ evitement.\n';
-        methodWarning += '6. REGLE FONDAMENTALE : Les SCHEMAS YOUNG et les DEFENSES modulent l\'expression des traits mais NE SONT PAS des traits. Un score Big Five doit refleter le TEMPERAMENT DE BASE, pas l\'activation schematique en interview. Schema mefiance → A sous-estime. Schema controle → C surestime. Schema abandon → N surestime. Isolement defensif → E sous-estime.\n';
-        methodWarning += '7. Pour CHAQUE score, base-toi sur les ANECDOTES DE VIE REELLE plutot que sur le style de reponse a l\'interview.\n';
-        methodWarning += '=== FIN AVERTISSEMENT ===\n\n';
+        contextInfo += '=== INSTRUCTIONS DE RAISONNEMENT ===\n';
+        contextInfo += 'Pour CHAQUE score Big Five que tu donnes, execute ce raisonnement :\n';
+        contextInfo += '1. DISTINCTION TRAIT vs ETAT : Ce que j\'observe ici est-il un TEMPERAMENT STABLE ou une REACTION A LA SITUATION D\'ENTRETIEN ? Chercher des indices de vie reelle (anecdotes, descriptions de relations) pour confirmer ou infirmer.\n';
+        contextInfo += '2. DISTINCTION TRAIT vs SCHEMA : Si un schema Young est actif (voir contexte ci-dessus), le trait observe est probablement DEFORME par le schema. Une personne mefiante parait moins agreable qu\'elle ne l\'est. Une personne qui controle parait plus consciencieuse qu\'elle ne l\'est. Une personne blessee qui s\'isole parait plus introvertie qu\'elle ne l\'est. Ajuster le score vers la MOYENNE (50) quand le schema interfere, sauf si des anecdotes de vie reelle confirment le score extreme.\n';
+        contextInfo += '3. EMOTIONNALITE vs NEVROSISME : Exprimer ses emotions avec lucidite = ouverture emotionnelle. Etre SUBMERGE, perdre le fil, ne pas pouvoir prendre de recul = nevrosisme. Ne pas confondre les deux.\n';
+        contextInfo += '4. ATTACHEMENT : Chercher la DIRECTION DU MOUVEMENT quand la personne souffre. Vers les autres = anxieux. Loin malgre un desir = evitant-craintif. Loin sans manque = evitant detache. Introversion ≠ evitement.\n';
+        contextInfo += '5. CONFIANCE : Si tes donnees sont insuffisantes pour trancher, donne un score MODERE (plus proche de 50) plutot qu\'un score extreme potentiellement faux.\n';
+        contextInfo += '=== FIN INSTRUCTIONS ===\n\n';
         
-        conversation = methodWarning + conversation;
+        conversation = contextInfo + conversation;
         
         async function callClaudeForAnalysis(prompt, maxTokens) {
             const resp = await fetch(workerUrl, {
@@ -8667,7 +8677,7 @@ async function generateCloneBrain() {
         }
         
         // PERSONA DRAFT
-        const personaDraft = extractPersonaDraft(userMsgs);
+        const personaDraft = await extractPersonaDraft(userMsgs, callClaudeForAnalysis);
         
         // CONFIANCE CALIBREE
         const tracker = window.personalityTracker;
@@ -8818,30 +8828,47 @@ async function generateCloneBrain() {
     }
 }
 
-function extractPersonaDraft(userMsgs) {
+async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
+    // v20.4 — PersonaExtractor via LLM (universel, multilingue)
+    // Fallback sur extraction légère si l'appel LLM échoue
+    
+    const allUserText = userMsgs.map(m => m.content || '').join('\n---\n');
+    
+    if (callClaudeForAnalysis && allUserText.length > 100) {
+        try {
+            const personaResult = await callClaudeForAnalysis(
+                'Tu es un extracteur de materiau autobiographique. A partir des reponses d\'une personne interviewee, extrais les elements de vie mentionnes.\n\n' +
+                'REPONSES DE LA PERSONNE :\n' + allUserText.substring(0, 8000) + '\n\n' +
+                'Genere un JSON avec cette structure :\n' +
+                '{\n' +
+                '  "people_mentioned": [{"name": "...", "role": "mere/pere/ami/collegue/...", "context": "phrase ou la personne est mentionnee"}],\n' +
+                '  "places_mentioned": [{"name": "...", "context": "..."}],\n' +
+                '  "time_references": [{"period": "enfance/adolescence/20-30 ans/...", "event": "...", "context": "..."}],\n' +
+                '  "anecdotes": [{"summary": "resume en 1 phrase", "what_it_reveals": "ce que ca dit de la personnalite", "question_index": 0}],\n' +
+                '  "emotions_expressed": [{"emotion": "...", "trigger": "...", "intensity": "faible/moderee/forte"}],\n' +
+                '  "relationships_described": [{"person": "...", "quality": "positive/ambivalente/negative/complexe", "pattern": "..."}]\n' +
+                '}\n' +
+                'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne. Ne devines pas. Retourne UNIQUEMENT le JSON.', 2000
+            );
+            if (personaResult && typeof personaResult === 'object') {
+                console.log('[PersonaExtractor] LLM extraction: OK');
+                return personaResult;
+            }
+        } catch (e) {
+            console.warn('[PersonaExtractor] LLM extraction failed, fallback to lightweight:', e.message);
+        }
+    }
+    
+    // Fallback leger — sans regex hardcodees, juste detection de base
     const draft = { people_mentioned: [], places_mentioned: [], time_references: [], anecdotes: [], emotions_expressed: [] };
-    const peopleRx = /(?:mon|ma|mes|notre|nos)\s+(pere|mere|frere|soeur|fils|fille|femme|mari|copain|copine|ami|amie|collegue|patron|pote|grand-pere|grand-mere|oncle|tante)|(?:avec|chez|comme)\s+([A-Z][a-z]{2,})/g;
-    const placeRx = /(?:a|en|au|aux|de|du)\s+(Paris|Lyon|Toulouse|Marseille|Bordeaux|Lavaur|[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/g;
-    const timeRx = /(?:quand j'avais|a l'age de|a\s+\d+\s+ans|en\s+\d{4}|il y a\s+\d+\s+ans|enfant|adolescent|jeune|petit)/gi;
-    const emotRx = /(?:j'ai\s+(?:peur|honte|pleure|ri)|ca\s+m'(?:enerve|attriste|fait\s+peur)|je\s+(?:deteste|adore|aime|hais))/gi;
     for (const msg of userMsgs) {
         const text = msg.content || '';
-        let m;
-        while ((m = peopleRx.exec(text)) !== null) { const p = (m[1]||m[2]||'').trim(); if (p && !draft.people_mentioned.includes(p)) draft.people_mentioned.push(p); }
-        peopleRx.lastIndex = 0;
-        while ((m = placeRx.exec(text)) !== null) { const p = m[1].trim(); if (p && p.length > 2 && !draft.places_mentioned.includes(p)) draft.places_mentioned.push(p); }
-        placeRx.lastIndex = 0;
-        while ((m = timeRx.exec(text)) !== null) { draft.time_references.push({ ref: m[0].trim(), context: text.substring(Math.max(0,m.index-40), m.index+m[0].length+40).trim() }); }
-        timeRx.lastIndex = 0;
-        if (text.length > 100 && /(?:je me souviens|un jour|une fois|c'etait|il s'est passe)/i.test(text)) {
-            draft.anecdotes.push({ text: text.substring(0,300), question_index: userMsgs.indexOf(msg) });
+        // Anecdotes : textes longs avec marqueurs narratifs universels
+        if (text.length > 80 && text.includes('...')) {
+            draft.anecdotes.push({ summary: text.substring(0, 200), question_index: userMsgs.indexOf(msg) });
         }
-        while ((m = emotRx.exec(text)) !== null) { draft.emotions_expressed.push({ expression: m[0].trim(), context: text.substring(Math.max(0,m.index-30), m.index+m[0].length+30).trim() }); }
-        emotRx.lastIndex = 0;
     }
-    draft.time_references = draft.time_references.slice(0,20);
-    draft.anecdotes = draft.anecdotes.slice(0,10);
-    draft.emotions_expressed = draft.emotions_expressed.slice(0,15);
+    draft.anecdotes = draft.anecdotes.slice(0, 10);
     return draft;
 }
 
