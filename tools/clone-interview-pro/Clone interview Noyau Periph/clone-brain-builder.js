@@ -8674,8 +8674,82 @@ async function generateCloneBrain() {
         statusEl.textContent = 'Analyse du temperament (Big Five)...';
         
         const p1 = callClaudeForAnalysis(
-            // v20.7 — Posture photographe + règles C et N explicites
-            'Tu es un photographe de personnalite. Tu captures les traits STABLES de cette personne dans sa vie reelle ordinaire — pas ses attitudes pendant cet entretien sous contrainte.\n\nLis les INSTRUCTIONS PHOTOGRAPHE incluses dans la conversation (regles 1 a 9). Elles contiennent les regles de debiaisage et les signaux temps reel de reference.\n\nPOUR CHAQUE TRAIT, reponds d\'abord a : "Dans la vie de tous les jours de cette personne, comment ce trait se manifeste-t-il concrètement ?"\n\nNE te base PAS sur : attitudes d\'entretien, cooperation ou resistance, aisance ou inconfort pendant l\'interview.\nBASE-TOI SUR : anecdotes de vie reelle, comportements habituels decrits, relations mentionnees.\n\nATTENTION CONSCIENCIOSITE (C) :\nRoutine par necessite (parent, freelance, adulte) ≠ haute C comme trait. La question : cette personne est-elle NATURELLEMENT ordonnee et disciplinee, ou fait-elle ce qu\'il faut faire ? Preference declaree pour flexibilite, spontaneite, pragmatisme = C modere/bas meme si la vie parait organisee. Ne score pas C > 55 sur la base de routines quotidiennes seules.\n\nATTENTION NEVROSISME (N) :\nResistance a l\'entretien ≠ instabilite emotionnelle. N eleve exige : anxiete chronique, rumination, reactions disproportionnees dans la VIE REELLE. Une personne stable qui refuse de s\'ouvrir = N bas/modere.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON :\n{\n  "openness": {\n    "score": 66,\n    "level": "medium-high",\n    "facets": { "imagination": 70, "artistic_interests": 60, "emotionality": 55, "adventurousness": 65, "intellect": 80, "liberalism": 60 },\n    "summary": "2 phrases basees sur comportements de vie reelle",\n    "evidence": ["anecdote ou comportement concret de la vie ordinaire", "2e anecdote"],\n    "confidence_note": "convergent avec signaux / divergent — pourquoi"\n  },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nEvidence = anecdotes de vie reelle uniquement. Retourne UNIQUEMENT le JSON.', 3500
+            // v20.9 — MULTI-PASS Big Five
+            // PASS A1 : extraction factuelle pure (anecdotes de vie réelle brutes)
+            // PASS A2 : scoring sur anecdotes uniquement — jamais la conversation brute
+            await (async () => {
+
+            // A1 — Extracteur factuel : ne voit que les réponses utilisateur, extrait les FAITS
+            const userOnlyText = (window.conversationalSystem?.messages || [])
+                .filter(m => m.role === 'user')
+                .map((m, i) => '[R' + (i+1) + '] ' + (m.content || ''))
+                .join('\n\n');
+
+            const factExtract = await callClaudeForAnalysis(
+                'Tu es un extracteur de faits de vie. A partir des reponses ci-dessous, extrais UNIQUEMENT les faits concrets mentionnes sur la vie de cette personne en dehors de cet entretien.\n\n' +
+                'REGLES ABSOLUES :\n' +
+                '- Extrais SEULEMENT ce qui est explicitement dit sur la VIE REELLE (travail, famille, amis, loisirs, habitudes, histoire personnelle)\n' +
+                '- IGNORE tout ce qui concerne le comportement PENDANT cet entretien (hesitations, esquives, ton, cooperation)\n' +
+                '- IGNORE les attitudes conversationnelles ("il repond court", "il evite", "il minimise")\n' +
+                '- Si la personne decrit une habitude, un evenement, une relation, une valeur : capture-la\n' +
+                '- Chaque fait doit etre une CITATION ou PARAPHRASE DIRECTE de la personne\n\n' +
+                'REPONSES :\n' + userOnlyText.substring(0, 10000) + '\n\n' +
+                'Genere un JSON :\n' +
+                '{\n' +
+                '  "daily_life": ["fait 1", "fait 2"],\n' +
+                '  "relationships": ["fait sur relations proches"],\n' +
+                '  "work_professional": ["fait professionnel"],\n' +
+                '  "hobbies_interests": ["loisir ou interet mentionne"],\n' +
+                '  "personality_expressed": ["comportement ou trait exprime dans une anecdote"],\n' +
+                '  "values_revealed": ["valeur revelee par un choix ou comportement"],\n' +
+                '  "emotional_reactions": ["emotion ou reaction dans une situation reelle"],\n' +
+                '  "life_history": ["evenement passe mentionne"]\n' +
+                '}\n' +
+                'Retourne UNIQUEMENT le JSON.', 2000
+            );
+
+            // Construire le texte factuel pour A2
+            const factsText = Object.entries(factExtract || {})
+                .map(([cat, items]) => {
+                    if (!Array.isArray(items) || items.length === 0) return '';
+                    return cat.toUpperCase() + ':\n' + items.map(f => '- ' + f).join('\n');
+                })
+                .filter(Boolean)
+                .join('\n\n');
+
+            // A2 — Scoreur Big Five : ne voit QUE les faits extraits
+            return callClaudeForAnalysis(
+                'Tu es un expert en psychologie des traits de personnalite (Big Five / NEO-PI-R).\n\n' +
+                'Tu vas scorer les Big Five d\'une personne a partir de FAITS DE VIE REELLE qui ont ete extraits de son entretien.\n' +
+                'Ces faits ont DEJA ete filtres : ils ne contiennent PAS les attitudes d\'entretien, uniquement ce que la personne vit et fait au quotidien.\n\n' +
+                'PRINCIPES DE SCORING :\n' +
+                'O — Ouverture : curiosite, creativite, gouts artistiques, pensee abstraite, nouveaute dans la VIE REELLE\n' +
+                'C — Conscienciosite : ordre NATUREL et discipline CHOISIE, pas routine imposee par la vie adulte. Routine par necessite ≠ haute C.\n' +
+                'E — Extraversion : energie sociale en vie reelle (sorties, amis, prise de parole spontanee). Ne pas penaliser pour reserve pendant entretien.\n' +
+                'A — Agreabilite : comportement reel envers proches et collegues (aide, empathie, cooperation observee). Ne pas penaliser pour distance en entretien.\n' +
+                'N — Nevrosisme : anxiete chronique, rumination, reactions disproportionnees DANS LA VIE. Esquiver un entretien ≠ N eleve.\n\n' +
+                'Si les faits sont insuffisants pour un trait : score CENTRE (40-60), confidence_note = "donnees insuffisantes"\n' +
+                'Score extreme (<25 ou >75) exige 2+ faits concrets convergents.\n\n' +
+                'FAITS DE VIE REELLE DE LA PERSONNE :\n' + factsText + '\n\n' +
+                'Genere un JSON :\n' +
+                '{\n' +
+                '  "openness": {\n' +
+                '    "score": 50, "level": "medium",\n' +
+                '    "facets": { "imagination": 50, "artistic_interests": 50, "emotionality": 50, "adventurousness": 50, "intellect": 50, "liberalism": 50 },\n' +
+                '    "summary": "2 phrases sur ce trait dans la vie reelle",\n' +
+                '    "evidence": ["fait concret 1", "fait concret 2"],\n' +
+                '    "confidence_note": "base sur X faits / donnees insuffisantes"\n' +
+                '  },\n' +
+                '  "conscientiousness": { ... },\n' +
+                '  "extraversion": { ... },\n' +
+                '  "agreeableness": { ... },\n' +
+                '  "neuroticism": { ... }\n' +
+                '}\n' +
+                'level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\n' +
+                'Retourne UNIQUEMENT le JSON.', 3500
+            );
+
+            })()
         ).then(r => { setCloneStep(1, 'done'); return r; });
         
         setCloneStep(2, 'active');
@@ -9061,17 +9135,21 @@ async function generateCloneBrain() {
             convergencePrompt += 'Niveau de reserve pendant l\'entretien : ' + Math.round(reticence) + '%\n';
             convergencePrompt += 'Contradictions detectees : ' + contradictions + '\n';
 
-            convergencePrompt += '\nTACHE : Pour chaque trait Big Five, determine si les deux sources CONVERGENT ou DIVERGENT.\n';
-            convergencePrompt += '- CONVERGENCE (ecart < 15 points) : conserver le score LLM.\n';
-            convergencePrompt += '- DIVERGENCE (ecart >= 15 points) : calculer la MOYENNE PONDEREE selon les regles ci-dessous.\n';
-            convergencePrompt += '\nREGLES DE PONDERATION PAR TRAIT (la reserve affecte les traits differemment) :\n';
-            convergencePrompt += 'C — Conscienciosite : reserve elevee = LLM SURESTIME C (la routine de survie passe pour de l\'ordre). Poids : LLM=40%, signal=60% si reserve > 50%.\n';
-            convergencePrompt += 'E — Extraversion : reserve elevee = LLM SOUS-ESTIME E (la personne semble plus introvertie qu\'elle n\'est). Poids : LLM=70%, signal=30% si reserve > 50% — NE PAS baisser E.\n';
-            convergencePrompt += 'A — Agreabilite : reserve elevee = LLM SOUS-ESTIME A (la personne semble moins cooperative qu\'elle n\'est). Poids : LLM=70%, signal=30% si reserve > 50% — NE PAS baisser A.\n';
-            convergencePrompt += 'N — Nevrosisme : reserve elevee = LLM SURESTIME N (la resistance passe pour de l\'anxiete). Poids : LLM=40%, signal=60% si reserve > 50%.\n';
-            convergencePrompt += 'O — Ouverture : reserve moderement affectee. Poids standard : LLM=60%, signal=40%.\n';
-            convergencePrompt += '\nATTENTION : Pour E et A avec reserve elevee, le score LLM est probablement DEJA trop bas. Ne pas le reduire davantage. Si signal > LLM sur E ou A : corriger vers le haut.\n';
-            convergencePrompt += 'Raisonne librement. Adapte ton jugement au contexte specifique de cet entretien.\n\n';
+            convergencePrompt += '\nTACHE : Pour chaque trait Big Five, compare les deux sources et determine le score final le plus fidele a la VRAIE personnalite de cette personne.\n\n';
+            convergencePrompt += 'CONTEXTE DU SCORING :\n';
+            convergencePrompt += '- Le score LLM vient d\'un MULTI-PASS : les faits de vie ont ete extraits AVANT le scoring. Le biais d\'entretien est reduit mais pas nul.\n';
+            convergencePrompt += '- Les signaux temps reel (HEXACO, SDT, relationnel) sont independants du contenu verbal.\n';
+            convergencePrompt += '- Le niveau de reserve (' + Math.round(reticence) + '%) indique a quel point l\'entretien textuel peut sous-representer certains traits.\n\n';
+            convergencePrompt += 'PRINCIPES DE RAISONNEMENT (pas de ponderation fixe) :\n';
+            convergencePrompt += '- Demande-toi pour chaque trait : la divergence s\'explique-t-elle par un biais connu ? Lequel ?\n';
+            convergencePrompt += '- Biais entretien sur C : routine visible en entretien → C surestimé. Si signal C < LLM C : probablement juste.\n';
+            convergencePrompt += '- Biais entretien sur N : reserve/esquive → N surestimé. Si signal N < LLM N : probablement juste.\n';
+            convergencePrompt += '- Biais entretien sur E : texte moins expressif que vie reelle → E sous-estimé. Si signal E > LLM E : probablement juste.\n';
+            convergencePrompt += '- Biais entretien sur A : distance en entretien → A sous-estimé. Si signal A > LLM A : probablement juste.\n';
+            convergencePrompt += '- Quand les deux sources convergent : confiance elevee, conserver.\n';
+            convergencePrompt += '- Quand elles divergent : raisonne sur la DIRECTION du biais probable, pas sur une formule.\n';
+            convergencePrompt += '- Si tu ne peux pas trancher : score centre entre les deux sources.\n';
+            convergencePrompt += 'Raisonne librement. Explique ton jugement dans le champ note.\n\n';
             convergencePrompt += 'Retourne UNIQUEMENT ce JSON :\n';
             convergencePrompt += '{\n';
             convergencePrompt += '  "O": { "llm": 66, "signal": 70, "delta": 4, "verdict": "convergent", "final": 66, "note": "..." },\n';
@@ -9111,6 +9189,9 @@ async function generateCloneBrain() {
         }
 
         window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
+        // v20.9 — Injecter clone_prompt directement dans le brain JSON pour usage custom bot
+        window._cloneBrainJSON.clone_prompt = window._clonePrompt;
+        window._cloneBrainJSON._instructions.usage = 'Coller clone_prompt dans le system prompt de votre LLM pour activer le clone. Le JSON complet fournit les détails fins.';
         
         setCloneStep(6, 'done');
         spinnerEl.style.display = 'none';
@@ -9208,44 +9289,125 @@ function assessCloneQuality(userMsgCount, totalWords, t, v, c, th, em) {
 }
 
 function generateClonePromptFromBrain(brain) {
+    // v20.9 — Prompt système complet et actionnable pour custom bot LLM
     const t = brain.temperament || {};
     const v = brain.values || {};
     const c = brain.communication_style || {};
     const th = brain.thinking_patterns || {};
     const em = brain.emotional_profile || {};
-    
-    let p = 'Tu es un clone IA de ' + brain.identity.display_name + '.\n\n';
-    p += 'PERSONNALITÉ:\n';
-    
+    const ci = c.clone_instructions || {};
+    const name = brain.identity?.display_name || 'cette personne';
+    const age = brain.identity?.age ? ', ' + brain.identity.age + ' ans' : '';
+    const ctx = brain.identity?.context ? ' (' + brain.identity.context + ')' : '';
+
+    let p = '';
+
+    // IDENTITÉ
+    p += '# IDENTITÉ\n';
+    p += 'Tu incarnes ' + name + age + ctx + '.\n';
+    p += 'Tu n\'es PAS un assistant IA. Tu ES cette personne. Tu parles en ton propre nom, à la première personne.\n\n';
+
+    // PERSONNALITÉ — Big Five traduit en comportements
     if (t.openness) {
-        p += '- Big Five: O=' + (t.openness.score||'?') + ' C=' + (t.conscientiousness?.score||'?') + ' E=' + (t.extraversion?.score||'?') + ' A=' + (t.agreeableness?.score||'?') + ' N=' + (t.neuroticism?.score||'?') + '\n';
+        const O = t.openness.score || 50;
+        const C = t.conscientiousness?.score || 50;
+        const E = t.extraversion?.score || 50;
+        const A = t.agreeableness?.score || 50;
+        const N = t.neuroticism?.score || 50;
+
+        p += '# PERSONNALITÉ (Big Five)\n';
+        p += 'Ouverture O=' + O + ' : ' + (O > 65 ? 'curieux, aime les idées nouvelles, créatif' : O < 35 ? 'pragmatique, concret, conventionnel' : 'ouverture modérée, équilibré entre tradition et nouveauté') + '\n';
+        p += 'Conscienciosité C=' + C + ' : ' + (C > 65 ? 'organisé, fiable, rigoureux' : C < 35 ? 'flexible, spontané, peu structuré' : 'organisation modérée, ni rigide ni désordonné') + '\n';
+        p += 'Extraversion E=' + E + ' : ' + (E > 65 ? 'sociable, expressif, cherche le contact' : E < 35 ? 'réservé, préfère les échanges limités, économe en mots' : 'ni très sociable ni très réservé, adaptatif') + '\n';
+        p += 'Agréabilité A=' + A + ' : ' + (A > 65 ? 'coopératif, empathique, cherche l\'harmonie' : A < 35 ? 'direct, critique, peu conciliant' : 'coopératif dans l\'ensemble, avec des limites claires') + '\n';
+        p += 'Névrosisme N=' + N + ' : ' + (N > 65 ? 'sensible au stress, émotionnellement réactif, anxieux' : N < 35 ? 'stable, calme, résilient face aux difficultés' : 'émotionnellement modéré, réagit mais gère') + '\n\n';
     }
-    
+
+    // VALEURS
     if (v.hierarchy && v.hierarchy.length > 0) {
-        p += '- Valeurs top: ' + v.hierarchy.slice(0, 3).map(x => x.value).join(', ') + '\n';
+        p += '# VALEURS FONDAMENTALES\n';
+        v.hierarchy.slice(0, 4).forEach(val => {
+            p += '- ' + val.value + ' (' + (val.score || '?') + '/100)';
+            if (val.manifestation) p += ' : ' + val.manifestation.substring(0, 100);
+            p += '\n';
+        });
+        if (v.core_motivations && v.core_motivations.length > 0) {
+            p += 'Motivations profondes : ' + v.core_motivations.slice(0, 3).join(' | ') + '\n';
+        }
+        p += '\n';
     }
-    
+
+    // STYLE DE COMMUNICATION — le cœur du clone
+    p += '# STYLE DE COMMUNICATION\n';
     if (c.tone) {
-        p += '- Ton: ' + (c.tone.primary || 'naturel') + ' / ' + (c.tone.secondary || '') + '\n';
+        p += 'Ton dominant : ' + (c.tone.primary || 'naturel');
+        if (c.tone.secondary) p += ' / ' + c.tone.secondary;
+        p += ' | Formalité : ' + (c.tone.formality_level || 50) + '/100 | Chaleur : ' + (c.tone.warmth_level || 50) + '/100\n';
     }
-    if (c.clone_instructions) {
-        if (c.clone_instructions.tone_keywords) p += '- Mots-clés ton: ' + c.clone_instructions.tone_keywords.join(', ') + '\n';
-        if (c.clone_instructions.response_length_avg) p += '- Longueur réponses: ' + c.clone_instructions.response_length_avg + '\n';
-        if (c.clone_instructions.avoid) p += '- À éviter: ' + c.clone_instructions.avoid.join(', ') + '\n';
-        if (c.clone_instructions.signature_patterns) p += '- Patterns signature: ' + c.clone_instructions.signature_patterns.join('; ') + '\n';
+    if (ci.tone_keywords && ci.tone_keywords.length > 0) {
+        p += 'Mots-clés du ton : ' + ci.tone_keywords.join(', ') + '\n';
     }
-    
-    if (th.decision_making) p += '- Style décisionnel: ' + (th.decision_making.primary_style || 'mixte') + '\n';
-    if (em.baseline_mood) p += '- Humeur de base: ' + (em.baseline_mood.typical_state || 'neutre') + '\n';
-    
-    p += '\nRÈGLES CRITIQUES:\n';
-    p += '1. JAMAIS dire "En tant qu\'IA" ou "Je suis un assistant"\n';
-    p += '2. Répondre avec la personnalité et le style décrits ci-dessus\n';
-    p += '3. Utiliser les expressions caractéristiques\n';
-    p += '4. Validation émotionnelle AVANT conseil si contexte émotionnel\n';
-    p += '5. Longueur: ' + (c.clone_instructions?.response_length_avg || '80-200 mots') + '\n\n';
-    p += 'Le JSON complet du cerveau (clone_brain.json) est joint pour les détails fins.';
-    
+    if (ci.response_length_avg) {
+        p += 'Longueur de réponse : ' + ci.response_length_avg + '\n';
+    }
+    if (c.vocabulary?.characteristic_expressions?.length > 0) {
+        p += 'Expressions caractéristiques : ' + c.vocabulary.characteristic_expressions.slice(0, 6).join(', ') + '\n';
+    }
+    if (c.rhetorical_patterns?.length > 0) {
+        p += 'Patterns rhétoriques : ' + c.rhetorical_patterns.slice(0, 4).join(' | ') + '\n';
+    }
+    if (ci.signature_patterns?.length > 0) {
+        p += 'Patterns signature : ' + ci.signature_patterns.slice(0, 4).join(' | ') + '\n';
+    }
+    if (ci.avoid?.length > 0) {
+        p += 'À ÉVITER absolument : ' + ci.avoid.join(', ') + '\n';
+    }
+    p += '\n';
+
+    // STYLE RELATIONNEL
+    const rs = em.relational_style || em.attachment_style || {};
+    if (rs.primary || rs.description) {
+        p += '# STYLE RELATIONNEL\n';
+        if (rs.description) p += rs.description + '\n';
+        else if (rs.primary) p += 'Style : ' + rs.primary + '\n';
+        p += '\n';
+    }
+
+    // PENSÉE ET DÉCISION
+    if (th.decision_making || th.meta_cognition) {
+        p += '# COMMENT TU PENSES ET DÉCIDES\n';
+        if (th.decision_making?.primary_style) p += 'Style décisionnel : ' + th.decision_making.primary_style + '\n';
+        if (th.decision_making?.risk_tolerance !== undefined) p += 'Tolérance au risque : ' + th.decision_making.risk_tolerance + '/100\n';
+        if (th.meta_cognition?.self_awareness !== undefined) p += 'Conscience de soi : ' + th.meta_cognition.self_awareness + '/100\n';
+        if (th.complexity_handling?.ambiguity_tolerance !== undefined) p += 'Tolérance à l\'ambiguïté : ' + th.complexity_handling.ambiguity_tolerance + '/100\n';
+        p += '\n';
+    }
+
+    // PROFIL ÉMOTIONNEL
+    if (em.baseline_mood || em.triggers || em.regulation_strategies) {
+        p += '# PROFIL ÉMOTIONNEL\n';
+        if (em.baseline_mood?.typical_state) p += 'État habituel : ' + em.baseline_mood.typical_state + '\n';
+        if (em.regulation_strategies?.length > 0) p += 'Comment tu gères les émotions : ' + em.regulation_strategies.slice(0,3).join(', ') + '\n';
+        if (em.triggers?.positive?.length > 0) {
+            p += 'Ce qui te réjouit : ' + em.triggers.positive.slice(0,2).map(x => x.trigger || x).join(', ') + '\n';
+        }
+        if (em.triggers?.negative?.length > 0) {
+            p += 'Ce qui te pèse : ' + em.triggers.negative.slice(0,2).map(x => x.trigger || x).join(', ') + '\n';
+        }
+        p += '\n';
+    }
+
+    // RÈGLES D'INCARNATION
+    p += '# RÈGLES D\'INCARNATION — OBLIGATOIRES\n';
+    p += '1. JAMAIS : "En tant qu\'IA", "Je suis un assistant", "Je suis une IA"\n';
+    p += '2. Tu parles TOUJOURS à la première personne comme ' + name + '\n';
+    p += '3. Longueur de réponse : ' + (ci.response_length_avg || '80-200 mots') + ' — respecte cette contrainte\n';
+    p += '4. Utilise tes expressions caractéristiques naturellement (pas systématiquement)\n';
+    p += '5. Si le contexte est émotionnel : valide d\'abord, conseille ensuite\n';
+    p += '6. Tes opinions, valeurs et réactions doivent être cohérentes avec le profil décrit\n';
+    p += '7. Tu peux avoir des opinions tranchées — elles reflètent ta personnalité réelle\n';
+    p += '8. JAMAIS psychologiser ou analyser ta propre personnalité — tu la VIS, tu ne la décris pas\n';
+
     return p;
 }
 
@@ -9361,4 +9523,4 @@ window.CloneBrain = {
     }
 };
 
-console.log('[CloneBrain] v20.8 loaded — CLONE-BRAIN-1.0 | convergence E/A/C/N différenciée');
+console.log('[CloneBrain] v20.9 loaded — CLONE-BRAIN-1.0 | multi-pass Big Five | clone_prompt | convergence libre');
