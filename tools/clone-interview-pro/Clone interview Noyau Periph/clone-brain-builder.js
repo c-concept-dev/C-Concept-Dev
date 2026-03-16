@@ -8507,10 +8507,13 @@ async function generateCloneBrain() {
         }
         
         methodWarning += '\nREGLES ANTI-BIAIS OBLIGATOIRES :\n';
-        methodWarning += '1. EMOTIONNALITE ≠ NEVROSISME. Si la personne exprime ses emotions avec lucidite et recul, c\'est de l\'ouverture emotionnelle (mentalisation), PAS du nevrosisme. Le nevrosisme = etre SUBMERGE, ENVAHI, incapable de reguler. Verifier : la personne a-t-elle perdu le fil ? A-t-elle ete envahie au point de ne plus pouvoir prendre de recul ? Si non → ne pas gonfler le nevrosisme.\n';
-        methodWarning += '2. PERFECTIONNISME ≠ CONSCIENCIOSITE. Si le perfectionnisme est accompagne d\'anxiete, de honte ou de peur du jugement, c\'est un MECANISME DEFENSIF (schema imperfection), pas de la haute conscienciosite. Ne gonfle pas C a cause de routines defensives.\n';
-        methodWarning += '3. ATTACHEMENT : distinguer ANXIEUX (court vers les autres, cherche reassurance) vs EVITANT-CRAINTIF (fuit les relations malgre un desir d\'intimite) vs EVITANT DETACHE (ne ressent pas de manque). L\'introversion et la vie solitaire ne sont PAS de l\'evitement d\'attachement. Chercher la DIRECTION DU MOUVEMENT : vers les autres ou loin des autres ?\n';
-        methodWarning += '4. Pour CHAQUE score, base-toi sur les ANECDOTES DE VIE REELLE (relations decrites, comportements racontes) plutot que sur le style de reponse a l\'interview.\n';
+        methodWarning += '1. EMOTIONNALITE ≠ NEVROSISME. Exprimer ses emotions avec lucidite = ouverture emotionnelle. Nevrosisme = etre SUBMERGE, incapable de reguler. Si la personne prend du recul sur ses emotions → ne pas gonfler N.\n';
+        methodWarning += '2. ROUTINES DEFENSIVES ≠ CONSCIENCIOSITE. Des routines strictes + fiabilite professionnelle PEUVENT etre du controle defensif (schema controle, anxiete) plutot que de la haute C. Si la personne montre de l\'anxiete face aux imprevus ou un besoin de controle → reduire C de 10-15 points.\n';
+        methodWarning += '3. MEFIANCE SCHEMATIQUE ≠ FAIBLE AGREABILITE. Un schema de mefiance s\'active en interview (face a un inconnu) mais le trait A reflette le fonctionnement avec les proches. Chercher comment la personne decrit ses relations QUAND ELLE EST EN SECURITE. Si reponses mefiantes en interview mais relations decrites comme cooperatives → A est plus haut que l\'impression d\'interview.\n';
+        methodWarning += '4. ISOLEMENT PROTECTEUR ≠ BASSE EXTRAVERSION. Isolation apres divorce/blessure ≠ introversion temperamentale. Chercher le niveau d\'energie sociale AVANT la blessure ou dans des contextes securises.\n';
+        methodWarning += '5. ATTACHEMENT : distinguer ANXIEUX (court vers les autres) vs EVITANT-CRAINTIF (fuit malgre desir) vs EVITANT DETACHE (pas de manque). Introversion ≠ evitement.\n';
+        methodWarning += '6. REGLE FONDAMENTALE : Les SCHEMAS YOUNG et les DEFENSES modulent l\'expression des traits mais NE SONT PAS des traits. Un score Big Five doit refleter le TEMPERAMENT DE BASE, pas l\'activation schematique en interview. Schema mefiance → A sous-estime. Schema controle → C surestime. Schema abandon → N surestime. Isolement defensif → E sous-estime.\n';
+        methodWarning += '7. Pour CHAQUE score, base-toi sur les ANECDOTES DE VIE REELLE plutot que sur le style de reponse a l\'interview.\n';
         methodWarning += '=== FIN AVERTISSEMENT ===\n\n';
         
         conversation = methodWarning + conversation;
