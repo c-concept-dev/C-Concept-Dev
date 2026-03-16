@@ -8835,6 +8835,51 @@ async function generateCloneBrain() {
         const [temperament, values, communication, thinking, emotional] = await Promise.all([p1, p2, p3, p4, p5]);
         
         console.log('[CloneBrain v2] 5 analyses terminees');
+
+        // STEP 6b — AXE 2 : DEFENSE DYNAMICS (9e appel LLM)
+        // Séquences défensives observables avec exemples verbaux et signaux d'escalade
+        statusEl.textContent = 'Dynamiques défensives...';
+        let defenseDynamics = null;
+        try {
+            const defensePrompt =
+                'Tu es un expert en psychologie du comportement et en analyse des mecanismes de defense. ' +
+                'A partir de cette conversation, identifie les sequences defensives OBSERVEES : ' +
+                'comment cette personne reagit sous pression, dans quel ordre, avec quels mots.\n\n' +
+                'CONVERSATION :\n' + conversation + '\n\n' +
+                'CONSIGNES :\n' +
+                '- Identifie 1 a 3 sequences defensives distinctes (par type de pression).\n' +
+                '- Chaque sequence = une liste d\'etats ORDONNES avec signal d\'escalade.\n' +
+                '- Les exemples verbaux DOIVENT etre tires ou tres proches de la conversation reelle.\n' +
+                '- observed_evidence = citations ou moments CONCRETS de la conversation.\n' +
+                '- Si donnees insuffisantes : sequences = [].\n\n' +
+                'Genere un JSON :\n' +
+                '{\n' +
+                '  "baseline_state": "etat par defaut de la personne hors pression",\n' +
+                '  "pressure_threshold": 2,\n' +
+                '  "sequences": [\n' +
+                '    {\n' +
+                '      "trigger_topics": ["sujet1", "sujet2"],\n' +
+                '      "states": [\n' +
+                '        {\n' +
+                '          "state": "nom_etat",\n' +
+                '          "verbal_pattern": "description du pattern verbal a cet etat",\n' +
+                '          "example": "exemple exact ou tres proche tire de la conversation",\n' +
+                '          "escalation_signal": "ce qui declenche le passage a l\'etat suivant (null si dernier etat)"\n' +
+                '        }\n' +
+                '      ],\n' +
+                '      "reset_condition": "ce qui fait revenir a baseline",\n' +
+                '      "reset_pattern": "comment la personne reprend naturellement la conversation apres reset"\n' +
+                '    }\n' +
+                '  ],\n' +
+                '  "observed_evidence": ["citation ou moment concret de la conversation qui illustre la sequence"]\n' +
+                '}\n' +
+                'Retourne UNIQUEMENT le JSON.';
+            defenseDynamics = await callClaudeForAnalysis(defensePrompt, 2000);
+            console.log('[AXE2] Defense dynamics OK — sequences:', defenseDynamics?.sequences?.length || 0);
+        } catch(e) {
+            console.warn('[AXE2] Defense dynamics failed:', e.message);
+            defenseDynamics = { baseline_state: 'données insuffisantes', pressure_threshold: 2, sequences: [], observed_evidence: [] };
+        };
         
         // STEP 6: ASSEMBLAGE BRAIN v2 — CLONE-BRAIN-1.0
         setCloneStep(6, 'active');
@@ -9203,7 +9248,7 @@ async function generateCloneBrain() {
             // ── META ──────────────────────────────────────────────────────
             _meta: {
                 schema: 'CLONE-PERSONALITY-1.0',
-                version: '21.0',
+                version: '21.3',
                 generated: now,
                 generator: 'Clone Interview Pro v21 — C Concept&Dev',
                 interview_id: 'clone-' + displayName.toLowerCase().replace(/\s+/g, '-') + '-' + now.split('T')[0]
@@ -9318,6 +9363,13 @@ async function generateCloneBrain() {
                     daily_rhythm: 'données insuffisantes',
                     stress_signals: [],
                     context_modes: []
+                },
+                // AXE 2 — dynamiques défensives opérationnelles (séquences avec exemples verbaux)
+                defense_dynamics: defenseDynamics || {
+                    baseline_state: 'données insuffisantes',
+                    pressure_threshold: 2,
+                    sequences: [],
+                    observed_evidence: []
                 }
             },
 
