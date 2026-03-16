@@ -9377,8 +9377,9 @@ async function generateCloneBrain() {
 }
 
 async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
-    // v20.4 — PersonaExtractor via LLM (universel, multilingue)
-    // Fallback sur extraction légère si l'appel LLM échoue
+    // v21.1 — FIX-BIOGRAPHY-EXTRACTOR
+    // PATCH 1 : logging détaillé + validation résultat LLM
+    // PATCH 2 : fallback robuste sur marqueurs narratifs réels (pas '...')
     
     const allUserText = userMsgs.map(m => m.content || '').join('\n---\n');
     
@@ -9400,25 +9401,93 @@ async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
                 '}\n' +
                 'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne. Ne devines pas. Ne deduis aucun trouble ou pathologie. Capture les FAITS DE VIE. Retourne UNIQUEMENT le JSON.', 2500
             );
+            // FIX-BIOGRAPHY-EXTRACTOR PATCH 1 — validation et logging détaillé
             if (personaResult && typeof personaResult === 'object') {
-                console.log('[PersonaExtractor] LLM extraction: OK');
+                const anCount = Array.isArray(personaResult.anecdotes) ? personaResult.anecdotes.length : 0;
+                const pmCount = Array.isArray(personaResult.people_mentioned) ? personaResult.people_mentioned.length : 0;
+                const trCount = Array.isArray(personaResult.time_references) ? personaResult.time_references.length : 0;
+                const hbCount = Array.isArray(personaResult.habitual_behaviors) ? personaResult.habitual_behaviors.length : 0;
+                console.log('[PersonaExtractor] LLM OK — anecdotes:' + anCount + ' people:' + pmCount + ' time_refs:' + trCount + ' habits:' + hbCount);
+                // Si le LLM retourne un objet vide ou sans anecdotes, on complète avec le fallback
+                if (anCount === 0 && pmCount === 0 && trCount === 0) {
+                    console.warn('[PersonaExtractor] LLM retourne vide — activation fallback pour compléter');
+                    const fallback = _extractPersonaFallback(userMsgs);
+                    return Object.assign(fallback, personaResult); // personaResult en priorité si quelques clés sont remplies
+                }
                 return personaResult;
+            } else {
+                console.warn('[PersonaExtractor] LLM retourne type inattendu:', typeof personaResult, '— fallback activé');
             }
         } catch (e) {
-            console.warn('[PersonaExtractor] LLM extraction failed, fallback to lightweight:', e.message);
+            console.warn('[PersonaExtractor] LLM extraction failed (' + e.message + ') — fallback activé');
         }
+    } else {
+        console.log('[PersonaExtractor] Pas de callClaudeForAnalysis ou texte trop court (' + allUserText.length + ' chars) — fallback direct');
     }
     
-    // Fallback leger — sans regex hardcodees, juste detection de base
-    const draft = { people_mentioned: [], places_mentioned: [], time_references: [], anecdotes: [], emotions_expressed: [] };
-    for (const msg of userMsgs) {
+    return _extractPersonaFallback(userMsgs);
+}
+
+function _extractPersonaFallback(userMsgs) {
+    // FIX-BIOGRAPHY-EXTRACTOR PATCH 2 — fallback robuste sur marqueurs narratifs réels
+    // Remplace l'ancienne détection par text.includes('...') qui ne capturait rien
+    const draft = {
+        people_mentioned: [],
+        places_mentioned: [],
+        time_references: [],
+        anecdotes: [],
+        habitual_behaviors: [],
+        emotions_expressed: [],
+        relationships_described: []
+    };
+
+    // Marqueurs narratifs français (passé, biographie, anecdote)
+    const narrativeMarkers = /\b(j'ai|j'avais|j'étais|quand j'|depuis|avant|après|à l'époque|ado|enfant|gamin|école|boulot|collègue|manager|patron|ami|copain|copine|famille|parents|père|mère|frère|sœur|enfant|petit|bébé|rencontré|quitté|commencé|déménagé|travaillé|étudié|appris)\b/i;
+    const emotionMarkers = /\b(je me sens|ça m'a|ça me fait|j'ai peur|j'adore|je déteste|je kiffe|j'aime|ça m'énerve|ça m'inquiète|je suis fier|je regrette|c'était dur|c'était bien|j'étais stressé|j'étais content)\b/i;
+    const habitMarkers = /\b(tous les jours|chaque matin|chaque soir|souvent|régulièrement|d'habitude|en général|le weekend|le soir|le matin|toujours|jamais|parfois|de temps en temps)\b/i;
+
+    userMsgs.forEach((msg, idx) => {
         const text = msg.content || '';
-        // Anecdotes : textes longs avec marqueurs narratifs universels
-        if (text.length > 80 && text.includes('...')) {
-            draft.anecdotes.push({ summary: text.substring(0, 200), question_index: userMsgs.indexOf(msg) });
+        const wordCount = text.split(/\s+/).length;
+
+        // Anecdotes : réponse substantielle avec marqueurs narratifs
+        if (wordCount >= 20 && narrativeMarkers.test(text)) {
+            draft.anecdotes.push({
+                summary: text.substring(0, 250).replace(/\n+/g, ' ').trim(),
+                what_it_reveals: '',
+                life_domain: 'inconnu',
+                question_index: idx
+            });
         }
-    }
-    draft.anecdotes = draft.anecdotes.slice(0, 10);
+
+        // Émotions exprimées
+        if (emotionMarkers.test(text)) {
+            const match = text.match(emotionMarkers);
+            draft.emotions_expressed.push({
+                emotion: match ? match[0] : 'non précisé',
+                trigger: text.substring(0, 100).replace(/\n+/g, ' ').trim(),
+                intensity: 'moderee',
+                how_managed: ''
+            });
+        }
+
+        // Comportements habituels
+        if (habitMarkers.test(text) && wordCount >= 15) {
+            const match = text.match(habitMarkers);
+            draft.habitual_behaviors.push({
+                behavior: text.substring(0, 150).replace(/\n+/g, ' ').trim(),
+                context: match ? match[0] : '',
+                frequency: match ? match[0] : 'régulier'
+            });
+        }
+    });
+
+    // Limites raisonnables
+    draft.anecdotes = draft.anecdotes.slice(0, 12);
+    draft.emotions_expressed = draft.emotions_expressed.slice(0, 8);
+    draft.habitual_behaviors = draft.habitual_behaviors.slice(0, 8);
+
+    console.log('[PersonaExtractor] Fallback — anecdotes:' + draft.anecdotes.length + ' emotions:' + draft.emotions_expressed.length + ' habits:' + draft.habitual_behaviors.length);
     return draft;
 }
 
