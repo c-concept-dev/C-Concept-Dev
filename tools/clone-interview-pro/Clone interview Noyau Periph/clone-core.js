@@ -9833,6 +9833,34 @@ Les indices les MOINS fiables sont :
 — Le ton laconique (confondu avec faible Agreabilite)
 — L'absence d'emotion verbalisee (confondue avec haut Nevrosisme ou alexithymie)
 
+CONFUSIONS SPECIFIQUES A EVITER :
+
+1. EMOTIONNALITE ≠ NEVROSISME
+Une personne qui EXPRIME facilement ses emotions n'est PAS necessairement anxieuse ou instable.
+Emotionnalite haute = la personne verbalise ses affects, pleure, rit, s'emeut → c'est de l'ouverture emotionnelle.
+Nevrosisme haut = la personne est ENVAHIE par ses emotions, a du mal a REGULER, est submergee par l'anxiete.
+La difference : l'emotionnel sain CHOISIT de partager. Le nevrotique est EMPORTE malgre lui.
+Si la personne parle de ses emotions avec lucidite et recul, c'est de la mentalisation, PAS du nevrosisme.
+Si la personne est submergee, perd le fil, ne peut pas prendre de recul → la, c'est du nevrosisme.
+
+2. PERFECTIONNISME ≠ HAUTE CONSCIENCIOSITE
+Le perfectionnisme peut etre DEFENSIF (schema imperfection : "si je suis parfait, on ne me rejettera pas") ou ORGANISATIONNEL (haute C : "j'aime que les choses soient bien faites").
+Pour les distinguer : quelle est la CONSEQUENCE de l'imperfection ?
+Si c'est de l'anxiete, de la honte, de la peur du jugement → perfectionnisme defensif → schema imperfection, PAS haute C.
+Si c'est de l'insatisfaction professionnelle sans charge emotionnelle → haute C.
+Des routines + du perfectionnisme chez une personne anxieuse = probablement des mecanismes de controle, pas de la conscienciosite naturelle.
+
+3. ATTACHEMENT ANXIEUX ≠ EVITANT-CRAINTIF
+Les deux ont peur de l'abandon. La difference est la DIRECTION DU MOUVEMENT :
+Anxieux : court VERS les autres, cherche la reassurance, a besoin de contact, proteste quand on s'eloigne.
+Evitant-craintif : FUIT les relations malgre un desir d'intimite, s'isole pour se proteger.
+Evitant detache : ne ressent PAS de manque, valorise l'independance, minimise l'importance des relations.
+Pour les distinguer : "Quand tu te sens seul(e), tu fais quoi ?" 
+Anxieux : appelle quelqu'un, cherche du contact, scrolle les reseaux.
+Evitant-craintif : reste seul mais souffre.
+Evitant detache : reste seul et ca lui convient.
+NE CODE PAS "evitant" juste parce que la personne est introvertie ou vit seule. L'introversion est un TRAIT, l'evitement d'attachement est une STRATEGIE RELATIONNELLE.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERDITS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
