@@ -8490,7 +8490,21 @@ async function generateCloneBrain() {
         statusEl.textContent = '5 analyses IA en parallele...';
         
         const workerUrl = CONFIG?.WORKER_URL || 'https://clone-proxy.11drumboy11.workers.dev/';
-        const conversation = formatConversationForAnalysis(convSystem.messages);
+        let conversation = formatConversationForAnalysis(convSystem.messages);
+        
+        // v20.1 — AVERTISSEMENT DE BIAIS DE RESISTANCE pour les 5 analyses
+        const dpReticence = window.deepPersonalityAnalyzer ? window.deepPersonalityAnalyzer.reticenceScore : 0;
+        if (dpReticence > 40) {
+            const resistanceWarning = '\n\n=== AVERTISSEMENT METHODOLOGIQUE ===\n' +
+                'Ce sujet presentait une RETICENCE de ' + Math.round(dpReticence) + '% pendant l\'entretien.\n' +
+                'REGLE CRITIQUE : Ne confonds PAS la resistance a l\'interview avec un trait de personnalite.\n' +
+                '- Reponses courtes ≠ introversion ou faible agreabilite. La personne peut etre reservee face a un inconnu.\n' +
+                '- Esquive des sujets intimes ≠ attachement evitant. Un style secure avec de la pudeur produit les memes reponses.\n' +
+                '- Absence d\'emotion verbalisee ≠ haut nevrosisme ou alexithymie. La personne peut ne pas verbaliser dans ce contexte.\n' +
+                '- Pour CHAQUE score, base-toi sur les ANECDOTES DE VIE REELLE rapportees (relations decrites, comportements en situation) plutot que sur le style de reponse a l\'interview.\n' +
+                '=== FIN AVERTISSEMENT ===\n\n';
+            conversation = resistanceWarning + conversation;
+        }
         
         async function callClaudeForAnalysis(prompt, maxTokens) {
             const resp = await fetch(workerUrl, {
@@ -8658,10 +8672,27 @@ async function generateCloneBrain() {
             const desirability = (dp?._socialDesirabilityHistory || []).length > 0
                 ? (dp._socialDesirabilityHistory.reduce((a, b) => a + b, 0) / dp._socialDesirabilityHistory.length) / 100 : 0;
             const authenticity = Math.max(0.4, 1 - desirability * 0.4);
-            const raw = coverage * coherence * depth * authenticity;
+            
+            // v20.1 — PENALITE BIAIS DE RESISTANCE SITUATIONNELLE
+            // Quand la reticence est elevee, les piliers les plus vulnerables au biais
+            // (agreabilite, attachement, traits emotionnels) ont une confiance REDUITE
+            // car le systeme confond facilement resistance a l'interview avec trait de personnalite
+            let situationalPenalty = 1.0;
+            const resistanceSensitivePillars = ['attachment', 'traits', 'defenses'];
+            if (reticence > 0.4 && resistanceSensitivePillars.includes(pillarKey)) {
+                situationalPenalty = Math.max(0.3, 1 - (reticence - 0.4) * 1.2);
+            }
+            
+            const raw = coverage * coherence * depth * authenticity * situationalPenalty;
             const score = Math.round(Math.min(100, raw * 100));
             const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : score >= 20 ? 'D' : 'F';
-            return { score, grade, components: { coverage: Math.round(coverage*100), coherence: Math.round(coherence*100), depth: Math.round(depth*100), authenticity: Math.round(authenticity*100) } };
+            
+            const components = { coverage: Math.round(coverage*100), coherence: Math.round(coherence*100), depth: Math.round(depth*100), authenticity: Math.round(authenticity*100) };
+            if (situationalPenalty < 1.0) {
+                components.situational_penalty = Math.round(situationalPenalty * 100);
+                components.warning = 'Reticence elevee — ce pilier est vulnerable au biais de confusion resistance/trait';
+            }
+            return { score, grade, components };
         }
         
         const confidence = {
