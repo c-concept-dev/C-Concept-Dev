@@ -8666,7 +8666,36 @@ async function generateCloneBrain() {
                 text = data.text;
             }
             text = text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-            return JSON.parse(text);
+            // FIX-A2-TRUNCATION — repair JSON tronqué avant parse
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // Tentative de réparation : fermer les structures ouvertes
+                let repaired = text;
+                // Compter les accolades/crochets non fermés
+                let braces = 0, brackets = 0, inStr = false, escape = false;
+                for (let i = 0; i < repaired.length; i++) {
+                    const ch = repaired[i];
+                    if (escape) { escape = false; continue; }
+                    if (ch === '\\' && inStr) { escape = true; continue; }
+                    if (ch === '"' && !escape) { inStr = !inStr; continue; }
+                    if (inStr) continue;
+                    if (ch === '{') braces++;
+                    else if (ch === '}') braces--;
+                    else if (ch === '[') brackets++;
+                    else if (ch === ']') brackets--;
+                }
+                // Fermer les tableaux puis objets manquants
+                while (brackets > 0) { repaired += ']'; brackets--; }
+                while (braces > 0) { repaired += '}'; braces--; }
+                try {
+                    console.warn('[FIX-A2-TRUNCATION] JSON réparé (' + (repaired.length - text.length) + ' chars ajoutés)');
+                    return JSON.parse(repaired);
+                } catch (e2) {
+                    console.error('[FIX-A2-TRUNCATION] Réparation échouée, retour objet vide sécurisé');
+                    return {};
+                }
+            }
         }
         
         // 5 ANALYSES PARALLELES
@@ -8746,7 +8775,7 @@ async function generateCloneBrain() {
                 '  "neuroticism": { ... }\n' +
                 '}\n' +
                 'level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\n' +
-                'Retourne UNIQUEMENT le JSON.', 3500
+                'Retourne UNIQUEMENT le JSON.', 4500
             );
 
             })()
