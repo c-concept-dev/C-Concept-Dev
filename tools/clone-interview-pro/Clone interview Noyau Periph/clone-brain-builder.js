@@ -8628,7 +8628,14 @@ async function generateCloneBrain() {
         contextInfo += 'Inconfort pendant l\'entretien ≠ instabilite emotionnelle chronique. Cherche : quotidien stable ? Relations durables ? Capacite a gerer les defis ?\n\n';
 
         contextInfo += 'REGLE 7 — AGREABILITE = COMPORTEMENT ENVERS LES PROCHES\n';
-        contextInfo += 'Peu cooperatif ici ≠ peu agreable en general. Cherche : comment traite-t-il famille, collegues, amis ?\n';
+        contextInfo += 'Peu cooperatif ici ≠ peu agreable en general. Cherche : comment traite-t-il famille, collegues, amis ?\n\n';
+
+        contextInfo += 'REGLE 8 — CONSCIENCIOSITE : distinguer routine fonctionnelle et trait stable\n';
+        contextInfo += 'Une personne qui suit une routine, prepare les repas ou respecte ses engagements PAR NECESSSITE (parent, freelance, adulte) ≠ haute conscienciosite comme trait de personnalite.\n';
+        contextInfo += 'Cherche : est-ce que cette personne EST naturellement ordonnee et disciplinee, ou fait-elle ce qu\'il faut faire ? Preference pour la spontaneite, la flexibilite, le pragmatisme = C modere/bas meme si la vie parait organisee. Ne pas scorer C > 55 uniquement parce que la personne a une routine ou des habitudes.\n\n';
+
+        contextInfo += 'REGLE 9 — NEVROSISME : resistance a l\'entretien ≠ instabilite emotionnelle\n';
+        contextInfo += 'Esquiver, se fermer, etre mal a l\'aise pendant l\'entretien = style de reponse sous contrainte. N eleve exige : anxiete chronique, rumination, reactions disproportionnees, perte de controle emotionnel dans la VIE REELLE. Une personne stable qui refuse de parler = N bas.\n';
         contextInfo += '=== FIN INSTRUCTIONS PHOTOGRAPHE ===\n\n';
 
         conversation = contextInfo + conversation;
@@ -8667,8 +8674,8 @@ async function generateCloneBrain() {
         statusEl.textContent = 'Analyse du temperament (Big Five)...';
         
         const p1 = callClaudeForAnalysis(
-            // v20.6 — Posture photographe, convergence multi-sources
-            'Tu es un photographe de personnalite. Tu captures les traits STABLES de cette personne dans sa vie reelle ordinaire — pas ses attitudes pendant cet entretien sous contrainte.\n\nLis les INSTRUCTIONS PHOTOGRAPHE v20.6 incluses dans la conversation. Elles contiennent aussi des signaux temps reel (HEXACO, SDT, style linguistique) qui te donnent une reference independante.\n\nPOUR CHAQUE TRAIT :\n1. Identifie les ANECDOTES DE VIE REELLE mentionnees (comportements avec famille, amis, travail, loisirs)\n2. Verifie la CONVERGENCE avec les signaux temps reel du contexte\n3. Si convergence : score confiant. Si divergence : score centre (40-60) + note l\'incertitude\n4. Score extreme (< 25 ou > 75) exige 2+ anecdotes concretes de vie reelle\n\nNE te base PAS sur les attitudes d\'entretien. BASE-TOI SUR les anecdotes et comportements decrits dans la vie ordinaire.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON :\n{\n  "openness": {\n    "score": 66,\n    "level": "medium-high",\n    "facets": { "imagination": 70, "artistic_interests": 60, "emotionality": 55, "adventurousness": 65, "intellect": 80, "liberalism": 60 },\n    "summary": "2 phrases basees sur comportements de vie reelle",\n    "evidence": ["anecdote ou comportement concret de la vie ordinaire", "2e anecdote"],\n    "confidence_note": "convergent avec HEXACO/SDT / divergent — pourquoi"\n  },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nEvidence = anecdotes de vie reelle uniquement, jamais attitudes d\'entretien.\nRetourne UNIQUEMENT le JSON.', 3500
+            // v20.7 — Posture photographe + règles C et N explicites
+            'Tu es un photographe de personnalite. Tu captures les traits STABLES de cette personne dans sa vie reelle ordinaire — pas ses attitudes pendant cet entretien sous contrainte.\n\nLis les INSTRUCTIONS PHOTOGRAPHE incluses dans la conversation (regles 1 a 9). Elles contiennent les regles de debiaisage et les signaux temps reel de reference.\n\nPOUR CHAQUE TRAIT, reponds d\'abord a : "Dans la vie de tous les jours de cette personne, comment ce trait se manifeste-t-il concrètement ?"\n\nNE te base PAS sur : attitudes d\'entretien, cooperation ou resistance, aisance ou inconfort pendant l\'interview.\nBASE-TOI SUR : anecdotes de vie reelle, comportements habituels decrits, relations mentionnees.\n\nATTENTION CONSCIENCIOSITE (C) :\nRoutine par necessite (parent, freelance, adulte) ≠ haute C comme trait. La question : cette personne est-elle NATURELLEMENT ordonnee et disciplinee, ou fait-elle ce qu\'il faut faire ? Preference declaree pour flexibilite, spontaneite, pragmatisme = C modere/bas meme si la vie parait organisee. Ne score pas C > 55 sur la base de routines quotidiennes seules.\n\nATTENTION NEVROSISME (N) :\nResistance a l\'entretien ≠ instabilite emotionnelle. N eleve exige : anxiete chronique, rumination, reactions disproportionnees dans la VIE REELLE. Une personne stable qui refuse de s\'ouvrir = N bas/modere.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON :\n{\n  "openness": {\n    "score": 66,\n    "level": "medium-high",\n    "facets": { "imagination": 70, "artistic_interests": 60, "emotionality": 55, "adventurousness": 65, "intellect": 80, "liberalism": 60 },\n    "summary": "2 phrases basees sur comportements de vie reelle",\n    "evidence": ["anecdote ou comportement concret de la vie ordinaire", "2e anecdote"],\n    "confidence_note": "convergent avec signaux / divergent — pourquoi"\n  },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nEvidence = anecdotes de vie reelle uniquement. Retourne UNIQUEMENT le JSON.', 3500
         ).then(r => { setCloneStep(1, 'done'); return r; });
         
         setCloneStep(2, 'active');
@@ -9348,4 +9355,4 @@ window.CloneBrain = {
     }
 };
 
-console.log('[CloneBrain] v20.6 loaded — CLONE-BRAIN-1.0 | photographe | convergence multi-sources | tous analyseurs exploites');
+console.log('[CloneBrain] v20.7 loaded — CLONE-BRAIN-1.0 | portraitiste neutre | règles C+N | convergence multi-sources');
