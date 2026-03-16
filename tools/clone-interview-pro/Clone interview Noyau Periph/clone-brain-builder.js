@@ -8799,7 +8799,36 @@ async function generateCloneBrain() {
         
         setCloneStep(5, 'active');
         const p5 = callClaudeForAnalysis(
-            'Tu es un expert mondial en intelligence emotionnelle.\nAnalyse le profil emotionnel de l\'utilisateur.\n\nCONVERSATION:\n' + conversation + '\n\nGenere un JSON:\n{\n  "baseline_mood": { "typical_state": "calm-positive", "stability": 75, "energy_level": "moderate-high" },\n  "emotional_range": { "intensity": "moderate", "variety": "good", "expression_comfort": 70 },\n  "triggers": { "positive": [ { "trigger": "creation reussie", "intensity": "high", "evidence": "..." } ], "negative": [ { "trigger": "injustice", "intensity": "medium", "evidence": "..." } ] },\n  "regulation_strategies": ["humor", "problem-solving"],\n  "empathy_profile": { "cognitive_empathy": 85, "affective_empathy": 75, "compassion_score": 80 },\n  "stress_response": { "primary_coping": "active-problem-solving", "resilience_score": 75, "recovery_speed": "moderate-fast" },\n  "attachment_style": { "primary": "secure", "evidence": "..." }\n}\nRetourne UNIQUEMENT le JSON.', 2000
+            // IMPL-2 — energy_patterns : rythme et modes énergétiques observables
+            'Tu es un expert mondial en intelligence emotionnelle et psychologie du comportement.\n' +
+            'Analyse le profil emotionnel ET les patterns energetiques de cette personne depuis sa vie reelle.\n\n' +
+            'CONVERSATION:\n' + conversation + '\n\n' +
+            'Genere un JSON:\n' +
+            '{\n' +
+            '  "baseline_mood": { "typical_state": "calm-positive", "stability": 75, "energy_level": "moderate-high" },\n' +
+            '  "triggers": {\n' +
+            '    "positive": [ { "trigger": "creation reussie", "intensity": "high", "evidence": "citation ou situation concrete" } ],\n' +
+            '    "negative": [ { "trigger": "injustice", "intensity": "medium", "evidence": "citation ou situation concrete" } ]\n' +
+            '  },\n' +
+            '  "regulation_strategies": ["humor", "problem-solving"],\n' +
+            '  "empathy_profile": { "cognitive_empathy": 85, "affective_empathy": 75 },\n' +
+            '  "stress_response": { "primary_coping": "active-problem-solving", "resilience_score": 75, "recovery_speed": "moderate-fast" },\n' +
+            '  "relational_style": { "primary": "secure", "description": "...", "anxiety_axis": 2, "avoidance_axis": 3 },\n' +
+            '  "energy_patterns": {\n' +
+            '    "peak_moments": ["moment de haute energie observe — ex: le matin en codant, apres une resolution de probleme"],\n' +
+            '    "low_moments": ["moment de basse energie — ex: fin de journee avec enfant, reunions longues"],\n' +
+            '    "recharge_methods": ["ce qui restaure son energie — ex: bricolage, serie le soir, marche"],\n' +
+            '    "daily_rhythm": "description courte du rythme naturel observe (ex: pic matin, creux apres-midi, calme le soir)",\n' +
+            '    "stress_signals": ["signaux observables quand la personne est sous pression — ex: reponses plus courtes, esquives, humour defensif"],\n' +
+            '    "context_modes": [\n' +
+            '      { "context": "travail seul", "mode": "concentre et efficace", "energy": "high", "evidence": "..." },\n' +
+            '      { "context": "interactions sociales contraintes", "mode": "reserve et economique", "energy": "low", "evidence": "..." }\n' +
+            '    ]\n' +
+            '  }\n' +
+            '}\n' +
+            'IMPORTANT : energy_patterns doit etre base sur des FAITS OBSERVES dans la conversation (habitudes mentionnees, moments decrits), pas sur des deductions psychologiques abstraites.\n' +
+            'Si donnees insuffisantes pour un champ : valeur "donnees insuffisantes".\n' +
+            'Retourne UNIQUEMENT le JSON.', 2500
         ).then(r => { setCloneStep(5, 'done'); return r; });
         
         statusEl.textContent = '5 analyses IA en cours...';
@@ -9280,7 +9309,16 @@ async function generateCloneBrain() {
                 regulation: emotional?.regulation_strategies || [],
                 empathy: emotional?.empathy_profile || {},
                 stress_response: emotional?.stress_response || {},
-                relational_style: emotional?.relational_style || {}
+                relational_style: emotional?.relational_style || {},
+                // IMPL-2 — patterns énergétiques observables (rythme, modes, signaux)
+                energy_patterns: emotional?.energy_patterns || {
+                    peak_moments: [],
+                    low_moments: [],
+                    recharge_methods: [],
+                    daily_rhythm: 'données insuffisantes',
+                    stress_signals: [],
+                    context_modes: []
+                }
             },
 
             // ── BIOGRAPHIE ────────────────────────────────────────────────
@@ -9441,20 +9479,36 @@ async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
     if (callClaudeForAnalysis && allUserText.length > 100) {
         try {
             const personaResult = await callClaudeForAnalysis(
-                // v20.6 — Archiviste de vie : collecte des faits bruts, posture neutre
-                'Tu es un archiviste de vie. Tu collectes les faits concrets mentionnes par une personne sur sa vie reelle. Tu ne juges pas, tu ne diagnostiques pas, tu ne deduis aucune pathologie. Tu captures : qui, quoi, quand, comment cette personne vit et se comporte dans son quotidien.\n\n' +
+                // v21.1 — Archiviste de vie + memory_hooks opérationnels
+                'Tu es un archiviste de vie et un architecte de memoire. Tu collectes les faits concrets mentionnes par une personne sur sa vie reelle, ET tu identifies comment ces souvenirs seraient naturellement mobilises dans une conversation.\n\n' +
                 'REPONSES DE LA PERSONNE :\n' + allUserText.substring(0, 8000) + '\n\n' +
                 'Genere un JSON avec cette structure :\n' +
                 '{\n' +
                 '  "people_mentioned": [{"name": "...", "role": "mere/pere/ami/collegue/...", "context": "phrase ou la personne est mentionnee", "relationship_quality": "positive/neutre/tendue/complexe"}],\n' +
                 '  "places_mentioned": [{"name": "...", "context": "...", "emotional_valence": "positive/neutre/negative"}],\n' +
                 '  "time_references": [{"period": "enfance/adolescence/20-30 ans/...", "event": "...", "context": "..."}],\n' +
-                '  "anecdotes": [{"summary": "resume factuel en 1 phrase", "what_it_reveals": "comportement concret observable dans cette anecdote (ce que la personne FAIT, pas ce qu\'elle ressent ou un diagnostic)", "life_domain": "famille/travail/amis/loisirs/enfance", "question_index": 0}],\n' +
+                '  "anecdotes": [\n' +
+                '    {\n' +
+                '      "summary": "resume factuel en 1 phrase",\n' +
+                '      "what_it_reveals": "comportement concret observable dans cette anecdote (ce que la personne FAIT)",\n' +
+                '      "life_domain": "famille/travail/amis/loisirs/enfance",\n' +
+                '      "question_index": 0,\n' +
+                '      "memory_hooks": {\n' +
+                '        "when_to_use": "contexte conversationnel qui declencherait naturellement ce souvenir — ex: quand on parle de gestion du temps, quand quelquun mentionne la paternite",\n' +
+                '        "natural_formulation": "formulation a la 1ere personne que cette personne utiliserait pour evoquer ce souvenir — ex: ah ca me rappelle quand le petit... / moi j avais eu le meme truc avec..."\n' +
+                '      }\n' +
+                '    }\n' +
+                '  ],\n' +
                 '  "habitual_behaviors": [{"behavior": "comportement recurrent decrit", "context": "dans quel contexte", "frequency": "quotidien/hebdo/occasionnel"}],\n' +
                 '  "emotions_expressed": [{"emotion": "...", "trigger": "...", "intensity": "faible/moderee/forte", "how_managed": "comment la personne gere cette emotion"}],\n' +
                 '  "relationships_described": [{"person": "...", "quality": "positive/ambivalente/negative/complexe", "pattern": "comportement observable dans cette relation"}]\n' +
                 '}\n' +
-                'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne. Ne devines pas. Ne deduis aucun trouble ou pathologie. Capture les FAITS DE VIE. Retourne UNIQUEMENT le JSON.', 2500
+                'REGLES ABSOLUES :\n' +
+                '- Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne.\n' +
+                '- memory_hooks.when_to_use : contexte CONCRET et SPECIFIQUE, pas generique.\n' +
+                '- memory_hooks.natural_formulation : doit sonner comme CETTE personne parle (style, registre, expressions caracteristiques observees).\n' +
+                '- Ne devines pas. Ne deduis aucun trouble ou pathologie.\n' +
+                'Retourne UNIQUEMENT le JSON.', 3000
             );
             // FIX-BIOGRAPHY-EXTRACTOR PATCH 1 — validation et logging détaillé
             if (personaResult && typeof personaResult === 'object') {
@@ -9511,7 +9565,12 @@ function _extractPersonaFallback(userMsgs) {
                 summary: text.substring(0, 250).replace(/\n+/g, ' ').trim(),
                 what_it_reveals: '',
                 life_domain: 'inconnu',
-                question_index: idx
+                question_index: idx,
+                // IMPL-1 — memory_hooks vides en fallback (seront enrichis en production par LLM)
+                memory_hooks: {
+                    when_to_use: '',
+                    natural_formulation: ''
+                }
             });
         }
 
