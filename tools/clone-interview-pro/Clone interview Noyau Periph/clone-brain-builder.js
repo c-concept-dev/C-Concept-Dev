@@ -8500,31 +8500,83 @@ async function generateCloneBrain() {
         // Plus de seuils fixes ni de corrections numeriques hardcodees
         // Le LLM raisonne sur le contexte specifique de CET entretien
         
-        let contextInfo = '\n\n=== CONTEXTE DE CET ENTRETIEN ===\n';
-        contextInfo += 'Reticence mesuree : ' + Math.round(dpReticence) + '%\n';
-        
-        // Injecter les donnees des analyseurs temps reel pour que le LLM raisonne dessus
+        // v20.5 — POSTURE PHOTOGRAPHE : on traduit les signaux cliniques en signaux comportementaux neutres
+        // Plus de vocabulaire clinique injecte dans le contexte LLM
         const schemasDetected = window.schemaDetector ? window.schemaDetector.getActiveSchemas() : [];
         const defensesDetected = window.defenseDetector ? window.defenseDetector.getActiveDefenses() : [];
         const attachStyle = window.attachmentAnalyzer ? window.attachmentAnalyzer.classifyAttachment() : 'unknown';
-        
+
+        let contextInfo = '\n\n=== CONTEXTE DE CET ENTRETIEN ===\n';
+        contextInfo += 'Niveau de reserve de la personne pendant l\'entretien : ' + Math.round(dpReticence) + '% (0=totalement ouvert, 100=tres ferme)\n';
+
+        // Traduire schemas → patterns comportementaux observables, sans vocabulaire clinique
         if (schemasDetected.length > 0) {
-            contextInfo += 'Schemas Young ACTIFS detectes en temps reel : ' + schemasDetected.map(s => s.name || s.id).join(', ') + '\n';
+            const schemaToSignal = {
+                'mefiance':       'prudence relationnelle marquee — verifie avant de faire confiance, peu d\'informations spontanees sur sa vie intime',
+                'controle':       'besoin de maitrise de son environnement — inconfort face a l\'imprévu, structure ses reponses',
+                'abandon':        'vigilance aux signaux de rejet — a besoin de reassurance implicite pour s\'ouvrir',
+                'carence':        'recherche de validation — sensible au manque de reconnaissance',
+                'imperfection':   'standards personnels eleves — tend a minimiser ses reussites ou a se critiquer',
+                'isolement':      'preference pour l\'autonomie — maintient une certaine distance dans les echanges',
+                'dependance':     'cherche un cadre fiable — a du mal a se positionner sans appui externe',
+                'echec':          'prudence face aux nouveaux defis — prefere le connu au risque d\'echouer',
+                'punition':       'exigeant envers lui-meme — peu indulgent face a ses propres erreurs'
+            };
+            const behavioralSignals = schemasDetected.map(s => {
+                const key = (s.name || s.id || '').toLowerCase();
+                return schemaToSignal[key] || 'pattern observe pendant l\'entretien : ' + (s.name || s.id);
+            });
+            contextInfo += 'Comportements observes pendant l\'entretien : ' + behavioralSignals.join(' | ') + '\n';
         }
+
+        // Traduire defenses → style de reponse aux questions intimes
         if (defensesDetected.length > 0) {
-            contextInfo += 'Defenses dominantes detectees en temps reel : ' + defensesDetected.map(d => d.name || d.id).join(', ') + '\n';
+            const defToSignal = {
+                'humour':              'utilise l\'humour pour desamorcer les questions intimes',
+                'intellectualisation': 'prefere analyser et conceptualiser plutot qu\'exprimer directement ce qu\'il ressent',
+                'minimisation':        'relativise ses propres experiences ("c\'est normal", "tout le monde fait ca")',
+                'projection':          'ramene facilement les sujets personnels vers le general ou les autres',
+                'rationalisation':     'explique ses emotions par des causes logiques plutot que de les reconnaitre',
+                'deni':                'ecarte certains sujets par des affirmations tranchantes sans les explorer',
+                'clivage':             'voit les situations de maniere tranchee, peu de nuances'
+            };
+            const defSignals = defensesDetected.map(d => {
+                const key = (d.name || d.id || '').toLowerCase();
+                return defToSignal[key] || (d.name || d.id);
+            });
+            contextInfo += 'Style de reponse aux questions intimes : ' + defSignals.join(', ') + '\n';
         }
-        contextInfo += 'Style d\'attachement detecte en temps reel : ' + attachStyle + '\n';
+
+        // Style relationnel observable — sans label clinique
+        const attachToNeutral = {
+            'secure':           'a l\'aise avec la proximite et l\'autonomie, equilibre dans ses relations',
+            'anxious':          'recherche de connexion, sensible a la disponibilite des proches',
+            'avoidant':         'prefere l\'independance, maintient une certaine distance emotionnelle',
+            'fearful-avoidant': 'desire la connexion mais s\'en protege, ambivalent dans les relations intimes',
+            'unknown':          'style relationnel non encore determine avec certitude'
+        };
+        contextInfo += 'Style relationnel observable : ' + (attachToNeutral[attachStyle] || attachStyle) + '\n';
         contextInfo += '=== FIN CONTEXTE ===\n\n';
-        
-        contextInfo += '=== INSTRUCTIONS DE RAISONNEMENT ===\n';
-        contextInfo += 'Pour CHAQUE score Big Five que tu donnes, execute ce raisonnement :\n';
-        contextInfo += '1. DISTINCTION TRAIT vs ETAT : Ce que j\'observe ici est-il un TEMPERAMENT STABLE ou une REACTION A LA SITUATION D\'ENTRETIEN ? Chercher des indices de vie reelle (anecdotes, descriptions de relations) pour confirmer ou infirmer.\n';
-        contextInfo += '2. DISTINCTION TRAIT vs SCHEMA : Si un schema Young est actif (voir contexte ci-dessus), le trait observe est probablement DEFORME par le schema. Une personne mefiante parait moins agreable qu\'elle ne l\'est. Une personne qui controle parait plus consciencieuse qu\'elle ne l\'est. Une personne blessee qui s\'isole parait plus introvertie qu\'elle ne l\'est. Ajuster le score vers la MOYENNE (50) quand le schema interfere, sauf si des anecdotes de vie reelle confirment le score extreme.\n';
-        contextInfo += '3. EMOTIONNALITE vs NEVROSISME : Exprimer ses emotions avec lucidite = ouverture emotionnelle. Etre SUBMERGE, perdre le fil, ne pas pouvoir prendre de recul = nevrosisme. Ne pas confondre les deux.\n';
-        contextInfo += '4. ATTACHEMENT : Chercher la DIRECTION DU MOUVEMENT quand la personne souffre. Vers les autres = anxieux. Loin malgre un desir = evitant-craintif. Loin sans manque = evitant detache. Introversion ≠ evitement.\n';
-        contextInfo += '5. CONFIANCE : Si tes donnees sont insuffisantes pour trancher, donne un score MODERE (plus proche de 50) plutot qu\'un score extreme potentiellement faux.\n';
-        contextInfo += '=== FIN INSTRUCTIONS ===\n\n';
+
+        // v20.5 — INSTRUCTIONS PHOTOGRAPHE (remplace les anciennes instructions cliniciennes)
+        contextInfo += '=== INSTRUCTIONS PHOTOGRAPHE ===\n';
+        contextInfo += 'Tu es un photographe de personnalite, pas un clinicien. Ta mission : capturer qui est cette personne dans sa vie reelle, pas comment elle se comporte sous la pression de cet entretien.\n\n';
+        contextInfo += 'REGLE 1 — SEPARER LE COMPORTEMENT D\'ENTRETIEN DU TRAIT STABLE\n';
+        contextInfo += 'Niveau de reserve = ' + Math.round(dpReticence) + '%. Plus ce chiffre est eleve, plus les attitudes pendant l\'entretien sont peu fiables comme indicateurs de traits. Dans ce cas, concentre-toi EXCLUSIVEMENT sur ce que la personne raconte de sa vie reelle (anecdotes, relations, comportements habituels).\n';
+        contextInfo += 'Ce que la personne FAIT pendant l\'entretien (se ferme, esquive, minimise, plaisante) = style sous contrainte situationnelle. NE PAS scorer comme trait.\n';
+        contextInfo += 'Ce que la personne RACONTE de sa vie (avec sa famille, ses amis, au travail, dans ses loisirs) = trait stable a capturer.\n\n';
+        contextInfo += 'REGLE 2 — LES ANECDOTES CONCRÉTES BATTENT LES ATTITUDES D\'ENTRETIEN\n';
+        contextInfo += 'Une anecdote concrete vaut plus que dix attitudes observees pendant l\'entretien.\n';
+        contextInfo += 'Exemple : si quelqu\'un esquive les questions mais raconte qu\'il organise des dîners pour ses amis chaque semaine, son extraversion reelle est probablement elevee malgre son attitude reservee ici.\n\n';
+        contextInfo += 'REGLE 3 — DOUTE = SCORE CENTRE (40-60), JAMAIS D\'EXTREME SANS PREUVE\n';
+        contextInfo += 'Si tu n\'as pas d\'anecdotes de vie reelle pour confirmer un trait, donne un score entre 40 et 60. Un score extreme (< 25 ou > 75) exige au moins 2 anecdotes concretes de la vie quotidienne de la personne.\n\n';
+        contextInfo += 'REGLE 4 — EXTRAVERSION = ENERGIE SOCIALE EN VIE REELLE, PAS PENDANT L\'ENTRETIEN\n';
+        contextInfo += 'Etre peu loquace ou reserve ici ≠ etre introverti dans la vie. Cherche : comment cette personne se comporte-t-elle avec ses proches, ses collegues, ses amis ?\n\n';
+        contextInfo += 'REGLE 5 — STABILITE EMOTIONNELLE = FONCTIONNEMENT HABITUEL, PAS CONFORT SOUS QUESTIONNEMENT\n';
+        contextInfo += 'Etre mal a l\'aise pendant l\'entretien ≠ instabilite emotionnelle chronique. Cherche : est-ce que cette personne decrit un quotidien stable, des relations durables, une capacite a gerer les defis de sa vie ?\n\n';
+        contextInfo += 'REGLE 6 — AGREEABILITE = COMPORTEMENT ENVERS LES PROCHES, PAS ENVERS L\'INTERVIEWER\n';
+        contextInfo += 'Etre peu cooperatif ici ≠ etre peu agreable en general. Cherche : comment traite-t-il sa famille, ses collegues, ses amis ? Est-il decrit comme attentionne, genereux, aidant ?\n';
+        contextInfo += '=== FIN INSTRUCTIONS PHOTOGRAPHE ===\n\n';
         
         conversation = contextInfo + conversation;
         
@@ -8562,7 +8614,8 @@ async function generateCloneBrain() {
         statusEl.textContent = 'Analyse du temperament (Big Five)...';
         
         const p1 = callClaudeForAnalysis(
-            'Tu es un expert mondial en psychologie des traits (Big Five / NEO-PI-R).\nAnalyse cette conversation et determine les scores Big Five avec 6 facettes par dimension.\n\nCONVERSATION:\n' + conversation + '\n\nGenere un JSON:\n{\n  "openness": { "score": 75, "level": "high", "facets": { "imagination": 80, "artistic_interests": 70, "emotionality": 65, "adventurousness": 75, "intellect": 85, "liberalism": 70 }, "summary": "Description 2 phrases", "evidence": ["citation exacte 1", "citation exacte 2"] },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nIMPORTANT: dans evidence, cite 2-3 PHRASES EXACTES de l\'utilisateur.\nRetourne UNIQUEMENT le JSON.', 3000
+            // v20.5 — Posture photographe : capture les traits stables, ignore le comportement d'entretien
+            'Tu es un photographe de personnalite. Tu captures les traits STABLES de cette personne tels qu\'ils se manifestent dans sa vie reelle ordinaire — pas tels qu\'ils apparaissent pendant cet entretien sous contrainte.\n\nLis attentivement les INSTRUCTIONS PHOTOGRAPHE incluses dans la conversation avant de scorer. Elles definissent comment separer le comportement d\'entretien du trait reel.\n\nPOUR CHAQUE TRAIT, reponds mentalement a cette question avant de scorer :\n"Dans la vie de tous les jours de cette personne — avec sa famille, ses amis, au travail, dans ses loisirs — comment ce trait se manifeste-t-il concrètement ?"\n\nNE te base PAS sur : comment la personne parle pendant cet entretien, si elle est cooperative ou resistante, si elle s\'ouvre ou se ferme.\nBASE-TOI SUR : les anecdotes de vie reelle qu\'elle raconte, les comportements qu\'elle decrit chez elle, les relations qu\'elle mentionne.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON :\n{\n  "openness": { "score": 75, "level": "high", "facets": { "imagination": 80, "artistic_interests": 70, "emotionality": 65, "adventurousness": 75, "intellect": 85, "liberalism": 70 }, "summary": "Description 2 phrases basee sur la vie reelle", "evidence": ["anecdote ou comportement concret cite par la personne 1", "anecdote ou comportement concret cite par la personne 2"], "confidence_note": "pourquoi tu es sur ou incertain de ce score" },\n  "conscientiousness": { ... },\n  "extraversion": { ... },\n  "agreeableness": { ... },\n  "neuroticism": { ... }\n}\nScores sur 100. level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\nIMPORTANT : dans evidence, cite uniquement des COMPORTEMENTS REELS ou ANECDOTES DE VIE, jamais des attitudes d\'entretien.\nSi tu n\'as pas d\'evidence de vie reelle pour un trait, score entre 40 et 60 et note-le dans confidence_note.\nRetourne UNIQUEMENT le JSON.', 3500
         ).then(r => { setCloneStep(1, 'done'); return r; });
         
         setCloneStep(2, 'active');
@@ -8837,18 +8890,19 @@ async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
     if (callClaudeForAnalysis && allUserText.length > 100) {
         try {
             const personaResult = await callClaudeForAnalysis(
-                'Tu es un extracteur de materiau autobiographique. A partir des reponses d\'une personne interviewee, extrais les elements de vie mentionnes.\n\n' +
+                // v20.5 — PersonaExtractor posture photographe
+                'Tu es un archiviste de vie. Tu extrais les faits concrets mentionnes par une personne sur sa vie reelle. Tu ne juges pas, tu ne diagnostiques pas, tu ne deduis pas. Tu collectes les materiaux bruts : qui, quoi, quand, comment cette personne vit et se comporte dans son quotidien.\n\n' +
                 'REPONSES DE LA PERSONNE :\n' + allUserText.substring(0, 8000) + '\n\n' +
                 'Genere un JSON avec cette structure :\n' +
                 '{\n' +
                 '  "people_mentioned": [{"name": "...", "role": "mere/pere/ami/collegue/...", "context": "phrase ou la personne est mentionnee"}],\n' +
                 '  "places_mentioned": [{"name": "...", "context": "..."}],\n' +
                 '  "time_references": [{"period": "enfance/adolescence/20-30 ans/...", "event": "...", "context": "..."}],\n' +
-                '  "anecdotes": [{"summary": "resume en 1 phrase", "what_it_reveals": "ce que ca dit de la personnalite", "question_index": 0}],\n' +
+                '  "anecdotes": [{"summary": "resume factuel en 1 phrase", "what_it_reveals": "comportement concret observable (ce que la personne fait, pas ce qu\'elle ressent ou son pathologie)", "question_index": 0}],\n' +
                 '  "emotions_expressed": [{"emotion": "...", "trigger": "...", "intensity": "faible/moderee/forte"}],\n' +
                 '  "relationships_described": [{"person": "...", "quality": "positive/ambivalente/negative/complexe", "pattern": "..."}]\n' +
                 '}\n' +
-                'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne. Ne devines pas. Retourne UNIQUEMENT le JSON.', 2000
+                'Extrais UNIQUEMENT ce qui est EXPLICITEMENT mentionne dans les reponses. Ne devines pas. Ne deduis pas de pathologie ou de trouble. Capture les FAITS DE VIE. Retourne UNIQUEMENT le JSON.', 2000
             );
             if (personaResult && typeof personaResult === 'object') {
                 console.log('[PersonaExtractor] LLM extraction: OK');
@@ -9060,4 +9114,4 @@ window.CloneBrain = {
     }
 };
 
-console.log('[CloneBrain] v20.0 loaded — CLONE-BRAIN-1.0 schema ready');
+console.log('[CloneBrain] v20.5 loaded — CLONE-BRAIN-1.0 | posture photographe active');
