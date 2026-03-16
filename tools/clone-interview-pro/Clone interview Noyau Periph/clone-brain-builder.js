@@ -8494,17 +8494,26 @@ async function generateCloneBrain() {
         
         // v20.1 — AVERTISSEMENT DE BIAIS DE RESISTANCE pour les 5 analyses
         const dpReticence = window.deepPersonalityAnalyzer ? window.deepPersonalityAnalyzer.reticenceScore : 0;
+        const dpEmotionality = window.deepPersonalityAnalyzer ? (window.deepPersonalityAnalyzer.responseSnapshots || []).filter(s => s.emotionalIntensity > 0.5).length : 0;
+        
+        // v20.2 — AVERTISSEMENT TOUJOURS PRESENT (pas seulement si reticence > 40)
+        // Les biais emotionnalite/nevrosisme et attachement existent meme sans reticence
+        let methodWarning = '\n\n=== AVERTISSEMENT METHODOLOGIQUE ===\n';
+        
         if (dpReticence > 40) {
-            const resistanceWarning = '\n\n=== AVERTISSEMENT METHODOLOGIQUE ===\n' +
-                'Ce sujet presentait une RETICENCE de ' + Math.round(dpReticence) + '% pendant l\'entretien.\n' +
-                'REGLE CRITIQUE : Ne confonds PAS la resistance a l\'interview avec un trait de personnalite.\n' +
-                '- Reponses courtes ≠ introversion ou faible agreabilite. La personne peut etre reservee face a un inconnu.\n' +
-                '- Esquive des sujets intimes ≠ attachement evitant. Un style secure avec de la pudeur produit les memes reponses.\n' +
-                '- Absence d\'emotion verbalisee ≠ haut nevrosisme ou alexithymie. La personne peut ne pas verbaliser dans ce contexte.\n' +
-                '- Pour CHAQUE score, base-toi sur les ANECDOTES DE VIE REELLE rapportees (relations decrites, comportements en situation) plutot que sur le style de reponse a l\'interview.\n' +
-                '=== FIN AVERTISSEMENT ===\n\n';
-            conversation = resistanceWarning + conversation;
+            methodWarning += 'RETICENCE DETECTEE : ' + Math.round(dpReticence) + '%. La personne etait resistante a l\'entretien.\n';
+            methodWarning += '- Reponses courtes ≠ introversion ou faible agreabilite.\n';
+            methodWarning += '- Esquive des sujets intimes ≠ attachement evitant.\n';
         }
+        
+        methodWarning += '\nREGLES ANTI-BIAIS OBLIGATOIRES :\n';
+        methodWarning += '1. EMOTIONNALITE ≠ NEVROSISME. Si la personne exprime ses emotions avec lucidite et recul, c\'est de l\'ouverture emotionnelle (mentalisation), PAS du nevrosisme. Le nevrosisme = etre SUBMERGE, ENVAHI, incapable de reguler. Verifier : la personne a-t-elle perdu le fil ? A-t-elle ete envahie au point de ne plus pouvoir prendre de recul ? Si non → ne pas gonfler le nevrosisme.\n';
+        methodWarning += '2. PERFECTIONNISME ≠ CONSCIENCIOSITE. Si le perfectionnisme est accompagne d\'anxiete, de honte ou de peur du jugement, c\'est un MECANISME DEFENSIF (schema imperfection), pas de la haute conscienciosite. Ne gonfle pas C a cause de routines defensives.\n';
+        methodWarning += '3. ATTACHEMENT : distinguer ANXIEUX (court vers les autres, cherche reassurance) vs EVITANT-CRAINTIF (fuit les relations malgre un desir d\'intimite) vs EVITANT DETACHE (ne ressent pas de manque). L\'introversion et la vie solitaire ne sont PAS de l\'evitement d\'attachement. Chercher la DIRECTION DU MOUVEMENT : vers les autres ou loin des autres ?\n';
+        methodWarning += '4. Pour CHAQUE score, base-toi sur les ANECDOTES DE VIE REELLE (relations decrites, comportements racontes) plutot que sur le style de reponse a l\'interview.\n';
+        methodWarning += '=== FIN AVERTISSEMENT ===\n\n';
+        
+        conversation = methodWarning + conversation;
         
         async function callClaudeForAnalysis(prompt, maxTokens) {
             const resp = await fetch(workerUrl, {
