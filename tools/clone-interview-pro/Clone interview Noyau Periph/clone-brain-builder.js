@@ -8759,7 +8759,8 @@ async function generateCloneBrain() {
         
         setCloneStep(3, 'active');
         const p3 = callClaudeForAnalysis(
-            'Tu es un expert mondial en analyse linguistique et styles de communication.\nAnalyse le style de communication de l\'utilisateur.\n\nCONVERSATION:\n' + conversation + '\n\nGenere un JSON:\n{\n  "tone": { "primary": "informal-warm", "secondary": "analytical", "formality_level": 40, "warmth_level": 75 },\n  "vocabulary": { "complexity": "medium-high", "domain_specific_terms": ["terme1"], "characteristic_expressions": ["expression1"], "avg_sentence_length": "medium" },\n  "rhetorical_patterns": ["pattern1"],\n  "emotional_expression": { "frequency": "moderate", "intensity": "moderate", "preferred_emotions": ["enthusiasm"] },\n  "interaction_style": { "directness": 75, "humor_usage": "frequent", "humor_type": "self-deprecating", "storytelling_tendency": 70 },\n  "clone_instructions": { "tone_keywords": ["chaleureux","direct"], "avoid": ["trop formel"], "response_length_avg": "80-150 mots", "signature_patterns": ["pattern1"] }\n}\nRetourne UNIQUEMENT le JSON.', 2500
+            // v21.0 — Communication : données observées pures, pas d'instructions LLM
+            'Tu es un expert en analyse linguistique. Observe et capture le style de communication REEL de cette personne tel qu\'il se manifeste dans sa vie — pas seulement pendant cet entretien.\n\nCONVERSATION :\n' + conversation + '\n\nGenere un JSON de DONNEES OBSERVEES (pas d\'instructions) :\n{\n  "tone": { "primary": "informal-warm", "secondary": "analytical", "formality_level": 40, "warmth_level": 75 },\n  "vocabulary": { "complexity": "medium-high", "characteristic_expressions": ["expression typique observee"], "avg_sentence_length": "medium", "domain_specific_terms": [] },\n  "rhetorical_patterns": ["pattern observe avec exemple"],\n  "emotional_expression": { "frequency": "moderate", "intensity": "moderate", "preferred_emotions": ["emotion dominante"] },\n  "interaction_style": { "directness": 75, "humor_usage": "frequent", "humor_type": "self-deprecating", "storytelling_tendency": 70 }\n}\nIMPORTANT : capture les patterns OBSERVES dans les reponses (expressions reelles, longueur reelle, style reel). Pas de champ clone_instructions. Retourne UNIQUEMENT le JSON.', 2500
         ).then(r => { setCloneStep(3, 'done'); return r; });
         
         setCloneStep(4, 'active');
@@ -9035,70 +9036,188 @@ async function generateCloneBrain() {
         else qualityGrade = 'F';
         
         // ASSEMBLAGE CLONE-BRAIN-1.0
+        // v21.0 — Schéma CLONE-PERSONALITY-1.0
+        // Portrait psychologique pur — aucune instruction LLM, aucun prompt
+        // Structuré pour exploitation industrielle dans un custom bot LLM
+
+        // Calculer la couverture réelle des dimensions
+        const dimensionsCoverage = {
+            big_five: temperament && Object.keys(temperament).length >= 5 ? 'complete' : 'partial',
+            values: values?.hierarchy?.length >= 5 ? 'complete' : values?.hierarchy?.length > 0 ? 'partial' : 'absent',
+            communication: communication?.tone && communication?.vocabulary ? 'complete' : 'partial',
+            cognition: thinking?.decision_making ? 'complete' : 'partial',
+            emotional: emotional?.baseline_mood ? 'complete' : 'partial',
+            biography: personaDraft?.anecdotes?.length > 0 ? 'complete' : 'partial',
+            relational: emotional?.relational_style?.primary ? 'complete' : 'partial'
+        };
+        const coverageScore = Object.values(dimensionsCoverage).filter(v => v === 'complete').length;
+        const coverageGrade = coverageScore >= 7 ? 'A' : coverageScore >= 5 ? 'B' : coverageScore >= 3 ? 'C' : 'D';
+
+        // Extraire communication sans clone_instructions (données pures uniquement)
+        const communicationPure = {
+            tone: communication?.tone || {},
+            vocabulary: {
+                complexity: communication?.vocabulary?.complexity || '',
+                characteristic_expressions: communication?.vocabulary?.characteristic_expressions || [],
+                avg_sentence_length: communication?.vocabulary?.avg_sentence_length || ''
+            },
+            rhetorical_patterns: communication?.rhetorical_patterns || [],
+            emotional_expression: communication?.emotional_expression || {},
+            interaction_style: communication?.interaction_style || {}
+        };
+
+        // Extraire les signaux temps réel pertinents (données observées)
+        const realtimeObserved = {
+            behavioral_patterns: localAnalyzers.behavioral_patterns?.dominant || [],
+            response_style_patterns: localAnalyzers.response_style_patterns?.dominant || [],
+            relational_axes: localAnalyzers.relational_style ? {
+                style: localAnalyzers.relational_style.style,
+                description: localAnalyzers.relational_style.description,
+                anxiety_axis: localAnalyzers.relational_style.anxiety_axis,
+                avoidance_axis: localAnalyzers.relational_style.avoidance_axis
+            } : {},
+            hexaco: localAnalyzers.hexaco_signal?.dimensions || {},
+            motivations: localAnalyzers.core_motivations_signal?.sdt || {},
+            linguistic: localAnalyzers.linguistic_signal || {},
+            interview_dynamics: {
+                reticence_score: localAnalyzers.interview_dynamics?.reticence_score || 0,
+                contradictions_count: localAnalyzers.interview_dynamics?.verbal_contradictions?.length || 0,
+                evasion_patterns: localAnalyzers.interview_dynamics?.evasion_patterns || []
+            }
+        };
+
         window._cloneBrainJSON = {
-            _clone: {
-                schema: 'CLONE-BRAIN-1.0',
-                brain_type: 'personality',
-                brain_id: 'clone-' + displayName.toLowerCase().replace(/\s+/g, '-') + '-' + now.split('T')[0],
-                version: '2.0',
+            // ── META ──────────────────────────────────────────────────────
+            _meta: {
+                schema: 'CLONE-PERSONALITY-1.0',
+                version: '21.0',
                 generated: now,
-                generator: 'Clone Interview Pro v20 — C Concept&Dev'
+                generator: 'Clone Interview Pro v21 — C Concept&Dev',
+                interview_id: 'clone-' + displayName.toLowerCase().replace(/\s+/g, '-') + '-' + now.split('T')[0]
             },
-            _instructions: {
-                identity: 'Cerveau Personnalite d\'un clone. Profil psychologique extrait d\'un entretien de ' + (convSystem.questionCount || '?') + ' questions.',
-                usage: 'Charger ce fichier dans un LLM avec le clone_prompt.txt pour incarner cette personne.',
-                quality_note: 'Grade ' + qualityGrade + ' — Confiance globale ' + globalConfidence + '%'
+
+            // ── IDENTITÉ ──────────────────────────────────────────────────
+            identity: {
+                display_name: displayName,
+                age: null,
+                context: '',
+                languages: ['Francais']
             },
-            _schema: {
-                confidence: 'score 0-100, grade A-F. Components: coverage, coherence, depth, authenticity',
-                evidence: 'Citations exactes de la personne interviewee',
-                local_analyzers: 'Signaux temps reel : behavioral_patterns, response_style_patterns, relational_style, hexaco_signal, core_motivations_signal, linguistic_signal, interview_dynamics',
-                ai_analyses: 'Donnees extraites par Claude post-entretien (Big Five, Schwartz, communication, cognition, emotions)'
-            },
-            identity: { display_name: displayName, languages: ['Francais'] },
-            source_interview: {
-                date: now,
-                duration_minutes: msgs.length > 0 ? Math.round(msgs.length * 1.5) : 0,
-                questions_count: convSystem.questionCount || Math.floor(msgs.filter(m => m.role === 'assistant').length),
-                messages_count: msgs.length,
-                user_messages_count: userMsgs.length,
-                total_user_words: totalWords,
-                mode: state?.mode || 'text',
-                audio_samples: window.audioFeatures?.length || 0,
-                video_detections: window.videoDetections?.length || 0
-            },
-            temperament: temperament,
-            values: values,
-            communication_style: communication,
-            thinking_patterns: thinking,
-            emotional_profile: emotional,
-            realtime_signals: localAnalyzers,  // v20.6 — tous signaux temps réel exploités
-            persona_draft: personaDraft,
-            confidence: {
-                global: globalConfidence,
-                global_grade: qualityGrade,
-                pillars: confidence,
-                warnings: [
-                    ...(dp && dp.reticenceScore > 50 ? ['HIGH_RETICENCE — Clone base sur divulgation limitee'] : []),
-                    ...(mandatoryBelow75.length > 0 ? ['INCOMPLETE_PILLARS — Piliers faibles: ' + mandatoryBelow75.join(', ')] : [])
-                ]
-            },
-            data_quality: {
-                grade: qualityGrade,
-                completeness: completeness,
-                global_confidence: globalConfidence,
-                mandatory_below_75: mandatoryBelow75,
-                user_msg_count: userMsgs.length,
+
+            // ── QUALITÉ DE L'ENTRETIEN ────────────────────────────────────
+            interview_quality: {
+                grade: coverageGrade,
+                questions_count: convSystem.questionCount || 0,
                 total_words: totalWords,
-                recommendation: qualityGrade === 'F' ? 'Re-interview necessaire' :
-                    qualityGrade === 'D' ? 'Donnees exploitables mais incompletes' :
-                    qualityGrade === 'C' ? 'Clone utilisable avec precautions' : 'Clone fiable'
+                reticence_level: Math.round(dp?.reticenceScore || 0),
+                dimensions_coverage: dimensionsCoverage,
+                confidence_global: globalConfidence,
+                warnings: [
+                    ...(dp && dp.reticenceScore > 60 ? ['HAUTE_RETICENCE — certains traits sous-représentés'] : []),
+                    ...(coverageScore < 5 ? ['COUVERTURE_INSUFFISANTE — relancer un entretien ciblé'] : [])
+                ],
+                mode: state?.mode || 'text'
             },
-            global_config: {
-                recommended_temperature: 0.8,
-                recommended_top_p: 0.9,
-                response_length: communication?.clone_instructions?.response_length_avg || '80-200 mots',
-                priority_order: ['communication_style','thinking_patterns','temperament','v20_local_analyzers','values','emotional_profile','persona_draft']
+
+            // ── PERSONNALITÉ ──────────────────────────────────────────────
+            personality: {
+                big_five: {
+                    O: {
+                        score: temperament?.openness?.score || 50,
+                        level: temperament?.openness?.level || 'medium',
+                        facets: temperament?.openness?.facets || {},
+                        confidence: confidence?.traits?.score || 0,
+                        evidence: temperament?.openness?.evidence || [],
+                        convergence_note: temperament?.openness?.convergence_note || '',
+                        convergence_adjusted: temperament?.openness?.convergence_adjusted || false
+                    },
+                    C: {
+                        score: temperament?.conscientiousness?.score || 50,
+                        level: temperament?.conscientiousness?.level || 'medium',
+                        facets: temperament?.conscientiousness?.facets || {},
+                        confidence: confidence?.traits?.score || 0,
+                        evidence: temperament?.conscientiousness?.evidence || [],
+                        convergence_note: temperament?.conscientiousness?.convergence_note || '',
+                        convergence_adjusted: temperament?.conscientiousness?.convergence_adjusted || false
+                    },
+                    E: {
+                        score: temperament?.extraversion?.score || 50,
+                        level: temperament?.extraversion?.level || 'medium',
+                        facets: temperament?.extraversion?.facets || {},
+                        confidence: confidence?.traits?.score || 0,
+                        evidence: temperament?.extraversion?.evidence || [],
+                        convergence_note: temperament?.extraversion?.convergence_note || '',
+                        convergence_adjusted: temperament?.extraversion?.convergence_adjusted || false
+                    },
+                    A: {
+                        score: temperament?.agreeableness?.score || 50,
+                        level: temperament?.agreeableness?.level || 'medium',
+                        facets: temperament?.agreeableness?.facets || {},
+                        confidence: confidence?.traits?.score || 0,
+                        evidence: temperament?.agreeableness?.evidence || [],
+                        convergence_note: temperament?.agreeableness?.convergence_note || '',
+                        convergence_adjusted: temperament?.agreeableness?.convergence_adjusted || false
+                    },
+                    N: {
+                        score: temperament?.neuroticism?.score || 50,
+                        level: temperament?.neuroticism?.level || 'medium',
+                        facets: temperament?.neuroticism?.facets || {},
+                        confidence: confidence?.traits?.score || 0,
+                        evidence: temperament?.neuroticism?.evidence || [],
+                        convergence_note: temperament?.neuroticism?.convergence_note || '',
+                        convergence_adjusted: temperament?.neuroticism?.convergence_adjusted || false
+                    }
+                },
+                values: {
+                    hierarchy: values?.hierarchy || [],
+                    core_motivations: values?.core_motivations || [],
+                    tensions: values?.tensions || []
+                },
+                behavioral_patterns: realtimeObserved.behavioral_patterns,
+                response_style_patterns: realtimeObserved.response_style_patterns
+            },
+
+            // ── COMMUNICATION ─────────────────────────────────────────────
+            communication: communicationPure,
+
+            // ── COGNITION ─────────────────────────────────────────────────
+            cognition: {
+                decision_making: thinking?.decision_making || {},
+                problem_solving: thinking?.problem_solving || {},
+                learning_style: thinking?.learning_style || {},
+                meta_cognition: thinking?.meta_cognition || {},
+                complexity_handling: thinking?.complexity_handling || {}
+            },
+
+            // ── PROFIL ÉMOTIONNEL ─────────────────────────────────────────
+            emotional: {
+                baseline: emotional?.baseline_mood || {},
+                triggers: emotional?.triggers || {},
+                regulation: emotional?.regulation_strategies || [],
+                empathy: emotional?.empathy_profile || {},
+                stress_response: emotional?.stress_response || {},
+                relational_style: emotional?.relational_style || {}
+            },
+
+            // ── BIOGRAPHIE ────────────────────────────────────────────────
+            biography: {
+                anecdotes: personaDraft?.anecdotes || [],
+                relationships: personaDraft?.relationships_described || [],
+                life_history: personaDraft?.time_references || [],
+                habitual_behaviors: personaDraft?.habitual_behaviors || [],
+                people_mentioned: personaDraft?.people_mentioned || [],
+                emotions_expressed: personaDraft?.emotions_expressed || []
+            },
+
+            // ── SIGNAUX OBSERVÉS (données temps réel brutes) ──────────────
+            observed_signals: realtimeObserved,
+
+            // ── CONVERGENCE ───────────────────────────────────────────────
+            convergence: {
+                method: 'multi-source-free-reasoning',
+                adjustments: {},  // rempli après le 7e appel
+                confidence: 'pending',
+                insight: ''
             }
         };
         
@@ -9179,19 +9298,39 @@ async function generateCloneBrain() {
                         console.log('[Convergence] ' + key + ' ajuste : ' + originalScore + ' → ' + cr.final + ' (' + cr.note + ')');
                     }
                 }
-                // Attacher le rapport de convergence au brain
-                window._cloneBrainJSON.convergence_report = convergenceResult;
-                window._cloneBrainJSON.convergence_report._generated = new Date().toISOString();
-                console.log('[Convergence] Rapport attaché. Insight:', convergenceResult.main_insight);
+                // v21.0 — Attacher la convergence dans le schéma CLONE-PERSONALITY-1.0
+                const traitMapConv = { O: 'O', C: 'C', E: 'E', A: 'A', N: 'N' };
+                const adjustments = {};
+                for (const key of ['O','C','E','A','N']) {
+                    const cr2 = convergenceResult[key];
+                    if (cr2) {
+                        adjustments[key] = {
+                            llm_score: cr2.llm,
+                            signal_score: cr2.signal,
+                            delta: cr2.delta,
+                            verdict: cr2.verdict,
+                            final_score: cr2.final,
+                            reasoning: cr2.note || ''
+                        };
+                    }
+                }
+                window._cloneBrainJSON.convergence = {
+                    method: 'multi-source-free-reasoning',
+                    adjustments,
+                    confidence: convergenceResult.overall_confidence || 'medium',
+                    insight: convergenceResult.main_insight || '',
+                    attachment_verdict: convergenceResult.attachment || {},
+                    generated: new Date().toISOString()
+                };
+                console.log('[Convergence v21] Rapport intégré. Insight:', convergenceResult.main_insight);
             }
         } catch(convErr) {
             console.warn('[Convergence] Appel LLM echoue, scores non ajustes:', convErr.message);
         }
 
+        // v21.0 — Le JSON est un portrait psychologique pur — pas de clone_prompt dans le JSON
+        // generateClonePromptFromBrain reste disponible pour le ZIP optionnel uniquement
         window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
-        // v20.9 — Injecter clone_prompt directement dans le brain JSON pour usage custom bot
-        window._cloneBrainJSON.clone_prompt = window._clonePrompt;
-        window._cloneBrainJSON._instructions.usage = 'Coller clone_prompt dans le system prompt de votre LLM pour activer le clone. Le JSON complet fournit les détails fins.';
         
         setCloneStep(6, 'done');
         spinnerEl.style.display = 'none';
@@ -9523,4 +9662,4 @@ window.CloneBrain = {
     }
 };
 
-console.log('[CloneBrain] v20.9 loaded — CLONE-BRAIN-1.0 | multi-pass Big Five | clone_prompt | convergence libre');
+console.log('[CloneBrain] v21.0 loaded — CLONE-PERSONALITY-1.0 | portrait psychologique pur | multi-pass | convergence libre');
