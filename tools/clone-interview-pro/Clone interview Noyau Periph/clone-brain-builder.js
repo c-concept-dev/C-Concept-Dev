@@ -9063,9 +9063,15 @@ async function generateCloneBrain() {
 
             convergencePrompt += '\nTACHE : Pour chaque trait Big Five, determine si les deux sources CONVERGENT ou DIVERGENT.\n';
             convergencePrompt += '- CONVERGENCE (ecart < 15 points) : conserver le score LLM.\n';
-            convergencePrompt += '- DIVERGENCE (ecart >= 15 points) : calculer la MOYENNE PONDEREE (LLM = 60%, signal temps reel = 40%) et l\'indiquer.\n';
-            convergencePrompt += '- Si reserve > 60% : augmenter le poids signal temps reel a 50%.\n';
-            convergencePrompt += 'Raisonne librement. Ne hardcode aucune regle. Adapte ton jugement au contexte specifique de cet entretien.\n\n';
+            convergencePrompt += '- DIVERGENCE (ecart >= 15 points) : calculer la MOYENNE PONDEREE selon les regles ci-dessous.\n';
+            convergencePrompt += '\nREGLES DE PONDERATION PAR TRAIT (la reserve affecte les traits differemment) :\n';
+            convergencePrompt += 'C — Conscienciosite : reserve elevee = LLM SURESTIME C (la routine de survie passe pour de l\'ordre). Poids : LLM=40%, signal=60% si reserve > 50%.\n';
+            convergencePrompt += 'E — Extraversion : reserve elevee = LLM SOUS-ESTIME E (la personne semble plus introvertie qu\'elle n\'est). Poids : LLM=70%, signal=30% si reserve > 50% — NE PAS baisser E.\n';
+            convergencePrompt += 'A — Agreabilite : reserve elevee = LLM SOUS-ESTIME A (la personne semble moins cooperative qu\'elle n\'est). Poids : LLM=70%, signal=30% si reserve > 50% — NE PAS baisser A.\n';
+            convergencePrompt += 'N — Nevrosisme : reserve elevee = LLM SURESTIME N (la resistance passe pour de l\'anxiete). Poids : LLM=40%, signal=60% si reserve > 50%.\n';
+            convergencePrompt += 'O — Ouverture : reserve moderement affectee. Poids standard : LLM=60%, signal=40%.\n';
+            convergencePrompt += '\nATTENTION : Pour E et A avec reserve elevee, le score LLM est probablement DEJA trop bas. Ne pas le reduire davantage. Si signal > LLM sur E ou A : corriger vers le haut.\n';
+            convergencePrompt += 'Raisonne librement. Adapte ton jugement au contexte specifique de cet entretien.\n\n';
             convergencePrompt += 'Retourne UNIQUEMENT ce JSON :\n';
             convergencePrompt += '{\n';
             convergencePrompt += '  "O": { "llm": 66, "signal": 70, "delta": 4, "verdict": "convergent", "final": 66, "note": "..." },\n';
@@ -9355,4 +9361,4 @@ window.CloneBrain = {
     }
 };
 
-console.log('[CloneBrain] v20.7 loaded — CLONE-BRAIN-1.0 | portraitiste neutre | règles C+N | convergence multi-sources');
+console.log('[CloneBrain] v20.8 loaded — CLONE-BRAIN-1.0 | convergence E/A/C/N différenciée');
