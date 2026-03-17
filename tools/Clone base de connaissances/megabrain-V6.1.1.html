@@ -1,0 +1,2131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MegaBrain V6.1.1 — CLONE-BRAIN Knowledge Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════
+   CHARTE GRAPHIQUE — C Concept&Dev
+   Palette: Vert Sauge · Beige Sable · Sable · Mer · Blanc
+   Police: Montserrat 400/500/600/700
+   ══════════════════════════════════════════════ */
+:root {
+    --vert-sauge: #C8D0C3;
+    --beige-sable: #D8CDBB;
+    --sable: #E6D7C3;
+    --mer: #8FAFB1;
+    --mer-dark: #6D9597;
+    --mer-light: #A8C5C7;
+    --blanc: #FFFFFF;
+    --noir: #000000;
+    --gris-texte: #333333;
+    --gris-sub: #666666;
+    --gris-light: #999999;
+    --vert-ok: #6BA37E;
+    --rose-err: #C4616C;
+    --or-warn: #C4A24E;
+    --bg: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.12);
+    --shadow-sm: 0 4px 15px rgba(0,0,0,0.08);
+    --shadow-hover: 0 12px 40px rgba(0,0,0,0.16);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Montserrat', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--gris-texte);
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding: 40px 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--blanc);
+    border-radius: 20px;
+    padding: 50px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 1;
+}
+
+/* ══════ HEADER ══════ */
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 48px 32px 36px;
+    background: var(--blanc);
+    border-radius: var(--radius);
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--mer), var(--vert-sauge), var(--mer));
+}
+
+.header .badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--mer);
+    background: rgba(143,175,177,0.1);
+    border: 1px solid rgba(143,175,177,0.3);
+    border-radius: 20px;
+    padding: 5px 16px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.header h1 {
+    font-weight: 700;
+    font-size: 2.8rem;
+    color: var(--mer);
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+}
+
+.header .subtitle {
+    color: var(--gris-sub);
+    font-size: 0.95rem;
+    font-weight: 400;
+}
+
+.header .version {
+    font-size: 0.7rem;
+    color: var(--gris-light);
+    margin-top: 12px;
+    font-family: 'Courier New', monospace;
+}
+
+/* ══════ DROP ZONES ══════ */
+.dropzone {
+    border: 2px dashed var(--beige-sable);
+    border-radius: var(--radius);
+    padding: 40px;
+    text-align: center;
+    background: var(--blanc);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin-bottom: 16px;
+}
+
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--mer);
+    background: rgba(143,175,177,0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(143,175,177,0.15);
+}
+
+.dropzone .icon { font-size: 2.4rem; margin-bottom: 12px; }
+.dropzone .label { font-size: 1rem; font-weight: 600; color: var(--gris-texte); }
+.dropzone .sublabel { font-size: 0.82rem; color: var(--gris-sub); margin-top: 6px; }
+.dropzone input { display: none; }
+
+.dropzone.cumul { border-color: var(--mer-light); padding: 28px; }
+.dropzone.cumul:hover { border-color: var(--mer); background: rgba(143,175,177,0.06); box-shadow: 0 8px 30px rgba(143,175,177,0.12); }
+.dropzone.cumul .label { color: var(--mer); }
+
+/* ══════ MEGA LOADED BAR ══════ */
+.mega-loaded {
+    background: var(--blanc);
+    border: 1px solid var(--beige-sable);
+    border-left: 4px solid var(--mer);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    font-size: 0.82rem;
+    display: none;
+    box-shadow: var(--shadow-sm);
+}
+
+.mega-loaded .remove-btn {
+    float: right;
+    background: none;
+    border: 1px solid var(--rose-err);
+    color: var(--rose-err);
+    border-radius: 6px;
+    padding: 3px 12px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: 'Montserrat', sans-serif;
+    transition: all 0.2s;
+}
+
+.mega-loaded .remove-btn:hover { background: var(--rose-err); color: var(--blanc); }
+
+/* ══════ CONFIG PANEL ══════ */
+.config-panel {
+    background: var(--sable);
+    border: 1px solid var(--beige-sable);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 24px;
+    display: none;
+}
+
+.config-panel.visible { display: block; }
+
+.config-panel h3 {
+    font-size: 0.85rem;
+    color: var(--mer);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.config-field label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--gris-sub);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.config-field input, .config-field select, .config-field textarea {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--blanc);
+    border: 1px solid var(--beige-sable);
+    border-radius: var(--radius-sm);
+    color: var(--gris-texte);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.config-field input:focus, .config-field select:focus, .config-field textarea:focus {
+    border-color: var(--mer);
+    box-shadow: 0 0 0 3px rgba(143,175,177,0.15);
+}
+
+.config-field select { cursor: pointer; }
+.config-field textarea { resize: vertical; min-height: 56px; }
+
+.config-row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+.checkbox-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+}
+
+.checkbox-field input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: var(--mer);
+    cursor: pointer;
+}
+
+.checkbox-field label {
+    font-size: 0.85rem;
+    color: var(--gris-texte);
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+}
+
+/* ══════ DOCUMENT LIST ══════ */
+.doc-card {
+    background: var(--blanc);
+    border: 1px solid var(--beige-sable);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: slideIn 0.3s ease;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+
+.doc-card:hover { border-color: var(--mer-light); box-shadow: var(--shadow); }
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.doc-card .doc-icon { font-size: 1.2rem; }
+.doc-card .doc-info { flex: 1; }
+.doc-card .doc-title { font-weight: 600; font-size: 0.88rem; }
+.doc-card .doc-meta { font-size: 0.72rem; color: var(--gris-sub); margin-top: 2px; }
+
+.doc-card .doc-stats {
+    display: flex;
+    gap: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.doc-card .stat {
+    background: var(--sable);
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: var(--mer-dark);
+    border: 1px solid var(--beige-sable);
+}
+
+/* ══════ PRIORITY SELECTOR (NEW V6.1) ══════ */
+.doc-card .priority-select {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    border: 1px solid var(--beige-sable);
+    border-radius: 4px;
+    background: var(--blanc);
+    color: var(--mer-dark);
+    cursor: pointer;
+    outline: none;
+}
+.doc-card .priority-select:focus { border-color: var(--mer); }
+.priority-select option { font-weight: 500; }
+
+.doc-card .remove-btn {
+    background: none;
+    border: none;
+    color: var(--gris-light);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.doc-card .remove-btn:hover { color: var(--rose-err); background: rgba(196,97,108,0.08); }
+
+/* ══════ GENERATE BUTTON ══════ */
+.generate-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+    border: none;
+    border-radius: var(--radius);
+    color: var(--blanc);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+    display: none;
+    box-shadow: 0 4px 15px rgba(143,175,177,0.3);
+    margin-top: 20px;
+}
+
+.generate-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(143,175,177,0.4);
+}
+
+.generate-btn:active { transform: scale(1); }
+.generate-btn.visible { display: block; }
+.generate-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ══════ PROGRESS ══════ */
+.progress-area {
+    margin-top: 24px;
+    display: none;
+}
+
+.progress-area.visible { display: block; }
+
+.progress-bar-outer {
+    background: var(--sable);
+    border-radius: 6px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--mer), var(--vert-sauge));
+    border-radius: 6px;
+    width: 0%;
+    transition: width 0.3s;
+}
+
+.progress-log {
+    background: var(--sable);
+    border: 1px solid var(--beige-sable);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    max-height: 320px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    color: var(--gris-sub);
+}
+
+.log-entry.success { color: var(--vert-ok); }
+.log-entry.warn { color: var(--or-warn); }
+.log-entry.error { color: var(--rose-err); }
+.log-entry.info { color: var(--mer); }
+
+/* ══════ RESULTS ══════ */
+.results {
+    margin-top: 28px;
+    display: none;
+}
+
+.results.visible { display: block; }
+
+.results-banner {
+    background: var(--sable);
+    border: 1px solid var(--vert-ok);
+    border-left: 5px solid var(--vert-ok);
+    border-radius: var(--radius);
+    padding: 16px 24px;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+}
+
+.results-banner strong { color: var(--vert-ok); }
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.result-stat {
+    background: var(--blanc);
+    border: 1px solid var(--beige-sable);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.result-stat .number {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--mer);
+    font-family: 'Courier New', monospace;
+}
+
+.result-stat .label {
+    font-size: 0.65rem;
+    color: var(--gris-light);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 3px;
+    font-weight: 600;
+}
+
+/* ══════ DOWNLOAD BUTTON ══════ */
+.download-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--blanc);
+    border: 2px solid var(--mer);
+    border-radius: var(--radius);
+    color: var(--mer);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.download-btn:hover {
+    background: linear-gradient(135deg, var(--mer) 0%, var(--vert-sauge) 100%);
+    color: var(--blanc);
+    border-color: transparent;
+    box-shadow: 0 4px 15px rgba(143,175,177,0.3);
+}
+
+/* ══════ STATS TABLE ══════ */
+.doc-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 0.78rem;
+    background: var(--blanc);
+}
+
+.doc-stats-table th {
+    background: var(--vert-sauge);
+    color: var(--gris-texte);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--beige-sable);
+}
+
+.doc-stats-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--beige-sable);
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+}
+
+.doc-stats-table td:first-child {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+}
+
+.doc-stats-table tr:hover td { background: var(--sable); }
+
+/* ══════ TOAST ══════ */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast {
+    background: var(--blanc);
+    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    box-shadow: var(--shadow);
+    font-size: 0.82rem;
+    font-weight: 500;
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+    border-left: 4px solid var(--mer);
+    max-width: 400px;
+    font-family: 'Montserrat', sans-serif;
+    color: var(--gris-texte);
+}
+
+.toast.success { border-left-color: var(--vert-ok); }
+.toast.error { border-left-color: var(--rose-err); }
+.toast.warn { border-left-color: var(--or-warn); }
+
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+/* ══════ SCROLLBAR ══════ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--sable); }
+::-webkit-scrollbar-thumb { background: var(--beige-sable); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--mer-light); }
+
+/* ══════ THEME BADGES ══════ */
+.theme-badge {
+    display: inline-block;
+    background: var(--sable);
+    border: 1px solid var(--beige-sable);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--gris-sub);
+    margin: 3px;
+}
+
+/* ══════ PREVIEW ══════ */
+.preview-panel {
+    background: var(--blanc);
+    border: 1px solid var(--beige-sable);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-top: 24px;
+    display: none;
+    box-shadow: var(--shadow-sm);
+}
+
+.preview-panel.visible { display: block; }
+
+.preview-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--beige-sable);
+    padding-bottom: 8px;
+}
+
+.preview-tab {
+    padding: 6px 14px;
+    border: none;
+    background: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--gris-light);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.preview-tab:hover { background: var(--sable); color: var(--gris-sub); }
+.preview-tab.active { background: var(--mer); color: var(--blanc); }
+
+.preview-content {
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    line-height: 1.7;
+}
+
+.preview-chunk {
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    background: var(--sable);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--mer);
+}
+
+.chunk-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+}
+
+.chunk-type.concept { background: rgba(143,175,177,0.2); color: var(--mer-dark); }
+.chunk-type.entity { background: rgba(107,163,126,0.15); color: var(--vert-ok); }
+.chunk-type.relation { background: rgba(196,162,78,0.15); color: var(--or-warn); }
+
+.chunk-label { font-weight: 600; }
+.chunk-def { color: var(--gris-sub); margin-top: 3px; font-size: 0.76rem; }
+.chunk-meta { color: var(--gris-light); font-size: 0.7rem; margin-top: 4px; font-family: 'Courier New', monospace; }
+
+/* ══════ FOOTER ══════ */
+.footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid var(--beige-sable);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--noir);
+}
+
+/* ══════ RESPONSIVE ══════ */
+@media (max-width: 768px) {
+    .container { padding: 25px; }
+    .header h1 { font-size: 2rem; }
+    .config-row, .config-row.three { grid-template-columns: 1fr; }
+    .results-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="container">
+
+    <div class="header">
+        <div class="badge">CLONE-BRAIN-1.0 · Knowledge Generator</div>
+        <h1>MegaBrain V6.1.1</h1>
+        <p class="subtitle">Fusionner N Knowledge Packages → Cerveau Connaissances pour Clone IA</p>
+        <div class="version">C Concept&Dev — v6.1.1 — brain_knowledge.json</div>
+    </div>
+
+    <!-- IMPORT EXISTING BRAIN -->
+    <div class="dropzone cumul" id="megaDropzone">
+        <div class="icon">⊕</div>
+        <div class="label">Charger un brain_knowledge.json existant (cumul)</div>
+        <div class="sublabel">Glisser un brain_knowledge.json existant pour ajouter de nouveaux documents par-dessus</div>
+        <input type="file" id="megaInput" accept=".json,.zip">
+    </div>
+
+    <div class="mega-loaded" id="megaLoaded">
+        <span id="megaLoadedInfo"></span>
+        <button onclick="clearExistingMega()" class="remove-btn">✕ Retirer</button>
+    </div>
+
+    <!-- DROP ZONE KP-CANON -->
+    <div class="dropzone" id="dropzone">
+        <div class="icon">📦</div>
+        <div class="label">Déposer vos ZIP Knowledge Packages ici</div>
+        <div class="sublabel">KP-CANON-1.0 (.zip) — Glisser-déposer ou cliquer pour sélectionner</div>
+        <input type="file" id="fileInput" multiple accept=".zip">
+    </div>
+
+    <!-- CONFIG -->
+    <div class="config-panel" id="configPanel">
+        <h3>⚙ Configuration du Clone</h3>
+        <div class="config-row">
+            <div class="config-field">
+                <label>Nom du clone</label>
+                <input type="text" id="cfgName" value="" placeholder="Ex: Dr Martin — Expert Couple">
+            </div>
+            <div class="config-field">
+                <label>Domaine principal</label>
+                <input type="text" id="cfgDomain" value="" placeholder="Auto-détecté">
+            </div>
+        </div>
+        <div class="config-row three">
+            <div class="config-field">
+                <label>Langue</label>
+                <select id="cfgLang">
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                    <option value="auto">Auto</option>
+                </select>
+            </div>
+            <div class="config-field">
+                <label>Niveau d'expertise</label>
+                <select id="cfgLevel">
+                    <option value="expert">Expert</option>
+                    <option value="avance">Avancé</option>
+                    <option value="intermediaire">Intermédiaire</option>
+                    <option value="debutant">Débutant</option>
+                </select>
+            </div>
+            <div class="config-field">
+                <label>Brain ID</label>
+                <input type="text" id="cfgBrainId" value="" placeholder="B2-CLIENT01">
+            </div>
+        </div>
+        <div class="config-field">
+            <label>Description du clone</label>
+            <textarea id="cfgDesc" placeholder="Description professionnelle du clone..."></textarea>
+        </div>
+        <div class="checkbox-field">
+            <input type="checkbox" id="cfgPages">
+            <label for="cfgPages">Inclure les pages (texte intégral des sources — augmente la taille)</label>
+        </div>
+    </div>
+
+    <!-- DOCUMENT LIST -->
+    <div class="doc-list" id="docList"></div>
+
+    <!-- GENERATE BUTTON -->
+    <button class="generate-btn" id="generateBtn" onclick="generateBrain()">
+        🧠 Générer brain_knowledge.json
+    </button>
+
+    <!-- PREVIEW -->
+    <div class="preview-panel" id="previewPanel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4 style="color:var(--mer); margin:0; font-size:0.9rem;">Aperçu des données</h4>
+            <span id="previewCount" style="font-size:0.72rem; color:var(--gris-light); font-family:'Courier New',monospace;"></span>
+        </div>
+        <div class="preview-tabs" id="previewTabs"></div>
+        <div class="preview-content" id="previewContent"></div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-area" id="progressArea">
+        <div class="progress-bar-outer">
+            <div class="progress-bar-inner" id="progressBar"></div>
+        </div>
+        <div class="progress-log" id="progressLog"></div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results" id="results">
+        <div id="resultsBanner"></div>
+        <div class="results-grid" id="resultsGrid"></div>
+        <div id="resultsTable"></div>
+        <div id="resultsThemes"></div>
+        <div style="margin-top:16px;">
+            <button class="download-btn" id="downloadBtn" onclick="downloadBrain()">
+                ⬇ Télécharger brain_knowledge.json
+            </button>
+        </div>
+    </div>
+
+    <div class="footer">
+        Charte Graphique © — C Concept&Dev
+    </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MEGABRAIN V6.1 — CLONE-BRAIN Knowledge Generator
+// Schema: CLONE-BRAIN-1.0
+// NEW V6.1: article_index{} + library[].priority + charte graphique
+// V6.1.1 FIXES: FIX-02 dedup titre, FIX-03 bridges fuzzy+entity, FIX-04 glossaire norm
+// Input: ZIP KP-CANON-1.0 + optional existing brain_knowledge.json
+// Output: ONE brain_knowledge.json (HEAD + DATA + PAGES optional)
+// ═══════════════════════════════════════════════════════════════
+
+const STATE = {
+    documents: [],
+    brain: null,
+    existingBrain: null
+};
+
+// ═══ DRAG & DROP SETUP ═══
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const megaDropzone = document.getElementById('megaDropzone');
+const megaInput = document.getElementById('megaInput');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+megaDropzone.addEventListener('click', () => megaInput.click());
+megaDropzone.addEventListener('dragover', e => { e.preventDefault(); megaDropzone.classList.add('dragover'); });
+megaDropzone.addEventListener('dragleave', () => megaDropzone.classList.remove('dragover'));
+megaDropzone.addEventListener('drop', e => { e.preventDefault(); megaDropzone.classList.remove('dragover'); if (e.dataTransfer.files[0]) loadExistingBrain(e.dataTransfer.files[0]); });
+megaInput.addEventListener('change', e => { if (e.target.files[0]) loadExistingBrain(e.target.files[0]); });
+
+// ═══ LOAD EXISTING BRAIN (cumulative) ═══
+async function loadExistingBrain(file) {
+    try {
+        let data;
+        if (file.name.endsWith('.zip')) {
+            const zip = await JSZip.loadAsync(file);
+            const jsonFile = Object.keys(zip.files).find(f => f.endsWith('.json') && !f.startsWith('__MACOSX'));
+            if (!jsonFile) throw new Error('Pas de JSON dans le ZIP');
+            data = JSON.parse(await zip.files[jsonFile].async('text'));
+        } else {
+            data = JSON.parse(await file.text());
+        }
+
+        // Detect format: V6 (CLONE-BRAIN) or legacy V5/V4
+        if (data._clone || data._instructions) {
+            STATE.existingBrain = data;
+        } else if (data.meta && data.chunks) {
+            STATE.existingBrain = {
+                _legacy: true,
+                _source_version: data.meta?.version || 'legacy',
+                library: (data.documents || []).map(d => ({
+                    id: d.id, title: d.titre || d.title || d.id,
+                    author: d.auteur || d.author || null,
+                    domain: d.domain || 'general',
+                    pages: d.pages_total || 0,
+                    priority: 3, // default priority for legacy
+                    stats: d.stats || {}
+                })),
+                concepts: (data.chunks || []).filter(c => c.type === 'concept'),
+                entities: (data.chunks || []).filter(c => c.type === 'entity'),
+                relations: (data.chunks || []).filter(c => c.type === 'relation'),
+                glossaire: data.generation_resources?.glossaire_unifie || {},
+                _raw_legacy: data
+            };
+        } else {
+            throw new Error('Format JSON non reconnu');
+        }
+
+        const info = document.getElementById('megaLoadedInfo');
+        const bar = document.getElementById('megaLoaded');
+
+        if (STATE.existingBrain._legacy) {
+            const raw = STATE.existingBrain._raw_legacy;
+            info.innerHTML = `📂 <strong>Legacy ${STATE.existingBrain._source_version}</strong> — ${raw.documents?.length || 0} docs, ${raw.chunks?.length || 0} chunks (sera migré vers CLONE-BRAIN-1.0)`;
+        } else {
+            const lib = data.library || [];
+            const cCount = (data.concepts || []).length;
+            const eCount = (data.entities || []).length;
+            const rCount = (data.relations || []).length;
+            info.innerHTML = `📂 <strong>CLONE-BRAIN-1.0</strong> — ${lib.length} docs, ${cCount}C/${eCount}E/${rCount}R`;
+        }
+        
+        bar.style.display = 'block';
+        showToast('📂 Cerveau existant chargé — mode cumulatif activé', 'success');
+    } catch (err) {
+        showToast(`❌ Erreur chargement: ${err.message}`, 'error');
+    }
+}
+
+function clearExistingMega() {
+    STATE.existingBrain = null;
+    document.getElementById('megaLoaded').style.display = 'none';
+    showToast('🗑️ Cerveau existant retiré', 'info');
+}
+
+// ═══ HANDLE KP-CANON ZIP FILES ═══
+async function handleFiles(files) {
+    for (const file of files) {
+        if (!file.name.endsWith('.zip')) {
+            showToast(`⚠️ ${file.name} ignoré (ZIP requis)`, 'warn');
+            continue;
+        }
+        try {
+            const kp = await parseKPZip(file);
+            STATE.documents.push({ file, name: file.name, kp, priority: 3 });
+            showToast(`✅ ${file.name}`, 'success');
+        } catch (err) {
+            showToast(`❌ ${file.name}: ${err.message}`, 'error');
+        }
+    }
+    renderDocList();
+}
+
+async function parseKPZip(file) {
+    const zip = await JSZip.loadAsync(file);
+    const result = {};
+
+    async function parseEntry(entry) {
+        try { return JSON.parse(await entry.async('text')); } catch { return null; }
+    }
+
+    for (const [path, entry] of Object.entries(zip.files)) {
+        if (entry.dir || path.startsWith('__MACOSX')) continue;
+        const fname = path.split('/').pop().toLowerCase();
+
+        if (fname.includes('rnd32') && fname.endsWith('.json')) {
+            result['rnd32_canon'] = await parseEntry(entry);
+        } else if (fname.includes('pages') && fname.endsWith('.json')) {
+            result['pages_canon'] = await parseEntry(entry);
+        } else if (fname.includes('ensemble') && fname.endsWith('.json')) {
+            result['ensemble_canon'] = await parseEntry(entry);
+        } else if (fname === 'manifest.json' || fname.includes('manifest')) {
+            result['manifest'] = await parseEntry(entry);
+        } else if (fname.includes('graph') && fname.endsWith('.json')) {
+            result['graph'] = await parseEntry(entry);
+        } else if (fname.includes('documentdna') && fname.endsWith('.json')) {
+            result['documentDNA'] = await parseEntry(entry);
+        }
+    }
+
+    if (!result['rnd32_canon']) {
+        for (const [path, entry] of Object.entries(zip.files)) {
+            if (entry.dir || path.startsWith('__MACOSX')) continue;
+            if (path.endsWith('.json')) {
+                const data = await parseEntry(entry);
+                if (data && (data.concepts || data.entities)) {
+                    result['rnd32_canon'] = data;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!result['rnd32_canon']) throw new Error('Pas de rnd32_canon trouvé');
+    if (!result['pages_canon']) result['pages_canon'] = { pages: [] };
+
+    return result;
+}
+
+function removeDoc(idx) {
+    STATE.documents.splice(idx, 1);
+    renderDocList();
+}
+
+function setPriority(idx, val) {
+    STATE.documents[idx].priority = parseInt(val);
+}
+
+function renderDocList() {
+    const list = document.getElementById('docList');
+    const cfg = document.getElementById('configPanel');
+    const btn = document.getElementById('generateBtn');
+
+    if (STATE.documents.length === 0) {
+        list.innerHTML = '';
+        cfg.classList.remove('visible');
+        btn.classList.remove('visible');
+        return;
+    }
+
+    cfg.classList.add('visible');
+    btn.classList.add('visible');
+
+    list.innerHTML = STATE.documents.map((doc, i) => {
+        const rnd = doc.kp['rnd32_canon'];
+        const title = rnd.title || rnd.metadata?.title || doc.name;
+        const c = (rnd.concepts || []).length;
+        const e = (rnd.entities || []).length;
+        const r = (rnd.relations || []).length;
+        const p = (doc.kp['pages_canon']?.pages || []).length;
+        const pri = doc.priority || 3;
+
+        return `<div class="doc-card">
+            <span class="doc-icon">📄</span>
+            <div class="doc-info">
+                <div class="doc-title">${title.substring(0, 55)}${title.length > 55 ? '…' : ''}</div>
+                <div class="doc-meta">${doc.name}</div>
+            </div>
+            <div class="doc-stats">
+                <span class="stat">${c}C</span>
+                <span class="stat">${e}E</span>
+                <span class="stat">${r}R</span>
+                <span class="stat">${p}p</span>
+            </div>
+            <select class="priority-select" onchange="setPriority(${i}, this.value)" title="Priorité documentaire (1=annexe, 5=référence)">
+                <option value="1" ${pri===1?'selected':''}>★ Annexe</option>
+                <option value="2" ${pri===2?'selected':''}>★★ Secondaire</option>
+                <option value="3" ${pri===3?'selected':''}>★★★ Standard</option>
+                <option value="4" ${pri===4?'selected':''}>★★★★ Important</option>
+                <option value="5" ${pri===5?'selected':''}>★★★★★ Référence</option>
+            </select>
+            <button class="remove-btn" onclick="removeDoc(${i})">✕</button>
+        </div>`;
+    }).join('');
+
+    renderPreview();
+}
+
+// ═══ PREVIEW ═══
+function renderPreview() {
+    const panel = document.getElementById('previewPanel');
+    if (STATE.documents.length === 0) { panel.classList.remove('visible'); return; }
+    panel.classList.add('visible');
+
+    const types = ['concept', 'entity', 'relation'];
+    const tabs = document.getElementById('previewTabs');
+    const content = document.getElementById('previewContent');
+    const count = document.getElementById('previewCount');
+
+    let allItems = [];
+    for (const doc of STATE.documents) {
+        const rnd = doc.kp['rnd32_canon'];
+        for (const c of (rnd.concepts || [])) allItems.push({ ...c, _type: 'concept', _doc: doc.name });
+        for (const e of (rnd.entities || [])) allItems.push({ ...e, _type: 'entity', _doc: doc.name });
+        for (const r of (rnd.relations || [])) allItems.push({ ...r, _type: 'relation', _doc: doc.name });
+    }
+
+    count.textContent = `${allItems.length} éléments`;
+    tabs.innerHTML = types.map((t, i) =>
+        `<button class="preview-tab${i === 0 ? ' active' : ''}" onclick="switchPreviewTab('${t}', this)">${t}s (${allItems.filter(x => x._type === t).length})</button>`
+    ).join('');
+
+    switchPreviewTab('concept', tabs.querySelector('.preview-tab'));
+}
+
+function switchPreviewTab(type, btn) {
+    document.querySelectorAll('.preview-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    let items = [];
+    for (const doc of STATE.documents) {
+        const rnd = doc.kp['rnd32_canon'];
+        const list = type === 'concept' ? rnd.concepts : type === 'entity' ? rnd.entities : rnd.relations;
+        for (const item of (list || [])) items.push({ ...item, _doc: doc.name });
+    }
+
+    const content = document.getElementById('previewContent');
+    content.innerHTML = items.slice(0, 30).map(item => {
+        const label = item.label || item.name || `${item.source_label || ''} → ${item.target_label || ''}`;
+        const def = item.definition || item.description || item.label || '';
+        return `<div class="preview-chunk">
+            <span class="chunk-type ${type}">${type}</span>
+            <span class="chunk-label">${label.substring(0, 80)}</span>
+            <div class="chunk-def">${def.substring(0, 150)}${def.length > 150 ? '…' : ''}</div>
+            <div class="chunk-meta">${item._doc.substring(0, 30)}</div>
+        </div>`;
+    }).join('') + (items.length > 30 ? `<div style="padding:10px;color:var(--gris-light);font-size:0.75rem;text-align:center;">+${items.length - 30} éléments supplémentaires…</div>` : '');
+}
+
+// ═══ UTILITY FUNCTIONS ═══
+function showToast(msg, type = 'info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+}
+
+function log(msg, type = '') {
+    const el = document.getElementById('progressLog');
+    el.innerHTML += `<div class="log-entry ${type}">${msg}</div>`;
+    el.scrollTop = el.scrollHeight;
+}
+
+function setProgress(pct) {
+    document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function slugify(str) {
+    return (str || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
+// ═══ AUTEUR EXTRACTION PIPELINE ═══
+function _extractAuteurFromFilename(filename) {
+    if (!filename) return null;
+    const m1 = filename.match(/__([A-ZÀ-Ü][a-zà-ü]+(?:_[A-ZÀ-Ü][a-zà-ü]+)+)___/);
+    if (m1) return m1[1].replace(/_/g, ' ');
+    const m2 = filename.match(/^([A-ZÀ-Ü][a-zà-ü]+ [A-ZÀ-Ü][a-zà-ü]+)\s*[-–—]/);
+    if (m2) return m2[1];
+    const m3 = filename.match(/[-–—]\s*([A-ZÀ-Ü][a-zà-ü]+ [A-ZÀ-Ü][a-zà-ü]+(?:\s+[A-ZÀ-Ü][a-zà-ü]+)?)\s*(?:\(|__|\.)/);
+    if (m3) return m3[1];
+    return null;
+}
+
+function _shortDocId(filename, title) {
+    const src = (title || filename || 'doc').substring(0, 40);
+    const slug = slugify(src).substring(0, 20);
+    let hash = 0;
+    const full = filename + (title || '');
+    for (let i = 0; i < full.length; i++) hash = ((hash << 5) - hash) + full.charCodeAt(i);
+    const hex = Math.abs(hash).toString(16).substring(0, 4).toUpperCase();
+    return slug ? `${slug}_${hex}` : `doc_${hex}`;
+}
+
+function normalizeRelationType(type) {
+    if (!type) return 'relates_to';
+    const map = {
+        'cause_de': 'causes', 'cause': 'causes',
+        'necessite': 'requires', 'prerequisite': 'requires',
+        'contraste_avec': 'opposes', 'oppose': 'opposes',
+        'contradictoire': 'contradicts', 'contredit': 'contradicts',
+        'consequence_de': 'causes', 'consequence': 'causes',
+        'implique': 'enables', 'favorise': 'enables',
+        'previent': 'opposes',
+        'specialise': 'derives_from', 'sous_type_de': 'derives_from',
+        'precede': 'precedes', 'avant': 'precedes',
+        'illustre': 'illustrates', 'exemple_de': 'illustrates',
+        'nuance': 'nuances',
+        'articulates_with': 'articulates_with', 'articule_avec': 'articulates_with',
+        'predicts': 'predicts', 'predit': 'predicts'
+    };
+    const norm = type.toLowerCase().replace(/\s+/g, '_');
+    return map[norm] || norm;
+}
+
+function findLabel(concepts, entities, id) {
+    if (!id) return '?';
+    for (const c of concepts) { if (c.id === id) return c.label || c.name || id; }
+    for (const e of entities) { if (e.id === id) return e.label || e.name || id; }
+    return id;
+}
+
+// ═══ QA GENERATOR ═══
+function generateQA(type, item, docTitle) {
+    const qa = [];
+    const label = item.label || item.name || '';
+    
+    if (type === 'concept') {
+        qa.push(`Qu'est-ce que ${label} ?`);
+        if (item.definition && item.definition.length > 50) {
+            qa.push(`Comment fonctionne ${label} ?`);
+        }
+        if (docTitle) {
+            qa.push(`Que dit ${docTitle.substring(0, 40)} sur ${label.substring(0, 30)} ?`);
+        }
+        const def = (item.definition || '').toLowerCase();
+        if (def.includes('thérap') || def.includes('traitement')) qa.push(`Comment appliquer ${label} en pratique ?`);
+        if (def.includes('cause') || def.includes('prédic')) qa.push(`Quels sont les effets de ${label} ?`);
+    } else if (type === 'entity') {
+        const entityType = item.type || 'unknown';
+        if (entityType === 'person') {
+            qa.push(`Qui est ${label} ?`);
+            qa.push(`Quelle est la contribution de ${label} ?`);
+        } else if (entityType === 'method' || entityType === 'tool') {
+            qa.push(`Comment utiliser ${label} ?`);
+            qa.push(`À quoi sert ${label} ?`);
+        } else {
+            qa.push(`Qu'est-ce que ${label} ?`);
+        }
+    } else if (type === 'relation') {
+        const _s = item.source_label || item.source || '';
+        const _t = item.target_label || item.target || '';
+        const src = typeof _s === 'object' ? (_s.label || _s.id || '') : String(_s);
+        const tgt = typeof _t === 'object' ? (_t.label || _t.id || '') : String(_t);
+        qa.push(`Quel est le lien entre ${src.substring(0, 30)} et ${tgt.substring(0, 30)} ?`);
+        const relType = item.type || '';
+        if (relType.includes('cause') || relType === 'predicts') {
+            qa.push(`${src.substring(0, 30)} cause-t-il ${tgt.substring(0, 30)} ?`);
+        }
+    }
+
+    return qa.slice(0, 5);
+}
+
+// ═══ ENRICHED DEFINITION BUILDER ═══
+function enrichDef(originalDef, item, type, allConcepts, docTitle) {
+    let def = originalDef || '';
+    if (def.length < 20) return def;
+    
+    if (type === 'concept' && def.length < 200) {
+        const label = (item.label || '').toLowerCase();
+        const related = allConcepts.filter(c => {
+            const cDef = (c.definition || '').toLowerCase();
+            return c !== item && (cDef.includes(label) || label.includes((c.label || '').toLowerCase().substring(0, 10)));
+        }).slice(0, 2);
+        
+        if (related.length > 0) {
+            def += `. Ce concept s'articule avec ${related.map(r => r.label).join(' et ')}.`;
+        }
+    }
+    
+    return def;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V6.1 NEW: ARTICLE INDEX BUILDER
+// Creates an inverted index for exact lookup: article numbers,
+// law references, codes, etc.
+// ═══════════════════════════════════════════════════════════════
+function buildArticleIndex(concepts, entities, relations) {
+    const index = {};
+    
+    // Regex patterns for article/law/code references
+    const patterns = [
+        /(?:art(?:icle)?\.?\s*)(\d+(?:[.-]\d+)*(?:\s*(?:al(?:inéa)?\.?\s*\d+))?)/gi,
+        /(?:L\.?\s*)(\d+(?:-\d+)*)/gi,
+        /(?:R\.?\s*)(\d+(?:-\d+)*)/gi,
+        /(?:D\.?\s*)(\d+(?:-\d+)*)/gi,
+        /(?:CGI\s*art\.?\s*)(\d+(?:\s*(?:bis|ter|quater|quinquies))?)/gi,
+        /(?:article\s+)(\d+(?:[.-]\d+)*(?:\s*(?:al\.?\s*\d+))?)/gi
+    ];
+    
+    function extractRefs(text) {
+        if (!text) return [];
+        const refs = [];
+        for (const pattern of patterns) {
+            pattern.lastIndex = 0;
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                // Normalize: remove spaces, lowercase
+                const ref = match[0].trim().replace(/\s+/g, ' ').toLowerCase();
+                const num = match[1].trim();
+                refs.push({ ref, num });
+            }
+        }
+        return refs;
+    }
+    
+    // Index concepts
+    for (const c of concepts) {
+        const searchText = `${c.label || ''} ${c.def || ''} ${(c.qa || []).join(' ')}`;
+        const refs = extractRefs(searchText);
+        for (const { ref, num } of refs) {
+            const key = `art_${num.replace(/\s+/g, '_')}`;
+            if (!index[key]) index[key] = { ref: ref, ids: [], docs: [] };
+            if (!index[key].ids.includes(c.id)) index[key].ids.push(c.id);
+            if (c.doc?.id && !index[key].docs.includes(c.doc.id)) index[key].docs.push(c.doc.id);
+        }
+    }
+    
+    // Index entities (laws, codes)
+    for (const e of entities) {
+        if (e.type === 'law' || e.type === 'regulation' || e.type === 'publication') {
+            const searchText = `${e.label || ''} ${e.def || ''}`;
+            const refs = extractRefs(searchText);
+            for (const { ref, num } of refs) {
+                const key = `art_${num.replace(/\s+/g, '_')}`;
+                if (!index[key]) index[key] = { ref: ref, ids: [], docs: [] };
+                if (!index[key].ids.includes(e.id)) index[key].ids.push(e.id);
+                if (e.doc?.id && !index[key].docs.includes(e.doc.id)) index[key].docs.push(e.doc.id);
+            }
+        }
+    }
+    
+    // Also index any standalone numeric references in labels
+    for (const c of [...concepts, ...entities]) {
+        const label = c.label || '';
+        // Direct numeric extraction from labels like "Art. 1242" or "Article L.121-1"
+        const directMatch = label.match(/(\d{2,}(?:[.-]\d+)*)/);
+        if (directMatch) {
+            const num = directMatch[1];
+            const key = `ref_${num.replace(/\./g, '_')}`;
+            if (!index[key]) index[key] = { ref: label.substring(0, 60), ids: [], docs: [] };
+            if (!index[key].ids.includes(c.id)) index[key].ids.push(c.id);
+            if (c.doc?.id && !index[key].docs.includes(c.doc.id)) index[key].docs.push(c.doc.id);
+        }
+    }
+    
+    return index;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN GENERATION PIPELINE
+// ═══════════════════════════════════════════════════════════════
+
+async function generateBrain() {
+    const btn = document.getElementById('generateBtn');
+    const progressArea = document.getElementById('progressArea');
+    const results = document.getElementById('results');
+
+    btn.disabled = true;
+    progressArea.classList.add('visible');
+    results.classList.remove('visible');
+    document.getElementById('progressLog').innerHTML = '';
+
+    const docs = STATE.documents;
+    const cfg = {
+        name: document.getElementById('cfgName').value || 'Clone Expert',
+        domain: document.getElementById('cfgDomain').value || '',
+        lang: document.getElementById('cfgLang').value,
+        level: document.getElementById('cfgLevel').value,
+        brainId: document.getElementById('cfgBrainId').value || 'B2-001',
+        desc: document.getElementById('cfgDesc').value,
+        includePages: document.getElementById('cfgPages').checked
+    };
+
+    log(`🧠 MegaBrain V6.1.1 — CLONE-BRAIN Generator`, 'info');
+    log(`📦 ${docs.length} nouveau(x) document(s) à traiter`, 'info');
+
+    // ═══ ACCUMULATORS ═══
+    const library = [];
+    const allConcepts = [];
+    const allEntities = [];
+    const allRelations = [];
+    const allPages = [];
+    const allGlossaire = {};
+    const allDomains = {};
+    let existingDocIds = new Set();
+
+    // ═══ PHASE 0: LOAD EXISTING BRAIN (CUMUL) ═══
+    if (STATE.existingBrain) {
+        const eb = STATE.existingBrain;
+        
+        if (eb._legacy) {
+            const raw = eb._raw_legacy;
+            log(`📂 Migration Legacy ${eb._source_version} → CLONE-BRAIN-1.0`, 'info');
+            
+            for (const d of (raw.documents || [])) {
+                library.push({
+                    id: d.id,
+                    title: d.titre || d.title || d.id,
+                    author: d.auteur || d.author || null,
+                    publisher: d.editeur || null,
+                    year: d.annee || null,
+                    pages: d.pages_total || 0,
+                    domain: d.domain || 'general',
+                    lang: d.langue || cfg.lang,
+                    priority: 3,
+                    stats: d.stats || {},
+                    top_concepts: [],
+                    qa: []
+                });
+                existingDocIds.add(d.id);
+            }
+            
+            for (const ch of (raw.chunks || [])) {
+                const docRef = { id: ch.document_id, title: ch.source?.titre || ch.document_id, author: ch.source?.auteur || null };
+                const ev = (ch.evidence_quotes || []).map((q, i) => [ch.pages?.[i] || '?', q]);
+                
+                if (ch.type === 'concept') {
+                    allConcepts.push({
+                        id: ch.chunk_id, label: ch.label, def: ch.definition || '',
+                        importance: ch.importance || 0.5, domain: ch.domain || 'general',
+                        doc: docRef, ev: ev, qa: generateQA('concept', ch)
+                    });
+                } else if (ch.type === 'entity') {
+                    allEntities.push({
+                        id: ch.chunk_id, label: ch.label, type: ch.entity_type || 'unknown',
+                        def: ch.definition || '', doc: docRef, ev: ev,
+                        qa: generateQA('entity', ch)
+                    });
+                } else if (ch.type === 'relation') {
+                    allRelations.push({
+                        id: ch.chunk_id,
+                        source: ch.source?.label || ch.label?.split('→')[0]?.trim() || '?',
+                        target: ch.target?.label || ch.label?.split('→')[1]?.trim() || '?',
+                        type: normalizeRelationType(ch.relation_type),
+                        label: ch.label || '', confidence: ch.confidence || 0.5,
+                        doc: docRef, page: ch.pages?.[0] || '?',
+                        qa: generateQA('relation', ch)
+                    });
+                }
+            }
+            
+            const gl = raw.generation_resources?.glossaire_unifie || {};
+            for (const [term, entry] of Object.entries(gl)) {
+                allGlossaire[term] = {
+                    def: typeof entry === 'object' ? (entry.definition || '') : entry,
+                    docs: typeof entry === 'object' ? (entry.sources || []).map(s => s.substring(0, 20)) : [],
+                    related_concepts: typeof entry === 'object' ? (entry.chunk_ids || []).slice(0, 5) : []
+                };
+            }
+            
+            log(`  ✅ Migré: ${library.length} docs, ${allConcepts.length}C/${allEntities.length}E/${allRelations.length}R`, 'success');
+            
+        } else {
+            for (const d of (eb.library || [])) {
+                library.push(d);
+                existingDocIds.add(d.id);
+            }
+            allConcepts.push(...(eb.concepts || []));
+            allEntities.push(...(eb.entities || []));
+            allRelations.push(...(eb.relations || []));
+            if (eb.glossaire) Object.assign(allGlossaire, eb.glossaire);
+            if (eb.pages) allPages.push(...eb.pages);
+            
+            log(`📂 CLONE-BRAIN existant: ${library.length} docs, ${allConcepts.length}C/${allEntities.length}E/${allRelations.length}R`, 'info');
+        }
+    }
+
+    setProgress(5);
+
+    // ═══ PHASE 1: PROCESS NEW DOCUMENTS ═══
+    log('📋 Phase 1: Traitement des nouveaux documents...', 'info');
+    const newAllConcepts = [];
+
+    for (let di = 0; di < docs.length; di++) {
+        const doc = docs[di];
+        const rnd = doc.kp['rnd32_canon'];
+        const pages = doc.kp['pages_canon'];
+        const ens = doc.kp['ensemble_canon'] || {};
+        const manifest = doc.kp['manifest'] || {};
+        const docPriority = doc.priority || 3;
+
+        const docId = _shortDocId(doc.name, rnd.title || rnd.metadata?.title || '');
+        const title = rnd.title || rnd.metadata?.title || doc.name;
+
+        // FIX-02: Dedup by ID AND by normalized title
+        if (existingDocIds.has(docId)) {
+            log(`  ⚠️ ${docId} déjà dans la base (ID) — ignoré`, 'warn');
+            continue;
+        }
+        const normTitle = slugify(title).substring(0, 40);
+        const titleDupe = library.find(l => slugify(l.title).substring(0, 40) === normTitle);
+        if (titleDupe) {
+            log(`  ⚠️ "${title.substring(0, 40)}" déjà présent (titre similaire à ${titleDupe.id}) — ignoré`, 'warn');
+            continue;
+        }
+        const domain = rnd.domain || rnd.primaryDomain || cfg.domain || 'general';
+        const concepts = rnd.concepts || [];
+        const entities = rnd.entities || [];
+        const relations = rnd.relations || [];
+        const pageList = pages.pages || [];
+        const glossaire = ens.glossaire || rnd.glossaire || {};
+
+        log(`  📄 ${title.substring(0, 50)} — ${concepts.length}C ${entities.length}E ${relations.length}R [P${docPriority}]`);
+        setProgress(5 + (di / docs.length) * 40);
+
+        // ═══ AUTEUR EXTRACTION ═══
+        let docAuteur = rnd.metadata?.author || rnd.author || rnd.auteur || null;
+        if (!docAuteur) {
+            const srcFilename = manifest?.source?.filename || doc.name || '';
+            docAuteur = _extractAuteurFromFilename(srcFilename);
+        }
+        if (!docAuteur) docAuteur = _extractAuteurFromFilename(doc.name);
+        if (!docAuteur) {
+            const titleMatch = title.match(/[-–—]\s*([A-ZÀ-Ü][a-zà-ü]+ [A-ZÀ-Ü][a-zà-ü]+(?:\s+[A-ZÀ-Ü][a-zà-ü]+)?)\s*$/);
+            if (titleMatch) docAuteur = titleMatch[1];
+        }
+        if (!docAuteur) {
+            const personEntities = entities.filter(e => e.type === 'person');
+            const candidate = personEntities.length > 0 ? personEntities[0].label : null;
+            if (candidate && /^[A-ZÀ-Ü][a-zà-ü]+\s+[A-ZÀ-Ü]/.test(candidate) && candidate.length > 5) {
+                docAuteur = candidate;
+            }
+        }
+        if (docAuteur) docAuteur = docAuteur.trim().replace(/\s+/g, ' ');
+
+        const docRef = { id: docId, title: title.substring(0, 100), author: docAuteur };
+
+        // ═══ LIBRARY ENTRY (with priority) ═══
+        const topConceptLabels = concepts
+            .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+            .slice(0, 5)
+            .map(c => c.label || c.name);
+
+        library.push({
+            id: docId,
+            title: title,
+            author: docAuteur,
+            publisher: rnd.metadata?.publisher || null,
+            year: rnd.metadata?.year || rnd.metadata?.date?.substring(0, 4) || null,
+            isbn: rnd.metadata?.isbn || null,
+            pages: pageList.length,
+            domain: domain,
+            lang: rnd.metadata?.language || cfg.lang,
+            priority: docPriority,
+            digest: `${concepts.length} concepts, ${entities.length} entités, ${relations.length} relations extraits.`,
+            ref: `${docAuteur || 'N/A'}. ${title}${rnd.metadata?.publisher ? '. ' + rnd.metadata.publisher : ''}.`,
+            stats: { concepts: concepts.length, entities: entities.length, relations: relations.length },
+            top_concepts: topConceptLabels,
+            qa: [
+                `Que contient ${title.substring(0, 40)} ?`,
+                docAuteur ? `Que dit ${docAuteur} ?` : null,
+                `Quels sont les concepts clés de ce document ?`
+            ].filter(Boolean)
+        });
+
+        // ═══ IMPORTANCE BOOST from priority (V6.1) ═══
+        // Priority 5 = x1.2 boost, Priority 1 = x0.8
+        const priorityBoost = 0.8 + (docPriority - 1) * 0.1;
+
+        // ═══ CONCEPTS → CLONE-BRAIN format ═══
+        for (const c of concepts) {
+            const cId = `${docId}_C${String(concepts.indexOf(c) + 1).padStart(3, '0')}`;
+            const evidence = c.evidence || c.evidence_spans || [];
+            const ev = evidence.map(e => [
+                e.page_id || e.page || '?',
+                (e.quote || '').substring(0, 150)
+            ]).filter(([p, q]) => q.length > 10);
+
+            const rawImportance = c.importance || c.confidence || 0.5;
+            const boostedImportance = Math.min(1.0, rawImportance * priorityBoost);
+
+            const concept = {
+                id: cId,
+                label: c.label || c.name || '',
+                def: enrichDef(c.definition || c.description || '', c, 'concept', concepts, title),
+                importance: parseFloat(boostedImportance.toFixed(3)),
+                domain: c.domain || domain,
+                doc: docRef,
+                ev: ev.length > 0 ? ev : [[pageList[0]?.page_id || 'p1', title.substring(0, 80)]],
+                qa: generateQA('concept', c, title)
+            };
+            allConcepts.push(concept);
+            newAllConcepts.push(concept);
+        }
+
+        // ═══ ENTITIES → CLONE-BRAIN format ═══
+        for (const e of entities) {
+            const eId = `${docId}_E${String(entities.indexOf(e) + 1).padStart(3, '0')}`;
+            const evidence = e.evidence || e.evidence_spans || [];
+            const ev = evidence.map(ev => [
+                ev.page_id || ev.page || '?',
+                (ev.quote || '').substring(0, 150)
+            ]).filter(([p, q]) => q.length > 10);
+
+            allEntities.push({
+                id: eId,
+                label: e.label || e.name || '',
+                type: e.type || 'unknown',
+                def: e.description || e.definition || '',
+                doc: docRef,
+                ev: ev,
+                qa: generateQA('entity', e, title)
+            });
+        }
+
+        // ═══ RELATIONS → CLONE-BRAIN format ═══
+        for (const r of relations) {
+            const rId = `${docId}_R${String(relations.indexOf(r) + 1).padStart(3, '0')}`;
+            const srcLabel = r.source_label || findLabel(concepts, entities, r.source_id);
+            const tgtLabel = r.target_label || findLabel(concepts, entities, r.target_id);
+            const normType = normalizeRelationType(r.type);
+
+            const kpConfClass = r.metadata?.confidence_class || '';
+            const kpSource = r.metadata?.source || '';
+            let confidence;
+            if (kpConfClass === 'noise') confidence = 0.1;
+            else if (kpConfClass === 'low') confidence = 0.3;
+            else if (kpConfClass === 'medium') confidence = 0.5;
+            else if (kpConfClass === 'high') confidence = 0.7;
+            else if (kpSource.indexOf('FIX-A') >= 0) confidence = Math.min(r.weight || 0.5, 0.5);
+            else confidence = normType === 'relates_to' ? 0.4 : 0.6;
+
+            const evidence = r.evidence || r.evidence_spans || [];
+            const mainPage = evidence[0]?.page_id || evidence[0]?.page || '?';
+
+            allRelations.push({
+                id: rId,
+                source: srcLabel,
+                target: tgtLabel,
+                type: normType,
+                label: r.label || `${srcLabel} → ${tgtLabel}`,
+                confidence: confidence,
+                doc: docRef,
+                page: mainPage,
+                qa: generateQA('relation', { source_label: srcLabel, target_label: tgtLabel, type: normType, source: srcLabel, target: tgtLabel }, title)
+            });
+        }
+
+        // ═══ GLOSSAIRE MERGE ═══
+        for (const [term, def] of Object.entries(glossaire)) {
+            const defStr = typeof def === 'object' ? (def.definition || JSON.stringify(def)) : def;
+            const normKey = term.toLowerCase().trim();
+            if (!allGlossaire[normKey]) {
+                allGlossaire[normKey] = { def: defStr, docs: [docId], related_concepts: [] };
+            } else {
+                if (!allGlossaire[normKey].docs.includes(docId)) allGlossaire[normKey].docs.push(docId);
+                // Merge: keep longer definition
+                if (defStr.length > allGlossaire[normKey].def.length) allGlossaire[normKey].def = defStr;
+            }
+        }
+        
+        for (const c of concepts) {
+            const label = c.label || c.name;
+            const normKey = (label || '').toLowerCase().trim();
+            if (normKey && c.definition) {
+                const cId = `${docId}_C${String(concepts.indexOf(c) + 1).padStart(3, '0')}`;
+                if (!allGlossaire[normKey]) {
+                    allGlossaire[normKey] = {
+                        def: c.definition.substring(0, 200),
+                        docs: [docId],
+                        related_concepts: [cId]
+                    };
+                } else {
+                    if (!allGlossaire[normKey].docs.includes(docId)) allGlossaire[normKey].docs.push(docId);
+                    if (!allGlossaire[normKey].related_concepts.includes(cId)) allGlossaire[normKey].related_concepts.push(cId);
+                }
+            }
+        }
+
+        // ═══ PAGES (optional) ═══
+        if (cfg.includePages && pageList.length > 0) {
+            for (const page of pageList) {
+                const text = page.text || page.content || '';
+                if (text.length < 20) continue;
+                allPages.push({
+                    doc: docId,
+                    doc_title: title.substring(0, 80),
+                    doc_author: docAuteur,
+                    p: page.page_id || pageList.indexOf(page) + 1,
+                    text: text.substring(0, 2000)
+                });
+            }
+        }
+
+        if (!allDomains[domain]) allDomains[domain] = { docs: 0, concepts: 0, entities: 0, relations: 0 };
+        allDomains[domain].docs++;
+        allDomains[domain].concepts += concepts.length;
+        allDomains[domain].entities += entities.length;
+        allDomains[domain].relations += relations.length;
+
+    } // end docs loop
+
+    log(`✅ Phase 1: ${allConcepts.length}C / ${allEntities.length}E / ${allRelations.length}R`, 'success');
+    setProgress(50);
+
+    // ═══ PHASE 2: BUILD GLOSSAIRE ═══
+    log('📖 Phase 2: Enrichissement glossaire...', 'info');
+
+    for (const [term, entry] of Object.entries(allGlossaire)) {
+        if (!entry.related_concepts || entry.related_concepts.length === 0) {
+            const termLower = term.toLowerCase();
+            entry.related_concepts = allConcepts
+                .filter(c => (c.label || '').toLowerCase().includes(termLower) || termLower.includes((c.label || '').toLowerCase().substring(0, 8)))
+                .slice(0, 5)
+                .map(c => c.id);
+        }
+    }
+
+    log(`  📖 ${Object.keys(allGlossaire).length} termes`, 'success');
+    setProgress(60);
+
+    // ═══ PHASE 3: BUILD THEMES ═══
+    log('🏷️ Phase 3: Détection thématique...', 'info');
+
+    const themes = {};
+    for (const [domain, stats] of Object.entries(allDomains)) {
+        const domConcepts = allConcepts.filter(c => c.domain === domain || c.doc?.id && library.find(l => l.id === c.doc.id)?.domain === domain);
+        const domEntities = allEntities.filter(e => library.find(l => l.id === e.doc?.id)?.domain === domain);
+        const domRelations = allRelations.filter(r => library.find(l => l.id === r.doc?.id)?.domain === domain);
+        const domDocs = library.filter(l => l.domain === domain).map(l => l.id);
+
+        const topConcepts = domConcepts
+            .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+            .slice(0, 5)
+            .map(c => c.label);
+
+        const themeKey = slugify(domain);
+        themes[themeKey] = {
+            desc: `Thème couvrant le domaine ${domain}`,
+            concept_count: domConcepts.length,
+            entity_count: domEntities.length,
+            relation_count: domRelations.length,
+            docs: domDocs,
+            top_concepts: topConcepts,
+            qa: [
+                `Qu'est-ce que ${domain} ?`,
+                `Quels sont les concepts clés en ${domain} ?`,
+                `Quels documents traitent de ${domain} ?`
+            ]
+        };
+    }
+
+    const conceptByLabel = {};
+    for (const c of allConcepts) {
+        const norm = (c.label || '').toLowerCase().substring(0, 30);
+        if (!conceptByLabel[norm]) conceptByLabel[norm] = [];
+        conceptByLabel[norm].push(c);
+    }
+    
+    for (const [norm, concepts] of Object.entries(conceptByLabel)) {
+        if (concepts.length >= 2) {
+            const docs = [...new Set(concepts.map(c => c.doc?.id).filter(Boolean))];
+            if (docs.length >= 2 && !themes[slugify(norm)]) {
+                themes[`cross_${slugify(norm)}`] = {
+                    desc: `Concept transversal: ${concepts[0].label} — présent dans ${docs.length} documents`,
+                    concept_count: concepts.length,
+                    entity_count: 0,
+                    relation_count: 0,
+                    docs: docs,
+                    top_concepts: concepts.map(c => c.label).slice(0, 3),
+                    qa: [`Que disent les différents auteurs sur ${concepts[0].label} ?`]
+                };
+            }
+        }
+    }
+
+    log(`  🏷️ ${Object.keys(themes).length} thèmes détectés`, 'success');
+    setProgress(70);
+
+    // ═══ PHASE 4: BUILD BRIDGES ═══
+    log('🌉 Phase 4: Ponts inter-documents...', 'info');
+
+    const bridges = [];
+    
+    // METHOD A: Exact label match (original)
+    for (const [norm, concepts] of Object.entries(conceptByLabel)) {
+        if (concepts.length < 2) continue;
+        const docs = [...new Set(concepts.map(c => c.doc?.id).filter(Boolean))];
+        if (docs.length < 2) continue;
+        
+        for (let i = 0; i < docs.length - 1; i++) {
+            for (let j = i + 1; j < docs.length; j++) {
+                const cA = concepts.find(c => c.doc?.id === docs[i]);
+                const cB = concepts.find(c => c.doc?.id === docs[j]);
+                if (!cA || !cB) continue;
+
+                bridges.push({
+                    a: cA.label, a_doc: docs[i],
+                    b: cB.label, b_doc: docs[j],
+                    link: `Le concept "${cA.label}" est abordé dans les deux ouvrages, permettant de croiser les perspectives de ${cA.doc?.author || docs[i]} et ${cB.doc?.author || docs[j]}`,
+                    strength: Math.max(cA.importance || 0.5, cB.importance || 0.5),
+                    method: 'exact_label',
+                    qa: [
+                        `Quel lien entre ${cA.doc?.title?.substring(0, 30)} et ${cB.doc?.title?.substring(0, 30)} ?`,
+                        `Comment comparer les approches de ${cA.doc?.author || '?'} et ${cB.doc?.author || '?'} ?`
+                    ]
+                });
+            }
+        }
+    }
+    
+    // METHOD B: Keyword-based fuzzy match (NEW — detects shared concepts by significant words)
+    const STOP_WORDS = new Set(['le','la','les','de','du','des','et','en','un','une','pour','par','que','qui','dans','ce','se','son','sur','au','aux','est','pas','ne','ou','avec','il','elle','nous','vous','ils','the','and','of','in','to','for','is','it','on','at','by','an','as','a','this','that','from','be','are','was','has','not','but','its','can','all','or']);
+    
+    function extractKeywords(text) {
+        return slugify(text).split('_').filter(w => w.length > 3 && !STOP_WORDS.has(w));
+    }
+    
+    // Build keyword index: keyword → [{docId, conceptId, label, importance}]
+    const kwIndex = {};
+    for (const c of allConcepts) {
+        const kws = extractKeywords(c.label || '');
+        for (const kw of kws) {
+            if (!kwIndex[kw]) kwIndex[kw] = [];
+            kwIndex[kw].push({ docId: c.doc?.id, conceptId: c.id, label: c.label, importance: c.importance || 0.5, author: c.doc?.author, title: c.doc?.title });
+        }
+    }
+    
+    // Find keywords shared across different documents
+    const bridgeKeys = new Set();
+    for (const [kw, entries] of Object.entries(kwIndex)) {
+        const uniqueDocs = [...new Set(entries.map(e => e.docId).filter(Boolean))];
+        if (uniqueDocs.length < 2) continue;
+        
+        // Create bridges between highest-importance concept per doc
+        const byDoc = {};
+        for (const e of entries) {
+            if (!e.docId) continue;
+            if (!byDoc[e.docId] || e.importance > byDoc[e.docId].importance) {
+                byDoc[e.docId] = e;
+            }
+        }
+        
+        const docEntries = Object.values(byDoc);
+        for (let i = 0; i < docEntries.length - 1 && bridges.length < 200; i++) {
+            for (let j = i + 1; j < docEntries.length && bridges.length < 200; j++) {
+                const a = docEntries[i], b = docEntries[j];
+                const bKey = [a.docId, b.docId].sort().join('_') + '_' + kw;
+                if (bridgeKeys.has(bKey)) continue;
+                bridgeKeys.add(bKey);
+                
+                // Don't duplicate exact_label bridges
+                if (bridges.find(br => br.a_doc === a.docId && br.b_doc === b.docId && br.a === a.label && br.b === b.label)) continue;
+                
+                bridges.push({
+                    a: a.label, a_doc: a.docId,
+                    b: b.label, b_doc: b.docId,
+                    link: `Les concepts "${a.label}" et "${b.label}" partagent le thème "${kw}", reliant ${a.author || a.docId} et ${b.author || b.docId}`,
+                    strength: Math.min(a.importance, b.importance) * 0.8,
+                    method: 'keyword_fuzzy',
+                    qa: [
+                        `Quel lien entre ${a.title?.substring(0, 30) || '?'} et ${b.title?.substring(0, 30) || '?'} sur le thème "${kw}" ?`
+                    ]
+                });
+            }
+        }
+    }
+    
+    // METHOD C: Shared entities across documents (NEW — same person/law cited in multiple books)
+    const entityByLabel = {};
+    for (const e of allEntities) {
+        const norm = (e.label || '').toLowerCase().substring(0, 40);
+        if (!entityByLabel[norm]) entityByLabel[norm] = [];
+        entityByLabel[norm].push(e);
+    }
+    
+    for (const [norm, ents] of Object.entries(entityByLabel)) {
+        const docs = [...new Set(ents.map(e => e.doc?.id).filter(Boolean))];
+        if (docs.length < 2) continue;
+        
+        for (let i = 0; i < docs.length - 1 && bridges.length < 250; i++) {
+            for (let j = i + 1; j < docs.length && bridges.length < 250; j++) {
+                const eA = ents.find(e => e.doc?.id === docs[i]);
+                const eB = ents.find(e => e.doc?.id === docs[j]);
+                if (!eA || !eB) continue;
+                const bKey = [docs[i], docs[j]].sort().join('_') + '_ent_' + norm;
+                if (bridgeKeys.has(bKey)) continue;
+                bridgeKeys.add(bKey);
+                
+                bridges.push({
+                    a: eA.label, a_doc: docs[i],
+                    b: eB.label, b_doc: docs[j],
+                    link: `L'entité "${eA.label}" est référencée dans les deux ouvrages: ${eA.doc?.title?.substring(0, 40)} et ${eB.doc?.title?.substring(0, 40)}`,
+                    strength: 0.7,
+                    method: 'shared_entity',
+                    qa: [`Comment ${eA.label} est traité(e) différemment entre ces deux sources ?`]
+                });
+            }
+        }
+    }
+
+    const relByLabel = {};
+    for (const r of allRelations) {
+        const key = `${(r.source || '').toLowerCase().substring(0, 20)}_${(r.target || '').toLowerCase().substring(0, 20)}`;
+        if (!relByLabel[key]) relByLabel[key] = [];
+        relByLabel[key].push(r);
+    }
+    
+    for (const [key, rels] of Object.entries(relByLabel)) {
+        const docs = [...new Set(rels.map(r => r.doc?.id).filter(Boolean))];
+        if (docs.length >= 2 && !bridges.find(b => b.a_doc === docs[0] && b.b_doc === docs[1])) {
+            bridges.push({
+                a: rels[0].source,
+                a_doc: docs[0],
+                b: rels[0].target,
+                b_doc: docs[1],
+                link: `La relation "${rels[0].source} → ${rels[0].target}" est documentée dans ${docs.length} sources différentes`,
+                strength: Math.max(...rels.map(r => r.confidence || 0.5)),
+                qa: [`Comment les sources convergent sur ${rels[0].source} et ${rels[0].target} ?`]
+            });
+        }
+    }
+
+    bridges.sort((a, b) => (b.strength || 0) - (a.strength || 0));
+    const finalBridges = bridges.slice(0, 100);
+
+    log(`  🌉 ${finalBridges.length} ponts inter-documents (exact: ${finalBridges.filter(b=>b.method==='exact_label').length}, fuzzy: ${finalBridges.filter(b=>b.method==='keyword_fuzzy').length}, entity: ${finalBridges.filter(b=>b.method==='shared_entity').length})`, 'success');
+    setProgress(80);
+
+    // ═══ PHASE 5: DOMAIN STATS ═══
+    log('📊 Phase 5: Statistiques domaines...', 'info');
+
+    const domainStats = {};
+    for (const [domain, stats] of Object.entries(allDomains)) {
+        domainStats[domain] = stats;
+    }
+    for (const c of allConcepts) {
+        const dom = c.domain || 'general';
+        if (!domainStats[dom]) domainStats[dom] = { docs: 0, concepts: 0, entities: 0, relations: 0 };
+    }
+
+    setProgress(85);
+
+    // ═══ PHASE 5b (V6.1): BUILD ARTICLE INDEX ═══
+    log('🔍 Phase 5b: Construction article_index...', 'info');
+    const articleIndex = buildArticleIndex(allConcepts, allEntities, allRelations);
+    const indexCount = Object.keys(articleIndex).length;
+    log(`  🔍 ${indexCount} entrées d'index (articles/références)`, indexCount > 0 ? 'success' : 'warn');
+
+    setProgress(90);
+
+    // ═══ PHASE 6: ASSEMBLE BRAIN ═══
+    log('🧠 Phase 6: Assemblage brain_knowledge.json...', 'info');
+
+    const detectedDomains = [...new Set(library.map(l => l.domain))];
+    const primaryDomain = cfg.domain || detectedDomains[0] || 'general';
+
+    const brain = {
+        // ═══ HEAD ═══
+        _clone: {
+            schema: 'CLONE-BRAIN-1.0',
+            brain_type: 'knowledge',
+            brain_id: cfg.brainId,
+            version: '6.1',
+            generated: new Date().toISOString(),
+            generator: 'MegaBrain V6.1.1 — C Concept&Dev'
+        },
+
+        _instructions: {
+            identity: `Ce fichier est le Cerveau Connaissances d'un clone. Il contient l'intégralité des savoirs extraits de ${library.length} ouvrages professionnels. Tu as lu chaque ouvrage. Tu les maîtrises comme un expert qui les a étudiés pendant des années.`,
+            architecture: {
+                head: 'Les sections _clone à generation_info forment le HEAD. Lis-les pour comprendre la base.',
+                data: 'Les sections concepts, entities, relations forment la DATA. Chaque élément est auto-suffisant pour citation.',
+                pages: cfg.includePages ? 'La section pages contient le texte intégral de chaque page source.' : 'Les pages source ne sont pas incluses dans cette version.',
+                article_index: 'Index inversé pour recherche exacte. Quand on te demande un numéro d\'article ou de loi, consulte article_index en PREMIER.',
+                priority: 'Chaque document dans library a un champ priority (1-5). Priorise les sources à haute priorité (4-5) dans tes réponses.'
+            },
+            citation_format: '(Auteur, «Titre», p.XX)',
+            rules: [
+                'JAMAIS inventer — si l\'information n\'est pas dans cette base, dis-le clairement',
+                'TOUJOURS sourcer — chaque affirmation traçable : auteur, titre, page',
+                'CROISER — quand plusieurs ouvrages couvrent un sujet, confronter les approches',
+                'NUANCER — signaler les contradictions et débats entre sources',
+                'CITER — utiliser les quotes exactes du champ ev pour appuyer tes réponses',
+                'CONTEXTUALISER — quand un concept appartient à un thème plus large, le mentionner',
+                'BIBLIOGRAPHIER — en fin de production longue, lister les références utilisées',
+                'PRIORISER — les documents priority 5 (Référence) et 4 (Important) font autorité sur les documents priority 1-2',
+                'INDEX — pour toute demande de numéro d\'article, code, loi : consulter article_index AVANT de chercher dans les concepts'
+            ],
+            response_protocol: {
+                question_factuelle: 'Chercher concept/entité → citer ev avec (Auteur, «Titre», p.XX)',
+                question_croisee: 'Chercher bridges → identifier docs → confronter approches',
+                question_large: 'Consulter themes → identifier concepts clés → structurer par sous-thème',
+                demande_definition: 'Consulter glossaire → définition → pointer vers concepts détaillés',
+                demande_texte_exact: 'Consulter pages (si disponible) → texte intégral de la page',
+                demande_bibliographie: 'Consulter library → formater selon champ ref',
+                demande_article_code: 'Consulter article_index → lookup direct → IDs des concepts → ev + doc pour citation exacte'
+            }
+        },
+
+        _schema: {
+            note: 'Documentation des champs pour tout LLM. Lire une fois, appliquer partout.',
+            concept: {
+                id: '[DOC_ID]_C[NNN] — identifiant unique',
+                label: 'nom du concept, 3-10 mots, descriptif et discriminant',
+                def: 'définition complète enrichie — mentionne connexions, conditions, articulations',
+                importance: '0.0-1.0 — poids du concept (ajusté par priority du document source)',
+                domain: 'domaine thématique principal',
+                doc: '{ id, title, author } — référence auto-suffisante pour citation immédiate',
+                ev: '[[page, quote], ...] — citations exactes 80-150 chars vérifiables',
+                qa: '[question1, ...] — 1-5 questions auxquelles ce concept répond (optimisation RAG)'
+            },
+            entity: {
+                id: '[DOC_ID]_E[NNN]',
+                label: 'nom propre ou identifiant',
+                type: 'person | organization | place | event | tool | method | law | publication | metric',
+                def: 'description complète et rôle',
+                doc: 'référence bibliographique auto-suffisante',
+                ev: 'citations',
+                qa: 'questions de recherche'
+            },
+            relation: {
+                id: '[DOC_ID]_R[NNN]',
+                source: 'label COMPLET du concept/entité source (pas l\'ID)',
+                target: 'label COMPLET du concept/entité cible (pas l\'ID)',
+                type: 'predicts | causes | opposes | requires | enables | articulates_with | illustrates | nuances | contradicts | precedes | derives_from',
+                label: 'phrase COMPLÈTE 15+ mots — C\'EST LA CONNAISSANCE',
+                confidence: '0.0-1.0',
+                doc: 'référence bibliographique',
+                page: 'page principale de référence',
+                qa: 'questions de recherche'
+            },
+            library_priority: '1=Annexe, 2=Secondaire, 3=Standard, 4=Important, 5=Référence — guide la pondération des réponses',
+            article_index: 'Index inversé: clé = identifiant article normalisé → { ref, ids[], docs[] }. Pour lookup exact de numéros.'
+        },
+
+        library: library,
+        glossaire: allGlossaire,
+        themes: themes,
+        bridges: finalBridges,
+        article_index: articleIndex,
+        domain_stats: domainStats,
+        
+        generation_info: {
+            total_documents: library.length,
+            total_concepts: allConcepts.length,
+            total_entities: allEntities.length,
+            total_relations: allRelations.length,
+            total_glossaire: Object.keys(allGlossaire).length,
+            total_themes: Object.keys(themes).length,
+            total_bridges: finalBridges.length,
+            bridges_by_method: {
+                exact_label: finalBridges.filter(b => b.method === 'exact_label').length,
+                keyword_fuzzy: finalBridges.filter(b => b.method === 'keyword_fuzzy').length,
+                shared_entity: finalBridges.filter(b => b.method === 'shared_entity').length
+            },
+            total_article_index: indexCount,
+            total_pages_source: library.reduce((s, l) => s + (l.pages || 0), 0),
+            extraction_pipeline: 'V3-143 + V14 → KP-CANON-1.0 → MegaBrain V6.1.1',
+            quality_scores: {
+                avg_importance: allConcepts.length > 0 ? (allConcepts.reduce((s, c) => s + (c.importance || 0), 0) / allConcepts.length).toFixed(2) : 0,
+                avg_confidence: allRelations.length > 0 ? (allRelations.reduce((s, r) => s + (r.confidence || 0), 0) / allRelations.length).toFixed(2) : 0,
+                concepts_with_ev: allConcepts.filter(c => c.ev && c.ev.length > 0).length,
+                relations_15plus: allRelations.filter(r => (r.label || '').split(' ').length >= 15).length
+            },
+            priority_distribution: {
+                p1_annexe: library.filter(l => l.priority === 1).length,
+                p2_secondaire: library.filter(l => l.priority === 2).length,
+                p3_standard: library.filter(l => l.priority === 3).length,
+                p4_important: library.filter(l => l.priority === 4).length,
+                p5_reference: library.filter(l => l.priority === 5).length
+            }
+        },
+
+        // ═══ DATA ═══
+        concepts: allConcepts,
+        entities: allEntities,
+        relations: allRelations
+    };
+
+    // ═══ OPTIONAL: PAGES ═══
+    if (cfg.includePages && allPages.length > 0) {
+        brain.pages = allPages;
+        log(`  📄 ${allPages.length} pages incluses`, 'info');
+    }
+
+    setProgress(95);
+
+    // ═══ SIZE CHECK & SPLIT ═══
+    const brainJson = JSON.stringify(brain);
+    const sizeMB = brainJson.length / 1024 / 1024;
+    log(`📊 Taille: ${sizeMB.toFixed(2)} MB (${Math.round(brainJson.length / 4).toLocaleString()} tokens)`, 'info');
+
+    if (sizeMB > 28 && brain.pages && brain.pages.length > 0) {
+        log(`⚠️ Taille > 28 MB — les pages seront dans un fichier séparé`, 'warn');
+        brain._split_pages = true;
+    }
+
+    STATE.brain = brain;
+
+    setProgress(100);
+    log('🎉 brain_knowledge.json généré !', 'success');
+
+    showResults(brain);
+    btn.disabled = false;
+}
+
+// ═══ SHOW RESULTS ═══
+function showResults(brain) {
+    const results = document.getElementById('results');
+    const grid = document.getElementById('resultsGrid');
+    const gi = brain.generation_info;
+    const qs = gi.quality_scores || {};
+
+    const stats = [
+        { n: gi.total_documents, l: 'Documents' },
+        { n: gi.total_concepts, l: 'Concepts' },
+        { n: gi.total_entities, l: 'Entités' },
+        { n: gi.total_relations, l: 'Relations' },
+        { n: gi.total_glossaire, l: 'Glossaire' },
+        { n: gi.total_bridges, l: 'Bridges' },
+        { n: gi.total_article_index || 0, l: 'Index Arts.' },
+        { n: (JSON.stringify(brain).length / 1024 / 1024).toFixed(1) + ' MB', l: 'Taille' }
+    ];
+
+    grid.innerHTML = stats.map(s =>
+        `<div class="result-stat"><div class="number">${s.n}</div><div class="label">${s.l}</div></div>`
+    ).join('');
+
+    // Banner
+    const pd = gi.priority_distribution || {};
+    document.getElementById('resultsBanner').innerHTML = `<div class="results-banner">
+        <strong>CLONE-BRAIN-1.0</strong> — 
+        ${gi.total_documents} documents · 
+        ${gi.total_concepts + gi.total_entities + gi.total_relations} éléments DATA ·
+        ${qs.concepts_with_ev || 0} concepts avec evidence ·
+        ${qs.relations_15plus || 0} relations 15+ mots ·
+        Priorités: ${pd.p5_reference || 0}★★★★★ ${pd.p4_important || 0}★★★★ ${pd.p3_standard || 0}★★★
+    </div>`;
+
+    // Table
+    let tableHTML = `<table class="doc-stats-table">
+        <thead><tr><th>Document</th><th>Auteur</th><th>P</th><th>C</th><th>E</th><th>R</th><th>Pages</th></tr></thead><tbody>`;
+    for (const doc of brain.library) {
+        const s = doc.stats || {};
+        const priLabel = ['', '★', '★★', '★★★', '★★★★', '★★★★★'][doc.priority || 3];
+        tableHTML += `<tr>
+            <td>${(doc.title || doc.id).substring(0, 42)}${(doc.title || '').length > 42 ? '…' : ''}</td>
+            <td style="color:var(--gris-sub);">${(doc.author || '—').substring(0, 20)}</td>
+            <td style="color:var(--mer);font-family:'Montserrat',sans-serif;font-size:0.7rem;">${priLabel}</td>
+            <td>${s.concepts || 0}</td><td>${s.entities || 0}</td>
+            <td>${s.relations || 0}</td><td>${doc.pages || 0}</td>
+        </tr>`;
+    }
+    tableHTML += '</tbody></table>';
+    document.getElementById('resultsTable').innerHTML = tableHTML;
+
+    // Themes
+    const themesHtml = Object.keys(brain.themes).length > 0 ?
+        `<div style="margin-bottom:20px;">
+            <h4 style="color:var(--mer); margin-bottom:10px; font-size:0.82rem;">🏷️ Thèmes détectés</h4>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                ${Object.entries(brain.themes).map(([key, t]) =>
+                    `<span class="theme-badge">${key} (${t.concept_count}C)</span>`
+                ).join('')}
+            </div>
+        </div>` : '';
+    document.getElementById('resultsThemes').innerHTML = themesHtml;
+
+    results.classList.add('visible');
+    showToast(`🧠 brain_knowledge.json — ${gi.total_documents} docs, ${gi.total_concepts + gi.total_entities + gi.total_relations} éléments`, 'success');
+}
+
+// ═══ DOWNLOAD ═══
+async function downloadBrain() {
+    if (!STATE.brain) return;
+    const brain = STATE.brain;
+    const baseName = slugify(brain._clone?.brain_id || 'brain') || 'brain';
+    const date = new Date().toISOString().slice(0, 10);
+
+    if (brain._split_pages && brain.pages && brain.pages.length > 0) {
+        showToast('📦 Split automatique — génération ZIP...', 'info');
+        
+        const pages = brain.pages;
+        const brainNoPages = { ...brain };
+        delete brainNoPages.pages;
+        delete brainNoPages._split_pages;
+        brainNoPages._instructions.architecture.pages = 'Les pages sont dans un fichier séparé: brain_knowledge_pages.json';
+
+        const zip = new JSZip();
+        zip.file('brain_knowledge.json', JSON.stringify(brainNoPages, null, 2));
+        zip.file('brain_knowledge_pages.json', JSON.stringify({ _clone: brain._clone, pages: pages }, null, 2));
+        zip.file('README.md', [
+            `# CLONE-BRAIN-1.0 — ${brain._clone.brain_id}`,
+            '',
+            '## Fichiers',
+            '- **brain_knowledge.json** — HEAD + DATA (concepts, entités, relations, article_index)',
+            '- **brain_knowledge_pages.json** — Texte intégral des pages sources',
+            '',
+            '## Usage',
+            '- GPT Custom: uploader les 2 fichiers dans Knowledge',
+            '- Claude Project: uploader brain_knowledge.json (prioritaire)',
+            '',
+            `Généré le ${date} par MegaBrain V6.1.1 — C Concept&Dev`
+        ].join('\n'));
+
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+        const fname = `brain_knowledge_${baseName}_${date}.zip`;
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fname; a.click();
+        URL.revokeObjectURL(url);
+        showToast(`📦 ${fname} — ${(zipBlob.size / 1024 / 1024).toFixed(1)} MB`, 'success');
+    } else {
+        delete brain._split_pages;
+        const json = JSON.stringify(brain, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const fname = `brain_knowledge_${baseName}_${date}.json`;
+        a.href = url; a.download = fname; a.click();
+        URL.revokeObjectURL(url);
+        showToast(`🧠 ${fname} — ${(json.length / 1024 / 1024).toFixed(1)} MB`, 'success');
+    }
+}
+
+</script>
+</body>
+</html>
