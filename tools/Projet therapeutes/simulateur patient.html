@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulateur Patient — Stress Test Clinique</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;}
+:root{--teal:#1D9E75;--teal-l:#E1F5EE;--teal-d:#0F6E56;--border:#e0ddd6;--bg:#fff;--bg2:#f9f8f5;--text:#1a1a18;--text2:#6b6860;}
+
+.wrap{max-width:860px;margin:0 auto;padding:1.5rem;}
+.hdr{padding:1rem 1.5rem .75rem;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px 12px 0 0;}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);}
+.hdr h1{font-size:15px;font-weight:500;}
+.hdr p{font-size:11px;color:var(--text2);margin-top:1px;}
+
+.card{background:var(--bg);border:.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1rem;}
+
+.tabs{display:flex;gap:0;border-bottom:.5px solid var(--border);background:var(--bg);}
+.tab{padding:8px 16px;font-size:12px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal);}
+
+.recipe-section{padding:1rem 1.5rem .5rem;}
+.recipe-section h2{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;}
+.ingredients-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;}
+.ingredient-card{border:.5px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--bg);}
+.ing-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+select,textarea,input[type=text]{width:100%;font-size:12px;padding:5px 7px;border:.5px solid #ccc;border-radius:6px;background:var(--bg);color:var(--text);}
+.intensity-row{display:flex;align-items:center;gap:6px;margin-top:5px;}
+.intensity-row label{font-size:10px;color:var(--text2);white-space:nowrap;}
+input[type=range]{flex:1;}
+.intensity-val{font-size:11px;font-weight:500;color:var(--teal);min-width:16px;text-align:right;}
+
+.mode-toggle{display:flex;gap:6px;padding:0 1.5rem .75rem;}
+.mode-btn{flex:1;padding:7px;font-size:12px;border:.5px solid #ccc;border-radius:6px;cursor:pointer;background:transparent;color:var(--text);text-align:center;}
+.mode-btn.active{background:var(--teal);color:white;border-color:var(--teal);}
+
+.couple-panel{display:none;padding:0 1.5rem .5rem;}
+.couple-panel.visible{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.partner-card{border:.5px solid var(--border);border-radius:10px;padding:10px 12px;}
+
+.conv-area{margin:0 1.5rem;border:.5px solid var(--border);border-radius:10px;overflow:hidden;min-height:180px;}
+.conv-header{padding:8px 12px;background:var(--bg2);border-bottom:.5px solid var(--border);font-size:11px;color:var(--text2);display:flex;justify-content:space-between;align-items:center;}
+.messages{padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px;max-height:400px;overflow-y:auto;}
+.msg{padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55;max-width:90%;}
+.msg.patient{background:var(--bg2);align-self:flex-start;border:.5px solid var(--border);}
+.msg.therapist{background:var(--teal-l);color:#085041;align-self:flex-end;border:.5px solid #9FE1CB;}
+.msg.system{background:transparent;color:var(--text2);font-size:11px;font-style:italic;align-self:center;text-align:center;}
+.msg-label{font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:500;}
+
+.input-zone{padding:.75rem 1.5rem;border-top:.5px solid var(--border);}
+.input-zone textarea{min-height:60px;font-size:13px;margin-bottom:8px;}
+.input-zone p{font-size:11px;color:var(--text2);margin-bottom:6px;}
+
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;}
+button.btn{font-size:12px;padding:6px 12px;border:.5px solid #ccc;border-radius:6px;cursor:pointer;background:transparent;color:var(--text);}
+button.btn:hover{background:var(--bg2);}
+button.btn.primary{background:var(--teal);color:white;border-color:var(--teal);}
+button.btn.primary:hover{background:var(--teal-d);}
+button.btn:disabled{opacity:.4;cursor:default;}
+.status-bar{padding:5px 1.5rem 1rem;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}
+.spin{width:9px;height:9px;border-radius:50%;border:1.5px solid #ccc;border-top-color:var(--teal);animation:sp .8s linear infinite;display:none;}
+.spin.on{display:inline-block;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.profile-badge{padding:8px 12px;margin:0 1.5rem 8px;background:var(--bg2);border:.5px solid var(--border);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.5;display:none;}
+.profile-badge.visible{display:block;}
+.profile-badge strong{color:var(--text);font-weight:500;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div>
+    <h1>Simulateur Patient — Stress Test Clinique</h1>
+    <p>Recette d'ingrédients → patient vivant → dialogue en miroir avec le thérapeute IA</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('recipe',this)">Recette</button>
+  <button class="tab" onclick="switchTab('session',this)">Session</button>
+</div>
+
+<!-- RECIPE TAB -->
+<div id="tab-recipe">
+  <div class="recipe-section">
+    <h2>Mode</h2>
+    <div class="mode-toggle">
+      <div class="mode-btn active" onclick="setMode('single',this)">Patient individuel</div>
+      <div class="mode-btn" onclick="setMode('couple',this)">Couple</div>
+    </div>
+
+    <div id="single-name-row" style="padding:0 0 .75rem;">
+      <div class="ing-label">Prénom du patient</div>
+      <input type="text" id="patient-name" value="Thomas" style="max-width:160px;">
+    </div>
+
+    <div class="couple-panel" id="couple-names">
+      <div class="partner-card">
+        <div class="ing-label">Partenaire A</div>
+        <input type="text" id="name-a" value="Sophie">
+      </div>
+      <div class="partner-card">
+        <div class="ing-label">Partenaire B</div>
+        <input type="text" id="name-b" value="Marc">
+      </div>
+    </div>
+  </div>
+
+  <div class="recipe-section">
+    <h2>Ingrédients — composez votre profil</h2>
+    <div class="ingredients-grid">
+
+      <div class="ingredient-card">
+        <div class="ing-label">Attachement</div>
+        <select id="ing-attachment">
+          <option value="anxieux-préoccupé">Anxieux / préoccupé</option>
+          <option value="évitant-détaché">Évitant / détaché</option>
+          <option value="désorganisé">Désorganisé (trauma)</option>
+          <option value="secure-dégradé">Secure dégradé</option>
+          <option value="libre">Libre (non dominant)</option>
+        </select>
+        <div class="intensity-row"><label>Intensité</label><input type="range" min="1" max="5" value="3" id="int-attachment" oninput="updateVal(this,'v-attachment')"><span class="intensity-val" id="v-attachment">3</span></div>
+      </div>
+
+      <div class="ingredient-card">
+        <div class="ing-label">Défense dominante</div>
+        <select id="ing-defense">
+          <option value="intellectualisation">Intellectualisation</option>
+          <option value="évitement émotionnel">Évitement émotionnel</option>
+          <option value="humour défensif">Humour défensif</option>
+          <option value="projection">Projection</option>
+          <option value="dissociation légère">Dissociation légère</option>
+          <option value="clivage">Clivage</option>
+          <option value="déni">Déni</option>
+          <option value="séduction">Séduction / charme</option>
+        </select>
+        <div class="intensity-row"><label>Intensité</label><input type="range" min="1" max="5" value="3" id="int-defense" oninput="updateVal(this,'v-defense')"><span class="intensity-val" id="v-defense">3</span></div>
+      </div>
+
+      <div class="ingredient-card">
+        <div class="ing-label">Motif réel (caché)</div>
+        <select id="ing-real">
+          <option value="peur de l'abandon">Peur de l'abandon</option>
+          <option value="honte profonde non nommée">Honte profonde non nommée</option>
+          <option value="secret inavoué">Secret inavoué</option>
+          <option value="deuil non fait">Deuil non fait</option>
+          <option value="rage contenue">Rage contenue</option>
+          <option value="désir de rupture">Désir de rupture non dit</option>
+          <option value="dépendance affective">Dépendance affective</option>
+          <option value="vide identitaire">Vide identitaire</option>
+        </select>
+        <div class="intensity-row"><label>Profondeur</label><input type="range" min="1" max="5" value="3" id="int-real" oninput="updateVal(this,'v-real')"><span class="intensity-val" id="v-real">3</span></div>
+      </div>
+
+      <div class="ingredient-card">
+        <div class="ing-label">Posture en séance</div>
+        <select id="ing-posture">
+          <option value="demandeur collaboratif">Demandeur / collaboratif</option>
+          <option value="résistant passif">Résistant passif</option>
+          <option value="testeur du thérapeute">Testeur du thérapeute</option>
+          <option value="soumis-complaisant">Soumis / complaisant</option>
+          <option value="séducteur">Séducteur</option>
+          <option value="agressif diffus">Agressif diffus</option>
+          <option value="fuyant-minimiseur">Fuyant / minimiseur</option>
+        </select>
+        <div class="intensity-row"><label>Intensité</label><input type="range" min="1" max="5" value="2" id="int-posture" oninput="updateVal(this,'v-posture')"><span class="intensity-val" id="v-posture">2</span></div>
+      </div>
+
+      <div class="ingredient-card">
+        <div class="ing-label">Charge traumatique</div>
+        <select id="ing-trauma">
+          <option value="absente">Absente</option>
+          <option value="trauma d'enfance enkysté">Trauma d'enfance enkysté</option>
+          <option value="trauma relationnel récent">Trauma relationnel récent</option>
+          <option value="trauma niée conscient">Trauma niée (conscient)</option>
+          <option value="dissociation ancienne">Dissociation ancienne</option>
+          <option value="trouble de l'attachement précoce">Trouble attachement précoce</option>
+        </select>
+        <div class="intensity-row"><label>Charge</label><input type="range" min="1" max="5" value="2" id="int-trauma" oninput="updateVal(this,'v-trauma')"><span class="intensity-val" id="v-trauma">2</span></div>
+      </div>
+
+      <div class="ingredient-card">
+        <div class="ing-label">Insight / conscience de soi</div>
+        <select id="ing-insight">
+          <option value="faible, peu réflexif">Faible / peu réflexif</option>
+          <option value="moyen, partiellement conscient">Moyen / partiel</option>
+          <option value="élevé mais bloqué dans l'action">Élevé mais bloqué</option>
+          <option value="intellectualisé sans ressenti">Intellectualisé sans ressenti</option>
+          <option value="fluctuant selon le sujet">Fluctuant selon sujet</option>
+        </select>
+        <div class="intensity-row"><label>Niveau</label><input type="range" min="1" max="5" value="2" id="int-insight" oninput="updateVal(this,'v-insight')"><span class="intensity-val" id="v-insight">2</span></div>
+      </div>
+
+    </div>
+
+    <div id="couple-b-section" style="display:none;">
+      <h2 style="margin-bottom:.75rem;">Ingrédients — Partenaire B</h2>
+      <div class="ingredients-grid">
+        <div class="ingredient-card">
+          <div class="ing-label">Attachement B</div>
+          <select id="ing-attachment-b">
+            <option value="évitant-détaché">Évitant / détaché</option>
+            <option value="anxieux-préoccupé">Anxieux / préoccupé</option>
+            <option value="désorganisé">Désorganisé</option>
+            <option value="secure-dégradé">Secure dégradé</option>
+          </select>
+        </div>
+        <div class="ingredient-card">
+          <div class="ing-label">Défense dominante B</div>
+          <select id="ing-defense-b">
+            <option value="évitement émotionnel">Évitement émotionnel</option>
+            <option value="intellectualisation">Intellectualisation</option>
+            <option value="déni">Déni</option>
+            <option value="projection">Projection</option>
+          </select>
+        </div>
+        <div class="ingredient-card">
+          <div class="ing-label">Motif réel B</div>
+          <select id="ing-real-b">
+            <option value="secret inavoué">Secret inavoué</option>
+            <option value="désir de rupture">Désir de rupture non dit</option>
+            <option value="honte profonde non nommée">Honte profonde</option>
+            <option value="rage contenue">Rage contenue</option>
+          </select>
+        </div>
+        <div class="ingredient-card">
+          <div class="ing-label">Posture en séance B</div>
+          <select id="ing-posture-b">
+            <option value="fuyant-minimiseur">Fuyant / minimiseur</option>
+            <option value="résistant passif">Résistant passif</option>
+            <option value="testeur du thérapeute">Testeur</option>
+            <option value="soumis-complaisant">Soumis</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:.25rem 0 .5rem;">
+      <div class="ing-label" style="margin-bottom:4px;">Contexte de fond (optionnel)</div>
+      <textarea id="ing-context" rows="2" placeholder="Ex : vient d'une famille très catholique, a perdu un enfant il y a 2 ans, travail précaire…"></textarea>
+    </div>
+
+    <div class="btn-row" style="padding-bottom:.5rem;">
+      <button class="btn primary" onclick="buildProfile()">Construire le profil →</button>
+      <button class="btn" onclick="randomPatient()" id="random-btn" style="border-color:#1D9E75;color:#0F6E56;">&#x2684; Patient aléatoire</button>
+    </div>
+    <div class="btn-row" style="padding-bottom:1rem;">
+      <button class="btn" onclick="loadPreset(0)">Recette : l'évitant coupable</button>
+      <button class="btn" onclick="loadPreset(1)">Recette : spirale couple Gottman</button>
+      <button class="btn" onclick="loadPreset(2)">Recette : honte enkystée</button>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION TAB -->
+<div id="tab-session" style="display:none;">
+  <div style="padding:.75rem 1.5rem 0;">
+    <div class="profile-badge" id="profile-badge"></div>
+  </div>
+  <div class="conv-area">
+    <div class="conv-header">
+      <span id="conv-title">Dialogue</span>
+      <button class="btn" onclick="clearConv()" style="font-size:11px;padding:3px 8px;">Effacer</button>
+    </div>
+    <div class="messages" id="messages">
+      <div class="msg system">Construisez un profil dans l'onglet Recette pour démarrer la session.</div>
+    </div>
+  </div>
+
+  <div class="input-zone">
+    <p id="input-instruction">Collez ici la réponse du thérapeute IA, puis cliquez "Générer réponse patient"</p>
+    <textarea id="therapist-input" placeholder="Réponse du thérapeute IA…" rows="3"></textarea>
+    <div class="btn-row">
+      <button class="btn primary" onclick="generatePatientReply()" id="reply-btn" disabled>Générer réponse patient →</button>
+      <button class="btn" onclick="copyLastPatient()" id="copy-patient-btn" disabled>Copier dernier message patient</button>
+      <button class="btn" onclick="startSession()" id="start-btn" disabled>Démarrer session (1er message patient)</button>
+      <button class="btn" onclick="endAndExport()" id="export-btn" disabled style="border-color:#BA7517;color:#854F0B;">Terminer &amp; exporter JSON ↓</button>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="spin" id="spin"></div>
+    <span id="status">Construisez un profil d'abord</span>
+    <span id="turn-count" style="margin-left:auto;font-size:11px;color:var(--text2);"></span>
+  </div>
+</div>
+
+</div><!-- /card -->
+</div><!-- /wrap -->
+
+<script>
+const WORKER='https://clone-proxy.11drumboy11.workers.dev';
+let mode='single', profile=null, history=[], lastPatientMsg='', sessionStart=null, turnCount=0;
+
+function switchTab(t,btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-recipe').style.display=t==='recipe'?'':'none';
+  document.getElementById('tab-session').style.display=t==='session'?'':'none';
+}
+
+function setMode(m,btn){
+  mode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('couple-names').style.display=m==='couple'?'grid':'none';
+  document.getElementById('couple-b-section').style.display=m==='couple'?'block':'none';
+  document.getElementById('single-name-row').style.display=m==='single'?'block':'none';
+}
+
+function updateVal(el,id){document.getElementById(id).textContent=el.value;}
+
+function loadPreset(idx){
+  const presets=[
+    {mode:'single',name:'Julien',attachment:'évitant-détaché',ai:4,defense:'évitement émotionnel',di:4,real:'secret inavoué',ri:5,posture:'fuyant-minimiseur',pi:3,trauma:"trauma d'enfance enkysté",ti:3,insight:'intellectualisé sans ressenti',ii:3,ctx:"Divorce récent, garde partagée conflictuelle. Vient pour 'stress au travail'."},
+    {mode:'couple',nameA:'Léa',nameB:'Romain',attachment:'anxieux-préoccupé',ai:4,defense:'projection',di:3,real:"peur de l'abandon",ri:4,posture:'testeur du thérapeute',pi:3,attachmentB:'évitant-détaché',defenseB:'déni',realB:'désir de rupture',postureB:'fuyant-minimiseur',trauma:'absente',ti:1,insight:'fluctuant selon le sujet',ii:3,ctx:'Ensemble 9 ans. Crise déclenchée par une promotion de Romain impliquant des voyages fréquents. Léa a commencé à vérifier son téléphone.'},
+    {mode:'single',name:'Camille',attachment:'désorganisé',ai:5,defense:'dissociation légère',di:4,real:'honte profonde non nommée',ri:5,posture:'soumis-complaisant',pi:3,trauma:"trouble de l'attachement précoce",ti:4,insight:'élevé mais bloqué dans l\'action',ii:4,ctx:'Mère borderline. A grandi en hypervigilance. Réussit très bien professionnellement. Vide intérieur dissimulé.'}
+  ];
+  const p=presets[idx];
+  setMode(p.mode, document.querySelectorAll('.mode-btn')[p.mode==='couple'?1:0]);
+  if(p.mode==='single') document.getElementById('patient-name').value=p.name;
+  else{document.getElementById('name-a').value=p.nameA;document.getElementById('name-b').value=p.nameB;}
+  document.getElementById('ing-attachment').value=p.attachment;
+  document.getElementById('int-attachment').value=p.ai; document.getElementById('v-attachment').textContent=p.ai;
+  document.getElementById('ing-defense').value=p.defense;
+  document.getElementById('int-defense').value=p.di; document.getElementById('v-defense').textContent=p.di;
+  document.getElementById('ing-real').value=p.real;
+  document.getElementById('int-real').value=p.ri; document.getElementById('v-real').textContent=p.ri;
+  document.getElementById('ing-posture').value=p.posture;
+  document.getElementById('int-posture').value=p.pi; document.getElementById('v-posture').textContent=p.pi;
+  document.getElementById('ing-trauma').value=p.trauma;
+  document.getElementById('int-trauma').value=p.ti; document.getElementById('v-trauma').textContent=p.ti;
+  document.getElementById('ing-insight').value=p.insight;
+  document.getElementById('int-insight').value=p.ii; document.getElementById('v-insight').textContent=p.ii;
+  if(p.ctx) document.getElementById('ing-context').value=p.ctx;
+  if(p.mode==='couple'){
+    document.getElementById('ing-attachment-b').value=p.attachmentB||'évitant-détaché';
+    document.getElementById('ing-defense-b').value=p.defenseB||'évitement émotionnel';
+    document.getElementById('ing-real-b').value=p.realB||'secret inavoué';
+    document.getElementById('ing-posture-b').value=p.postureB||'fuyant-minimiseur';
+  }
+}
+
+function buildProfile(){
+  const isCouple=mode==='couple';
+  const nameA=isCouple?document.getElementById('name-a').value:document.getElementById('patient-name').value;
+  const nameB=isCouple?document.getElementById('name-b').value:'';
+  const att=document.getElementById('ing-attachment').value;
+  const ai=document.getElementById('int-attachment').value;
+  const def=document.getElementById('ing-defense').value;
+  const di=document.getElementById('int-defense').value;
+  const real=document.getElementById('ing-real').value;
+  const ri=document.getElementById('int-real').value;
+  const pos=document.getElementById('ing-posture').value;
+  const pi=document.getElementById('int-posture').value;
+  const tra=document.getElementById('ing-trauma').value;
+  const ti=document.getElementById('int-trauma').value;
+  const ins=document.getElementById('ing-insight').value;
+  const ii=document.getElementById('int-insight').value;
+  const ctx=document.getElementById('ing-context').value;
+
+  let profileDesc=`PROFIL PATIENT — ${isCouple?`COUPLE : ${nameA} + ${nameB}`:`INDIVIDUEL : ${nameA}`}\n\nPARTENAIRE ${isCouple?'A : '+nameA:'PRINCIPAL : '+nameA}\n- Attachement : ${att} (intensité ${ai}/5)\n- Défense dominante : ${def} (intensité ${di}/5)\n- Motif réel caché : ${real} (profondeur ${ri}/5)\n- Posture en séance : ${pos} (${pi}/5)\n- Charge traumatique : ${tra} (${ti}/5)\n- Insight : ${ins} (${ii}/5)`;
+
+  if(isCouple){
+    const attB=document.getElementById('ing-attachment-b').value;
+    const defB=document.getElementById('ing-defense-b').value;
+    const realB=document.getElementById('ing-real-b').value;
+    const posB=document.getElementById('ing-posture-b').value;
+    profileDesc+=`\n\nPARTENAIRE B : ${nameB}\n- Attachement : ${attB}\n- Défense dominante : ${defB}\n- Motif réel caché : ${realB}\n- Posture en séance : ${posB}`;
+  }
+  if(ctx) profileDesc+=`\n\nCONTEXTE : ${ctx}`;
+
+  profile={desc:profileDesc,nameA,nameB,isCouple,system:buildSystemPrompt(profileDesc,nameA,nameB,isCouple)};
+  history=[];
+
+  const badge=document.getElementById('profile-badge');
+  badge.innerHTML=`<strong>Profil actif :</strong> ${isCouple?`${nameA} + ${nameB} (couple)`:`${nameA} (individuel)`} · ${att} · ${def} · motif réel : ${real}`;
+  badge.classList.add('visible');
+  document.getElementById('start-btn').disabled=false;
+  document.getElementById('status').textContent='Profil construit — démarrez la session';
+  document.getElementById('conv-title').textContent=isCouple?`${nameA} & ${nameB}`:`${nameA}`;
+  clearConv();
+  switchTab('session',document.querySelectorAll('.tab')[1]);
+}
+
+function buildSystemPrompt(profileDesc,nameA,nameB,isCouple){
+  const whoLabel=isCouple?`les deux partenaires (${nameA} et ${nameB})`:`${nameA}`;
+  return `Tu joues le rôle de ${whoLabel} dans une séance de thérapie.\n\n${profileDesc}\n\nRÈGLES ABSOLUES :\n1. Tu incarnes ce patient avec une précision psychologique rigoureuse — ses défenses, ses résistances, sa façon de parler, ses silences.\n2. Tu NE sors JAMAIS du rôle. Pas de méta-commentaires. Tu es le patient.\n3. Tu NE facilites PAS le travail du thérapeute. Tu résistes de façon réaliste selon le profil.\n4. Le motif réel caché doit rester opaque en surface — il peut transparaître subtilement mais jamais explicitement au début.\n5. La défense dominante colore CHAQUE réponse — elle ne disparaît pas.\n6. Tes réponses : 2-5 phrases. Authentiques. Jamais trop lisses.\n7. En mode couple : précise toujours qui parle avec [${nameA}] ou [${nameB}] au début de la réplique. Les deux peuvent réagir l'un à l'autre.\n8. Tu peux manifester des microréactions non verbales entre parenthèses : (il regarde ses mains), (long silence), (sourire tendu).\n9. La résistance s'adapte à la qualité des interventions — une intervention juste peut créer une micro-ouverture, une erreur clinique renforce les défenses.\n10. Tu es l'adversaire bienveillant du thérapeute — tu le mets à l'épreuve sans le détruire.`;
+}
+
+async function startSession(){
+  if(!profile) return;
+  setStatus('Ouverture de séance…',true);
+  document.getElementById('start-btn').disabled=true;
+  document.getElementById('reply-btn').disabled=false;
+  document.getElementById('export-btn').disabled=false;
+  sessionStart=new Date();
+  const opening=`[Début de séance — premier contact]\nLe thérapeute accueille le patient. Génère la première prise de parole spontanée du patient, son entrée en matière.`;
+  try{
+    const resp=await callWorker([{role:'user',content:opening}]);
+    if(resp){
+      history.push({role:'user',content:opening});
+      history.push({role:'assistant',content:resp});
+      lastPatientMsg=resp;
+      addMsg(resp,'patient',profile.isCouple?null:profile.nameA);
+      document.getElementById('copy-patient-btn').disabled=false;
+      setStatus('Message patient généré — collez-le dans votre thérapeute IA, puis collez la réponse ici',false);
+    }
+  }catch(e){setStatus('Erreur : '+e.message,false);}
+}
+
+async function generatePatientReply(){
+  const therapistText=document.getElementById('therapist-input').value.trim();
+  if(!therapistText||!profile) return;
+  addMsg(therapistText,'therapist','Thérapeute IA');
+  document.getElementById('therapist-input').value='';
+  history.push({role:'user',content:therapistText});
+  setStatus('Le patient réfléchit…',true);
+  document.getElementById('reply-btn').disabled=true;
+  try{
+    const resp=await callWorker(history);
+    if(resp){
+      history.push({role:'assistant',content:resp});
+      lastPatientMsg=resp;
+      turnCount++;
+      addMsg(resp,'patient',profile.isCouple?null:profile.nameA);
+      document.getElementById('copy-patient-btn').disabled=false;
+      updateTurnCount();
+      setStatus('Réponse patient générée — copiez-la dans le thérapeute IA',false);
+    }
+  }catch(e){setStatus('Erreur : '+e.message,false);}
+  document.getElementById('reply-btn').disabled=false;
+}
+
+function addMsg(text,type,name){
+  const container=document.getElementById('messages');
+  const placeholder=container.querySelector('.msg.system');
+  if(placeholder) placeholder.remove();
+  const div=document.createElement('div');
+  div.className='msg '+type;
+  if(name){const lbl=document.createElement('div');lbl.className='msg-label';lbl.textContent=name;div.appendChild(lbl);}
+  const txt=document.createElement('div');txt.textContent=text;div.appendChild(txt);
+  container.appendChild(div);
+  container.scrollTop=container.scrollHeight;
+}
+
+function copyLastPatient(){
+  if(!lastPatientMsg) return;
+  navigator.clipboard.writeText(lastPatientMsg).then(()=>{
+    setStatus('Copié — collez dans votre thérapeute IA',false);
+    setTimeout(()=>setStatus('Prêt',false),2500);
+  });
+}
+
+function updateTurnCount(){
+  const el=document.getElementById('turn-count');
+  el.textContent=`${turnCount} échange${turnCount>1?'s':''}${turnCount>=15?' · séance longue':''}`;
+}
+
+function endAndExport(){
+  if(!profile||history.length===0) return;
+  const sessionEnd=new Date();
+  const durationMin=sessionStart?Math.round((sessionEnd-sessionStart)/60000):null;
+
+  // Reconstruire les échanges lisibles
+  const exchanges=[];
+  let therapistBuffer=null;
+  for(const msg of history){
+    if(msg.role==='user'){
+      if(msg.content.includes('[Début de séance')) continue; // skip init
+      therapistBuffer=msg.content;
+    } else {
+      exchanges.push({
+        tour: exchanges.length+1,
+        therapeute: therapistBuffer||null,
+        patient: msg.content
+      });
+      therapistBuffer=null;
+    }
+  }
+
+  const exportData={
+    meta:{
+      date: new Date().toISOString(),
+      duree_minutes: durationMin,
+      nb_echanges: turnCount,
+      mode: profile.isCouple?'couple':'individuel',
+      patient_a: profile.nameA,
+      patient_b: profile.isCouple?profile.nameB:null
+    },
+    profil:{
+      description: profile.desc
+    },
+    session:{
+      echanges: exchanges,
+      historique_brut: history
+    },
+    analyse:{
+      notes: '',
+      observations: '',
+      points_de_blocage: [],
+      micro_ouvertures: [],
+      qualite_clinique: null
+    }
+  };
+
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,16).replace('T','-').replace(':','-');
+  a.href=url;
+  a.download=`session_${profile.nameA.toLowerCase()}${profile.isCouple?'_'+profile.nameB.toLowerCase():''}_${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus('Session exportée — fichier JSON téléchargé',false);
+}
+
+function clearConv(){
+  history=[];lastPatientMsg='';turnCount=0;
+  document.getElementById('messages').innerHTML='<div class="msg system">Session effacée — démarrez une nouvelle session.</div>';
+  document.getElementById('copy-patient-btn').disabled=true;
+  document.getElementById('export-btn').disabled=true;
+  document.getElementById('turn-count').textContent='';
+  if(profile) document.getElementById('start-btn').disabled=false;
+}
+
+async function callWorker(messages){
+  const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payload:{model:'claude-sonnet-4-20250514',max_tokens:400,system:profile.system,messages:messages}})});
+  const d=await r.json();
+  return d.content?.[0]?.text||'';
+}
+
+
+async function randomPatient(){
+  const btn=document.getElementById('random-btn');
+  btn.disabled=true; btn.textContent='Tirage...';
+
+  // Pools
+  const pools={
+    attachment:['anxieux-préoccupé','évitant-détaché','désorganisé','secure-dégradé','libre'],
+    defense:['intellectualisation','évitement émotionnel','humour défensif','projection','dissociation légère','clivage','déni','séduction'],
+    real:["peur de l'abandon","honte profonde non nommée","secret inavoué","deuil non fait","rage contenue","désir de rupture","dépendance affective","vide identitaire"],
+    posture:['demandeur collaboratif','résistant passif','testeur du thérapeute','soumis-complaisant','séducteur','agressif diffus','fuyant-minimiseur'],
+    trauma:["absente","trauma enfance enkysté","trauma relationnel récent","trauma niée conscient","dissociation ancienne","trouble attachement précoce"],
+    insight:["faible, peu réflexif","moyen, partiellement conscient","élevé mais bloqué dans action","intellectualisé sans ressenti","fluctuant selon le sujet"],
+    prenomsSingle:['Thomas','Lucas','Emma','Julie','Karim','Nadia','Pierre','Sofia','Marc','Isabelle','Romain','Céline','Alexis','Laura','Samuel'],
+    prenomsA:['Sophie','Léa','Marie','Camille','Inès','Amira','Charlotte','Sarah'],
+    prenomsB:['Marc','Romain','Nicolas','Julien','Antoine','Youssef','David','Thomas']
+  };
+  const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+  const randInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const isCouple=Math.random()<0.4;
+
+  // Tirage
+  const att=pick(pools.attachment);
+  const def=pick(pools.defense);
+  const rl=pick(pools.real);
+  const pos=pick(pools.posture);
+  const tra=pick(pools.trauma);
+  const ins=pick(pools.insight);
+  const ai=randInt(2,5), di=randInt(2,5), ri=randInt(3,5), pi=randInt(1,4), ti=randInt(1,5), ii=randInt(1,4);
+
+  // Appliquer au formulaire
+  setMode(isCouple?'couple':'single', document.querySelectorAll('.mode-btn')[isCouple?1:0]);
+
+  if(isCouple){
+    document.getElementById('name-a').value=pick(pools.prenomsA);
+    document.getElementById('name-b').value=pick(pools.prenomsB);
+    const attB_pool=pools.attachment.filter(x=>x!==att);
+    document.getElementById('ing-attachment-b').value=pick(attB_pool);
+    document.getElementById('ing-defense-b').value=pick(pools.defense);
+    document.getElementById('ing-real-b').value=pick(pools.real);
+    document.getElementById('ing-posture-b').value=pick(pools.posture);
+  } else {
+    document.getElementById('patient-name').value=pick(pools.prenomsSingle);
+  }
+
+  document.getElementById('ing-attachment').value=att;
+  document.getElementById('int-attachment').value=ai; document.getElementById('v-attachment').textContent=ai;
+  document.getElementById('ing-defense').value=def;
+  document.getElementById('int-defense').value=di; document.getElementById('v-defense').textContent=di;
+  document.getElementById('ing-real').value=rl;
+  document.getElementById('int-real').value=ri; document.getElementById('v-real').textContent=ri;
+  document.getElementById('ing-posture').value=pos;
+  document.getElementById('int-posture').value=pi; document.getElementById('v-posture').textContent=pi;
+  document.getElementById('ing-trauma').value=tra;
+  document.getElementById('int-trauma').value=ti; document.getElementById('v-trauma').textContent=ti;
+  document.getElementById('ing-insight').value=ins;
+  document.getElementById('int-insight').value=ii; document.getElementById('v-insight').textContent=ii;
+
+  // Générer un contexte narratif via Haiku
+  const nameA=isCouple?document.getElementById('name-a').value:document.getElementById('patient-name').value;
+  const nameB=isCouple?document.getElementById('name-b').value:'';
+  const prompt=isCouple
+    ? `Génère un contexte de fond clinique en 2 phrases pour un couple en thérapie : ${nameA} (attachement ${att}, défense ${def}, motif caché : ${rl}) et ${nameB}. Contexte réaliste, sobre, spécifique. Pas d'introduction.`
+    : `Génère un contexte de fond clinique en 2 phrases pour un patient en thérapie : ${nameA}, attachement ${att}, défense ${def}, motif caché : ${rl}. Contexte réaliste, sobre, spécifique. Pas d'introduction.`;
+
+  try{
+    const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payload:{model:'claude-haiku-4-5-20251001',max_tokens:120,system:'Tu génères des contextes cliniques concis et réalistes pour des patients en thérapie. Réponds uniquement avec le contexte, sans introduction.',messages:[{role:'user',content:prompt}]}})});
+    const d=await r.json();
+    const ctx=d.content?.[0]?.text||'';
+    if(ctx) document.getElementById('ing-context').value=ctx;
+  }catch(e){console.warn('ctx gen failed',e);}
+
+  btn.disabled=false; btn.textContent='⚄ Patient aléatoire';
+}
+
+function setStatus(msg,loading){
+  document.getElementById('status').textContent=msg;
+  document.getElementById('spin').classList.toggle('on',!!loading);
+}
+</script>
+</body>
+</html>
