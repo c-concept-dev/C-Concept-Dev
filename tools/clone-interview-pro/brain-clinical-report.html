@@ -3,519 +3,1449 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapport Clinique de Personnalite v3 — C Concept&Dev</title>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<title>Audit de Personnalité — C Concept&Dev</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:wght@400;500;600;700&display=swap');
-:root{--mer:#8FAFB1;--vert-sauge:#C8D0C3;--beige-sable:#D8CDBB;--sable:#E6D7C3;--blanc:#FFFFFF;--noir:#1a1a1a;--gris:#555;--gris-l:#888;--accent:#6B8E8F;--danger:#B85C5C;--warn:#C4956A;--ok:#7A9E7E}
+/* ═══════════════════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════════════════ */
+:root {
+  --mer: #8FAFB1;
+  --mer-deep: #6B8E8F;
+  --sauge: #C8D0C3;
+  --beige: #D8CDBB;
+  --sable: #E6D7C3;
+  --sable-light: #F4F0EB;
+  --blanc: #FFFFFF;
+  --noir: #1A1A1A;
+  --gris: #555;
+  --gris-l: #888;
+  --gris-ll: #BBB;
+  --accent: #6B8E8F;
+  --danger: #A0522D;
+  --warn: #B8860B;
+  --ok: #5F8B6A;
+  --ink: #2C2C2C;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'DM Sans',sans-serif;background:#f4f0eb;color:var(--noir);min-height:100vh}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:'DM Sans',sans-serif;background:var(--sable-light);color:var(--ink);min-height:100vh;overflow-x:hidden}
 
-.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem}
-.screen.hidden{display:none}
-h1.title{font-family:'EB Garamond',serif;font-size:2.6rem;font-weight:700;color:var(--noir);margin-bottom:.2rem;letter-spacing:-.02em}
-.subtitle{font-size:.85rem;color:var(--gris-l);margin-bottom:3rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
-
-.drop-zone{width:min(480px,88vw);border:2px dashed var(--beige-sable);border-radius:16px;padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--blanc)}
-.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:#faf8f5;box-shadow:0 8px 30px rgba(0,0,0,.06)}
-.drop-zone p{font-size:1rem;color:var(--gris)}
-.drop-zone .hint{font-size:.78rem;color:var(--gris-l);margin-top:.6rem}
+/* ═══════════════════════════════════════════════════
+   UPLOAD SCREEN
+═══════════════════════════════════════════════════ */
+#uploadScreen {
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:3rem 1.5rem;position:relative;overflow:hidden;
+}
+#uploadScreen::before {
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(143,175,177,0.15) 0%, transparent 70%),
+             radial-gradient(ellipse 60% 40% at 80% 100%, rgba(200,208,195,0.12) 0%, transparent 60%);
+  pointer-events:none;
+}
+.brand {
+  font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.2em;
+  color:var(--gris-l);text-transform:uppercase;margin-bottom:3rem;
+  opacity:.7;
+}
+.upload-title {
+  font-family:'EB Garamond',serif;font-size:3rem;font-weight:400;
+  color:var(--noir);margin-bottom:.4rem;letter-spacing:-.02em;
+  line-height:1.1;text-align:center;
+}
+.upload-title em{font-style:italic;color:var(--accent)}
+.upload-sub {
+  font-size:.78rem;color:var(--gris-l);margin-bottom:3.5rem;
+  letter-spacing:.12em;text-transform:uppercase;font-weight:500;text-align:center;
+}
+.drop-zone {
+  width:min(520px,90vw);border:1.5px solid var(--beige);border-radius:18px;
+  padding:3.5rem 2.5rem;text-align:center;cursor:pointer;transition:all .35s;
+  background:rgba(255,255,255,0.7);backdrop-filter:blur(8px);
+  box-shadow:0 2px 20px rgba(0,0,0,.04),0 0 0 0 transparent;
+  position:relative;
+}
+.drop-zone::before {
+  content:'';position:absolute;inset:-1px;border-radius:18px;
+  background:linear-gradient(135deg,var(--mer) 0%,transparent 50%,var(--sauge) 100%);
+  opacity:0;transition:opacity .35s;z-index:-1;
+}
+.drop-zone:hover,.drop-zone.dragover {
+  border-color:var(--accent);background:rgba(255,255,255,.9);
+  box-shadow:0 8px 40px rgba(107,142,143,.12),0 2px 8px rgba(0,0,0,.04);
+  transform:translateY(-2px);
+}
+.drop-zone:hover::before,.drop-zone.dragover::before{opacity:.06}
+.drop-icon {
+  width:52px;height:52px;margin:0 auto 1.2rem;
+  border:1.5px solid var(--beige);border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--sable-light);color:var(--accent);font-size:1.4rem;
+  transition:all .3s;
+}
+.drop-zone:hover .drop-icon{border-color:var(--accent);background:rgba(107,142,143,.06);transform:scale(1.05)}
+.drop-title{font-size:1rem;font-weight:600;color:var(--noir);margin-bottom:.4rem}
+.drop-hint{font-size:.78rem;color:var(--gris-l);line-height:1.5}
 .drop-zone input{display:none}
+.format-badge {
+  display:inline-flex;align-items:center;gap:.4rem;margin-top:1.2rem;
+  padding:.3rem .8rem;border-radius:20px;background:rgba(107,142,143,.08);
+  font-family:'DM Mono',monospace;font-size:.68rem;color:var(--accent);letter-spacing:.05em;
+}
+.config-row {
+  width:min(520px,90vw);margin-top:1rem;padding:.8rem 1rem;
+  background:rgba(255,255,255,.6);border-radius:12px;border:1px solid var(--beige);
+  display:flex;align-items:center;gap:.6rem;
+}
+.config-row label{font-size:.72rem;font-weight:600;color:var(--gris-l);white-space:nowrap;letter-spacing:.05em;text-transform:uppercase}
+.config-row input{flex:1;padding:.3rem .6rem;border:none;background:transparent;font-family:'DM Mono',monospace;font-size:.78rem;color:var(--ink);outline:none}
 
-.config-panel{width:min(480px,88vw);margin-top:1.5rem;padding:1rem 1.2rem;background:var(--blanc);border-radius:12px;border-left:3px solid var(--accent)}
-.config-panel label{display:block;color:var(--accent);font-size:.8rem;font-weight:600;margin-bottom:.4rem}
-.config-panel input{width:100%;padding:.5rem .8rem;border:1px solid #ddd;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem}
-
-.steps{width:min(440px,85vw);margin-top:1.5rem;text-align:left}
-.step{padding:.5rem 0;font-size:.88rem;color:var(--gris-l);display:flex;align-items:center;gap:.6rem;transition:color .3s}
-.step .icon{width:22px;text-align:center;font-size:.9rem}
-.step.active{color:var(--noir);font-weight:600}
+/* ═══════════════════════════════════════════════════
+   PROCESSING SCREEN
+═══════════════════════════════════════════════════ */
+#processingScreen {
+  min-height:100vh;display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:3rem 1.5rem;
+}
+.proc-title{font-family:'EB Garamond',serif;font-size:1.8rem;font-weight:400;color:var(--noir);margin-bottom:.3rem;letter-spacing:-.01em}
+.proc-sub{font-size:.78rem;color:var(--gris-l);margin-bottom:3rem;letter-spacing:.08em;text-transform:uppercase}
+.steps-container{width:min(480px,88vw)}
+.step {
+  padding:.55rem 0;font-size:.85rem;color:var(--gris-ll);
+  display:flex;align-items:center;gap:.8rem;transition:all .3s;
+}
+.step-num {
+  width:22px;height:22px;border-radius:50%;border:1.5px solid var(--gris-ll);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:700;font-family:'DM Mono',monospace;
+  flex-shrink:0;transition:all .3s;
+}
+.step.active{color:var(--ink);font-weight:500}
+.step.active .step-num{border-color:var(--accent);color:var(--accent);background:rgba(107,142,143,.08)}
 .step.done{color:var(--ok)}
-.bar{width:min(440px,85vw);height:4px;background:#e0dcd7;border-radius:4px;margin-top:1rem;overflow:hidden}
-.bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--mer));border-radius:4px;transition:width .5s ease}
-#statusText{font-size:.82rem;color:var(--gris-l);margin-top:.8rem;text-align:center}
-#errorMsg{color:var(--danger);font-size:.85rem;margin-top:1rem;text-align:center}
-#doneButtons{display:none;gap:10px;margin-top:1.5rem;justify-content:center}
+.step.done .step-num{border-color:var(--ok);background:var(--ok);color:white;font-size:.7rem}
+.step.done .step-num::after{content:'✓'}
+.step-label{}
 
-.btn{padding:.7rem 1.6rem;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .3s}
-.btn-primary{background:var(--accent);color:var(--blanc);border-color:var(--accent)}
-.btn-primary:hover{background:#5a7b7c}
-.btn-secondary{background:transparent;color:var(--accent);border-color:var(--accent)}
-.btn-secondary:hover{background:var(--accent);color:var(--blanc)}
+.progress-track{
+  width:min(480px,88vw);height:2px;background:var(--beige);
+  border-radius:2px;margin-top:2rem;overflow:hidden;
+}
+.progress-fill{
+  height:100%;background:linear-gradient(90deg,var(--accent),var(--mer));
+  border-radius:2px;transition:width .6s ease;width:0;
+}
+#statusText{font-size:.78rem;color:var(--gris-l);margin-top:.8rem;font-family:'DM Mono',monospace}
+#errorMsg{color:var(--danger);font-size:.82rem;margin-top:1rem;font-weight:500}
+.done-btns{display:none;gap:.8rem;margin-top:2rem;justify-content:center}
+.btn{
+  padding:.65rem 1.5rem;border-radius:10px;font-family:'DM Sans',sans-serif;
+  font-size:.85rem;font-weight:600;cursor:pointer;border:1.5px solid transparent;
+  transition:all .25s;letter-spacing:.01em;
+}
+.btn-primary{background:var(--accent);color:white;border-color:var(--accent)}
+.btn-primary:hover{background:#5a7b7c;transform:translateY(-1px);box-shadow:0 4px 12px rgba(107,142,143,.3)}
+.btn-ghost{background:transparent;color:var(--accent);border-color:var(--accent)}
+.btn-ghost:hover{background:rgba(107,142,143,.06)}
 
-.preview-screen{display:none;background:#f4f0eb;min-height:100vh;padding:2.5rem 1rem}
-.preview-bar{text-align:center;margin-bottom:2rem;position:sticky;top:0;z-index:10;padding:.8rem;background:rgba(244,240,235,.95);backdrop-filter:blur(6px)}
-.report{max-width:760px;margin:0 auto;background:var(--blanc);padding:3.5rem 3rem;border-radius:12px;box-shadow:0 4px 30px rgba(0,0,0,.06);line-height:1.75}
-.report h1{font-family:'EB Garamond',serif;font-size:2rem;color:var(--noir);margin-bottom:.3rem;text-align:center}
-.report .doc-meta{text-align:center;font-size:.82rem;color:var(--gris-l);margin-bottom:2.5rem;line-height:1.6;padding-bottom:1.5rem;border-bottom:1px solid #e8e4df}
-.report h2{font-family:'EB Garamond',serif;font-size:1.35rem;color:var(--accent);margin:2.2rem 0 .8rem;padding-bottom:.3rem;border-bottom:1px solid #ece8e3}
-.report p{font-size:.92rem;margin-bottom:.8rem;text-align:justify}
-.report em{color:var(--accent);font-style:italic}
-.report table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0}
-.report th{background:var(--accent);color:var(--blanc);padding:.5rem .7rem;text-align:left;font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
-.report td{padding:.45rem .7rem;border-bottom:1px solid #eee}
-.report tr:hover td{background:#faf8f5}
-.report .sc{font-weight:700;color:var(--noir)}
-.report .conf-bar{display:inline-block;width:50px;height:6px;background:#eee;border-radius:3px;vertical-align:middle;margin-left:6px;overflow:hidden}
-.report .conf-bar .fill{height:100%;border-radius:3px}
+/* ═══════════════════════════════════════════════════
+   PREVIEW SCREEN — PRINT TARGET
+═══════════════════════════════════════════════════ */
+#previewScreen{display:none;background:var(--sable-light);min-height:100vh}
+.preview-bar {
+  position:sticky;top:0;z-index:100;
+  background:rgba(244,240,235,.96);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--beige);
+  padding:.7rem 1.5rem;display:flex;align-items:center;gap:.6rem;justify-content:space-between;
+}
+.preview-bar-left{display:flex;align-items:center;gap:.5rem}
+.preview-bar-title{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--gris-l);letter-spacing:.08em;text-transform:uppercase}
+.preview-bar-name{font-size:.9rem;font-weight:600;color:var(--ink)}
+
+/* ═══════════════════════════════════════════════════
+   REPORT DOCUMENT
+═══════════════════════════════════════════════════ */
+#reportDoc {
+  max-width:800px;margin:2.5rem auto;padding:0 1rem 4rem;
+}
+
+/* COVER PAGE */
+.cover-page {
+  background:white;border-radius:16px;
+  box-shadow:0 4px 40px rgba(0,0,0,.06);
+  overflow:hidden;margin-bottom:1.5rem;
+  page-break-after:always;
+}
+.cover-top {
+  background:linear-gradient(160deg, var(--ink) 0%, #2a3635 100%);
+  padding:4rem 3.5rem 3rem;position:relative;overflow:hidden;
+}
+.cover-top::before {
+  content:'';position:absolute;top:-40px;right:-60px;
+  width:300px;height:300px;
+  border:1px solid rgba(143,175,177,.15);border-radius:50%;
+}
+.cover-top::after {
+  content:'';position:absolute;bottom:-80px;left:-40px;
+  width:200px;height:200px;
+  border:1px solid rgba(200,208,195,.1);border-radius:50%;
+}
+.cover-eyebrow {
+  font-family:'DM Mono',monospace;font-size:.65rem;color:rgba(143,175,177,.7);
+  letter-spacing:.2em;text-transform:uppercase;margin-bottom:1.5rem;
+}
+.cover-h1 {
+  font-family:'EB Garamond',serif;font-size:2.6rem;font-weight:400;
+  color:white;line-height:1.1;margin-bottom:.3rem;
+}
+.cover-h1 em{font-style:italic;color:var(--mer)}
+.cover-subject {
+  font-family:'EB Garamond',serif;font-size:1.4rem;font-weight:400;
+  color:rgba(255,255,255,.6);margin-top:.5rem;
+}
+.cover-meta-grid {
+  display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;
+  margin-top:2.5rem;
+}
+.cover-meta-item {
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:.8rem 1rem;
+}
+.cover-meta-label{font-size:.65rem;color:rgba(143,175,177,.6);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.2rem;font-family:'DM Mono',monospace}
+.cover-meta-value{font-size:.95rem;font-weight:600;color:white}
+.cover-bottom {
+  padding:2rem 3.5rem;display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--beige);
+}
+.cover-grade {
+  display:flex;align-items:center;gap:1rem;
+}
+.grade-badge {
+  width:52px;height:52px;border-radius:12px;
+  background:linear-gradient(135deg,var(--accent),var(--mer));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'EB Garamond',serif;font-size:1.6rem;font-weight:700;color:white;
+}
+.grade-info{display:flex;flex-direction:column;gap:.1rem}
+.grade-label{font-size:.7rem;color:var(--gris-l);letter-spacing:.08em;text-transform:uppercase}
+.grade-value{font-size:.9rem;font-weight:600;color:var(--ink)}
+.cover-confidential {
+  font-family:'DM Mono',monospace;font-size:.65rem;
+  letter-spacing:.15em;color:var(--gris-l);text-transform:uppercase;
+  padding:.3rem .8rem;border:1px solid var(--beige);border-radius:6px;
+}
+
+/* WARNING BANNER */
+.warning-banner {
+  background:rgba(184,134,11,.06);border:1px solid rgba(184,134,11,.2);
+  border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;
+  font-size:.78rem;color:var(--warn);display:flex;align-items:center;gap:.6rem;
+}
+
+/* SECTION PAGES */
+.section-page {
+  background:white;border-radius:16px;
+  box-shadow:0 2px 20px rgba(0,0,0,.04);
+  padding:3rem 3.5rem;margin-bottom:1.5rem;
+  page-break-inside:avoid;
+}
+.section-header {
+  display:flex;align-items:baseline;gap:1rem;
+  margin-bottom:1.8rem;padding-bottom:1rem;
+  border-bottom:1px solid #ece8e3;
+}
+.section-num {
+  font-family:'DM Mono',monospace;font-size:.65rem;color:var(--mer-deep);
+  letter-spacing:.1em;flex-shrink:0;
+  width:1.8rem;
+}
+.section-title {
+  font-family:'EB Garamond',serif;font-size:1.4rem;font-weight:500;
+  color:var(--ink);letter-spacing:-.01em;
+}
+.section-body p {
+  font-size:.915rem;line-height:1.85;color:var(--ink);
+  margin-bottom:1rem;text-align:justify;
+  hyphens:auto;
+}
+.section-body p:last-child{margin-bottom:0}
+.section-body em{color:var(--accent);font-style:italic}
+.section-body strong{font-weight:600;color:var(--ink)}
+
+/* PSYCHOMETRIC TABLE */
+.table-section{
+  background:white;border-radius:16px;
+  box-shadow:0 2px 20px rgba(0,0,0,.04);
+  padding:2.5rem 3.5rem 3rem;margin-bottom:1.5rem;
+}
+.table-intro{
+  font-size:.82rem;color:var(--gris);line-height:1.65;margin-bottom:1.5rem;
+  font-style:italic;border-left:2px solid var(--mer);padding-left:1rem;
+}
+.psycho-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.psycho-table thead tr{background:var(--ink)}
+.psycho-table th{
+  padding:.5rem .8rem;text-align:left;font-weight:600;
+  font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:white;
+}
+.psycho-table th:first-child{border-radius:6px 0 0 6px}
+.psycho-table th:last-child{border-radius:0 6px 6px 0}
+.psycho-table td{padding:.5rem .8rem;border-bottom:1px solid #f0ece8;vertical-align:middle}
+.psycho-table tr:last-child td{border-bottom:none}
+.psycho-table tr:hover td{background:#faf8f5}
+.score-cell{font-weight:700;color:var(--ink);font-family:'DM Mono',monospace;font-size:.82rem}
+.source-tag{
+  display:inline-block;padding:.1rem .4rem;border-radius:4px;
+  font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.04em;
+  background:rgba(107,142,143,.1);color:var(--mer-deep);
+}
+.source-tag.local{background:rgba(95,139,106,.08);color:var(--ok)}
+.conf-bar-wrap{display:inline-flex;align-items:center;gap:.4rem}
+.conf-bar{display:inline-block;width:40px;height:4px;background:#eee;border-radius:2px;overflow:hidden;vertical-align:middle}
+.conf-bar .fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--mer))}
+
+/* DEFENSE DYNAMICS SECTION */
+.defense-grid{display:grid;gap:.8rem;margin-top:.8rem}
+.defense-sequence{
+  border:1px solid var(--beige);border-radius:12px;overflow:hidden;
+}
+.defense-seq-header{
+  background:var(--sable-light);padding:.7rem 1rem;
+  display:flex;align-items:center;gap:.6rem;
+  border-bottom:1px solid var(--beige);
+}
+.defense-trigger-label{
+  font-size:.65rem;color:var(--gris-l);text-transform:uppercase;letter-spacing:.08em;font-weight:600;
+}
+.defense-triggers{display:flex;gap:.4rem;flex-wrap:wrap}
+.trigger-chip{
+  padding:.15rem .5rem;border-radius:4px;background:rgba(107,142,143,.1);
+  color:var(--mer-deep);font-size:.7rem;font-family:'DM Mono',monospace;
+}
+.defense-states{padding:.8rem 1rem;display:flex;flex-direction:column;gap:.6rem}
+.defense-state{
+  display:flex;gap:.8rem;align-items:flex-start;
+}
+.state-arrow{
+  color:var(--beige);font-size:.85rem;margin-top:.15rem;flex-shrink:0;
+  font-family:'DM Mono',monospace;
+}
+.state-content{}
+.state-name{
+  font-size:.72rem;font-weight:700;color:var(--accent);text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:.2rem;font-family:'DM Mono',monospace;
+}
+.state-pattern{font-size:.8rem;color:var(--gris);margin-bottom:.2rem;line-height:1.4}
+.state-example{
+  font-size:.77rem;color:var(--ink);font-style:italic;
+  padding:.3rem .5rem;background:var(--sable-light);border-left:2px solid var(--beige);
+  border-radius:0 4px 4px 0;margin-top:.2rem;
+}
+.state-escalade{font-size:.7rem;color:var(--gris-l);margin-top:.2rem}
+.state-escalade span{color:var(--warn);font-family:'DM Mono',monospace;font-size:.65rem}
+.defense-reset{
+  padding:.5rem 1rem;border-top:1px solid var(--beige);
+  font-size:.75rem;color:var(--gris);font-style:italic;
+  background:rgba(200,208,195,.1);
+}
+.defense-evidence{
+  margin-top:1rem;padding:.8rem 1rem;
+  background:var(--sable-light);border-radius:8px;
+  font-size:.78rem;color:var(--gris);
+}
+.defense-evidence strong{color:var(--ink);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem}
+.defense-evidence ul{list-style:none;display:flex;flex-direction:column;gap:.3rem}
+.defense-evidence li::before{content:'— ';color:var(--gris-ll)}
+
+/* ENERGY PATTERNS */
+.energy-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.8rem}
+.energy-card{
+  border:1px solid var(--beige);border-radius:10px;padding:.9rem 1rem;
+}
+.energy-card-label{
+  font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--gris-l);font-weight:600;margin-bottom:.5rem;font-family:'DM Mono',monospace;
+}
+.energy-card ul{list-style:none;display:flex;flex-direction:column;gap:.3rem}
+.energy-card li{font-size:.8rem;color:var(--ink);display:flex;align-items:flex-start;gap:.4rem;line-height:1.4}
+.energy-card li::before{content:'·';color:var(--mer-deep);flex-shrink:0;margin-top:.1rem}
+.energy-rhythm{
+  grid-column:1/-1;background:rgba(107,142,143,.05);
+  border:1px solid rgba(107,142,143,.15);
+}
+.context-modes{grid-column:1/-1}
+.mode-row{
+  display:flex;align-items:center;gap:.8rem;padding:.4rem .8rem;
+  border-radius:6px;margin-bottom:.3rem;background:var(--sable-light);
+}
+.mode-energy{
+  font-family:'DM Mono',monospace;font-size:.6rem;font-weight:700;
+  padding:.15rem .4rem;border-radius:4px;flex-shrink:0;text-transform:uppercase;
+}
+.mode-energy.high{background:rgba(95,139,106,.12);color:var(--ok)}
+.mode-energy.medium,.mode-energy.moderate{background:rgba(184,134,11,.1);color:var(--warn)}
+.mode-energy.low{background:rgba(160,82,45,.08);color:var(--danger)}
+.mode-context{font-size:.78rem;color:var(--gris);flex:1}
+.mode-mode{font-size:.78rem;color:var(--ink);font-weight:500}
+
+/* MEMORY HOOKS */
+.hooks-grid{display:grid;gap:.6rem;margin-top:.8rem}
+.hook-card{
+  border:1px solid var(--beige);border-radius:10px;padding:.8rem 1rem;
+  display:grid;grid-template-columns:auto 1fr;gap:.4rem .8rem;
+}
+.hook-domain{
+  grid-column:1;grid-row:1;
+  font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;
+  padding:.15rem .4rem;border-radius:4px;background:rgba(107,142,143,.1);color:var(--mer-deep);
+  align-self:center;white-space:nowrap;height:fit-content;
+}
+.hook-summary{
+  grid-column:2;grid-row:1;font-size:.82rem;font-weight:500;color:var(--ink);align-self:center;
+}
+.hook-when{
+  grid-column:2;grid-row:2;font-size:.75rem;color:var(--gris);
+}
+.hook-when strong{color:var(--gris);font-size:.65rem;text-transform:uppercase;letter-spacing:.06em}
+.hook-form{
+  grid-column:1/-1;font-size:.8rem;color:var(--ink);font-style:italic;
+  padding:.4rem .7rem;background:var(--sable-light);border-left:2px solid var(--mer);
+  border-radius:0 6px 6px 0;margin-top:.2rem;
+}
+
+/* GENERATIVE GRAMMAR */
+.grammar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:.8rem}
+.grammar-stat{
+  border:1px solid var(--beige);border-radius:10px;padding:.9rem 1rem;text-align:center;
+}
+.grammar-stat-value{
+  font-family:'EB Garamond',serif;font-size:2rem;font-weight:600;
+  color:var(--ink);margin-bottom:.2rem;
+}
+.grammar-stat-label{font-size:.65rem;color:var(--gris-l);text-transform:uppercase;letter-spacing:.08em;font-weight:500;font-family:'DM Mono',monospace}
+.expressions-list{
+  display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;
+}
+.expr-chip{
+  padding:.2rem .6rem;border-radius:20px;border:1px solid var(--beige);
+  font-size:.75rem;color:var(--ink);font-style:italic;
+  background:var(--sable-light);
+}
+
+/* FOOTER DISCLAIMER */
+.report-footer{
+  max-width:800px;margin:0 auto;padding:0 1rem 2rem;
+}
+.disclaimer{
+  border-top:1px solid var(--beige);padding-top:1.2rem;
+  font-size:.72rem;color:var(--gris-l);line-height:1.6;text-align:center;
+  font-style:italic;
+}
+
+/* ═══════════════════════════════════════════════════
+   PRINT STYLES
+═══════════════════════════════════════════════════ */
+@media print {
+  body{background:white}
+  .preview-bar{display:none!important}
+  #previewScreen{display:block!important;background:white}
+  #reportDoc{max-width:100%;margin:0;padding:0}
+  .cover-page,.section-page,.table-section{
+    border-radius:0;box-shadow:none;margin-bottom:0;
+    page-break-after:always;
+  }
+  .section-page:last-of-type,.table-section:last-child{page-break-after:auto}
+  .cover-top{background:#1A1A1A!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .psycho-table thead tr{background:#1A1A1A!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grade-badge{background:var(--accent)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  a{text-decoration:none}
+  .warning-banner,.defense-sequence,.energy-card,.hook-card,.grammar-stat{
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+}
 </style>
 </head>
 <body>
 
-<!-- UPLOAD -->
-<div class="screen" id="uploadScreen">
-  <h1 class="title">Audit de Personnalite</h1>
-  <p class="subtitle">Clinical Grade v3 — C Concept&Dev</p>
+<!-- ════════════════════════════════════
+     UPLOAD SCREEN
+════════════════════════════════════ -->
+<div id="uploadScreen">
+  <div class="brand">C Concept&Dev — Clone System</div>
+  <h1 class="upload-title">Audit de<br><em>Personnalité</em></h1>
+  <p class="upload-sub">Clinical Grade v4 — CLONE-PERSONALITY-1.0</p>
+
   <div class="drop-zone" id="dropZone">
-    <p>Deposez le <strong>brain_personality.json</strong></p>
-    <p class="hint">CLONE-BRAIN-1.0 ou format v18/v19</p>
+    <div class="drop-icon">⬡</div>
+    <p class="drop-title">Déposez le brain.json</p>
+    <p class="drop-hint">Format CLONE-PERSONALITY-1.0 (v21+)<br>Rétrocompatible v20.x et v19.x</p>
+    <div class="format-badge">CLONE-PERSONALITY-1.0 · v21.3</div>
     <input type="file" id="fileInput" accept=".json">
   </div>
-  <div class="config-panel">
-    <label>Worker URL</label>
-    <input id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev/">
+
+  <div class="config-row">
+    <label>Worker</label>
+    <input id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev/" placeholder="Worker URL">
   </div>
 </div>
 
-<!-- PROCESSING -->
-<div class="screen hidden" id="processingScreen">
-  <h1 class="title" style="font-size:1.8rem">Generation en cours</h1>
-  <div class="steps">
-    <div class="step" id="s1"><span class="icon">...</span> Structuration des donnees</div>
-    <div class="step" id="s2"><span class="icon">...</span> Presentation clinique + cadre</div>
-    <div class="step" id="s3"><span class="icon">...</span> Fonctionnement cognitif + emotionnel</div>
-    <div class="step" id="s4"><span class="icon">...</span> Identite + relations + dynamique profonde</div>
-    <div class="step" id="s5"><span class="icon">...</span> Forces, vulnerabilites, angles morts</div>
-    <div class="step" id="s6"><span class="icon">...</span> Fiabilite, conclusion, assemblage</div>
+<!-- ════════════════════════════════════
+     PROCESSING SCREEN
+════════════════════════════════════ -->
+<div id="processingScreen">
+  <p class="brand">Génération en cours</p>
+  <h2 class="proc-title">Analyse clinique</h2>
+  <p class="proc-sub">Pipeline multi-cliniciens — 6 passes</p>
+  <div class="steps-container" id="stepsContainer">
+    <div class="step" id="s1"><span class="step-num">1</span><span class="step-label">Lecture et structuration du brain</span></div>
+    <div class="step" id="s2"><span class="step-num">2</span><span class="step-label">Cadre méthodologique et présentation clinique</span></div>
+    <div class="step" id="s3"><span class="step-num">3</span><span class="step-label">Architecture cognitive et paysage émotionnel</span></div>
+    <div class="step" id="s4"><span class="step-num">4</span><span class="step-label">Identité, relations et dynamique profonde</span></div>
+    <div class="step" id="s5"><span class="step-num">5</span><span class="step-label">Forces, vulnérabilités, angles morts, fiabilité</span></div>
+    <div class="step" id="s6"><span class="step-num">6</span><span class="step-label">Conclusion et assemblage final</span></div>
   </div>
-  <div class="bar"><div class="fill" id="progressFill" style="width:0"></div></div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
   <p id="statusText">Initialisation...</p>
   <p id="errorMsg"></p>
-  <div id="doneButtons">
-    <button class="btn btn-primary" onclick="downloadPDF()">Telecharger le PDF</button>
-    <button class="btn btn-secondary" onclick="showPreview()">Apercu</button>
+  <div class="done-btns" id="doneButtons">
+    <button class="btn btn-primary" onclick="printReport()">⎙ Imprimer / PDF</button>
+    <button class="btn btn-ghost" onclick="showPreview()">Aperçu</button>
   </div>
 </div>
 
-<!-- PREVIEW -->
-<div class="preview-screen" id="previewScreen">
+<!-- ════════════════════════════════════
+     PREVIEW / PRINT SCREEN
+════════════════════════════════════ -->
+<div id="previewScreen">
   <div class="preview-bar">
-    <button class="btn btn-primary" onclick="downloadPDF()" style="padding:.5rem 1.2rem;font-size:.85rem">PDF</button>
-    <button class="btn btn-secondary" onclick="location.reload()" style="padding:.5rem 1.2rem;font-size:.85rem;margin-left:8px">Nouveau</button>
+    <div class="preview-bar-left">
+      <span class="preview-bar-title">Audit de Personnalité</span>
+      <span style="color:var(--gris-ll)">·</span>
+      <span class="preview-bar-name" id="previewName">—</span>
+    </div>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-primary" onclick="printReport()" style="padding:.4rem 1rem;font-size:.8rem">⎙ PDF</button>
+      <button class="btn btn-ghost" onclick="location.reload()" style="padding:.4rem 1rem;font-size:.8rem">Nouveau</button>
+    </div>
   </div>
-  <div class="report" id="reportContainer"></div>
+  <div id="reportDoc"></div>
+  <div class="report-footer">
+    <p class="disclaimer">Ce rapport a été généré par Clone Interview Pro Clinical Grade v4 — C Concept&Dev.<br>
+    Il constitue un outil d'aide à la compréhension de la personnalité, basé sur une interview conversationnelle analysée par intelligence artificielle.<br>
+    Il ne remplace en aucun cas un diagnostic clinique réalisé par un professionnel de santé mentale qualifié.</p>
+  </div>
 </div>
 
 <script>
-let brainData=null,reportSections={},reportHTML='';
+'use strict';
 
-const dz=document.getElementById('dropZone'),fi=document.getElementById('fileInput');
-dz.addEventListener('click',()=>fi.click());
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});
-dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length)loadFile(e.dataTransfer.files[0])});
-fi.addEventListener('change',e=>{if(e.target.files.length)loadFile(e.target.files[0])});
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let brainData = null;
+let reportSections = {};
+let assembledHTML = '';
 
-function loadFile(f){const r=new FileReader();r.onload=e=>{try{brainData=JSON.parse(e.target.result);startGeneration()}catch(err){alert('Erreur JSON: '+err.message)}};r.readAsText(f)}
+// ════════════════════════════════════
+// UPLOAD WIRING
+// ════════════════════════════════════
+const dz = document.getElementById('dropZone');
+const fi = document.getElementById('fileInput');
+dz.addEventListener('click', () => fi.click());
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fi.addEventListener('change', e => { if (e.target.files.length) loadFile(e.target.files[0]); });
 
-function setStep(n,st){const el=document.getElementById('s'+n);el.className='step '+st;el.querySelector('.icon').textContent=st==='done'?'OK':st==='active'?'...':'--'}
-function setProgress(p){document.getElementById('progressFill').style.width=p+'%'}
-function setStatus(t){document.getElementById('statusText').textContent=t}
+function loadFile(f) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      brainData = JSON.parse(e.target.result);
+      startGeneration();
+    } catch(err) { alert('Erreur JSON : ' + err.message); }
+  };
+  r.readAsText(f);
+}
 
-async function callClaude(sys,usr,maxTok=4500){
-  const resp=await fetch(document.getElementById('workerUrl').value.trim(),{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({payload:{provider:'anthropic',model:'claude-sonnet-4-20250514',max_tokens:maxTok,temperature:0.35,system:sys,messages:[{role:'user',content:usr}]}})
+// ════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════
+function setStep(n, st) {
+  const el = document.getElementById('s' + n);
+  el.className = 'step ' + st;
+}
+function setProgress(p) { document.getElementById('progressFill').style.width = p + '%'; }
+function setStatus(t) { document.getElementById('statusText').textContent = t; }
+
+// ════════════════════════════════════
+// API CALL
+// ════════════════════════════════════
+async function callClaude(sys, usr, maxTok = 4500) {
+  const url = document.getElementById('workerUrl').value.trim();
+  const resp = await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload: {
+      provider: 'anthropic', model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTok, temperature: 0.3,
+      system: sys, messages: [{ role: 'user', content: usr }]
+    }})
   });
-  if(!resp.ok)throw new Error('API '+resp.status);
-  const data=await resp.json();
-  if(Array.isArray(data?.content))return data.content.filter(c=>c.type==='text').map(c=>c.text||'').join('\n').trim();
-  return(data?.content||data?.text||'').trim();
+  if (!resp.ok) throw new Error('API ' + resp.status);
+  const data = await resp.json();
+  if (Array.isArray(data?.content)) return data.content.filter(c => c.type === 'text').map(c => c.text || '').join('\n').trim();
+  return (data?.content || data?.text || '').trim();
 }
 
-// ================================================================
-// PREPARATION DES DONNEES — Brain v2 + retrocompatibilite v18/v19
-// ================================================================
-function prepareData(b){
-  let d='';
-  const n=b.identity?.display_name||'Sujet';
-  const iv=b.source_interview||{};
-  const conf=b.confidence||{};
-  
-  d+=`SUJET: ${n}\n`;
-  d+=`INTERVIEW: ${iv.questions_count||'?'} questions, ${iv.total_user_words||'?'} mots, mode ${iv.mode||'?'}\n`;
-  if(conf.global) d+=`CONFIANCE GLOBALE: ${conf.global}% (grade ${conf.global_grade||'?'})\n`;
-  if(conf.warnings?.length) d+=`AVERTISSEMENTS: ${conf.warnings.join(' | ')}\n`;
-  d+='\n';
-
-  // Portrait narratif (v19)
-  const p=b.portrait||{};
-  const portraitFields=['portrait_clinique','architecture_cognitive','paysage_emotionnel','identite_narrative','rapport_a_lautre','dynamique_profonde','signatures_verbales','contradictions_vivantes','angles_morts','instructions_incarnation'];
-  for(const f of portraitFields){
-    if(p[f]){
-      const label=f.replace(/_/g,' ').toUpperCase();
-      d+=`[${label}]\n${typeof p[f]==='string'?p[f]:JSON.stringify(p[f],null,1)}\n\n`;
-    }
-  }
-  
-  // Big Five
-  if(b.temperament) d+=`[BIG FIVE]\n${JSON.stringify(b.temperament,null,1)}\n\n`;
-  if(b.communication_style) d+=`[STYLE DE COMMUNICATION]\n${JSON.stringify(b.communication_style,null,1)}\n\n`;
-  if(b.thinking_patterns) d+=`[PATTERNS COGNITIFS]\n${JSON.stringify(b.thinking_patterns,null,1)}\n\n`;
-  if(b.emotional_profile) d+=`[PROFIL EMOTIONNEL]\n${JSON.stringify(b.emotional_profile,null,1)}\n\n`;
-  if(b.values) d+=`[VALEURS SCHWARTZ]\n${JSON.stringify(b.values,null,1)}\n\n`;
-
-  // v19_personality (ancien format)
-  const v=b.v19_personality||{};
-  for(const[k,label] of [['hexaco','HEXACO'],['schemas','SCHEMAS YOUNG'],['attachment','ATTACHEMENT'],['defenses','DEFENSES DMRS'],['values','VALEURS CLINIQUES'],['clinical','CONSTRUITS CLINIQUES (TAS-20, RF, IRI, Dark Triad, Resilience, Coping, Locus)'],['linguisticProfile','PROFIL LINGUISTIQUE'],['triangulation','TRIANGULATION'],['responseBiases','BIAIS DE REPONSE'],['debiasedProfile','PROFIL DEBIAISE']]){
-    if(v[k]) d+=`[${label}]\n${JSON.stringify(v[k],null,1)}\n\n`;
-  }
-
-  // v20 — Analyseurs locaux temps reel (NOUVEAU)
-  const la=b.v20_local_analyzers||{};
-  if(la.schemas_young){
-    d+=`[ANALYSEUR LOCAL — SCHEMAS YOUNG (temps reel)]\n`;
-    d+=`Schemas actifs: ${JSON.stringify(la.schemas_young.active_schemas)}\n`;
-    d+=`Couverture domaines: ${JSON.stringify(la.schemas_young.domain_coverage)}\n\n`;
-  }
-  if(la.defenses_dmrs){
-    d+=`[ANALYSEUR LOCAL — DEFENSES DMRS (temps reel)]\n`;
-    d+=`ODF: ${la.defenses_dmrs.odf} (${la.defenses_dmrs.odf_interpretation})\n`;
-    d+=`Dominantes: ${JSON.stringify(la.defenses_dmrs.dominant)}\n`;
-    d+=`Distribution niveaux: ${JSON.stringify(la.defenses_dmrs.level_distribution)}\n\n`;
-  }
-  if(la.attachment){
-    d+=`[ANALYSEUR LOCAL — ATTACHEMENT AAI (temps reel)]\n`;
-    d+=`Style: ${la.attachment.style}\n`;
-    d+=`Anxiete: ${la.attachment.anxiety_score}, Evitement: ${la.attachment.avoidance_score}\n`;
-    d+=`Coherence narrative: ${la.attachment.narrative_coherence}\n`;
-    d+=`Famille mentionnee: ${la.attachment.family_mentioned}\n\n`;
-  }
-  if(la.hexaco) d+=`[ANALYSEUR LOCAL — HEXACO (temps reel)]\n${JSON.stringify(la.hexaco,null,1)}\n\n`;
-  if(la.motivations) d+=`[ANALYSEUR LOCAL — MOTIVATIONS (temps reel)]\n${JSON.stringify(la.motivations,null,1)}\n\n`;
-  if(la.linguistic) d+=`[ANALYSEUR LOCAL — LINGUISTIQUE (temps reel)]\n${JSON.stringify(la.linguistic,null,1)}\n\n`;
-  if(la.deep_personality){
-    d+=`[ANALYSEUR LOCAL — DEEP PERSONALITY (temps reel)]\n`;
-    d+=`Reticence: ${la.deep_personality.reticence_score}%\n`;
-    d+=`Contradictions verbales: ${JSON.stringify(la.deep_personality.verbal_contradictions)}\n`;
-    d+=`Contradictions modales: ${JSON.stringify(la.deep_personality.modal_contradictions)}\n`;
-    d+=`Patterns d'evasion: ${JSON.stringify(la.deep_personality.evasion_patterns)}\n\n`;
-  }
-  
-  // v20 — Persona draft (materiau autobiographique)
-  const pd=b.persona_draft||{};
-  if(pd.people_mentioned?.length || pd.places_mentioned?.length || pd.anecdotes?.length){
-    d+=`[MATERIAU AUTOBIOGRAPHIQUE (persona draft)]\n`;
-    if(pd.people_mentioned?.length) d+=`Personnes mentionnees: ${pd.people_mentioned.join(', ')}\n`;
-    if(pd.places_mentioned?.length) d+=`Lieux mentionnes: ${pd.places_mentioned.join(', ')}\n`;
-    if(pd.time_references?.length) d+=`References temporelles: ${pd.time_references.map(t=>t.ref).join(', ')}\n`;
-    if(pd.anecdotes?.length) d+=`Anecdotes captees: ${pd.anecdotes.length}\n`;
-    if(pd.emotions_expressed?.length) d+=`Emotions exprimees: ${pd.emotions_expressed.map(e=>e.expression).join(', ')}\n`;
-    d+='\n';
-  }
-
-  // v20 — Confiance calibree par pilier
-  if(conf.pillars){
-    d+=`[CONFIANCE CALIBREE PAR PILIER]\n`;
-    for(const[k,c] of Object.entries(conf.pillars)){
-      d+=`${k}: ${c.score}% (grade ${c.grade}) — couverture=${c.components?.coverage||'?'}% coherence=${c.components?.coherence||'?'}% profondeur=${c.components?.depth||'?'}% authenticite=${c.components?.authenticity||'?'}%\n`;
-    }
-    d+='\n';
-  }
-  
-  // Qualite
-  if(b.data_quality) d+=`[QUALITE]\n${JSON.stringify(b.data_quality,null,1)}\n\n`;
-
-  return d.length>85000?d.substring(0,85000)+'\n[...tronque]':d;
+// ════════════════════════════════════
+// SCHEMA DETECTION & NORMALIZATION
+// Détecte automatiquement v21.3, v20.x, v19.x
+// ════════════════════════════════════
+function detectSchema(b) {
+  if (b._meta?.schema === 'CLONE-PERSONALITY-1.0') return 'v21';
+  if (b._clone?.schema === 'CLONE-BRAIN-1.0') return 'v20';
+  if (b.v19_personality) return 'v19';
+  return 'unknown';
 }
 
-// ================================================================
-// SYSTEME DE PROMPTS — NIVEAU EXPERT MONDIAL
-// ================================================================
-const SYS=`Tu es un collectif de 4 cliniciens de rang mondial redigeant un rapport professionnel :
-— Un neuropsychologue (architecture cognitive, fonctions executives, traitement de l'information)
-— Un psychiatre psychodynamicien (structures defensives, conflits inconscients, dynamique profonde)
-— Un psychologue clinicien integratif (attachement, schemas, identite narrative, valeurs)
-— Un analyste comportementaliste (patterns observables, biais, strategies de coping, coherence comportementale)
+function normalizeBrain(b) {
+  const schema = detectSchema(b);
+  const n = { schema, raw: b };
 
-Chacun apporte sa grille de lecture. Le rapport integre les 4 perspectives sans les juxtaposer — il les tisse en une analyse unifiee.
+  // ── Identité ──
+  n.name = b.identity?.display_name || b.identity?.name || 'Sujet';
+  n.age = b.identity?.age || null;
+  n.context = b.identity?.context || '';
 
-REGLES DE REDACTION :
-1. PROSE CLINIQUE UNIQUEMENT — pas de bullet points, pas de listes, pas de tirets, pas de numerotation interne. Des paragraphes fluides.
-2. Chaque affirmation est etayee par une citation exacte (entre guillemets francais) ou une donnee mesuree.
-3. Le ton est precis, bienveillant, rigoureux. On ne cache rien, on contextualise.
-4. On parle du sujet a la 3eme personne.
-5. Les scores sont integres DANS le texte, jamais listes.
-6. Tu NE commences JAMAIS par "Section" ou un titre — tu commences directement par la prose.
-7. Tu separes les sections demandees par une ligne contenant uniquement "---SECTION---"
-8. Chaque section fait 400-700 mots — dense, riche, cliniquement pertinente.
-9. DETECTION FINE : tu ne te contentes pas de restituer les scores. Tu cherches les INCOHERENCES entre les donnees (ex: score d'ouverture eleve mais pattern de pensee rigide), les CONTRADICTIONS entre ce que la personne dit et ce que les analyseurs detectent, et les ANGLES MORTS que la personne ne voit pas.
-10. CONFIANCE : quand la confiance sur un pilier est faible (<60%), tu le signales explicitement et tu modules ton affirmation ("les donnees suggerent..." au lieu de "le sujet est...").
-11. TRIANGULATION : quand plusieurs sources (Big Five, HEXACO, analyseurs locaux, donnees cliniques) convergent, c'est une donnee forte. Quand elles divergent, c'est une donnee encore plus interessante — explore pourquoi.
-12. MATERIAU AUTOBIOGRAPHIQUE : si des anecdotes, personnes ou lieux sont mentionnes dans le persona draft, utilise-les pour ancrer le portrait dans du vecu concret.
-13. Tu ecris comme un clinicien qui connait VRAIMENT cette personne apres un entretien approfondi — pas comme un algorithme qui restitue des scores.`;
+  // ── Qualité / meta ──
+  if (schema === 'v21') {
+    const iq = b.interview_quality || {};
+    n.questions = iq.questions_count;
+    n.words = iq.total_words;
+    n.grade = iq.grade;
+    n.confidence = iq.confidence_global;
+    n.reticence = iq.reticence_level;
+    n.warnings = iq.warnings || [];
+    n.mode = iq.mode;
+    n.generated = b._meta?.generated;
+  } else {
+    const iv = b.source_interview || {};
+    const conf = b.confidence || b.data_quality || {};
+    n.questions = iv.questions_count;
+    n.words = iv.total_user_words;
+    n.grade = conf.global_grade || conf.grade;
+    n.confidence = conf.global;
+    n.reticence = b.v20_local_analyzers?.deep_personality?.reticence_score;
+    n.warnings = conf.warnings || [];
+    n.mode = iv.mode;
+    n.generated = b._clone?.generated || b.generated_at_utc;
+  }
 
-async function startGeneration(){
-  document.getElementById('uploadScreen').classList.add('hidden');
-  const ps=document.getElementById('processingScreen');ps.classList.remove('hidden');ps.style.display='flex';
-  const name=brainData.identity?.display_name||'Sujet';
-  const data=prepareData(brainData);
+  // ── Big Five ──
+  if (schema === 'v21') {
+    const bf = b.personality?.big_five || {};
+    n.bigFive = {
+      O: bf.O || {}, C: bf.C || {}, E: bf.E || {},
+      A: bf.A || {}, N: bf.N || {}
+    };
+  } else {
+    const t = b.temperament || {};
+    n.bigFive = {
+      O: { score: t.openness?.score, level: t.openness?.level, evidence: t.openness?.evidence },
+      C: { score: t.conscientiousness?.score, level: t.conscientiousness?.level },
+      E: { score: t.extraversion?.score, level: t.extraversion?.level },
+      A: { score: t.agreeableness?.score, level: t.agreeableness?.level },
+      N: { score: t.neuroticism?.score, level: t.neuroticism?.level },
+    };
+  }
 
-  try{
-    setStep(1,'active');setProgress(5);setStatus('Structuration des donnees...');
-    await new Promise(r=>setTimeout(r,300));
-    setStep(1,'done');setProgress(8);
+  // ── Valeurs ──
+  n.values = (schema === 'v21')
+    ? (b.personality?.values?.hierarchy || [])
+    : (b.values?.hierarchy || []);
 
-    // BATCH 1: Cadre + Presentation clinique
-    setStep(2,'active');setProgress(10);setStatus('Redaction : cadre et presentation clinique...');
-    reportSections.batch1=await callClaude(SYS,
-      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
-      `Redige ces 2 sections separees par ---SECTION---\n\n`+
-      `PREMIERE SECTION — CADRE DE L'EVALUATION (2-3 paragraphes) :\n`+
-      `Le cadre methodologique : interview conversationnelle approfondie via Clone Interview Pro V20. Methode : detection linguistique temps reel (7 analyseurs psychometriques actifs pendant l'entretien : schemas Young, defenses DMRS, attachement AAI, HEXACO, motivations, profil linguistique, deep personality), 5 analyses post-entretien par IA (Big Five facettes, valeurs Schwartz, style de communication, patterns cognitifs, profil emotionnel), triangulation systematique. Duree, volume, mode. Puis les limites methodologiques ET les forces specifiques de cette methode. Mentionne le grade de qualite et la confiance globale si disponibles. Si certains piliers sont a faible confiance, dis-le ici.\n\n`+
-      `DEUXIEME SECTION — PRESENTATION CLINIQUE (5-6 paragraphes) :\n`+
-      `Qui EST cette personne ? L'impression clinique de premiere rencontre. Le style du contact : comment elle entre dans l'echange, comment elle occupe l'espace verbal, ce qu'elle offre spontanement et ce qu'elle protege. Le style defensif dominant (les 2-3 defenses les plus frequentes et ce qu'elles revelent). Les signatures verbales — les expressions exactes qui la caracterisent. La dynamique de l'interview : est-elle allée en profondeur ou est-elle restee en surface ? Les biais de reponse detectes (reticence, desirabilite sociale, acquiescence). Si des contradictions entre le verbal et d'autres indices ont ete detectees, explore-les. Cite abondamment des expressions exactes du sujet.`,5000);
-    setStep(2,'done');setProgress(28);
+  // ── Communication ──
+  if (schema === 'v21') {
+    const comm = b.communication || {};
+    n.communication = {
+      tone: comm.tone || {},
+      vocabulary: comm.vocabulary || {},
+      rhetorical_patterns: comm.rhetorical_patterns || [],
+      emotional_expression: comm.emotional_expression || {},
+      interaction_style: comm.interaction_style || {},
+      generative_grammar: comm.generative_grammar || {}
+    };
+  } else {
+    const cs = b.communication_style || {};
+    n.communication = {
+      tone: cs.global_tone || {},
+      vocabulary: cs.verbal_patterns || {},
+      rhetorical_patterns: [],
+      emotional_expression: {},
+      interaction_style: {},
+      generative_grammar: {}
+    };
+  }
 
-    // BATCH 2: Cognitif + Emotionnel
-    setStep(3,'active');setProgress(30);setStatus('Redaction : fonctionnement cognitif et emotionnel...');
-    reportSections.batch2=await callClaude(SYS,
-      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
-      `Redige ces 2 sections separees par ---SECTION---\n\n`+
-      `PREMIERE SECTION — ARCHITECTURE COGNITIVE (4-5 paragraphes) :\n`+
-      `Le fonctionnement cognitif en profondeur. Mode de traitement dominant (analytique vs intuitif vs hybride). Vitesse cognitive et style decisionnel. Rapport a l'incertitude et au controle. Biais cognitifs principaux et comment ils se manifestent concretement dans les reponses. Metacognition : la personne se connait-elle bien ou y a-t-il un decalage entre image de soi et donnees ? Flexibilite cognitive. Integre Big Five (O, C), HEXACO (O, C), patterns cognitifs, locus de controle. Si les analyseurs locaux et les analyses IA donnent des resultats differents sur un meme trait, c'est une donnee precieuse — explore l'ecart.\n\n`+
-      `DEUXIEME SECTION — PAYSAGE EMOTIONNEL (5-7 paragraphes) :\n`+
-      `Le paysage emotionnel complet. Quelles emotions sont accessibles et lesquelles restent barrees. Par quel canal l'emotion s'exprime quand les mots ne viennent pas. Le pattern de regulation emotionnelle. Le rapport a la vulnerabilite. Integre le nevrosisme/emotivite Big Five et HEXACO, les defenses DMRS (ODF, defenses dominantes, distribution par niveau), la mentalisation RF, l'alexithymie TAS-20, la regulation Gross. Les moments dans l'interview ou l'emotion a perce les defenses — utilise les donnees de contradictions modales et les emotions exprimees du persona draft si disponibles. Comment les emotions des autres l'affectent (empathie IRI). N'oublie pas de COMPARER les donnees des analyseurs temps reel avec les analyses post-entretien — les divergences sont plus informatives que les convergences.`,5500);
-    setStep(3,'done');setProgress(50);
+  // ── Cognition ──
+  n.cognition = (schema === 'v21')
+    ? (b.cognition || {})
+    : (b.thinking_patterns || {});
 
-    // BATCH 3: Identite + Relations + Dynamique profonde
-    setStep(4,'active');setProgress(52);setStatus('Redaction : identite, relations, dynamique profonde...');
-    reportSections.batch3=await callClaude(SYS,
-      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
-      `Redige ces 3 sections separees par ---SECTION---\n\n`+
-      `PREMIERE SECTION — IDENTITE ET RECIT DE SOI (4-5 paragraphes) :\n`+
-      `L'identite narrative de cette personne — comment elle se raconte. Quel est son mythe personnel ? Se voit-elle comme un heros, un survivant, un eternel en quete ? Les roles qu'elle s'attribue et celui qu'elle refuse. La coherence ou les fissures de ce recit identitaire. Integre les valeurs Schwartz, les motivations (SDT/McClelland si disponibles), la coherence narrative de l'attachement. Si le persona draft contient des references temporelles et des anecdotes, utilise-les pour ancrer le portrait dans du vecu concret. Les 3 niveaux de McAdams : traits dispositionnels (niveau 1), adaptations caracteristiques (niveau 2), identite narrative (niveau 3).\n\n`+
-      `DEUXIEME SECTION — FONCTIONNEMENT RELATIONNEL (4-6 paragraphes) :\n`+
-      `Comment cette personne entre en relation. Son style d'attachement (anxiete, evitement, coherence narrative) — compare les donnees de l'analyseur temps reel AAI avec le profil emotionnel post-entretien. Ce qu'elle offre spontanement vs ce qu'elle protege. Ses attentes implicites et ses peurs relationnelles. Comment elle gere le desaccord et le conflit. Sa capacite d'intimite. Integre les schemas Young dominants (avec leurs domaines), l'empathie IRI, l'honnetete-humilite HEXACO, l'agreabilite Big Five. Si les personnes mentionnees dans le persona draft revelent un pattern (ex: que des figures masculines, ou que des collegues mais jamais de famille), c'est une donnee precieuse.\n\n`+
-      `TROISIEME SECTION — DYNAMIQUE PROFONDE (4-5 paragraphes) :\n`+
-      `La lecture la plus profonde et la plus courageuse. Le moteur cache. Ce que cette personne fuit. Le conflit nucleaire entre deux parts d'elle-meme. Le besoin vital et la strategie de survie psychique. Le schema Young le plus actif et le mode de coping qu'il genere. Integre Dark Triad, resilience, coping dominant, locus de controle. Relie les schemas aux defenses — si le schema dominant est "abandon" et la defense dominante est "auto-suffisance", c'est le meme mecanisme vu sous deux angles. Termine par ce que cette tension fondamentale produit dans la vie quotidienne.`,6000);
-    setStep(4,'done');setProgress(72);
+  // ── Emotional ──
+  if (schema === 'v21') {
+    const em = b.emotional || {};
+    n.emotional = em;
+    n.energyPatterns = em.energy_patterns || null;
+    n.defenseDynamics = em.defense_dynamics || null;
+  } else {
+    const em = b.emotional_profile || {};
+    n.emotional = em;
+    n.energyPatterns = null;
+    n.defenseDynamics = null;
+  }
 
-    // BATCH 4: Forces + Vulnerabilites + Angles morts + Fiabilite + Conclusion
-    setStep(5,'active');setProgress(74);setStatus('Redaction : forces, vulnerabilites, angles morts...');
-    reportSections.batch4=await callClaude(SYS,
-      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
-      `Redige ces 3 sections separees par ---SECTION---\n\n`+
-      `PREMIERE SECTION — FORCES ET RESSOURCES PSYCHIQUES (3-4 paragraphes) :\n`+
-      `Les forces de cette personne — pas en liste mais en portrait. Ce sur quoi elle peut compter. Sa resilience et d'ou elle vient. Ses capacites de mentalisation et d'empathie. Son style de coping le plus adaptatif. Les valeurs qui la portent. Les defenses matures qu'elle utilise. Ce que les personnes qui la connaissent diraient d'elle en termes positifs.\n\n`+
-      `DEUXIEME SECTION — VULNERABILITES ET ANGLES MORTS (4-6 paragraphes) :\n`+
-      `Les zones de fragilite — avec bienveillance mais sans les minimiser. Les schemas Young actifs et leur impact concret. Les defenses immatures et ce qu'elles coutent. Les evitements (les sujets que la personne a esquives pendant l'interview sont des donnees — utilise les patterns d'evasion et la reticence du deep personality si disponibles). Puis les ANGLES MORTS — ce que cette personne ne voit pas d'elle-meme. Les contradictions internes non pas comme des defauts mais comme sa complexite vivante. Si les donnees de triangulation montrent un ecart entre image de soi et profil mesure, c'est l'angle mort central.\n\n`+
-      `TROISIEME SECTION — NOTE SUR LA FIABILITE DES DONNEES (2-3 paragraphes) :\n`+
-      `Un paragraphe sur la fiabilite de ce rapport. Quels piliers sont solides (confiance >75%) et lesquels sont fragiles. Si la reticence etait elevee, que signifie-t-elle — protection ou manque d'engagement ? Si la desirabilite sociale etait elevee, quelles sections du rapport sont les plus vulnerables a ce biais ? Quelles donnees ont ete triangulees (convergence entre analyseurs temps reel et analyses post-entretien) et lesquelles reposent sur une seule source ? Ce paragraphe n'est pas un disclaimer juridique — c'est une analyse clinique de la fiabilite.`,5500);
-    setStep(5,'done');setProgress(88);
+  // ── Biography ──
+  n.biography = (schema === 'v21')
+    ? (b.biography || {})
+    : (b.persona_draft || {});
 
-    // BATCH 5: Conclusion
-    setStep(6,'active');setProgress(90);setStatus('Conclusion et assemblage...');
-    reportSections.batch5=await callClaude(SYS,
-      `DONNEES DU SUJET "${name}":\n${data}\n\n`+
-      `Redige cette section :\n\n`+
-      `CONCLUSION (3 paragraphes) :\n`+
-      `Premier paragraphe : une synthese dense de qui EST cette personne — en quelques phrases qui la capturent entierement, avec sa complexite, ses forces, ses fragilites. Pas un resume du rapport — un PORTRAIT. Si tu ne devais retenir que 5 phrases pour decrire cette personne a quelqu'un qui ne la connait pas, ce serait ces 5 phrases.\n`+
-      `Deuxieme paragraphe : des pistes de developpement personnel formulees avec tact et specifiques a cette personne. Pas des recommandations generiques. Des axes concrets lies a ses schemas, ses defenses, ses angles morts. Formulees comme des invitations, pas comme des prescriptions.\n`+
-      `Troisieme paragraphe : ce qui pourrait completer cette evaluation — entretien clinique en face-a-face, tests standardises specifiques, observation comportementale en situation.`,3000);
-    
-    // Table psychometrique
-    reportSections.table=buildTable(brainData);
-    reportHTML=assembleHTML(name,brainData,reportSections);
-    setStep(6,'done');setProgress(100);setStatus('Rapport pret.');
-    document.getElementById('doneButtons').style.display='flex';
+  // ── Convergence ──
+  n.convergence = (schema === 'v21')
+    ? (b.convergence || {})
+    : (b.convergence_report || {});
 
-  }catch(err){
-    document.getElementById('errorMsg').textContent='Erreur: '+err.message;
+  // ── Observed signals (v21) ──
+  n.observedSignals = b.observed_signals || {};
+
+  // ── Behavioral / defense patterns (v21) ──
+  n.behavioralPatterns = (schema === 'v21')
+    ? (b.personality?.behavioral_patterns || [])
+    : [];
+  n.responseStylePatterns = (schema === 'v21')
+    ? (b.personality?.response_style_patterns || [])
+    : [];
+
+  // ── Analyseurs locaux (v20) ──
+  n.localAnalyzers = b.v20_local_analyzers || {};
+  n.v19 = b.v19_personality || {};
+
+  return n;
+}
+
+// ════════════════════════════════════
+// DATA → PROMPT STRING
+// Construit la chaîne de données pour le LLM
+// ════════════════════════════════════
+function buildDataString(n) {
+  let d = '';
+  const b = n.raw;
+
+  d += `SUJET : ${n.name}${n.age ? ', ' + n.age + ' ans' : ''}${n.context ? ' — ' + n.context : ''}\n`;
+  d += `SCHÉMA : ${n.schema} | GRADE : ${n.grade || '?'} | CONFIANCE : ${n.confidence || '?'}%\n`;
+  d += `ENTRETIEN : ${n.questions || '?'} questions, ${n.words || '?'} mots, réticence ${n.reticence || '?'}%\n`;
+  if (n.warnings.length) d += `AVERTISSEMENTS : ${n.warnings.join(' | ')}\n`;
+  d += '\n';
+
+  // Big Five avec facettes et evidence
+  d += '[BIG FIVE]\n';
+  const bfLabels = { O:'Ouverture', C:'Conscienciosité', E:'Extraversion', A:'Agréabilité', N:'Névrosisme' };
+  for (const [k, label] of Object.entries(bfLabels)) {
+    const t = n.bigFive[k];
+    if (t?.score != null) {
+      d += `${label} : ${t.score}/100 (${t.level || '?'})`;
+      if (t.convergence_adjusted) d += ` [ajusté convergence]`;
+      if (t.convergence_note) d += ` — note: ${t.convergence_note}`;
+      d += '\n';
+      if (t.evidence?.length) d += `  Preuves: ${t.evidence.slice(0,3).join(' | ')}\n`;
+    }
+  }
+  d += '\n';
+
+  // Convergence
+  const conv = n.convergence;
+  if (conv.delta_before || conv.delta_after) {
+    d += `[CONVERGENCE]\n`;
+    d += `Écart avant convergence : ${conv.delta_before || '?'} | après : ${conv.delta_after || '?'}\n`;
+    d += `Confiance : ${conv.confidence || '?'} | Insight : ${conv.insight || ''}\n\n`;
+  }
+
+  // Valeurs Schwartz
+  if (n.values.length) {
+    d += '[VALEURS SCHWARTZ]\n';
+    n.values.slice(0, 8).forEach(v => {
+      d += `${v.value} (${v.score}/100) : ${v.manifestation || ''}\n`;
+    });
+    d += '\n';
+  }
+
+  // Communication
+  const comm = n.communication;
+  d += '[COMMUNICATION]\n';
+  if (comm.tone?.primary) d += `Ton : ${comm.tone.primary}/${comm.tone.secondary || ''} | formalité ${comm.tone.formality_level || '?'}/100\n`;
+  if (comm.vocabulary?.characteristic_expressions?.length) d += `Expressions : ${comm.vocabulary.characteristic_expressions.join(', ')}\n`;
+  if (comm.rhetorical_patterns?.length) d += `Patterns rhétoriques : ${comm.rhetorical_patterns.join(' | ')}\n`;
+  if (comm.interaction_style?.directness) d += `Directness : ${comm.interaction_style.directness} | Humour : ${comm.interaction_style.humor_type || '?'}\n`;
+  const gg = comm.generative_grammar;
+  if (gg?.avg_words_per_response || gg?.response_length?.avg_words_per_response) {
+    const rl = gg.response_length || gg;
+    d += `Longueur réponses : moy. ${rl.avg_words_per_response || '?'} mots (${rl.typical_range_words || '?'}) — ${rl.constraint_label || ''}\n`;
+    d += `Ratio "quoi" fin de phrase : ${gg.end_particle_quoi_ratio_pct || 0}% | Emotes : ${gg.emote_density_per_100_responses || 0}/100 réponses\n`;
+    if (gg.top_emotes?.length) d += `Top emotes : ${gg.top_emotes.join(', ')}\n`;
+    d += `Ratio phrases : ${gg.sentence_length_ratio || '?'}\n`;
+  }
+  d += '\n';
+
+  // Cognition
+  const cog = n.cognition;
+  if (cog.decision_making || cog.primary_style) {
+    d += '[COGNITION]\n';
+    const dm = cog.decision_making || {};
+    if (dm.primary_style) d += `Décision : ${dm.primary_style} | risque ${dm.risk_tolerance || '?'}/100 | vitesse ${dm.speed || '?'}\n`;
+    if (dm.evidence) d += `Evidence : ${dm.evidence}\n`;
+    const ps = cog.problem_solving || {};
+    if (ps.approach) d += `Résolution : ${ps.approach} | stratégies : ${(ps.strategies || []).join(', ')}\n`;
+    const ls = cog.learning_style || {};
+    if (ls.primary_modality) d += `Apprentissage : ${ls.primary_modality} | autodidacte ${ls.autodidact_level || '?'}/100\n`;
+    const mc = cog.meta_cognition || {};
+    if (mc.self_awareness) d += `Conscience de soi : ${mc.self_awareness}/100 | réflexivité : ${mc.reflective_capacity || '?'}\n`;
+    d += '\n';
+  }
+
+  // Émotionnel
+  const em = n.emotional;
+  d += '[PROFIL ÉMOTIONNEL]\n';
+  const bl = em.baseline || em.baseline_mood || {};
+  if (bl.typical_state) d += `État de base : ${bl.typical_state} | stabilité ${bl.stability || '?'}/100 | énergie ${bl.energy_level || '?'}\n`;
+  const trig = em.triggers || {};
+  if (trig.positive?.length) d += `Déclencheurs + : ${trig.positive.map(t => t.trigger + '(' + t.intensity + ')').join(', ')}\n`;
+  if (trig.negative?.length) d += `Déclencheurs - : ${trig.negative.map(t => t.trigger + '(' + t.intensity + ')').join(', ')}\n`;
+  if (em.regulation?.length) d += `Régulation : ${em.regulation.join(', ')}\n`;
+  const emp = em.empathy || em.empathy_profile || {};
+  if (emp.cognitive_empathy) d += `Empathie cognitive : ${emp.cognitive_empathy}/100 | affective : ${emp.affective_empathy || '?'}/100\n`;
+  const sr = em.stress_response || {};
+  if (sr.primary_coping) d += `Coping : ${sr.primary_coping} | résilience ${sr.resilience_score || '?'}/100\n`;
+  const rs = em.relational_style || {};
+  if (rs.primary) d += `Style relationnel : ${rs.primary} | anxiété ${rs.anxiety_axis || '?'}/10 | évitement ${rs.avoidance_axis || '?'}/10\n`;
+  d += '\n';
+
+  // Energy patterns (v21 uniquement)
+  if (n.energyPatterns) {
+    const ep = n.energyPatterns;
+    d += '[PATTERNS ÉNERGÉTIQUES]\n';
+    if (ep.daily_rhythm) d += `Rythme : ${ep.daily_rhythm}\n`;
+    if (ep.peak_moments?.length) d += `Pics : ${ep.peak_moments.join(' | ')}\n`;
+    if (ep.low_moments?.length) d += `Creux : ${ep.low_moments.join(' | ')}\n`;
+    if (ep.recharge_methods?.length) d += `Ressourcement : ${ep.recharge_methods.join(', ')}\n`;
+    if (ep.stress_signals?.length) d += `Signaux stress : ${ep.stress_signals.join(', ')}\n`;
+    if (ep.context_modes?.length) ep.context_modes.forEach(m => {
+      d += `Mode [${m.energy}] ${m.context} → ${m.mode}\n`;
+    });
+    d += '\n';
+  }
+
+  // Defense dynamics (v21 uniquement)
+  if (n.defenseDynamics) {
+    const dd = n.defenseDynamics;
+    d += '[DYNAMIQUES DÉFENSIVES]\n';
+    d += `Baseline : ${dd.baseline_state || '?'} | Seuil de pression : ${dd.pressure_threshold || '?'}\n`;
+    (dd.sequences || []).forEach((seq, i) => {
+      d += `Séquence ${i+1} — déclencheurs : ${(seq.trigger_topics || []).join(', ')}\n`;
+      (seq.states || []).forEach(s => {
+        d += `  → [${s.state}] ${s.verbal_pattern || ''} — ex: "${s.example || ''}" | escalade: ${s.escalation_signal || 'FIN'}\n`;
+      });
+      d += `  Reset : ${seq.reset_condition || ''} — ${seq.reset_pattern || ''}\n`;
+    });
+    if (dd.observed_evidence?.length) d += `Preuves : ${dd.observed_evidence.join(' | ')}\n`;
+    d += '\n';
+  }
+
+  // Behavioral patterns
+  if (n.behavioralPatterns.length || n.responseStylePatterns.length) {
+    d += '[PATTERNS COMPORTEMENTAUX]\n';
+    if (n.behavioralPatterns.length) d += `Comportementaux : ${n.behavioralPatterns.map(p => p.id || p).join(', ')}\n`;
+    if (n.responseStylePatterns.length) d += `Style de réponse : ${n.responseStylePatterns.map(p => p.id || p).join(', ')}\n`;
+    d += '\n';
+  }
+
+  // Biography + memory hooks
+  const bio = n.biography;
+  const anecdotes = bio.anecdotes || [];
+  const people = bio.people_mentioned || [];
+  const lifeHistory = bio.life_history || [];
+  if (anecdotes.length || people.length || lifeHistory.length) {
+    d += '[MATÉRIAU BIOGRAPHIQUE]\n';
+    if (people.length) d += `Personnes : ${people.map(p => (p.name||p) + '(' + (p.role||'') + ', ' + (p.relationship_quality||'') + ')').join(' | ')}\n`;
+    if (lifeHistory.length) lifeHistory.forEach(h => d += `${h.period || '?'} : ${h.event || ''}\n`);
+    if (anecdotes.length) {
+      d += `Anecdotes (${anecdotes.length}) :\n`;
+      anecdotes.forEach(a => {
+        d += `  [${a.life_domain || '?'}] ${a.summary || ''}\n`;
+        if (a.what_it_reveals) d += `    → révèle : ${a.what_it_reveals}\n`;
+        if (a.memory_hooks?.when_to_use) d += `    → contexte d'usage : ${a.memory_hooks.when_to_use}\n`;
+        if (a.memory_hooks?.natural_formulation) d += `    → formulation naturelle : "${a.memory_hooks.natural_formulation}"\n`;
+      });
+    }
+    d += '\n';
+  }
+
+  // Analyseurs locaux v20 (rétrocompatibilité)
+  const la = n.localAnalyzers;
+  if (la.schemas_young) {
+    d += '[SCHÉMAS YOUNG (temps réel)]\n';
+    d += `Actifs : ${JSON.stringify(la.schemas_young.active_schemas || [])}\n\n`;
+  }
+  if (la.defenses_dmrs) {
+    d += '[DÉFENSES DMRS (temps réel)]\n';
+    d += `ODF : ${la.defenses_dmrs.odf} (${la.defenses_dmrs.odf_interpretation})\n`;
+    d += `Dominantes : ${JSON.stringify(la.defenses_dmrs.dominant || [])}\n\n`;
+  }
+  if (la.attachment) {
+    d += '[ATTACHEMENT AAI (temps réel)]\n';
+    d += `Style : ${la.attachment.style} | anxiété ${la.attachment.anxiety_score} | évitement ${la.attachment.avoidance_score}\n`;
+    d += `Cohérence narrative : ${la.attachment.narrative_coherence}\n\n`;
+  }
+
+  // v19 clinique
+  const v19 = n.v19;
+  if (v19.clinical) {
+    const c = v19.clinical;
+    d += '[CONSTRUITS CLINIQUES]\n';
+    if (c.alexithymia) d += `TAS-20 alexithymie : ${(c.alexithymia.global*100).toFixed(0)}% (${c.alexithymia.risk || ''})\n`;
+    if (c.mentalization) d += `RF Fonagy mentalisation : ${c.mentalization.rf_global?.toFixed(1)}/9\n`;
+    if (c.darkTriad) d += `Dark Triad — narc: ${(c.darkTriad.narcissism*100).toFixed(0)}% mach: ${(c.darkTriad.machiavellianism*100).toFixed(0)}% psy: ${(c.darkTriad.psychopathy*100).toFixed(0)}%\n`;
+    if (c.resilience) d += `CD-RISC résilience : ${(c.resilience.global*100).toFixed(0)}%\n`;
+    if (c.coping) d += `CISS coping dominant : ${c.coping.dominant || '?'}\n`;
+    if (c.locusOfControl) d += `Rotter locus : ${c.locusOfControl.dominant || '?'}\n`;
+    d += '\n';
+  }
+  if (v19.schemas?.dominant?.length) {
+    d += '[SCHÉMAS YOUNG IA]\n';
+    v19.schemas.dominant.slice(0,5).forEach(s => d += `${s.name||s.id} : ${s.score?.toFixed(1)}/6\n`);
+    d += '\n';
+  }
+  if (v19.defenses) {
+    d += '[DÉFENSES DMRS IA]\n';
+    d += `ODF : ${v19.defenses.odf?.toFixed(2)} (${v19.defenses.odfLabel || ''})\n\n`;
+  }
+
+  return d.length > 90000 ? d.substring(0, 90000) + '\n[...tronqué]' : d;
+}
+
+// ════════════════════════════════════
+// SYSTEM PROMPT — 4 cliniciens
+// ════════════════════════════════════
+const SYS = `Tu es un collectif de 4 cliniciens de rang mondial rédigeant un rapport professionnel sur la personnalité d'un individu :
+— Un neuropsychologue (architecture cognitive, fonctions exécutives, traitement de l'information, métacognition)
+— Un psychiatre psychodynamicien (structures défensives, conflits inconscients, dynamiques profondes, schémas Young)
+— Un psychologue clinicien intégratif (attachement, identité narrative, valeurs, biographie, régulation émotionnelle)
+— Un analyste comportementaliste (patterns observables, biais, stratégies de coping, cohérence comportementale, dynamiques défensives)
+
+Chacun apporte sa grille de lecture. Le rapport intègre les 4 perspectives sans les juxtaposer — il les tisse en une analyse unifiée, cohérente, profonde.
+
+RÈGLES DE RÉDACTION :
+1. PROSE CLINIQUE UNIQUEMENT — pas de bullet points, pas de listes, pas de tirets, pas de numérotation interne. Des paragraphes fluides et denses.
+2. Chaque affirmation est étayée par une citation exacte entre guillemets français ou une donnée mesurée intégrée dans la prose.
+3. Le ton est précis, bienveillant, rigoureux — on ne cache rien, on contextualise tout.
+4. On parle du sujet à la 3ème personne.
+5. Les scores sont intégrés DANS le texte, jamais listés à part.
+6. Tu NE commences JAMAIS une section par un titre ou le mot "Section" — tu commences directement par la prose.
+7. Tu sépares les sections demandées par une ligne contenant uniquement : ---SECTION---
+8. Chaque section fait 500-800 mots — dense, riche, cliniquement pertinente. Pas de remplissage.
+9. DÉTECTION FINE : tu ne te contentes pas de restituer les scores. Tu cherches les INCOHÉRENCES entre les données (ex: score d'ouverture élevé mais pattern de pensée rigide), les CONTRADICTIONS entre ce que la personne dit et ce que les données détectent, les ANGLES MORTS qu'elle ne voit pas.
+10. CONFIANCE CALIBRÉE : quand la confiance sur un pilier est faible ou la réticence élevée, tu le signales et tu modules ("les données suggèrent..." plutôt que "le sujet est...").
+11. TRIANGULATION : quand plusieurs sources convergent, c'est une donnée forte. Quand elles divergent, c'est une donnée encore plus intéressante — explore pourquoi, ce que l'écart révèle.
+12. DYNAMIQUES DÉFENSIVES : si les données incluent defense_dynamics avec séquences et exemples verbaux, intègre-les dans l'analyse — cite les exemples exacts, nomme les états de la séquence, explique ce que la dynamique révèle.
+13. PATTERNS ÉNERGÉTIQUES : si energy_patterns est présent, intègre les modes contextuels dans l'analyse émotionnelle et relationnelle.
+14. MÉMOIRE BIOGRAPHIQUE : si des anecdotes avec memory_hooks sont présentes, cite les formulations naturelles pour ancrer le portrait dans du vécu concret.
+15. Tu écris comme un clinicien qui CONNAÎT vraiment cette personne après un entretien approfondi — pas comme un algorithme qui restitue des scores.`;
+
+// ════════════════════════════════════
+// MAIN GENERATION PIPELINE
+// ════════════════════════════════════
+async function startGeneration() {
+  document.getElementById('uploadScreen').style.display = 'none';
+  const ps = document.getElementById('processingScreen');
+  ps.style.display = 'flex';
+
+  const n = normalizeBrain(brainData);
+  const data = buildDataString(n);
+  const name = n.name;
+
+  try {
+    // STEP 1 — structuration
+    setStep(1, 'active'); setProgress(3); setStatus('Lecture du brain...');
+    await new Promise(r => setTimeout(r, 400));
+    setStep(1, 'done'); setProgress(8);
+
+    // STEP 2 — Cadre + Présentation clinique
+    setStep(2, 'active'); setProgress(10); setStatus('Cadre méthodologique et présentation clinique...');
+    reportSections.batch1 = await callClaude(SYS,
+      `DONNÉES DU SUJET "${name}" :\n${data}\n\n` +
+      `Rédige ces 2 sections séparées par ---SECTION---\n\n` +
+      `PREMIÈRE SECTION — CADRE DE L'ÉVALUATION (2-3 paragraphes) :\n` +
+      `Le cadre méthodologique complet : méthode d'interview conversationnelle, pipeline d'analyse (multi-pass Big Five sur faits purs, convergence multi-sources, PersonaExtractor, defense_dynamics, energy_patterns, grammaire générative). Précise le schéma utilisé (${n.schema}), le grade de qualité (${n.grade || '?'}) et la confiance globale (${n.confidence || '?'}%). Les limites spécifiques à ce profil — si la réticence est élevée (${n.reticence || '?'}%), explique ce que cela implique cliniquement. Si des piliers sont à faible confiance, indique-le. Ce n'est pas un disclaimer juridique — c'est une analyse de la fiabilité des données disponibles.\n\n` +
+      `DEUXIÈME SECTION — PRÉSENTATION CLINIQUE (5-6 paragraphes) :\n` +
+      `Qui EST cette personne ? L'impression clinique de première rencontre. Comment elle entre dans l'échange, ce qu'elle offre spontanément et ce qu'elle protège. Le style défensif dominant — si defense_dynamics est disponible, cite les séquences exactes et leurs déclencheurs. Les signatures verbales et expressions caractéristiques (cite-les telles quelles). La dynamique de l'entretien : est-elle allée en profondeur ou restée en surface ? Les biais détectés. Intègre les patterns comportementaux et de style de réponse observés.`,
+      5000);
+    setStep(2, 'done'); setProgress(28);
+
+    // STEP 3 — Cognitif + Émotionnel
+    setStep(3, 'active'); setProgress(30); setStatus('Architecture cognitive et paysage émotionnel...');
+    reportSections.batch2 = await callClaude(SYS,
+      `DONNÉES DU SUJET "${name}" :\n${data}\n\n` +
+      `Rédige ces 2 sections séparées par ---SECTION---\n\n` +
+      `PREMIÈRE SECTION — ARCHITECTURE COGNITIVE (4-5 paragraphes) :\n` +
+      `Le fonctionnement cognitif en profondeur. Mode de traitement dominant. Style décisionnel et rapport au risque. Biais cognitifs principaux et comment ils se manifestent. Métacognition : la personne se connaît-elle bien ? Flexibilité cognitive. Intègre Big Five (O, C), cognition, et si disponible les données v19 (HEXACO, locus de contrôle). Si des sources divergent sur un même trait, explore l'écart — c'est souvent plus révélateur que la convergence.\n\n` +
+      `DEUXIÈME SECTION — PAYSAGE ÉMOTIONNEL (5-6 paragraphes) :\n` +
+      `Le paysage émotionnel complet. Quelles émotions sont accessibles et lesquelles restent barrées. Le pattern de régulation émotionnelle. Si energy_patterns est disponible, intègre les modes contextuels — comment l'état émotionnel varie selon le contexte (travail, interactions, pression). Si defense_dynamics est présent, analyse comment les séquences défensives protègent d'émotions spécifiques. Les signaux de stress observables. Intègre Big Five N, empathie, style relationnel, résilience. Si données cliniques disponibles (RF, TAS-20), intègre-les.`,
+      5500);
+    setStep(3, 'done'); setProgress(50);
+
+    // STEP 4 — Identité + Relations + Dynamique profonde
+    setStep(4, 'active'); setProgress(52); setStatus('Identité, relations et dynamique profonde...');
+    reportSections.batch3 = await callClaude(SYS,
+      `DONNÉES DU SUJET "${name}" :\n${data}\n\n` +
+      `Rédige ces 3 sections séparées par ---SECTION---\n\n` +
+      `PREMIÈRE SECTION — IDENTITÉ ET RÉCIT DE SOI (4-5 paragraphes) :\n` +
+      `L'identité narrative. Comment cette personne se raconte. Les rôles qu'elle s'attribue et ceux qu'elle refuse. Si des anecdotes avec memory_hooks sont disponibles, cite les formulations naturelles exactes — elles révèlent la structure narrative interne. Les valeurs Schwartz comme architecture de sens. Les motivations profondes. La cohérence ou les fissures du récit identitaire.\n\n` +
+      `DEUXIÈME SECTION — FONCTIONNEMENT RELATIONNEL (4-5 paragraphes) :\n` +
+      `Comment cette personne entre en relation. Style d'attachement — compare les axes anxiété/évitement avec les patterns comportementaux observés. Ce qu'elle offre vs ce qu'elle protège. Si les personnes mentionnées dans la biographie révèlent un pattern (types de relations, qualités récurrentes), explore-le. Les peurs relationnelles implicites. Intègre agréabilité, empathie, style relationnel.\n\n` +
+      `TROISIÈME SECTION — DYNAMIQUE PROFONDE (4-5 paragraphes) :\n` +
+      `La lecture la plus profonde. Le moteur caché. Ce que cette personne fuit. Le conflit nucléaire entre deux parts d'elle-même. Si defense_dynamics est présent, c'est ici que tu l'intègres complètement — les séquences défensives sont les gardiens de quelque chose : quoi ? Les patterns comportementaux (méfiance, contrôle, etc.) et leur origine probable. Les energy_patterns révèlent aussi une dynamique — pourquoi cette personne est-elle à haute énergie dans tel contexte et en retrait dans tel autre ? Termine par ce que cette tension fondamentale produit dans la vie quotidienne.`,
+      6000);
+    setStep(4, 'done'); setProgress(72);
+
+    // STEP 5 — Forces + Vulnérabilités + Fiabilité
+    setStep(5, 'active'); setProgress(74); setStatus('Forces, vulnérabilités et fiabilité...');
+    reportSections.batch4 = await callClaude(SYS,
+      `DONNÉES DU SUJET "${name}" :\n${data}\n\n` +
+      `Rédige ces 3 sections séparées par ---SECTION---\n\n` +
+      `PREMIÈRE SECTION — FORCES ET RESSOURCES PSYCHIQUES (3-4 paragraphes) :\n` +
+      `Les forces réelles de cette personne — pas en liste mais en portrait. Sa résilience et d'où elle vient. Ses capacités d'adaptation et de régulation. Les valeurs qui la portent. Les défenses matures qu'elle utilise. Ce que les personnes qui la connaissent bien diraient d'elle. Si des anecdotes avec formulations naturelles sont disponibles et révèlent des forces, cite-les.\n\n` +
+      `DEUXIÈME SECTION — VULNÉRABILITÉS ET ANGLES MORTS (4-5 paragraphes) :\n` +
+      `Les zones de fragilité — avec bienveillance mais sans les minimiser. Les défenses immatures et ce qu'elles coûtent. Les patterns d'évitement identifiés. Les angles morts : ce que cette personne ne voit pas d'elle-même. Si la réticence était élevée, quels sujets étaient évités et pourquoi est-ce significatif ? Les energy_patterns révèlent-ils des zones d'épuisement ou des évitements ? Les contradictions internes.\n\n` +
+      `TROISIÈME SECTION — NOTE SUR LA FIABILITÉ (2-3 paragraphes) :\n` +
+      `Une analyse clinique de la fiabilité de ce rapport — pas un disclaimer. Quels piliers sont solides (convergence entre sources, confiance élevée) ? Lesquels sont fragiles ? Si la réticence était élevée, quelles sections du rapport sont les plus exposées au biais ? Le fait que les defense_dynamics aient été capturés avec des exemples verbaux concrets augmente-t-il la fiabilité sur la section émotionnelle ? Sois honnête sur ce qu'on sait bien et ce qu'on sait moins bien de cette personne.`,
+      5500);
+    setStep(5, 'done'); setProgress(88);
+
+    // STEP 6 — Conclusion
+    setStep(6, 'active'); setProgress(90); setStatus('Conclusion...');
+    reportSections.batch5 = await callClaude(SYS,
+      `DONNÉES DU SUJET "${name}" :\n${data}\n\n` +
+      `Rédige cette section :\n\n` +
+      `CONCLUSION (3 paragraphes) :\n` +
+      `Premier paragraphe : une synthèse dense de qui EST cette personne — en quelques phrases qui la capturent entièrement, avec sa complexité, ses forces, ses fragilités. Pas un résumé du rapport — un PORTRAIT. Si tu ne devais retenir que 5 phrases pour décrire cette personne à quelqu'un qui ne la connaît pas, ce seraient ces 5 phrases. Utilise les formulations naturelles issues des memory_hooks si disponibles — elles ancrent le portrait dans la voix réelle de la personne.\n` +
+      `Deuxième paragraphe : des pistes de développement personnel formulées avec tact et spécifiques à cette personne. Pas des recommandations génériques. Des axes concrets liés à ses défenses, ses patterns, ses angles morts. Formulées comme des invitations, pas des prescriptions.\n` +
+      `Troisième paragraphe : ce qui pourrait compléter cette évaluation — entretien clinique en face-à-face, tests standardisés spécifiques, observation comportementale en situation. Sois précis sur ce qui manque pour ce profil spécifique.`,
+      3000);
+    setStep(6, 'done'); setProgress(100); setStatus('Rapport prêt.');
+
+    // Assembler le HTML
+    assembledHTML = buildReportHTML(n);
+    document.getElementById('doneButtons').style.display = 'flex';
+
+  } catch(err) {
+    document.getElementById('errorMsg').textContent = 'Erreur : ' + err.message;
     console.error(err);
   }
 }
 
-// ================================================================
-// TABLE PSYCHOMETRIQUE — enrichie v2
-// ================================================================
-function buildTable(b){
-  const v=b.v19_personality||{},t=b.temperament||{},la=b.v20_local_analyzers||{},conf=b.confidence?.pillars||{},rows=[];
-  const add=(inst,dim,sc,note,confScore)=>rows.push({i:inst,d:dim,s:sc,n:note||'',c:confScore});
-  
-  // Big Five
-  for(const[k,l]of Object.entries({openness:'Ouverture',conscientiousness:'Conscienciosite',extraversion:'Extraversion',agreeableness:'Agreabilite',neuroticism:'Nevrosisme'}))
-    if(t[k])add('Big Five',l,t[k].score+'/100',t[k].level||'',conf.traits?.score);
-  
-  // HEXACO
-  if(v.hexaco)for(const[k,l]of Object.entries({H:'Honnetete-Humilite',E:'Emotivite',X:'Extraversion',A:'Agreabilite',C:'Conscienciosite',O:'Ouverture'}))
-    if(v.hexaco[k])add('HEXACO',l,(v.hexaco[k].global*100).toFixed(0)+'%','conf.'+Math.round(v.hexaco[k].confidence||0)+'%');
-  // HEXACO local
-  if(la.hexaco){
-    for(const[k,data] of Object.entries(la.hexaco)){
-      if(typeof data==='object'&&data.score!=null) add('HEXACO local',k,Math.round(data.score*100)+'%','temps reel');
+// ════════════════════════════════════
+// BUILD TABLE PSYCHOMÉTRIQUE
+// ════════════════════════════════════
+function buildPsychoTable(n) {
+  const rows = [];
+  const add = (src, dim, score, note, conf) => rows.push({ src, dim, score, note, conf });
+  const isLocal = src => src.includes('local') || src.includes('temps réel');
+
+  // Big Five v21
+  const bfLabels = { O:'Ouverture', C:'Conscienciosité', E:'Extraversion', A:'Agréabilité', N:'Névrosisme' };
+  for (const [k, label] of Object.entries(bfLabels)) {
+    const t = n.bigFive[k];
+    if (t?.score != null) {
+      const note = (t.convergence_adjusted ? '✓ adj ' : '') + (t.level || '');
+      add('Big Five', label, t.score + '/100', note, null);
     }
   }
-  
+
+  // Convergence
+  const conv = n.convergence;
+  if (conv.delta_before != null) {
+    add('Convergence', 'Écart avant', conv.delta_before?.toFixed(1) || '?', '', null);
+    add('Convergence', 'Écart après', conv.delta_after?.toFixed(1) || '?', conv.confidence || '', null);
+  }
+
+  // Valeurs top 3
+  n.values.slice(0, 3).forEach((v, i) => {
+    add('Schwartz', '#' + (i+1) + ' ' + v.value, v.score + '/100', (v.manifestation || '').substring(0, 35), null);
+  });
+
+  // Communication grammar
+  const gg = n.communication.generative_grammar;
+  const rl = gg?.response_length || gg;
+  if (rl?.avg_words_per_response) {
+    add('Grammaire', 'Longueur moy. réponses', rl.avg_words_per_response + ' mots', rl.typical_range_words || '', null);
+    add('Grammaire', 'Ratio "quoi" fin phrase', (gg.end_particle_quoi_ratio_pct || 0) + '%', rl.constraint_label || '', null);
+    if (gg.emote_density_per_100_responses != null) add('Grammaire', 'Densité emotes', gg.emote_density_per_100_responses + '/100', '', null);
+  }
+
+  // Defense dynamics
+  if (n.defenseDynamics?.sequences?.length) {
+    add('Défenses', 'Séquences identifiées', n.defenseDynamics.sequences.length, n.defenseDynamics.baseline_state || '', null);
+    add('Défenses', 'Seuil de pression', n.defenseDynamics.pressure_threshold || '?', '', null);
+  }
+
+  // Energy patterns
+  if (n.energyPatterns?.context_modes?.length) {
+    const ep = n.energyPatterns;
+    add('Énergie', 'Modes contextuels', ep.context_modes.length, ep.daily_rhythm?.substring(0, 40) || '', null);
+  }
+
   // Attachement
-  if(v.attachment){add('Attachement IA','Style',v.attachment.styleLabel||v.attachment.style,'');add('Attachement IA','Anxiete',s01(v.attachment.anxiety),'');add('Attachement IA','Evitement',s01(v.attachment.avoidance),'')}
-  if(la.attachment){add('Attachement local','Style',la.attachment.style,'temps reel',conf.attachment?.score);add('Attachement local','Anxiete',la.attachment.anxiety_score?.toFixed(2),'');add('Attachement local','Evitement',la.attachment.avoidance_score?.toFixed(2),'');add('Attachement local','Coherence narrative',la.attachment.narrative_coherence?.toFixed(2),'')}
-  
-  // DMRS
-  if(v.defenses)add('DMRS IA','ODF',v.defenses.odf?.toFixed(2)||'?',v.defenses.odfLabel||'');
-  if(la.defenses_dmrs)add('DMRS local','ODF',la.defenses_dmrs.odf?.toFixed(2)||'?',la.defenses_dmrs.odf_interpretation||'temps reel',conf.defenses?.score);
-  
-  // Young
-  if(v.schemas?.dominant)v.schemas.dominant.slice(0,4).forEach(s=>add('Young IA',s.name||s.id,s.score?.toFixed(1)+'/6',s.domain||''));
-  if(la.schemas_young?.active_schemas?.length) la.schemas_young.active_schemas.slice(0,4).forEach(s=>add('Young local',s.name||s.id,s.score?.toFixed(1),'temps reel',conf.schemas?.score));
-  
-  // Clinique
-  if(v.clinical){const c=v.clinical;
-    if(c.alexithymia)add('TAS-20','Alexithymie',s01(c.alexithymia.global),c.alexithymia.risk||'');
-    if(c.mentalization)add('RF Fonagy','Mentalisation',c.mentalization.rf_global?.toFixed(1)+'/9','');
-    if(c.empathy){add('IRI','Prise perspective',s01(c.empathy.perspective_taking),'');add('IRI','Souci empathique',s01(c.empathy.empathic_concern),'');add('IRI','Detresse personnelle',s01(c.empathy.personal_distress),'')}
-    if(c.coping)add('CISS','Coping dominant',c.coping.dominant||'?','');
-    if(c.locusOfControl)add('Rotter','Locus de controle',c.locusOfControl.dominant||'?','');
-    if(c.darkTriad){add('SD3','Narcissisme',s01(c.darkTriad.narcissism),'');add('SD3','Machiavellisme',s01(c.darkTriad.machiavellianism),'');add('SD3','Psychopathie',s01(c.darkTriad.psychopathy),'')}
-    if(c.resilience)add('CD-RISC','Resilience',s01(c.resilience.global),'');
+  const rs = n.emotional.relational_style || {};
+  if (rs.primary) {
+    add('Attachement', 'Style', rs.primary, '', null);
+    if (rs.anxiety_axis != null) add('Attachement', 'Axe anxiété', rs.anxiety_axis + '/10', '', null);
+    if (rs.avoidance_axis != null) add('Attachement', 'Axe évitement', rs.avoidance_axis + '/10', '', null);
   }
-  
-  // Deep personality
-  if(la.deep_personality){
-    add('Deep','Reticence',la.deep_personality.reticence_score+'%','');
-    add('Deep','Contradictions verbales',la.deep_personality.verbal_contradictions?.length||0,'');
-    add('Deep','Contradictions modales',la.deep_personality.modal_contradictions?.length||0,'');
+
+  // Analyseurs locaux v20
+  const la = n.localAnalyzers;
+  if (la.defenses_dmrs) {
+    add('DMRS local', 'ODF', (la.defenses_dmrs.odf || '?') + '', la.defenses_dmrs.odf_interpretation || 'temps réel', null);
   }
-  
-  // Valeurs Schwartz top 3
-  if(b.values?.hierarchy){
-    b.values.hierarchy.slice(0,3).forEach((v,i)=>add('Schwartz','#'+(i+1)+' '+v.value,v.score+'/100',v.manifestation?.substring(0,40)||'',conf.values?.score));
+  if (la.attachment) {
+    add('Attachement local', 'Style', la.attachment.style, 'temps réel', null);
+    add('Attachement local', 'Cohérence narrative', (la.attachment.narrative_coherence || '?') + '', '', null);
   }
-  
+  if (la.deep_personality) {
+    add('Deep', 'Réticence', la.deep_personality.reticence_score + '%', '', null);
+    add('Deep', 'Contradictions verbales', la.deep_personality.verbal_contradictions?.length || 0, '', null);
+  }
+
+  // v19 clinique
+  const v19c = n.v19.clinical || {};
+  if (v19c.alexithymia) add('TAS-20', 'Alexithymie', Math.round((v19c.alexithymia.global||0)*100) + '%', v19c.alexithymia.risk || '', null);
+  if (v19c.mentalization) add('RF Fonagy', 'Mentalisation', (v19c.mentalization.rf_global||0).toFixed(1) + '/9', '', null);
+  if (v19c.resilience) add('CD-RISC', 'Résilience', Math.round((v19c.resilience.global||0)*100) + '%', '', null);
+  if (v19c.darkTriad) {
+    add('SD3', 'Narcissisme', Math.round((v19c.darkTriad.narcissism||0)*100) + '%', '', null);
+    add('SD3', 'Machiavélisme', Math.round((v19c.darkTriad.machiavellianism||0)*100) + '%', '', null);
+  }
+
   return rows;
 }
 
-function s01(v){if(v==null)return'--';if(typeof v==='number'&&v>=0&&v<=1)return(v*100).toFixed(0)+'%';if(typeof v==='number')return v.toFixed(2);return String(v)}
-
-function splitSections(text){return(text||'').split(/---SECTION---/i).map(s=>s.trim()).filter(Boolean)}
-
-function textToHTML(t){
-  if(!t)return'<p style="color:var(--gris-l)"><em>Section non generee.</em></p>';
-  return t.split(/\n\n+/).filter(p=>p.trim()).map(p=>{
-    let s=p.trim().replace(/^(PREMI[EÈ]RE|DEUXI[EÈ]ME|TROISI[EÈ]ME)\s+SECTION[^\n]*/i,'').trim();
-    if(!s)return'';
-    s=s.replace(/[«]([^»]+)[»]/g,'<em>&#171;&#160;$1&#160;&#187;</em>');
-    return'<p>'+s+'</p>';
-  }).filter(Boolean).join('\n');
+// ════════════════════════════════════
+// PROSE → HTML
+// ════════════════════════════════════
+function proseToHTML(text) {
+  if (!text) return '<p style="color:var(--gris-l)"><em>Section non générée.</em></p>';
+  return text
+    .split(/\n\n+/)
+    .filter(p => p.trim())
+    .map(p => {
+      let s = p.trim()
+        .replace(/^(PREMI[EÈ]RE|DEUXI[EÈ]ME|TROISI[EÈ]ME)\s+SECTION[^\n]*/i, '')
+        .trim();
+      if (!s) return '';
+      s = s.replace(/«\s*([^»]+)\s*»/g, '<em>« $1 »</em>');
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      return '<p>' + s + '</p>';
+    })
+    .filter(Boolean)
+    .join('\n');
 }
 
-function assembleHTML(name,b,sec){
-  const date=b._clone?.generated?new Date(b._clone.generated).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'}):b.generated_at_utc?new Date(b.generated_at_utc).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('fr-FR');
-  const iv=b.source_interview||{};
-  const conf=b.confidence||{};
-  const grade=conf.global_grade||b.data_quality?.grade||'?';
+function splitSections(text) {
+  return (text || '').split(/---SECTION---/i).map(s => s.trim()).filter(Boolean);
+}
 
-  let h=`<h1>Audit de Personnalite</h1>\n`;
-  h+=`<div class="doc-meta"><strong>${name}</strong><br>\n`;
-  h+=`${date} | ${iv.questions_count||'?'} questions | ${iv.total_user_words||'?'} mots | mode ${iv.mode||'?'}<br>\n`;
-  h+=`Grade de fiabilite : <strong>${grade}</strong> | Confiance globale : <strong>${conf.global||'?'}%</strong><br>\n`;
-  h+=`Clone Interview Pro V20 Clinical Grade — C Concept&Dev<br><em>CONFIDENTIEL</em></div>\n`;
-
-  const b1=splitSections(sec.batch1),b2=splitSections(sec.batch2),b3=splitSections(sec.batch3),b4=splitSections(sec.batch4),b5=splitSections(sec.batch5||'');
-  
-  const titles=['1. Cadre de l\'Evaluation','2. Presentation Clinique','3. Architecture Cognitive','4. Paysage Emotionnel','5. Identite et Recit de Soi','6. Fonctionnement Relationnel','7. Dynamique Profonde','8. Synthese Psychometrique','9. Forces et Ressources','10. Vulnerabilites et Angles Morts','11. Fiabilite des Donnees','12. Conclusion'];
-  const texts=[b1[0],b1[1],b2[0],b2[1],b3[0],b3[1],b3[2],null,b4[0],b4[1],b4[2],b5[0]];
-  
-  for(let i=0;i<titles.length;i++){
-    h+=`<h2>${titles[i]}</h2>\n`;
-    if(i===7){
-      // Table psychometrique
-      h+=`<p>Le tableau ci-dessous rassemble les scores dimensionnels issus des analyseurs temps reel et des analyses post-entretien. La colonne "Conf." indique la confiance calibree sur le pilier correspondant. Les divergences entre sources (IA vs local) sont cliniquement significatives.</p>\n`;
-      h+=`<table><thead><tr><th>Source</th><th>Dimension</th><th>Score</th><th>Note</th></tr></thead><tbody>`;
-      sec.table.forEach(r=>{h+=`<tr><td>${r.i}</td><td>${r.d}</td><td class="sc">${r.s}</td><td>${r.n}</td></tr>`});
-      h+=`</tbody></table>`;
-    } else {
-      h+=textToHTML(texts[i]);
+// ════════════════════════════════════
+// BUILD DEFENSE DYNAMICS HTML
+// ════════════════════════════════════
+function buildDefenseDynamicsHTML(dd) {
+  if (!dd || !dd.sequences?.length) return '<p style="color:var(--gris-l)"><em>Données insuffisantes.</em></p>';
+  let h = `<div class="defense-grid">`;
+  dd.sequences.forEach((seq, i) => {
+    h += `<div class="defense-sequence">`;
+    h += `<div class="defense-seq-header">`;
+    h += `<span class="defense-trigger-label">Déclencheurs</span>`;
+    h += `<div class="defense-triggers">`;
+    (seq.trigger_topics || []).forEach(t => { h += `<span class="trigger-chip">${t}</span>`; });
+    h += `</div></div>`;
+    h += `<div class="defense-states">`;
+    (seq.states || []).forEach((s, si) => {
+      h += `<div class="defense-state">`;
+      h += `<span class="state-arrow">${si === 0 ? '①' : si === 1 ? '②' : si === 2 ? '③' : '④'}</span>`;
+      h += `<div class="state-content">`;
+      h += `<div class="state-name">${s.state || '?'}</div>`;
+      if (s.verbal_pattern) h += `<div class="state-pattern">${s.verbal_pattern}</div>`;
+      if (s.example) h += `<div class="state-example">« ${s.example} »</div>`;
+      if (s.escalation_signal) h += `<div class="state-escalade">Escalade si : <span>${s.escalation_signal}</span></div>`;
+      h += `</div></div>`;
+    });
+    h += `</div>`;
+    if (seq.reset_condition) {
+      h += `<div class="defense-reset">↺ Reset : ${seq.reset_condition}${seq.reset_pattern ? ' — ' + seq.reset_pattern : ''}</div>`;
     }
+    h += `</div>`;
+  });
+  if (dd.observed_evidence?.length) {
+    h += `<div class="defense-evidence"><strong>Preuves observées</strong><ul>`;
+    dd.observed_evidence.forEach(e => { h += `<li>${e}</li>`; });
+    h += `</ul></div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+// ════════════════════════════════════
+// BUILD ENERGY PATTERNS HTML
+// ════════════════════════════════════
+function buildEnergyPatternsHTML(ep) {
+  if (!ep) return '<p style="color:var(--gris-l)"><em>Données insuffisantes.</em></p>';
+  let h = `<div class="energy-grid">`;
+  if (ep.daily_rhythm) {
+    h += `<div class="energy-card energy-rhythm"><div class="energy-card-label">Rythme journalier</div><p style="font-size:.82rem;color:var(--ink)">${ep.daily_rhythm}</p></div>`;
+  }
+  if (ep.peak_moments?.length) {
+    h += `<div class="energy-card"><div class="energy-card-label">Pics d'énergie</div><ul>`;
+    ep.peak_moments.forEach(m => { h += `<li>${m}</li>`; });
+    h += `</ul></div>`;
+  }
+  if (ep.low_moments?.length) {
+    h += `<div class="energy-card"><div class="energy-card-label">Creux d'énergie</div><ul>`;
+    ep.low_moments.forEach(m => { h += `<li>${m}</li>`; });
+    h += `</ul></div>`;
+  }
+  if (ep.recharge_methods?.length) {
+    h += `<div class="energy-card"><div class="energy-card-label">Ressourcement</div><ul>`;
+    ep.recharge_methods.forEach(m => { h += `<li>${m}</li>`; });
+    h += `</ul></div>`;
+  }
+  if (ep.stress_signals?.length) {
+    h += `<div class="energy-card"><div class="energy-card-label">Signaux de stress</div><ul>`;
+    ep.stress_signals.forEach(s => { h += `<li>${s}</li>`; });
+    h += `</ul></div>`;
+  }
+  if (ep.context_modes?.length) {
+    h += `<div class="energy-card context-modes"><div class="energy-card-label">Modes contextuels</div>`;
+    ep.context_modes.forEach(m => {
+      const lvl = (m.energy || 'medium').toLowerCase();
+      h += `<div class="mode-row">`;
+      h += `<span class="mode-energy ${lvl}">${m.energy || '?'}</span>`;
+      h += `<span class="mode-context">${m.context || '?'}</span>`;
+      h += `<span class="mode-mode">→ ${m.mode || '?'}</span>`;
+      h += `</div>`;
+    });
+    h += `</div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+// ════════════════════════════════════
+// BUILD MEMORY HOOKS HTML
+// ════════════════════════════════════
+function buildMemoryHooksHTML(anecdotes) {
+  if (!anecdotes?.length) return '<p style="color:var(--gris-l)"><em>Aucune anecdote capturée.</em></p>';
+  let h = `<div class="hooks-grid">`;
+  anecdotes.forEach(a => {
+    const hooks = a.memory_hooks || {};
+    h += `<div class="hook-card">`;
+    h += `<span class="hook-domain">${a.life_domain || '?'}</span>`;
+    h += `<span class="hook-summary">${a.summary || ''}</span>`;
+    if (hooks.when_to_use) h += `<div class="hook-when"><strong>Quand évoquer ·</strong> ${hooks.when_to_use}</div>`;
+    if (hooks.natural_formulation) h += `<div class="hook-form">« ${hooks.natural_formulation} »</div>`;
+    h += `</div>`;
+  });
+  h += `</div>`;
+  return h;
+}
+
+// ════════════════════════════════════
+// BUILD GENERATIVE GRAMMAR HTML
+// ════════════════════════════════════
+function buildGrammarHTML(n) {
+  const gg = n.communication.generative_grammar;
+  if (!gg) return '';
+  const rl = gg.response_length || gg;
+  let h = `<div class="grammar-grid">`;
+  if (rl.avg_words_per_response) h += `<div class="grammar-stat"><div class="grammar-stat-value">${rl.avg_words_per_response}</div><div class="grammar-stat-label">Mots / réponse</div></div>`;
+  if (gg.end_particle_quoi_ratio_pct != null) h += `<div class="grammar-stat"><div class="grammar-stat-value">${gg.end_particle_quoi_ratio_pct}%</div><div class="grammar-stat-label">Ratio "quoi" fin</div></div>`;
+  if (gg.emote_density_per_100_responses != null) h += `<div class="grammar-stat"><div class="grammar-stat-value">${gg.emote_density_per_100_responses}</div><div class="grammar-stat-label">Emotes / 100 rep.</div></div>`;
+  if (rl.typical_range_words) h += `<div class="grammar-stat"><div class="grammar-stat-value" style="font-size:1.3rem">${rl.typical_range_words}</div><div class="grammar-stat-label">Plage typique (mots)</div></div>`;
+  if (gg.sentence_length_ratio) h += `<div class="grammar-stat" style="grid-column:1/-1"><div class="grammar-stat-value" style="font-size:1rem">${gg.sentence_length_ratio}</div><div class="grammar-stat-label">Ratio phrases courtes / longues</div></div>`;
+  h += `</div>`;
+  const exprs = n.communication.vocabulary?.characteristic_expressions || [];
+  if (exprs.length) {
+    h += `<div class="expressions-list">`;
+    exprs.forEach(e => { h += `<span class="expr-chip">${e}</span>`; });
+    h += `</div>`;
+  }
+  if (gg.top_emotes?.length) {
+    h += `<div class="expressions-list" style="margin-top:.4rem">`;
+    gg.top_emotes.forEach(e => { h += `<span class="expr-chip" style="background:rgba(107,142,143,.06);border-color:rgba(107,142,143,.2)">${e}</span>`; });
+    h += `</div>`;
   }
   return h;
 }
 
-function showPreview(){
-  document.getElementById('processingScreen').style.display='none';
-  const ps=document.getElementById('previewScreen');ps.style.display='block';
-  document.getElementById('reportContainer').innerHTML=reportHTML;
+// ════════════════════════════════════
+// ASSEMBLE FULL REPORT HTML
+// ════════════════════════════════════
+function buildReportHTML(n) {
+  const b1 = splitSections(reportSections.batch1);
+  const b2 = splitSections(reportSections.batch2);
+  const b3 = splitSections(reportSections.batch3);
+  const b4 = splitSections(reportSections.batch4);
+  const b5 = splitSections(reportSections.batch5);
+
+  const date = n.generated
+    ? new Date(n.generated).toLocaleDateString('fr-FR', { year:'numeric', month:'long', day:'numeric' })
+    : new Date().toLocaleDateString('fr-FR', { year:'numeric', month:'long', day:'numeric' });
+
+  let h = '';
+
+  // ── COUVERTURE ──
+  h += `<div class="cover-page">`;
+  h += `<div class="cover-top">`;
+  h += `<div class="cover-eyebrow">Clone Interview Pro · Clinical Grade v4 · C Concept&Dev</div>`;
+  h += `<div class="cover-h1">Audit de<br><em>Personnalité</em></div>`;
+  h += `<div class="cover-subject">${n.name}${n.age ? ', ' + n.age + ' ans' : ''}</div>`;
+  h += `<div class="cover-meta-grid">`;
+  h += `<div class="cover-meta-item"><div class="cover-meta-label">Questions</div><div class="cover-meta-value">${n.questions || '?'}</div></div>`;
+  h += `<div class="cover-meta-item"><div class="cover-meta-label">Mots</div><div class="cover-meta-value">${n.words || '?'}</div></div>`;
+  h += `<div class="cover-meta-item"><div class="cover-meta-label">Réticence</div><div class="cover-meta-value">${n.reticence != null ? n.reticence + '%' : '?'}</div></div>`;
+  h += `</div></div>`;
+  h += `<div class="cover-bottom">`;
+  h += `<div class="cover-grade">`;
+  h += `<div class="grade-badge">${n.grade || '?'}</div>`;
+  h += `<div class="grade-info"><div class="grade-label">Grade de fiabilité</div><div class="grade-value">Confiance ${n.confidence || '?'}%</div></div>`;
+  h += `</div>`;
+  h += `<div>`;
+  h += `<div class="cover-confidential">Confidentiel</div>`;
+  h += `<div style="font-size:.7rem;color:var(--gris-l);margin-top:.4rem;text-align:right">${date}</div>`;
+  h += `</div></div></div>`;
+
+  // ── WARNINGS ──
+  if (n.warnings.length) {
+    h += n.warnings.map(w =>
+      `<div class="warning-banner"><span>⚠</span><span>${w}</span></div>`
+    ).join('');
+  }
+
+  // ── SECTIONS NARRATIVES ──
+  const sections = [
+    { num:'01', title:"Cadre de l'Évaluation", content: proseToHTML(b1[0]) },
+    { num:'02', title:'Présentation Clinique', content: proseToHTML(b1[1]) },
+    { num:'03', title:'Architecture Cognitive', content: proseToHTML(b2[0]) },
+    { num:'04', title:'Paysage Émotionnel', content: proseToHTML(b2[1]) },
+    { num:'05', title:'Identité et Récit de Soi', content: proseToHTML(b3[0]) },
+    { num:'06', title:'Fonctionnement Relationnel', content: proseToHTML(b3[1]) },
+    { num:'07', title:'Dynamique Profonde', content: proseToHTML(b3[2]) },
+  ];
+  sections.forEach(s => {
+    h += `<div class="section-page">`;
+    h += `<div class="section-header"><span class="section-num">${s.num}</span><h2 class="section-title">${s.title}</h2></div>`;
+    h += `<div class="section-body">${s.content}</div>`;
+    h += `</div>`;
+  });
+
+  // ── TABLE PSYCHOMÉTRIQUE ──
+  const tableRows = buildPsychoTable(n);
+  h += `<div class="table-section">`;
+  h += `<div class="section-header"><span class="section-num">08</span><h2 class="section-title">Synthèse Psychométrique</h2></div>`;
+  h += `<p class="table-intro">Le tableau ci-dessous rassemble les scores dimensionnels issus du pipeline d'analyse. La colonne Source indique l'origine de la mesure. Les divergences entre sources sont cliniquement significatives.</p>`;
+  h += `<table class="psycho-table"><thead><tr><th>Source</th><th>Dimension</th><th>Score</th><th>Note</th></tr></thead><tbody>`;
+  tableRows.forEach(r => {
+    const isLoc = r.src.includes('local') || r.src.includes('temps réel') || r.src.includes('Convergence') || r.src.includes('Deep');
+    h += `<tr><td><span class="source-tag${isLoc ? ' local' : ''}">${r.src}</span></td><td>${r.dim}</td><td class="score-cell">${r.score}</td><td style="color:var(--gris);font-size:.75rem">${r.note}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+
+  // ── GRAMMAIRE GÉNÉRATIVE ──
+  const gramHTML = buildGrammarHTML(n);
+  if (gramHTML) {
+    h += `<div class="section-page">`;
+    h += `<div class="section-header"><span class="section-num">09</span><h2 class="section-title">Grammaire Générative</h2></div>`;
+    h += `<div class="section-body"><p>Métriques calculées sur le corpus réel — base opérationnelle pour la génération de langage.</p></div>`;
+    h += gramHTML;
+    h += `</div>`;
+  }
+
+  // ── DYNAMIQUES DÉFENSIVES ──
+  if (n.defenseDynamics) {
+    h += `<div class="section-page">`;
+    h += `<div class="section-header"><span class="section-num">10</span><h2 class="section-title">Dynamiques Défensives</h2></div>`;
+    h += `<div class="section-body"><p>Séquences défensives observées avec exemples verbaux et signaux d'escalade. Base opérationnelle pour le comportement sous pression.</p></div>`;
+    h += buildDefenseDynamicsHTML(n.defenseDynamics);
+    h += `</div>`;
+  }
+
+  // ── PATTERNS ÉNERGÉTIQUES ──
+  if (n.energyPatterns) {
+    h += `<div class="section-page">`;
+    h += `<div class="section-header"><span class="section-num">11</span><h2 class="section-title">Patterns Énergétiques</h2></div>`;
+    h += `<div class="section-body"><p>Rythme et modes énergétiques observés — variations contextuelles du fonctionnement.</p></div>`;
+    h += buildEnergyPatternsHTML(n.energyPatterns);
+    h += `</div>`;
+  }
+
+  // ── MÉMOIRE BIOGRAPHIQUE ──
+  const anecdotes = n.biography.anecdotes || [];
+  if (anecdotes.length) {
+    h += `<div class="section-page">`;
+    h += `<div class="section-header"><span class="section-num">12</span><h2 class="section-title">Mémoire Biographique</h2></div>`;
+    h += `<div class="section-body"><p>Anecdotes capturées avec ancres de mobilisation naturelle — formulations dans la voix réelle du sujet.</p></div>`;
+    h += buildMemoryHooksHTML(anecdotes);
+    h += `</div>`;
+  }
+
+  // ── FORCES + VULNÉRABILITÉS + FIABILITÉ ──
+  const sections2 = [
+    { num:'13', title:'Forces et Ressources Psychiques', content: proseToHTML(b4[0]) },
+    { num:'14', title:'Vulnérabilités et Angles Morts', content: proseToHTML(b4[1]) },
+    { num:'15', title:'Note sur la Fiabilité des Données', content: proseToHTML(b4[2]) },
+    { num:'16', title:'Conclusion', content: proseToHTML(b5[0]) },
+  ];
+  sections2.forEach(s => {
+    h += `<div class="section-page">`;
+    h += `<div class="section-header"><span class="section-num">${s.num}</span><h2 class="section-title">${s.title}</h2></div>`;
+    h += `<div class="section-body">${s.content}</div>`;
+    h += `</div>`;
+  });
+
+  return h;
 }
 
-// ================================================================
-// EXPORT PDF (jsPDF)
-// ================================================================
-function downloadPDF(){
-  const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'mm',format:'a4'});
-  const W=210,H=297,ML=25,MR=25,MT=30,MB=25,CW=W-ML-MR;
-  let y=MT;
+// ════════════════════════════════════
+// SHOW PREVIEW
+// ════════════════════════════════════
+function showPreview() {
+  const n = normalizeBrain(brainData);
+  document.getElementById('processingScreen').style.display = 'none';
+  document.getElementById('previewName').textContent = n.name;
+  document.getElementById('previewScreen').style.display = 'block';
+  document.getElementById('reportDoc').innerHTML = assembledHTML;
+}
 
-  const INK=[30,30,30],MU=[100,100,100],CL=[143,175,177],SB=[230,215,195],VS=[200,208,195];
-  
-  function foot(){doc.setFillColor(248,245,240);doc.rect(0,H-15,W,15,'F');doc.setFontSize(7);doc.setTextColor(...MU);doc.setFont('helvetica','normal');doc.text('Audit de Personnalite — C Concept&Dev — CONFIDENTIEL',W/2,H-7,{align:'center'});doc.text(''+doc.getNumberOfPages(),W-15,H-7)}
-  function chk(need){if(y+need>H-MB){doc.addPage();y=MT;foot()}}
-  function secTitle(t){chk(18);y+=6;doc.setFontSize(12);doc.setTextColor(...CL);doc.setFont('helvetica','bold');doc.text(t,ML,y);y+=2;doc.setDrawColor(...CL);doc.setLineWidth(0.4);doc.line(ML,y,ML+CW,y);y+=6}
-  function prose(t){if(!t)return;doc.setFontSize(9.5);doc.setTextColor(...INK);doc.setFont('helvetica','normal');const ps=t.split(/\n\n+/).filter(p=>p.trim());ps.forEach(p=>{let s=p.trim().replace(/^(PREMI|DEUXI|TROISI)[^\n]*/i,'').trim();if(!s)return;const ls=doc.splitTextToSize(s,CW);ls.forEach(l=>{chk(4.2);doc.text(l,ML,y);y+=4.2});y+=2.5})}
-  function writeTable(rows){if(!rows?.length)return;doc.setFontSize(8);chk(8);doc.setFillColor(...CL);doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.rect(ML,y-3.5,CW,5.5,'F');['Source','Dimension','Score','Note'].forEach((h,i)=>doc.text(h,ML+[0,32,95,125][i],y));y+=4;doc.setTextColor(...INK);doc.setFont('helvetica','normal');rows.forEach(r=>{chk(5);if(rows.indexOf(r)%2===0){doc.setFillColor(250,248,245);doc.rect(ML,y-3.2,CW,4.8,'F')}doc.text(String(r.i).substring(0,18),ML,y);doc.text(String(r.d).substring(0,30),ML+32,y);doc.setFont('helvetica','bold');doc.text(String(r.s),ML+95,y);doc.setFont('helvetica','normal');doc.text(String(r.n).substring(0,25),ML+125,y);y+=4.8})}
-
-  const name=brainData.identity?.display_name||'Sujet';
-  const iv=brainData.source_interview||{};
-  const conf=brainData.confidence||{};
-  const date=brainData._clone?.generated?new Date(brainData._clone.generated).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('fr-FR');
-
-  // COUVERTURE
-  doc.setFillColor(...SB);doc.rect(0,0,W,H,'F');
-  doc.setFillColor(255,255,255);doc.rect(30,40,150,200,'F');
-  doc.setDrawColor(...CL);doc.setLineWidth(0.8);doc.rect(30,40,150,200,'S');
-  doc.setFontSize(11);doc.setTextColor(...CL);doc.setFont('helvetica','bold');doc.text('AUDIT DE PERSONNALITE',W/2,75,{align:'center'});
-  doc.setDrawColor(...VS);doc.setLineWidth(0.6);doc.line(50,82,160,82);
-  doc.setFontSize(20);doc.setTextColor(...INK);doc.setFont('helvetica','bold');doc.text(name,W/2,100,{align:'center'});
-  doc.setFontSize(10);doc.setTextColor(...MU);doc.setFont('helvetica','normal');
-  doc.text(date,W/2,115,{align:'center'});
-  doc.text(`${iv.questions_count||'?'} questions  |  ${iv.total_user_words||'?'} mots  |  mode ${iv.mode||'?'}`,W/2,123,{align:'center'});
-  if(conf.global) doc.text(`Grade ${conf.global_grade||'?'}  |  Confiance ${conf.global}%`,W/2,131,{align:'center'});
-  doc.setFontSize(9);doc.setTextColor(...CL);doc.setFont('helvetica','bold');doc.text('CONFIDENTIEL',W/2,155,{align:'center'});
-  doc.setFontSize(8);doc.setTextColor(...MU);doc.setFont('helvetica','normal');
-  doc.text('Clone Interview Pro V20 Clinical Grade',W/2,210,{align:'center'});
-  doc.text('C Concept&Dev',W/2,217,{align:'center'});
-  const disc=doc.splitTextToSize('Ce document constitue un outil d\'aide a la comprehension de la personnalite. Il ne remplace pas un diagnostic clinique realise par un professionnel qualifie.',CW-30);
-  disc.forEach((l,i)=>doc.text(l,W/2,228+i*3.5,{align:'center'}));
-
-  // CONTENU
-  doc.addPage();y=MT;foot();
-  const b1=splitSections(reportSections.batch1),b2=splitSections(reportSections.batch2),b3=splitSections(reportSections.batch3),b4=splitSections(reportSections.batch4),b5=splitSections(reportSections.batch5||'');
-
-  secTitle('1. Cadre de l\'Evaluation');prose(b1[0]);
-  secTitle('2. Presentation Clinique');prose(b1[1]);
-  secTitle('3. Architecture Cognitive');prose(b2[0]);
-  secTitle('4. Paysage Emotionnel');prose(b2[1]);
-  secTitle('5. Identite et Recit de Soi');prose(b3[0]);
-  secTitle('6. Fonctionnement Relationnel');prose(b3[1]);
-  secTitle('7. Dynamique Profonde');prose(b3[2]);
-
-  secTitle('8. Synthese Psychometrique');
-  doc.setFontSize(9);doc.setTextColor(...INK);doc.setFont('helvetica','italic');
-  const intro=doc.splitTextToSize('Les scores ci-dessous proviennent de deux sources distinctes : les analyseurs temps reel (actifs pendant l\'entretien) et les analyses post-entretien (IA). Les divergences entre sources sont cliniquement significatives.',CW);
-  intro.forEach(l=>{doc.text(l,ML,y);y+=3.8});y+=3;
-  writeTable(reportSections.table);
-
-  secTitle('9. Forces et Ressources');prose(b4[0]);
-  secTitle('10. Vulnerabilites et Angles Morts');prose(b4[1]);
-  secTitle('11. Fiabilite des Donnees');prose(b4[2]);
-  secTitle('12. Conclusion');prose(b5[0]);
-
-  chk(25);y+=6;doc.setDrawColor(...MU);doc.setLineWidth(0.2);doc.line(ML,y,ML+CW,y);y+=5;
-  doc.setFontSize(7.5);doc.setTextColor(...MU);doc.setFont('helvetica','italic');
-  const fd=doc.splitTextToSize('Ce rapport a ete genere par Clone Interview Pro V20 Clinical Grade (C Concept&Dev). Il constitue un outil d\'aide a la comprehension de la personnalite, base sur une interview conversationnelle analysee par intelligence artificielle et 7 analyseurs psychometriques temps reel. Il ne remplace en aucun cas un diagnostic clinique realise par un professionnel de sante mentale qualifie.',CW);
-  fd.forEach(l=>{chk(4);doc.text(l,ML,y);y+=3.2});
-
-  doc.save(`audit-personnalite-${name.toLowerCase().replace(/[^a-z0-9]/g,'-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+// ════════════════════════════════════
+// PRINT / PDF natif
+// ════════════════════════════════════
+function printReport() {
+  if (!document.getElementById('reportDoc').innerHTML) {
+    showPreview();
+  }
+  setTimeout(() => window.print(), 300);
 }
 </script>
 </body>
