@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliothèque Thérapeutique — Administration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, #E6D7C3 0%, #D8CDBB 100%);
+            min-height: 100vh; padding: 24px;
+        }
+        .app {
+            max-width: 900px; margin: 0 auto;
+        }
+
+        /* ── HEADER ── */
+        .app-header {
+            background: linear-gradient(135deg, #7A9A9C 0%, #8FAFB1 100%);
+            padding: 24px 32px; border-radius: 16px 16px 0 0;
+            color: white; display: flex; justify-content: space-between; align-items: center;
+        }
+        .app-header h1 { font-size: 1.4em; }
+        .app-header .stats { font-size: 12px; opacity: 0.85; }
+
+        /* ── CONFIG ── */
+        .config-bar {
+            background: white; padding: 16px 24px;
+            border-bottom: 1px solid #eee;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .config-bar label { font-size: 12px; color: #888; font-weight: 600; }
+        .config-bar input {
+            flex: 1; min-width: 250px; padding: 8px 12px;
+            border: 2px solid #D8CDBB; border-radius: 8px;
+            font-family: monospace; font-size: 12px;
+        }
+        .config-bar input:focus { border-color: #8FAFB1; outline: none; }
+        .btn-refresh {
+            background: #8FAFB1; color: white; border: none;
+            padding: 8px 16px; border-radius: 8px; font-size: 12px;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+
+        /* ── MAIN ── */
+        .main { background: white; padding: 24px; border-radius: 0 0 16px 16px; }
+
+        /* ── TABS ── */
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+        .tab {
+            padding: 10px 20px; border: none; background: #f5f5f5;
+            border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600;
+            color: #888; cursor: pointer; font-family: inherit; transition: all 0.2s;
+        }
+        .tab.active { background: #8FAFB1; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── DROPZONE ── */
+        .dropzone {
+            border: 3px dashed #C8D0C3; border-radius: 14px;
+            padding: 40px 24px; text-align: center; cursor: pointer;
+            transition: all 0.3s; background: #fafaf8; position: relative;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #8FAFB1; background: #f0f6f6;
+        }
+        .dropzone-icon { font-size: 40px; display: block; margin-bottom: 8px; }
+        .dropzone-text { font-size: 14px; font-weight: 600; color: #555; }
+        .dropzone-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+        .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+        /* ── METADATA FORM ── */
+        .meta-form {
+            display: none; margin-top: 16px; padding: 20px;
+            background: #fafaf8; border-radius: 10px; border: 1px solid #eee;
+        }
+        .meta-form.active { display: block; }
+        .meta-form h3 { font-size: 14px; color: #8FAFB1; margin-bottom: 12px; }
+        .form-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 11px; color: #888; font-weight: 600; }
+        .form-group input, .form-group select {
+            padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 13px; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #8FAFB1; outline: none;
+        }
+
+        /* ── QUEUE ── */
+        .queue { margin-top: 16px; }
+        .queue-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; background: #fafaf8;
+            border-radius: 8px; margin-bottom: 6px;
+            border-left: 4px solid #C8D0C3; transition: all 0.3s;
+        }
+        .queue-item.processing { border-left-color: #8FAFB1; background: #f0f6f6; }
+        .queue-item.done { border-left-color: #27ae60; }
+        .queue-item.error { border-left-color: #e74c3c; }
+        .qi-icon { font-size: 20px; }
+        .qi-info { flex: 1; }
+        .qi-name { font-weight: 600; font-size: 13px; color: #333; }
+        .qi-status { font-size: 11px; color: #999; margin-top: 2px; }
+        .qi-status.ok { color: #27ae60; }
+        .qi-status.err { color: #e74c3c; }
+        .qi-progress { height: 3px; background: #eee; border-radius: 2px; margin-top: 4px; }
+        .qi-progress-fill {
+            height: 100%; border-radius: 2px; width: 0%;
+            background: linear-gradient(135deg, #8FAFB1, #C8D0C3);
+            transition: width 0.3s;
+        }
+        .qi-action {}
+        .btn-sm {
+            padding: 4px 10px; border-radius: 4px; font-size: 11px;
+            border: 1px solid #ddd; background: white; cursor: pointer;
+            font-family: inherit; color: #888;
+        }
+        .btn-sm:hover { border-color: #8FAFB1; color: #8FAFB1; }
+        .btn-sm.danger:hover { border-color: #e74c3c; color: #e74c3c; }
+
+        /* ── BUTTONS ── */
+        .action-bar {
+            display: flex; gap: 10px; margin-top: 16px;
+            justify-content: center; flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 28px; border-radius: 10px; font-size: 14px;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+            border: none; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8FAFB1, #C8D0C3);
+            color: white; box-shadow: 0 4px 12px rgba(143,175,177,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+        .btn-outline {
+            background: white; color: #8FAFB1; border: 2px solid #C8D0C3;
+        }
+
+        /* ── LIBRARY TAB ── */
+        .book-grid { display: flex; flex-direction: column; gap: 8px; }
+        .book-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; background: #fafaf8;
+            border-radius: 10px; border-left: 4px solid #8FAFB1;
+        }
+        .bc-info { flex: 1; }
+        .bc-title { font-weight: 600; font-size: 13px; color: #333; }
+        .bc-meta { font-size: 11px; color: #999; margin-top: 2px; }
+        .bc-approach {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 10px; font-weight: 600; background: #E6D7C3; color: #7A9A9C;
+        }
+        .bc-chunks { font-size: 11px; color: #aaa; }
+        .dup-banner { background: #FFF3E0; border: 2px solid #FFB74D; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+        .dup-banner .dup-icon { font-size: 24px; flex-shrink: 0; }
+        .dup-banner .dup-text { font-size: 13px; color: #E65100; flex: 1; }
+        .dup-banner .dup-text b { color: #BF360C; }
+        .dup-banner .dup-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .dup-banner button { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; }
+        .dup-banner .btn-overwrite { background: #FF7043; color: white; }
+        .dup-banner .btn-overwrite:hover { background: #F4511E; }
+        .dup-banner .btn-skip { background: #fff; color: #999; border: 1px solid #ddd; }
+        .dup-banner .btn-skip:hover { background: #f5f5f5; }
+        .dup-group { background: #FFFDE7; border: 2px solid #FFF176; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .dup-group-header { font-size: 13px; font-weight: 700; color: #F57F17; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .dup-group-items { font-size: 12px; color: #555; }
+        .dup-group-items div { padding: 4px 0; border-bottom: 1px solid #FFF9C4; display: flex; justify-content: space-between; }
+        .dup-group-items div:last-child { border: none; }
+        .dup-group button { padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; background: #FF7043; color: white; margin-top: 8px; }
+        .dup-group button:hover { background: #F4511E; }
+        .dup-scan-btn { background: linear-gradient(135deg, #FFB74D, #FFA726); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; margin-bottom: 16px; box-shadow: 0 4px 15px rgba(255,183,77,0.3); }
+        .dup-scan-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,183,77,0.4); }
+        .dup-clean { background: #E8F5E9; border-radius: 10px; padding: 20px; text-align: center; color: #2E7D32; font-weight: 600; }
+        .btn-delete {
+            padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px;
+            background: white; color: #ccc; cursor: pointer; font-size: 11px;
+            font-family: inherit;
+        }
+        .btn-delete:hover { border-color: #e74c3c; color: #e74c3c; }
+
+        .empty-state {
+            text-align: center; padding: 40px; color: #bbb;
+        }
+        .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+
+        /* ── LOG ── */
+        .log-box {
+            background: #1a1a2e; color: #C8D0C3; border-radius: 8px;
+            padding: 14px; font-family: monospace; font-size: 11px;
+            max-height: 200px; overflow-y: auto; margin-top: 16px;
+            line-height: 1.6;
+        }
+        .log-box .err { color: #e74c3c; }
+        .log-box .ok { color: #27ae60; }
+        .log-box .info { color: #8FAFB1; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- HEADER -->
+    <div class="app-header">
+        <div>
+            <h1>📚 Bibliothèque Thérapeutique</h1>
+            <div style="font-size:12px;opacity:0.8;margin-top:2px;">Administration — Indexation RAG</div>
+        </div>
+        <div class="stats" id="headerStats">Chargement...</div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="config-bar">
+        <label>Worker URL</label>
+        <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev" placeholder="https://clone-proxy.xxx.workers.dev">
+        <button class="btn-refresh" onclick="refreshStats()">🔄 Actualiser</button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('upload')">📤 Ajouter des livres</button>
+            <button class="tab" onclick="switchTab('library')">📚 Bibliothèque</button>
+            <button class="tab" onclick="switchTab('search')">🔍 Test recherche</button>
+            <button class="tab" onclick="switchTab('glossary')">📖 Glossaire</button>
+            <button class="tab" onclick="switchTab('log')">📋 Journal</button>
+        </div>
+
+        <!-- TAB: UPLOAD -->
+        <div class="tab-content active" id="tab-upload">
+            <div class="dropzone" id="dropzone">
+                <span class="dropzone-icon">📄</span>
+                <div class="dropzone-text">Glissez vos PDF ou HTML ici</div>
+                <div class="dropzone-hint">PDF et HTML acceptés — extraction et indexation automatiques</div>
+                <input type="file" id="fileInput" accept=".pdf,.html,.htm" multiple>
+            </div>
+
+            <div id="dupAlerts"></div>
+            <div class="queue" id="queue"></div>
+
+            <div class="action-bar" id="actionBar" style="display:none;">
+                <button class="btn btn-primary" id="btnIngest" onclick="startIngestion()">⚡ Indexer tout</button>
+                <button class="btn btn-outline" onclick="clearQueue()">🗑 Vider la file</button>
+            </div>
+        </div>
+
+        <!-- TAB: LIBRARY -->
+        <div class="tab-content" id="tab-library">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button class="dup-scan-btn" onclick="scanDuplicates()" style="flex:1;">🔍 Scanner les doublons</button>
+                <button class="btn-refresh" onclick="refreshLibrary()">🔄</button>
+            </div>
+            <div id="dupResults"></div>
+            <div id="libraryContent">
+                <div class="empty-state">
+                    <div class="icon">📚</div>
+                    <div>Cliquez sur Actualiser pour charger la bibliothèque</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: SEARCH -->
+        <div class="tab-content" id="tab-search">
+            <div style="margin-bottom:16px;">
+                <h3 style="font-size:14px;color:#8FAFB1;margin-bottom:10px;">🔍 Tester la recherche RAG</h3>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="searchQuery" placeholder="Ex: schéma d'abandon en thérapie de couple"
+                        style="flex:1;padding:10px 14px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;">
+                    <select id="searchApproach" style="padding:8px;border:2px solid #D8CDBB;border-radius:8px;font-size:12px;font-family:inherit;">
+                        <option value="">Toutes approches</option>
+                        <option value="schema_therapy">Schémas</option>
+                        <option value="act">ACT</option>
+                        <option value="ifs">IFS</option>
+                        <option value="couple">Couple</option>
+                        <option value="attachment">Attachement</option>
+                        <option value="mi">MI</option>
+                        <option value="cnv">CNV</option>
+                        <option value="cft">CFT</option>
+                        <option value="dbt">DBT</option>
+                        <option value="emdr">EMDR</option>
+                        <option value="hypnosis">Hypnose Ericksonienne</option>
+                        <option value="personal_development">Développement Personnel</option>
+                        <option value="icv">ICV</option>
+                        <option value="systemic">Systémique</option>
+                        <option value="coherence">Cohérence</option>
+                    </select>
+                    <button class="btn-refresh" onclick="testSearch()">🔍 Rechercher</button>
+                </div>
+                <div style="margin-top:4px;font-size:11px;color:#aaa;">
+                    topK: <input type="number" id="searchTopK" value="5" min="1" max="20" style="width:50px;padding:2px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
+                </div>
+            </div>
+            <div id="searchResults" style="font-size:13px;color:#555;">
+                <div class="empty-state">
+                    <div class="icon">🔍</div>
+                    <div>Testez une requête pour vérifier la qualité de l'indexation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: GLOSSARY -->
+        <div class="tab-content" id="tab-glossary">
+            <div style="max-height:70vh;overflow-y:auto;padding-right:8px;">
+                <h3 style="font-size:16px;color:#7A9A9C;margin-bottom:16px;">📖 Glossaire des approches thérapeutiques</h3>
+                
+                <div style="display:grid;gap:10px;">
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">ACT — Acceptance and Commitment Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie d'acceptation et d'engagement (Steven Hayes). Travaille la défusion cognitive, l'acceptation émotionnelle, le contact avec le moment présent, et l'engagement vers les valeurs. Modèle hexaflex.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">CBT / TCC — Cognitive Behavioral Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie cognitivo-comportementale (Aaron Beck). Restructuration cognitive, identification des pensées automatiques, modification des schémas cognitifs, exposition comportementale.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">CFT — Compassion-Focused Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie centrée sur la compassion (Paul Gilbert). Travaille les 3 systèmes de régulation émotionnelle (menace, motivation, apaisement). Indiquée pour la honte et l'autocritique.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">CNV — Communication NonViolente</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Marshall Rosenberg. Protocole OSBD : Observation (faits), Sentiment (émotion), Besoin (besoin universel), Demande (concrète). "Langage girafe" vs "langage chacal". Voir aussi Thomas d'Ansembourg.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">DBT — Dialectical Behavior Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie comportementale dialectique (Marsha Linehan). Régulation émotionnelle, tolérance à la détresse, efficacité interpersonnelle, pleine conscience. Développée pour le trouble borderline, applicable plus largement.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">EMDR — Eye Movement Desensitization and Reprocessing</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Désensibilisation et retraitement par mouvements oculaires (Francine Shapiro). Stimulation bilatérale (visuelle, auditive ou tactile) pendant le rappel d'un souvenir traumatique pour faciliter son retraitement.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Hypnose Ericksonienne</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Milton H. Erickson, développée en France par François Roustang, Antoine Bioy, Gérard Megglé. État de concentration focalisée et de réceptivité accrue que le patient crée lui-même avec le guidage du thérapeute. Langage permissif ("vous pouvez peut-être..."), présuppositions ("quand vous serez prêt..."), métaphores thérapeutiques, saupoudrage. Techniques : induction par fixation, relaxation progressive, confusion bénigne, ancrage ressource, approfondissement fractionné. Indications principales : anxiété, douleur chronique (hypno-analgésie), troubles du sommeil, phobies, trauma (complémentaire EMDR), psychosomatique. Contre-indiquée en cas de psychose active, épisode maniaque ou dissociation sévère.</div>
+                        <div style="font-size:11px;color:#8FAFB1;margin-top:6px;font-weight:600;">▸ Auteurs clés : Erickson, Roustang, Bioy, Megglé, Benhaiem — Concepts : induction, transe, ancrage, suggestion post-hypnotique, auto-hypnose, hypno-analgésie, gant anesthésique, binaurale thêta</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">ICV — Intégration du Cycle de Vie (Lifespan Integration)</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Peggy Pace. Utilise une ligne du temps (timeline) de souvenirs pour montrer au système nerveux que le temps a passé. Indiquée pour le trauma développemental, l'attachement insécure, la dissociation. Plus douce que l'EMDR.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Cohérence (Thérapie de la) — Reconsolidation mnésique</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Bruce Ecker et Laurel Hulley. Le symptôme persiste car un savoir émotionnel implicite le rend nécessaire. Protocole : accès au savoir implicite → juxtaposition émotionnelle (expérience contradictoire) → vérification. Utilise la fenêtre de reconsolidation (~5h).</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Systémique — Thérapies systémiques</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Famille d'approches où le problème est entre les personnes, pas dans une seule. Palo Alto (Watzlawick) : tentatives de solution. Structurale (Minuchin) : frontières, hiérarchies. Milan (Selvini) : questionnement circulaire. Solutions (de Shazer) : exceptions, question miracle. Narratif (White/Epston) : externalisation.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">IFS — Internal Family Systems</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Système familial intérieur (Richard Schwartz). Le psychisme contient des "parts" (exilés, managers, pompiers) et un Self. Protocole 6F : Find, Focus, Flesh out, Feel toward, beFriend, Fears. Unburdening pour les exilés.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">MBCT — Mindfulness-Based Cognitive Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie cognitive basée sur la pleine conscience (Segal, Williams, Teasdale). Prévention des rechutes dépressives par la décentration cognitive et l'observation sans jugement des pensées.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">MI — Entretien Motivationnel (Motivational Interviewing)</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de William Miller et Stephen Rollnick. Explorer l'ambivalence face au changement sans convaincre. Techniques : reflets complexes, questions ouvertes, résumés directionnels, discours-changement vs discours-maintien.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">OSBD — Observation, Sentiment, Besoin, Demande</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Les 4 étapes du protocole CNV de Rosenberg. Observer sans juger → nommer l'émotion → identifier le besoin → formuler une demande concrète et négociable.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">PBT — Process-Based Therapy</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Thérapie basée sur les processus (Stefan Hofmann). Approche méta-thérapeutique : on ne traite pas "un trouble" mais des processus transdiagnostiques. Permet de naviguer entre les approches selon le processus actif.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">RAG — Retrieval-Augmented Generation</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Technique d'IA : avant de répondre, le système cherche des passages pertinents dans la bibliothèque indexée et les injecte dans le contexte. Permet au thérapeute IA de s'appuyer sur les auteurs réels.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Schéma Therapy — Thérapie des Schémas</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Approche de Jeffrey Young. 18 schémas précoces inadaptés (abandon, méfiance, carence, imperfection...), 5 domaines, 3 styles de coping (soumission, évitement, compensation), modes enfant/parent/adulte. Techniques : reparentage limité, rescénarisation en imagerie, dialogue socratique.</div>
+                    </div>
+                    <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #C8D0C3;">
+                        <div style="font-weight:700;color:#7A9A9C;font-size:13px;">Développement Personnel</div>
+                        <div style="font-size:12px;color:#555;margin-top:4px;">Ensemble des pratiques et connaissances visant la croissance personnelle, l'épanouissement et l'actualisation du potentiel. Recouvre la psychologie positive (Seligman — PERMA : Positive emotions, Engagement, Relationships, Meaning, Accomplishment), l'intelligence émotionnelle (Goleman — conscience de soi, maîtrise de soi, motivation, empathie, compétences sociales), le flow (Csikszentmihalyi — état optimal d'engagement total dans une activité), la théorie du growth mindset (Dweck — cerveau malléable vs talent fixe), les habitudes (Duhigg, Clear — boucle habitude : signal → routine → récompense ; loi des 1%), la résilience (capacité à rebondir face à l'adversité), la gestion du stress et prévention du burn-out, l'assertivité, la gestion du temps et la productivité. Auteurs de référence : Seligman, Goleman, Csikszentmihalyi, Dweck, Covey (7 habitudes), Robbins, Carnegie (influence et communication), Tolle (présence et conscience), Gladwell (performance et contexte), Frankl (sens et logothérapie).</div>
+                        <div style="font-size:11px;color:#8FAFB1;margin-top:6px;font-weight:600;">▸ Auteurs clés : Seligman, Goleman, Csikszentmihalyi, Dweck, Covey, Robbins, Carnegie, Tolle, Frankl — Concepts : PERMA, flow, mindset, habitudes, intelligence émotionnelle, résilience, assertivité, burn-out, bien-être, sens</div>
+                    </div>
+                </div>
+                
+                <h3 style="font-size:14px;color:#7A9A9C;margin:20px 0 12px;">📌 Autres termes fréquents</h3>
+                <div style="display:grid;gap:8px;font-size:12px;">
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">AAQ-II</b> — Acceptance and Action Questionnaire. Mesure la flexibilité psychologique (Hayes).</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">BLS</b> — Bilateral Stimulation. Stimulation bilatérale utilisée en EMDR (mouvements oculaires, tapping, sons alternés).</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">DMRS</b> — Defense Mechanism Rating Scale. Échelle de cotation des mécanismes de défense (Perry). Utilisée pour calculer l'ODF.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Développement Personnel</b> — Croissance personnelle, confiance en soi, estime de soi, psychologie positive, intelligence émotionnelle, coaching, résilience, habits, gestion du stress, bien-être. Auteurs : Goleman, Covey, Seligman, Csikszentmihalyi, Dweck, Robbins, Carnegie, Tolle, Gladwell.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">EFT</b> — Emotionally Focused Therapy. Thérapie centrée sur les émotions pour les couples (Sue Johnson). Basée sur l'attachement.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Hexaflex</b> — Le modèle à 6 processus de l'ACT : défusion, acceptation, moment présent, soi-contexte, valeurs, action engagée.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Imago</b> — Thérapie Imago pour les couples (Harville Hendrix). Dialogue structuré : reflet, validation, empathie.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">MDC</b> — Moteur de Décision Clinique. Le système automatique du Thérapeute IA qui analyse les signaux et recommande l'approche.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">ODF</b> — Overall Defensive Functioning. Score global de fonctionnement défensif (0-7). Plus c'est haut, plus les défenses sont matures.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">TIPP</b> — Température, Intense exercise, Paced breathing, Progressive relaxation. Technique DBT de régulation rapide.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">MRI</b> — Mental Research Institute (Palo Alto). École systémique fondée par Bateson, Jackson, Watzlawick. Focus sur les tentatives de solution.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Juxtaposition</b> — Concept clé de la thérapie de la cohérence (Ecker). Tenir simultanément la croyance ancienne et l'expérience contradictoire pour ouvrir la reconsolidation.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Ancrage (hypnose)</b> — Association entre un stimulus (geste, mot, respiration) et un état intérieur ressource. Une fois posé, le geste permet de retrouver l'état en quelques secondes.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Auto-hypnose</b> — Protocole en 5 étapes (posture → compte 5→1 → lieu sûr → suggestion → retour 1→5). Exercice inter-séances HYPNO_SELF_HYPNOSIS dans le Thérapeute IA.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Binaurale (thêta)</b> — Sons binauraux à battement de 6 Hz (fréquence thêta) pour faciliter l'induction hypnotique. Implémentée dans le HypnosisModule du Thérapeute IA.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Gant anesthésique</b> — Technique d'hypno-analgésie : suggestion d'engourdissement de la main puis transfert sur la zone douloureuse. Pertinent pour la douleur chronique.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Saupoudrage</b> — Technique Ericksonienne : insertion de suggestions hypnotiques dans la conversation ordinaire via changements de ton, pauses, emphase vocale sur des mots-clés.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Question miracle</b> — Technique de Steve de Shazer. "Si le problème disparaissait cette nuit, à quoi le remarqueriez-vous demain ?" Oriente vers la solution.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Externalisation</b> — Technique narrative (Michael White). Séparer le problème de la personne : "Ce n'est pas vous le problème, c'est le problème qui s'est installé."</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">PERMA</b> — Modèle du bien-être de Martin Seligman (psychologie positive) : Positive emotions, Engagement, Relationships, Meaning, Accomplishment. Les 5 piliers de la vie épanouie.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Flow</b> — État optimal décrit par Csikszentmihalyi : concentration totale, perte de la notion du temps, équilibre défi/compétence. Condition de performance et de bien-être profond.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Growth Mindset</b> — Concept de Carol Dweck. Croyance que les capacités sont développables par l'effort (vs fixed mindset). Base du développement personnel et de la résilience.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Loi des 1%</b> — Principe d'amélioration continue de James Clear (Atomic Habits). Une progression de 1% par jour produit une amélioration de 37x en un an. L'identité prime sur l'objectif.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Intelligence Émotionnelle</b> — Concept de Goleman : conscience de soi, maîtrise de soi, motivation intrinsèque, empathie, compétences sociales. Prédit mieux la réussite que le QI dans les contextes relationnels.</div>
+                    <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">Logothérapie</b> — Approche de Viktor Frankl. Le sens comme moteur de vie. "Celui qui sait pourquoi il vit peut supporter n'importe quel comment." Technique de l'intention paradoxale. Fondement de nombreux courants de développement personnel.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: LOG -->
+        <div class="tab-content" id="tab-log">
+            <div class="log-box" id="logBox">
+                <span class="info">[SYSTÈME]</span> Prêt. Configurez l'URL du Worker et glissez vos PDF.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// BIBLIOTHÈQUE THÉRAPEUTIQUE — ADMIN
+// Extraction PDF côté navigateur → Envoi chunks au Worker
+// ═══════════════════════════════════════════════════════════════
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let queue = []; // { id, file, meta, status, chunks, error }
+let isIngesting = false;
+
+// ── Tabs ──
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', ['upload','library','search','glossary','log'][i] === name);
+    });
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'library') refreshLibrary();
+}
+
+// ── Log ──
+function log(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const cls = type === 'error' ? 'err' : type === 'success' ? 'ok' : 'info';
+    const time = new Date().toLocaleTimeString('fr-FR');
+    box.innerHTML += `\n<span class="${cls}">[${time}]</span> ${msg}`;
+    box.scrollTop = box.scrollHeight;
+}
+
+// ── Worker URL ──
+function getWorkerUrl() {
+    return document.getElementById('workerUrl').value.replace(/\/+$/, '');
+}
+
+// Helper: échapper les apostrophes pour les attributs onclick
+function esc(s) { return (s || '').replace(/'/g, "\\'"); }
+
+
+// ── Drag & Drop ──
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('dragover');
+    addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => {
+    addFiles(Array.from(fileInput.files));
+    fileInput.value = '';
+});
+
+function addFiles(files) {
+    const accepted = files.filter(f => {
+        const name = f.name.toLowerCase();
+        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm');
+    });
+    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF ou HTML détecté'); return; }
+
+    for (const f of accepted) {
+        if (queue.find(q => q.file.name === f.name)) continue;
+        const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
+        const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+        const bookId = f.name.replace(/\.(pdf|html?)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        const isHTML = ext === '.html' || ext === '.htm';
+        queue.push({
+            id, file: f,
+            fileType: isHTML ? 'html' : 'pdf',
+            meta: {
+                book_id: bookId,
+                title: f.name.replace(/\.(pdf|html?)$/i, ''),
+                author: '',
+                language: 'fr',
+                approach: isHTML ? 'outils_couple' : 'general',
+                tags: isHTML ? ['outil', 'couple', 'exercice'] : []
+            },
+            status: 'pending', chunks: [], error: null
+        });
+    }
+    renderQueue();
+    document.getElementById('actionBar').style.display = 'flex';
+    log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML)`);
+}
+
+// ── Queue Render ──
+function renderQueue() {
+    const el = document.getElementById('queue');
+    el.innerHTML = queue.map(q => {
+        const icon = q.status === 'done' ? '✅' : q.status === 'error' ? '❌' :
+                     q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : '📄';
+        const statusCls = q.status === 'done' ? 'done' : q.status === 'error' ? 'error' :
+                          (q.status === 'extracting' || q.status === 'uploading') ? 'processing' : '';
+
+        let statusText = '';
+        if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
+        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon (${q._existingChunks} chunks)</span>`;
+        else if (q.status === 'extracting') statusText = 'Extraction du texte...';
+        else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
+        else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} chunks indexés</span>`;
+        else if (q.status === 'error') statusText = `<span class="err">✗ ${q.error}</span>`;
+
+        return `<div class="queue-item ${statusCls}" id="qi-${q.id}">
+            <div class="qi-icon">${icon}</div>
+            <div class="qi-info">
+                <div class="qi-name">${q.meta.title}</div>
+                <div class="qi-status">${statusText}</div>
+                ${(q.status === 'extracting' || q.status === 'uploading') ?
+                    `<div class="qi-progress"><div class="qi-progress-fill" id="qp-${q.id}"></div></div>` : ''}
+                ${q.status === 'pending' ? renderMetaForm(q) : ''}
+            </div>
+            <div class="qi-action">
+                ${q.status === 'pending' ? `<button class="btn-sm danger" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderMetaForm(q) {
+    return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
+            ${['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development']
+                .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
+        </select>
+        <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
+            <option value="fr" ${q.meta.language==='fr'?'selected':''}>FR</option>
+            <option value="en" ${q.meta.language==='en'?'selected':''}>EN</option>
+        </select>
+        <input type="text" placeholder="Auteur" value="${q.meta.author}"
+            onchange="updateMeta('${q.id}','author',this.value)"
+            style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:120px;">
+    </div>`;
+}
+
+function updateMeta(id, field, value) {
+    const q = queue.find(x => x.id === id);
+    if (q) q.meta[field] = value;
+}
+
+function removeFromQueue(id) {
+    queue = queue.filter(q => q.id !== id);
+    renderQueue();
+    if (queue.length === 0) document.getElementById('actionBar').style.display = 'none';
+}
+
+function clearQueue() {
+    queue = queue.filter(q => q.status === 'done');
+    renderQueue();
+    if (queue.length === 0) document.getElementById('actionBar').style.display = 'none';
+}
+
+// ── Extract PDF text with pdf.js ──
+async function extractPDFText(file, progressCb) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdf.numPages;
+    let allText = '';
+    const pages = [];
+
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items.map(item => item.str).join(' ');
+        if (pageText.trim().length > 20) {
+            pages.push({ page: i, text: pageText.trim() });
+        }
+        allText += pageText + '\n\n';
+        if (progressCb) progressCb(Math.round((i / numPages) * 100));
+    }
+
+    return { pages, fullText: allText, numPages };
+}
+
+// ── Extract HTML text (outils couple, exercices) ──
+async function extractHTMLText(file, progressCb) {
+    const text = await file.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+    
+    // Remove scripts, styles, and hidden elements
+    doc.querySelectorAll('script, style, noscript, [hidden]').forEach(el => el.remove());
+    
+    // Extract structured content
+    const pages = [];
+    let pageNum = 1;
+    
+    // Try to extract by sections (h1, h2, h3)
+    const sections = doc.querySelectorAll('h1, h2, h3, h4');
+    if (sections.length > 0) {
+        // Extract title
+        const title = doc.querySelector('title')?.textContent?.trim() || 
+                      doc.querySelector('h1')?.textContent?.trim() || file.name;
+        
+        sections.forEach((section, idx) => {
+            let sectionText = section.textContent.trim() + '\n\n';
+            // Get all text until next section
+            let el = section.nextElementSibling;
+            while (el && !['H1','H2','H3','H4'].includes(el.tagName)) {
+                const t = el.textContent?.trim();
+                if (t && t.length > 10) sectionText += t + '\n';
+                el = el.nextElementSibling;
+            }
+            if (sectionText.trim().length > 30) {
+                pages.push({ page: pageNum++, text: sectionText.trim() });
+            }
+        });
+    }
+    
+    // Fallback: extract all text content by major blocks
+    if (pages.length === 0) {
+        const blocks = doc.querySelectorAll('p, li, td, label, .question, .instruction, .description, div > span');
+        let currentText = '';
+        blocks.forEach((block, idx) => {
+            const t = block.textContent?.trim();
+            if (t && t.length > 5) currentText += t + '\n';
+            if (currentText.length > 500 || idx === blocks.length - 1) {
+                if (currentText.trim().length > 30) {
+                    pages.push({ page: pageNum++, text: currentText.trim() });
+                }
+                currentText = '';
+            }
+        });
+    }
+    
+    // Last fallback: body textContent
+    if (pages.length === 0) {
+        const bodyText = doc.body?.textContent?.trim() || '';
+        if (bodyText.length > 50) {
+            // Split into ~500 word chunks
+            const words = bodyText.split(/\s+/);
+            for (let i = 0; i < words.length; i += 400) {
+                const chunk = words.slice(i, i + 500).join(' ');
+                if (chunk.length > 50) pages.push({ page: pageNum++, text: chunk });
+            }
+        }
+    }
+    
+    const fullText = pages.map(p => p.text).join('\n\n');
+    if (progressCb) progressCb(100);
+    
+    log(`  📄 HTML: ${pages.length} sections extraites, ${fullText.split(/\s+/).length} mots`);
+    return { pages, fullText, numPages: pages.length };
+}
+
+// ── Chunking intelligent (respecte les paragraphes) ──
+function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
+    // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule)
+    const paragraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 20);
+    
+    const chunks = [];
+    let currentChunk = '';
+    let lastOverlap = '';
+    
+    for (const para of paragraphs) {
+        const trimmed = para.trim();
+        
+        // Si ajouter ce paragraphe dépasse la taille max → sauvegarder le chunk actuel
+        if (currentChunk.length > 0 && (currentChunk + ' ' + trimmed).split(/\s+/).length > maxSize) {
+            if (currentChunk.trim().length >= 80) {
+                chunks.push(currentChunk.trim());
+            }
+            // Overlap : garder les derniers mots du chunk précédent
+            const words = currentChunk.split(/\s+/);
+            lastOverlap = words.slice(-overlap).join(' ');
+            currentChunk = lastOverlap + ' ' + trimmed;
+        } else {
+            currentChunk += (currentChunk ? ' ' : '') + trimmed;
+        }
+        
+        // Si le chunk atteint la taille cible et se termine par une phrase → couper
+        if (currentChunk.split(/\s+/).length >= targetSize && /[.!?]\s*$/.test(currentChunk)) {
+            chunks.push(currentChunk.trim());
+            const words = currentChunk.split(/\s+/);
+            lastOverlap = words.slice(-overlap).join(' ');
+            currentChunk = lastOverlap;
+        }
+    }
+    
+    // Dernier chunk
+    if (currentChunk.trim().length >= 80) {
+        chunks.push(currentChunk.trim());
+    }
+    
+    // Fallback si le découpage par paragraphes n'a rien donné (PDF sans sauts de ligne)
+    if (chunks.length === 0) {
+        const words = text.split(/\s+/);
+        let start = 0;
+        while (start < words.length) {
+            const end = Math.min(start + targetSize, words.length);
+            const chunk = words.slice(start, end).join(' ');
+            if (chunk.length >= 80) chunks.push(chunk);
+            start += targetSize - overlap;
+            if (start >= words.length) break;
+        }
+    }
+    
+    return chunks;
+}
+
+function chunkPages(pages) {
+    // Stratégie : regrouper les pages proches puis chunker le texte continu
+    // Cela évite de couper un concept qui s'étend sur 2 pages
+    const allChunks = [];
+    let buffer = '';
+    let startPage = 1;
+    let currentPage = 1;
+    
+    for (const p of pages) {
+        buffer += ' ' + p.text;
+        currentPage = p.page;
+        
+        // Chunker quand on a assez de texte (environ 3-4 pages)
+        if (buffer.split(/\s+/).length > 1500) {
+            const textChunks = chunkText(buffer);
+            for (const content of textChunks) {
+                allChunks.push({ content, page: startPage, page_end: currentPage });
+            }
+            buffer = '';
+            startPage = currentPage + 1;
+        }
+    }
+    
+    // Dernier buffer
+    if (buffer.trim().length > 80) {
+        const textChunks = chunkText(buffer);
+        for (const content of textChunks) {
+            allChunks.push({ content, page: startPage, page_end: currentPage });
+        }
+    }
+    
+    return allChunks;
+}
+
+// ── Ingestion ──
+async function startIngestion() {
+    if (isIngesting) return;
+    isIngesting = true;
+    const btn = document.getElementById('btnIngest');
+    btn.disabled = true;
+    btn.textContent = '⏳ Indexation en cours...';
+
+    const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
+    // Filtrer ceux marqués 'skip' par l'utilisateur
+    const toProcess = pending.filter(q => q._dupAction !== 'skip');
+    let success = 0, errors = 0;
+
+    for (const q of toProcess) {
+        try {
+            // Phase 0: Vérification doublons — essaie /d1-query, fallback /library-stats
+            if (q._dupAction !== 'overwrite') {
+                log('  🔎 Vérification doublon : ' + q.meta.book_id + '...');
+                try {
+                    let existing = 0;
+                    // Méthode 1 : /d1-query (précis)
+                    const dupRes = await fetch(getWorkerUrl() + '/d1-query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sql: "SELECT COUNT(*) as cnt FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
+                    });
+                    if (dupRes.ok) {
+                        const dupData = await dupRes.json();
+                        existing = dupData?.results?.[0]?.cnt || 0;
+                    } else {
+                        // Fallback : /library-stats (toujours dispo)
+                        log('  ↪ Fallback /library-stats...');
+                        const statsRes = await fetch(getWorkerUrl() + '/library-stats');
+                        if (statsRes.ok) {
+                            const stats = await statsRes.json();
+                            const match = (stats.books || []).find(b => b.book_id === q.meta.book_id);
+                            if (match) existing = 1; // on sait juste qu'il existe
+                        }
+                    }
+                    if (existing > 0) {
+                        q._existingChunks = existing;
+                        q.status = 'duplicate';
+                        log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà' + (existing > 1 ? ' (' + existing + ' chunks)' : '') , 'error');
+                        renderQueue();
+                        continue;
+                    }
+                } catch(dupErr) { log('  ⚡ Vérification doublon impossible — on continue'); }
+            } else {
+                // L'utilisateur a choisi "écraser" — supprimer l'ancien avant de ré-indexer
+                log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
+                try {
+                    await fetch(getWorkerUrl() + '/d1-query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sql: "DELETE FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
+                    });
+                    log('  ✅ Ancien contenu supprimé');
+                } catch(e) { log('  ⚠️ Suppression partielle : ' + e.message); }
+            }
+
+            // Phase 1: Extract
+            q.status = 'extracting';
+            renderQueue();
+            log(`📄 Extraction: ${q.meta.title}...`);
+
+            let pages, numPages;
+            if (q.fileType === 'html') {
+                const result = await extractHTMLText(q.file, pct => {
+                    const bar = document.getElementById('qp-' + q.id);
+                    if (bar) bar.style.width = pct + '%';
+                });
+                pages = result.pages;
+                numPages = result.numPages;
+            } else {
+                const result = await extractPDFText(q.file, pct => {
+                    const bar = document.getElementById('qp-' + q.id);
+                    if (bar) bar.style.width = pct + '%';
+                });
+                pages = result.pages;
+                numPages = result.numPages;
+            }
+
+            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : 'Aucun texte extrait (PDF scanné ou protégé)');
+
+            // Phase 1b: Auto-detect metadata
+            if (!q.meta.author || q.meta.approach === 'general') {
+                const detected = autoDetectMeta(pages, q.file.name);
+                if (!q.meta.author && detected.author) {
+                    q.meta.author = detected.author;
+                    log('  🔍 Auteur détecté : ' + detected.author);
+                }
+                if (q.meta.approach === 'general' && detected.approach !== 'general') {
+                    q.meta.approach = detected.approach;
+                    log('  🔍 Approche détectée : ' + detected.approach);
+                }
+            }
+
+            // Phase 2: Chunk
+            q.chunks = chunkPages(pages);
+            const avgWords = Math.round(q.chunks.reduce((s, c) => s + c.content.split(/\s+/).length, 0) / q.chunks.length);
+            log(`  📦 ${q.chunks.length} chunks (${numPages} pages, ~${avgWords} mots/chunk)`);
+
+            if (q.chunks.length === 0) throw new Error('Aucun chunk généré');
+
+            // Phase 3: Send to Worker
+            q.status = 'uploading';
+            renderQueue();
+            log(`  ☁️ Envoi au Worker...`);
+
+            // Send in batches of 20 chunks to avoid timeout
+            const BATCH = 20;
+            let totalSent = 0;
+
+            for (let i = 0; i < q.chunks.length; i += BATCH) {
+                const batch = q.chunks.slice(i, i + BATCH).map((c, j) => ({
+                    id: `${q.meta.book_id}-${i + j}`,
+                    content: c.content,
+                    page: c.page,
+                    page_end: c.page_end || c.page,
+                }));
+
+                const res = await fetch(getWorkerUrl() + '/ingest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chunks: batch, book_meta: q.meta })
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(`Worker error ${res.status}: ${err.substring(0, 100)}`);
+                }
+
+                totalSent += batch.length;
+                const bar = document.getElementById('qp-' + q.id);
+                if (bar) bar.style.width = Math.round((totalSent / q.chunks.length) * 100) + '%';
+            }
+
+            q.status = 'done';
+            success++;
+            log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
+
+        } catch (err) {
+            q.status = 'error';
+            q.error = err.message;
+            errors++;
+            log(`  ❌ ${q.meta.title}: ${err.message}`, 'error');
+        }
+
+        renderQueue();
+        renderDupAlerts();
+    }
+
+    // Relancer si des doublons ont été détectés et que l'utilisateur a fait un choix
+    const pendingDups = queue.filter(q => q.status === 'pending' && q._dupAction === 'overwrite');
+    if (pendingDups.length > 0) {
+        isIngesting = false;
+        btn.disabled = false;
+        btn.textContent = '⚡ Indexer tout';
+        log('\n⚠️ ' + pendingDups.length + ' livre(s) prêts à écraser — relancez l\'indexation');
+        return;
+    }
+
+    log(`\n═══ Terminé: ${success} réussi(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
+
+    btn.disabled = false;
+    btn.textContent = '⚡ Indexer tout';
+    isIngesting = false;
+    refreshStats();
+}
+
+// ── Gestion des doublons (upload) ──
+function overwriteDuplicate(qId) {
+    const q = queue.find(x => x.id === qId);
+    if (q) { q._dupAction = 'overwrite'; q.status = 'pending'; renderQueue(); renderDupAlerts(); }
+}
+
+function skipDuplicate(qId) {
+    const q = queue.find(x => x.id === qId);
+    if (q) { q._dupAction = 'skip'; q.status = 'skipped'; renderQueue(); renderDupAlerts(); }
+}
+
+function renderDupAlerts() {
+    const el = document.getElementById('dupAlerts');
+    const dups = queue.filter(q => q.status === 'duplicate');
+    if (dups.length === 0) { el.innerHTML = ''; return; }
+    el.innerHTML = dups.map(q => {
+        return '<div class="dup-banner">'
+            + '<div class="dup-icon">⚠️</div>'
+            + '<div class="dup-text"><b>' + q.meta.title + '</b> existe déjà dans la base (' + q._existingChunks + ' chunks). Écraser ou ignorer ?</div>'
+            + '<div class="dup-actions">'
+            + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">♻️ Écraser</button>'
+            + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer</button>'
+            + '</div></div>';
+    }).join('');
+}
+
+// ── Scanner doublons dans la bibliothèque ──
+async function scanDuplicates() {
+    const el = document.getElementById('dupResults');
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🔍 Scan en cours...</div>';
+
+    try {
+        // Chercher les book_id avec des chunks en double (même content dans le même livre)
+        const res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sql: "SELECT book_id, book_title, content, COUNT(*) as cnt FROM chunks GROUP BY book_id, content HAVING cnt > 1 ORDER BY cnt DESC LIMIT 100"
+            })
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const results = data?.results || data?.[0]?.results || [];
+
+        if (results.length === 0) {
+            // Vérifier aussi les livres entièrement dupliqués (même book_id, même nombre de chunks)
+            const res2 = await fetch(getWorkerUrl() + '/d1-query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sql: "SELECT book_id, book_title, COUNT(*) as total, COUNT(DISTINCT content) as unique_chunks FROM chunks GROUP BY book_id HAVING total > unique_chunks ORDER BY (total - unique_chunks) DESC"
+                })
+            });
+            const data2 = await res2.json();
+            const results2 = data2?.results || data2?.[0]?.results || [];
+
+            if (results2.length === 0) {
+                el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
+                return;
+            }
+
+            // Afficher les livres avec doublons internes
+            let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + results2.length + ' livre(s) avec des chunks dupliqués :</div>';
+            window._dupBooks = results2;
+            results2.forEach(function(r, idx) {
+                const surplus = r.total - r.unique_chunks;
+                html += '<div class="dup-group">'
+                    + '<div class="dup-group-header"><span>📘 ' + r.book_title + '</span><span>' + r.total + ' chunks (' + surplus + ' doublons)</span></div>'
+                    + '<div class="dup-group-items"><div><span>Total chunks</span><span>' + r.total + '</span></div>'
+                    + '<div><span>Chunks uniques</span><span>' + r.unique_chunks + '</span></div>'
+                    + '<div><span>À supprimer</span><span style="color:#E65100;font-weight:700;">' + surplus + '</span></div></div>'
+                    + '<button onclick="purgeDupByIndex('+idx+')">'
+                    + '🧹 Purger les doublons</button></div>';
+            });
+            el.innerHTML = html;
+            return;
+        }
+
+        // Regrouper par book_id
+        const groups = {};
+        results.forEach(function(r) {
+            if (!groups[r.book_id]) groups[r.book_id] = { title: r.book_title, duplicates: 0 };
+            groups[r.book_id].duplicates += (r.cnt - 1);
+        });
+
+        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + Object.keys(groups).length + ' livre(s) avec des doublons :</div>';
+        window._dupBooks = Object.entries(groups).map(function(entry) { return { book_id: entry[0], book_title: entry[1].title, duplicates: entry[1].duplicates }; });
+        window._dupBooks.forEach(function(g, idx) {
+            html += '<div class="dup-group">'
+                + '<div class="dup-group-header"><span>📘 ' + g.book_title + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
+                + '<button onclick="purgeDupByIndex('+idx+')">'
+                + '🧹 Purger les doublons</button></div>';
+        });
+        el.innerHTML = html;
+
+    } catch(err) {
+        if (err.message.includes('400')) {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /d1-query. Déployez la nouvelle version du Worker (clone-proxy-v2.js) pour activer le scan de doublons.</div>';
+        } else {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + err.message + '</div>';
+        }
+    }
+}
+
+function purgeDupByIndex(idx) {
+    const b = window._dupBooks[idx];
+    if (b) purgeDuplicates(b.book_id, b.book_title);
+}
+
+async function purgeDuplicates(bookId, bookTitle) {
+    if (!confirm('Purger les chunks dupliqués de "' + bookTitle + '" ?\n\nCela supprimera les copies en double en gardant un seul exemplaire de chaque chunk.')) return;
+
+    const el = document.getElementById('dupResults');
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🧹 Purge en cours...</div>';
+
+    try {
+        // Stratégie : pour chaque book_id, supprimer les doublons en gardant le rowid le plus petit
+        const res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sql: "DELETE FROM chunks WHERE rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content) AND book_id = ?",
+                params: [bookId, bookId]
+            })
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const deleted = data?.meta?.changes || data?.[0]?.meta?.changes || 0;
+
+        el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + bookTitle + '"</div>';
+        log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
+
+        // Re-scanner après 2 secondes
+        setTimeout(scanDuplicates, 2000);
+
+    } catch(err) {
+        el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur purge : ' + err.message + '</div>';
+    }
+}
+
+// ── Library Tab ──
+async function refreshLibrary() {
+    const el = document.getElementById('libraryContent');
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Chargement...</div>';
+
+    try {
+        const res = await fetch(getWorkerUrl() + '/library-stats');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (!data.books || data.books.length === 0) {
+            el.innerHTML = `<div class="empty-state">
+                <div class="icon">📚</div>
+                <div>Bibliothèque vide — ajoutez des PDF dans l'onglet "Ajouter"</div>
+            </div>`;
+            return;
+        }
+
+        // Stocker les livres globalement — les index numériques évitent les problèmes d'apostrophes
+        window._libBooks = data.books;
+
+        let html = '<div style="margin-bottom:12px;font-size:12px;color:#888;">'
+            + data.total_chunks + ' chunks · ' + data.books.length + ' livres · '
+            + data.by_approach.map(a => a.approach + ' (' + a.count + ')').join(', ')
+            + '</div><div class="book-grid">';
+
+        data.books.forEach(function(b, idx) {
+            html += '<div class="book-card">'
+                + '<div class="bc-info">'
+                + '<div class="bc-title">' + b.book_title + '</div>'
+                + '<div class="bc-meta">' + b.author + ' · <span class="bc-approach">' + b.approach + '</span> · ' + b.language.toUpperCase() + '</div>'
+                + '</div>'
+                + '<div style="display:flex;gap:4px;">'
+                + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
+                + '<button class="btn-delete" onclick="deleteBookByIndex(' + idx + ')">🗑</button>'
+                + '</div></div>';
+        });
+
+        html += '</div>';
+        el.innerHTML = html;
+
+    } catch (err) {
+        el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + err.message + '</div>';
+    }
+}
+
+function editBookByIndex(idx) {
+    const b = window._libBooks[idx];
+    if (b) editBookMeta(b.book_id, b.book_title, b.approach, b.author, b.language);
+}
+
+function deleteBookByIndex(idx) {
+    const b = window._libBooks[idx];
+    if (b) deleteBook(b.book_id, b.book_title);
+}
+
+
+// ── Modifier les métadonnées d'un livre ──
+async function editBookMeta(bookId, title, currentApproach, currentAuthor, currentLang) {
+    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development'];
+    
+    // Créer un mini-formulaire en overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    // Stocker l'ID du livre en cours d'édition (évite les apostrophes dans onclick)
+    window._editBookId = bookId;
+
+    const optionsHtml = approaches.map(a => '<option value="' + a + '"' + (a === currentApproach ? ' selected' : '') + '>' + a + '</option>').join('');
+
+    const formDiv = document.createElement('div');
+    formDiv.style.cssText = 'background:white;border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+
+    const titleEl = document.createElement('h3');
+    titleEl.style.cssText = 'font-size:16px;color:#7A9A9C;margin-bottom:16px;';
+    titleEl.textContent = '✏️ Modifier : ' + title;
+    formDiv.appendChild(titleEl);
+
+    formDiv.innerHTML += '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Approche thérapeutique</label>'
+        + '<select id="edit-approach" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">' + optionsHtml + '</select></div>'
+        + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Auteur</label>'
+        + '<input id="edit-author" type="text" value="' + (currentAuthor || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
+        + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Langue</label>'
+        + '<select id="edit-lang" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">'
+        + '<option value="fr"' + (currentLang === 'fr' ? ' selected' : '') + '>FR</option>'
+        + '<option value="en"' + (currentLang === 'en' ? ' selected' : '') + '>EN</option>'
+        + '</select></div></div>';
+
+    const btnBar = document.createElement('div');
+    btnBar.style.cssText = 'display:flex;gap:8px;margin-top:20px;justify-content:flex-end;';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.textContent = 'Annuler';
+    btnCancel.style.cssText = 'padding:10px 20px;border:2px solid #ddd;border-radius:8px;background:white;color:#888;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+    btnCancel.addEventListener('click', function() { overlay.remove(); });
+
+    const btnSave = document.createElement('button');
+    btnSave.textContent = 'Enregistrer';
+    btnSave.style.cssText = 'padding:10px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#8FAFB1,#C8D0C3);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+    btnSave.addEventListener('click', function() { submitEditMeta(window._editBookId); });
+
+    btnBar.appendChild(btnCancel);
+    btnBar.appendChild(btnSave);
+    formDiv.appendChild(btnBar);
+    overlay.appendChild(formDiv);
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+async function submitEditMeta(bookId) {
+    const approach = document.getElementById('edit-approach').value;
+    const author = document.getElementById('edit-author').value;
+    const language = document.getElementById('edit-lang').value;
+    
+    try {
+        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + author);
+        
+        // Essayer d'abord /update-book-meta
+        let res = await fetch(getWorkerUrl() + '/update-book-meta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: bookId, approach, author, language })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                log('  ✅ Métadonnées mises à jour (' + (data.updated_chunks || '?') + ' chunks)', 'success');
+                document.getElementById('edit-overlay')?.remove();
+                refreshLibrary();
+                return;
+            }
+        }
+        
+        // Fallback : si l'endpoint n'existe pas (404/405), utiliser /d1-query direct
+        log('  ⚠️ /update-book-meta non disponible — tentative via /d1-query...');
+        res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sql: "UPDATE chunks SET approach = ?, author = ?, language = ? WHERE book_id = ?",
+                params: [approach, author, language, bookId]
+            })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            log('  ✅ Métadonnées mises à jour via D1 direct', 'success');
+            document.getElementById('edit-overlay')?.remove();
+            refreshLibrary();
+            return;
+        }
+
+        // Dernier recours : instruction manuelle
+        log('  ⚠️ Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
+        log('  📋 SQL à exécuter dans D1 Dashboard :', 'info');
+        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + author + '" WHERE book_id = "' + bookId + '";', 'info');
+        
+        // Copier dans le presse-papier
+        const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
+        try { 
+            await navigator.clipboard.writeText(sql);
+            log('  📋 SQL copié dans le presse-papier !', 'success');
+        } catch(e) {}
+        
+    } catch (err) {
+        log('  ❌ ' + err.message, 'error');
+        // Donner le SQL en fallback
+        const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
+        log('  📋 SQL fallback : ' + sql, 'info');
+        try { await navigator.clipboard.writeText(sql); log('  📋 SQL copié !', 'success'); } catch(e) {}
+    }
+    
+    document.getElementById('edit-overlay')?.remove();
+    refreshLibrary();
+}
+
+async function deleteBook(bookId, title) {
+    if (!confirm(`Supprimer "${title}" de la bibliothèque ?`)) return;
+
+    try {
+        log(`🗑 Suppression: ${title}...`);
+        const res = await fetch(getWorkerUrl() + '/delete-book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: bookId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            log(`  ✅ ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
+        } else {
+            log(`  ❌ ${data.error}`, 'error');
+        }
+        refreshLibrary();
+        refreshStats();
+    } catch (err) {
+        log(`  ❌ ${err.message}`, 'error');
+    }
+}
+
+// ── Test Search ──
+async function testSearch() {
+    const query = document.getElementById('searchQuery').value.trim();
+    if (!query) return;
+    const approach = document.getElementById('searchApproach').value;
+    const topK = parseInt(document.getElementById('searchTopK').value) || 5;
+    const el = document.getElementById('searchResults');
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours...</div>';
+
+    try {
+        const t0 = Date.now();
+        const res = await fetch(getWorkerUrl() + '/search-library', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, topK, approach: approach || undefined })
+        });
+        const data = await res.json();
+        const ms = Date.now() - t0;
+        const results = data.results || [];
+
+        if (results.length === 0) {
+            el.innerHTML = `<div class="empty-state"><div class="icon">😐</div><div>Aucun résultat pour "${query}" (${ms}ms)</div></div>`;
+            return;
+        }
+
+        el.innerHTML = `<div style="margin-bottom:12px;font-size:11px;color:#888;">${results.length} résultats en ${ms}ms</div>` +
+            results.map((r, i) => `<div style="background:#fafaf8;padding:14px;border-radius:8px;margin-bottom:8px;border-left:4px solid ${i===0?'#8FAFB1':'#C8D0C3'};">
+                <div style="font-weight:600;font-size:12px;color:#7A9A9C;margin-bottom:6px;">
+                    📖 ${r.book_title || '?'} — ${r.author || '?'} ${r.page ? '(p.'+r.page+')' : ''}
+                    <span style="float:right;font-size:10px;color:#aaa;">score: ${(r.score || r.similarity || 0).toFixed(3)} · ${r.approach || '?'}</span>
+                </div>
+                <div style="font-size:12px;line-height:1.6;color:#444;">${(r.content || r.text || '').substring(0, 500)}${(r.content||r.text||'').length > 500 ? '...' : ''}</div>
+            </div>`).join('');
+
+    } catch (err) {
+        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${err.message}</div>`;
+    }
+}
+
+// ── Auto-detect metadata from first page ──
+function autoDetectMeta(pages, filename) {
+    const meta = { title: '', author: '', approach: 'general' };
+    
+    if (!pages || pages.length === 0) return meta;
+    
+    const firstPage = pages[0].text.substring(0, 1000);
+    
+    // Titre : souvent la plus grande ligne de la première page, ou le nom de fichier nettoyé
+    meta.title = filename.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ').trim();
+    
+    // Auteur : chercher des patterns courants
+    const authorPatterns = [
+        /(?:par|by|auteur|author)[:\s]+([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+){1,3})/i,
+        /([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+){1,2})\s*\n/,
+        /©\s*\d{4}\s+(.+?)(?:\n|$)/i,
+    ];
+    for (const p of authorPatterns) {
+        const m = firstPage.match(p);
+        if (m) { meta.author = m[1].trim(); break; }
+    }
+    
+    // Approche : détecter par mots-clés dans le texte complet des premières pages
+    const sample = pages.slice(0, 3).map(p => p.text).join(' ').toLowerCase();
+    const approachKeywords = {
+        'schema_therapy': ['schéma', 'young', 'schema therapy', 'early maladaptive', 'schémas précoces'],
+        'act': ['acceptation', 'engagement', 'défusion', 'hexaflex', 'hayes', 'act '],
+        'ifs': ['internal family', 'parts work', 'self leadership', 'schwartz', 'exilé', 'pompier', 'manager'],
+        'emdr': ['emdr', 'bilateral', 'désensibilisation', 'shapiro', 'mouvements oculaires'],
+        'couple': ['couple', 'conjugal', 'gottman', 'hendrix', 'imago', 'relation amoureuse', 'partenaire'],
+        'attachment': ['attachement', 'bowlby', 'ainsworth', 'sécure', 'évitant', 'anxieux', 'wallin'],
+        'cft': ['compassion', 'gilbert', 'auto-compassion', 'self-compassion', 'honte'],
+        'dbt': ['dialectique', 'linehan', 'dbt', 'régulation émotionnelle', 'tolérance détresse'],
+        'mi': ['motivationnel', 'miller', 'rollnick', 'ambivalence', 'discours-changement'],
+        'cnv': ['non violente', 'rosenberg', 'communication non', 'osbd', 'girafe', 'chacal'],
+        'icv': ['intégration du cycle', 'lifespan integration', 'peggy pace', 'ligne du temps', 'timeline', 'icv'],
+        'systemic': ['systémique', 'watzlawick', 'minuchin', 'selvini', 'palo alto', 'circularité', 'de shazer', 'question miracle', 'narratif', 'white', 'epston', 'externalisation', 'boucle', 'homéostasie'],
+        'coherence': ['cohérence', 'reconsolidation', 'ecker', 'hulley', 'juxtaposition', 'mémoire implicite', 'savoir émotionnel'],
+        'mbct': ['pleine conscience', 'mbct', 'segal', 'mindfulness', 'méditation'],
+        'cbt': ['cognitif', 'beck', 'cbt', 'tcc', 'restructuration cognitive'],
+        'trauma': ['trauma', 'ptsd', 'van der kolk', 'herman', 'dissociation', 'traumatisme'],
+        'psychodynamic': ['psychodynamique', 'transfert', 'inconscient', 'pulsion', 'freud'],
+        'systemic': ['systémique', 'famille', 'neuburger', 'homéostasie', 'double lien'],
+        'hypnosis': ['hypnose', 'hypnotique', 'transe', 'erickson', 'roustang', 'bioy', 'megglé', 'induction', 'suggestion hypnotique', 'auto-hypnose', 'hypnothérapie', 'état modifié', 'saupoudrage', 'ancrage ressource', 'hypno-analgésie', 'benhaiem', 'état hypnotique'],
+        'personal_development': ['développement personnel', 'confiance en soi', 'estime de soi', 'croissance personnelle', 'plein potentiel', 'coaching', 'habits', 'habitudes', 'productivité', 'objectifs', 'motivation', 'goleman', 'intelligence émotionnelle', 'covey', 'robbins', 'carnegie', 'gladwell', 'seligman', 'psychologie positive', 'flow', 'csikszentmihalyi', 'résilience', 'stoïcisme', 'tolle', 'présence', 'mindset', 'dweck', 'assertivité', 'gestion du stress', 'burn-out', 'bien-être', 'bonheur', 'sens de la vie', 'valeurs personnelles'],
+    };
+    
+    let bestMatch = { approach: 'general', score: 0 };
+    for (const [approach, keywords] of Object.entries(approachKeywords)) {
+        let score = 0;
+        for (const kw of keywords) {
+            const regex = new RegExp(kw, 'gi');
+            const matches = sample.match(regex);
+            if (matches) score += matches.length;
+        }
+        if (score > bestMatch.score) {
+            bestMatch = { approach, score };
+        }
+    }
+    if (bestMatch.score >= 3) {
+        meta.approach = bestMatch.approach;
+    }
+    
+    return meta;
+}
+
+// ── Stats ──
+async function refreshStats() {
+    try {
+        const res = await fetch(getWorkerUrl() + '/library-stats');
+        const data = await res.json();
+        document.getElementById('headerStats').textContent =
+            `${data.total_chunks || 0} chunks · ${data.books?.length || 0} livres`;
+    } catch {
+        document.getElementById('headerStats').textContent = '⚠️ Worker inaccessible';
+    }
+}
+
+// ── Init ──
+refreshStats();
+</script>
+</body>
+</html>
