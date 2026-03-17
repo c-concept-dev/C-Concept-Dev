@@ -469,7 +469,7 @@
                 Clone Interview Pro v21.3. Un seul fichier, aucune dependance.
             </p>
             <div class="hero-badges">
-                <span class="badge">v21.3 — Posture Photographe</span>
+                <span class="badge">v21.3.1 — Posture Photographe</span>
                 <span class="badge">Schema CLONE-PERSONALITY-1.0</span>
                 <span class="badge">100% Autonome</span>
             </div>
@@ -494,6 +494,14 @@
                 <div class="arch-item">
                     <strong>Brain JSON v21.3</strong>
                     <span>CLONE-PERSONALITY-1.0 — exploitable directement dans un clone LLM</span>
+                </div>
+                <div class="arch-item">
+                    <strong>Evidence tracabilite</strong>
+                    <span>Chaque donnee marquee observed / inferred / hypothesized — transparence totale</span>
+                </div>
+                <div class="arch-item">
+                    <strong>Zones aveugles + contradictions</strong>
+                    <span>Le systeme declare ce qu'il ne sait PAS et les incoherences detectees</span>
                 </div>
             </div>
         </div>
@@ -861,9 +869,9 @@ A la fin de l'entretien, genere un JSON respectant EXACTEMENT cette structure :
 {
   "_meta": {
     "schema": "CLONE-PERSONALITY-1.0",
-    "version": "21.3",
+    "version": "21.3.1",
     "generated": "ISO-8601",
-    "generator": "Clone Interview Standalone v21.3 — C Concept&Dev",
+    "generator": "Clone Interview Standalone v21.3.1 — C Concept&Dev",
     "interview_id": "clone-${p.toLowerCase().replace(/\s+/g, '-')}-DATE"
   },
 
@@ -884,11 +892,11 @@ A la fin de l'entretien, genere un JSON respectant EXACTEMENT cette structure :
 
   "personality": {
     "big_five": {
-      "O": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [], "convergence_note": "" },
-      "C": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [], "convergence_note": "" },
-      "E": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [], "convergence_note": "" },
-      "A": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [], "convergence_note": "" },
-      "N": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [], "convergence_note": "" }
+      "O": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}], "convergence_note": "" },
+      "C": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}], "convergence_note": "" },
+      "E": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}], "convergence_note": "" },
+      "A": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}], "convergence_note": "" },
+      "N": { "score": 0-100, "level": "low/medium/high", "facets": {}, "confidence": 0-100, "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}], "convergence_note": "" }
     },
     "schemas_young": {
       "detected": [],
@@ -898,12 +906,12 @@ A la fin de l'entretien, genere un JSON respectant EXACTEMENT cette structure :
       "primary_style": "secure/anxious/avoidant/disorganized",
       "anxiety_axis": 0-100,
       "avoidance_axis": 0-100,
-      "evidence": []
+      "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}]
     },
     "defenses": {
       "primary": [],
       "level": "adaptive/neurotic/immature",
-      "evidence": []
+      "evidence": [{"text": "", "type": "observed|inferred|hypothesized"}]
     }
   },
 
@@ -995,6 +1003,32 @@ A la fin de l'entretien, genere un JSON respectant EXACTEMENT cette structure :
     "future_vision": ""
   },
 
+  "contradictions_detected": [
+    {
+      "what": "description de la contradiction",
+      "between": ["element A", "element B"],
+      "interpretation": "ce que ca revele potentiellement",
+      "resolved": true/false
+    }
+  ],
+
+  "reliability_per_dimension": {
+    "big_five": 0-100,
+    "attachment": 0-100,
+    "defenses": 0-100,
+    "values": 0-100,
+    "communication": 0-100,
+    "biography": 0-100,
+    "narrative": 0-100
+  },
+
+  "blind_spots": {
+    "not_explored": ["dimensions ou themes non abordes pendant l'entretien"],
+    "low_confidence_zones": ["zones ou les donnees sont insuffisantes pour un scoring fiable"],
+    "possible_biases": ["biais situationnels identifies mais non entierement corriges"],
+    "recommended_reinterview": ["sujets a approfondir dans un entretien complementaire"]
+  },
+
   "portrait_integratif": "Paragraphe de 200-400 mots capturant l'essence de ${p}. Ce paragraphe doit permettre a quelqu'un de RECONNAITRE la personne.",
 
   "instructions_incarnation": {
@@ -1010,8 +1044,11 @@ A la fin de l'entretien, genere un JSON respectant EXACTEMENT cette structure :
 
 CONSIGNES POUR LE JSON :
 - Scores Big Five sur 0-100 (pas 1-10). 50 = neutre.
-- Chaque score doit avoir au minimum une evidence textuelle tiree de l'entretien.
+- Chaque evidence DOIT avoir un type : "observed" (comportement direct dans l'entretien), "inferred" (deduit d'un recit ou d'une anecdote), "hypothesized" (extrapolation a partir d'indices indirects). NE MET PAS tout en "observed" — sois honnete sur la provenance.
 - Les convergence_notes expliquent les ajustements faits pour corriger les biais situationnels.
+- reliability_per_dimension : score de 0 a 100 refletant la QUANTITE ET QUALITE des donnees recoltees pour chaque dimension. 30 = peu de donnees, 70 = solide, 90+ = excellent.
+- contradictions_detected : liste les moments ou la personne a dit quelque chose qui contredit une autre declaration ou un comportement observe. C'est la que se cache la vraie personnalite. Si aucune contradiction → soit l'entretien etait superficiel, soit la personne est tres coherente (le noter).
+- blind_spots : section OBLIGATOIRE. Tu dois lister honnetement ce que tu n'as PAS explore, les zones ou tes donnees sont faibles, et les biais que tu as detectes sans pouvoir les corriger. Un profil sans zones aveugles est un profil qui se ment a lui-meme.
 - Le portrait_integratif est le test final : si quelqu'un qui connait ${p} le lit, il doit reconnaitre la personne.
 - Les memory_hooks dans biography permettent au clone de ressortir un souvenir au bon moment.
 - Les defense_dynamics permettent au clone de reproduire les sequences reactionnelles sous pression.
