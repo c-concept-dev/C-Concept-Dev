@@ -300,7 +300,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--sable-light);color:var(--
 .psycho-table td{padding:.5rem .8rem;border-bottom:1px solid #f0ece8;vertical-align:middle;word-wrap:break-word;overflow-wrap:break-word;}
 .psycho-table tr:last-child td{border-bottom:none}
 .psycho-table tr:hover td{background:#faf8f5}
-.score-cell{font-weight:700;color:var(--ink);font-family:'DM Mono',monospace;font-size:.75rem;white-space:nowrap}
+.score-cell{font-weight:700;color:var(--ink);font-family:'DM Mono',monospace;font-size:.75rem}
 .source-tag{
   display:inline-block;padding:.1rem .4rem;border-radius:4px;
   font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.04em;
@@ -1148,7 +1148,7 @@ function buildPsychoTable(n) {
 
   // Valeurs top 3
   n.values.slice(0, 3).forEach((v, i) => {
-    add('Schwartz', '#' + (i+1) + ' ' + v.value, v.score + '/100', (v.manifestation || '').substring(0, 35), null);
+    add('Schwartz', '#' + (i+1) + ' ' + v.value, v.score + '/100', (v.manifestation || '').substring(0, 55), null);
   });
 
   // Communication grammar
