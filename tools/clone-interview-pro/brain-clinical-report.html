@@ -284,15 +284,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--sable-light);color:var(--
   font-size:.82rem;color:var(--gris);line-height:1.65;margin-bottom:1.5rem;
   font-style:italic;border-left:2px solid var(--mer);padding-left:1rem;
 }
-.psycho-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.psycho-table{width:100%;border-collapse:collapse;font-size:.78rem;table-layout:fixed}
+.psycho-table col:nth-child(1){width:18%}
+.psycho-table col:nth-child(2){width:30%}
+.psycho-table col:nth-child(3){width:14%}
+.psycho-table col:nth-child(4){width:38%}
 .psycho-table thead tr{background:var(--ink)}
 .psycho-table th{
   padding:.5rem .8rem;text-align:left;font-weight:600;
   font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:white;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .psycho-table th:first-child{border-radius:6px 0 0 6px}
 .psycho-table th:last-child{border-radius:0 6px 6px 0}
-.psycho-table td{padding:.5rem .8rem;border-bottom:1px solid #f0ece8;vertical-align:middle}
+.psycho-table td{padding:.5rem .8rem;border-bottom:1px solid #f0ece8;vertical-align:middle;word-wrap:break-word;overflow-wrap:break-word;}
 .psycho-table tr:last-child td{border-bottom:none}
 .psycho-table tr:hover td{background:#faf8f5}
 .score-cell{font-weight:700;color:var(--ink);font-family:'DM Mono',monospace;font-size:.82rem}
@@ -448,22 +453,53 @@ body{font-family:'DM Sans',sans-serif;background:var(--sable-light);color:var(--
    PRINT STYLES
 ═══════════════════════════════════════════════════ */
 @media print {
-  body{background:white}
-  .preview-bar{display:none!important}
-  #previewScreen{display:block!important;background:white}
-  #reportDoc{max-width:100%;margin:0;padding:0}
-  .cover-page,.section-page,.table-section{
-    border-radius:0;box-shadow:none;margin-bottom:0;
-    page-break-after:always;
+  /* FORMAT A4 FORCÉ */
+  @page {
+    size: A4 portrait;
+    margin: 18mm 20mm 18mm 20mm;
   }
-  .section-page:last-of-type,.table-section:last-child{page-break-after:auto}
-  .cover-top{background:#1A1A1A!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .psycho-table thead tr{background:#1A1A1A!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .grade-badge{background:var(--accent)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  a{text-decoration:none}
-  .warning-banner,.defense-sequence,.energy-card,.hook-card,.grammar-stat{
-    -webkit-print-color-adjust:exact;print-color-adjust:exact;
-  }
+  @page :first { margin-top: 0; }
+
+  html, body { background: white !important; }
+  .preview-bar { display: none !important; }
+  #uploadScreen, #processingScreen { display: none !important; }
+  #previewScreen { display: block !important; background: white !important; }
+  #reportDoc { max-width: 100%; margin: 0; padding: 0; }
+  .report-footer { padding: 0 0 1rem; }
+
+  /* SECTIONS */
+  .cover-page { page-break-after: always; border-radius: 0; box-shadow: none; margin-bottom: 0; }
+  .section-page { page-break-inside: avoid; border-radius: 0; box-shadow: none; margin-bottom: 0; page-break-after: always; }
+  .table-section { page-break-inside: avoid; border-radius: 0; box-shadow: none; margin-bottom: 0; page-break-after: always; }
+  .section-page:last-of-type, .table-section:last-child { page-break-after: auto; }
+
+  /* COULEURS FORCÉES */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .cover-top { background: #1A1A1A !important; }
+  .psycho-table thead tr { background: #1A1A1A !important; }
+  .grade-badge { background: #6B8E8F !important; }
+  .mode-energy.high { background: rgba(95,139,106,.12) !important; color: #5F8B6A !important; }
+  .mode-energy.low { background: rgba(160,82,45,.08) !important; color: #A0522D !important; }
+  .mode-energy.moderate, .mode-energy.medium { background: rgba(184,134,11,.1) !important; color: #B8860B !important; }
+  .trigger-chip { background: rgba(107,142,143,.1) !important; }
+  .source-tag { background: rgba(107,142,143,.1) !important; }
+  .source-tag.local { background: rgba(95,139,106,.08) !important; }
+
+  /* TABLE — COLONNES FIXES POUR ÉVITER TRONCATURE */
+  .psycho-table { table-layout: fixed; width: 100%; font-size: .72rem; }
+  .psycho-table th:nth-child(1), .psycho-table td:nth-child(1) { width: 18%; }
+  .psycho-table th:nth-child(2), .psycho-table td:nth-child(2) { width: 30%; }
+  .psycho-table th:nth-child(3), .psycho-table td:nth-child(3) { width: 14%; }
+  .psycho-table th:nth-child(4), .psycho-table td:nth-child(4) { width: 38%; }
+  .psycho-table td { word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
+
+  /* GRILLE 2 COLONNES → 1 COLONNE EN PRINT */
+  .energy-grid { grid-template-columns: 1fr 1fr; }
+  .grammar-grid { grid-template-columns: repeat(3, 1fr); }
+  .cover-meta-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* LIENS */
+  a { text-decoration: none; }
 }
 </style>
 </head>
@@ -1065,12 +1101,14 @@ async function startGeneration() {
     setStep(6, 'active'); setProgress(90); setStatus('Conclusion...');
     reportSections.batch5 = await callClaude(SYS,
       `DONNÉES DU SUJET "${name}" :\n${data}\n\n` +
-      `Rédige cette section :\n\n` +
-      `CONCLUSION (3 paragraphes) :\n` +
-      `Premier paragraphe : une synthèse dense de qui EST cette personne — en quelques phrases qui la capturent entièrement, avec sa complexité, ses forces, ses fragilités. Pas un résumé du rapport — un PORTRAIT. Si tu ne devais retenir que 5 phrases pour décrire cette personne à quelqu'un qui ne la connaît pas, ce seraient ces 5 phrases. Utilise les formulations naturelles issues des memory_hooks si disponibles — elles ancrent le portrait dans la voix réelle de la personne.\n` +
-      `Deuxième paragraphe : des pistes de développement personnel formulées avec tact et spécifiques à cette personne. Pas des recommandations génériques. Des axes concrets liés à ses défenses, ses patterns, ses angles morts. Formulées comme des invitations, pas des prescriptions.\n` +
-      `Troisième paragraphe : ce qui pourrait compléter cette évaluation — entretien clinique en face-à-face, tests standardisés spécifiques, observation comportementale en situation. Sois précis sur ce qui manque pour ce profil spécifique.`,
-      3000);
+      `Rédige cette section avec EXACTEMENT 3 paragraphes séparés par une ligne vide. Chaque paragraphe doit être substantiel (200-300 mots). Ne rédige PAS de titre.\n\n` +
+      `PARAGRAPHE 1 — PORTRAIT SYNTHÉTIQUE :\n` +
+      `Une synthèse dense de qui EST cette personne — en 5 à 7 phrases qui la capturent entièrement, avec sa complexité, ses forces et ses fragilités. Pas un résumé du rapport — un PORTRAIT vivant. Si tu ne devais retenir que ces phrases pour décrire cette personne à quelqu'un qui ne la connaît pas, ce seraient celles-ci. Utilise les formulations naturelles issues des memory_hooks disponibles — elles ancrent le portrait dans la voix réelle de la personne. Intègre les dynamiques défensives et les patterns énergétiques pour montrer comment cette personne existe dans le monde.\n\n` +
+      `PARAGRAPHE 2 — AXES DE DÉVELOPPEMENT :\n` +
+      `Des pistes de développement personnel formulées avec tact, spécifiques à cette personne, liées à ses défenses observées, ses patterns identifiés, ses angles morts documentés. Pas des recommandations génériques — des invitations concrètes qui tiennent compte de qui elle est. Si ses dynamiques défensives bloquent quelque chose de précis, nomme-le. Si ses patterns énergétiques révèlent un épuisement structurel, adresse-le. Formule comme des possibilités, pas des prescriptions.\n\n` +
+      `PARAGRAPHE 3 — COMPLÉMENTS D'ÉVALUATION :\n` +
+      `Ce qui manque spécifiquement pour ce profil — entretien clinique en face-à-face ciblé sur les zones défensives identifiées, tests standardisés précis (nomme lesquels et pourquoi pour ce sujet), observation comportementale en situation spécifique. Sois précis : pas une liste générique de tests, mais ce que révélerait chaque complément sur les zones d'ombre de CE profil en particulier.`,
+      4500);
     setStep(6, 'done'); setProgress(100); setStatus('Rapport prêt.');
 
     // Assembler le HTML
@@ -1391,7 +1429,7 @@ function buildReportHTML(n) {
   h += `<div class="table-section">`;
   h += `<div class="section-header"><span class="section-num">08</span><h2 class="section-title">Synthèse Psychométrique</h2></div>`;
   h += `<p class="table-intro">Le tableau ci-dessous rassemble les scores dimensionnels issus du pipeline d'analyse. La colonne Source indique l'origine de la mesure. Les divergences entre sources sont cliniquement significatives.</p>`;
-  h += `<table class="psycho-table"><thead><tr><th>Source</th><th>Dimension</th><th>Score</th><th>Note</th></tr></thead><tbody>`;
+  h += `<table class="psycho-table"><colgroup><col style="width:18%"><col style="width:30%"><col style="width:14%"><col style="width:38%"></colgroup><thead><tr><th>Source</th><th>Dimension</th><th>Score</th><th>Note</th></tr></thead><tbody>`;
   tableRows.forEach(r => {
     const isLoc = r.src.includes('local') || r.src.includes('temps réel') || r.src.includes('Convergence') || r.src.includes('Deep');
     h += `<tr><td><span class="source-tag${isLoc ? ' local' : ''}">${r.src}</span></td><td>${r.dim}</td><td class="score-cell">${r.score}</td><td style="color:var(--gris);font-size:.75rem">${r.note}</td></tr>`;
@@ -1468,10 +1506,60 @@ function showPreview() {
 // PRINT / PDF natif
 // ════════════════════════════════════
 function printReport() {
-  if (!document.getElementById('reportDoc').innerHTML) {
-    showPreview();
+  // S'assurer que le rapport est assemblé
+  if (!assembledHTML) {
+    const n = normalizeBrain(brainData);
+    assembledHTML = buildReportHTML(n);
   }
-  setTimeout(() => window.print(), 300);
+
+  // Ouvrir dans un nouvel onglet propre — uniquement le rapport, sans l'interface
+  const printWindow = window.open('', '_blank');
+  const n = normalizeBrain(brainData);
+
+  // Récupérer le CSS de la page courante
+  const styles = Array.from(document.styleSheets)
+    .map(sheet => {
+      try {
+        return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
+      } catch(e) { return ''; }
+    }).join('\n');
+
+  printWindow.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Audit de Personnalité — ${n.name} — C Concept&Dev</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+${styles}
+/* FORCER AFFICHAGE POUR IMPRESSION */
+body { background: white !important; }
+#previewScreen { display: block !important; background: white !important; }
+#reportDoc { max-width: 800px; margin: 0 auto; padding: 0 1rem 4rem; }
+.report-footer { max-width: 800px; margin: 0 auto; padding: 0 1rem 2rem; }
+</style>
+</head>
+<body>
+<div id="previewScreen">
+<div id="reportDoc">${assembledHTML}</div>
+<div class="report-footer">
+<p class="disclaimer">Ce rapport a été généré par Clone Interview Pro Clinical Grade v4 — C Concept&Dev.<br>
+Il constitue un outil d'aide à la compréhension de la personnalité, basé sur une interview conversationnelle analysée par intelligence artificielle.<br>
+Il ne remplace en aucun cas un diagnostic clinique réalisé par un professionnel de santé mentale qualifié.</p>
+</div>
+</div>
+<script>
+window.onload = function() {
+  // Attendre les polices Google
+  document.fonts.ready.then(function() {
+    setTimeout(function() { window.print(); }, 400);
+  });
+};
+<\/script>
+</body>
+</html>`);
+  printWindow.document.close();
 }
 </script>
 </body>
