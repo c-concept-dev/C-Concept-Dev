@@ -480,7 +480,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--sable-light);color:var(--
   <div class="drop-zone" id="dropZone">
     <div class="drop-icon">⬡</div>
     <p class="drop-title">Déposez le brain.json</p>
-    <p class="drop-hint">Format CLONE-PERSONALITY-1.0 (v21+)<br>Rétrocompatible v20.x et v19.x</p>
+    <p class="drop-hint">Format CLONE-PERSONALITY-1.0 (v21+)<br>Rétrocompatible v20.x, v19.x<br>Ou stress-test-full (extraction automatique)</p>
     <div class="format-badge">CLONE-PERSONALITY-1.0 · v21.3</div>
     <input type="file" id="fileInput" accept=".json">
   </div>
@@ -566,7 +566,33 @@ function loadFile(f) {
   const r = new FileReader();
   r.onload = e => {
     try {
-      brainData = JSON.parse(e.target.result);
+      const parsed = JSON.parse(e.target.result);
+
+      // FIX-LOAD — détection automatique du format
+      // Cas 1 : stress-test-full (brain dans generated_brain_v210 ou generated_brain_v206)
+      if (parsed.generated_brain_v210) {
+        brainData = parsed.generated_brain_v210;
+        console.log('[loadFile] Brain extrait de generated_brain_v210');
+      } else if (parsed.generated_brain_v206) {
+        brainData = parsed.generated_brain_v206;
+        console.log('[loadFile] Brain extrait de generated_brain_v206');
+      } else {
+        // Cas 2 : brain.json direct
+        brainData = parsed;
+        console.log('[loadFile] Brain chargé directement');
+      }
+
+      // Guard clause — vérifier données minimales
+      const schema = detectSchema(brainData);
+      const hasBigFive = brainData.personality?.big_five?.O?.score != null
+                      || brainData.temperament?.openness?.score != null
+                      || brainData.v19_personality != null;
+      if (schema === 'unknown' && !hasBigFive) {
+        alert('Format JSON non reconnu.\n\nFormats supportés :\n— CLONE-PERSONALITY-1.0 (v21+)\n— CLONE-BRAIN-1.0 (v20.x)\n— brain v19.x\n— stress-test-full (extracted automatiquement)\n\nVérifiez que vous avez chargé le bon fichier.');
+        brainData = null;
+        return;
+      }
+
       startGeneration();
     } catch(err) { alert('Erreur JSON : ' + err.message); }
   };
