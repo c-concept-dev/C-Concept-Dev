@@ -1516,13 +1516,10 @@ function printReport() {
   const printWindow = window.open('', '_blank');
   const n = normalizeBrain(brainData);
 
-  // Récupérer le CSS de la page courante
-  const styles = Array.from(document.styleSheets)
-    .map(sheet => {
-      try {
-        return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
-      } catch(e) { return ''; }
-    }).join('\n');
+  // FIX-PRINT-CSS — extraire le CSS inline directement (évite les erreurs CORS sur styleSheets externes)
+  // On lit la balise <style> de la page courante qui contient tout notre CSS + @media print
+  const inlineStyleTag = document.querySelector('style');
+  const inlineCSS = inlineStyleTag ? inlineStyleTag.textContent : '';
 
   printWindow.document.write(`<!DOCTYPE html>
 <html lang="fr">
@@ -1532,12 +1529,14 @@ function printReport() {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-${styles}
+${inlineCSS}
 /* FORCER AFFICHAGE POUR IMPRESSION */
-body { background: white !important; }
+html, body { background: white !important; margin: 0; padding: 0; }
+#uploadScreen, #processingScreen { display: none !important; }
 #previewScreen { display: block !important; background: white !important; }
 #reportDoc { max-width: 800px; margin: 0 auto; padding: 0 1rem 4rem; }
 .report-footer { max-width: 800px; margin: 0 auto; padding: 0 1rem 2rem; }
+.preview-bar { display: none !important; }
 </style>
 </head>
 <body>
@@ -1553,7 +1552,7 @@ Il ne remplace en aucun cas un diagnostic clinique réalisé par un professionne
 window.onload = function() {
   // Attendre les polices Google
   document.fonts.ready.then(function() {
-    setTimeout(function() { window.print(); }, 400);
+    setTimeout(function() { window.print(); }, 500);
   });
 };
 <\/script>
