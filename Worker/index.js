@@ -57065,13 +57065,27 @@ __name(explainReliability, "explainReliability");
 
 async function searchPubMed(query, language, maxResults) {
   try {
-    const langFilter = language === 'fr' ? '+AND+fre[la]' : '';
+    // PAS de filtre langue — la littérature clinique est majoritairement en anglais
+    // Chercher en toutes langues, le scoring de fiabilité pondère ensuite
     const searchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?' +
-      'db=pubmed&term=' + encodeURIComponent(query) + langFilter + '&retmax=' + (maxResults || 5) + '&retmode=json&sort=relevance';
+      'db=pubmed&term=' + encodeURIComponent(query) + '&retmax=' + (maxResults || 5) + '&retmode=json&sort=relevance';
     const searchResp = await fetch(searchUrl);
     if (!searchResp.ok) return [];
     const searchData = await searchResp.json();
-    const ids = searchData.esearchresult?.idlist || [];
+    let ids = searchData.esearchresult?.idlist || [];
+
+    // Retry avec query élargie si 0 résultats
+    if (!ids.length && query.split(' ').length > 2) {
+      const broader = query.split(' ').slice(0, 3).join(' '); // garder les 3 premiers termes
+      const retryUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?' +
+        'db=pubmed&term=' + encodeURIComponent(broader) + '&retmax=' + (maxResults || 5) + '&retmode=json&sort=relevance';
+      const retryResp = await fetch(retryUrl);
+      if (retryResp.ok) {
+        const retryData = await retryResp.json();
+        ids = retryData.esearchresult?.idlist || [];
+      }
+    }
+
     if (!ids.length) return [];
     const summaryUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?' +
       'db=pubmed&id=' + ids.join(',') + '&retmode=json';
