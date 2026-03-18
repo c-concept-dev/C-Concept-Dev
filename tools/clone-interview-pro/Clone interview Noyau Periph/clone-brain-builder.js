@@ -9502,6 +9502,112 @@ async function generateCloneBrain() {
             console.warn('[Convergence] Appel LLM echoue, scores non ajustes:', convErr.message);
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // WEB-CONSULT — ENRICHISSEMENT PROFIL (Entité 3B)
+        // Déclenché quand :
+        //   1. Confiance globale basse (< 65%) → chercher si le pattern est documenté
+        //   2. Profil atypique (contradictions élevées, traits extrêmes)
+        //   3. Convergence faible (delta > 15 sur 2+ traits)
+        // Le web enrichit le modèle, il ne le remplace pas.
+        // ═══════════════════════════════════════════════════════════════════
+        if (window.CLONE_VARIANT?.webConsultEnabled) {
+            try {
+                const brain = window._cloneBrainJSON;
+                const t = brain?.temperament;
+                const conv = brain?.convergence;
+
+                // Détecter si enrichissement nécessaire
+                let wcTrigger = null;
+                let wcQuery = null;
+
+                // Trigger 1 : Confiance globale basse
+                if (globalConfidence < 65) {
+                    wcTrigger = 'low-confidence';
+                }
+
+                // Trigger 2 : Divergences fortes dans la convergence
+                if (conv?.adjustments) {
+                    const highDeltas = Object.values(conv.adjustments)
+                        .filter(a => Math.abs(a.delta || 0) > 15).length;
+                    if (highDeltas >= 2) wcTrigger = wcTrigger || 'high-divergence';
+                }
+
+                // Trigger 3 : Traits extrêmes (< 15 ou > 85) sur 2+ dimensions
+                if (t) {
+                    const extremes = ['openness','conscientiousness','extraversion','agreeableness','neuroticism']
+                        .filter(dim => {
+                            const s = t[dim]?.score;
+                            return s !== undefined && (s < 15 || s > 85);
+                        });
+                    if (extremes.length >= 2) wcTrigger = wcTrigger || 'extreme-profile';
+                }
+
+                // Trigger 4 : Contradictions détectées élevées
+                const contradCount = brain?.observed_signals?.interview_dynamics?.verbal_contradictions?.length || 0;
+                if (contradCount >= 3) wcTrigger = wcTrigger || 'high-contradictions';
+
+                if (wcTrigger && !window._cloneWebConsultDone) {
+                    window._cloneWebConsultDone = true;
+                    console.log('[WebConsult] 🔍 Trigger profil: ' + wcTrigger);
+
+                    // Construire la query à partir du profil réel
+                    const scores = t ? `O=${t.openness?.score||'?'} C=${t.conscientiousness?.score||'?'} E=${t.extraversion?.score||'?'} A=${t.agreeableness?.score||'?'} N=${t.neuroticism?.score||'?'}` : '';
+                    const defStyle = brain?.emotional_profile?.defense_style || '';
+                    const attachStyle = brain?.emotional_profile?.attachment_style || '';
+
+                    // Query clinique basée sur le profil détecté
+                    const queryParts = [];
+                    if (t?.openness?.score < 20) queryParts.push('low openness personality');
+                    if (t?.openness?.score > 85) queryParts.push('high openness creativity personality');
+                    if (t?.neuroticism?.score > 80) queryParts.push('high neuroticism emotional instability');
+                    if (t?.neuroticism?.score < 15) queryParts.push('very low neuroticism personality resilience');
+                    if (t?.agreeableness?.score > 85 && t?.neuroticism?.score < 30) queryParts.push('high agreeableness low neuroticism personality pattern');
+                    if (t?.extraversion?.score < 20) queryParts.push('extreme introversion personality');
+                    if (t?.conscientiousness?.score > 90) queryParts.push('perfectionism conscientiousness personality');
+                    if (defStyle) queryParts.push(defStyle + ' defense mechanism personality');
+                    if (attachStyle && attachStyle !== 'secure') queryParts.push(attachStyle + ' attachment style personality');
+
+                    wcQuery = queryParts.length > 0
+                        ? queryParts.slice(0, 2).join(' ') + ' Big Five research'
+                        : 'atypical personality profile Big Five HEXACO research';
+
+                    console.log('[WebConsult] 🔬 Query: "' + wcQuery + '"');
+
+                    const wcResults = await cloneWebConsult(wcQuery);
+                    if (wcResults?.results?.length) {
+                        const wcContext = buildCloneWebConsultContext(wcResults);
+                        console.log('[WebConsult] 📚 ' + wcResults.results.length + ' articles trouvés — enrichissement disponible');
+
+                        // Stocker les résultats dans le brain JSON pour traçabilité
+                        brain.web_consult = {
+                            trigger: wcTrigger,
+                            query: wcQuery,
+                            results_count: wcResults.results.length,
+                            results: wcResults.results.map(r => ({
+                                title: r.title,
+                                source: r.source,
+                                reliability: r.reliability,
+                                url: r.url,
+                                date: r.date
+                            })),
+                            timestamp: new Date().toISOString()
+                        };
+
+                        // Injecter le contexte web dans le prompt de convergence
+                        // pour que le clone prompt final bénéficie de la littérature
+                        if (conv) {
+                            conv.web_enrichment = wcContext.substring(0, 1000);
+                        }
+                    }
+                } else if (!wcTrigger) {
+                    console.log('[WebConsult] Profil standard — pas d\'enrichissement nécessaire');
+                }
+            } catch (wcErr) {
+                console.warn('[WebConsult] ⚠️', wcErr.message);
+            }
+        }
+        // ═══ FIN WEB-CONSULT ═══
+
         // v21.0 — Le JSON est un portrait psychologique pur — pas de clone_prompt dans le JSON
         // generateClonePromptFromBrain reste disponible pour le ZIP optionnel uniquement
         window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
