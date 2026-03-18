@@ -55333,6 +55333,8 @@ var Worker_default = {
       return handleLLMProxy(request2, env2);
     if (p === "/generate-presentation" && request2.method === "POST")
       return handleGeneratePresentation(request2, env2);
+    if (p === "/web-consult" && request2.method === "POST")
+      return handleWebConsult(request2, env2);
     if (request2.method === "POST")
       return handleAnthropicProxy(request2, env2);
     return jsonErr("Not found", 404);
@@ -56987,6 +56989,228 @@ FORMAT JSON (strictement, pas de backticks) :
   }
 }
 __name(handleGeneratePresentation, "handleGeneratePresentation");
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEB-CONSULT — Recherche web filtrée + fiabilité
+// © C Concept&Dev — Christophe Bonnet — Mars 2026
+// PubMed E-utilities + Semantic Scholar API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TRUSTED_DOMAINS = {
+  high: [
+    'pubmed.ncbi.nlm.nih.gov','ncbi.nlm.nih.gov',
+    'semanticscholar.org','api.semanticscholar.org',
+    'cochrane.org','cochranelibrary.com',
+    'who.int','has-sante.fr',
+    'apa.org','psycnet.apa.org','cairn.info'
+  ],
+  medium: [
+    'scholar.google.com','researchgate.net',
+    'springer.com','wiley.com','tandfonline.com',
+    'elsevier.com','sciencedirect.com',
+    'frontiersin.org','mdpi.com','bps.org.uk',
+    'em-consulte.com','vidal.fr'
+  ],
+  excluded_patterns: [
+    'forum','blog','reddit','quora','yahoo',
+    'coaching','magnetisme','reiki',
+    'facebook','instagram','tiktok','youtube',
+    'amazon','fnac','ebay'
+  ]
+};
+
+function scoreReliability(result) {
+  let score = 0;
+  const urlLower = (result.url || '').toLowerCase();
+  if (TRUSTED_DOMAINS.high.some(d => urlLower.includes(d))) score += 40;
+  else if (TRUSTED_DOMAINS.medium.some(d => urlLower.includes(d))) score += 20;
+  else score += 5;
+  if (result.date) {
+    const year = parseInt(result.date);
+    if (!isNaN(year)) {
+      const age = new Date().getFullYear() - year;
+      if (age < 2) score += 20;
+      else if (age < 5) score += 15;
+      else if (age < 10) score += 10;
+      else score += 5;
+    }
+  }
+  if (result.isPeerReviewed) score += 25;
+  if (result.isMeta) score += 20;
+  if (result.isGuideline) score += 20;
+  if (result.isCaseStudy) score += 15;
+  if (result.isTextbook) score += 15;
+  if (score >= 70) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
+}
+__name(scoreReliability, "scoreReliability");
+
+function explainReliability(result) {
+  const parts = [];
+  const urlLower = (result.url || '').toLowerCase();
+  if (TRUSTED_DOMAINS.high.some(d => urlLower.includes(d))) parts.push('source haute fiabilité');
+  else if (TRUSTED_DOMAINS.medium.some(d => urlLower.includes(d))) parts.push('source fiabilité moyenne');
+  else parts.push('source non vérifiée');
+  if (result.isPeerReviewed) parts.push('peer-reviewed');
+  if (result.isMeta) parts.push('méta-analyse');
+  if (result.isGuideline) parts.push('recommandation officielle');
+  if (result.date) {
+    const year = parseInt(result.date);
+    if (!isNaN(year)) parts.push('publié ' + year);
+  }
+  return parts.join(', ');
+}
+__name(explainReliability, "explainReliability");
+
+async function searchPubMed(query, language, maxResults) {
+  try {
+    const langFilter = language === 'fr' ? '+AND+fre[la]' : '';
+    const searchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?' +
+      'db=pubmed&term=' + encodeURIComponent(query) + langFilter + '&retmax=' + (maxResults || 5) + '&retmode=json&sort=relevance';
+    const searchResp = await fetch(searchUrl);
+    if (!searchResp.ok) return [];
+    const searchData = await searchResp.json();
+    const ids = searchData.esearchresult?.idlist || [];
+    if (!ids.length) return [];
+    const summaryUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?' +
+      'db=pubmed&id=' + ids.join(',') + '&retmode=json';
+    const summaryResp = await fetch(summaryUrl);
+    if (!summaryResp.ok) return [];
+    const summaryData = await summaryResp.json();
+    return Object.values(summaryData.result || {})
+      .filter(r => r.uid)
+      .map(r => {
+        const pubtype = (r.pubtype || []).join(',').toLowerCase();
+        return {
+          title: r.title || '',
+          source: 'PubMed',
+          url: 'https://pubmed.ncbi.nlm.nih.gov/' + r.uid + '/',
+          snippet: (r.title || '') + '. ' + (r.sortfirstauthor || '') + ' et al. ' + (r.fulljournalname || r.source || '') + '.',
+          date: r.pubdate || '',
+          language: (r.lang || []).includes('fre') ? 'fr' : 'en',
+          isPeerReviewed: true,
+          isMeta: pubtype.includes('meta-analysis') || (r.title||'').toLowerCase().includes('meta-analy'),
+          isGuideline: pubtype.includes('guideline') || pubtype.includes('practice guideline'),
+          isCaseStudy: pubtype.includes('case report'),
+          isTextbook: false,
+          type: 'article',
+          pmid: r.uid
+        };
+      });
+  } catch (e) {
+    console.error('[WebConsult] PubMed error:', e.message);
+    return [];
+  }
+}
+__name(searchPubMed, "searchPubMed");
+
+async function searchSemanticScholar(query, language, maxResults) {
+  try {
+    const fields = 'title,url,abstract,year,citationCount,journal,publicationTypes,externalIds';
+    const ssUrl = 'https://api.semanticscholar.org/graph/v1/paper/search?' +
+      'query=' + encodeURIComponent(query) + '&limit=' + (maxResults || 5) + '&fields=' + fields;
+    const resp = await fetch(ssUrl, { headers: { 'User-Agent': 'CConceptDev-WebConsult/1.0' } });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return (data.data || []).map(paper => {
+      const pubTypes = (paper.publicationTypes || []).map(t => t.toLowerCase());
+      const titleLower = (paper.title || '').toLowerCase();
+      return {
+        title: paper.title || '',
+        source: 'Semantic Scholar',
+        url: paper.url || ('https://www.semanticscholar.org/paper/' + paper.paperId),
+        snippet: (paper.abstract || paper.title || '').substring(0, 400),
+        date: paper.year ? String(paper.year) : '',
+        language: language || 'en',
+        isPeerReviewed: !!paper.journal?.name,
+        isMeta: pubTypes.includes('meta-analysis') || titleLower.includes('meta-analy') || titleLower.includes('systematic review'),
+        isGuideline: pubTypes.includes('guideline') || titleLower.includes('guideline'),
+        isCaseStudy: pubTypes.includes('case report') || titleLower.includes('case study'),
+        isTextbook: false,
+        type: 'article',
+        citationCount: paper.citationCount || 0,
+        doi: paper.externalIds?.DOI || null
+      };
+    });
+  } catch (e) {
+    console.error('[WebConsult] Semantic Scholar error:', e.message);
+    return [];
+  }
+}
+__name(searchSemanticScholar, "searchSemanticScholar");
+
+function mergeAndDeduplicate(allSettled) {
+  const seen = new Set();
+  const results = [];
+  for (const res of allSettled) {
+    if (res.status !== 'fulfilled' || !Array.isArray(res.value)) continue;
+    for (const item of res.value) {
+      const key = (item.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 60);
+      if (key && seen.has(key)) continue;
+      seen.add(key);
+      const urlLower = (item.url || '').toLowerCase();
+      if (TRUSTED_DOMAINS.excluded_patterns.some(p => urlLower.includes(p))) continue;
+      results.push(item);
+    }
+  }
+  results.sort((a, b) => {
+    const aS = (a.isPeerReviewed ? 100 : 0) + (a.isMeta ? 50 : 0) + (parseInt(a.date) || 2000);
+    const bS = (b.isPeerReviewed ? 100 : 0) + (b.isMeta ? 50 : 0) + (parseInt(b.date) || 2000);
+    return bS - aS;
+  });
+  return results;
+}
+__name(mergeAndDeduplicate, "mergeAndDeduplicate");
+
+async function logWebConsult(env2, caller, query, domain, resultCount) {
+  if (!env2.DB) return;
+  try {
+    await env2.DB.prepare(
+      'INSERT INTO web_consult_log (timestamp, caller, query, domain, result_count) VALUES (?, ?, ?, ?, ?)'
+    ).bind(new Date().toISOString(), caller || 'unknown', (query || '').substring(0, 200), domain || 'general', resultCount || 0).run();
+  } catch (_) { /* table optionnelle */ }
+}
+__name(logWebConsult, "logWebConsult");
+
+async function handleWebConsult(request2, env2) {
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr('Invalid JSON', 400); }
+  const { query, domain = 'general', sources = ['pubmed','scholar'], language = 'fr', max_results = 5, caller = 'unknown' } = body;
+  if (!query || typeof query !== 'string' || query.trim().length < 3) return jsonErr('Query required (min 3 chars)', 400);
+  const cleanQuery = query.trim().substring(0, 300);
+  try {
+    const searchPromises = [];
+    if (sources.includes('pubmed')) searchPromises.push(searchPubMed(cleanQuery, language, max_results));
+    if (sources.includes('scholar')) searchPromises.push(searchSemanticScholar(cleanQuery, language, max_results));
+    const allResults = await Promise.allSettled(searchPromises);
+    const merged = mergeAndDeduplicate(allResults);
+    const scored = merged.map(r => ({ ...r, reliability: scoreReliability(r), reliability_reason: explainReliability(r) }));
+    const highMed = scored.filter(r => r.reliability !== 'low');
+    const filtered = highMed.length >= 2 ? highMed.slice(0, max_results) : scored.slice(0, max_results);
+    logWebConsult(env2, caller, cleanQuery, domain, filtered.length);
+    return json({
+      results: filtered.map(r => ({
+        title: r.title, source: r.source, url: r.url,
+        snippet: (r.snippet || '').substring(0, 500),
+        date: r.date, reliability: r.reliability, reliability_reason: r.reliability_reason,
+        domain, language: r.language || language, type: r.type,
+        pmid: r.pmid || null, doi: r.doi || null, citationCount: r.citationCount || null
+      })),
+      meta: {
+        query: cleanQuery, sources_consulted: sources,
+        total_found: merged.length, returned: filtered.length,
+        filtered_out: merged.length - filtered.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('[WebConsult] Error:', err.message);
+    return jsonErr('web-consult error: ' + err.message, 500);
+  }
+}
+__name(handleWebConsult, "handleWebConsult");
+
 export {
   Worker_default as default
 };
