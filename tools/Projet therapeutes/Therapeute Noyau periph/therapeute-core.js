@@ -16,7 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Apply VARIANT defaults
-if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claude-sonnet-4-5-20250929', model_patient: 'claude-sonnet-4-5-20250929', responsive: false, webConsultEnabled: true, webConsultDomain: 'therapy', webConsultSources: ['pubmed', 'scholar'], webConsultAutoTrigger: true, webConsultManualTrigger: false };
+if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claude-sonnet-4-5-20250929', model_patient: 'claude-sonnet-4-5-20250929', responsive: false, webConsultEnabled: true, webConsultDomain: 'therapy', webConsultSources: ['pubmed', 'scholar', 'google_scholar'], webConsultAutoTrigger: true, webConsultManualTrigger: false };
 
 
 // ═══ BLOCK 1 ═══
@@ -15091,7 +15091,7 @@ async function therapyWebConsult(query, domain) {
       body: JSON.stringify({
         query: query.trim().substring(0, 250),
         domain: domain || V.webConsultDomain || 'therapy',
-        sources: V.webConsultSources || ['pubmed', 'scholar'],
+        sources: V.webConsultSources || ['pubmed', 'scholar', 'google_scholar'],
         language: 'fr',
         max_results: 3,
         caller: 'therapeute-ia'
