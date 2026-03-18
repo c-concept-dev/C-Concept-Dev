@@ -57322,7 +57322,7 @@ __name(logWebConsult, "logWebConsult");
 async function handleWebConsult(request2, env2) {
   let body;
   try { body = await request2.json(); } catch { return jsonErr('Invalid JSON', 400); }
-  const { query, domain = 'general', sources = ['pubmed','scholar'], language = 'fr', max_results = 5, caller = 'unknown' } = body;
+  const { query, domain = 'general', sources = ['pubmed','scholar','google_scholar'], language = 'fr', max_results = 5, caller = 'unknown' } = body;
   if (!query || typeof query !== 'string' || query.trim().length < 3) return jsonErr('Query required (min 3 chars)', 400);
   const cleanQuery = query.trim().substring(0, 300);
   try {
@@ -57330,7 +57330,9 @@ async function handleWebConsult(request2, env2) {
     if (sources.includes('pubmed')) searchPromises.push(searchPubMed(cleanQuery, language, max_results));
     if (sources.includes('scholar')) searchPromises.push(searchSemanticScholar(cleanQuery, language, max_results));
     if (sources.includes('google_scholar')) searchPromises.push(searchGoogleScholar(cleanQuery, language, max_results, env2));
-    if (sources.includes('cairn')) searchPromises.push(searchCairn(cleanQuery, language, max_results));
+    // Cairn.info — désactivé (captcha anti-bot bloque les Workers CF)
+    // Google Scholar couvre le catalogue Cairn via SerpApi
+    // if (sources.includes('cairn')) searchPromises.push(searchCairn(cleanQuery, language, max_results));
     const allResults = await Promise.allSettled(searchPromises);
     const merged = mergeAndDeduplicate(allResults);
     const scored = merged.map(r => ({ ...r, reliability: scoreReliability(r), reliability_reason: explainReliability(r) }));
