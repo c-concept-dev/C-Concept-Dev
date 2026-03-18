@@ -25,7 +25,11 @@ if (!window.CLONE_VARIANT) window.CLONE_VARIANT = {
     temperature: 0.75,
     maxTokens: 220,
     targetCompleteness: 85,
-    label: 'Clone Interview Pro v20'
+    label: 'Clone Interview Pro v20',
+    // Web-Consult (léger — usage ponctuel)
+    webConsultEnabled: false,
+    webConsultDomain: 'psychology',
+    webConsultSources: ['pubmed', 'scholar']
 };
 
 // ============================================================================
@@ -13267,6 +13271,48 @@ console.log('  Modules Psycho 23-32 + ElevenLabs TTS                   ');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('[v15.3] ✅ Ready! Worker:', CONFIG.WORKER_URL);
 console.log('[v15.3] Features: Multi-Modal, ElevenLabs, Psychological Profiling');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEB-CONSULT — Entité 3B légère (Clone Interview)
+// Usage ponctuel : diagnostic rare, trait atypique, validation croisée
+// ═══════════════════════════════════════════════════════════════════════════════
+
+window._cloneWebConsultCache = null;
+
+async function cloneWebConsult(query) {
+  if (!window.CLONE_VARIANT?.webConsultEnabled) return null;
+  try {
+    const resp = await fetch(CONFIG.WORKER_URL + 'web-consult', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query.trim().substring(0, 250),
+        domain: window.CLONE_VARIANT.webConsultDomain || 'psychology',
+        sources: window.CLONE_VARIANT.webConsultSources || ['pubmed', 'scholar'],
+        language: 'en',
+        max_results: 3,
+        caller: 'clone-interview'
+      })
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    console.log(`[WebConsult] ✅ ${data.results?.length || 0} résultats`);
+    return data;
+  } catch(e) {
+    console.warn('[WebConsult]', e.message);
+    return null;
+  }
+}
+
+function buildCloneWebConsultContext(results) {
+  if (!results?.results?.length) return '';
+  let ctx = '\n═══ WEB REFERENCE (personality profiling) ═══\n';
+  ctx += 'Use to enrich understanding. Do not alter core profiling methodology.\n\n';
+  for (const r of results.results) {
+    ctx += `── ${r.title} [${r.source}] (${r.reliability}) ──\n${r.snippet}\n\n`;
+  }
+  return ctx;
+}
 
 // ============================================================================
 // MODULES PSYCHOLOGIQUES COMPLETS (Phase 5-6)
