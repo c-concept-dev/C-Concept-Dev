@@ -1647,7 +1647,11 @@
         temperature: 0.75,
         maxTokens: 220,
         targetCompleteness: 85,
-        label: 'Clone Interview Pro v21.4 — Best of Both'
+        label: 'Clone Interview Pro v21.4 — Best of Both',
+        // Web-Consult — enrichissement profil atypique
+        webConsultEnabled: true,
+        webConsultDomain: 'psychology',
+        webConsultSources: ['pubmed', 'scholar']
     };
     </script>
     
@@ -15259,6 +15263,46 @@ console.log('  Modules Psycho 23-32 + ElevenLabs TTS                   ');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('[v15.3] ✅ Ready! Worker:', CONFIG.WORKER_URL);
 console.log('[v15.3] Features: Multi-Modal, ElevenLabs, Psychological Profiling');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEB-CONSULT — Entité 3B (enrichissement profil atypique)
+// ═══════════════════════════════════════════════════════════════════════════════
+window._cloneWebConsultDone = false;
+
+async function cloneWebConsult(query) {
+  if (!window.CLONE_VARIANT?.webConsultEnabled) return null;
+  try {
+    const resp = await fetch(CONFIG.WORKER_URL + 'web-consult', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query.trim().substring(0, 250),
+        domain: window.CLONE_VARIANT.webConsultDomain || 'psychology',
+        sources: window.CLONE_VARIANT.webConsultSources || ['pubmed', 'scholar'],
+        language: 'en',
+        max_results: 3,
+        caller: 'clone-interview-pro'
+      })
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    console.log('[WebConsult] ✅ ' + (data.results?.length || 0) + ' résultats');
+    return data;
+  } catch(e) {
+    console.warn('[WebConsult]', e.message);
+    return null;
+  }
+}
+
+function buildCloneWebConsultContext(results) {
+  if (!results?.results?.length) return '';
+  let ctx = '\n═══ WEB REFERENCE (personality profiling) ═══\n';
+  ctx += 'Use to enrich understanding. Do not alter core profiling methodology.\n\n';
+  for (const r of results.results) {
+    ctx += '── ' + r.title + ' [' + r.source + '] (' + r.reliability + ') ──\n' + r.snippet + '\n\n';
+  }
+  return ctx;
+}
 
 // ============================================================================
 // MODULES PSYCHOLOGIQUES COMPLETS (Phase 5-6)
@@ -32155,6 +32199,65 @@ async function generateCloneBrain() {
         } catch(convErr) {
             console.warn('[Convergence] Appel LLM echoue, scores non ajustes:', convErr.message);
         }
+
+        // ═══ WEB-CONSULT — ENRICHISSEMENT PROFIL (Entité 3B) ═══
+        if (window.CLONE_VARIANT?.webConsultEnabled) {
+            try {
+                const brain = window._cloneBrainJSON;
+                const t = brain?.temperament;
+                const conv = brain?.convergence;
+                let wcTrigger = null;
+
+                if (globalConfidence < 65) wcTrigger = 'low-confidence';
+                if (!wcTrigger && conv?.adjustments) {
+                    const highDeltas = Object.values(conv.adjustments).filter(a => Math.abs(a.delta || 0) > 15).length;
+                    if (highDeltas >= 2) wcTrigger = 'high-divergence';
+                }
+                if (!wcTrigger && t) {
+                    const extremes = ['openness','conscientiousness','extraversion','agreeableness','neuroticism']
+                        .filter(dim => { const s = t[dim]?.score; return s !== undefined && (s < 15 || s > 85); });
+                    if (extremes.length >= 2) wcTrigger = 'extreme-profile';
+                }
+                const contradCount = brain?.observed_signals?.interview_dynamics?.verbal_contradictions?.length || 0;
+                if (!wcTrigger && contradCount >= 3) wcTrigger = 'high-contradictions';
+
+                if (wcTrigger && !window._cloneWebConsultDone) {
+                    window._cloneWebConsultDone = true;
+                    console.log('[WebConsult] 🔍 Trigger profil: ' + wcTrigger);
+                    const queryParts = [];
+                    if (t?.openness?.score < 20) queryParts.push('low openness personality');
+                    if (t?.openness?.score > 85) queryParts.push('high openness creativity personality');
+                    if (t?.neuroticism?.score > 80) queryParts.push('high neuroticism emotional instability');
+                    if (t?.neuroticism?.score < 15) queryParts.push('very low neuroticism personality resilience');
+                    if (t?.agreeableness?.score > 85 && t?.neuroticism?.score < 30) queryParts.push('high agreeableness low neuroticism personality pattern');
+                    if (t?.extraversion?.score < 20) queryParts.push('extreme introversion personality');
+                    if (t?.conscientiousness?.score > 90) queryParts.push('perfectionism conscientiousness personality');
+                    const defStyle = brain?.emotional_profile?.defense_style || '';
+                    const attachStyle = brain?.emotional_profile?.attachment_style || '';
+                    if (defStyle) queryParts.push(defStyle + ' defense mechanism personality');
+                    if (attachStyle && attachStyle !== 'secure') queryParts.push(attachStyle + ' attachment style personality');
+                    const wcQuery = queryParts.length > 0
+                        ? queryParts.slice(0, 2).join(' ') + ' Big Five research'
+                        : 'atypical personality profile Big Five HEXACO research';
+                    console.log('[WebConsult] 🔬 Query: "' + wcQuery + '"');
+                    const wcResults = await cloneWebConsult(wcQuery);
+                    if (wcResults?.results?.length) {
+                        const wcContext = buildCloneWebConsultContext(wcResults);
+                        console.log('[WebConsult] 📚 ' + wcResults.results.length + ' articles — enrichissement disponible');
+                        brain.web_consult = {
+                            trigger: wcTrigger, query: wcQuery,
+                            results_count: wcResults.results.length,
+                            results: wcResults.results.map(r => ({ title: r.title, source: r.source, reliability: r.reliability, url: r.url, date: r.date })),
+                            timestamp: new Date().toISOString()
+                        };
+                        if (conv) conv.web_enrichment = wcContext.substring(0, 1000);
+                    }
+                } else if (!wcTrigger) {
+                    console.log('[WebConsult] Profil standard — pas d\'enrichissement nécessaire');
+                }
+            } catch (wcErr) { console.warn('[WebConsult] ⚠️', wcErr.message); }
+        }
+        // ═══ FIN WEB-CONSULT ═══
 
         // v21.0 — Le JSON est un portrait psychologique pur — pas de clone_prompt dans le JSON
         // generateClonePromptFromBrain reste disponible pour le ZIP optionnel uniquement
