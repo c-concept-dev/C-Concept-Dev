@@ -37,7 +37,7 @@ if (!window.VARIANT) window.VARIANT = {
   // Web-Consult defaults
   webConsultEnabled: false,
   webConsultDomain: 'hypnosis',
-  webConsultSources: ['pubmed', 'scholar'],
+  webConsultSources: ['pubmed', 'scholar', 'google_scholar'],
   webConsultAutoTrigger: false,
   webConsultManualTrigger: false
 };
@@ -2469,7 +2469,7 @@ async function webConsult(query, domain) {
       body: JSON.stringify({
         query: query.trim().substring(0, 250),
         domain: domain || V.webConsultDomain || 'hypnosis',
-        sources: V.webConsultSources || ['pubmed', 'scholar'],
+        sources: V.webConsultSources || ['pubmed', 'scholar', 'google_scholar'],
         language: 'fr',
         max_results: 3,
         caller: 'hypnose-ia'
