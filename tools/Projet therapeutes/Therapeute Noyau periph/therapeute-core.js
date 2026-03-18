@@ -16,7 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Apply VARIANT defaults
-if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claude-sonnet-4-5-20250929', model_patient: 'claude-sonnet-4-5-20250929', responsive: false };
+if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claude-sonnet-4-5-20250929', model_patient: 'claude-sonnet-4-5-20250929', responsive: false, webConsultEnabled: true, webConsultDomain: 'therapy', webConsultSources: ['pubmed', 'scholar'], webConsultAutoTrigger: true, webConsultManualTrigger: false };
 
 
 // ═══ BLOCK 1 ═══
@@ -15069,6 +15069,157 @@ async function fetchTherapyRAG(userMessage, operatingMode) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEB-CONSULT — Entité 3B : Le web comme consultant externe (Thérapeute IA)
+// Hiérarchie : D1 (primaire) > LLM (training) > Web (conditionnel)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Cache session — 1 seul appel web-consult par trigger type
+window._webConsultCache = {};
+
+async function therapyWebConsult(query, domain) {
+  const V = window.VARIANT;
+  if (!V?.webConsultEnabled) return null;
+  const workerBase = window._therapyWorkerUrl;
+  if (!workerBase) return null;
+  if (!query || query.trim().length < 5) return null;
+
+  try {
+    const resp = await fetch(workerBase + '/web-consult', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query.trim().substring(0, 250),
+        domain: domain || V.webConsultDomain || 'therapy',
+        sources: V.webConsultSources || ['pubmed', 'scholar'],
+        language: 'fr',
+        max_results: 3,
+        caller: 'therapeute-ia'
+      })
+    });
+    if (!resp.ok) { console.warn('[WebConsult] HTTP', resp.status); return null; }
+    const data = await resp.json();
+    console.log(`[WebConsult] ✅ ${data.results?.length || 0} résultats pour "${query.substring(0, 50)}"`);
+    return data;
+  } catch(e) {
+    console.warn('[WebConsult]', e.message);
+    return null;
+  }
+}
+
+function buildTherapyWebConsultContext(results) {
+  if (!results?.results?.length) return '';
+  let ctx = '\n═══ CONSULTATION WEB (sources vérifiées) ═══\n';
+  ctx += 'ATTENTION : informations web. Fiabilité variable.\n';
+  ctx += 'RÈGLE : enrichis ton raisonnement clinique. Ne présente PAS ces sources brutes au patient.\n';
+  ctx += 'En mode collaborateur/bibliographie : tu peux citer les sources au thérapeute.\n\n';
+  for (const r of results.results) {
+    ctx += `── ${r.title} [${r.source}] (fiabilité: ${r.reliability}) ──\n`;
+    if (r.date) ctx += `Date: ${r.date} | `;
+    if (r.reliability_reason) ctx += `${r.reliability_reason}`;
+    ctx += '\n' + `${r.snippet}\n`;
+    if (r.url) ctx += `URL: ${r.url}\n`;
+    ctx += '\n';
+  }
+  ctx += `(${results.meta?.returned || 0}/${results.meta?.total_found || 0} résultats — ${results.meta?.sources_consulted?.join(', ') || '?'})\n`;
+  return ctx;
+}
+
+function buildTherapyClinicalQuery(trigger, userInput) {
+  const input = (userInput || '').toLowerCase();
+  const TERMS = {
+    'borderline':      'borderline personality disorder therapy evidence-based treatment',
+    'bipolaire':       'bipolar disorder psychotherapy guidelines',
+    'schizo':          'schizophrenia psychotherapy supportive evidence',
+    'toc':             'obsessive compulsive disorder therapy protocol',
+    'tdah':            'ADHD adult therapy psychotherapy treatment',
+    'hpi':             'high intellectual potential giftedness therapy',
+    'haut potentiel':  'high intellectual potential giftedness therapy',
+    'autis':           'autism spectrum disorder therapy adult',
+    'asperger':        'asperger syndrome therapy adult adaptation',
+    'dissociat':       'dissociative disorder therapy treatment protocol',
+    'trauma complex':  'complex PTSD therapy treatment evidence',
+    'psychopath':      'antisocial personality disorder therapy evidence',
+    'pervers narciss': 'narcissistic personality disorder therapy partner',
+    'narcissi':        'narcissistic personality disorder therapy evidence',
+    'alexithymi':      'alexithymia therapy emotional awareness treatment',
+    'anorexi':         'anorexia nervosa therapy evidence-based',
+    'boulimi':         'bulimia nervosa therapy cognitive behavioral',
+    'addiction sexu':  'sexual addiction compulsive behavior therapy',
+    'polyamour':       'polyamory consensual non-monogamy therapy',
+    'transgenre':      'transgender affirming therapy guidelines',
+    'deuil perinat':   'perinatal grief therapy bereavement',
+    'deuil enfant':    'child loss grief therapy bereavement',
+    'infertili':       'infertility psychological impact therapy couples',
+    'endometrio':      'endometriosis psychological impact therapy',
+    'fibromyalgi':     'fibromyalgia psychotherapy evidence review',
+    'violence conjug': 'intimate partner violence therapy safety',
+    'inceste':         'incest trauma therapy treatment protocol',
+    'agression sexu':  'sexual assault trauma therapy evidence',
+    'emprise':         'coercive control therapy recovery',
+    'aliénation parent': 'parental alienation therapy intervention',
+    'gottman':         'Gottman method couples therapy evidence review',
+    'imago':           'Imago relationship therapy evidence review',
+    'eft couple':      'emotionally focused therapy couples evidence',
+    'act ':            'acceptance commitment therapy evidence review',
+    'emdr':            'EMDR therapy evidence efficacy review',
+    'brainspotting':   'brainspotting therapy evidence review',
+    'schema therap':   'schema therapy evidence review personality',
+    'icv':             'lifespan integration therapy evidence',
+    'coherence therap':'coherence therapy memory reconsolidation evidence',
+  };
+  for (const [pattern, terms] of Object.entries(TERMS)) {
+    if (input.includes(pattern)) return terms;
+  }
+  return trigger + ' psychotherapy treatment evidence';
+}
+
+function detectTherapyWebConsultTrigger(userInput, operatingMode) {
+  if (!window.VARIANT?.webConsultAutoTrigger) return null;
+  const input = (userInput || '').toLowerCase();
+
+  // Mode bibliographie = trigger systématique
+  if (operatingMode === 'collaborateur' && window._collabMode === 'bibliographie') {
+    return 'bibliographie';
+  }
+
+  // Demande explicite de littérature (mode Pro / Collab)
+  if (/cherche.*publication|littérature.*sur|qu.est.ce que.*dit.*recherche|études.*sur|evidence.?based|recommandation.*has/i.test(input)) {
+    return 'demande-littérature';
+  }
+
+  // Pathologies rares ou complexes non couvertes par la D1
+  const rarePatterns = [
+    /borderline/i, /bipolaire/i, /schizo/i, /psychopath/i,
+    /dissociat.*identit/i, /trouble.*person.*multiple/i,
+    /alexithymi/i, /hpi.*therap/i, /haut.potentiel/i,
+    /autis.*adult/i, /asperger/i, /tdah.*adult/i,
+    /addiction.*sexu/i, /polyamour.*therap/i,
+    /transgenre.*therap/i, /transidentit/i,
+    /deuil.*perinat/i, /mort.*bebe/i,
+    /aliénation.*parent/i, /emprise/i,
+    /inceste/i, /agression.*sexu/i,
+    /violence.*conjug/i, /violence.*partenaire/i,
+    /endometrio/i, /fibromyalgi/i, /infertili/i,
+  ];
+  for (const pat of rarePatterns) {
+    if (pat.test(input)) return 'cas-complexe';
+  }
+
+  // Techniques ou approches non couvertes par la D1
+  const techPatterns = [
+    /brainspotting/i, /coherence.?therapy/i,
+    /pcit/i, /dbt.*adolesc/i,
+    /therap.*narrative/i, /therap.*existentiel/i,
+    /psychodrame/i, /gestalt.*therap/i,
+  ];
+  for (const pat of techPatterns) {
+    if (pat.test(input)) return 'approche-non-couverte';
+  }
+
+  return null;
+}
+
 // ═══ INITIALISATION RAG v2 ═══
 (function initTherapyRAG() {
   const checkWorker = setInterval(() => {
@@ -16191,6 +16342,35 @@ class ConversationalSystem {
                 }
             }
             // ═══ FIN RAG v2 ═══
+            
+            // ═══ WEB-CONSULT — Entité 3B (conditionnel) ═══
+            if (window.VARIANT?.webConsultEnabled && window._therapyWorkerUrl) {
+                try {
+                    const lastUserMsg2 = cleanMessages.filter(m => m.role === 'user').pop();
+                    if (lastUserMsg2) {
+                        const wcTrigger = detectTherapyWebConsultTrigger(lastUserMsg2.content, window._operatingMode);
+                        const cacheKey = wcTrigger || '';
+                        if (wcTrigger && !window._webConsultCache[cacheKey]) {
+                            console.log(`[WebConsult] 🔍 Trigger: ${wcTrigger}`);
+                            const clinicalQ = buildTherapyClinicalQuery(wcTrigger, lastUserMsg2.content);
+                            console.log(`[WebConsult] 🔬 Query: "${clinicalQ}"`);
+                            const wcResults = await therapyWebConsult(clinicalQ, 'therapy');
+                            const wcContext = buildTherapyWebConsultContext(wcResults);
+                            if (wcContext) {
+                                systemPrompt += '\n\n' + wcContext;
+                                console.log(`[WebConsult] 📚 Contexte injecté (${wcResults?.results?.length || 0} résultats)`);
+                            }
+                            window._webConsultCache[cacheKey] = wcResults;
+                        } else if (wcTrigger && window._webConsultCache[cacheKey]) {
+                            const cached = buildTherapyWebConsultContext(window._webConsultCache[cacheKey]);
+                            if (cached) systemPrompt += '\n\n' + cached;
+                        }
+                    }
+                } catch (wcErr) {
+                    console.warn('[WebConsult] ⚠️', wcErr.message);
+                }
+            }
+            // ═══ FIN WEB-CONSULT ═══
             
             // Appeler Claude API
             const isCollab = window._operatingMode === 'collaborateur';
