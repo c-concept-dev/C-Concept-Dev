@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hypnose Pro — C Concept&Dev</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
+<script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/meyda@5.6.0/dist/web/meyda.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   CHARTE C CONCEPT&DEV
+═══════════════════════════════════════════════ */
+:root {
+  --mer:#8FAFB1; --mer-dark:#6A9193; --mer-deep:#4a7274;
+  --sauge:#C8D0C3; --beige:#D8CDBB; --sable:#E6D7C3;
+  --fond:#F4EFE7; --fond2:#EDE7DB; --fond3:#E6D7C3;
+  --text:#2c3532; --text2:#6b7a77; --gold:#8a7355;
+  --trance:#1e2825; --trance2:#253330;
+  --white:#ffffff; --danger:#c0392b; --success:#27ae60;
+  --shadow:rgba(44,53,50,0.08); --border:rgba(143,175,177,0.3);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Montserrat',sans-serif;background:var(--fond);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:14px;line-height:1.6}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(143,175,177,0.3);border-radius:4px}
+.screen{display:none}.screen.active{display:flex}
+
+/* ─── APP HEADER ─── */
+.app-header{width:100%;padding:18px 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--white);box-shadow:0 2px 12px var(--shadow);flex-shrink:0}
+.app-logo{display:flex;align-items:center;gap:14px}
+.logo-icon{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--mer),var(--mer-dark));display:flex;align-items:center;justify-content:center;font-size:20px}
+.logo-text h1{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--text);letter-spacing:.5px}
+.logo-text span{font-size:10px;color:var(--text2);letter-spacing:1px;text-transform:uppercase}
+.header-btns{display:flex;gap:8px}
+.btn-icon{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:all .2s}
+.btn-icon:hover{background:var(--fond2);color:var(--text)}
+
+/* ─── BUTTONS ─── */
+.btn-primary{padding:13px 28px;border-radius:12px;background:linear-gradient(135deg,var(--mer),var(--mer-dark));color:white;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;letter-spacing:.4px;transition:all .2s;box-shadow:0 4px 14px rgba(106,145,147,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(106,145,147,.4)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-secondary{padding:13px 22px;border-radius:12px;background:var(--white);color:var(--text);border:1px solid var(--border);cursor:pointer;font-family:'Montserrat',sans-serif;font-size:14px;transition:all .2s}
+.btn-secondary:hover{background:var(--fond2);border-color:var(--mer)}
+
+/* ─── FORMS ─── */
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);font-weight:600}
+.form-input,.form-select,.form-textarea{padding:10px 14px;background:var(--fond);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--mer)}
+.form-textarea{resize:vertical;min-height:70px}
+
+/* ─── TOGGLE ─── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(143,175,177,.12)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:13px;color:var(--text)}.toggle-desc{font-size:11px;color:var(--text2);margin-top:2px}
+.toggle-sw{width:42px;height:22px;border-radius:11px;background:var(--fond3);border:1px solid var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-sw.on{background:var(--mer);border-color:var(--mer-dark)}
+.toggle-sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:white;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.toggle-sw.on::after{left:22px}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--mer);border:1px solid var(--mer-dark);color:white;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(106,145,147,.4);z-index:9999;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}.toast.error{background:var(--danger)}.toast.success{background:var(--success)}
+
+/* ─── MODAL ─── */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(44,53,50,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--white);border-radius:20px;padding:32px;width:90%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(44,53,50,.2)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--text);margin-bottom:20px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);margin-top:-4px}
+
+/* ═══ ÉCRAN 1 — ACCUEIL ═══ */
+#screen-accueil{flex-direction:column;align-items:center;min-height:100vh;background:var(--fond)}
+.accueil-body{width:100%;max-width:780px;padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center}
+
+/* Hero Ericksonien */
+.hero-zone{text-align:center;margin-bottom:48px;position:relative}
+.hero-spiral{width:90px;height:90px;margin:0 auto 24px;opacity:.7}
+.hero-spiral svg{animation:spinSlow 28s linear infinite}
+@keyframes spinSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.hero-greeting{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;color:var(--text);margin-bottom:8px;line-height:1.2}
+.hero-greeting strong{font-weight:600;color:var(--mer-dark)}
+.hero-quote{font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;color:var(--text2);max-width:520px;margin:0 auto 6px;line-height:1.6}
+.hero-quote-attr{font-size:10px;color:rgba(107,122,119,.5);text-transform:uppercase;letter-spacing:1.2px}
+
+/* Stats row */
+.stats-row{display:flex;gap:14px;margin-bottom:48px;flex-wrap:wrap;width:100%}
+.stat-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 20px;flex:1;min-width:130px;box-shadow:0 1px 6px var(--shadow)}
+.stat-num{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--mer-dark)}
+.stat-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+
+/* CTA principal */
+.cta-zone{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:440px;margin-bottom:40px}
+.btn-cta-main{width:100%;padding:18px 32px;border-radius:16px;background:linear-gradient(135deg,var(--mer),var(--mer-dark));color:white;border:none;cursor:pointer;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;letter-spacing:.5px;transition:all .3s;box-shadow:0 6px 24px rgba(106,145,147,.3);font-style:italic}
+.btn-cta-main:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(106,145,147,.4)}
+.cta-hint{font-size:11px;color:var(--text2);text-align:center;font-style:italic;font-family:'Cormorant Garamond',serif;font-size:14px}
+
+/* Actions secondaires */
+.actions-zone{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:440px}
+.btn-action{padding:13px 16px;border-radius:12px;background:var(--white);border:1px solid var(--border);cursor:pointer;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:500;color:var(--text);transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:5px;box-shadow:0 1px 6px var(--shadow)}
+.btn-action:hover{background:var(--fond2);border-color:var(--mer);transform:translateY(-1px)}
+.btn-action .act-icon{font-size:22px}
+.btn-action .act-label{font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.7px}
+.btn-action .act-desc{font-size:10px;color:var(--text2);text-align:center;line-height:1.4}
+
+/* Session courante indicator */
+.session-banner{background:rgba(143,175,177,.1);border:1px solid rgba(143,175,177,.25);border-radius:12px;padding:12px 20px;width:100%;max-width:440px;margin-bottom:24px;display:none}
+.session-banner.visible{display:block}
+.sb-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text2);font-weight:600;margin-bottom:4px}
+.sb-content{font-size:13px;color:var(--text)}
+.sb-emoji{font-size:18px;margin-right:8px}
+
+/* College footer */
+.college-footer{margin-top:44px;text-align:center;width:100%;max-width:580px}
+.cf-title{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(107,122,119,.4);margin-bottom:10px}
+.cf-names{font-size:10px;color:rgba(107,122,119,.55);line-height:1.8;font-style:italic;font-family:'Cormorant Garamond',serif;font-size:12px}
+
+/* ═══ ÉCRAN 2 — ENTRETIEN CLINIQUE ═══ */
+#screen-entretien{flex-direction:column;height:100vh;background:var(--fond)}
+.entretien-header{padding:14px 32px;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-shrink:0;box-shadow:0 2px 8px var(--shadow)}
+.entretien-protocol-info{display:flex;align-items:center;gap:10px;flex:1}
+.entretien-emoji{font-size:24px}
+.entretien-name{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--text)}
+.entretien-seance-badge{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(143,175,177,.12);border:1px solid var(--border);color:var(--mer-dark)}
+.entretien-phase-label{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;background:rgba(138,115,85,.1);border:1px solid rgba(138,115,85,.25);color:var(--gold)}
+.entretien-timer{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums;font-weight:600}
+.btn-end-entretien{padding:6px 14px;border-radius:8px;background:rgba(143,175,177,.1);border:1px solid var(--border);color:var(--mer-dark);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-end-entretien:hover{background:var(--mer);color:white}
+
+.entretien-body{flex:1;display:grid;grid-template-columns:260px 1fr;overflow:hidden}
+
+/* Panneau gauche entretien */
+.entretien-sidebar{background:var(--fond2);border-right:1px solid var(--border);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.sidebar-block{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px}
+.sidebar-title{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text2);font-weight:600;margin-bottom:10px}
+
+/* Phase tracker */
+.phases-list{display:flex;flex-direction:column;gap:4px}
+.phase-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:11px;color:var(--text2);transition:all .2s}
+.phase-item.active{background:rgba(143,175,177,.12);color:var(--mer-dark);font-weight:600}
+.phase-item.done{color:var(--success)}
+.phase-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0}
+.phase-item.active .phase-dot{background:var(--mer)}
+.phase-item.done .phase-dot{background:var(--success)}
+
+/* Patient signals */
+.signal-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:11px}
+.signal-label{color:var(--text2)}
+.signal-val{font-weight:600;color:var(--text);font-family:'Cormorant Garamond',serif;font-size:13px}
+.signal-bar{height:3px;background:var(--fond3);border-radius:2px;margin-top:2px;margin-bottom:6px;overflow:hidden}
+.signal-fill{height:100%;border-radius:2px;transition:width .8s}
+.signal-fill.anx{background:linear-gradient(90deg,var(--success),#f39c12,var(--danger))}
+.signal-fill.mot{background:var(--mer)}
+
+/* Profil clinique émergent */
+.profil-tags{display:flex;flex-wrap:wrap;gap:4px}
+.profil-tag{font-size:9px;padding:2px 7px;border-radius:10px;background:rgba(143,175,177,.12);border:1px solid var(--border);color:var(--text2)}
+.profil-tag.new{background:rgba(138,115,85,.08);border-color:rgba(138,115,85,.25);color:var(--gold)}
+
+/* Chat entretien */
+.entretien-main{display:flex;flex-direction:column;overflow:hidden;background:var(--fond)}
+.entretien-chat{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:16px}
+.msg-e{padding:14px 18px;border-radius:14px;max-width:85%;animation:fadeUp .35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.msg-e.assistant{background:var(--white);border:1px solid var(--border);color:var(--text);align-self:flex-start;box-shadow:0 1px 6px var(--shadow);font-size:14px;line-height:1.7}
+.msg-e.user{background:linear-gradient(135deg,var(--mer),var(--mer-dark));color:white;align-self:flex-end;font-size:13px}
+.msg-e.system{background:rgba(143,175,177,.1);border:1px solid rgba(143,175,177,.2);color:var(--text2);font-size:11px;text-align:center;align-self:center;border-radius:20px;padding:6px 16px;font-style:italic}
+.msg-e.formulation{background:rgba(138,115,85,.06);border:1px solid rgba(138,115,85,.2);color:var(--text);align-self:stretch;font-size:13px;line-height:1.7}
+.msg-e.formulation .form-header{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);font-weight:600;margin-bottom:8px}
+.typing-indicator{display:flex;gap:5px;padding:8px 0;align-self:flex-start}
+.typing-indicator span{width:7px;height:7px;border-radius:50%;background:var(--mer);animation:blink 1.2s infinite}
+.typing-indicator span:nth-child(2){animation-delay:.2s}.typing-indicator span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+
+/* Input entretien */
+.entretien-input{padding:14px 24px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:flex-end;gap:10px;flex-shrink:0}
+.entretien-textarea{flex:1;padding:10px 14px;background:var(--fond);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;resize:none;min-height:42px;max-height:110px;outline:none;transition:border-color .2s;line-height:1.5}
+.entretien-textarea:focus{border-color:var(--mer)}
+.btn-mic-e{width:40px;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--fond);color:var(--text2);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.btn-mic-e:hover{background:var(--fond2);color:var(--mer)}.btn-mic-e.active{background:var(--mer);color:white;border-color:var(--mer-dark)}
+.btn-send-e{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--mer),var(--mer-dark));border:none;color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.btn-send-e:hover{box-shadow:0 4px 12px rgba(106,145,147,.4)}
+
+/* Bouton transition vers induction */
+.btn-go-induction{width:100%;padding:14px;background:linear-gradient(135deg,var(--mer),var(--mer-dark));color:white;border:none;border-radius:12px;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(106,145,147,.3);display:none;margin-top:12px;letter-spacing:.4px}
+.btn-go-induction.visible{display:block}
+.btn-go-induction:hover{box-shadow:0 6px 24px rgba(106,145,147,.4)}
+
+/* ═══ ÉCRAN 3 — SÉANCE HYPNOTIQUE ═══ */
+#screen-seance{flex-direction:column;height:100vh;background:var(--trance);overflow:hidden}
+.seance-header{padding:12px 22px;background:var(--trance2);border-bottom:1px solid rgba(143,175,177,.1);display:flex;align-items:center;gap:14px;flex-shrink:0}
+.sh-proto{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:rgba(232,224,213,.9);flex:1}
+.badge-phase{padding:4px 11px;border-radius:20px;font-size:9px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;border:1px solid rgba(143,175,177,.3);background:rgba(143,175,177,.1);color:var(--mer)}
+.badge-depth{padding:4px 11px;border-radius:20px;font-size:9px;border:1px solid rgba(138,115,85,.3);background:rgba(138,115,85,.08);color:#c9a96e}
+.sh-timer{font-size:12px;color:rgba(168,176,170,.7);font-variant-numeric:tabular-nums;font-weight:600}
+.btn-exit{padding:5px 14px;border-radius:7px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.25);color:#e74c3c;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-exit:hover{background:rgba(192,57,43,.22)}
+
+.seance-body{flex:1;display:grid;grid-template-columns:250px 1fr;overflow:hidden}
+
+/* Ctrl panel séance */
+.seance-ctrl{background:var(--trance2);border-right:1px solid rgba(143,175,177,.1);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.ctrl-block{background:rgba(255,255,255,.04);border:1px solid rgba(143,175,177,.1);border-radius:10px;padding:13px}
+.ctrl-title{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(143,175,177,.55);font-weight:600;margin-bottom:9px}
+.depth-lbl{display:flex;justify-content:space-between;font-size:10px;color:rgba(168,176,170,.6);margin-bottom:6px}
+.depth-bar{height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;cursor:pointer;margin-bottom:6px}
+.depth-fill{height:100%;background:linear-gradient(90deg,var(--mer),var(--mer-dark));border-radius:4px;transition:width 1.8s cubic-bezier(.4,0,.2,1)}
+.depth-text{font-size:11px;color:var(--mer);text-align:center;font-style:italic;font-family:'Cormorant Garamond',serif}
+.depth-manual{display:flex;gap:4px;margin-top:7px}
+.depth-btn{flex:1;padding:4px;border-radius:6px;border:1px solid rgba(143,175,177,.14);background:transparent;color:rgba(168,176,170,.6);font-size:9px;cursor:pointer;transition:all .15s}
+.depth-btn:hover{background:rgba(143,175,177,.1);color:var(--mer)}
+.phase-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.phase-btn{padding:7px 3px;border-radius:6px;border:1px solid rgba(143,175,177,.13);background:transparent;color:rgba(168,176,170,.65);font-size:8px;cursor:pointer;transition:all .15s;text-align:center;font-family:'Montserrat',sans-serif;line-height:1.3}
+.phase-btn:hover{background:rgba(143,175,177,.08);color:var(--mer)}.phase-btn.active{background:var(--mer);color:white;border-color:var(--mer-dark)}
+.expert-display{font-size:10px;color:rgba(168,176,170,.7);line-height:1.5;font-style:italic}
+.expert-name{color:var(--mer);font-weight:600;font-style:normal}
+.face-display{display:flex;align-items:center;gap:7px}
+.face-dot{width:7px;height:7px;border-radius:50%;background:rgba(143,175,177,.25);flex-shrink:0;transition:background .5s}
+.face-dot.on{background:var(--success)}
+.face-emotion{font-size:10px;color:rgba(168,176,170,.75)}
+.relax-bar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:5px;overflow:hidden}
+.relax-fill{height:100%;background:var(--success);border-radius:2px;transition:width .5s}
+.audio-status{display:flex;align-items:center;gap:7px;font-size:10px;color:rgba(168,176,170,.65)}
+.audio-dot{width:7px;height:7px;border-radius:50%;background:rgba(143,175,177,.25);transition:background .3s}
+.audio-dot.speaking{background:var(--mer);animation:pdot 1s infinite}.audio-dot.listening{background:#f39c12;animation:pdot .5s infinite}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.25}}
+.binaural-row{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
+.binaural-freq{font-size:9px;color:rgba(168,176,170,.45);margin-top:3px}
+.quick-list{display:flex;flex-direction:column;gap:3px}
+.quick-btn{padding:6px 9px;border-radius:6px;border:1px solid rgba(143,175,177,.13);background:transparent;color:rgba(168,176,170,.75);font-size:9px;cursor:pointer;transition:all .15s;text-align:left;font-family:'Montserrat',sans-serif}
+.quick-btn:hover{background:rgba(143,175,177,.1);color:var(--mer);border-color:rgba(143,175,177,.28)}
+
+/* Zone principale séance */
+.seance-main{display:flex;flex-direction:column;overflow:hidden}
+.hypno-zone{height:260px;flex-shrink:0;position:relative;background:var(--trance);overflow:hidden;display:flex;align-items:center;justify-content:center}
+#hypnoCanvas{display:block}
+.hypno-overlay{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;font-weight:300;color:rgba(232,224,213,.65);text-align:center;max-width:86%;transition:opacity 1.5s ease;pointer-events:none;text-shadow:0 0 20px rgba(143,175,177,.25)}
+.seance-chat{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:12px;background:var(--trance)}
+.msg-s{padding:11px 15px;border-radius:12px;animation:fadeUp .4s ease;max-width:92%}
+.msg-s.system{background:rgba(143,175,177,.07);border:1px solid rgba(143,175,177,.13);color:rgba(168,176,170,.65);font-size:10px;text-align:center;align-self:center;font-style:italic;border-radius:20px;padding:5px 14px}
+.msg-s.hypno{background:rgba(255,255,255,.04);border-left:3px solid var(--mer);color:rgba(232,224,213,.9);font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;line-height:1.75;align-self:flex-start}
+.msg-s.hypno .msg-meta{font-size:9px;color:rgba(143,175,177,.55);margin-bottom:5px;font-style:normal;font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.7px}
+.msg-s.patient{background:rgba(143,175,177,.1);border:1px solid rgba(143,175,177,.2);color:rgba(200,208,195,.9);align-self:flex-end;font-size:12px;max-width:72%}
+.dots-loading{display:flex;gap:4px;padding:6px 0;align-self:flex-start}
+.dots-loading span{width:6px;height:6px;border-radius:50%;background:var(--mer);animation:blink 1.2s infinite}
+.dots-loading span:nth-child(2){animation-delay:.2s}.dots-loading span:nth-child(3){animation-delay:.4s}
+.seance-input-zone{padding:12px 18px;background:var(--trance2);border-top:1px solid rgba(143,175,177,.1);display:flex;align-items:flex-end;gap:9px;flex-shrink:0}
+.seance-ta{flex:1;padding:9px 13px;background:rgba(255,255,255,.06);border:1px solid rgba(143,175,177,.18);border-radius:9px;color:rgba(232,224,213,.9);font-family:'Montserrat',sans-serif;font-size:13px;resize:none;min-height:40px;max-height:90px;outline:none;transition:border-color .2s;line-height:1.5}
+.seance-ta:focus{border-color:var(--mer)}.seance-ta::placeholder{color:rgba(168,176,170,.35)}
+.btn-mic-s{width:40px;height:40px;border-radius:9px;border:1px solid rgba(143,175,177,.18);background:rgba(143,175,177,.07);color:var(--mer);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.btn-mic-s.active{background:var(--mer);color:white;animation:pborder 1.5s infinite}
+@keyframes pborder{0%,100%{box-shadow:0 0 0 0 rgba(143,175,177,.4)}50%{box-shadow:0 0 0 5px rgba(143,175,177,0)}}
+.btn-send-s{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,var(--mer),var(--mer-dark));border:none;color:white;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ═══ ÉCRAN 4 — POST-SÉANCE ═══ */
+#screen-post{flex-direction:column;align-items:center;min-height:100vh;padding:48px 24px;background:var(--fond)}
+.post-card{width:100%;max-width:620px;background:var(--white);border:1px solid var(--border);border-radius:20px;padding:30px;box-shadow:0 4px 24px var(--shadow);margin-bottom:18px}
+.post-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--text);text-align:center;margin-bottom:4px}
+.post-sub{font-size:12px;color:var(--text2);text-align:center;margin-bottom:22px}
+.scales-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:18px}
+.scale-group{display:flex;flex-direction:column;gap:7px}
+.scale-num{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;color:var(--mer-dark);text-align:center}
+input[type=range]{width:100%;accent-color:var(--mer);cursor:pointer}
+.sugg-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.sugg-tag{padding:5px 13px;border-radius:20px;border:1px solid rgba(138,115,85,.22);background:rgba(138,115,85,.05);color:var(--gold);font-size:10px;cursor:pointer;transition:all .2s}
+.sugg-tag:hover,.sugg-tag.active{background:rgba(138,115,85,.14);border-color:rgba(138,115,85,.45)}
+.post-ta{width:100%;padding:11px 14px;background:var(--fond);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:13px;resize:vertical;min-height:72px;outline:none;transition:border-color .2s}
+.post-ta:focus{border-color:var(--mer)}
+
+/* ═══ MODULE CAMÉRA HYPNOTIQUE ═══ */
+#face-video{width:100%;height:105px;object-fit:cover;border-radius:8px;display:none;background:#000}
+.cam-panel{background:var(--fond);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.cam-placeholder{width:100%;height:105px;background:rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:rgba(107,122,119,.4);font-size:10px;cursor:pointer;border-radius:8px;border:1px dashed rgba(107,122,119,.2);transition:all .2s}
+.cam-placeholder:hover{background:rgba(143,175,177,.08);color:var(--mer)}
+.cam-placeholder .cam-icon{font-size:22px}
+.cam-status-row{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.face-dot{width:7px;height:7px;border-radius:50%;background:rgba(143,175,177,.25);flex-shrink:0;transition:background .5s}
+.face-dot.on{background:#6abf69;box-shadow:0 0 6px rgba(106,191,105,.5)}
+.face-dot.warn{background:#e0a050;box-shadow:0 0 6px rgba(224,160,80,.4)}
+.face-emotion{font-size:10px;color:var(--text2);flex:1}
+/* Score de transe */
+.trance-panel{padding:6px 8px 8px}
+.trance-label{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:5px;font-weight:600;display:flex;justify-content:space-between}
+.trance-bar-wrap{height:8px;background:rgba(143,175,177,.15);border-radius:4px;overflow:hidden;margin-bottom:4px}
+.trance-fill{height:100%;border-radius:4px;transition:width .8s,background .8s;background:rgba(143,175,177,.3)}
+.trance-fill.light{background:var(--mer)}
+.trance-fill.medium{background:#6abf69}
+.trance-fill.deep{background:#4a9f69;box-shadow:0 0 8px rgba(74,159,105,.4)}
+.trance-state{font-size:9px;color:var(--text2);font-style:italic;text-align:center}
+/* Emotions mini-grid */
+.emo-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:0 8px 8px}
+.emo-row{display:flex;align-items:center;gap:4px}
+.emo-name{font-size:9px;color:var(--text2);width:46px;flex-shrink:0}
+.emo-mini-bar{flex:1;height:4px;background:rgba(143,175,177,.1);border-radius:2px;overflow:hidden}
+.emo-mini-fill{height:100%;border-radius:2px;transition:width .5s}
+.emo-pct{font-size:8px;color:var(--text2);width:24px;text-align:right}
+
+/* ═══ MODULE VAKOG SENSORIEL ═══ */
+.vakog-module{display:flex;flex-direction:column;gap:6px}
+.vakog-canal-btn{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:8px;border:1px solid rgba(143,175,177,.15);background:rgba(255,255,255,.03);cursor:pointer;transition:all .25s;font-size:10px;color:var(--text2);user-select:none}
+.vakog-canal-btn:hover{background:rgba(143,175,177,.08);border-color:rgba(143,175,177,.3)}
+.vakog-canal-btn.active{background:rgba(143,175,177,.15);border-color:var(--mer);color:var(--mer)}
+.vakog-canal-btn .vakog-icon{font-size:14px;flex-shrink:0}
+.vakog-canal-btn .vakog-label{flex:1;font-weight:500}
+.vakog-canal-btn .vakog-pct{font-size:9px;opacity:.6;font-style:italic}
+.vakog-sub{padding:6px;background:rgba(0,0,0,.15);border-radius:6px;display:none;flex-direction:column;gap:4px}
+.vakog-sub.open{display:flex}
+.vakog-sub-btn{font-size:9px;padding:4px 8px;border-radius:5px;border:1px solid rgba(143,175,177,.12);background:rgba(255,255,255,.03);color:var(--text2);cursor:pointer;transition:all .2s;text-align:left}
+.vakog-sub-btn:hover{background:rgba(143,175,177,.1);color:var(--text1)}
+.vakog-sub-btn.playing{background:rgba(143,175,177,.2);color:var(--mer);border-color:var(--mer)}
+.vakog-visual-overlay{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 1.5s}
+.vakog-kino-suggestion{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(20,30,28,.85);backdrop-filter:blur(8px);border:1px solid rgba(143,175,177,.2);border-radius:10px;padding:10px 16px;font-size:11px;color:rgba(200,208,195,.9);font-style:italic;text-align:center;max-width:320px;opacity:0;transition:opacity 1s;pointer-events:none;z-index:10}
+.vakog-kino-suggestion.show{opacity:1}
+
+</style>
+</head>
+<body>
+
+<!-- ═══════════ MODAL CONSENTEMENT RGPD / SÉCURITÉ ═══════════ -->
+<div class="modal-overlay" id="modal-consent" style="z-index:9999;background:rgba(0,0,0,.88)">
+  <div class="modal-box" style="max-width:560px;border:1px solid rgba(143,175,177,.3)">
+    <div class="modal-title" style="font-size:18px;margin-bottom:4px">🌿 Avant de commencer</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.7">Veuillez lire et accepter ces informations essentielles.</p>
+
+    <div style="background:rgba(143,175,177,.06);border:1px solid rgba(143,175,177,.18);border-radius:10px;padding:14px;margin-bottom:14px;font-size:11px;line-height:1.8;color:var(--text)">
+      <div style="font-weight:700;color:var(--mer);margin-bottom:8px;text-transform:uppercase;font-size:10px;letter-spacing:.8px">⚕️ Avertissements cliniques</div>
+      <ul style="margin:0;padding-left:18px;color:var(--text2)">
+        <li><strong>Cet outil n'est pas un dispositif médical.</strong> Il est destiné à des professionnels formés ou à des adultes en bonne santé.</li>
+        <li>Il n'est <strong>pas adapté</strong> en cas d'épilepsie, psychose, trouble bipolaire non stabilisé, schizophrénie, ou traitement psychiatrique lourd.</li>
+        <li>En cas de <strong>crise ou d'urgence</strong>, appelez le 15 (SAMU) ou le 3114 (suicide).</li>
+        <li>Les séances ne remplacent pas un suivi médical ou psychothérapeutique.</li>
+      </ul>
+    </div>
+
+    <div style="background:rgba(143,175,177,.06);border:1px solid rgba(143,175,177,.18);border-radius:10px;padding:14px;margin-bottom:16px;font-size:11px;line-height:1.8;color:var(--text)">
+      <div style="font-weight:700;color:var(--mer);margin-bottom:8px;text-transform:uppercase;font-size:10px;letter-spacing:.8px">🔒 Confidentialité & données</div>
+      <ul style="margin:0;padding-left:18px;color:var(--text2)">
+        <li>Les données (profil, séances, notes) sont stockées <strong>uniquement sur votre appareil</strong> (localStorage).</li>
+        <li>La caméra est utilisée pour l'analyse non-verbale en local — <strong>aucune image n'est transmise</strong>.</li>
+        <li>Les échanges sont envoyés à l'API IA pour génération des scripts. Aucun stockage permanent côté serveur.</li>
+        <li>Vous pouvez effacer toutes vos données à tout moment.</li>
+      </ul>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:11px;color:var(--text)">
+        <input type="checkbox" id="consent-ci" style="margin-top:2px;accent-color:var(--mer)">
+        <span>Je confirme ne pas souffrir d'épilepsie, psychose active, trouble bipolaire non stabilisé ou schizophrénie.</span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:11px;color:var(--text)">
+        <input type="checkbox" id="consent-rgpd" style="margin-top:2px;accent-color:var(--mer)">
+        <span>J'ai lu et j'accepte les conditions d'utilisation et la politique de confidentialité ci-dessus.</span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:11px;color:var(--text)">
+        <input type="checkbox" id="consent-adult" style="margin-top:2px;accent-color:var(--mer)">
+        <span>Je suis majeur(e) et j'utilise cet outil librement et en connaissance de cause.</span>
+      </label>
+    </div>
+
+    <div style="margin-top:18px;display:flex;gap:10px">
+      <button onclick="validateConsent()" style="flex:1;padding:12px;background:var(--mer);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s" id="btn-consent-ok">Accéder à Hypnose IA</button>
+    </div>
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="eraseAllData(true)" style="background:none;border:none;color:var(--text2);font-size:10px;cursor:pointer;text-decoration:underline">⚠️ Effacer toutes mes données et quitter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL CONTRE-INDICATION CRITIQUE ═══════════ -->
+<div class="modal-overlay" id="modal-ci-block" style="z-index:9998;background:rgba(207,106,106,.15);display:none">
+  <div class="modal-box" style="max-width:480px;border:2px solid rgba(207,106,106,.5)">
+    <div class="modal-title" style="color:#cf6a6a;font-size:18px">⛔ Contre-indication détectée</div>
+    <div id="ci-block-msg" style="font-size:13px;color:var(--text);line-height:1.8;margin:16px 0"></div>
+    <div style="background:rgba(207,106,106,.08);border-radius:8px;padding:12px;font-size:11px;color:var(--text2);margin-bottom:16px">
+      <strong>Ressources d'urgence :</strong><br>
+      🆘 SAMU : <strong>15</strong> &nbsp;|&nbsp; Pompiers : <strong>18</strong> &nbsp;|&nbsp; Crise suicidaire : <strong>3114</strong><br>
+      🧠 Psychiatre de garde : votre médecin traitant ou urgences psychiatriques
+    </div>
+    <button onclick="document.getElementById('modal-ci-block').style.display='none'" style="width:100%;padding:11px;background:rgba(207,106,106,.15);border:1px solid rgba(207,106,106,.4);color:#cf6a6a;border-radius:8px;cursor:pointer;font-size:12px">Je comprends — continuer quand même (déconseillé)</button>
+  </div>
+</div>
+
+<!-- ═══════════ ÉCRAN 1 — ACCUEIL ERICKSONIEN ═══════════ -->
+<div id="screen-accueil" class="screen active">
+  <header class="app-header">
+    <div class="app-logo">
+      <div class="logo-icon">🌀</div>
+      <div class="logo-text">
+        <h1>Hypnose Pro</h1>
+        <span>C Concept&Dev · Mode Therapeute — Notes cliniques visibles</span>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="btn-icon" onclick="openSettings()" title="Profil & Configuration">⚙️</button>
+    </div>
+  </header>
+
+  <div class="accueil-body">
+
+    <!-- Hero Ericksonien -->
+    <div class="hero-zone">
+      <div class="hero-spiral">
+        <svg viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+          <path d="M45,45 m0,-30 a30,30 0 1,1 0,60 a25,25 0 1,1 0,-50 a20,20 0 1,1 0,40 a15,15 0 1,1 0,-30 a10,10 0 1,1 0,20 a5,5 0 1,1 0,-10" fill="none" stroke="#8FAFB1" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+        </svg>
+      </div>
+      <div class="hero-greeting">Bonjour<strong id="hero-prenom-disp"></strong></div>
+      <div class="hero-quote" id="hero-quote">"La transe est une expérience naturelle de la vie quotidienne."</div>
+      <div class="hero-quote-attr">— Milton H. Erickson</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="stats-zone" style="display:none">
+      <div class="stat-card"><div class="stat-num" id="st-total">0</div><div class="stat-label">Séances totales</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-streak">0</div><div class="stat-label">Jours consécutifs</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-depth">—</div><div class="stat-label">Profondeur moy.</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-time">0'</div><div class="stat-label">Temps total</div></div>
+    </div>
+
+    <!-- Session en cours (si session récupérée) -->
+    <div class="session-banner" id="session-banner">
+      <div class="sb-title">Session précédente disponible</div>
+      <div class="sb-content" id="sb-content"></div>
+    </div>
+
+    <!-- CTA principal -->
+    <div class="cta-zone">
+      <button class="btn-cta-main" onclick="goToEntretienDirect()">
+        Commencer ma séance →
+      </button>
+      <div class="cta-hint">L'entretien commence ici. Laissez-vous guider.</div>
+    </div>
+
+    <!-- Actions secondaires -->
+    <div class="actions-zone">
+      <button class="btn-action" onclick="openHistorique()">
+        <span class="act-icon">📋</span>
+        <span class="act-label">Historique</span>
+        <span class="act-desc">Vos séances précédentes</span>
+      </button>
+      <button class="btn-action" onclick="openImportExport()">
+        <span class="act-icon">🔄</span>
+        <span class="act-label">Reprendre / Exporter</span>
+        <span class="act-desc">Charger ou télécharger votre dossier</span>
+      </button>
+      <button class="btn-action" onclick="openSettings()">
+        <span class="act-icon">⚙️</span>
+        <span class="act-label">Profil & Voix</span>
+        <span class="act-desc">Votre profil et préférences audio</span>
+      </button>
+      <button class="btn-action" onclick="openCollege()">
+        <span class="act-icon">🎓</span>
+        <span class="act-label">Collège d'experts</span>
+        <span class="act-desc">Qui travaille pour vous</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════ ÉCRAN 2 — ENTRETIEN CLINIQUE ═══════════ -->
+<div id="screen-entretien" class="screen">
+  <div class="entretien-header">
+    <div class="entretien-protocol-info">
+      <span class="entretien-emoji" id="ent-emoji">🌊</span>
+      <span class="entretien-name" id="ent-name">Anxiété</span>
+      <span class="entretien-seance-badge" id="ent-seance-badge">Séance 1/6</span>
+    </div>
+    <span class="entretien-phase-label" id="ent-phase-label">ACCUEIL</span>
+    <span class="entretien-timer" id="ent-timer">00:00</span>
+    <button class="btn-end-entretien" onclick="goToSeanceHypno()">→ Commencer l'hypnose</button>
+  </div>
+
+  <div class="entretien-body">
+
+    <!-- Sidebar clinique -->
+    <div class="entretien-sidebar">
+
+      <div class="sidebar-block">
+        <div class="sidebar-title">Phases entretien</div>
+        <div class="phases-list" id="phases-list">
+          <div class="phase-item active" data-phase="0"><div class="phase-dot"></div>Accueil & alliance</div>
+          <div class="phase-item" data-phase="1"><div class="phase-dot"></div>Exploration</div>
+          <div class="phase-item" data-phase="2"><div class="phase-dot"></div>Anamnèse hypnotique</div>
+          <div class="phase-item" data-phase="3"><div class="phase-dot"></div>Formulation</div>
+          <div class="phase-item" data-phase="4"><div class="phase-dot"></div>Protocole & plan</div>
+          <div class="phase-item" data-phase="5"><div class="phase-dot"></div>Calibration</div>
+        </div>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-title">Signaux cliniques</div>
+        <div class="signal-row"><span class="signal-label">Anxiété perçue</span><span class="signal-val" id="sig-anx">—</span></div>
+        <div class="signal-bar"><div class="signal-fill anx" id="sig-anx-bar" style="width:0%"></div></div>
+        <div class="signal-row"><span class="signal-label">Motivation</span><span class="signal-val" id="sig-mot">—</span></div>
+        <div class="signal-bar"><div class="signal-fill mot" id="sig-mot-bar" style="width:0%"></div></div>
+        <div class="signal-row"><span class="signal-label">Suggestibilité est.</span><span class="signal-val" id="sig-sug">—</span></div>
+        <div class="signal-bar"><div class="signal-fill mot" id="sig-sug-bar" style="width:0%"></div></div>
+        <div class="signal-row" style="margin-top:8px"><span class="signal-label" style="font-weight:600;color:var(--mer)">Canal VAKOG</span><span class="signal-val" id="sig-vakog-dom">—</span></div>
+        <div class="signal-row"><span class="signal-label">👁 Visuel</span><span class="signal-val" id="sig-v">—</span></div>
+        <div class="signal-bar"><div class="signal-fill" id="sig-v-bar" style="width:0%;background:#8FAFB1"></div></div>
+        <div class="signal-row"><span class="signal-label">👂 Auditif</span><span class="signal-val" id="sig-a">—</span></div>
+        <div class="signal-bar"><div class="signal-fill" id="sig-a-bar" style="width:0%;background:#C8A46E"></div></div>
+        <div class="signal-row"><span class="signal-label">🤲 Kinesthésique</span><span class="signal-val" id="sig-k">—</span></div>
+        <div class="signal-bar"><div class="signal-fill" id="sig-k-bar" style="width:0%;background:#6abf69"></div></div>
+        <div class="signal-row"><span class="signal-label">👃 Olfactif/Gust.</span><span class="signal-val" id="sig-og">—</span></div>
+        <div class="signal-bar"><div class="signal-fill" id="sig-og-bar" style="width:0%;background:#cf9f6a"></div></div>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-title">Profil émergent</div>
+        <div class="profil-tags" id="profil-tags">
+          <span class="profil-tag">En construction...</span>
+        </div>
+      </div>
+
+
+      <div class="sidebar-block" id="cam-entretien-block">
+        <div class="sidebar-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📷 Lecture non-verbale</span>
+          <button onclick="toggleCamEntretien()" id="btn-cam-e-toggle" style="font-size:9px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:var(--fond);cursor:pointer;color:var(--text2)">Activer</button>
+        </div>
+        <div id="cam-e-placeholder" style="background:rgba(0,0,0,.15);border-radius:8px;padding:12px;text-align:center;font-size:10px;color:var(--text2);margin-top:6px;cursor:pointer" onclick="toggleCamEntretien()">
+          <div style="font-size:18px;margin-bottom:4px">📷</div>
+          Analyse mimiques &amp; non-verbal
+        </div>
+        <video id="face-video-e" autoplay muted playsinline style="display:none;width:100%;border-radius:8px;margin-top:6px;max-height:90px;object-fit:cover"></video>
+        <div id="emo-e-row" style="display:none;margin-top:5px">
+          <div style="font-size:9px;color:var(--mer);font-weight:500" id="emo-e-label">Calibration...</div>
+          <div id="emo-e-grid" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-block" id="rag-catalog-block">
+        <div class="sidebar-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📚 Bibliothèque hypnose</span>
+          <span id="rag-catalog-status" style="font-size:9px;color:var(--mer)">…</span>
+        </div>
+        <div id="rag-catalog-info" style="margin-top:4px">
+          <div style="font-size:9px;color:var(--text2);font-style:italic">Chargement catalogue…</div>
+        </div>
+      </div>
+
+      <div class="sidebar-block" id="rag-catalog-block-e">
+        <div class="sidebar-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📚 Bibliothèque hypnose</span>
+          <span id="rag-catalog-status-e" style="font-size:9px;color:var(--mer)">…</span>
+        </div>
+        <div id="rag-catalog-info-e" style="margin-top:4px">
+          <div style="font-size:9px;color:var(--text2);font-style:italic">Chargement catalogue…</div>
+        </div>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-title">Collège actif</div>
+        <div id="college-consulting" style="display:none;font-size:9px;color:var(--mer);margin-bottom:6px;font-style:italic">⏳ Consultation en cours...</div>
+        <div class="expert-display" id="expert-display">
+          <span class="expert-name">En attente de l'entretien...</span>
+        </div>
+        <div id="college-technique" style="display:none;margin-top:8px;padding:8px;background:rgba(143,175,177,.08);border-radius:6px;border-left:2px solid var(--mer)">
+          <div style="font-size:9px;font-weight:600;color:var(--mer);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Technique recommandée</div>
+          <div id="college-technique-name" style="font-size:11px;font-weight:600;color:var(--text1);margin-bottom:3px"></div>
+          <div id="college-technique-why" style="font-size:10px;color:var(--text2);line-height:1.4;font-style:italic"></div>
+        </div>
+      </div>
+
+      <button class="btn-go-induction" id="btn-go-induction" onclick="goToSeanceHypno()">
+        🌀 Passer à l'induction →
+      </button>
+    </div>
+
+    <!-- Chat entretien -->
+    <div class="entretien-main">
+      <div class="entretien-chat" id="entretien-chat"></div>
+      <div class="entretien-input">
+        <div style="flex:1;position:relative">
+          <textarea class="entretien-textarea" id="entretien-ta"
+            placeholder="Parlez — envoi automatique après 2,5s de silence" rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendEntretienMsg()}"
+            oninput="autoResize(this);resetVADTimer()"></textarea>
+          <div id="vad-indicator" style="position:absolute;bottom:5px;right:8px;font-size:9px;color:var(--mer);opacity:0;transition:opacity .4s;pointer-events:none">⏳ envoi...</div>
+        </div>
+        <button class="btn-mic-e" id="btn-mic-e" onclick="toggleMicE()" title="Micro (auto-envoi après silence)">🎤</button>
+        <button class="btn-send-e" onclick="sendEntretienMsg()" title="Envoyer">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ ÉCRAN 3 — SÉANCE HYPNOTIQUE ═══════════ -->
+<div id="screen-seance" class="screen">
+  <div class="seance-header">
+    <span class="sh-proto" id="sh-proto">Anxiété · S1</span>
+    <span class="badge-phase" id="sh-phase">INDUCTION</span>
+    <span class="badge-depth" id="sh-depth">Éveil</span>
+    <span class="sh-timer" id="sh-timer">00:00</span>
+    <button class="btn-exit" onclick="confirmExit()">⏹ Terminer</button>
+  </div>
+
+  <div class="seance-body">
+    <div class="seance-ctrl">
+
+      <div class="ctrl-block">
+        <div class="ctrl-title">Profondeur de transe</div>
+        <div class="depth-lbl"><span>Éveil</span><span id="depth-num">0</span><span>Profond</span></div>
+        <div class="depth-bar" onclick="setDepthClick(event,this)"><div class="depth-fill" id="depth-fill" style="width:0%"></div></div>
+        <div class="depth-text" id="depth-text">Éveil normal</div>
+        <div class="depth-manual">
+          <button class="depth-btn" onclick="adjDepth(-1)">− Moins</button>
+          <button class="depth-btn" onclick="adjDepth(1)">+ Plus</button>
+        </div>
+      </div>
+
+      <div class="ctrl-block">
+        <div class="ctrl-title">Phase</div>
+        <div class="phase-grid">
+          <button class="phase-btn active" data-p="prep" onclick="setPhase('prep',this)">Prépa</button>
+          <button class="phase-btn" data-p="induction" onclick="setPhase('induction',this)">Induction</button>
+          <button class="phase-btn" data-p="deepening" onclick="setPhase('deepening',this)">Approfond.</button>
+          <button class="phase-btn" data-p="work" onclick="setPhase('work',this)">Travail</button>
+          <button class="phase-btn" data-p="return" onclick="setPhase('return',this)">Retour</button>
+          <button class="phase-btn" data-p="anchor" onclick="setPhase('anchor',this)">Ancrage</button>
+        </div>
+      </div>
+
+      <div class="ctrl-block">
+        <div class="ctrl-title">Expert actif</div>
+        <div class="expert-display" id="expert-seance">—</div>
+      </div>
+
+      <div class="ctrl-block" style="padding:0">
+        <div class="ctrl-title" style="padding:10px 12px 6px;display:flex;justify-content:space-between;align-items:center">
+          <span>📷 Caméra — Calibration</span>
+          <button onclick="toggleCamera()" id="btn-cam-toggle" style="font-size:9px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:var(--fond);cursor:pointer;color:var(--text2)">Activer</button>
+        </div>
+        <div class="cam-panel">
+          <div id="cam-placeholder" class="cam-placeholder" onclick="startCamera()">
+            <span class="cam-icon">📷</span>
+            <span>Cliquer pour activer la caméra</span>
+            <span style="font-size:9px;opacity:.6">Analyse faciale temps réel</span>
+          </div>
+          <video id="face-video" autoplay muted playsinline></video>
+          <div class="cam-status-row">
+            <div class="face-dot" id="face-dot"></div>
+            <div class="face-emotion" id="face-emotion">En attente...</div>
+          </div>
+          <div class="trance-panel" id="trance-panel" style="display:none">
+            <div class="trance-label">
+              <span>État hypnotique</span>
+              <span id="trance-pct">0%</span>
+            </div>
+            <div class="trance-bar-wrap"><div class="trance-fill" id="trance-fill" style="width:0%"></div></div>
+            <div class="trance-state" id="trance-state">—</div>
+          </div>
+          <div class="emo-grid" id="emo-grid" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="ctrl-block">
+        <div class="ctrl-title">Flux audio</div>
+        <div class="audio-status"><div class="audio-dot" id="audio-dot"></div><span id="audio-txt">Silence</span></div>
+        <div class="binaural-row">
+          <span style="font-size:9px;color:rgba(168,176,170,.6)">Binaurale θ</span>
+          <div class="toggle-sw on" id="binaural-sw" onclick="toggleBinaural(this)"></div>
+        </div>
+        <div class="binaural-freq" id="bin-freq">200 Hz / 206 Hz — 6 Hz θ</div>
+      </div>
+
+
+      <div class="ctrl-block">
+        <div class="ctrl-title">VAKOG sensoriel</div>
+        <div class="vakog-module" id="vakog-module">
+          <!-- Visuel -->
+          <div class="vakog-canal-btn" id="vakog-v-btn" onclick="toggleVakogCanal('v')">
+            <span class="vakog-icon">👁</span>
+            <span class="vakog-label">Visuel</span>
+            <span class="vakog-pct" id="vakog-v-pct">—</span>
+          </div>
+          <div class="vakog-sub" id="vakog-v-sub">
+            <button class="vakog-sub-btn" onclick="triggerVisual('spiral-color')">🌀 Spiral colorée adaptative</button>
+            <button class="vakog-sub-btn" onclick="triggerVisual('breath-circle')">⭕ Cercle respiratoire</button>
+            <button class="vakog-sub-btn" onclick="triggerVisual('light-pulse')">✨ Pulsation lumineuse</button>
+          </div>
+          <!-- Auditif -->
+          <div class="vakog-canal-btn" id="vakog-a-btn" onclick="toggleVakogCanal('a')">
+            <span class="vakog-icon">👂</span>
+            <span class="vakog-label">Auditif</span>
+            <span class="vakog-pct" id="vakog-a-pct">—</span>
+          </div>
+          <div class="vakog-sub" id="vakog-a-sub">
+            <button class="vakog-sub-btn" id="snd-rain" onclick="playHypnoSound('rain')">🌧 Pluie douce</button>
+            <button class="vakog-sub-btn" id="snd-bowl" onclick="playHypnoSound('bowl')">🔔 Bol tibétain</button>
+            <button class="vakog-sub-btn" id="snd-ocean" onclick="playHypnoSound('ocean')">🌊 Vagues océan</button>
+            <button class="vakog-sub-btn" id="snd-forest" onclick="playHypnoSound('forest')">🌿 Forêt</button>
+            <button class="vakog-sub-btn" id="snd-fire" onclick="playHypnoSound('fire')">🔥 Feu crépitant</button>
+            <button class="vakog-sub-btn" id="snd-stop" onclick="stopHypnoSound()" style="color:rgba(200,80,80,.8)">⏹ Arrêter</button>
+          </div>
+          <!-- Kinesthésique -->
+          <div class="vakog-canal-btn" id="vakog-k-btn" onclick="toggleVakogCanal('k')">
+            <span class="vakg-icon">🤲</span>
+            <span class="vakog-label">Kinesthésique</span>
+            <span class="vakog-pct" id="vakog-k-pct">—</span>
+          </div>
+          <div class="vakog-sub" id="vakog-k-sub">
+            <button class="vakog-sub-btn" onclick="injectKino('mains')">🤲 Mains sur cuisses</button>
+            <button class="vakog-sub-btn" onclick="injectKino('respiration')">💨 Respiration abdominale</button>
+            <button class="vakog-sub-btn" onclick="injectKino('lourdeur')">⬇️ Lourdeur membres</button>
+            <button class="vakog-sub-btn" onclick="injectKino('chaleur')">🌡 Chaleur dans le corps</button>
+            <button class="vakog-sub-btn" onclick="injectKino('gravite')">🌍 Gravité agréable</button>
+            <button class="vakog-sub-btn" onclick="injectKino('flottement')">🫧 Flottement léger</button>
+          </div>
+          <!-- Olfactif -->
+          <div class="vakog-canal-btn" id="vakog-og-btn" onclick="toggleVakogCanal('og')">
+            <span class="vakog-icon">👃</span>
+            <span class="vakog-label">Olfactif / Gustatif</span>
+            <span class="vakog-pct" id="vakog-og-pct">—</span>
+          </div>
+          <div class="vakog-sub" id="vakog-og-sub">
+            <button class="vakog-sub-btn" onclick="injectOlfactif('lavande')">💜 Lavande apaisante</button>
+            <button class="vakog-sub-btn" onclick="injectOlfactif('ocean')">🌊 Embruns marins</button>
+            <button class="vakog-sub-btn" onclick="injectOlfactif('foret')">🌲 Résine de pin</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctrl-block">
+        <div class="ctrl-title">Scripts rapides</div>
+        <div class="quick-list" id="quick-list"></div>
+      </div>
+
+    </div>
+
+    <div class="seance-main">
+      <div class="hypno-zone">
+        <canvas id="hypnoCanvas" width="600" height="260"></canvas>
+        <div class="hypno-overlay" id="hypno-overlay">Installez-vous confortablement...</div>
+      </div>
+      <div class="seance-chat" id="seance-chat"></div>
+      <div class="seance-input-zone">
+        <textarea class="seance-ta" id="seance-ta" placeholder="Répondez ici ou parlez..." rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendSeanceMsg()}"
+          oninput="autoResize(this)"></textarea>
+        <button class="btn-mic-s" id="btn-mic-s" onclick="toggleMicS()">🎤</button>
+        <button class="btn-send-s" onclick="sendSeanceMsg()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ ÉCRAN 4 — POST-SÉANCE ═══════════ -->
+<div id="screen-post" class="screen">
+  <div class="post-card">
+    <div class="post-title">Séance terminée ✨</div>
+    <div class="post-sub" id="post-sub">Prenez un moment pour noter votre ressenti.</div>
+    <div class="scales-grid">
+      <div class="scale-group">
+        <div class="form-label">Bien-être ressenti</div>
+        <div class="scale-num" id="v-bienetre">7</div>
+        <input type="range" min="0" max="10" value="7" id="sl-bienetre" oninput="document.getElementById('v-bienetre').textContent=this.value">
+      </div>
+      <div class="scale-group">
+        <div class="form-label">Profondeur atteinte</div>
+        <div class="scale-num" id="v-profondeur">5</div>
+        <input type="range" min="0" max="10" value="5" id="sl-profondeur" oninput="document.getElementById('v-profondeur').textContent=this.value">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="form-label" style="margin-bottom:7px">Suggestions post-hypnotiques</div>
+      <div class="sugg-tags" id="sugg-tags"></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="form-label" style="margin-bottom:7px">Notes libres</div>
+      <textarea class="post-ta" id="post-notes" placeholder="Impressions, images, sensations..."></textarea>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="form-label" style="margin-bottom:7px">Ce que je veux explorer la prochaine fois</div>
+      <textarea class="post-ta" id="post-intention" placeholder="Intention pour la prochaine séance..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn-secondary" onclick="exportSessionJSON()" style="flex:1">📥 Télécharger JSON</button>
+      <button class="btn-primary" onclick="saveAndClose()" style="flex:1">Enregistrer & Accueil →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODALS ═══════════ -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal-box" style="max-width:580px">
+    <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    <div class="modal-title">⚙️ Profil & Configuration</div>
+
+    <div class="form-group" style="margin-bottom:18px">
+      <label class="form-label">Contre-indications médicales</label>
+      <input class="form-input" id="cfg-ci" placeholder="Épilepsie, psychose, bipolarité... (vide si aucune)">
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+      <div class="form-label" style="margin-bottom:12px">🎙️ Voix hypnotique</div>
+
+      <div style="margin-bottom:10px">
+        <div class="form-label" style="font-size:9px;margin-bottom:6px;color:rgba(107,122,119,.7)">GOOGLE CLOUD TTS (Neural2 · Chirp3 HD)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="voice-google-grid"></div>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div class="form-label" style="font-size:9px;margin-bottom:6px;color:rgba(107,122,119,.7)">OPENAI TTS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="voice-openai-grid"></div>
+      </div>
+
+      <div>
+        <div class="form-label" style="font-size:9px;margin-bottom:6px;color:rgba(107,122,119,.7)">NAVIGATEUR</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:6px" id="voice-web-grid"></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;border-top:1px solid var(--border);padding-top:16px">
+      <div class="form-group">
+        <label class="form-label">Worker Cloudflare (Anthropic)</label>
+        <input class="form-input" id="cfg-worker" placeholder="https://clone-proxy.xxx.workers.dev/">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vitesse TTS (0.5–1.0)</label>
+        <input class="form-input" id="cfg-speed" type="number" step="0.05" min="0.5" max="1.0" value="1.0">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn-secondary" onclick="closeModal('modal-settings')" style="flex:1">Annuler</button>
+      <button class="btn-primary" onclick="saveSettings()" style="flex:1">Enregistrer</button>
+    </div>
+    <div style="text-align:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(143,175,177,.15)">
+      <button onclick="eraseAllData(false)" style="background:none;border:none;color:#cf6a6a;font-size:10px;cursor:pointer;text-decoration:underline">🗑️ Effacer toutes mes données (irréversible)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import/Export explicite (style V7) -->
+<div class="modal-overlay" id="modal-importexport">
+  <div class="modal-box" style="max-width:540px">
+    <button class="modal-close" onclick="closeModal('modal-importexport')">✕</button>
+    <div class="modal-title">🔄 Reprendre / Exporter</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <!-- IMPORT -->
+      <div style="background:var(--fond);border:1px solid var(--border);border-radius:12px;padding:18px">
+        <div style="font-size:22px;margin-bottom:8px">📤</div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">Reprendre une session</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.5">Chargez un fichier JSON exporté pour retrouver votre dossier complet : profil, historique, progression.</div>
+        <label style="display:block;padding:11px;border:1.5px dashed var(--border);border-radius:9px;text-align:center;cursor:pointer;font-size:12px;color:var(--text2);transition:all .2s" onmouseover="this.style.borderColor='var(--mer)'" onmouseout="this.style.borderColor='var(--border)'">
+          Choisir le fichier .json
+          <input type="file" accept=".json" style="display:none" onchange="importSessionJSON(this)">
+        </label>
+        <div id="import-status" style="font-size:10px;color:var(--success);margin-top:8px;min-height:14px"></div>
+      </div>
+
+      <!-- EXPORT -->
+      <div style="background:var(--fond);border:1px solid var(--border);border-radius:12px;padding:18px">
+        <div style="font-size:22px;margin-bottom:8px">📥</div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">Exporter mon dossier</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.5">Téléchargez votre dossier complet (toutes séances + profil) pour le conserver ou le partager avec votre thérapeute.</div>
+        <button class="btn-primary" onclick="exportAllJSON()" style="width:100%;padding:11px;font-size:13px;margin-bottom:8px">
+          📥 Télécharger tout le dossier
+        </button>
+        <div id="export-status" style="font-size:10px;color:var(--text2);min-height:14px" id="export-info"></div>
+      </div>
+    </div>
+
+    <!-- Résumé dossier actuel -->
+    <div style="margin-top:16px;padding:14px;background:rgba(143,175,177,.07);border:1px solid rgba(143,175,177,.2);border-radius:10px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:8px;font-weight:600">Dossier en mémoire locale</div>
+      <div id="dossier-resume" style="font-size:12px;color:var(--text);line-height:1.7"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Collège d'experts modal -->
+<div class="modal-overlay" id="modal-college">
+  <div class="modal-box" style="max-width:640px">
+    <button class="modal-close" onclick="closeModal('modal-college')">✕</button>
+    <div class="modal-title">🎓 Collège Mondial d'Experts</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.6">Ces experts travaillent en silence. L'IA synthétise leur savoir — une seule voix au patient.</p>
+    <div id="college-list" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════
+   VARIANT CONFIG + NOYAU
+═══════════════════════════════════════════════ -->
+<script>
+// ═══ VARIANT CONFIG — PRO (mode thérapeute) ═══
+window.VARIANT = {
+  mode: 'pro',
+  model: 'claude-sonnet-4-20250514',
+  skipEntretien: false,
+  showClinical: true,
+  maxExchanges: 15,
+  autoTransition: false,
+  vakogEnabled: true,
+  binauralEnabled: true,
+  cameraEnabled: true,
+  label: 'Hypnose IA v3 — Pro (Thérapeute)',
+  // Web-Consult — complet en mode Pro
+  webConsultEnabled: true,
+  webConsultDomain: 'hypnosis',
+  webConsultSources: ['pubmed', 'scholar', 'cairn'],
+  webConsultAutoTrigger: true,
+  webConsultManualTrigger: true
+};
+</script>
+<script src="hypnose-core.js"></script>
+
+<div id="vakog-visual-overlay" class="vakog-visual-overlay"></div>
+<div id="vakog-kino-txt" class="vakog-kino-suggestion"></div>
+</body>
+</html>
