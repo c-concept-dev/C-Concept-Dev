@@ -29,7 +29,7 @@ if (!window.CLONE_VARIANT) window.CLONE_VARIANT = {
     // Web-Consult (léger — usage ponctuel)
     webConsultEnabled: false,
     webConsultDomain: 'psychology',
-    webConsultSources: ['pubmed', 'scholar']
+    webConsultSources: ['pubmed', 'scholar', 'google_scholar']
 };
 
 // ============================================================================
@@ -13288,7 +13288,7 @@ async function cloneWebConsult(query) {
       body: JSON.stringify({
         query: query.trim().substring(0, 250),
         domain: window.CLONE_VARIANT.webConsultDomain || 'psychology',
-        sources: window.CLONE_VARIANT.webConsultSources || ['pubmed', 'scholar'],
+        sources: window.CLONE_VARIANT.webConsultSources || ['pubmed', 'scholar', 'google_scholar'],
         language: 'en',
         max_results: 3,
         caller: 'clone-interview'
