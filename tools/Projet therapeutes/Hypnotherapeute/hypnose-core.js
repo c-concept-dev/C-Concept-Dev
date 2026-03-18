@@ -272,6 +272,10 @@ const S = {
   // Résistance détectée pendant séance
   resistanceSignals: [],
   isGenerating: false,
+  // Web-Consult cache (1 appel par session)
+  _webConsultDone: false,
+  _webConsultResults: null,
+  _webConsultTrigger: null,
 };
 
 // ═══════════════════════════════════════════════
@@ -1863,10 +1867,19 @@ async function generateHypnoScript(userInput) {
     let webContext = '';
     if (window.VARIANT.webConsultEnabled) {
       const trigger = detectRareCaseTrigger(userInput, p);
-      if (trigger) {
+      if (trigger && !S._webConsultDone) {
         console.log(`[WebConsult] 🔍 Trigger détecté: ${trigger}`);
-        const webResults = await webConsult(userInput, 'hypnosis');
+        const clinicalQuery = buildClinicalQuery(trigger, userInput, p);
+        console.log(`[WebConsult] 🔬 Query clinique: "${clinicalQuery}"`);
+        const webResults = await webConsult(clinicalQuery, 'hypnosis');
         webContext = buildWebConsultContext(webResults);
+        // Cache : ne pas re-déclencher pour le même patient/session
+        S._webConsultDone = true;
+        S._webConsultResults = webResults;
+        S._webConsultTrigger = trigger;
+      } else if (S._webConsultDone && S._webConsultResults) {
+        // Réutiliser le résultat déjà obtenu
+        webContext = buildWebConsultContext(S._webConsultResults);
       }
     }
 
@@ -2493,6 +2506,74 @@ function buildWebConsultContext(results) {
   }
   ctx += `(${results.meta?.returned || 0} résultats sur ${results.meta?.total_found || 0} trouvés — ${results.meta?.sources_consulted?.join(', ') || '?'})\n`;
   return ctx;
+}
+
+// ── Transformation du trigger patient → requête clinique PubMed/Scholar ──
+// Le patient dit "j'ai peur d'avaler" → PubMed cherche "phagophobia hypnotherapy swallowing fear"
+function buildClinicalQuery(trigger, userInput, protocol) {
+  const input = (userInput || '').toLowerCase();
+
+  // Mapping explicite : pattern patient → termes cliniques internationaux
+  const CLINICAL_TERMS = {
+    // Phobies rares
+    'avaler':        'phagophobia swallowing fear hypnotherapy treatment',
+    'phagophobi':    'phagophobia hypnosis treatment protocol',
+    'emetophobi':    'emetophobia vomiting phobia hypnotherapy',
+    'vomit':         'emetophobia vomiting phobia hypnosis',
+    'ereutophobi':   'erythrophobia blushing fear hypnosis treatment',
+    'rougir':        'erythrophobia blushing phobia hypnotherapy',
+    'tokophobi':     'tokophobia childbirth fear hypnosis',
+    'trypanophobi':  'trypanophobia needle phobia hypnosis treatment',
+    'atychiphobi':   'atychiphobia failure fear hypnotherapy',
+    'glossophobi':   'glossophobia public speaking fear hypnosis',
+
+    // Pathologies médicales
+    'fibromyalgi':   'fibromyalgia hypnosis pain management systematic review',
+    'acouph':        'tinnitus hypnosis hypnotherapy treatment',
+    'bruxism':       'bruxism hypnosis relaxation treatment',
+    'douleur neuropathique': 'neuropathic pain hypnosis hypnotherapy',
+    'dysphagi':      'psychogenic dysphagia hypnotherapy',
+    'dyspraxie':     'dyspraxia relaxation hypnosis',
+    'intestin irritable': 'irritable bowel syndrome hypnotherapy',
+
+    // Contextes médicaux
+    'cancer':        'cancer hypnosis supportive care nausea pain',
+    'chimioth':      'chemotherapy anticipatory nausea hypnosis treatment',
+    'dialyse':       'dialysis anxiety hypnosis relaxation',
+    'sclerose':      'multiple sclerosis hypnosis pain fatigue',
+    'parkinson':     'parkinson tremor hypnosis relaxation',
+    'alzheimer':     'dementia anxiety hypnosis caregiver',
+    'epilepsi':      'epilepsy hypnosis safety contraindication',
+    'greffe':        'organ transplant anxiety hypnosis preparation',
+    'transplant':    'transplant anxiety hypnosis preparation',
+    'amputation':    'phantom limb pain hypnosis treatment',
+    'avc':           'stroke rehabilitation hypnosis recovery',
+
+    // Techniques inconnues
+    'havening':      'havening techniques amygdala depotentiation evidence',
+    'brainspotting': 'brainspotting therapy trauma evidence review',
+    'psych-k':       'PSYCH-K belief change evidence review',
+    'hypnose quantique': 'quantum hypnosis evidence scientific review',
+    'hypnose regressive': 'regression hypnotherapy past life evidence',
+    'somatic experiencing': 'somatic experiencing hypnosis integration',
+    'neurofeedback':  'neurofeedback hypnosis combined treatment',
+    'coherence cardiaque': 'heart rate variability biofeedback hypnosis',
+  };
+
+  // Chercher le meilleur match dans le mapping
+  for (const [pattern, clinicalTerms] of Object.entries(CLINICAL_TERMS)) {
+    if (input.includes(pattern)) {
+      return clinicalTerms;
+    }
+  }
+
+  // Fallback : extraire les mots-clés significatifs + ajouter "hypnosis treatment"
+  const stopwords = new Set(['depuis','mois','arrive','plus','commencé','après','maintenant','même','fait','peur','suis','dans','avec','pour','perdu','kilos','restaurant']);
+  const words = input.match(/\b[a-zàâäéèêëîïôùûüç]{4,}\b/g) || [];
+  const meaningful = words.filter(w => !stopwords.has(w)).slice(0, 4);
+  const protocolTerm = protocol?.id ? protocol.id.replace('anxiete', 'anxiety').replace('douleur', 'pain').replace('sommeil', 'insomnia').replace('confiance', 'confidence') : '';
+
+  return (meaningful.join(' ') + ' hypnosis ' + protocolTerm).trim();
 }
 
 // ── Détection automatique de cas rare (trigger web-consult) ──
