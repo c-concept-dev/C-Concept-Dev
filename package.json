@@ -5,7 +5,9 @@
   "main": "generate-index.js",
   "scripts": {
     "generate": "node generate-index.js",
-    "build": "node generate-index.js"
+    "build": "node generate-index.js",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   },
   "keywords": [
     "c-concept-dev",
@@ -19,5 +21,8 @@
   "license": "Proprietary",
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.75.0"
   }
 }
