@@ -1651,7 +1651,7 @@
         // Web-Consult — enrichissement profil atypique
         webConsultEnabled: true,
         webConsultDomain: 'psychology',
-        webConsultSources: ['pubmed', 'scholar']
+        webConsultSources: ['pubmed', 'scholar', 'google_scholar']
     };
     </script>
     
@@ -15278,7 +15278,7 @@ async function cloneWebConsult(query) {
       body: JSON.stringify({
         query: query.trim().substring(0, 250),
         domain: window.CLONE_VARIANT.webConsultDomain || 'psychology',
-        sources: window.CLONE_VARIANT.webConsultSources || ['pubmed', 'scholar'],
+        sources: window.CLONE_VARIANT.webConsultSources || ['pubmed', 'scholar', 'google_scholar'],
         language: 'en',
         max_results: 3,
         caller: 'clone-interview-pro'
