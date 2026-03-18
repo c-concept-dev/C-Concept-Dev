@@ -57154,6 +57154,138 @@ async function searchSemanticScholar(query, language, maxResults) {
 }
 __name(searchSemanticScholar, "searchSemanticScholar");
 
+async function searchGoogleScholar(query, language, maxResults, env2) {
+  try {
+    const apiKey = env2?.SERPAPI_KEY;
+    if (!apiKey) { console.warn('[WebConsult] SERPAPI_KEY not configured'); return []; }
+    const lang = language === 'fr' ? 'fr' : 'en';
+    const url = 'https://serpapi.com/search.json?' +
+      'engine=google_scholar' +
+      '&q=' + encodeURIComponent(query) +
+      '&hl=' + lang +
+      '&num=' + (maxResults || 5) +
+      '&api_key=' + apiKey;
+    const resp = await fetch(url);
+    if (!resp.ok) { console.warn('[WebConsult] SerpApi HTTP', resp.status); return []; }
+    const data = await resp.json();
+    return (data.organic_results || []).map(r => {
+      const titleLower = (r.title || '').toLowerCase();
+      const snippet = r.snippet || r.publication_info?.summary || r.title || '';
+      const year = r.publication_info?.summary?.match(/(\d{4})/)?.[1] || '';
+      const cited = r.inline_links?.cited_by?.total || 0;
+      const link = r.link || r.resources?.[0]?.link || '';
+      return {
+        title: r.title || '',
+        source: 'Google Scholar',
+        url: link,
+        snippet: snippet.substring(0, 400),
+        date: year,
+        language: lang,
+        isPeerReviewed: !!year && cited > 0,
+        isMeta: titleLower.includes('meta-analy') || titleLower.includes('systematic review'),
+        isGuideline: titleLower.includes('guideline') || titleLower.includes('recommandation'),
+        isCaseStudy: titleLower.includes('case report') || titleLower.includes('case study'),
+        isTextbook: titleLower.includes('handbook') || titleLower.includes('textbook'),
+        type: 'article',
+        citationCount: cited,
+        doi: null
+      };
+    });
+  } catch (e) {
+    console.error('[WebConsult] Google Scholar error:', e.message);
+    return [];
+  }
+}
+__name(searchGoogleScholar, "searchGoogleScholar");
+
+async function searchCairn(query, language, maxResults) {
+  try {
+    const searchUrl = 'https://www.cairn.info/resultats_recherche.php?searchTerm=' + encodeURIComponent(query);
+    const resp = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CConceptDev-WebConsult/1.0)',
+        'Accept': 'text/html',
+        'Accept-Language': 'fr-FR,fr;q=0.9'
+      }
+    });
+    if (!resp.ok) { console.warn('[WebConsult] Cairn HTTP', resp.status); return []; }
+    const html = await resp.text();
+    const results = [];
+    // Parser les résultats Cairn — structure HTML : div.result-item ou article
+    // Cairn utilise des blocs avec titre h2/h3, auteur, revue, année, résumé
+    const itemRegex = /<(?:div|article)[^>]*class="[^"]*(?:result|search-item|pub-item)[^"]*"[^>]*>([\s\S]*?)(?=<(?:div|article)[^>]*class="[^"]*(?:result|search-item|pub-item)|$)/gi;
+    const titleRegex = /<(?:h[23]|a)[^>]*class="[^"]*(?:titre|title)[^"]*"[^>]*>(?:<a[^>]*>)?\s*([\s\S]*?)\s*(?:<\/a>)?<\/(?:h[23]|a)>/i;
+    const linkRegex = /<a[^>]*href="(\/(?:revue|article|livre)[^"]*)"[^>]*>/i;
+    const authorRegex = /(?:class="[^"]*(?:auteur|author)[^"]*"[^>]*>|<span[^>]*class="[^"]*nom[^"]*"[^>]*>)\s*([\s\S]*?)\s*<\//i;
+    const yearRegex = /(\b20[012]\d\b)/;
+    const revueRegex = /class="[^"]*(?:revue|journal|source)[^"]*"[^>]*>\s*([\s\S]*?)\s*<\//i;
+    const resumeRegex = /class="[^"]*(?:resume|abstract|description)[^"]*"[^>]*>\s*([\s\S]*?)\s*<\//i;
+
+    let match;
+    while ((match = itemRegex.exec(html)) !== null && results.length < (maxResults || 5)) {
+      const block = match[1];
+      const titleMatch = block.match(titleRegex);
+      const linkMatch = block.match(linkRegex);
+      if (!titleMatch) continue;
+      const title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
+      if (!title || title.length < 5) continue;
+      const authorMatch = block.match(authorRegex);
+      const yearMatch = block.match(yearRegex);
+      const revueMatch = block.match(revueRegex);
+      const resumeMatch = block.match(resumeRegex);
+      const author = authorMatch ? authorMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+      const year = yearMatch ? yearMatch[1] : '';
+      const revue = revueMatch ? revueMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+      const resume = resumeMatch ? resumeMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+      const url = linkMatch ? 'https://www.cairn.info' + linkMatch[1] : searchUrl;
+      results.push({
+        title,
+        source: 'Cairn.info',
+        url,
+        snippet: resume || (author ? author + '. ' : '') + title + (revue ? '. ' + revue : '') + (year ? ' (' + year + ')' : ''),
+        date: year,
+        language: 'fr',
+        isPeerReviewed: !!revue,
+        isMeta: title.toLowerCase().includes('méta-analyse') || title.toLowerCase().includes('revue systématique'),
+        isGuideline: title.toLowerCase().includes('recommandation'),
+        isCaseStudy: title.toLowerCase().includes('cas clinique') || title.toLowerCase().includes('étude de cas'),
+        isTextbook: false,
+        type: 'article',
+        citationCount: null,
+        doi: null
+      });
+    }
+    // Fallback si le regex structuré ne trouve rien — parser les liens <a> avec titres
+    if (results.length === 0) {
+      const simpleRegex = /<a[^>]*href="(\/(?:revue|article)[^"]*)"[^>]*>\s*([^<]{10,100})\s*<\/a>/gi;
+      let sm;
+      while ((sm = simpleRegex.exec(html)) !== null && results.length < (maxResults || 5)) {
+        const sTitle = sm[2].trim();
+        const sUrl = 'https://www.cairn.info' + sm[1];
+        if (results.some(r => r.title === sTitle)) continue;
+        results.push({
+          title: sTitle,
+          source: 'Cairn.info',
+          url: sUrl,
+          snippet: sTitle,
+          date: '',
+          language: 'fr',
+          isPeerReviewed: true,
+          isMeta: false, isGuideline: false, isCaseStudy: false, isTextbook: false,
+          type: 'article',
+          citationCount: null, doi: null
+        });
+      }
+    }
+    console.log('[WebConsult] Cairn: ' + results.length + ' résultats parsés');
+    return results;
+  } catch (e) {
+    console.error('[WebConsult] Cairn error:', e.message);
+    return [];
+  }
+}
+__name(searchCairn, "searchCairn");
+
 function mergeAndDeduplicate(allSettled) {
   const seen = new Set();
   const results = [];
@@ -57197,6 +57329,8 @@ async function handleWebConsult(request2, env2) {
     const searchPromises = [];
     if (sources.includes('pubmed')) searchPromises.push(searchPubMed(cleanQuery, language, max_results));
     if (sources.includes('scholar')) searchPromises.push(searchSemanticScholar(cleanQuery, language, max_results));
+    if (sources.includes('google_scholar')) searchPromises.push(searchGoogleScholar(cleanQuery, language, max_results, env2));
+    if (sources.includes('cairn')) searchPromises.push(searchCairn(cleanQuery, language, max_results));
     const allResults = await Promise.allSettled(searchPromises);
     const merged = mergeAndDeduplicate(allResults);
     const scored = merged.map(r => ({ ...r, reliability: scoreReliability(r), reliability_reason: explainReliability(r) }));
