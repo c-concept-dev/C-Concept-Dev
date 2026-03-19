@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stress Test RÉEL v2 — C Concept&Dev</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--mer:#8FAFB1;--mer-d:#6A9193;--mer-deep:#4a7274;--sauge:#C8D0C3;--beige:#D8CDBB;--sable:#E6D7C3;--fond:#F4EFE7;--fond2:#EDE7DB;--text:#2c3532;--text2:#6b7a77;--text3:#98a5a2;--gold:#8a7355;--white:#fff;--danger:#c0392b;--success:#27ae60;--warn:#d4a017;--shadow:rgba(44,53,50,.08);--border:rgba(143,175,177,.3);--mono:'JetBrains Mono',monospace;--serif:'Cormorant Garamond',serif;--sans:'Montserrat',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--fond);color:var(--text);min-height:100vh;font-size:13px;line-height:1.5}
+
+.app{display:grid;grid-template-columns:340px 1fr 320px;grid-template-rows:auto auto 1fr;height:100vh;overflow:hidden}
+@media(max-width:1200px){.app{grid-template-columns:300px 1fr}.side-right{display:none}}
+
+/* Header */
+.header{grid-column:1/-1;padding:10px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--white);box-shadow:0 2px 10px var(--shadow)}
+.header .logo{font-family:var(--serif);font-size:16px;font-weight:600}
+.header .badge{font-family:var(--mono);font-size:10px;background:rgba(192,57,43,.1);color:var(--danger);border:1px solid rgba(192,57,43,.3);padding:2px 8px;border-radius:4px}
+.header .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;border:1px solid var(--border);cursor:pointer;transition:all .2s;font-family:var(--sans);background:var(--white);color:var(--text)}
+.btn:hover{border-color:var(--mer)}
+.btn-primary{background:linear-gradient(135deg,var(--mer),var(--mer-d));color:white;border-color:transparent}
+.btn-danger{border-color:var(--danger);color:var(--danger)}
+
+/* Iframe bar */
+.iframe-bar{grid-column:1/-1;padding:8px 20px;background:var(--fond2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:11px}
+.iframe-bar select,.iframe-bar input{padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--sans);background:var(--white)}
+.iframe-bar select{min-width:200px}
+.iframe-bar input{flex:1;max-width:400px}
+.iframe-bar .tag{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(192,57,43,.08);color:var(--danger);font-weight:600}
+
+/* Side left — config + chat miroir */
+.side-left{background:var(--white);border-right:1px solid var(--border);overflow-y:auto;padding:14px;font-size:12px}
+.side-left h3{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mer-d);margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--border)}
+.side-left h3:first-child{margin-top:0}
+.field{margin-bottom:8px}
+.field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-bottom:3px;font-weight:600}
+.field input,.field select,.field textarea{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--sans);background:var(--fond)}
+.field textarea{min-height:40px;resize:vertical}
+.chat-mirror{background:var(--fond);border:1px solid var(--border);border-radius:8px;max-height:300px;overflow-y:auto;padding:8px;margin-top:6px}
+.chat-mirror .msg{padding:6px 8px;border-radius:6px;font-size:11px;line-height:1.4;margin-bottom:4px;max-width:95%}
+.chat-mirror .msg.patient{background:var(--white);border:1px solid var(--border)}
+.chat-mirror .msg.therapist{background:rgba(143,175,177,.1);border:1px solid rgba(143,175,177,.2)}
+.chat-mirror .msg.system{color:var(--text3);font-style:italic;font-size:10px;text-align:center}
+.chat-mirror .msg .role{font-family:var(--mono);font-size:8px;color:var(--text3);text-transform:uppercase;margin-bottom:2px}
+
+/* Center — iframe */
+.center{overflow:hidden;position:relative}
+.center iframe{width:100%;height:100%;border:none}
+.center .overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(244,239,231,.9);display:flex;align-items:center;justify-content:center;z-index:10;font-size:14px;color:var(--text2)}
+.center .overlay.hidden{display:none}
+
+/* Side right — metrics */
+.side-right{background:var(--white);border-left:1px solid var(--border);overflow-y:auto;padding:14px;font-size:12px}
+.side-right h3{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mer-d);margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--border)}
+.side-right h3:first-child{margin-top:0}
+.metric{display:flex;justify-content:space-between;padding:3px 0;color:var(--text2)}
+.metric .val{color:var(--text);font-weight:600;font-family:var(--mono);font-size:11px}
+.metric .val.high{color:var(--success)}.metric .val.med{color:var(--warn)}.metric .val.low{color:var(--danger)}
+.log-box{background:var(--fond);border:1px solid var(--border);border-radius:6px;padding:6px;font-family:var(--mono);font-size:9px;max-height:200px;overflow-y:auto;color:var(--text2);line-height:1.5;margin-top:4px}
+
+.status-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.status-pill.idle{background:var(--fond);color:var(--text3)}
+.status-pill.running{background:rgba(39,174,96,.1);color:var(--success)}
+.status-pill.done{background:rgba(143,175,177,.1);color:var(--mer-d)}
+.status-pill.error{background:rgba(192,57,43,.1);color:var(--danger)}
+
+.toast{position:fixed;top:20px;right:20px;padding:10px 18px;border-radius:8px;font-size:12px;background:var(--text);color:var(--white);opacity:0;transform:translateY(-10px);transition:all .3s;z-index:999;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<div class="header">
+  <span class="logo">Stress Test RÉEL</span>
+  <span class="badge">v2 · VRAIS SYSTÈMES</span>
+  <span style="font-family:var(--mono);font-size:10px;color:var(--text2)" id="hdr-timer">00:00</span>
+  <div class="right">
+    <span class="status-pill idle" id="statusPill">Prêt</span>
+    <button class="btn btn-primary" onclick="startTest()" id="startBtn">▶ Lancer</button>
+    <button class="btn btn-danger" onclick="stopTest()" id="stopBtn" disabled>■ Stop</button>
+    <button class="btn" onclick="exportAll()" id="exportBtn" disabled>↓ Export</button>
+  </div>
+</div>
+
+<div class="iframe-bar">
+  <span style="font-weight:600;color:var(--text)">Shell :</span>
+  <select id="shellSelect">
+    <optgroup label="Thérapeute IA">
+      <option value="therapeute|Therapeute Noyau periph/therapeute-ia-v8-Opus.html">Individuel Opus</option>
+      <option value="therapeute|Therapeute Noyau periph/therapeute-ia-v8-Sonnet.html">Individuel Sonnet</option>
+      <option value="therapeute|Therapeute Noyau periph/therapeute-couple-v8.html">Couple</option>
+      <option value="therapeute|Therapeute Noyau periph/therapeute-couple-v8-rsp.html">Couple RSP</option>
+      <option value="therapeute|Therapeute Noyau periph/therapeute-ia-v8-rsp-Opus.html">Individuel RSP Opus</option>
+      <option value="therapeute|Therapeute Noyau periph/therapeute-ia-v8-rsp-Sonnet.html">Individuel RSP Sonnet</option>
+    </optgroup>
+    <optgroup label="Hypnose IA">
+      <option value="hypnose|Hypnotherapeute/hypnose-ia-v3.html">Standard (v3)</option>
+      <option value="hypnose|Hypnotherapeute/hypnose-pro.html">Pro</option>
+      <option value="hypnose|Hypnotherapeute/hypnose-express.html">Express</option>
+    </optgroup>
+    <optgroup label="Clone Interview">
+      <option value="clone|clone-interview-pro/Clone interview Noyau Periph/clone-interview.html">Interview Pro</option>
+    </optgroup>
+  </select>
+  <span style="color:var(--text2)">Base URL :</span>
+  <input type="text" id="baseUrl" value="http://localhost:8080" placeholder="http://localhost:8080">
+  <span class="tag">IFRAME RÉEL</span>
+  <button class="btn" onclick="loadShell()" style="padding:3px 10px">Charger</button>
+</div>
+
+<!-- SIDE LEFT — Config patient + chat miroir -->
+<div class="side-left">
+  <h3>Patient simulé (recette)</h3>
+  <div class="field"><label>Prénom</label><input type="text" id="cfg-name" value="Thomas"></div>
+  <div class="field"><label>Âge</label><input type="number" id="cfg-age" value="38" style="width:60px"></div>
+  <div class="field"><label>Attachement</label>
+    <select id="cfg-att"><option value="anxieux-préoccupé">Anxieux</option><option value="évitant-détaché">Évitant</option><option value="désorganisé">Désorganisé</option><option value="secure-dégradé">Secure dégradé</option><option value="libre" selected>Libre</option></select>
+  </div>
+  <div class="field"><label>Défense</label>
+    <select id="cfg-def"><option value="intellectualisation">Intellectualisation</option><option value="évitement émotionnel">Évitement</option><option value="humour défensif">Humour</option><option value="projection">Projection</option><option value="déni">Déni</option><option value="séduction">Séduction</option></select>
+  </div>
+  <div class="field"><label>Motif réel (caché)</label>
+    <select id="cfg-real"><option value="peur de l'abandon">Peur abandon</option><option value="honte profonde">Honte</option><option value="secret inavoué">Secret</option><option value="deuil non fait">Deuil</option><option value="rage contenue">Rage</option><option value="vide identitaire">Vide</option></select>
+  </div>
+  <div class="field"><label>Posture</label>
+    <select id="cfg-pos"><option value="demandeur collaboratif">Collaboratif</option><option value="résistant passif">Résistant</option><option value="sceptique">Sceptique</option><option value="séducteur">Séducteur</option><option value="fuyant-minimiseur">Fuyant</option></select>
+  </div>
+  <div class="field"><label>Contexte</label><textarea id="cfg-ctx" rows="2" placeholder="Contexte de fond…"></textarea></div>
+  <div class="field"><label>Problème déclaré</label><textarea id="cfg-problem" rows="2" placeholder="Ce qui amène le patient…"></textarea></div>
+  <div class="field"><label>Échanges max</label>
+    <select id="cfg-max"><option value="5">5</option><option value="8" selected>8</option><option value="12">12</option><option value="20">20</option></select>
+  </div>
+  <div class="field"><label>Worker URL</label><input type="text" id="cfg-worker" value="https://clone-proxy.11drumboy11.workers.dev"></div>
+
+  <h3>Chat miroir</h3>
+  <div class="chat-mirror" id="chatMirror">
+    <div class="msg system">En attente du lancement…</div>
+  </div>
+</div>
+
+<!-- CENTER — Iframe du vrai système -->
+<div class="center">
+  <div class="overlay" id="overlay">Sélectionnez un shell et cliquez "Charger"</div>
+  <iframe id="systemFrame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+</div>
+
+<!-- SIDE RIGHT — Métriques système -->
+<div class="side-right">
+  <h3>Session</h3>
+  <div class="metric"><span>Tours</span><span class="val" id="m-turns">0</span></div>
+  <div class="metric"><span>Statut</span><span class="val" id="m-status">—</span></div>
+
+  <h3>AllianceTracker</h3>
+  <div class="metric"><span>Score</span><span class="val" id="m-alliance">—</span></div>
+  <div class="metric"><span>Tendance</span><span class="val" id="m-alliance-trend">—</span></div>
+
+  <h3>Guard Rails</h3>
+  <div class="metric"><span>Violations</span><span class="val" id="m-guardrails">0</span></div>
+
+  <h3>Web-Consult (LLM)</h3>
+  <div class="metric"><span>Déclenché</span><span class="val" id="m-wc">—</span></div>
+  <div class="metric"><span>Query</span><span class="val" id="m-wc-query" style="font-size:9px;max-width:180px;overflow:hidden;text-overflow:ellipsis">—</span></div>
+
+  <h3>RAG D1</h3>
+  <div class="metric"><span>Requêtes</span><span class="val" id="m-rag">—</span></div>
+  <div class="metric"><span>Chunks</span><span class="val" id="m-rag-chunks">—</span></div>
+
+  <h3>Modèle utilisé</h3>
+  <div class="metric"><span>Model</span><span class="val" id="m-model">—</span></div>
+
+  <h3>VARIANT</h3>
+  <div id="m-variant" style="font-family:var(--mono);font-size:9px;color:var(--text2);line-height:1.4">—</div>
+
+  <h3>Log interne</h3>
+  <div class="log-box" id="logBox">Prêt…</div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════
+const WORKER = () => document.getElementById('cfg-worker').value.replace(/\/+$/,'');
+let running = false, shellType = null, shellPath = null;
+let exchanges = [], allianceHistory = [], timerInterval = null, startTime = null;
+let turnCount = 0;
+
+// ════════════════════════════════════════════════════════════════════
+// SHELL LOADING
+// ════════════════════════════════════════════════════════════════════
+function loadShell() {
+  const [type, path] = document.getElementById('shellSelect').value.split('|');
+  const base = document.getElementById('baseUrl').value.replace(/\/+$/,'');
+  const url = base + '/' + path;
+  shellType = type;
+  shellPath = path;
+  
+  const frame = document.getElementById('systemFrame');
+  frame.src = url;
+  document.getElementById('overlay').classList.add('hidden');
+  log(`Shell chargé : ${type} → ${path}`);
+  
+  // Attendre le chargement
+  frame.onload = () => {
+    log('✅ Shell prêt');
+    setTimeout(() => collectVariant(), 1500);
+  };
+}
+
+function getFrame() {
+  return document.getElementById('systemFrame').contentWindow;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// VARIANT COLLECTION
+// ════════════════════════════════════════════════════════════════════
+function collectVariant() {
+  try {
+    const f = getFrame();
+    const v = f.VARIANT || f.window?.VARIANT;
+    if(v) {
+      document.getElementById('m-variant').textContent = JSON.stringify(v, null, 1).substring(0, 300);
+      document.getElementById('m-model').textContent = v.model_collab || v.model || '—';
+      log('VARIANT: ' + (v.label || v.mode || '?'));
+    }
+  } catch(e) { log('⚠️ Cannot read VARIANT: ' + e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PATIENT SIMULATOR (via Worker LLM)
+// ════════════════════════════════════════════════════════════════════
+function buildPatientPrompt() {
+  const name = document.getElementById('cfg-name').value;
+  const age = document.getElementById('cfg-age').value;
+  const att = document.getElementById('cfg-att').value;
+  const def = document.getElementById('cfg-def').value;
+  const real = document.getElementById('cfg-real').value;
+  const pos = document.getElementById('cfg-pos').value;
+  const ctx = document.getElementById('cfg-ctx').value;
+  const problem = document.getElementById('cfg-problem').value;
+  
+  return `Tu joues le rôle de ${name}, ${age} ans, en séance de thérapie.
+
+PROFIL :
+- Attachement : ${att}
+- Défense dominante : ${def}
+- Motif réel caché : ${real}
+- Posture en séance : ${pos}
+${ctx ? 'CONTEXTE : ' + ctx : ''}
+${problem ? 'PROBLÈME DÉCLARÉ : ' + problem : ''}
+
+RÈGLES ABSOLUES :
+1. Tu incarnes ce patient — défenses, résistances, silences.
+2. Tu NE sors JAMAIS du rôle. Pas de méta-commentaires. Pas d'analyse.
+3. La défense dominante colore CHAQUE réponse.
+4. Le motif réel reste opaque en surface.
+5. Réponses : 2-5 phrases. Authentiques.
+6. Microréactions entre parenthèses autorisées : (silence), (regarde ses mains).
+7. Mentionne ton problème dès les premiers échanges.
+8. Tu NE produis JAMAIS d'analyse, de score, de méta-commentaire, de résumé de séance.`;
+}
+
+async function callPatientLLM(systemPrompt, history, maxTokens=500) {
+  const r = await fetch(WORKER(), {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({payload:{model:'claude-sonnet-4-5-20250929',max_tokens:maxTokens,system:systemPrompt,messages:history}})
+  });
+  if(!r.ok) throw new Error('API '+r.status);
+  const d = await r.json();
+  if(Array.isArray(d?.content)) return d.content.filter(c=>c.type==='text').map(c=>c.text||'').join('\n').trim();
+  return (d?.content?.[0]?.text || '').trim();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IFRAME PILOTING — Injection & Capture
+// ════════════════════════════════════════════════════════════════════
+
+// ── Injecter un message dans le vrai shell ──
+function injectMessage(text) {
+  const f = getFrame();
+  const doc = f.document;
+  
+  if(shellType === 'hypnose') {
+    const ta = doc.getElementById('entretien-ta');
+    if(!ta) { log('❌ entretien-ta not found'); return false; }
+    ta.value = text;
+    // Trigger l'envoi
+    if(typeof f.sendEntretienMsg === 'function') {
+      f.sendEntretienMsg();
+    } else {
+      // Fallback: simuler Enter
+      ta.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',keyCode:13,bubbles:true}));
+    }
+    return true;
+  }
+  
+  if(shellType === 'therapeute' || shellType === 'clone') {
+    const input = doc.getElementById('response-input');
+    const sendBtn = doc.getElementById('send-btn');
+    if(!input) { log('❌ response-input not found'); return false; }
+    input.value = text;
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+    if(sendBtn) sendBtn.click();
+    else if(typeof f.sendResponse === 'function') f.sendResponse();
+    return true;
+  }
+  
+  return false;
+}
+
+// ── Capturer la dernière réponse du système ──
+function waitForResponse(timeout=60000) {
+  return new Promise((resolve, reject) => {
+    const f = getFrame();
+    const doc = f.document;
+    let resolved = false;
+    
+    // Identifier le container selon le shell
+    let container;
+    if(shellType === 'hypnose') {
+      container = doc.getElementById('entretien-chat');
+    } else {
+      container = doc.getElementById('messages-container');
+    }
+    
+    if(!container) { reject(new Error('Container not found')); return; }
+    
+    // Compter les messages assistant actuels
+    const assistantClass = shellType === 'hypnose' ? '.msg-e.assistant' : '.message.assistant';
+    const initialCount = container.querySelectorAll(assistantClass).length;
+    
+    const observer = new MutationObserver(() => {
+      if(resolved) return;
+      const current = container.querySelectorAll(assistantClass);
+      if(current.length > initialCount) {
+        // Nouveau message assistant détecté
+        const last = current[current.length - 1];
+        // Attendre que le message soit complet (pas de typing indicator)
+        setTimeout(() => {
+          if(resolved) return;
+          const text = last.textContent || last.innerText || '';
+          if(text.length > 10 && !last.classList.contains('typing')) {
+            resolved = true;
+            observer.disconnect();
+            resolve(text.trim());
+          }
+        }, 2000); // 2s de délai pour laisser le streaming finir
+      }
+    });
+    
+    observer.observe(container, {childList:true, subtree:true, characterData:true});
+    
+    setTimeout(() => {
+      if(!resolved) {
+        resolved = true;
+        observer.disconnect();
+        // Essayer de récupérer quand même le dernier message
+        const current = container.querySelectorAll(assistantClass);
+        if(current.length > initialCount) {
+          resolve(current[current.length-1].textContent.trim());
+        } else {
+          reject(new Error('Timeout: no response after ' + timeout + 'ms'));
+        }
+      }
+    }, timeout);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// METRICS COLLECTION (from iframe internals)
+// ════════════════════════════════════════════════════════════════════
+function collectMetrics() {
+  try {
+    const f = getFrame();
+    
+    // AllianceTracker
+    const at = f.allianceTracker || f.window?.allianceTracker;
+    if(at) {
+      const score = at.score || at.currentScore || 0;
+      document.getElementById('m-alliance').textContent = Math.round(score);
+      allianceHistory.push(score);
+      const trend = allianceHistory.length > 1 ? (score > allianceHistory[allianceHistory.length-2] ? '↑' : score < allianceHistory[allianceHistory.length-2] ? '↓' : '→') : '—';
+      document.getElementById('m-alliance-trend').textContent = trend;
+    }
+    
+    // Web-Consult cache
+    const wcCache = f._webConsultCache || f.window?._webConsultCache;
+    if(wcCache) {
+      const keys = Object.keys(wcCache);
+      document.getElementById('m-wc').textContent = keys.length > 0 ? '✅ ' + keys.length + ' appel(s)' : 'Non';
+      if(keys.length > 0) {
+        document.getElementById('m-wc-query').textContent = keys[0].substring(0, 60);
+      }
+    }
+    
+    // Guard Rails
+    const gr = f.ClinicalGuardRails || f.window?.ClinicalGuardRails;
+    if(gr?.violations) {
+      document.getElementById('m-guardrails').textContent = gr.violations.length;
+    }
+    
+    // Operating mode
+    const mode = f._operatingMode || f.window?._operatingMode;
+    document.getElementById('m-status').textContent = mode || '—';
+    
+  } catch(e) { /* cross-origin or not loaded yet */ }
+}
+
+function collectFinalMetrics() {
+  const metrics = { alliance: null, webConsult: null, guardRails: null, variant: null, model: null };
+  try {
+    const f = getFrame();
+    
+    metrics.alliance = {
+      finalScore: f.allianceTracker?.score || null,
+      trajectory: [...allianceHistory],
+      lastAnalysis: f.allianceTracker?.lastAnalysis || null
+    };
+    
+    metrics.webConsult = {
+      cache: f._webConsultCache ? Object.keys(f._webConsultCache) : [],
+      triggered: f._webConsultCache ? Object.keys(f._webConsultCache).length > 0 : false
+    };
+    
+    metrics.variant = f.VARIANT || null;
+    metrics.model = f.VARIANT?.model_collab || f.VARIANT?.model || null;
+    
+    // Conversation history
+    const cs = f.conversationalSystem || f.convSystem;
+    if(cs?.messages) metrics.conversationHistory = cs.messages;
+    
+  } catch(e) { log('⚠️ Final metrics collection failed: ' + e.message); }
+  return metrics;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MAIN TEST LOOP
+// ════════════════════════════════════════════════════════════════════
+async function startTest() {
+  if(!shellType) { toast('Chargez un shell d\'abord'); return; }
+  running = true;
+  turnCount = 0;
+  exchanges = [];
+  allianceHistory = [];
+  
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('exportBtn').disabled = true;
+  setStatus('running', 'En cours…');
+  
+  startTime = Date.now();
+  timerInterval = setInterval(updateTimer, 1000);
+  
+  const chatMirror = document.getElementById('chatMirror');
+  chatMirror.innerHTML = '';
+  
+  const maxExch = parseInt(document.getElementById('cfg-max').value);
+  const patientSys = buildPatientPrompt();
+  let patientHistory = [];
+  
+  addMirrorMsg('system', `▶ Test RÉEL — ${shellType} · ${shellPath?.split('/').pop()} · ${maxExch} tours`);
+  log('=== TEST RÉEL DÉMARRÉ ===');
+  
+  try {
+    // ── Tour 0 : Le patient entre et parle en premier ──
+    addMirrorMsg('system', 'Patient simulé prépare son entrée…');
+    const firstMsg = await callPatientLLM(patientSys, [
+      {role:'user', content:'Tu es en salle d\'attente. Le thérapeute t\'invite à entrer. Réponds naturellement.'}
+    ]);
+    patientHistory.push({role:'user', content:'Le thérapeute t\'invite à entrer.'});
+    patientHistory.push({role:'assistant', content:firstMsg});
+    addMirrorMsg('patient', firstMsg);
+    log('Patient T0: ' + firstMsg.substring(0,80) + '…');
+    
+    // Injecter dans le vrai shell
+    await sleep(1500); // laisser le shell s'initialiser
+    const injected = injectMessage(firstMsg);
+    if(!injected) { throw new Error('Injection failed — shell not ready'); }
+    log('Injecté dans le shell');
+    
+    // Attendre la réponse du VRAI système
+    addMirrorMsg('system', 'Attente réponse VRAI système…');
+    const therapistResp = await waitForResponse(90000);
+    addMirrorMsg('therapist', therapistResp.substring(0, 500));
+    log('Système T1: ' + therapistResp.substring(0,80) + '…');
+    
+    exchanges.push({turn:0, patient:firstMsg, therapist:therapistResp});
+    turnCount = 1;
+    document.getElementById('m-turns').textContent = turnCount;
+    collectMetrics();
+    
+    // ── Tours suivants ──
+    for(let turn = 1; turn < maxExch; turn++) {
+      if(!running) break;
+      
+      // Patient répond
+      patientHistory.push({role:'user', content:therapistResp});
+      const patientResp = await callPatientLLM(patientSys, patientHistory.slice(-10));
+      patientHistory.push({role:'assistant', content:patientResp});
+      addMirrorMsg('patient', patientResp);
+      log(`Patient T${turn+1}: ${patientResp.substring(0,60)}…`);
+      
+      await sleep(1000);
+      
+      // Injecter dans le vrai shell
+      injectMessage(patientResp);
+      
+      // Attendre la réponse du VRAI système
+      addMirrorMsg('system', `Tour ${turn+1} — attente système…`);
+      let resp;
+      try {
+        resp = await waitForResponse(90000);
+      } catch(e) {
+        log('⚠️ Timeout tour ' + (turn+1));
+        addMirrorMsg('system', '⚠️ Timeout — système n\'a pas répondu');
+        break;
+      }
+      addMirrorMsg('therapist', resp.substring(0, 500));
+      log(`Système T${turn+1}: ${resp.substring(0,60)}…`);
+      
+      exchanges.push({turn, patient:patientResp, therapist:resp});
+      turnCount = turn + 1;
+      document.getElementById('m-turns').textContent = turnCount;
+      collectMetrics();
+      
+      // Préparer pour le tour suivant  
+      // Le therapistResp pour le patient history
+      const prevResp = resp; // variable pour la boucle
+      patientHistory[patientHistory.length-1] = {role:'assistant', content:patientResp};
+      // Insérer la réponse thérapeute comme "user" du point de vue du patient
+      // Non — on l'utilise au prochain tour via therapistResp
+      therapistResp = resp; // mise à jour pour le prochain tour patient
+    }
+    
+  } catch(e) {
+    log('❌ Erreur: ' + e.message);
+    addMirrorMsg('system', '❌ ' + e.message);
+  }
+  
+  // ── Fin ──
+  running = false;
+  clearInterval(timerInterval);
+  setStatus('done', `Terminé · ${turnCount} tours`);
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('exportBtn').disabled = false;
+  collectMetrics();
+  log('=== TEST TERMINÉ ===');
+}
+
+function stopTest() {
+  running = false;
+  clearInterval(timerInterval);
+  setStatus('idle', 'Arrêté');
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('exportBtn').disabled = false;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════════════════════════
+function exportAll() {
+  const finalMetrics = collectFinalMetrics();
+  const data = {
+    _meta: {
+      generator: 'Stress Test RÉEL v2 — C Concept&Dev',
+      date: new Date().toISOString(),
+      duration_sec: startTime ? Math.round((Date.now()-startTime)/1000) : null,
+      shell: shellPath,
+      shell_type: shellType,
+      mode: 'REAL_SYSTEM'
+    },
+    patient_config: {
+      name: document.getElementById('cfg-name').value,
+      age: document.getElementById('cfg-age').value,
+      attachment: document.getElementById('cfg-att').value,
+      defense: document.getElementById('cfg-def').value,
+      real_motive: document.getElementById('cfg-real').value,
+      posture: document.getElementById('cfg-pos').value,
+      context: document.getElementById('cfg-ctx').value,
+      problem: document.getElementById('cfg-problem').value
+    },
+    system_metrics: finalMetrics,
+    exchanges,
+    turns: turnCount
+  };
+  
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `stress-test-REEL-${shellType}-${turnCount}t-${new Date().toISOString().slice(0,16).replace(/[T:]/g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Export RÉEL — ' + turnCount + ' tours');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════════════════════════════════
+function addMirrorMsg(type, text) {
+  const chat = document.getElementById('chatMirror');
+  const div = document.createElement('div');
+  div.className = 'msg ' + type;
+  if(type !== 'system') div.innerHTML = `<div class="role">${type==='patient'?'Patient':'Système'}</div>`;
+  div.innerHTML += esc(text.substring(0, 600));
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function log(msg) {
+  const box = document.getElementById('logBox');
+  box.innerHTML += new Date().toLocaleTimeString() + ' ' + esc(msg) + '<br>';
+  box.scrollTop = box.scrollHeight;
+}
+
+function setStatus(cls, text) {
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill ' + cls;
+  pill.textContent = text;
+}
+
+function updateTimer() {
+  if(!startTime) return;
+  const sec = Math.floor((Date.now()-startTime)/1000);
+  document.getElementById('hdr-timer').textContent = String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+</script>
+</body>
+</html>
