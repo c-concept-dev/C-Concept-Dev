@@ -1866,17 +1866,20 @@ async function generateHypnoScript(userInput) {
     // ── WEB-CONSULT — Entité 3B (conditionnel) ──
     let webContext = '';
     if (window.VARIANT.webConsultEnabled) {
-      const trigger = detectRareCaseTrigger(userInput, p);
-      if (trigger && !S._webConsultDone) {
-        console.log(`[WebConsult] 🔍 Trigger détecté: ${trigger}`);
-        const clinicalQuery = buildClinicalQuery(trigger, userInput, p);
-        console.log(`[WebConsult] 🔬 Query clinique: "${clinicalQuery}"`);
-        const webResults = await webConsult(clinicalQuery, 'hypnosis');
-        webContext = buildWebConsultContext(webResults);
-        // Cache : ne pas re-déclencher pour le même patient/session
-        S._webConsultDone = true;
-        S._webConsultResults = webResults;
-        S._webConsultTrigger = trigger;
+      if (!S._webConsultDone) {
+        const wcResult = await evaluateWebConsultNeed(userInput, {
+          system: 'hypnose',
+          phase: S.phase || 'entretien',
+          protocol: p?.id || 'non défini'
+        });
+        if (wcResult) {
+          console.log(`[WebConsult-LLM] ✅ SEARCH: "${wcResult.query}" — ${wcResult.reason}`);
+          const webResults = await webConsult(wcResult.query, 'hypnosis');
+          webContext = buildWebConsultContext(webResults);
+          S._webConsultDone = true;
+          S._webConsultResults = webResults;
+          S._webConsultTrigger = wcResult.trigger;
+        }
       } else if (S._webConsultDone && S._webConsultResults) {
         // Réutiliser le résultat déjà obtenu
         webContext = buildWebConsultContext(S._webConsultResults);
@@ -2508,120 +2511,83 @@ function buildWebConsultContext(results) {
   return ctx;
 }
 
-// ── Transformation du trigger patient → requête clinique PubMed/Scholar ──
-// Le patient dit "j'ai peur d'avaler" → PubMed cherche "phagophobia hypnotherapy swallowing fear"
-function buildClinicalQuery(trigger, userInput, protocol) {
-  const input = (userInput || '').toLowerCase();
+// ═══ WEB-CONSULT — ÉVALUATION PAR RAISONNEMENT LLM ═══
+// Remplace detectRareCaseTrigger() + buildClinicalQuery() — zéro hardcoding
+// Le LLM comprend le contexte : qui a la pathologie, si c'est actif, si c'est rare
+// Coût : ~$0.0003 par appel Haiku, latence ~300-500ms
+async function evaluateWebConsultNeed(userInput, context) {
+  if (!window.VARIANT?.webConsultEnabled) return null;
+  if (!window.VARIANT?.webConsultAutoTrigger) return null;
+  if (!CFG.WORKER) return null;
 
-  // Mapping explicite : pattern patient → termes cliniques internationaux
-  const CLINICAL_TERMS = {
-    // Phobies rares
-    'avaler':        'phagophobia swallowing fear hypnotherapy treatment',
-    'phagophobi':    'phagophobia hypnosis treatment protocol',
-    'emetophobi':    'emetophobia vomiting phobia hypnotherapy',
-    'vomit':         'emetophobia vomiting phobia hypnosis',
-    'ereutophobi':   'erythrophobia blushing fear hypnosis treatment',
-    'rougir':        'erythrophobia blushing phobia hypnotherapy',
-    'tokophobi':     'tokophobia childbirth fear hypnosis',
-    'trypanophobi':  'trypanophobia needle phobia hypnosis treatment',
-    'atychiphobi':   'atychiphobia failure fear hypnotherapy',
-    'glossophobi':   'glossophobia public speaking fear hypnosis',
+  // Pré-filtre : messages trop courts = pas de signal clinique
+  if ((userInput || '').trim().length < 30) return null;
 
-    // Pathologies médicales
-    'fibromyalgi':   'fibromyalgia hypnosis pain management systematic review',
-    'acouph':        'tinnitus hypnosis hypnotherapy treatment',
-    'bruxism':       'bruxism hypnosis relaxation treatment',
-    'douleur neuropathique': 'neuropathic pain hypnosis hypnotherapy',
-    'dysphagi':      'psychogenic dysphagia hypnotherapy',
-    'dyspraxie':     'dyspraxia relaxation hypnosis',
-    'intestin irritable': 'irritable bowel syndrome hypnotherapy',
+  const systemLabel = context.system === 'hypnose' ? 'hypnothérapeutique (hypnose ericksonienne)' : 'thérapeutique';
 
-    // Contextes médicaux
-    'cancer':        'cancer hypnosis supportive care nausea pain',
-    'chimioth':      'chemotherapy anticipatory nausea hypnosis treatment',
-    'dialyse':       'dialysis anxiety hypnosis relaxation',
-    'sclerose':      'multiple sclerosis hypnosis pain fatigue',
-    'parkinson':     'parkinson tremor hypnosis relaxation',
-    'alzheimer':     'dementia anxiety hypnosis caregiver',
-    'epilepsi':      'epilepsy hypnosis safety contraindication',
-    'greffe':        'organ transplant anxiety hypnosis preparation',
-    'transplant':    'transplant anxiety hypnosis preparation',
-    'amputation':    'phantom limb pain hypnosis treatment',
-    'avc':           'stroke rehabilitation hypnosis recovery',
+  const prompt = `Tu es l'évaluateur web-consult d'un système ${systemLabel}.
 
-    // Techniques inconnues
-    'havening':      'havening techniques amygdala depotentiation evidence',
-    'brainspotting': 'brainspotting therapy trauma evidence review',
-    'psych-k':       'PSYCH-K belief change evidence review',
-    'hypnose quantique': 'quantum hypnosis evidence scientific review',
-    'hypnose regressive': 'regression hypnotherapy past life evidence',
-    'somatic experiencing': 'somatic experiencing hypnosis integration',
-    'neurofeedback':  'neurofeedback hypnosis combined treatment',
-    'coherence cardiaque': 'heart rate variability biofeedback hypnosis',
-  };
+CONTEXTE SÉANCE :
+- Système : ${context.system}
+- Phase : ${context.phase || 'entretien'}
+- Protocole : ${context.protocol || 'non défini'}
 
-  // Chercher le meilleur match dans le mapping
-  for (const [pattern, clinicalTerms] of Object.entries(CLINICAL_TERMS)) {
-    if (input.includes(pattern)) {
-      return clinicalTerms;
+DERNIER MESSAGE PATIENT :
+"${(userInput || '').substring(0, 500)}"
+
+MISSION : Décide si une recherche documentaire (PubMed/Scholar) apporterait une valeur clinique RÉELLE à cette séance.
+
+RÈGLES DE RAISONNEMENT :
+1. La pathologie/situation doit concerner LE PATIENT LUI-MÊME, pas un tiers (parent décédé, ex-partenaire, collègue = NE PAS déclencher)
+2. La situation doit être ACTIVE et pertinente pour la séance en cours
+3. Le cas doit être suffisamment RARE ou COMPLEXE pour que la littérature apporte quelque chose que le système ne sait pas déjà
+4. Les cas standards (insomnie, tabac, stress, confiance, poids) = NE PAS déclencher
+5. Une technique ou approche INCONNUE mentionnée par le patient = déclencher
+6. Une demande explicite de références/littérature = déclencher
+
+RÉPONSE — format strict JSON, rien d'autre :
+{"decision":"SEARCH","query":"termes cliniques en anglais optimisés PubMed","reason":"1 phrase"}
+ou
+{"decision":"SKIP","reason":"1 phrase"}`;
+
+  try {
+    const resp = await fetch(CFG.WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payload: {
+          provider: 'anthropic',
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 150,
+          temperature: 0,
+          system: prompt,
+          messages: [{ role: 'user', content: 'Évalue ce message patient et retourne le JSON.' }]
+        }
+      })
+    });
+    if (!resp.ok) {
+      console.warn('[WebConsult-LLM] HTTP', resp.status);
+      return null;
     }
+    const data = await resp.json();
+    const rawText = (data.content?.[0]?.text || '').trim();
+    const cleanText = rawText.replace(/```json\n?|```/g, '').trim();
+    const parsed = JSON.parse(cleanText);
+
+    if (parsed.decision === 'SEARCH' && parsed.query) {
+      return { query: parsed.query, trigger: 'llm-reasoning', reason: parsed.reason || '' };
+    }
+
+    console.log(`[WebConsult-LLM] ⏭ SKIP: ${parsed.reason || 'pas de raison'}`);
+    return null;
+
+  } catch (e) {
+    console.warn('[WebConsult-LLM] Erreur évaluation, fallback SKIP:', e.message);
+    return null;
   }
-
-  // Fallback : extraire les mots-clés significatifs + ajouter "hypnosis treatment"
-  const stopwords = new Set(['depuis','mois','arrive','plus','commencé','après','maintenant','même','fait','peur','suis','dans','avec','pour','perdu','kilos','restaurant']);
-  const words = input.match(/\b[a-zàâäéèêëîïôùûüç]{4,}\b/g) || [];
-  const meaningful = words.filter(w => !stopwords.has(w)).slice(0, 4);
-  const protocolTerm = protocol?.id ? protocol.id.replace('anxiete', 'anxiety').replace('douleur', 'pain').replace('sommeil', 'insomnia').replace('confiance', 'confidence') : '';
-
-  return (meaningful.join(' ') + ' hypnosis ' + protocolTerm).trim();
 }
 
-// ── Détection automatique de cas rare (trigger web-consult) ──
-function detectRareCaseTrigger(userInput, protocol) {
-  if (!window.VARIANT.webConsultAutoTrigger) return null;
 
-  const input = (userInput || '').toLowerCase();
-
-  // Trigger 1 : Phobies rares / pathologies non standards
-  const rarePatterns = [
-    /phagophobi/i, /emetophobi/i, /ereutophobi/i, /tokophobi/i,
-    /vomit.*phobi/i, /avaler.*peur/i, /rougir.*phobi/i,
-    /trypanophobi/i, /atychiphobi/i, /glossophobi/i,
-    /fibromyalgi/i, /syndrome.*intestin.*irritable/i,
-    /acouph[eè]ne/i, /bruxism/i, /douleur.*neuropathique/i,
-    /dysphagi/i, /dyspraxie/i
-  ];
-  for (const pat of rarePatterns) {
-    if (pat.test(input)) return `cas rare détecté: ${input.substring(0, 80)}`;
-  }
-
-  // Trigger 2 : Mention technique inconnue
-  const unknownTech = [
-    /havening/i, /brainspotting/i, /psych-k/i,
-    /coherence.?cardiaque.*hypnose/i, /neurofeedback.*hypn/i,
-    /hypnose.*quantique/i, /hypnose.*regressive/i,
-    /somatic.*experiencing.*hypn/i
-  ];
-  for (const pat of unknownTech) {
-    if (pat.test(input)) return `technique mentionnée: ${input.substring(0, 80)}`;
-  }
-
-  // Trigger 3 : Le patient mentionne un problème non couvert par les 9 protocoles
-  const protocolIds = (protocol?.id || '');
-  if (!protocolIds && input.length > 30) {
-    // Heuristique : si l'input mentionne un problème médical spécifique non couvert
-    const medPatterns = [
-      /cancer/i, /chimioth[eé]rapie/i, /dialyse/i, /scl[eé]rose/i,
-      /parkinson/i, /alzheimer/i, /epilepsi/i, /avc/i,
-      /greffe/i, /transplant/i, /amputation/i
-    ];
-    for (const pat of medPatterns) {
-      if (pat.test(input)) return `contexte médical: ${input.substring(0, 80)}`;
-    }
-  }
-
-  return null;
-}
 
 // ═══════════════════════════════════════════════
 // TTS HYPNOTIQUE — MOTEUR COMPLET
