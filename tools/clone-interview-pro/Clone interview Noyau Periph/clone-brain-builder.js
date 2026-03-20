@@ -9608,6 +9608,157 @@ async function generateCloneBrain() {
         }
         // ═══ FIN WEB-CONSULT ═══
 
+        // ═══════════════════════════════════════════════════════════════════
+        // STEP 8 — VISION INVISIBLE (5 modules paralleles)
+        // Voir dans le noir : angles morts, defenses en action, coherence,
+        // self vs other, transfert. Tout en raisonnement LLM, zero hardcoding.
+        // ═══════════════════════════════════════════════════════════════════
+        statusEl.textContent = 'Analyse profonde — vision invisible...';
+        console.log('[DeepAnalysis] Demarrage des 5 modules vision invisible...');
+
+        try {
+            const _brain = window._cloneBrainJSON;
+            const _allUserText = userMsgs.map(m => (m.content || '')).join('\n---\n').substring(0, 12000);
+            const _fullConversation = msgs.map(m =>
+                '[' + (m.role === 'user' ? 'SUJET' : 'INTERVIEWER') + ']: ' + (m.content || '')
+            ).join('\n\n').substring(0, 15000);
+            const _numberedResponses = userMsgs.map((m, i) => 'R' + (i+1) + ': ' + (m.content || '')).join('\n---\n').substring(0, 12000);
+
+            // Construire les paires Q→R
+            const _pairs = [];
+            for (let i = 0; i < msgs.length - 1; i++) {
+                if (msgs[i].role === 'assistant' && msgs[i+1].role === 'user') {
+                    _pairs.push('QUESTION: ' + (msgs[i].content || '').substring(0, 300) + '\nREPONSE: ' + (msgs[i+1].content || '').substring(0, 500));
+                }
+            }
+            const _questionResponsePairs = _pairs.join('\n---\n').substring(0, 12000);
+
+            // Extraire le contexte profil pour 8a
+            const _t = _brain?.temperament || {};
+            const _bigFiveSummary = ['openness','conscientiousness','extraversion','agreeableness','neuroticism']
+                .map(d => d.substring(0,1).toUpperCase() + ':' + (_t[d]?.score || '?')).join(' ');
+            const _schemasSummary = (_brain?.observed_signals?.behavioral_patterns?.dominant || [])
+                .map(p => p.id || p.behavioral_signal || '').filter(Boolean).slice(0, 5).join(', ') || 'non disponible';
+            const _defensesSummary = (_brain?.observed_signals?.defense_dynamics?.top_3 || [])
+                .map(d => d.name || d).filter(Boolean).join(', ') || 'non disponible';
+
+            // ── 8a — ANGLES MORTS ──
+            const _prompt8a = 'Tu es un psychologue expert en analyse des absences et des zones aveugles.\n\n' +
+                'Tu vas recevoir TOUTES les reponses d\'une personne a un entretien de profilage de personnalite.\n' +
+                'Ton travail n\'est PAS d\'analyser ce qu\'elle a dit — c\'est deja fait.\n' +
+                'Ton travail est d\'analyser ce qu\'elle N\'A PAS dit.\n\n' +
+                'METHODE :\n' +
+                '1. Liste les THEMES abordes (travail, famille, couple, amis, loisirs, enfance, emotions, projets, peurs, plaisirs, conflits, corps, sexualite, argent, mort, spiritualite)\n' +
+                '2. Identifie les themes ABSENTS — jamais mentionnes ou esquives systematiquement\n' +
+                '3. Pour chaque absence significative, formule une HYPOTHESE sur ce que ca revele\n' +
+                '4. Identifie les patterns de langage revelateurs :\n' +
+                '   - Le sujet ne dit jamais "je veux" / "j\'ai envie" = possible absence de conscience de ses desirs\n' +
+                '   - Le sujet decrit toujours ses actions en termes de service aux autres = possible sacrifice naturalise\n' +
+                '   - Le sujet ne mentionne jamais de plaisir personnel = possible anhedonie ou culpabilite\n\n' +
+                'REPONSES DU SUJET :\n' + _allUserText + '\n\n' +
+                'PROFIL DEJA ETABLI :\nBig Five : ' + _bigFiveSummary + '\nSchemas dominants : ' + _schemasSummary + '\nDefenses : ' + _defensesSummary + '\n\n' +
+                'Retourne UNIQUEMENT un JSON :\n' +
+                '{"themes_presents":["..."],"themes_absents":["..."],"absences_significatives":[{"domain":"...","observation":"...","hypothesis":"...","confidence":0.0,"evidence_absence":["..."]}],"language_patterns_missing":[{"pattern_absent":"...","frequency_zero_or_near":true,"interpretation":"..."}],"blind_spots_summary":"synthese en 3-4 phrases"}';
+
+            // ── 8b — DEFENSES EN ACTION ──
+            const _prompt8b = 'Tu es un expert en mecanismes de defense psychologiques.\n\n' +
+                'Tu vas recevoir des paires QUESTION → REPONSE d\'un entretien de personnalite.\n' +
+                'Ton travail : detecter les DEFENSES EN ACTION — pas celles que la personne decrit, mais celles qu\'elle UTILISE.\n\n' +
+                'INDICES :\n' +
+                '- Question emotionnelle → reponse factuelle/analytique = INTELLECTUALISATION\n' +
+                '- Question sur soi → reponse sur les autres = DEFLECTION\n' +
+                '- Question intime → humour/blague = HUMOUR DEFENSIF\n' +
+                '- Question directe → reponse vague/tangentielle = EVITEMENT\n' +
+                '- Question sur la souffrance → "c\'est normal" = MINIMISATION\n' +
+                '- Question sur l\'enfance → changement brusque de sujet = EVITEMENT PHOBIQUE\n' +
+                '- Question sur les besoins → reponse sur les devoirs = SACRIFICE/SOUMISSION\n' +
+                '- Contradiction pointee → justification immediate = RATIONALISATION\n\n' +
+                'Ne force pas — seules les defenses CLAIRES comptent.\n\n' +
+                'PAIRES :\n' + _questionResponsePairs + '\n\n' +
+                'Retourne UNIQUEMENT un JSON :\n' +
+                '{"defenses_in_action":[{"turn":0,"question_topic":"...","response_style":"...","defense_detected":"...","evidence":"..."}],"defense_patterns":{"intellectualization":{"count":0,"triggers":["..."]}},"dominant_defense_in_action":"...","defense_flexibility":"rigide/modere/flexible","note":"synthese 2-3 phrases"}';
+
+            // ── 8c — COHERENCE LONGITUDINALE ──
+            const _prompt8c = 'Tu es un analyste de coherence narrative.\n\n' +
+                'Tu vas recevoir TOUTES les reponses chronologiques d\'une personne.\n' +
+                'Ton travail : trouver les CONTRADICTIONS, INCOHERENCES et EVOLUTIONS.\n\n' +
+                'TYPES DE CONTRADICTIONS :\n' +
+                '1. FACTUELLE : dit X puis non-X\n' +
+                '2. TONALE : enthousiaste puis resigne sur le meme sujet\n' +
+                '3. VALEUR-COMPORTEMENT : declare une valeur, decrit des comportements contraires\n' +
+                '4. SELF-CONTRADICTION : "je suis sociable" mais "je refuse les invitations"\n' +
+                '5. EMOTION-DISCOURS : parle d\'un evenement grave sans affect\n\n' +
+                'EVOLUTIONS :\n' +
+                '1. OUVERTURE PROGRESSIVE : plus intime au fil de l\'entretien\n' +
+                '2. FERMETURE PROGRESSIVE : de moins en moins de matiere\n' +
+                '3. BASCULEMENT : moment ou le ton change radicalement\n\n' +
+                'REPONSES CHRONOLOGIQUES :\n' + _numberedResponses + '\n\n' +
+                'Retourne UNIQUEMENT un JSON :\n' +
+                '{"contradictions":[{"type":"...","turn_a":0,"statement_a":"...","turn_b":0,"statement_b":"...","interpretation":"...","confidence":0.0}],"evolution_curve":"ouverture_progressive|fermeture|basculement|stable","turning_point":{"turn":0,"description":"..."},"coherence_score":0,"note":"synthese 2-3 phrases"}';
+
+            // ── 8d — SELF VS OTHER VIEW ──
+            const _prompt8d = 'Tu es un expert en perception sociale et metacognition.\n\n' +
+                'Tu vas recevoir les reponses d\'une personne. Ton travail : separer DEUX types d\'information :\n' +
+                '1. SELF-REPORT : comment la personne SE decrit\n' +
+                '2. HETERO-REPORT : comment la personne dit que LES AUTRES la voient\n\n' +
+                'Pour chaque dimension ou les deux existent, calcule le DELTA.\n' +
+                'Un delta eleve = angle mort potentiel.\n\n' +
+                'REPONSES :\n' + _allUserText + '\n\n' +
+                'Retourne UNIQUEMENT un JSON :\n' +
+                '{"self_report":{"traits_claimed":["..."],"emotions_claimed":["..."],"identity_claimed":"..."},"hetero_report":{"others_say":[{"source":"...","perception":"...","context":"..."}]},"deltas":[{"dimension":"...","self_view":"...","other_view":"...","delta_magnitude":"faible/moyen/eleve","interpretation":"..."}],"biggest_blind_spot":"...","note":"synthese 2-3 phrases"}';
+
+            // ── 8e — TRANSFERT ANALYZER ──
+            const _prompt8e = 'Tu es un expert en dynamiques relationnelles et en transfert.\n\n' +
+                'Tu vas recevoir un entretien complet (questions interviewer + reponses sujet).\n' +
+                'Ton travail : analyser comment le sujet SE COMPORTE avec l\'interviewer.\n' +
+                'Ce comportement est de la DONNEE DE PERSONNALITE.\n\n' +
+                'DIMENSIONS :\n' +
+                '1. COMPLIANCE (0-10) : se conforme aux attentes ?\n' +
+                '2. RESISTANCE (0-10) : resiste, esquive, controle ?\n' +
+                '3. SEDUCTION (0-10) : cherche a plaire, impressionner ?\n' +
+                '4. AUTHENTICITE (0-10) : reponses vraies ou performees ?\n' +
+                '5. PROFONDEUR (0-10) : va spontanement en profondeur ?\n\n' +
+                'ENTRETIEN COMPLET :\n' + _fullConversation + '\n\n' +
+                'Retourne UNIQUEMENT un JSON :\n' +
+                '{"relational_dynamics":{"compliance":{"score":0,"evidence":"..."},"resistance":{"score":0,"evidence":"..."},"seduction":{"score":0,"evidence":"..."},"authenticity":{"score":0,"evidence":"..."},"depth":{"score":0,"evidence":"..."}},"openness_curve":{"start":"...","middle":"...","end":"...","trajectory":"croissante/stable/decroissante/en_V"},"interpersonal_style_in_session":"2-3 phrases","what_this_reveals":"2-3 phrases"}';
+
+            // Lancer les 5 modules EN PARALLELE
+            const [_blindSpots, _defensesInAction, _coherence, _selfOther, _transfert] = await Promise.all([
+                callClaudeForAnalysis(_prompt8a, 1500),
+                callClaudeForAnalysis(_prompt8b, 1200),
+                callClaudeForAnalysis(_prompt8c, 1000),
+                callClaudeForAnalysis(_prompt8d, 1000),
+                callClaudeForAnalysis(_prompt8e, 800)
+            ]);
+
+            // Assembler dans le brain JSON
+            _brain.deep_analysis = {
+                blind_spots: _blindSpots || {},
+                defenses_in_action: _defensesInAction || {},
+                longitudinal_coherence: _coherence || {},
+                self_other_perception: _selfOther || {},
+                interview_transfert: _transfert || {},
+                _meta: {
+                    generated: new Date().toISOString(),
+                    model: 'claude-sonnet-4-5-20250929',
+                    modules: ['8a_blind_spots', '8b_defenses_in_action', '8c_coherence', '8d_self_other', '8e_transfert'],
+                    cost_note: '5 appels paralleles Sonnet ~$0.08 total'
+                }
+            };
+
+            console.log('[DeepAnalysis] Angles morts:', JSON.stringify(_blindSpots?.absences_significatives?.length || 0), 'absences');
+            console.log('[DeepAnalysis] Defenses en action:', _defensesInAction?.dominant_defense_in_action || '?');
+            console.log('[DeepAnalysis] Coherence:', _coherence?.coherence_score || '?', '/ 100');
+            console.log('[DeepAnalysis] Self vs Other deltas:', JSON.stringify(_selfOther?.deltas?.length || 0));
+            console.log('[DeepAnalysis] Transfert authenticite:', _transfert?.relational_dynamics?.authenticity?.score || '?', '/ 10');
+            console.log('[DeepAnalysis] 5 modules vision invisible completes');
+
+        } catch (deepErr) {
+            console.warn('[DeepAnalysis] Erreur (non bloquante):', deepErr.message);
+            // Non bloquant — le brain est deja complet, deep_analysis est un bonus
+        }
+        // ═══ FIN VISION INVISIBLE ═══
+
         // v21.0 — Le JSON est un portrait psychologique pur — pas de clone_prompt dans le JSON
         // generateClonePromptFromBrain reste disponible pour le ZIP optionnel uniquement
         window._clonePrompt = generateClonePromptFromBrain(window._cloneBrainJSON);
