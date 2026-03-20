@@ -840,8 +840,9 @@ ${isFirst ? 'Premiere seance avec ce patient.' : `Seance ${prevCount + 1} — su
 ${S.ci ? `CONTRE-INDICATIONS : ${S.ci} — adapter les techniques.` : ''}
 ${memBlock}${predicatsBlock}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SEQUENCE DE RAISONNEMENT — AVANT CHAQUE REPONSE (silencieux)
+SEQUENCE DE RAISONNEMENT — INTERNE UNIQUEMENT (NE PAS INCLURE DANS LA REPONSE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT : Les etapes ci-dessous guident ta REFLEXION. Tu ne dois JAMAIS les inclure dans ta reponse au patient. Ta reponse ne contient QUE ton intervention therapeutique (accuse + apport + question).
 
 ETAPE 1 — CE QUE JE SAIS DEJA
 Quel portrait clinique se dessine ? Quelle est la demande REELLE (pas seulement manifeste) ?
@@ -931,7 +932,7 @@ INTERDITS
 Phase : echange ${exchangeNum}${exchangeNum >= 5 ? ' — commence a synthetiser le materiau clinique' : ''}${exchangeNum >= 7 ? ' — tu as assez d\'elements, prepare le signal de fin' : ''}
 ${S._entretienFaceContext ? `\nSIGNAUX NON-VERBAUX : emotion dominante ${S._entretienFaceContext.dominant} (${Math.round(S._entretienFaceContext.score * 100)}%) — ajuste le rythme.` : ''}
 
-FORMAT : Retourne UNIQUEMENT ta prochaine intervention (accuse + apport optionnel + UNE question). Rien d'autre.
+FORMAT : Retourne UNIQUEMENT ta prochaine intervention therapeutique (accuse + apport optionnel + UNE question). RIEN d'autre — pas de raisonnement, pas d'etapes, pas de notes cliniques, pas de titres, pas de sections. Juste 2-4 phrases adressees au patient.
 Quand pret → termine par exactement : [READY_FOR_INDUCTION: resume clinique en 1 phrase avec les mots cles du patient]`;
 
     let cleanHistory = S.entretienHistory.slice(-14).map(m => ({role: m.role, content: String(m.content || '')}));
@@ -950,7 +951,33 @@ Quand pret → termine par exactement : [READY_FOR_INDUCTION: resume clinique en
     hideTypingE();
 
     const readyMatch = resp.match(/\[READY_FOR_INDUCTION:\s*(.+?)\]/s);
-    const displayText = resp.replace(/\[READY_FOR_INDUCTION:[^\]]*\]/g, '').trim();
+    
+    // FIX — Strip internal reasoning before display
+    // Claude sometimes outputs ETAPE blocks despite "silencieux" instruction
+    let displayText = resp
+      .replace(/\[READY_FOR_INDUCTION:[^\]]*\]/g, '')
+      .replace(/ETAPE\s*\d+[^\n]*\n[\s\S]*?(?=(?:ETAPE\s*\d|$))/gi, '')  // ETAPE blocks
+      .replace(/━+/g, '')  // separator lines
+      .replace(/CE QUE JE SAIS DEJA[\s\S]*?(?=\n\n|\n[A-Z])/gi, '')
+      .replace(/CE QUI MANQUE[\s\S]*?(?=\n\n|\n[A-Z])/gi, '')
+      .replace(/HYPOTHESE CLINIQUE[\s\S]*?(?=\n\n|\n[A-Z])/gi, '')
+      .replace(/CHASSE AUX CONTRADICTIONS[\s\S]*?(?=\n\n|\n[A-Z])/gi, '')
+      .replace(/SELECTION DE L'ACTE[\s\S]*?(?=\n\n|\n[A-Z])/gi, '')
+      .replace(/AUTO-CORRECTION[\s\S]*?(?=\n\n|\n[A-Z])/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
+    // If stripping removed everything, use the last paragraph as fallback
+    if (!displayText || displayText.length < 10) {
+      const paragraphs = resp.split(/\n\n+/).filter(p => p.trim().length > 10 && !p.includes('ETAPE'));
+      displayText = paragraphs[paragraphs.length - 1]?.trim() || resp.trim();
+      console.warn('[Entretien] Raisonnement interne détecté et filtré, fallback sur dernier paragraphe');
+    }
+    
+    // Log if reasoning leaked
+    if (resp.includes('ETAPE 1') || resp.includes('CE QUE JE SAIS')) {
+      console.warn('[Entretien] ⚠️ Raisonnement interne dans la réponse API — filtré avant affichage');
+    }
 
     S.entretienHistory.push({role:'assistant', content: displayText});
     analyzeClinicialSignals(userMsg + ' ' + resp);
