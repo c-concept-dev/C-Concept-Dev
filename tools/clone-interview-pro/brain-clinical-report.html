@@ -1789,7 +1789,7 @@ function buildReportHTML(n) {
   }
 
   // ── MÉMOIRE BIOGRAPHIQUE ──
-  const anecdotes = n.biography.anecdotes || [];
+  const anecdotes = (n.biography || {}).anecdotes || [];
   if (anecdotes.length) {
     h += `<div class="section-page">`;
     h += `<div class="section-header"><span class="section-num">12</span><h2 class="section-title">Mémoire Biographique</h2></div>`;
