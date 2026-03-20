@@ -1098,7 +1098,7 @@ function buildDataString(n) {
   }
 
   // Biography + memory hooks
-  const bio = n.biography;
+  const bio = n.biography || {};
   const anecdotes = bio.anecdotes || [];
   const people = bio.people_mentioned || [];
   const lifeHistory = bio.life_history || [];
