@@ -785,6 +785,9 @@ function normalizeBrain(b) {
   // ── Observed signals (v21) ──
   n.observedSignals = b.observed_signals || {};
 
+  // ── Deep Analysis (v21) ──
+  n.deepAnalysis = b.deep_analysis || {};
+
   // ── Behavioral / defense patterns (v21) ──
   n.behavioralPatterns = (schema === 'v21')
     ? (b.personality?.behavioral_patterns || [])
@@ -831,10 +834,24 @@ function buildDataString(n) {
 
   // Convergence
   const conv = n.convergence;
-  if (conv.delta_before || conv.delta_after) {
-    d += `[CONVERGENCE]\n`;
-    d += `Écart avant convergence : ${conv.delta_before || '?'} | après : ${conv.delta_after || '?'}\n`;
-    d += `Confiance : ${conv.confidence || '?'} | Insight : ${conv.insight || ''}\n\n`;
+  if (conv.confidence || conv.delta_before || conv.delta_after) {
+    d += `[CONVERGENCE MULTI-SOURCES]\n`;
+    if (conv.confidence) d += `Confiance : ${conv.confidence}\n`;
+    if (conv.insight) d += `Insight : ${conv.insight}\n`;
+    // v21 format: adjustments per trait
+    const adj = conv.adjustments || {};
+    if (Object.keys(adj).length > 0) {
+      for (const [k, v] of Object.entries(adj)) {
+        if (v && typeof v === 'object') {
+          d += `  ${k}: LLM=${v.llm_score} → Signal=${v.signal_score} → Final=${v.final_score} (${v.verdict})`;
+          if (v.reasoning) d += ` — ${v.reasoning.substring(0, 150)}`;
+          d += '\n';
+        }
+      }
+    }
+    // v20 format fallback
+    if (conv.delta_before) d += `Écart avant : ${conv.delta_before} | après : ${conv.delta_after || '?'}\n`;
+    d += '\n';
   }
 
   // Valeurs Schwartz
@@ -954,6 +971,84 @@ function buildDataString(n) {
       });
     }
     d += '\n';
+  }
+
+  // ═══ DEEP ANALYSIS (v21) — Vision invisible ═══
+  const da = b.deep_analysis || {};
+  const hasDeep = Object.keys(da).some(k => k !== '_meta' && da[k] && Object.keys(da[k]).length > 0);
+  if (hasDeep) {
+    // Angles morts
+    const bs = da.blind_spots || {};
+    if (bs.absences_significatives?.length || bs.themes_absents?.length) {
+      d += '[ANGLES MORTS — CE QUE LE SUJET NE VOIT PAS]\n';
+      if (bs.themes_presents?.length) d += `Thèmes présents : ${bs.themes_presents.join(', ')}\n`;
+      if (bs.themes_absents?.length) d += `Thèmes absents : ${bs.themes_absents.join(', ')}\n`;
+      (bs.absences_significatives || []).forEach(a => {
+        d += `  → ${a.domain || '?'} : ${a.observation || ''}\n`;
+        if (a.hypothesis) d += `    Hypothèse : ${a.hypothesis}\n`;
+      });
+      if (bs.language_patterns_missing?.length) {
+        d += `Patterns linguistiques absents :\n`;
+        bs.language_patterns_missing.forEach(p => {
+          d += `  → "${p.pattern_absent || '?'}" : ${p.interpretation || ''}\n`;
+        });
+      }
+      if (bs.blind_spots_summary) d += `Synthèse : ${bs.blind_spots_summary}\n`;
+      d += '\n';
+    }
+
+    // Défenses en action
+    const dia = da.defenses_in_action || {};
+    if (dia.defenses_in_action?.length || dia.dominant_defense_in_action) {
+      d += '[DÉFENSES EN ACTION — OBSERVÉES PENDANT L\'ENTRETIEN]\n';
+      if (dia.dominant_defense_in_action) d += `Dominante : ${dia.dominant_defense_in_action} | Flexibilité : ${dia.defense_flexibility || '?'}\n`;
+      (dia.defenses_in_action || []).forEach(df => {
+        d += `  Q${df.turn || '?'}: ${df.defense_detected || '?'} — "${(df.evidence || '').substring(0, 120)}"\n`;
+      });
+      if (dia.note) d += `Note : ${dia.note}\n`;
+      d += '\n';
+    }
+
+    // Cohérence longitudinale
+    const coh = da.longitudinal_coherence || {};
+    if (coh.contradictions?.length || coh.coherence_score != null) {
+      d += '[COHÉRENCE LONGITUDINALE]\n';
+      if (coh.coherence_score != null) d += `Score cohérence : ${coh.coherence_score}/100 | Courbe : ${coh.evolution_curve || '?'}\n`;
+      if (coh.turning_point?.description) d += `Point de basculement : tour ${coh.turning_point.turn || '?'} — ${coh.turning_point.description}\n`;
+      (coh.contradictions || []).forEach(c => {
+        d += `  [${c.type || '?'}] Q${c.turn_a || '?'}→Q${c.turn_b || '?'} : ${(c.interpretation || '').substring(0, 120)}\n`;
+      });
+      if (coh.note) d += `Note : ${coh.note}\n`;
+      d += '\n';
+    }
+
+    // Self vs Other
+    const so = da.self_other_perception || {};
+    if (so.deltas?.length) {
+      d += '[PERCEPTION DE SOI vs PERCEPTION DES AUTRES]\n';
+      if (so.self_report?.identity_claimed) d += `Self-report identité : ${so.self_report.identity_claimed}\n`;
+      so.deltas.forEach(dl => {
+        d += `  ${dl.dimension || '?'} [${dl.delta_magnitude || '?'}] : self="${(dl.self_view || '').substring(0, 60)}" vs other="${(dl.other_view || '').substring(0, 60)}"\n`;
+        if (dl.interpretation) d += `    → ${dl.interpretation.substring(0, 120)}\n`;
+      });
+      if (so.biggest_blind_spot) d += `Plus grand angle mort : ${so.biggest_blind_spot.substring(0, 200)}\n`;
+      if (so.note) d += `Note : ${so.note}\n`;
+      d += '\n';
+    }
+
+    // Transfert
+    const tr = da.interview_transfert || {};
+    if (tr.relational_dynamics) {
+      d += '[DYNAMIQUE TRANSFERENTIELLE EN SÉANCE]\n';
+      const rd = tr.relational_dynamics;
+      for (const dim of ['compliance', 'resistance', 'seduction', 'authenticity', 'depth']) {
+        const v = rd[dim];
+        if (v) d += `  ${dim} : ${v.score || '?'}/10 — ${(v.evidence || '').substring(0, 100)}\n`;
+      }
+      if (tr.interpersonal_style_in_session) d += `Style interpersonnel : ${tr.interpersonal_style_in_session}\n`;
+      if (tr.what_this_reveals) d += `Ce que ça révèle : ${tr.what_this_reveals}\n`;
+      d += '\n';
+    }
   }
 
   // Analyseurs locaux v20 (rétrocompatibilité)
