@@ -350,7 +350,7 @@ Retourne UNIQUEMENT le JSON.`;
                         system: systemPrompt,
                         messages: [{
                             role: 'user',
-                            content: 'Analyse et retourne le JSON demandé.'
+                            content: 'Analyse et retourne UNIQUEMENT le JSON demandé. Pas de texte, pas de markdown.'
                         }]
                     }
                 })
@@ -361,7 +361,13 @@ Retourne UNIQUEMENT le JSON.`;
             }
             
             const data = await response.json();
-            const text = data.content[0].text.trim();
+            let text = '';
+            if (Array.isArray(data?.content)) {
+                text = data.content.filter(c => c.type === 'text').map(c => c.text || '').join('\n');
+            } else if (typeof data?.content === 'string') {
+                text = data.content;
+            }
+            text = text.trim();
             
             // Parser JSON
             const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -8641,6 +8647,8 @@ async function generateCloneBrain() {
         conversation = contextInfo + conversation;
         
         async function callClaudeForAnalysis(prompt, maxTokens) {
+            // Sécurité : si prompt est un objet (ex: retour multi-pass), le convertir en string
+            const promptStr = typeof prompt === 'string' ? prompt : JSON.stringify(prompt, null, 2);
             const resp = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -8650,12 +8658,16 @@ async function generateCloneBrain() {
                         model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
                         max_tokens: maxTokens || 2500,
                         temperature: 0.3,
-                        system: prompt,
-                        messages: [{ role: 'user', content: 'Analyse cette conversation et retourne le JSON demande.' }]
+                        system: promptStr,
+                        messages: [{ role: 'user', content: 'Analyse cette conversation et retourne UNIQUEMENT le JSON demande. Pas de texte avant ou apres. Pas de markdown. Juste le JSON brut.' }]
                     }
                 })
             });
-            if (!resp.ok) throw new Error('API ' + resp.status);
+            if (!resp.ok) {
+                const errBody = await resp.text().catch(() => '');
+                console.error('[callClaudeForAnalysis] API error:', resp.status, errBody.substring(0, 300));
+                throw new Error('API ' + resp.status);
+            }
             const data = await resp.json();
             let text = '';
             if (Array.isArray(data?.content)) {
@@ -8665,15 +8677,71 @@ async function generateCloneBrain() {
             } else if (data?.text) {
                 text = data.text;
             }
+            
+            // DIAGNOSTIC: log raw response (first/last 200 chars + stop_reason)
+            const stopReason = data?.stop_reason || data?.stop || 'unknown';
+            console.log('[callClaudeForAnalysis] 📥 Raw:', text.length, 'chars | stop:', stopReason, '| first100:', JSON.stringify(text.substring(0, 100)), '| last100:', JSON.stringify(text.substring(text.length - 100)));
+            
+            // Nettoyage markdown fences
             text = text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-            // FIX-A2-TRUNCATION — repair JSON tronqué avant parse
+            
+            // Extraire le JSON si entouré de texte libre
+            const jsonStart = text.indexOf('{');
+            const jsonEnd = text.lastIndexOf('}');
+            if (jsonStart > 0 && jsonEnd > jsonStart) {
+                console.log('[callClaudeForAnalysis] ⚠️ Texte avant JSON détecté, extraction à partir de index', jsonStart);
+                text = text.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            // Parse direct
             try {
                 return JSON.parse(text);
             } catch (e) {
-                // Tentative de réparation : fermer les structures ouvertes
+                // FIX-A2-TRUNCATION v2 — réparation robuste JSON tronqué
+                console.warn('[FIX-A2-TRUNCATION] Parse échoué, tentative repair. Erreur:', e.message, '| Longueur:', text.length);
+                
                 let repaired = text;
-                // Compter les accolades/crochets non fermés
-                let braces = 0, brackets = 0, inStr = false, escape = false;
+                
+                // Étape 1: Si tronqué au milieu d'une string, fermer la string
+                // Trouver la dernière quote et vérifier si on est dans une string ouverte
+                let inStr = false, escape = false;
+                let lastQuotePos = -1;
+                for (let i = 0; i < repaired.length; i++) {
+                    const ch = repaired[i];
+                    if (escape) { escape = false; continue; }
+                    if (ch === '\\' && inStr) { escape = true; continue; }
+                    if (ch === '"') { inStr = !inStr; lastQuotePos = i; }
+                }
+                
+                // Si on est encore dans une string ouverte, couper proprement
+                if (inStr) {
+                    // Option A: Tronquer à la dernière valeur complète
+                    // Chercher la dernière virgule ou ouverture de structure AVANT la string ouverte
+                    const lastComplete = Math.max(
+                        repaired.lastIndexOf('",', lastQuotePos),
+                        repaired.lastIndexOf('"},', lastQuotePos),
+                        repaired.lastIndexOf('],', lastQuotePos),
+                        repaired.lastIndexOf('0,', lastQuotePos),  // nombre suivi de virgule
+                        repaired.lastIndexOf('1,', lastQuotePos)
+                    );
+                    
+                    if (lastComplete > repaired.length * 0.5) {
+                        // On a au moins 50% du JSON, on coupe à la dernière entrée complète
+                        repaired = repaired.substring(0, lastComplete + 1);
+                        // Retirer la virgule trailing si présente
+                        repaired = repaired.replace(/,\s*$/, '');
+                    } else {
+                        // Fermer la string manuellement
+                        repaired += '"';
+                    }
+                }
+                
+                // Étape 2: Retirer la virgule trailing avant fermeture
+                repaired = repaired.replace(/,\s*$/, '');
+                
+                // Étape 3: Compter et fermer les structures ouvertes
+                let braces = 0, brackets = 0;
+                inStr = false; escape = false;
                 for (let i = 0; i < repaired.length; i++) {
                     const ch = repaired[i];
                     if (escape) { escape = false; continue; }
@@ -8685,14 +8753,17 @@ async function generateCloneBrain() {
                     else if (ch === '[') brackets++;
                     else if (ch === ']') brackets--;
                 }
-                // Fermer les tableaux puis objets manquants
                 while (brackets > 0) { repaired += ']'; brackets--; }
                 while (braces > 0) { repaired += '}'; braces--; }
+                
                 try {
-                    console.warn('[FIX-A2-TRUNCATION] JSON réparé (' + (repaired.length - text.length) + ' chars ajoutés)');
-                    return JSON.parse(repaired);
+                    const result = JSON.parse(repaired);
+                    console.log('[FIX-A2-TRUNCATION] ✅ Réparation réussie (' + (repaired.length - text.length) + ' chars ajustés), clés:', Object.keys(result).join(','));
+                    return result;
                 } catch (e2) {
-                    console.error('[FIX-A2-TRUNCATION] Réparation échouée, retour objet vide sécurisé');
+                    console.error('[FIX-A2-TRUNCATION] ❌ Réparation échouée.', 'Erreur:', e2.message);
+                    console.error('[FIX-A2-TRUNCATION] 📄 Début:', JSON.stringify(text.substring(0, 200)));
+                    console.error('[FIX-A2-TRUNCATION] 📄 Fin:', JSON.stringify(text.substring(text.length - 200)));
                     return {};
                 }
             }
@@ -8702,11 +8773,10 @@ async function generateCloneBrain() {
         setCloneStep(1, 'active');
         statusEl.textContent = 'Analyse du temperament (Big Five)...';
         
-        const p1 = callClaudeForAnalysis(
+        const p1 = (async () => {
             // v20.9 — MULTI-PASS Big Five
             // PASS A1 : extraction factuelle pure (anecdotes de vie réelle brutes)
             // PASS A2 : scoring sur anecdotes uniquement — jamais la conversation brute
-            await (async () => {
 
             // A1 — Extracteur factuel : ne voit que les réponses utilisateur, extrait les FAITS
             const userOnlyText = (window.conversationalSystem?.messages || [])
@@ -8747,7 +8817,7 @@ async function generateCloneBrain() {
                 .join('\n\n');
 
             // A2 — Scoreur Big Five : ne voit QUE les faits extraits
-            return callClaudeForAnalysis(
+            const result = await callClaudeForAnalysis(
                 'Tu es un expert en psychologie des traits de personnalite (Big Five / NEO-PI-R).\n\n' +
                 'Tu vas scorer les Big Five d\'une personne a partir de FAITS DE VIE REELLE qui ont ete extraits de son entretien.\n' +
                 'Ces faits ont DEJA ete filtres : ils ne contiennent PAS les attitudes d\'entretien, uniquement ce que la personne vit et fait au quotidien.\n\n' +
@@ -8777,13 +8847,13 @@ async function generateCloneBrain() {
                 'level: very_low(0-20), low(21-40), medium(41-60), high(61-80), very_high(81-100).\n' +
                 'Retourne UNIQUEMENT le JSON.', 4500
             );
-
-            })()
-        ).then(r => { setCloneStep(1, 'done'); return r; });
+            setCloneStep(1, 'done');
+            return result;
+        })();
         
         setCloneStep(2, 'active');
         const p2 = callClaudeForAnalysis(
-            'Tu es un expert mondial en psychologie des valeurs (Schwartz 10 valeurs).\nAnalyse cette conversation et identifie la hierarchie complete des valeurs.\n\nCONVERSATION:\n' + conversation + '\n\nGenere un JSON:\n{\n  "hierarchy": [\n    { "value": "self-direction", "score": 90, "sub_values": ["autonomy","creativity"], "evidence": ["citation exacte"], "manifestation": "Comment cette valeur se manifeste" }\n  ],\n  "tensions": [ { "pair": "achievement vs benevolence", "description": "...", "resolution": "..." } ],\n  "core_motivations": ["Motivation 1", "Motivation 2"]\n}\nLes 10 valeurs: self-direction, stimulation, hedonism, achievement, power, security, conformity, tradition, benevolence, universalism.\nRetourne UNIQUEMENT le JSON.', 2500
+            'Tu es un expert mondial en psychologie des valeurs (Schwartz 10 valeurs).\nAnalyse cette conversation et identifie la hierarchie complete des valeurs.\n\nCONVERSATION:\n' + conversation + '\n\nGenere un JSON:\n{\n  "hierarchy": [\n    { "value": "self-direction", "score": 90, "sub_values": ["autonomy","creativity"], "evidence": ["citation exacte"], "manifestation": "Comment cette valeur se manifeste" }\n  ],\n  "tensions": [ { "pair": "achievement vs benevolence", "description": "...", "resolution": "..." } ],\n  "core_motivations": ["Motivation 1", "Motivation 2"]\n}\nLes 10 valeurs: self-direction, stimulation, hedonism, achievement, power, security, conformity, tradition, benevolence, universalism.\nRetourne UNIQUEMENT le JSON.', 4000
         ).then(r => { setCloneStep(2, 'done'); return r; });
         
         setCloneStep(3, 'active');
@@ -8828,7 +8898,7 @@ async function generateCloneBrain() {
             '}\n' +
             'IMPORTANT : energy_patterns doit etre base sur des FAITS OBSERVES dans la conversation (habitudes mentionnees, moments decrits), pas sur des deductions psychologiques abstraites.\n' +
             'Si donnees insuffisantes pour un champ : valeur "donnees insuffisantes".\n' +
-            'Retourne UNIQUEMENT le JSON.', 2500
+            'Retourne UNIQUEMENT le JSON.', 4000
         ).then(r => { setCloneStep(5, 'done'); return r; });
         
         statusEl.textContent = '5 analyses IA en cours...';
@@ -8874,7 +8944,7 @@ async function generateCloneBrain() {
                 '  "observed_evidence": ["citation ou moment concret de la conversation qui illustre la sequence"]\n' +
                 '}\n' +
                 'Retourne UNIQUEMENT le JSON.';
-            defenseDynamics = await callClaudeForAnalysis(defensePrompt, 2000);
+            defenseDynamics = await callClaudeForAnalysis(defensePrompt, 3500);
             console.log('[AXE2] Defense dynamics OK — sequences:', defenseDynamics?.sequences?.length || 0);
         } catch(e) {
             console.warn('[AXE2] Defense dynamics failed:', e.message);
@@ -8950,12 +9020,18 @@ async function generateCloneBrain() {
                     'punitiveness_other': 'intolerant aux manquements des autres',
                     'fear_losing_control': 'besoin de maitrise, inconfort face a l\'imprevisiblite'
                 };
-                const dominantPatterns = (sd.stats.dominant || []).map(id => ({
-                    id,
-                    behavioral_signal: schemaToSignalMap[id] || id,
-                    score: sd.schemas?.[id]?.score || 0,
-                    evidence_count: sd.schemas?.[id]?.evidenceCount || 0
-                }));
+                const dominantPatterns = (sd.stats.dominant || []).map(schema => {
+                    const schemaId = typeof schema === 'string' ? schema : (schema.id || schema);
+                    const schemaName = typeof schema === 'object' ? (schema.name || schemaId) : schemaId;
+                    const schemaScore = typeof schema === 'object' ? (schema.score || 0) : (sd.schemas?.[schemaId]?.score || 0);
+                    return {
+                        id: schemaId,
+                        name: schemaName,
+                        behavioral_signal: schemaToSignalMap[schemaId] || schemaId,
+                        score: schemaScore,
+                        evidence_count: sd.schemas?.[schemaId]?.evidenceCount || 0
+                    };
+                });
                 localAnalyzers.behavioral_patterns = {
                     dominant: dominantPatterns,
                     domain_coverage: sd.stats.domainCoverage || {},
@@ -9103,19 +9179,16 @@ async function generateCloneBrain() {
         function computePillarConfidence(pillarKey) {
             if (!tracker || !tracker.pillars[pillarKey]) return { score: 0, grade: 'F', basis: 'no_data' };
             const pillar = tracker.pillars[pillarKey];
-            const coverage = pillar.confidence / 100;
-            const contradictions = dp ? dp.verbalContradictions.length : 0;
+            const coverage = (Number.isFinite(pillar.confidence) ? pillar.confidence : 0) / 100;
+            const contradictions = dp ? (dp.verbalContradictions || []).length : 0;
             const coherence = Math.max(0.3, 1 - contradictions * 0.05);
-            const reticence = dp ? (dp.reticenceScore / 100) : 0;
+            const reticence = dp ? ((Number.isFinite(dp.reticenceScore) ? dp.reticenceScore : 0) / 100) : 0;
             const depth = Math.max(0.3, 1 - reticence * 0.5);
             const desirability = (dp?._socialDesirabilityHistory || []).length > 0
-                ? (dp._socialDesirabilityHistory.reduce((a, b) => a + b, 0) / dp._socialDesirabilityHistory.length) / 100 : 0;
-            const authenticity = Math.max(0.4, 1 - desirability * 0.4);
+                ? (dp._socialDesirabilityHistory.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0) / dp._socialDesirabilityHistory.length) / 100 : 0;
+            const authenticity = Math.max(0.4, 1 - (Number.isFinite(desirability) ? desirability : 0) * 0.4);
             
             // v20.1 — PENALITE BIAIS DE RESISTANCE SITUATIONNELLE
-            // Quand la reticence est elevee, les piliers les plus vulnerables au biais
-            // (agreabilite, attachement, traits emotionnels) ont une confiance REDUITE
-            // car le systeme confond facilement resistance a l'interview avec trait de personnalite
             let situationalPenalty = 1.0;
             const resistanceSensitivePillars = ['attachment', 'traits', 'defenses'];
             if (reticence > 0.4 && resistanceSensitivePillars.includes(pillarKey)) {
@@ -9123,7 +9196,7 @@ async function generateCloneBrain() {
             }
             
             const raw = coverage * coherence * depth * authenticity * situationalPenalty;
-            const score = Math.round(Math.min(100, raw * 100));
+            const score = Number.isFinite(raw) ? Math.round(Math.min(100, raw * 100)) : 0;
             const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : score >= 20 ? 'D' : 'F';
             
             const components = { coverage: Math.round(coverage*100), coherence: Math.round(coherence*100), depth: Math.round(depth*100), authenticity: Math.round(authenticity*100) };
@@ -9148,10 +9221,17 @@ async function generateCloneBrain() {
         const globalConfidence = allConfScores.length > 0
             ? Math.round(allConfScores.reduce((a, b) => a + b, 0) / allConfScores.length) : 0;
         
+        // DIAGNOSTIC — pillar scores
+        console.log('[QualityGate] Pillar scores:', Object.entries(confidence).map(([k,v]) => k + ':' + v.score).join(', '));
+        console.log('[QualityGate] GlobalConfidence:', globalConfidence);
+        
         // QUALITY GATE
         const mandatoryPillars = ['traits', 'schemas', 'attachment', 'defenses', 'values'];
         const mandatoryBelow75 = mandatoryPillars.filter(k => confidence[k].score < 75);
-        const completeness = tracker ? Math.round(tracker.getGlobalCompleteness()) : 0;
+        const rawCompleteness = tracker ? tracker.getGlobalCompleteness() : 0;
+        const completeness = Number.isFinite(rawCompleteness) ? Math.round(rawCompleteness) : 0;
+        
+        console.log('[QualityGate] Completeness:', completeness, '| MandatoryBelow75:', mandatoryBelow75.join(',') || 'none');
         
         let qualityGrade;
         if (completeness > 85 && mandatoryBelow75.length === 0 && globalConfidence >= 75) qualityGrade = 'A';
@@ -9159,6 +9239,24 @@ async function generateCloneBrain() {
         else if (completeness >= 55 && mandatoryBelow75.length <= 2) qualityGrade = 'C';
         else if (completeness >= 40) qualityGrade = 'D';
         else qualityGrade = 'F';
+        
+        // v21.4 — GRADE OVERRIDE : si le tracker est bas mais que le brain-builder a produit du contenu riche,
+        // on ajuste le grade à la hausse basé sur le contenu réel
+        if (qualityGrade === 'F' || qualityGrade === 'D') {
+            let contentScore = 0;
+            if (temperament && Object.keys(temperament).length >= 4) contentScore += 2;
+            if (values && values.hierarchy && values.hierarchy.length >= 3) contentScore += 2;
+            if (communication && Object.keys(communication).length >= 3) contentScore += 1;
+            if (thinking && Object.keys(thinking).length >= 3) contentScore += 1;
+            if (emotional && Object.keys(emotional).length >= 3) contentScore += 1;
+            if (globalConfidence >= 30) contentScore += 1;
+            // contentScore max = 8
+            const overrideGrade = contentScore >= 7 ? 'B' : contentScore >= 5 ? 'C' : contentScore >= 3 ? 'D' : 'F';
+            if (overrideGrade < qualityGrade || (qualityGrade === 'F' && overrideGrade !== 'F')) {
+                console.log('[QualityGate] Grade override:', qualityGrade, '→', overrideGrade, '(contentScore:', contentScore + '/8)');
+                qualityGrade = overrideGrade;
+            }
+        }
         
         // ASSEMBLAGE CLONE-BRAIN-1.0
         // v21.0 — Schéma CLONE-PERSONALITY-1.0
@@ -9410,9 +9508,9 @@ async function generateCloneBrain() {
             // Construire le prompt de convergence
             let convergencePrompt = 'Tu es un analyste de coherence de personnalite. Tu recois deux sources independantes de scoring de traits et tu dois decider : convergent-elles ? Faut-il ajuster ?\n\n';
             convergencePrompt += 'SOURCE 1 — Scoring LLM (base sur la conversation, posture photographe) :\n';
-            if (window._cloneBrainJSON?.temperament) {
-                const t = window._cloneBrainJSON.temperament;
-                convergencePrompt += 'O=' + (t.openness?.score || '?') + ' C=' + (t.conscientiousness?.score || '?') + ' E=' + (t.extraversion?.score || '?') + ' A=' + (t.agreeableness?.score || '?') + ' N=' + (t.neuroticism?.score || '?') + '\n';
+            const _bf = window._cloneBrainJSON?.personality?.big_five;
+            if (_bf) {
+                convergencePrompt += 'O=' + (_bf.O?.score || '?') + ' C=' + (_bf.C?.score || '?') + ' E=' + (_bf.E?.score || '?') + ' A=' + (_bf.A?.score || '?') + ' N=' + (_bf.N?.score || '?') + '\n';
             }
 
             convergencePrompt += '\nSOURCE 2 — Signaux temps reel independants (detectes pendant l\'entretien, pas bases sur le contenu des reponses) :\n';
@@ -9458,18 +9556,18 @@ async function generateCloneBrain() {
             const convergenceResult = await callClaudeForAnalysis(convergencePrompt, 2000);
 
             // Appliquer les ajustements si divergence
-            if (convergenceResult && window._cloneBrainJSON?.temperament) {
-                const t = window._cloneBrainJSON.temperament;
-                const traitMap = { O: 'openness', C: 'conscientiousness', E: 'extraversion', A: 'agreeableness', N: 'neuroticism' };
-                for (const [key, traitName] of Object.entries(traitMap)) {
+            if (convergenceResult && window._cloneBrainJSON?.personality?.big_five) {
+                const bf = window._cloneBrainJSON.personality.big_five;
+                const traitMap = { O: 'O', C: 'C', E: 'E', A: 'A', N: 'N' };
+                for (const [key, traitKey] of Object.entries(traitMap)) {
                     const cr = convergenceResult[key];
-                    if (cr && cr.verdict === 'divergent' && cr.final !== undefined && t[traitName]) {
-                        const originalScore = t[traitName].score;
-                        t[traitName].score = cr.final;
-                        t[traitName].convergence_note = cr.note || '';
-                        t[traitName].convergence_adjusted = true;
-                        t[traitName].original_llm_score = originalScore;
-                        console.log('[Convergence] ' + key + ' ajuste : ' + originalScore + ' → ' + cr.final + ' (' + cr.note + ')');
+                    if (cr && cr.verdict === 'divergent' && cr.final !== undefined && bf[traitKey]) {
+                        const originalScore = bf[traitKey].score;
+                        bf[traitKey].score = cr.final;
+                        bf[traitKey].convergence_note = cr.note || '';
+                        bf[traitKey].convergence_adjusted = true;
+                        bf[traitKey].original_llm_score = originalScore;
+                        console.log('[Convergence] ' + key + ' ajusté : ' + originalScore + ' → ' + cr.final + ' (' + cr.note + ')');
                     }
                 }
                 // v21.0 — Attacher la convergence dans le schéma CLONE-PERSONALITY-1.0
@@ -9513,7 +9611,7 @@ async function generateCloneBrain() {
         if (window.CLONE_VARIANT?.webConsultEnabled) {
             try {
                 const brain = window._cloneBrainJSON;
-                const t = brain?.temperament;
+                const t = brain?.personality?.big_five;
                 const conv = brain?.convergence;
 
                 // Détecter si enrichissement nécessaire
@@ -9634,11 +9732,15 @@ async function generateCloneBrain() {
             const _questionResponsePairs = _pairs.join('\n---\n').substring(0, 12000);
 
             // Extraire le contexte profil pour 8a
-            const _t = _brain?.temperament || {};
-            const _bigFiveSummary = ['openness','conscientiousness','extraversion','agreeableness','neuroticism']
-                .map(d => d.substring(0,1).toUpperCase() + ':' + (_t[d]?.score || '?')).join(' ');
-            const _schemasSummary = (_brain?.observed_signals?.behavioral_patterns?.dominant || [])
-                .map(p => p.id || p.behavioral_signal || '').filter(Boolean).slice(0, 5).join(', ') || 'non disponible';
+            const _bf = _brain?.personality?.big_five || {};
+            const _bigFiveSummary = ['O','C','E','A','N']
+                .map(d => d + ':' + (_bf[d]?.score || '?')).join(' ');
+            const _bpList = _brain?.observed_signals?.behavioral_patterns || [];
+            const _schemasSummary = (Array.isArray(_bpList) ? _bpList : (_bpList.dominant || []))
+                .map(p => {
+                    if (typeof p === 'string') return p;
+                    return p.name || p.id || p.behavioral_signal || '';
+                }).filter(Boolean).slice(0, 5).join(', ') || 'non disponible';
             const _defensesSummary = (_brain?.observed_signals?.defense_dynamics?.top_3 || [])
                 .map(d => d.name || d).filter(Boolean).join(', ') || 'non disponible';
 
@@ -9657,8 +9759,18 @@ async function generateCloneBrain() {
                 '   - Le sujet ne mentionne jamais de plaisir personnel = possible anhedonie ou culpabilite\n\n' +
                 'REPONSES DU SUJET :\n' + _allUserText + '\n\n' +
                 'PROFIL DEJA ETABLI :\nBig Five : ' + _bigFiveSummary + '\nSchemas dominants : ' + _schemasSummary + '\nDefenses : ' + _defensesSummary + '\n\n' +
-                'Retourne UNIQUEMENT un JSON :\n' +
-                '{"themes_presents":["..."],"themes_absents":["..."],"absences_significatives":[{"domain":"...","observation":"...","hypothesis":"...","confidence":0.0,"evidence_absence":["..."]}],"language_patterns_missing":[{"pattern_absent":"...","frequency_zero_or_near":true,"interpretation":"..."}],"blind_spots_summary":"synthese en 3-4 phrases"}';
+                'Retourne UNIQUEMENT un JSON avec cette structure exacte :\n' +
+                '{\n' +
+                '  "themes_presents": ["travail", "famille", "..."],\n' +
+                '  "themes_absents": ["sexualite", "argent", "..."],\n' +
+                '  "absences_significatives": [\n' +
+                '    {"domain": "nom du domaine absent", "observation": "ce qui est observe ou absent", "hypothesis": "hypothese sur ce que ca revele", "confidence": 0.7, "evidence_absence": ["indice 1", "indice 2"]}\n' +
+                '  ],\n' +
+                '  "language_patterns_missing": [\n' +
+                '    {"pattern_absent": "je veux / j ai envie", "frequency_zero_or_near": true, "interpretation": "possible absence de conscience de ses desirs"}\n' +
+                '  ],\n' +
+                '  "blind_spots_summary": "synthese en 3-4 phrases"\n' +
+                '}';
 
             // ── 8b — DEFENSES EN ACTION ──
             const _prompt8b = 'Tu es un expert en mecanismes de defense psychologiques.\n\n' +
@@ -9723,12 +9835,28 @@ async function generateCloneBrain() {
                 '{"relational_dynamics":{"compliance":{"score":0,"evidence":"..."},"resistance":{"score":0,"evidence":"..."},"seduction":{"score":0,"evidence":"..."},"authenticity":{"score":0,"evidence":"..."},"depth":{"score":0,"evidence":"..."}},"openness_curve":{"start":"...","middle":"...","end":"...","trajectory":"croissante/stable/decroissante/en_V"},"interpersonal_style_in_session":"2-3 phrases","what_this_reveals":"2-3 phrases"}';
 
             // Lancer les 5 modules EN PARALLELE
+            // 8a gets retry logic because it fails more often (largest prompt)
+            const _blindSpotsCall = async () => {
+                let result = await callClaudeForAnalysis(_prompt8a, 4000);
+                // Retry once if empty — 8a is the most fragile module
+                if (!result || Object.keys(result).length === 0) {
+                    console.warn('[DeepAnalysis] 8a blind_spots vide, retry...');
+                    result = await callClaudeForAnalysis(_prompt8a, 4000);
+                }
+                // If still empty, log and return structured empty
+                if (!result || Object.keys(result).length === 0) {
+                    console.error('[DeepAnalysis] 8a blind_spots échec après retry');
+                    return { themes_presents: [], themes_absents: [], absences_significatives: [], language_patterns_missing: [], blind_spots_summary: 'Module indisponible' };
+                }
+                return result;
+            };
+            
             const [_blindSpots, _defensesInAction, _coherence, _selfOther, _transfert] = await Promise.all([
-                callClaudeForAnalysis(_prompt8a, 1500),
-                callClaudeForAnalysis(_prompt8b, 1200),
-                callClaudeForAnalysis(_prompt8c, 1000),
-                callClaudeForAnalysis(_prompt8d, 1000),
-                callClaudeForAnalysis(_prompt8e, 800)
+                _blindSpotsCall(),
+                callClaudeForAnalysis(_prompt8b, 2500),
+                callClaudeForAnalysis(_prompt8c, 2500),
+                callClaudeForAnalysis(_prompt8d, 2000),
+                callClaudeForAnalysis(_prompt8e, 2000)
             ]);
 
             // Assembler dans le brain JSON
@@ -9817,7 +9945,7 @@ async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
                 '- memory_hooks.when_to_use : contexte CONCRET et SPECIFIQUE, pas generique.\n' +
                 '- memory_hooks.natural_formulation : doit sonner comme CETTE personne parle (style, registre, expressions caracteristiques observees).\n' +
                 '- Ne devines pas. Ne deduis aucun trouble ou pathologie.\n' +
-                'Retourne UNIQUEMENT le JSON.', 3000
+                'Retourne UNIQUEMENT le JSON.', 5000
             );
             // FIX-BIOGRAPHY-EXTRACTOR PATCH 1 — validation et logging détaillé
             if (personaResult && typeof personaResult === 'object') {
@@ -9825,13 +9953,31 @@ async function extractPersonaDraft(userMsgs, callClaudeForAnalysis) {
                 const pmCount = Array.isArray(personaResult.people_mentioned) ? personaResult.people_mentioned.length : 0;
                 const trCount = Array.isArray(personaResult.time_references) ? personaResult.time_references.length : 0;
                 const hbCount = Array.isArray(personaResult.habitual_behaviors) ? personaResult.habitual_behaviors.length : 0;
-                console.log('[PersonaExtractor] LLM OK — anecdotes:' + anCount + ' people:' + pmCount + ' time_refs:' + trCount + ' habits:' + hbCount);
+                // Check hooks quality
+                const hooksCount = (personaResult.anecdotes || []).filter(a => a.memory_hooks?.natural_formulation?.length > 10).length;
+                console.log('[PersonaExtractor] LLM OK — anecdotes:' + anCount + ' (hooks:' + hooksCount + ') people:' + pmCount + ' time_refs:' + trCount + ' habits:' + hbCount);
+                
                 // Si le LLM retourne un objet vide ou sans anecdotes, on complète avec le fallback
                 if (anCount === 0 && pmCount === 0 && trCount === 0) {
                     console.warn('[PersonaExtractor] LLM retourne vide — activation fallback pour compléter');
                     const fallback = _extractPersonaFallback(userMsgs);
-                    return Object.assign(fallback, personaResult); // personaResult en priorité si quelques clés sont remplies
+                    return Object.assign(fallback, personaResult);
                 }
+                
+                // Si les anecdotes existent mais sans hooks, compléter avec le fallback pour people/habits
+                const fallback = _extractPersonaFallback(userMsgs);
+                if (pmCount === 0 && fallback.people_mentioned?.length > 0) {
+                    personaResult.people_mentioned = fallback.people_mentioned;
+                    console.log('[PersonaExtractor] People complétés via fallback:', fallback.people_mentioned.length);
+                }
+                if (hbCount === 0 && fallback.habitual_behaviors?.length > 0) {
+                    personaResult.habitual_behaviors = fallback.habitual_behaviors;
+                    console.log('[PersonaExtractor] Habits complétés via fallback:', fallback.habitual_behaviors.length);
+                }
+                if (!personaResult.emotions_expressed?.length && fallback.emotions_expressed?.length > 0) {
+                    personaResult.emotions_expressed = fallback.emotions_expressed;
+                }
+                
                 return personaResult;
             } else {
                 console.warn('[PersonaExtractor] LLM retourne type inattendu:', typeof personaResult, '— fallback activé');
@@ -9949,124 +10095,277 @@ function assessCloneQuality(userMsgCount, totalWords, t, v, c, th, em) {
 }
 
 function generateClonePromptFromBrain(brain) {
-    // v20.9 — Prompt système complet et actionnable pour custom bot LLM
-    const t = brain.temperament || {};
-    const v = brain.values || {};
-    const c = brain.communication_style || {};
-    const th = brain.thinking_patterns || {};
-    const em = brain.emotional_profile || {};
-    const ci = c.clone_instructions || {};
+    // v21.4 — Prompt système complet et actionnable pour custom bot LLM
+    // Lit la structure CLONE-PERSONALITY-1.0 (brain v21)
+    // Le prompt doit permettre à n'importe quel LLM d'INCARNER cette personne
+    
+    const pers = brain.personality || {};
+    const bf = pers.big_five || {};
+    const vals = pers.values || {};
+    const comm = brain.communication || {};
+    const cog = brain.cognition || {};
+    const emo = brain.emotional || {};
+    const bio = brain.biography || {};
+    const da = brain.deep_analysis || {};
+    const obs = brain.observed_signals || {};
+    const conv = brain.convergence || {};
+    
     const name = brain.identity?.display_name || 'cette personne';
     const age = brain.identity?.age ? ', ' + brain.identity.age + ' ans' : '';
     const ctx = brain.identity?.context ? ' (' + brain.identity.context + ')' : '';
 
     let p = '';
 
-    // IDENTITÉ
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 1 — IDENTITÉ
+    // ═══════════════════════════════════════════════════════════════
     p += '# IDENTITÉ\n';
-    p += 'Tu incarnes ' + name + age + ctx + '.\n';
+    p += 'Tu es ' + name + age + ctx + '.\n';
     p += 'Tu n\'es PAS un assistant IA. Tu ES cette personne. Tu parles en ton propre nom, à la première personne.\n\n';
 
-    // PERSONNALITÉ — Big Five traduit en comportements
-    if (t.openness) {
-        const O = t.openness.score || 50;
-        const C = t.conscientiousness?.score || 50;
-        const E = t.extraversion?.score || 50;
-        const A = t.agreeableness?.score || 50;
-        const N = t.neuroticism?.score || 50;
-
-        p += '# PERSONNALITÉ (Big Five)\n';
-        p += 'Ouverture O=' + O + ' : ' + (O > 65 ? 'curieux, aime les idées nouvelles, créatif' : O < 35 ? 'pragmatique, concret, conventionnel' : 'ouverture modérée, équilibré entre tradition et nouveauté') + '\n';
-        p += 'Conscienciosité C=' + C + ' : ' + (C > 65 ? 'organisé, fiable, rigoureux' : C < 35 ? 'flexible, spontané, peu structuré' : 'organisation modérée, ni rigide ni désordonné') + '\n';
-        p += 'Extraversion E=' + E + ' : ' + (E > 65 ? 'sociable, expressif, cherche le contact' : E < 35 ? 'réservé, préfère les échanges limités, économe en mots' : 'ni très sociable ni très réservé, adaptatif') + '\n';
-        p += 'Agréabilité A=' + A + ' : ' + (A > 65 ? 'coopératif, empathique, cherche l\'harmonie' : A < 35 ? 'direct, critique, peu conciliant' : 'coopératif dans l\'ensemble, avec des limites claires') + '\n';
-        p += 'Névrosisme N=' + N + ' : ' + (N > 65 ? 'sensible au stress, émotionnellement réactif, anxieux' : N < 35 ? 'stable, calme, résilient face aux difficultés' : 'émotionnellement modéré, réagit mais gère') + '\n\n';
-    }
-
-    // VALEURS
-    if (v.hierarchy && v.hierarchy.length > 0) {
-        p += '# VALEURS FONDAMENTALES\n';
-        v.hierarchy.slice(0, 4).forEach(val => {
-            p += '- ' + val.value + ' (' + (val.score || '?') + '/100)';
-            if (val.manifestation) p += ' : ' + val.manifestation.substring(0, 100);
-            p += '\n';
-        });
-        if (v.core_motivations && v.core_motivations.length > 0) {
-            p += 'Motivations profondes : ' + v.core_motivations.slice(0, 3).join(' | ') + '\n';
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 2 — PERSONNALITÉ (Big Five + facettes)
+    // ═══════════════════════════════════════════════════════════════
+    if (bf.O || bf.C || bf.E || bf.A || bf.N) {
+        p += '# QUI TU ES — TRAITS DE PERSONNALITÉ\n';
+        const dims = [
+            { key: 'O', label: 'Ouverture', low: 'pragmatique, concret, terre-à-terre', high: 'curieux, imaginatif, attiré par les idées nouvelles' },
+            { key: 'C', label: 'Conscienciosité', low: 'flexible, spontané, improvise', high: 'organisé, fiable, méthodique, structuré' },
+            { key: 'E', label: 'Extraversion', low: 'réservé, économe en mots, préfère les échanges restreints', high: 'sociable, expressif, cherche le contact' },
+            { key: 'A', label: 'Agréabilité', low: 'direct, franc, peu conciliant', high: 'coopératif, empathique, cherche l\'harmonie' },
+            { key: 'N', label: 'Sensibilité émotionnelle', low: 'stable, calme, peu affecté', high: 'sensible, réactif, anxieux' }
+        ];
+        for (const dim of dims) {
+            const entry = bf[dim.key];
+            if (!entry) continue;
+            const score = entry.score || 50;
+            const desc = score > 65 ? dim.high : score < 35 ? dim.low : 'modéré — entre ' + dim.low.split(',')[0] + ' et ' + dim.high.split(',')[0];
+            p += dim.label + ' (' + score + '/100) : ' + desc + '\n';
+            // Ajouter les facettes les plus marquées
+            const facets = entry.facets || {};
+            const extremeFacets = Object.entries(facets)
+                .filter(([_, v]) => v > 70 || v < 30)
+                .map(([k, v]) => k.replace(/_/g, ' ') + '=' + v)
+                .slice(0, 3);
+            if (extremeFacets.length > 0) {
+                p += '  Facettes marquées : ' + extremeFacets.join(', ') + '\n';
+            }
         }
         p += '\n';
     }
 
-    // STYLE DE COMMUNICATION — le cœur du clone
-    p += '# STYLE DE COMMUNICATION\n';
-    if (c.tone) {
-        p += 'Ton dominant : ' + (c.tone.primary || 'naturel');
-        if (c.tone.secondary) p += ' / ' + c.tone.secondary;
-        p += ' | Formalité : ' + (c.tone.formality_level || 50) + '/100 | Chaleur : ' + (c.tone.warmth_level || 50) + '/100\n';
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 3 — VALEURS & MOTIVATIONS PROFONDES
+    // ═══════════════════════════════════════════════════════════════
+    const hierarchy = vals.hierarchy || [];
+    if (hierarchy.length > 0) {
+        p += '# CE QUI COMPTE POUR TOI — VALEURS\n';
+        hierarchy.slice(0, 5).forEach(val => {
+            p += '- ' + (val.value || '?') + ' (' + (val.score || '?') + '/100)';
+            if (val.manifestation) p += ' : ' + val.manifestation.substring(0, 120);
+            p += '\n';
+        });
+        const tensions = vals.tensions || [];
+        if (tensions.length > 0) {
+            p += 'Tensions internes :\n';
+            tensions.slice(0, 2).forEach(t => {
+                p += '  - ' + (t.pair || '?') + ' : ' + (t.description || '').substring(0, 100) + '\n';
+            });
+        }
+        const motivations = vals.core_motivations || [];
+        if (motivations.length > 0) {
+            p += 'Motivations profondes : ' + motivations.slice(0, 2).map(m => m.substring(0, 100)).join(' | ') + '\n';
+        }
+        p += '\n';
     }
-    if (ci.tone_keywords && ci.tone_keywords.length > 0) {
-        p += 'Mots-clés du ton : ' + ci.tone_keywords.join(', ') + '\n';
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 4 — STYLE DE COMMUNICATION (le cœur du clone)
+    // ═══════════════════════════════════════════════════════════════
+    p += '# COMMENT TU PARLES — STYLE DE COMMUNICATION\n';
+    if (comm.tone) {
+        p += 'Ton : ' + (comm.tone.primary || 'naturel');
+        if (comm.tone.secondary) p += ' / ' + comm.tone.secondary;
+        p += ' | Formalité : ' + (comm.tone.formality_level || 50) + '/100 | Chaleur : ' + (comm.tone.warmth_level || 50) + '/100\n';
     }
-    if (ci.response_length_avg) {
-        p += 'Longueur de réponse : ' + ci.response_length_avg + '\n';
+    const exprs = comm.vocabulary?.characteristic_expressions || [];
+    if (exprs.length > 0) {
+        p += 'Expressions typiques : "' + exprs.slice(0, 6).join('", "') + '"\n';
     }
-    if (c.vocabulary?.characteristic_expressions?.length > 0) {
-        p += 'Expressions caractéristiques : ' + c.vocabulary.characteristic_expressions.slice(0, 6).join(', ') + '\n';
+    const rhet = comm.rhetorical_patterns || [];
+    if (rhet.length > 0) {
+        p += 'Patterns de discours : ' + rhet.slice(0, 4).join(' | ') + '\n';
     }
-    if (c.rhetorical_patterns?.length > 0) {
-        p += 'Patterns rhétoriques : ' + c.rhetorical_patterns.slice(0, 4).join(' | ') + '\n';
+    const interact = comm.interaction_style || {};
+    if (interact.directness !== undefined) {
+        p += 'Directness : ' + interact.directness + '/100';
+        if (interact.humor_usage) p += ' | Humour : ' + interact.humor_usage + (interact.humor_type ? ' (' + interact.humor_type + ')' : '');
+        if (interact.storytelling_tendency !== undefined) p += ' | Storytelling : ' + interact.storytelling_tendency + '/100';
+        p += '\n';
     }
-    if (ci.signature_patterns?.length > 0) {
-        p += 'Patterns signature : ' + ci.signature_patterns.slice(0, 4).join(' | ') + '\n';
+    // Deflection et résistance — crucial pour un clone fidèle
+    if (interact.deflection_tendency > 50 || interact.resistance_to_introspection > 50) {
+        p += 'ATTENTION : tendance à esquiver les questions intimes (deflection=' + (interact.deflection_tendency || '?') + '/100)';
+        if (interact.resistance_to_introspection) p += ', résistance à l\'introspection=' + interact.resistance_to_introspection + '/100';
+        p += '\n';
     }
-    if (ci.avoid?.length > 0) {
-        p += 'À ÉVITER absolument : ' + ci.avoid.join(', ') + '\n';
+    const breakMarkers = interact.breakthrough_markers || comm.emotional_expression?.breakthrough_markers || [];
+    if (breakMarkers.length > 0) {
+        p += 'Signaux de vulnérabilité authentique : ' + breakMarkers.slice(0, 4).join(', ') + '\n';
+    }
+    // Grammaire générative
+    const gg = comm.generative_grammar || {};
+    if (gg.sentence_starters?.length > 0 || gg.connectors?.length > 0) {
+        if (gg.sentence_starters?.length > 0) p += 'Débuts de phrases typiques : "' + gg.sentence_starters.slice(0, 5).join('", "') + '"\n';
+        if (gg.connectors?.length > 0) p += 'Connecteurs : "' + gg.connectors.slice(0, 5).join('", "') + '"\n';
+        if (gg.filler_words?.length > 0) p += 'Mots de remplissage : "' + gg.filler_words.slice(0, 4).join('", "') + '"\n';
     }
     p += '\n';
 
-    // STYLE RELATIONNEL
-    const rs = em.relational_style || em.attachment_style || {};
-    if (rs.primary || rs.description) {
-        p += '# STYLE RELATIONNEL\n';
-        if (rs.description) p += rs.description + '\n';
-        else if (rs.primary) p += 'Style : ' + rs.primary + '\n';
-        p += '\n';
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 5 — PROFIL ÉMOTIONNEL & DÉFENSES
+    // ═══════════════════════════════════════════════════════════════
+    p += '# TON MONDE ÉMOTIONNEL\n';
+    const baseline = emo.baseline || {};
+    if (baseline.typical_state) p += 'État de base : ' + baseline.typical_state + '\n';
+    if (baseline.energy_level) p += 'Niveau d\'énergie : ' + baseline.energy_level + '\n';
+    
+    const triggers = emo.triggers || {};
+    if (triggers.positive?.length > 0) {
+        p += 'Ce qui te réjouit : ' + triggers.positive.slice(0, 3).map(t => t.trigger || t).join(', ') + '\n';
     }
+    if (triggers.negative?.length > 0) {
+        p += 'Ce qui te touche/pèse : ' + triggers.negative.slice(0, 3).map(t => t.trigger || t).join(', ') + '\n';
+    }
+    const regulation = emo.regulation || emo.regulation_strategies || [];
+    if (Array.isArray(regulation) && regulation.length > 0) {
+        p += 'Comment tu gères : ' + regulation.slice(0, 3).join(', ') + '\n';
+    }
+    
+    // Défenses — essentielles pour un clone fidèle
+    const defDyn = emo.defense_dynamics || {};
+    if (defDyn.baseline_state) {
+        p += 'Posture défensive : ' + defDyn.baseline_state.substring(0, 150) + '\n';
+    }
+    const defSeqs = defDyn.sequences || [];
+    if (defSeqs.length > 0) {
+        p += 'Séquences défensives (comment tu réagis quand on te pousse) :\n';
+        defSeqs.slice(0, 2).forEach((seq, i) => {
+            const states = seq.states || [];
+            if (states.length > 0) {
+                p += '  ' + (i+1) + '. ' + states.map(s => s.state || '?').join(' → ') + '\n';
+            }
+        });
+    }
+    
+    // Deep analysis defenses in action
+    const dia = da.defenses_in_action || {};
+    if (dia.dominant_defense_in_action) {
+        p += 'Défense dominante en situation : ' + dia.dominant_defense_in_action + ' (flexibilité: ' + (dia.defense_flexibility || '?') + ')\n';
+    }
+    p += '\n';
 
-    // PENSÉE ET DÉCISION
-    if (th.decision_making || th.meta_cognition) {
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 6 — STYLE COGNITIF & DÉCISIONNEL
+    // ═══════════════════════════════════════════════════════════════
+    if (cog.decision_making || cog.meta_cognition) {
         p += '# COMMENT TU PENSES ET DÉCIDES\n';
-        if (th.decision_making?.primary_style) p += 'Style décisionnel : ' + th.decision_making.primary_style + '\n';
-        if (th.decision_making?.risk_tolerance !== undefined) p += 'Tolérance au risque : ' + th.decision_making.risk_tolerance + '/100\n';
-        if (th.meta_cognition?.self_awareness !== undefined) p += 'Conscience de soi : ' + th.meta_cognition.self_awareness + '/100\n';
-        if (th.complexity_handling?.ambiguity_tolerance !== undefined) p += 'Tolérance à l\'ambiguïté : ' + th.complexity_handling.ambiguity_tolerance + '/100\n';
+        if (cog.decision_making?.primary_style) p += 'Style décisionnel : ' + cog.decision_making.primary_style + '\n';
+        if (cog.decision_making?.risk_tolerance !== undefined) p += 'Tolérance au risque : ' + cog.decision_making.risk_tolerance + '/100\n';
+        if (cog.meta_cognition?.self_awareness !== undefined) p += 'Conscience de soi : ' + cog.meta_cognition.self_awareness + '/100\n';
+        if (cog.complexity_handling?.ambiguity_tolerance !== undefined) p += 'Tolérance à l\'ambiguïté : ' + cog.complexity_handling.ambiguity_tolerance + '/100\n';
         p += '\n';
     }
 
-    // PROFIL ÉMOTIONNEL
-    if (em.baseline_mood || em.triggers || em.regulation_strategies) {
-        p += '# PROFIL ÉMOTIONNEL\n';
-        if (em.baseline_mood?.typical_state) p += 'État habituel : ' + em.baseline_mood.typical_state + '\n';
-        if (em.regulation_strategies?.length > 0) p += 'Comment tu gères les émotions : ' + em.regulation_strategies.slice(0,3).join(', ') + '\n';
-        if (em.triggers?.positive?.length > 0) {
-            p += 'Ce qui te réjouit : ' + em.triggers.positive.slice(0,2).map(x => x.trigger || x).join(', ') + '\n';
-        }
-        if (em.triggers?.negative?.length > 0) {
-            p += 'Ce qui te pèse : ' + em.triggers.negative.slice(0,2).map(x => x.trigger || x).join(', ') + '\n';
-        }
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 7 — STYLE RELATIONNEL
+    // ═══════════════════════════════════════════════════════════════
+    const relStyle = emo.relational_style || {};
+    if (relStyle.primary || relStyle.description) {
+        p += '# COMMENT TU ES EN RELATION\n';
+        if (relStyle.description) p += relStyle.description.substring(0, 200) + '\n';
+        if (relStyle.anxiety_axis !== undefined) p += 'Anxiété relationnelle : ' + relStyle.anxiety_axis + '/7 | Évitement : ' + (relStyle.avoidance_axis || '?') + '/7\n';
         p += '\n';
     }
 
-    // RÈGLES D'INCARNATION
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 8 — ANGLES MORTS & ZONES AVEUGLES
+    // ═══════════════════════════════════════════════════════════════
+    const blindSpots = da.blind_spots || {};
+    const absences = blindSpots.absences_significatives || [];
+    if (absences.length > 0) {
+        p += '# CE QUE TU NE VOIS PAS CHEZ TOI (angles morts)\n';
+        p += 'Ces sujets tu les évites ou tu ne les vois pas — un clone fidèle les évite aussi :\n';
+        absences.slice(0, 4).forEach(a => {
+            p += '- ' + (a.domain || '?') + ' : ' + (a.observation || '').substring(0, 100) + '\n';
+        });
+        p += '\n';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 9 — SOUVENIRS & ANECDOTES (memory hooks)
+    // ═══════════════════════════════════════════════════════════════
+    const anecdotes = bio.anecdotes || [];
+    if (anecdotes.length > 0) {
+        p += '# TES SOUVENIRS — utilise-les naturellement dans la conversation\n';
+        anecdotes.forEach(a => {
+            const hooks = a.memory_hooks || {};
+            if (hooks.when_to_use && hooks.natural_formulation) {
+                p += '- Quand on parle de ' + hooks.when_to_use.substring(0, 80) + ' :\n';
+                p += '  Tu dis : "' + hooks.natural_formulation.substring(0, 120) + '"\n';
+            }
+        });
+        p += '\n';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 10 — PERSONNES IMPORTANTES
+    // ═══════════════════════════════════════════════════════════════
+    const people = bio.people_mentioned || [];
+    if (people.length > 0) {
+        p += '# LES GENS DANS TA VIE\n';
+        people.slice(0, 8).forEach(person => {
+            p += '- ' + (person.name || '?') + ' (' + (person.role || '?') + ') : ' + (person.relationship_quality || '?');
+            if (person.context) p += ' — ' + person.context.substring(0, 80);
+            p += '\n';
+        });
+        p += '\n';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 11 — HABITUDES QUOTIDIENNES
+    // ═══════════════════════════════════════════════════════════════
+    const habits = bio.habitual_behaviors || [];
+    if (habits.length > 0) {
+        p += '# TES HABITUDES\n';
+        habits.slice(0, 8).forEach(h => {
+            p += '- ' + (h.behavior || h) + (h.frequency ? ' (' + h.frequency + ')' : '') + '\n';
+        });
+        p += '\n';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 12 — RÈGLES D'INCARNATION
+    // ═══════════════════════════════════════════════════════════════
     p += '# RÈGLES D\'INCARNATION — OBLIGATOIRES\n';
-    p += '1. JAMAIS : "En tant qu\'IA", "Je suis un assistant", "Je suis une IA"\n';
-    p += '2. Tu parles TOUJOURS à la première personne comme ' + name + '\n';
-    p += '3. Longueur de réponse : ' + (ci.response_length_avg || '80-200 mots') + ' — respecte cette contrainte\n';
-    p += '4. Utilise tes expressions caractéristiques naturellement (pas systématiquement)\n';
-    p += '5. Si le contexte est émotionnel : valide d\'abord, conseille ensuite\n';
-    p += '6. Tes opinions, valeurs et réactions doivent être cohérentes avec le profil décrit\n';
-    p += '7. Tu peux avoir des opinions tranchées — elles reflètent ta personnalité réelle\n';
-    p += '8. JAMAIS psychologiser ou analyser ta propre personnalité — tu la VIS, tu ne la décris pas\n';
+    p += '1. Tu parles TOUJOURS à la première personne comme ' + name + '. JAMAIS "En tant qu\'IA" ou "Je suis un assistant".\n';
+    
+    // Longueur de réponse basée sur les données réelles
+    const avgWords = obs.linguistic?.avg_words_per_response;
+    if (avgWords) {
+        const minW = Math.max(30, Math.round(avgWords * 0.7));
+        const maxW = Math.round(avgWords * 1.5);
+        p += '2. Longueur de réponse : ' + minW + '-' + maxW + ' mots (calibré sur ton vrai style)\n';
+    } else {
+        p += '2. Longueur de réponse : 80-200 mots\n';
+    }
+    
+    p += '3. Utilise tes expressions caractéristiques naturellement, pas systématiquement\n';
+    p += '4. Tes opinions, valeurs et réactions sont cohérentes avec ce profil\n';
+    p += '5. Tu peux avoir des opinions tranchées — elles reflètent ta vraie personnalité\n';
+    p += '6. JAMAIS psychologiser ou analyser ta propre personnalité — tu la VIS, tu ne la décris pas\n';
+    p += '7. Quand un sujet touche tes angles morts, tu réagis comme dans la vraie vie : tu esquives, tu minimises, tu changes de sujet\n';
+    p += '8. Tes souvenirs émergent NATURELLEMENT quand le contexte s\'y prête — ne les force jamais\n';
 
     return p;
 }
@@ -10123,7 +10422,7 @@ async function downloadCloneZIP() {
 
 function generateCloneInstructionsHTML(brain, prompt) {
     const name = brain.identity.display_name || 'Clone';
-    const t = brain.temperament || {};
+    const bf = brain.personality?.big_five || {};
     const safePrompt = (prompt || '').replace(/\x3c/g, '&lt;').replace(/>/g, '&gt;');
     // Build HTML using \x3c for < to avoid breaking the enclosing script tag
     var h = '\x3c!DOCTYPE html>\x3chtml lang="fr">\x3chead>\x3cmeta charset="UTF-8">\x3ctitle>Clone Instructions — ' + name + '\x3c/title>';
@@ -10133,13 +10432,13 @@ function generateCloneInstructionsHTML(brain, prompt) {
     h += '.step{background:#FAF9F6;padding:16px;border-radius:8px;margin:10px 0;border-left:3px solid #8FAFB1}.meta{color:#8b8680;font-size:13px}\x3c/style>\x3c/head>\x3cbody>';
     h += '\x3ch1>Clone de ' + name + '\x3c/h1>';
     h += '\x3cp class="meta">Généré le ' + new Date().toLocaleDateString('fr-FR') + ' par Clone Interview Pro — C Concept&Dev\x3c/p>';
-    h += '\x3cp class="meta">Qualité: ' + brain.data_quality.grade + '\x3c/p>';
+    h += '\x3cp class="meta">Qualité: ' + (brain.interview_quality?.grade || '?') + ' | Confiance: ' + (brain.interview_quality?.confidence_global || '?') + '%\x3c/p>';
     h += '\x3ch2>Comment utiliser\x3c/h2>';
     h += '\x3cdiv class="step">\x3cstrong>1.\x3c/strong> Copiez clone_prompt.txt dans Custom Instructions de votre LLM\x3c/div>';
     h += '\x3cdiv class="step">\x3cstrong>2.\x3c/strong> Uploadez clone_brain.json dans la conversation\x3c/div>';
     h += '\x3cdiv class="step">\x3cstrong>3.\x3c/strong> Dites: "Lis ce JSON et réponds comme ' + name.split(' ')[0] + '"\x3c/div>';
     h += '\x3ch2>Clone Prompt\x3c/h2>\x3cpre>' + safePrompt + '\x3c/pre>';
-    h += '\x3ch2>Big Five\x3c/h2>\x3cp>O=' + (t.openness?.score||'?') + ' C=' + (t.conscientiousness?.score||'?') + ' E=' + (t.extraversion?.score||'?') + ' A=' + (t.agreeableness?.score||'?') + ' N=' + (t.neuroticism?.score||'?') + '\x3c/p>';
+    h += '\x3ch2>Big Five\x3c/h2>\x3cp>O=' + (bf.O?.score||'?') + ' C=' + (bf.C?.score||'?') + ' E=' + (bf.E?.score||'?') + ' A=' + (bf.A?.score||'?') + ' N=' + (bf.N?.score||'?') + '\x3c/p>';
     h += '\x3cp class="meta" style="margin-top:40px">Compatible: Claude, ChatGPT, Gemini, Mistral, DeepSeek\x3c/p>\x3c/body>\x3c/html>';
     return h;
 }
