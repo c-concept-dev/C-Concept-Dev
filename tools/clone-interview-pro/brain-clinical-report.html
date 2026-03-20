@@ -612,6 +612,14 @@ function loadFile(f) {
       } else if (parsed.generated_brain_v206) {
         brainData = parsed.generated_brain_v206;
         console.log('[loadFile] Brain extrait de generated_brain_v206');
+      // Cas 3 : therapeute-ia-session (export séance thérapeutique)
+      } else if (parsed._format === 'therapeute-ia-session') {
+        brainData = parsed;
+        console.log('[loadFile] Session thérapeutique détectée (v' + parsed._version + ')');
+      // Cas 4 : stress-test-REEL (export stress test thérapeute)
+      } else if (parsed._meta?.shell && parsed.exchanges && parsed.system_metrics) {
+        brainData = parsed;
+        console.log('[loadFile] Stress test RÉEL détecté (' + parsed._meta.shell + ')');
       } else {
         // Cas 2 : brain.json direct
         brainData = parsed;
@@ -624,7 +632,7 @@ function loadFile(f) {
                       || brainData.temperament?.openness?.score != null
                       || brainData.v19_personality != null;
       if (schema === 'unknown' && !hasBigFive) {
-        alert('Format JSON non reconnu.\n\nFormats supportés :\n— CLONE-PERSONALITY-1.0 (v21+)\n— CLONE-BRAIN-1.0 (v20.x)\n— brain v19.x\n— stress-test-full (extracted automatiquement)\n\nVérifiez que vous avez chargé le bon fichier.');
+        alert('Format JSON non reconnu.\n\nFormats supportés :\n— CLONE-PERSONALITY-1.0 (v21+)\n— CLONE-BRAIN-1.0 (v20.x)\n— brain v19.x\n— therapeute-ia-session (export séance)\n— stress-test-REEL (export stress test)\n— stress-test-full (extracted automatiquement)\n\nVérifiez que vous avez chargé le bon fichier.');
         brainData = null;
         return;
       }
@@ -672,12 +680,149 @@ function detectSchema(b) {
   if (b._meta?.schema === 'CLONE-PERSONALITY-1.0') return 'v21';
   if (b._clone?.schema === 'CLONE-BRAIN-1.0') return 'v20';
   if (b.v19_personality) return 'v19';
+  if (b._format === 'therapeute-ia-session') return 'therapeute';
+  if (b._meta?.shell && b.exchanges && b.system_metrics) return 'stress-test';
   return 'unknown';
+}
+
+// ════════════════════════════════════
+// NORMALISATION SESSIONS THÉRAPEUTIQUES
+// Convertit therapeute-ia-session et stress-test-REEL en format normalisé
+// ════════════════════════════════════
+function normalizeTherapeuteSession(b, n, schema) {
+  
+  if (schema === 'therapeute') {
+    const pp = b.patient_profile || {};
+    n.name = pp.patient_id || 'Patient';
+    n.age = null;
+    n.context = 'Séance thérapeutique';
+    
+    const comp = b.completeness || {};
+    const msgs = b.messages || [];
+    const userMsgs = msgs.filter(m => m.role === 'user');
+    n.questions = comp.totalQuestions || Math.ceil(msgs.length / 2);
+    n.words = userMsgs.reduce((acc, m) => acc + (m.content || '').split(/\s+/).length, 0);
+    n.grade = comp.globalCompleteness > 75 ? 'A' : comp.globalCompleteness > 50 ? 'B' : 'C';
+    n.confidence = Math.round(comp.globalCompleteness || 0);
+    n.reticence = null;
+    n.warnings = [];
+    n.mode = 'individuel';
+    n.generated = b._exported;
+    
+    const assess = pp.assessment || {};
+    const bf = assess.big_five || {};
+    const scale = v => (v != null && v <= 1) ? Math.round(v * 100) : (v || 50);
+    n.bigFive = {
+      O: { score: scale(bf.O), level: bf.O > 0.65 ? 'high' : bf.O < 0.35 ? 'low' : 'medium' },
+      C: { score: scale(bf.C), level: bf.C > 0.65 ? 'high' : bf.C < 0.35 ? 'low' : 'medium' },
+      E: { score: scale(bf.E), level: bf.E > 0.65 ? 'high' : bf.E < 0.35 ? 'low' : 'medium' },
+      A: { score: scale(bf.A), level: bf.A > 0.65 ? 'high' : bf.A < 0.35 ? 'low' : 'medium' },
+      N: { score: scale(bf.N), level: bf.N > 0.65 ? 'high' : bf.N < 0.35 ? 'low' : 'medium' }
+    };
+    
+    n.values = [];
+    
+    const ling = b.detectors?.linguistic?.cumulativeProfile || {};
+    n.communication = {
+      tone: {}, vocabulary: {}, rhetorical_patterns: [],
+      emotional_expression: { positive_ratio: ling.posEmotion || 0, negative_ratio: ling.negEmotion || 0 },
+      interaction_style: {}, generative_grammar: {}
+    };
+    
+    n.cognition = {};
+    
+    const att = b.detectors?.attachment || {};
+    n.emotional = {
+      relational_style: {
+        primary: assess.attachment_style || 'unknown',
+        anxiety_axis: att.anxietyScore || 0,
+        avoidance_axis: att.avoidanceScore || 0,
+        narrative_coherence: att.narrativeCoherence || 0,
+        disorganization_markers: att.disorganizationMarkers || []
+      }
+    };
+    n.energyPatterns = null;
+    n.defenseDynamics = null;
+    
+    const det = b.detectors || {};
+    const schemas = det.schemas || {};
+    const schemaStats = schemas.stats || {};
+    n.localAnalyzers = {
+      schemas_young: { active_schemas: schemaStats.dominant || [], explored: schemaStats.explored || 0 },
+      defenses_dmrs: {
+        odf: det.defenses?.odf || 0,
+        odf_interpretation: det.defenses?.odfInterpretation?.label || '',
+        dominant: det.defenses?.dominantDefenses || []
+      },
+      attachment: {
+        style: assess.attachment_style || 'unknown',
+        anxiety_score: att.anxietyScore || 0,
+        avoidance_score: att.avoidanceScore || 0,
+        narrative_coherence: att.narrativeCoherence || 0
+      },
+      hexaco: det.hexaco?.dimensions || {},
+      motivation: { sdt: det.motivation?.sdt || {}, mcclelland: det.motivation?.mcclelland || {} },
+      linguistic: ling
+    };
+    
+    n.biography = {};
+    n.ifsMap = pp.ifs_map || {};
+    n.actProfile = b.act || {};
+    n.completenessPillars = comp.pillars || {};
+    n.conversation = msgs;
+    
+  } else if (schema === 'stress-test') {
+    const pc = b.patient_config || {};
+    n.name = pc.name || pc.prenom || 'Patient simulé';
+    n.age = pc.age || null;
+    n.context = pc.context || '';
+    
+    const exchanges = b.exchanges || [];
+    const sm = b.system_metrics || {};
+    const alliance = sm.alliance || {};
+    n.questions = exchanges.length;
+    n.words = exchanges.reduce((acc, ex) => acc + ((ex.patient || '').split(/\s+/).length), 0);
+    n.grade = alliance.finalScore >= 7 ? 'A' : alliance.finalScore >= 5 ? 'B' : 'C';
+    n.confidence = Math.round((alliance.finalScore || 5) * 10);
+    n.reticence = null;
+    n.warnings = [];
+    n.mode = pc.mode || 'individuel';
+    n.generated = b._meta?.timestamp;
+    n.alliance = alliance;
+    
+    n.bigFive = { O: {}, C: {}, E: {}, A: {}, N: {} };
+    n.values = [];
+    n.communication = { tone: {}, vocabulary: {}, rhetorical_patterns: [], emotional_expression: {}, interaction_style: {}, generative_grammar: {} };
+    n.cognition = {};
+    n.emotional = {};
+    n.energyPatterns = null;
+    n.defenseDynamics = null;
+    n.patientConfig = pc;
+    n.conversation = sm.conversationHistory || [];
+    n.exchanges = exchanges;
+    n.localAnalyzers = {};
+  }
+  
+  n.convergence = {};
+  n.observedSignals = {};
+  n.deepAnalysis = {};
+  n.behavioralPatterns = [];
+  n.responseStylePatterns = [];
+  n.v19 = {};
+  
+  return n;
 }
 
 function normalizeBrain(b) {
   const schema = detectSchema(b);
   const n = { schema, raw: b };
+
+  // ══════════════════════════════════════════════════════
+  // THERAPEUTE-IA-SESSION / STRESS-TEST — normalisation spécifique
+  // ══════════════════════════════════════════════════════
+  if (schema === 'therapeute' || schema === 'stress-test') {
+    return normalizeTherapeuteSession(b, n, schema);
+  }
 
   // ── Identité ──
   n.name = b.identity?.display_name || b.identity?.name || 'Sujet';
@@ -1089,6 +1234,90 @@ function buildDataString(n) {
   if (v19.defenses) {
     d += '[DÉFENSES DMRS IA]\n';
     d += `ODF : ${v19.defenses.odf?.toFixed(2)} (${v19.defenses.odfLabel || ''})\n\n`;
+  }
+
+  // ═══ DONNÉES SPÉCIFIQUES THÉRAPEUTIQUES ═══
+  // Conversation complète (therapeute-ia-session et stress-test)
+  if (n.conversation?.length > 0) {
+    d += '[CONVERSATION THÉRAPEUTIQUE]\n';
+    n.conversation.forEach((m, i) => {
+      const role = m.role === 'user' ? 'PATIENT' : m.role === 'assistant' ? 'THÉRAPEUTE' : 'SYSTÈME';
+      const content = (m.content || '').substring(0, 400);
+      d += `[${role}] ${content}\n`;
+    });
+    d += '\n';
+  }
+  
+  // Exchanges (stress-test format)
+  if (n.exchanges?.length > 0 && !n.conversation?.length) {
+    d += '[ÉCHANGES THÉRAPEUTIQUES]\n';
+    n.exchanges.forEach((ex, i) => {
+      d += `[T${i} PATIENT] ${(ex.patient || '').substring(0, 300)}\n`;
+      d += `[T${i} THÉRAPEUTE] ${(ex.therapist || '').substring(0, 300)}\n\n`;
+    });
+    d += '\n';
+  }
+  
+  // Alliance thérapeutique
+  if (n.alliance?.finalScore) {
+    d += `[ALLIANCE THÉRAPEUTIQUE]\n`;
+    d += `Score final : ${n.alliance.finalScore}/10 | Trajectoire : ${(n.alliance.trajectory || []).join(' → ')}\n\n`;
+  }
+  
+  // Patient config (stress-test)
+  if (n.patientConfig) {
+    const pc = n.patientConfig;
+    d += `[PROFIL PATIENT SIMULÉ]\n`;
+    d += `Attachement : ${pc.attachment || '?'} | Défense : ${pc.defense || '?'}\n`;
+    d += `Motif réel : ${pc.real_motive || '?'} | Posture : ${pc.posture || '?'}\n`;
+    d += `Trauma : ${pc.trauma || '?'} | Insight : ${pc.insight || '?'}\n`;
+    if (pc.context) d += `Contexte : ${pc.context}\n`;
+    if (pc.problem) d += `Problème déclaré : ${pc.problem}\n`;
+    d += '\n';
+  }
+  
+  // IFS map (therapeute-ia-session)
+  if (n.ifsMap?.parts_identified?.length > 0) {
+    d += `[CARTE IFS]\n`;
+    d += `Parties identifiées : ${n.ifsMap.parts_identified.map(p => p.name || p).join(', ')}\n`;
+    d += `Accès au Self : ${n.ifsMap.self_access_quality || '?'}\n\n`;
+  }
+  
+  // Completeness pillars (therapeute-ia-session)
+  if (n.completenessPillars && Object.keys(n.completenessPillars).length > 0) {
+    d += `[COMPLÉTUDE DES PILIERS]\n`;
+    for (const [k, v] of Object.entries(n.completenessPillars)) {
+      if (v && typeof v === 'object') {
+        d += `  ${v.name || k} : ${v.confidence || 0}% (${v.status || '?'})\n`;
+      }
+    }
+    d += '\n';
+  }
+  
+  // HEXACO (therapeute-ia-session)
+  if (n.localAnalyzers?.hexaco && Object.keys(n.localAnalyzers.hexaco).length > 0) {
+    d += `[HEXACO]\n`;
+    for (const [k, v] of Object.entries(n.localAnalyzers.hexaco)) {
+      if (v && typeof v === 'object') {
+        const facets = v.facets || {};
+        const facetScores = Object.entries(facets).map(([fk, fv]) => `${fv.nameFR || fk}:${fv.score || 0}`).join(', ');
+        d += `  ${v.nameFR || k} : ${facetScores}\n`;
+      }
+    }
+    d += '\n';
+  }
+  
+  // Motivation SDT/McClelland
+  if (n.localAnalyzers?.motivation) {
+    const mot = n.localAnalyzers.motivation;
+    const sdt = mot.sdt || {};
+    const mcc = mot.mcclelland || {};
+    if (sdt.autonomy || mcc.achievement) {
+      d += `[MOTIVATIONS]\n`;
+      if (sdt.autonomy) d += `SDT : autonomie=${Math.round((sdt.autonomy.score||0)*100)}% compétence=${Math.round((sdt.competence?.score||0)*100)}% connexion=${Math.round((sdt.relatedness?.score||0)*100)}%\n`;
+      if (mcc.achievement) d += `McClelland : accomplissement=${Math.round((mcc.achievement.score||0)*100)}% affiliation=${Math.round((mcc.affiliation?.score||0)*100)}% pouvoir=${Math.round((mcc.power?.score||0)*100)}%\n`;
+      d += '\n';
+    }
   }
 
   return d.length > 90000 ? d.substring(0, 90000) + '\n[...tronqué]' : d;
