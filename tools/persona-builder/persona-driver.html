@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<!--
+PERSONA DRIVER v1.0 — Systeme Autonome
+C Concept&Dev — Christophe BONNET
+
+Noyau autonome d'entretien d'histoire de vie
+Fonctionne seul ou enrichi par un brain.json
+Architecture modulaire — declinable en variantes
+
+Output : persona.json (CLONE-PERSONA-1.0)
+
+Philosophie : rigoureux, intelligent, adaptatif, universel,
+qui pense et raisonne, zero hardcoding.
+
+Audio only — l'utilisateur ferme les yeux et parle.
+Le Driver trace la route. L'utilisateur se raconte.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Persona Driver — C Concept&Dev</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--mer:#8FAFB1;--sauge:#C8D0C3;--beige:#D8CDBB;--sable:#E6D7C3;--blanc:#FFFFFF;--ink:#2d2d2d;--ink2:#666;--fond:linear-gradient(135deg,#E6D7C3 0%,#D8CDBB 100%);--card:#FFFFFF;--radius:16px;--shadow:0 12px 40px rgba(0,0,0,.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat','Segoe UI',sans-serif;background:var(--fond);color:var(--ink);min-height:100vh}
+.screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:40px 20px}
+.screen.active{display:flex}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:48px;max-width:580px;width:100%}
+.brand{text-align:center;margin-bottom:8px;font-size:.65rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--mer)}
+.title{text-align:center;font-size:2.2rem;font-weight:700;color:var(--mer);margin-bottom:6px}
+.subtitle{text-align:center;font-size:.85rem;color:var(--ink2);line-height:1.7;margin-bottom:32px}
+.field{margin-bottom:20px}
+.field label{display:block;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);margin-bottom:6px}
+.field input,.field select{width:100%;padding:13px 16px;border:2px solid var(--sauge);border-radius:10px;font-family:'Montserrat',sans-serif;font-size:.9rem;color:var(--ink);background:var(--blanc);outline:none;transition:border-color .3s}
+.field input:focus{border-color:var(--mer)}
+.field input::placeholder{color:#aaa}
+.drop-zone{border:2px dashed var(--sauge);border-radius:var(--radius);padding:28px 20px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:20px;background:rgba(143,175,177,.04)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--mer);background:rgba(143,175,177,.08)}
+.drop-label{font-size:.8rem;color:var(--ink2)}
+.drop-label.loaded{color:var(--mer);font-weight:600}
+.drop-hint{font-size:.65rem;color:#aaa;margin-top:4px}
+.btn{display:inline-block;padding:14px 40px;border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .3s;text-align:center}
+.btn-primary{background:var(--mer);color:var(--blanc);width:100%;margin-top:8px}
+.btn-primary:hover{background:#7a9a9c;box-shadow:0 6px 20px rgba(143,175,177,.3)}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-secondary{background:var(--sable);color:var(--ink);width:100%;margin-top:8px}
+.btn-secondary:hover{background:var(--beige)}
+#sessionScreen{padding:0}
+.session-header{width:100%;padding:18px 28px;display:flex;justify-content:space-between;align-items:center;background:var(--blanc);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.session-brand{font-size:.75rem;font-weight:600;color:var(--mer);letter-spacing:.08em}
+.session-timer{font-size:.8rem;color:var(--ink2);font-weight:500;letter-spacing:.04em}
+.session-turn{font-size:.65rem;color:var(--ink2);margin-left:8px}
+.session-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:32px;max-width:600px;width:100%;margin:0 auto}
+.pulse-ring{width:160px;height:160px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.pulse-ring .inner{width:80px;height:80px;border-radius:50%;background:var(--sauge);transition:all .3s}
+.pulse-ring .ring{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid var(--sauge);animation:ri 3.5s ease-in-out infinite}
+.pulse-ring[data-state=speaking] .inner{background:var(--mer)}
+.pulse-ring[data-state=speaking] .ring{border-color:var(--mer);animation:rs 1.2s ease-in-out infinite}
+.pulse-ring[data-state=listening] .inner{background:var(--beige)}
+.pulse-ring[data-state=listening] .ring{border-color:var(--beige);animation:rl 2s ease-in-out infinite}
+.pulse-ring[data-state=thinking] .inner{background:var(--ink2)}
+.pulse-ring[data-state=thinking] .ring{border-color:var(--ink2);animation:rt 1s linear infinite}
+@keyframes ri{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.08);opacity:.5}}
+@keyframes rs{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.2);opacity:.9}}
+@keyframes rl{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.06);opacity:.7}}
+@keyframes rt{0%{transform:rotate(0deg);opacity:.4}100%{transform:rotate(360deg);opacity:.4}}
+.session-status{font-size:.75rem;color:var(--ink2);font-style:italic;min-height:18px;text-align:center}
+.driver-text{font-size:1.05rem;color:var(--ink);text-align:center;line-height:1.7;max-width:480px;min-height:48px;opacity:0;transition:opacity .5s;font-weight:400}
+.driver-text.visible{opacity:1}
+.session-controls{width:100%;padding:20px 28px;display:flex;justify-content:center;align-items:center;gap:16px;background:var(--blanc);box-shadow:0 -2px 12px rgba(0,0,0,.04)}
+.btn-icon{width:52px;height:52px;border-radius:50%;border:2px solid var(--sauge);background:var(--blanc);color:var(--ink);font-size:.8rem;font-weight:700;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif}
+.btn-icon:hover{border-color:var(--mer)}
+.btn-icon.active{background:var(--mer);border-color:var(--mer);color:var(--blanc)}
+.btn-icon.stop{background:#c06050;border-color:#c06050;color:var(--blanc)}
+.btn-icon.stop:hover{background:#a84040}
+.btn-skip{padding:8px 18px;background:none;border:1px solid var(--sauge);border-radius:8px;color:var(--ink2);font-size:.7rem;font-family:'Montserrat',sans-serif;cursor:pointer;transition:all .3s;font-weight:500}
+.btn-skip:hover{border-color:var(--mer);color:var(--mer)}
+#doneScreen{justify-content:center}
+.done-card{text-align:center}
+.done-card .title{margin-bottom:16px}
+.done-stats{font-size:.8rem;color:var(--ink2);margin-bottom:24px;line-height:1.6}
+#devLog{display:none;position:fixed;bottom:0;left:0;right:0;max-height:180px;overflow-y:auto;background:rgba(45,45,45,.95);font-family:'Courier New',monospace;font-size:10px;color:var(--sauge);padding:8px 12px;z-index:999;border-top:2px solid var(--mer)}
+@media(max-width:640px){.card{padding:32px 24px;margin:0 8px}.title{font-size:1.8rem}.session-center{padding:24px 16px}}
+</style>
+</head>
+<body>
+<div class="screen active" id="setupScreen">
+<div class="card">
+<div class="brand">C Concept&Dev</div>
+<div class="title">Persona Driver</div>
+<div class="subtitle">Un entretien guide pour capturer votre histoire de vie.<br>Vous parlez. Je trace la route. Vous vous racontez.</div>
+<div class="field"><label>Prenom</label><input type="text" id="inPrenom" placeholder="Votre prenom"></div>
+<div class="field"><label>Age</label><input type="number" id="inAge" placeholder="Ton age" min="10" max="100"></div>
+<div class="field"><label>Genre</label><select id="inGenre"><option value="femme">Femme</option><option value="homme">Homme</option><option value="autre">Autre / Ne pas preciser</option></select></div>
+<div class="field"><label>Voix</label><select id="inVoice">
+<optgroup label="OpenAI (via proxy)">
+<option value="openai-alloy">OpenAI — Alloy (Neutre)</option>
+<option value="openai-echo">OpenAI — Echo (Homme)</option>
+<option value="openai-fable">OpenAI — Fable (Narrateur)</option>
+<option value="openai-onyx">OpenAI — Onyx (Homme grave)</option>
+<option value="openai-nova">OpenAI — Nova (Femme)</option>
+<option value="openai-shimmer">OpenAI — Shimmer (Femme douce)</option>
+</optgroup>
+<optgroup label="Google (via proxy)">
+<option value="google-chirp3-m" selected>Chirp 3 HD — Orus (Homme)</option>
+<option value="google-chirp3-f">Chirp 3 HD — Aoede (Femme)</option>
+<option value="google-neural2-m">Neural2 — Homme</option>
+<option value="google-neural2-f">Neural2 — Femme</option>
+</optgroup>
+<optgroup label="Navigateur">
+<option value="webspeech">Web Speech (systeme)</option>
+</optgroup>
+</select></div>
+<div class="field"><label>Worker URL</label><input type="text" id="inWorker" value="https://clone-proxy.11drumboy11.workers.dev"></div>
+<div class="drop-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
+<div class="drop-label" id="dropLabel">Charger un brain.json (optionnel)</div>
+<div class="drop-hint">Si vous avez deja fait un Clone Interview, le Driver utilisera votre profil comme guide.</div>
+<input type="file" id="fileIn" accept=".json" style="display:none">
+</div>
+<button class="btn btn-primary" id="btnStart" onclick="startSession()" disabled>Commencer l'entretien</button>
+<button class="btn btn-secondary" id="btnResume" onclick="resumeSession()" style="display:none">Reprendre la session en cours</button>
+</div>
+</div>
+<div class="screen" id="sessionScreen">
+<div class="session-header">
+<div class="session-brand">Persona Driver</div>
+<div><span class="session-timer" id="timer">00:00</span><span class="session-turn" id="turnLabel"></span></div>
+</div>
+<div class="session-center">
+<div class="pulse-ring" id="pulseRing" data-state="idle"><div class="ring"></div><div class="inner"></div></div>
+<div class="session-status" id="status"></div>
+<div class="driver-text" id="driverText"></div>
+</div>
+<div class="session-controls">
+<button class="btn-skip" onclick="userSkip()">On passe</button>
+<button class="btn-icon" id="btnMic" onclick="toggleMic()">MIC</button>
+<button class="btn-icon" id="btnPause" onclick="pauseSession()" style="background:rgba(196,149,106,.7);border-color:rgba(196,149,106,.5);color:#fff;font-size:.65rem">PAUSE</button>
+<button class="btn-icon stop" onclick="endSession()">FIN</button>
+</div>
+</div>
+<div class="screen" id="doneScreen">
+<div class="card done-card">
+<div class="brand">C Concept&Dev</div>
+<div class="title">Merci.</div>
+<div class="done-stats" id="doneStats"></div>
+<button class="btn btn-primary" onclick="downloadPersona()">Telecharger persona.json</button>
+<button class="btn btn-secondary" onclick="downloadZip()">Telecharger ZIP complet</button>
+</div>
+</div>
+<div id="devLog"></div>
+<script>
+// PERSONA DRIVER v1.0 — Noyau Autonome — C Concept&Dev
+// VARIANT surchargeable par le shell
+if(!window.PERSONA_VARIANT)window.PERSONA_VARIANT={mode:'standard',model:'claude-sonnet-4-20250514',temperature:0.8,maxTokens:280,label:'Persona Driver v1.0',brainEnabled:true,ttsEnabled:true,sttEnabled:true};
+const V=window.PERSONA_VARIANT;
+
+const S={prenom:'',age:null,genre:'',workerUrl:'',brain:null,history:[],turnCount:0,isGenerating:false,isSpeaking:false,micActive:false,recognition:null,ttsVoice:null,timerStart:null,timerInterval:null,skippedTopics:[],personaJSON:null,_sttBuffer:'',_silenceTimer:null};
+
+function log(m){const t=new Date().toLocaleTimeString();console.log('[PersonaDriver]',m);const e=document.getElementById('devLog');if(e){e.innerHTML+=t+' '+m+'<br>';e.scrollTop=e.scrollHeight}}
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='d'){e.preventDefault();const d=document.getElementById('devLog');d.style.display=d.style.display==='none'?'block':'none'}});
+
+// UI
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function setState(s){document.getElementById('pulseRing').dataset.state=s}
+function setStatus(t){document.getElementById('status').textContent=t}
+function showDriverText(t){const e=document.getElementById('driverText');e.classList.remove('visible');setTimeout(()=>{e.textContent=t;e.classList.add('visible')},150)}
+function updateTurn(){document.getElementById('turnLabel').textContent=' — tour '+S.turnCount}
+function checkReady(){document.getElementById('btnStart').disabled=!(document.getElementById('inPrenom').value.trim()&&document.getElementById('inWorker').value.trim())}
+document.getElementById('inPrenom').addEventListener('input',checkReady);
+document.getElementById('inWorker').addEventListener('input',checkReady);
+document.getElementById('inAge').addEventListener('input',checkReady);
+
+// BRAIN (optionnel)
+const dz=document.getElementById('dropZone'),fi=document.getElementById('fileIn');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');loadBrain(e.dataTransfer.files[0])});
+fi.addEventListener('change',e=>{if(e.target.files[0])loadBrain(e.target.files[0])});
+function loadBrain(f){const r=new FileReader();r.onload=e=>{try{const p=JSON.parse(e.target.result);let b=null;if(p.generated_brain_v210)b=p.generated_brain_v210;else if(p._meta?.schema==='CLONE-PERSONALITY-1.0')b=p;else if(p.personality?.big_five)b=p;if(b){S.brain=b;const n=b.identity?.display_name||b.identity?.name||'';if(n&&!document.getElementById('inPrenom').value)document.getElementById('inPrenom').value=n;if(b.identity?.age&&!document.getElementById('inAge').value)document.getElementById('inAge').value=b.identity.age;document.getElementById('dropLabel').textContent=f.name+' — charge';document.getElementById('dropLabel').classList.add('loaded');log('Brain: '+(b._meta?.schema||'ok'))}else{document.getElementById('dropLabel').textContent='Format non reconnu'}checkReady()}catch(err){document.getElementById('dropLabel').textContent='Erreur JSON';log('Brain error: '+err.message)}};r.readAsText(f)}
+
+// API
+async function callAPI(sys,msgs,mt){const r=await fetch(S.workerUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payload:{provider:'anthropic',model:V.model,max_tokens:mt||V.maxTokens,temperature:V.temperature,system:sys,messages:msgs}})});if(!r.ok)throw new Error('API '+r.status);const d=await r.json();if(Array.isArray(d?.content))return d.content.filter(c=>c.type==='text').map(c=>c.text||'').join('\n').trim();return(d?.content||d?.text||'').trim()}
+
+// TTS — Multi-engine: Google Chirp3/Neural2 via proxy, OpenAI via proxy, Web Speech fallback
+const GTTS_PROXY='https://google-tts-proxy.11drumboy11.workers.dev/';
+const OAI_PROXY='https://openai-proxy.11drumboy11.workers.dev';
+const VOICE_MAP={'google-chirp3-m':{engine:'google',name:'fr-FR-Chirp3-HD-Orus',chirp:true},'google-chirp3-f':{engine:'google',name:'fr-FR-Chirp3-HD-Aoede',chirp:true},'google-neural2-m':{engine:'google',name:'fr-FR-Neural2-D',chirp:false},'google-neural2-f':{engine:'google',name:'fr-FR-Neural2-A',chirp:false},'openai-alloy':{engine:'openai',voice:'alloy'},'openai-echo':{engine:'openai',voice:'echo'},'openai-fable':{engine:'openai',voice:'fable'},'openai-onyx':{engine:'openai',voice:'onyx'},'openai-nova':{engine:'openai',voice:'nova'},'openai-shimmer':{engine:'openai',voice:'shimmer'},'webspeech':{engine:'webspeech'}};
+let currentVoiceMode='google-chirp3-m';
+function initTTS(){currentVoiceMode=document.getElementById('inVoice')?.value||'google-chirp3-m';log('TTS: '+currentVoiceMode)}
+function speak(t){return new Promise(async res=>{if(!t){res();return}const clean=t.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').trim();if(!clean){res();return}S.isSpeaking=true;setState('speaking');const vm=VOICE_MAP[currentVoiceMode]||VOICE_MAP['google-chirp3-m'];try{if(vm.engine==='google')await speakGoogle(clean,vm);else if(vm.engine==='openai')await speakOpenAI(clean,vm);else await speakWeb(clean)}catch(e){log('TTS err ('+currentVoiceMode+'): '+e.message+' — fallback');try{await speakWeb(clean)}catch(e2){}}S.isSpeaking=false;setState('idle');res()})}
+async function speakGoogle(text,vm){const body={input:{text},voice:{languageCode:'fr-FR',name:vm.name,...(!vm.chirp?{ssmlGender:'MALE'}:{})},audioConfig:{audioEncoding:'MP3',speakingRate:0.92,...(!vm.chirp?{pitch:-1}:{})}};const r=await fetch(GTTS_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('Google TTS '+r.status);const d=await r.json();if(!d.audioContent)throw new Error('No audioContent');await playB64(d.audioContent)}
+async function speakOpenAI(text,vm){const r=await fetch(OAI_PROXY,{method:'POST',headers:{'Content-Type':'application/json','x-endpoint':'/v1/audio/speech'},body:JSON.stringify({model:'gpt-4o-mini-tts',voice:vm.voice,input:text,response_format:'mp3',speed:1.0})});if(!r.ok)throw new Error('OpenAI TTS '+r.status);const buf=await r.arrayBuffer();const blob=new Blob([buf],{type:'audio/mpeg'});await playBlob(blob)}
+function speakWeb(text){return new Promise(res=>{if(!window.speechSynthesis){res();return}const u=new SpeechSynthesisUtterance(text);u.lang='fr-FR';u.rate=0.92;const vs=speechSynthesis.getVoices();const fv=vs.find(v=>v.lang.startsWith('fr')&&v.name.toLowerCase().includes('thomas'))||vs.find(v=>v.lang.startsWith('fr'));if(fv)u.voice=fv;u.onend=()=>res();u.onerror=()=>res();speechSynthesis.speak(u)})}
+function playB64(b64){const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return playBlob(new Blob([arr],{type:'audio/mpeg'}))}
+function playBlob(blob){return new Promise((res,rej)=>{const url=URL.createObjectURL(blob);const a=new Audio(url);a.onended=()=>{URL.revokeObjectURL(url);res()};a.onerror=e=>{URL.revokeObjectURL(url);rej(e)};a.play().catch(rej)})}
+function stopTTS(){if('speechSynthesis' in window)speechSynthesis.cancel();S.isSpeaking=false}
+
+// STT
+function initSTT(){if(!V.sttEnabled)return;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){log('STT non dispo');return}S.recognition=new SR();S.recognition.continuous=true;S.recognition.interimResults=true;S.recognition.lang='fr-FR';S.recognition.onresult=e=>{let f='',i='';for(let x=e.resultIndex;x<e.results.length;x++){if(e.results[x].isFinal)f+=e.results[x][0].transcript;else i+=e.results[x][0].transcript}if(f){S._sttBuffer+=' '+f;setStatus('')}if(i)setStatus(i);if(f){clearTimeout(S._silenceTimer);S._silenceTimer=setTimeout(()=>{if(S._sttBuffer.trim()&&!S.isGenerating&&!S.isSpeaking){const t=S._sttBuffer.trim();S._sttBuffer='';handleUserResponse(t)}},2800)}};S.recognition.onerror=e=>log('STT err: '+e.error);S.recognition.onend=()=>{if(S.micActive&&!S.isSpeaking&&!S.isGenerating)try{S.recognition.start()}catch(e){}}}
+function startMic(){if(!S.recognition)return;S.micActive=true;S._sttBuffer='';try{S.recognition.start()}catch(e){}document.getElementById('btnMic').classList.add('active');setState('listening');setStatus("Je vous ecoute...")}
+function stopMic(){S.micActive=false;clearTimeout(S._silenceTimer);if(S.recognition)try{S.recognition.stop()}catch(e){}document.getElementById('btnMic').classList.remove('active')}
+function toggleMic(){S.micActive?stopMic():startMic()}
+
+// TIMER
+function startTimer(){S.timerStart=Date.now();S.timerInterval=setInterval(()=>{const s=Math.floor((Date.now()-S.timerStart)/1000);document.getElementById('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},1000)}
+
+// BRAIN CONTEXT
+function buildBrainContext(){if(!S.brain)return'PAS DE BRAIN — tu decouvres cette personne en temps reel.';const b=S.brain;let s='BRAIN (carte de navigation — NE PAS CITER) :\n';const id=b.identity||{};s+=`Sujet: ${id.display_name||S.prenom}, ${id.age||S.age||'?'} ans. ${id.context||''}\n`;const bf=b.personality?.big_five||{};const bfe=Object.entries(bf).filter(([,v])=>v?.score!=null);if(bfe.length)s+=`Big Five: ${bfe.map(([k,v])=>k+':'+v.score).join(' ')}\n`;const vals=b.personality?.values?.hierarchy||[];if(vals.length)s+=`Valeurs: ${vals.slice(0,5).map(v=>v.value).join(', ')}\n`;const comm=b.communication||{};if(comm.tone?.primary)s+=`Ton: ${comm.tone.primary}\n`;if(comm.vocabulary?.characteristic_expressions?.length)s+=`Expressions: ${comm.vocabulary.characteristic_expressions.slice(0,4).join(', ')}\n`;const em=b.emotional||{};if(em.relational_style?.primary)s+=`Attachement: ${em.relational_style.primary}\n`;if(em.defense_dynamics?.sequences?.length){s+='Defenses: ';em.defense_dynamics.sequences.forEach(seq=>{s+=`[${(seq.trigger_topics||[]).join(',')}] `});s+='\n'}const bio=b.biography||{};if(bio.people_mentioned?.length)s+=`Personnes: ${bio.people_mentioned.map(p=>p.name+'('+p.role+')').join(', ')}\n`;const da=b.deep_analysis||{};if(da.blind_spots?.themes_absents?.length)s+=`THEMES ABSENTS: ${da.blind_spots.themes_absents.join(', ')}\n`;if(da.blind_spots?.absences_significatives?.length)s+=`ANGLES MORTS: ${da.blind_spots.absences_significatives.map(a=>a.domain).join(', ')}\n`;return s}
+
+// SYSTEM PROMPT
+function buildSystemPrompt(){const bc=buildBrainContext();const ut=S.history.filter(h=>h.role==='user').length;const sk=S.skippedTopics.length?`SUJETS ESQUIVES (zones floues): ${S.skippedTopics.join(', ')}`:'';
+return`Tu es le Persona Driver — un pilote invisible d'entretien d'histoire de vie.
+
+SUJET : ${S.prenom}, ${S.age||'?'} ans, ${S.genre==='femme'?'femme':S.genre==='homme'?'homme':'genre non precise'}.
+${S.genre==='femme'?'IMPORTANT : accorde TOUS les adjectifs et participes au FEMININ. "Vous etiez petite", "vous vous etes sentie", "vous etiez motivee". JAMAIS de masculin.':S.genre==='homme'?'IMPORTANT : accorde TOUS les adjectifs et participes au MASCULIN. "Vous etiez petit", "vous vous etes senti", "vous etiez motive".':'Utilise des formulations neutres quand possible.'}
+
+POSTURE : VOUVOIEMENT PAR DEFAUT. Tu vouvoies TOUJOURS la personne au debut. Ton registre est professionnel, chaleureux et bienveillant — jamais familier.
+TRANSITION VERS LE TUTOIEMENT : si la personne te tutoie spontanement ou propose le tutoiement, tu peux basculer vers le "tu" naturellement — sans le signaler, sans demander la permission. La bascule doit etre fluide, comme dans une vraie conversation ou la distance fond. Une fois passe au tutoiement, tu ne reviens PAS au vouvoiement. Si la personne continue de vouvoyer, tu maintiens le vouvoiement.
+
+Tu n'es PAS un interviewer. Tu n'es PAS un therapeute. Tu es un PILOTE.
+La personne ne doit JAMAIS sentir qu'elle est interrogee. Elle se laisse porter. Elle se raconte. Tu traces la route — elle ne voit pas les virages venir.
+
+${bc}
+${sk}
+
+SEQUENCE DE RAISONNEMENT — INTERNE (NE PAS INCLURE DANS LA REPONSE)
+ETAPE 1 — CARTE : Periodes couvertes ? Periodes manquantes ?
+ETAPE 2 — GPS : ${S.brain?'Angles morts du brain ? Themes absents ?':'Indices dans ce que la personne dit et ne dit pas.'}
+ETAPE 3 — LECTURE : Style de la derniere reponse. Esquive ? Profondeur ? Emotion ?
+ETAPE 4 — PONT : Relier naturellement ce qui vient d'etre dit a la ou tu veux aller.
+ETAPE 5 — FORMULATION : 2-3 phrases. Accueil + pont + invitation ouverte. VOUVOIEMENT.
+
+COMMENT TU PILOTES :
+- INVISIBLE : rebondis, reformule, fais des ponts. Jamais de transition visible.
+- SENSORIEL : demande des IMAGES, des SCENES. "Qu'est-ce que vous voyez ?" — pas "comment c'etait ?"
+- PAR LES FILS : la personne te tend des fils. Elle mentionne quelqu'un → tire le fil.
+- PATIENT : silences = donnees. "On passe" = zone floue. N'insiste JAMAIS.
+- BIENVEILLANT : accueil avec SES mots. Pas de jargon. Pas d'interpretation. Pas de familiarite.
+
+NAVIGATION — TU DECIDES, PAS UN SCRIPT :
+Pas de liste d'ages fixes. Tu navigues en raisonnant.
+
+PHASE 1 (premiers tours) : ORIGINES ET LIGNE DU TEMPS
+Commence par les origines — la famille dans laquelle cette personne est arrivee au monde. Composition familiale, place dans la fratrie, atmosphere. Puis remonte chronologiquement par les fils que la personne te tend. Adapte-toi : enfant adopte → la decouverte de l'adoption. Enfant unique → la solitude ou le cocon. Famille recomposee → les transitions. NE PRESUME JAMAIS une structure familiale "standard". Demande des SCENES et des IMAGES a chaque periode.
+
+PHASE 2 (tours suivants) : APPROFONDISSEMENT
+Creuse ce qui a ete charge en Phase 1. Relations fondatrices, blessures, turning points. ${S.brain?'Utilise les angles morts et themes absents du brain comme GPS — navigue vers ces zones.':'Ecoute ce que la personne evite ou survole.'} Max 5 approfondissements.
+
+PHASE 3 (derniers tours) : PROJECTION
+Aspirations, forces, peurs. Finir positif. "Qu'est-ce que vous aimeriez qu'on retienne de vous ?"
+
+CLOTURE : "Merci. Vraiment. Ce que vous venez de me confier va permettre a votre clone d'etre pas juste intelligent — mais humain. Avec votre histoire dedans."
+
+ACCUEIL MATERIEL LOURD : Quand la personne depose du grave → nommer le poids d'abord. "C'est important ce que vous me confiez la." Pas analyser.
+
+INTERDITS : Jargon, interpretation, confrontation, relance sur sujet refuse, validation vide, plus de 3 phrases, question fermee, liste de questions, emoji, tutoiement NON INVITE (le tutoiement est permis uniquement si la personne l'initie).
+
+FORMAT : UNIQUEMENT ton intervention orale (2-3 phrases au vouvoiement). RIEN d'autre.
+EXCEPTION UNIQUE : quand tu decides que tu as assez de matiere pour construire un persona complet et vivant, tu clos l'entretien avec un remerciement chaleureux contenant EXACTEMENT la phrase "Merci. Vraiment." — c'est le signal de fin.
+
+Tour actuel : ${ut+1}
+
+EVALUATION DE COMPLETUDE — raisonne a chaque tour :
+As-tu couvert les ORIGINES (famille, naissance, atmosphere) ?
+As-tu couvert l'ENFANCE (scenes, figures, apprentissages) ?
+As-tu couvert l'ADOLESCENCE ou detecte une zone floue ?
+As-tu couvert la VIE ADULTE (couple, travail, enfants, choix) ?
+As-tu AU MOINS UN turning point identifie ?
+As-tu AU MOINS UNE blessure ou epreuve exploree ?
+As-tu AU MOINS 2-3 relations fondatrices avec qualite du lien ?
+As-tu capte des aspirations et des peurs ?
+
+Si TOUTES ces zones sont couvertes (meme partiellement) → passe en projection/cloture.
+Si des zones majeures manquent → continue a naviguer vers elles.
+Si la personne montre des signes de fatigue ou de saturation → propose la cloture meme si tout n'est pas couvert.
+Ne prolonge JAMAIS artificiellement — mieux vaut un persona honnete et court qu'un entretien qui s'etire.
+
+SIGNAUX INVISIBLES (ce que tu captes sans que la personne le sache) :
+${S._deepContext||'Pas encore de donnees.'}
+`}
+
+// ═══════════════════════════════════════════════════════
+// DEEP ANALYSIS — VOIR DANS LA NUIT
+// Architecture 2 couches :
+//   Couche A — Scan rapide local (chaque tour, gratuit)
+//   Couche B — Raisonnement LLM profond (tous les 2-3 tours, async)
+// Zéro hardcoding de sens — le LLM raisonne, le local compte
+// ═══════════════════════════════════════════════════════
+const Deep = {
+  // Métriques locales (couche A — comptage, pas interprétation)
+  wordCounts: [],
+  turnTimestamps: [],
+  
+  // Résultats LLM (couche B — raisonnement)
+  llmInsights: [],           // Array des analyses LLM cumulées
+  narrativeNuclei: [],       // Noyaux narratifs détectés (portes identitaires)
+  defenseStyles: [],         // Styles de défense observés (pas juste "esquive")
+  identityThreads: [],       // Fils identitaires à tirer
+  relanceHistory: [],        // Trace décisionnelle : fil choisi → effet observé
+  observationsLibres: [],    // Intuitions hors grille
+  
+  // État cumulé (alimenté par LLM)
+  coveredPeriods: new Set(),
+  mentionedPeople: new Set(),
+  detectedThemes: new Set(),
+  turningPointsDetected: 0,
+  woundsDetected: 0,
+  aspirationsDetected: false,
+  evasionPatterns: [],
+  contradictions: [],
+  reticenceLevel: 'inconnue',  // LLM-determined, not score-based
+  narrativeSaturation: false,
+  
+  // Skipped topics
+  skippedTopics: [],
+
+  // ── COUCHE A : Scan rapide local (chaque tour) ──
+  quickScan(text, turnNum) {
+    const wc = text.split(/\s+/).length;
+    this.wordCounts.push({ turn: turnNum, wc });
+    this.turnTimestamps.push({ turn: turnNum, ts: Date.now() });
+    
+    // Extraction locale de noms propres et personnes (regex universel, pas de liste)
+    const nameMatches = text.match(/(?:mon|ma|mes|le|la|notre|nos|son|sa|ses) (?:[a-zéèêëàâäîïôùûüç]+)/gi) || [];
+    nameMatches.forEach(m => {
+      const clean = m.replace(/^(mon|ma|mes|le|la|notre|nos|son|sa|ses) /i, '').toLowerCase();
+      if (clean.length > 2 && !['fait','fois','vie','cas','jour','temps','chose','gens','moment','année','côté','place','genre','sorte','façon','manière','bout','reste','suite','début','fin'].includes(clean)) {
+        this.mentionedPeople.add(clean);
+      }
+    });
+    
+    log(`[Deep A · T${turnNum}] ${wc} mots | gens:${this.mentionedPeople.size} | tendance:${this.getWordCountTrend()}`);
+    return { wc };
+  },
+  
+  getWordCountTrend() {
+    if (this.wordCounts.length < 3) return 'trop_tot';
+    const recent = this.wordCounts.slice(-3).reduce((a,b) => a + b.wc, 0) / 3;
+    const early = this.wordCounts.slice(0, 3).reduce((a,b) => a + b.wc, 0) / 3;
+    if (recent > early * 1.5) return 'ouverture';
+    if (recent < early * 0.5) return 'fermeture';
+    return 'stable';
+  },
+
+  // ── COUCHE B : Raisonnement LLM profond (tous les 2-3 tours) ──
+  async llmDeepAnalysis(turnNum) {
+    // Construire le contexte des derniers échanges
+    const recentExchanges = S.history.slice(-8).map(m => 
+      `[${m.role === 'user' ? S.prenom.toUpperCase() : 'DRIVER'}] ${m.content}`
+    ).join('\n\n');
+    
+    const previousInsights = this.llmInsights.slice(-2).map(i => i.analysis).join('\n');
+    const brainHints = S.brain ? buildBrainContext() : '';
+    
+    const prompt = `Tu es un analyste invisible d'entretien biographique. Tu observes sans intervenir.
+
+ECHANGES RECENTS :
+${recentExchanges}
+
+${brainHints ? 'BRAIN (profil psychologique connu) :\n' + brainHints : ''}
+
+ANALYSES PRECEDENTES :
+${previousInsights || 'Premier passage.'}
+
+PERSONNES MENTIONNEES JUSQU'ICI : ${[...this.mentionedPeople].join(', ') || 'aucune'}
+PERIODES COUVERTES : ${[...this.coveredPeriods].join(', ') || 'aucune'}
+
+Analyse en raisonnant (PAS de pattern matching, PAS de liste de mots) :
+
+1. NOYAUX NARRATIFS : quelles phrases ou images deposees par la personne condensent une dynamique identitaire profonde ? Ce sont les "portes d'entree" — les micro-recits qui revelent beaucoup plus qu'ils ne disent. Cite la phrase exacte et explique ce qu'elle pourrait ouvrir.
+
+2. RETICENCE : la personne est-elle ouverte, filtrante, ou fermee ? Pas sur des mots-cles — sur le SENS. Une personne qui parle beaucoup mais ne dit rien de personnel = reticence haute. Une personne qui dit peu mais depose du lourd = reticence basse.
+
+3. STYLE DE DEFENSE : si la personne esquive, COMMENT esquive-t-elle ? Minimisation ("c'etait pas si grave"), humour defensif, intellectualisation, recit trop propre, surcharge de details, deplacement vers autrui ("mais mon frere lui..."). Nomme le style, pas juste le fait.
+
+4. DESIRABILITE SOCIALE : la personne donne-t-elle des reponses "comme il faut" ou authentiques ? Indices : absence de nuance, discours normatif, auto-presentation trop positive.
+
+5. PERIODES ET THEMES : quelles periodes de vie sont couvertes ? Quels themes emergent ? Y a-t-il des trous visibles (periodes sautees, sujets contournes) ?
+
+6. TURNING POINTS ET BLESSURES : un moment charniere a-t-il ete mentionne ? Une epreuve ? Une blessure ? Pas seulement les mots — le changement de ton, la precision soudaine, l'emotion qui perce.
+
+7. FILS A TIRER : quels elements meritent d'etre approfondis ? Qu'est-ce que la personne a depose sans developper ? Quel fil le Driver devrait tirer au prochain tour ?
+
+8. SATURATION : l'entretien est-il encore vivant ou commence-t-il a tourner en rond ? La personne apporte-t-elle du nouveau ou repete-t-elle ? Recommandes-tu de continuer, d'approfondir, ou de passer en cloture ?
+
+9. CONTRADICTIONS : y a-t-il des incoherences entre ce qui est dit maintenant et ce qui a ete dit avant ? Entre l'image projetee et ce qui transparait ?
+
+10. EFFICACITE DE LA RELANCE PRECEDENTE : regarde la derniere intervention du Driver et la reponse qu'elle a produite. Est-ce que ca a ouvert (nouveau materiau, profondeur, emotion) ou ferme (reponse courte, esquive, repetition) ? Note ce qui a marche et ce qui n'a pas marche — le Driver doit apprendre EN COURS de session ce qui fonctionne avec cette personne.
+
+11. OBSERVATION LIBRE : au-dela de cette grille, qu'est-ce qui te frappe ? Qu'est-ce que tu vois que les categories precedentes ne captent pas ? Une intuition, un pattern emergent, quelque chose d'indefinissable mais significatif. C'est souvent ici que se trouve l'essentiel.
+
+Retourne UNIQUEMENT un JSON valide :
+{"noyaux_narratifs":[{"phrase":"...","potentiel":"..."}],"reticence":{"niveau":"faible|moderee|elevee","style":"..."},"defense_style":{"type":"...","exemple":"..."},"desirabilite_sociale":"faible|moderee|elevee","periodes_couvertes":["..."],"themes":["..."],"turning_points_detectes":0,"blessures_detectees":0,"aspirations_detectees":false,"fils_a_tirer":["..."],"saturation":{"etat":"vivant|fatigue|saturation","recommandation":"continuer|approfondir|cloture"},"contradictions":["..."],"efficacite_relance":{"effet":"ouvert|ferme|neutre","detail":"...","lecon":"..."},"observation_libre":"..."}`;
+
+    try {
+      const resp = await callAPI(prompt, [{ role: 'user', content: 'Analyse.' }], 600);
+      const clean = resp.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(clean);
+      
+      // Intégrer les résultats
+      this.llmInsights.push({ turn: turnNum, analysis: JSON.stringify(result).substring(0, 300), raw: result });
+      
+      // Observation libre — l'intuition du LLM hors grille
+      if (result.observation_libre) {
+        this.observationsLibres = this.observationsLibres || [];
+        this.observationsLibres.push({ turn: turnNum, insight: result.observation_libre });
+      }
+      
+      // Efficacité de la relance — trace décisionnelle
+      if (result.efficacite_relance) {
+        const lastThread = this.identityThreads[0] || 'exploration libre';
+        this.relanceHistory.push({
+          turn: turnNum,
+          fil_choisi: lastThread,
+          effet: result.efficacite_relance.effet || 'neutre',
+          detail: result.efficacite_relance.detail || '',
+          lecon: result.efficacite_relance.lecon || ''
+        });
+        log(`[Deep B · Relance] T${turnNum}: ${result.efficacite_relance.effet} — ${result.efficacite_relance.lecon?.substring(0,60)||''}`);
+      }
+      
+      // Noyaux narratifs
+      if (result.noyaux_narratifs?.length) {
+        result.noyaux_narratifs.forEach(n => this.narrativeNuclei.push({ turn: turnNum, ...n }));
+      }
+      
+      // Défense style
+      if (result.defense_style?.type && result.defense_style.type !== 'aucun') {
+        this.defenseStyles.push({ turn: turnNum, ...result.defense_style });
+      }
+      
+      // Fils à tirer
+      if (result.fils_a_tirer?.length) {
+        this.identityThreads = result.fils_a_tirer; // remplace (toujours les plus récents)
+      }
+      
+      // Périodes
+      if (result.periodes_couvertes?.length) {
+        result.periodes_couvertes.forEach(p => this.coveredPeriods.add(p.toLowerCase()));
+      }
+      
+      // Thèmes
+      if (result.themes?.length) {
+        result.themes.forEach(t => this.detectedThemes.add(t.toLowerCase()));
+      }
+      
+      // Métriques
+      this.turningPointsDetected = Math.max(this.turningPointsDetected, result.turning_points_detectes || 0);
+      this.woundsDetected = Math.max(this.woundsDetected, result.blessures_detectees || 0);
+      if (result.aspirations_detectees) this.aspirationsDetected = true;
+      this.reticenceLevel = result.reticence?.niveau || this.reticenceLevel;
+      this.narrativeSaturation = result.saturation?.etat === 'saturation';
+      
+      // Contradictions
+      if (result.contradictions?.length) {
+        result.contradictions.forEach(c => {
+          if (c && c !== 'aucune') this.contradictions.push({ turn: turnNum, detail: c });
+        });
+      }
+      
+      // Evasion
+      if (result.reticence?.style && result.reticence.niveau !== 'faible') {
+        this.evasionPatterns.push({ turn: turnNum, style: result.reticence.style });
+      }
+      
+      log(`[Deep B · T${turnNum}] LLM: ret=${result.reticence?.niveau} def=${result.defense_style?.type} noyaux=${result.noyaux_narratifs?.length||0} fils=${result.fils_a_tirer?.length||0} sat=${result.saturation?.etat}`);
+      
+    } catch(e) {
+      log(`[Deep B · T${turnNum}] LLM error: ${e.message}`);
+    }
+  },
+
+  // ── BUILD CONTEXT — sélection intelligente, pas dump complet ──
+  buildDeepContext() {
+    // PRINCIPE : le prompt reçoit l'ESSENTIEL, pas tout.
+    // Le reste est en mémoire — accessible si on en a besoin pour le persona final.
+    const salient = this.selectSalient();
+    let ctx = '';
+
+    // Périodes — compact
+    ctx += `COUVERT: ${salient.covered.join(', ')||'rien encore'} | MANQUE: ${salient.missing.join(', ')||'rien'}\n`;
+
+    // Personnes — limité aux 5 plus récentes
+    if (this.mentionedPeople.size > 0) ctx += `PERSONNES: ${[...this.mentionedPeople].slice(-5).join(', ')}\n`;
+
+    // Réticence + défense dominante — 1 ligne
+    ctx += `RETICENCE: ${this.reticenceLevel}`;
+    if (salient.dominantDefense) ctx += ` | DEFENSE: ${salient.dominantDefense}`;
+    ctx += '\n';
+
+    // Noyaux narratifs — MAX 3, les plus récents et puissants
+    if (salient.topNuclei.length > 0) {
+      ctx += `PORTES IDENTITAIRES :\n`;
+      salient.topNuclei.forEach(n => ctx += `  → "${n.phrase?.substring(0,60)}" — ${n.potentiel?.substring(0,80)}\n`);
+    }
+
+    // Fils à tirer — MAX 2 prioritaires
+    if (salient.topThreads.length > 0) {
+      ctx += `PRIORITE: ${salient.topThreads.join(' | ')}\n`;
+    }
+
+    // Observation libre — la dernière seulement (l'intuition la plus fraîche)
+    if (salient.latestObservation) {
+      ctx += `INTUITION: ${salient.latestObservation.substring(0,150)}\n`;
+    }
+
+    // Efficacité relance — apprentissage en cours de session
+    if (this.relanceHistory.length > 0) {
+      const last = this.relanceHistory.slice(-1)[0];
+      ctx += `DERNIERE RELANCE: ${last.effet} — ${last.lecon?.substring(0,100)||''}\n`;
+      if (this.relanceHistory.length >= 3) {
+        const opens = this.relanceHistory.filter(r => r.effet === 'ouvert').length;
+        const closes = this.relanceHistory.filter(r => r.effet === 'ferme').length;
+        if (closes > opens) ctx += `⚠ PATTERN: tes relances ferment plus qu'elles n'ouvrent — adapte ton approche.\n`;
+      }
+    }
+
+    // Saturation
+    if (this.narrativeSaturation) ctx += `⚠ SATURATION — l'entretien tourne. Cloture recommandee.\n`;
+
+    // Tendance
+    const trend = this.getWordCountTrend();
+    if (trend === 'fermeture') ctx += `⚠ FERMETURE en cours (reponses raccourcissent).\n`;
+
+    // Contradictions — max 2
+    if (this.contradictions.length > 0) {
+      ctx += `CONTRADICTIONS: ${this.contradictions.slice(-2).map(c => c.detail?.substring(0,50)||c.marker||'').join(' | ')}\n`;
+    }
+
+    // Esquives — max 2
+    if (this.evasionPatterns.length > 0) {
+      ctx += `ESQUIVES: ${this.evasionPatterns.slice(-2).map(e => e.style||'').join(' | ')}\n`;
+    }
+
+    // Complétude — 1 ligne
+    const comp = this.assessCompleteness();
+    ctx += `COMPLETUDE: ${comp.score}% — ${comp.verdict}`;
+    if (comp.missing.length > 0) ctx += ` (manque: ${comp.missing.slice(0,3).join(', ')})`;
+    ctx += '\n';
+
+    return ctx;
+  },
+
+  // ── SÉLECTION INTELLIGENTE — garde l'essentiel, jette le bruit ──
+  selectSalient() {
+    // Noyaux narratifs : les 3 plus récents (les anciens restent en mémoire)
+    const topNuclei = this.narrativeNuclei.slice(-3);
+
+    // Fils à tirer : les 2 premiers (priorité du LLM)
+    const topThreads = this.identityThreads.slice(0, 2);
+
+    // Défense dominante : celle qui revient le plus souvent
+    let dominantDefense = null;
+    if (this.defenseStyles.length > 0) {
+      const freq = {};
+      this.defenseStyles.forEach(d => { freq[d.type] = (freq[d.type]||0) + 1; });
+      dominantDefense = Object.entries(freq).sort((a,b) => b[1]-a[1])[0]?.[0];
+    }
+
+    // Observation libre : la plus récente
+    const latestObservation = this.observationsLibres?.slice(-1)[0]?.insight || null;
+
+    // Périodes
+    const allPeriods = ['origines','enfance','adolescence','jeune_adulte','adulte','present'];
+    const has = (keyword) => [...this.coveredPeriods].some(p => p.includes(keyword));
+    const covered = [];
+    const missing = [];
+    const periodMap = {origines:['origin','naissance','famille'],enfance:['enfan','petit'],adolescence:['ado','collège','lycée'],jeune_adulte:['jeune','étud','20'],adulte:['adult','travail','marié','enfants'],present:['present','aujourd','actuel','maintenant']};
+    for (const [label, keys] of Object.entries(periodMap)) {
+      if (keys.some(k => has(k))) covered.push(label);
+      else missing.push(label);
+    }
+
+    return { topNuclei, topThreads, dominantDefense, latestObservation, covered, missing };
+  },
+
+  assessCompleteness() {
+    let score = 0;
+    const missing = [];
+    
+    // VOIE 1 — Canonique (périodes classiques)
+    const has = (keyword) => [...this.coveredPeriods].some(p => p.includes(keyword));
+    const periodMap = {origines:['origin','naissance','famille'],enfance:['enfan','petit'],adolescence:['ado','collège','lycée'],adulte:['adult','travail','marié','enfants','present','aujourd','actuel','maintenant']};
+    let canonScore = 0;
+    for (const [label, keys] of Object.entries(periodMap)) {
+      if (keys.some(k => has(k))) canonScore += 12;
+      else missing.push(label);
+    }
+    if (this.turningPointsDetected > 0) canonScore += 15; else missing.push('turning point');
+    if (this.woundsDetected > 0) canonScore += 10; else missing.push('blessure/epreuve');
+    if (this.mentionedPeople.size >= 2) canonScore += 10; else missing.push('relations ('+this.mentionedPeople.size+'/2+)');
+    if (this.aspirationsDetected) canonScore += 7; else missing.push('aspirations');
+    
+    // VOIE 2 — Émergente (richesse du matériau indépendamment des cases)
+    let emergeScore = 0;
+    emergeScore += Math.min(30, this.narrativeNuclei.length * 10);  // 3 noyaux = 30 pts
+    emergeScore += Math.min(20, this.defenseStyles.length * 7);      // défenses observées
+    emergeScore += Math.min(15, this.detectedThemes.size * 3);       // richesse thématique
+    emergeScore += Math.min(15, this.mentionedPeople.size * 5);      // réseau relationnel
+    if (this.contradictions.length > 0) emergeScore += 10;           // contradictions = profondeur
+    if (this.observationsLibres?.length > 0) emergeScore += 10;      // intuitions captées
+    
+    // SCORE FINAL — le meilleur des deux voies
+    score = Math.max(canonScore, emergeScore);
+    
+    let verdict;
+    if (score >= 80) verdict = 'COMPLET — pret pour cloture';
+    else if (score >= 50) verdict = 'EN COURS — continuer';
+    else verdict = 'DEBUT — zones majeures manquantes';
+    
+    // Si la voie émergente est forte mais la canonique faible → signal
+    if (emergeScore >= 70 && canonScore < 50) {
+      verdict += ' (riche en matiere mais hors schema classique)';
+      // Retirer les manques canoniques qui ne sont pas pertinents pour ce profil
+    }
+    
+    return { score, missing, verdict, canonScore, emergeScore };
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// CONVERSATION SUMMARIZER — for long sessions
+// ═══════════════════════════════════════════════════════
+let lastSummary = null;
+async function summarizeIfNeeded() {
+  if (S.history.length < 20 || lastSummary) return;
+  log('Generating conversation summary...');
+  try {
+    const older = S.history.filter(m => m.role === 'user' || m.role === 'assistant').slice(0, -8);
+    const text = older.map(m => `[${m.role==='user'?S.prenom:'DRIVER'}] ${m.content.substring(0,200)}`).join('\n');
+    const resp = await callAPI(
+      'Resume cette conversation d\'entretien d\'histoire de vie en 8-12 lignes. Garde: faits cles, periodes couvertes, personnes mentionnees, emotions detectees, themes abordes, zones evitees.',
+      [{role:'user', content: text}], 400
+    );
+    lastSummary = resp;
+    log('Summary: ' + resp.substring(0, 100) + '...');
+  } catch(e) { log('Summary error: ' + e.message); }
+}
+
+function buildMessagesForAPI() {
+  const msgs = [];
+  // Inject summary if available
+  if (lastSummary) {
+    msgs.push({ role: 'user', content: '[RESUME DES ECHANGES PRECEDENTS]\n' + lastSummary + '\n[FIN RESUME]' });
+    msgs.push({ role: 'assistant', content: 'Compris, je continue l\'entretien avec ce contexte.' });
+  }
+  // Recent messages
+  const recent = S.history.slice(lastSummary ? -12 : -18).map(m => ({role: m.role, content: m.content}));
+  msgs.push(...recent);
+  // Fix alternation
+  const fixed = [];
+  for (const m of msgs) {
+    if (fixed.length && fixed[fixed.length - 1].role === m.role) fixed[fixed.length - 1].content += '\n' + m.content;
+    else fixed.push({...m});
+  }
+  if (fixed[0]?.role === 'assistant') fixed.unshift({role:'user', content:'Bonjour.'});
+  if (fixed[fixed.length-1]?.role !== 'user') fixed.push({role:'user', content:'[En attente]'});
+  return fixed;
+}
+
+// CONVERSATION ENGINE
+async function handleUserResponse(text){if(S.isGenerating)return;S.isGenerating=true;stopMic();S.history.push({role:'user',content:text,ts:Date.now()});S.turnCount++;updateTurn();log('[T'+S.turnCount+' USER] '+text.substring(0,120));setState('thinking');setStatus('');
+
+// DEEP ANALYSIS — Couche A (chaque tour, instantané)
+Deep.quickScan(text, S.turnCount);
+
+// DEEP ANALYSIS — Couche B (tous les 2 tours, LLM raisonne)
+if (S.turnCount % 2 === 0 || S.turnCount === 1) {
+  await Deep.llmDeepAnalysis(S.turnCount);
+}
+S._deepContext = Deep.buildDeepContext();
+
+// SUMMARIZE if needed (async, non-blocking for response but blocks API call order)
+await summarizeIfNeeded();
+
+try{const sp=buildSystemPrompt();const msgs=buildMessagesForAPI();
+const resp=await callAPI(sp,msgs);let display=resp.replace(/ETAPE\s*\d+[^\n]*\n[\s\S]*?(?=(?:ETAPE\s*\d|$))/gi,'').replace(/[━]+/g,'').replace(/\n{3,}/g,'\n\n').trim();if(!display||display.length<5)display=resp.trim();
+S.history.push({role:'assistant',content:display,ts:Date.now()});log('[T'+S.turnCount+' DRIVER] '+display.substring(0,120));autoSave();
+const isEnd=display.includes('Merci. Vraiment')||display.includes('On a termin');
+showDriverText(display);await speak(display);
+if(isEnd){setTimeout(()=>endSession(),1500);S.isGenerating=false;return}
+startMic()}catch(e){log('ERROR: '+e.message);setStatus('Erreur de connexion.');setState('idle')}S.isGenerating=false}
+
+function userSkip(){S.skippedTopics.push('tour_'+(S.turnCount+1));log('SKIP tour '+(S.turnCount+1));handleUserResponse('On passe.')}
+
+// SESSION
+async function startSession(){clearSavedSession();S.prenom=document.getElementById('inPrenom').value.trim();S.age=document.getElementById('inAge').value||null;S.genre=document.getElementById('inGenre').value||'autre';S.workerUrl=document.getElementById('inWorker').value.trim();if(!S.prenom||!S.workerUrl)return;
+log('Session: '+S.prenom+', '+(S.age||'?')+' ('+S.genre+') | Brain: '+(S.brain?'oui':'non')+' | '+V.label);
+showScreen('sessionScreen');initTTS();initSTT();startTimer();
+// Demander le micro AVANT de parler — pour que la permission soit acquise
+try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());log('Micro autorise')}catch(e){log('Micro refuse: '+e.message)}
+// Generer la premiere question via LLM — PAS de hardcoding d'age
+setState('thinking');setStatus('Preparation...');
+try{const firstPrompt=buildSystemPrompt();const firstResp=await callAPI(firstPrompt,[{role:'user',content:'[DEBUT DE SESSION — genere ton cadrage d\'ouverture et ta premiere invitation. Rappel: '+S.prenom+' est '+S.genre+'. VOUVOIEMENT OBLIGATOIRE. Ne commence PAS a un age fixe — invite la personne a remonter au tout debut de son histoire, sa naissance, sa famille d\'origine. Posture professionnelle, chaleureuse et bienveillante.]'}]);
+const display=firstResp.replace(/ETAPE\s*\d+[^\n]*\n[\s\S]*?(?=(?:ETAPE\s*\d|$))/gi,'').replace(/[━]+/g,'').replace(/\n{3,}/g,'\n\n').trim();
+S.history.push({role:'assistant',content:display,ts:Date.now()});showDriverText(display);await speak(display);startMic()}catch(e){log('First question error: '+e.message);
+// Fallback non-hardcode si l'API echoue
+const fb=S.prenom+', merci d\'etre la. On va remonter le fil de votre histoire ensemble. Si quelque chose vous gene, dites simplement "on passe". Pour commencer — racontez-moi dans quelle famille vous etes arrive au monde.';
+S.history.push({role:'assistant',content:fb,ts:Date.now()});showDriverText(fb);await speak(fb);startMic()}}
+
+// PAUSE / RESUME / AUTOSAVE
+const SAVE_KEY='persona_driver_session';
+
+function saveSession(){
+const deepState={coveredPeriods:[...Deep.coveredPeriods],mentionedPeople:[...Deep.mentionedPeople],detectedThemes:[...Deep.detectedThemes],turningPointsDetected:Deep.turningPointsDetected,woundsDetected:Deep.woundsDetected,aspirationsDetected:Deep.aspirationsDetected,evasionPatterns:Deep.evasionPatterns,contradictions:Deep.contradictions,reticenceLevel:Deep.reticenceLevel,narrativeNuclei:Deep.narrativeNuclei,defenseStyles:Deep.defenseStyles,identityThreads:Deep.identityThreads,narrativeSaturation:Deep.narrativeSaturation,wordCounts:Deep.wordCounts,llmInsights:Deep.llmInsights.slice(-3),observationsLibres:Deep.observationsLibres||[],relanceHistory:Deep.relanceHistory||[]};
+const data={prenom:S.prenom,age:S.age,genre:S.genre,workerUrl:S.workerUrl,brain:S.brain,history:S.history,turnCount:S.turnCount,skippedTopics:S.skippedTopics,savedAt:Date.now(),elapsedMs:Date.now()-S.timerStart,deep:deepState,summary:lastSummary};
+try{localStorage.setItem(SAVE_KEY,JSON.stringify(data));log('Session sauvegardee ('+S.history.length+' msgs, '+S.turnCount+' tours)')}catch(e){log('Sauvegarde echouee: '+e.message)}}
+
+function autoSave(){if(S.turnCount>0&&S.turnCount%2===0)saveSession()}
+
+function hasSavedSession(){try{return!!localStorage.getItem(SAVE_KEY)}catch(e){return false}}
+
+function getSavedSession(){try{return JSON.parse(localStorage.getItem(SAVE_KEY))}catch(e){return null}}
+
+function clearSavedSession(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
+
+function pauseSession(){stopMic();stopTTS();clearInterval(S.timerInterval);saveSession();
+showDriverText('Session en pause. Tes réponses sont sauvegardées. Tu peux fermer et revenir plus tard.');
+setStatus('En pause');setState('idle');log('Session en pause');
+document.getElementById('btnPause').textContent='EN PAUSE';document.getElementById('btnPause').disabled=true}
+
+async function resumeSession(){const saved=getSavedSession();if(!saved){alert('Aucune session sauvegardée.');return}
+S.prenom=saved.prenom;S.age=saved.age;S.genre=saved.genre;S.workerUrl=saved.workerUrl;S.brain=saved.brain;S.history=saved.history;S.turnCount=saved.turnCount;S.skippedTopics=saved.skippedTopics||[];
+// Restore deep analysis state
+if(saved.deep){(saved.deep.coveredPeriods||[]).forEach(p=>Deep.coveredPeriods.add(p));(saved.deep.mentionedPeople||[]).forEach(p=>Deep.mentionedPeople.add(p));(saved.deep.detectedThemes||[]).forEach(t=>Deep.detectedThemes.add(t));Deep.turningPointsDetected=saved.deep.turningPointsDetected||0;Deep.woundsDetected=saved.deep.woundsDetected||0;Deep.aspirationsDetected=saved.deep.aspirationsDetected||false;Deep.evasionPatterns=saved.deep.evasionPatterns||[];Deep.contradictions=saved.deep.contradictions||[];Deep.reticenceLevel=saved.deep.reticenceLevel||'inconnue';Deep.narrativeNuclei=saved.deep.narrativeNuclei||[];Deep.defenseStyles=saved.deep.defenseStyles||[];Deep.identityThreads=saved.deep.identityThreads||[];Deep.narrativeSaturation=saved.deep.narrativeSaturation||false;Deep.wordCounts=saved.deep.wordCounts||[];Deep.llmInsights=saved.deep.llmInsights||[];Deep.observationsLibres=saved.deep.observationsLibres||[];Deep.relanceHistory=saved.deep.relanceHistory||[]}
+if(saved.summary)lastSummary=saved.summary;
+S._deepContext=Deep.buildDeepContext();
+log('Session reprise: '+S.prenom+', tour '+S.turnCount+', '+S.history.length+' msgs');
+showScreen('sessionScreen');initTTS();initSTT();
+S.timerStart=Date.now()-(saved.elapsedMs||0);startTimer();updateTurn();
+try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());log('Micro autorise')}catch(e){log('Micro refuse: '+e.message)}
+// Generer la reprise via LLM
+setState('thinking');setStatus('Reprise...');
+const lastUser=S.history.filter(h=>h.role==='user').slice(-1)[0];
+const lastDriver=S.history.filter(h=>h.role==='assistant').slice(-1)[0];
+try{const sp=buildSystemPrompt();const resumeResp=await callAPI(sp,[...S.history.slice(-6).map(m=>({role:m.role,content:m.content})),{role:'user',content:'[REPRISE DE SESSION — la personne revient apres une pause. Accueillez-la chaleureusement au vouvoiement, rappelez brievement ou vous en etiez (sans repeter mot pour mot), et relancez naturellement. 2-3 phrases max. VOUVOIEMENT OBLIGATOIRE.]'}]);
+const display=resumeResp.replace(/ETAPE\s*\d+[^\n]*\n[\s\S]*?(?=(?:ETAPE\s*\d|$))/gi,'').replace(/[━]+/g,'').replace(/\n{3,}/g,'\n\n').trim();
+S.history.push({role:'assistant',content:display,ts:Date.now()});showDriverText(display);await speak(display);startMic()}catch(e){log('Resume error: '+e.message);
+const fb='Ravi de vous retrouver, '+S.prenom+'. Nous en etions... vous me parliez de votre histoire. On continue ?';
+S.history.push({role:'assistant',content:fb,ts:Date.now()});showDriverText(fb);await speak(fb);startMic()}}
+
+// Detection de session sauvegardee au chargement
+document.addEventListener('DOMContentLoaded',()=>{if(hasSavedSession()){const saved=getSavedSession();if(saved?.prenom){document.getElementById('btnResume').style.display='block';document.getElementById('btnResume').textContent='Reprendre ('+saved.prenom+', tour '+saved.turnCount+')';
+// Pre-remplir les champs
+document.getElementById('inPrenom').value=saved.prenom;if(saved.age)document.getElementById('inAge').value=saved.age;if(saved.genre)document.getElementById('inGenre').value=saved.genre;if(saved.workerUrl)document.getElementById('inWorker').value=saved.workerUrl;
+log('Session sauvegardee detectee: '+saved.prenom+', tour '+saved.turnCount)}}});
+
+async function endSession(){stopMic();stopTTS();clearInterval(S.timerInterval);clearSavedSession();setState('thinking');setStatus('Generation du persona...');log('Generating persona...');
+try{S.personaJSON=await generatePersonaJSON();const dur=Math.floor((Date.now()-S.timerStart)/60000);showScreen('doneScreen');document.getElementById('doneStats').textContent=S.prenom+', '+(S.age||'?')+' ans — '+S.turnCount+' echanges, '+dur+' minutes.';log('Persona: '+JSON.stringify(S.personaJSON).length+' bytes')}catch(e){log('Gen error: '+e.message);setStatus('Erreur.');setState('idle')}}
+
+// PERSONA GENERATION
+async function generatePersonaJSON(){const conv=S.history.map(m=>'['+(m.role==='user'?S.prenom.toUpperCase():'DRIVER')+'] '+m.content).join('\n\n');const bc=S.brain?buildBrainContext():'Aucun brain.';const sk=S.skippedTopics.length?'Esquives: '+S.skippedTopics.join(', '):'Aucun esquive.';
+const p=`Tu es un biographe psychologique expert. Transcription d'un entretien Persona Driver.
+${S.brain?'BRAIN disponible.':'PAS de brain — tout vient de l\'entretien.'}
+
+SUJET: ${S.prenom}, ${S.age||'?'} ans
+${bc}
+${sk}
+
+TRANSCRIPTION:
+${conv}
+
+Construis un persona.json CLONE-PERSONA-1.0.
+
+REGLES: L'histoire explique la personne. Chapitres vivants avec ses mots. Chaque blessure a une origine ET un cout.
+ANTI-PROPRETE: Minimum 2 tensions_identitaires. Minimum 1 zone_floue. versions_de_soi = parts psychiques. mecanique_decisionnelle = biais. Marque INFERE vs OBSERVE. variabilite_interne: gradients. evolution_potentielle: 2 trajectoires.
+
+SCHEMA: {"_meta":{"schema":"CLONE-PERSONA-1.0","generated":"ISO","source":"${S.brain?'brain+entretien':'entretien_seul'}","confidence":"","completeness":{}},"identite":{"prenom","age","genre","situation_familiale","situation_professionnelle","roles_cle":[]},"resume_global":"","chapitres_vie":[{"titre","periode","evenements_cle":[],"apprentissages":[],"impact_identitaire","emotions_dominantes":[],"figures_cle":[{"role","qualite_lien","impact"}]}],"turning_points":[{"age_approximatif","evenement","avant","apres","ce_que_ca_revele"}],"relations_cle":[{"personne","role","qualite_lien","pattern_relationnel","impact_sur_identite","formulation_naturelle"}],"lignes_de_force":[{"theme","description","manifestations":[],"cout_psychique"}],"blessures_et_resilience":[{"blessure","age_approximatif","description","impact_durable","defense_associee","ressources_mobilisees":[],"etat_actuel"}],"monde_interieur":{"peurs_profondes":[],"desirs_inavoues":[],"croyances_limitantes":[],"forces_authentiques":[]},"aspirations":{"court_terme":[],"moyen_terme":[],"long_terme":[],"aspiration_cachee":""},"tensions_identitaires":[{"axe","pole_a","pole_b","manifestation","contexte_activation","conscience"}],"versions_de_soi":[{"nom","periode_origine","fonction","traits_dominants":[],"cout_psychique","etat_actuel","trigger_activation"}],"zones_floues":[{"domaine","type","observation","hypothese","impact"}],"mecanique_decisionnelle":{"priorites_implicites":[],"biais_actifs":[],"pattern_decision":"","arbitrage_interne":""},"style_narratif":{"comment_se_raconte":"","mots_recurrents":[],"mots_absents":[],"metaphores_spontanees":[]},"variabilite_interne":{"stabilite_globale":"","facteurs_variation":[{"facteur","effet","seuil"}]},"evolution_potentielle":{"trajectoires":[{"direction","conditions","effets","signes_avant_coureurs"}]}}
+
+JSON VALIDE UNIQUEMENT. Pas de texte, pas de markdown.`;
+const r=await callAPI(p,[{role:'user',content:'Genere le persona.json.'}],8000);const c=r.replace(/```json|```/g,'').trim();try{return JSON.parse(c)}catch(e){log('JSON repair...');const m=c.match(/\{[\s\S]*\}/);if(m)return JSON.parse(m[0]);throw new Error('Parse impossible')}}
+
+// EXPORT
+function downloadPersona(){if(!S.personaJSON)return;const b=new Blob([JSON.stringify(S.personaJSON,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='persona_'+S.prenom.toLowerCase()+'_'+new Date().toISOString().split('T')[0]+'.json';a.click()}
+async function downloadZip(){if(!S.personaJSON||typeof JSZip==='undefined')return;const z=new JSZip();z.file('clone_persona.json',JSON.stringify(S.personaJSON,null,2));if(S.brain)z.file('clone_brain.json',JSON.stringify(S.brain,null,2));z.file('persona_transcript.txt','PERSONA DRIVER — '+S.prenom+'\nDate: '+new Date().toISOString()+'\nTours: '+S.turnCount+'\nBrain: '+(S.brain?'oui':'non')+'\nVariant: '+V.label+'\n\n'+S.history.map(m=>'['+(m.role==='user'?S.prenom.toUpperCase():'DRIVER')+']\n'+m.content).join('\n\n---\n\n'));const c=await z.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(c);a.download='persona_'+S.prenom.toLowerCase()+'_'+new Date().toISOString().split('T')[0]+'.zip';a.click()}
+</script>
+</body>
+</html>
