@@ -8,15 +8,15 @@
 //
 // window.VARIANT = {
 //   mode: 'individuel' | 'couple',
-//   model_collab: 'claude-sonnet-4-5-20250929' | 'claude-opus-4-5-20251001',
-//   model_patient: 'claude-sonnet-4-5-20250929',
+//   model_collab: 'claude-sonnet-4-6' | 'claude-opus-4-6',
+//   model_patient: 'claude-sonnet-4-6',
 //   responsive: true | false,
 //   label: 'Thérapeute IA v8'
 // }
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Apply VARIANT defaults
-if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claude-sonnet-4-5-20250929', model_patient: 'claude-sonnet-4-5-20250929', responsive: false, webConsultEnabled: true, webConsultDomain: 'therapy', webConsultSources: ['pubmed', 'scholar', 'google_scholar'], webConsultAutoTrigger: true, webConsultManualTrigger: false };
+if (!window.VARIANT) window.VARIANT = { mode: 'individuel', model_collab: 'claude-sonnet-4-6', model_patient: 'claude-sonnet-4-6', responsive: false, webConsultEnabled: true, webConsultDomain: 'therapy', webConsultSources: ['pubmed', 'scholar', 'google_scholar'], webConsultAutoTrigger: true, webConsultManualTrigger: false };
 
 
 // ═══ BLOCK 1 ═══
@@ -27,7 +27,7 @@ const CONFIG = {
     WORKER_URL: 'https://clone-proxy.11drumboy11.workers.dev/',
     // ═══ B5: Auth token — vérifié par le Worker pour bloquer les accès non autorisés ═══
     WORKER_AUTH_TOKEN: localStorage.getItem('workerAuthToken') || '',
-    MODEL: 'claude-sonnet-4-5-20250929',
+    MODEL: 'claude-sonnet-4-6',
     TARGET_QUESTIONS: 40,
     MIN_WORDS: 10,
     CONCORDANCE_BASE: 0.85,
@@ -3717,7 +3717,7 @@ Résumé concis:`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20250929',
+                        model: 'claude-sonnet-4-6',
                         max_tokens: 400,
                         temperature: 0.7,
                         messages: [{ role: 'user', content: prompt }]
@@ -4648,7 +4648,7 @@ class MemorySystem {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20250929',
+                        model: 'claude-sonnet-4-6',
                         max_tokens: 2000,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -6565,7 +6565,7 @@ Retourne UNIQUEMENT le JSON.`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20250929',
+                        model: 'claude-sonnet-4-6',
                         max_tokens: maxTokens,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -16384,7 +16384,7 @@ class ConversationalSystem {
                 if (allianceCtx) systemPrompt += allianceCtx;
             }
             // FIX 5: Opus pour le mode collaborateur (raisonnement clinique profond)
-            const apiModel = isCollab ? (window.VARIANT?.model_collab || 'claude-sonnet-4-5-20250929') : (window.VARIANT?.model_patient || 'claude-sonnet-4-5-20250929');
+            const apiModel = isCollab ? (window.VARIANT?.model_collab || 'claude-sonnet-4-6') : (window.VARIANT?.model_patient || 'claude-sonnet-4-6');
             // Note: Remplacer par 'claude-opus-4-0-20250514' quand disponible via le proxy
             // Pour l'instant on utilise Sonnet avec max_tokens augmenté
             
@@ -34540,7 +34540,7 @@ async function v19GenerateResumeMessage(convSystem) {
             body: JSON.stringify({
                 payload: {
                     provider: 'anthropic',
-                    model: 'claude-sonnet-4-5-20250929',
+                    model: 'claude-sonnet-4-6',
                     max_tokens: 150,
                     temperature: 0.7,
                     system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
@@ -35656,7 +35656,7 @@ async function generateCloneBrain() {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: 'claude-sonnet-4-5-20250929',
+                        model: 'claude-sonnet-4-6',
                         max_tokens: maxTokens || 2500,
                         temperature: 0.3,
                         system: prompt,
@@ -37012,7 +37012,7 @@ RÈGLES ABSOLUES :
           model: (() => {
             const ci = (adocSessionContext + ' ' + userMessage).toLowerCase();
             return (ci.includes('supervision') || ci.includes('analyse de cas') || ci.includes('analyse_cas') || ci.includes('conceptualisation'))
-              ? 'claude-sonnet-4-5-20250929'
+              ? 'claude-sonnet-4-6'
               : 'claude-haiku-4-5-20251001';
           })(),
           max_tokens: 2000,
@@ -37876,7 +37876,7 @@ ${commonBase}`
         // Si adocLongDoc échoue → fallback vers stream normal ci-dessous
       }
 
-      const MODEL = 'claude-sonnet-4-5-20250929';
+      const MODEL = 'claude-sonnet-4-6';
       window._adocCurrentModel = MODEL;
 
       // ── Appel streaming mixte — web_search toujours disponible ──
@@ -40479,8 +40479,8 @@ ${body}
   // ── P2-3 : Affichage coût estimé ──────────────────────────────────────────
   // Tarifs approximatifs en € (mars 2026) — Sonnet 4 / Opus 4
   const COST_RATES = {
-    'claude-sonnet-4-5-20250929': { in: 0.000003,   out: 0.000015   },  // $3/$15 per Mtok
-    'claude-opus-4-5-20251001':   { in: 0.000015,   out: 0.000075   },  // $15/$75 per Mtok
+    'claude-sonnet-4-6': { in: 0.000003,   out: 0.000015   },  // $3/$15 per Mtok
+    'claude-opus-4-6':   { in: 0.000005,   out: 0.000025   },  // $5/$25 per Mtok
     'claude-haiku-4-5-20251001':  { in: 0.00000025, out: 0.00000125 },  // $0.25/$1.25 per Mtok
     'default':                    { in: 0.000003,   out: 0.000015   },
   };
@@ -40671,7 +40671,7 @@ ${recent}`;
   // 3) Continuation M2 par chapitre (5 max) → jamais bloqué
   // 4) Assemblage final → adocHandleReply
   window.adocLongDoc = async function(text, plan, ragResult, systemPrompt, streamMsgId, workerUrl) {
-    const MODEL = 'claude-sonnet-4-5-20250929';
+    const MODEL = 'claude-sonnet-4-6';
     const MAX_CHAP_CONT = 5;
     const decoder = new TextDecoder();
 
