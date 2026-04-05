@@ -20321,6 +20321,11 @@ function setupSpeechRecognition() {
     state.recognition.interimResults = true;
     
     state.recognition.onresult = (event) => {
+        // ═══ GUARD: Ignorer la transcription pendant que le TTS parle (anti-feedback loop) ═══
+        if (state.isSpeaking || (window.ttsQueue && window.ttsQueue.isCurrentlyPlaying())) {
+            console.log('[Speech] 🔇 Ignored — TTS is speaking (anti-feedback)');
+            return;
+        }
         console.log('[v17.3.4 FINAL] 🎤 onresult triggered!');
         console.log('[v17.3.4 FINAL] 📊 Event:', {
             results: event.results.length,
