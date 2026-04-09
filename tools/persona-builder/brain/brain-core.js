@@ -674,7 +674,6 @@ const BrainCore = {
     }
 
     // Vérification temporelle — le présent est-il couvert ?
-    const age = this.config.age;
     if (age) {
       const hasPresent = carte.some(c =>
         c.periode && c.statut === 'explore' &&
