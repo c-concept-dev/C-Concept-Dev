@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<!--
+SHELL BIOGRAPHER — Persona Brain V3
+C Concept&Dev — Christophe BONNET
+
+Architecture 3 niveaux :
+  Niveau 1 — Brain (6 modules JS universels)
+  Niveau 2 — Domain Pack Biographer (3 modules JS métier)
+  Niveau 3 — Ce Shell (UI, TTS, STT, export)
+
+Le code COMPTE. Le LLM RAISONNE. Le prompt ORCHESTRE.
+Le LLM APPREND. Le code TRACE.
+
+Audio only — l'utilisateur ferme les yeux et parle.
+Le Driver trace la route. L'utilisateur se raconte.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Persona Driver — C Concept&Dev</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- Brain V3 — Niveau 1 (universel) -->
+<script src="brain/brain-api.js"></script>
+<script src="brain/brain-safety.js"></script>
+<script src="brain/brain-memory.js"></script>
+<script src="brain/brain-analyst.js"></script>
+<script src="brain/brain-attention.js"></script>
+<script src="brain/brain-prompt.js"></script>
+<script src="brain/brain-core.js"></script>
+<script src="brain/domain-registry.js"></script>
+<!-- ═══ DOMAIN PACKS ═══════════════════════════════════════════ -->
+<!-- Pour ajouter un domaine : créer domains/xxx/ avec            -->
+<!-- identity.js + cognition.js + output.js + _pack.js            -->
+<!-- puis ajouter 4 lignes <script> ici. C'est tout.              -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- Biographer -->
+<script src="domains/biographer/identity.js"></script>
+<script src="domains/biographer/cognition.js"></script>
+<script src="domains/biographer/output.js"></script>
+<script src="domains/biographer/_pack.js"></script>
+<!-- (futurs domaines : copier le bloc ci-dessus, changer le chemin) -->
+<style>
+:root{--mer:#8FAFB1;--sauge:#C8D0C3;--beige:#D8CDBB;--sable:#E6D7C3;--blanc:#FFFFFF;--ink:#2d2d2d;--ink2:#666;--fond:linear-gradient(135deg,#E6D7C3 0%,#D8CDBB 100%);--card:#FFFFFF;--radius:16px;--shadow:0 12px 40px rgba(0,0,0,.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat','Segoe UI',sans-serif;background:var(--fond);color:var(--ink);min-height:100vh}
+.screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:40px 20px}
+.screen.active{display:flex}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:48px;max-width:580px;width:100%}
+.brand{text-align:center;margin-bottom:8px;font-size:.65rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--mer)}
+.title{text-align:center;font-size:2.2rem;font-weight:700;color:var(--mer);margin-bottom:6px}
+.subtitle{text-align:center;font-size:.85rem;color:var(--ink2);line-height:1.7;margin-bottom:32px}
+.field{margin-bottom:20px}
+.field label{display:block;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);margin-bottom:6px}
+.field input,.field select{width:100%;padding:13px 16px;border:2px solid var(--sauge);border-radius:10px;font-family:'Montserrat',sans-serif;font-size:.9rem;color:var(--ink);background:var(--blanc);outline:none;transition:border-color .3s}
+.field input:focus{border-color:var(--mer)}
+.field input::placeholder{color:#aaa}
+.drop-zone{border:2px dashed var(--sauge);border-radius:var(--radius);padding:28px 20px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:20px;background:rgba(143,175,177,.04)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--mer);background:rgba(143,175,177,.08)}
+.drop-label{font-size:.8rem;color:var(--ink2)}
+.drop-label.loaded{color:var(--mer);font-weight:600}
+.drop-hint{font-size:.65rem;color:#aaa;margin-top:4px}
+.btn{display:inline-block;padding:14px 40px;border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .3s;text-align:center}
+.btn-primary{background:var(--mer);color:var(--blanc);width:100%;margin-top:8px}
+.btn-primary:hover{background:#7a9a9c;box-shadow:0 6px 20px rgba(143,175,177,.3)}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-secondary{background:var(--sable);color:var(--ink);width:100%;margin-top:8px}
+.btn-secondary:hover{background:var(--beige)}
+#sessionScreen{padding:0}
+.session-header{width:100%;padding:18px 28px;display:flex;justify-content:space-between;align-items:center;background:var(--blanc);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.session-brand{font-size:.75rem;font-weight:600;color:var(--mer);letter-spacing:.08em}
+.session-timer{font-size:.8rem;color:var(--ink2);font-weight:500;letter-spacing:.04em}
+.session-turn{font-size:.65rem;color:var(--ink2);margin-left:8px}
+.session-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:32px;max-width:600px;width:100%;margin:0 auto}
+.pulse-ring{width:160px;height:160px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.pulse-ring .inner{width:80px;height:80px;border-radius:50%;background:var(--sauge);transition:all .3s}
+.pulse-ring .ring{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid var(--sauge);animation:ri 3.5s ease-in-out infinite}
+.pulse-ring[data-state=speaking] .inner{background:var(--mer)}
+.pulse-ring[data-state=speaking] .ring{border-color:var(--mer);animation:rs 1.2s ease-in-out infinite}
+.pulse-ring[data-state=listening] .inner{background:var(--beige)}
+.pulse-ring[data-state=listening] .ring{border-color:var(--beige);animation:rl 2s ease-in-out infinite}
+.pulse-ring[data-state=thinking] .inner{background:var(--ink2)}
+.pulse-ring[data-state=thinking] .ring{border-color:var(--ink2);animation:rt 1s linear infinite}
+@keyframes ri{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.08);opacity:.5}}
+@keyframes rs{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.2);opacity:.9}}
+@keyframes rl{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.06);opacity:.7}}
+@keyframes rt{0%{transform:rotate(0deg);opacity:.4}100%{transform:rotate(360deg);opacity:.4}}
+.session-status{font-size:.75rem;color:var(--ink2);font-style:italic;min-height:18px;text-align:center}
+.driver-text{font-size:1.05rem;color:var(--ink);text-align:center;line-height:1.7;max-width:480px;min-height:48px;opacity:0;transition:opacity .5s;font-weight:400}
+.driver-text.visible{opacity:1}
+.session-controls{width:100%;padding:20px 28px;display:flex;justify-content:center;align-items:center;gap:16px;background:var(--blanc);box-shadow:0 -2px 12px rgba(0,0,0,.04)}
+.btn-icon{width:52px;height:52px;border-radius:50%;border:2px solid var(--sauge);background:var(--blanc);color:var(--ink);font-size:.8rem;font-weight:700;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif}
+.btn-icon:hover{border-color:var(--mer)}
+.btn-icon.active{background:var(--mer);border-color:var(--mer);color:var(--blanc)}
+.btn-icon.stop{background:#c06050;border-color:#c06050;color:var(--blanc)}
+.btn-icon.stop:hover{background:#a84040}
+.btn-skip{padding:8px 18px;background:none;border:1px solid var(--sauge);border-radius:8px;color:var(--ink2);font-size:.7rem;font-family:'Montserrat',sans-serif;cursor:pointer;transition:all .3s;font-weight:500}
+.btn-skip:hover{border-color:var(--mer);color:var(--mer)}
+#doneScreen{justify-content:center}
+.done-card{text-align:center}
+.done-card .title{margin-bottom:16px}
+.done-stats{font-size:.8rem;color:var(--ink2);margin-bottom:24px;line-height:1.6}
+#devLog{display:none;position:fixed;bottom:0;left:0;right:0;max-height:180px;overflow-y:auto;background:rgba(45,45,45,.95);font-family:'Courier New',monospace;font-size:10px;color:var(--sauge);padding:8px 12px;z-index:999;border-top:2px solid var(--mer)}
+@media(max-width:640px){.card{padding:32px 24px;margin:0 8px}.title{font-size:1.8rem}.session-center{padding:24px 16px}}
+</style>
+</head>
+<body>
+<div class="screen active" id="setupScreen">
+<div class="card">
+<div class="brand">C Concept&Dev</div>
+<div class="title">Persona Brain V3</div>
+<div class="subtitle" id="shellSubtitle">Un entretien guidé par l'intelligence artificielle.</div>
+<div class="field"><label>Profession</label><select id="inDomain"></select></div>
+<div class="field"><label>Prenom</label><input type="text" id="inPrenom" placeholder="Votre prenom"></div>
+<div class="field"><label>Age</label><input type="number" id="inAge" placeholder="Ton age" min="10" max="100"></div>
+<div class="field"><label>Genre</label><select id="inGenre"><option value="femme">Femme</option><option value="homme">Homme</option><option value="autre">Autre / Ne pas preciser</option></select></div>
+<div class="field"><label>Voix</label><select id="inVoice">
+<optgroup label="OpenAI (via proxy)">
+<option value="openai-alloy">OpenAI — Alloy (Neutre)</option>
+<option value="openai-echo">OpenAI — Echo (Homme)</option>
+<option value="openai-fable">OpenAI — Fable (Narrateur)</option>
+<option value="openai-onyx">OpenAI — Onyx (Homme grave)</option>
+<option value="openai-nova">OpenAI — Nova (Femme)</option>
+<option value="openai-shimmer">OpenAI — Shimmer (Femme douce)</option>
+</optgroup>
+<optgroup label="Google (via proxy)">
+<option value="google-chirp3-m" selected>Chirp 3 HD — Orus (Homme)</option>
+<option value="google-chirp3-f">Chirp 3 HD — Aoede (Femme)</option>
+<option value="google-neural2-m">Neural2 — Homme</option>
+<option value="google-neural2-f">Neural2 — Femme</option>
+</optgroup>
+<optgroup label="Navigateur">
+<option value="webspeech">Web Speech (systeme)</option>
+</optgroup>
+</select></div>
+<div class="field"><label>Worker URL</label><input type="text" id="inWorker" value="https://clone-proxy.11drumboy11.workers.dev"></div>
+<div class="drop-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
+<div class="drop-label" id="dropLabel">Charger un brain.json (optionnel)</div>
+<div class="drop-hint">Si vous avez deja fait un Clone Interview, le Driver utilisera votre profil comme guide.</div>
+<input type="file" id="fileIn" accept=".json" style="display:none">
+</div>
+<button class="btn btn-primary" id="btnStart" onclick="startSession()" disabled>Commencer l'entretien</button>
+<button class="btn btn-secondary" id="btnResume" onclick="resumeSession()" style="display:none">Reprendre la session en cours</button>
+<button class="btn btn-secondary" id="btnClear" onclick="BC.clearSaved();document.getElementById('btnResume').style.display='none';document.getElementById('btnClear').style.display='none'" style="display:none;opacity:.6;font-size:.6rem">Effacer la session precedente</button>
+</div>
+</div>
+<div class="screen" id="sessionScreen">
+<div class="session-header">
+<div class="session-brand" id="sessionBrand">Persona Brain V3</div>
+<div><span class="session-timer" id="timer">00:00</span><span class="session-turn" id="turnLabel"></span></div>
+</div>
+<div class="session-center">
+<div class="pulse-ring" id="pulseRing" data-state="idle"><div class="ring"></div><div class="inner"></div></div>
+<div class="session-status" id="status"></div>
+<div class="driver-text" id="driverText"></div>
+</div>
+<div class="session-controls">
+<button class="btn-skip" onclick="userSkip()">On passe</button>
+<button class="btn-icon" id="btnMic" onclick="toggleMic()">MIC</button>
+<button class="btn-icon" onclick="toggleTextMode()" style="font-size:.5rem;padding:8px 10px">CLAVIER</button>
+<button class="btn-icon" id="btnSend" onclick="userFinished()" style="background:var(--mer);border-color:var(--mer);color:#fff;font-size:.75rem;min-width:90px;padding:12px 20px;font-weight:600;letter-spacing:.05em">ENVOYER</button>
+<button class="btn-skip" id="btnMidBio" onclick="triggerMidOutput()" style="display:none;border-color:var(--mer);color:var(--mer)">Apercu du livre</button>
+<button class="btn-icon" id="btnPause" onclick="pauseSession()" style="background:rgba(196,149,106,.7);border-color:rgba(196,149,106,.5);color:#fff;font-size:.65rem">PAUSE</button>
+<button class="btn-icon stop" onclick="endSession()">FIN</button>
+</div>
+<!-- MODE TEXTE : champ de saisie clavier pour tests manuels -->
+<div id="textInputArea" style="display:none;padding:10px 20px;border-top:1px solid rgba(143,175,177,.15);background:rgba(0,0,0,.15)">
+  <textarea id="textInput" rows="3" style="width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(143,175,177,.2);border-radius:8px;color:#d4cfc6;font-family:'Montserrat',sans-serif;font-size:.8rem;padding:10px;resize:vertical" placeholder="Tapez ou collez votre reponse ici..."></textarea>
+  <div style="display:flex;gap:8px;margin-top:6px">
+    <button onclick="submitTextInput()" style="flex:1;padding:8px 20px;background:var(--mer);border:none;border-radius:6px;color:#fff;font-family:'Montserrat',sans-serif;font-size:.7rem;cursor:pointer;font-weight:600">ENVOYER (texte)</button>
+    <button onclick="toggleTextMode()" style="padding:8px 12px;background:rgba(196,149,106,.3);border:1px solid rgba(196,149,106,.3);border-radius:6px;color:#d4cfc6;font-family:'Montserrat',sans-serif;font-size:.6rem;cursor:pointer">Micro</button>
+  </div>
+</div>
+</div>
+<div class="screen" id="doneScreen">
+<div class="card done-card">
+<div class="brand">C Concept&Dev</div>
+<div class="title">Merci.</div>
+<div class="done-stats" id="doneStats"></div>
+<button class="btn btn-primary" onclick="generateBiography()" id="btnBiography">Ecrire la biographie</button>
+<div id="biographyStatus" style="font-size:.75rem;color:var(--ink2);text-align:center;margin-top:8px;display:none">Generation en cours avec Opus — quelques instants...</div>
+<button class="btn btn-secondary" id="btnLearning" onclick="generateLearning()">Generer le learning</button>
+<div id="learningStatus" style="font-size:.75rem;color:var(--ink2);text-align:center;margin-top:8px;display:none"></div>
+<div id="learningDisplay" style="display:none;margin-top:12px;padding:16px;background:rgba(143,175,177,.08);border-radius:10px;font-size:.75rem;color:var(--ink2);line-height:1.6;text-align:left"></div>
+<button class="btn btn-secondary" onclick="downloadPersona()">Telecharger persona.json</button>
+<button class="btn btn-secondary" onclick="downloadZip()">Telecharger ZIP complet</button>
+</div>
+</div>
+<div id="devLog"></div>
+<script>
+// ═══════════════════════════════════════════
+// SHELL UI — Persona Brain V3
+// Le cerveau est dans brain/ (7 modules)
+// Les domain packs sont dans domains/*/
+// Ce fichier ne contient que l'UI, le TTS, le STT et l'export.
+// Ajout d'un domaine = 0 modification ici.
+// ═══════════════════════════════════════════
+
+// ── Variant (surcharge optionnelle) ──
+if (!window.BRAIN_VARIANT) window.BRAIN_VARIANT = {
+  model: 'claude-sonnet-4-20250514',
+  temperature: 0.8,
+  maxTokens: 280,
+  label: 'Persona Brain V3',
+};
+
+const BC = BrainCore;
+
+// ── Auto-peuplement du menu Profession ──
+function populateDomainSelector() {
+  const sel = document.getElementById('inDomain');
+  const domains = DomainRegistry.list();
+  sel.innerHTML = '';
+  domains.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.label;
+    if (d.description) opt.title = d.description;
+    sel.appendChild(opt);
+  });
+  // Mettre à jour le sous-titre selon la sélection
+  sel.addEventListener('change', () => {
+    const selected = DomainRegistry.get(sel.value);
+    if (selected?.description) {
+      document.getElementById('shellSubtitle').textContent = selected.description;
+    }
+  });
+  // Déclencher pour le premier
+  if (domains.length) {
+    sel.dispatchEvent(new Event('change'));
+  }
+}
+
+/** Retourne le domain pack sélectionné */
+function getSelectedDomain() {
+  const sel = document.getElementById('inDomain');
+  return DomainRegistry.get(sel.value);
+}
+
+// ── LOGGING bridge ──
+window._brainLog = function(m) {
+  const t = new Date().toLocaleTimeString();
+  const e = document.getElementById('devLog');
+  if (e) { e.innerHTML += t + ' ' + m + '<br>'; e.scrollTop = e.scrollHeight; }
+};
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'd') { e.preventDefault(); const d = document.getElementById('devLog'); d.style.display = d.style.display === 'none' ? 'block' : 'none'; } });
+
+// ── UI helpers ──
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function setState(s) { document.getElementById('pulseRing').dataset.state = s; }
+function setStatus(t) { document.getElementById('status').textContent = t; }
+function showDriverText(t) { const e = document.getElementById('driverText'); e.classList.remove('visible'); setTimeout(() => { e.textContent = t; e.classList.add('visible'); }, 150); }
+function updateTurn() { document.getElementById('turnLabel').textContent = ' — tour ' + BrainMemory.working.turnCount; }
+function checkReady() { document.getElementById('btnStart').disabled = !(document.getElementById('inPrenom').value.trim() && document.getElementById('inWorker').value.trim()); }
+document.getElementById('inPrenom').addEventListener('input', checkReady);
+document.getElementById('inWorker').addEventListener('input', checkReady);
+document.getElementById('inAge').addEventListener('input', checkReady);
+
+// ── CALLBACKS from Core ──
+window._onTurnUpdate = function(turn) {
+  updateTurn(); stopMic(); setState('thinking'); setStatus('');
+  // Montrer le bouton "Aperçu du livre" quand assez de matière
+  if (turn >= 15 && !BC._midOutputShown) {
+    const explored = (BrainMemory.structured.carte || []).filter(p => p.statut === 'explore');
+    if (explored.length >= 2) {
+      document.getElementById('btnMidBio').style.display = 'inline-block';
+    }
+  }
+};
+window._onStateChange = function(state) { setState(state); };
+window._onDriverResponse = async function(display, isEnd, isPause) {
+  stopMic(); // Anti-Larsen : couper le micro AVANT que le TTS parle
+  showDriverText(display);
+  await speak(display);
+  BC.autoSave();
+  if (isEnd || isPause) {
+    setTimeout(() => endSession(), 2000);
+  } else {
+    startMic();
+  }
+};
+window._onError = function(msg) { setStatus('Erreur de connexion.'); setState('idle'); };
+
+// ── BRAIN loader ──
+const dz = document.getElementById('dropZone'), fi = document.getElementById('fileIn');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); loadBrainFile(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if (e.target.files[0]) loadBrainFile(e.target.files[0]); });
+function loadBrainFile(f) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const json = JSON.parse(e.target.result);
+      const b = BC.loadBrain(json);
+      if (b) {
+        const n = b.identity?.display_name || b.identity?.name || '';
+        if (n && !document.getElementById('inPrenom').value) document.getElementById('inPrenom').value = n;
+        if (b.identity?.age && !document.getElementById('inAge').value) document.getElementById('inAge').value = b.identity.age;
+        document.getElementById('dropLabel').textContent = f.name + ' — charge';
+        document.getElementById('dropLabel').classList.add('loaded');
+      } else { document.getElementById('dropLabel').textContent = 'Format non reconnu'; }
+      checkReady();
+    } catch (err) { document.getElementById('dropLabel').textContent = 'Erreur JSON'; }
+  };
+  r.readAsText(f);
+}
+
+// ── TTS ──
+const GTTS_PROXY = 'https://google-tts-proxy.11drumboy11.workers.dev/';
+const OAI_PROXY = 'https://openai-proxy.11drumboy11.workers.dev';
+const VOICE_MAP = { 'google-chirp3-m': { engine: 'google', name: 'fr-FR-Chirp3-HD-Orus', chirp: true }, 'google-chirp3-f': { engine: 'google', name: 'fr-FR-Chirp3-HD-Aoede', chirp: true }, 'google-neural2-m': { engine: 'google', name: 'fr-FR-Neural2-D', chirp: false }, 'google-neural2-f': { engine: 'google', name: 'fr-FR-Neural2-A', chirp: false }, 'openai-alloy': { engine: 'openai', voice: 'alloy' }, 'openai-echo': { engine: 'openai', voice: 'echo' }, 'openai-fable': { engine: 'openai', voice: 'fable' }, 'openai-onyx': { engine: 'openai', voice: 'onyx' }, 'openai-nova': { engine: 'openai', voice: 'nova' }, 'openai-shimmer': { engine: 'openai', voice: 'shimmer' }, 'webspeech': { engine: 'webspeech' } };
+let currentVoiceMode = 'google-chirp3-m', isSpeaking = false, micActive = false, recognition = null;
+function initTTS() { currentVoiceMode = document.getElementById('inVoice')?.value || 'google-chirp3-m'; }
+function speak(t) { return new Promise(async res => { if (!t) { res(); return; } const clean = t.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').trim(); if (!clean) { res(); return; } isSpeaking = true; setState('speaking'); const vm = VOICE_MAP[currentVoiceMode] || VOICE_MAP['google-chirp3-m']; try { if (vm.engine === 'google') await speakGoogle(clean, vm); else if (vm.engine === 'openai') await speakOpenAI(clean, vm); else await speakWeb(clean); } catch (e) { try { await speakWeb(clean); } catch (e2) {} } isSpeaking = false; setState('idle'); res(); }); }
+async function speakGoogle(text, vm) { const body = { input: { text }, voice: { languageCode: 'fr-FR', name: vm.name, ...(!vm.chirp ? { ssmlGender: 'MALE' } : {}) }, audioConfig: { audioEncoding: 'MP3', speakingRate: 0.92, ...(!vm.chirp ? { pitch: -1 } : {}) } }; const r = await fetch(GTTS_PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) throw new Error('Google TTS ' + r.status); const d = await r.json(); if (!d.audioContent) throw new Error('No audioContent'); await playB64(d.audioContent); }
+async function speakOpenAI(text, vm) { const r = await fetch(OAI_PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-endpoint': '/v1/audio/speech' }, body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice: vm.voice, input: text, response_format: 'mp3', speed: 1.0 }) }); if (!r.ok) throw new Error('OpenAI TTS ' + r.status); const buf = await r.arrayBuffer(); const blob = new Blob([buf], { type: 'audio/mpeg' }); await playBlob(blob); }
+function speakWeb(text) { return new Promise(res => { if (!window.speechSynthesis) { res(); return; } const u = new SpeechSynthesisUtterance(text); u.lang = 'fr-FR'; u.rate = 0.92; const vs = speechSynthesis.getVoices(); const fv = vs.find(v => v.lang.startsWith('fr') && v.name.toLowerCase().includes('thomas')) || vs.find(v => v.lang.startsWith('fr')); if (fv) u.voice = fv; u.onend = () => res(); u.onerror = () => res(); speechSynthesis.speak(u); }); }
+function playB64(b64) { const bin = atob(b64); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i); return playBlob(new Blob([arr], { type: 'audio/mpeg' })); }
+function playBlob(blob) { return new Promise((res, rej) => { const url = URL.createObjectURL(blob); const a = new Audio(url); a.onended = () => { URL.revokeObjectURL(url); res(); }; a.onerror = e => { URL.revokeObjectURL(url); rej(e); }; a.play().catch(rej); }); }
+function stopTTS() { if ('speechSynthesis' in window) speechSynthesis.cancel(); isSpeaking = false; }
+
+// ── STT ──
+function initSTT() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'fr-FR';
+  recognition.onresult = e => { let f = ''; for (let x = e.resultIndex; x < e.results.length; x++) { if (e.results[x].isFinal) f += e.results[x][0].transcript; else setStatus(e.results[x][0].transcript); } if (f) { BC._sttBuffer = (BC._sttBuffer || '') + ' ' + f; setStatus(''); } };
+  recognition.onerror = e => {};
+  recognition.onend = () => { if (micActive && !isSpeaking && !BC.isGenerating) try { recognition.start(); } catch (e) {} };
+}
+function userFinished() { if ((BC._sttBuffer || '').trim() && !BC.isGenerating && !isSpeaking) { const t = BC._sttBuffer.trim(); BC._sttBuffer = ''; BC.processInput(t); } }
+function startMic() { if (!recognition) return; micActive = true; BC._sttBuffer = ''; try { recognition.start(); } catch (e) {} document.getElementById('btnMic').classList.add('active'); setState('listening'); setStatus("Prenez votre temps — appuyez ENVOYER quand vous avez fini"); }
+function stopMic() { micActive = false; if (recognition) try { recognition.stop(); } catch (e) {} document.getElementById('btnMic').classList.remove('active'); }
+function toggleMic() { micActive ? stopMic() : startMic(); }
+
+// ── MODE TEXTE ──
+function submitTextInput() { const text = document.getElementById('textInput').value.trim(); if (!text || BC.isGenerating) return; document.getElementById('textInput').value = ''; BC.processInput(text); }
+function userSkip() { BC.skip(); }
+function toggleTextMode() { const ta = document.getElementById('textInputArea'); const isVisible = ta.style.display !== 'none'; ta.style.display = isVisible ? 'none' : 'block'; if (isVisible) startMic(); else { stopMic(); document.getElementById('textInput').focus(); } }
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { const ta = document.getElementById('textInputArea'); if (ta && ta.style.display !== 'none') submitTextInput(); } });
+
+// ── TIMER ──
+let timerStart = null, timerInterval = null;
+function startTimer() { timerStart = Date.now(); BC._timerStart = timerStart; timerInterval = setInterval(() => { const s = Math.floor((Date.now() - timerStart) / 1000); document.getElementById('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 1000); }
+
+// ── SESSION START ──
+async function startSession() {
+  BC.clearSaved();
+  const prenom = document.getElementById('inPrenom').value.trim();
+  const age = document.getElementById('inAge').value || null;
+  const genre = document.getElementById('inGenre').value || 'autre';
+  const workerUrl = document.getElementById('inWorker').value.trim();
+  if (!prenom || !workerUrl) return;
+  const domain = getSelectedDomain();
+  if (!domain) { alert('Aucune profession disponible.'); return; }
+  BC.init({ prenom, age, genre, workerUrl, brain: BC.config.brain, domain });
+  document.getElementById('sessionBrand').textContent = domain.label || 'Persona Brain V3';
+  showScreen('sessionScreen'); initTTS(); initSTT(); startTimer();
+  try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+  setState('thinking'); setStatus('Preparation...');
+  const display = await BC.generateOpening();
+  showDriverText(display); await speak(display); startMic();
+}
+
+// ── SESSION RESUME ──
+async function resumeSession() {
+  const saved = BC.getSaved();
+  if (!saved) { alert('Aucune session sauvegardee.'); return; }
+  BC.restore(saved);
+  BC.config.domain = DomainRegistry.get(saved.config.domainName) || getSelectedDomain();
+  document.getElementById('sessionBrand').textContent = BC.config.domain?.label || 'Persona Brain V3';
+  showScreen('sessionScreen'); initTTS(); initSTT();
+  timerStart = Date.now() - (saved.elapsedMs || 0); BC._timerStart = timerStart; startTimer(); updateTurn();
+  try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+  setState('thinking'); setStatus('Reprise...');
+  const display = await BC.generateResume();
+  showDriverText(display); await speak(display); startMic();
+}
+
+// ── SESSION PAUSE ──
+function pauseSession() { stopMic(); stopTTS(); clearInterval(timerInterval); BC.save(); showDriverText('Session en pause. Vos reponses sont sauvegardees.'); setStatus('En pause'); setState('idle'); document.getElementById('btnPause').textContent = 'EN PAUSE'; document.getElementById('btnPause').disabled = true; }
+
+// ── MID-SESSION BIOGRAPHY ──
+async function triggerMidOutput() {
+  const btn = document.getElementById('btnMidBio');
+  btn.disabled = true;
+  btn.textContent = 'Generation...';
+  BC._midOutputShown = true;
+
+  try {
+    const text = await BC.generateMidOutput();
+    if (text) {
+      BC._midOutputText = text;
+      // Télécharger en PDF
+      await downloadBiographyPDF(text, BC.config.prenom + '_apercu');
+      btn.textContent = 'Apercu telecharge';
+      btn.disabled = false;
+    } else {
+      btn.textContent = 'Apercu indisponible';
+      setTimeout(() => { btn.textContent = 'Apercu du livre'; btn.disabled = false; }, 3000);
+    }
+  } catch (e) {
+    console.warn('[MidBio]', e.message);
+    btn.textContent = 'Erreur';
+    setTimeout(() => { btn.textContent = 'Apercu du livre'; btn.disabled = false; BC._midOutputShown = false; }, 3000);
+  }
+}
+
+// ── SESSION END ──
+async function endSession() {
+  stopMic(); stopTTS(); clearInterval(timerInterval); BC.clearSaved();
+  const dur = Math.floor((Date.now() - timerStart) / 60000);
+
+  // Afficher doneScreen IMMÉDIATEMENT — ne pas attendre le persona
+  showScreen('doneScreen');
+  document.getElementById('doneStats').textContent = BC.config.prenom + ', ' + (BC.config.age || '?') + ' ans — ' + BrainMemory.working.turnCount + ' echanges, ' + dur + ' minutes.';
+
+  // Générer le persona en arrière-plan — non bloquant
+  setState('thinking'); setStatus('Generation du persona...');
+  try {
+    BC._personaJSON = await BC.generateOutput();
+    setStatus('');
+  } catch (e) {
+    // Echec persona — pas grave, la biographie reste disponible
+    setStatus('');
+    console.warn('[endSession] Persona generation failed:', e.message);
+  }
+}
+
+// ── LEARNING ──
+async function generateLearning() {
+  const btn = document.getElementById('btnLearning');
+  const status = document.getElementById('learningStatus');
+  const display = document.getElementById('learningDisplay');
+  btn.disabled = true;
+  status.style.display = 'block';
+  status.textContent = 'Synthese learning en cours...';
+
+  try {
+    const result = await BC.generateLearningSynthesis();
+    if (result) {
+      status.textContent = 'Learning genere — ' + (result.opens?.length || 0) + ' opens, ' + (result.closes?.length || 0) + ' closes.';
+      // Afficher le résumé
+      let html = '<strong>Ce qui ouvre :</strong> ' + (result.opens || []).map(o => typeof o === 'string' ? o : o.pattern).join(' | ') + '<br>';
+      html += '<strong>Ce qui ferme :</strong> ' + (result.closes || []).map(c => typeof c === 'string' ? c : c.pattern).join(' | ') + '<br>';
+      if (result.preferred_rhythm) html += '<strong>Rythme :</strong> ' + result.preferred_rhythm + '<br>';
+      if (result.key_lesson) html += '<strong>Lecon :</strong> ' + result.key_lesson + '<br>';
+      if (result.book_state) html += '<strong>Livre :</strong> ' + result.book_state;
+      display.innerHTML = html;
+      display.style.display = 'block';
+      btn.textContent = 'Learning genere ✓';
+    } else {
+      status.textContent = 'Echec de la synthese learning.';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    status.textContent = 'Erreur : ' + e.message;
+    btn.disabled = false;
+    console.error('[Learning]', e);
+  }
+}
+
+// ── EXPORT ──
+function downloadPersona() { if (!BC._personaJSON) return; const b = new Blob([JSON.stringify(BC._personaJSON, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'persona_' + BC.config.prenom.toLowerCase() + '_' + new Date().toISOString().split('T')[0] + '.json'; a.click(); }
+async function downloadZip() {
+  if (!BC._personaJSON || typeof JSZip === 'undefined') return;
+  const z = new JSZip();
+  z.file('clone_persona.json', JSON.stringify(BC._personaJSON, null, 2));
+  if (BC.config.brain) z.file('clone_brain.json', JSON.stringify(BC.config.brain, null, 2));
+  z.file('persona_transcript.txt', BC.getTranscript());
+  // Learning inter-session
+  const lp = BC.getLearningProfile();
+  if (lp) z.file('clone_learning.json', JSON.stringify(lp, null, 2));
+  const c = await z.generateAsync({ type: 'blob' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(c);
+  a.download = 'persona_' + BC.config.prenom.toLowerCase() + '_' + new Date().toISOString().split('T')[0] + '.zip'; a.click();
+}
+
+// ── BIOGRAPHIE LITTERAIRE — Opus ──
+async function generateBiography() {
+  const btn = document.getElementById('btnBiography');
+  const status = document.getElementById('biographyStatus');
+  btn.disabled = true;
+  status.style.display = 'block';
+
+  try {
+    const ctx = {
+      prenom: BC.config.prenom,
+      age: BC.config.age,
+      genre: BC.config.genre,
+      transcript: BC.getTranscript(),
+      brainContext: BC.config.brain ? JSON.stringify(BC.config.brain, null, 2) : '',
+      brain: BC.config.brain,
+      skippedTopics: BrainMemory.working?.skippedTopics || [],
+      memory: BrainMemory.structured,
+    };
+
+    const { system, user } = BC.config.domain.getBiographyPrompt
+      ? BC.config.domain.getBiographyPrompt(ctx)
+      : { system: 'Ecris une biographie.', user: 'Biographie de ' + ctx.prenom };
+
+    const workerUrl = BC.config.workerUrl;
+    const resp = await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payload: {
+          provider: 'anthropic',
+          model: 'claude-opus-4-5-20250514',
+          max_tokens: 4000,
+          temperature: 0.7,
+          system,
+          messages: [{ role: 'user', content: user }],
+        }
+      }),
+    });
+
+    const data = await resp.json();
+    const text = data?.content?.[0]?.text || data?.content || '';
+    if (!text || text.length < 100) throw new Error('Réponse vide');
+
+    BC._biographyText = text;
+    status.textContent = 'Biographie générée — téléchargement en cours...';
+    await downloadBiographyPDF(text, ctx.prenom);
+    status.textContent = 'Biographie téléchargée.';
+    btn.disabled = false;
+
+  } catch (e) {
+    status.textContent = 'Erreur : ' + e.message;
+    btn.disabled = false;
+    console.error('[Biography]', e);
+  }
+}
+
+async function downloadBiographyPDF(text, prenom) {
+  // Chargement dynamique de jsPDF si absent
+  if (typeof window.jspdf === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginL = 22;
+  const marginR = 22;
+  const marginT = 28;
+  const marginB = 25;
+  const usableW = pageW - marginL - marginR;
+
+  // Couleurs
+  const inkColor = [45, 40, 35];
+  const ink2Color = [120, 110, 100];
+  const accentColor = [143, 175, 177]; // var(--mer)
+
+  let y = marginT;
+
+  const addPage = () => {
+    doc.addPage();
+    y = marginT;
+    // Filet haut de page
+    doc.setDrawColor(...accentColor);
+    doc.setLineWidth(0.3);
+    doc.line(marginL, 12, pageW - marginR, 12);
+    // Numéro de page
+    doc.setFontSize(8);
+    doc.setTextColor(...ink2Color);
+    doc.text(String(doc.internal.getNumberOfPages()), pageW / 2, pageH - 10, { align: 'center' });
+  };
+
+  const checkY = (needed) => { if (y + needed > pageH - marginB) addPage(); };
+
+  // Filet haut page 1
+  doc.setDrawColor(...accentColor);
+  doc.setLineWidth(0.3);
+  doc.line(marginL, 12, pageW - marginR, 12);
+
+  // Parser le texte en blocs
+  const lines = text.split('\n');
+  let inChapter = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const line = raw.trim();
+    if (!line) { y += 4; continue; }
+
+    // Titre principal (ligne 1 ou ligne avec # ou tout en majuscules court)
+    if (i === 0 || (line.startsWith('#') && !line.startsWith('##'))) {
+      const title = line.replace(/^#+\s*/, '');
+      checkY(20);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...inkColor);
+      const titleLines = doc.splitTextToSize(title, usableW);
+      doc.text(titleLines, marginL, y);
+      y += titleLines.length * 10 + 6;
+      // Filet sous titre
+      doc.setDrawColor(...accentColor);
+      doc.setLineWidth(0.5);
+      doc.line(marginL, y, marginL + 40, y);
+      y += 8;
+      inChapter = false;
+      continue;
+    }
+
+    // Chapitre (## ou ligne courte qui ressemble à un titre de chapitre)
+    if (line.startsWith('##') || (line.length < 60 && line === line.toUpperCase() && line.length > 3)) {
+      const chTitle = line.replace(/^#+\s*/, '');
+      checkY(16);
+      y += 4;
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...inkColor);
+      const chLines = doc.splitTextToSize(chTitle, usableW);
+      doc.text(chLines, marginL, y);
+      y += chLines.length * 7 + 4;
+      inChapter = true;
+      continue;
+    }
+
+    // Introduction (premier paragraphe avant chapitre) — italique
+    if (!inChapter && line.length > 20) {
+      doc.setFontSize(10.5);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(...ink2Color);
+      const wrapped = doc.splitTextToSize(line, usableW);
+      checkY(wrapped.length * 5.5 + 3);
+      doc.text(wrapped, marginL, y);
+      y += wrapped.length * 5.5 + 4;
+      continue;
+    }
+
+    // Citation directe (ligne qui commence par " ou «)
+    if (line.startsWith('"') || line.startsWith('«') || line.startsWith('—')) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(...ink2Color);
+      const wrapped = doc.splitTextToSize(line, usableW - 10);
+      checkY(wrapped.length * 5.5 + 3);
+      doc.text(wrapped, marginL + 8, y);
+      y += wrapped.length * 5.5 + 5;
+      continue;
+    }
+
+    // Corps normal
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...inkColor);
+    const wrapped = doc.splitTextToSize(line, usableW);
+    checkY(wrapped.length * 5.5 + 3);
+    doc.text(wrapped, marginL, y);
+    y += wrapped.length * 5.5 + 4;
+  }
+
+  // Numéro page 1
+  doc.setPage(1);
+  doc.setFontSize(8);
+  doc.setTextColor(...ink2Color);
+  doc.text('1', pageW / 2, pageH - 10, { align: 'center' });
+
+  // Footer dernière page
+  doc.setPage(doc.internal.getNumberOfPages());
+  doc.setFontSize(7.5);
+  doc.setTextColor(...ink2Color);
+  doc.text('C Concept&Dev — Persona Brain V3 — ' + new Date().getFullYear(), marginL, pageH - 10);
+
+  doc.save('biographie_' + prenom.toLowerCase() + '_' + new Date().toISOString().split('T')[0] + '.pdf');
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Peupler le menu profession depuis le registre
+  populateDomainSelector();
+
+  // Session sauvegardée ?
+  if (BC.hasSaved()) {
+    const saved = BC.getSaved();
+    if (saved?.config?.prenom) {
+      document.getElementById('btnResume').style.display = 'block';
+      const domainLabel = DomainRegistry.get(saved.config.domainName)?.label || saved.config.domainName || '';
+      document.getElementById('btnResume').textContent = 'Reprendre (' + saved.config.prenom + ', ' + domainLabel + ', tour ' + (saved.memory?.working?.turnCount || 0) + ')';
+      document.getElementById('btnClear').style.display = 'block';
+      document.getElementById('inPrenom').value = saved.config.prenom;
+      if (saved.config.age) document.getElementById('inAge').value = saved.config.age;
+      if (saved.config.genre) document.getElementById('inGenre').value = saved.config.genre;
+      if (saved.config.workerUrl) document.getElementById('inWorker').value = saved.config.workerUrl;
+      // Pré-sélectionner le domain sauvegardé
+      if (saved.config.domainName) {
+        document.getElementById('inDomain').value = saved.config.domainName;
+        document.getElementById('inDomain').dispatchEvent(new Event('change'));
+      }
+    }
+  }
+});
+
+</script>
+</body>
+</html>
