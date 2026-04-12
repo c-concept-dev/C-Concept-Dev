@@ -9,20 +9,14 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Worker
     steps:
-      - name: 📦 Checkout repo
+      - name: 📦 Checkout Worker only
         uses: actions/checkout@v4
-      - name: 🟢 Setup Node.js 20
-        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: 📥 Install dependencies
-        run: npm install
+          sparse-checkout: Worker
       - name: 🚀 Deploy Worker
-        run: npx wrangler deploy
+        run: npx wrangler@latest deploy
+        working-directory: Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
