@@ -2,6 +2,7 @@ name = "clone-proxy"
 main = "index.js"
 compatibility_date = "2026-03-08"
 compatibility_flags = ["nodejs_compat"]
+no_bundle = true
 
 # ── KV : stockage fichiers temporaires (1h TTL) ──────────────────
 [[kv_namespaces]]
@@ -24,4 +25,4 @@ index_name = "therapeute-library"
 binding = "AI"
 
 # ── Secrets (via Dashboard ou wrangler secret put) ────────────────
-# ANTHROPIC_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, PEXELS_API_KEY
+# ANTHROPIC_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, PEXELS_API_KEY, GOOGLE_TTS_KEY, OPENAI_API_KEY
