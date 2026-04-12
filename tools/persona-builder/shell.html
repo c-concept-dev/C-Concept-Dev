@@ -313,6 +313,8 @@ function getWorkerBase() { return (document.getElementById('inWorker')?.value ||
 
 const VOICE_MAP = { 'google-chirp3-m': { engine: 'google', name: 'fr-FR-Chirp3-HD-Orus', chirp: true }, 'google-chirp3-f': { engine: 'google', name: 'fr-FR-Chirp3-HD-Aoede', chirp: true }, 'google-neural2-m': { engine: 'google', name: 'fr-FR-Neural2-D', chirp: false }, 'google-neural2-f': { engine: 'google', name: 'fr-FR-Neural2-A', chirp: false }, 'openai-alloy': { engine: 'openai', voice: 'alloy' }, 'openai-echo': { engine: 'openai', voice: 'echo' }, 'openai-fable': { engine: 'openai', voice: 'fable' }, 'openai-onyx': { engine: 'openai', voice: 'onyx' }, 'openai-nova': { engine: 'openai', voice: 'nova' }, 'openai-shimmer': { engine: 'openai', voice: 'shimmer' }, 'webspeech': { engine: 'webspeech' } };
 let currentVoiceMode = 'google-chirp3-m', isSpeaking = false, micActive = false, recognition = null;
+// Débloque l'audio context du navigateur — doit être appelé dans un handler de clic utilisateur AVANT tout await
+function unlockAudio() { try { const actx = new (window.AudioContext || window.webkitAudioContext)(); const buf = actx.createBuffer(1, 1, 22050); const src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination); src.start(0); window._audioCtx = actx; } catch(e) {} }
 function initTTS() { currentVoiceMode = document.getElementById('inVoice')?.value || 'google-chirp3-m'; }
 function speak(t) { return new Promise(async res => { if (!t) { res(); return; } const clean = t.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').trim(); if (!clean) { res(); return; } isSpeaking = true; setState('speaking'); const vm = VOICE_MAP[currentVoiceMode] || VOICE_MAP['google-chirp3-m']; try { if (vm.engine === 'google') await speakGoogle(clean, vm); else if (vm.engine === 'openai') await speakOpenAI(clean, vm); else await speakWeb(clean); } catch (e) { console.warn('[TTS] Proxy failed, fallback Web Speech:', e.message); try { await speakWeb(clean); } catch (e2) {} } isSpeaking = false; setState('idle'); res(); }); }
 async function speakGoogle(text, vm) { const body = { input: { text }, voice: { languageCode: 'fr-FR', name: vm.name, ...(!vm.chirp ? { ssmlGender: 'MALE' } : {}) }, audioConfig: { audioEncoding: 'MP3', speakingRate: 0.92, ...(!vm.chirp ? { pitch: -1 } : {}) } }; const r = await fetch(getWorkerBase() + '/tts-google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) throw new Error('Google TTS ' + r.status); const d = await r.json(); if (!d.audioContent) throw new Error('No audioContent'); await playB64(d.audioContent); }
@@ -357,6 +359,7 @@ async function startSession() {
   if (!prenom || !workerUrl) return;
   const domain = getSelectedDomain();
   if (!domain) { alert('Aucune profession disponible.'); return; }
+  unlockAudio();
   BC.init({ prenom, age, genre, workerUrl, brain: BC.config.brain, domain });
   document.getElementById('sessionBrand').textContent = domain.label || 'Persona Brain V3';
   showScreen('sessionScreen'); initTTS(); initSTT(); startTimer();
@@ -370,6 +373,7 @@ async function startSession() {
 async function resumeSession() {
   const saved = BC.getSaved();
   if (!saved) { alert('Aucune session sauvegardee.'); return; }
+  unlockAudio();
   BC.restore(saved);
   BC.config.domain = DomainRegistry.get(saved.config.domainName) || getSelectedDomain();
   document.getElementById('sessionBrand').textContent = BC.config.domain?.label || 'Persona Brain V3';
