@@ -308,8 +308,9 @@ function loadBrainFile(f) {
 }
 
 // ── TTS ──
-// Tout passe par le Worker principal (clone-proxy) — un seul endpoint, secure
+// Tout passe par le Worker principal — un seul endpoint, secure
 function getWorkerBase() { return (document.getElementById('inWorker')?.value || 'https://clone-proxy.11drumboy11.workers.dev').replace(/\/+$/, ''); }
+
 const VOICE_MAP = { 'google-chirp3-m': { engine: 'google', name: 'fr-FR-Chirp3-HD-Orus', chirp: true }, 'google-chirp3-f': { engine: 'google', name: 'fr-FR-Chirp3-HD-Aoede', chirp: true }, 'google-neural2-m': { engine: 'google', name: 'fr-FR-Neural2-D', chirp: false }, 'google-neural2-f': { engine: 'google', name: 'fr-FR-Neural2-A', chirp: false }, 'openai-alloy': { engine: 'openai', voice: 'alloy' }, 'openai-echo': { engine: 'openai', voice: 'echo' }, 'openai-fable': { engine: 'openai', voice: 'fable' }, 'openai-onyx': { engine: 'openai', voice: 'onyx' }, 'openai-nova': { engine: 'openai', voice: 'nova' }, 'openai-shimmer': { engine: 'openai', voice: 'shimmer' }, 'webspeech': { engine: 'webspeech' } };
 let currentVoiceMode = 'google-chirp3-m', isSpeaking = false, micActive = false, recognition = null;
 function initTTS() { currentVoiceMode = document.getElementById('inVoice')?.value || 'google-chirp3-m'; }
