@@ -1,35 +1,30 @@
 name: 🚀 Deploy Cloudflare Worker
-
 on:
   push:
     branches: [main]
     paths:
       - 'Worker/**'
   workflow_dispatch:
-
 jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Worker
     steps:
       - name: 📦 Checkout repo
         uses: actions/checkout@v4
-
       - name: 🟢 Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: 📥 Install dependencies
-        working-directory: Worker
         run: npm install
-
       - name: 🚀 Deploy Worker
-        working-directory: Worker
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-
       - name: ✅ Deploy complete
         run: echo "Worker deployed successfully!"
