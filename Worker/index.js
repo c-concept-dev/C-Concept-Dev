@@ -55335,6 +55335,10 @@ var Worker_default = {
       return handleGeneratePresentation(request2, env2);
     if (p === "/web-consult" && request2.method === "POST")
       return handleWebConsult(request2, env2);
+    if (p === "/tts-google" && request2.method === "POST")
+      return handleTTSGoogle(request2, env2);
+    if (p === "/tts-openai" && request2.method === "POST")
+      return handleTTSOpenAI(request2, env2);
     if (request2.method === "POST")
       return handleAnthropicProxy(request2, env2);
     return jsonErr("Not found", 404);
@@ -57361,6 +57365,79 @@ async function handleWebConsult(request2, env2) {
 }
 __name(handleWebConsult, "handleWebConsult");
 
+
+// ═══ TTS GOOGLE — proxy vers Google Cloud Text-to-Speech ═══
+async function handleTTSGoogle(request2, env2) {
+  if (!env2.GOOGLE_TTS_KEY) {
+    return new Response(JSON.stringify({ error: "Google TTS key not configured" }), {
+      status: 500, headers: { "Content-Type": "application/json", ...CORS }
+    });
+  }
+  let body;
+  try { body = await request2.json(); } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400, headers: { "Content-Type": "application/json", ...CORS }
+    });
+  }
+  try {
+    const r = await fetch(
+      "https://texttospeech.googleapis.com/v1/text:synthesize?key=" + env2.GOOGLE_TTS_KEY,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+    );
+    if (!r.ok) {
+      const err = await r.text();
+      return new Response(JSON.stringify({ error: "Google TTS error", status: r.status, detail: err }), {
+        status: r.status, headers: { "Content-Type": "application/json", ...CORS }
+      });
+    }
+    const data = await r.json();
+    return new Response(JSON.stringify(data), {
+      headers: { "Content-Type": "application/json", ...CORS }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { "Content-Type": "application/json", ...CORS }
+    });
+  }
+}
+__name(handleTTSGoogle, "handleTTSGoogle");
+
+// ═══ TTS OPENAI — proxy vers OpenAI Audio Speech ═══
+async function handleTTSOpenAI(request2, env2) {
+  if (!env2.OPENAI_API_KEY) {
+    return new Response(JSON.stringify({ error: "OpenAI key not configured" }), {
+      status: 500, headers: { "Content-Type": "application/json", ...CORS }
+    });
+  }
+  let body;
+  try { body = await request2.json(); } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400, headers: { "Content-Type": "application/json", ...CORS }
+    });
+  }
+  try {
+    const r = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + env2.OPENAI_API_KEY },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      return new Response(JSON.stringify({ error: "OpenAI TTS error", status: r.status, detail: err }), {
+        status: r.status, headers: { "Content-Type": "application/json", ...CORS }
+      });
+    }
+    const audioBuffer = await r.arrayBuffer();
+    return new Response(audioBuffer, {
+      headers: { "Content-Type": "audio/mpeg", ...CORS }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { "Content-Type": "application/json", ...CORS }
+    });
+  }
+}
+__name(handleTTSOpenAI, "handleTTSOpenAI");
 export {
   Worker_default as default
 };
