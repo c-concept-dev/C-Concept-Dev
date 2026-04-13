@@ -74,6 +74,11 @@ const BrainAttention = {
     const bookState = this._computeBookState(memory.structured.scenes, memory.structured.carte);
     if (bookState) sections.push(bookState);
 
+    // ── ANTI-REPETITION — les 5 dernières questions du Driver ──
+    if (memory.working.recentDriverQuestions?.length) {
+      sections.push(`QUESTIONS RECENTES (NE PAS REPETER): ${memory.working.recentDriverQuestions.join(' | ')}`);
+    }
+
     return `═══ ATTENTION ═══\n${sections.join('\n')}\n═════════════════`;
   },
 
