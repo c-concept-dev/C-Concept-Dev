@@ -7368,7 +7368,7 @@ window.OCRU.V11.AtomBuilder = {
                 source_type: isImage ? 'visual_perception' : 'textual',
                 excerpt: e.quote || e.context || null,
                 extraction_method: isImage ? 'vision_llm' : 'text_llm',
-                model: 'claude-sonnet-4.5',
+                model: 'claude-sonnet-4-6',
                 confidence: e.confidence || 0.7
             };
 
@@ -8793,7 +8793,7 @@ Generate ONLY a JSON array of ${needed} entities:
         try {
             const response = await window.multiLLM.callAPI({
                 provider: 'anthropic',
-                model: 'claude-sonnet-4-5-20250929',
+                model: 'claude-sonnet-4-6',
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 2048,
                 temperature: 0.3
@@ -12600,7 +12600,7 @@ window.ProviderPolicy = {
                     cost_per_1k_output: 0.005
                 },
                 standard: {
-                    model: 'claude-sonnet-4-20250514',
+                    model: 'claude-sonnet-4-6',
                     max_tokens_hint: 8192,
                     supports_enrich: true,
                     supports_vision: true,
@@ -12608,7 +12608,7 @@ window.ProviderPolicy = {
                     cost_per_1k_output: 0.015
                 },
                 enrich: {
-                    model: 'claude-sonnet-4-5-20250929',
+                    model: 'claude-sonnet-4-6',
                     max_tokens_hint: 8192,
                     supports_enrich: true,
                     supports_vision: true,
@@ -12621,8 +12621,8 @@ window.ProviderPolicy = {
                 enrichTier: 'enrich'
             },
             secondaryModels: [
-                'claude-sonnet-4-5-20250929',
-                'claude-sonnet-4-20250514',
+                'claude-sonnet-4-6',
+                'claude-sonnet-4-6',
                 'claude-haiku-4-5-20251001'
             ]
         },
@@ -13755,7 +13755,7 @@ window.debugModelPlan = function() {
         console.log('\n[SCENARIO 3] UI model override (Anthropic Opus)');
         const plan3 = window.resolveModelPlan({
             provider: 'anthropic',
-            uiModel: 'claude-opus-4-20250514',
+            uiModel: 'claude-opus-4-6',
             uiTier: null,
             needsEnrichment: false,
             needsVision: false
@@ -34979,7 +34979,7 @@ END OF AUTHORITATIVE QUALIFICATION.
                 // Vision model
                 if (mgr.hasKey('anthropic')) {
                     provider = 'anthropic';
-                    model = 'claude-sonnet-4-5-20250929';  // Claude 4.5 Latest (Vision capable)
+                    model = 'claude-sonnet-4-6';  // Claude 4.5 Latest (Vision capable)
                     max_tokens = baseMaxTokens;  // Dynamic based on content
                 } else if (mgr.hasKey('openai')) {
                     provider = 'openai';
@@ -34992,7 +34992,7 @@ END OF AUTHORITATIVE QUALIFICATION.
                 // Text model
                 if (mgr.hasKey('anthropic')) {
                     provider = 'anthropic';
-                    model = 'claude-sonnet-4-5-20250929';  // Claude 4.5 Latest
+                    model = 'claude-sonnet-4-6';  // Claude 4.5 Latest
                     max_tokens = baseMaxTokens;  // Dynamic based on content
                 } else if (mgr.hasKey('groq')) {
                     provider = 'groq';
@@ -35462,7 +35462,7 @@ END OF AUTHORITATIVE QUALIFICATION.
 
             // Injecter provider/model réels (pas "unknown")
             llmResult.result.metadata.llm_provider = llmResult.provider || "anthropic";
-            llmResult.result.metadata.llm_model = llmResult.model_used || "claude-sonnet-4-5-20250514";
+            llmResult.result.metadata.llm_model = llmResult.model_used || "claude-sonnet-4-6";
             llmResult.result.metadata.llm_temperature = llmResult.temperature || 0.2;
             llmResult.result.metadata._brain_authority = true;
             llmResult.result.metadata._canon_pipeline = true;
@@ -57411,7 +57411,7 @@ const AdaptivePromptsEngine = {
 const LLM_PROVIDERS = {
     claude: {
         name: 'Claude Vision',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         endpoint: 'https://api.anthropic.com/v1/messages',
         version: '2023-06-01',
         maxTokens: 4096,
@@ -72737,7 +72737,7 @@ quality: 4,
 models: {
 structure: { provider: 'groq', model: 'llama-3.3-70b-versatile', cost: 0, tokens: 15000 },
 concepts: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', cost: 0.024, tokens: 20000 },
-enrichi: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.11, tokens: 25000 },
+enrichi: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.11, tokens: 25000 },
 graphe: { provider: 'openai', model: 'gpt-4o-mini', cost: 0.003, tokens: 12000 },
 taxonomie: { provider: 'openai', model: 'gpt-4.1-mini', cost: 0.006, tokens: 10000 },
 glossaire: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', cost: 0.018, tokens: 15000 },
@@ -72775,12 +72775,12 @@ tasks: 10,
 quality: 5,
 models: {
 structure: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', cost: 0.018, tokens: 15000 },
-concepts: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.099, tokens: 22000 },
-enrichi: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.126, tokens: 28000 },
+concepts: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.099, tokens: 22000 },
+enrichi: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.126, tokens: 28000 },
 graphe: { provider: 'openai', model: 'gpt-4.1', cost: 0.054, tokens: 15000 },
 taxonomie: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', cost: 0.014, tokens: 12000 },
 semantique: { provider: 'openai', model: 'gpt-4.1', cost: 0.036, tokens: 10000 },
-glossaire: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.081, tokens: 18000 },
+glossaire: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.081, tokens: 18000 },
 pedagogie: { provider: 'openai', model: 'gpt-4.1', cost: 0.043, tokens: 12000 },
 citations: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', cost: 0.010, tokens: 8000 },
 applications: { provider: 'openai', model: 'gpt-4.1-mini', cost: 0.006, tokens: 10000 }
@@ -72792,18 +72792,18 @@ cost: 1.65,
 tasks: 12,
 quality: 5,
 models: {
-structure: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.081, tokens: 18000 },
+structure: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.081, tokens: 18000 },
 concepts: { provider: 'openai', model: 'gpt-5.2', cost: 0.35, tokens: 25000 },
 enrichi: { provider: 'openai', model: 'gpt-5.2', cost: 0.42, tokens: 30000 },
-graphe: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.081, tokens: 18000 },
-taxonomie: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.054, tokens: 15000 },
-semantique: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.081, tokens: 12000 },
-glossaire: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.090, tokens: 20000 },
-pedagogie: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.090, tokens: 15000 },
-controverses: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.045, tokens: 10000 },
+graphe: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.081, tokens: 18000 },
+taxonomie: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.054, tokens: 15000 },
+semantique: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.081, tokens: 12000 },
+glossaire: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.090, tokens: 20000 },
+pedagogie: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.090, tokens: 15000 },
+controverses: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.045, tokens: 10000 },
 citations: { provider: 'openai', model: 'gpt-4.1', cost: 0.043, tokens: 12000 },
-applications: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.068, tokens: 15000 },
-meta: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', cost: 0.068, tokens: 10000 }
+applications: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.068, tokens: 15000 },
+meta: { provider: 'anthropic', model: 'claude-sonnet-4-6', cost: 0.068, tokens: 10000 }
 }
 }
 },
@@ -72818,14 +72818,14 @@ groq: 'https://groq-proxy.11drumboy11.workers.dev/'
 models: {
 anthropic: [
 {
-id: 'claude-opus-4-20250514',
+id: 'claude-opus-4-6',
 name: 'Claude Opus 4.1',
 cost: '$15-75/M',
 efficiency: ' (98%)',
 speed: ' (Lente)'
 },
 {
-id: 'claude-sonnet-4-5-20250929',
+id: 'claude-sonnet-4-6',
 name: 'Claude Sonnet 4.5',
 cost: '$3-15/M',
 efficiency: ' (95%)',
@@ -72833,8 +72833,8 @@ speed: ' (Moyenne)',
 recommended: true
 },
 {
-id: 'claude-sonnet-4-20250514',
-name: 'Claude Sonnet 4',
+id: 'claude-sonnet-4-6',
+name: 'Claude Sonnet 4.6',
 cost: '$3-15/M',
 efficiency: ' (95%)',
 speed: ' (Moyenne)'
@@ -79142,7 +79142,7 @@ if (!hasAnyEvidence) {
         // ═══════════════════════════════════════════════
         function resolveCallableLLM(preferredProvider, preferredModel, fallbackPlan) {
             fallbackPlan = fallbackPlan || [
-                { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929' },
+                { provider: 'anthropic', model: 'claude-sonnet-4-6' },
                 { provider: 'openai', model: 'gpt-4o-mini' },
                 { provider: 'groq', model: 'llama-3.1-70b-versatile' },
                 { provider: 'google', model: 'gemini-2.0-flash-exp' }
@@ -83001,7 +83001,7 @@ CRITICAL: Quotes must be SHORT (10-30 words) and EXACT from source.`;
 
             const metadata = {
                 llmProvider: 'anthropic',
-                llmModel: 'claude-sonnet-4-5-20250929',
+                llmModel: 'claude-sonnet-4-6',
                 file_name: fileContext.name,
                 file_size: fileContext.size,
                 total_llm_calls: 2 + Math.ceil(chunks.length / CONFIG.concepts_batch_size) + 2, // identity + domain + concept batches + entities + relations
@@ -83872,7 +83872,7 @@ Generate EXACTLY ${count} relations.`;
 
                 const response = await llm.sendPrompt(prompt, {
                     provider: 'anthropic',
-                    model: 'claude-sonnet-4-5-20250929',
+                    model: 'claude-sonnet-4-6',
                     max_tokens: 1536,
                     temperature: 0.3
                 });
@@ -84282,7 +84282,7 @@ Generate EXACTLY ${count} concepts.`;
 
                 const response = await llm.sendPrompt(prompt, {
                     provider: 'anthropic',
-                    model: 'claude-sonnet-4-5-20250929',
+                    model: 'claude-sonnet-4-6',
                     max_tokens: 2048, // V14.0.88c-9-8 FIX-D: 1024→2048 (snippet truncation)
                     temperature: 0.4
                 });
@@ -84475,7 +84475,7 @@ Retourner UNIQUEMENT le tableau JSON, rien d'autre.`;
 
                 const response = await llm.sendPrompt(prompt, {
                     provider: 'anthropic',
-                    model: 'claude-sonnet-4-5-20250929',
+                    model: 'claude-sonnet-4-6',
                     max_tokens: 2048, // V14.0.88c-9-8 FIX-D: 1024→2048 (snippet truncation was causing empty/short evidence rejection)
                     temperature: 0.3
                 });
@@ -85019,11 +85019,11 @@ function initApplication() {
             'o3-mini': 65536,
             'o4-mini': 65536,
             // Anthropic Claude
-            'claude-sonnet-4-5-20250929': 16384,
+            'claude-sonnet-4-6': 16384,
             'claude-opus-4-5-20250529': 16384,
             'claude-haiku-4-5-20251001': 16384,
-            'claude-sonnet-4-20250514': 16384,
-            'claude-opus-4-20250514': 16384,
+            'claude-sonnet-4-6': 16384,
+            'claude-opus-4-6': 16384,
             // Groq Llama
             'llama-3.3-70b-versatile': 8000,  // Groq free tier limite
             'llama-3.1-70b-versatile': 8000,
@@ -85253,7 +85253,7 @@ function initApplication() {
                 // GLOBAL PROVIDER/MODEL OVERRIDE CHECK
                 // ═══════════════════════════════════════
                 let provider = options.provider || 'anthropic';
-                let model = options.model || 'claude-sonnet-4-20250514';
+                let model = options.model || 'claude-sonnet-4-6';
 
                 if (window.PROVIDER_OVERRIDE?.enabled) {
                     console.log('[OVERRIDE] [TARGET] Using global override');
@@ -85654,11 +85654,11 @@ function initApplication() {
                 { id: 'gemma2-9b-it', name: ' Gemma 2 9B', cost: 0, context: 8192, tpm: 15000 }
             ],
             anthropic: [
-                { id: 'claude-sonnet-4-5-20250929', name: ' Claude Sonnet 4.5 (Latest)', cost: 0.021, context: 200000 },
+                { id: 'claude-sonnet-4-6', name: ' Claude Sonnet 4.6', cost: 0.021, context: 200000 },
                 { id: 'claude-opus-4-5-20250529', name: ' Claude Opus 4.5 (Best)', cost: 0.09, context: 200000 },
                 { id: 'claude-haiku-4-5-20251001', name: ' Claude Haiku 4.5 (Fast)', cost: 0.006, context: 200000 },
-                { id: 'claude-sonnet-4-20250514', name: ' Claude Sonnet 4', cost: 0.018, context: 200000 },
-                { id: 'claude-opus-4-20250514', name: ' Claude Opus 4', cost: 0.075, context: 200000 }
+                { id: 'claude-sonnet-4-6', name: ' Claude Sonnet 4.6', cost: 0.018, context: 200000 },
+                { id: 'claude-opus-4-6', name: ' Claude Opus 4.6', cost: 0.075, context: 200000 }
             ],
             openai: [
                 { id: 'gpt-4o-mini', name: ' GPT-4o Mini (Cheap)', cost: 0.001, context: 128000 },
@@ -86921,7 +86921,7 @@ function initApplication() {
         }
 
         // Ancien nom pour compatibilité
-        async function generateMode2Zip(filename, results, mode = 'Mode 2 Premium', provider = 'anthropic', model = 'claude-sonnet-4-5-20250929') {
+        async function generateMode2Zip(filename, results, mode = 'Mode 2 Premium', provider = 'anthropic', model = 'claude-sonnet-4-6') {
             return await generateUnifiedOutputPackage(filename, results, mode, provider, model);
         }
 
@@ -88365,7 +88365,7 @@ Génère le JSON 32 modules maintenant.`;
 
             let type = 'standard_text';
             let recommendedMode = 'worker';  // V14.0.82 PONT: CANON by default
-            let recommendedModel = 'claude-sonnet-4-5-20250929';
+            let recommendedModel = 'claude-sonnet-4-6';
             let estimatedCost = 0;
             let reason = '';
 
@@ -88374,7 +88374,7 @@ Génère le JSON 32 modules maintenant.`;
             if (file.type.includes('image') || estimatedPages < 10) {
                 type = 'visual_heavy';
                 recommendedMode = 'worker';
-                recommendedModel = 'claude-sonnet-4-5-20250929';
+                recommendedModel = 'claude-sonnet-4-6';
                 estimatedCost = 0.30;
                 reason = 'Pipeline CANON — vision + knowledge extraction';
             }
@@ -88382,7 +88382,7 @@ Génère le JSON 32 modules maintenant.`;
             else if (estimatedPages > 600) {
                 type = 'large_text';
                 recommendedMode = 'worker';
-                recommendedModel = 'claude-sonnet-4-5-20250929';
+                recommendedModel = 'claude-sonnet-4-6';
                 estimatedCost = 0.51;
                 reason = 'Pipeline CANON — batch chunking automatique';
             }
@@ -88390,7 +88390,7 @@ Génère le JSON 32 modules maintenant.`;
             else if (estimatedPages <= 600) {
                 type = 'standard_text';
                 recommendedMode = 'worker';
-                recommendedModel = 'claude-sonnet-4-5-20250929';
+                recommendedModel = 'claude-sonnet-4-6';
                 estimatedCost = 0.15;
                 reason = 'Pipeline CANON — extraction optimale';
             }
@@ -88479,7 +88479,7 @@ Génère le JSON 32 modules maintenant.`;
         /**
          * Enable provider/model override for ALL modes
          * @param {string} provider - 'anthropic', 'openai', or 'groq'
-         * @param {string} model - Model ID (e.g., 'claude-sonnet-4-5-20250929', 'gpt-4o', 'chatgpt-4o-latest')
+         * @param {string} model - Model ID (e.g., 'claude-sonnet-4-6', 'gpt-4o', 'chatgpt-4o-latest')
          */
         window.setProviderOverride = function(provider, model) {
             if (!provider || !model) {
@@ -89198,7 +89198,7 @@ Génère le JSON 32 modules maintenant.`;
                 console.log('[BATCH-ENSEMBLE][PONT-CANON] All V80-82 features enabled: DEDUP, RETYPE, EPUB-SPINE, ENTITIES, EVIDENCE');
             }
             const _batchProvider = document.getElementById('worker-provider')?.value || 'anthropic';
-            const _batchModel = document.getElementById('worker-model')?.value || 'claude-sonnet-4-5-20250929';
+            const _batchModel = document.getElementById('worker-model')?.value || 'claude-sonnet-4-6';
 
             for (let i = 0; i < files_batch.length; i++) {
                 const file = files_batch[i];
@@ -91076,7 +91076,7 @@ async function startEnsemble() {
             // Récupérer provider/model depuis Mode 2 storage
             const mode2Keys = localStorage.getItem('mode2_keys_v769');
             let provider = 'anthropic';
-            let model = 'claude-sonnet-4-5-20250929';
+            let model = 'claude-sonnet-4-6';
 
             if (!mode2Keys) {
                 throw new Error('Clé API requise. Configurez votre clé dans Mode 2 Premium.');
@@ -91126,7 +91126,7 @@ async function startEnsemble() {
             }
 
             const provider = 'anthropic';
-            const model = 'claude-sonnet-4-5-20250929';
+            const model = 'claude-sonnet-4-6';
 
             // Récupérer clés API
             const mode2Keys = localStorage.getItem('mode2_keys_v769');
@@ -91254,7 +91254,7 @@ Générez UNIQUEMENT le JSON structuré, sans commentaire ni markdown.`;
                             segment.text,
                             `${filename} - ${segment.title}`,
                             'anthropic',
-                            'claude-sonnet-4-5-20250929',
+                            'claude-sonnet-4-6',
                             null
                         );
                     })
@@ -91803,7 +91803,7 @@ Triangle d'Or : 28.5/30 (95%) - Excellence R&D
             const requests = chunks.map((chunk, index) => ({
                 custom_id: `chunk_${index + 1}`,
                 params: {
-                    model: "claude-sonnet-4-5-20250929",
+                    model: "claude-sonnet-4-6",
                     max_tokens: 32000,
                     messages: [{ role: "user", content: chunk }],
                     system: systemPrompt
@@ -92278,7 +92278,7 @@ Triangle d'Or : 28.5/30 (95%) - Excellence R&D
                         updateMode5Progress(95, 'Génération ZIP...', 'Création des 5 fichiers');
 
                         // Générer ZIP avec 5 fichiers
-                        await generateUnifiedOutputPackage(fileName, merged, 'Mode 5 BATCH Classique', 'anthropic', 'claude-sonnet-4-5-20250929', benchmarkResult.score);
+                        await generateUnifiedOutputPackage(fileName, merged, 'Mode 5 BATCH Classique', 'anthropic', 'claude-sonnet-4-6', benchmarkResult.score);
 
                         updateMode5Progress(100, ' Terminé!', `Score: ${benchmarkResult.score}/100`);
 
@@ -97120,8 +97120,8 @@ async function validatePartJSON(index) {
 
             const models = {
                 'anthropic': [
-                    { value: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4.5' },
-                    { value: 'claude-sonnet-4-20241022', name: 'Claude Sonnet 4' },
+                    { value: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.5' },
+                    { value: 'claude-sonnet-4-20241022', name: 'Claude Sonnet 4.6' },
                     { value: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
                     { value: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' }
                 ],
@@ -101069,9 +101069,9 @@ function determineFallback(provider, model) {
         'anthropic': {
             'claude-haiku-4-5-20251001': {
                 provider: 'anthropic',
-                model: 'claude-sonnet-4-5-20250929'
+                model: 'claude-sonnet-4-6'
             },
-            'claude-sonnet-4-5-20250929': {
+            'claude-sonnet-4-6': {
                 provider: 'anthropic',
                 model: 'claude-opus-4-5-20251101'
             },
@@ -101097,7 +101097,7 @@ function determineFallback(provider, model) {
         'groq': {
             'llama-3.3-70b-versatile': {
                 provider: 'anthropic',  // groq → anthropic (from log)
-                model: 'claude-sonnet-4-5-20250929'
+                model: 'claude-sonnet-4-6'
             }
         }
     };
@@ -101110,7 +101110,7 @@ function determineFallback(provider, model) {
     // Default fallback: Anthropic Sonnet (most stable)
     return {
         provider: 'anthropic',
-        model: 'claude-sonnet-4-5-20250929'
+        model: 'claude-sonnet-4-6'
     };
 }
 
@@ -103260,7 +103260,7 @@ ${(triangleResult?.recommendations || []).map(r => `- **${r.aspect}**: ${r.actio
 
                     // Utiliser le provider/model choisi par l'utilisateur dans l'UI
                     llmProvider = provider || 'anthropic';
-                    llmModel = model || 'claude-sonnet-4-5-20250929';
+                    llmModel = model || 'claude-sonnet-4-6';
 
                     console.log('[ATOMIC] Using UI-selected provider:', llmProvider);
                     console.log('[ATOMIC] Using UI-selected model:', llmModel);
@@ -103325,7 +103325,7 @@ ${(triangleResult?.recommendations || []).map(r => `- **${r.aspect}**: ${r.actio
                             if (window.multiLLM && typeof window.multiLLM.sendPrompt === 'function') {
                                 const retryText = await window.multiLLM.sendPrompt(retryPrompt, {
                                     provider: 'anthropic',
-                                    model: 'claude-sonnet-4-5-20250929',
+                                    model: 'claude-sonnet-4-6',
                                     max_tokens: 8192,
                                     temperature: 0
                                 });
@@ -107253,7 +107253,7 @@ GÉNÈRE LE JSON 32 MODULES MAINTENANT (commence par {)`;
         // Créer une requête par chunk
         const requests = chunks.map((chunk, index) => {
             const baseParams = {
-                model: "claude-sonnet-4-5-20250929",
+                model: "claude-sonnet-4-6",
                 max_tokens: 64000,
                 messages: [{
                     role: "user",
