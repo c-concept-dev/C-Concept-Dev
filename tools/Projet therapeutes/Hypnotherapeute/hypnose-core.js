@@ -8,7 +8,7 @@
 //
 // window.VARIANT = {
 //   mode: 'standard' | 'express' | 'pro',
-//   model: 'claude-sonnet-4-5-20250929',
+//   model: 'claude-sonnet-4-6',
 //   skipEntretien: false,
 //   showClinical: false,
 //   maxExchanges: 10,
@@ -25,7 +25,7 @@
 // Apply VARIANT defaults
 if (!window.VARIANT) window.VARIANT = {
   mode: 'standard',
-  model: 'claude-sonnet-4-5-20250929',
+  model: 'claude-sonnet-4-6',
   skipEntretien: false,
   showClinical: false,
   maxExchanges: 10,
@@ -52,7 +52,7 @@ const CFG = {
   OAI_PROXY:   'https://openai-proxy.11drumboy11.workers.dev/',
   GTTS_PROXY:  'https://google-tts-proxy.11drumboy11.workers.dev/',
   SPEED:       parseFloat(localStorage.getItem('h_speed') || '1.0'),
-  MODEL:       window.VARIANT?.model || 'claude-sonnet-4-20250514',
+  MODEL:       window.VARIANT?.model || 'claude-sonnet-4-6',
 };
 
 // ═══════════════════════════════════════════════
