@@ -86,10 +86,6 @@ const BrainMemory = {
       this.working.wordCounts.push({ turn: this.working.turnCount, wc });
     } else if (role === 'assistant') {
       this.working.lastDriverText = text;
-      // Anti-répétition : stocker les 5 dernières questions du Driver
-      if (!this.working.recentDriverQuestions) this.working.recentDriverQuestions = [];
-      this.working.recentDriverQuestions.push(text.substring(0, 150));
-      if (this.working.recentDriverQuestions.length > 5) this.working.recentDriverQuestions.shift();
     }
   },
 
