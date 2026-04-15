@@ -9,7 +9,7 @@
 // window.CLONE_VARIANT = {
 //   mode: 'full' | 'text' | 'express' | 'update',
 //   multimodal: true | false,
-//   model: 'claude-sonnet-4-5-20250929',
+//   model: 'claude-sonnet-4-6',
 //   temperature: 0.75,
 //   maxTokens: 220,
 //   targetCompleteness: 85,
@@ -21,7 +21,7 @@
 if (!window.CLONE_VARIANT) window.CLONE_VARIANT = {
     mode: 'full',
     multimodal: true,
-    model: 'claude-sonnet-4-5-20250929',
+    model: 'claude-sonnet-4-6',
     temperature: 0.75,
     maxTokens: 220,
     targetCompleteness: 85,
@@ -37,7 +37,7 @@ if (!window.CLONE_VARIANT) window.CLONE_VARIANT = {
 // ============================================================================
 const CONFIG = {
     WORKER_URL: 'https://clone-proxy.11drumboy11.workers.dev/',
-    MODEL: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
+    MODEL: window.CLONE_VARIANT?.model || 'claude-sonnet-4-6',
     TARGET_QUESTIONS: 40,
     MIN_WORDS: 10,
     CONCORDANCE_BASE: 0.85,
@@ -2225,7 +2225,7 @@ Résumé concis:`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
+                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-6',
                         max_tokens: 400,
                         temperature: 0.7,
                         messages: [{ role: 'user', content: prompt }]
@@ -3094,7 +3094,7 @@ class MemorySystem {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
+                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-6',
                         max_tokens: 2000,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -9395,7 +9395,7 @@ class ConversationalSystem {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: window.CLONE_VARIANT.model || 'claude-sonnet-4-5-20250929',
+                        model: window.CLONE_VARIANT.model || 'claude-sonnet-4-6',
                         max_tokens: 220,
                         temperature: window.CLONE_VARIANT.temperature || 0.75,
                         system: systemPrompt,
@@ -14310,7 +14310,7 @@ async function v19GenerateResumeMessage(convSystem) {
             body: JSON.stringify({
                 payload: {
                     provider: 'anthropic',
-                    model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
+                    model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-6',
                     max_tokens: 200,
                     temperature: 0.7,
                     system: `Tu es un intervieweur bienveillant qui reprend une interview de personnalité après une pause.
