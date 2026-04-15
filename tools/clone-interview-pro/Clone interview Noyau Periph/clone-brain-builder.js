@@ -344,7 +344,7 @@ Retourne UNIQUEMENT le JSON.`;
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
+                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-6',
                         max_tokens: maxTokens,
                         temperature: 0.3,
                         system: systemPrompt,
@@ -8655,7 +8655,7 @@ async function generateCloneBrain() {
                 body: JSON.stringify({
                     payload: {
                         provider: 'anthropic',
-                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-5-20250929',
+                        model: window.CLONE_VARIANT?.model || 'claude-sonnet-4-6',
                         max_tokens: maxTokens || 2500,
                         temperature: 0.3,
                         system: promptStr,
@@ -9868,7 +9868,7 @@ async function generateCloneBrain() {
                 interview_transfert: _transfert || {},
                 _meta: {
                     generated: new Date().toISOString(),
-                    model: 'claude-sonnet-4-5-20250929',
+                    model: 'claude-sonnet-4-6',
                     modules: ['8a_blind_spots', '8b_defenses_in_action', '8c_coherence', '8d_self_other', '8e_transfert'],
                     cost_note: '5 appels paralleles Sonnet ~$0.08 total'
                 }
