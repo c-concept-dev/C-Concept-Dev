@@ -29,11 +29,11 @@ const BrainCore = {
   modelChains: {
     summary: [
       { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
-      { provider: 'anthropic', model: 'claude-sonnet-4-20250514', label: 'Sonnet 4 (fallback)' },
+      { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Sonnet 4.6 (fallback)' },
     ],
     perception: [
       { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
-      { provider: 'anthropic', model: 'claude-sonnet-4-20250514', label: 'Sonnet 4 (fallback)' },
+      { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Sonnet 4.6 (fallback)' },
     ],
     // Driver → Sonnet (non négociable, appel direct BrainAPI.call)
     // Analyste Passe A (perception) → Haiku (extraction structurée, pas de raisonnement profond)
@@ -69,7 +69,7 @@ const BrainCore = {
     // Initialiser les modules
     BrainAPI.init({
       workerUrl: cfg.workerUrl,
-      model: window.BRAIN_VARIANT?.model || 'claude-sonnet-4-20250514',
+      model: window.BRAIN_VARIANT?.model || 'claude-sonnet-4-6',
       temperature: window.BRAIN_VARIANT?.temperature || 0.8,
       maxTokens: window.BRAIN_VARIANT?.maxTokens || 500,
     });
@@ -432,7 +432,7 @@ const BrainCore = {
     // Re-init API
     BrainAPI.init({
       workerUrl: saved.config.workerUrl,
-      model: window.BRAIN_VARIANT?.model || 'claude-sonnet-4-20250514',
+      model: window.BRAIN_VARIANT?.model || 'claude-sonnet-4-6',
       temperature: window.BRAIN_VARIANT?.temperature || 0.8,
       maxTokens: window.BRAIN_VARIANT?.maxTokens || 500,
     });
