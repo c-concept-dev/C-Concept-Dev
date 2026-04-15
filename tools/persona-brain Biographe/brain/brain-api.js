@@ -9,7 +9,7 @@
 const BrainAPI = {
 
   workerUrl: '',
-  defaultModel: 'claude-sonnet-4-20250514',
+  defaultModel: 'claude-sonnet-4-6',
   defaultTemperature: 0.8,
   defaultMaxTokens: 280,
 
