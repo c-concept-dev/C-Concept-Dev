@@ -80,20 +80,12 @@ FORMAT DE SORTIE :
   getOutputPrompt(ctx) {
     const sk = ctx.skippedTopics?.length ? 'Esquives: ' + ctx.skippedTopics.join(', ') : 'Aucun esquive.';
 
-    // Fils conducteurs détectés pendant l'entretien
-    const filsCtx = ctx.memory?.recurringElements?.length
-      ? 'FILS CONDUCTEURS DETECTES:\n' + ctx.memory.recurringElements.map(r =>
-          `- ${r.element} (${r.type || '?'}) : ${(r.occurrences || []).join(', ')}`
-        ).join('\n') + '\n'
-      : '';
-
     const system = `Tu es un biographe psychologique expert. Transcription d'un entretien Persona Driver.
 ${ctx.brain ? 'BRAIN disponible.' : 'PAS de brain — tout vient de l\'entretien.'}
 
 SUJET: ${ctx.prenom}, ${ctx.age || '?'} ans
 ${ctx.brainContext || ''}
 ${sk}
-${filsCtx}
 
 TRANSCRIPTION:
 ${ctx.transcript}
@@ -103,7 +95,7 @@ Construis un persona.json CLONE-PERSONA-1.0.
 REGLES: L'histoire explique la personne. Chapitres vivants avec ses mots. Chaque blessure a une origine ET un cout.
 ANTI-PROPRETE: Minimum 2 tensions_identitaires. Minimum 1 zone_floue. versions_de_soi = parts psychiques. mecanique_decisionnelle = biais. Marque INFERE vs OBSERVE. variabilite_interne: gradients. evolution_potentielle: 2 trajectoires.
 
-SCHEMA: {"_meta":{"schema":"CLONE-PERSONA-1.0","generated":"ISO","source":"${ctx.brain ? 'brain+entretien' : 'entretien_seul'}","confidence":"","completeness":{}},"identite":{"prenom","age","genre","situation_familiale","situation_professionnelle","roles_cle":[]},"resume_global":"","chapitres_vie":[{"titre","periode","evenements_cle":[],"apprentissages":[],"impact_identitaire","emotions_dominantes":[],"figures_cle":[{"role","qualite_lien","impact"}]}],"turning_points":[{"age_approximatif","evenement","avant","apres","ce_que_ca_revele"}],"relations_cle":[{"personne","role","qualite_lien","pattern_relationnel","impact_sur_identite","formulation_naturelle"}],"lignes_de_force":[{"theme","description","manifestations":[],"cout_psychique"}],"fils_conducteurs":[{"element","type":"objet|geste|mot|image","occurrences":[],"arc":"description de comment cet element traverse et change de sens"}],"monde_sensoriel":["element1","element2"],"blessures_et_resilience":[{"blessure","age_approximatif","description","impact_durable","defense_associee","ressources_mobilisees":[],"etat_actuel"}],"monde_interieur":{"peurs_profondes":[],"desirs_inavoues":[],"croyances_limitantes":[],"forces_authentiques":[]},"aspirations":{"court_terme":[],"moyen_terme":[],"long_terme":[],"aspiration_cachee":""},"tensions_identitaires":[{"axe","pole_a","pole_b","manifestation","contexte_activation","conscience"}],"versions_de_soi":[{"nom","periode_origine","fonction","traits_dominants":[],"cout_psychique","etat_actuel","trigger_activation"}],"zones_floues":[{"domaine","type","observation","hypothese","impact"}],"mecanique_decisionnelle":{"priorites_implicites":[],"biais_actifs":[],"pattern_decision":"","arbitrage_interne":""},"style_narratif":{"comment_se_raconte":"","mots_recurrents":[],"mots_absents":[],"metaphores_spontanees":[],"phrase_cle":""},"variabilite_interne":{"stabilite_globale":"","facteurs_variation":[{"facteur","effet","seuil"}]},"evolution_potentielle":{"trajectoires":[{"direction","conditions","effets","signes_avant_coureurs"}]}}
+SCHEMA: {"_meta":{"schema":"CLONE-PERSONA-1.0","generated":"ISO","source":"${ctx.brain ? 'brain+entretien' : 'entretien_seul'}","confidence":"","completeness":{}},"identite":{"prenom","age","genre","situation_familiale","situation_professionnelle","roles_cle":[]},"resume_global":"","chapitres_vie":[{"titre","periode","evenements_cle":[],"apprentissages":[],"impact_identitaire","emotions_dominantes":[],"figures_cle":[{"role","qualite_lien","impact"}]}],"turning_points":[{"age_approximatif","evenement","avant","apres","ce_que_ca_revele"}],"relations_cle":[{"personne","role","qualite_lien","pattern_relationnel","impact_sur_identite","formulation_naturelle"}],"lignes_de_force":[{"theme","description","manifestations":[],"cout_psychique"}],"blessures_et_resilience":[{"blessure","age_approximatif","description","impact_durable","defense_associee","ressources_mobilisees":[],"etat_actuel"}],"monde_interieur":{"peurs_profondes":[],"desirs_inavoues":[],"croyances_limitantes":[],"forces_authentiques":[]},"aspirations":{"court_terme":[],"moyen_terme":[],"long_terme":[],"aspiration_cachee":""},"tensions_identitaires":[{"axe","pole_a","pole_b","manifestation","contexte_activation","conscience"}],"versions_de_soi":[{"nom","periode_origine","fonction","traits_dominants":[],"cout_psychique","etat_actuel","trigger_activation"}],"zones_floues":[{"domaine","type","observation","hypothese","impact"}],"mecanique_decisionnelle":{"priorites_implicites":[],"biais_actifs":[],"pattern_decision":"","arbitrage_interne":""},"style_narratif":{"comment_se_raconte":"","mots_recurrents":[],"mots_absents":[],"metaphores_spontanees":[]},"variabilite_interne":{"stabilite_globale":"","facteurs_variation":[{"facteur","effet","seuil"}]},"evolution_potentielle":{"trajectoires":[{"direction","conditions","effets","signes_avant_coureurs"}]}}
 
 JSON VALIDE UNIQUEMENT. Pas de texte, pas de markdown.`;
 
