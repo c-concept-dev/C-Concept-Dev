@@ -280,9 +280,6 @@ JSON VALIDE UNIQUEMENT. Pas de texte avant ou apres.`;
     if (memory.themes?.length) {
       ctx += `Themes: ${memory.themes.join(', ')}\n`;
     }
-    if (memory.recurringElements?.length) {
-      ctx += `Fils conducteurs: ${memory.recurringElements.map(r => r.element + '(' + (r.occurrences || []).join(',') + ')').join(' | ')}\n`;
-    }
     return ctx;
   },
 
