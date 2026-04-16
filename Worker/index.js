@@ -55393,6 +55393,21 @@ async function handleAnthropicProxy(request2, env2) {
     },
     body: JSON.stringify(ab)
   });
+  // ═══ STREAMING — on pipe res.body tel quel au client ═══
+  // Sans .text() pour éviter de bloquer le Worker jusqu'à fin de génération (timeout 502).
+  // En cas d'erreur Anthropic (!res.ok), on bascule sur .text() pour transmettre le message JSON.
+  if (stream && res.ok && res.body) {
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        ...CORS,
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+      }
+    });
+  }
   return new Response(await res.text(), {
     status: res.status,
     headers: { ...CORS, "Content-Type": "application/json" }
