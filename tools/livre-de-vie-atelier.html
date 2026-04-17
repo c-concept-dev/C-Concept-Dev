@@ -688,6 +688,79 @@ ${isAtRisk ? `\n⚠️  CE CHAPITRE EST SIGNALÉ COMME À RISQUE. C'est ici que 
       }
     }
 
+    // ═══ PONT UNIVERSEL — extrait de la section PONT UNIVERSEL du diagnostic renforcé ═══
+    // Symétrique au silence axial : le silence protège l'iceberg, le pont invite le lecteur.
+    // Si le chapitre courant est identifié comme scène-pont, le LLM est averti de sa responsabilité
+    // particulière : faire basculer la matière particulière en expérience universelle, sans le dire.
+    let pontCtx = '';
+    if (this.diagnostic) {
+      const pontMatch = this.diagnostic.match(/PONT\s+UNIVERSEL[^\n]*\n([\s\S]*?)(?=\n\s*(?:[A-Z][A-Z0-9 ]{6,}[\n:]|##|===|\d+\.\s+[A-Z]{3}|FORMAT OBLIGATOIRE|$))/i);
+      if (pontMatch) {
+        const pontSection = pontMatch[1].trim().slice(0, 1800);
+
+        // Détecter si le chapitre courant est la scène-pont
+        const scenePontMatch = pontSection.match(/(?:SCÈNE[- ]PONT|SCENE[- ]PONT|scène\s+pont)[^\n]*:?([^\n]{0,300})/i);
+        let isThePont = false;
+        if (scenePontMatch) {
+          const nums = (scenePontMatch[1].match(/\b(\d{1,2})\b/g) || []).map(Number);
+          if (nums.includes(chIdx + 1)) isThePont = true;
+          // Tolérer aussi les désignations par titre de chapitre
+          if (!isThePont && ch.title && scenePontMatch[1].toLowerCase().includes(ch.title.toLowerCase().slice(0, 20))) {
+            isThePont = true;
+          }
+        }
+
+        pontCtx = `\n\n═══ PONT UNIVERSEL DU LIVRE — où le particulier devient universel ═══
+${pontSection}
+
+═══ TA DISCIPLINE POUR CE CHAPITRE ═══
+Le pont universel ci-dessus est ce qui fera qu'un lecteur étranger à la matière se reconnaîtra. Il traverse TOUT le livre en arrière-plan — chaque scène doit rester ancrée dans sa particularité tout en laissant respirer ce qui la rend universelle. Pas de phrase-signal ("cela arrive à tout le monde"). Pas de généralisation. Tu restes dans le grain du particulier, et c'est l'ampleur de la vérité particulière qui fait l'universalité.
+${isThePont ? `\n★ CE CHAPITRE EST IDENTIFIÉ COMME LA SCÈNE-PONT — le moment du livre où le saut particulier → universel se joue le plus fort. Tu y viens avec une attention supplémentaire. Pas pour charger la scène de sens, pas pour y glisser de phrases universalisantes — au contraire, pour la rendre la plus CONCRÈTE, la plus PARTICULIÈRE possible. Un geste. Un objet. Un silence. Un regard. C'est la particularité portée jusqu'à l'os qui fait le pont, pas l'abstraction. Quand tu refermes le chapitre, le lecteur qui n'a rien à voir avec la matière doit sortir en pensant silencieusement "c'est moi" — mais aucune phrase du chapitre ne doit l'avoir invité à penser ça. Tu l'amènes par la force de la scène elle-même.` : ''}`;
+      }
+    }
+
+    // ═══ CLIMAT ÉMOTIONNEL — extrait de la section ARCHITECTURE ÉMOTIONNELLE du diagnostic renforcé ═══
+    // Troisième pilier avec le silence axial et le pont universel. Le silence protège l'iceberg,
+    // le pont invite le lecteur à plonger, le climat émotionnel fait que le lecteur ne peut
+    // respirer nulle part — même les chapitres calmes portent la teinte de l'émotion-pivot.
+    // C'est ce qui fait qu'un livre HANTE au lieu d'être juste lu.
+    let climatCtx = '';
+    if (this.diagnostic) {
+      const climatMatch = this.diagnostic.match(/ARCHITECTURE\s+[ÉE]MOTIONNELLE[^\n]*\n([\s\S]*?)(?=\n\s*(?:[A-Z][A-Z0-9 ]{6,}[\n:]|##|===|\d+\.\s+[A-Z]{3}|FORMAT OBLIGATOIRE|$))/i);
+      if (climatMatch) {
+        const climatSection = climatMatch[1].trim().slice(0, 1800);
+
+        // Détecter si ce chapitre est identifié comme "calme" — c'est là que la discipline
+        // du climat en arrière-plan est la plus critique. Le chapitre calme qui n'a pas
+        // le climat devient une respiration pour le lecteur (il décroche).
+        // On cherche si le plan mentionne ce chapitre dans la courbe comme "installation",
+        // "répit", "calme", "léger", "transition", "apparent répit", etc.
+        const regimeCalm = (ch.regime || '').toLowerCase();
+        const tempCalm = (ch.temporalite || '').toLowerCase();
+        const isCalmByRegime = /calme|contemplat|quotidien|tendre|légèr|leger|répit|repit|transition|installation/.test(regimeCalm);
+        const isCalmByPosition = !ch.fondatrice; // les non-fondateurs sont plus à risque d'être "neutres"
+
+        // Recherche explicite dans la section climat d'une mention de ce chapitre
+        let isCalmByDiagnostic = false;
+        const calmNumMatch = climatSection.match(/(?:CLIMAT|calme|léger|leger|répit|repit|apparent)[^\n]{0,400}/gi);
+        if (calmNumMatch) {
+          for (const m of calmNumMatch) {
+            const nums = (m.match(/\b(\d{1,2})\b/g) || []).map(Number);
+            if (nums.includes(chIdx + 1)) { isCalmByDiagnostic = true; break; }
+          }
+        }
+
+        const isCalmChapter = isCalmByDiagnostic || (isCalmByRegime && isCalmByPosition);
+
+        climatCtx = `\n\n═══ ARCHITECTURE ÉMOTIONNELLE DU LIVRE — l'émotion-pivot qui teinte tout ═══
+${climatSection}
+
+═══ TA DISCIPLINE POUR CE CHAPITRE ═══
+L'émotion-pivot identifiée ci-dessus traverse TOUT le livre, pas seulement les scènes dramatiques. Même les scènes calmes, tendres, drôles portent sa teinte en bruit de fond. C'est cette contamination qui empêche le lecteur de respirer — et qui fait que le livre hante au lieu d'être simplement lu. Pas de phrase qui nomme l'émotion-pivot. Pas de "il pensait à X" qui ramènerait au thème. Seulement des signaux concrets — objets, silences, absences, gestes qui butent — qui laissent affleurer le climat sans jamais le dire.
+${isCalmChapter ? `\n◉ CE CHAPITRE EST UN CHAPITRE CALME OU APPARENT RÉPIT. C'est ici que le piège est le plus fort : écrire une belle scène tendre, quotidienne, ou légère qui devienne une RESPIRATION pour le lecteur. Si le lecteur peut respirer dans ce chapitre, le livre lâche son climat — et perd sa force hantante. Tu dois faire l'inverse : rendre la scène tendre ou quotidienne, mais laisser passer à bas bruit le signal du climat identifié ci-dessus. Un objet qui évoque sans évoquer. Un silence qui pèse un peu. Une absence dans la pièce. Une phrase qu'on ne peut plus dire à personne. Le lecteur ne saura pas pourquoi cette scène calme le serre un peu — mais elle le serrera.` : ''}`;
+      }
+    }
+
     // LEARNING PROFILE — la voix du sujet
     const lp = p.sections['LEARNING PROFILE'] || '';
     const mondeSensoriel = p.sections['MONDE SENSORIEL'] || '';
@@ -761,7 +834,19 @@ LOIS D'ECRITURE — constitutionnelles :
 
 10. Tu n'INVENTES PAS de noms propres qui ne sont pas dans le transcript. Si le transcript dit « le collège », tu écris « le collège ». Pas « le collège Jean-Moulin ». Si le transcript dit « un café », tu écris « un café ». Pas « le Café des Sports ». Les noms propres inventés sonnent faux — le lecteur qui connaît la personne le verra. Le réel n'a pas besoin d'être complété.
 
-11. RESPIRATION — tu écris ce chapitre avec DEUX RYTHMES qui se relaient, pas UN. Le flux long (phrases liées par "et", "parce que", virgules qui accumulent) a sa puissance : il emporte, il envoûte, il fait durer. La phrase courte a une autre puissance : elle coupe, elle pose, elle laisse retomber. Un chapitre qui n'utilise qu'un seul de ces deux rythmes devient monotone — même si la monotonie est belle au début, elle fatigue le lecteur à la fin. Tu alternes. Tu écoutes ta propre écriture pendant que tu écris : quand tu sens que le flux t'emporte et qu'une troisième phrase en accumulation arriverait par réflexe, tu coupes à la place. Un point. Une phrase brève. Et le flux peut reprendre ensuite. Cette alternance n'est pas une règle mécanique (pas un compteur, pas un quota) — c'est une discipline d'oreille. Tu relis chaque paragraphe comme si tu l'entendais à voix haute. Si ça ronronne, tu casses. Si ça hache, tu étires. La respiration n'est ni régulière ni formelle — elle est JUSTE.
+11. RESPIRATION — tu écris ce chapitre avec DEUX RYTHMES qui se relaient, pas UN. Le flux long (phrases liées par "et", "parce que", virgules qui accumulent) a sa puissance : il emporte, il envoûte, il fait durer. La phrase courte a une autre puissance : elle coupe, elle pose, elle laisse retomber. Un chapitre qui n'utilise qu'un seul de ces deux rythmes devient monotone — même si la monotonie est belle au début, elle fatigue le lecteur à la fin. Tu alternes. Tu écoutes ta propre écriture pendant que tu écris : quand tu sens que le flux t'emporte et qu'une troisième phrase en accumulation arriverait par réflexe, tu coupes à la place. Un point. Une phrase brève. Et le flux peut reprendre ensuite.
+
+    SIGNAL DE DÉTECTION — la chaîne "et il" ou "et elle" en début de proposition est le tic rythmique le plus facilement identifiable comme IA. Si tu viens d'écrire "...et il a pensé à X, et il a fait Y" et que tu es sur le point d'enchaîner "et il...", ARRÊTE. Mets un point. Change de sujet grammatical, ou pose une phrase qui commence autrement (nom, verbe à l'impératif, adverbe, dialogue). Le même signal vaut pour les enchaînements "parce que... parce que... parce que..." et pour les virgules qui s'accumulent au-delà de trois dans une phrase. Ces chaînes sont belles UNE fois dans un chapitre — comme effet choisi. Elles sont un tic quand elles reviennent cinq, dix, quinze fois sans que tu t'en rendes compte.
+
+    Cette alternance n'est pas un quota mécanique — c'est une discipline d'oreille. À la fin de chaque paragraphe, tu le relis mentalement à voix haute. Si ça ronronne — si l'oreille reconnaît le même balancement que dans le paragraphe précédent — tu casses. Si ça hache trop — si l'oreille entend des staccatos secs sans respiration — tu étires. La respiration n'est ni régulière ni formelle. Elle est JUSTE.
+
+12. DENSITÉ — tu fermes le chapitre quand son ARC est fermé, pas quand tu as atteint une cible de mots. La cible donnée dans la loi 9 est un ordre de grandeur, pas un contrat. Si la scène a fait son travail — si ce qui devait être vu, senti, entendu l'a été — tu poses le point final. Même si ça fait trois cents mots de moins que la cible. Même si ça fait mille mots de moins.
+
+    Le piège inverse est plus dangereux : continuer d'écrire après que l'arc est fermé, pour atteindre la cible. Ça donne des chapitres qui traînent, qui redisent ce qu'ils ont déjà dit, qui ajoutent une scène de trop, un paragraphe de trop, une incise de trop. Les lecteurs les sentent tout de suite — ils ne savent pas formuler pourquoi mais ils sentent que "ça s'étire". Un chapitre qui s'étire est un chapitre qui perd sa force.
+
+    Comment tu sais que ton arc est fermé ? Tu sens un moment — souvent juste après une réplique, un geste, un silence — où une phrase se présente d'elle-même comme phrase de clôture. Elle est courte, elle est simple, elle laisse quelque chose en suspens sans expliquer. Si tu la reconnais, écris-la, et arrête. Ne ré-ouvre pas. N'ajoute pas un paragraphe pour "boucler mieux". La phrase qui vient après la phrase de clôture détruit celle de clôture.
+
+    Règle inverse : si tu as atteint la cible mais que l'arc n'est PAS fermé, continue. L'arc l'emporte sur la cible. Dans les deux cas, c'est l'arc qui décide.
 
 MATIERE (transcript complet — tes SEULES sources de parole) :
 ${p.transcript}
@@ -772,6 +857,8 @@ ${prevCtx}
 ${nextPillar}
 ${fondatriceCtx}
 ${silenceCtx}
+${pontCtx}
+${climatCtx}
 
 Ecris le chapitre "${ch.title}". Commence directement par le texte — pas de titre, pas de métadonnées, pas de commentaire.`;
   },
@@ -1812,14 +1899,50 @@ c) SIGNAUX DE CONTOURNEMENT — les éléments concrets (objets, gestes, scènes
 
 C'est la différence entre "beau livre" et "livre qu'on ne lâche pas". Un livre qui explique son propre silence est mort. Un livre qui fait sentir son silence sans jamais le dire est un best-seller.
 
-FORMAT OBLIGATOIRE DU DIAGNOSTIC RENFORCÉ :
-Le diagnostic que tu produis DOIT contenir une section clairement intitulée "SILENCE AXIAL DU LIVRE" avec les trois sous-sections ci-dessus (a, b, c). Cette section est NON-NÉGOCIABLE. Si tu la négliges, le livre sera sage, pas grand. Le système qui écrit les chapitres ira chercher cette section nommément — sans elle, il reste dans le confort explicatif.
+11. LE PONT UNIVERSEL — complément indispensable du silence axial. (deuxième question la plus importante)
 
-PRODUIS LE DIAGNOSTIC RENFORCE — le diagnostic original PLUS tes corrections, ajouts, renforcements, PLUS la section SILENCE AXIAL DU LIVRE (obligatoire). Garde ce qui est fort. Durcis ce qui est mou. Ajoute ce qui manque. Le résultat doit être un diagnostic qui produit un best-seller qui mérite un prix littéraire, pas un bon livre.`;
+Le silence axial protège l'iceberg du livre — il dit ce qui doit être tu pour que le lecteur le trouve seul. Mais un livre peut avoir un silence axial parfaitement tenu et rester enfermé dans sa particularité. Exemple : un livre magnifique sur un Sénégalais en diaspora peut faire pleurer ceux qui partagent cette expérience et laisser froid le lecteur qui n'a jamais quitté sa ville natale. Le livre est beau mais il ne traverse pas.
+
+Un best-seller fait autre chose : il trouve LE PONT UNIVERSEL. Le moment où la matière particulière devient une expérience que TOUT LE MONDE reconnaît — même celui qui n'a rien vécu de semblable. C'est ce que fait "This Is Us" quand une famille américaine ordinaire devient la famille de chaque spectateur dans le monde. C'est ce que fait Annie Ernaux quand un avortement en 1963 devient la honte sociale de chacun. C'est ce que fait Ferrante quand une amitié napolitaine devient toutes les amitiés asymétriques du monde. La scène reste ancrée dans son lieu, son époque, sa langue — et pourtant chaque lecteur s'y reconnaît. La particularité est la porte, pas la cage.
+
+Pour CETTE matière, identifie :
+
+a) LA QUESTION UNIVERSELLE LATENTE — en UNE phrase : la question que cette vie particulière pose à CHAQUE lecteur, quelle que soit son expérience. Pas "qu'est-ce que ça fait d'être [matière particulière du sujet]". Quelque chose comme "qu'est-ce qu'on transmet sans le savoir ?" ou "combien de langues perd-on en grandissant ?" ou "qu'est-ce qui reste quand on ne peut plus rentrer ?". Une question que le lecteur porte sans jamais l'avoir formulée — et que le livre va lui rendre audible.
+
+b) LA SCÈNE-PONT — quelle scène du plan est pensée pour faire ce saut du particulier à l'universel ? En quel moment du livre ? Pas forcément la scène la plus dramatique. Souvent c'est une scène apparemment mineure — un geste, un objet, une juxtaposition — dont la portée déborde largement son occasion. C'est là que le lecteur étranger à la matière va se reconnaître. Identifie-la nommément (numéro ou position dans le plan) pour que le système la traite avec la conscience de son rôle.
+
+c) LE MÉCANISME DU PONT — comment la scène-pont fait-elle basculer ? Par une phrase qui semble parler du personnage mais qui résonne dans le lecteur ? Par une juxtaposition qui fait écho à une expérience commune non nommée ? Par un geste universel (tenir un enfant, écrire une liste, ranger des objets d'un mort) qui charrie soudain l'émotion de la matière particulière ? Le mécanisme doit être SUBTIL — jamais explicite. La phrase "cela arrive à tout le monde" tue le pont. Le pont fonctionne quand le lecteur FAIT le lien lui-même.
+
+Attention au piège : le pont universel NE DOIT PAS être une phrase-signal universelle plantée dans le texte. Ce n'est pas "il réalisa que c'était l'histoire de tous". C'est une scène ancrée, particulière, vraie — dont l'écho est universel sans qu'aucune phrase ne le dise. Le lecteur sort de la scène en pensant silencieusement "c'est moi". Jamais le texte ne l'invite à penser ça. Il l'amène, par la force de la scène elle-même.
+
+12. L'ÉMOTION-PIVOT ET L'ARCHITECTURE ÉMOTIONNELLE — ce qui fait qu'un livre hante au lieu d'être juste lu. (troisième question de fond)
+
+Un livre n'a pas UNE émotion — il en contient plusieurs (tendresse, colère, drôlerie, manque, émerveillement, honte, joie, peur, etc.). Mais un grand livre a une ÉMOTION-PIVOT : une émotion qui teinte toutes les autres. Chez Ernaux dans L'Événement, c'est la peur seule qui traverse tout. Chez Faye dans Petit pays, c'est l'émerveillement condamné — chaque moment de joie est ombragé par ce qui va le détruire. Chez Mathieu dans Leurs enfants après eux, c'est une rancœur qui cherche sa voie. L'émotion-pivot n'est pas l'émotion la plus fréquente — c'est l'émotion qui contamine les autres, qui fait que même les scènes calmes ne sont pas reposantes.
+
+C'est cette contamination qui "fait mal" durablement. Un livre avec une scène déchirante au milieu émeut dans cette scène, puis le lecteur passe à autre chose. Un livre dont l'émotion-pivot colore tout le texte laisse le lecteur sans respiration — même dans les scènes de tendresse ou de comédie, quelque chose gêne, pèse, rappelle. Le lecteur ne peut pas poser le livre. Il ne peut pas non plus s'en détacher après l'avoir refermé.
+
+Pour CETTE matière, identifie :
+
+a) L'ÉMOTION-PIVOT — en UN ou DEUX mots. L'émotion qui doit teinter toutes les autres dans ce livre. Pas la plus fréquente — celle qui contamine. Sois précis : pas "tristesse" (trop vague), mais "manque qui ne se répare pas", "colère rentrée qui ne se dit pas", "émerveillement fragile", "honte de classe", "peur seule", "gratitude vertigineuse", "désir empêché", "nostalgie qui avance". Le mot doit être AUSSI PRÉCIS que le livre lui-même. Et justifie ce choix en une phrase en disant pourquoi CETTE émotion précisément — pas une autre proche.
+
+b) LA COURBE — la partition émotionnelle du livre. Où l'émotion-pivot est-elle à son plus bas (chapitres d'installation, d'apparent répit) ? Où monte-t-elle ? Où frappe-t-elle au plus fort (le point de blessure maximale, ou le pic d'émerveillement, ou le sommet de peur — selon l'émotion-pivot) ? Où se suspend-elle dans un PARADOXE — une scène qui semble à rebours de l'émotion-pivot et qui, par contraste, la renforce (un rire au milieu du deuil, un silence au milieu des cris, un moment de paix au milieu de la peur) ? Où se TRANSFORME-t-elle à la fin (pas "se résout" — se transforme) ?
+
+Dessine cette courbe en quelques phrases. Indique pour les chapitres-clés (fondateurs + transformation finale) leur position sur la courbe. Le plan Phase 2 respectera cette architecture.
+
+c) LE CLIMAT EN ARRIÈRE-PLAN — le plus important pour "faire mal durablement". Pour chaque chapitre qui sera "calme" ou "apparemment léger" dans le plan (scènes de quotidien, de tendresse, de comédie, de transition), quel est le SIGNAL CONCRET par lequel l'émotion-pivot reste présente en bruit de fond ? Un détail, un mot, un objet, un silence, une absence. Pas une scène dramatique — un bruit de fond émotionnel qui empêche le lecteur de respirer pleinement, même quand le récit fait autre chose.
+
+Par exemple, pour un livre dont l'émotion-pivot est "manque qui ne se répare pas" (deuil maternel), une scène calme de cuisine dominicale peut porter le climat par : un téléphone qui ne sonne plus, une chaise vide dans un coin, une phrase d'une autre langue qu'il n'y a plus personne pour corriger, un geste qu'on ne sait plus faire exactement. Ces signaux ne parlent jamais du deuil — ils le laissent affleurer. Le lecteur les sent sans les lire.
+
+Identifie ces signaux de climat pour le type de chapitres calmes que ce livre aura. C'est cette discipline qui fait qu'un livre n'a pas de respiration pour le lecteur — et donc qu'il ne se pose pas.
+
+FORMAT OBLIGATOIRE DU DIAGNOSTIC RENFORCÉ :
+Le diagnostic que tu produis DOIT contenir TROIS sections clairement intitulées et séparées : "SILENCE AXIAL DU LIVRE" (question 10, sous-sections a/b/c), "PONT UNIVERSEL" (question 11, sous-sections a/b/c), et "ARCHITECTURE ÉMOTIONNELLE" (question 12, sous-sections a/b/c). Ces trois sections sont NON-NÉGOCIABLES. Si tu les négliges, le livre sera sage, pas grand. Le système qui écrit les chapitres ira chercher ces sections nommément — sans elles, il reste dans le confort explicatif, dans l'enfermement particulier, ou dans la succession de scènes sans climat.
+
+PRODUIS LE DIAGNOSTIC RENFORCE — le diagnostic original PLUS tes corrections, ajouts, renforcements, PLUS les trois sections obligatoires (SILENCE AXIAL DU LIVRE, PONT UNIVERSEL, ARCHITECTURE ÉMOTIONNELLE). Garde ce qui est fort. Durcis ce qui est mou. Ajoute ce qui manque. Le résultat doit être un diagnostic qui produit un livre où chaque lecteur se reconnaît (pont universel), où l'iceberg fonctionne (silence axial), et où le climat émotionnel ne lâche jamais le lecteur (architecture émotionnelle). Trois conditions pour un best-seller qui traverse les frontières d'expérience et hante durablement.`;
 
       const reinforced = await A.llmCall(
         'Tu es un directeur littéraire de premier plan. Challenge et renforce ce diagnostic.',
-        superPrompt1, 4096
+        superPrompt1, 6000
       );
 
       A.config.model = savedModelSuper1;
@@ -2031,6 +2154,8 @@ ${bookCondense}
 
 5. LES REPETITIONS — est-ce qu'un chapitre REPETE un autre dans le fond ? Deux scènes qui disent la même chose avec des mots différents — l'une des deux doit mourir. Quels chapitres sont INTERCHANGEABLES (= pas nécessaires) ?
 
+   Cherche en particulier les SCÈNES EMBLÉMATIQUES REJOUÉES : une scène forte posée tôt dans le livre (un dialogue singulier, un geste spécifique, un mot dans une langue étrangère, une réplique qui fait basculer), qui réapparaît plus tard presque à l'identique dans un autre chapitre. C'est un piège typique : le système, voulant renforcer un motif, rejoue le MOMENT lui-même au lieu de faire RÉSONNER le motif autrement. Le lecteur qui a encore en tête la première occurrence se sent volé — il voit la répétition comme une facilité, pas comme un écho. Si tu détectes une scène rejouée, signale-la comme chapitre faible avec la consigne suivante : "garder la première occurrence (elle est le germe), réécrire la seconde pour qu'elle TRANSFORME le motif au lieu de le répéter — un autre lieu, un autre personnage, une autre temporalité, le même sens mais via un autre chemin". Le motif qui revient change. Le motif qui se répète meurt.
+
 6. LES SCENES DE BOUCHE-A-OREILLE — combien de scènes un lecteur raconterait à un ami au dîner ? "Tu sais, il y a ce moment où..." Compte-les sincèrement. Un livre qui en a plusieurs fortes vit durablement dans la mémoire du lecteur ; un livre qui n'en a aucune glisse sans laisser de trace. Identifie celles qui ont ce pouvoir. Et — plus important — identifie celles qui DEVRAIENT l'avoir mais ne l'ont pas encore : scènes potentiellement puissantes qui ont été écrites trop vite, trop lissées, trop sages. Ces dernières sont les priorités de réécriture.
 
 7. LE MONDE CONCRET — est-ce que le lecteur VOIT les lieux, SENT les odeurs, ENTEND les sons ? Est-ce que le livre existe dans un monde physique ou flotte dans l'abstraction ? Les personnages secondaires ont-ils un CORPS — une façon de tenir leur tasse, de s'asseoir, de regarder — ou sont-ils des silhouettes ?
@@ -2044,6 +2169,18 @@ ${bookCondense}
 10. LE TEST ULTIME — si tu devais dire à un ami en UNE phrase pourquoi lire ce livre, quelle serait cette phrase ? Si tu n'arrives pas à la formuler — le livre n'a pas trouvé sa raison d'être.
 
 11. LE SILENCE AXIAL — le diagnostic a identifié LE silence central du livre : ce qui doit être senti sans être écrit. Vérifie TRÈS ATTENTIVEMENT : est-ce que le texte, quelque part, a ÉCRIT ce silence ? Même en périphrase, même en question rhétorique ("peut-être que…"), même en reformulation. Cherche les phrases qui explicitent ce que le lecteur devait trouver SEUL. Si tu en trouves une, signale-la comme un chapitre faible avec consigne "supprimer ou reformuler en geste/objet/silence" — c'est là que le livre perd sa puissance d'iceberg.
+
+12. LE PONT UNIVERSEL — le diagnostic a identifié LE pont : la question universelle latente que cette matière particulière porte, et la scène-pont qui la fait basculer. Vérifie deux choses :
+
+    a) La scène-pont tient-elle sa promesse ? Lis-la avec les yeux d'un lecteur qui ne partage RIEN de la matière particulière du livre (un lecteur d'un autre pays, d'une autre génération, d'une autre expérience). Est-ce qu'à la lecture de cette scène, ce lecteur étranger se reconnaît ? Ressent-il que la scène parle aussi de sa vie, sans qu'aucune phrase ne le lui dise ? Si la scène est forte mais reste enfermée dans sa particularité — si le lecteur étranger la lit comme "une belle scène sur quelqu'un d'autre" — le pont n'est pas fait. Signale le chapitre et suggère un enrichissement (pas une réécriture totale) : un détail, un geste, une juxtaposition qui ouvre la porte universelle sans la nommer.
+
+    b) Le livre a-t-il au contraire cédé à la tentation inverse — une phrase qui universalise EXPLICITEMENT ("comme tout le monde", "c'est l'histoire de chacun", "on fait tous ça") ? C'est le piège opposé. Une universalisation explicite tue le pont parce qu'elle fait le travail du lecteur à sa place. Cherche ces phrases, signale-les, consigne "supprimer ou remplacer par une scène concrète". Le lecteur doit faire le lien seul — le texte ne lui dit jamais qu'il devrait le faire.
+
+13. L'ARCHITECTURE ÉMOTIONNELLE — le diagnostic a identifié L'ÉMOTION-PIVOT du livre (l'émotion qui devait teinter toutes les autres) et LE CLIMAT EN ARRIÈRE-PLAN (les signaux concrets par lesquels cette émotion reste présente même dans les chapitres calmes). Vérifie deux choses symétriques :
+
+    a) Les chapitres calmes portent-ils le climat ? Identifie les chapitres du livre qui sont apparemment légers, tendres, quotidiens, ou de transition. Lis-les en te demandant : est-ce que l'émotion-pivot du livre reste sensible en bruit de fond dans ces chapitres ? Ou est-ce qu'ils deviennent des respirations où le lecteur peut poser le livre sans rien perdre ? Si un chapitre calme ne porte AUCUN signal du climat — pas un objet, pas un silence, pas une absence, pas un geste qui bute — c'est un chapitre où le livre lâche sa force hantante. Signale-le comme chapitre faible avec consigne "ajouter un ou deux signaux concrets du climat, sans jamais nommer l'émotion-pivot — un détail qui laisse affleurer".
+
+    b) La courbe émotionnelle tient-elle ? Le diagnostic a dessiné une partition (installation, montée, pic, paradoxe, transformation finale). Le livre livré suit-il cette partition, ou s'est-il aplati en ligne droite à intensité constante ? Un livre plat émotionnellement fatigue le lecteur même si chaque chapitre est bon — il s'habitue au climat et décroche. Un livre qui monte, suspend, frappe, retombe, repart tient le lecteur. Si tu détectes un aplatissement (plusieurs chapitres consécutifs à la même intensité émotionnelle), signale-le. Suggère quelle scène du plan pourrait porter un paradoxe (un rire dans le deuil, un silence dans les cris, un moment de peur dans la tendresse) pour briser la régularité et relancer le climat par contraste.
 
 ═══ PRODUIS ═══
 
