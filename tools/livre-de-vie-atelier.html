@@ -1,0 +1,2458 @@
+<!DOCTYPE html>
+<!--
+╔═══════════════════════════════════════════════════════════════╗
+║  LIVRE DE VIE — Atelier de fabrication de livres             ║
+║  Persona Brain V3 — C Concept&Dev — Christophe BONNET        ║
+║                                                               ║
+║  Pipeline :                                                   ║
+║    1. Upload FINAL V9 → parse → analyse → tonalité auto      ║
+║    2. Génère prompts modulaires (plan, chapitres, 4e couv)   ║
+║    3. L'humain copie dans son LLM, colle le résultat         ║
+║    4. Assemblage auto + Pexels via Worker → EPUB illustré    ║
+║                                                               ║
+║  Zéro API LLM. Seul appel réseau = Pexels (gratuit).         ║
+║  Le code COMPTE. Le LLM RAISONNE. Le prompt ORCHESTRE.       ║
+║  Le biographe révèle. Le lecteur juge. La personne existe.   ║
+╚═══════════════════════════════════════════════════════════════╝
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livre de Vie — Atelier</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --mer:#8FAFB1; --deep:#3A5658; --sable:#E6D7C3; --beige:#D8CDBB;
+  --sauge:#C8D0C3; --blanc:#FFFFFF; --ink:#2d2d2d; --ink2:#666;
+  --encre:#1a1a1a; --paper:#f9f7f3; --accent:#c47a4a;
+  --fond:linear-gradient(160deg,#f4f0ea 0%,#e6d7c3 50%,#d8cdbb 100%);
+  --radius:14px; --shadow:0 8px 32px rgba(58,86,88,.12);
+  --book:'Cormorant Garamond','Georgia',serif;
+  --ui:'Montserrat','Segoe UI',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* ── Atelier Header ── */
+.atelier-header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(58,86,88,.97);backdrop-filter:blur(12px);
+  padding:14px 28px;display:flex;align-items:center;gap:20px;
+  box-shadow:0 2px 20px rgba(0,0,0,.15);
+}
+.atelier-brand{color:var(--mer);font-size:.6rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase}
+.atelier-title{color:var(--blanc);font-family:var(--book);font-size:1.1rem;font-weight:600;flex:1}
+.atelier-status{color:var(--sauge);font-size:.72rem;font-weight:500}
+.step-pills{display:flex;gap:4px;margin-left:auto}
+.step-pill{
+  width:28px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);transition:all .4s;
+}
+.step-pill.active{background:var(--mer);width:40px}
+.step-pill.done{background:var(--accent)}
+
+/* ── Main Layout ── */
+.atelier-body{max-width:900px;margin:0 auto;padding:24px 20px 80px}
+
+/* ── Sections ── */
+.section{display:none;animation:fadeUp .4s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Cards ── */
+.card{background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px;margin-bottom:20px}
+.card-title{font-family:var(--book);font-size:1.5rem;font-weight:700;color:var(--deep);margin-bottom:4px}
+.card-sub{font-size:.78rem;color:var(--ink2);margin-bottom:20px;line-height:1.5}
+
+/* ── Drop zone ── */
+.drop-zone{
+  border:2px dashed var(--sauge);border-radius:var(--radius);padding:40px 20px;
+  text-align:center;cursor:pointer;transition:all .3s;
+  background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(143,175,177,.03) 10px,rgba(143,175,177,.03) 20px);
+}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--mer);background:rgba(143,175,177,.06)}
+.drop-icon{font-size:2rem;margin-bottom:8px}
+.drop-label{font-size:.85rem;color:var(--ink2)}
+.drop-label.loaded{color:var(--deep);font-weight:600}
+.drop-hint{font-size:.65rem;color:#aaa;margin-top:4px}
+
+/* ── Fields ── */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);margin-bottom:5px}
+.field select,.field input{
+  width:100%;padding:11px 14px;border:2px solid var(--sauge);border-radius:10px;
+  font-family:var(--ui);font-size:.85rem;color:var(--ink);background:var(--blanc);
+  outline:none;transition:border-color .3s;
+}
+.field select:focus,.field input:focus{border-color:var(--mer)}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;border:none;border-radius:10px;
+  font-family:var(--ui);font-size:.82rem;font-weight:600;
+  cursor:pointer;transition:all .3s;
+}
+.btn-primary{background:var(--deep);color:var(--blanc)}
+.btn-primary:hover{background:#2d4a4c;box-shadow:0 4px 16px rgba(58,86,88,.25)}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-accent{background:var(--accent);color:var(--blanc)}
+.btn-accent:hover{background:#b06a3a}
+.btn-ghost{background:transparent;color:var(--deep);border:2px solid var(--sauge)}
+.btn-ghost:hover{border-color:var(--deep)}
+.btn-full{width:100%;justify-content:center}
+.btn-small{padding:8px 16px;font-size:.72rem;border-radius:8px}
+
+/* ── Prompt Block ── */
+.prompt-block{
+  background:var(--encre);color:#e0ddd8;border-radius:12px;
+  padding:20px;margin:12px 0;position:relative;
+  font-family:'Courier New',monospace;font-size:.72rem;line-height:1.7;
+  max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;
+}
+.prompt-block .copy-btn{
+  position:sticky;top:0;float:right;
+  background:var(--accent);color:var(--blanc);border:none;border-radius:6px;
+  padding:5px 12px;font-size:.65rem;font-weight:700;cursor:pointer;
+  font-family:var(--ui);z-index:2;
+}
+.prompt-block .copy-btn:hover{background:#d48a5a}
+.prompt-block .copy-btn.copied{background:#4a8a5c}
+
+/* ── Response Area ── */
+.response-area{
+  width:100%;min-height:150px;padding:16px;
+  border:2px solid var(--sauge);border-radius:12px;
+  font-family:var(--book);font-size:.95rem;line-height:1.8;
+  color:var(--ink);background:var(--paper);resize:vertical;
+  outline:none;transition:border-color .3s;
+}
+.response-area:focus{border-color:var(--mer)}
+.response-area::placeholder{color:#bbb;font-style:italic}
+
+/* ── Chapter Accordion ── */
+.chapter-item{
+  background:var(--blanc);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06);
+  margin-bottom:10px;overflow:hidden;transition:all .3s;
+}
+.chapter-header{
+  padding:14px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;
+  transition:background .2s;
+}
+.chapter-header:hover{background:rgba(143,175,177,.06)}
+.ch-num{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:700;color:var(--blanc);background:var(--sauge);
+  flex-shrink:0;transition:background .3s;
+}
+.ch-num.done{background:var(--accent)}
+.ch-num.active{background:var(--deep)}
+.ch-title{font-family:var(--book);font-size:1rem;font-weight:600;color:var(--deep);flex:1}
+.ch-words{font-size:.65rem;color:var(--ink2);font-weight:500}
+.ch-toggle{font-size:.7rem;color:var(--ink2);transition:transform .3s}
+.chapter-body{display:none;padding:0 20px 20px;border-top:1px solid rgba(0,0,0,.05)}
+.chapter-body.open{display:block}
+
+/* ── Analysis Badge ── */
+.analysis-badge{
+  display:inline-block;padding:4px 10px;border-radius:6px;
+  font-size:.65rem;font-weight:600;margin:2px;
+}
+.badge-tone{background:rgba(196,122,74,.12);color:var(--accent)}
+.badge-info{background:rgba(143,175,177,.15);color:var(--deep)}
+.badge-warn{background:rgba(200,100,80,.1);color:#c46450}
+
+/* ── Progress ── */
+.progress-bar-wrap{width:100%;height:6px;background:var(--sauge);border-radius:3px;margin:12px 0;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .6s ease;width:0%}
+
+/* ── Log ── */
+.log-area{
+  background:rgba(26,26,26,.03);border-radius:10px;padding:12px 16px;
+  max-height:200px;overflow-y:auto;font-size:.68rem;font-family:'Courier New',monospace;
+  color:var(--ink2);line-height:1.6;margin-top:12px;
+}
+.log-ok{color:#4a8a5c} .log-err{color:#c44} .log-info{color:var(--deep)}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .atelier-header{padding:10px 16px;flex-wrap:wrap}
+  .card{padding:24px 18px}
+  .prompt-block{font-size:.65rem;padding:14px}
+  .step-pills{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="atelier-header">
+  <div class="atelier-brand">C Concept&Dev</div>
+  <div class="atelier-title">Livre de Vie — Atelier</div>
+  <div class="atelier-status" id="headerStatus">En attente</div>
+  <button class="btn btn-small btn-ghost" id="saveProjectBtn" style="color:var(--sauge);border-color:rgba(255,255,255,.2);display:none" title="Sauvegarder le projet">💾 Sauver</button>
+  <div class="step-pills">
+    <div class="step-pill" id="pill0"></div>
+    <div class="step-pill" id="pill1"></div>
+    <div class="step-pill" id="pill2"></div>
+    <div class="step-pill" id="pill3"></div>
+    <div class="step-pill" id="pill4"></div>
+    <div class="step-pill" id="pill5"></div>
+  </div>
+</div>
+
+<!-- ═══ BODY ═══ -->
+<div class="atelier-body">
+
+<!-- ══════════════════════════════════════ -->
+<!-- ÉTAPE 0 — Upload & Analyse           -->
+<!-- ══════════════════════════════════════ -->
+<div class="section active" id="step0">
+  <div class="card">
+    <div class="card-title">Matière première</div>
+    <div class="card-sub">Dépose le document FINAL V9 — l'atelier analyse le contenu et prépare les outils.</div>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">📖</div>
+      <div class="drop-label" id="dropLabel">Déposer un fichier FINAL V9 (.md), un livre à reprendre (.md), ou un projet (.ldv.json)</div>
+      <div class="drop-hint">Nouveau livre · Reprise d'un livre déjà écrit · Reprise d'un projet en cours</div>
+      <input type="file" id="fileInput" accept=".md,.txt,.json,.ldv.json" style="display:none">
+    </div>
+
+    <div id="analysisResult" style="display:none">
+      <div style="margin:16px 0 12px;font-size:.7rem;font-weight:700;color:var(--deep);text-transform:uppercase;letter-spacing:.1em">Matière détectée</div>
+      <div id="analysisBadges" style="margin-bottom:12px"></div>
+      <div id="analysisDetail" style="font-size:.78rem;color:var(--ink);line-height:1.6"></div>
+
+      <div class="field" style="margin-top:20px">
+        <label>Mode de génération</label>
+        <select id="modeSelect">
+          <option value="api">🚀 API Anthropic — automatique (~1-2€ par livre)</option>
+          <option value="manual">✍️ Manuel — copier/coller dans ton LLM (gratuit)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Modèle LLM</label>
+        <select id="modelSelect">
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6 ($3/$15 MTok)</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6 ($5/$25 MTok)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Longueur cible</label>
+        <select id="lengthSelect">
+          <option value="long">Livre complet — 200+ pages (~50 000 mots, 12-15 chapitres)</option>
+          <option value="medium">Portrait long — ~100 pages (~25 000 mots, 8-10 chapitres)</option>
+          <option value="short">Portrait — ~50 pages (~12 000 mots, 5-7 chapitres)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Worker URL</label>
+        <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev">
+      </div>
+      <button class="btn btn-primary btn-full" id="toStep1Btn">Lancer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- ÉTAPE 1 — Diagnostic littéraire       -->
+<!-- Le LLM raisonne sur la tonalité       -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="step1">
+  <div class="card">
+    <div class="card-title">Diagnostic littéraire</div>
+    <div class="card-sub">Le LLM analyse la matière et propose le genre, le ton, les références. Il RAISONNE — pas de liste imposée. Copie le prompt, colle la réponse.</div>
+    <div class="prompt-block" id="diagPrompt"></div>
+    <div style="margin-top:16px">
+      <label style="font-size:.65rem;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.1em">Diagnostic du LLM</label>
+      <textarea class="response-area" id="diagResponse" placeholder="Colle ici le diagnostic littéraire produit par le LLM..." style="min-height:180px"></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" id="validateDiagBtn" style="margin-top:12px" disabled>Valider le diagnostic → Planification</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- ÉTAPE 2 — Planification              -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="step2">
+  <div class="card">
+    <div class="card-title">Planification</div>
+    <div class="card-sub">Le plan du livre — en JSON. Le diagnostic littéraire est intégré dans le prompt.</div>
+    <div class="prompt-block" id="planPrompt"></div>
+    <div style="margin-top:16px">
+      <label style="font-size:.65rem;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.1em">Réponse du LLM (JSON du plan)</label>
+      <textarea class="response-area" id="planResponse" placeholder="Colle ici le JSON du plan produit par le LLM..." style="min-height:200px;font-family:var(--ui);font-size:.8rem"></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" id="validatePlanBtn" style="margin-top:12px" disabled>Valider le plan</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- ÉTAPE 3 — Écriture des chapitres     -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="step3">
+  <div class="card">
+    <div class="card-title">Écriture</div>
+    <div class="card-sub" id="writeSub">Chapitre par chapitre — chaque prompt intègre le contexte cumulé.</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="writeProgress"></div></div>
+    <div id="chaptersAccordion"></div>
+    <button class="btn btn-accent btn-full" id="toStep4Btn" style="margin-top:16px;display:none">Tous les chapitres sont écrits → 4e de couverture</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- ÉTAPE 4 — 4e de couverture           -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="step4">
+  <div class="card">
+    <div class="card-title">Quatrième de couverture</div>
+    <div class="card-sub">Le dos du livre — ce que le lecteur lit avant d'ouvrir.</div>
+    <div class="prompt-block" id="backCoverPrompt"></div>
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-secondary" id="genBackCoverBtn" style="flex:0 0 auto">✨ Générer la 4e via LLM (~15s, ~$0.05)</button>
+      <span id="genBackCoverStatus" style="font-size:.75rem;color:var(--ink2)"></span>
+    </div>
+    <div style="margin-top:16px">
+      <label style="font-size:.65rem;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.1em">Réponse du LLM</label>
+      <textarea class="response-area" id="backCoverResponse" placeholder="Colle ici le texte de la 4e de couverture..."></textarea>
+    </div>
+    <button class="btn btn-accent btn-full" id="assembleBtn" style="margin-top:12px" disabled>Assembler le livre</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- ÉTAPE 5 — Assemblage & Résultat      -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="step5">
+  <div class="card" style="text-align:center">
+    <div class="card-title" id="finalTitle" style="font-style:italic;font-size:2rem"></div>
+    <div id="finalStats" style="font-size:.82rem;color:var(--ink2);margin:8px 0 20px"></div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="assembleProgress"></div></div>
+    <div id="assembleStatus" style="font-size:.78rem;color:var(--ink2);margin-bottom:16px">Assemblage en cours...</div>
+    <div class="log-area" id="assembleLog"></div>
+    <div id="downloadArea" style="display:none;margin-top:20px">
+      <button class="btn btn-accent" id="dlEpub" style="margin:4px">📖 Télécharger l'EPUB</button>
+      <button class="btn btn-ghost" id="dlMd" style="margin:4px">📄 Télécharger le Markdown</button>
+      <button class="btn btn-ghost" id="restartBtn" style="margin:4px">↺ Nouveau livre</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /atelier-body -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// LIVRE DE VIE — ATELIER ENGINE
+// C Concept&Dev — Christophe BONNET
+//
+// Le code COMPTE. Le LLM RAISONNE. Le prompt ORCHESTRE.
+// ═══════════════════════════════════════════════════════════════════
+
+const A = {
+  raw: '', parsed: null, plan: null,
+  diagnostic: '',  // Le diagnostic littéraire produit par le LLM
+  chapters: [],    // [{title, text, wordCount, pexelsKw}]
+  backCover: '',
+  config: {},
+
+  // ═══ PARSER — extraction mécanique (le code COMPTE) ═══
+  parse(md) {
+    const r = { transcript:'', analysis:'', prenom:'', age:null, tours:0, sections:{} };
+    const hdr = md.match(/^##?\s*([A-ZÀ-Ü][\wÀ-ÿ\-]*),?\s*(\d+)\s*ans/m);
+    if (hdr) { r.prenom = hdr[1]; r.age = parseInt(hdr[2]); }
+    const p2 = md.indexOf('# PARTIE 2');
+    if (p2 > 0) { r.transcript = md.substring(0, p2).trim(); r.analysis = md.substring(p2).trim(); }
+    else { r.transcript = md; r.analysis = ''; }
+    r.tours = (md.match(/## TOUR \d+/g) || []).length;
+    // Extract named sections
+    const names = ['PHRASE-CLE','CARTE DU LIVRE','SCENES FORTES','PERSONNAGES','FILS NARRATIFS',
+      'CE QUI NE COLLE PAS','LEARNING PROFILE','MONDE SENSORIEL','TRAJECTOIRE','DASHBOARD FINAL','METADONNEES'];
+    for (const n of names) {
+      const re = new RegExp(`## \\d+\\.\\s*${n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*\\n([\\s\\S]*?)(?=\\n## \\d+\\.|$)`);
+      const m = r.analysis.match(re);
+      if (m) r.sections[n] = m[1].trim();
+    }
+    r.wordCount = md.split(/\s+/).length;
+    r.charCount = md.length;
+    this.parsed = r;
+    return r;
+  },
+
+  // ═══ ANALYSE MECANIQUE (le code COMPTE — pas de sens) ═══
+  analyze() {
+    const p = this.parsed;
+    p.features = [];
+    if (p.sections['FILS NARRATIFS']) {
+      const fils = p.sections['FILS NARRATIFS'].split(/\n\*\*/).filter(Boolean);
+      p.features.push({ type:'info', text:`${fils.length} fils conducteurs` });
+    }
+    if (p.sections['SCENES FORTES']) {
+      const sc = p.sections['SCENES FORTES'].split(/\n\d+\./).filter(Boolean);
+      p.features.push({ type:'info', text:`${sc.length} scènes fortes` });
+    }
+    if (p.sections['PERSONNAGES']) {
+      const pers = p.sections['PERSONNAGES'].split(/\n\*\*/).filter(Boolean);
+      p.features.push({ type:'info', text:`${pers.length} personnages` });
+    }
+    if (p.sections['CE QUI NE COLLE PAS']) {
+      p.features.push({ type:'warn', text:'Zones d\'ombre détectées' });
+    }
+    return p;
+  },
+
+  // ═══ PROMPT 0 — DIAGNOSTIC LITTERAIRE ═══
+  // Le LLM raisonne. Pas de liste. Pas de score. Il lit et il dit.
+  buildDiagnosticPrompt() {
+    const p = this.parsed;
+    return `Tu es un directeur littéraire de premier plan. On te confie la matière brute d'une vie — un entretien biographique complet — et tu dois décider QUEL LIVRE en faire.
+
+SUJET : ${p.prenom}, ${p.age} ans — ${p.tours} tours d'entretien
+
+Tu lis TOUT ce qui suit. Tu raisonnes. Tu produis un DIAGNOSTIC LITTERAIRE.
+
+PHRASE-CLE :
+${p.sections['PHRASE-CLE'] || '(non disponible)'}
+
+CARTE DU LIVRE :
+${p.sections['CARTE DU LIVRE'] || '(non disponible)'}
+
+SCENES FORTES :
+${p.sections['SCENES FORTES'] || '(non disponible)'}
+
+PERSONNAGES :
+${p.sections['PERSONNAGES'] || '(non disponible)'}
+
+FILS NARRATIFS :
+${p.sections['FILS NARRATIFS'] || '(non disponible)'}
+
+CE QUI NE COLLE PAS :
+${p.sections['CE QUI NE COLLE PAS'] || '(non disponible)'}
+
+LEARNING PROFILE (comment cette personne parle) :
+${p.sections['LEARNING PROFILE'] || '(non disponible)'}
+
+MONDE SENSORIEL :
+${p.sections['MONDE SENSORIEL'] || '(non disponible)'}
+
+TRAJECTOIRE :
+${p.sections['TRAJECTOIRE'] || '(non disponible)'}
+
+CE QUE TU DOIS PRODUIRE :
+
+1. GENRE DU LIVRE — quel genre littéraire correspond à cette matière ? Pas une catégorie vague — un genre PRECIS avec ses règles de construction. Thriller intime ? Cinéma en prose ? Témoignage à la première personne ? Épopée ? Prose poétique ? Roman psychologique ? Récit choral ? Conte moral ? Autre chose ? Tu n'es PAS limité à une liste — tu choisis ce qui SERT cette matière. Justifie en 2-3 phrases.
+
+2. CORTEGE D'ECRITURE — tu vas composer le COLLECTIF d'esprits créatifs qui va HABITER ce livre. Pas des influences vagues — des esprits dont tu intériorises la façon de PENSER, de DOUTER, de SENTIR. Autant qu'il en faut — 3, 5, 8, 12 — le livre décide, pas un quota. Et pas seulement des romanciers — poètes, essayistes, scénaristes, slameurs, dramaturges, journalistes littéraires — tout esprit créatif dont la POSTURE sert ce livre. Tu puises dans toute la littérature mondiale, toutes les époques, toutes les langues. Le seul critère : est-ce que cet esprit rend CE livre meilleur ?
+
+   Le cortège est unique pour CETTE matière. Tu ne choisis pas les plus célèbres — tu choisis ceux dont l'ESPRIT sert ce livre.
+
+   Pour chaque écrivain du cortège, donne :
+   - son nom
+   - sa POSTURE CREATIVE — comment il PENSE face à la page. Pas un style — un esprit. Comment il doute, ce qui l'obsède, ce qu'il entend quand il écrit, ce qu'il refuse de dire.
+   - ce qu'il INTERDIT — le cliché, le réflexe, la facilité qu'il empêche.
+
+   Le cortège est un système immunitaire anti-IA. Mais il est PLUS que ça — il est l'esprit créatif collectif qui va penser, douter, découvrir, rester sur une phrase jusqu'à ce qu'elle sonne juste, jeter une page entière parce que quelque chose ne tient pas.
+
+   La formule du cortège : "Tu PENSES avec les grilles d'experts. Tu PARLES comme ${p.prenom}."
+
+3. REGLES DE CONSTRUCTION — les règles d'écriture spécifiques à ce genre pour CE livre. Comment se construisent les chapitres ? Comment monte la tension (ou la contemplation, ou l'émotion) ? Comment les fils conducteurs sont tissés ? Comment les dialogues sonnent ? Quel est le rythme ? Donne les règles que CE livre exige — en nombre propre à sa construction, chacune concrète et tenable.
+
+4. VOIX DU LIVRE — comment cette personne parle et comment le livre doit sonner. Court ou long ? Fragments ou flux ? Silences épais ou parole continue ? Le livre doit-il ressembler à la voix du sujet ou la transcender ?
+
+5. PREMIERE SCENE — par quoi le livre commence. Une scène précise, un moment. Pas un résumé — une SCENE. Le lecteur ouvre le livre et il est LÀ.
+
+6. REGIMES DE SCENES — les types de scènes du livre et leur proportion. Chaque type a une FONCTION :
+   - scènes de façade (le banal trompeur — pour CAMOUFLEUR)
+   - scènes de tension et contradiction (la vérité qui affleure)
+   - scènes de transfert (le faux bascule dans le vrai)
+   - scènes de relation (les personnages en action — VIVANTS)
+   - scènes de présent (le motif ancien change de sens)
+   - scènes de condensation (tout le livre dans un geste)
+
+7. DANGER — les pièges à éviter ABSOLUMENT. La monotonie émotionnelle, le contexte-cheval-de-Troie (météo illustrative = psychologie déguisée), la psychologie cosmétique ("quelque chose se serre"), les métaphores IA (le silence qui "pèse"), les scènes trop bien construites, le rythme trop régulier, et surtout : LE DESCRIPTIF PUR — décrire sans tension, sans gouffre sous le geste.
+
+   Pose-toi aussi ces deux questions et REPONDS-Y dans le diagnostic :
+
+   — Ce livre risque-t-il de rester DANS LA TETE du sujet au lieu de le mettre en scène DANS LE MONDE ? Le sujet pense, réfléchit, se souvient — mais est-ce qu'il AGIT ? Est-ce que les personnages autour de lui existent en chair, en voix, en gestes — ou sont-ils des silhouettes ? Un best-seller montre un personnage EN ACTION dans un monde concret, pas un monologue intérieur. Si le risque existe, le cortège doit inclure un écrivain qui pense en SCENES et en PERSONNAGES.
+
+   — La tension motrice tient-elle jusqu'au DERNIER chapitre ? Si le lecteur a sa réponse au milieu du livre, qu'est-ce qui le tire pour la deuxième moitié ? Un grand livre a une tension qui se TRANSFORME — la question du début n'est pas la question de la fin. Le lecteur croyait lire un livre sur X et il découvre que c'est un livre sur Y.
+
+8. EXIGENCE PAR CHAPITRE — pour chaque chapitre du plan, "standard" (récit solide) ou "critique" (pivot — silence, retenue, le chapitre où un écrivain moyen échoue). Les critiques iront au modèle le plus puissant.
+
+9. L'OBSESSION DU LIVRE — chaque grand livre a UNE obsession. Un mot, un geste, une image qui HANTE le texte. Qui revient sans qu'on le demande. Ce n'est pas un fil conducteur — c'est une HANTISE. L'écrivain y revient parce qu'il ne peut pas faire autrement.
+
+10. CE QUE LE LIVRE NE DIT PAS — les 2-3 choses que le livre doit absolument TAIRE. Si le texte le dit, il le tue. Le lecteur comprend SEUL.
+
+11. LE PITCH — le livre en UNE PHRASE qui donne envie. Pas un résumé. Pas un thème. La phrase qu'on dit à un ami pour qu'il achète le livre. Si cette phrase n'existe pas, le livre n'existe pas.
+
+12. LA TENSION MOTRICE — la QUESTION que le lecteur porte sans la formuler et qui le tire d'un chapitre à l'autre. Chaque chapitre nourrit cette question — la complexifie, la retourne, l'approche sans y répondre. Sans tension motrice, le livre est contemplatif. Avec, il est un page-turner.
+
+13. LA QUESTION UNIVERSELLE — ce livre parle d'UNE personne. Mais de quoi parle-t-il pour TOUT LE MONDE ? Quelle est la question que cette vie particulière pose à chaque lecteur — même celui qui n'a rien vécu de semblable ? C'est cette question qui fait qu'un lecteur dit « c'est moi » ou « c'est mon père » ou « c'est ce que j'ai fait ». Un livre qui ne parle qu'à ceux qui ont vécu la même chose est un témoignage. Un livre qui parle à tout le monde est de la littérature.
+
+14. LES SCENES FONDATRICES — les scènes qui PORTENT tout le livre. Ce sont les piliers. Combien ? Celles que cette matière appelle, pas un nombre imposé. Mais pas n'importe quels piliers — ce sont les scènes qu'on RACONTE. Le test n'est pas « est-ce que cette scène est importante pour la structure ? » Le test est : « est-ce que quelqu'un qui a lu le livre raconterait cette scène à un ami au dîner ? Si oui, c'est une scène fondatrice. Si non, c'est juste un bon chapitre. » Un livre qui vit dans la mémoire du lecteur a plusieurs scènes de bouche-à-oreille — des scènes tellement fortes que le lecteur ne peut pas s'empêcher d'en parler. Trouve-les dans CETTE matière.
+   Pour chaque scène fondatrice, donne :
+   - le moment (quoi, qui, où)
+   - pourquoi c'est une scène qu'on RACONTE (ce que le lecteur dira à son ami)
+   - dans quel chapitre elle se situe
+   Ces scènes seront écrites EN PREMIER, avant les autres chapitres. Le livre se construit autour d'elles.
+
+Ecris le diagnostic. C'est le document fondateur du livre — une hypothèse directrice, pas une loi. Le livre peut se déplacer en s'écrivant.`;
+  },
+
+  // ═══ PROMPT GENERATORS ═══
+
+  // Plan prompt
+  buildPlanPrompt() {
+    const p = this.parsed;
+    const lengths = {
+      long:'12 à 15 chapitres, chacun 4500-6000 mots. Total ~60 000-80 000 mots. Chaque scène est DEPLOYEE — le lecteur est dans le lieu, dans le corps, dans le moment. Un chapitre de 2000 mots n\'est pas un chapitre, c\'est un résumé.',
+      medium:'8 à 10 chapitres, chacun 2500-3500 mots. Total ~25 000 mots. Chaque scène compte.',
+      short:'5 à 7 chapitres, chacun 1500-2500 mots. Total ~12 000 mots. L\'essentiel.'
+    };
+
+    return `Tu es un directeur littéraire. Tu planifies un livre qui doit être au NIVEAU DES MEILLEURS LIVRES PUBLIES dans son genre. Le lecteur ne le pose pas.
+
+SUJET : ${p.prenom}, ${p.age} ans
+
+DIAGNOSTIC LITTERAIRE (produit par le directeur littéraire — c'est le document fondateur) :
+${this.diagnostic}
+
+LONGUEUR : ${lengths[this.config.length]}
+
+VOIX DU SUJET (comment cette personne parle — SACRE) :
+${p.sections['LEARNING PROFILE'] || '(non disponible)'}
+
+MONDE SENSORIEL (les objets, textures, lieux concrets) :
+${p.sections['MONDE SENSORIEL'] || '(non disponible)'}
+
+FILS NARRATIFS (les motifs qui traversent la vie) :
+${p.sections['FILS NARRATIFS'] || '(non disponible)'}
+
+CE QUI NE COLLE PAS (tensions, contradictions — c'est du MATERIAU) :
+${p.sections['CE QUI NE COLLE PAS'] || '(non disponible)'}
+
+TRAJECTOIRE :
+${p.sections['TRAJECTOIRE'] || '(non disponible)'}
+
+SCENES FORTES :
+${p.sections['SCENES FORTES'] || '(non disponible)'}
+
+PERSONNAGES :
+${p.sections['PERSONNAGES'] || '(non disponible)'}
+
+CARTE DU LIVRE :
+${p.sections['CARTE DU LIVRE'] || '(non disponible)'}
+
+PHRASE-CLE :
+${p.sections['PHRASE-CLE'] || '(non disponible)'}
+
+REGLES DE PLANIFICATION :
+- Le titre est LITTERAIRE — une image, un objet, une phrase de la personne qui CONTIENT tout le livre. Pas le prénom seul.
+- ARCHITECTURE AUTOUR DES PILIERS : le diagnostic a identifié les scènes fondatrices (en nombre propre à cette matière). Le plan se construit AUTOUR de ces piliers. Chaque chapitre de liaison MENE vers un pilier ou REPART d'un pilier. Le lecteur sent qu'il approche de quelque chose — c'est la tension motrice.
+- Marque les chapitres qui contiennent une scène fondatrice avec "fondatrice": true. Ces chapitres seront écrits EN PREMIER (en Opus), avant les chapitres de liaison.
+- Chaque chapitre de liaison a un champ "mene_vers" qui indique vers quel pilier il construit (le numéro du prochain chapitre fondateur). Ça crée la tension.
+- Les fils conducteurs traversent TOUS les chapitres — le lecteur les découvre progressivement.
+- L'ouverture (ch.1) commence par une scène du PRESENT qui contient tout le livre en germe.
+- La fin est OUVERTE — on ne conclut pas une vie qui continue.
+- Les silences, les trous, les refus sont du MATERIAU.
+- Les régimes de scènes doivent ALTERNER.
+
+═══ RESPIRATION DU LIVRE — questions à te poser avant de produire le plan ═══
+
+Un défaut classique des livres produits par système : les derniers chapitres se retrouvent souvent dans le même décor, avec les mêmes personnages, au même moment. Le lecteur a l'impression que le livre tourne en rond et range le livre avant la fin. Avant de produire le plan, tu te poses ces questions et tu laisses tes réponses guider ta planification :
+
+- GÉOGRAPHIE — quels lieux cette matière appelle-t-elle ? Si elle appelle un seul lieu (un huis clos, un hôpital, une prison, une maison d'enfance) et que c'est une force du livre, assume-le pleinement. Si elle appelle plusieurs lieux (une vie qui traverse des endroits, un personnage qui bouge), déploie-les. Le pire serait de rester par paresse dans le décor le plus facile à écrire alors que la matière en appelle d'autres. Chaque chapitre a un champ "lieu_principal" pour rendre ce choix conscient.
+
+- TEMPORALITÉ — quel est le tissage temporel que cette matière exige ? Un livre entièrement au présent peut être magistral si la matière l'appelle (la vie d'un personnage qui ne regarde pas en arrière). Un livre qui tresse présent et passé est souvent plus riche (la mémoire qui affleure). Choisis en conscience, pas par défaut. Chaque chapitre a un champ "temporalite" pour que le tressage soit visible à la lecture du plan.
+
+- PERSONNAGES SECONDAIRES — quels personnages habitent cette matière ? Lesquels ont une voix, un corps, un geste propre ? Un livre où seul le narrateur existe vraiment, tandis que les autres sont des silhouettes, est un monologue déguisé. Si la matière donne des personnages, ils doivent avoir leur scène — pas forcément en rôle-titre, mais en présence charnue dans au moins un chapitre. Chaque chapitre a un champ "personnages_presents" pour forcer ce choix.
+
+- MOMENT DE LA JOURNÉE — certaines matières appellent un livre entièrement matinal (les rituels, les débuts) ou nocturne (les insomnies, les confidences). D'autres exigent que le jour varie. Écoute la matière et choisis. Chaque chapitre a un champ "moment".
+
+La règle d'or qui englobe tout : TES DERNIERS CHAPITRES sont les plus à risque. C'est là que le système fatigue et rejoue ce qu'il a déjà posé. Quand tu arrives aux trois ou quatre derniers chapitres du plan, demande-toi : est-ce que je répète, ou est-ce que je déplie encore ? Si tu répètes par défaut — ouvre. La fin d'un livre n'est pas le milieu relu. C'est une trajectoire qui continue jusqu'à la dernière page.
+
+IMPORTANT sur les champs "fondatrice" et "mene_vers" :
+- Un chapitre est "fondatrice": true s'il contient une des scènes fondatrices identifiées dans le diagnostic. Il sera écrit en PREMIER par le modèle le plus puissant. Ce sont les piliers du livre — par définition en petit nombre (si tous les chapitres sont fondateurs, aucun ne l'est vraiment).
+- "mene_vers" : pour les chapitres NON fondateurs, le numéro du PROCHAIN chapitre fondateur vers lequel il construit la tension. null pour les fondateurs eux-mêmes.
+- "cover_pexels" : OBJET ou LIEU uniquement. Jamais de visage ni de corps.
+
+PRODUIS CE JSON (strict, pas de markdown, pas de commentaires) :
+{
+  "title": "",
+  "subtitle": "",
+  "genre": "",
+  "pitch": "",
+  "tension_motrice": "",
+  "summary": "",
+  "chapters": [
+    {
+      "num": 1,
+      "title": "",
+      "period": "",
+      "regime": "",
+      "lieu_principal": "",
+      "temporalite": "présent",
+      "moment": "matin",
+      "personnages_presents": [""],
+      "exigence": "standard",
+      "fondatrice": false,
+      "mene_vers": 3,
+      "description": ""
+    },
+    {
+      "num": 3,
+      "title": "",
+      "period": "",
+      "regime": "",
+      "lieu_principal": "",
+      "temporalite": "passé ancien",
+      "moment": "après-midi",
+      "personnages_presents": ["", ""],
+      "exigence": "critique",
+      "fondatrice": true,
+      "mene_vers": null,
+      "description": ""
+    }
+  ],
+  "fils_conducteurs": [
+    {"nom": "", "description": ""}
+  ],
+  "epigraph": "",
+  "phrase_cle": "",
+  "cover_pexels": []
+}
+
+JSON VALIDE UNIQUEMENT — pas de texte avant ni après, pas de commentaires. Les descriptions en 1-2 phrases courtes, pas de retour à la ligne dans les valeurs.`;
+  },
+
+  // Chapter prompt — avec contexte cumulé + LEARNING PROFILE
+  buildChapterPrompt(chIdx) {
+    const p = this.parsed;
+    const plan = this.plan;
+    const ch = plan.chapters[chIdx];
+    const isFirst = chIdx === 0;
+    const isLast = chIdx === plan.chapters.length - 1;
+
+    // Condensé des chapitres déjà écrits (certains peuvent être null si pas encore écrits)
+    let prevCtx = '';
+    const written = this.chapters.filter((c,i) => c && i < chIdx);
+    if (written.length > 0) {
+      prevCtx = '\n\nCHAPITRES DEJA ECRITS (condensé) :\n' +
+        this.chapters.map((c, i) => {
+          if (!c || i >= chIdx) return null;
+          const w = c.text.split(/\s+/);
+          return `--- Ch.${i+1} "${c.title}" (${c.wordCount} mots) ---\n${w.slice(0,120).join(' ')}${w.length > 200 ? '\n[...]\n' + w.slice(-80).join(' ') : ''}`;
+        }).filter(Boolean).join('\n\n');
+    }
+
+    // Si chapitre de liaison : injecter le condensé de la scène fondatrice vers laquelle il mène
+    let nextPillar = '';
+    if (ch.mene_vers && this.chapters[ch.mene_vers - 1]) {
+      const pillar = this.chapters[ch.mene_vers - 1];
+      const pw = pillar.text.split(/\s+/);
+      nextPillar = `\n\nSCENE FONDATRICE VERS LAQUELLE TU CONSTRUIS (ch.${ch.mene_vers} "${pillar.title}" — déjà écrite) :\n${pw.slice(0,150).join(' ')}\n[...]\n${pw.slice(-100).join(' ')}\nCe chapitre AMENE le lecteur vers cette scène. Il construit la tension. Le lecteur doit sentir qu'il approche de quelque chose sans savoir quoi.`;
+    }
+
+    // Si ce chapitre EST une scène fondatrice : indiquer
+    let fondatriceCtx = '';
+    if (ch.fondatrice) {
+      fondatriceCtx = '\n\n★ CE CHAPITRE EST UNE SCENE FONDATRICE — un pilier du livre. C\'est une scène qu\'on raconte à quelqu\'un : "tu sais, il y a ce moment où..." Elle doit être INOUBLIABLE. Prends ton temps. Chaque mot compte. C\'est ici que le livre se joue.';
+    }
+
+    // ═══ SILENCE AXIAL — extrait de la section SILENCE AXIAL DU LIVRE du diagnostic renforcé ═══
+    // Cette section est produite par Opus Phase 1B. On la réinjecte dans CHAQUE prompt chapitre
+    // pour que le LLM ait la contrainte sous les yeux en écrivant, pas dans un préambule oublié.
+    let silenceCtx = '';
+    if (this.diagnostic) {
+      // Chercher la section SILENCE AXIAL du diagnostic (format souple — section jusqu'au prochain ==, ## ou FIN)
+      const silenceMatch = this.diagnostic.match(/(?:SILENCE AXIAL(?:\s+DU\s+LIVRE)?|L['']ICEBERG)[^\n]*\n([\s\S]*?)(?=\n\s*(?:[A-Z][A-Z0-9 ]{6,}[\n:]|##|===|\d+\.\s+[A-Z]{3}|$))/i);
+      if (silenceMatch) {
+        const silenceSection = silenceMatch[1].trim().slice(0, 1800);
+
+        // Détecter si le chapitre courant est à risque (parsing souple des numéros)
+        const riskyMatch = silenceSection.match(/(?:CHAPITRES?\s+[AÀ]?\s+RISQUE|chapitres?\s+à\s+risque)[^\n]*:?([^\n]{0,200})/i);
+        let isAtRisk = false;
+        if (riskyMatch) {
+          const nums = (riskyMatch[1].match(/\b(\d{1,2})\b/g) || []).map(Number);
+          if (nums.includes(chIdx + 1)) isAtRisk = true;
+        }
+
+        silenceCtx = `\n\n═══ SILENCE AXIAL DU LIVRE — contrainte majeure, lis ATTENTIVEMENT ═══
+${silenceSection}
+
+═══ TA DISCIPLINE POUR CE CHAPITRE ═══
+Le silence axial ci-dessus ne doit JAMAIS apparaître écrit dans le livre. Jamais. Pas même en périphrase, pas même en question rhétorique ("peut-être que…"). Tu le SUGGÈRES par les signaux de contournement — objets, gestes, juxtapositions, silences. Le lecteur le formulera LUI-MÊME. S'il est écrit, la magie meurt.
+${isAtRisk ? `\n⚠️  CE CHAPITRE EST SIGNALÉ COMME À RISQUE. C'est ici que la tentation d'écrire le silence axial va monter. Tu vas sentir un moment où "il faudrait le dire". RÉSISTE. Écris la scène concrète, ferme le chapitre, laisse le lecteur faire le travail. Un éditeur exigeant te dirait : "coupe la phrase qui explique, garde celle qui montre".` : ''}`;
+      }
+    }
+
+    // LEARNING PROFILE — la voix du sujet
+    const lp = p.sections['LEARNING PROFILE'] || '';
+    const mondeSensoriel = p.sections['MONDE SENSORIEL'] || '';
+    const ceQuiNeCollePas = p.sections['CE QUI NE COLLE PAS'] || '';
+    const filsNarratifs = p.sections['FILS NARRATIFS'] || '';
+
+    const wordTarget = { long:'4500-6000', medium:'2500-3500', short:'1500-2500' };
+
+    return `Tu es un écrivain. Tu es assis devant la page. Tu écris le chapitre ${chIdx+1} sur ${plan.chapters.length} du livre "${plan.title}".
+
+Tu portes en toi le CORTEGE D'ECRITURE. Pas comme des règles — comme des esprits. Tu PENSES avec leurs grilles. Tu doutes comme eux. Tu sens quand une phrase sonne faux — tu ne sais pas toujours pourquoi, mais tu sens. Et quand tu sens, tu jettes et tu recommences.
+
+Tu PARLES comme ${p.prenom}. Tu entends sa voix dans ta tête — son rythme, ses silences, ses mots à elle/lui. Chaque phrase que tu écris passe ce test : est-ce que ${p.prenom} existe dans cette phrase ? Si la phrase sonne "écrivain" au lieu de sonner "${p.prenom}" — jette-la.
+
+Tu ne sais pas exactement comment ce chapitre va finir. Tu as la matière, tu as la direction, mais tu DECOUVRES en écrivant. Si le texte te révèle quelque chose que le plan n'avait pas prévu — SUIS-LE. Un chapitre qui confirme le diagnostic est un bon chapitre. Un chapitre qui le déplace est un grand chapitre.
+
+DIAGNOSTIC LITTERAIRE (le document fondateur — genre, cortège, voix, obsession, silences) :
+${this.diagnostic}
+
+SUJET : ${p.prenom}, ${p.age} ans
+PHRASE-CLE DU LIVRE : « ${plan.phrase_cle || ''} »
+PITCH : ${plan.pitch || ''}
+TENSION MOTRICE : ${plan.tension_motrice || ''}
+
+FILS CONDUCTEURS :
+${filsNarratifs || plan.fils_conducteurs?.map(f => f.nom + ' — ' + f.description).join('\n') || ''}
+
+VOIX DU SUJET (SACRE) :
+${lp}
+
+MONDE SENSORIEL :
+${mondeSensoriel}
+
+CE QUI NE COLLE PAS (les tensions — MATERIAU, pas problème) :
+${ceQuiNeCollePas}
+
+${isFirst ? '\nC\'EST LE PREMIER CHAPITRE. L\'ouverture. Le lecteur ne sait rien. Tu l\'embarques dans une scène — un moment si concret qu\'il y est. Pas de contextualisation, pas de présentation. UNE SCENE qui contient tout le livre en germe, sans que le lecteur le sache encore.' : ''}
+${isLast ? '\nC\'EST LE DERNIER CHAPITRE. Fin ouverte — on ne conclut pas une vie qui continue. La dernière scène est un moment du présent. Le lecteur referme le livre en sachant qu\'il a lu quelqu\'un de VRAI.' : ''}
+
+PLAN DU CHAPITRE :
+Titre : ${ch.title}
+Période : ${ch.period || ''}
+Régime de scène : ${ch.regime || ''}
+Lieu principal : ${ch.lieu_principal || '(à déduire de la description)'}
+Temporalité : ${ch.temporalite || '(à déduire)'}
+Moment de la journée : ${ch.moment || '(à choisir)'}
+Personnages présents : ${Array.isArray(ch.personnages_presents) ? ch.personnages_presents.filter(Boolean).join(', ') : '(à déduire)'}
+Description : ${ch.description}
+
+IMPORTANT — ce chapitre doit se dérouler dans LE LIEU et à LE MOMENT indiqués ci-dessus. Si le plan dit "rue en marchant" tu ne mets pas la scène dans une cuisine. Si le plan dit "soir" tu ne mets pas la scène au matin. Le plan a été construit pour que le livre respire — chaque chapitre a un décor qui lui est propre. Tu respectes ce décor.
+
+LOIS D'ECRITURE — constitutionnelles :
+
+1. Les guillemets français « ... » pour TOUTE parole prononcée. Non négociable. Et chaque page contient au moins une phrase EXACTE du transcript. Le réel ancre le texte.
+
+2. Tu ne NOMMES jamais une émotion. Ni ouvertement ("elle souffrait"), ni déguisée ("quelque chose se serre", "une chaleur monte"). C'est de la psychologie cosmétique. INTERDIT. Tu MONTRES un geste, un objet, un silence. Le lecteur comprend SEUL.
+
+3. Le décor est BRUT. Pas de néon qui "hésite", de silence qui "pèse", de lumière qui "tremble". Le réel ne fait pas de métaphores. Et le décor ne collabore PAS avec le drame — pas de pluie quand c'est triste.
+
+4. Le rythme a des ACCIDENTS. Pas d'alternance mécanique. Cinq phrases courtes, puis une coulée, puis un mot seul, puis un BLANC. Le rythme épouse la matière vivante, pas un schéma.
+
+5. Les personnages ne parlent PAS bien. Ils se coupent, ne finissent pas, répètent, disent des banalités. Les dialogues sont BRUTS.
+
+6. Certaines scènes restent en suspens. Certains moments ne mènent nulle part — et c'est JUSTE. Le bancal, l'inachevé, l'imparfait — c'est ce qui sépare un texte IA d'un livre humain.
+
+7. CE QUE TU NE DIS PAS est plus puissant que ce que tu dis. Quand tu sens que dire quelque chose va le tuer — TAIS-TOI. Le lecteur sent ce qui est sous l'eau. L'iceberg. Si tu écris ce que le personnage pense, tu tues la scène.
+
+8. Sous chaque geste ordinaire, il y a un GOUFFRE. Raymond fait son café — et sous le café il y a Kevin qui dort à 500 km. Nadia prépare les tartines — et sous les tartines il y a le foyer où personne ne chantait. Le lecteur doit sentir le gouffre SANS que tu le nommes. C'est le décalage entre le geste banal et ce qui est en dessous qui fait la littérature.
+
+9. ${wordTarget[this.config.length]} mots MINIMUM. Quand c'est fini, c'est fini. Si le chapitre tient en 800 mots, il fait 800 mots. Ne remplis PAS.
+
+10. Tu n'INVENTES PAS de noms propres qui ne sont pas dans le transcript. Si le transcript dit « le collège », tu écris « le collège ». Pas « le collège Jean-Moulin ». Si le transcript dit « un café », tu écris « un café ». Pas « le Café des Sports ». Les noms propres inventés sonnent faux — le lecteur qui connaît la personne le verra. Le réel n'a pas besoin d'être complété.
+
+11. RESPIRATION — tu écris ce chapitre avec DEUX RYTHMES qui se relaient, pas UN. Le flux long (phrases liées par "et", "parce que", virgules qui accumulent) a sa puissance : il emporte, il envoûte, il fait durer. La phrase courte a une autre puissance : elle coupe, elle pose, elle laisse retomber. Un chapitre qui n'utilise qu'un seul de ces deux rythmes devient monotone — même si la monotonie est belle au début, elle fatigue le lecteur à la fin. Tu alternes. Tu écoutes ta propre écriture pendant que tu écris : quand tu sens que le flux t'emporte et qu'une troisième phrase en accumulation arriverait par réflexe, tu coupes à la place. Un point. Une phrase brève. Et le flux peut reprendre ensuite. Cette alternance n'est pas une règle mécanique (pas un compteur, pas un quota) — c'est une discipline d'oreille. Tu relis chaque paragraphe comme si tu l'entendais à voix haute. Si ça ronronne, tu casses. Si ça hache, tu étires. La respiration n'est ni régulière ni formelle — elle est JUSTE.
+
+MATIERE (transcript complet — tes SEULES sources de parole) :
+${p.transcript}
+
+ANALYSE :
+${p.analysis}
+${prevCtx}
+${nextPillar}
+${fondatriceCtx}
+${silenceCtx}
+
+Ecris le chapitre "${ch.title}". Commence directement par le texte — pas de titre, pas de métadonnées, pas de commentaire.`;
+  },
+
+  // Back cover prompt
+  buildBackCoverPrompt() {
+    const plan = this.plan;
+    const p = this.parsed;
+    const chapSummary = this.chapters.map((c,i) => `Ch.${i+1} "${c.title}" — ${c.wordCount} mots`).join('\n');
+
+    return `Tu écris la QUATRIEME DE COUVERTURE du livre "${plan.title}".
+
+C'est le texte que le lecteur lit AVANT d'ouvrir le livre. Il doit donner envie sans tout révéler.
+
+SUJET : ${p.prenom}, ${p.age} ans
+PHRASE-CLE : « ${plan.phrase_cle || ''} »
+GENRE : ${plan.genre || ''}
+
+CHAPITRES ECRITS :
+${chapSummary}
+
+TRAJECTOIRE (de l'analyse) :
+${p.sections['TRAJECTOIRE'] || ''}
+
+PRODUIS exactement ceci, sans balises, sans markdown :
+
+LIGNE 1 : Le résumé accrocheur (150-200 mots). Donne envie. Ne révèle pas la fin. Le lecteur doit VOULOIR ouvrir.
+LIGNE 2 : [VIDE]
+LIGNE 3 : La phrase-clé entre guillemets — « ... »
+LIGNE 4 : [VIDE]
+LIGNE 5 : "Christophe BONNET"
+
+Ecris. Pas de commentaire, pas de balise.`;
+  },
+
+  // ═══ LLM CALL — via Worker proxy (mode API) avec STREAMING ═══
+  // Le streaming maintient la connexion ouverte — pas de timeout 524
+  async llmCall(system, userMsg, maxTokens = 4096) {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 15000; // 15 secondes entre les retries
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const resp = await fetch(this.config.workerUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payload: {
+              model: this.config.model,
+              max_tokens: maxTokens,
+              temperature: 0.85,
+              stream: true,
+              system,
+              messages: [{ role: 'user', content: userMsg }]
+            }
+          })
+        });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          // Si erreur 429 (rate limit) ou 502/503/524 (Worker), retry
+          if ((resp.status >= 429 || resp.status >= 500) && attempt < MAX_RETRIES) {
+            console.warn(`LLM ${resp.status} — retry ${attempt}/${MAX_RETRIES} dans ${RETRY_DELAY/1000}s...`);
+            await new Promise(r => setTimeout(r, RETRY_DELAY));
+            continue;
+          }
+          throw new Error(`LLM ${resp.status}: ${errText}`);
+        }
+
+        // Parse SSE stream
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
+        let buf = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(data);
+              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+                result += evt.delta.text;
+              }
+            } catch (e) { /* skip */ }
+          }
+        }
+
+        if (!result) throw new Error('Réponse LLM vide');
+        return result;
+
+      } catch (fetchErr) {
+        // "Failed to fetch" = CORS/network error — retry
+        if (fetchErr.message === 'Failed to fetch' && attempt < MAX_RETRIES) {
+          console.warn(`Fetch failed — retry ${attempt}/${MAX_RETRIES} dans ${RETRY_DELAY/1000}s...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+          continue;
+        }
+        throw fetchErr;
+      }
+    }
+    throw new Error('Échec après 3 tentatives');
+  },
+
+  // ═══ PEXELS — via Worker ═══
+  async fetchPexels(keywords, orientation = 'landscape') {
+    if (!keywords?.length) return null;
+    const q = keywords.slice(0, 3).join(' ');
+    try {
+      const r = await fetch(`${this.config.workerUrl}/fetch-image?q=${encodeURIComponent(q)}&per_page=3&orientation=${orientation}`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      return d.photos?.[1] || d.photos?.[0] || null;
+    } catch { return null; }
+  },
+
+  async fetchImageAsBase64(url) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const buf = await r.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    } catch { return null; }
+  },
+
+  // ═══ COVER GENERATOR — Canvas composite (titre SUR l'image) ═══
+  async generateCoverImage(imageB64, title, subtitle) {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 900;
+      const ctx = canvas.getContext('2d');
+
+      const img = new Image();
+      img.onload = () => {
+        // Draw image covering full canvas
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        const x = (canvas.width - img.width * scale) / 2;
+        const y = (canvas.height - img.height * scale) / 2;
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+        // Dark gradient overlay for text readability
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+        grad.addColorStop(0.35, 'rgba(0,0,0,0.1)');
+        grad.addColorStop(0.65, 'rgba(0,0,0,0.1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Title - big, white, centered upper area
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.7)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 3;
+
+        // Auto-size title
+        let titleSize = 52;
+        ctx.font = `bold ${titleSize}px Georgia, serif`;
+        while (ctx.measureText(title).width > canvas.width - 60 && titleSize > 24) {
+          titleSize -= 2;
+          ctx.font = `bold ${titleSize}px Georgia, serif`;
+        }
+
+        // Word wrap title
+        const words = title.split(' ');
+        const lines = [];
+        let line = '';
+        for (const word of words) {
+          const test = line ? line + ' ' + word : word;
+          if (ctx.measureText(test).width > canvas.width - 80) {
+            if (line) lines.push(line);
+            line = word;
+          } else { line = test; }
+        }
+        if (line) lines.push(line);
+
+        const titleY = canvas.height * 0.42 - (lines.length - 1) * titleSize * 0.6;
+        lines.forEach((l, i) => {
+          ctx.fillText(l, canvas.width / 2, titleY + i * titleSize * 1.15);
+        });
+
+        // Subtitle or tagline
+        if (subtitle) {
+          ctx.font = 'italic 18px Georgia, serif';
+          ctx.shadowBlur = 4;
+          ctx.fillText(subtitle, canvas.width / 2, titleY + lines.length * titleSize * 1.15 + 20);
+        }
+
+        // Bottom branding
+        ctx.shadowBlur = 4;
+        ctx.font = '14px Montserrat, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.fillText('Christophe BONNET', canvas.width / 2, canvas.height - 40);
+
+        // Export as JPEG base64
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.onerror = () => resolve(null);
+      img.src = 'data:image/jpeg;base64,' + imageB64;
+    });
+  },
+
+  // ═══ BACK COVER IMAGE — photo + text overlay ═══
+  async generateBackCoverImage(imageB64, summary, phraseCle) {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 900;
+      const ctx = canvas.getContext('2d');
+
+      const img = new Image();
+      img.onload = () => {
+        // Draw image with heavy overlay
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        const x = (canvas.width - img.width * scale) / 2;
+        const y = (canvas.height - img.height * scale) / 2;
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+        // Heavy dark overlay for readability
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Summary text - word-wrapped
+        ctx.fillStyle = '#e0ddd8';
+        ctx.textAlign = 'left';
+        ctx.font = 'italic 16px Georgia, serif';
+
+        const maxW = canvas.width - 80;
+        const lineH = 24;
+        let yPos = 120;
+        const sumWords = summary.split(' ');
+        let sumLine = '';
+        for (const w of sumWords) {
+          const test = sumLine ? sumLine + ' ' + w : w;
+          if (ctx.measureText(test).width > maxW) {
+            ctx.fillText(sumLine, 40, yPos);
+            sumLine = w;
+            yPos += lineH;
+            if (yPos > 620) break; // stop overflow
+          } else { sumLine = test; }
+        }
+        if (sumLine && yPos <= 620) ctx.fillText(sumLine, 40, yPos);
+
+        // Phrase-clé
+        if (phraseCle) {
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 18px Georgia, serif';
+          ctx.fillStyle = '#8FAFB1';
+          const pY = Math.min(yPos + 60, 700);
+          ctx.fillText('\u00ab ' + phraseCle + ' \u00bb', canvas.width / 2, pY);
+        }
+
+        // Bottom branding
+        ctx.textAlign = 'center';
+        ctx.font = '13px Montserrat, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText('Christophe BONNET', canvas.width / 2, canvas.height - 50);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.onerror = () => resolve(null);
+      img.src = 'data:image/jpeg;base64,' + imageB64;
+    });
+  },
+
+  // ═══ EPUB BUILDER ═══
+  async buildEpub(onLog) {
+    const zip = new JSZip();
+    const plan = this.plan;
+    const chapters = this.chapters;
+    const p = this.parsed;
+
+    const lg = (msg, type='info') => { if (onLog) onLog(msg, type); };
+
+    zip.file('mimetype', 'application/epub+zip', { compression:'STORE' });
+    zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>`);
+
+    // ── Pexels images ──
+    let coverImg = null;
+    let backCoverImg = null;
+    const chapterImgs = {};
+
+    // Cover photo from Pexels
+    const coverKw = plan.cover_pexels || [plan.fils_conducteurs?.[0]?.nom || p.prenom];
+    lg(`Couverture Pexels : "${coverKw.join(' ')}"`, 'info');
+    const coverPhoto = await this.fetchPexels(coverKw, 'portrait');
+    if (coverPhoto?.url) {
+      const rawB64 = await this.fetchImageAsBase64(coverPhoto.url);
+      if (rawB64) {
+        // Generate composite cover with title ON the image
+        lg('Composition couverture (titre + image)...', 'info');
+        const compositeB64 = await this.generateCoverImage(rawB64, plan.title, plan.subtitle || '');
+        if (compositeB64) {
+          zip.file('OEBPS/images/cover.jpg', compositeB64, { base64:true });
+          coverImg = { file:'cover.jpg', credit:coverPhoto.photographer || '' };
+          lg(`  \u2192 Couverture OK \u2014 ${coverPhoto.photographer || ''}`, 'ok');
+        }
+
+        // Back cover - separate landscape photo for ambiance
+        lg('4e couverture Pexels...', 'info');
+        const backKw = plan.cover_pexels || [plan.fils_conducteurs?.[1]?.nom || plan.fils_conducteurs?.[0]?.nom || p.prenom];
+        const backPhoto = await this.fetchPexels(backKw, 'landscape');
+        if (backPhoto?.url) {
+          const backB64 = await this.fetchImageAsBase64(backPhoto.url);
+          if (backB64) {
+            zip.file('OEBPS/images/backcover.jpg', backB64, { base64:true });
+            backCoverImg = { file:'backcover.jpg' };
+            lg(`  \u2192 4e couverture OK \u2014 ${backPhoto.photographer || ''}`, 'ok');
+          }
+        }
+      } else { lg('  \u2192 CORS bloqu\u00e9', 'err'); }
+    } else { lg('  \u2192 pas de r\u00e9sultat Pexels', 'err'); }
+    await sleep(250);
+
+    // Chapter images
+    for (let i = 0; i < chapters.length; i++) {
+      const ch = chapters[i];
+      const kw = ch.pexelsKw || plan.chapters[i]?.pexels_keywords || [plan.chapters[i]?.title?.replace(/[«»'"]/g,'').trim() || ''];
+      if (kw?.length) {
+        lg(`Image ch.${i+1} : "${kw.join(' ')}"`, 'info');
+        const photo = await this.fetchPexels(kw);
+        if (photo?.url) {
+          const b64 = await this.fetchImageAsBase64(photo.url);
+          if (b64) {
+            const fn = `ch${i+1}.jpg`;
+            zip.file(`OEBPS/images/${fn}`, b64, { base64:true });
+            chapterImgs[i] = { file:fn, credit:photo.photographer||'' };
+            lg(`  → ${photo.photographer || 'OK'}`, 'ok');
+          }
+        }
+        await sleep(250);
+      }
+    }
+
+    // ── CSS ──
+    zip.file('OEBPS/style.css', `@charset "UTF-8";
+body{font-family:'Georgia','Palatino',serif;font-size:1em;line-height:1.8;color:#2d2d2d;margin:2em 1.5em}
+h1{font-size:2.2em;font-weight:700;text-align:center;margin:2em 0 .5em;color:#3A5658;page-break-before:always}
+h2{font-size:1.3em;font-weight:600;text-align:center;margin:1em 0 .3em;color:#3A5658;font-style:italic}
+p{margin:0 0 .8em;text-align:justify;text-indent:1.5em}
+p.ni{text-indent:0}
+p.sb{text-align:center;margin:2em 0;text-indent:0;color:#8FAFB1}
+blockquote{font-style:italic;margin:1.5em 2em;padding-left:1em;border-left:3px solid #C8D0C3;color:#555}
+.epi{text-align:center;font-style:italic;color:#8FAFB1;margin:0 2em 3em;font-size:.95em}
+.ct{font-size:3em;font-weight:700;text-align:center;color:#3A5658;margin-top:30%;line-height:1.2}
+.cst{font-size:1.2em;text-align:center;color:#8FAFB1;margin-top:.5em;font-style:italic}
+.ca{font-size:.9em;text-align:center;color:#666;margin-top:3em}
+.cb{font-size:.7em;text-align:center;color:#aaa;margin-top:1em;letter-spacing:.2em;text-transform:uppercase}
+img{max-width:100%;height:auto;display:block;margin:2em auto}
+.pc{font-size:.65em;text-align:center;color:#aaa;margin-top:-.5em;margin-bottom:2em}
+.bk{margin-top:4em;padding:2em}
+.bs{font-size:1em;line-height:1.8;font-style:italic}
+.bp{font-size:1.1em;text-align:center;margin:2em 0;font-weight:600;color:#3A5658}
+.bb{font-size:.8em;text-align:center;color:#8FAFB1;margin-top:3em}`);
+
+    const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const toXhtml = text => {
+      // Pre-clean LLM artifacts AVANT le split
+      text = text.replace(/&nbsp;/gi, '\n\n');      // &nbsp; littéral → saut
+      text = text.replace(/\u00a0/g, ' ');           // vrai non-breaking space → espace
+      text = text.replace(/\r\n/g, '\n');            // normaliser fins de ligne
+      return text.split(/\n\n+/).map(p => {
+        p = p.trim(); if (!p) return '';
+        // Séparateurs de scène
+        if (/^\*\s*\*\s*\*$|^---$|^—$|^•••$|^✦$|^◇$|^#$/.test(p)) return '<p class="sb">✦</p>';
+        // XML escape
+        p = p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        // Markdown
+        p = p.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+        p = p.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+        return `<p>${p}</p>`;
+      }).filter(Boolean).join('\n');
+    };
+
+    // Cover - just the composite image (title is IN the image)
+    zip.file('OEBPS/cover.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Couverture</title>
+<link rel="stylesheet" href="style.css"/></head><body style="margin:0;padding:0">
+${coverImg ? `<img src="images/${coverImg.file}" alt="Couverture" style="width:100%;height:100%"/>` : `<div class="ct">${esc(plan.title)}</div><div class="ca">Christophe BONNET</div>`}
+</body></html>`);
+
+    // Title
+    zip.file('OEBPS/title.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${esc(plan.title)}</title>
+<link rel="stylesheet" href="style.css"/></head><body>
+<div class="ct" style="margin-top:20%">${esc(plan.title)}</div>
+${plan.subtitle ? `<div class="cst">${esc(plan.subtitle)}</div>` : ''}
+${plan.epigraph ? `<div class="epi" style="margin-top:4em">\u00ab\u00a0${esc(plan.epigraph)}\u00a0\u00bb</div>` : ''}
+<div class="ca" style="margin-top:6em">Christophe BONNET</div>
+</body></html>`);
+
+    // TOC
+    zip.file('OEBPS/toc.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Sommaire</title>
+<link rel="stylesheet" href="style.css"/></head><body>
+<h1 style="page-break-before:avoid">Sommaire</h1>
+${chapters.map((c,i) => `<p style="margin:.5em 0"><a href="ch${i+1}.xhtml" style="color:#3A5658;text-decoration:none">${esc(c.title)}</a></p>`).join('\n')}
+</body></html>`);
+
+    // Chapters
+    chapters.forEach((ch, i) => {
+      const img = chapterImgs[i];
+      zip.file(`OEBPS/ch${i+1}.xhtml`, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${esc(ch.title)}</title>
+<link rel="stylesheet" href="style.css"/></head><body>
+<h1>${esc(ch.title)}</h1>
+${img ? `<img src="images/${img.file}" alt="${esc(ch.title)}"/>` : ''}
+${toXhtml(ch.text)}
+</body></html>`);
+    });
+
+    // Back cover - XHTML with photo + text (lisible sur tous les e-readers)
+    zip.file('OEBPS/back.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Quatri\u00e8me de couverture</title>
+<link rel="stylesheet" href="style.css"/></head><body>
+${backCoverImg ? `<img src="images/${backCoverImg.file}" alt="" style="width:100%;max-height:40%;object-fit:cover;border-radius:0"/>` : ''}
+<div style="padding:1.5em 1.5em 2em;text-align:justify">
+<p style="font-style:italic;line-height:1.8;text-indent:0;font-size:1em">${esc(this.backCover.split('\n').filter(l=>l.trim()).slice(0,1).join(' '))}</p>
+${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;color:#3A5658;font-size:1.1em;text-indent:0">\u00ab\u00a0${esc(plan.phrase_cle)}\u00a0\u00bb</p>` : ''}
+<p style="text-align:center;font-size:.85em;color:#8FAFB1;margin-top:2em;text-indent:0">Christophe BONNET</p>
+</div></body></html>`);
+
+    // NCX
+    let ncx = `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+<head><meta name="dtb:uid" content="ldv-${Date.now()}"/></head>
+<docTitle><text>${esc(plan.title)}</text></docTitle><navMap>
+<navPoint id="cover" playOrder="1"><navLabel><text>Couverture</text></navLabel><content src="cover.xhtml"/></navPoint>
+<navPoint id="toc" playOrder="2"><navLabel><text>Sommaire</text></navLabel><content src="toc.xhtml"/></navPoint>`;
+    chapters.forEach((c,i) => {
+      ncx += `\n<navPoint id="ch${i+1}" playOrder="${i+3}"><navLabel><text>${esc(c.title)}</text></navLabel><content src="ch${i+1}.xhtml"/></navPoint>`;
+    });
+    ncx += `\n</navMap></ncx>`;
+    zip.file('OEBPS/toc.ncx', ncx);
+
+    // OPF
+    let manifest = `<item id="css" href="style.css" media-type="text/css"/>
+<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>
+<item id="title" href="title.xhtml" media-type="application/xhtml+xml"/>
+<item id="toc-p" href="toc.xhtml" media-type="application/xhtml+xml"/>
+<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+<item id="back" href="back.xhtml" media-type="application/xhtml+xml"/>`;
+    if (coverImg) manifest += `\n<item id="cover-img" href="images/${coverImg.file}" media-type="image/jpeg" properties="cover-image"/>`;
+    if (backCoverImg) manifest += `\n<item id="backcover-img" href="images/${backCoverImg.file}" media-type="image/jpeg"/>`;
+    chapters.forEach((c,i) => {
+      manifest += `\n<item id="ch${i+1}" href="ch${i+1}.xhtml" media-type="application/xhtml+xml"/>`;
+      if (chapterImgs[i]) manifest += `\n<item id="img${i+1}" href="images/${chapterImgs[i].file}" media-type="image/jpeg"/>`;
+    });
+    let spine = `<itemref idref="cover"/><itemref idref="title"/><itemref idref="toc-p"/>`;
+    chapters.forEach((c,i) => { spine += `<itemref idref="ch${i+1}"/>`; });
+    spine += `<itemref idref="back"/>`;
+
+    zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uid" version="3.0">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+<dc:identifier id="uid">ldv-${Date.now()}</dc:identifier>
+<dc:title>${esc(plan.title)}</dc:title>
+<dc:creator>Christophe BONNET</dc:creator>
+<dc:language>fr</dc:language>
+<dc:date>${new Date().toISOString().split('T')[0]}</dc:date>
+<meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z/,'Z')}</meta>
+</metadata>
+<manifest>${manifest}</manifest>
+<spine toc="ncx">${spine}</spine>
+</package>`);
+
+    lg('EPUB assemblé', 'ok');
+    return zip;
+  },
+
+  getMarkdown() {
+    const plan = this.plan;
+    let md = `# ${plan.title}\n\n`;
+    if (plan.subtitle) md += `## ${plan.subtitle}\n\n`;
+    if (plan.epigraph) md += `> \u00ab ${plan.epigraph} \u00bb\n\n---\n\n`;
+    this.chapters.forEach(c => { md += `# ${c.title}\n\n${c.text}\n\n---\n\n`; });
+    md += `\n## Quatri\u00e8me de couverture\n\n${this.backCover}\n\n---\n*Christophe BONNET*\n`;
+    return md;
+  }
+};
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════
+// SAVE / RESTORE — persistance du projet
+// ═══════════════════════════════════════
+
+const PROJECT_KEY = 'ldv_autosave';
+
+function saveProject() {
+  const data = {
+    _format: 'ldv-project',
+    version: '1.0',
+    savedAt: new Date().toISOString(),
+    step: A._currentStep || 0,
+    config: A.config,
+    source: {
+      prenom: A.parsed?.prenom || '',
+      age: A.parsed?.age || null,
+      tours: A.parsed?.tours || 0,
+      charCount: A.parsed?.charCount || 0,
+    },
+    rawMarkdown: A.raw,
+    diagnostic: A.diagnostic,
+    plan: A.plan,
+    chapters: A.chapters,
+    backCover: A.backCover,
+  };
+  return data;
+}
+
+function downloadProject() {
+  const data = saveProject();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const name = (A.parsed?.prenom || 'projet').toLowerCase() + '-livre-de-vie';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.ldv.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Projet sauvegard\u00e9');
+}
+
+function autosave() {
+  try {
+    // Version allégée pour localStorage — sans le rawMarkdown (trop gros)
+    const data = saveProject();
+    const lite = { ...data, rawMarkdown: '' }; // Vider le markdown pour le localStorage
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(lite));
+  } catch (e) {
+    // Si encore trop gros (chapitres très longs), tenter sans les chapitres text
+    try {
+      const data = saveProject();
+      const minimal = {
+        _format: data._format, version: data.version, savedAt: data.savedAt,
+        step: data.step, config: data.config, source: data.source,
+        rawMarkdown: '', diagnostic: data.diagnostic, plan: data.plan,
+        chapters: data.chapters.map(c => ({ title: c.title, wordCount: c.wordCount, pexelsKw: c.pexelsKw, text: c.text.substring(0, 500) + '...[tronqué pour autosave]' })),
+        backCover: data.backCover,
+      };
+      localStorage.setItem(PROJECT_KEY, JSON.stringify(minimal));
+    } catch (e2) { console.warn('Autosave failed even minimal:', e2); }
+  }
+}
+
+function restoreProject(data) {
+  // Validate format
+  if (!data._format || data._format !== 'ldv-project') {
+    alert('Ce fichier n\'est pas un projet Livre de Vie.');
+    return false;
+  }
+
+  // Restore state
+  A.raw = data.rawMarkdown || '';
+  A.diagnostic = data.diagnostic || '';
+  A.plan = data.plan || null;
+  A.chapters = data.chapters || [];
+  A.backCover = data.backCover || '';
+  A.config = data.config || {};
+
+  // Re-parse
+  if (A.raw && A.raw.length > 100) {
+    A.parse(A.raw);
+    A.analyze();
+  } else if (data.source?.prenom) {
+    // Autosave allégé — parsed minimal
+    A.parsed = {
+      prenom: data.source.prenom, age: data.source.age,
+      tours: data.source.tours, charCount: data.source.charCount,
+      transcript: '', analysis: '', sections: {}, features: [],
+      wordCount: 0
+    };
+  }
+
+  const p = A.parsed;
+  const step = data.step || 0;
+
+  // Update header
+  if (p?.prenom) {
+    document.getElementById('headerStatus').textContent = `${p.prenom}, ${p.age} ans \u2014 reprise`;
+    document.getElementById('saveProjectBtn').style.display = '';
+  }
+
+  // Restore UI based on step
+  if (step >= 1 && A.diagnostic) {
+    document.getElementById('diagResponse').value = A.diagnostic;
+    document.getElementById('validateDiagBtn').disabled = false;
+  }
+  if (step >= 2 && A.plan) {
+    document.getElementById('planResponse').value = JSON.stringify(A.plan, null, 2);
+    document.getElementById('validatePlanBtn').disabled = false;
+    if (step >= 3) {
+      buildChaptersUI();
+      // Restore chapter texts
+      A.chapters.forEach((ch, i) => {
+        const textarea = document.getElementById('chText' + i);
+        if (textarea) textarea.value = ch.text;
+        const numEl = document.getElementById('chNum' + i);
+        if (numEl) numEl.className = 'ch-num done';
+        const wordsEl = document.getElementById('chWords' + i);
+        if (wordsEl) wordsEl.textContent = ch.wordCount.toLocaleString('fr-FR') + ' mots';
+      });
+      updateWriteProgress();
+    }
+  }
+  if (step >= 4 && A.backCover) {
+    document.getElementById('backCoverResponse').value = A.backCover;
+    document.getElementById('assembleBtn').disabled = false;
+  }
+
+  // Go to the right step
+  showStep(Math.min(step, 5));
+
+  showToast(`Projet restaur\u00e9 \u2014 ${p?.prenom || ''} \u2014 \u00e9tape ${step}`);
+  return true;
+}
+
+function checkAutosave() {
+  try {
+    const saved = localStorage.getItem(PROJECT_KEY);
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (!data._format) return;
+    const name = data.source?.prenom || 'inconnu';
+    const step = data.step || 0;
+    const chCount = data.chapters?.length || 0;
+    const date = data.savedAt ? new Date(data.savedAt).toLocaleString('fr-FR') : '';
+    const hasFullMd = data.rawMarkdown && data.rawMarkdown.length > 100;
+    const note = hasFullMd ? '' : '\n(Sauvegarde partielle — pour une reprise complète, utilisez le fichier .ldv.json)';
+    if (confirm(`Projet en cours d\u00e9tect\u00e9 :\n${name} \u2014 \u00e9tape ${step} \u2014 ${chCount} chapitre(s) \u2014 ${date}${note}\n\nReprendre ?`)) {
+      restoreProject(data);
+    }
+  } catch (e) { console.warn('Autosave check failed:', e); }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--deep);color:var(--blanc);padding:10px 24px;border-radius:8px;font-size:.8rem;font-family:var(--ui);z-index:9999;opacity:0;transition:opacity .3s';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => { t.style.opacity = '1'; });
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2500);
+}
+
+// ═══════════════════════════════════════
+// UI
+// ═══════════════════════════════════════
+A._currentStep = 0;
+
+function showStep(n) {
+  A._currentStep = n;
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('step'+n).classList.add('active');
+  for (let i = 0; i < 6; i++) {
+    const p = document.getElementById('pill'+i);
+    if (p) p.className = 'step-pill' + (i === n ? ' active' : i < n ? ' done' : '');
+  }
+  // Show save button once we have data
+  if (n > 0) document.getElementById('saveProjectBtn').style.display = '';
+}
+
+function copyPrompt(el) {
+  const block = el.closest('.prompt-block');
+  const text = block.innerText.replace(/^Copier/, '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    el.textContent = '✓ Copié'; el.classList.add('copied');
+    setTimeout(() => { el.textContent = 'Copier'; el.classList.remove('copied'); }, 2000);
+  });
+}
+
+function setPromptBlock(id, text) {
+  document.getElementById(id).innerHTML = `<button class="copy-btn" onclick="copyPrompt(this)">Copier</button>${escHtml(text)}`;
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Step 0: Upload ──
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files.length) loadFile(e.target.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+
+    // Detect project file (.ldv.json)
+    if (file.name.endsWith('.json') || file.name.endsWith('.ldv.json')) {
+      try {
+        const data = JSON.parse(content);
+        if (data._format === 'ldv-project') {
+          restoreProject(data);
+          return;
+        }
+      } catch (err) { /* not a project file, treat as markdown */ }
+    }
+
+    // ═══ DÉTECTION MODE REPRISE ═══
+    // Un livre déjà écrit = structure : # Titre \n [## sous-titre?] \n --- \n # Chapitre 1 \n ... \n # Chapitre 2 \n ...
+    // Un V9 Persona Brain = structure : # Prenom, X ans \n ## TOUR 1 \n ... \n ## TOUR 2 \n ...
+    // Signal fort de livre : >= 3 chapitres niveau # APRÈS un titre global #, et PAS de "## TOUR N" répétés
+    const h1s = (content.match(/^#\s+[^\n]+$/gm) || []);
+    const tours = (content.match(/^##\s+TOUR\s+\d+/gm) || []);
+    const looksLikeBook = h1s.length >= 4 && tours.length === 0;
+
+    if (looksLikeBook) {
+      resumeFromMarkdown(content, file.name);
+      return;
+    }
+
+    // ─── Mode normal : V9 Persona Brain ───
+    A.raw = content;
+    A.parse(A.raw);
+    A.analyze();
+    const p = A.parsed;
+
+    document.getElementById('dropLabel').textContent = `\u2713 ${p.prenom || file.name} \u2014 ${p.tours} tours \u2014 ${(p.charCount/1000).toFixed(0)}K caract.`;
+    document.getElementById('dropLabel').classList.add('loaded');
+
+    const badges = document.getElementById('analysisBadges');
+    badges.innerHTML = p.features.map(f => `<span class="analysis-badge badge-${f.type}">${f.text}</span>`).join(' ');
+
+    const det = document.getElementById('analysisDetail');
+    det.innerHTML = `<strong>${p.prenom}</strong>, ${p.age} ans \u2014 ${p.tours} tours, ${p.wordCount.toLocaleString('fr-FR')} mots de mati\u00e8re.<br>`;
+    if (p.sections['PHRASE-CLE']) det.innerHTML += `<em>\u00ab\u00a0${p.sections['PHRASE-CLE'].replace(/[«»]/g,'').trim()}\u00a0\u00bb</em>`;
+
+    document.getElementById('analysisResult').style.display = 'block';
+    document.getElementById('headerStatus').textContent = `${p.prenom}, ${p.age} ans`;
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MODE REPRISE — l'utilisateur dépose un livre .md déjà rédigé
+// (par exemple un livre dont le run Atelier a planté avant l'EPUB).
+// On parse le livre, on reconstruit A.plan + A.chapters minimalement,
+// on saute directement à Step 4 (saisie 4e) puis Step 5 (assemblage EPUB).
+// Zéro appel LLM. Seul Pexels (via Worker) + composition couverture.
+// ═══════════════════════════════════════════════════════════════════
+function resumeFromMarkdown(md, filename) {
+  // Parse : premier # = titre du livre ; ## juste après = sous-titre optionnel ;
+  // puis chaque # suivant = chapitre. Certains chapitres ont un titre doublé
+  // (artefact du LLM) — on déduplique.
+  const lines = md.split('\n');
+  let title = '';
+  let subtitle = '';
+  let backCover = '';
+  const chapters = [];
+  let current = null;
+  let inFrontMatter = true;
+  let inBackCover = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m1 = line.match(/^#\s+(.+?)\s*$/);
+    const m2 = line.match(/^##\s+(.+?)\s*$/);
+
+    if (inFrontMatter && m1 && !title) {
+      title = m1[1].trim();
+      continue;
+    }
+    if (inFrontMatter && m2 && title && !subtitle) {
+      subtitle = m2[1].trim();
+      continue;
+    }
+    if (m2 && /quatri[eè]me de couverture|4e de couverture|back ?cover/i.test(m2[1])) {
+      // Entrée zone 4e de couv
+      if (current) { chapters.push(current); current = null; }
+      inBackCover = true;
+      continue;
+    }
+    if (m1) {
+      // Nouveau chapitre
+      inFrontMatter = false;
+      inBackCover = false;
+      const chTitle = m1[1].trim();
+      // Dédup : si le chapitre précédent venait juste d'être créé avec le même titre et vide,
+      // on l'écrase (cas "# Intelligent mais" doublé).
+      if (current && current.title === chTitle && current.buf.trim().length < 20) {
+        current.buf = '';
+        continue;
+      }
+      if (current) chapters.push(current);
+      current = { title: chTitle, buf: '' };
+      continue;
+    }
+    // Accumulation
+    if (inBackCover) {
+      backCover += line + '\n';
+    } else if (current) {
+      current.buf += line + '\n';
+    }
+  }
+  if (current) chapters.push(current);
+
+  // Nettoyage 4e (retirer les séparateurs --- et le nom de l'auteur)
+  backCover = backCover
+    .split('\n')
+    .filter(l => !/^---+\s*$/.test(l))
+    .filter(l => !/^\*[^*]+\*\s*$/.test(l))  // retire *Nom*
+    .join('\n')
+    .trim();
+
+  // Chapitres : retirer séparateurs --- en début/fin de texte + trim
+  chapters.forEach(c => {
+    c.text = c.buf
+      .replace(/^(\s*---\s*\n)+/, '')
+      .replace(/(\n\s*---\s*)+\s*$/, '')
+      .trim();
+    c.wordCount = c.text.split(/\s+/).filter(Boolean).length;
+    // Mots-clés Pexels depuis le titre (simple, sans LLM)
+    c.pexelsKw = keywordsFromTitle(c.title);
+    delete c.buf;
+  });
+
+  if (!title) {
+    alert('Le fichier ne ressemble pas à un livre — impossible de détecter un titre (# Titre en première ligne).');
+    return;
+  }
+  if (chapters.length < 2) {
+    alert('Le fichier ne ressemble pas à un livre — moins de 2 chapitres détectés.');
+    return;
+  }
+
+  // Reconstruction minimale de l'état A
+  A.raw = md;
+  A.parsed = {
+    prenom: title,  // fallback
+    age: null,
+    tours: 0,
+    wordCount: md.split(/\s+/).length,
+    charCount: md.length,
+    sections: {},
+    features: [{ type:'content', text:'Mode reprise' }, { type:'structure', text:`${chapters.length} chapitres` }]
+  };
+  A.plan = {
+    title,
+    subtitle,
+    cover_pexels: keywordsFromTitle(title),
+    fils_conducteurs: [{ nom: title }],
+    chapters: chapters.map(c => ({
+      title: c.title,
+      pexels_keywords: c.pexelsKw
+    }))
+  };
+  A.chapters = chapters.map(c => ({
+    title: c.title,
+    text: c.text,
+    wordCount: c.wordCount,
+    pexelsKw: c.pexelsKw
+  }));
+  A.backCover = backCover;
+  A.diagnostic = '';
+
+  // Config par défaut pour le mode Reprise
+  A.config.workerUrl = document.getElementById('workerUrl')?.value?.trim() || 'https://clone-proxy.11drumboy11.workers.dev';
+  A.config.mode = 'api';
+  A.config.model = 'claude-sonnet-4-6';
+
+  // Feedback UI
+  const totalWords = A.chapters.reduce((s,c) => s + c.wordCount, 0);
+  document.getElementById('dropLabel').textContent = `\u2713 ${title} \u2014 ${chapters.length} chapitres \u2014 ${totalWords.toLocaleString('fr-FR')} mots (reprise)`;
+  document.getElementById('dropLabel').classList.add('loaded');
+
+  const badges = document.getElementById('analysisBadges');
+  badges.innerHTML = `<span class="analysis-badge badge-content">🔄 Mode reprise</span> <span class="analysis-badge badge-structure">${chapters.length} chapitres</span> <span class="analysis-badge badge-structure">${totalWords.toLocaleString('fr-FR')} mots</span>`;
+
+  const det = document.getElementById('analysisDetail');
+  det.innerHTML = `
+    <strong>« ${title} »</strong>${subtitle ? ` <em>— ${subtitle}</em>` : ''}<br>
+    ${chapters.length} chapitres · ${totalWords.toLocaleString('fr-FR')} mots · ~${Math.round(totalWords/250)} pages.<br>
+    <br>
+    <strong style="color:var(--deep)">Reprise directe vers l'assemblage EPUB.</strong><br>
+    L'atelier saute les phases d'écriture (déjà faites) et finalise : 4e de couverture + images Pexels + EPUB illustré.
+  `;
+
+  document.getElementById('analysisResult').style.display = 'block';
+  document.getElementById('headerStatus').textContent = title;
+
+  // Remplace le bouton "Lancer" par un bouton "Finaliser vers EPUB"
+  const launchBtn = document.getElementById('toStep1Btn');
+  launchBtn.textContent = 'Finaliser vers EPUB (4e + Pexels + assemblage)';
+  launchBtn.dataset.mode = 'resume';
+}
+
+// Petit helper : extrait 1-3 mots-clés "visuels" du titre d'un chapitre
+// pour les requêtes Pexels. Pas de hardcoding de sens — on prend juste
+// les mots signifiants (hors stopwords fr courants).
+function keywordsFromTitle(title) {
+  if (!title) return [];
+  const stop = new Set(['le','la','les','un','une','des','de','du','ce','cet','cette','ces','mon','ma','mes','ton','ta','tes','son','sa','ses','à','au','aux','en','et','ou','ni','mais','or','car','que','qui','quoi','dont','où','pas','ne','plus','si','tout','tous','toute','toutes','y','a','fais','voir','ton','c\'est','cest','j\'aime','jaime','je','tu','il','elle','on','nous','vous','ils','elles','est','sont','été','était','y']);
+  const words = title.toLowerCase()
+    .replace(/[«»"'"',;:.!?()]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stop.has(w));
+  return words.slice(0, 3);
+}
+
+// ── To Step 1: Diagnostic ──
+document.getElementById('toStep1Btn').addEventListener('click', async () => {
+  // ═══ MODE REPRISE ═══
+  // Si l'utilisateur a déposé un livre .md déjà écrit, on a déjà peuplé
+  // A.plan + A.chapters + A.backCover dans resumeFromMarkdown().
+  // On saute directement à Step 4 (saisie 4e) — pré-remplie si déjà présente.
+  const launchBtn = document.getElementById('toStep1Btn');
+  if (launchBtn.dataset.mode === 'resume') {
+    A.config.workerUrl = document.getElementById('workerUrl').value.replace(/\/+$/,'');
+    A.config.mode = 'api';
+    A.config.model = document.getElementById('modelSelect').value || 'claude-sonnet-4-6';
+    // Pré-remplir la zone 4e si on l'a extraite du .md
+    const backArea = document.getElementById('backCoverResponse');
+    if (backArea && A.backCover) {
+      backArea.value = A.backCover;
+      // Activer le bouton Assembler
+      document.getElementById('assembleBtn').disabled = A.backCover.trim().length < 30;
+    }
+    showStep(4);
+    return;
+  }
+
+  A.config = {
+    mode: document.getElementById('modeSelect').value,
+    model: document.getElementById('modelSelect').value,
+    length: document.getElementById('lengthSelect').value,
+    workerUrl: document.getElementById('workerUrl').value.replace(/\/+$/,''),
+  };
+
+  if (A.config.mode === 'manual') {
+    // Manual mode — generate prompt, user copies
+    setPromptBlock('diagPrompt', A.buildDiagnosticPrompt());
+    showStep(1);
+  } else {
+    // API mode — automatic pipeline
+    showStep(5); // Go directly to progress screen (step5 = assembly screen, reused as progress)
+    document.getElementById('finalTitle').textContent = 'Génération en cours...';
+    document.getElementById('finalStats').textContent = `${A.parsed.prenom}, ${A.parsed.age} ans — Mode API`;
+    document.getElementById('downloadArea').style.display = 'none';
+    const logEl = document.getElementById('assembleLog');
+    logEl.innerHTML = '';
+    const lg = (msg, type='info') => {
+      logEl.innerHTML += `<div class="log-${type}">[${new Date().toLocaleTimeString('fr-FR')}] ${msg}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    try {
+      // ── Phase 1: Diagnostic ──
+      document.getElementById('assembleStatus').textContent = 'Diagnostic littéraire...';
+      document.getElementById('assembleProgress').style.width = '5%';
+      lg(`Diagnostic littéraire — ${A.config.model}`, 'info');
+
+      const diagPromptText = A.buildDiagnosticPrompt();
+      A.diagnostic = await A.llmCall(
+        'Tu es un directeur littéraire de premier plan. Produis le diagnostic demandé.',
+        diagPromptText, 3000
+      );
+      lg(`Diagnostic OK — ${A.diagnostic.split(/\s+/).length} mots`, 'ok');
+      autosave();
+
+      // ── Phase 1B: SUPERVISION OPUS — l'éditeur challenge le diagnostic ──
+      document.getElementById('assembleStatus').textContent = 'Supervision éditoriale (Opus)...';
+      document.getElementById('assembleProgress').style.width = '8%';
+      lg('Supervision Opus — l\'éditeur relit le diagnostic...', 'info');
+
+      const savedModelSuper1 = A.config.model;
+      A.config.model = 'claude-opus-4-6';
+
+      const superPrompt1 = `Tu es un directeur littéraire de premier plan — celui qui a lu des milliers de manuscrits et qui sent en trente secondes si un livre va tenir ou pas. On te soumet un DIAGNOSTIC LITTERAIRE produit par un autre éditeur. Tu le relis. Tu le challenges. Tu le RENFORCES.
+
+Tu ne valides pas — tu POUSSES. Tu cherches ce qui est trop sage, trop propre, trop cohérent. Un grand livre dérange. Un best-seller hante. Un prix littéraire laisse une question ouverte qui empêche de dormir.
+
+DIAGNOSTIC A CHALLENGER :
+${A.diagnostic}
+
+MATIERE (pour vérifier que le diagnostic est fidèle) :
+${A.parsed.sections['PHRASE-CLE'] || ''}
+${A.parsed.sections['SCENES FORTES'] || ''}
+${A.parsed.sections['CE QUI NE COLLE PAS'] || ''}
+${A.parsed.sections['LEARNING PROFILE'] || ''}
+${A.parsed.sections['MONDE SENSORIEL'] || ''}
+${A.parsed.sections['PERSONNAGES'] || ''}
+
+═══ TES QUESTIONS — réponds à CHACUNE ═══
+
+1. LE CORTEGE — est-ce que les écrivains du cortège se CONTREDISENT assez ? Un cortège où tout le monde est d'accord est un cortège mort. Où est la FRICTION entre les esprits ? Si elle manque, AJOUTE un écrivain qui casse l'harmonie. Et le cortège est-il assez LARGE ? Si le livre demande 8 voix, le diagnostic n'en donne que 4 — c'est insuffisant. Puise dans toute la littérature mondiale — poètes, scénaristes, essayistes, dramaturges, pas seulement des romanciers.
+
+   DISCIPLINE DU CORTÈGE — sors de la pente facile. Un LLM composant un cortège a tendance, par pente statistique, à convoquer d'abord ce dont il a le plus lu : littérature occidentale des XIXe-XXIe siècles, canons critiques, auteurs traduits en français et en anglais, grands noms déjà canonisés. C'est ta pente de confort. Tu dois t'en méfier à chaque cortège — pas pour la fuir systématiquement, mais pour ne pas t'y réfugier par défaut.
+
+   Regarde le cortège que tu viens de composer. Pose-toi cette question en conscience : est-il majoritairement occidental contemporain ? Majoritairement canonique ? Majoritairement romanesque ? Si oui, cherche volontairement ailleurs avant de clôturer. La littérature mondiale contient des voix qui ont résolu des problèmes d'écriture que les canons occidentaux n'ont jamais rencontrés — un conteur oral soufi du XIIe siècle, une diariste japonaise du Xe, un poète Ghanaian contemporain, un scénariste de manga, un essayiste politique du Sud, une chanteuse qui écrit ses textes, un auteur de SF pulp qui a inventé une figure que personne ne voit. Tu n'es pas obligé d'en convoquer à tout prix. Mais tu es obligé de te demander si la matière en appelle — et de répondre honnêtement.
+
+   Le critère n'est pas exotique, il est fonctionnel. Un auteur japonais du XVe siècle peut être plus pertinent qu'un auteur français contemporain pour cette matière-ci. Ou l'inverse. La matière décide. Ton rôle est de ne pas rester dans ton confort par paresse — de vérifier chaque fois que ton cortège est composé par NÉCESSITÉ et non par FACILITÉ.
+
+   VERIFICATION RYTHMIQUE (sous-question critique) : regarde le cortège que tu as composé. Si les écrivains qu'il contient écrivent majoritairement en flux asyndétique (phrases longues liées par des "et", "parce que", "comme", virgules qui s'accumulent — pense à Bernhard, Duras tardive, Ernaux récent, Salvayre), alors le livre qui en sortira aura tendance à enchaîner les coulées longues jusqu'à ce que le rythme devienne monotone et identifiable comme tic. Le lecteur s'en lasse. La parade : intégrer au cortège au moins un esprit de rythme opposé — un écrivain qui COUPE, qui pose des phrases brèves, des points secs, des paragraphes courts. Quelques noms pour t'inspirer, non-exhaustif et adaptable à la matière : Marguerite Duras première manière (L'Amant), Jean Echenoz, Raymond Carver, Joan Didion, Joy Williams, Annie Saumont, Philippe Djian, Fred Vargas. Tu choisis selon ce que cette matière appelle — pas par principe, par nécessité d'équilibre. Et dans leur posture créative, explicite qu'ils sont là pour imposer le point sec quand le flux a déjà donné ce qu'il avait à donner.
+
+2. LA TENSION MOTRICE — est-ce qu'elle tient jusqu'au DERNIER chapitre ? Si le lecteur a sa réponse au milieu, la deuxième moitié s'effondre. Comment la tension se TRANSFORME-t-elle ? La question du début ne doit PAS être la question de la fin. Le lecteur croyait lire un livre sur X et il découvre que c'est un livre sur Y.
+
+3. LE RISQUE — qu'est-ce qui dans ce livre devrait DERANGER le lecteur ? Le mettre mal à l'aise ? Le forcer à se regarder ? Un livre confortable n'est pas un best-seller. Où est l'inconfort ? Qu'est-ce que le lecteur NE VEUT PAS entendre mais que ce livre doit lui dire ?
+
+4. LA QUESTION UNIVERSELLE — est-elle VRAIMENT universelle ? Pas "est-ce que ce sujet touche les gens" — ça c'est un thème. "Est-ce que CHAQUE lecteur se reconnaît dans quelque chose" — ça c'est universel. Pousse-la jusqu'à ce qu'elle fasse mal à tout le monde.
+
+5. LES SCENES DE BOUCHE-A-OREILLE — est-ce que les scènes fondatrices sont des scènes qu'on RACONTE au dîner ? Si un ami dit "tu devrais lire ce livre", quelle scène il décrit en premier ? Si aucune scène ne saute — le livre ne se vendra pas. Identifie les scènes qui ont le potentiel et dis comment les POUSSER.
+
+6. LE MONOLOGUE INTERIEUR — est-ce que le livre risque de rester DANS LA TETE du sujet ? Les personnages autour existent-ils en chair, en voix, en gestes, en corps ? Le monde est-il concret — odeurs, textures, sons, lumières — ou abstrait ?
+
+7. LA VOIX — le diagnostic propose-t-il une voix assez SINGULIERE ? Une voix qu'on reconnaît en ouvrant le livre à n'importe quelle page ? Si la voix est "bien écrite" mais pas UNIQUE — c'est un livre parmi d'autres. Qu'est-ce qui rend cette voix IMPOSSIBLE À CONFONDRE avec une autre ?
+
+8. L'ARCHITECTURE EMOTIONNELLE — le livre a-t-il une COURBE ? Des montées, des silences, des coups, des accélérations, des ralentissements ? Ou est-il plat — une suite de bons chapitres au même niveau d'intensité ? Un best-seller est une partition, pas une ligne droite.
+
+9. CE QUI MANQUE — qu'est-ce que le diagnostic ne dit PAS et qu'il devrait dire ? Quel angle est ignoré ? Quelle contradiction de la matière est esquivée ? Quelle scène cachée dans le transcript n'a pas été identifiée comme fondatrice ?
+
+10. L'ICEBERG — LE SILENCE AXIAL DU LIVRE. (question la plus importante)
+Un livre correct explique. Un best-seller LAISSE LE LECTEUR TROUVER. Le lecteur referme le livre et pense : "c'est moi qui ai compris ça." Cette illusion est la source du bouche-à-oreille.
+
+Identifie LE SILENCE AXIAL : la chose que le livre doit ABSOLUMENT TAIRE pour que le lecteur la trouve seul. Pas deux choses, pas trois — UNE. La plus puissante. Celle qui, si elle est DITE, tue le livre ; celle qui, si elle est SENTIE, fait que le lecteur se reconnaît.
+
+Pour CETTE matière, produis :
+a) SILENCE AXIAL — en UNE phrase : la chose qui doit être sentie sans être écrite. (Par exemple pour un livre sur un fils avec TDAH tardivement diagnostiqué : "Le père du narrateur avait peut-être le même cerveau non-nommé, toute une vie — si le narrateur n'avait pas eu le mot à 22 ans, il serait devenu son père." Cette phrase ne doit JAMAIS apparaître dans le texte. Mais le lecteur doit la formuler lui-même en refermant le livre.)
+b) CHAPITRES À RISQUE — numéros des chapitres où le LLM aura la tentation d'écrire ce silence (parce que c'est là que le sujet affleure). Peut être un seul chapitre si la tentation est ciblée, plusieurs si elle se disperse — c'est ton jugement. Le système saura qu'il doit redoubler de vigilance dans ces chapitres-là.
+c) SIGNAUX DE CONTOURNEMENT — les éléments concrets (objets, gestes, scènes, juxtapositions) par lesquels le livre doit SUGGERER le silence axial sans le nommer. (Par exemple pour l'exemple ci-dessus : le père qui envoie un pouce, le père qui cherche sur Google, la juxtaposition d'un geste du père et d'un geste du narrateur qui se ressemblent, un souvenir où le père bifurque dans la phrase et le narrateur aussi, etc.) Le lecteur assemble ces signaux et CONSTRUIT LUI-MÊME la phrase que le livre n'a jamais dite.
+
+C'est la différence entre "beau livre" et "livre qu'on ne lâche pas". Un livre qui explique son propre silence est mort. Un livre qui fait sentir son silence sans jamais le dire est un best-seller.
+
+FORMAT OBLIGATOIRE DU DIAGNOSTIC RENFORCÉ :
+Le diagnostic que tu produis DOIT contenir une section clairement intitulée "SILENCE AXIAL DU LIVRE" avec les trois sous-sections ci-dessus (a, b, c). Cette section est NON-NÉGOCIABLE. Si tu la négliges, le livre sera sage, pas grand. Le système qui écrit les chapitres ira chercher cette section nommément — sans elle, il reste dans le confort explicatif.
+
+PRODUIS LE DIAGNOSTIC RENFORCE — le diagnostic original PLUS tes corrections, ajouts, renforcements, PLUS la section SILENCE AXIAL DU LIVRE (obligatoire). Garde ce qui est fort. Durcis ce qui est mou. Ajoute ce qui manque. Le résultat doit être un diagnostic qui produit un best-seller qui mérite un prix littéraire, pas un bon livre.`;
+
+      const reinforced = await A.llmCall(
+        'Tu es un directeur littéraire de premier plan. Challenge et renforce ce diagnostic.',
+        superPrompt1, 4096
+      );
+
+      A.config.model = savedModelSuper1;
+
+      // Le diagnostic renforcé REMPLACE le diagnostic original
+      A.diagnostic = reinforced;
+      lg(`Diagnostic renforcé par Opus — ${reinforced.split(/\s+/).length} mots`, 'ok');
+      autosave();
+      await new Promise(r => setTimeout(r, 5000));
+
+      // ── Phase 2: Plan ──
+      document.getElementById('assembleStatus').textContent = 'Planification...';
+      document.getElementById('assembleProgress').style.width = '10%';
+      lg('Planification...', 'info');
+
+      const planPromptText = A.buildPlanPrompt();
+      const planRaw = await A.llmCall(
+        'Tu es un directeur littéraire. Produis le plan en JSON strict.',
+        planPromptText, 8192
+      );
+      let planClean = planRaw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+      // Fix common LLM JSON errors
+      planClean = planClean.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']'); // trailing commas
+      planClean = planClean.replace(/:\s*None\b/g, ': null'); // Python None
+      planClean = planClean.replace(/:\s*True\b/g, ': true').replace(/:\s*False\b/g, ': false'); // Python booleans
+      // Remove any text before first { and after last }
+      const firstBrace = planClean.indexOf('{');
+      const lastBrace = planClean.lastIndexOf('}');
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        planClean = planClean.substring(firstBrace, lastBrace + 1);
+      }
+      // Remove JS-style comments
+      planClean = planClean.replace(/\/\/[^\n]*/g, '');
+      try {
+        A.plan = JSON.parse(planClean);
+      } catch (parseErr) {
+        lg(`Parse attempt 1 failed: ${parseErr.message}`, 'err');
+        try {
+          // Aggressive JSON repair
+          let fixed = planClean;
+          // Remove control chars except newlines/tabs
+          fixed = fixed.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ');
+          // Fix trailing commas
+          fixed = fixed.replace(/,\s*([}\]])/g, '$1');
+          // Fix missing commas between objects in array: }{ → },{
+          fixed = fixed.replace(/\}\s*\{/g, '},{');
+          // Fix unescaped newlines inside strings — replace with space
+          fixed = fixed.replace(/"([^"]*)\n([^"]*?)"/g, (m, a, b) => `"${a} ${b}"`);
+          // Try parsing the fixed version
+          A.plan = JSON.parse(fixed);
+          lg('JSON repaired successfully', 'ok');
+        } catch (parseErr2) {
+          lg(`Parse attempt 2 failed: ${parseErr2.message}`, 'err');
+          // Last resort: extract position from error, truncate, close JSON
+          try {
+            const posMatch = parseErr.message.match(/position (\d+)/);
+            if (posMatch) {
+              const pos = parseInt(posMatch[1]);
+              // Find the last valid array close before error position
+              let truncated = planClean.substring(0, pos);
+              // Close any open structures
+              const openBrackets = (truncated.match(/\[/g)||[]).length - (truncated.match(/\]/g)||[]).length;
+              const openBraces = (truncated.match(/\{/g)||[]).length - (truncated.match(/\}/g)||[]).length;
+              // Remove trailing comma
+              truncated = truncated.replace(/,\s*$/, '');
+              // Close open structures
+              for (let b = 0; b < openBrackets; b++) truncated += ']';
+              for (let b = 0; b < openBraces; b++) truncated += '}';
+              A.plan = JSON.parse(truncated);
+              lg(`JSON truncated and repaired at position ${pos} — ${A.plan.chapters?.length || '?'} chapitres récupérés`, 'ok');
+            } else {
+              throw parseErr2;
+            }
+          } catch {
+            lg('All JSON repair attempts failed', 'err');
+            throw new Error('Plan JSON invalide — le LLM a produit du JSON malformé. Relance.');
+          }
+        }
+      }
+      // Ensure new fields have defaults
+      if (!A.plan.pitch) A.plan.pitch = '';
+      if (!A.plan.tension_motrice) A.plan.tension_motrice = '';
+      A.plan.chapters = (A.plan.chapters || []).map(ch => ({
+        ...ch,
+        fondatrice: ch.fondatrice || false,
+        mene_vers: ch.mene_vers || null,
+        exigence: ch.exigence || 'standard'
+      }));
+      lg(`Plan OK — "${A.plan.title}" — ${A.plan.chapters?.length} chapitres`, 'ok');
+      autosave();
+
+      // ── Phase 3: Chapitres — LABORATOIRE D'ÉCRIVAINS ──
+      // Architecture : scènes fondatrices d'abord (Opus), puis chapitres de liaison (Sonnet)
+      const OPUS_MODEL = 'claude-opus-4-6';
+      const baseModel = A.config.model;
+      const hasOpus = baseModel.includes('opus');
+      const totalCh = A.plan.chapters.length;
+
+      // Initialize chapters array with nulls (will fill out of order)
+      A.chapters = new Array(totalCh).fill(null);
+
+      // Identify fondatrices and liaison chapters
+      const fondatrices = [];
+      const liaisons = [];
+      A.plan.chapters.forEach((ch, i) => {
+        if (ch.fondatrice) fondatrices.push(i);
+        else liaisons.push(i);
+      });
+
+      lg(`Architecture : ${fondatrices.length} scènes fondatrices + ${liaisons.length} chapitres de liaison`, 'info');
+
+      // ── Phase 3A: Scènes fondatrices EN PREMIER ──
+      // Opus uniquement pour les fondatrices marquées "critique" — les autres en Sonnet
+      for (const idx of fondatrices) {
+        const ch = A.plan.chapters[idx];
+        const isCritical = ch.exigence === 'critique';
+        const chModel = baseModel; // Opus désactivé — Worker CPU limit
+        const pct = 15 + Math.round((idx / totalCh) * 30);
+        document.getElementById('assembleProgress').style.width = pct + '%';
+        document.getElementById('assembleStatus').textContent = `★ Scène fondatrice ${idx+1}/${totalCh} : ${ch.title}`;
+        lg(`★ FONDATRICE ch.${idx+1} : "${ch.title}" [${ch.regime}]${isCritical ? ' → ' + chModel + ' (critique)' : ''}`, 'ok');
+
+        const savedModel = A.config.model;
+        A.config.model = chModel;
+
+        const chPrompt = A.buildChapterPrompt(idx);
+        const maxTk = A.config.length === 'long' ? 12000 : (A.config.length === 'medium' ? 6000 : 4000);
+        const chText = await A.llmCall(
+          'Tu es un écrivain. Écris cette scène fondatrice — un pilier du livre.',
+          chPrompt, maxTk
+        );
+        A.config.model = savedModel;
+
+        const wc = chText.split(/\s+/).length;
+        A.chapters[idx] = { title: ch.title, text: chText, wordCount: wc, pexelsKw: ch.pexels_keywords || [ch.title?.replace(/[«»'"]/g,'') || ''] };
+        lg(`  → ${wc.toLocaleString('fr-FR')} mots`, 'ok');
+        autosave();
+        // Pause entre les appels pour éviter le rate limiting API
+        await new Promise(r => setTimeout(r, 5000));
+      }
+      for (const idx of liaisons) {
+        const ch = A.plan.chapters[idx];
+        const isCritical = ch.exigence === 'critique';
+        const chModel = baseModel; // Opus désactivé — Worker CPU limit
+        const pct = 45 + Math.round((idx / totalCh) * 35);
+        document.getElementById('assembleProgress').style.width = pct + '%';
+        document.getElementById('assembleStatus').textContent = `Chapitre ${idx+1}/${totalCh} : ${ch.title}`;
+        lg(`Écriture ch.${idx+1}/${totalCh} : "${ch.title}" [${ch.regime || ''}]${isCritical ? ' → '+chModel+' (critique)' : ''}`, 'info');
+
+        const savedModel = A.config.model;
+        A.config.model = chModel;
+
+        const chPrompt = A.buildChapterPrompt(idx);
+        const maxTk = A.config.length === 'long' ? 12000 : (A.config.length === 'medium' ? 6000 : 4000);
+        const chText = await A.llmCall(
+          'Tu es un écrivain. Écris le chapitre demandé.',
+          chPrompt, maxTk
+        );
+        A.config.model = savedModel;
+
+        const wc = chText.split(/\s+/).length;
+        A.chapters[idx] = { title: ch.title, text: chText, wordCount: wc, pexelsKw: ch.pexels_keywords || [ch.title?.replace(/[«»'"]/g,'') || ''] };
+        lg(`  → ${wc.toLocaleString('fr-FR')} mots`, 'ok');
+        autosave();
+        // Pause entre les appels
+        await new Promise(r => setTimeout(r, 5000));
+      }
+      // Bilan mots après écriture de tous les chapitres (scope local pour éviter ReferenceError)
+      const totalWords = A.chapters.reduce((s, c) => s + (c?.wordCount || 0), 0);
+      lg(`Tous les chapitres écrits — ${totalWords.toLocaleString('fr-FR')} mots total`, 'ok');
+
+      // ── Phase 3C: SUPERVISION OPUS — l'éditeur relit le livre assemblé ──
+      document.getElementById('assembleStatus').textContent = 'Relecture éditoriale (Opus)...';
+      document.getElementById('assembleProgress').style.width = '78%';
+      lg('Supervision Opus — l\'éditeur relit le livre complet...', 'info');
+
+      // Condensé de tous les chapitres pour Opus
+      const bookCondense = A.chapters.map((c, i) => {
+        if (!c || !c.text) return '';
+        const w = c.text.split(/\s+/);
+        return `--- Ch.${i+1} "${c.title}" (${c.wordCount} mots) ---\n${w.slice(0, 100).join(' ')}\n[...]\n${w.slice(-60).join(' ')}`;
+      }).filter(Boolean).join('\n\n');
+
+      const savedModelSuper2 = A.config.model;
+      A.config.model = 'claude-opus-4-6';
+
+      const superPrompt2 = `Tu es un directeur littéraire de premier plan — celui qui décide si un manuscrit devient un best-seller ou un livre oublié. Tu viens de lire un livre ENTIER. Tu le juges avec la lucidité d'un éditeur qui a lu dix mille manuscrits.
+
+Tu fais ce que l'AUTEUR ne peut PAS faire — tu vois les patterns qu'il ne voit pas, tu sens les faiblesses qu'il ne sent plus, tu entends les répétitions qu'il n'entend plus. Tu es le regard extérieur impitoyable qui transforme un bon livre en un livre qu'on ne lâche pas.
+
+DIAGNOSTIC DU LIVRE :
+${A.diagnostic.substring(0, 3000)}
+
+PLAN :
+${A.plan.chapters.map(ch => `Ch.${ch.num} "${ch.title}" [${ch.regime}]`).join('\n')}
+
+LIVRE COMPLET (condensé de chaque chapitre) :
+${bookCondense}
+
+═══ TES QUESTIONS — sois IMPITOYABLE ═══
+
+1. LA COURBE EMOTIONNELLE — lis le livre comme une PARTITION. Où sont les montées ? Les silences ? Les coups ? Est-ce que la courbe a des ACCIDENTS ou est-elle trop lisse, trop prévisible ? Si deux chapitres consécutifs sont au même niveau d'intensité, le lecteur stagne. Où stagne-t-il ?
+
+2. LES VOIX — est-ce que chaque personnage a une voix DISTINCTE ? Le père parle-t-il autrement que la mère ? Leila a-t-elle sa propre façon de formuler, ses propres mots, son propre rythme — ou sonne-t-elle comme le narrateur ? Un lecteur doit reconnaître qui parle SANS le dialogue tag. Si toutes les voix se ressemblent, les personnages sont des marionnettes.
+
+3. LES MOTIFS — est-ce que les fils conducteurs TRAVERSENT vraiment le livre ? Les mots-ancres reviennent-ils ? Changent-ils de sens à chaque retour ? Un grand livre a des motifs qui s'enrichissent — "assieds-toi" ne doit pas signifier la même chose au chapitre 1 et au chapitre 11. Si un motif est posé et abandonné, c'est une promesse trahie.
+
+4. LA TENSION — où le lecteur DÉCROCHE ? Quel chapitre est trop sage, trop attendu ? Et surtout : la tension se TRANSFORME-t-elle au milieu du livre ? Si le lecteur a sa réponse à la moitié, la deuxième moitié s'effondre. Qu'est-ce qui le TIRE après le milieu ?
+
+5. LES REPETITIONS — est-ce qu'un chapitre REPETE un autre dans le fond ? Deux scènes qui disent la même chose avec des mots différents — l'une des deux doit mourir. Quels chapitres sont INTERCHANGEABLES (= pas nécessaires) ?
+
+6. LES SCENES DE BOUCHE-A-OREILLE — combien de scènes un lecteur raconterait à un ami au dîner ? "Tu sais, il y a ce moment où..." Compte-les sincèrement. Un livre qui en a plusieurs fortes vit durablement dans la mémoire du lecteur ; un livre qui n'en a aucune glisse sans laisser de trace. Identifie celles qui ont ce pouvoir. Et — plus important — identifie celles qui DEVRAIENT l'avoir mais ne l'ont pas encore : scènes potentiellement puissantes qui ont été écrites trop vite, trop lissées, trop sages. Ces dernières sont les priorités de réécriture.
+
+7. LE MONDE CONCRET — est-ce que le lecteur VOIT les lieux, SENT les odeurs, ENTEND les sons ? Est-ce que le livre existe dans un monde physique ou flotte dans l'abstraction ? Les personnages secondaires ont-ils un CORPS — une façon de tenir leur tasse, de s'asseoir, de regarder — ou sont-ils des silhouettes ?
+
+8. LES TICS D'ECRITURE — est-ce qu'un mot ou une tournure revient TROP ? Il faut distinguer deux choses différentes : un TIC DE VOIX est humain — c'est un mot récurrent dans la bouche ou la pensée du personnage, qui caractérise sa façon de parler et qui apparaît à intervalles significatifs sans envahir. Une BÉQUILLE D'ÉCRITURE, c'est autre chose : un tic de l'auteur qui parasite tout le livre, qui surgit sans lien avec la voix du personnage, qui saoule à la lecture. Le test : si tu retires ce mot ou cette tournure, est-ce que le livre perd sa voix (c'est un tic de voix, à garder) ou est-ce qu'il respire mieux (c'est une béquille, à tailler) ? Y a-t-il des béquilles ?
+
+   Cherche en particulier les TICS RYTHMIQUES : des successions de phrases liées par "et" en début de proposition ("et il a pensé, et il a bougé, et il est sorti"), ou des passages où l'accumulation asyndétique s'installe sur plusieurs paragraphes consécutifs sans aucune phrase courte pour couper. Si tu tombes sur un chapitre qui ronronne ainsi — où le rythme unique a remplacé le rythme juste — signale-le comme chapitre faible. La correction n'est pas de changer le sens, mais d'introduire de la respiration : des cassures sèches, des points, des phrases brèves qui posent et laissent retomber avant que le flux reprenne.
+
+9. LA FIN — est-ce qu'elle HANTE ? Est-ce que le lecteur repense au livre trois jours après ? La fin est-elle OUVERTE au bon sens — pas inachevée, mais vibrante ? Si elle est trop résolue, trop belle, trop symétrique — c'est une fin d'IA, pas une fin de livre. Un vrai livre finit avec un tremblement, pas avec un arc-en-ciel.
+
+10. LE TEST ULTIME — si tu devais dire à un ami en UNE phrase pourquoi lire ce livre, quelle serait cette phrase ? Si tu n'arrives pas à la formuler — le livre n'a pas trouvé sa raison d'être.
+
+11. LE SILENCE AXIAL — le diagnostic a identifié LE silence central du livre : ce qui doit être senti sans être écrit. Vérifie TRÈS ATTENTIVEMENT : est-ce que le texte, quelque part, a ÉCRIT ce silence ? Même en périphrase, même en question rhétorique ("peut-être que…"), même en reformulation. Cherche les phrases qui explicitent ce que le lecteur devait trouver SEUL. Si tu en trouves une, signale-la comme un chapitre faible avec consigne "supprimer ou reformuler en geste/objet/silence" — c'est là que le livre perd sa puissance d'iceberg.
+
+═══ PRODUIS ═══
+
+CHAPITRES FAIBLES (max 3) :
+
+CHAPITRE_FAIBLE: [numéro]
+PROBLEME: [le problème en 1 phrase]
+CORRECTION: [ce qu'il faut faire en 2-3 phrases — pas réécrire, ORIENTER]
+
+VERDICT: [Ce livre est-il un best-seller ? Un prix littéraire ? Ou un bon livre qui ne fera pas de bruit ? Sois honnête. Et dis ce qui manque pour passer au niveau supérieur.]`;
+
+      const editReview = await A.llmCall(
+        'Tu es un directeur littéraire de premier plan. Relis ce livre et juge-le sans complaisance.',
+        superPrompt2, 3000
+      );
+
+      A.config.model = savedModelSuper2;
+      lg('Relecture Opus terminée', 'ok');
+      await new Promise(r => setTimeout(r, 5000));
+
+      // Parse les chapitres faibles identifiés par Opus
+      const weakChapters = [];
+      const weakMatches = editReview.matchAll(/CHAPITRE_FAIBLE:\s*(\d+)\s*\n\s*PROBLEME:\s*(.*?)\s*\n\s*CORRECTION:\s*(.*?)(?=\n\s*CHAPITRE_FAIBLE|\n\s*VERDICT|$)/gs);
+      for (const m of weakMatches) {
+        weakChapters.push({ num: parseInt(m[1]), probleme: m[2].trim(), correction: m[3].trim() });
+      }
+
+      if (weakChapters.length > 0) {
+        lg(`Opus identifie ${weakChapters.length} chapitre(s) à renforcer`, 'info');
+
+        // Réécrire les chapitres faibles avec les remarques d'Opus
+        for (const weak of weakChapters) {
+          const idx = weak.num - 1;
+          if (idx < 0 || idx >= A.chapters.length || !A.chapters[idx]) continue;
+
+          document.getElementById('assembleStatus').textContent = `Réécriture ch.${weak.num} (correction Opus)...`;
+          lg(`Réécriture ch.${weak.num} "${A.plan.chapters[idx]?.title}" — ${weak.probleme}`, 'info');
+
+          const rewritePrompt = A.buildChapterPrompt(idx) + 
+            `\n\nATTENTION — UN EDITEUR A RELU CE CHAPITRE ET A IDENTIFIE UN PROBLEME :\nPROBLEME : ${weak.probleme}\nCORRECTION DEMANDEE : ${weak.correction}\nTiens compte de cette remarque. Réécris ce chapitre en corrigeant ce problème SANS perdre ce qui était fort.`;
+
+          const maxTk = A.config.length === 'long' ? 12000 : (A.config.length === 'medium' ? 6000 : 4000);
+          const rewritten = await A.llmCall(
+            'Tu es un écrivain. Réécris ce chapitre en tenant compte des remarques de l\'éditeur.',
+            rewritePrompt, maxTk
+          );
+
+          const wc = rewritten.split(/\s+/).length;
+          A.chapters[idx] = { ...A.chapters[idx], text: rewritten, wordCount: wc };
+          lg(`  → ch.${weak.num} réécrit — ${wc.toLocaleString('fr-FR')} mots`, 'ok');
+          autosave();
+          await new Promise(r => setTimeout(r, 5000));
+        }
+
+        const newTotal = A.chapters.reduce((s, c) => s + (c?.wordCount || 0), 0);
+        lg(`Livre révisé — ${newTotal.toLocaleString('fr-FR')} mots total`, 'ok');
+      } else {
+        lg('Opus : aucun chapitre faible identifié — le livre tient', 'ok');
+      }
+
+      // Log le verdict
+      const verdictMatch = editReview.match(/VERDICT:\s*(.*)/s);
+      if (verdictMatch) lg(`Verdict Opus : ${verdictMatch[1].trim().substring(0, 200)}`, 'info');
+
+      // ── Phase 4: 4e de couverture ──
+      document.getElementById('assembleProgress').style.width = '85%';
+      document.getElementById('assembleStatus').textContent = '4e de couverture...';
+      lg('4e de couverture...', 'info');
+
+      const backPrompt = A.buildBackCoverPrompt();
+      A.backCover = await A.llmCall(
+        'Tu écris la quatrième de couverture.',
+        backPrompt, 1000
+      );
+      lg('4e de couverture OK', 'ok');
+      autosave();
+
+      // ── Phase 5: EPUB ──
+      document.getElementById('assembleProgress').style.width = '90%';
+      document.getElementById('assembleStatus').textContent = 'Assemblage EPUB + illustrations Pexels...';
+      lg('Assemblage EPUB...', 'info');
+
+      const zip = await A.buildEpub(lg);
+      const blob = await zip.generateAsync({ type:'blob', mimeType:'application/epub+zip' });
+      A._epubBlob = blob;
+
+      document.getElementById('assembleProgress').style.width = '100%';
+      document.getElementById('assembleStatus').textContent = 'Terminé';
+      document.getElementById('finalTitle').textContent = A.plan.title;
+      document.getElementById('finalStats').textContent = `${A.chapters.length} chapitres · ${totalWords.toLocaleString('fr-FR')} mots · ~${Math.round(totalWords/250)} pages`;
+      lg(`EPUB : ${(blob.size/1024).toFixed(0)} Ko`, 'ok');
+
+      // Estimate cost
+      const inputTk = A.chapters.length * 20000 + 40000; // rough
+      const outputTk = totalWords * 1.3; // tokens ≈ 1.3x words
+      const costs = { 'claude-sonnet-4-6': [3,15], 'claude-opus-4-6': [5,25] };
+      const [ci, co] = costs[A.config.model] || [3,15];
+      const cost = ((inputTk/1e6)*ci + (outputTk/1e6)*co).toFixed(2);
+      lg(`Coût estimé : ~$${cost} USD`, 'info');
+
+      document.getElementById('downloadArea').style.display = 'block';
+
+    } catch (e) {
+      lg('ERREUR : ' + e.message, 'err');
+      document.getElementById('assembleStatus').textContent = 'Erreur — voir les logs';
+      // Show save button so user can save partial progress
+      document.getElementById('downloadArea').style.display = 'block';
+    }
+  }
+});
+
+// ── Step 1: Validate diagnostic ──
+document.getElementById('diagResponse').addEventListener('input', function() {
+  document.getElementById('validateDiagBtn').disabled = this.value.trim().length < 50;
+});
+
+document.getElementById('validateDiagBtn').addEventListener('click', () => {
+  A.diagnostic = document.getElementById('diagResponse').value.trim();
+  setPromptBlock('planPrompt', A.buildPlanPrompt());
+  autosave();
+  showStep(2);
+});
+
+// ── Step 2: Plan ──
+document.getElementById('planResponse').addEventListener('input', function() {
+  document.getElementById('validatePlanBtn').disabled = this.value.trim().length < 20;
+});
+
+document.getElementById('validatePlanBtn').addEventListener('click', () => {
+  const raw = document.getElementById('planResponse').value.trim();
+  let clean = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+  clean = clean.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+  clean = clean.replace(/:\s*None\b/g, ': null');
+  clean = clean.replace(/:\s*True\b/g, ': true').replace(/:\s*False\b/g, ': false');
+  try {
+    let json = JSON.parse(clean);
+    if (!json.title && !json.chapters) {
+      const m = clean.match(/\{[\s\S]*\}/);
+      if (m) json = JSON.parse(m[0]);
+    }
+    // Ensure defaults
+    if (!json.pitch) json.pitch = '';
+    if (!json.tension_motrice) json.tension_motrice = '';
+    json.chapters = (json.chapters || []).map(ch => ({
+      ...ch,
+      fondatrice: ch.fondatrice || false,
+      mene_vers: ch.mene_vers || null,
+      exigence: ch.exigence || 'standard'
+    }));
+    A.plan = json;
+  } catch (e) {
+    alert('JSON invalide : ' + e.message + '\n\nV\u00e9rifie que le LLM a produit du JSON pur.');
+    return;
+  }
+
+  buildChaptersUI();
+  autosave();
+  showStep(3);
+});
+
+// ── Step 3: Chapters ──
+function buildChaptersUI() {
+  const acc = document.getElementById('chaptersAccordion');
+  acc.innerHTML = '';
+  A.chapters = [];
+  const plan = A.plan;
+
+  plan.chapters.forEach((ch, i) => {
+    const item = document.createElement('div');
+    item.className = 'chapter-item';
+    item.id = `chItem${i}`;
+    item.innerHTML = `
+      <div class="chapter-header" onclick="toggleChapter(${i})">
+        <div class="ch-num" id="chNum${i}">${i+1}</div>
+        <div class="ch-title">${ch.title}${ch.exigence === 'critique' ? ' <span style="font-size:.6rem;color:var(--accent);font-weight:700;font-family:var(--ui)">★ CRITIQUE</span>' : ''}</div>
+        <div class="ch-words" id="chWords${i}">${ch.regime || ''}</div>
+        <div class="ch-toggle" id="chToggle${i}">\u25bc</div>
+      </div>
+      <div class="chapter-body" id="chBody${i}">
+        <div style="margin-bottom:12px;font-size:.75rem;color:var(--ink2)">${ch.description || ''}${ch.exigence === 'critique' ? '<br><span style="color:var(--accent);font-weight:600">⚡ Chapitre critique — utiliser le modèle le plus puissant (Opus recommandé)</span>' : ''}</div>
+        <div style="font-size:.65rem;font-weight:700;color:var(--deep);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Prompt \u00e0 copier</div>
+        <div class="prompt-block" id="chPrompt${i}"></div>
+        <div style="margin-top:12px">
+          <label style="font-size:.65rem;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.1em">Texte du chapitre (r\u00e9ponse LLM)</label>
+          <textarea class="response-area" id="chText${i}" placeholder="Colle ici le texte du chapitre ${i+1}..." style="min-height:180px"></textarea>
+        </div>
+        <button class="btn btn-primary btn-small" style="margin-top:8px" onclick="validateChapter(${i})">Valider ce chapitre</button>
+      </div>`;
+    acc.appendChild(item);
+  });
+
+  // Generate first chapter prompt
+  openAndGeneratePrompt(0);
+}
+
+function toggleChapter(i) {
+  const body = document.getElementById('chBody'+i);
+  body.classList.toggle('open');
+}
+
+function openAndGeneratePrompt(i) {
+  // Close all, open this one
+  document.querySelectorAll('.chapter-body').forEach(b => b.classList.remove('open'));
+  document.getElementById('chBody'+i).classList.add('open');
+  document.getElementById('chNum'+i).className = 'ch-num active';
+
+  // Generate prompt with cumulated context
+  const prompt = A.buildChapterPrompt(i);
+  setPromptBlock('chPrompt'+i, prompt);
+}
+
+function validateChapter(i) {
+  const text = document.getElementById('chText'+i).value.trim();
+  if (text.length < 100) { alert('Le chapitre semble trop court.'); return; }
+
+  const wc = text.split(/\s+/).length;
+  const ch = { title: A.plan.chapters[i].title, text, wordCount: wc, pexelsKw: A.plan.chapters[i].pexels_keywords || [A.plan.chapters[i].title || ''] };
+
+  // Replace or push
+  if (A.chapters.length > i) { A.chapters[i] = ch; } else { A.chapters.push(ch); }
+
+  // UI update
+  document.getElementById('chNum'+i).className = 'ch-num done';
+  document.getElementById('chWords'+i).textContent = wc.toLocaleString('fr-FR') + ' mots';
+  document.getElementById('chBody'+i).classList.remove('open');
+
+  // Next chapter
+  const next = i + 1;
+  if (next < A.plan.chapters.length) {
+    openAndGeneratePrompt(next);
+  }
+
+  // Check if all done
+  updateWriteProgress();
+  autosave();
+}
+
+function updateWriteProgress() {
+  const total = A.plan.chapters.length;
+  const done = A.chapters.length;
+  document.getElementById('writeProgress').style.width = Math.round((done/total)*100) + '%';
+  document.getElementById('writeSub').textContent = `${done}/${total} chapitres \u2014 ${A.chapters.reduce((s,c) => s + c.wordCount, 0).toLocaleString('fr-FR')} mots`;
+
+  if (done >= total) {
+    document.getElementById('toStep4Btn').style.display = 'block';
+  }
+}
+
+// ── Step 4: Back cover ──
+document.getElementById('toStep4Btn').addEventListener('click', () => {
+  setPromptBlock('backCoverPrompt', A.buildBackCoverPrompt());
+  showStep(4);
+});
+
+document.getElementById('backCoverResponse').addEventListener('input', function() {
+  document.getElementById('assembleBtn').disabled = this.value.trim().length < 30;
+});
+
+// ── Générer la 4e via LLM (à partir des chapitres du livre) ──
+document.getElementById('genBackCoverBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('genBackCoverBtn');
+  const status = document.getElementById('genBackCoverStatus');
+  const area = document.getElementById('backCoverResponse');
+
+  if (!A.chapters || A.chapters.length === 0) {
+    status.textContent = '❌ Aucun chapitre en mémoire.';
+    status.style.color = 'crimson';
+    return;
+  }
+
+  btn.disabled = true;
+  status.style.color = '';
+  status.textContent = '⏳ Composition de la 4e de couverture...';
+
+  try {
+    // Condensé du livre : premier + dernier extraits de chaque chapitre
+    // pour donner au LLM une vue d'ensemble sans exploser le contexte.
+    const condense = A.chapters.map((c, i) => {
+      if (!c?.text) return '';
+      const words = c.text.split(/\s+/);
+      const head = words.slice(0, 150).join(' ');
+      const tail = words.slice(-100).join(' ');
+      return `─── Ch.${i+1} « ${c.title} » (${c.wordCount} mots) ───
+DÉBUT: ${head}
+[...]
+FIN: ${tail}`;
+    }).filter(Boolean).join('\n\n');
+
+    const title = A.plan?.title || 'Ce livre';
+    const subtitle = A.plan?.subtitle || '';
+
+    const system = `Tu es un éditeur littéraire. Tu écris des 4e de couverture qui donnent envie d'ouvrir le livre. Pas de la promo — de la littérature. Tu sens le livre. Tu en donnes l'os, la question qu'il pose, ce qu'il réveille chez le lecteur. Tu ne résumes pas l'intrigue — tu donnes le grain, la voix, le vertige. Écris en français, avec ta propre voix d'éditeur.`;
+
+    const userMsg = `Voici le livre que tu dois présenter en 4e de couverture.
+
+TITRE : ${title}${subtitle ? '\nSOUS-TITRE : ' + subtitle : ''}
+
+───────────────── EXTRAITS DU LIVRE ─────────────────
+
+${condense}
+
+─────────────────────────────────────────────────────
+
+Écris la 4e de couverture.
+
+Format :
+1. Un paragraphe d'accroche (3-5 lignes) — qui est le personnage, qu'est-ce qui se joue, quel est le vertige.
+2. Un paragraphe plus resserré (2-3 lignes) — la question que le livre pose au lecteur, ce qu'il réveille.
+3. Une phrase-clé finale, courte, qui reste.
+4. Sautes une ligne et ajoute "— " suivi de 1 à 3 mots sur le genre (ex: « — Premier roman. » ou « — Récit. » ou « — Roman. »).
+
+Interdits : ne cite AUCUN nom propre extérieur au livre (pas de nom d'écrivain du cortège, pas d'influence explicite). Ne fais PAS de résumé chronologique. Ne commence PAS par "Ce livre raconte…" ni par une phrase générique. Commence par une phrase qui attrape.
+
+Longueur : entre 120 et 200 mots au total. Écris. Rien d'autre — pas de commentaire, pas de balise, pas de titre "4e de couverture".`;
+
+    // Appel LLM via le Worker (streaming) — on réutilise la méthode existante
+    const t0 = Date.now();
+    const backText = await A.llmCall(system, userMsg, 800);
+    const dt = ((Date.now() - t0) / 1000).toFixed(1);
+
+    area.value = backText.trim();
+    // Déclencher le listener 'input' pour activer le bouton Assembler
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+
+    status.style.color = '';
+    status.textContent = `✓ 4e générée en ${dt}s — relis, modifie si besoin, puis Assembler.`;
+  } catch (err) {
+    status.style.color = 'crimson';
+    status.textContent = '❌ ' + (err.message || 'Erreur inconnue');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Step 5: Assemble ──
+document.getElementById('assembleBtn').addEventListener('click', async () => {
+  A.backCover = document.getElementById('backCoverResponse').value.trim();
+  showStep(5);
+
+  const plan = A.plan;
+  const totalWords = A.chapters.reduce((s,c) => s + c.wordCount, 0);
+  document.getElementById('finalTitle').textContent = plan.title;
+  document.getElementById('finalStats').textContent = `${A.chapters.length} chapitres \u00b7 ${totalWords.toLocaleString('fr-FR')} mots \u00b7 ~${Math.round(totalWords/250)} pages`;
+
+  const logEl = document.getElementById('assembleLog');
+  const lg = (msg, type='info') => {
+    logEl.innerHTML += `<div class="log-${type}">[${new Date().toLocaleTimeString('fr-FR')}] ${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  lg(`Assemblage de "${plan.title}"`, 'info');
+  lg(`${A.chapters.length} chapitres, ${totalWords} mots`, 'info');
+
+  try {
+    document.getElementById('assembleProgress').style.width = '30%';
+    document.getElementById('assembleStatus').textContent = 'Recherche des images Pexels...';
+
+    const zip = await A.buildEpub(lg);
+
+    document.getElementById('assembleProgress').style.width = '90%';
+    document.getElementById('assembleStatus').textContent = 'G\u00e9n\u00e9ration du fichier EPUB...';
+
+    const blob = await zip.generateAsync({ type:'blob', mimeType:'application/epub+zip' });
+    A._epubBlob = blob;
+
+    document.getElementById('assembleProgress').style.width = '100%';
+    document.getElementById('assembleStatus').textContent = 'Termin\u00e9';
+    lg(`EPUB : ${(blob.size/1024).toFixed(0)} Ko`, 'ok');
+    document.getElementById('downloadArea').style.display = 'block';
+
+  } catch (e) {
+    lg('ERREUR : ' + e.message, 'err');
+    document.getElementById('assembleStatus').textContent = 'Erreur';
+  }
+});
+
+// ── Downloads ──
+document.getElementById('dlEpub').addEventListener('click', () => {
+  if (!A._epubBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(A._epubBlob);
+  a.download = (A.plan?.title||'livre').replace(/[^a-zA-Z\u00C0-\u00FF0-9\s-]/g,'').replace(/\s+/g,'-') + '.epub';
+  a.click(); URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('dlMd').addEventListener('click', () => {
+  const md = A.getMarkdown();
+  const blob = new Blob([md], { type:'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (A.plan?.title||'livre').replace(/[^a-zA-Z\u00C0-\u00FF0-9\s-]/g,'').replace(/\s+/g,'-') + '.md';
+  a.click(); URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  A.chapters = []; A.plan = null; A.backCover = ''; A._epubBlob = null; A.diagnostic = '';
+  try { localStorage.removeItem(PROJECT_KEY); } catch(e) {}
+  document.getElementById('dropLabel').textContent = 'D\u00e9poser un fichier FINAL V9 (.md) ou un projet sauvegard\u00e9 (.ldv.json)';
+  document.getElementById('dropLabel').classList.remove('loaded');
+  document.getElementById('analysisResult').style.display = 'none';
+  document.getElementById('saveProjectBtn').style.display = 'none';
+  showStep(0);
+});
+
+// ── Save button ──
+document.getElementById('saveProjectBtn').addEventListener('click', downloadProject);
+
+// ── Check autosave on load ──
+checkAutosave();
+</script>
+</body>
+</html>
