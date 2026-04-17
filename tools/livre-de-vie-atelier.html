@@ -661,6 +661,23 @@ JSON VALIDE UNIQUEMENT — pas de texte avant ni après, pas de commentaires. Le
       fondatriceCtx = '\n\n★ CE CHAPITRE EST UNE SCENE FONDATRICE — un pilier du livre. C\'est une scène qu\'on raconte à quelqu\'un : "tu sais, il y a ce moment où..." Elle doit être INOUBLIABLE. Prends ton temps. Chaque mot compte. C\'est ici que le livre se joue.';
     }
 
+    // ═══ PROMESSE SOUVERAINE — la méta-section de hiérarchisation, EN TÊTE du diagnostic ═══
+    // C'est la carte de navigation du livre : ce qui fait entrer, ce qui fait rester, ce qui
+    // fait raconter. Injectée en premier dans le prompt chapitre, avant tout le reste, pour
+    // que le LLM garde ces trois phrases au sommet de son attention. Si deux axes entrent
+    // en tension dans un chapitre, c'est la promesse qui prime.
+    let promesseCtx = '';
+    if (this.diagnostic) {
+      const promesseMatch = this.diagnostic.match(/PROMESSE\s+SOUVERAINE[^\n]*:?\s*\n([\s\S]*?)(?=\n\s*(?:[A-Z][A-Z0-9 ]{6,}[\n:]|##|===|\d+\.\s+[A-Z]{3}|FORMAT OBLIGATOIRE|$))/i);
+      if (promesseMatch) {
+        const promesseSection = promesseMatch[1].trim().slice(0, 900);
+        promesseCtx = `\n\n═══ PROMESSE SOUVERAINE DU LIVRE — à garder en tête en priorité ═══
+${promesseSection}
+
+Ces trois phrases sont la carte de navigation du livre. Chaque chapitre que tu écris doit servir au moins l'une d'elles — et ne jamais trahir les autres. Si tu dois arbitrer entre une contrainte littéraire fine et la tenue de la promesse souveraine, c'est la promesse qui prime. C'est elle qui fait le livre que le lecteur ouvre, continue, et recommande.`;
+      }
+    }
+
     // ═══ SILENCE AXIAL — extrait de la section SILENCE AXIAL DU LIVRE du diagnostic renforcé ═══
     // Cette section est produite par Opus Phase 1B. On la réinjecte dans CHAQUE prompt chapitre
     // pour que le LLM ait la contrainte sous les yeux en écrivant, pas dans un préambule oublié.
@@ -776,7 +793,7 @@ Tu portes en toi le CORTEGE D'ECRITURE. Pas comme des règles — comme des espr
 Tu PARLES comme ${p.prenom}. Tu entends sa voix dans ta tête — son rythme, ses silences, ses mots à elle/lui. Chaque phrase que tu écris passe ce test : est-ce que ${p.prenom} existe dans cette phrase ? Si la phrase sonne "écrivain" au lieu de sonner "${p.prenom}" — jette-la.
 
 Tu ne sais pas exactement comment ce chapitre va finir. Tu as la matière, tu as la direction, mais tu DECOUVRES en écrivant. Si le texte te révèle quelque chose que le plan n'avait pas prévu — SUIS-LE. Un chapitre qui confirme le diagnostic est un bon chapitre. Un chapitre qui le déplace est un grand chapitre.
-
+${promesseCtx}
 DIAGNOSTIC LITTERAIRE (le document fondateur — genre, cortège, voix, obsession, silences) :
 ${this.diagnostic}
 
@@ -847,6 +864,16 @@ LOIS D'ECRITURE — constitutionnelles :
     Comment tu sais que ton arc est fermé ? Tu sens un moment — souvent juste après une réplique, un geste, un silence — où une phrase se présente d'elle-même comme phrase de clôture. Elle est courte, elle est simple, elle laisse quelque chose en suspens sans expliquer. Si tu la reconnais, écris-la, et arrête. Ne ré-ouvre pas. N'ajoute pas un paragraphe pour "boucler mieux". La phrase qui vient après la phrase de clôture détruit celle de clôture.
 
     Règle inverse : si tu as atteint la cible mais que l'arc n'est PAS fermé, continue. L'arc l'emporte sur la cible. Dans les deux cas, c'est l'arc qui décide.
+
+13. TRACTION — un bon chapitre ne se contente pas d'être bien écrit, il donne envie de tourner la page. Trois disciplines à tenir pour chaque chapitre :
+
+    OUVERTURE QUI ACCROCHE — les premières lignes du chapitre plongent le lecteur directement dans une scène, un geste, un objet, un fragment. Pas de préambule explicatif ("ce jour-là, elle se souvint de..."). Pas de transition narrative qui explique où on est par rapport au chapitre précédent. Tu ouvres sur du concret, immédiat, sensoriel — et le lecteur se demande ce qui va suivre. L'ouverture n'est pas forcément spectaculaire ni violente — elle est PRÉSENTE. Elle impose la scène avant d'expliquer. Pour un chapitre biographique, l'ouverture peut être très calme (une tasse de thé, un bruit de radiateur, un geste) pourvu qu'elle soit AU PRÉSENT de la scène, pas dans le commentaire.
+
+    FIN QUI POUSSE — la dernière ligne du chapitre laisse une énergie inachevée. Pas nécessairement un cliffhanger dramatique (ce serait facile et faux pour un livre biographique). Plutôt une phrase qui POSE sans résoudre — une question implicite, un geste suspendu, une phrase brève qui charge le silence qui suit. Le lecteur, en refermant le chapitre, doit garder une tension — même minime, même sourde — qui l'amène naturellement à tourner la page. Si ta dernière phrase est une synthèse ou un commentaire qui ferme le chapitre en douceur, tu viens de relâcher la traction. Remplace-la par une phrase qui LAISSE — un objet concret, un geste interrompu, une parole inachevée, un silence nommé.
+
+    AU MOINS UNE PRISE — chaque chapitre doit offrir au lecteur au moins UN des trois éléments suivants : une image qui reste (un détail sensoriel si précis qu'il s'imprime), une phrase qu'on souligne (une formule qui condense le livre en elle-même), ou une scène qu'on racontera à quelqu'un ("tu sais, il y a ce moment où..."). Un chapitre qui n'offre aucun des trois est un chapitre de transition utile mais oubliable. Quelques chapitres de ce type sont tolérables dans un livre. Trop — et le livre perd son bouche-à-oreille. Quand tu termines ton chapitre, demande-toi honnêtement : qu'est-ce que le lecteur emporte ? Si tu ne trouves rien de précis, retravaille. Trouve le détail qui restera.
+
+    Ces trois disciplines sont complémentaires à tout ce qui précède. Elles ne remplacent pas le silence axial, le pont universel, le climat émotionnel, la voix — elles les rendent lisibles par le lecteur réel, pas seulement par l'éditeur qui juge le texte.
 
 MATIERE (transcript complet — tes SEULES sources de parole) :
 ${p.transcript}
@@ -1935,10 +1962,27 @@ Par exemple, pour un livre dont l'émotion-pivot est "manque qui ne se répare p
 
 Identifie ces signaux de climat pour le type de chapitres calmes que ce livre aura. C'est cette discipline qui fait qu'un livre n'a pas de respiration pour le lecteur — et donc qu'il ne se pose pas.
 
-FORMAT OBLIGATOIRE DU DIAGNOSTIC RENFORCÉ :
-Le diagnostic que tu produis DOIT contenir TROIS sections clairement intitulées et séparées : "SILENCE AXIAL DU LIVRE" (question 10, sous-sections a/b/c), "PONT UNIVERSEL" (question 11, sous-sections a/b/c), et "ARCHITECTURE ÉMOTIONNELLE" (question 12, sous-sections a/b/c). Ces trois sections sont NON-NÉGOCIABLES. Si tu les négliges, le livre sera sage, pas grand. Le système qui écrit les chapitres ira chercher ces sections nommément — sans elles, il reste dans le confort explicatif, dans l'enfermement particulier, ou dans la succession de scènes sans climat.
+13. LA PROMESSE SOUVERAINE — méta-section de hiérarchisation, à placer EN TÊTE du diagnostic renforcé.
 
-PRODUIS LE DIAGNOSTIC RENFORCE — le diagnostic original PLUS tes corrections, ajouts, renforcements, PLUS les trois sections obligatoires (SILENCE AXIAL DU LIVRE, PONT UNIVERSEL, ARCHITECTURE ÉMOTIONNELLE). Garde ce qui est fort. Durcis ce qui est mou. Ajoute ce qui manque. Le résultat doit être un diagnostic qui produit un livre où chaque lecteur se reconnaît (pont universel), où l'iceberg fonctionne (silence axial), et où le climat émotionnel ne lâche jamais le lecteur (architecture émotionnelle). Trois conditions pour un best-seller qui traverse les frontières d'expérience et hante durablement.`;
+Un diagnostic littéraire complet contient beaucoup de choses — genre, cortège, voix, obsession, pitch, tension motrice, question universelle, scènes fondatrices, silence axial, pont universel, architecture émotionnelle, et plus encore. Toutes sont importantes. Mais lorsqu'elles sont présentées au même niveau visuel, le LLM qui écrit les chapitres risque de les moyenner au lieu de les hiérarchiser — il honore tout à intensité moyenne plutôt que de privilégier ce qui fait VRAIMENT le livre.
+
+Pour éviter cette dilution, produis EN TÊTE du diagnostic renforcé (avant toutes les autres sections) une méta-section souveraine qui condense l'essentiel en trois lignes exactement. Cette méta-section est la CARTE DE NAVIGATION du livre — ce que le système doit garder en tête si tout le reste devient flou.
+
+Format exact :
+
+PROMESSE SOUVERAINE :
+- CE QUI FAIT ENTRER : [une phrase — la scène, l'image, la question d'ouverture qui donne envie au lecteur de continuer au-delà de la page 1. Pas un hook gratuit — la chose précise qui contient le livre en germe et qui accroche dès la première scène.]
+- CE QUI FAIT RESTER : [une phrase — le fil de tension, l'énergie, la question ou la hantise qui tire le lecteur d'un chapitre au suivant. Pas forcément un suspense — ça peut être une voix dont on ne peut pas se détacher, un climat émotionnel qui contamine, une obsession qui ne lâche pas.]
+- CE QUI FAIT RACONTER : [une phrase — la scène que le lecteur racontera à un ami en refermant le livre. La scène de bouche-à-oreille principale. Celle qui sort du livre et continue à exister dans la tête du lecteur, qui fait qu'il recommande le livre en décrivant d'abord cette scène-là.]
+
+Ces trois phrases doivent être CONCRÈTES, pas abstraites. "Une femme qui fait son thé en parlant à un mort" plutôt que "la solitude du deuil". "Un enfant qui reconnaît une odeur qu'il n'a jamais sentie" plutôt que "la transmission transgénérationnelle". Le concret ancre, l'abstrait dilue.
+
+Ces trois phrases constituent la PROMESSE SOUVERAINE du livre. Le système qui écrit les chapitres ira la chercher en tête du diagnostic. Chaque chapitre sera écrit avec ces trois phrases à l'esprit, en priorité sur le reste. Si une scène respecte parfaitement le silence axial mais trahit la promesse souveraine, c'est la promesse qui prime.
+
+FORMAT OBLIGATOIRE DU DIAGNOSTIC RENFORCÉ :
+Le diagnostic que tu produis DOIT contenir, dans cet ordre : la méta-section "PROMESSE SOUVERAINE" EN TÊTE (question 13, trois lignes condensant le livre), puis le diagnostic enrichi original (genre, cortège, voix, etc.), puis les TROIS sections majeures clairement intitulées et séparées : "SILENCE AXIAL DU LIVRE" (question 10, sous-sections a/b/c), "PONT UNIVERSEL" (question 11, sous-sections a/b/c), et "ARCHITECTURE ÉMOTIONNELLE" (question 12, sous-sections a/b/c). Ces quatre éléments sont NON-NÉGOCIABLES. Si tu les négliges, le livre sera sage, pas grand. Le système qui écrit les chapitres ira chercher ces sections nommément — sans elles, il reste dans le confort explicatif, dans l'enfermement particulier, dans la succession de scènes sans climat, ou dans la dilution sans hiérarchie.
+
+PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête, PLUS le diagnostic original avec tes corrections, ajouts, renforcements, PLUS les trois sections majeures (SILENCE AXIAL DU LIVRE, PONT UNIVERSEL, ARCHITECTURE ÉMOTIONNELLE). Garde ce qui est fort. Durcis ce qui est mou. Ajoute ce qui manque. Le résultat doit être un diagnostic qui produit un livre où chaque lecteur se reconnaît (pont universel), où l'iceberg fonctionne (silence axial), où le climat émotionnel ne lâche jamais le lecteur (architecture émotionnelle), et où la promesse souveraine tient d'un bout à l'autre.`;
 
       const reinforced = await A.llmCall(
         'Tu es un directeur littéraire de premier plan. Challenge et renforce ce diagnostic.',
@@ -2182,6 +2226,22 @@ ${bookCondense}
 
     b) La courbe émotionnelle tient-elle ? Le diagnostic a dessiné une partition (installation, montée, pic, paradoxe, transformation finale). Le livre livré suit-il cette partition, ou s'est-il aplati en ligne droite à intensité constante ? Un livre plat émotionnellement fatigue le lecteur même si chaque chapitre est bon — il s'habitue au climat et décroche. Un livre qui monte, suspend, frappe, retombe, repart tient le lecteur. Si tu détectes un aplatissement (plusieurs chapitres consécutifs à la même intensité émotionnelle), signale-le. Suggère quelle scène du plan pourrait porter un paradoxe (un rire dans le deuil, un silence dans les cris, un moment de peur dans la tendresse) pour briser la régularité et relancer le climat par contraste.
 
+14. LE LECTEUR TEST — relecture avec des yeux différents.
+
+Jusqu'ici tu as relu le livre avec les yeux d'un directeur littéraire : tu juges la voix, le silence, le climat, la structure, la tension, l'universalité. Ces yeux sont précieux — ils font le livre qu'un éditeur sérieux prendra. Mais ils ne sont pas les yeux du lecteur qui va acheter, ouvrir, tourner les pages, et potentiellement refermer.
+
+Pour cette dernière question, tu changes d'angle. Tu imagines un lecteur lambda — pas un critique, pas un littéraire exigeant, juste une personne qui a acheté ce livre, qui s'assoit un soir avec lui, qui lit pour se laisser emmener. Un lecteur qui peut, à tout moment, poser le livre et ne jamais le reprendre. Tu relis le livre avec SES yeux.
+
+Pose-toi ces questions, chapitre par chapitre :
+
+    a) LA PROMESSE SOUVERAINE — le diagnostic a identifié en tête la promesse souveraine du livre (ce qui fait entrer, ce qui fait rester, ce qui fait raconter). Vérifie chapitre par chapitre : le chapitre sert-il au moins un des trois axes de la promesse ? Si un chapitre est bien écrit mais ne sert aucun des trois axes, c'est un chapitre de remplissage — signale-le. Signale aussi si un chapitre TRAHIT la promesse (par exemple, un chapitre statique dans un livre dont la promesse de rétention est une tension qui monte).
+
+    b) LE DÉCROCHAGE — à quel endroit précis du livre un lecteur lambda est-il le plus tenté de poser le livre et de ne pas le reprendre ? Ce n'est pas forcément un mauvais chapitre — ce peut être un chapitre correct mais trop similaire au précédent (sensation de répétition), ou trop long par rapport à son contenu (dilution), ou trop lent juste après un pic émotionnel (besoin de relance manquée). Nomme le chapitre et le moment précis. Suggère une action — couper, resserrer, basculer vers autre chose, introduire un contraste.
+
+    c) CE QU'ON EMPORTE — si tu devais décrire ce livre à un ami qui te demande "qu'est-ce que tu viens de lire ?", quelles sont les DEUX OU TROIS scènes que tu décrirais en premier ? Celles qui te reviennent sans effort. Ce sont les scènes de bouche-à-oreille du livre. Si tu peines à en trouver plus d'une, le livre a un problème de mémorabilité — il est peut-être juste partout mais sans pic suffisamment marqué pour créer l'envie de recommander. Signale les chapitres qui auraient pu être mémorables mais ne le sont pas encore — et suggère comment les pousser sans en faire des scènes forcées.
+
+    d) L'OUVERTURE ET LA FERMETURE — lis spécifiquement le premier et le dernier chapitre avec les yeux du lecteur qui entre et qui sort. Le premier chapitre donne-t-il envie de continuer ? (pas besoin qu'il soit spectaculaire — il faut qu'il impose une présence, une voix, une atmosphère qui accroche). Le dernier chapitre laisse-t-il une empreinte qui dure ? (pas besoin de résolution — il faut que le lecteur repose le livre avec quelque chose qui reste). Si l'un des deux est le point faible du livre, c'est critique : l'ouverture décide si le livre est lu, la fermeture décide s'il est recommandé.
+
 ═══ PRODUIS ═══
 
 CHAPITRES FAIBLES (max 3) :
@@ -2194,7 +2254,7 @@ VERDICT: [Ce livre est-il un best-seller ? Un prix littéraire ? Ou un bon livre
 
       const editReview = await A.llmCall(
         'Tu es un directeur littéraire de premier plan. Relis ce livre et juge-le sans complaisance.',
-        superPrompt2, 3000
+        superPrompt2, 4500
       );
 
       A.config.model = savedModelSuper2;
