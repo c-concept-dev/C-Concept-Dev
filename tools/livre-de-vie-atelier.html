@@ -1765,30 +1765,94 @@ const Loader = {
       ? text.substring(0, MAX_TEXT) + '\n\n[...texte tronqué — le reste sera préservé tel quel dans le transcript...]'
       : text;
 
-    // Utilise le Worker avec claude-sonnet-4-6
+    // Utilise le Worker avec claude-sonnet-4-6 en STREAMING (comme l'atelier principal)
+    // IMPORTANT : le Worker attend le payload EMBALLÉ dans { payload: {...} },
+    // et le streaming est obligatoire pour éviter les timeouts 524 sur conversions longues.
     const WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
     progressCb(`conversion LLM : analyse en cours...`);
 
-    const payload = {
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      system: PROMPT_CONVERTER,
-      messages: [{role: 'user', content: `Texte biographique à convertir en persona.json :\n\n---\n\n${textToSend}`}]
-    };
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 15000;
 
+    let raw = '';
+    let lastErr = null;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const resp = await fetch(WORKER, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            payload: {
+              model: 'claude-sonnet-4-6',
+              max_tokens: 8000,
+              temperature: 0.3,
+              stream: true,
+              system: PROMPT_CONVERTER,
+              messages: [{role: 'user', content: `Texte biographique à convertir en persona.json :\n\n---\n\n${textToSend}`}]
+            }
+          })
+        });
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => '');
+          if ((resp.status >= 429 || resp.status >= 500) && attempt < MAX_RETRIES) {
+            progressCb(`Worker ${resp.status} — retry ${attempt}/${MAX_RETRIES}...`);
+            await new Promise(r => setTimeout(r, RETRY_DELAY));
+            continue;
+          }
+          throw new Error(`Worker HTTP ${resp.status}: ${errText.substring(0, 200)}`);
+        }
+
+        // Parse SSE stream (même logique que A.llmCall)
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
+        let buf = '';
+        let charsReceived = 0;
+        let lastProgressUpdate = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(data);
+              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+                result += evt.delta.text;
+                charsReceived += evt.delta.text.length;
+                // Progress update toutes les 500 chars
+                if (charsReceived - lastProgressUpdate > 500) {
+                  progressCb(`conversion LLM : ${charsReceived} caractères reçus...`);
+                  lastProgressUpdate = charsReceived;
+                }
+              }
+            } catch (e) { /* skip malformed SSE lines */ }
+          }
+        }
+        raw = result;
+        break; // succès, sortie du retry loop
+      } catch (e) {
+        lastErr = e;
+        if (attempt < MAX_RETRIES) {
+          progressCb(`erreur réseau — retry ${attempt}/${MAX_RETRIES}...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+        }
+      }
+    }
+
+    if (!raw) {
+      throw new Error(`conversion LLM échouée après ${MAX_RETRIES} tentatives : ${lastErr?.message || 'réponse vide'}`);
+    }
+
+    // Extraction du JSON (le LLM peut ajouter du texte autour)
     let json;
     try {
-      const resp = await fetch(WORKER, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
-      const data = await resp.json();
-      const raw = data?.content?.[0]?.text || '';
-      if (!raw) throw new Error('Worker : réponse vide');
-
-      // Extraction du JSON (le LLM peut ajouter du texte autour)
       const first = raw.indexOf('{');
       const last = raw.lastIndexOf('}');
       if (first < 0 || last < first) throw new Error('Pas de JSON détecté dans la réponse');
@@ -1797,7 +1861,7 @@ const Loader = {
         .replace(/,\s*([}\]])/g,'$1');
       json = JSON.parse(cleaned);
     } catch (e) {
-      throw new Error(`conversion LLM échouée : ${e.message}`);
+      throw new Error(`JSON convertisseur invalide : ${e.message}`);
     }
 
     // Merge avec un persona vide pour garantir la structure
