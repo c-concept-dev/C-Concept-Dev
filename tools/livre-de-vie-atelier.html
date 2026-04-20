@@ -246,7 +246,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         <label>Longueur cible</label>
         <select id="lengthSelect">
           <option value="long">Livre complet — 200+ pages (~50 000 mots, 12-15 chapitres)</option>
-          <option value="medium">Portrait long — ~100 pages (~25 000 mots, 8-10 chapitres)</option>
+          <option value="medium">Portrait long — ~100 pages (~25 000-35 000 mots, 10-12 chapitres)</option>
           <option value="short">Portrait — ~50 pages (~12 000 mots, 5-7 chapitres)</option>
         </select>
       </div>
@@ -1072,6 +1072,40 @@ Chaque matière a ses tropismes probables.
 
 Valide : *installation spatiale / pédagogie du narrateur*
 Invalide : *tous les tropismes / installation + pédagogie + traduction + figurant / je ferai attention*
+
+---
+
+## AUTO-CHECK OBLIGATOIRE — ANCRAGE AU PRÉSENT DU LIVRE (V6)
+
+**Ce test ne s'applique pas au chapitre 1 (qui pose l'événement) ni au dernier chapitre (qui referme).**
+
+Pour tous les autres chapitres, avant de produire ta CONCEPTION VALIDÉE, tu vérifies **explicitement** :
+
+> *Ma conception contient-elle au moins UN ancrage concret au présent du livre — l'événement déclencheur, le péril, l'urgence — dans mes champs "résidu" ou "fin" ?*
+
+**Pourquoi ce test existe** : un chapitre qui raconte un souvenir, un flashback ou une période passée peut **effacer** le péril du livre. Le lecteur qui reprend le livre à ce chapitre ne doit pas oublier ce qui est en jeu maintenant. Sans ancrage, le chapitre flotte hors du temps narratif — il peut être beau mais il relâche la tension.
+
+**Ancrage validé si** ton champ "résidu" ou "fin" (ou Q10 climat, Q13 fin qui déplace) contient :
+- Une mention directe de l'événement déclencheur (la lettre sur la table, l'enveloppe réexpédiée)
+- Un geste qui renvoie au péril (le compte des jours, l'objet regardé, le corps qui se rappelle)
+- Un pont avec le personnage du présent (Ines qui dort, David qui attend, Diesel sous la table, la deadline qui approche)
+
+**Ancrage invalidé si** :
+- La fin clôt uniquement sur la scène-souvenir, sans lien au présent
+- Le résidu est une image intérieure sans ancrage temporel actuel
+- Le chapitre pourrait être lu isolément sans perdre son sens (c'est précisément le test des 20 ans)
+
+**Si l'ancrage manque** : tu reviens à Q11 (résidu) ou Q13 (fin) et tu le refais. Un seul ancrage en ouverture OU en clôture suffit. Si le chapitre est entièrement dans le passé, tu en mets deux (un en ouverture, un en clôture).
+
+Exemples valides pour un chapitre-souvenir (Raymond au foyer à 18 ans) :
+- Résidu : *"Raymond pose le moulin à côté de l'enveloppe. Les deux bois se touchent."*
+- Fin : *"Il regarde la pendule. Treize jours."*
+
+Exemples valides pour un chapitre-souvenir (Nadia au centre d'accueil à 17 ans) :
+- Résidu : *"Elle se rappelle qu'Ines dort à la maison, que David l'attend — ce soir, ça."*
+- Fin : *"Elle pense à Ines. Quatre ans."*
+
+**Cet auto-check est un verrou structurel du système.** Il empêche les chapitres intermédiaires de glisser hors du temps du livre. Si tu ne peux pas le passer, le chapitre n'est pas prêt — tu repenses sa scène ou son résidu.
 
 ---
 
@@ -2419,7 +2453,7 @@ Ecris le diagnostic. C'est le document fondateur du livre — une hypothèse dir
     const p = this.parsed;
     const lengths = {
       long:'12 à 15 chapitres, chacun 4500-6000 mots. Total ~60 000-80 000 mots. Chaque scène est DEPLOYEE — le lecteur est dans le lieu, dans le corps, dans le moment. Un chapitre de 2000 mots n\'est pas un chapitre, c\'est un résumé.',
-      medium:'8 à 10 chapitres, chacun 2500-3500 mots. Total ~25 000 mots. Chaque scène compte.',
+      medium:'10 à 12 chapitres, chacun 2500-3500 mots. Total ~25 000-35 000 mots. Chaque scène compte. La courbe de pression a besoin de 10+ chapitres pour monter progressivement — 8 chapitres produisent un livre qui tire à l\'ouverture et à la fermeture mais accompagne au milieu. Privilégie 10-11 chapitres par défaut, 12 si la matière est dense.',
       short:'5 à 7 chapitres, chacun 1500-2500 mots. Total ~12 000 mots. L\'essentiel.'
     };
 
@@ -2483,6 +2517,18 @@ Un défaut classique des livres produits par système : les derniers chapitres s
 - MOMENT DE LA JOURNÉE — certaines matières appellent un livre entièrement matinal (les rituels, les débuts) ou nocturne (les insomnies, les confidences). D'autres exigent que le jour varie. Écoute la matière et choisis. Chaque chapitre a un champ "moment".
 
 La règle d'or qui englobe tout : TES DERNIERS CHAPITRES sont les plus à risque. C'est là que le système fatigue et rejoue ce qu'il a déjà posé. Quand tu arrives aux trois ou quatre derniers chapitres du plan, demande-toi : est-ce que je répète, ou est-ce que je déplie encore ? Si tu répètes par défaut — ouvre. La fin d'un livre n'est pas le milieu relu. C'est une trajectoire qui continue jusqu'à la dernière page.
+
+═══ COURBE DE PRESSION — question à te poser avant de fixer le nombre de chapitres ═══
+
+Un livre qui tire le lecteur a une courbe de pression qui MONTE : installation → pression active → point de non-retour → relâchement/transformation. Cette courbe émerge quand la matière est dense et la question-moteur bien posée, mais elle a besoin de VOLUME pour respirer.
+
+- Un livre de 8 chapitres produit souvent : "bon → bon → bon → bon → fin" (l'ouverture tire, la fermeture tire, le milieu accompagne)
+- Un livre de 10-11 chapitres permet la montée progressive : "pose → installe → complique → révèle → presse → bascule → referme"
+- Un livre de 12 chapitres donne de l'amplitude pour les révélations graduées — chaque chapitre ajoute sa pièce sans se précipiter
+
+**Par défaut, pour un portrait long, tu planifies 10 ou 11 chapitres** — sauf si la matière est particulièrement dense (alors 12) ou particulièrement concentrée (alors 9). Tu ne tombes JAMAIS à 8 par facilité ou par reproduction d'un gabarit vu ailleurs. 8 chapitres produisent un livre trop court pour laisser la pression monter — le lecteur passe de "posé" à "résolu" sans le crescendo intermédiaire qui fait les grands livres.
+
+**Le péril, l'événement déclencheur, et l'urgence temporelle sont mentionnés dans le diagnostic renforcé par Opus.** Ton plan doit prévoir leur trajectoire chapitre par chapitre : où le péril est posé (ch.1), où il reste latent, où il revient par touches, où il explose, où il se referme. Un plan de 10-11 chapitres donne l'espace pour cette trajectoire. Un plan de 8 chapitres la comprime.
 
 IMPORTANT sur les champs "fondatrice" et "mene_vers" :
 - Un chapitre est "fondatrice": true s'il contient une des scènes fondatrices identifiées dans le diagnostic. Il sera écrit en PREMIER par le modèle le plus puissant. Ce sont les piliers du livre — par définition en petit nombre (si tous les chapitres sont fondateurs, aucun ne l'est vraiment).
