@@ -5,7 +5,9 @@
 ║  Persona Brain V3 — C Concept&Dev — Christophe BONNET        ║
 ║                                                               ║
 ║  Pipeline :                                                   ║
-║    1. Upload FINAL V9 → parse → analyse → tonalité auto      ║
+║    1. Upload universel (JSON, MD, TXT, DOCX, PDF, EPUB)      ║
+║       → conversion en CLONE-PERSONA-1.0 interne              ║
+║       → parse → analyse → tonalité auto                      ║
 ║    2. Génère prompts modulaires (plan, chapitres, 4e couv)   ║
 ║    3. L'humain copie dans son LLM, colle le résultat         ║
 ║    4. Assemblage auto + Pexels via Worker → EPUB illustré    ║
@@ -212,13 +214,13 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 <div class="section active" id="step0">
   <div class="card">
     <div class="card-title">Matière première</div>
-    <div class="card-sub">Dépose le document FINAL V9 — l'atelier analyse le contenu et prépare les outils.</div>
+    <div class="card-sub">Déposez n'importe quelle matière — JSON CLONE-PERSONA-1.0, transcription d'entretien, récit rédigé, biographie existante. L'atelier convertit et analyse automatiquement.</div>
 
     <div class="drop-zone" id="dropZone">
       <div class="drop-icon">📖</div>
-      <div class="drop-label" id="dropLabel">Déposer un fichier FINAL V9 (.md), un livre à reprendre (.md), ou un projet (.ldv.json)</div>
-      <div class="drop-hint">Nouveau livre · Reprise d'un livre déjà écrit · Reprise d'un projet en cours</div>
-      <input type="file" id="fileInput" accept=".md,.txt,.json,.ldv.json" style="display:none">
+      <div class="drop-label" id="dropLabel">Déposer la matière : .json, .md, .txt, .docx, .pdf, .epub</div>
+      <div class="drop-hint">CLONE-PERSONA-1.0 · V9 markdown · transcription · récit rédigé · livre existant</div>
+      <input type="file" id="fileInput" accept=".md,.txt,.json,.ldv.json,.docx,.pdf,.epub" style="display:none">
     </div>
 
     <div id="analysisResult" style="display:none">
@@ -1428,6 +1430,543 @@ Tu ne produis pas un texte qui tient. Tu produis un texte qui tient le lecteur.
 
 *Prompt opératoire — C Concept&Dev — Christophe BONNET — Équipe opérationnelle avec l'architecte*
 `;
+
+// ═══════════════════════════════════════════════════════════════════
+// PROMPT CONVERTER — texte brut → persona.json CLONE-PERSONA-1.0
+// Utilisé quand l'entrée n'est pas déjà un JSON CLONE-PERSONA-1.0.
+// Produit un JSON valide même avec texte incomplet (champs vides OK).
+// ═══════════════════════════════════════════════════════════════════
+const PROMPT_CONVERTER = `Tu es un biographe analyste. On te donne du texte biographique brut (transcription d'entretien, récit rédigé, lettre, notes). Tu dois en extraire un persona.json au format CLONE-PERSONA-1.0.
+
+RÈGLES ABSOLUES :
+1. Si une information n'est pas dans le texte, tu laisses le champ vide (chaîne "") ou le tableau vide ([]). Tu n'inventes JAMAIS.
+2. Tu marques dans _meta.confidence le niveau de certitude ("élevée", "moyenne", "faible") selon la richesse du texte.
+3. Tu produis JSON VALIDE UNIQUEMENT. Pas de texte avant, pas de texte après, pas de markdown, pas de commentaire.
+4. Le champ "transcript" contient le TEXTE BRUT tel que reçu, nettoyé des entêtes/métadonnées mais préservant la voix exacte du sujet.
+5. Prénom et âge : essaie de les extraire du texte (header, mention directe). Si absents, laisse vides — l'utilisateur corrigera.
+
+SCHEMA À RESPECTER :
+{
+  "_meta": {"schema":"CLONE-PERSONA-1.0","generated":"","source":"converted_from_text","confidence":"","completeness":{}},
+  "identite": {"prenom":"","age":null,"genre":"","situation_familiale":"","situation_professionnelle":"","roles_cle":[]},
+  "transcript": "TEXTE BRUT DU SUJET — préserve la voix, les expressions exactes, les hésitations, les ruptures",
+  "resume_global": "",
+  "chapitres_vie": [{"titre":"","periode":"","evenements_cle":[],"apprentissages":[],"impact_identitaire":"","emotions_dominantes":[],"figures_cle":[{"role":"","qualite_lien":"","impact":""}]}],
+  "turning_points": [{"age_approximatif":null,"evenement":"","avant":"","apres":"","ce_que_ca_revele":""}],
+  "relations_cle": [{"personne":"","role":"","qualite_lien":"","pattern_relationnel":"","impact_sur_identite":"","formulation_naturelle":""}],
+  "lignes_de_force": [{"theme":"","description":"","manifestations":[],"cout_psychique":""}],
+  "blessures_et_resilience": [{"blessure":"","age_approximatif":null,"description":"","impact_durable":"","defense_associee":"","ressources_mobilisees":[],"etat_actuel":""}],
+  "monde_interieur": {"peurs_profondes":[],"desirs_inavoues":[],"croyances_limitantes":[],"forces_authentiques":[]},
+  "aspirations": {"court_terme":[],"moyen_terme":[],"long_terme":[],"aspiration_cachee":""},
+  "tensions_identitaires": [{"axe":"","pole_a":"","pole_b":"","manifestation":"","contexte_activation":"","conscience":""}],
+  "versions_de_soi": [{"nom":"","periode_origine":"","fonction":"","traits_dominants":[],"cout_psychique":"","etat_actuel":"","trigger_activation":""}],
+  "zones_floues": [{"domaine":"","type":"","observation":"","hypothese":"","impact":""}],
+  "mecanique_decisionnelle": {"priorites_implicites":[],"biais_actifs":[],"pattern_decision":"","arbitrage_interne":""},
+  "style_narratif": {"comment_se_raconte":"","mots_recurrents":[],"mots_absents":[],"metaphores_spontanees":[]},
+  "variabilite_interne": {"stabilite_globale":"","facteurs_variation":[{"facteur":"","effet":"","seuil":""}]},
+  "evolution_potentielle": {"trajectoires":[{"direction":"","conditions":"","effets":"","signes_avant_coureurs":""}]}
+}
+
+PROCESSUS :
+1. Lis tout le texte attentivement.
+2. Extrais ce que le texte permet de remplir. Laisse le reste vide.
+3. Le champ "transcript" est crucial : garde le texte brut du sujet, ses mots exacts, ses expressions. C'est la voix qui servira ensuite à écrire le livre.
+4. Produis le JSON et rien d'autre.`;
+
+// ═══════════════════════════════════════════════════════════════════
+// LOADER UNIVERSEL — input de n'importe quel format → persona.json → parsed
+// ═══════════════════════════════════════════════════════════════════
+// Flux : fichier (blob) → extraction texte selon type → JSON CLONE-PERSONA-1.0
+//        → mapping déterministe vers structure parsed compatible atelier.
+// Garantit que A.parsed garde la même forme que l'ancien parse() :
+//   { prenom, age, transcript, sections: {FILS NARRATIFS, SCENES FORTES, ...} }
+// Les 54 lignes qui consomment A.parsed ne bougent pas.
+// ═══════════════════════════════════════════════════════════════════
+
+const Loader = {
+  // Format → fonction d'extraction de texte
+  // Chaque extracteur renvoie une Promise<string>
+
+  async loadFile(file, progressCb) {
+    progressCb = progressCb || (()=>{});
+    const name = file.name.toLowerCase();
+    const ext = name.substring(name.lastIndexOf('.') + 1);
+
+    progressCb(`format détecté : .${ext}`);
+
+    let persona; // CLONE-PERSONA-1.0 JSON object
+
+    // ── Cas 1 : JSON natif (CLONE-PERSONA-1.0 ou ldv-project) ──
+    if (ext === 'json' || name.endsWith('.ldv.json')) {
+      const text = await this._readAsText(file);
+      let data;
+      try { data = JSON.parse(text); }
+      catch (e) { throw new Error(`JSON invalide : ${e.message}`); }
+
+      // Si c'est un projet atelier sauvegardé, on le signale à l'appelant
+      if (data._format === 'ldv-project') {
+        return { type: 'ldv-project', data };
+      }
+
+      // CLONE-PERSONA-1.0 ?
+      if (data?._meta?.schema === 'CLONE-PERSONA-1.0') {
+        persona = data;
+        progressCb(`JSON CLONE-PERSONA-1.0 validé`);
+      } else {
+        throw new Error(`JSON non reconnu (ni CLONE-PERSONA-1.0 ni projet atelier)`);
+      }
+    }
+    // ── Cas 2 : Markdown V9 legacy (pour continuité avec le simulateur) ──
+    else if (ext === 'md') {
+      const text = await this._readAsText(file);
+      // Détection : V9 markdown (header "# Prénom, X ans" + "## TOUR N")
+      const isV9 = /^##?\s*[A-ZÀ-Ü][\wÀ-ÿ\-]*,?\s*\d+\s*ans/m.test(text)
+                 && /##\s+TOUR\s+\d+/.test(text);
+      if (isV9) {
+        progressCb(`V9 markdown détecté — conversion en persona.json`);
+        persona = this._v9MarkdownToPersona(text);
+      } else {
+        // Détection livre déjà rédigé (laisse main.js gérer)
+        const h1s = (text.match(/^#\s+[^\n]+$/gm) || []).length;
+        const tours = (text.match(/^##\s+TOUR\s+\d+/gm) || []).length;
+        if (h1s >= 4 && tours === 0) {
+          return { type: 'resume-book', text, name: file.name };
+        }
+        // Texte libre en markdown → conversion LLM
+        progressCb(`texte libre détecté — conversion LLM en cours...`);
+        persona = await this._textToPersonaViaLLM(text, progressCb);
+      }
+    }
+    // ── Cas 3 : Texte brut ──
+    else if (ext === 'txt') {
+      const text = await this._readAsText(file);
+      progressCb(`texte brut — conversion LLM en cours...`);
+      persona = await this._textToPersonaViaLLM(text, progressCb);
+    }
+    // ── Cas 4 : DOCX → mammoth.js ──
+    else if (ext === 'docx') {
+      progressCb(`chargement de mammoth.js...`);
+      await this._loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.0/mammoth.browser.min.js');
+      progressCb(`extraction du texte DOCX...`);
+      const buf = await this._readAsArrayBuffer(file);
+      const result = await window.mammoth.extractRawText({arrayBuffer: buf});
+      const text = result.value || '';
+      if (text.length < 100) throw new Error('DOCX vide ou illisible');
+      progressCb(`DOCX extrait (${text.length} caractères) — conversion LLM...`);
+      persona = await this._textToPersonaViaLLM(text, progressCb);
+    }
+    // ── Cas 5 : PDF → pdf.js ──
+    else if (ext === 'pdf') {
+      progressCb(`chargement de pdf.js...`);
+      await this._loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js');
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+      }
+      progressCb(`extraction du texte PDF...`);
+      const buf = await this._readAsArrayBuffer(file);
+      const pdf = await window.pdfjsLib.getDocument({data: buf}).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(it => it.str).join(' ') + '\n\n';
+        progressCb(`PDF page ${i}/${pdf.numPages}`);
+      }
+      if (text.length < 100) throw new Error('PDF vide ou illisible (peut-être scanné ?)');
+      progressCb(`PDF extrait (${text.length} caractères) — conversion LLM...`);
+      persona = await this._textToPersonaViaLLM(text, progressCb);
+    }
+    // ── Cas 6 : EPUB → JSZip + extraction XHTML ──
+    else if (ext === 'epub') {
+      // JSZip déjà chargé dans l'atelier
+      progressCb(`ouverture de l'EPUB...`);
+      const buf = await this._readAsArrayBuffer(file);
+      const zip = await window.JSZip.loadAsync(buf);
+      let text = '';
+      const files = Object.keys(zip.files).filter(n =>
+        (n.endsWith('.xhtml') || n.endsWith('.html') || n.endsWith('.htm'))
+        && !n.includes('nav') && !n.includes('toc') && !n.includes('cover')
+      ).sort();
+      for (const fname of files) {
+        const raw = await zip.file(fname).async('string');
+        const cleaned = raw
+          .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+          .replace(/<[^>]+>/g, '\n')
+          .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+          .replace(/&quot;/g,'"').replace(/&nbsp;/g,' ').replace(/&#8217;/g,"'")
+          .replace(/&laquo;/g,'«').replace(/&raquo;/g,'»').replace(/&#8212;/g,'—')
+          .replace(/\n\s*\n+/g,'\n\n').replace(/[ \t]+/g,' ').trim();
+        if (cleaned.length > 50) text += cleaned + '\n\n';
+      }
+      if (text.length < 100) throw new Error('EPUB vide ou illisible');
+      progressCb(`EPUB extrait (${text.length} caractères) — conversion LLM...`);
+      persona = await this._textToPersonaViaLLM(text, progressCb);
+    }
+    else {
+      throw new Error(`format non supporté : .${ext}`);
+    }
+
+    // ── Mapping persona.json → structure parsed compatible atelier ──
+    progressCb(`mapping vers structure atelier...`);
+    const parsed = this._personaToParsed(persona);
+    return { type: 'persona', parsed, persona };
+  },
+
+  // ─── Helpers I/O ───
+
+  _readAsText(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = e => resolve(e.target.result);
+      r.onerror = () => reject(new Error('lecture fichier échouée'));
+      r.readAsText(file);
+    });
+  },
+
+  _readAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = e => resolve(e.target.result);
+      r.onerror = () => reject(new Error('lecture fichier échouée'));
+      r.readAsArrayBuffer(file);
+    });
+  },
+
+  _loadScript(src) {
+    return new Promise((resolve, reject) => {
+      // Déjà chargé ?
+      if (Array.from(document.scripts).some(s => s.src === src)) return resolve();
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error(`Chargement CDN échoué : ${src}`));
+      document.head.appendChild(s);
+    });
+  },
+
+  // ─── V9 Markdown legacy → persona.json ───
+  // Ce mapping préserve la compatibilité avec les profils du simulateur.
+  // Il produit un persona.json minimal mais suffisant pour l'atelier.
+
+  _v9MarkdownToPersona(md) {
+    const persona = this._emptyPersona();
+    persona._meta.source = 'v9_markdown_legacy';
+    persona._meta.confidence = 'élevée';
+
+    // Header : # Prénom, X ans
+    const hdr = md.match(/^##?\s*([A-ZÀ-Ü][\wÀ-ÿ\-]*),?\s*(\d+)\s*ans/m);
+    if (hdr) {
+      persona.identite.prenom = hdr[1];
+      persona.identite.age = parseInt(hdr[2]);
+    }
+
+    // PARTIE 1 = transcript, PARTIE 2 = analyses
+    const p2 = md.indexOf('# PARTIE 2');
+    let transcript = p2 > 0 ? md.substring(0, p2).trim() : md;
+    let analysis = p2 > 0 ? md.substring(p2).trim() : '';
+    persona.transcript = transcript;
+
+    // Extraction des sections analysées (legacy)
+    const sectionNames = ['PHRASE-CLE','CARTE DU LIVRE','SCENES FORTES','PERSONNAGES',
+      'FILS NARRATIFS','CE QUI NE COLLE PAS','LEARNING PROFILE','MONDE SENSORIEL',
+      'TRAJECTOIRE','DASHBOARD FINAL','METADONNEES'];
+    const sections = {};
+    for (const n of sectionNames) {
+      const re = new RegExp(`## \\d+\\.\\s*${n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*\\n([\\s\\S]*?)(?=\\n## \\d+\\.|$)`);
+      const m = analysis.match(re);
+      if (m) sections[n] = m[1].trim();
+    }
+
+    // Mapping des sections V9 vers champs persona.json
+    if (sections['PHRASE-CLE']) {
+      persona.resume_global = sections['PHRASE-CLE'].replace(/[«»]/g,'').trim();
+    }
+    if (sections['FILS NARRATIFS']) {
+      const fils = sections['FILS NARRATIFS'].split(/\n\*\*/).filter(Boolean);
+      persona.lignes_de_force = fils.slice(0, 8).map(f => {
+        // Le split(/\n\*\*/) a déjà consommé le premier **, on enlève juste le ** final de la première ligne
+        const cleaned = f.replace(/^\*\*/, '').trim();
+        const lineBreak = cleaned.indexOf('\n');
+        const firstLine = lineBreak > 0 ? cleaned.substring(0, lineBreak).replace(/\*\*/g,'').trim() : cleaned.replace(/\*\*/g,'').trim();
+        const rest = lineBreak > 0 ? cleaned.substring(lineBreak).replace(/^\*\*/,'').trim() : '';
+        return {
+          theme: firstLine.substring(0, 80),
+          description: rest.substring(0, 500),
+          manifestations: [],
+          cout_psychique: ''
+        };
+      });
+    }
+    if (sections['PERSONNAGES']) {
+      const pers = sections['PERSONNAGES'].split(/\n\*\*/).filter(Boolean);
+      persona.relations_cle = pers.slice(0, 12).map(p => {
+        const cleaned = p.replace(/^\*\*/, '').trim();
+        const lineBreak = cleaned.indexOf('\n');
+        const firstLine = lineBreak > 0 ? cleaned.substring(0, lineBreak).replace(/\*\*/g,'').trim() : cleaned.replace(/\*\*/g,'').trim();
+        const rest = lineBreak > 0 ? cleaned.substring(lineBreak).replace(/^\*\*/,'').trim() : '';
+        return {
+          personne: firstLine.substring(0, 80),
+          role: '',
+          qualite_lien: '',
+          pattern_relationnel: rest.substring(0, 400),
+          impact_sur_identite: '',
+          formulation_naturelle: ''
+        };
+      });
+    }
+    if (sections['SCENES FORTES']) {
+      // On les met en chapitres_vie (une scène = un mini chapitre-vie)
+      const scenes = sections['SCENES FORTES'].split(/\n\d+\./).filter(s => s.trim().length > 10);
+      persona.chapitres_vie = scenes.slice(0, 15).map(sc => ({
+        titre: sc.split('\n')[0].substring(0, 80).trim(),
+        periode: '',
+        evenements_cle: [sc.trim().substring(0, 400)],
+        apprentissages: [],
+        impact_identitaire: '',
+        emotions_dominantes: [],
+        figures_cle: []
+      }));
+    }
+
+    // On stocke aussi les sections V9 brutes dans un champ caché pour compatibilité
+    persona._v9_sections_raw = sections;
+    return persona;
+  },
+
+  _emptyPersona() {
+    return {
+      _meta: {schema:'CLONE-PERSONA-1.0', generated: new Date().toISOString(), source:'', confidence:'', completeness:{}},
+      identite: {prenom:'', age:null, genre:'', situation_familiale:'', situation_professionnelle:'', roles_cle:[]},
+      transcript: '',
+      resume_global: '',
+      chapitres_vie: [],
+      turning_points: [],
+      relations_cle: [],
+      lignes_de_force: [],
+      blessures_et_resilience: [],
+      monde_interieur: {peurs_profondes:[], desirs_inavoues:[], croyances_limitantes:[], forces_authentiques:[]},
+      aspirations: {court_terme:[], moyen_terme:[], long_terme:[], aspiration_cachee:''},
+      tensions_identitaires: [],
+      versions_de_soi: [],
+      zones_floues: [],
+      mecanique_decisionnelle: {priorites_implicites:[], biais_actifs:[], pattern_decision:'', arbitrage_interne:''},
+      style_narratif: {comment_se_raconte:'', mots_recurrents:[], mots_absents:[], metaphores_spontanees:[]},
+      variabilite_interne: {stabilite_globale:'', facteurs_variation:[]},
+      evolution_potentielle: {trajectoires:[]}
+    };
+  },
+
+  // ─── Conversion LLM : texte brut → persona.json ───
+  async _textToPersonaViaLLM(text, progressCb) {
+    progressCb = progressCb || (()=>{});
+    // On limite la taille envoyée au LLM (100k caractères suffisent pour la plupart des bios)
+    const MAX_TEXT = 100000;
+    const textToSend = text.length > MAX_TEXT
+      ? text.substring(0, MAX_TEXT) + '\n\n[...texte tronqué — le reste sera préservé tel quel dans le transcript...]'
+      : text;
+
+    // Utilise le Worker avec claude-sonnet-4-6
+    const WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
+    progressCb(`conversion LLM : analyse en cours...`);
+
+    const payload = {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      system: PROMPT_CONVERTER,
+      messages: [{role: 'user', content: `Texte biographique à convertir en persona.json :\n\n---\n\n${textToSend}`}]
+    };
+
+    let json;
+    try {
+      const resp = await fetch(WORKER, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
+      const data = await resp.json();
+      const raw = data?.content?.[0]?.text || '';
+      if (!raw) throw new Error('Worker : réponse vide');
+
+      // Extraction du JSON (le LLM peut ajouter du texte autour)
+      const first = raw.indexOf('{');
+      const last = raw.lastIndexOf('}');
+      if (first < 0 || last < first) throw new Error('Pas de JSON détecté dans la réponse');
+      const cleaned = raw.substring(first, last + 1)
+        .replace(/[\u201C\u201D]/g,'"').replace(/[\u2018\u2019]/g,"'")
+        .replace(/,\s*([}\]])/g,'$1');
+      json = JSON.parse(cleaned);
+    } catch (e) {
+      throw new Error(`conversion LLM échouée : ${e.message}`);
+    }
+
+    // Merge avec un persona vide pour garantir la structure
+    const persona = this._emptyPersona();
+    Object.assign(persona._meta, json._meta || {});
+    persona._meta.source = 'converted_from_text';
+    Object.assign(persona.identite, json.identite || {});
+    persona.transcript = json.transcript || text; // fallback : texte brut
+    persona.resume_global = json.resume_global || '';
+    persona.chapitres_vie = json.chapitres_vie || [];
+    persona.turning_points = json.turning_points || [];
+    persona.relations_cle = json.relations_cle || [];
+    persona.lignes_de_force = json.lignes_de_force || [];
+    persona.blessures_et_resilience = json.blessures_et_resilience || [];
+    Object.assign(persona.monde_interieur, json.monde_interieur || {});
+    Object.assign(persona.aspirations, json.aspirations || {});
+    persona.tensions_identitaires = json.tensions_identitaires || [];
+    persona.versions_de_soi = json.versions_de_soi || [];
+    persona.zones_floues = json.zones_floues || [];
+    Object.assign(persona.mecanique_decisionnelle, json.mecanique_decisionnelle || {});
+    Object.assign(persona.style_narratif, json.style_narratif || {});
+    Object.assign(persona.variabilite_interne, json.variabilite_interne || {});
+    Object.assign(persona.evolution_potentielle, json.evolution_potentielle || {});
+
+    progressCb(`persona.json produit`);
+    return persona;
+  },
+
+  // ─── persona.json → structure parsed compatible atelier ───
+  // Garantit que les prompts existants continuent de fonctionner.
+  // La structure parsed reprend exactement les champs consommés par l'atelier :
+  //   prenom, age, transcript, tours, sections.{PHRASE-CLE, CARTE DU LIVRE,
+  //   SCENES FORTES, PERSONNAGES, FILS NARRATIFS, CE QUI NE COLLE PAS,
+  //   LEARNING PROFILE, MONDE SENSORIEL, TRAJECTOIRE}
+  _personaToParsed(persona) {
+    const p = persona || this._emptyPersona();
+    const id = p.identite || {};
+    const parsed = {
+      prenom: id.prenom || '',
+      age: id.age || null,
+      genre: id.genre || '',
+      transcript: p.transcript || '',
+      analysis: '',
+      tours: 0,
+      sections: {},
+      _persona: p,      // stockage complet pour accès aux champs riches
+      charCount: (p.transcript || '').length,
+      wordCount: (p.transcript || '').split(/\s+/).filter(Boolean).length
+    };
+
+    // Si V9 legacy, on a déjà les sections brutes — on les réutilise
+    if (p._v9_sections_raw) {
+      parsed.sections = {...p._v9_sections_raw};
+      parsed.tours = (p.transcript.match(/##\s+TOUR\s+\d+/g) || []).length;
+    }
+
+    // Synthèses pour les sections que les prompts consomment — construites
+    // depuis les champs riches du persona.json
+    if (!parsed.sections['PHRASE-CLE'] && p.resume_global) {
+      parsed.sections['PHRASE-CLE'] = p.resume_global;
+    }
+
+    if (!parsed.sections['FILS NARRATIFS'] && p.lignes_de_force?.length) {
+      parsed.sections['FILS NARRATIFS'] = p.lignes_de_force.map(l => {
+        let s = `**${l.theme || '(sans titre)'}**\n${l.description || ''}`;
+        if (l.manifestations?.length) s += '\nManifestations : ' + l.manifestations.join(', ');
+        if (l.cout_psychique) s += '\nCoût : ' + l.cout_psychique;
+        return s;
+      }).join('\n\n');
+    }
+
+    if (!parsed.sections['PERSONNAGES'] && p.relations_cle?.length) {
+      parsed.sections['PERSONNAGES'] = p.relations_cle.map(r => {
+        let s = `**${r.personne || '(anonyme)'}**`;
+        if (r.role) s += ' — ' + r.role;
+        s += '\n';
+        if (r.qualite_lien) s += 'Lien : ' + r.qualite_lien + '\n';
+        if (r.pattern_relationnel) s += r.pattern_relationnel + '\n';
+        if (r.impact_sur_identite) s += 'Impact : ' + r.impact_sur_identite + '\n';
+        if (r.formulation_naturelle) s += '« ' + r.formulation_naturelle + ' »';
+        return s.trim();
+      }).join('\n\n');
+    }
+
+    if (!parsed.sections['SCENES FORTES'] && p.chapitres_vie?.length) {
+      parsed.sections['SCENES FORTES'] = p.chapitres_vie.map((c, i) => {
+        let s = `${i+1}. ${c.titre || '(sans titre)'}`;
+        if (c.periode) s += ' (' + c.periode + ')';
+        s += '\n';
+        if (c.evenements_cle?.length) s += c.evenements_cle.join(' ') + '\n';
+        if (c.impact_identitaire) s += 'Impact : ' + c.impact_identitaire + '\n';
+        if (c.emotions_dominantes?.length) s += 'Émotions : ' + c.emotions_dominantes.join(', ');
+        return s.trim();
+      }).join('\n\n');
+    }
+
+    if (!parsed.sections['TRAJECTOIRE']) {
+      const parts = [];
+      if (p.turning_points?.length) {
+        parts.push('POINTS DE BASCULE :\n' + p.turning_points.map(t =>
+          `— ${t.age_approximatif ? 'vers ' + t.age_approximatif + ' ans : ' : ''}${t.evenement || ''}\n  avant : ${t.avant || ''}\n  après : ${t.apres || ''}\n  révèle : ${t.ce_que_ca_revele || ''}`
+        ).join('\n\n'));
+      }
+      if (p.evolution_potentielle?.trajectoires?.length) {
+        parts.push('TRAJECTOIRES :\n' + p.evolution_potentielle.trajectoires.map(t =>
+          `— direction : ${t.direction || ''}\n  conditions : ${t.conditions || ''}\n  effets : ${t.effets || ''}`
+        ).join('\n\n'));
+      }
+      if (parts.length) parsed.sections['TRAJECTOIRE'] = parts.join('\n\n');
+    }
+
+    if (!parsed.sections['CE QUI NE COLLE PAS']) {
+      const parts = [];
+      if (p.tensions_identitaires?.length) {
+        parts.push('TENSIONS IDENTITAIRES :\n' + p.tensions_identitaires.map(t =>
+          `— axe : ${t.axe || ''}\n  ${t.pole_a || ''} ↔ ${t.pole_b || ''}\n  manifestation : ${t.manifestation || ''}\n  conscience : ${t.conscience || ''}`
+        ).join('\n\n'));
+      }
+      if (p.zones_floues?.length) {
+        parts.push('ZONES FLOUES :\n' + p.zones_floues.map(z =>
+          `— ${z.domaine || ''} (${z.type || ''})\n  observation : ${z.observation || ''}\n  hypothèse : ${z.hypothese || ''}`
+        ).join('\n\n'));
+      }
+      if (p.blessures_et_resilience?.length) {
+        parts.push('BLESSURES :\n' + p.blessures_et_resilience.map(b =>
+          `— ${b.blessure || ''}${b.age_approximatif ? ' (vers ' + b.age_approximatif + ' ans)' : ''}\n  ${b.description || ''}\n  impact durable : ${b.impact_durable || ''}\n  défense : ${b.defense_associee || ''}`
+        ).join('\n\n'));
+      }
+      if (parts.length) parsed.sections['CE QUI NE COLLE PAS'] = parts.join('\n\n');
+    }
+
+    if (!parsed.sections['LEARNING PROFILE']) {
+      const parts = [];
+      if (p.versions_de_soi?.length) {
+        parts.push('VERSIONS DE SOI :\n' + p.versions_de_soi.map(v =>
+          `— ${v.nom || ''}\n  origine : ${v.periode_origine || ''}\n  fonction : ${v.fonction || ''}\n  traits : ${(v.traits_dominants || []).join(', ')}\n  état actuel : ${v.etat_actuel || ''}`
+        ).join('\n\n'));
+      }
+      if (p.mecanique_decisionnelle?.pattern_decision) {
+        parts.push('MÉCANIQUE DÉCISIONNELLE :\n' + p.mecanique_decisionnelle.pattern_decision);
+        if (p.mecanique_decisionnelle.biais_actifs?.length)
+          parts.push('Biais actifs : ' + p.mecanique_decisionnelle.biais_actifs.join(', '));
+      }
+      if (parts.length) parsed.sections['LEARNING PROFILE'] = parts.join('\n\n');
+    }
+
+    if (!parsed.sections['MONDE SENSORIEL']) {
+      const parts = [];
+      if (p.style_narratif?.mots_recurrents?.length)
+        parts.push('Mots récurrents : ' + p.style_narratif.mots_recurrents.join(', '));
+      if (p.style_narratif?.mots_absents?.length)
+        parts.push('Mots absents : ' + p.style_narratif.mots_absents.join(', '));
+      if (p.style_narratif?.metaphores_spontanees?.length)
+        parts.push('Métaphores : ' + p.style_narratif.metaphores_spontanees.join(' / '));
+      if (p.style_narratif?.comment_se_raconte)
+        parts.push('Se raconte : ' + p.style_narratif.comment_se_raconte);
+      if (parts.length) parsed.sections['MONDE SENSORIEL'] = parts.join('\n');
+    }
+
+    if (!parsed.sections['CARTE DU LIVRE'] && p.chapitres_vie?.length) {
+      parsed.sections['CARTE DU LIVRE'] = p.chapitres_vie.map((c, i) =>
+        `Chapitre ${i+1} — ${c.titre || ''}${c.periode ? ' (' + c.periode + ')' : ''}`
+      ).join('\n');
+    }
+
+    return parsed;
+  }
+
+};
 
 const A = {
   raw: '', parsed: null, plan: null,
@@ -3285,55 +3824,75 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', e => { if (e.target.files.length) loadFile(e.target.files[0]); });
 
-function loadFile(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const content = e.target.result;
+async function loadFile(file) {
+  const label = document.getElementById('dropLabel');
+  const originalText = label.textContent;
+  label.textContent = `\u23F3 Chargement de ${file.name}...`;
 
-    // Detect project file (.ldv.json)
-    if (file.name.endsWith('.json') || file.name.endsWith('.ldv.json')) {
-      try {
-        const data = JSON.parse(content);
-        if (data._format === 'ldv-project') {
-          restoreProject(data);
-          return;
-        }
-      } catch (err) { /* not a project file, treat as markdown */ }
-    }
+  try {
+    const result = await Loader.loadFile(file, (msg) => {
+      label.textContent = `\u23F3 ${msg}`;
+    });
 
-    // ═══ DÉTECTION MODE REPRISE ═══
-    // Un livre déjà écrit = structure : # Titre \n [## sous-titre?] \n --- \n # Chapitre 1 \n ... \n # Chapitre 2 \n ...
-    // Un V9 Persona Brain = structure : # Prenom, X ans \n ## TOUR 1 \n ... \n ## TOUR 2 \n ...
-    // Signal fort de livre : >= 3 chapitres niveau # APRÈS un titre global #, et PAS de "## TOUR N" répétés
-    const h1s = (content.match(/^#\s+[^\n]+$/gm) || []);
-    const tours = (content.match(/^##\s+TOUR\s+\d+/gm) || []);
-    const looksLikeBook = h1s.length >= 4 && tours.length === 0;
-
-    if (looksLikeBook) {
-      resumeFromMarkdown(content, file.name);
+    // ── Projet atelier sauvegardé ──
+    if (result.type === 'ldv-project') {
+      restoreProject(result.data);
       return;
     }
 
-    // ─── Mode normal : V9 Persona Brain ───
-    A.raw = content;
-    A.parse(A.raw);
-    A.analyze();
-    const p = A.parsed;
+    // ── Livre déjà rédigé (mode reprise) ──
+    if (result.type === 'resume-book') {
+      resumeFromMarkdown(result.text, result.name);
+      return;
+    }
 
-    document.getElementById('dropLabel').textContent = `\u2713 ${p.prenom || file.name} \u2014 ${p.tours} tours \u2014 ${(p.charCount/1000).toFixed(0)}K caract.`;
-    document.getElementById('dropLabel').classList.add('loaded');
+    // ── Matière biographique (persona.json interne) ──
+    if (result.type === 'persona') {
+      A.raw = JSON.stringify(result.persona);
+      A.parsed = result.parsed;
+      A.analyze();
 
-    const badges = document.getElementById('analysisBadges');
-    badges.innerHTML = p.features.map(f => `<span class="analysis-badge badge-${f.type}">${f.text}</span>`).join(' ');
+      const p = A.parsed;
 
-    const det = document.getElementById('analysisDetail');
-    det.innerHTML = `<strong>${p.prenom}</strong>, ${p.age} ans \u2014 ${p.tours} tours, ${p.wordCount.toLocaleString('fr-FR')} mots de mati\u00e8re.<br>`;
-    if (p.sections['PHRASE-CLE']) det.innerHTML += `<em>\u00ab\u00a0${p.sections['PHRASE-CLE'].replace(/[«»]/g,'').trim()}\u00a0\u00bb</em>`;
+      // Si prénom ou âge manquant, on laisse des valeurs par défaut mais on signale
+      const hasPrenom = !!(p.prenom && p.prenom.trim());
+      const hasAge = !!(p.age && p.age > 0);
 
-    document.getElementById('analysisResult').style.display = 'block';
-    document.getElementById('headerStatus').textContent = `${p.prenom}, ${p.age} ans`;
-  };
-  reader.readAsText(file);
+      label.textContent = `\u2713 ${p.prenom || file.name} \u2014 ${p.wordCount.toLocaleString('fr-FR')} mots`;
+      label.classList.add('loaded');
+
+      const badges = document.getElementById('analysisBadges');
+      const badgeList = [...p.features];
+      if (result.persona._meta.source === 'converted_from_text') {
+        badgeList.unshift({type:'info', text:`converti depuis ${file.name.split('.').pop().toUpperCase()}`});
+      } else if (result.persona._meta.source === 'v9_markdown_legacy') {
+        badgeList.unshift({type:'info', text:`V9 markdown legacy`});
+      } else if (result.persona._meta.schema === 'CLONE-PERSONA-1.0') {
+        badgeList.unshift({type:'ok', text:`CLONE-PERSONA-1.0`});
+      }
+      badges.innerHTML = badgeList.map(f => `<span class="analysis-badge badge-${f.type}">${f.text}</span>`).join(' ');
+
+      const det = document.getElementById('analysisDetail');
+      let info = '';
+      if (hasPrenom && hasAge) info = `<strong>${p.prenom}</strong>, ${p.age} ans`;
+      else if (hasPrenom) info = `<strong>${p.prenom}</strong>`;
+      else info = `<em>(prénom/âge non extraits — renseignez-les manuellement plus bas)</em>`;
+      info += ` \u2014 ${p.wordCount.toLocaleString('fr-FR')} mots de matière.<br>`;
+      if (p.sections['PHRASE-CLE']) info += `<em>\u00ab\u00a0${p.sections['PHRASE-CLE'].replace(/[«»]/g,'').trim().substring(0,200)}\u00a0\u00bb</em>`;
+      det.innerHTML = info;
+
+      document.getElementById('analysisResult').style.display = 'block';
+      document.getElementById('headerStatus').textContent = hasPrenom ? `${p.prenom}${hasAge ? ', ' + p.age + ' ans' : ''}` : 'Matière chargée';
+    }
+  } catch (err) {
+    label.textContent = `\u2717 ${err.message}`;
+    label.style.color = 'var(--red, #c00)';
+    setTimeout(() => {
+      label.textContent = originalText;
+      label.style.color = '';
+    }, 6000);
+    console.error('loadFile error:', err);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4429,7 +4988,7 @@ document.getElementById('dlMd').addEventListener('click', () => {
 document.getElementById('restartBtn').addEventListener('click', () => {
   A.chapters = []; A.plan = null; A.backCover = ''; A._epubBlob = null; A.diagnostic = '';
   try { localStorage.removeItem(PROJECT_KEY); } catch(e) {}
-  document.getElementById('dropLabel').textContent = 'D\u00e9poser un fichier FINAL V9 (.md) ou un projet sauvegard\u00e9 (.ldv.json)';
+  document.getElementById('dropLabel').textContent = 'D\u00e9poser la mati\u00e8re : .json, .md, .txt, .docx, .pdf, .epub';
   document.getElementById('dropLabel').classList.remove('loaded');
   document.getElementById('analysisResult').style.display = 'none';
   document.getElementById('saveProjectBtn').style.display = 'none';
