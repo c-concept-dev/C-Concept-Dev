@@ -1534,9 +1534,36 @@ Test : peux-tu formuler la révélation du chapitre sous forme de *"le lecteur a
 
 Un chapitre peut déplacer (Signal 8) sans révéler. Un personnage peut bouger, une scène peut être forte, sans que le lecteur n'apprenne un fait. C'est un chapitre **touchant** mais **sans information** — acceptable une fois, problématique en série. Un livre qui ne révèle rien sur 10 chapitres est un livre qui tourne en rond.
 
+**Signal 14 — Violation de partition.** [V7 — actif SEULEMENT si une PARTITION SINGULIÈRE a été injectée dans le prompt au-dessus.]
+
+La partition singulière du livre décrit en 8 dimensions comment ce livre doit sonner (voix) et quelle forme narrative sa matière appelle (dynamique narrative). Chaque dimension est une contrainte opératoire. Ce signal vérifie que ton chapitre respecte cette partition.
+
+Pour chaque dimension, tu te demandes : mon chapitre est-il conforme à cette contrainte ? Exemples de violations détectables :
+
+- **Voix — Lexique** : tu as employé un mot présent dans mots_interdits_hors_dialogue hors dialogue direct.
+- **Voix — Respiration** : tu as écrit une série de phrases courtes alors que la partition appelle un régime de flux (ou l'inverse).
+- **Voix — Corps** : tu as écrit un chapitre entier sans aucun des gestes_signature du sujet.
+- **Voix — Rapport au lecteur** : tu as glissé vers une distance narrative différente de celle fixée par la partition.
+- **Dynamique — Mode de tension** : ton chapitre construit sa tension par un mode incompatible avec celui de la partition (ex. tension frontale dans un livre au mode silence/retenue).
+- **Dynamique — Mode de révélation** : la bascule du chapitre fonctionne sur une mécanique différente de celle du livre (ex. le livre révèle par geste/objet mais ce chapitre révèle par une phrase explicite du personnage).
+- **Dynamique — Rythme de dévoilement** : tu accélères trop vite dans un livre au rythme lent, ou tu ralentis dans un livre à progression fractale rapide.
+- **Dynamique — Risque de standardisation** : tu es tombé dans le piège que la partition a explicitement nommé (sur-écriture pour un taciturne, sur-structuration pour un dispersé, etc.).
+
+**Règle d'exception** : si la scène elle-même (la CONCEPTION VALIDÉE produite par l'architecte) exige un moment qui contredit ponctuellement une dimension de la partition, la scène prime. La partition oriente, elle n'enferme pas. Mais cette déviation doit être **consciente, minime, et tracée explicitement dans l'AUDIT** (section Signal 14). La déviation silencieuse est interdite.
+
+**Signal 15 — Test de signature (anti-standardisation globale).** [V7 — actif SEULEMENT si une PARTITION SINGULIÈRE a été injectée.]
+
+Le Signal 14 vérifie dimension par dimension. Le Signal 15 vérifie **l'effet d'ensemble**. Un chapitre peut cocher techniquement les 8 dimensions et pourtant sonner générique, parce que l'application a été mécanique.
+
+Tu prends un passage de 250-350 mots de ton chapitre, au hasard (idéalement un paragraphe d'action ou de pensée, pas un dialogue qui utiliserait naturellement la voix du personnage). Tu te poses la question suivante : ce passage, sorti de son contexte, pourrait-il avoir été écrit pour un autre sujet ?
+
+Si tu pourrais le glisser dans un autre livre du système sans qu'on voie la soudure, tu as glissé vers le régime générique — la partition n'a pas tenu dans ce chapitre. Tu reprends ce passage en te demandant : qu'est-ce qui, dans cette écriture, dit que c'est CE sujet et non un autre ? Si la réponse ne s'impose pas, tu réécris.
+
+Ce signal est le **verrou anti-standardisation globale**. C'est ce qui empêche le système de produire toujours le même livre sous des sujets différents.
+
 ### Règle de résolution
 
-Tu parcours ton texte en cherchant ces onze signaux. Pour chaque occurrence détectée :
+Tu parcours ton texte en cherchant ces signaux (onze par défaut, treize si une partition singulière est active). Pour chaque occurrence détectée :
 
 **Pour les signaux 1-7 (excès)** — tu appliques les deux questions perceptives :
 - Si la phrase **fait voir** quelque chose et que son retrait ferait disparaître quelque chose du livre → garde. L'exception existe.
@@ -1607,6 +1634,12 @@ Signal 12 — Absence de péril visible.
 
 Signal 13 — Absence de révélation.
  Qu'est-ce que le lecteur apprend dans ce chapitre qu'il ne savait pas au chapitre précédent ? Formuler la révélation sous forme de *"le lecteur apprend que X"*. Si rien ne peut être formulé ainsi, le chapitre résonne sans révéler — signaler la reprise effectuée.
+
+Signal 14 — Violation de partition. [V7 — seulement si une PARTITION SINGULIÈRE a été injectée]
+ Pour chacune des 8 dimensions (respiration, lexique, syntaxe, temporalité, corps et geste, lieux et objets, rapport au lecteur, dynamique narrative), vérifier la conformité du chapitre. Signaler les violations détectées. Si une déviation consciente a été nécessaire pour la scène, la tracer explicitement : quelle dimension, quelle raison de scène, pourquoi c'était légitime. Si aucune partition n'a été injectée, écrire "Non applicable — partition non active".
+
+Signal 15 — Test de signature (anti-standardisation globale). [V7 — seulement si une PARTITION SINGULIÈRE a été injectée]
+ Citer un passage de 250-350 mots du chapitre (copier verbatim). Se demander : ce passage, sorti de son contexte, pourrait-il avoir été écrit pour un autre sujet du système ? Répondre oui ou non. Si oui, indiquer ce qui a été réécrit. Si non, expliquer en une phrase ce qui, dans ce passage, dit que c'est CE sujet et non un autre. Si aucune partition n'a été injectée, écrire "Non applicable — partition non active".
 
 Vérification de la conception.
  Moment, forces, désir, obstacle, dialogue, bascule, résidu, déplacement, révélation, fin — coche chaque élément présent.
@@ -1692,6 +1725,216 @@ Tu ne produis pas un texte qui tient. Tu produis un texte qui tient le lecteur.
 ---
 
 *Prompt opératoire — C Concept&Dev — Christophe BONNET — Équipe opérationnelle avec l'architecte*
+`;
+
+// ═══════════════════════════════════════════════════════════════════
+// PROMPT PARTITION — V7 — Partition singulière en 8 dimensions
+// ═══════════════════════════════════════════════════════════════════
+// Produit par Sonnet après le diagnostic renforcé. Supervisé ensuite par
+// Opus (6 questions). Devient invariant du livre, injecté dans architecte
+// et opératoire comme contrainte active.
+//
+// Les 7 premières dimensions décrivent la VOIX du sujet (comment il habite
+// la langue, son corps, son temps, son rapport au lecteur). La 8ème décrit
+// la DYNAMIQUE NARRATIVE que sa matière appelle (mode de tension, mode de
+// révélation, forme d'intrigue, rythme de dévoilement, risque de
+// standardisation).
+//
+// Canon : rigoureux, intelligent, adaptatif, universel, sans hardcoding.
+// Verrou anti-hardcoding : citations matière obligatoires pour chaque
+// dimension. Le LLM ne peut pas inventer hors-sol — la partition est
+// dérivée du transcript.
+// ═══════════════════════════════════════════════════════════════════
+const PROMPT_PARTITION = `Tu es un lecteur d'une extrême finesse. Ton rôle est de produire la PARTITION SINGULIÈRE du livre de vie de ce sujet — la description opératoire de comment CE livre doit sonner, et de quelle forme narrative sa matière appelle.
+
+═══ CE QUE TU PRODUIS ═══
+
+Un JSON structuré en 8 dimensions. Les 7 premières décrivent la VOIX du sujet. La 8ème décrit la DYNAMIQUE NARRATIVE que sa matière appelle.
+
+Chaque dimension exige une CITATION MATIÈRE (2-3 extraits verbatim du transcript) qui fonde le choix. SANS citations, la dimension est invalide.
+
+═══ PRINCIPE FONDATEUR ═══
+
+Tu ne produis pas une description abstraite. Tu produis une CONTRAINTE ACTIONNABLE pour l'écriture. Chaque champ doit pouvoir orienter concrètement l'architecte qui concevra les chapitres et l'opératoire qui les écrira.
+
+Test d'opérabilité à appliquer à chaque champ :
+- "Phrases longues" n'est PAS opérable
+- "Flux continu avec subordinations, phrases de 25-40 mots majoritaires, relancées par une phrase-coupe de 3-5 mots tous les 6-8 paragraphes" EST opérable
+- "Tension masquée" n'est PAS opérable
+- "La tension monte par l'écart entre ce que le sujet dit publiquement et ce qu'il fait en privé — chaque chapitre doit contenir au moins un de ces écarts" EST opérable
+
+Tu n'inventes rien. Tu EXTRAIS du transcript la voix et la forme narrative que la matière appelle. Si une dimension t'échappe parce que la matière est trop maigre pour la déterminer, tu l'indiques honnêtement dans la citation ("matière insuffisante — valeur par défaut prudente : …") — tu n'inventes pas une dimension qui n'a pas d'ancrage.
+
+═══ INTERDICTIONS ABSOLUES ═══
+
+1. AUCUN ARCHÉTYPE pré-câblé. Tu ne dis pas "profil taiseux donc phrases courtes". Tu lis la matière de CE sujet et tu en extrais la signature propre.
+
+2. AUCUN MODÈLE D'AUTEUR. Tu ne dis pas "écrire comme Ernaux" ou "pasticher Carver". Les auteurs sont des outils de grammaire, pas des moules.
+
+3. AUCUNE DIMENSION SANS CITATION. Chaque dimension exige un extrait verbatim du transcript qui la fonde. Si tu ne trouves pas de citation, la dimension n'est pas valide.
+
+4. AUCUN JARGON LITTÉRAIRE ORNEMENTAL. Tu écris des contraintes, pas de la critique. "Esthétique du vide" n'est pas opérable. "Chaque chapitre comporte au moins un paragraphe d'une phrase seule qui pose un fait et s'arrête" est opérable.
+
+═══ LES 8 DIMENSIONS ═══
+
+──── DIMENSIONS VOIX (1 à 7) ────
+
+1. RESPIRATION — le rythme que la voix du sujet appelle
+   - regime_dominant : "flux continu" / "fragments" / "alternance" / autre — selon ce que le transcript révèle
+   - longueur_phrase_cible : indication opérationnelle précise
+   - tolerance_phrase_longue : "élevée" / "modérée" / "proscrite hors dialogue"
+   - citation_matiere : 2-3 extraits du transcript (verbatim)
+
+2. LEXIQUE — les mots qui sont et ne sont pas dans la bouche du sujet
+   - champ_semantique_central : liste des 5-10 domaines lexicaux spontanés du sujet
+   - mots_interdits_hors_dialogue : liste de mots "haute littérature" qui sonneraient comme le narrateur qui plaque son vocabulaire
+   - mots_signature : 3-5 mots qui reviennent dans le transcript et que le livre peut répéter en boucle légitime
+   - citation_matiere : 2-3 extraits montrant le lexique spontané
+
+3. SYNTAXE DU SUJET — les figures que le sujet utilise naturellement
+   - figures_recurrentes : anaphore, énumération, question sans réponse, coupe-net, correction en direct, etc. — identifiées dans le transcript
+   - ruptures_typiques : où et comment la voix du sujet casse
+   - ce_que_le_sujet_ne_dit_jamais : ce qu'il évite structurellement (tel mot, telle personne, la première personne, etc.)
+   - citation_matiere : 2-3 extraits
+
+4. TEMPORALITÉ INTÉRIEURE — comment le sujet se rapporte au temps
+   - rapport_au_passe : nostalgique / refoulé / vivant dans le présent / ressassant / lacunaire / autre
+   - rapport_au_present : immergé / en retrait / en surveillance / en fuite / dans le geste / autre
+   - rapport_au_futur : ouvert / fermé / en sursis / en projet / inexistant / autre
+   - citation_matiere : 2-3 extraits
+
+5. CORPS ET GESTE — comment le corps du sujet est présent
+   - gestes_signature : liste des gestes récurrents du sujet dans le transcript
+   - zones_du_corps_presentes : mains, épaules, gorge, poitrine, cuisses, etc. (selon ce que le sujet détaille)
+   - tropismes_physiques : ce que le corps fait quand la tête ne sait pas quoi faire
+   - citation_matiere : 2-3 extraits
+
+6. LIEUX ET OBJETS — la géographie sensorielle du livre
+   - lieux_axiaux : les 3-4 lieux qui portent le livre
+   - objets_chargés : les objets qui agissent dans le livre (pas les objets décoratifs)
+   - sensorialité_dominante : "tactile" / "auditive" / "visuelle" / "olfactive" / mixte — selon ce que le sujet détaille
+   - citation_matiere : 2-3 extraits
+
+7. RAPPORT AU LECTEUR — comment le livre parle au lecteur
+   - distance_narrative : "1re personne intime" / "3e personne serrée" / "3e personne distante" / "alternance motivée" — selon ce que la matière appelle
+   - niveau_de_confidence : "confidence directe" / "demi-voile" / "distance tenue" / "énigme"
+   - registre_emotionnel : "plat contenu" / "modulé" / "intense" / "à nu"
+   - citation_matiere : 2-3 extraits
+
+──── DIMENSION DYNAMIQUE NARRATIVE (8) ────
+
+Cette dimension est d'une autre nature. Les 7 précédentes disent COMMENT la voix sonne. La 8ème dit COMMENT la forme narrative doit se déployer — selon ce que la matière du sujet appelle.
+
+Deux sujets peuvent avoir des voix comparables mais des dynamiques narratives opposées, et inversement. Sans cette dimension, tous les livres finissent avec la même forme d'intrigue.
+
+8. DYNAMIQUE NARRATIVE DU SUJET — la forme que sa vie appelle
+   - mode_de_tension : comment la tension se construit naturellement dans la matière de ce sujet
+     Par silence et retenue ? (la tension monte par ce qui n'est pas dit)
+     Par dispersion ou surcharge ? (la tension vient de l'éclatement des sollicitations)
+     Par masque et fissure ? (la tension vient du contraste surface tenue / réel qui perce)
+     Par accumulation ? (la tension s'épaissit par strates)
+     Par boucle ? (la tension revient par récurrence du même motif sous formes différentes)
+     Par collision ? (la tension naît quand deux univers du sujet se rencontrent)
+     Autre forme dérivée du transcript — forme libre, pas de liste fermée
+   - mode_de_revelation : comment le sens émerge dans cette vie
+     Par geste ou objet chargé ? (une action ou une chose révèle ce que les mots ne peuvent pas porter)
+     Par miroir ? (un autre renvoie au sujet sa propre image)
+     Par collision d'idées ? (deux pensées du sujet qui ne communiquaient pas se rencontrent)
+     Par retour d'un motif ? (quelque chose qui revient finit par se charger)
+     Par dévoilement progressif d'un mensonge, d'un manque, d'une dette ?
+     Par décalage ? (écart entre ce que le sujet dit et ce qu'il fait)
+     Autre — doit être attesté par le transcript
+   - forme_d_intrigue_appelee : quelle grammaire narrative la matière appelle
+     "Linéaire minimale" (peu de scènes très tenues, chronologie simple)
+     "Progression fractale" (chaque scène éclaire et complique à la fois)
+     "Progressive avec bascule" (installation + point de non-retour + plateau)
+     "En boucle et reprise" (même motif revisité sous angles différents)
+     "Par dévoilement d'un caché" (la matière tourne autour d'un secret, d'un manque, d'une perte)
+     "Cumulative" (strates qui s'épaississent sans hiérarchie)
+     Autre — conditionne la manière dont l'architecte conçoit les chapitres
+   - rythme_de_devoilement : vitesse du dévoilement à travers le livre
+     "Lent et régulier" / "non linéaire avec résurgences" / "rapide puis suspendu" /
+     "cumulatif avec accélération finale" / "par à-coups" / autre
+     Cohérent avec la matière : un sujet qui a mis 40 ans à comprendre quelque chose n'appelle pas le même rythme qu'un sujet traversé par une révélation brutale
+   - risque_de_standardisation : le danger principal contre lequel ce livre doit lutter, IDENTIFIÉ POUR CE SUJET PRÉCIS
+     Exemple : "trop structurer la dispersion → perdre le chaos utile qui dit le cerveau du sujet"
+     Exemple : "sur-écrire le silence → casser la retenue qui porte le livre"
+     Exemple : "expliciter la mécanique du masque → tuer la tension du non-dit"
+     Ce champ est une alerte ciblée qui descend dans l'architecte et l'opératoire comme une contre-indication prioritaire
+   - citation_matiere : 2-3 extraits du transcript qui fondent ces choix
+
+═══ COHÉRENCE INTERNE DE LA PARTITION ═══
+
+Avant de livrer, tu relis ta partition comme un ensemble unifié, pas comme une liste de cases. Tu vérifies :
+
+- Les 7 dimensions voix sont-elles cohérentes entre elles ? ("Phrases courtes dominantes" + "champ sémantique abstrait" serait un écart entre registre et lexique.)
+- La dimension 8 est-elle cohérente avec les 7 premières ? (Une voix en flux continu + un mode de tension par silence est a priori incohérent — le flux appelle la saturation, pas le silence.)
+- Y a-t-il des dimensions ornementales — que tu pourrais retirer sans que le livre en souffre ? Si oui, revois-les jusqu'à ce qu'elles aient une fonction opératoire.
+
+═══ FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT ═══
+
+Tu réponds UNIQUEMENT par un JSON valide structuré comme suit. Pas de texte avant. Pas de texte après. Pas de markdown. Pas de commentaires dans le JSON.
+
+{
+  "respiration": {
+    "regime_dominant": "...",
+    "longueur_phrase_cible": "...",
+    "tolerance_phrase_longue": "...",
+    "citation_matiere": "..."
+  },
+  "lexique": {
+    "champ_semantique_central": ["...", "..."],
+    "mots_interdits_hors_dialogue": ["...", "..."],
+    "mots_signature": ["...", "..."],
+    "citation_matiere": "..."
+  },
+  "syntaxe_du_sujet": {
+    "figures_recurrentes": ["...", "..."],
+    "ruptures_typiques": ["...", "..."],
+    "ce_que_le_sujet_ne_dit_jamais": ["...", "..."],
+    "citation_matiere": "..."
+  },
+  "temporalite_interieure": {
+    "rapport_au_passe": "...",
+    "rapport_au_present": "...",
+    "rapport_au_futur": "...",
+    "citation_matiere": "..."
+  },
+  "corps_et_geste": {
+    "gestes_signature": ["...", "..."],
+    "zones_du_corps_presentes": ["...", "..."],
+    "tropismes_physiques": ["...", "..."],
+    "citation_matiere": "..."
+  },
+  "lieux_et_objets": {
+    "lieux_axiaux": ["...", "..."],
+    "objets_charges": ["...", "..."],
+    "sensorialite_dominante": "...",
+    "citation_matiere": "..."
+  },
+  "rapport_au_lecteur": {
+    "distance_narrative": "...",
+    "niveau_de_confidence": "...",
+    "registre_emotionnel": "...",
+    "citation_matiere": "..."
+  },
+  "dynamique_narrative": {
+    "mode_de_tension": "...",
+    "mode_de_revelation": "...",
+    "forme_d_intrigue_appelee": "...",
+    "rythme_de_devoilement": "...",
+    "risque_de_standardisation": "...",
+    "citation_matiere": "..."
+  }
+}
+
+═══ RAPPEL FINAL ═══
+
+Tu ne produis pas une belle description. Tu produis la PARTITION qui va contraindre l'écriture du livre entier. Chaque champ sera injecté dans chaque prompt d'écriture. Chaque citation sera vérifiée contre le transcript.
+
+Le livre qui sera écrit sur la base de ta partition doit être UNIQUE — impossible à confondre avec le livre d'un autre sujet.
+
+Écoute la voix du sujet. Écoute la forme que sa vie appelle. Ne plaque rien. Extrais. Cite. Contraigne.
 `;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2302,6 +2545,7 @@ const A = {
   backCover: '',
   config: {},
   bookInvariant: null,  // V5 — architecture narrative (6 champs) fixée au ch.1 et validée par supervision Opus
+  bookPartition: null,  // V7 — partition singulière en 8 dimensions (7 voix + 1 dynamique narrative), Sonnet produit, Opus supervise, invariant du livre
 
   // ═══ PARSER — extraction mécanique (le code COMPTE) ═══
   parse(md) {
@@ -2667,13 +2911,150 @@ Le champ "revelation" est obligatoire. Tu formules un fait nouveau nommable — 
   },
 
   // User message architecte — contexte spécifique au chapitre (non-cacheable)
+  // ═══════════════════════════════════════════════════════════════════
+  // V7 — FORMAT DE LA PARTITION POUR INJECTION DANS LES PROMPTS
+  // ═══════════════════════════════════════════════════════════════════
+  // Produit un bloc textuel formaté depuis A.bookPartition (8 dimensions).
+  // Ce bloc est injecté dans buildArchitecteUser et buildChapterPrompt.
+  //
+  // Le paramètre `target` module la longueur et le ton :
+  //   - 'architecte'  → version courte, orientée contraintes de conception
+  //   - 'operatoire'  → version longue, orientée contraintes d'écriture,
+  //                     avec bloc "avant d'écrire" + règle d'exception
+  //
+  // Si A.bookPartition est null, retourne '' (fallback V6.1).
+  // ═══════════════════════════════════════════════════════════════════
+  formatBookPartitionForPrompt(target) {
+    const bp = this.bookPartition;
+    if (!bp) return '';
+
+    const p = this.parsed;
+    const prenom = p?.prenom || 'ce sujet';
+
+    // Helpers pour transformer les listes en chaînes lisibles
+    const list = (v) => Array.isArray(v) ? v.join(', ') : (v || '(non spécifié)');
+    const str  = (v) => (typeof v === 'string' && v.trim()) ? v : '(non spécifié)';
+
+    // Dimensions voix (1-7)
+    const resp = bp.respiration || {};
+    const lex  = bp.lexique || {};
+    const syn  = bp.syntaxe_du_sujet || {};
+    const tmp  = bp.temporalite_interieure || {};
+    const corps = bp.corps_et_geste || {};
+    const lieux = bp.lieux_et_objets || {};
+    const rap  = bp.rapport_au_lecteur || {};
+
+    // Dimension dynamique narrative (8)
+    const dyn  = bp.dynamique_narrative || {};
+
+    if (target === 'architecte') {
+      // Version courte pour l'architecte — contraintes qui descendent dans Q2, Q5, Q6, Q12b, Q14
+      return `
+
+═══ PARTITION SINGULIÈRE DU LIVRE (V7) ═══
+Cette partition a été produite par Sonnet et validée par supervision Opus. Elle contraint tes réponses aux questions d'architecte :
+- Q5 (Voix) est contrainte par les dimensions voix (respiration, lexique, syntaxe, temporalité, corps, lieux, rapport lecteur)
+- Q14 (Tropismes) est contrainte par le risque_de_standardisation
+- Q2 (Obstacle) et Q6 (Bascule) sont contraintes par mode_de_tension et mode_de_revelation
+- Q12b (Révélation) est contrainte par forme_d_intrigue_appelee et rythme_de_devoilement
+
+VOIX DU SUJET :
+- Respiration : ${str(resp.regime_dominant)} — ${str(resp.longueur_phrase_cible)}
+- Lexique : champ = ${list(lex.champ_semantique_central)} ; signatures = ${list(lex.mots_signature)} ; interdits hors dialogue = ${list(lex.mots_interdits_hors_dialogue)}
+- Syntaxe : figures = ${list(syn.figures_recurrentes)} ; ruptures = ${list(syn.ruptures_typiques)} ; ne dit jamais = ${list(syn.ce_que_le_sujet_ne_dit_jamais)}
+- Temporalité : passé = ${str(tmp.rapport_au_passe)} ; présent = ${str(tmp.rapport_au_present)} ; futur = ${str(tmp.rapport_au_futur)}
+- Corps : gestes = ${list(corps.gestes_signature)} ; zones = ${list(corps.zones_du_corps_presentes)} ; tropismes = ${list(corps.tropismes_physiques)}
+- Lieux/objets : lieux axiaux = ${list(lieux.lieux_axiaux)} ; objets chargés = ${list(lieux.objets_charges || lieux['objets_chargés'])} ; sensorialité = ${str(lieux.sensorialite_dominante || lieux['sensorialité_dominante'])}
+- Rapport lecteur : ${str(rap.distance_narrative)} / ${str(rap.niveau_de_confidence)} / ${str(rap.registre_emotionnel)}
+
+DYNAMIQUE NARRATIVE DU SUJET :
+- Mode de tension : ${str(dyn.mode_de_tension)}
+- Mode de révélation : ${str(dyn.mode_de_revelation)}
+- Forme d'intrigue appelée : ${str(dyn.forme_d_intrigue_appelee)}
+- Rythme de dévoilement : ${str(dyn.rythme_de_devoilement)}
+- ⚠ RISQUE DE STANDARDISATION À ÉVITER : ${str(dyn.risque_de_standardisation)}
+
+Ta conception de ce chapitre doit être cohérente avec cette partition. Si une dimension de la partition contredit un choix que tu ferais par défaut, la partition prime.`;
+    }
+
+    // target === 'operatoire' — version longue, orientée écriture
+    return `
+
+═══ PARTITION SINGULIÈRE DE CE LIVRE ═══
+
+Cette partition a été produite à partir du transcript de ${prenom} et validée par supervision Opus. Elle n'est pas une suggestion. C'est la voix ET la forme de ce livre. Tu ne peux pas écrire ce chapitre en dehors de cette partition — sauf si la scène l'exige ponctuellement, auquel cas tu le mentionnes dans l'AUDIT (Signal 14).
+
+─── VOIX DU SUJET ───
+
+RESPIRATION :
+- Régime dominant : ${str(resp.regime_dominant)}
+- Longueur phrase cible : ${str(resp.longueur_phrase_cible)}
+- Tolérance phrase longue : ${str(resp.tolerance_phrase_longue)}
+
+LEXIQUE :
+- Champ sémantique central : ${list(lex.champ_semantique_central)}
+- Mots INTERDITS hors dialogue : ${list(lex.mots_interdits_hors_dialogue)}
+- Mots signature (répétition légitime) : ${list(lex.mots_signature)}
+
+SYNTAXE DU SUJET :
+- Figures récurrentes : ${list(syn.figures_recurrentes)}
+- Ruptures typiques : ${list(syn.ruptures_typiques)}
+- Ce que le sujet ne dit JAMAIS : ${list(syn.ce_que_le_sujet_ne_dit_jamais)}
+
+TEMPORALITÉ INTÉRIEURE :
+- Au passé : ${str(tmp.rapport_au_passe)}
+- Au présent : ${str(tmp.rapport_au_present)}
+- Au futur : ${str(tmp.rapport_au_futur)}
+
+CORPS ET GESTE :
+- Gestes signature : ${list(corps.gestes_signature)}
+- Zones du corps présentes : ${list(corps.zones_du_corps_presentes)}
+- Tropismes physiques : ${list(corps.tropismes_physiques)}
+
+LIEUX ET OBJETS :
+- Lieux axiaux : ${list(lieux.lieux_axiaux)}
+- Objets chargés : ${list(lieux.objets_charges || lieux['objets_chargés'])}
+- Sensorialité dominante : ${str(lieux.sensorialite_dominante || lieux['sensorialité_dominante'])}
+
+RAPPORT AU LECTEUR :
+- Distance narrative : ${str(rap.distance_narrative)}
+- Niveau de confidence : ${str(rap.niveau_de_confidence)}
+- Registre émotionnel : ${str(rap.registre_emotionnel)}
+
+─── DYNAMIQUE NARRATIVE DU SUJET ───
+
+- Mode de tension : ${str(dyn.mode_de_tension)}
+- Mode de révélation : ${str(dyn.mode_de_revelation)}
+- Forme d'intrigue appelée : ${str(dyn.forme_d_intrigue_appelee)}
+- Rythme de dévoilement : ${str(dyn.rythme_de_devoilement)}
+- ⚠ RISQUE DE STANDARDISATION À ÉVITER IMPÉRATIVEMENT :
+  ${str(dyn.risque_de_standardisation)}
+
+─── AVANT D'ÉCRIRE CE CHAPITRE ───
+
+Tu te poses trois questions.
+
+1. Qu'est-ce que cette partition m'interdit de faire par défaut dans ce chapitre ? (Si rien ne me vient, je n'ai pas lu la partition.)
+
+2. Qu'est-ce qu'elle m'oblige à oser — dans le rythme, le lexique, la forme de la scène, le mode de révélation ?
+
+3. Mon premier paragraphe est un test. Un lecteur qui reçoit ce paragraphe sans le reste du livre doit pouvoir dire "c'est ${prenom} qui parle" — et non pas "c'est un livre de vie produit par un système".
+
+Si tu ne peux pas répondre à ces trois questions avant d'écrire, tu relis la partition.
+
+─── RÈGLE D'EXCEPTION ───
+
+Si la scène elle-même (la CONCEPTION VALIDÉE produite par l'architecte) exige un moment qui contredit ponctuellement une dimension de la partition, la scène prime — la partition oriente, elle n'enferme pas. Mais cette déviation doit être consciente, minime, et tracée dans l'AUDIT (Signal 14). La déviation silencieuse est interdite. La déviation motivée est légitime.
+
+`;
+  },
+
   buildArchitecteUser(chIdx) {
     const p = this.parsed;
     const plan = this.plan;
     const ch = plan.chapters[chIdx];
     const isFirst = chIdx === 0;
     const isLast = chIdx === plan.chapters.length - 1;
-
     // Condensé des chapitres déjà écrits
     let prevCtx = '';
     const written = this.chapters.filter((c, i) => c && i < chIdx);
@@ -2735,7 +3116,7 @@ ${p.transcript}
 
 DIAGNOSTIC LITTERAIRE :
 ${this.diagnostic}
-
+${this.formatBookPartitionForPrompt('architecte')}
 PLAN DE CE CHAPITRE :
 Titre : ${ch.title}
 Période : ${ch.period || ''}
@@ -3038,6 +3419,260 @@ Réponds maintenant en JSON strict.`;
 
 
   // ═══════════════════════════════════════════════════════════════════
+  // V7 — PRODUCTION DE LA PARTITION SINGULIÈRE (Sonnet)
+  // ═══════════════════════════════════════════════════════════════════
+  // Appelée après le diagnostic renforcé, avant la planification.
+  // Sonnet produit la partition en 8 dimensions à partir du transcript
+  // + diagnostic. La partition sera ensuite supervisée par Opus
+  // (superviseBookPartition) avant d'être validée et sauvegardée dans
+  // A.bookPartition comme invariant du livre.
+  //
+  // Canon : rigoureux, intelligent, adaptatif, universel, sans hardcoding.
+  // Verrou anti-hardcoding : citations matière obligatoires (vérifiées
+  // par Opus dans la supervision).
+  // ═══════════════════════════════════════════════════════════════════
+  async produireBookPartition() {
+    const p = this.parsed;
+    if (!p || !p.transcript) {
+      return { ok: false, partition: null, error: 'transcript manquant' };
+    }
+
+    // Matière : transcript (tronqué pour rester sous les limites tokens) + diagnostic renforcé
+    const transcriptTrunc = (p.transcript || '').substring(0, 30000);
+    const diagnosticTrunc = (this.diagnostic || '').substring(0, 8000);
+
+    const partitionUser = `SUJET : ${p.prenom || '(sans prénom)'}, ${p.age || '?'} ans
+
+═══ MATIÈRE DU SUJET (transcript — source unique de la partition) ═══
+
+${transcriptTrunc}
+
+═══ DIAGNOSTIC LITTÉRAIRE RENFORCÉ (pour contexte — ne te substitue pas au transcript) ═══
+
+${diagnosticTrunc}
+
+═══ TA TÂCHE ═══
+
+Produis la PARTITION SINGULIÈRE de ${p.prenom || 'ce sujet'} en JSON strict — 8 dimensions, chacune avec citation_matiere obligatoire. Respecte toutes les règles du prompt système (pas d'archétype, pas de modèle d'auteur, pas de jargon ornemental, contraintes opératoires).
+
+Réponds UNIQUEMENT par le JSON. Pas de texte avant. Pas de texte après.`;
+
+    let raw = '';
+    try {
+      // maxTokens élevé : la partition est un JSON riche (8 dimensions × ~200 mots)
+      raw = await this.llmCall(PROMPT_PARTITION, partitionUser, 4000);
+    } catch (e) {
+      return { ok: false, partition: null, error: `Sonnet partition call failed: ${e.message}` };
+    }
+
+    if (!raw || typeof raw !== 'string') {
+      return { ok: false, partition: null, error: 'réponse Sonnet vide' };
+    }
+
+    // ── Parse JSON ──
+    let extracted = raw.trim();
+    const firstBrace = extracted.indexOf('{');
+    const lastBrace = extracted.lastIndexOf('}');
+    if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
+      return { ok: false, partition: null, error: 'pas de JSON détecté dans la réponse Sonnet partition' };
+    }
+    extracted = extracted.substring(firstBrace, lastBrace + 1)
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/,\s*([}\]])/g, '$1');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(extracted);
+    } catch (e) {
+      return { ok: false, partition: null, error: `JSON partition invalide: ${e.message}` };
+    }
+
+    // ── Validation structurelle (le code COMPTE) ──
+    const requiredDimensions = [
+      'respiration', 'lexique', 'syntaxe_du_sujet', 'temporalite_interieure',
+      'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative'
+    ];
+    const missing = requiredDimensions.filter(d => !parsed[d] || typeof parsed[d] !== 'object');
+    if (missing.length > 0) {
+      return { ok: false, partition: parsed, error: `dimensions manquantes : ${missing.join(', ')}` };
+    }
+
+    // Vérification que chaque dimension a sa citation_matiere non-vide
+    const sansCitation = requiredDimensions.filter(d => {
+      const c = parsed[d].citation_matiere;
+      return !c || typeof c !== 'string' || c.trim().length < 10;
+    });
+    if (sansCitation.length > 0) {
+      return {
+        ok: true, // On laisse passer pour que la supervision Opus voie et corrige
+        partition: parsed,
+        warning: `dimensions sans citation_matiere suffisante : ${sansCitation.join(', ')}`
+      };
+    }
+
+    return { ok: true, partition: parsed, error: null };
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // V7 — SUPERVISION OPUS DE LA PARTITION SINGULIÈRE
+  // ═══════════════════════════════════════════════════════════════════
+  // Opus lit le transcript, le diagnostic, et la partition produite par
+  // Sonnet. Il pose 6 questions de contrôle (fidélité matière, contradiction
+  // interne, contradiction diagnostic, test du retrait, différenciation
+  // effective, cohérence voix/dynamique narrative). Si tout passe → validée.
+  // Si quelque chose cloche → propose des révisions ciblées dimension par
+  // dimension.
+  //
+  // Modèle calqué sur superviseArchitectureNarrative (V5).
+  // ═══════════════════════════════════════════════════════════════════
+  async superviseBookPartition(partition) {
+    const p = this.parsed;
+    if (!p || !partition) return { ok: false, revision: null, error: 'contexte manquant' };
+
+    const transcriptTrunc = (p.transcript || '').substring(0, 25000);
+    const diagnosticTrunc = (this.diagnostic || '').substring(0, 6000);
+
+    const superviseSys = `Tu es un directeur littéraire senior, relecteur expert de la voix et de la forme narrative. Ton rôle est de valider — ou faire réviser — la partition singulière produite pour ce livre de vie.
+
+LA PARTITION SINGULIÈRE
+C'est la description opératoire de comment le livre doit sonner (voix) et quelle forme narrative sa matière appelle (dynamique narrative). Elle contraint l'architecte et l'opératoire pendant l'écriture. Sans elle, tous les livres du système finissent avec la même signature stylistique et la même forme d'intrigue — c'est ce que la partition empêche.
+
+LES 3 CONDITIONS DE VALIDATION
+1. FIDÉLITÉ MATIÈRE — chaque dimension est tirée du transcript, avec citations verbatim
+2. OPÉRABILITÉ — chaque champ est une contrainte actionnable, pas une description abstraite
+3. DIFFÉRENCIATION EFFECTIVE — la partition rend le livre impossible à produire par défaut ; remplacée par une partition générique, le livre serait un autre livre
+
+TON TRAVAIL
+Tu reçois la partition proposée par Sonnet. Tu réponds aux 6 questions de contrôle ci-dessous. Si tout passe, tu valides. Si quelque chose cloche sur une ou plusieurs dimensions, tu proposes une révision ciblée.
+
+Tu n'es pas tatillon. Tu ne demandes pas la perfection — tu cherches les dimensions sans citation matière, les champs ornementaux (belles descriptions sans contrainte opératoire), les incohérences entre dimensions, les partitions trop génériques.
+
+FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT
+
+{
+  "verdict": "validé" | "révision",
+  "raisonnement": "3-5 phrases synthétisant ton analyse des 6 questions",
+  "revision": {
+    "respiration":            "dimension révisée complète ou null si inchangée",
+    "lexique":                "dimension révisée complète ou null si inchangée",
+    "syntaxe_du_sujet":       "dimension révisée complète ou null si inchangée",
+    "temporalite_interieure": "dimension révisée complète ou null si inchangée",
+    "corps_et_geste":         "dimension révisée complète ou null si inchangée",
+    "lieux_et_objets":        "dimension révisée complète ou null si inchangée",
+    "rapport_au_lecteur":     "dimension révisée complète ou null si inchangée",
+    "dynamique_narrative":    "dimension révisée complète ou null si inchangée"
+  }
+}
+
+Pour chaque dimension révisée, fournis l'OBJET COMPLET (tous les champs de la dimension, pas un patch partiel). Pour chaque dimension inchangée, la valeur est null.
+
+Si verdict = "validé", revision peut être null.
+Si verdict = "révision", au moins une dimension doit être révisée (objet), les autres restent null.
+
+Réponds UNIQUEMENT par le JSON. Pas de texte avant ni après. Pas de markdown.`;
+
+    const superviseUser = `SUJET : ${p.prenom || '(sans prénom)'}, ${p.age || '?'} ans
+
+═══ MATIÈRE DU SUJET (transcript — référence de fidélité) ═══
+
+${transcriptTrunc}
+
+═══ DIAGNOSTIC LITTÉRAIRE RENFORCÉ (cohérence attendue) ═══
+
+${diagnosticTrunc}
+
+═══ PARTITION SINGULIÈRE PROPOSÉE PAR SONNET ═══
+
+${JSON.stringify(partition, null, 2)}
+
+═══ LES 6 QUESTIONS DE CONTRÔLE ═══
+
+1. FIDÉLITÉ À LA MATIÈRE — chaque dimension est-elle tirée du transcript ? Les citations sont-elles VERBATIM (présentes telles quelles dans le transcript) ? Y a-t-il une dimension qui n'a pas de citation_matiere ou dont la citation est trop faible/générale ?
+
+2. CONTRADICTION INTERNE — la partition a-t-elle des dimensions qui s'opposent entre elles ? Exemples : "confidence directe" (dim. 7) + "distance tenue" (dim. 7) = contradiction. "Phrases courtes dominantes" (dim. 1) + "champ sémantique abstrait des sciences cognitives" (dim. 2) = écart entre registre et lexique. "Mode de tension : silence" (dim. 8) + "rythme de dévoilement : rapide avec accélération finale" (dim. 8) = incohérence interne dim. 8.
+
+3. CONTRADICTION AVEC LE DIAGNOSTIC — la partition respecte-t-elle la mécanique du sujet établie dans le diagnostic ? Ou lui impose-t-elle une voix/forme qui ne lui va pas ? (Exemple : si le diagnostic dit "silence axial = deuil non nommé", mais que la partition dim. 8 dit "mode de tension par dispersion", il y a un décrochage.)
+
+4. TEST DU RETRAIT — applique ce test à chacune des 8 dimensions : si je retire cette dimension de la partition, qu'est-ce que le livre perd concrètement ? Si la réponse est "rien", la dimension est ornementale et doit être révisée jusqu'à avoir une fonction opératoire claire.
+
+5. DIFFÉRENCIATION EFFECTIVE — c'est la question la plus importante. Si je remplaçais cette partition par la partition générique du système (celle que le système produit par défaut sans partition : phrases sobres-courtes médiane 6 mots, signature Modiano-Carver-Ernaux, scène-bascule-résidu-progression), qu'est-ce qui changerait CONCRÈTEMENT dans l'écriture de ce livre ? Si la réponse est "rien de substantiel, les mêmes mécanismes seraient applicables", la partition est ornementale — elle décrit sans contraindre. Si la réponse est "le livre serait un autre livre — les chapitres auraient une autre grammaire, les phrases un autre rythme, les scènes une autre forme", la partition a sa force. C'est ce second cas qui doit valider. Test binaire : la partition doit rendre le livre impossible à produire par défaut.
+
+6. COHÉRENCE VOIX / DYNAMIQUE NARRATIVE — les 7 premières dimensions (voix) sont-elles cohérentes avec la 8ème (dynamique narrative) ? Une voix en flux continu + un mode de tension par silence serait a priori incohérent — le flux appelle la saturation. Relis la partition comme un ensemble unifié, pas comme une liste de cases.
+
+Réponds maintenant en JSON strict.`;
+
+    // ── Swap modèle → Opus ──
+    const savedModel = this.config.model;
+    this.config.model = 'claude-opus-4-6';
+
+    let raw = '';
+    try {
+      // maxTokens plus élevé que pour superviseArchitectureNarrative : la révision peut impliquer
+      // de proposer jusqu'à 8 dimensions complètes réécrites.
+      raw = await this.llmCall(superviseSys, superviseUser, 4000);
+    } catch (e) {
+      this.config.model = savedModel;
+      return { ok: false, revision: null, error: `Opus partition supervise call failed: ${e.message}` };
+    } finally {
+      this.config.model = savedModel;
+    }
+
+    if (!raw || typeof raw !== 'string') {
+      return { ok: false, revision: null, error: 'réponse Opus partition vide' };
+    }
+
+    // ── Parse JSON ──
+    let extracted = raw.trim();
+    const firstBrace = extracted.indexOf('{');
+    const lastBrace = extracted.lastIndexOf('}');
+    if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
+      return { ok: false, revision: null, error: 'pas de JSON détecté dans la réponse Opus partition' };
+    }
+    extracted = extracted.substring(firstBrace, lastBrace + 1)
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/,\s*([}\]])/g, '$1');
+
+    let parsedResp;
+    try {
+      parsedResp = JSON.parse(extracted);
+    } catch (e) {
+      return { ok: false, revision: null, error: `JSON Opus partition invalide: ${e.message}` };
+    }
+
+    // ── Traitement du verdict ──
+    if (parsedResp.raisonnement) {
+      console.log('[Supervision Opus partition]', parsedResp.raisonnement);
+    }
+
+    if (parsedResp.verdict === 'validé') {
+      return { ok: true, revision: null, error: null };
+    }
+
+    if (parsedResp.verdict === 'révision' && parsedResp.revision && typeof parsedResp.revision === 'object') {
+      // On ne garde que les dimensions révisées non-null (celles qu'Opus a effectivement modifiées)
+      const revision = {};
+      const dimensions = ['respiration', 'lexique', 'syntaxe_du_sujet', 'temporalite_interieure',
+                          'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative'];
+      for (const d of dimensions) {
+        if (parsedResp.revision[d] && typeof parsedResp.revision[d] === 'object') {
+          revision[d] = parsedResp.revision[d];
+        }
+      }
+      if (Object.keys(revision).length === 0) {
+        // Opus a dit "révision" mais n'a proposé aucune dimension à réviser — on traite comme validé
+        return { ok: true, revision: null, error: null };
+      }
+      return { ok: true, revision, error: null };
+    }
+
+    // Verdict malformé — on considère comme validé par défaut (on continue)
+    return { ok: true, revision: null, error: 'verdict Opus partition malformé, pris pour validé' };
+  },
+
+
+  // ═══════════════════════════════════════════════════════════════════
   // ÉQUIPE À TROIS NIVEAUX — OPÉRATOIRE
   // ═══════════════════════════════════════════════════════════════════
   // L'opératoire écrit le chapitre phrase par phrase à partir de la
@@ -3301,8 +3936,12 @@ Les deux tropismes nommés sont tes signaux d'alerte pour ce chapitre précis. D
 Tu écris le chapitre à partir du plan et de la matière, en appliquant les lois et le postural. Fais attention particulière : tu n'as pas de cadrage architectural préalable. Reste strictement fidèle au plan du chapitre ci-dessous.`;
     }
 
+    // V7 — Partition singulière (8 dimensions) si disponible. Placée juste après la CONCEPTION VALIDÉE
+    // pour que l'opératoire la lise avant d'attaquer l'écriture. Si absente → fallback V6.1 (chaîne vide).
+    const partitionBlock = this.formatBookPartitionForPrompt('operatoire');
+
     return `Tu écris le chapitre ${chIdx+1} sur ${plan.chapters.length} du livre "${plan.title}".
-${conceptionBlock}
+${conceptionBlock}${partitionBlock}
 
 ═══════════════════════════════════════════════════════════════
 CONTEXTES DE CHAPITRE
@@ -4233,6 +4872,7 @@ function saveProject() {
     chapters: A.chapters,
     backCover: A.backCover,
     bookInvariant: A.bookInvariant || null,  // V5 — architecture narrative validée par Opus au ch.1
+    bookPartition: A.bookPartition || null,  // V7 — partition singulière (8 dimensions) produite par Sonnet et supervisée par Opus au diagnostic
   };
   return data;
 }
@@ -4266,6 +4906,7 @@ function autosave() {
         chapters: data.chapters.map(c => ({ title: c.title, wordCount: c.wordCount, pexelsKw: c.pexelsKw, text: c.text.substring(0, 500) + '...[tronqué pour autosave]' })),
         backCover: data.backCover,
         bookInvariant: data.bookInvariant || null,  // V5 — à préserver même en autosave allégé
+        bookPartition: data.bookPartition || null,  // V7 — partition singulière à préserver en autosave allégé
       };
       localStorage.setItem(PROJECT_KEY, JSON.stringify(minimal));
     } catch (e2) { console.warn('Autosave failed even minimal:', e2); }
@@ -4287,8 +4928,12 @@ function restoreProject(data) {
   A.backCover = data.backCover || '';
   A.config = data.config || {};
   A.bookInvariant = data.bookInvariant || null;  // V5 — architecture narrative validée par Opus au ch.1
+  A.bookPartition = data.bookPartition || null;  // V7 — partition singulière produite au diagnostic
   if (A.bookInvariant && A.bookInvariant.question_moteur) {
     console.log('[Reprise] Architecture narrative V5 restaurée :', A.bookInvariant.question_moteur.substring(0, 80));
+  }
+  if (A.bookPartition && A.bookPartition.respiration) {
+    console.log('[Reprise] Partition singulière V7 restaurée (8 dimensions).');
   }
 
   // Re-parse
@@ -4519,6 +5164,7 @@ function resetAtelierState() {
   A.chapters = [];
   A.backCover = '';
   A.bookInvariant = null;
+  A.bookPartition = null;  // V7 — partition singulière, réinitialisée comme bookInvariant
   A._currentStep = 0;
 
   // Purge du localStorage autosave pour éviter un restore accidentel ultérieur
@@ -4903,6 +5549,65 @@ PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête
       autosave();
       await new Promise(r => setTimeout(r, 5000));
 
+      // ═══════════════════════════════════════════════════════════════════
+      // V7 — PHASE 1C : PARTITION SINGULIÈRE
+      // ═══════════════════════════════════════════════════════════════════
+      // Sonnet produit la partition en 8 dimensions (voix + dynamique narrative)
+      // à partir du transcript et du diagnostic renforcé.
+      // Opus supervise ensuite la partition (6 questions de contrôle).
+      // La partition validée devient A.bookPartition, invariant du livre,
+      // injectée dans architecte et opératoire.
+      // Si production ou supervision échouent, on continue sans partition
+      // (fallback V6.1 — aucune régression possible).
+      // ═══════════════════════════════════════════════════════════════════
+      document.getElementById('assembleStatus').textContent = 'Production de la partition singulière...';
+      document.getElementById('assembleProgress').style.width = '7%';
+      lg('Production de la partition singulière (Sonnet — 8 dimensions)...', 'info');
+
+      try {
+        // Sonnet produit la partition
+        const partitionResult = await A.produireBookPartition();
+        if (partitionResult.ok && partitionResult.partition) {
+          if (partitionResult.warning) {
+            lg(`  ⚠  ${partitionResult.warning}`, 'info');
+          }
+          lg(`  ✓ Partition produite — 8 dimensions (voix + dynamique narrative)`, 'ok');
+
+          // Opus supervise la partition
+          document.getElementById('assembleStatus').textContent = 'Supervision Opus de la partition...';
+          document.getElementById('assembleProgress').style.width = '8%';
+          lg('Supervision Opus de la partition (6 questions de contrôle)...', 'info');
+
+          const superviseResult = await A.superviseBookPartition(partitionResult.partition);
+          if (superviseResult.ok && superviseResult.revision) {
+            // Opus a proposé des révisions — on les applique dimension par dimension
+            const revisedDims = Object.keys(superviseResult.revision);
+            lg(`  ✎ Opus a révisé ${revisedDims.length} dimension(s) : ${revisedDims.join(', ')}`, 'info');
+            A.bookPartition = { ...partitionResult.partition, ...superviseResult.revision };
+          } else if (superviseResult.ok) {
+            // Validée telle quelle
+            lg(`  ✓ Partition validée par Opus`, 'ok');
+            A.bookPartition = partitionResult.partition;
+          } else {
+            // Supervision échouée — on garde la partition Sonnet sans révision (fallback doux)
+            lg(`  ⚠  supervision Opus a échoué — partition Sonnet utilisée sans révision (${superviseResult.error || 'raison inconnue'})`, 'info');
+            A.bookPartition = partitionResult.partition;
+          }
+
+          // Sauvegarder la partition dans l'état atelier
+          autosave();
+          await new Promise(r => setTimeout(r, 5000));
+        } else {
+          // Production partition échouée — on continue sans partition (fallback V6.1)
+          lg(`  ⚠  production partition a échoué — le livre utilisera la voix par défaut (${partitionResult.error || 'raison inconnue'})`, 'info');
+          A.bookPartition = null;
+        }
+      } catch (err) {
+        // Erreur inattendue — on continue sans partition (fallback V6.1)
+        lg(`  ⚠  erreur partition : ${err.message} — le livre utilisera la voix par défaut`, 'info');
+        A.bookPartition = null;
+      }
+
       // ── Phase 2: Plan ──
       document.getElementById('assembleStatus').textContent = 'Planification...';
       document.getElementById('assembleProgress').style.width = '10%';
@@ -5166,7 +5871,22 @@ Le système produit un roman inspiré (mécanique psychologique intouchable, arc
 
     e) LE TEST DE RECONNAISSANCE — le sujet, en lisant son livre, doit pouvoir dire : "ce n'est pas exactement arrivé, mais c'est vrai — j'aurais pu recevoir cette lettre, j'aurais pu réagir comme ça". Le sujet reconnaît la MÉCANIQUE, même s'il ne reconnaît pas l'événement. Vérifie qu'aucun chapitre ne franchit la ligne rouge : inventer un fait qui contredit explicitement la matière, ou prêter au sujet une réaction incompatible avec sa mécanique attestée. Si tu identifies un chapitre qui force le sujet dans une posture qu'il n'aurait pas eue, signale-le.
 
-═══ PRODUIS ═══
+${A.bookPartition ? `16. LA PARTITION SINGULIÈRE — le livre tient-il la voix ET la forme narrative que la matière appelait ?
+
+La partition singulière de ce livre (8 dimensions : respiration, lexique, syntaxe, temporalité, corps et geste, lieux et objets, rapport au lecteur, dynamique narrative) a été produite au diagnostic par Sonnet et validée par supervision Opus amont. Elle était censée empêcher le livre de converger vers la voix générique du système. Ta mission : vérifier que le livre la tient d'un bout à l'autre.
+
+    a) FIDÉLITÉ VOIX — les dimensions 1 à 7 (voix) sont-elles tenues ? Y a-t-il des chapitres qui glissent vers le régime stylistique générique du système (phrases courtes sobres médiane 6 mots, signature Modiano-Carver-Ernaux) au lieu de la signature propre au sujet ? Identifie les chapitres qui tiennent la voix, identifie ceux qui glissent.
+
+    b) FIDÉLITÉ DYNAMIQUE NARRATIVE — la dimension 8 est-elle tenue ? Le livre construit-il sa tension, ses révélations, son rythme comme la partition l'a prévu ? Ou a-t-il appliqué la forme d'intrigue par défaut du système (scène-bascule-résidu-progression uniforme) ? Vérifie en particulier si le risque_de_standardisation identifié dans la partition a été évité.
+
+    c) PASSAGES CONTRASTÉS — cite un passage (200-300 mots) représentatif du chapitre qui tient le mieux la partition (voix + dynamique). Cite un passage (200-300 mots) d'un chapitre qui glisse vers le générique, si tu en trouves un. Si tous les chapitres tiennent → le livre a intégré sa partition, c'est un succès V7.
+
+    d) TEST DE DIFFÉRENCIATION A POSTERIORI — si tu prenais ce livre et que tu le comparais mentalement à un autre livre du système sur un autre sujet, pourrais-tu dire sans hésiter quel livre est pour quel sujet ? Si oui, à quel degré ? Les 5 premières pages suffisent-elles ? Vingt pages ? Le livre entier ? Plus le critère est précoce, plus la partition a tenu. Si tu aurais du mal à distinguer ce livre d'un autre livre du système, la partition est restée formelle — elle n'a pas pris chair dans l'écriture.
+
+PARTITION DE RÉFÉRENCE (telle qu'elle a été validée au diagnostic) :
+${JSON.stringify(A.bookPartition, null, 2).substring(0, 3500)}
+
+` : ''}═══ PRODUIS ═══
 
 CHAPITRES FAIBLES (max 3) :
 
