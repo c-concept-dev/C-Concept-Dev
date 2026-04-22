@@ -4440,6 +4440,13 @@ async function loadFile(file) {
 
     // ── Matière biographique (persona.json interne) ──
     if (result.type === 'persona') {
+      // V6.1 — RÉINITIALISATION COMPLÈTE DE L'ÉTAT ATELIER
+      // Empêche la contamination inter-runs : si l'utilisateur charge une nouvelle
+      // matière après avoir produit un livre précédent, tous les artefacts du livre
+      // précédent (diagnostic, plan, chapitres, architecture narrative Opus, etc.)
+      // doivent être purgés avant de commencer le nouveau run.
+      resetAtelierState();
+
       A.raw = JSON.stringify(result.persona);
       A.parsed = result.parsed;
       A.analyze();
@@ -4484,6 +4491,55 @@ async function loadFile(file) {
       label.style.color = '';
     }, 6000);
     console.error('loadFile error:', err);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// V6.1 — RESET D'ÉTAT ATELIER (anti-contamination inter-runs)
+// ═══════════════════════════════════════════════════════════════════
+// Purge tous les artefacts produits par un run précédent :
+//  - diagnostic littéraire (renforcé par Opus)
+//  - plan du livre
+//  - chapitres écrits (A.chapters)
+//  - 4e de couverture
+//  - architecture narrative fixée au ch.1 et validée par Opus (bookInvariant)
+//  - étape courante (_currentStep) et autosave localStorage
+//  - état visuel des textareas de réponse et du statut d'avancement
+//
+// Appelé UNIQUEMENT quand l'utilisateur charge une nouvelle matière persona.
+// N'est PAS appelé lors de la restauration d'un projet (ldv-project) ni lors
+// de la reprise d'un livre (resume-book), puisque ces cas écrasent volontairement
+// l'état avec des données explicitement fournies.
+function resetAtelierState() {
+  const prevPrenom = A.parsed?.prenom;
+
+  // Purge des artefacts métier
+  A.diagnostic = '';
+  A.plan = null;
+  A.chapters = [];
+  A.backCover = '';
+  A.bookInvariant = null;
+  A._currentStep = 0;
+
+  // Purge du localStorage autosave pour éviter un restore accidentel ultérieur
+  try {
+    localStorage.removeItem(PROJECT_KEY);
+  } catch (e) {
+    // localStorage peut être indisponible (navigation privée, quota plein) — non bloquant
+    console.warn('[V6.1 reset] localStorage.removeItem a échoué :', e);
+  }
+
+  // Nettoyage UI — textareas de réponses et affichage de statut
+  const ids = ['diagResponse', 'planResponse', 'backCoverResponse'];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  }
+  const saveBtn = document.getElementById('saveProjectBtn');
+  if (saveBtn) saveBtn.style.display = 'none';
+
+  if (prevPrenom) {
+    console.log(`[V6.1 reset] \u00c9tat atelier purg\u00e9 (livre pr\u00e9c\u00e9dent : ${prevPrenom}). Nouvelle mati\u00e8re pr\u00eate.`);
   }
 }
 
