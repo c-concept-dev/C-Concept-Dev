@@ -4677,9 +4677,26 @@ Ecris. Pas de commentaire, pas de balise.`;
         return result;
 
       } catch (fetchErr) {
-        // "Failed to fetch" = CORS/network error — retry
-        if (fetchErr.message === 'Failed to fetch' && attempt < MAX_RETRIES) {
-          console.warn(`Fetch failed — retry ${attempt}/${MAX_RETRIES} dans ${RETRY_DELAY/1000}s...`);
+        // V7.2.2 — Détection élargie des erreurs réseau transitoires
+        // Chrome/Firefox : "Failed to fetch" / "NetworkError"
+        // Safari / WebKit : "Load failed" / "The network connection was lost"
+        // Worker CF coupé : "network error" / "connection reset" / "timed out"
+        // Streaming interrompu : "Réponse LLM vide" (body consommé mais rien arrivé)
+        const msg = (fetchErr.message || '').toLowerCase();
+        const isTransient =
+          msg.includes('failed to fetch') ||
+          msg.includes('load failed') ||
+          msg.includes('network') ||
+          msg.includes('connection') ||
+          msg.includes('timed out') ||
+          msg.includes('timeout') ||
+          msg.includes('réponse llm vide') ||
+          msg.includes('reponse llm vide') ||
+          msg.includes('aborted') ||
+          fetchErr.name === 'TypeError' ||       // fetch TypeError = network
+          fetchErr.name === 'AbortError';
+        if (isTransient && attempt < MAX_RETRIES) {
+          console.warn(`Réseau instable (${fetchErr.message}) — retry ${attempt}/${MAX_RETRIES} dans ${RETRY_DELAY/1000}s...`);
           await new Promise(r => setTimeout(r, RETRY_DELAY));
           continue;
         }
@@ -4909,7 +4926,12 @@ Ecris. Pas de commentaire, pas de balise.`;
     } else { lg('  \u2192 pas de r\u00e9sultat Pexels', 'err'); }
     await sleep(250);
 
-    // Chapter images
+    // Chapter images — V7.2.3 : désactivé (images de chapitre retirées).
+    // La couverture et la 4e de couverture restent actives plus haut.
+    // Aucun appel Pexels pour les chapitres : économie de bande passante,
+    // de temps, et surtout retrait d'une source de pollution visuelle
+    // signalée comme critique unanime.
+    /* V7.2.3 — code désactivé :
     for (let i = 0; i < chapters.length; i++) {
       const ch = chapters[i];
       const kw = ch.pexelsKw || plan.chapters[i]?.pexels_keywords || [plan.chapters[i]?.title?.replace(/[«»'"]/g,'').trim() || ''];
@@ -4928,6 +4950,7 @@ Ecris. Pas de commentaire, pas de balise.`;
         await sleep(250);
       }
     }
+    */
 
     // ── CSS ──
     zip.file('OEBPS/style.css', `@charset "UTF-8";
@@ -5017,13 +5040,15 @@ ${chapters.map((c,i) => `<p style="margin:.5em 0"><a href="ch${i+1}.xhtml" style
       return cleaned;
     };
     chapters.forEach((ch, i) => {
-      const img = chapterImgs[i];
+      // V7.2.3 — Images de chapitre retirées : critique unanime (sur-signification,
+      // pollution visuelle, rupture du flux de lecture). Couverture et 4e couverture
+      // conservées. Les crédits photographes des chapitres ne sont plus nécessaires
+      // car aucune image n'est insérée.
       const cleanText = stripAudit(ch.text);
       zip.file(`OEBPS/ch${i+1}.xhtml`, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${esc(ch.title)}</title>
 <link rel="stylesheet" href="style.css"/></head><body>
 <h1>${esc(ch.title)}</h1>
-${img ? `<img src="images/${img.file}" alt="${esc(ch.title)}"/>` : ''}
 ${toXhtml(cleanText)}
 </body></html>`);
     });
@@ -5820,7 +5845,31 @@ PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête
 
       try {
         // Sonnet produit la partition (avec retry auto + parse tolérant V7.1)
-        const partitionResult = await A.produireBookPartition();
+        let partitionResult = await A.produireBookPartition();
+
+        // V7.2.2 — Si l'échec est d'origine réseau (pas JSON invalide), on retente une fois
+        // après un délai long. Cela évite de basculer en V6.1 pour un simple glitch Worker/WiFi.
+        if (!partitionResult.ok && partitionResult.error) {
+          const err = partitionResult.error.toLowerCase();
+          const isNetworkFail =
+            err.includes('call failed') ||
+            err.includes('retry failed') ||
+            err.includes('load failed') ||
+            err.includes('failed to fetch') ||
+            err.includes('network') ||
+            err.includes('timeout') ||
+            err.includes('timed out') ||
+            err.includes('vide');
+          if (isNetworkFail) {
+            lg(`  ⟲  Échec réseau sur la partition (${partitionResult.error}) — nouvelle tentative dans 20 s...`, 'info');
+            await new Promise(r => setTimeout(r, 20000));
+            partitionResult = await A.produireBookPartition();
+            if (partitionResult.ok) {
+              lg(`  ✓ Partition obtenue à la seconde tentative`, 'ok');
+            }
+          }
+        }
+
         if (partitionResult.ok && partitionResult.partition) {
           if (partitionResult.warning) {
             lg(`  ⚠  ${partitionResult.warning}`, 'info');
@@ -5995,7 +6044,25 @@ PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête
 
         // ═══ ÉQUIPE À TROIS NIVEAUX : architecte → opératoire ═══
         const maxTk = A.config.length === 'long' ? 12000 : (A.config.length === 'medium' ? 6000 : 4000);
-        const chText = await A.writeChapterWithTeam(idx, maxTk, lg, null);
+
+        // V7.2.2 — Retry chapitre-niveau. Si un chapitre échoue pour raison réseau
+        // (llmCall a déjà épuisé ses 3 retries internes mais l'erreur reste transitoire),
+        // on réessaie UNE fois après 30 s avant d'abandonner la production entière.
+        let chText;
+        try {
+          chText = await A.writeChapterWithTeam(idx, maxTk, lg, null);
+        } catch (e) {
+          lg(`  ⚠  ch.${idx+1} a échoué : ${e.message} — nouvelle tentative dans 30 s...`, 'info');
+          await new Promise(r => setTimeout(r, 30000));
+          try {
+            chText = await A.writeChapterWithTeam(idx, maxTk, lg, null);
+            lg(`  ✓ ch.${idx+1} obtenu à la seconde tentative`, 'ok');
+          } catch (e2) {
+            A.config.model = savedModel;
+            lg(`  ✗ ch.${idx+1} a échoué définitivement : ${e2.message}`, 'err');
+            throw e2;
+          }
+        }
         A.config.model = savedModel;
 
         const wc = chText.split(/\s+/).length;
@@ -6019,7 +6086,23 @@ PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête
 
         // ═══ ÉQUIPE À TROIS NIVEAUX : architecte → opératoire ═══
         const maxTk = A.config.length === 'long' ? 12000 : (A.config.length === 'medium' ? 6000 : 4000);
-        const chText = await A.writeChapterWithTeam(idx, maxTk, lg, null);
+
+        // V7.2.2 — Retry chapitre-niveau (même logique que pour les fondatrices)
+        let chText;
+        try {
+          chText = await A.writeChapterWithTeam(idx, maxTk, lg, null);
+        } catch (e) {
+          lg(`  ⚠  ch.${idx+1} a échoué : ${e.message} — nouvelle tentative dans 30 s...`, 'info');
+          await new Promise(r => setTimeout(r, 30000));
+          try {
+            chText = await A.writeChapterWithTeam(idx, maxTk, lg, null);
+            lg(`  ✓ ch.${idx+1} obtenu à la seconde tentative`, 'ok');
+          } catch (e2) {
+            A.config.model = savedModel;
+            lg(`  ✗ ch.${idx+1} a échoué définitivement : ${e2.message}`, 'err');
+            throw e2;
+          }
+        }
         A.config.model = savedModel;
 
         const wc = chText.split(/\s+/).length;
