@@ -3441,7 +3441,7 @@ Réponds maintenant en JSON strict.`;
     const transcriptTrunc = (p.transcript || '').substring(0, 30000);
     const diagnosticTrunc = (this.diagnostic || '').substring(0, 8000);
 
-    const partitionUser = `SUJET : ${p.prenom || '(sans prénom)'}, ${p.age || '?'} ans
+    const partitionUserBase = `SUJET : ${p.prenom || '(sans prénom)'}, ${p.age || '?'} ans
 
 ═══ MATIÈRE DU SUJET (transcript — source unique de la partition) ═══
 
@@ -3453,14 +3453,32 @@ ${diagnosticTrunc}
 
 ═══ TA TÂCHE ═══
 
-Produis la PARTITION SINGULIÈRE de ${p.prenom || 'ce sujet'} en JSON strict — 8 dimensions, chacune avec citation_matiere obligatoire. Respecte toutes les règles du prompt système (pas d'archétype, pas de modèle d'auteur, pas de jargon ornemental, contraintes opératoires).
+Produis la PARTITION SINGULIÈRE de ${p.prenom || 'ce sujet'} en JSON strict — 8 dimensions, chacune avec citation_matiere obligatoire. Respecte toutes les règles du prompt système (pas d'archétype, pas de modèle d'auteur, pas de jargon ornemental, contraintes opératoires).`;
 
-Réponds UNIQUEMENT par le JSON. Pas de texte avant. Pas de texte après.`;
+    const consigneStricte = `
 
+═══ RAPPEL FORMAT — CRITIQUE ═══
+
+Ta réponse doit être un JSON UNIQUE, COMPLET, VALIDE, TERMINÉ par l'accolade fermante.
+
+- Les 8 dimensions sont : respiration, lexique, syntaxe_du_sujet, temporalite_interieure, corps_et_geste, lieux_et_objets, rapport_au_lecteur, dynamique_narrative
+- Chaque dimension a ses champs ET une citation_matiere non-vide
+- PAS de texte avant le premier {
+- PAS de texte après le dernier }
+- PAS de markdown (\`\`\`json interdit)
+- PAS de commentaires dans le JSON
+- JSON doit être parsable par JSON.parse() directement
+
+Sois CONCIS sur chaque champ — la partition doit tenir en une réponse complète. Mieux vaut des descriptions courtes et opératoires qu'une partition détaillée mais tronquée.
+
+Réponds maintenant par le JSON complet de la partition.`;
+
+    // ── Première tentative ──
+    // V7.1 : max_tokens 8000 (était 4000) pour éviter troncature sur les 8 dimensions + citations
     let raw = '';
+    let attemptError = null;
     try {
-      // maxTokens élevé : la partition est un JSON riche (8 dimensions × ~200 mots)
-      raw = await this.llmCall(PROMPT_PARTITION, partitionUser, 4000);
+      raw = await this.llmCall(PROMPT_PARTITION, partitionUserBase + consigneStricte, 8000);
     } catch (e) {
       return { ok: false, partition: null, error: `Sonnet partition call failed: ${e.message}` };
     }
@@ -3469,24 +3487,51 @@ Réponds UNIQUEMENT par le JSON. Pas de texte avant. Pas de texte après.`;
       return { ok: false, partition: null, error: 'réponse Sonnet vide' };
     }
 
-    // ── Parse JSON ──
-    let extracted = raw.trim();
-    const firstBrace = extracted.indexOf('{');
-    const lastBrace = extracted.lastIndexOf('}');
-    if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
-      return { ok: false, partition: null, error: 'pas de JSON détecté dans la réponse Sonnet partition' };
-    }
-    extracted = extracted.substring(firstBrace, lastBrace + 1)
-      .replace(/[\u201C\u201D]/g, '"')
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/,\s*([}\]])/g, '$1');
+    // ── Tentative de parse (avec helper de réparation progressive) ──
+    let parseResult = this._tryParsePartition(raw);
 
-    let parsed;
-    try {
-      parsed = JSON.parse(extracted);
-    } catch (e) {
-      return { ok: false, partition: null, error: `JSON partition invalide: ${e.message}` };
+    if (!parseResult.ok) {
+      // ── RETRY automatique 1 fois avec consigne explicite durcie ──
+      console.warn('[V7.1 partition] premier parse a échoué :', parseResult.error);
+      console.warn('[V7.1 partition] longueur sortie brute :', raw.length, 'derniers 200 car :', raw.slice(-200));
+
+      const retryConsigne = `
+
+═══ NOUVELLE TENTATIVE — JSON STRICT, COMPLET, FERMÉ ═══
+
+La tentative précédente a produit un JSON invalide ou tronqué. Raison : ${parseResult.error}
+
+Reprends la partition en te limitant STRICTEMENT à l'essentiel pour chaque champ :
+- Chaque citation_matiere : UN SEUL extrait du transcript (pas 2-3)
+- Chaque liste : 3-5 éléments maximum (pas 8-10)
+- Chaque valeur : une phrase courte opératoire
+
+Le JSON doit être complet, avec l'accolade fermante finale. Ne sacrifie aucune dimension.
+
+Réponds par le JSON complet, concis, fermé.`;
+
+      try {
+        raw = await this.llmCall(PROMPT_PARTITION, partitionUserBase + retryConsigne, 8000);
+      } catch (e) {
+        return { ok: false, partition: null, error: `Sonnet partition retry failed: ${e.message}`, rawFirstAttempt: raw };
+      }
+
+      if (!raw || typeof raw !== 'string') {
+        return { ok: false, partition: null, error: 'réponse Sonnet retry vide' };
+      }
+
+      parseResult = this._tryParsePartition(raw);
+
+      if (!parseResult.ok) {
+        // ── Log final diagnostic ──
+        console.error('[V7.1 partition] retry a également échoué :', parseResult.error);
+        console.error('[V7.1 partition] sortie brute du retry (400 premiers car) :', raw.slice(0, 400));
+        console.error('[V7.1 partition] sortie brute du retry (400 derniers car) :', raw.slice(-400));
+        return { ok: false, partition: null, error: `JSON partition invalide après retry : ${parseResult.error}`, rawRetry: raw };
+      }
     }
+
+    const parsed = parseResult.partition;
 
     // ── Validation structurelle (le code COMPTE) ──
     const requiredDimensions = [
@@ -3494,24 +3539,149 @@ Réponds UNIQUEMENT par le JSON. Pas de texte avant. Pas de texte après.`;
       'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative'
     ];
     const missing = requiredDimensions.filter(d => !parsed[d] || typeof parsed[d] !== 'object');
-    if (missing.length > 0) {
-      return { ok: false, partition: parsed, error: `dimensions manquantes : ${missing.join(', ')}` };
+
+    // V7.1 — Tolérance : si 1-2 dimensions manquent suite à réparation, on continue avec warning.
+    // La supervision Opus pourra les combler via le mécanisme de révision (verdict="révision" sur
+    // dimensions manquantes). Plus de 2 dimensions manquantes → on rejette (trop de matière perdue).
+    if (missing.length > 2) {
+      return { ok: false, partition: parsed, error: `trop de dimensions manquantes (${missing.length}/8) : ${missing.join(', ')}` };
     }
 
-    // Vérification que chaque dimension a sa citation_matiere non-vide
-    const sansCitation = requiredDimensions.filter(d => {
+    // Vérification que chaque dimension présente a sa citation_matiere non-vide
+    const present = requiredDimensions.filter(d => parsed[d] && typeof parsed[d] === 'object');
+    const sansCitation = present.filter(d => {
       const c = parsed[d].citation_matiere;
       return !c || typeof c !== 'string' || c.trim().length < 10;
     });
-    if (sansCitation.length > 0) {
+
+    // Construction du warning agrégé
+    const warnings = [];
+    if (missing.length > 0) warnings.push(`${missing.length} dimension(s) manquante(s) après réparation : ${missing.join(', ')} — Opus pourra les combler en supervision`);
+    if (sansCitation.length > 0) warnings.push(`${sansCitation.length} dimension(s) sans citation_matiere suffisante : ${sansCitation.join(', ')}`);
+
+    if (warnings.length > 0) {
       return {
-        ok: true, // On laisse passer pour que la supervision Opus voie et corrige
+        ok: true,
         partition: parsed,
-        warning: `dimensions sans citation_matiere suffisante : ${sansCitation.join(', ')}`
+        warning: warnings.join(' ; '),
+        repaired: parseResult.repaired || false
       };
     }
 
-    return { ok: true, partition: parsed, error: null };
+    return { ok: true, partition: parsed, error: null, repaired: parseResult.repaired || false };
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // V7.1 — HELPER : PARSE TOLÉRANT DE LA PARTITION
+  // ═══════════════════════════════════════════════════════════════════
+  // Tente plusieurs stratégies dans l'ordre :
+  //  1. Parse direct
+  //  2. Extraction entre { et } + normalisation apostrophes/virgules
+  //  3. Si tronqué : réparation progressive (complétion accolades manquantes
+  //     dimension par dimension — on garde ce qui est parsable, on tronque
+  //     les dimensions incomplètes)
+  //
+  // Retourne { ok: bool, partition: obj|null, error: string|null, repaired: bool }
+  // ═══════════════════════════════════════════════════════════════════
+  _tryParsePartition(raw) {
+    if (!raw || typeof raw !== 'string') {
+      return { ok: false, partition: null, error: 'réponse vide' };
+    }
+
+    let extracted = raw.trim();
+    // Retire ```json et ``` éventuels (markdown qui saute parfois la consigne)
+    extracted = extracted.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+
+    // Extraction entre premier { et dernier }
+    const firstBrace = extracted.indexOf('{');
+    const lastBrace = extracted.lastIndexOf('}');
+    if (firstBrace < 0) {
+      return { ok: false, partition: null, error: 'pas de { dans la réponse' };
+    }
+
+    // ── Stratégie 1 : si on a un { et un } et que ça parse, c'est gagné ──
+    if (lastBrace > firstBrace) {
+      const clean1 = extracted.substring(firstBrace, lastBrace + 1)
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/,\s*([}\]])/g, '$1');
+      try {
+        const parsed = JSON.parse(clean1);
+        return { ok: true, partition: parsed, error: null, repaired: false };
+      } catch (e) {
+        // Parse direct échoué — on tente la réparation
+      }
+    }
+
+    // ── Stratégie 2 : réparation progressive pour JSON tronqué ──
+    // On prend tout depuis le premier { et on tente de fermer proprement
+    let candidate = extracted.substring(firstBrace)
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'");
+
+    // Retirer les virgules traînantes et le texte après le dernier } s'il existe
+    const lastBraceIn = candidate.lastIndexOf('}');
+    if (lastBraceIn > 0) {
+      candidate = candidate.substring(0, lastBraceIn + 1);
+    }
+
+    // Normalisation des virgules traînantes
+    candidate = candidate.replace(/,\s*([}\]])/g, '$1');
+
+    try {
+      const parsed = JSON.parse(candidate);
+      return { ok: true, partition: parsed, error: null, repaired: true };
+    } catch (e) {
+      // Parse encore échoué — tentative de réparation dimension par dimension
+    }
+
+    // ── Stratégie 3 : réparation par tronquage sur la dernière dimension complète ──
+    // On trouve la dernière dimension parsable et on ferme à cet endroit
+    const dimensionNames = [
+      'respiration', 'lexique', 'syntaxe_du_sujet', 'temporalite_interieure',
+      'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative'
+    ];
+
+    // Chercher la position de la dernière dimension ouverte
+    let bestCandidate = null;
+    for (let i = dimensionNames.length - 1; i >= 0; i--) {
+      const dim = dimensionNames[i];
+      // Chercher "dimension": { ... }
+      const dimPattern = new RegExp('"' + dim + '"\\s*:\\s*\\{', 'g');
+      const matches = [...candidate.matchAll(dimPattern)];
+      if (matches.length === 0) continue;
+
+      const dimStart = matches[matches.length - 1].index;
+      // Compter les accolades à partir de là pour trouver la fin
+      let depth = 0;
+      let endPos = -1;
+      for (let pos = dimStart; pos < candidate.length; pos++) {
+        if (candidate[pos] === '{') depth++;
+        else if (candidate[pos] === '}') {
+          depth--;
+          if (depth === 0) { endPos = pos; break; }
+        }
+      }
+
+      if (endPos > 0) {
+        // On tronque après cette dimension complète et on ferme le JSON racine
+        const truncated = candidate.substring(0, endPos + 1).replace(/,\s*$/, '') + '\n}';
+        try {
+          const parsed = JSON.parse(truncated);
+          bestCandidate = parsed;
+          console.warn(`[V7.1 parse] JSON tronqué réparé — dimension incomplète coupée après "${dim}"`);
+          break;
+        } catch (e) {
+          // essayer la dimension précédente
+        }
+      }
+    }
+
+    if (bestCandidate) {
+      return { ok: true, partition: bestCandidate, error: null, repaired: true };
+    }
+
+    return { ok: false, partition: null, error: 'JSON irréparable même après tentatives de réparation' };
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -5565,13 +5735,25 @@ PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête
       lg('Production de la partition singulière (Sonnet — 8 dimensions)...', 'info');
 
       try {
-        // Sonnet produit la partition
+        // Sonnet produit la partition (avec retry auto + parse tolérant V7.1)
         const partitionResult = await A.produireBookPartition();
         if (partitionResult.ok && partitionResult.partition) {
           if (partitionResult.warning) {
             lg(`  ⚠  ${partitionResult.warning}`, 'info');
           }
+          if (partitionResult.repaired) {
+            lg(`  ⚙  Partition réparée automatiquement (JSON tronqué → fermé sur dernière dimension complète)`, 'info');
+          }
           lg(`  ✓ Partition produite — 8 dimensions (voix + dynamique narrative)`, 'ok');
+
+          // Trace des dimensions clés pour debug (visible en console développeur)
+          try {
+            const bp = partitionResult.partition;
+            console.log('[V7 partition] respiration :', bp.respiration?.regime_dominant);
+            console.log('[V7 partition] mode_de_tension :', bp.dynamique_narrative?.mode_de_tension);
+            console.log('[V7 partition] forme_d_intrigue :', bp.dynamique_narrative?.forme_d_intrigue_appelee);
+            console.log('[V7 partition] risque_standardisation :', bp.dynamique_narrative?.risque_de_standardisation);
+          } catch(_) {}
 
           // Opus supervise la partition
           document.getElementById('assembleStatus').textContent = 'Supervision Opus de la partition...';
@@ -5600,6 +5782,10 @@ PRODUIS LE DIAGNOSTIC RENFORCE — la méta-section PROMESSE SOUVERAINE en tête
         } else {
           // Production partition échouée — on continue sans partition (fallback V6.1)
           lg(`  ⚠  production partition a échoué — le livre utilisera la voix par défaut (${partitionResult.error || 'raison inconnue'})`, 'info');
+          // Trace des sorties brutes pour diagnostic futur si elles ont été capturées
+          if (partitionResult.rawRetry) {
+            console.warn('[V7.1] Sortie brute du retry (premiers 500 car) :', partitionResult.rawRetry.slice(0, 500));
+          }
           A.bookPartition = null;
         }
       } catch (err) {
