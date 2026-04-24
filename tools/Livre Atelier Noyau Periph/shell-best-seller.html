@@ -211,8 +211,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     <div class="doc-drop-zone" id="docDropZone">
       <div class="doc-icon">📚</div>
       <div class="doc-label">Dépose des documents qui inspirent le livre</div>
-      <div class="doc-hint">DOCX, PDF, EPUB, TXT, Markdown, JSON — ou clique pour sélectionner</div>
-      <input type="file" id="docFileInput" accept=".docx,.pdf,.epub,.txt,.md,.json,.html" multiple style="display:none">
+      <div class="doc-hint">DOCX · PDF · EPUB · TXT · Markdown · JSON · images JPG/PNG/WEBP — ou clique pour sélectionner</div>
+      <input type="file" id="docFileInput" accept=".docx,.pdf,.epub,.txt,.md,.json,.html,.jpg,.jpeg,.png,.webp,.gif" multiple style="display:none">
     </div>
 
     <div id="docList" class="doc-list"></div>
@@ -416,10 +416,50 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     throw lastErr || new Error('Échec appels LLM');
   }
 
+  /**
+   * Appel LLM multimodal pour les images.
+   * contentBlocks : tableau [{type:'image', source:{...}}, {type:'text', text:'...'}]
+   */
+  async function llmCallMultimodal(system, contentBlocks, maxTokens, model) {
+    const url = S.config.workerUrl;
+    const body = {
+      model: model || S.config.model,
+      max_tokens: maxTokens || 2000,
+      system: system,
+      messages: [{ role: 'user', content: contentBlocks }],
+    };
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const t = await resp.text();
+      throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
+    }
+    const data = await resp.json();
+    if (data.content && Array.isArray(data.content)) {
+      return data.content.map(c => c.text || '').join('\n').trim();
+    }
+    throw new Error('Format réponse inattendu');
+  }
+
   // ─── EXTRACTION DE TEXTE DEPUIS DOCUMENT ─────────────────────
 
   async function extractDocumentText(file) {
     const ext = file.name.toLowerCase().split('.').pop();
+
+    // Images : on renvoie un objet spécial — le résumé se fera en mode multimodal
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
+      const mediaType = ext === 'jpg' ? 'image/jpeg' : ('image/' + ext);
+      const base64 = await fileToBase64(file);
+      return {
+        __isImage: true,
+        mediaType: mediaType,
+        data: base64,
+        size: file.size,
+      };
+    }
 
     if (ext === 'txt' || ext === 'md' || ext === 'html') {
       return await file.text();
@@ -500,6 +540,19 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     });
   }
 
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // reader.result = "data:image/png;base64,iVBORw..."
+        const parts = reader.result.split(',');
+        resolve(parts[1] || parts[0]);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
   // ─── GESTION UPLOAD DOCUMENTS ────────────────────────────────
 
   async function handleDocumentFiles(files) {
@@ -511,14 +564,23 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         text: '',
         summary: null,
         status: 'loading',
+        isImage: false,
+        imageData: null,
       };
       S.documents.push(entry);
       renderDocList();
 
       try {
-        const text = await extractDocumentText(file);
-        entry.text = text;
-        entry.wordCount = text.split(/\s+/).filter(Boolean).length;
+        const result = await extractDocumentText(file);
+        if (result && typeof result === 'object' && result.__isImage) {
+          entry.isImage = true;
+          entry.imageData = { mediaType: result.mediaType, data: result.data };
+          entry.text = '[Image ' + file.name + ' — ' + Math.round(result.size / 1024) + ' KB]';
+          entry.wordCount = 0;
+        } else {
+          entry.text = result;
+          entry.wordCount = (result || '').split(/\s+/).filter(Boolean).length;
+        }
         entry.status = 'ready';
       } catch (err) {
         entry.status = 'error';
@@ -535,7 +597,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       return;
     }
     zone.innerHTML = S.documents.map((d, i) => {
-      const icons = { docx: '📄', pdf: '📕', epub: '📘', txt: '📋', md: '📝', json: '🔧', html: '🌐' };
+      const icons = { docx: '📄', pdf: '📕', epub: '📘', txt: '📋', md: '📝', json: '🔧', html: '🌐',
+                      jpg: '🖼️', jpeg: '🖼️', png: '🖼️', webp: '🖼️', gif: '🖼️' };
       const icon = icons[d.ext] || '📎';
       const kb = Math.round(d.size / 1024);
       let meta = kb + ' KB';
@@ -579,27 +642,52 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     statusEl.textContent = usableDocs.length + ' document(s) à traiter.';
 
     try {
-      // 1a. Résumé structuré de chaque document
+      // 1a. Résumé structuré de chaque document (texte ou image)
       const resumes = [];
       for (let i = 0; i < usableDocs.length; i++) {
         const d = usableDocs[i];
         statusEl.textContent = 'Lecture document ' + (i + 1) + '/' + usableDocs.length + ' : ' + d.name;
         progEl.style.width = Math.round((i / (usableDocs.length + 2)) * 100) + '%';
 
-        const resumePrompt = buildDocumentResumePrompt(d);
-        const resume = await llmCallViaWorker(
-          'Tu es un lecteur littéraire attentif. Tu produis un résumé structuré de documents pour aider à concevoir un livre.',
-          resumePrompt,
-          2000
-        );
+        let resume;
+        if (d.isImage && d.imageData) {
+          // Appel multimodal : on envoie l'image au LLM pour qu'il la décrive
+          const contentBlocks = [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: d.imageData.mediaType,
+                data: d.imageData.data,
+              },
+            },
+            {
+              type: 'text',
+              text: `Cette image est fournie par l'utilisateur comme source d'inspiration pour un livre.\n\nNOM : ${d.name}\n\nProduis un résumé de 150-250 mots qui dégage :\n- Ce que l'image montre (sujet, tonalité, atmosphère)\n- Les éléments exploitables pour un livre (lieux, personnages possibles, motifs, ambiances, palette émotionnelle, images fortes à transposer en mots)\n- Le vocabulaire descriptif que cette image appelle\n- Ce qu'elle apporte de singulier\n\nPas de préambule. Juste le résumé.`,
+            },
+          ];
+          resume = await llmCallMultimodal(
+            'Tu es un lecteur littéraire attentif. Tu décris des images pour aider à concevoir un livre.',
+            contentBlocks,
+            2000
+          );
+        } else {
+          const resumePrompt = buildDocumentResumePrompt(d);
+          resume = await llmCallViaWorker(
+            'Tu es un lecteur littéraire attentif. Tu produis un résumé structuré de documents pour aider à concevoir un livre.',
+            resumePrompt,
+            2000
+          );
+        }
         d.summary = resume;
-        resumes.push({ name: d.name, resume: resume });
+        resumes.push({ name: d.name, resume: resume, isImage: d.isImage });
 
         // Afficher le résumé
         const summaryDiv = document.createElement('div');
         summaryDiv.className = 'doc-summary';
+        const imgMarker = d.isImage ? '🖼️ ' : '';
         summaryDiv.innerHTML = `
-          <div class="doc-summary-title">${escapeHTML(d.name)}</div>
+          <div class="doc-summary-title">${imgMarker}${escapeHTML(d.name)}</div>
           <div class="doc-summary-text">${escapeHTML(resume.substring(0, 500))}${resume.length > 500 ? '…' : ''}</div>
         `;
         summariesEl.appendChild(summaryDiv);
