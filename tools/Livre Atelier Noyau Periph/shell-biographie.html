@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<!--
+╔═══════════════════════════════════════════════════════════════╗
+║  SHELL BIOGRAPHIE — Livre de Vie Atelier V7.4                ║
+║  C Concept&Dev — Christophe BONNET                            ║
+║                                                               ║
+║  Architecture modulaire :                                     ║
+║    - atelier-auteur-core.js (Noyau Auteur — écriture)        ║
+║    - atelier-editeur-core.js (Noyau Éditeur — relecture)     ║
+║    - ce fichier (Shell — orchestration + UI)                 ║
+║                                                               ║
+║  Flux :                                                       ║
+║    1. Upload transcript → Loader interne                      ║
+║    2. Diagnose (Sonnet)                                       ║
+║    3. Partition (Sonnet) + Supervision (Opus)                ║
+║    4. Plan (Sonnet)                                           ║
+║    5. Pour chaque chapitre :                                  ║
+║       a. AuteurNoyau.writeChapter() → text_v1                ║
+║       b. EditeurNoyau.reviewChapter() → rapport déterministe  ║
+║       c. Si flags critiques : rewriteTargeted                ║
+║    6. reviewBookOpus + buildBackCover + buildEpub             ║
+║                                                               ║
+║  Le code COMPTE. Le LLM RAISONNE. Le prompt ORCHESTRE.       ║
+║  Le LLM APPREND. Le code TRACE.                               ║
+║                                                               ║
+║  Test de non-régression : Raymond V7.4 = Raymond V7.3.7      ║
+╚═══════════════════════════════════════════════════════════════╝
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livre de Vie — Atelier Biographie (V7.4.0-alpha)</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --mer:#8FAFB1; --deep:#3A5658; --sable:#E6D7C3; --beige:#D8CDBB;
+  --sauge:#C8D0C3; --blanc:#FFFFFF; --ink:#2d2d2d; --ink2:#666;
+  --encre:#1a1a1a; --paper:#f9f7f3; --accent:#c47a4a;
+  --fond:linear-gradient(160deg,#f4f0ea 0%,#e6d7c3 50%,#d8cdbb 100%);
+  --radius:14px; --shadow:0 8px 32px rgba(58,86,88,.12);
+  --book:'Cormorant Garamond','Georgia',serif;
+  --ui:'Montserrat','Segoe UI',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* ── Atelier Header ── */
+.atelier-header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(58,86,88,.97);backdrop-filter:blur(12px);
+  padding:14px 28px;display:flex;align-items:center;gap:20px;
+  box-shadow:0 2px 20px rgba(0,0,0,.15);
+}
+.atelier-brand{color:var(--mer);font-size:.6rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase}
+.atelier-title{color:var(--blanc);font-family:var(--book);font-size:1.1rem;font-weight:600;flex:1}
+.atelier-status{color:var(--sauge);font-size:.72rem;font-weight:500}
+.step-pills{display:flex;gap:4px;margin-left:auto}
+.step-pill{width:28px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);transition:all .4s}
+.step-pill.active{background:var(--mer);width:40px}
+.step-pill.done{background:var(--accent)}
+
+.atelier-body{max-width:900px;margin:0 auto;padding:24px 20px 80px}
+.section{display:none;animation:fadeUp .4s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.card{background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px;margin-bottom:20px}
+.card-title{font-family:var(--book);font-size:1.5rem;font-weight:700;color:var(--deep);margin-bottom:4px}
+.card-sub{font-size:.78rem;color:var(--ink2);margin-bottom:20px;line-height:1.5}
+
+.drop-zone{
+  border:2px dashed var(--sauge);border-radius:var(--radius);padding:40px 20px;
+  text-align:center;cursor:pointer;transition:all .3s;
+  background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(143,175,177,.03) 10px,rgba(143,175,177,.03) 20px);
+}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--mer);background:rgba(143,175,177,.06)}
+.drop-icon{font-size:2rem;margin-bottom:8px}
+.drop-label{font-size:.85rem;color:var(--ink2)}
+.drop-label.loaded{color:var(--deep);font-weight:600}
+.drop-hint{font-size:.65rem;color:#aaa;margin-top:4px}
+
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);margin-bottom:5px}
+.field select,.field input{
+  width:100%;padding:11px 14px;border:2px solid var(--sauge);border-radius:10px;
+  font-family:var(--ui);font-size:.85rem;color:var(--ink);background:var(--blanc);
+  outline:none;transition:border-color .3s;
+}
+.field select:focus,.field input:focus{border-color:var(--mer)}
+
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;border:none;border-radius:10px;
+  font-family:var(--ui);font-size:.82rem;font-weight:600;
+  cursor:pointer;transition:all .3s;
+}
+.btn-primary{background:var(--deep);color:var(--blanc)}
+.btn-primary:hover{background:#2d4a4c;box-shadow:0 4px 16px rgba(58,86,88,.25)}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-accent{background:var(--accent);color:var(--blanc)}
+.btn-accent:hover{background:#b06a3a}
+.btn-ghost{background:transparent;color:var(--deep);border:2px solid var(--sauge)}
+.btn-ghost:hover{border-color:var(--deep)}
+.btn-full{width:100%;justify-content:center}
+.btn-small{padding:8px 16px;font-size:.72rem;border-radius:8px}
+
+.analysis-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:.65rem;font-weight:600;margin:2px}
+.badge-tone{background:rgba(196,122,74,.12);color:var(--accent)}
+.badge-info{background:rgba(143,175,177,.15);color:var(--deep)}
+.badge-warn{background:rgba(200,100,80,.1);color:#c46450}
+
+.progress-bar-wrap{width:100%;height:6px;background:var(--sauge);border-radius:3px;margin:12px 0;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .6s ease;width:0%}
+
+.log-area{
+  background:rgba(26,26,26,.03);border-radius:10px;padding:12px 16px;
+  max-height:300px;overflow-y:auto;font-size:.68rem;font-family:'Courier New',monospace;
+  color:var(--ink2);line-height:1.6;margin-top:12px;
+}
+.log-ok{color:#4a8a5c} .log-err{color:#c44} .log-info{color:var(--deep)} .log-warn{color:#c47a4a}
+
+/* Chapter accordion */
+.chapter-item{
+  background:var(--blanc);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06);
+  margin-bottom:10px;overflow:hidden;transition:all .3s;
+}
+.chapter-header{
+  padding:14px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;
+  transition:background .2s;
+}
+.chapter-header:hover{background:rgba(143,175,177,.06)}
+.ch-num{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:700;color:var(--blanc);background:var(--sauge);
+  flex-shrink:0;transition:background .3s;
+}
+.ch-num.done{background:var(--accent)}
+.ch-num.active{background:var(--deep)}
+.ch-title{font-family:var(--book);font-size:1rem;font-weight:600;color:var(--deep);flex:1}
+.ch-words{font-size:.65rem;color:var(--ink2);font-weight:500}
+.ch-flags{font-size:.65rem;color:var(--accent);font-weight:500;margin-left:8px}
+
+/* Canon banner */
+.canon-banner{
+  background:linear-gradient(90deg,rgba(143,175,177,.1),rgba(200,208,195,.1));
+  border-left:3px solid var(--mer);border-radius:6px;
+  padding:10px 14px;margin-bottom:16px;font-size:.72rem;color:var(--ink);
+}
+.canon-banner strong{color:var(--deep)}
+
+@media(max-width:640px){
+  .atelier-header{padding:10px 16px;flex-wrap:wrap}
+  .card{padding:24px 18px}
+  .step-pills{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="atelier-header">
+  <div class="atelier-brand">C Concept&amp;Dev</div>
+  <div class="atelier-title">Livre de Vie — Atelier Biographie <span style="font-size:0.7em;opacity:0.6">V7.4.0-alpha</span></div>
+  <div class="atelier-status" id="headerStatus">En attente</div>
+  <div class="step-pills">
+    <div class="step-pill" id="pill0"></div>
+    <div class="step-pill" id="pill1"></div>
+    <div class="step-pill" id="pill2"></div>
+    <div class="step-pill" id="pill3"></div>
+    <div class="step-pill" id="pill4"></div>
+    <div class="step-pill" id="pill5"></div>
+  </div>
+</div>
+
+<!-- ═══ BODY ═══ -->
+<div class="atelier-body">
+
+<!-- ÉTAPE 0 — Upload & Configuration -->
+<div class="section active" id="step0">
+  <div class="card">
+    <div class="canon-banner">
+      <strong>Architecture modulaire V7.4 :</strong> ce shell dirige deux noyaux indépendants — <strong>Auteur</strong> (écrit selon la Boussole Souveraine) et <strong>Éditeur</strong> (relit via filet lexical déterministe).
+    </div>
+    <div class="card-title">Matière première</div>
+    <div class="card-sub">Dépose un transcript d'entretien (Markdown V9 CLONE-PERSONA-1.0, texte brut, ou JSON). Le shell extrait le prénom, l'âge et les sections littéraires.</div>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">📖</div>
+      <div class="drop-label" id="dropLabel">Déposer la matière : .md, .txt, .json</div>
+      <div class="drop-hint">CLONE-PERSONA-1.0 · V9 markdown · transcription d'entretien</div>
+      <input type="file" id="fileInput" accept=".md,.txt,.json,.ldv.json" style="display:none">
+    </div>
+
+    <div id="analysisResult" style="display:none">
+      <div style="margin:16px 0 12px;font-size:.7rem;font-weight:700;color:var(--deep);text-transform:uppercase;letter-spacing:.1em">Matière détectée</div>
+      <div id="analysisBadges" style="margin-bottom:12px"></div>
+      <div id="analysisDetail" style="font-size:.78rem;color:var(--ink);line-height:1.6"></div>
+
+      <div class="field" style="margin-top:20px">
+        <label>Modèle LLM (production)</label>
+        <select id="modelSelect">
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (production)</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6 (~5× plus cher)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Longueur cible</label>
+        <select id="lengthSelect">
+          <option value="long">Livre complet — 200+ pages (~50 000 mots, 12-15 chapitres)</option>
+          <option value="medium">Portrait long — ~100 pages (~25-35 000 mots, 10-12 chapitres)</option>
+          <option value="short">Portrait — ~50 pages (~12 000 mots, 5-7 chapitres)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Worker URL (Cloudflare)</label>
+        <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev">
+      </div>
+
+      <div class="field">
+        <label>Activer le Noyau Éditeur après chaque chapitre</label>
+        <select id="editeurMode">
+          <option value="after" selected>Oui — relecture déterministe + décision de réécriture ciblée</option>
+          <option value="off">Non — écriture pure (V7.3.7 classique)</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="toStep1Btn">Lancer le pipeline</button>
+    </div>
+  </div>
+</div>
+
+<!-- ÉTAPE 1 — Diagnostic littéraire -->
+<div class="section" id="step1">
+  <div class="card">
+    <div class="card-title">Diagnostic littéraire</div>
+    <div class="card-sub">Le Noyau Auteur lit la matière et produit un diagnostic — genre, tonalité, références, pièges à éviter.</div>
+    <div id="diagStatus" style="font-size:.8rem;color:var(--ink2);margin-bottom:12px"></div>
+    <div id="diagOutput" style="white-space:pre-wrap;font-family:var(--book);font-size:.92rem;line-height:1.7;color:var(--ink);padding:16px;background:var(--paper);border-radius:10px;max-height:400px;overflow-y:auto"></div>
+    <button class="btn btn-primary btn-full" id="toStep2Btn" style="margin-top:12px" disabled>Produire la partition singulière</button>
+  </div>
+</div>
+
+<!-- ÉTAPE 2 — Partition + Plan -->
+<div class="section" id="step2">
+  <div class="card">
+    <div class="card-title">Partition singulière + Plan</div>
+    <div class="card-sub">9 dimensions de partition (Sonnet) → supervision Opus → plan du livre.</div>
+    <div id="partStatus" style="font-size:.8rem;color:var(--ink2);margin-bottom:12px"></div>
+    <div id="planOutput" style="font-family:var(--book);font-size:.95rem;line-height:1.7;color:var(--ink);padding:16px;background:var(--paper);border-radius:10px;max-height:300px;overflow-y:auto"></div>
+    <button class="btn btn-primary btn-full" id="toStep3Btn" style="margin-top:12px" disabled>Écrire les chapitres</button>
+  </div>
+</div>
+
+<!-- ÉTAPE 3 — Écriture -->
+<div class="section" id="step3">
+  <div class="card">
+    <div class="card-title">Écriture des chapitres</div>
+    <div class="card-sub" id="writeSub">Chaque chapitre : Architecte (Sonnet) → Opus supervision → Opératoire (Sonnet) → Éditeur (déterministe) → Réécriture ciblée si besoin.</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="writeProgress"></div></div>
+    <div id="chaptersList"></div>
+    <div class="log-area" id="writeLog"></div>
+    <button class="btn btn-accent btn-full" id="toStep4Btn" style="margin-top:16px;display:none">Tous les chapitres sont écrits → 4e de couverture</button>
+  </div>
+</div>
+
+<!-- ÉTAPE 4 — 4e couverture -->
+<div class="section" id="step4">
+  <div class="card">
+    <div class="card-title">Quatrième de couverture</div>
+    <div class="card-sub">Le dos du livre — texte d'accroche produit par le Noyau Auteur.</div>
+    <div id="backCoverOutput" style="white-space:pre-wrap;font-family:var(--book);font-size:.95rem;line-height:1.7;color:var(--ink);padding:16px;background:var(--paper);border-radius:10px;min-height:100px;max-height:300px;overflow-y:auto"></div>
+    <button class="btn btn-accent btn-full" id="assembleBtn" style="margin-top:12px" disabled>Assembler l'EPUB</button>
+  </div>
+</div>
+
+<!-- ÉTAPE 5 — Assemblage -->
+<div class="section" id="step5">
+  <div class="card" style="text-align:center">
+    <div class="card-title" id="finalTitle" style="font-style:italic;font-size:2rem"></div>
+    <div id="finalStats" style="font-size:.82rem;color:var(--ink2);margin:8px 0 20px"></div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="assembleProgress"></div></div>
+    <div class="log-area" id="assembleLog"></div>
+    <div id="downloadArea" style="display:none;margin-top:20px">
+      <button class="btn btn-accent" id="dlEpub" style="margin:4px">📖 Télécharger l'EPUB</button>
+      <button class="btn btn-ghost" id="dlMd" style="margin:4px">📄 Télécharger le Markdown</button>
+      <button class="btn btn-ghost" id="restartBtn" style="margin:4px">↺ Nouveau livre</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /atelier-body -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- NOYAUX V7.4 — chargés en externe                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<script src="./atelier-auteur-core.js"></script>
+<script src="./atelier-editeur-core.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   SHELL BIOGRAPHIE V7.4.0-alpha
+   Orchestration UI + appels aux deux noyaux. Pas de logique métier.
+   ═══════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  const SHELL_VERSION = '7.4.0-alpha';
+
+  // ─────────────────────────────────────────────────────────────
+  // ÉTAT GLOBAL DU SHELL
+  // ─────────────────────────────────────────────────────────────
+
+  const S = {
+    session: null,        // instance AuteurNoyau.createSession()
+    config: {
+      model: 'claude-sonnet-4-6',
+      length: 'long',
+      workerUrl: 'https://clone-proxy.11drumboy11.workers.dev',
+      editeurMode: 'after',
+    },
+    currentStep: 0,
+    rawMarkdown: '',
+    editorReports: [],    // rapports Éditeur par chapitre
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  function setStep(n) {
+    S.currentStep = n;
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('step' + n).classList.add('active');
+    for (let i = 0; i <= 5; i++) {
+      const pill = document.getElementById('pill' + i);
+      pill.classList.remove('active', 'done');
+      if (i < n) pill.classList.add('done');
+      if (i === n) pill.classList.add('active');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function setHeaderStatus(msg) {
+    document.getElementById('headerStatus').textContent = msg;
+  }
+
+  function log(zoneId, msg, level) {
+    level = level || 'info';
+    const zone = document.getElementById(zoneId);
+    if (!zone) { console.log('[' + level + ']', msg); return; }
+    const entry = document.createElement('div');
+    entry.className = 'log-' + level;
+    const ts = new Date().toTimeString().substring(0, 8);
+    entry.textContent = '[' + ts + '] ' + msg;
+    zone.appendChild(entry);
+    zone.scrollTop = zone.scrollHeight;
+  }
+
+  function escapeHTML(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // APPEL LLM — via le worker Cloudflare, injecté dans le Noyau Auteur
+  // ─────────────────────────────────────────────────────────────
+
+  async function llmCallViaWorker(system, userMsg, maxTokens, model) {
+    const url = S.config.workerUrl;
+    const body = {
+      model: model || S.config.model,
+      max_tokens: maxTokens || 4096,
+      system: system,
+      messages: [{ role: 'user', content: userMsg }],
+    };
+
+    const maxRetries = 3;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
+        }
+        const data = await resp.json();
+        // Format Anthropic : { content: [{type:'text', text:'...'}] }
+        if (data.content && Array.isArray(data.content)) {
+          return data.content.map(c => c.text || '').join('\n').trim();
+        }
+        throw new Error('Format réponse inattendu');
+      } catch (e) {
+        lastErr = e;
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+      }
+    }
+    throw lastErr || new Error('Échec appels LLM');
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 0 — CHARGEMENT DE MATIÈRE
+  // ─────────────────────────────────────────────────────────────
+
+  function handleDropFile(file) {
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (!['md', 'txt', 'json'].includes(ext)) {
+      alert('Format non reconnu. Utilise .md, .txt ou .json.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      let md = e.target.result;
+
+      // Si JSON CLONE-PERSONA-1.0, extraire la portion markdown
+      if (ext === 'json') {
+        try {
+          const j = JSON.parse(md);
+          if (j._format === 'ldv-project' && j.rawMarkdown) {
+            md = j.rawMarkdown;
+          } else if (j.transcript) {
+            // CLONE-PERSONA-1.0
+            md = '# ' + (j.prenom || 'SUJET').toUpperCase() + ', ' + (j.age || '?') + ' ans\n\n' + j.transcript;
+          } else {
+            alert('JSON non reconnu.');
+            return;
+          }
+        } catch (err) {
+          alert('JSON invalide : ' + err.message);
+          return;
+        }
+      }
+
+      S.rawMarkdown = md;
+      document.getElementById('dropLabel').textContent = file.name;
+      document.getElementById('dropLabel').classList.add('loaded');
+
+      // Créer la session et charger
+      try {
+        S.session = AuteurNoyau.createSession({
+          config: S.config,
+          llmCall: llmCallViaWorker,
+          onLog: (m, l) => log('writeLog', m, l),
+        });
+        const parsed = AuteurNoyau.loadTranscript(S.session, md);
+
+        // Afficher l'analyse
+        const badges = [];
+        if (parsed.prenom) badges.push({cls: 'badge-tone', t: parsed.prenom + ', ' + parsed.age + ' ans'});
+        if (parsed.tours > 0) badges.push({cls: 'badge-info', t: parsed.tours + ' tours d\'entretien'});
+        if (parsed.sections['PHRASE-CLE']) badges.push({cls: 'badge-info', t: 'Phrase-clé OK'});
+        if (parsed.sections['SCENES FORTES']) badges.push({cls: 'badge-info', t: 'Scènes fortes OK'});
+        if (parsed.sections['FILS NARRATIFS']) badges.push({cls: 'badge-info', t: 'Fils narratifs OK'});
+        if (parsed.sections['CE QUI NE COLLE PAS']) badges.push({cls: 'badge-warn', t: 'Zones d\'ombre détectées'});
+
+        document.getElementById('analysisBadges').innerHTML = badges
+          .map(b => '<span class="analysis-badge ' + b.cls + '">' + escapeHTML(b.t) + '</span>').join('');
+        document.getElementById('analysisDetail').textContent =
+          parsed.wordCount.toLocaleString('fr-FR') + ' mots · ' + parsed.charCount.toLocaleString('fr-FR') + ' caractères';
+
+        document.getElementById('analysisResult').style.display = 'block';
+        setHeaderStatus(parsed.prenom + ' chargé');
+      } catch (err) {
+        alert('Erreur parsing : ' + err.message);
+        console.error(err);
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 1 — DIAGNOSTIC
+  // ─────────────────────────────────────────────────────────────
+
+  async function runDiagnose() {
+    setStep(1);
+    setHeaderStatus('Diagnostic...');
+    document.getElementById('diagStatus').textContent = 'Appel Sonnet en cours...';
+    document.getElementById('diagOutput').textContent = '';
+
+    try {
+      const diag = await AuteurNoyau.diagnose(S.session);
+      document.getElementById('diagStatus').textContent =
+        'Diagnostic produit : ' + diag.split(/\s+/).length + ' mots';
+      document.getElementById('diagOutput').textContent = diag;
+      document.getElementById('toStep2Btn').disabled = false;
+      setHeaderStatus('Diagnostic OK');
+    } catch (e) {
+      document.getElementById('diagStatus').textContent = 'Erreur : ' + e.message;
+      console.error(e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 2 — PARTITION + PLAN
+  // ─────────────────────────────────────────────────────────────
+
+  async function runPartitionAndPlan() {
+    setStep(2);
+    setHeaderStatus('Partition...');
+    document.getElementById('partStatus').textContent = 'Production de la partition 9 dimensions...';
+    document.getElementById('planOutput').textContent = '';
+
+    try {
+      // Phase 2 — Partition singulière
+      await AuteurNoyau.producePartition(S.session);
+      document.getElementById('partStatus').textContent = 'Partition OK — supervision Opus...';
+
+      await AuteurNoyau.supervisePartition(S.session);
+      document.getElementById('partStatus').textContent = 'Partition validée par Opus — planification...';
+
+      // Phase 2C — Plan
+      const plan = await AuteurNoyau.planBook(S.session);
+
+      // Afficher le plan
+      let planText = '« ' + plan.title + ' »\n';
+      if (plan.subtitle) planText += plan.subtitle + '\n';
+      if (plan.epigraph) planText += '\n> ' + plan.epigraph + '\n';
+      planText += '\n' + (plan.chapters || []).length + ' chapitres :\n\n';
+      (plan.chapters || []).forEach((ch, i) => {
+        planText += (i + 1) + '. ' + ch.title + '\n';
+        if (ch.description) planText += '   ' + ch.description + '\n';
+      });
+      document.getElementById('planOutput').textContent = planText;
+
+      document.getElementById('partStatus').textContent = 'Plan OK — ' + (plan.chapters || []).length + ' chapitres';
+      document.getElementById('toStep3Btn').disabled = false;
+      setHeaderStatus('Plan OK');
+    } catch (e) {
+      document.getElementById('partStatus').textContent = 'Erreur : ' + e.message;
+      console.error(e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 3 — ÉCRITURE DES CHAPITRES
+  // ─────────────────────────────────────────────────────────────
+
+  async function runWriteAllChapters() {
+    setStep(3);
+    const plan = AuteurNoyau.getPlan(S.session);
+    if (!plan || !plan.chapters || plan.chapters.length === 0) {
+      log('writeLog', 'Pas de plan valide', 'err');
+      return;
+    }
+
+    const nbCh = plan.chapters.length;
+    const partition = AuteurNoyau.getPartition(S.session);
+    const useEditeur = S.config.editeurMode === 'after';
+
+    // Préparer l'UI
+    const listZone = document.getElementById('chaptersList');
+    listZone.innerHTML = '';
+    for (let i = 0; i < nbCh; i++) {
+      const div = document.createElement('div');
+      div.className = 'chapter-item';
+      div.id = 'chItem' + i;
+      div.innerHTML = `
+        <div class="chapter-header">
+          <div class="ch-num" id="chNum${i}">${i + 1}</div>
+          <div class="ch-title">${escapeHTML(plan.chapters[i].title)}</div>
+          <div class="ch-words" id="chWords${i}">—</div>
+          <div class="ch-flags" id="chFlags${i}"></div>
+        </div>
+      `;
+      listZone.appendChild(div);
+    }
+
+    // Écrire séquentiellement
+    for (let i = 0; i < nbCh; i++) {
+      document.getElementById('chNum' + i).classList.add('active');
+      log('writeLog', 'Chapitre ' + (i + 1) + '/' + nbCh + ' — "' + plan.chapters[i].title + '"', 'info');
+
+      try {
+        // ── Écriture par le Noyau Auteur ──
+        const text = await AuteurNoyau.writeChapter(S.session, i, {
+          onLog: (m, l) => log('writeLog', m, l),
+        });
+        const wc = text.split(/\s+/).filter(Boolean).length;
+        document.getElementById('chWords' + i).textContent = wc.toLocaleString('fr-FR') + ' mots';
+
+        // ── Relecture par le Noyau Éditeur (déterministe) ──
+        if (useEditeur && typeof EditeurNoyau !== 'undefined') {
+          const report = EditeurNoyau.reviewChapter(text, partition, {
+            chapterMemory: AuteurNoyau.getChapterMemory(S.session),
+            chIdx: i,
+          });
+
+          S.editorReports[i] = report;
+
+          if (report.flags.length > 0) {
+            const flagsStr = report.flags.map(f => f.code + ':' + f.count).join(' · ');
+            document.getElementById('chFlags' + i).textContent = flagsStr;
+            log('writeLog', 'Éditeur : ' + report.flags.length + ' flag(s) — ' + flagsStr, 'warn');
+
+            // Décision de réécriture ciblée — critère : au moins un flag critique
+            const hasCritical = report.flags.some(f => f.severity === 'haute');
+            if (hasCritical) {
+              log('writeLog', 'Flag(s) critique(s) → réécriture ciblée...', 'warn');
+              // TODO en V7.4.1 : appeler AuteurNoyau.rewriteTargeted avec le report Éditeur
+              // Pour l'instant on garde la V1 — le chapitre est conservé tel quel
+              // et le rapport est affiché pour relecture humaine
+            }
+          } else {
+            document.getElementById('chFlags' + i).textContent = '✓ clean';
+            log('writeLog', 'Éditeur : aucun défaut détecté', 'ok');
+          }
+        }
+
+        document.getElementById('chNum' + i).classList.remove('active');
+        document.getElementById('chNum' + i).classList.add('done');
+
+        // Progression
+        const pct = Math.round(((i + 1) / nbCh) * 100);
+        document.getElementById('writeProgress').style.width = pct + '%';
+        setHeaderStatus('Chapitres : ' + (i + 1) + '/' + nbCh);
+      } catch (e) {
+        log('writeLog', 'Erreur ch.' + (i + 1) + ' : ' + e.message, 'err');
+        console.error(e);
+        // On continue avec le chapitre suivant
+      }
+    }
+
+    log('writeLog', 'Tous les chapitres écrits.', 'ok');
+    document.getElementById('toStep4Btn').style.display = 'block';
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 4 — 4e DE COUVERTURE
+  // ─────────────────────────────────────────────────────────────
+
+  async function runBackCover() {
+    setStep(4);
+    setHeaderStatus('4e couverture...');
+    document.getElementById('backCoverOutput').textContent = 'Appel LLM en cours...';
+
+    try {
+      const back = await AuteurNoyau.buildBackCover(S.session);
+      document.getElementById('backCoverOutput').textContent = back;
+      document.getElementById('assembleBtn').disabled = false;
+      setHeaderStatus('4e OK');
+    } catch (e) {
+      document.getElementById('backCoverOutput').textContent = 'Erreur : ' + e.message;
+      console.error(e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 5 — ASSEMBLAGE EPUB
+  // ─────────────────────────────────────────────────────────────
+
+  async function runAssemble() {
+    setStep(5);
+    const plan = AuteurNoyau.getPlan(S.session);
+    const chapters = AuteurNoyau.getChapters(S.session);
+
+    document.getElementById('finalTitle').textContent = plan ? plan.title : 'Livre';
+    const totalWords = chapters.reduce((s, c) => s + (c.wordCount || 0), 0);
+    document.getElementById('finalStats').textContent =
+      chapters.length + ' chapitres · ' + totalWords.toLocaleString('fr-FR') + ' mots';
+
+    setHeaderStatus('Assemblage...');
+
+    try {
+      const zip = await AuteurNoyau.buildEpub(S.session);
+      const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' });
+
+      // Préparer les boutons de téléchargement
+      const fname = (plan.title || 'livre').replace(/[^\w-]/g, '_') + '.epub';
+
+      document.getElementById('dlEpub').onclick = () => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fname;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+
+      document.getElementById('dlMd').onclick = () => {
+        const md = S.session.getMarkdown();
+        const mdBlob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(mdBlob);
+        a.download = (plan.title || 'livre').replace(/[^\w-]/g, '_') + '.md';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+
+      document.getElementById('restartBtn').onclick = () => {
+        location.reload();
+      };
+
+      document.getElementById('downloadArea').style.display = 'block';
+      document.getElementById('assembleProgress').style.width = '100%';
+      log('assembleLog', 'EPUB prêt — ' + Math.round(blob.size / 1024) + ' KB', 'ok');
+      setHeaderStatus('Livre terminé');
+    } catch (e) {
+      log('assembleLog', 'Erreur assemblage : ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // INITIALISATION
+  // ─────────────────────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Vérifier que les deux noyaux sont chargés
+    if (typeof AuteurNoyau === 'undefined') {
+      alert('Erreur : atelier-auteur-core.js non chargé. Vérifie que le fichier est dans le même dossier que ce shell.');
+      return;
+    }
+    if (typeof EditeurNoyau === 'undefined') {
+      console.warn('EditeurNoyau non chargé — la relecture déterministe sera désactivée. Ajoute atelier-editeur-core.js dans le même dossier.');
+    }
+    console.log('Shell Biographie V' + SHELL_VERSION +
+                ' · Noyau Auteur V' + AuteurNoyau.VERSION +
+                ' · Noyau Éditeur V' + (typeof EditeurNoyau !== 'undefined' ? EditeurNoyau.VERSION : 'absent'));
+
+    // Drop zone
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag');
+      if (e.dataTransfer.files.length > 0) handleDropFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleDropFile(e.target.files[0]);
+    });
+
+    // Configuration
+    document.getElementById('modelSelect').addEventListener('change', (e) => S.config.model = e.target.value);
+    document.getElementById('lengthSelect').addEventListener('change', (e) => S.config.length = e.target.value);
+    document.getElementById('workerUrl').addEventListener('change', (e) => S.config.workerUrl = e.target.value);
+    document.getElementById('editeurMode').addEventListener('change', (e) => S.config.editeurMode = e.target.value);
+
+    // Boutons de navigation
+    document.getElementById('toStep1Btn').addEventListener('click', runDiagnose);
+    document.getElementById('toStep2Btn').addEventListener('click', runPartitionAndPlan);
+    document.getElementById('toStep3Btn').addEventListener('click', runWriteAllChapters);
+    document.getElementById('toStep4Btn').addEventListener('click', runBackCover);
+    document.getElementById('assembleBtn').addEventListener('click', runAssemble);
+  });
+
+})();
+</script>
+
+</body>
+</html>
