@@ -56,7 +56,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '7.4.1-alpha';
+  const VERSION = '7.4.2-alpha';
 
   // ═══════════════════════════════════════════════════════════════════
   // PROMPTS — matière littéraire qui gouverne tout le noyau
@@ -2083,6 +2083,101 @@ Le livre qui sera écrit sur la base de ta partition doit être UNIQUE — impos
 Écoute la voix du sujet. Écoute la forme que sa vie appelle. Ne plaque rien. Extrais. Cite. Contraigne.
 `;
 
+// ═══════════════════════════════════════════════════════════════════
+// V7.4.2 — PROMPT SYSTÈME : RÉSUMÉ NARRATIF STRUCTURÉ PAR CHAPITRE
+// ═══════════════════════════════════════════════════════════════════
+//
+// Ce prompt est utilisé après chaque chapitre écrit pour que le LLM
+// produise un résumé structuré en 5 registres. Ce résumé est stocké
+// dans la ChapterMemory et utilisé par le prompt du chapitre suivant
+// pour maintenir la continuité narrative sur un livre long.
+//
+// Sans ce mécanisme, la continuité reposait sur les 60 premiers mots
+// de chaque chapitre (V7.3.7) — trop court pour un livre de 15+ chapitres.
+// ═══════════════════════════════════════════════════════════════════
+
+const PROMPT_RESUME_STRUCTURE = `Tu viens d'écrire un chapitre de ce livre de vie.
+
+Ton rôle ici n'est plus d'écrire, mais de PRODUIRE UN RÉSUMÉ STRUCTURÉ du chapitre que tu viens d'écrire. Ce résumé sera injecté dans le prompt du chapitre suivant pour que le livre garde sa continuité narrative sur 15+ chapitres.
+
+Le canon : le code COMPTE, le LLM RAISONNE, le code TRACE. Tu raisonnes sur le chapitre que tu viens d'écrire, tu traces ce qui devra être retenu pour la suite.
+
+---
+
+## TU PRODUIS UN OBJET JSON STRICT
+
+\`\`\`json
+{
+  "resume_narratif": "150-200 mots qui décrivent la trajectoire interne du chapitre — ce qui s'y passe vraiment au niveau de l'intrigue ET du texte. Pas un résumé scolaire, une description de ce que le chapitre fait vivre au lecteur.",
+
+  "personnages_actifs": [
+    {
+      "nom": "nom du personnage (ou rôle si pas de nom propre — ex : 'la mère', 'le sujet')",
+      "descripteurs_utilises": ["3 à 6 descripteurs concrets posés dans ce chapitre — gestes, attitudes, mots qui reviennent"],
+      "action_principale": "en une phrase : ce que ce personnage a fait qui compte dans ce chapitre"
+    }
+  ],
+
+  "lieux_decrits": [
+    {
+      "nom": "le lieu",
+      "details_concrets": ["3 à 5 détails sensibles posés dans ce chapitre — matières, couleurs, objets, lumières"],
+      "moment": "moment de la journée ou ambiance temporelle"
+    }
+  ],
+
+  "scenes_fortes": [
+    {
+      "titre_interne": "un titre bref qui identifie la scène (pas le titre du chapitre)",
+      "resume_precis": "30-50 mots qui disent ce qui se passe précisément dans cette scène",
+      "elements_sensibles": ["les 3-5 éléments concrets qui portent la scène"]
+    }
+  ],
+
+  "dettes_ouvertes": [
+    {
+      "nature": "une question, un péril, une attente, une absence, une ambiguïté que ce chapitre ouvre sans la refermer",
+      "echeance_souhaitee": "à honorer avant le chapitre N, ou 'indéterminée' si la dette doit rester ouverte"
+    }
+  ],
+
+  "dettes_refermees": [
+    {
+      "nature": "une dette qui avait été ouverte dans un chapitre précédent et que ce chapitre vient de refermer"
+    }
+  ],
+
+  "echos_poses": [
+    {
+      "element": "un élément (image, geste, mot, objet) que ce chapitre pose pour la première fois et qui pourra résonner plus tard",
+      "intensite": "forte | moyenne | faible"
+    }
+  ],
+
+  "echos_repris": [
+    {
+      "element": "un élément qui avait été posé dans un chapitre précédent et que ce chapitre reprend / fait résonner"
+    }
+  ]
+}
+\`\`\`
+
+---
+
+## RÈGLES ABSOLUES
+
+1. **Tu cites des faits du texte, pas des interprétations.** Si tu écris que le personnage "semble triste", c'est une interprétation — tu ne le mets pas. Si tu écris "il pose la tasse sans se retourner", c'est un fait — tu peux le mettre.
+
+2. **Tu ne racontes pas la partition, tu nommes ce qui est CONCRÈTEMENT dans le chapitre.** Si le chapitre a utilisé le motif "mains" mais pas le motif "silence", tu ne mentionnes pas "silence".
+
+3. **Tu restes bref.** Le résumé narratif 150-200 mots MAX. Les descripteurs par personnage : 3 à 6 max, les plus distinctifs. Les détails de lieu : 3 à 5 max. Si un personnage n'est pas vraiment présent (mentionné en passant), tu ne le mets pas.
+
+4. **Pour les dettes ouvertes, tu es chirurgical.** Une vraie dette est quelque chose que le lecteur ATTEND qu'on lui rende. Pas "le chapitre n'a pas tout expliqué" (ça n'est jamais une dette). Une question posée, un péril installé, une absence visible, une ambiguïté tenue.
+
+5. **Si un registre est vide, tu mets un tableau vide \`[]\`.** Tu ne forces jamais.
+
+6. **Sortie : JSON strict, rien d'autre.** Pas de préambule, pas de commentaire, pas de markdown autour. Juste l'objet JSON.`;
+
 const AuteurCore = {
   raw: '', parsed: null, plan: null,
   diagnostic: '',  // Le diagnostic littéraire produit par le LLM
@@ -3899,9 +3994,11 @@ Cette ligne est un méta-marqueur — elle sera automatiquement supprimée du li
     if (cm.urgence_temporelle) out += `URGENCE TEMPORELLE (à maintenir vivante) : ${cm.urgence_temporelle.substring(0, 200)}\n`;
     out += '\nCHAPITRES DÉJÀ ÉCRITS :\n';
     for (const e of cm.chapitres) {
-      out += `  • Ch.${e.num} "${e.titre}" | POV observé : ${e.pov_observe} (densité "il" : ${e.densite_il_pct}%)`;
-      out += ` | péril réinjecté : ${e.peril_reinjecte ? 'oui' : 'NON ⚠'}`;
-      if (e.traces_peril_utilisees.length) out += ` (traces : ${e.traces_peril_utilisees.slice(0, 5).join(', ')})`;
+      out += `  • Ch.${e.num} "${e.titre}"`;
+      if (e.pov_observe) out += ` | POV observé : ${e.pov_observe} (densité "il" : ${e.densite_il_pct || 0}%)`;
+      if (typeof e.peril_reinjecte !== 'undefined') out += ` | péril réinjecté : ${e.peril_reinjecte ? 'oui' : 'NON ⚠'}`;
+      const traces = e.traces_peril_utilisees || [];
+      if (traces.length) out += ` (traces : ${traces.slice(0, 5).join(', ')})`;
       out += '\n';
     }
 
@@ -3935,6 +4032,163 @@ Cette ligne est un méta-marqueur — elle sera automatiquement supprimée du li
           }
         }
         out += '\n';
+      }
+    }
+
+    // V7.4.2 — MÉMOIRE NARRATIVE STRUCTURÉE
+    // Si des résumés structurés sont disponibles (Bloc 1 V7.4.2), on les injecte
+    // de façon ACTIVE : personnages qui apparaîtront, lieux déjà décrits, dettes
+    // ouvertes, échos en attente. Beaucoup plus riche que le prevCtx 60 mots.
+    const resumesStructures = cm.chapitres.filter(c => c.resume_structure);
+    if (resumesStructures.length > 0) {
+      out += '\n═══ MÉMOIRE NARRATIVE STRUCTURÉE (V7.4.2) ═══\n';
+      out += 'Ce qui a été posé dans les chapitres précédents et qui doit rester cohérent :\n\n';
+
+      // Résumés narratifs de chaque chapitre (denses mais pas trop longs)
+      out += '[RÉSUMÉS DES CHAPITRES PRÉCÉDENTS]\n';
+      for (const c of resumesStructures) {
+        const r = c.resume_structure;
+        if (r.resume_narratif) {
+          out += `  Ch.${c.num} "${c.titre}" — ${r.resume_narratif}\n\n`;
+        }
+      }
+
+      // Personnages agrégés sur le livre
+      const personnagesMap = {};
+      for (const c of resumesStructures) {
+        const pers = c.resume_structure.personnages_actifs || [];
+        for (const p of pers) {
+          if (!p || !p.nom) continue;
+          if (!personnagesMap[p.nom]) {
+            personnagesMap[p.nom] = {
+              descripteurs: new Set(),
+              actions: [],
+              chapitres: [],
+            };
+          }
+          personnagesMap[p.nom].chapitres.push(c.num);
+          for (const d of (p.descripteurs_utilises || [])) {
+            personnagesMap[p.nom].descripteurs.add(d);
+          }
+          if (p.action_principale) {
+            personnagesMap[p.nom].actions.push({ ch: c.num, a: p.action_principale });
+          }
+        }
+      }
+      if (Object.keys(personnagesMap).length > 0) {
+        out += '[PERSONNAGES DU LIVRE — ne contredis pas ce qui a déjà été posé]\n';
+        for (const [nom, data] of Object.entries(personnagesMap)) {
+          const descripteurs = Array.from(data.descripteurs).slice(0, 8);
+          out += `  • ${nom} — chapitres : ${data.chapitres.join(', ')}\n`;
+          if (descripteurs.length > 0) {
+            out += `      Descripteurs posés : ${descripteurs.join(' / ')}\n`;
+          }
+          const dernieresActions = data.actions.slice(-3);
+          if (dernieresActions.length > 0) {
+            for (const a of dernieresActions) {
+              out += `      Ch.${a.ch} : ${a.a}\n`;
+            }
+          }
+        }
+        out += '\n';
+      }
+
+      // Lieux agrégés
+      const lieuxMap = {};
+      for (const c of resumesStructures) {
+        const lieux = c.resume_structure.lieux_decrits || [];
+        for (const l of lieux) {
+          if (!l || !l.nom) continue;
+          if (!lieuxMap[l.nom]) {
+            lieuxMap[l.nom] = { details: new Set(), moments: new Set(), chapitres: [] };
+          }
+          lieuxMap[l.nom].chapitres.push(c.num);
+          for (const d of (l.details_concrets || [])) {
+            lieuxMap[l.nom].details.add(d);
+          }
+          if (l.moment) lieuxMap[l.nom].moments.add(l.moment);
+        }
+      }
+      if (Object.keys(lieuxMap).length > 0) {
+        out += '[LIEUX DU LIVRE — détails déjà posés, ne pas contredire]\n';
+        for (const [nom, data] of Object.entries(lieuxMap)) {
+          const details = Array.from(data.details).slice(0, 8);
+          out += `  • ${nom} — chapitres : ${data.chapitres.join(', ')}\n`;
+          if (details.length > 0) {
+            out += `      Détails posés : ${details.join(' / ')}\n`;
+          }
+        }
+        out += '\n';
+      }
+
+      // Dettes ouvertes non refermées
+      const dettesOuvertes = [];
+      const dettesRefermeesSet = new Set();
+      for (const c of resumesStructures) {
+        const d_ref = c.resume_structure.dettes_refermees || [];
+        for (const d of d_ref) {
+          if (d && d.nature) dettesRefermeesSet.add(d.nature);
+        }
+      }
+      for (const c of resumesStructures) {
+        const d_ouv = c.resume_structure.dettes_ouvertes || [];
+        for (const d of d_ouv) {
+          if (!d || !d.nature) continue;
+          if (dettesRefermeesSet.has(d.nature)) continue;
+          dettesOuvertes.push({ nature: d.nature, ch_ouverture: c.num, echeance: d.echeance_souhaitee || 'indéterminée' });
+        }
+      }
+      if (dettesOuvertes.length > 0) {
+        out += '[DETTES OUVERTES — questions, périls, attentes posés mais pas encore refermés]\n';
+        for (const d of dettesOuvertes) {
+          out += `  ⚠ ${d.nature} (ouverte Ch.${d.ch_ouverture}, échéance : ${d.echeance})\n`;
+        }
+        out += '  → Ce chapitre peut honorer une de ces dettes, ou en laisser volontairement ouverte. Il ne doit pas les OUBLIER.\n\n';
+      }
+
+      // Échos posés non repris
+      const echosReprisSet = new Set();
+      for (const c of resumesStructures) {
+        const e_rep = c.resume_structure.echos_repris || [];
+        for (const e of e_rep) {
+          if (e && e.element) echosReprisSet.add(e.element);
+        }
+      }
+      const echosEnAttente = [];
+      for (const c of resumesStructures) {
+        const e_pos = c.resume_structure.echos_poses || [];
+        for (const e of e_pos) {
+          if (!e || !e.element) continue;
+          if (echosReprisSet.has(e.element)) continue;
+          echosEnAttente.push({ element: e.element, ch: c.num, intensite: e.intensite || 'moyenne' });
+        }
+      }
+      if (echosEnAttente.length > 0) {
+        out += '[ÉCHOS POSÉS EN ATTENTE DE RÉSONANCE]\n';
+        for (const e of echosEnAttente.slice(-10)) {  // les 10 plus récents
+          out += `  • "${e.element}" (posé Ch.${e.ch}, intensité ${e.intensite})\n`;
+        }
+        out += '  → Si cohérent avec la scène de ce chapitre, fais-en résonner un ou deux. Ne force pas.\n\n';
+      }
+
+      // Scènes fortes précédentes — à ne PAS répéter à l'identique
+      const scenesFortes = [];
+      for (const c of resumesStructures) {
+        const sc = c.resume_structure.scenes_fortes || [];
+        for (const s of sc) {
+          if (s && s.titre_interne) {
+            scenesFortes.push({ ch: c.num, titre: s.titre_interne, elements: s.elements_sensibles || [] });
+          }
+        }
+      }
+      if (scenesFortes.length > 0) {
+        out += '[SCÈNES FORTES DÉJÀ ÉCRITES — ne pas répéter à l\'identique]\n';
+        for (const s of scenesFortes.slice(-8)) {  // les 8 dernières
+          out += `  • Ch.${s.ch} "${s.titre}"`;
+          if (s.elements.length > 0) out += ` (éléments : ${s.elements.slice(0, 4).join(', ')})`;
+          out += '\n';
+        }
+        out += '  → Si ce chapitre a une scène similaire, elle doit se DISTINGUER (autre moment, autre configuration, autre issue).\n\n';
       }
     }
 
@@ -5810,8 +6064,10 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
     // défaut de V7.3.7 (qui utilise fetch vers le worker Cloudflare).
     if (session._llmCall) {
       // Override : on utilise le llmCall injecté
-      session.llmCall = async function (system, userMsg, maxTokens) {
-        return await session._llmCall(system, userMsg, maxTokens || 4096);
+      // V7.4.2 — on passe aussi le 4e argument (model) pour permettre le choix
+      // de modèle par appel (ex: Haiku pour résumé structuré, Opus pour Opus global)
+      session.llmCall = async function (system, userMsg, maxTokens, model) {
+        return await session._llmCall(system, userMsg, maxTokens || 4096, model);
       };
     }
     // Sinon, on garde A.llmCall de V7.3.7 (défini dans AuteurCore)
@@ -5932,6 +6188,128 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
 
     return text;
   }
+
+  /**
+   * Phase 3A (V7.4.2) — Génération du résumé narratif structuré d'un chapitre.
+   *
+   * Après l'écriture d'un chapitre, on demande au LLM de produire un résumé
+   * en 5 registres (personnages, lieux, scènes, dettes, échos). Ce résumé
+   * est stocké dans session.chapterMemory.chapitres[chIdx].resume_structure
+   * et sera injecté dans le prompt du chapitre suivant pour maintenir la
+   * continuité narrative sur un livre long.
+   *
+   * Deux variantes configurables via options.mode :
+   *   - 'full'  : Sonnet 4.6 (précision maximale, ~0.05-0.10 $/chapitre)
+   *   - 'light' : Haiku 4.5 (économique, ~0.02 $/chapitre)
+   *   - 'off'   : désactivé — on retombe sur le prevCtx 60 mots V7.3.7
+   *
+   * Si le LLM retourne un JSON invalide, on log l'erreur et on stocke un
+   * résumé minimal de fallback (pas d'interruption du pipeline).
+   */
+  async function generateChapterResume(session, chIdx, options) {
+    if (!session) throw new Error('AuteurNoyau.generateChapterResume : session requise');
+    if (!session.llmCall) throw new Error('AuteurNoyau.generateChapterResume : ctx.llmCall non injecté');
+    options = options || {};
+    const mode = options.mode || (session.config && session.config.memoryMode) || 'full';
+
+    if (mode === 'off') return null;
+
+    const ch = session.chapters[chIdx];
+    if (!ch || !ch.text || ch.text.length < 200) {
+      session._onLog('generateChapterResume : pas de chapitre à résumer', 'warn');
+      return null;
+    }
+
+    // Modèle selon la variante
+    const model = (mode === 'light') ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
+    const maxTokens = (mode === 'light') ? 1500 : 2500;
+
+    // User prompt — contient le texte du chapitre + le contexte minimal
+    let userPrompt = '';
+    if (session.plan && session.plan.title) {
+      userPrompt += 'LIVRE : "' + session.plan.title + '"\n';
+    }
+    userPrompt += 'CHAPITRE ' + (chIdx + 1) + ' : "' + (ch.title || 'sans titre') + '"\n\n';
+    userPrompt += 'TEXTE DU CHAPITRE :\n\n' + ch.text + '\n\n';
+    userPrompt += '---\n\nProduis maintenant le résumé structuré en JSON strict selon les règles du prompt système.';
+
+    session._onLog('↺ Résumé structuré Ch.' + (chIdx + 1) + ' (' + mode + ')...', 'info');
+
+    let raw;
+    try {
+      raw = await session.llmCall(PROMPT_RESUME_STRUCTURE, userPrompt, maxTokens, model);
+    } catch (e) {
+      session._onLog('  ⚠ Échec LLM résumé : ' + e.message + ' — mémoire structurée ignorée pour ce chapitre', 'warn');
+      return null;
+    }
+
+    // Parse tolérant
+    let resume;
+    try {
+      let s = raw.trim();
+      const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fence) s = fence[1].trim();
+      const firstBrace = s.indexOf('{');
+      const lastBrace = s.lastIndexOf('}');
+      if (firstBrace < 0 || lastBrace < 0) throw new Error('Pas de JSON détecté');
+      resume = JSON.parse(s.substring(firstBrace, lastBrace + 1));
+    } catch (e) {
+      session._onLog('  ⚠ JSON résumé invalide : ' + e.message + ' — fallback minimal', 'warn');
+      // Fallback : résumé minimal basé sur le texte
+      resume = {
+        resume_narratif: ch.text.split(/\s+/).slice(0, 100).join(' ') + '...',
+        personnages_actifs: [],
+        lieux_decrits: [],
+        scenes_fortes: [],
+        dettes_ouvertes: [],
+        dettes_refermees: [],
+        echos_poses: [],
+        echos_repris: [],
+        _fallback: true,
+      };
+    }
+
+    // Stocker dans ChapterMemory
+    session.initChapterMemory();
+    // Trouver l'entrée du chapitre dans chapterMemory.chapitres
+    let entry = null;
+    for (const e of session.chapterMemory.chapitres) {
+      if (e.num === chIdx + 1) { entry = e; break; }
+    }
+    if (entry) {
+      entry.resume_structure = resume;
+    } else {
+      // Pas encore d'entrée — on créée une entrée minimale (cas où updateChapterMemory
+      // n'a pas encore été appelé). C'est rare mais possible.
+      session.chapterMemory.chapitres.push({
+        num: chIdx + 1,
+        titre: ch.title || '(sans titre)',
+        resume_structure: resume,
+      });
+    }
+
+    session._onLog('  ✓ Résumé structuré Ch.' + (chIdx + 1) + ' produit (' +
+      (resume.personnages_actifs || []).length + ' personnages, ' +
+      (resume.lieux_decrits || []).length + ' lieux, ' +
+      (resume.dettes_ouvertes || []).length + ' dettes ouvertes)', 'ok');
+
+    return resume;
+  }
+
+  /**
+   * Retourne tous les résumés structurés de la session.
+   */
+  function getChapterResumes(session) {
+    if (!session || !session.chapterMemory) return [];
+    return session.chapterMemory.chapitres
+      .filter(c => c.resume_structure)
+      .map(c => ({
+        num: c.num,
+        titre: c.titre,
+        resume: c.resume_structure,
+      }));
+  }
+
 
   /**
    * Phase 3B — Réécriture ciblée depuis un rapport Éditeur externe.
@@ -6242,6 +6620,7 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
       ARCHITECTE: PROMPT_ARCHITECTE,
       OPERATOIRE: PROMPT_OPERATOIRE,
       PARTITION: PROMPT_PARTITION,
+      RESUME_STRUCTURE: PROMPT_RESUME_STRUCTURE,  // V7.4.2
     };
   }
 
@@ -6258,6 +6637,7 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
     supervisePartition,
     planBook,
     writeChapter,
+    generateChapterResume,    // V7.4.2 — mémoire narrative structurée
     rewriteTargeted,          // V7.4.1 — boucle Auteur ↔ Éditeur
     reviewBookOpus,
     buildBackCover,
@@ -6273,7 +6653,10 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
     getDiagnostic,
     getBookOpusReport,         // V7.4.1
     getTokenUsage,             // V7.4.1 — gouvernance coûts
+    getChapterResumes,         // V7.4.2 — accès aux résumés structurés
     getPrompts,
+    // Prompts exposés pour inspection/debug
+    PROMPT_RESUME_STRUCTURE,   // V7.4.2
     // Core exposé pour debug avancé
     _AuteurCore: AuteurCore,
   };
