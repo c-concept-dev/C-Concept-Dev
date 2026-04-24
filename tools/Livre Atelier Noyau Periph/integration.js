@@ -1,6 +1,6 @@
 /*
  * ═════════════════════════════════════════════════════════════════════
- *  TESTS D'INTÉGRATION — Livre de Vie Atelier V7.4.1
+ *  TESTS D'INTÉGRATION — Livre de Vie Atelier V7.4.2
  *  tests/integration.js
  *  C Concept&Dev — Christophe BONNET
  * ═════════════════════════════════════════════════════════════════════
@@ -66,6 +66,52 @@ function mockLlmCall(system, userMsg, maxTokens, model) {
   // la partition injectée en contexte — on matcherait par erreur sinon.
   const u = (userMsg || '').toLowerCase();
   const s = (system || '').toLowerCase();
+
+  // 0a. V7.4.2 — Résumé narratif structuré (après écriture de chaque chapitre)
+  //     Le prompt système contient "RÉSUMÉ STRUCTURÉ du chapitre".
+  if (s.includes('résumé structuré du chapitre') || s.includes('produire un résumé structuré')) {
+    return Promise.resolve(JSON.stringify({
+      resume_narratif: "Un matin dans la cuisine. Le sujet entre. La mère est là, dos tourné, tasse à la main. Elle ne se retourne pas. Silence dense. Le sujet regarde ses mains, puis la table nue. Il part sans un mot.",
+      personnages_actifs: [
+        { nom: "La mère", descripteurs_utilises: ["silencieuse", "dos tourné", "tasse à la main"], action_principale: "elle ne se retourne pas" },
+        { nom: "Le sujet", descripteurs_utilises: ["hésitant", "mains ouvertes"], action_principale: "il entre puis il repart sans parole" }
+      ],
+      lieux_decrits: [
+        { nom: "la cuisine", details_concrets: ["linoléum usé", "table en formica", "fenêtre sur cour"], moment: "matin d'hiver" }
+      ],
+      scenes_fortes: [
+        { titre_interne: "Le café du matin", resume_precis: "Le sujet entre, la mère ne se retourne pas, il repart.", elements_sensibles: ["tasse fumante", "dos tourné", "silence"] }
+      ],
+      dettes_ouvertes: [
+        { nature: "Pourquoi la mère ne se retourne-t-elle jamais ?", echeance_souhaitee: "avant Ch.10" }
+      ],
+      dettes_refermees: [],
+      echos_poses: [
+        { element: "la tasse posée", intensite: "forte" },
+        { element: "le silence du matin", intensite: "forte" }
+      ],
+      echos_repris: []
+    }));
+  }
+
+  // 0b. V7.4.2 — Éditeur transversal (rapport structurel sur livre entier)
+  if (s.includes('éditeur senior qui lit un livre en le prenant comme totalité') ||
+      s.includes('dilutions transversales')) {
+    return Promise.resolve(JSON.stringify({
+      verdict_global: 'tient',
+      justification_verdict: 'Le livre tient globalement. Les motifs se chargent, la progression du péril est stable, pas de dilution majeure.',
+      progression_peril: { etat: 'stable', chapitres_critiques: [], commentaire: 'Présent du début à la fin.' },
+      regime_narratif: { etat: 'stable', chapitres_suspects: [], commentaire: '' },
+      cartographie_motifs: [
+        { motif: 'silence', chapitres_actifs: [1, 2], chapitres_silencieux: [], etat: 'charge croissante', commentaire: 'Bien tenu' }
+      ],
+      dettes_non_refermees: [],
+      echos_non_repris: [],
+      coupures_narratives: [],
+      dilutions_cumulees: { present: false, description: '' },
+      chapitres_prioritaires_a_retravailler: []
+    }));
+  }
 
   // 1. Réécriture ciblée — user commence par "Tu as écrit ce chapitre"
   if (u.includes('tu as écrit ce chapitre') || u.includes('corriger uniquement ces défauts')) {
@@ -288,7 +334,7 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
 
 (async function () {
   console.log('═══════════════════════════════════════════════════════════');
-  console.log(' TESTS D\'INTÉGRATION V7.4.1');
+  console.log(' TESTS D\'INTÉGRATION V7.4.2');
   console.log('═══════════════════════════════════════════════════════════\n');
 
   // ─── PARTIE A — Pipeline Auteur complet ───
@@ -463,6 +509,93 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
            typeof u.calls === 'number' && typeof u.cost_usd === 'number';
   });
 
+  // ─── PARTIE H — V7.4.2 Mémoire narrative structurée + Éditeur transversal ───
+  console.log('\nH. V7.4.2 Mémoire structurée + Éditeur transversal\n');
+
+  await tAsync('H.1 — VERSION Auteur bumped à 7.4.2', async () => {
+    return AuteurNoyau.VERSION === '7.4.2-alpha';
+  });
+
+  await tAsync('H.2 — VERSION Éditeur bumped à 7.4.2', async () => {
+    return EditeurNoyau.VERSION === '7.4.2-alpha';
+  });
+
+  await tAsync('H.3 — PROMPT_RESUME_STRUCTURE exposé', async () => {
+    return typeof AuteurNoyau.PROMPT_RESUME_STRUCTURE === 'string' &&
+           AuteurNoyau.PROMPT_RESUME_STRUCTURE.length > 1000;
+  });
+
+  await tAsync('H.4 — PROMPT_RESUME_STRUCTURE contient 5 registres', async () => {
+    const p = AuteurNoyau.PROMPT_RESUME_STRUCTURE;
+    return p.includes('personnages_actifs') && p.includes('lieux_decrits') &&
+           p.includes('scenes_fortes') && p.includes('dettes_ouvertes') && p.includes('echos_poses');
+  });
+
+  await tAsync('H.5 — generateChapterResume produit les 5 registres', async () => {
+    const r = await AuteurNoyau.generateChapterResume(session, 0, { mode: 'full' });
+    return r && r.personnages_actifs && r.lieux_decrits &&
+           r.scenes_fortes && r.dettes_ouvertes && r.echos_poses &&
+           r.personnages_actifs.length === 2 &&
+           r.lieux_decrits.length === 1;
+  });
+
+  await tAsync('H.6 — getChapterResumes retourne les résumés stockés', async () => {
+    const rs = AuteurNoyau.getChapterResumes(session);
+    return Array.isArray(rs) && rs.length >= 1 &&
+           !!rs[0].resume && Array.isArray(rs[0].resume.personnages_actifs);
+  });
+
+  await tAsync('H.7 — buildChapterMemoryInjection utilise les résumés structurés', async () => {
+    const injection = session.buildChapterMemoryInjection();
+    return injection.includes('MÉMOIRE NARRATIVE STRUCTURÉE (V7.4.2)') &&
+           injection.includes('La mère') &&
+           injection.includes('la cuisine') &&
+           injection.includes('Pourquoi la mère');
+  });
+
+  await tAsync('H.8 — mode off skip silencieusement', async () => {
+    const r = await AuteurNoyau.generateChapterResume(session, 0, { mode: 'off' });
+    return r === null;
+  });
+
+  await tAsync('H.9 — PROMPT_SYSTEME_EDITEUR_TRANSVERSAL exposé', async () => {
+    return typeof EditeurNoyau.PROMPT_SYSTEME_EDITEUR_TRANSVERSAL === 'string' &&
+           EditeurNoyau.PROMPT_SYSTEME_EDITEUR_TRANSVERSAL.includes('Boussole Souveraine');
+  });
+
+  await tAsync('H.10 — reviewBookTransversal retourne rapport structuré', async () => {
+    const rapport = await EditeurNoyau.reviewBookTransversal(session, session.llmCall, {});
+    return rapport && rapport.verdict_global === 'tient' &&
+           Array.isArray(rapport.cartographie_motifs) &&
+           rapport.meta && rapport.meta.mode === 'transversal' &&
+           rapport.meta.used_structured_memory === true;
+  });
+
+  await tAsync('H.11 — reviewBookTransversal avec at_chapter limite la portée', async () => {
+    const rapport = await EditeurNoyau.reviewBookTransversal(session, session.llmCall, { at_chapter: 1 });
+    return rapport && rapport.meta && rapport.meta.chapters_analyzed === 1;
+  });
+
+  await tAsync('H.12 — override llmCall passe le 4e argument model', async () => {
+    let receivedModel = null;
+    const testSession = AuteurNoyau.createSession({
+      llmCall: async (sys, user, maxTk, model) => {
+        receivedModel = model;
+        return 'OK';
+      },
+      onLog: () => {},
+    });
+    await testSession.llmCall('sys', 'user', 100, 'claude-haiku-4-5');
+    return receivedModel === 'claude-haiku-4-5';
+  });
+
+  await tAsync('H.13 — saveSession/restoreSession préservent les résumés structurés', async () => {
+    const saved = AuteurNoyau.saveSession(session);
+    const restored = AuteurNoyau.restoreSession(saved, { llmCall: mockLlmCall });
+    const rs = AuteurNoyau.getChapterResumes(restored);
+    return rs.length >= 1 && rs[0].resume && rs[0].resume.personnages_actifs.length === 2;
+  });
+
   // ─── PARTIE G — Canon universel ───
   console.log('\nG. Canon universel (hardcoding)\n');
 
@@ -499,6 +632,6 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
   console.log(`\n${results.pass.length}/${total} tests passent — ${pct}%`);
 
   if (results.fail.length > 0) process.exit(1);
-  console.log('\n✓ Suite d\'intégration complète — pipeline V7.4.1 fonctionne de bout en bout');
+  console.log('\n✓ Suite d\'intégration complète — pipeline V7.4.2 fonctionne de bout en bout');
   process.exit(0);
 })();
