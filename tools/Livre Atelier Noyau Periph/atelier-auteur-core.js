@@ -56,7 +56,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '7.4.0-alpha';
+  const VERSION = '7.4.1-alpha';
 
   // ═══════════════════════════════════════════════════════════════════
   // PROMPTS — matière littéraire qui gouverne tout le noyau
@@ -5858,8 +5858,15 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
   async function producePartition(session) {
     if (!session) throw new Error('AuteurNoyau.producePartition : session requise');
     if (!session.llmCall) throw new Error('AuteurNoyau.producePartition : ctx.llmCall non injecté');
-    const partition = await session.produireBookPartition();
-    return partition;
+    const result = await session.produireBookPartition();
+    // produireBookPartition retourne { ok, partition, error?, warning? }
+    // Si ok, on stocke dans la session pour que les phases suivantes y accèdent via getPartition().
+    if (result && result.ok && result.partition) {
+      session.bookPartition = result.partition;
+    } else if (result && !result.ok) {
+      throw new Error('AuteurNoyau.producePartition : ' + (result.error || 'échec production partition'));
+    }
+    return result && result.partition ? result.partition : result;
   }
 
   /**
@@ -5927,22 +5934,217 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
   }
 
   /**
-   * Phase 4 — Relecture Opus globale (post-écriture).
-   * Note : V7.3.7 n'avait pas de méthode exposée unique — la relecture
-   * était un appel LLM direct dans le shell. Ici on l'expose.
+   * Phase 3B — Réécriture ciblée depuis un rapport Éditeur externe.
+   *
+   * Prend un rapport produit par le Noyau Éditeur (mode déterministe, LLM
+   * ou hybride) et demande à l'Auteur de réécrire le chapitre en corrigeant
+   * précisément les flags pointés. Retourne { text, accepted, metrics }
+   * — l'Auteur ne garde la réécriture que si elle **améliore** le rapport
+   * (flags totaux ou critiques en baisse).
+   *
+   * C'est la boucle canon Auteur ↔ Éditeur : l'Éditeur identifie, l'Auteur
+   * corrige, l'Éditeur re-vérifie, on garde la meilleure version.
    */
-  async function reviewBookOpus(session) {
+  async function rewriteTargeted(session, chIdx, editorReport, options) {
+    if (!session) throw new Error('AuteurNoyau.rewriteTargeted : session requise');
+    if (!session.llmCall) throw new Error('AuteurNoyau.rewriteTargeted : ctx.llmCall non injecté');
+    if (!editorReport || !Array.isArray(editorReport.flags)) {
+      throw new Error('AuteurNoyau.rewriteTargeted : editorReport.flags requis');
+    }
+    options = options || {};
+    const verify = options.verify || null;  // fonction optionnelle (text) → nouveauReport
+
+    const ch = session.chapters[chIdx];
+    if (!ch || !ch.text) {
+      throw new Error('AuteurNoyau.rewriteTargeted : pas de chapitre à réécrire');
+    }
+    const originalText = ch.text;
+    const originalFlags = editorReport.flags.length;
+    const originalCritical = editorReport.flags.filter(f => f.severity === 'haute').length;
+
+    // Construction du prompt de correction depuis le rapport Éditeur
+    // On cite chaque flag avec ses passages et sa suggestion
+    let correctionsBlock = '';
+    for (const f of editorReport.flags) {
+      const sevBadge = f.severity === 'haute' ? '[CRITIQUE]' : (f.severity === 'moyenne' ? '[à corriger]' : '[à vérifier]');
+      correctionsBlock += `\n• ${sevBadge} ${f.code} (${f.count} occurrence${f.count > 1 ? 's' : ''})\n`;
+      const hits = (f.hits || []).slice(0, 5);
+      for (const h of hits) {
+        correctionsBlock += `    — « ${(h.match || '').substring(0, 200)} »\n`;
+        if (h.suggestion) correctionsBlock += `        → ${h.suggestion}\n`;
+        else if (h.justification) correctionsBlock += `        → ${h.justification}\n`;
+      }
+    }
+
+    // Ajouter les verdicts Boussole et Contrôles si le rapport est en mode LLM
+    let boussoleBlock = '';
+    if (editorReport.boussole) {
+      boussoleBlock += `\nVerdict Boussole : ${editorReport.boussole.verdict}`;
+      if (editorReport.boussole.justification) boussoleBlock += ` — ${editorReport.boussole.justification}`;
+      boussoleBlock += '\n';
+    }
+    if (editorReport.controles) {
+      const c = editorReport.controles;
+      if (c.scene) boussoleBlock += `Contrôle Scène : ${c.scene.verdict} — ${c.scene.details || ''}\n`;
+      if (c.boussole_puzzle) boussoleBlock += `Contrôle Boussole&Puzzle : ${c.boussole_puzzle.verdict} — ${c.boussole_puzzle.details || ''}\n`;
+      if (c.narrateur) boussoleBlock += `Contrôle Narrateur : ${c.narrateur.verdict} — ${c.narrateur.details || ''}\n`;
+    }
+
+    const systemPrompt = PROMPT_POSTURAL + '\n\n---\n\n' + PROMPT_OPERATOIRE;
+
+    const userPrompt = `Tu as écrit ce chapitre. L'éditeur l'a relu. Il a trouvé les défauts listés ci-dessous.
+
+Tu vas réécrire le chapitre en corrigeant UNIQUEMENT ces défauts. Tu gardes :
+- la voix du narrateur
+- le régime narratif
+- la scène, la structure, la séquence des moments
+- les motifs de la partition
+- ce qui tient déjà (ne réécris pas ce que l'éditeur n'a pas signalé)
+
+Tu corriges :
+- chaque passage cité par l'éditeur selon sa suggestion
+- les manifestations similaires que l'éditeur n'a pas explicitement citées mais qui tombent sous le même signal
+
+Si un passage est marqué "à couper", tu le supprimes sans le remplacer — fais confiance à ce qui l'entoure. Si un passage est marqué "à reformuler", tu trouves une formulation qui **fait voir** au lieu de **dire**.
+
+${boussoleBlock}
+
+DÉFAUTS IDENTIFIÉS PAR L'ÉDITEUR :
+${correctionsBlock}
+
+---
+
+TEXTE ACTUEL DU CHAPITRE :
+
+${originalText}
+
+---
+
+Réécris le chapitre en corrigeant les défauts. Ne commente pas, n'explique pas — produis directement le chapitre corrigé.`;
+
+    const maxTk = options.maxTokens || 8192;
+    session._onLog('↻ Réécriture ciblée — ' + editorReport.flags.length + ' flag(s), ' + originalCritical + ' critique(s)', 'info');
+
+    let rewritten;
+    try {
+      rewritten = await session.llmCall(systemPrompt, userPrompt, maxTk);
+    } catch (e) {
+      session._onLog('  ⚠ Échec LLM réécriture : ' + e.message + ' — on garde l\'original', 'warn');
+      return { text: originalText, accepted: false, reason: 'llm_error', error: e.message };
+    }
+
+    if (!rewritten || rewritten.trim().length < 300) {
+      session._onLog('  ⚠ Réécriture vide ou tronquée — on garde l\'original', 'warn');
+      return { text: originalText, accepted: false, reason: 'empty_rewrite' };
+    }
+
+    // Si une fonction de vérification est fournie, on re-vérifie
+    if (typeof verify === 'function') {
+      let postReport;
+      try {
+        postReport = await verify(rewritten);
+      } catch (e) {
+        session._onLog('  ⚠ Vérification post-réécriture a échoué : ' + e.message + ' — on garde l\'original', 'warn');
+        return { text: originalText, accepted: false, reason: 'verify_error' };
+      }
+      if (postReport && Array.isArray(postReport.flags)) {
+        const newFlags = postReport.flags.length;
+        const newCritical = postReport.flags.filter(f => f.severity === 'haute').length;
+        const improved = newFlags < originalFlags || newCritical < originalCritical;
+        if (improved) {
+          session._onLog('  ✓ Réécriture efficace : ' + originalFlags + ' → ' + newFlags + ' flag(s) (' + originalCritical + ' → ' + newCritical + ' critique(s))', 'ok');
+          session.chapters[chIdx].text = rewritten;
+          session.chapters[chIdx].wordCount = rewritten.split(/\s+/).filter(Boolean).length;
+          return {
+            text: rewritten,
+            accepted: true,
+            metrics: {
+              flags_before: originalFlags, flags_after: newFlags,
+              critical_before: originalCritical, critical_after: newCritical,
+            },
+            newReport: postReport,
+          };
+        } else {
+          session._onLog('  = Réécriture neutre ou dégrade : ' + originalFlags + ' → ' + newFlags + ' flag(s) — on garde l\'original', 'info');
+          return { text: originalText, accepted: false, reason: 'no_improvement', newReport: postReport };
+        }
+      }
+    }
+
+    // Sans vérification, on accepte la réécriture par défaut
+    session.chapters[chIdx].text = rewritten;
+    session.chapters[chIdx].wordCount = rewritten.split(/\s+/).filter(Boolean).length;
+    session._onLog('  ✓ Réécriture appliquée (sans vérification)', 'info');
+    return { text: rewritten, accepted: true, reason: 'no_verify' };
+  }
+
+  /**
+   * Phase 4 — Relecture Opus globale (post-écriture).
+   * Version enrichie V7.4 : rapport structuré en 4 sections, canon-compatible.
+   */
+  async function reviewBookOpus(session, options) {
     if (!session) throw new Error('AuteurNoyau.reviewBookOpus : session requise');
     if (!session.llmCall) throw new Error('AuteurNoyau.reviewBookOpus : ctx.llmCall non injecté');
     if (!session.chapters || session.chapters.length === 0) {
       throw new Error('Aucun chapitre à relire');
     }
-    // Construction du prompt de relecture globale (18 questions V7.3)
-    // Simplifié ici — le shell V7.3.7 avait sa logique propre qu'on ré-implémente
+    options = options || {};
+
     const fullBook = session.chapters.map(c => '# ' + c.title + '\n\n' + c.text).join('\n\n---\n\n');
-    const system = 'Tu es un éditeur senior qui relit un livre terminé. Tu juges sa tenue globale.';
-    const user = 'Voici le livre complet :\n\n' + fullBook + '\n\n---\n\nProduis un rapport de relecture structuré : (1) quels chapitres tiennent, (2) quels chapitres sont faibles et pourquoi, (3) quelles dilutions traversent le livre (motifs, redondances, gloses), (4) verdict final sur la tenue du livre.';
-    const report = await session.llmCall(system, user, 8192);
+    const partition = session.bookPartition;
+
+    const system = `Tu es un éditeur senior. Tu relis un livre terminé, chapitre par chapitre, puis dans sa totalité. Ton rôle est de juger sa TENUE GLOBALE — la cohérence qui émerge de l'ensemble, et pas juste de chaque chapitre pris isolément.
+
+Ton cadre canon :
+- La Boussole Souveraine (intrigue OU texte, sinon coupe) — appliquée au livre entier
+- Les 3 Contrôles (Scène / Puzzle / Narrateur) — au niveau du livre
+- Les 16 signaux d'auto-audit — au niveau du livre
+
+Ce que tu traques en particulier :
+- Motifs de la partition qui se chargent puis s'oublient
+- Régime narratif qui dérive au fil des chapitres
+- Péril du livre qui s'éteint dans la deuxième moitié
+- Chapitres qui ne révèlent rien au lecteur
+- Dilution cumulée — chaque chapitre est propre, mais le livre est mou
+- Progression dramatique absente ou cassée
+- Final qui ne porte pas ce que le livre a promis
+
+Tu produis un rapport structuré.`;
+
+    let partitionBlock = '';
+    if (partition) {
+      try { partitionBlock = '\n\nPARTITION DU LIVRE :\n' + JSON.stringify(partition, null, 2).substring(0, 3000); }
+      catch (_) {}
+    }
+
+    const user = `Voici le livre complet (${session.chapters.length} chapitres) :${partitionBlock}
+
+${fullBook}
+
+---
+
+Produis un rapport de relecture globale en 4 sections :
+
+## 1. TENUE DES CHAPITRES
+Pour chaque chapitre : verdict (tient / partiel / faible) + une phrase de justification.
+
+## 2. MOTIFS DE LA PARTITION
+Lesquels se sont chargés, à quels moments ? Lesquels se sont éteints ? Le saupoudrage a-t-il tenu jusqu'au bout ?
+
+## 3. DILUTIONS GLOBALES
+Qu'est-ce qui traverse le livre entier et le dilue ? (régime qui dérive, péril qui s'éteint, narrateur qui ressurgit, gloses cumulées, dettes empilées)
+
+## 4. VERDICT FINAL
+Le livre tient-il comme totalité ? Si non, où est le défaut le plus grave et que faut-il corriger en priorité ? Quels chapitres demandent un retour urgent ?
+
+Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
+
+    const maxTk = options.maxTokens || 8192;
+    const model = options.model || 'claude-opus-4-6';  // Opus pour la relecture globale canon
+
+    session._onLog('Relecture Opus globale en cours (' + session.chapters.length + ' chapitres)...', 'info');
+    const report = await session.llmCall(system, user, maxTk, model);
+    session.bookOpusReport = report;
     return report;
   }
 
@@ -5979,6 +6181,57 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
   function getPlan(session) { return session ? session.plan : null; }
   function getChapters(session) { return session ? session.chapters : []; }
   function getDiagnostic(session) { return session ? session.diagnostic : ''; }
+  function getBookOpusReport(session) { return session ? session.bookOpusReport : null; }
+  function getTokenUsage(session) { return session && session._tokenUsage ? session._tokenUsage : { in: 0, out: 0, calls: 0, cost_usd: 0 }; }
+
+  /**
+   * Sauvegarde — sérialisation d'une session en objet JSON-safe.
+   * Ne contient pas les callbacks (llmCall, onLog) — juste l'état.
+   */
+  function saveSession(session) {
+    if (!session) throw new Error('AuteurNoyau.saveSession : session requise');
+    return {
+      _format: 'ldv-session',
+      _version: VERSION,
+      _saved_at: new Date().toISOString(),
+      raw: session.raw || '',
+      parsed: session.parsed || null,
+      diagnostic: session.diagnostic || '',
+      plan: session.plan || null,
+      chapters: session.chapters || [],
+      backCover: session.backCover || '',
+      bookInvariant: session.bookInvariant || null,
+      bookPartition: session.bookPartition || null,
+      chapterMemory: session.chapterMemory || null,
+      bookOpusReport: session.bookOpusReport || null,
+      config: session.config || {},
+      _tokenUsage: session._tokenUsage || { in: 0, out: 0, calls: 0, cost_usd: 0 },
+    };
+  }
+
+  /**
+   * Restauration — recrée une session depuis un snapshot.
+   * ctx doit contenir les callbacks (llmCall, onLog) non sérialisables.
+   */
+  function restoreSession(data, ctx) {
+    if (!data || data._format !== 'ldv-session') {
+      throw new Error('AuteurNoyau.restoreSession : format invalide');
+    }
+    const session = createSession(ctx || {});
+    session.raw = data.raw || '';
+    session.parsed = data.parsed || null;
+    session.diagnostic = data.diagnostic || '';
+    session.plan = data.plan || null;
+    session.chapters = data.chapters || [];
+    session.backCover = data.backCover || '';
+    session.bookInvariant = data.bookInvariant || null;
+    session.bookPartition = data.bookPartition || null;
+    session.chapterMemory = data.chapterMemory || null;
+    session.bookOpusReport = data.bookOpusReport || null;
+    session.config = data.config || session.config || {};
+    session._tokenUsage = data._tokenUsage || { in: 0, out: 0, calls: 0, cost_usd: 0 };
+    return session;
+  }
 
   /**
    * Accès aux prompts (pour inspection/debug/audit).
@@ -6005,16 +6258,23 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
     supervisePartition,
     planBook,
     writeChapter,
+    rewriteTargeted,          // V7.4.1 — boucle Auteur ↔ Éditeur
     reviewBookOpus,
     buildBackCover,
     buildEpub,
+    // Persistance (V7.4.1)
+    saveSession,
+    restoreSession,
+    // Getters
     getChapterMemory,
     getPartition,
     getPlan,
     getChapters,
     getDiagnostic,
+    getBookOpusReport,         // V7.4.1
+    getTokenUsage,             // V7.4.1 — gouvernance coûts
     getPrompts,
-    // Core exposé pour debug avancé ou usage direct par le shell si besoin
+    // Core exposé pour debug avancé
     _AuteurCore: AuteurCore,
   };
 
