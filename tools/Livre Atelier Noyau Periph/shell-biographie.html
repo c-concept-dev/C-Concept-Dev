@@ -188,9 +188,22 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         <option value="off">Désactivée</option>
       </select>
     </div>
+    <div class="field"><label>Mémoire narrative structurée (V7.4.2)</label>
+      <select id="memoryMode">
+        <option value="full" selected>Complète (Sonnet — canon continuité, +~1.50 $/livre)</option>
+        <option value="light">Légère (Haiku — économique, +~0.30 $/livre)</option>
+        <option value="off">Désactivée (condensé 60 mots V7.3.7)</option>
+      </select>
+    </div>
     <div class="field"><label>Relecture Opus globale</label>
       <select id="opusMode">
         <option value="after" selected>Oui (Opus relit le livre avant 4e)</option>
+        <option value="off">Non</option>
+      </select>
+    </div>
+    <div class="field"><label>Éditeur transversal (V7.4.2)</label>
+      <select id="transversalMode">
+        <option value="after" selected>Oui (détecte dilutions traversantes avant la 4e)</option>
         <option value="off">Non</option>
       </select>
     </div>
@@ -259,7 +272,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 <script>
 (function () {
   'use strict';
-  const SHELL_VERSION = '7.4.1-alpha';
+  const SHELL_VERSION = '7.4.2-alpha';
   const AUTOSAVE_KEY = 'ldv_autosave_v74';
 
   const S = {
@@ -268,8 +281,10 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       model: 'claude-sonnet-4-6', length: 'long',
       workerUrl: 'https://clone-proxy.11drumboy11.workers.dev',
       editeurMode: 'hybrid', rewriteMode: 'auto', opusMode: 'after', execMode: 'api',
+      memoryMode: 'full',           // V7.4.2 — full | light | off
+      transversalMode: 'after',     // V7.4.2 — after | off
     },
-    currentStep: 0, rawMarkdown: '', editorReports: [],
+    currentStep: 0, rawMarkdown: '', editorReports: [], transversalReport: null,
   };
 
   const PRICING = {
@@ -481,6 +496,25 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       if (data._shell_config) S.config = Object.assign({}, S.config, data._shell_config);
       S.rawMarkdown = S.session.raw || '';
       updateTokenCounter();
+
+      // V7.4.2 — Synchroniser les selects avec la config restaurée (compat V7.4.1 : valeurs par défaut)
+      try {
+        if (document.getElementById('modelSelect')) document.getElementById('modelSelect').value = S.config.model;
+        if (document.getElementById('lengthSelect')) document.getElementById('lengthSelect').value = S.config.length;
+        if (document.getElementById('editeurMode')) document.getElementById('editeurMode').value = S.config.editeurMode;
+        if (document.getElementById('rewriteMode')) document.getElementById('rewriteMode').value = S.config.rewriteMode;
+        if (document.getElementById('opusMode')) document.getElementById('opusMode').value = S.config.opusMode;
+        // V7.4.2 — memoryMode et transversalMode peuvent être absents des sessions V7.4.1
+        if (document.getElementById('memoryMode')) {
+          document.getElementById('memoryMode').value = S.config.memoryMode || 'full';
+          S.config.memoryMode = S.config.memoryMode || 'full';
+        }
+        if (document.getElementById('transversalMode')) {
+          document.getElementById('transversalMode').value = S.config.transversalMode || 'after';
+          S.config.transversalMode = S.config.transversalMode || 'after';
+        }
+      } catch (_) {}
+
       const targetStep = data._shell_step || 0;
       if (S.session.parsed) {
         renderAnalysis(S.session.parsed);
@@ -714,6 +748,17 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
           }
         }
 
+        // V7.4.2 — Résumé narratif structuré après chaque chapitre
+        // (après éventuelle réécriture, pour résumer la version finale)
+        if (S.config.memoryMode && S.config.memoryMode !== 'off') {
+          try {
+            await AuteurNoyau.generateChapterResume(S.session, i, { mode: S.config.memoryMode });
+          } catch (e) {
+            log('writeLog', '  ⚠ Résumé structuré Ch.' + (i + 1) + ' a échoué : ' + e.message, 'warn');
+            // Non bloquant : on continue même si le résumé rate
+          }
+        }
+
         document.getElementById('chNum' + i).classList.remove('active');
         document.getElementById('chNum' + i).classList.add('done');
         document.getElementById('writeProgress').style.width = Math.round(((i + 1) / nbCh) * 100) + '%';
@@ -730,28 +775,134 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
   async function runOpusGlobal() {
     setStep(3.5);
-    if (S.config.opusMode === 'off') {
-      document.getElementById('opusStatus').textContent = 'Relecture Opus désactivée.';
+    const doOpus = S.config.opusMode !== 'off';
+    const doTransversal = S.config.transversalMode !== 'off';
+
+    if (!doOpus && !doTransversal) {
+      document.getElementById('opusStatus').textContent = 'Relecture globale désactivée.';
       document.getElementById('toStep4Btn').style.display = 'block';
       return;
     }
-    setHeaderStatus('Opus relit...');
-    document.getElementById('opusStatus').textContent = 'Opus relit le livre complet...';
-    document.getElementById('opusOutput').style.display = 'none';
-    try {
-      const report = await AuteurNoyau.reviewBookOpus(S.session, { model: 'claude-opus-4-6' });
-      document.getElementById('opusStatus').textContent =
-        'Relecture terminée — ' + report.split(/\s+/).length + ' mots de rapport';
-      document.getElementById('opusOutput').style.display = 'block';
-      document.getElementById('opusOutput').textContent = report;
-      document.getElementById('toStep4Btn').style.display = 'block';
-      setHeaderStatus('Opus OK');
-      scheduleAutosave();
-    } catch (e) {
-      document.getElementById('opusStatus').textContent = 'Erreur : ' + e.message;
-      document.getElementById('toStep4Btn').style.display = 'block';
-      console.error(e);
+
+    const outputZone = document.getElementById('opusOutput');
+    outputZone.style.display = 'block';
+    outputZone.textContent = '';
+
+    // 1. Éditeur transversal d'abord (V7.4.2) — rapport structurel JSON
+    if (doTransversal) {
+      setHeaderStatus('Éditeur transversal...');
+      document.getElementById('opusStatus').textContent = 'Éditeur transversal — détection des dilutions traversantes...';
+      try {
+        const transReport = await EditeurNoyau.reviewBookTransversal(S.session, S.session.llmCall, {
+          model: 'claude-opus-4-6',
+        });
+        S.transversalReport = transReport;
+
+        // Rendu textuel lisible du rapport JSON
+        let txt = '╔═══════════════════════════════════════════╗\n';
+        txt += '║  RAPPORT ÉDITEUR TRANSVERSAL (V7.4.2)     ║\n';
+        txt += '╚═══════════════════════════════════════════╝\n\n';
+        txt += 'Verdict global : ' + (transReport.verdict_global || 'indéterminé').toUpperCase() + '\n';
+        if (transReport.justification_verdict) txt += transReport.justification_verdict + '\n';
+        txt += '\n';
+
+        if (transReport.progression_peril) {
+          txt += '▸ PROGRESSION DU PÉRIL : ' + transReport.progression_peril.etat + '\n';
+          if (transReport.progression_peril.commentaire) txt += '  ' + transReport.progression_peril.commentaire + '\n';
+          if (transReport.progression_peril.chapitres_critiques && transReport.progression_peril.chapitres_critiques.length > 0) {
+            txt += '  Chapitres concernés : ' + transReport.progression_peril.chapitres_critiques.join(', ') + '\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.regime_narratif) {
+          txt += '▸ RÉGIME NARRATIF : ' + transReport.regime_narratif.etat + '\n';
+          if (transReport.regime_narratif.commentaire) txt += '  ' + transReport.regime_narratif.commentaire + '\n';
+          txt += '\n';
+        }
+
+        if (transReport.cartographie_motifs && transReport.cartographie_motifs.length > 0) {
+          txt += '▸ CARTOGRAPHIE DES MOTIFS\n';
+          for (const m of transReport.cartographie_motifs) {
+            txt += '  • "' + m.motif + '" — ' + m.etat + '\n';
+            if (m.chapitres_actifs) txt += '      Actif : Ch.' + m.chapitres_actifs.join(', Ch.') + '\n';
+            if (m.chapitres_silencieux && m.chapitres_silencieux.length > 0) {
+              txt += '      Silencieux : Ch.' + m.chapitres_silencieux.join(', Ch.') + '\n';
+            }
+            if (m.commentaire) txt += '      ' + m.commentaire + '\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.dettes_non_refermees && transReport.dettes_non_refermees.length > 0) {
+          txt += '▸ DETTES OUVERTES NON REFERMÉES\n';
+          for (const d of transReport.dettes_non_refermees) {
+            txt += '  ⚠ ' + d.nature + ' (ouverte Ch.' + d.chapitre_ouverture + ' — ' + d.jugement + ')\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.echos_non_repris && transReport.echos_non_repris.length > 0) {
+          txt += '▸ ÉCHOS NON REPRIS\n';
+          for (const e of transReport.echos_non_repris) {
+            txt += '  • "' + e.element + '" (posé Ch.' + e.chapitre_pose + ', intensité ' + e.intensite_pose + ', jugement : ' + e.jugement + ')\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.coupures_narratives && transReport.coupures_narratives.length > 0) {
+          txt += '▸ COUPURES NARRATIVES\n';
+          for (const c of transReport.coupures_narratives) {
+            txt += '  • Ch.' + c.chapitres + ' — ' + c.nature;
+            if (c.commentaire) txt += ' (' + c.commentaire + ')';
+            txt += '\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.dilutions_cumulees && transReport.dilutions_cumulees.present) {
+          txt += '▸ DILUTIONS CUMULÉES\n';
+          txt += '  ' + transReport.dilutions_cumulees.description + '\n\n';
+        }
+
+        if (transReport.chapitres_prioritaires_a_retravailler && transReport.chapitres_prioritaires_a_retravailler.length > 0) {
+          txt += '▸ CHAPITRES À RETRAVAILLER EN PRIORITÉ\n';
+          for (const c of transReport.chapitres_prioritaires_a_retravailler) {
+            txt += '  • Ch.' + c.ch + ' — ' + c.raison + '\n';
+          }
+          txt += '\n';
+        }
+
+        outputZone.textContent = txt;
+        document.getElementById('opusStatus').textContent =
+          'Éditeur transversal terminé. Verdict : ' + (transReport.verdict_global || 'indéterminé') + '.';
+      } catch (e) {
+        log('writeLog', 'Éditeur transversal a échoué : ' + e.message, 'err');
+        outputZone.textContent = '(Éditeur transversal a échoué : ' + e.message + ')\n\n';
+      }
     }
+
+    // 2. Opus global ensuite (V7.4.1) — rapport narratif littéraire
+    if (doOpus) {
+      setHeaderStatus('Opus relit...');
+      const prevText = outputZone.textContent;
+      document.getElementById('opusStatus').textContent = 'Opus relit le livre complet en prose...';
+      try {
+        const report = await AuteurNoyau.reviewBookOpus(S.session, { model: 'claude-opus-4-6' });
+        outputZone.textContent = prevText + '\n\n╔═══════════════════════════════════════════╗\n║  RELECTURE OPUS GLOBALE                   ║\n╚═══════════════════════════════════════════╝\n\n' + report;
+        document.getElementById('opusStatus').textContent =
+          'Relecture terminée — ' + report.split(/\s+/).length + ' mots de rapport Opus' +
+          (doTransversal ? ' + rapport transversal structurel' : '') + '.';
+      } catch (e) {
+        log('writeLog', 'Opus global a échoué : ' + e.message, 'err');
+        outputZone.textContent = prevText + '\n\n(Opus global a échoué : ' + e.message + ')';
+      }
+    }
+
+    document.getElementById('toStep4Btn').style.display = 'block';
+    setHeaderStatus('Relectures OK');
+    scheduleAutosave();
+    return;
   }
 
   async function runBackCover() {
@@ -799,6 +950,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       document.getElementById('dlReport').onclick = () => {
         const reports = {
           opus_global: AuteurNoyau.getBookOpusReport(S.session) || '',
+          transversal_report: S.transversalReport || null,     // V7.4.2
+          chapter_resumes: AuteurNoyau.getChapterResumes(S.session),  // V7.4.2
           editor_reports: S.editorReports,
           token_usage: AuteurNoyau.getTokenUsage(S.session),
         };
@@ -868,7 +1021,9 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     document.getElementById('workerUrl').addEventListener('change', (e) => S.config.workerUrl = e.target.value);
     document.getElementById('editeurMode').addEventListener('change', (e) => S.config.editeurMode = e.target.value);
     document.getElementById('rewriteMode').addEventListener('change', (e) => S.config.rewriteMode = e.target.value);
+    document.getElementById('memoryMode').addEventListener('change', (e) => S.config.memoryMode = e.target.value);
     document.getElementById('opusMode').addEventListener('change', (e) => S.config.opusMode = e.target.value);
+    document.getElementById('transversalMode').addEventListener('change', (e) => S.config.transversalMode = e.target.value);
 
     document.querySelectorAll('.mode-toggle button').forEach(btn => {
       btn.addEventListener('click', () => {
