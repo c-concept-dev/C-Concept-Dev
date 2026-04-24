@@ -63,7 +63,7 @@
 (function (global) {
   'use strict';
 
-  const VERSION = '7.4.1-alpha';
+  const VERSION = '7.4.2-alpha';
 
   // ─────────────────────────────────────────────────────────────────
   // HELPERS INTERNES
@@ -1355,6 +1355,270 @@ Règles absolues :
     };
   }
 
+  // ═════════════════════════════════════════════════════════════════
+  // V7.4.2 — ÉDITEUR TRANSVERSAL
+  // ═════════════════════════════════════════════════════════════════
+  //
+  // L'Éditeur classique (déterministe, LLM ou hybride) relit chaque chapitre
+  // isolément. Il ne voit pas les DILUTIONS TRANSVERSALES — un chapitre peut
+  // être propre, deux chapitres peuvent être propres, mais l'ensemble des
+  // trois peut diluer le livre parce qu'un motif qu'on attendait n'apparaît
+  // nulle part, qu'une dette ouverte n'est jamais refermée, qu'un personnage
+  // est oublié au milieu du livre.
+  //
+  // reviewBookTransversal lit le livre entier en un seul appel LLM, avec
+  // la mémoire structurée agrégée (si disponible depuis V7.4.2 Bloc 1), et
+  // produit un rapport structurel qui pointe précisément les chapitres et
+  // passages concernés.
+  //
+  // Options :
+  //   scope : 'progression' | 'motifs' | 'dettes' | 'all' (défaut 'all')
+  //   at_chapter : N — relire le livre jusqu'au chapitre N seulement (utile
+  //     pour un check en cours d'écriture)
+  //   model : défaut 'claude-opus-4-6'
+  // ═════════════════════════════════════════════════════════════════
+
+  const PROMPT_SYSTEME_EDITEUR_TRANSVERSAL = `Tu es un éditeur senior qui lit un livre en le prenant comme totalité, pas comme une succession de chapitres.
+
+Tu as la Boussole Souveraine, les 3 Contrôles, les 16 signaux — mais tu les appliques ici à l'échelle du livre entier, pas d'un chapitre.
+
+Ce que tu cherches :
+
+1. **Progression du péril** — Le péril installé au chapitre 1 s'intensifie-t-il ? Disparaît-il ? Où se charge-t-il ? Où s'éteint-il ?
+
+2. **Tenue du régime narratif** — Le POV est-il stable ? Y a-t-il des dérives ?
+
+3. **Cartographie des motifs-pivots** — Chaque motif parcourt-il sa séquence de stades ? Certains sont-ils abandonnés en cours de route ? Sont-ils au contraire utilisés à l'identique (répétition, pas mutation) ?
+
+4. **Dettes ouvertes non refermées** — Quelles questions, attentes, ambiguïtés le livre a-t-il installées sans les refermer ? Leur non-résolution est-elle voulue (canon) ou un oubli (dilution) ?
+
+5. **Échos posés non repris** — Quels éléments (images, gestes, objets) ont été posés avec force puis abandonnés ? Le livre prépare-t-il des résonances qu'il ne déclenche jamais ?
+
+6. **Coupures narratives** — Y a-t-il des ruptures entre chapitres que rien ne justifie ? Un personnage qui disparaît, un lieu qui s'oublie, une scène qui semble désarticulée du reste ?
+
+7. **Dilution cumulée** — Le livre entier est-il tenu, ou s'effiloche-t-il malgré des chapitres individuellement corrects ?
+
+Tu ne refais pas la relecture chapitre par chapitre. Tu regardes la TOTALITÉ et tu pointes ce qui traverse, ce qui cumule, ce qui se perd.
+
+---
+
+## SORTIE — JSON strict
+
+\`\`\`json
+{
+  "verdict_global": "tient | partiel | faible",
+  "justification_verdict": "2-3 phrases qui disent pourquoi",
+
+  "progression_peril": {
+    "etat": "s'intensifie | stable | s'éteint | absent",
+    "chapitres_critiques": [N, N, N],
+    "commentaire": "où et comment"
+  },
+
+  "regime_narratif": {
+    "etat": "stable | dérive | rupture",
+    "chapitres_suspects": [N, N],
+    "commentaire": "précisions"
+  },
+
+  "cartographie_motifs": [
+    {
+      "motif": "le mot-pivot",
+      "chapitres_actifs": [N, N, N],
+      "chapitres_silencieux": [N, N],
+      "etat": "charge croissante | abandonné | répété-identique | mute-correctement",
+      "commentaire": ""
+    }
+  ],
+
+  "dettes_non_refermees": [
+    {
+      "nature": "la dette",
+      "chapitre_ouverture": N,
+      "jugement": "oubli dilutif | suspens voulu | peut tolérer de rester ouverte"
+    }
+  ],
+
+  "echos_non_repris": [
+    {
+      "element": "l'élément posé",
+      "chapitre_pose": N,
+      "intensite_pose": "forte | moyenne | faible",
+      "jugement": "manque résonance | acceptable"
+    }
+  ],
+
+  "coupures_narratives": [
+    {
+      "chapitres": "N → N+1",
+      "nature": "personnage oublié | lieu perdu | scène désarticulée",
+      "commentaire": ""
+    }
+  ],
+
+  "dilutions_cumulees": {
+    "present": true,
+    "description": "si oui : ce qui dilue à l'échelle du livre"
+  },
+
+  "chapitres_prioritaires_a_retravailler": [
+    { "ch": N, "raison": "ce qui cloche, ce qu'il faudrait faire" }
+  ]
+}
+\`\`\`
+
+Tu produis UNIQUEMENT le JSON. Pas de préambule, pas de commentaire autour.`;
+
+  async function reviewBookTransversal(session, llmCall, options) {
+    if (!session) throw new Error('reviewBookTransversal : session requise');
+    if (!llmCall) throw new Error('reviewBookTransversal : llmCall requis');
+    options = options || {};
+    const scope = options.scope || 'all';
+    const atChapter = options.at_chapter || null;
+    const model = options.model || 'claude-opus-4-6';
+
+    const chapters = session.chapters || [];
+    if (chapters.length === 0) throw new Error('reviewBookTransversal : aucun chapitre');
+
+    // Limite éventuelle de portée
+    const limit = atChapter ? Math.min(atChapter, chapters.length) : chapters.length;
+    const chaptersToReview = chapters.slice(0, limit);
+
+    // Construction du contexte : partition + résumés structurés (si dispo) + texte bref de chaque chapitre
+    const partition = session.bookPartition || null;
+    const chapterMemory = session.chapterMemory || null;
+
+    let userContext = '';
+    if (session.plan && session.plan.title) {
+      userContext += `LIVRE : "${session.plan.title}"`;
+      if (session.plan.subtitle) userContext += ` — ${session.plan.subtitle}`;
+      userContext += '\n';
+    }
+    userContext += `Nombre de chapitres analysés : ${chaptersToReview.length}`;
+    if (atChapter) userContext += ` (sur ${chapters.length} au total — analyse en cours d'écriture)`;
+    userContext += '\n\n';
+
+    // Partition concentrée
+    if (partition) {
+      userContext += '═══ PARTITION ═══\n';
+      if (partition.regime_narratif) {
+        const rn = partition.regime_narratif;
+        userContext += `Régime narratif : ${rn.pov || 'non spécifié'}\n`;
+      }
+      if (partition.dynamique_narrative) {
+        const dn = partition.dynamique_narrative;
+        if (dn.tension_centrale) userContext += `Tension centrale : ${dn.tension_centrale}\n`;
+      }
+      if (partition.procedes_de_transe) {
+        const pt = partition.procedes_de_transe;
+        const motifs = (pt.mots_pivots_isomorphes || []).map(m => typeof m === 'string' ? m : m.mot).filter(Boolean);
+        if (motifs.length > 0) {
+          userContext += `Motifs-pivots isomorphes : ${motifs.join(', ')}\n`;
+        }
+      }
+      userContext += '\n';
+    }
+
+    // Invariant du livre
+    if (session.bookInvariant) {
+      const bi = session.bookInvariant;
+      userContext += '═══ INVARIANT DU LIVRE ═══\n';
+      if (bi.question_moteur) userContext += `Question-moteur : ${bi.question_moteur}\n`;
+      if (bi.peril) userContext += `Péril : ${bi.peril}\n`;
+      if (bi.urgence_temporelle) userContext += `Urgence temporelle : ${bi.urgence_temporelle}\n`;
+      if (bi.arc_transformation) userContext += `Arc : ${bi.arc_transformation}\n`;
+      userContext += '\n';
+    }
+
+    // Résumés structurés (si Bloc 1 V7.4.2 a tourné)
+    const resumesStructures = chapterMemory && chapterMemory.chapitres
+      ? chapterMemory.chapitres.filter(c => c.resume_structure && c.num <= limit)
+      : [];
+
+    if (resumesStructures.length > 0) {
+      userContext += '═══ RÉSUMÉS STRUCTURÉS DES CHAPITRES (mémoire V7.4.2) ═══\n';
+      for (const c of resumesStructures) {
+        const r = c.resume_structure;
+        userContext += `\nCh.${c.num} "${c.titre}"\n`;
+        if (r.resume_narratif) userContext += `  Résumé : ${r.resume_narratif}\n`;
+
+        const pers = (r.personnages_actifs || []).map(p => p.nom).filter(Boolean);
+        if (pers.length) userContext += `  Personnages : ${pers.join(', ')}\n`;
+
+        const lieux = (r.lieux_decrits || []).map(l => l.nom).filter(Boolean);
+        if (lieux.length) userContext += `  Lieux : ${lieux.join(', ')}\n`;
+
+        const dettesO = (r.dettes_ouvertes || []).map(d => d.nature).filter(Boolean);
+        if (dettesO.length) userContext += `  Dettes ouvertes ici : ${dettesO.join(' | ')}\n`;
+
+        const dettesR = (r.dettes_refermees || []).map(d => d.nature).filter(Boolean);
+        if (dettesR.length) userContext += `  Dettes refermées ici : ${dettesR.join(' | ')}\n`;
+
+        const echos = (r.echos_poses || []).map(e => e.element).filter(Boolean);
+        if (echos.length) userContext += `  Échos posés ici : ${echos.join(', ')}\n`;
+
+        const echosR = (r.echos_repris || []).map(e => e.element).filter(Boolean);
+        if (echosR.length) userContext += `  Échos repris ici : ${echosR.join(', ')}\n`;
+      }
+      userContext += '\n';
+    } else {
+      // Pas de résumés structurés — fournir les textes bruts (tronqués)
+      userContext += '═══ CHAPITRES — PREMIERS MOTS DE CHAQUE ═══\n';
+      for (let i = 0; i < chaptersToReview.length; i++) {
+        const ch = chaptersToReview[i];
+        const first200 = (ch.text || '').split(/\s+/).slice(0, 200).join(' ');
+        userContext += `\nCh.${i + 1} "${ch.title || 'sans titre'}"\n${first200}${(ch.text || '').length > first200.length ? '...' : ''}\n`;
+      }
+      userContext += '\n';
+    }
+
+    // Scope ciblé : on ajoute une instruction au user prompt
+    let scopeInstr = '';
+    if (scope !== 'all') {
+      const scopeMap = {
+        progression: 'Focus : progression du péril uniquement.',
+        motifs: 'Focus : cartographie des motifs-pivots uniquement.',
+        dettes: 'Focus : dettes ouvertes non refermées uniquement.',
+      };
+      scopeInstr = `\n\nATTENTION : ${scopeMap[scope] || ''}\nLes autres registres du JSON peuvent être vides ou omis.`;
+    }
+
+    const userPrompt = userContext + '---\n\nProduis le rapport transversal en JSON strict selon les règles du prompt système.' + scopeInstr;
+
+    const raw = await llmCall(PROMPT_SYSTEME_EDITEUR_TRANSVERSAL, userPrompt, 4000, model);
+
+    // Parse tolérant
+    let verdict;
+    try {
+      let s = raw.trim();
+      const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fence) s = fence[1].trim();
+      const firstBrace = s.indexOf('{');
+      const lastBrace = s.lastIndexOf('}');
+      if (firstBrace < 0 || lastBrace < 0) throw new Error('Pas de JSON détecté');
+      verdict = JSON.parse(s.substring(firstBrace, lastBrace + 1));
+    } catch (e) {
+      return {
+        meta: { version: VERSION, date: new Date().toISOString(), mode: 'transversal', scope, at_chapter: atChapter, error: 'JSON parse error: ' + e.message },
+        raw_response: raw,
+        verdict_global: 'indéterminé',
+      };
+    }
+
+    return {
+      meta: {
+        version: VERSION,
+        date: new Date().toISOString(),
+        mode: 'transversal',
+        scope,
+        at_chapter: atChapter,
+        chapters_analyzed: chaptersToReview.length,
+        used_structured_memory: resumesStructures.length > 0,
+      },
+      ...verdict,
+    };
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // EXPORT PUBLIC
   // ─────────────────────────────────────────────────────────────────
@@ -1376,8 +1640,11 @@ Règles absolues :
     reviewChapterLLM,
     reviewChapterHybrid,
     reviewBookLLM,
+    // V7.4.2 — Éditeur transversal (dilutions qui traversent le livre entier)
+    reviewBookTransversal,
     // Prompt exposé pour inspection/debug
     PROMPT_SYSTEME_EDITEUR_LLM,
+    PROMPT_SYSTEME_EDITEUR_TRANSVERSAL,
     // Rendu
     renderReportHTML,
     renderTextWithHighlights,
