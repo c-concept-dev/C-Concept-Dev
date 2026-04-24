@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<!--
+╔═══════════════════════════════════════════════════════════════╗
+║  SHELL DIFF — Livre de Vie Atelier V7.4.1                     ║
+║  C Concept&Dev — Christophe BONNET                            ║
+║                                                               ║
+║  Utilitaire autonome. Ne charge aucun noyau.                  ║
+║  Compare deux manuscrits chapitre par chapitre.              ║
+║                                                               ║
+║  Formats acceptés :                                          ║
+║    - .epub (parsé via JSZip)                                 ║
+║    - .md / .txt (découpage par "# Titre")                    ║
+║    - .ldv.json (projet V7.4 — lecture directe de chapters)   ║
+║                                                               ║
+║  Usage typique :                                             ║
+║    - V1 = un livre produit avec V7.3.7                       ║
+║    - V2 = le même sujet produit avec V7.4.1                  ║
+║    → Voir ce qui a changé, chapitre par chapitre             ║
+╚═══════════════════════════════════════════════════════════════╝
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier Diff — Livre de Vie V7.4.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --mer:#8FAFB1; --deep:#3A5658; --sable:#E6D7C3; --beige:#D8CDBB;
+  --sauge:#C8D0C3; --blanc:#FFFFFF; --ink:#2d2d2d; --ink2:#666;
+  --encre:#1a1a1a; --paper:#f9f7f3; --accent:#c47a4a;
+  --fond:linear-gradient(160deg,#f4f0ea 0%,#e6d7c3 50%,#d8cdbb 100%);
+  --radius:14px; --shadow:0 8px 32px rgba(58,86,88,.12);
+  --book:'Cormorant Garamond','Georgia',serif;
+  --ui:'Montserrat','Segoe UI',sans-serif;
+  --diff-add-bg:rgba(74,138,92,.15); --diff-add-border:#4a8a5c;
+  --diff-del-bg:rgba(196,68,68,.12); --diff-del-border:#c44;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:100vh}
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(58,86,88,.97);backdrop-filter:blur(12px);
+  padding:14px 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  box-shadow:0 2px 20px rgba(0,0,0,.15);
+}
+.brand{color:var(--mer);font-size:.6rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase}
+.title{color:var(--blanc);font-family:var(--book);font-size:1.1rem;font-weight:600;flex:1;min-width:200px}
+.status{color:var(--sauge);font-size:.72rem;font-weight:500}
+
+.body-wrap{max-width:1400px;margin:0 auto;padding:24px 20px 80px}
+
+.intro-card{
+  background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:24px 28px;margin-bottom:20px;
+}
+.intro-title{font-family:var(--book);font-size:1.5rem;font-weight:700;color:var(--deep);margin-bottom:4px}
+.intro-sub{font-size:.78rem;color:var(--ink2);margin-bottom:16px;line-height:1.5}
+
+.drop-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:800px){.drop-row{grid-template-columns:1fr}}
+
+.drop-col{display:flex;flex-direction:column;gap:10px}
+.drop-col label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2)}
+.drop-zone{
+  border:2px dashed var(--sauge);border-radius:var(--radius);padding:24px 16px;
+  text-align:center;cursor:pointer;transition:all .3s;background:var(--paper);
+}
+.drop-zone.left{border-color:rgba(196,68,68,.4)}
+.drop-zone.right{border-color:rgba(74,138,92,.4)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--mer);background:rgba(143,175,177,.06)}
+.drop-icon{font-size:1.4rem;margin-bottom:6px}
+.drop-label{font-size:.78rem;color:var(--ink2)}
+.drop-label.loaded{color:var(--deep);font-weight:600}
+.drop-meta{font-size:.65rem;color:var(--ink2);margin-top:6px}
+
+.btn{
+  display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  padding:12px 28px;border:none;border-radius:10px;
+  font-family:var(--ui);font-size:.82rem;font-weight:600;
+  cursor:pointer;transition:all .3s;
+}
+.btn-primary{background:var(--deep);color:var(--blanc);width:100%}
+.btn-primary:hover:not(:disabled){background:#2d4a4c}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--deep);border:2px solid var(--sauge)}
+.btn-ghost:hover{border-color:var(--deep)}
+
+.options-row{display:flex;gap:16px;margin:16px 0;align-items:center;flex-wrap:wrap;font-size:.75rem}
+.options-row label{display:flex;align-items:center;gap:6px;color:var(--ink);cursor:pointer}
+
+.stats-card{
+  background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:20px 24px;margin-bottom:20px;display:none;
+}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.stat{padding:12px;background:var(--paper);border-radius:8px}
+.stat-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);font-weight:700;margin-bottom:4px}
+.stat-value{font-size:1.3rem;color:var(--deep);font-weight:700}
+.stat-delta{font-size:.7rem;color:var(--ink2);margin-top:2px}
+.stat-delta.pos{color:#4a8a5c}
+.stat-delta.neg{color:#c44}
+
+.chapter-nav{
+  background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 24px;margin-bottom:16px;display:none;
+}
+.chapter-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.chapter-tab{
+  flex-shrink:0;padding:8px 14px;border-radius:6px;font-size:.72rem;
+  border:1px solid var(--sauge);background:var(--paper);cursor:pointer;
+  font-family:var(--ui);color:var(--ink2);font-weight:600;transition:all .2s;
+  white-space:nowrap;
+}
+.chapter-tab:hover{border-color:var(--mer)}
+.chapter-tab.active{background:var(--deep);color:var(--blanc);border-color:var(--deep)}
+.chapter-tab .changes{
+  display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;
+  background:rgba(196,122,74,.15);color:var(--accent);font-size:.6rem;
+}
+
+.diff-card{
+  background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:0;margin-bottom:20px;display:none;overflow:hidden;
+}
+.diff-header{
+  padding:16px 24px;border-bottom:1px solid var(--sauge);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+}
+.diff-header-title{font-family:var(--book);font-size:1.1rem;color:var(--deep);font-weight:600}
+.diff-mode-toggle{display:flex;gap:4px;background:var(--paper);padding:3px;border-radius:8px}
+.diff-mode-toggle button{
+  padding:6px 12px;border:none;background:transparent;cursor:pointer;
+  border-radius:6px;font-family:var(--ui);font-size:.68rem;font-weight:600;color:var(--ink2);
+}
+.diff-mode-toggle button.active{background:var(--deep);color:var(--blanc)}
+
+.diff-split{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--sauge)}
+.diff-side{background:var(--blanc);padding:20px 24px;overflow-y:auto;max-height:70vh}
+.diff-side h4{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--sauge)}
+.diff-side-left h4{color:#c44}
+.diff-side-right h4{color:#4a8a5c}
+
+.diff-unified{padding:20px 24px;max-height:70vh;overflow-y:auto}
+
+.diff-line{
+  font-family:var(--book);font-size:.92rem;line-height:1.7;
+  padding:2px 10px;border-radius:4px;margin:2px 0;white-space:pre-wrap;word-break:break-word;
+}
+.diff-line.same{color:var(--ink)}
+.diff-line.add{background:var(--diff-add-bg);border-left:3px solid var(--diff-add-border)}
+.diff-line.del{background:var(--diff-del-bg);border-left:3px solid var(--diff-del-border);text-decoration:line-through;opacity:.75}
+.diff-line.modified-right{background:var(--diff-add-bg);border-left:3px solid var(--diff-add-border)}
+.diff-line.modified-left{background:var(--diff-del-bg);border-left:3px solid var(--diff-del-border)}
+
+.placeholder{text-align:center;color:var(--ink2);font-size:.82rem;padding:40px 20px;font-style:italic}
+
+.canon-banner{
+  background:linear-gradient(90deg,rgba(143,175,177,.1),rgba(200,208,195,.1));
+  border-left:3px solid var(--mer);border-radius:6px;
+  padding:10px 14px;margin-bottom:16px;font-size:.72rem;color:var(--ink);
+}
+.canon-banner strong{color:var(--deep)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">C Concept&amp;Dev</div>
+  <div class="title">Atelier Diff <span style="font-size:0.7em;opacity:0.6">V7.4.1-alpha</span></div>
+  <div class="status" id="headerStatus">En attente</div>
+</div>
+
+<div class="body-wrap">
+
+  <div class="intro-card">
+    <div class="canon-banner">
+      <strong>Utilitaire autonome.</strong> Charge deux manuscrits (EPUB, Markdown ou projet .ldv.json) et compare chapitre par chapitre. Aucun appel LLM. Aucun noyau nécessaire. Tout se passe côté navigateur.
+    </div>
+    <div class="intro-title">Comparer deux manuscrits</div>
+    <div class="intro-sub">Utile pour tester une réécriture, comparer V7.3.7 vs V7.4.1 sur le même sujet, ou visualiser ce que la boucle Auteur ↔ Éditeur a changé.</div>
+
+    <div class="drop-row">
+      <div class="drop-col">
+        <label>Version 1 (gauche)</label>
+        <div class="drop-zone left" id="dropLeft">
+          <div class="drop-icon">📕</div>
+          <div class="drop-label" id="labelLeft">Déposer la v1</div>
+          <div class="drop-meta" id="metaLeft">.epub, .md, .txt, .ldv.json</div>
+          <input type="file" id="fileLeft" accept=".epub,.md,.txt,.json,.ldv.json" style="display:none">
+        </div>
+      </div>
+      <div class="drop-col">
+        <label>Version 2 (droite)</label>
+        <div class="drop-zone right" id="dropRight">
+          <div class="drop-icon">📗</div>
+          <div class="drop-label" id="labelRight">Déposer la v2</div>
+          <div class="drop-meta" id="metaRight">.epub, .md, .txt, .ldv.json</div>
+          <input type="file" id="fileRight" accept=".epub,.md,.txt,.json,.ldv.json" style="display:none">
+        </div>
+      </div>
+    </div>
+
+    <div class="options-row">
+      <label><input type="checkbox" id="optWords" checked> Diff mot-à-mot (plus précis)</label>
+      <label><input type="checkbox" id="optWhitespace"> Ignorer les espaces/ponctuation</label>
+    </div>
+
+    <button class="btn btn-primary" id="btnCompare" disabled>Comparer</button>
+  </div>
+
+  <div class="stats-card" id="statsCard">
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">V1 — chapitres</div>
+        <div class="stat-value" id="statChLeft">—</div>
+        <div class="stat-delta" id="statWordsLeft">— mots</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">V2 — chapitres</div>
+        <div class="stat-value" id="statChRight">—</div>
+        <div class="stat-delta" id="statWordsRight">— mots</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Δ mots (total)</div>
+        <div class="stat-value" id="statDelta">—</div>
+        <div class="stat-delta" id="statDeltaPct">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Chapitres changés</div>
+        <div class="stat-value" id="statChanged">—</div>
+        <div class="stat-delta" id="statIdentical">— identiques</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chapter-nav" id="chapterNav">
+    <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);margin-bottom:10px">Chapitres</div>
+    <div class="chapter-tabs" id="chapterTabs"></div>
+  </div>
+
+  <div class="diff-card" id="diffCard">
+    <div class="diff-header">
+      <div class="diff-header-title" id="diffHeaderTitle">—</div>
+      <div class="diff-mode-toggle">
+        <button type="button" class="active" data-view="split">Côte à côte</button>
+        <button type="button" data-view="unified">Unifié</button>
+      </div>
+    </div>
+    <div id="diffContent">
+      <div class="placeholder">Sélectionne un chapitre pour voir le diff.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const SHELL_VERSION = '7.4.1-alpha';
+
+  const S = {
+    left: null,   // { chapters: [{title, text, wordCount}], name }
+    right: null,
+    options: { words: true, whitespace: false },
+    activeChapter: 0,
+    viewMode: 'split',
+  };
+
+  // ─── HELPERS ─────────────────────────────────────────────────
+
+  function setHeaderStatus(msg) {
+    document.getElementById('headerStatus').textContent = msg;
+  }
+
+  function escapeHTML(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  function countWords(text) {
+    return (text || '').split(/\s+/).filter(Boolean).length;
+  }
+
+  // ─── EXTRACTION DE MANUSCRITS ────────────────────────────────
+
+  async function extractManuscript(file) {
+    const name = file.name;
+    const ext = name.toLowerCase().split('.').pop();
+
+    if (ext === 'md' || ext === 'txt') {
+      const txt = await file.text();
+      return { name, chapters: splitMarkdown(txt) };
+    }
+
+    if (ext === 'json') {
+      const raw = await file.text();
+      const j = JSON.parse(raw);
+      if (j._format === 'ldv-session' && Array.isArray(j.chapters)) {
+        return {
+          name,
+          chapters: j.chapters.map(c => ({
+            title: c.title || 'Chapitre',
+            text: c.text || '',
+            wordCount: c.wordCount || countWords(c.text || ''),
+          })),
+        };
+      }
+      if (j._format === 'ldv-project' && Array.isArray(j.chapters)) {
+        return {
+          name,
+          chapters: j.chapters.map(c => ({
+            title: c.title || 'Chapitre',
+            text: c.text || '',
+            wordCount: c.wordCount || countWords(c.text || ''),
+          })),
+        };
+      }
+      throw new Error('JSON non reconnu (attendu .ldv.json V7.3 ou V7.4)');
+    }
+
+    if (ext === 'epub') {
+      return await extractEpub(file);
+    }
+
+    throw new Error('Format non supporté : ' + ext);
+  }
+
+  function splitMarkdown(txt) {
+    // Découpe par "# Titre" ou "## Titre" de premier niveau
+    const lines = txt.split('\n');
+    const chapters = [];
+    let current = null;
+    for (const line of lines) {
+      const h1 = line.match(/^#\s+(.+)$/);
+      const h2 = line.match(/^##\s+(.+)$/);
+      const heading = h1 || h2;
+      if (heading) {
+        if (current) chapters.push(current);
+        current = { title: heading[1].trim(), text: '' };
+      } else if (current) {
+        current.text += line + '\n';
+      }
+    }
+    if (current) chapters.push(current);
+
+    // Si aucun chapitre détecté, on considère tout le fichier comme un seul chapitre
+    if (chapters.length === 0) {
+      chapters.push({ title: 'Document', text: txt });
+    }
+
+    return chapters.map(c => ({
+      title: c.title,
+      text: c.text.trim(),
+      wordCount: countWords(c.text),
+    }));
+  }
+
+  async function extractEpub(file) {
+    const zip = await JSZip.loadAsync(file);
+    // Chercher le spine dans le content.opf pour avoir l'ordre des chapitres
+    let opfPath = null;
+    zip.forEach((path, entry) => {
+      if (path.toLowerCase().endsWith('.opf')) opfPath = path;
+    });
+    if (!opfPath) throw new Error('EPUB invalide — pas de content.opf');
+
+    const opfRaw = await zip.file(opfPath).async('string');
+    // Parse minimal : on extrait l'ordre des idref depuis <spine> et la map id→href depuis <manifest>
+    const manifestMap = {};
+    const manifestRe = /<item\s+[^>]*?id="([^"]+)"[^>]*?href="([^"]+)"[^>]*?\/?>/g;
+    let mMatch;
+    while ((mMatch = manifestRe.exec(opfRaw)) !== null) {
+      manifestMap[mMatch[1]] = mMatch[2];
+    }
+    const spineRe = /<itemref\s+idref="([^"]+)"/g;
+    const spineOrder = [];
+    let sMatch;
+    while ((sMatch = spineRe.exec(opfRaw)) !== null) {
+      spineOrder.push(sMatch[1]);
+    }
+
+    const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/')) : '';
+
+    const chapters = [];
+    for (const idref of spineOrder) {
+      const href = manifestMap[idref];
+      if (!href) continue;
+      const fullPath = opfDir ? (opfDir + '/' + href) : href;
+      const entry = zip.file(fullPath);
+      if (!entry) continue;
+      const html = await entry.async('string');
+
+      // Extraire le titre et le texte
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const h1Match = html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/i);
+      let title = 'Chapitre';
+      if (h1Match) title = h1Match[1].replace(/<[^>]+>/g, '').trim();
+      else if (titleMatch) title = titleMatch[1].trim();
+
+      // Extraire body
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      const bodyHtml = bodyMatch ? bodyMatch[1] : html;
+
+      // Convertir <p>...</p> en \n\n, puis supprimer balises
+      const text = bodyHtml
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      // Filtre : on ignore les chapitres trop courts (cover, toc, etc)
+      if (text.length < 100) continue;
+
+      chapters.push({ title, text, wordCount: countWords(text) });
+    }
+
+    return { name: file.name, chapters };
+  }
+
+  // ─── CHARGEMENT ──────────────────────────────────────────────
+
+  async function handleFile(side, file) {
+    const labelEl = document.getElementById('label' + (side === 'left' ? 'Left' : 'Right'));
+    const metaEl = document.getElementById('meta' + (side === 'left' ? 'Left' : 'Right'));
+    labelEl.textContent = 'Chargement : ' + file.name;
+    labelEl.classList.remove('loaded');
+
+    try {
+      const manuscript = await extractManuscript(file);
+      S[side] = manuscript;
+      labelEl.textContent = file.name;
+      labelEl.classList.add('loaded');
+      const totalWords = manuscript.chapters.reduce((s, c) => s + c.wordCount, 0);
+      metaEl.textContent = manuscript.chapters.length + ' chapitres · ' + totalWords.toLocaleString('fr-FR') + ' mots';
+      updateCompareButton();
+    } catch (e) {
+      labelEl.textContent = 'Erreur : ' + e.message;
+      metaEl.textContent = '';
+      console.error(e);
+    }
+  }
+
+  function updateCompareButton() {
+    document.getElementById('btnCompare').disabled = !(S.left && S.right);
+  }
+
+  // ─── DIFF ALGORITHMS ─────────────────────────────────────────
+  // Algorithme LCS (longest common subsequence) pour diff ligne-à-ligne
+
+  function diffLines(aText, bText) {
+    const a = aText.split('\n');
+    const b = bText.split('\n');
+    const norm = (s) => S.options.whitespace ? s.toLowerCase().replace(/\s+/g, ' ').replace(/[.,;:!?'"«»\-–—]/g, '').trim() : s;
+
+    // LCS table
+    const m = a.length, n = b.length;
+    // Cap for performance on very large chapters
+    if (m > 2000 || n > 2000) {
+      // Fallback simple : ligne à ligne position par position
+      return diffSimple(a, b, norm);
+    }
+
+    const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (norm(a[i - 1]) === norm(b[j - 1])) dp[i][j] = dp[i - 1][j - 1] + 1;
+        else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+
+    // Backtrack
+    const out = [];
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (norm(a[i - 1]) === norm(b[j - 1])) {
+        out.unshift({ type: 'same', left: a[i - 1], right: b[j - 1] });
+        i--; j--;
+      } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+        out.unshift({ type: 'del', left: a[i - 1], right: null });
+        i--;
+      } else {
+        out.unshift({ type: 'add', left: null, right: b[j - 1] });
+        j--;
+      }
+    }
+    while (i > 0) { out.unshift({ type: 'del', left: a[--i], right: null }); }
+    while (j > 0) { out.unshift({ type: 'add', left: null, right: b[--j] }); }
+
+    return out;
+  }
+
+  function diffSimple(a, b, norm) {
+    const out = [];
+    const len = Math.max(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+      const la = i < a.length ? a[i] : null;
+      const lb = i < b.length ? b[i] : null;
+      if (la === null) out.push({ type: 'add', left: null, right: lb });
+      else if (lb === null) out.push({ type: 'del', left: la, right: null });
+      else if (norm(la) === norm(lb)) out.push({ type: 'same', left: la, right: lb });
+      else out.push({ type: 'modified', left: la, right: lb });
+    }
+    return out;
+  }
+
+  // Diff mot-à-mot pour ligne modifiée (permet highlight précis)
+  function diffWordsInline(a, b) {
+    const aw = a.split(/(\s+)/);
+    const bw = b.split(/(\s+)/);
+    const m = aw.length, n = bw.length;
+    if (m > 500 || n > 500) return null;
+    const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (aw[i - 1] === bw[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+        else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    const out = [];
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (aw[i - 1] === bw[j - 1]) { out.unshift({ type: 'same', text: aw[i - 1] }); i--; j--; }
+      else if (dp[i - 1][j] >= dp[i][j - 1]) { out.unshift({ type: 'del', text: aw[i - 1] }); i--; }
+      else { out.unshift({ type: 'add', text: bw[j - 1] }); j--; }
+    }
+    while (i > 0) out.unshift({ type: 'del', text: aw[--i] });
+    while (j > 0) out.unshift({ type: 'add', text: bw[--j] });
+    return out;
+  }
+
+  // ─── MATCHING DE CHAPITRES ───────────────────────────────────
+  // On aligne les chapitres entre V1 et V2 par ordre, mais on signale
+  // les cas où les titres/nombres ne correspondent pas.
+
+  function matchChapters(leftCh, rightCh) {
+    const pairs = [];
+    const max = Math.max(leftCh.length, rightCh.length);
+    for (let i = 0; i < max; i++) {
+      pairs.push({
+        idx: i,
+        left: leftCh[i] || null,
+        right: rightCh[i] || null,
+      });
+    }
+    return pairs;
+  }
+
+  // ─── COMPARAISON PRINCIPALE ──────────────────────────────────
+
+  function compare() {
+    if (!S.left || !S.right) return;
+    setHeaderStatus('Comparaison en cours...');
+
+    const pairs = matchChapters(S.left.chapters, S.right.chapters);
+
+    // Stats globales
+    const totalLeftWords = S.left.chapters.reduce((s, c) => s + c.wordCount, 0);
+    const totalRightWords = S.right.chapters.reduce((s, c) => s + c.wordCount, 0);
+    const delta = totalRightWords - totalLeftWords;
+    const deltaPct = totalLeftWords > 0 ? Math.round((delta / totalLeftWords) * 100) : 0;
+
+    // Pré-calcul par paire : identique ou changé
+    let identical = 0, changed = 0;
+    for (const p of pairs) {
+      if (!p.left || !p.right) { changed++; continue; }
+      if (p.left.text === p.right.text) identical++;
+      else changed++;
+    }
+
+    document.getElementById('statChLeft').textContent = S.left.chapters.length;
+    document.getElementById('statWordsLeft').textContent = totalLeftWords.toLocaleString('fr-FR') + ' mots';
+    document.getElementById('statChRight').textContent = S.right.chapters.length;
+    document.getElementById('statWordsRight').textContent = totalRightWords.toLocaleString('fr-FR') + ' mots';
+
+    const deltaEl = document.getElementById('statDelta');
+    deltaEl.textContent = (delta > 0 ? '+' : '') + delta.toLocaleString('fr-FR');
+    deltaEl.style.color = delta > 0 ? '#4a8a5c' : (delta < 0 ? '#c44' : 'var(--deep)');
+    document.getElementById('statDeltaPct').textContent = (deltaPct > 0 ? '+' : '') + deltaPct + '%';
+
+    document.getElementById('statChanged').textContent = changed;
+    document.getElementById('statIdentical').textContent = identical + ' identiques';
+
+    document.getElementById('statsCard').style.display = 'block';
+
+    // Rendre la nav chapitres
+    renderChapterTabs(pairs);
+
+    // Afficher premier chapitre
+    S.activeChapter = 0;
+    renderDiff(pairs[0]);
+
+    document.getElementById('chapterNav').style.display = 'block';
+    document.getElementById('diffCard').style.display = 'block';
+    setHeaderStatus('Comparaison prête — ' + changed + ' chapitre' + (changed > 1 ? 's' : '') + ' changé' + (changed > 1 ? 's' : ''));
+    // Scroll
+    document.getElementById('statsCard').scrollIntoView({ behavior: 'smooth' });
+
+    // Stocker pour navigation
+    S._pairs = pairs;
+  }
+
+  function renderChapterTabs(pairs) {
+    const zone = document.getElementById('chapterTabs');
+    zone.innerHTML = '';
+    pairs.forEach((p, i) => {
+      const tab = document.createElement('button');
+      tab.className = 'chapter-tab' + (i === S.activeChapter ? ' active' : '');
+      tab.dataset.idx = i;
+      const label = (p.right && p.right.title) || (p.left && p.left.title) || ('Chapitre ' + (i + 1));
+      let badge = '';
+      if (!p.left) badge = '<span class="changes">NOUVEAU</span>';
+      else if (!p.right) badge = '<span class="changes">SUPPRIMÉ</span>';
+      else if (p.left.text !== p.right.text) {
+        const dw = (p.right.wordCount - p.left.wordCount);
+        const sign = dw >= 0 ? '+' : '';
+        badge = '<span class="changes">' + sign + dw + '</span>';
+      }
+      tab.innerHTML = (i + 1) + '. ' + escapeHTML(label.substring(0, 30)) + (label.length > 30 ? '…' : '') + badge;
+      tab.addEventListener('click', () => {
+        S.activeChapter = i;
+        document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderDiff(pairs[i]);
+      });
+      zone.appendChild(tab);
+    });
+  }
+
+  function renderDiff(pair) {
+    const contentEl = document.getElementById('diffContent');
+    const titleEl = document.getElementById('diffHeaderTitle');
+
+    if (!pair) {
+      contentEl.innerHTML = '<div class="placeholder">Pas de chapitre à afficher.</div>';
+      titleEl.textContent = '—';
+      return;
+    }
+
+    const tLeft = (pair.left && pair.left.title) || '(vide)';
+    const tRight = (pair.right && pair.right.title) || '(vide)';
+    if (tLeft === tRight) titleEl.textContent = tLeft;
+    else titleEl.textContent = tLeft + '  →  ' + tRight;
+
+    if (!pair.left) {
+      contentEl.innerHTML = '<div class="diff-unified"><div class="placeholder">Chapitre absent dans la V1. Présent seulement dans la V2 :</div>' +
+        '<div class="diff-line add">' + escapeHTML(pair.right.text) + '</div></div>';
+      return;
+    }
+    if (!pair.right) {
+      contentEl.innerHTML = '<div class="diff-unified"><div class="placeholder">Chapitre absent dans la V2. Présent seulement dans la V1 :</div>' +
+        '<div class="diff-line del">' + escapeHTML(pair.left.text) + '</div></div>';
+      return;
+    }
+
+    if (pair.left.text === pair.right.text) {
+      contentEl.innerHTML = '<div class="diff-unified"><div class="placeholder">Chapitre identique mot pour mot entre V1 et V2.</div></div>';
+      return;
+    }
+
+    const diff = diffLines(pair.left.text, pair.right.text);
+
+    if (S.viewMode === 'split') {
+      renderSplit(diff, contentEl);
+    } else {
+      renderUnified(diff, contentEl);
+    }
+  }
+
+  function renderSplit(diff, zone) {
+    let leftHtml = '<div class="diff-side diff-side-left"><h4>V1 (supprimé en rouge)</h4>';
+    let rightHtml = '<div class="diff-side diff-side-right"><h4>V2 (ajouté en vert)</h4>';
+
+    for (const d of diff) {
+      if (d.type === 'same') {
+        leftHtml += '<div class="diff-line same">' + escapeHTML(d.left || '') + '</div>';
+        rightHtml += '<div class="diff-line same">' + escapeHTML(d.right || '') + '</div>';
+      } else if (d.type === 'del') {
+        leftHtml += '<div class="diff-line del">' + escapeHTML(d.left || '') + '</div>';
+        rightHtml += '<div class="diff-line same">&nbsp;</div>';
+      } else if (d.type === 'add') {
+        leftHtml += '<div class="diff-line same">&nbsp;</div>';
+        rightHtml += '<div class="diff-line add">' + escapeHTML(d.right || '') + '</div>';
+      } else if (d.type === 'modified') {
+        // Diff mot-à-mot si option activée
+        if (S.options.words) {
+          const wordsDiff = diffWordsInline(d.left || '', d.right || '');
+          if (wordsDiff) {
+            let lh = '', rh = '';
+            for (const w of wordsDiff) {
+              if (w.type === 'same') { lh += escapeHTML(w.text); rh += escapeHTML(w.text); }
+              else if (w.type === 'del') lh += '<span style="background:var(--diff-del-bg);border-radius:3px;padding:1px 2px">' + escapeHTML(w.text) + '</span>';
+              else if (w.type === 'add') rh += '<span style="background:var(--diff-add-bg);border-radius:3px;padding:1px 2px">' + escapeHTML(w.text) + '</span>';
+            }
+            leftHtml += '<div class="diff-line modified-left">' + lh + '</div>';
+            rightHtml += '<div class="diff-line modified-right">' + rh + '</div>';
+          } else {
+            leftHtml += '<div class="diff-line del">' + escapeHTML(d.left || '') + '</div>';
+            rightHtml += '<div class="diff-line add">' + escapeHTML(d.right || '') + '</div>';
+          }
+        } else {
+          leftHtml += '<div class="diff-line del">' + escapeHTML(d.left || '') + '</div>';
+          rightHtml += '<div class="diff-line add">' + escapeHTML(d.right || '') + '</div>';
+        }
+      }
+    }
+
+    leftHtml += '</div>';
+    rightHtml += '</div>';
+    zone.innerHTML = '<div class="diff-split">' + leftHtml + rightHtml + '</div>';
+  }
+
+  function renderUnified(diff, zone) {
+    let html = '<div class="diff-unified">';
+    for (const d of diff) {
+      if (d.type === 'same') {
+        html += '<div class="diff-line same">' + escapeHTML(d.left || '') + '</div>';
+      } else if (d.type === 'del') {
+        html += '<div class="diff-line del">− ' + escapeHTML(d.left || '') + '</div>';
+      } else if (d.type === 'add') {
+        html += '<div class="diff-line add">+ ' + escapeHTML(d.right || '') + '</div>';
+      } else if (d.type === 'modified') {
+        html += '<div class="diff-line del">− ' + escapeHTML(d.left || '') + '</div>';
+        html += '<div class="diff-line add">+ ' + escapeHTML(d.right || '') + '</div>';
+      }
+    }
+    html += '</div>';
+    zone.innerHTML = html;
+  }
+
+  // ─── INIT ────────────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log('Shell Diff V' + SHELL_VERSION + ' — comparateur de manuscrits');
+
+    // Drop zones
+    ['left', 'right'].forEach(side => {
+      const cap = side === 'left' ? 'Left' : 'Right';
+      const dropZone = document.getElementById('drop' + cap);
+      const fileInput = document.getElementById('file' + cap);
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag');
+        if (e.dataTransfer.files.length > 0) handleFile(side, e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) handleFile(side, e.target.files[0]);
+      });
+    });
+
+    // Options
+    document.getElementById('optWords').addEventListener('change', (e) => {
+      S.options.words = e.target.checked;
+      if (S._pairs) renderDiff(S._pairs[S.activeChapter]);
+    });
+    document.getElementById('optWhitespace').addEventListener('change', (e) => {
+      S.options.whitespace = e.target.checked;
+      if (S._pairs) renderDiff(S._pairs[S.activeChapter]);
+    });
+
+    // Bouton comparer
+    document.getElementById('btnCompare').addEventListener('click', compare);
+
+    // Toggle vue diff
+    document.querySelectorAll('.diff-mode-toggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diff-mode-toggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        S.viewMode = btn.dataset.view;
+        if (S._pairs) renderDiff(S._pairs[S.activeChapter]);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
