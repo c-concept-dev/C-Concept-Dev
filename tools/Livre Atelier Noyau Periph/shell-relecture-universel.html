@@ -1,0 +1,2484 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Livre de Vie — Shell Relecture universel (V7.4.0-alpha)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   PALETTE C CONCEPT&DEV
+   Mer #8FAFB1  /  Vert Sauge #C8D0C3  /  Beige Sable #D8CDBB
+   Sable #E6D7C3
+   ═══════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --mer: #8FAFB1;
+  --sauge: #C8D0C3;
+  --sable: #E6D7C3;
+  --beige: #D8CDBB;
+  --fond: #FAFAF7;
+  --fond-carte: #FFFFFF;
+  --texte: #2A3435;
+  --texte-doux: #5C6566;
+  --trait: #D5D8D3;
+  --ombre: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+
+  /* Couleurs de défauts (matchent atelier-editeur-core.js FLAG_COLORS) */
+  --flag-neg-narration: #E6A84C;
+  --flag-narration-negative: #D97E6D;
+  --flag-meta-nomination: #C25E5E;
+  --flag-prolepse: #C9AD5F;
+  --flag-formules-rouges: #B8634E;
+  --flag-pov-altitude: #7A9B8E;
+  --flag-phrases-glossantes: #9B7EA5;
+  --flag-motif-stagnant: #8FAFB1;
+}
+
+body {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--texte);
+  background: var(--fond);
+  margin: 0;
+  padding: 0;
+}
+
+/* ──────────── LAYOUT PRINCIPAL ──────────── */
+
+.header {
+  background: linear-gradient(135deg, var(--mer) 0%, var(--sauge) 100%);
+  color: #FFF;
+  padding: 18px 28px;
+  box-shadow: var(--ombre);
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.header-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.header-subtitle {
+  font-size: 13px;
+  opacity: 0.88;
+  margin-top: 4px;
+  font-weight: 300;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 340px;
+  gap: 0;
+  height: calc(100vh - 72px);
+}
+
+/* ──────────── VOLET GAUCHE (entrée) ──────────── */
+
+.volet-gauche {
+  background: var(--fond-carte);
+  border-right: 1px solid var(--trait);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.volet-gauche h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texte-doux);
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--trait);
+}
+
+.volet-gauche h2:not(:first-child) {
+  margin-top: 28px;
+}
+
+.upload-zone {
+  border: 2px dashed var(--trait);
+  border-radius: 8px;
+  padding: 20px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.18s;
+  background: var(--fond);
+}
+
+.upload-zone:hover {
+  border-color: var(--mer);
+  background: var(--fond-carte);
+}
+
+.upload-zone.has-file {
+  border-style: solid;
+  border-color: var(--mer);
+  background: rgba(143, 175, 177, 0.08);
+}
+
+.upload-zone-text {
+  font-size: 12px;
+  color: var(--texte-doux);
+}
+
+.upload-zone-filename {
+  font-size: 13px;
+  color: var(--mer);
+  font-weight: 500;
+  margin-top: 6px;
+  word-break: break-all;
+}
+
+textarea.partition-input {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px 12px;
+  border: 1px solid var(--trait);
+  border-radius: 6px;
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  background: var(--fond);
+  color: var(--texte);
+  resize: vertical;
+  outline: none;
+}
+
+textarea.partition-input:focus {
+  border-color: var(--mer);
+  background: var(--fond-carte);
+}
+
+.partition-helper {
+  font-size: 11px;
+  color: var(--texte-doux);
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.partition-status {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-top: 8px;
+  display: none;
+}
+
+.partition-status.ok {
+  background: rgba(143, 175, 177, 0.15);
+  color: var(--mer);
+  display: block;
+}
+
+.partition-status.warn {
+  background: rgba(201, 173, 95, 0.15);
+  color: #8B7322;
+  display: block;
+}
+
+.partition-status.err {
+  background: rgba(194, 94, 94, 0.15);
+  color: var(--flag-meta-nomination);
+  display: block;
+}
+
+button.btn-primary {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--mer);
+  color: #FFF;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  margin-top: 20px;
+  letter-spacing: 0.02em;
+}
+
+button.btn-primary:hover:not(:disabled) {
+  background: #7A9B9D;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(122, 155, 157, 0.25);
+}
+
+button.btn-primary:disabled {
+  background: var(--trait);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+button.btn-secondary {
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  color: var(--texte-doux);
+  border: 1px solid var(--trait);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.18s;
+  margin-top: 8px;
+}
+
+button.btn-secondary:hover {
+  border-color: var(--mer);
+  color: var(--mer);
+}
+
+button.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-row button.btn-secondary {
+  margin-top: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.btn-export-corrige {
+  border-color: var(--mer) !important;
+  color: var(--mer) !important;
+  font-weight: 500 !important;
+}
+
+.btn-export-corrige:hover:not(:disabled) {
+  background: rgba(143, 175, 177, 0.1) !important;
+}
+
+.partition-actions {
+  margin-bottom: 8px;
+}
+
+.btn-import-partition {
+  display: inline-block;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--fond);
+  color: var(--texte-doux);
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.btn-import-partition:hover {
+  border-color: var(--mer);
+  color: var(--mer);
+  background: rgba(143, 175, 177, 0.05);
+}
+
+.btn-import-partition.loaded {
+  background: rgba(143, 175, 177, 0.1);
+  border-color: var(--mer);
+  color: var(--mer);
+}
+
+.btn-export-epub {
+  border-color: var(--mer) !important;
+  color: var(--mer) !important;
+  font-weight: 500 !important;
+}
+
+.btn-export-epub:hover:not(:disabled) {
+  background: rgba(143, 175, 177, 0.1) !important;
+}
+
+/* ──────────── ACTIONS DE DÉCISION SUR UN HIT ──────────── */
+
+.hit-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.hit-action-btn {
+  padding: 3px 8px;
+  font-size: 10px;
+  border: 1px solid var(--trait);
+  border-radius: 3px;
+  cursor: pointer;
+  background: var(--fond);
+  color: var(--texte-doux);
+  transition: all 0.12s;
+  font-family: inherit;
+}
+
+.hit-action-btn:hover {
+  border-color: var(--mer);
+  color: var(--mer);
+}
+
+.hit-action-btn.active-cut {
+  background: var(--flag-narration-negative);
+  color: white;
+  border-color: var(--flag-narration-negative);
+}
+
+.hit-action-btn.active-keep {
+  background: var(--mer);
+  color: white;
+  border-color: var(--mer);
+}
+
+.flag-item-hits li.decision-cut {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.flag-item-hits li.decision-keep {
+  background: rgba(143, 175, 177, 0.06);
+  padding-left: 8px;
+  border-left: 2px solid var(--mer);
+}
+
+/* Surlignage dans le texte avec décision */
+mark.decided-cut {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+mark.decided-keep {
+  opacity: 1;
+  background-color: transparent !important;
+  border-bottom: 2px solid var(--mer) !important;
+}
+
+/* ──────────── VOLET CENTRE (texte) ──────────── */
+
+.volet-centre {
+  background: var(--fond-carte);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.centre-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--trait);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--fond);
+}
+
+.book-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--texte);
+  flex: 1;
+  min-width: 160px;
+}
+
+.book-meta {
+  font-size: 11px;
+  color: var(--texte-doux);
+  display: flex;
+  gap: 16px;
+}
+
+.chapitre-selector {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--trait);
+  overflow-x: auto;
+  background: var(--fond);
+  scrollbar-width: thin;
+}
+
+.chapitre-tab {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--texte-doux);
+  background: var(--fond-carte);
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.chapitre-tab:hover {
+  border-color: var(--mer);
+  color: var(--mer);
+}
+
+.chapitre-tab.active {
+  background: var(--mer);
+  color: #FFF;
+  border-color: var(--mer);
+}
+
+.chapitre-tab.has-issues::after {
+  content: '●';
+  color: var(--flag-meta-nomination);
+  margin-left: 6px;
+  font-size: 10px;
+}
+
+.chapitre-tab.active.has-issues::after {
+  color: rgba(255,255,255,0.85);
+}
+
+.contenu-chapitre {
+  padding: 32px 48px;
+  max-width: 820px;
+  margin: 0 auto;
+  font-family: Georgia, 'Iowan Old Style', serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--texte);
+  flex: 1;
+}
+
+.contenu-chapitre h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--texte);
+  margin: 0 0 24px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--trait);
+}
+
+.contenu-chapitre p {
+  margin: 0 0 16px 0;
+  white-space: pre-wrap;
+}
+
+.contenu-chapitre mark {
+  padding: 2px 0;
+  border-radius: 2px;
+  cursor: help;
+  transition: background-color 0.18s;
+}
+
+.contenu-chapitre mark:hover {
+  filter: brightness(0.96);
+}
+
+.etat-vide {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--texte-doux);
+  font-size: 14px;
+}
+
+.etat-vide-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+/* ──────────── VOLET DROIT (rapport) ──────────── */
+
+.volet-droit {
+  background: var(--fond-carte);
+  border-left: 1px solid var(--trait);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.volet-droit h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texte-doux);
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--trait);
+}
+
+.stats-globales {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--fond);
+  border-radius: 6px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.stat-valeur {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--texte);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texte-doux);
+  margin-top: 4px;
+}
+
+.stat-card.critique .stat-valeur {
+  color: var(--flag-meta-nomination);
+}
+
+.recommendations {
+  background: rgba(143, 175, 177, 0.08);
+  border-left: 3px solid var(--mer);
+  padding: 12px 14px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.recommendations-title {
+  font-weight: 600;
+  color: var(--mer);
+  margin-bottom: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.recommendations ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.recommendations li {
+  margin-bottom: 4px;
+  color: var(--texte);
+}
+
+.patterns-globaux {
+  margin-bottom: 20px;
+}
+
+.pattern-global {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--fond);
+}
+
+.pattern-global-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.pattern-global-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pattern-global-count {
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+
+.flags-chapitre {
+  margin-top: 16px;
+}
+
+.flag-item {
+  background: var(--fond);
+  border-left: 3px solid var(--trait);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+
+.flag-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.flag-item-code {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.flag-item-count {
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.flag-item-hits {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.flag-item-hits li {
+  padding: 6px 0;
+  border-top: 1px dashed var(--trait);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.flag-item-hits li:hover {
+  background: rgba(143, 175, 177, 0.06);
+}
+
+.flag-hit-match {
+  font-family: Georgia, serif;
+  font-style: italic;
+  color: var(--texte);
+}
+
+.flag-hit-kind {
+  font-size: 10px;
+  color: var(--texte-doux);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.flag-hit-suggestion {
+  color: var(--mer);
+  font-size: 10.5px;
+  margin-top: 4px;
+  line-height: 1.35;
+  padding-left: 8px;
+  border-left: 2px solid rgba(143, 175, 177, 0.3);
+}
+
+.separator {
+  border: 0;
+  border-top: 1px solid var(--trait);
+  margin: 20px 0;
+}
+
+/* ──────────── PROGRESSION / NOTIFICATIONS ──────────── */
+
+.log-zone {
+  font-size: 11px;
+  color: var(--texte-doux);
+  background: var(--fond);
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: 'SF Mono', Consolas, monospace;
+  line-height: 1.45;
+}
+
+.log-entry {
+  margin-bottom: 2px;
+}
+
+.log-entry.info { color: var(--texte-doux); }
+.log-entry.ok { color: var(--mer); }
+.log-entry.warn { color: #8B7322; }
+.log-entry.err { color: var(--flag-meta-nomination); }
+
+/* ──────────── LÉGENDE ──────────── */
+
+.legende {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legende-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--texte-doux);
+  padding: 4px 0;
+}
+
+.legende-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ──────────── RESPONSIVE ──────────── */
+
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 260px 1fr 300px;
+  }
+  .contenu-chapitre { padding: 24px 32px; }
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .volet-gauche, .volet-droit {
+    border: none;
+    border-bottom: 1px solid var(--trait);
+  }
+}
+
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">Livre de Vie — Relecture éditoriale</div>
+  <div class="header-subtitle">Shell Relecture V7.4.0-alpha-universel · Filet de sécurité lexical déterministe · Zéro appel LLM · Aucun sujet hardcodé</div>
+</div>
+
+<div class="layout">
+
+  <!-- ═══ VOLET GAUCHE ═══ -->
+  <aside class="volet-gauche">
+
+    <h2>Manuscrit</h2>
+    <label for="file-input" class="upload-zone" id="upload-zone">
+      <div class="upload-zone-text">Glisser un fichier ici<br>ou cliquer pour sélectionner</div>
+      <div class="upload-zone-filename" id="filename"></div>
+    </label>
+    <input type="file" id="file-input" accept=".epub,.pdf,.docx,.json,.txt,.html,.xhtml,.htm,.md" style="display:none">
+    <div class="partition-helper">Formats acceptés : EPUB, PDF, DOCX, JSON manuscrit, TXT, HTML, Markdown</div>
+
+    <h2>Partition (optionnelle)</h2>
+    <div class="partition-actions">
+      <label for="partition-file-input" class="btn-import-partition">Importer un fichier JSON</label>
+      <input type="file" id="partition-file-input" accept=".json,application/json" style="display:none">
+    </div>
+    <textarea
+      id="partition-input"
+      class="partition-input"
+      placeholder='Colle ici la partition JSON du livre, ou importe un fichier.
+
+Structure minimale attendue :
+{
+  "procedes_de_transe": {
+    "mots_pivots_isomorphes": [
+      { "mot": "..." }
+    ],
+    "motif_saupoudrage_principal": "..."
+  }
+}'></textarea>
+    <div class="partition-helper">Sans partition, les tests dérivés (méta-nomination, motif stagnant) sont désactivés.</div>
+    <div id="partition-status" class="partition-status"></div>
+
+    <h3 style="margin-top:24px;margin-bottom:8px;font-size:.78rem;color:var(--deep);font-weight:700;text-transform:uppercase;letter-spacing:.1em">Mode de relecture</h3>
+    <div style="display:flex;gap:6px;margin-bottom:10px;background:var(--paper);padding:4px;border-radius:8px">
+      <button type="button" class="mode-btn active" data-mode="deterministic" style="flex:1;padding:8px 10px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-family:inherit;font-size:.7rem;font-weight:600;color:var(--ink2);transition:all .2s">Déterministe (gratuit)</button>
+      <button type="button" class="mode-btn" data-mode="hybrid" style="flex:1;padding:8px 10px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-family:inherit;font-size:.7rem;font-weight:600;color:var(--ink2);transition:all .2s">Hybride (canon LLM)</button>
+      <button type="button" class="mode-btn" data-mode="llm" style="flex:1;padding:8px 10px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-family:inherit;font-size:.7rem;font-weight:600;color:var(--ink2);transition:all .2s">LLM seul</button>
+    </div>
+    <div id="modeHelp" style="font-size:.65rem;color:var(--ink2);margin-bottom:10px;line-height:1.5">
+      Filet lexical rapide, aucun appel LLM, couverture partielle des 16 signaux.
+    </div>
+    <div id="workerUrlField" style="display:none;margin-bottom:12px">
+      <label style="display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);margin-bottom:5px">Worker URL (Cloudflare)</label>
+      <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev" style="width:100%;padding:10px 12px;border:2px solid var(--sauge);border-radius:8px;font-family:inherit;font-size:.78rem">
+    </div>
+
+    <button id="btn-analyze" class="btn-primary" disabled>Analyser le manuscrit</button>
+    <div class="btn-row">
+      <button id="btn-export-json" class="btn-secondary" disabled>Export rapport (JSON)</button>
+      <button id="btn-export-html" class="btn-secondary" disabled>Export rapport (HTML)</button>
+    </div>
+    <button id="btn-export-corrige" class="btn-secondary btn-export-corrige" disabled>Exporter texte corrigé</button>
+    <button id="btn-export-epub" class="btn-secondary btn-export-epub" disabled>Exporter EPUB corrigé</button>
+
+    <h2>Journal</h2>
+    <div id="log" class="log-zone">
+      <div class="log-entry info">En attente d'un manuscrit...</div>
+    </div>
+
+    <h2>Légende des défauts</h2>
+    <div class="legende">
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-meta-nomination)"></div>
+        Méta-nomination
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-narration-negative)"></div>
+        Narration négative
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-neg-narration)"></div>
+        Négation grammaticale
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-prolepse)"></div>
+        Prolepse
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-formules-rouges)"></div>
+        Formules rouges
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-pov-altitude)"></div>
+        POV altitude
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-phrases-glossantes)"></div>
+        Phrases glossantes
+      </div>
+      <div class="legende-item">
+        <div class="legende-dot" style="background:var(--flag-motif-stagnant)"></div>
+        Motif stagnant
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ═══ VOLET CENTRE ═══ -->
+  <main class="volet-centre">
+
+    <div class="centre-header">
+      <div class="book-title" id="book-title">Pas de manuscrit chargé</div>
+      <div class="book-meta" id="book-meta"></div>
+    </div>
+
+    <div class="chapitre-selector" id="chapitre-selector"></div>
+
+    <div id="contenu-chapitre" class="contenu-chapitre">
+      <div class="etat-vide">
+        <div class="etat-vide-icon">📖</div>
+        Charge un manuscrit (EPUB ou texte)<br>
+        et lance l'analyse pour voir les passages à revoir.
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ═══ VOLET DROIT ═══ -->
+  <aside class="volet-droit">
+
+    <h2>Vue globale</h2>
+    <div id="stats-globales" class="stats-globales">
+      <div class="stat-card"><div class="stat-valeur">–</div><div class="stat-label">Chapitres</div></div>
+      <div class="stat-card"><div class="stat-valeur">–</div><div class="stat-label">Flags</div></div>
+      <div class="stat-card"><div class="stat-valeur">–</div><div class="stat-label">Détections</div></div>
+      <div class="stat-card critique"><div class="stat-valeur">–</div><div class="stat-label">Critiques</div></div>
+    </div>
+
+    <div id="recommendations-zone"></div>
+
+    <h2>Patterns récurrents</h2>
+    <div id="patterns-globaux"></div>
+
+    <hr class="separator">
+
+    <h2>Flags du chapitre</h2>
+    <div id="flags-chapitre"></div>
+
+  </aside>
+
+</div>
+
+<!-- ═══ NOYAU ÉDITEUR ═══ -->
+<script src="./atelier-editeur-core.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   SHELL RELECTURE — V7.4.0-alpha
+   Orchestration UI + appels au noyau Éditeur.
+   ═══════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  // ─────────────────────────────────────────────────────────────
+  // ÉTAT GLOBAL
+  // ─────────────────────────────────────────────────────────────
+
+  const state = {
+    bookTitle: '',
+    chapters: [],           // [{ num, title, text }, ...]
+    partition: null,
+    report: null,
+    activeChapterIdx: 0,
+    fileName: '',
+    // V7.4 Phase B : décisions éditoriales par hit
+    // Map clé "chIdx:flagCode:hitIdx" → 'cut' | 'keep' | null
+    decisions: new Map(),
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  function log(msg, level) {
+    level = level || 'info';
+    const zone = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + level;
+    const ts = new Date().toTimeString().substring(0, 8);
+    entry.textContent = '[' + ts + '] ' + msg;
+    zone.appendChild(entry);
+    zone.scrollTop = zone.scrollHeight;
+  }
+
+  function escapeHTML(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function escapeHTMLAttr(s) {
+    return escapeHTML(s).replace(/\n/g, ' ');
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CHARGEMENT DE FICHIER — EPUB, TEXTE, HTML
+  // ─────────────────────────────────────────────────────────────
+
+  function handleFile(file) {
+    state.fileName = file.name;
+    document.getElementById('filename').textContent = file.name;
+    document.getElementById('upload-zone').classList.add('has-file');
+    log('Chargement : ' + file.name, 'info');
+
+    // Reset state pour chargement propre
+    state.chapters = [];
+    state.report = null;
+    state.decisions.clear();
+    document.getElementById('btn-analyze').disabled = true;
+    document.getElementById('btn-export-json').disabled = true;
+    document.getElementById('btn-export-html').disabled = true;
+    document.getElementById('btn-export-corrige').disabled = true;
+    document.getElementById('btn-export-epub').disabled = true;
+
+    const ext = file.name.toLowerCase().split('.').pop();
+
+    if (ext === 'epub') {
+      loadEpub(file);
+    } else if (ext === 'pdf') {
+      loadPdf(file);
+    } else if (ext === 'docx') {
+      loadDocx(file);
+    } else if (ext === 'json') {
+      loadJsonManuscript(file);
+    } else if (ext === 'txt' || ext === 'html' || ext === 'xhtml' || ext === 'htm' || ext === 'md') {
+      loadTextFile(file, ext);
+    } else {
+      log('Format "' + ext + '" non reconnu — essai en texte brut', 'warn');
+      loadTextFile(file, 'txt');
+    }
+  }
+
+  /**
+   * Charge un PDF via pdf.js (chargé dynamiquement).
+   * Extrait le texte page par page, découpe en chapitres par heuristique.
+   */
+  function loadPdf(file) {
+    if (typeof pdfjsLib === 'undefined') {
+      log('Chargement de pdf.js…', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = function () {
+        // pdf.js nécessite un worker
+        if (typeof pdfjsLib !== 'undefined') {
+          pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        parsePdf(file);
+      };
+      script.onerror = function () {
+        log('Impossible de charger pdf.js depuis le CDN. Vérifie ta connexion.', 'err');
+      };
+      document.head.appendChild(script);
+    } else {
+      parsePdf(file);
+    }
+  }
+
+  async function parsePdf(file) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      log('PDF chargé : ' + pdf.numPages + ' page(s)', 'info');
+
+      let fullText = '';
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        const pageText = content.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
+      }
+
+      // Heuristique de découpe par chapitres
+      const chapters = splitTextIntoChapters(fullText);
+      state.chapters = chapters;
+      state.bookTitle = file.name.replace(/\.[^.]+$/, '');
+      log('PDF parsé : ' + chapters.length + ' chapitre(s) détecté(s), ' +
+          fullText.split(/\s+/).filter(w => w.length > 0).length + ' mots', 'ok');
+      updateBookUI();
+    } catch (e) {
+      log('Erreur parsing PDF : ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+
+  /**
+   * Charge un DOCX via mammoth.js (chargé dynamiquement).
+   */
+  function loadDocx(file) {
+    if (typeof mammoth === 'undefined') {
+      log('Chargement de mammoth.js…', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+      script.onload = function () { parseDocx(file); };
+      script.onerror = function () {
+        log('Impossible de charger mammoth.js depuis le CDN.', 'err');
+      };
+      document.head.appendChild(script);
+    } else {
+      parseDocx(file);
+    }
+  }
+
+  async function parseDocx(file) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const text = result.value;
+      if (result.messages && result.messages.length > 0) {
+        log('DOCX — ' + result.messages.length + ' avertissement(s) de conversion', 'warn');
+      }
+      const chapters = splitTextIntoChapters(text);
+      state.chapters = chapters;
+      state.bookTitle = file.name.replace(/\.[^.]+$/, '');
+      log('DOCX parsé : ' + chapters.length + ' chapitre(s) détecté(s), ' +
+          text.split(/\s+/).filter(w => w.length > 0).length + ' mots', 'ok');
+      updateBookUI();
+    } catch (e) {
+      log('Erreur parsing DOCX : ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+
+  /**
+   * Charge un JSON de manuscrit déjà structuré.
+   * Formats acceptés :
+   *   { chapters: [{num, title, text}, ...], title?, ... }
+   *   [{num, title, text}, ...]
+   *   { per_chapter: [...] }  (export antérieur du shell)
+   */
+  function loadJsonManuscript(file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        let chapters = null;
+        let title = file.name.replace(/\.[^.]+$/, '');
+
+        if (Array.isArray(parsed)) {
+          chapters = parsed;
+        } else if (parsed.chapters && Array.isArray(parsed.chapters)) {
+          chapters = parsed.chapters;
+          if (parsed.title) title = parsed.title;
+          else if (parsed.meta && parsed.meta.original_title) title = parsed.meta.original_title;
+        } else if (parsed.per_chapter && Array.isArray(parsed.per_chapter)) {
+          // Export antérieur d'un rapport — on tente de récupérer le texte
+          chapters = parsed.per_chapter.map(c => ({
+            num: c.ch_num || c.num,
+            title: c.ch_title || c.title || ('Chapitre ' + (c.ch_num || c.num)),
+            text: c.text || '',
+          })).filter(c => c.text.length > 0);
+          if (chapters.length === 0) {
+            throw new Error('Le JSON contient un rapport mais pas le texte des chapitres. Charge le texte original ou un export "manuscrit corrigé".');
+          }
+        } else {
+          throw new Error('Structure JSON non reconnue. Attendu : { chapters: [...] } ou [ ... ]');
+        }
+
+        // Valider la structure
+        chapters = chapters.map((c, i) => ({
+          num: c.num || (i + 1),
+          title: c.title || ('Chapitre ' + (i + 1)),
+          text: (c.text || '').trim(),
+        })).filter(c => c.text.length > 0);
+
+        if (chapters.length === 0) {
+          throw new Error('Aucun chapitre avec du texte trouvé dans le JSON');
+        }
+
+        state.chapters = chapters;
+        state.bookTitle = title;
+        const totalWords = chapters.reduce(
+          (s, c) => s + c.text.split(/\s+/).filter(w => w.length > 0).length, 0);
+        log('JSON parsé : ' + chapters.length + ' chapitre(s), ' + totalWords + ' mots', 'ok');
+        updateBookUI();
+      } catch (err) {
+        log('Erreur parsing JSON : ' + err.message, 'err');
+        console.error(err);
+      }
+    };
+    reader.onerror = function () {
+      log('Erreur de lecture du fichier JSON', 'err');
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function loadTextFile(file, ext) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const raw = e.target.result;
+      let text = raw;
+      if (ext === 'html' || ext === 'xhtml' || ext === 'htm') {
+        // Enlever les balises
+        const tmp = document.createElement('div');
+        tmp.innerHTML = raw;
+        text = tmp.textContent || tmp.innerText || '';
+      }
+
+      // Pour un fichier texte, on le traite comme un chapitre unique
+      // sauf s'il contient des séparateurs de chapitre marqués
+      const chapters = splitTextIntoChapters(text);
+      state.chapters = chapters;
+      state.bookTitle = file.name.replace(/\.[^.]+$/, '');
+      log('Texte chargé : ' + chapters.length + ' chapitre(s) détecté(s), ' +
+          text.split(/\s+/).filter(w => w.length > 0).length + ' mots', 'ok');
+      updateBookUI();
+    };
+    reader.onerror = function () {
+      log('Erreur de lecture du fichier', 'err');
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function splitTextIntoChapters(text) {
+    // Heuristique simple : un chapitre par section séparée par "--- CHAPITRE N ---"
+    // ou par un titre en majuscules suivi d'une ligne vide, sinon 1 chapitre unique
+    const chapterSeparatorRe = /\n\s*(?:---+\s*)?[Cc]hapitre\s+\d+[^\n]*\n/g;
+    const parts = text.split(chapterSeparatorRe);
+    if (parts.length > 1) {
+      return parts.filter(p => p.trim().length > 100).map((p, i) => ({
+        num: i + 1,
+        title: 'Chapitre ' + (i + 1),
+        text: p.trim(),
+      }));
+    }
+    return [{ num: 1, title: 'Texte unique', text: text.trim() }];
+  }
+
+  // Pour EPUB, on doit dézipper. On utilise JSZip via CDN.
+  function loadEpub(file) {
+    // Chargement dynamique de JSZip si pas déjà chargé
+    if (typeof JSZip === 'undefined') {
+      log('Chargement de la librairie JSZip...', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      script.onload = function () { parseEpub(file); };
+      script.onerror = function () {
+        log('Impossible de charger JSZip. Connexion internet requise au premier lancement.', 'err');
+      };
+      document.head.appendChild(script);
+    } else {
+      parseEpub(file);
+    }
+  }
+
+  async function parseEpub(file) {
+    try {
+      const zip = await JSZip.loadAsync(file);
+
+      // 1. Lire le container pour trouver le .opf
+      let opfPath = null;
+      const containerFile = zip.file('META-INF/container.xml');
+      if (containerFile) {
+        const containerXml = await containerFile.async('string');
+        const m = containerXml.match(/full-path=["']([^"']+)["']/);
+        if (m) opfPath = m[1];
+      }
+
+      // 2. Parser l'OPF pour le titre et le spine
+      let bookTitle = state.fileName.replace(/\.epub$/i, '');
+      const chapters = [];
+      const opfDir = opfPath ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+
+      if (opfPath) {
+        const opfFile = zip.file(opfPath);
+        if (opfFile) {
+          const opfXml = await opfFile.async('string');
+          const titleMatch = opfXml.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/);
+          if (titleMatch) bookTitle = titleMatch[1].trim();
+
+          // Construire un map id → href depuis le manifest
+          const manifest = {};
+          const manifestRe = /<item[^>]*id=["']([^"']+)["'][^>]*href=["']([^"']+)["'][^>]*\/?>/g;
+          let mm;
+          while ((mm = manifestRe.exec(opfXml)) !== null) {
+            manifest[mm[1]] = mm[2];
+          }
+
+          // Lire le spine pour l'ordre de lecture
+          const spineIds = [];
+          const spineRe = /<itemref[^>]*idref=["']([^"']+)["'][^>]*\/?>/g;
+          let sm;
+          while ((sm = spineRe.exec(opfXml)) !== null) {
+            spineIds.push(sm[1]);
+          }
+
+          // Charger chaque fichier du spine
+          let chNum = 0;
+          for (const id of spineIds) {
+            const href = manifest[id];
+            if (!href) continue;
+            // Filtrer les pages habituelles non-chapitres
+            if (/(^|\/)(cover|title|toc|back|nav|copyright)\.x?html?$/i.test(href)) continue;
+
+            const fullPath = opfDir + href;
+            const chFile = zip.file(fullPath);
+            if (!chFile) continue;
+
+            const xhtml = await chFile.async('string');
+            const ch = extractChapterFromXhtml(xhtml);
+            if (ch.text.length < 200) continue;
+            chNum++;
+            chapters.push({
+              num: chNum,
+              title: ch.title || 'Chapitre ' + chNum,
+              text: ch.text,
+            });
+          }
+        }
+      }
+
+      // Fallback si on n'a rien trouvé via spine : parcourir toutes les xhtml
+      if (chapters.length === 0) {
+        const files = Object.keys(zip.files)
+          .filter(f => /\.x?html?$/i.test(f) && !/(cover|title|toc|back|nav)/i.test(f))
+          .sort();
+        let chNum = 0;
+        for (const f of files) {
+          const xhtml = await zip.file(f).async('string');
+          const ch = extractChapterFromXhtml(xhtml);
+          if (ch.text.length < 200) continue;
+          chNum++;
+          chapters.push({
+            num: chNum,
+            title: ch.title || 'Chapitre ' + chNum,
+            text: ch.text,
+          });
+        }
+      }
+
+      state.bookTitle = bookTitle;
+      state.chapters = chapters;
+      const totalWords = chapters.reduce((s, c) => s + c.text.split(/\s+/).filter(w => w.length > 0).length, 0);
+      log('EPUB chargé : "' + bookTitle + '" — ' + chapters.length + ' chapitre(s), ' + totalWords + ' mots', 'ok');
+      updateBookUI();
+    } catch (e) {
+      log('Erreur lors du parsing EPUB : ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+
+  function extractChapterFromXhtml(xhtml) {
+    // Extraire le titre (premier h1, h2)
+    const titleMatch = xhtml.match(/<h[12][^>]*>([^<]+)<\/h[12]>/);
+    const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+    // Extraire le texte — on garde les sauts de paragraphes pour les offsets
+    let text = xhtml
+      .replace(/<head>[\s\S]*?<\/head>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<\/?(?:p|div|h[1-6]|br|hr)[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&laquo;\s*/g, '« ')
+      .replace(/\s*&raquo;/g, ' »')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    // Enlever le titre du texte si présent en début
+    if (title && text.startsWith(title)) {
+      text = text.substring(title.length).trim();
+    }
+
+    return { title, text };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // PARTITION
+  // ─────────────────────────────────────────────────────────────
+
+  function validatePartition(str) {
+    const statusEl = document.getElementById('partition-status');
+    if (!str || str.trim().length === 0) {
+      state.partition = null;
+      statusEl.className = 'partition-status';
+      statusEl.textContent = '';
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(str);
+      if (!parsed.procedes_de_transe) {
+        state.partition = null;
+        statusEl.className = 'partition-status warn';
+        statusEl.textContent = '⚠ procedes_de_transe manquant — tests dérivés désactivés';
+        return;
+      }
+
+      state.partition = parsed;
+      const derived = EditeurNoyau.derivePatternsFromPartition(parsed);
+      const motifsCount = (derived && derived.motifs) ? derived.motifs.length : 0;
+      statusEl.className = 'partition-status ok';
+      statusEl.textContent = '✓ Partition valide — ' + motifsCount + ' motif(s) : ' +
+        (derived.motifs || []).join(', ');
+    } catch (e) {
+      state.partition = null;
+      statusEl.className = 'partition-status err';
+      statusEl.textContent = '✗ JSON invalide : ' + e.message;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // ANALYSE
+  // ─────────────────────────────────────────────────────────────
+
+  function analyze() {
+    if (state.chapters.length === 0) {
+      log('Pas de chapitres à analyser', 'warn');
+      return;
+    }
+
+    const mode = state.mode || 'deterministic';
+    log('Lancement analyse mode "' + mode + '"...', 'info');
+    const t0 = performance.now();
+
+    const runDeterministic = () => {
+      try {
+        state.report = EditeurNoyau.reviewBook(state.chapters, state.partition, {});
+        const dt = Math.round(performance.now() - t0);
+        log('Analyse terminée en ' + dt + ' ms : ' +
+            state.report.global.total_flags + ' flag(s), ' +
+            state.report.global.total_hits + ' détection(s)', 'ok');
+        renderReport();
+        renderChapter(state.activeChapterIdx);
+        document.getElementById('btn-export-json').disabled = false;
+        document.getElementById('btn-export-html').disabled = false;
+        document.getElementById('btn-export-corrige').disabled = false;
+      } catch (e) {
+        log('Erreur d\'analyse : ' + e.message, 'err');
+        console.error(e);
+      }
+    };
+
+    if (mode === 'deterministic') {
+      runDeterministic();
+      return;
+    }
+
+    // Modes LLM et hybride — nécessitent le worker
+    const workerUrl = (document.getElementById('workerUrl').value || '').trim();
+    if (!workerUrl) {
+      log('Worker URL requis pour le mode LLM/hybride', 'err');
+      return;
+    }
+
+    const llmCall = async (system, userMsg, maxTokens, model) => {
+      const mdl = model || 'claude-sonnet-4-6';
+      const body = {
+        model: mdl,
+        max_tokens: maxTokens || 4096,
+        system: system,
+        messages: [{ role: 'user', content: userMsg }],
+      };
+      const resp = await fetch(workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
+      }
+      const data = await resp.json();
+      if (data.content && Array.isArray(data.content)) {
+        return data.content.map(c => c.text || '').join('\n').trim();
+      }
+      throw new Error('Format réponse inattendu');
+    };
+
+    document.getElementById('btn-analyze').disabled = true;
+    document.getElementById('btn-analyze').textContent = 'Analyse LLM en cours...';
+
+    (async () => {
+      try {
+        if (mode === 'llm') {
+          // Mode LLM pur — reviewBookLLM
+          log('Mode LLM : un appel par chapitre, cela peut prendre 2-5 min', 'info');
+          const report = await EditeurNoyau.reviewBookLLM(
+            state.chapters.map((c, i) => ({ num: i + 1, title: c.title, text: c.text })),
+            state.partition,
+            llmCall,
+            {
+              onProgress: (done, total) => log('  Chapitre ' + done + '/' + total + ' traité', 'info'),
+              book_title: state.bookTitle || '',
+            }
+          );
+          state.report = report;
+        } else if (mode === 'hybrid') {
+          // Mode hybride — déterministe + LLM chapitre par chapitre
+          log('Mode hybride : déterministe global + LLM par chapitre', 'info');
+          const detReport = EditeurNoyau.reviewBook(state.chapters, state.partition, {});
+          // Enrichir chaque chapitre avec un appel LLM
+          for (let i = 0; i < state.chapters.length; i++) {
+            const ch = state.chapters[i];
+            log('  Chapitre ' + (i + 1) + '/' + state.chapters.length + ' — appel LLM...', 'info');
+            try {
+              const hybrid = await EditeurNoyau.reviewChapterHybrid(
+                ch.text, state.partition,
+                { chapter_num: i + 1, chapter_title: ch.title, book_title: state.bookTitle || '' },
+                llmCall
+              );
+              // Fusionner les flags LLM dans le rapport chapitre existant
+              if (detReport.per_chapter[i]) {
+                // Conserver les flags déterministes déjà présents
+                const existingCodes = new Set((detReport.per_chapter[i].flags || []).map(f => f.code));
+                for (const llmFlag of hybrid.flags) {
+                  if (!existingCodes.has(llmFlag.code)) {
+                    detReport.per_chapter[i].flags.push(llmFlag);
+                  }
+                }
+                detReport.per_chapter[i].boussole = hybrid.boussole;
+                detReport.per_chapter[i].controles = hybrid.controles;
+                // Re-calcul sommaire chapitre
+                detReport.per_chapter[i].summary.total_flags = detReport.per_chapter[i].flags.length;
+                detReport.per_chapter[i].summary.critical = detReport.per_chapter[i].flags.filter(f => f.severity === 'haute').length;
+              }
+            } catch (e) {
+              log('    ⚠ LLM a échoué sur ce chapitre : ' + e.message, 'warn');
+            }
+          }
+          // Re-calcul sommaire global
+          detReport.global.total_flags = detReport.per_chapter.reduce((s, c) => s + c.summary.total_flags, 0);
+          detReport.global.total_critical = detReport.per_chapter.reduce((s, c) => s + (c.summary.critical || 0), 0);
+          state.report = detReport;
+        }
+
+        const dt = Math.round(performance.now() - t0);
+        log('Analyse ' + mode + ' terminée en ' + dt + ' ms : ' +
+            state.report.global.total_flags + ' flag(s)', 'ok');
+        renderReport();
+        renderChapter(state.activeChapterIdx);
+        document.getElementById('btn-export-json').disabled = false;
+        document.getElementById('btn-export-html').disabled = false;
+        document.getElementById('btn-export-corrige').disabled = false;
+      } catch (e) {
+        log('Erreur analyse ' + mode + ' : ' + e.message, 'err');
+        console.error(e);
+      } finally {
+        document.getElementById('btn-analyze').disabled = false;
+        document.getElementById('btn-analyze').textContent = 'Analyser le manuscrit';
+      }
+    })();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // RENDU UI
+  // ─────────────────────────────────────────────────────────────
+
+  function updateBookUI() {
+    document.getElementById('book-title').textContent = state.bookTitle || 'Manuscrit sans titre';
+    const totalWords = state.chapters.reduce((s, c) => s + c.text.split(/\s+/).filter(w => w.length > 0).length, 0);
+    document.getElementById('book-meta').innerHTML =
+      '<span>' + state.chapters.length + ' chapitre(s)</span>' +
+      '<span>' + totalWords.toLocaleString('fr-FR') + ' mots</span>';
+
+    // Onglets chapitres
+    const selector = document.getElementById('chapitre-selector');
+    selector.innerHTML = '';
+    for (let i = 0; i < state.chapters.length; i++) {
+      const c = state.chapters[i];
+      const tab = document.createElement('div');
+      tab.className = 'chapitre-tab' + (i === state.activeChapterIdx ? ' active' : '');
+      tab.textContent = c.num + '. ' + (c.title.substring(0, 24) || 'sans titre');
+      tab.dataset.idx = i;
+      tab.addEventListener('click', () => {
+        state.activeChapterIdx = i;
+        renderChapter(i);
+        updateChapterTabs();
+      });
+      selector.appendChild(tab);
+    }
+
+    renderChapter(state.activeChapterIdx);
+    document.getElementById('btn-analyze').disabled = false;
+  }
+
+  function updateChapterTabs() {
+    const tabs = document.querySelectorAll('.chapitre-tab');
+    tabs.forEach((tab, i) => {
+      tab.classList.toggle('active', i === state.activeChapterIdx);
+      // Badge si chapitre a des issues
+      if (state.report && state.report.per_chapter[i] &&
+          state.report.per_chapter[i].summary.total_flags > 0) {
+        tab.classList.add('has-issues');
+      } else {
+        tab.classList.remove('has-issues');
+      }
+    });
+  }
+
+  function renderChapter(idx) {
+    const ch = state.chapters[idx];
+    if (!ch) {
+      document.getElementById('contenu-chapitre').innerHTML =
+        '<div class="etat-vide"><div class="etat-vide-icon">📖</div>Pas de chapitre sélectionné</div>';
+      return;
+    }
+
+    const container = document.getElementById('contenu-chapitre');
+
+    let html = '<h3>' + escapeHTML(ch.title || 'Chapitre ' + ch.num) + '</h3>';
+
+    // Si rapport disponible et chapitre a des flags, utiliser renderTextWithHighlights
+    if (state.report && state.report.per_chapter[idx]) {
+      const chReport = state.report.per_chapter[idx];
+
+      // V7.4 Phase B — Appliquer décorations de décisions
+      // On construit une copie des flags avec les hits décorés par décision
+      const flagsAvecDecisions = chReport.flags.map((f, fi) => ({
+        ...f,
+        hits: (f.hits || []).map((h, hi) => {
+          const key = idx + ':' + f.code + ':' + hi;
+          const decision = state.decisions.get(key) || null;
+          return { ...h, _decision: decision };
+        }),
+      }));
+
+      // Construire le HTML nous-mêmes pour pouvoir ajouter les classes
+      const highlighted = renderTextWithDecisions(ch.text, flagsAvecDecisions);
+      const htmlParagraphs = highlighted.split(/\n\n+/)
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+        .map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>')
+        .join('');
+      html += htmlParagraphs;
+    } else {
+      // Pas de rapport : texte simple
+      const paragraphs = ch.text.split(/\n\n+/);
+      for (const p of paragraphs) {
+        if (p.trim().length > 0) {
+          html += '<p>' + escapeHTML(p).replace(/\n/g, '<br>') + '</p>';
+        }
+      }
+    }
+
+    container.innerHTML = html;
+    container.scrollTop = 0;
+
+    // Mettre à jour le volet droit avec les flags de ce chapitre
+    renderChapterFlags(idx);
+  }
+
+  /**
+   * Version locale de renderTextWithHighlights qui ajoute les classes
+   * de décision (decided-cut, decided-keep) aux marks.
+   */
+  function renderTextWithDecisions(text, flags) {
+    const FLAG_COLORS = {
+      'NEG-NARRATION': '#E6A84C',
+      'NARRATION-NEGATIVE': '#D97E6D',
+      'META-NOMINATION': '#C25E5E',
+      'PROLEPSE': '#C9AD5F',
+      'FORMULES-ROUGES': '#B8634E',
+      'POV-ALTITUDE': '#7A9B8E',
+      'PHRASES-GLOSSANTES': '#9B7EA5',
+      'MOTIF-STAGNANT': '#8FAFB1',
+    };
+
+    const marks = [];
+    for (const f of (flags || [])) {
+      const color = FLAG_COLORS[f.code] || '#888';
+      for (const h of (f.hits || [])) {
+        if (typeof h.start === 'number' && typeof h.end === 'number' && h.end > h.start) {
+          marks.push({
+            start: h.start,
+            end: h.end,
+            color: color,
+            code: f.code,
+            kind: h.kind || '',
+            suggestion: h.suggestion || '',
+            decision: h._decision || null,
+          });
+        }
+      }
+    }
+
+    if (marks.length === 0) return escapeHTML(text);
+
+    marks.sort((a, b) => a.start - b.start || b.end - a.end);
+    const clean = [];
+    let lastEnd = -1;
+    for (const m of marks) {
+      if (m.start >= lastEnd) {
+        clean.push(m);
+        lastEnd = m.end;
+      }
+    }
+
+    let html = '';
+    let cursor = 0;
+    for (const m of clean) {
+      if (m.start > cursor) html += escapeHTML(text.substring(cursor, m.start));
+      const segment = text.substring(m.start, m.end);
+      const title = `${m.code}${m.kind ? ' / ' + m.kind : ''}${m.suggestion ? ' — ' + m.suggestion : ''}`;
+      const cls = m.decision === 'cut' ? ' decided-cut' : (m.decision === 'keep' ? ' decided-keep' : '');
+      html += `<mark class="${cls.trim()}" style="background-color:${m.color}40; border-bottom: 2px solid ${m.color};" title="${escapeHTMLAttr(title)}">${escapeHTML(segment)}</mark>`;
+      cursor = m.end;
+    }
+    if (cursor < text.length) html += escapeHTML(text.substring(cursor));
+
+    return html;
+  }
+
+  function renderReport() {
+    const report = state.report;
+    if (!report) return;
+
+    // Stats globales
+    const statsEl = document.getElementById('stats-globales');
+    statsEl.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-valeur">${report.meta.chapters_count}</div>
+        <div class="stat-label">Chapitres</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-valeur">${report.global.total_flags}</div>
+        <div class="stat-label">Flags</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-valeur">${report.global.total_hits}</div>
+        <div class="stat-label">Détections</div>
+      </div>
+      <div class="stat-card critique">
+        <div class="stat-valeur">${report.global.total_critical}</div>
+        <div class="stat-label">Critiques</div>
+      </div>
+    `;
+
+    // Recommandations
+    const recZone = document.getElementById('recommendations-zone');
+    if (report.global.recommendations.length > 0) {
+      let recHtml = '<div class="recommendations">';
+      recHtml += '<div class="recommendations-title">Recommandations</div>';
+      recHtml += '<ul>';
+      for (const r of report.global.recommendations) {
+        recHtml += '<li>' + escapeHTML(r) + '</li>';
+      }
+      recHtml += '</ul></div>';
+      recZone.innerHTML = recHtml;
+    } else {
+      recZone.innerHTML = '';
+    }
+
+    // Patterns globaux
+    const patternsEl = document.getElementById('patterns-globaux');
+    patternsEl.innerHTML = '';
+    const entries = Object.entries(report.global.patterns);
+    if (entries.length === 0) {
+      patternsEl.innerHTML = '<div style="font-size:12px;color:var(--texte-doux)">Aucun pattern récurrent détecté.</div>';
+    } else {
+      entries.sort((a, b) => b[1].total_count - a[1].total_count);
+      for (const [code, data] of entries) {
+        const color = getFlagColor(code);
+        const uniqueChapters = [...new Set(data.chapters)].sort((a, b) => a - b);
+        const div = document.createElement('div');
+        div.className = 'pattern-global';
+        div.innerHTML = `
+          <div class="pattern-global-code">
+            <div class="pattern-global-dot" style="background:${color}"></div>
+            ${escapeHTML(code)}
+          </div>
+          <div class="pattern-global-count">${data.total_count} × ch. ${uniqueChapters.join(',')}</div>
+        `;
+        patternsEl.appendChild(div);
+      }
+    }
+
+    // Mettre à jour les badges sur les tabs
+    updateChapterTabs();
+  }
+
+  function renderChapterFlags(idx) {
+    const zone = document.getElementById('flags-chapitre');
+    if (!state.report || !state.report.per_chapter[idx]) {
+      zone.innerHTML = '<div style="font-size:12px;color:var(--texte-doux)">Pas de rapport disponible. Lance l\'analyse.</div>';
+      return;
+    }
+
+    const chReport = state.report.per_chapter[idx];
+    if (chReport.flags.length === 0) {
+      zone.innerHTML = '<div style="font-size:12px;color:var(--mer);padding:10px 12px;background:rgba(143,175,177,0.08);border-radius:4px">✓ Aucun défaut détecté dans ce chapitre.</div>';
+      return;
+    }
+
+    zone.innerHTML = '';
+    for (let fi = 0; fi < chReport.flags.length; fi++) {
+      const f = chReport.flags[fi];
+      const color = getFlagColor(f.code);
+      const div = document.createElement('div');
+      div.className = 'flag-item';
+      div.style.borderLeftColor = color;
+
+      let hitsHtml = '';
+      if (f.hits && f.hits.length > 0) {
+        hitsHtml = '<ul class="flag-item-hits">';
+        for (let hi = 0; hi < f.hits.length; hi++) {
+          const h = f.hits[hi];
+          const decisionKey = idx + ':' + f.code + ':' + hi;
+          const decision = state.decisions.get(decisionKey) || null;
+          const liClass = decision === 'cut' ? 'decision-cut' : (decision === 'keep' ? 'decision-keep' : '');
+          hitsHtml += '<li data-start="' + (h.start || 0) + '" data-end="' + (h.end || 0) + '"';
+          hitsHtml += ' data-decision-key="' + escapeHTMLAttr(decisionKey) + '"';
+          hitsHtml += ' class="' + liClass + '">';
+          hitsHtml += '<div class="flag-hit-match">« ' + escapeHTML(h.match) + ' »</div>';
+          if (h.kind) hitsHtml += '<div class="flag-hit-kind">' + escapeHTML(h.kind) + '</div>';
+          if (h.suggestion) hitsHtml += '<div class="flag-hit-suggestion">→ ' + escapeHTML(h.suggestion) + '</div>';
+          hitsHtml += '<div class="hit-actions">';
+          hitsHtml += '<button type="button" class="hit-action-btn ' + (decision === 'cut' ? 'active-cut' : '') + '" data-action="cut">Couper</button>';
+          hitsHtml += '<button type="button" class="hit-action-btn ' + (decision === 'keep' ? 'active-keep' : '') + '" data-action="keep">Garder</button>';
+          hitsHtml += '<button type="button" class="hit-action-btn" data-action="clear">?</button>';
+          hitsHtml += '</div>';
+          hitsHtml += '</li>';
+        }
+        hitsHtml += '</ul>';
+      }
+
+      div.innerHTML = `
+        <div class="flag-item-header">
+          <div class="flag-item-code" style="color:${color}">${escapeHTML(f.code)}</div>
+          <div class="flag-item-count">${f.count} × ${escapeHTML(f.severity || '')}</div>
+        </div>
+        ${hitsHtml}
+      `;
+      zone.appendChild(div);
+    }
+
+    // Clic sur un hit = scroll vers le passage dans le texte
+    // Clic sur un bouton action = enregistrer la décision
+    zone.querySelectorAll('.flag-item-hits li').forEach(li => {
+      li.addEventListener('click', (e) => {
+        // Si clic sur un bouton action, gérer la décision
+        const actionBtn = e.target.closest('.hit-action-btn');
+        if (actionBtn) {
+          e.stopPropagation();
+          const action = actionBtn.dataset.action;
+          const key = li.dataset.decisionKey;
+          if (action === 'clear') {
+            state.decisions.delete(key);
+          } else {
+            state.decisions.set(key, action);
+          }
+          // Re-render des flags uniquement (pas le texte entier pour éviter flicker)
+          renderChapterFlags(state.activeChapterIdx);
+          // Re-render du texte pour appliquer les marks décorés
+          renderChapter(state.activeChapterIdx);
+          updateDecisionsSummary();
+          return;
+        }
+
+        // Sinon clic normal → scroll vers le passage
+        const matchText = li.querySelector('.flag-hit-match').textContent.replace(/^« | »$/g, '');
+        highlightFirstMatch(matchText);
+      });
+    });
+  }
+
+  /**
+   * Met à jour un résumé visible du nombre de décisions prises.
+   * Pour l'instant, pose juste un data-attribute sur le bouton export.
+   */
+  function updateDecisionsSummary() {
+    let cutCount = 0, keepCount = 0;
+    for (const d of state.decisions.values()) {
+      if (d === 'cut') cutCount++;
+      else if (d === 'keep') keepCount++;
+    }
+    const btn = document.getElementById('btn-export-corrige');
+    if (cutCount > 0) {
+      btn.textContent = 'Exporter texte corrigé (' + cutCount + ' coupe' + (cutCount > 1 ? 's' : '') + ')';
+    } else {
+      btn.textContent = 'Exporter texte corrigé';
+    }
+  }
+
+  function highlightFirstMatch(matchText) {
+    const contenu = document.getElementById('contenu-chapitre');
+    const marks = contenu.querySelectorAll('mark');
+    for (const m of marks) {
+      if (m.textContent.trim() === matchText.trim()) {
+        m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const orig = m.style.boxShadow;
+        m.style.boxShadow = '0 0 0 3px rgba(255, 200, 80, 0.6)';
+        setTimeout(() => { m.style.boxShadow = orig; }, 1500);
+        return;
+      }
+    }
+  }
+
+  function getFlagColor(code) {
+    const map = {
+      'NEG-NARRATION': 'var(--flag-neg-narration)',
+      'NARRATION-NEGATIVE': 'var(--flag-narration-negative)',
+      'META-NOMINATION': 'var(--flag-meta-nomination)',
+      'PROLEPSE': 'var(--flag-prolepse)',
+      'FORMULES-ROUGES': 'var(--flag-formules-rouges)',
+      'POV-ALTITUDE': 'var(--flag-pov-altitude)',
+      'PHRASES-GLOSSANTES': 'var(--flag-phrases-glossantes)',
+      'MOTIF-STAGNANT': 'var(--flag-motif-stagnant)',
+    };
+    return map[code] || '#888';
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // EXPORTS
+  // ─────────────────────────────────────────────────────────────
+
+  function slugify(s) {
+    return (s || 'manuscrit').replace(/[^\w\-]/g, '_').substring(0, 60);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Export 1 — Rapport brut JSON.
+   * Usage : archivage, partage avec ChatGPT, analyse ultérieure.
+   */
+  function exportReportJSON() {
+    if (!state.report) return;
+    // Enrichir avec les décisions prises
+    const payload = {
+      ...state.report,
+      decisions: Array.from(state.decisions.entries()).map(([k, v]) => ({ key: k, action: v })),
+      shell: { version: '7.4.0-alpha-phase-B', exported_at: new Date().toISOString() },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, 'rapport-relecture-' + slugify(state.bookTitle) + '.json');
+    log('Rapport exporté en JSON', 'ok');
+  }
+
+  /**
+   * Export 2 — Rapport HTML lisible et autonome.
+   * Usage : partage avec lecteurs, archivage lisible, impression.
+   */
+  function exportReportHTML() {
+    if (!state.report) return;
+    const report = state.report;
+    const bookTitle = state.bookTitle || 'Manuscrit sans titre';
+
+    // Comptage des décisions
+    let cutCount = 0, keepCount = 0;
+    for (const d of state.decisions.values()) {
+      if (d === 'cut') cutCount++;
+      else if (d === 'keep') keepCount++;
+    }
+
+    let html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">';
+    html += '<title>Rapport de relecture — ' + escapeHTML(bookTitle) + '</title>';
+    html += '<style>';
+    html += 'body{font-family:Georgia,serif;max-width:900px;margin:40px auto;padding:0 24px;color:#2A3435;line-height:1.6;background:#FAFAF7;}';
+    html += 'h1{font-size:28px;color:#2A3435;border-bottom:2px solid #8FAFB1;padding-bottom:12px;}';
+    html += 'h2{font-size:20px;color:#5C6566;margin-top:32px;}';
+    html += 'h3{font-size:16px;color:#2A3435;margin-top:24px;}';
+    html += '.meta{color:#888;font-size:13px;margin-bottom:24px;}';
+    html += '.global-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;}';
+    html += '.stat{background:white;padding:12px;border-radius:6px;border:1px solid #D5D8D3;text-align:center;}';
+    html += '.stat-val{font-size:24px;font-weight:bold;color:#2A3435;}';
+    html += '.stat-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;}';
+    html += '.chapter{background:white;padding:16px 20px;border-radius:6px;margin:12px 0;border-left:4px solid #D5D8D3;}';
+    html += '.chapter.critique{border-left-color:#C25E5E;}';
+    html += '.chapter.propre{border-left-color:#8FAFB1;}';
+    html += '.flag-entry{margin:10px 0;padding:8px 12px;border-left:3px solid #ccc;background:#FAFAF7;border-radius:3px;}';
+    html += '.flag-code{font-weight:bold;font-family:monospace;font-size:12px;letter-spacing:0.3px;}';
+    html += '.hit{font-style:italic;color:#5C6566;margin:4px 0;padding-left:16px;border-left:2px solid #D5D8D3;}';
+    html += '.hit-cut{opacity:0.5;text-decoration:line-through;}';
+    html += '.hit-keep{border-left-color:#8FAFB1;}';
+    html += '.suggestion{font-size:12px;color:#8FAFB1;margin-top:2px;}';
+    html += '.patterns{background:#F3F1ED;padding:12px;border-radius:6px;}';
+    html += '.pattern-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;}';
+    html += '</style></head><body>';
+
+    html += '<h1>Rapport de relecture éditoriale</h1>';
+    html += '<div class="meta">Livre : <strong>' + escapeHTML(bookTitle) + '</strong><br>';
+    html += 'Généré le ' + new Date().toLocaleString('fr-FR') + '<br>';
+    html += 'Shell Relecture V7.4.0-alpha — Noyau Éditeur V' + (typeof EditeurNoyau !== 'undefined' ? EditeurNoyau.VERSION : '?') + ' — Tests 100% déterministes, zéro appel LLM';
+    html += '</div>';
+
+    // Stats globales
+    html += '<h2>Vue globale</h2>';
+    html += '<div class="global-stats">';
+    html += '<div class="stat"><div class="stat-val">' + report.meta.chapters_count + '</div><div class="stat-lbl">Chapitres</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + report.global.total_flags + '</div><div class="stat-lbl">Flags</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + report.global.total_hits + '</div><div class="stat-lbl">Détections</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + report.global.total_critical + '</div><div class="stat-lbl">Critiques</div></div>';
+    html += '</div>';
+
+    // Décisions prises
+    if (cutCount + keepCount > 0) {
+      html += '<h2>Décisions éditoriales prises</h2>';
+      html += '<p><strong>' + cutCount + '</strong> passage(s) marqué(s) à couper · <strong>' + keepCount + '</strong> passage(s) marqué(s) à garder</p>';
+    }
+
+    // Recommandations
+    if (report.global.recommendations.length > 0) {
+      html += '<h2>Recommandations</h2><ul>';
+      for (const r of report.global.recommendations) {
+        html += '<li>' + escapeHTML(r) + '</li>';
+      }
+      html += '</ul>';
+    }
+
+    // Patterns récurrents
+    const patternEntries = Object.entries(report.global.patterns);
+    if (patternEntries.length > 0) {
+      html += '<h2>Patterns récurrents</h2><div class="patterns">';
+      patternEntries.sort((a, b) => b[1].total_count - a[1].total_count);
+      for (const [code, data] of patternEntries) {
+        const uniqueChapters = [...new Set(data.chapters)].sort((a, b) => a - b);
+        html += '<div class="pattern-row"><span><strong>' + escapeHTML(code) + '</strong></span>';
+        html += '<span>' + data.total_count + ' × sur ch. ' + uniqueChapters.join(', ') + '</span></div>';
+      }
+      html += '</div>';
+    }
+
+    // Détail par chapitre
+    html += '<h2>Détail par chapitre</h2>';
+    for (let ci = 0; ci < report.per_chapter.length; ci++) {
+      const c = report.per_chapter[ci];
+      const chClass = c.flags.length === 0 ? 'propre' : (c.summary.critical > 0 ? 'critique' : '');
+      html += '<div class="chapter ' + chClass + '">';
+      html += '<h3>Ch.' + c.ch_num + ' — ' + escapeHTML(c.ch_title) + '</h3>';
+      html += '<div class="meta">' + c.mots + ' mots · ' + c.summary.total_flags + ' flag(s) · ' + c.summary.total_hits + ' détection(s)</div>';
+
+      if (c.flags.length === 0) {
+        html += '<p style="color:#8FAFB1">Aucun défaut détecté sur les tests actuels.</p>';
+      } else {
+        for (let fi = 0; fi < c.flags.length; fi++) {
+          const f = c.flags[fi];
+          const color = getFlagColor(f.code).replace('var(--flag-', '#').replace(')', '');
+          html += '<div class="flag-entry" style="border-left-color:' + getColorValue(f.code) + '">';
+          html += '<div class="flag-code" style="color:' + getColorValue(f.code) + '">' + escapeHTML(f.code);
+          html += ' — ' + f.count + ' × ' + escapeHTML(f.severity || '') + '</div>';
+
+          for (let hi = 0; hi < (f.hits || []).length; hi++) {
+            const h = f.hits[hi];
+            const key = ci + ':' + f.code + ':' + hi;
+            const decision = state.decisions.get(key);
+            const hitClass = decision === 'cut' ? 'hit hit-cut' : (decision === 'keep' ? 'hit hit-keep' : 'hit');
+            html += '<div class="' + hitClass + '">« ' + escapeHTML(h.match) + ' »';
+            if (h.kind) html += ' <small>[' + escapeHTML(h.kind) + ']</small>';
+            if (decision) html += ' <small><em>' + (decision === 'cut' ? '✂ à couper' : '✓ à garder') + '</em></small>';
+            html += '</div>';
+            if (h.suggestion) html += '<div class="suggestion">→ ' + escapeHTML(h.suggestion) + '</div>';
+          }
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+    }
+
+    html += '</body></html>';
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    downloadBlob(blob, 'rapport-relecture-' + slugify(state.bookTitle) + '.html');
+    log('Rapport exporté en HTML (' + Math.round(html.length / 1024) + ' KB)', 'ok');
+  }
+
+  /**
+   * Retourne la couleur hex d'un code de flag (utilisé pour HTML export).
+   */
+  function getColorValue(code) {
+    const colors = {
+      'NEG-NARRATION': '#E6A84C',
+      'NARRATION-NEGATIVE': '#D97E6D',
+      'META-NOMINATION': '#C25E5E',
+      'PROLEPSE': '#C9AD5F',
+      'FORMULES-ROUGES': '#B8634E',
+      'POV-ALTITUDE': '#7A9B8E',
+      'PHRASES-GLOSSANTES': '#9B7EA5',
+      'MOTIF-STAGNANT': '#8FAFB1',
+    };
+    return colors[code] || '#888';
+  }
+
+  /**
+   * Export 3 — Texte corrigé.
+   * Applique les décisions "cut" aux chapitres et exporte :
+   *  - un .txt plat avec les passages cut supprimés
+   *  - un .json de la structure chapitres corrigés
+   *
+   * Ne génère PAS un EPUB (ça demande une lib additionnelle — on le fera
+   * en V7.4.1 si besoin). Pour l'instant : .txt + .json utilisables pour
+   * reconstruire ailleurs.
+   */
+  function exportTexteCorrige() {
+    if (!state.report || state.chapters.length === 0) return;
+
+    let cutCount = 0;
+    const chaptersCorriges = [];
+
+    for (let ci = 0; ci < state.chapters.length; ci++) {
+      const ch = state.chapters[ci];
+      const chReport = state.report.per_chapter[ci];
+
+      // Collecter toutes les décisions "cut" pour ce chapitre avec leurs positions
+      const cutRanges = [];
+      if (chReport && chReport.flags) {
+        for (const f of chReport.flags) {
+          for (let hi = 0; hi < (f.hits || []).length; hi++) {
+            const h = f.hits[hi];
+            const key = ci + ':' + f.code + ':' + hi;
+            if (state.decisions.get(key) === 'cut' &&
+                typeof h.start === 'number' && typeof h.end === 'number' &&
+                h.end > h.start) {
+              cutRanges.push({ start: h.start, end: h.end });
+              cutCount++;
+            }
+          }
+        }
+      }
+
+      // Trier par position descendante pour pouvoir splicer sans décaler les offsets
+      cutRanges.sort((a, b) => b.start - a.start);
+
+      let texteCorrige = ch.text;
+      for (const r of cutRanges) {
+        // Retirer la plage [start, end[ — on garde un espace pour ne pas fusionner
+        // les mots ou phrases voisines (ex: "X. Y." → "X.  Y." puis on nettoie)
+        texteCorrige = texteCorrige.substring(0, r.start) + texteCorrige.substring(r.end);
+      }
+
+      // Nettoyer les doubles espaces et espaces orphelins créés par les coupes
+      texteCorrige = texteCorrige
+        .replace(/[ \t]+/g, ' ')
+        .replace(/ +\n/g, '\n')
+        .replace(/\n +/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        // Normaliser espace avant ponctuation et doubles points
+        .replace(/[ ]*([.!?,;:])/g, '$1')
+        .replace(/([.!?])([.!?])+/g, '$1')
+        // Point orphelin en début de ligne (après saut) : "\n. Texte" → "\nTexte"
+        // Préserve les \n existants
+        .replace(/(\n+)[.!?,;:]+[ \t]*/g, '$1')
+        // Point orphelin au tout début du texte
+        .replace(/^[.!?,;:]+[ \t]*/, '')
+        // Re-normaliser espaces inline après ponctuation (PAS les sauts de ligne)
+        .replace(/([.!?])[ \t]+([A-ZÀ-Ÿ])/g, '$1 $2')
+        .trim();
+
+      chaptersCorriges.push({
+        num: ch.num,
+        title: ch.title,
+        text: texteCorrige,
+        mots_avant: ch.text.split(/\s+/).filter(w => w.length > 0).length,
+        mots_apres: texteCorrige.split(/\s+/).filter(w => w.length > 0).length,
+      });
+    }
+
+    if (cutCount === 0) {
+      log('Aucune décision "couper" enregistrée — rien à corriger. Clique sur "Couper" à côté des passages à supprimer.', 'warn');
+      return;
+    }
+
+    // Export 1 : .txt plat
+    let txt = (state.bookTitle || 'Manuscrit') + '\n';
+    txt += '='.repeat((state.bookTitle || 'Manuscrit').length) + '\n\n';
+    txt += 'Version corrigée — ' + cutCount + ' passage(s) supprimé(s) — généré le ' + new Date().toLocaleString('fr-FR') + '\n\n';
+    for (const ch of chaptersCorriges) {
+      txt += '\n\n' + (ch.title || 'Chapitre ' + ch.num) + '\n';
+      txt += '-'.repeat((ch.title || 'Chapitre ' + ch.num).length) + '\n\n';
+      txt += ch.text + '\n';
+    }
+    const blobTxt = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    downloadBlob(blobTxt, 'manuscrit-corrige-' + slugify(state.bookTitle) + '.txt');
+
+    // Export 2 : .json structuré pour reconstitution ultérieure
+    const payloadJson = {
+      meta: {
+        original_title: state.bookTitle,
+        exported_at: new Date().toISOString(),
+        shell_version: '7.4.0-alpha-universel',
+        cuts_applied: cutCount,
+      },
+      chapters: chaptersCorriges,
+    };
+    const blobJson = new Blob([JSON.stringify(payloadJson, null, 2)], { type: 'application/json' });
+    downloadBlob(blobJson, 'manuscrit-corrige-' + slugify(state.bookTitle) + '.json');
+
+    // Stocker pour export EPUB ultérieur
+    state.chaptersCorriges = chaptersCorriges;
+    state.lastCutCount = cutCount;
+
+    const motsAvant = chaptersCorriges.reduce((s, c) => s + c.mots_avant, 0);
+    const motsApres = chaptersCorriges.reduce((s, c) => s + c.mots_apres, 0);
+    const deltaMots = motsAvant - motsApres;
+    log('Texte corrigé exporté : ' + cutCount + ' coupe(s) appliquée(s), ' +
+        deltaMots + ' mot(s) supprimé(s) (' + motsAvant + ' → ' + motsApres + ')', 'ok');
+  }
+
+  /**
+   * Export 4 — EPUB corrigé (optionnel, nécessite JSZip).
+   * Applique les mêmes coupes que exportTexteCorrige mais produit un EPUB
+   * minimal utilisable (spine, manifest, nav, CSS simple).
+   */
+  async function exportEpubCorrige() {
+    if (!state.report || state.chapters.length === 0) return;
+
+    // Calculer les chapitres corrigés si pas déjà fait
+    let chaptersCorriges = state.chaptersCorriges;
+    let cutCount = state.lastCutCount || 0;
+
+    if (!chaptersCorriges) {
+      // Recalculer rapidement
+      chaptersCorriges = [];
+      cutCount = 0;
+      for (let ci = 0; ci < state.chapters.length; ci++) {
+        const ch = state.chapters[ci];
+        const chReport = state.report.per_chapter[ci];
+        const cutRanges = [];
+        if (chReport && chReport.flags) {
+          for (const f of chReport.flags) {
+            for (let hi = 0; hi < (f.hits || []).length; hi++) {
+              const h = f.hits[hi];
+              const key = ci + ':' + f.code + ':' + hi;
+              if (state.decisions.get(key) === 'cut' &&
+                  typeof h.start === 'number' && typeof h.end === 'number' &&
+                  h.end > h.start) {
+                cutRanges.push({ start: h.start, end: h.end });
+                cutCount++;
+              }
+            }
+          }
+        }
+        cutRanges.sort((a, b) => b.start - a.start);
+        let texteCorrige = ch.text;
+        for (const r of cutRanges) {
+          texteCorrige = texteCorrige.substring(0, r.start) + texteCorrige.substring(r.end);
+        }
+        texteCorrige = texteCorrige
+          .replace(/[ \t]+/g, ' ')
+          .replace(/ +\n/g, '\n').replace(/\n +/g, '\n').replace(/\n{3,}/g, '\n\n')
+          .replace(/[ ]*([.!?,;:])/g, '$1').replace(/([.!?])([.!?])+/g, '$1')
+          .replace(/(\n+)[.!?,;:]+[ \t]*/g, '$1').replace(/^[.!?,;:]+[ \t]*/, '')
+          .replace(/([.!?])[ \t]+([A-ZÀ-Ÿ])/g, '$1 $2').trim();
+        chaptersCorriges.push({
+          num: ch.num, title: ch.title, text: texteCorrige,
+        });
+      }
+    }
+
+    if (cutCount === 0) {
+      log('Aucune décision "couper" enregistrée — rien à corriger.', 'warn');
+      return;
+    }
+
+    // Charger JSZip si nécessaire
+    if (typeof JSZip === 'undefined') {
+      log('Chargement de JSZip…', 'info');
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      script.onload = function () { buildEpub(chaptersCorriges, cutCount); };
+      script.onerror = function () {
+        log('Impossible de charger JSZip depuis le CDN. L\'export EPUB n\'est pas disponible — utilise l\'export .txt + .json.', 'err');
+      };
+      document.head.appendChild(script);
+    } else {
+      buildEpub(chaptersCorriges, cutCount);
+    }
+  }
+
+  async function buildEpub(chaptersCorriges, cutCount) {
+    try {
+      const zip = new JSZip();
+      const title = state.bookTitle || 'Manuscrit corrigé';
+      const uuid = 'urn:uuid:' + crypto.randomUUID();
+
+      // mimetype (doit être le premier, non compressé)
+      zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+      // META-INF/container.xml
+      zip.file('META-INF/container.xml',
+`<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+      // CSS minimal lisible
+      zip.file('OEBPS/style.css',
+`body { font-family: Georgia, serif; line-height: 1.6; padding: 0 1em; }
+h1 { font-size: 1.6em; margin: 1.5em 0 0.8em; }
+h2 { font-size: 1.3em; margin: 1.2em 0 0.6em; }
+p { margin: 0.8em 0; text-indent: 1.2em; }
+p:first-of-type { text-indent: 0; }`);
+
+      // Chapitres (XHTML)
+      const manifestItems = [];
+      const spineItems = [];
+
+      // Page titre
+      const titleXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr">
+<head><title>${escapeHTML(title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body><h1>${escapeHTML(title)}</h1><p><em>Version corrigée — ${cutCount} passage(s) supprimé(s)</em></p></body>
+</html>`;
+      zip.file('OEBPS/title.xhtml', titleXhtml);
+      manifestItems.push('<item id="title" href="title.xhtml" media-type="application/xhtml+xml"/>');
+      spineItems.push('<itemref idref="title"/>');
+
+      for (let i = 0; i < chaptersCorriges.length; i++) {
+        const ch = chaptersCorriges[i];
+        const paragraphs = ch.text.split(/\n\n+/)
+          .map(p => p.trim())
+          .filter(p => p.length > 0)
+          .map(p => '<p>' + escapeHTML(p).replace(/\n/g, '<br/>') + '</p>')
+          .join('\n');
+        const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr">
+<head><title>${escapeHTML(ch.title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body>
+<h2>${escapeHTML(ch.title)}</h2>
+${paragraphs}
+</body>
+</html>`;
+        const fname = 'ch' + (i + 1) + '.xhtml';
+        zip.file('OEBPS/' + fname, xhtml);
+        manifestItems.push('<item id="ch' + (i + 1) + '" href="' + fname + '" media-type="application/xhtml+xml"/>');
+        spineItems.push('<itemref idref="ch' + (i + 1) + '"/>');
+      }
+
+      // nav.xhtml (table des matières EPUB 3)
+      let navLinks = '<li><a href="title.xhtml">Titre</a></li>';
+      for (let i = 0; i < chaptersCorriges.length; i++) {
+        navLinks += '<li><a href="ch' + (i + 1) + '.xhtml">' + escapeHTML(chaptersCorriges[i].title) + '</a></li>';
+      }
+      const navXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="fr">
+<head><title>Sommaire</title></head>
+<body>
+<nav epub:type="toc"><h1>Sommaire</h1><ol>${navLinks}</ol></nav>
+</body>
+</html>`;
+      zip.file('OEBPS/nav.xhtml', navXhtml);
+      manifestItems.push('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>');
+
+      // style.css dans manifest
+      manifestItems.push('<item id="css" href="style.css" media-type="text/css"/>');
+
+      // content.opf
+      const opf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId" xml:lang="fr">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">${uuid}</dc:identifier>
+    <dc:title>${escapeHTML(title)}</dc:title>
+    <dc:language>fr</dc:language>
+    <dc:creator>Auteur</dc:creator>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')}</meta>
+  </metadata>
+  <manifest>
+${manifestItems.map(x => '    ' + x).join('\n')}
+  </manifest>
+  <spine>
+${spineItems.map(x => '    ' + x).join('\n')}
+  </spine>
+</package>`;
+      zip.file('OEBPS/content.opf', opf);
+
+      // Générer l'EPUB
+      const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' });
+      downloadBlob(blob, 'manuscrit-corrige-' + slugify(state.bookTitle) + '.epub');
+      log('EPUB corrigé exporté (' + cutCount + ' coupe(s) appliquée(s))', 'ok');
+    } catch (e) {
+      log('Erreur construction EPUB : ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+
+  /**
+   * Importe un fichier JSON de partition (sélection utilisateur).
+   */
+  function importPartitionFile(file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const raw = e.target.result;
+        // Vérifier que c'est du JSON valide avant d'injecter
+        JSON.parse(raw);
+        const partitionInput = document.getElementById('partition-input');
+        partitionInput.value = raw;
+        validatePartition(raw);
+        const btn = document.querySelector('.btn-import-partition');
+        if (btn) btn.classList.add('loaded');
+        log('Partition importée depuis "' + file.name + '"', 'ok');
+      } catch (err) {
+        log('Erreur : fichier JSON invalide — ' + err.message, 'err');
+      }
+    };
+    reader.onerror = function () {
+      log('Erreur de lecture du fichier partition', 'err');
+    };
+    reader.readAsText(file);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // INITIALISATION — BIND ÉVÉNEMENTS
+  // ─────────────────────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // Vérifier que le noyau est chargé
+    if (typeof EditeurNoyau === 'undefined') {
+      log('Erreur : atelier-editeur-core.js non chargé. Vérifier que le fichier est dans le même dossier que ce shell.', 'err');
+      return;
+    }
+    log('Noyau Éditeur V' + EditeurNoyau.VERSION + ' chargé', 'ok');
+
+    // Upload zone
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = 'var(--mer)';
+      uploadZone.style.background = 'rgba(143, 175, 177, 0.08)';
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.style.borderColor = '';
+      uploadZone.style.background = '';
+      const files = e.dataTransfer.files;
+      if (files.length > 0) handleFile(files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    // Partition
+    const partitionInput = document.getElementById('partition-input');
+    partitionInput.addEventListener('input', () => {
+      validatePartition(partitionInput.value);
+      // Reset du bouton import partition si l'utilisateur modifie manuellement
+      const btn = document.querySelector('.btn-import-partition');
+      if (btn) btn.classList.remove('loaded');
+    });
+
+    // Import de partition depuis fichier
+    const partitionFileInput = document.getElementById('partition-file-input');
+    partitionFileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) importPartitionFile(e.target.files[0]);
+    });
+
+    // Boutons d'analyse et d'export
+    document.getElementById('btn-analyze').addEventListener('click', analyze);
+    document.getElementById('btn-export-json').addEventListener('click', exportReportJSON);
+    document.getElementById('btn-export-html').addEventListener('click', exportReportHTML);
+    document.getElementById('btn-export-corrige').addEventListener('click', exportTexteCorrige);
+    document.getElementById('btn-export-epub').addEventListener('click', exportEpubCorrige);
+
+    // Mode buttons (Phase E V7.4.1)
+    const modeHelps = {
+      deterministic: 'Filet lexical rapide, aucun appel LLM, couverture partielle des 16 signaux.',
+      hybrid: 'Déterministe + appel LLM par chapitre (Boussole + 3 Contrôles + 16 signaux canon). ~$0.50-1 par livre.',
+      llm: 'Un appel LLM par chapitre. Jugement perceptif canon complet. Plus lent, ~$0.50-1 par livre.',
+    };
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'transparent';
+          b.style.color = 'var(--ink2)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--deep)';
+        btn.style.color = 'var(--blanc)';
+        state.mode = btn.dataset.mode;
+        document.getElementById('modeHelp').textContent = modeHelps[state.mode] || '';
+        document.getElementById('workerUrlField').style.display = (state.mode !== 'deterministic') ? 'block' : 'none';
+      });
+    });
+    // Initial styling for active button
+    const firstBtn = document.querySelector('.mode-btn.active');
+    if (firstBtn) {
+      firstBtn.style.background = 'var(--deep)';
+      firstBtn.style.color = 'var(--blanc)';
+    }
+
+  });
+
+})();
+</script>
+
+</body>
+</html>
