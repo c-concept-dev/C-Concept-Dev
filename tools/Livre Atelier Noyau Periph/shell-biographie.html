@@ -1149,6 +1149,19 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     renderChaptersList();
 
     for (let i = 0; i < nbCh; i++) {
+      // V7.4.2 — Skip si chapitre déjà écrit (reprise après chargement projet ou crash)
+      const existing = S.session.chapters && S.session.chapters[i];
+      if (existing && existing.text && existing.text.length > 200) {
+        const wc = existing.text.split(/\s+/).filter(Boolean).length;
+        const numEl = document.getElementById('chNum' + i);
+        if (numEl) numEl.classList.add('done');
+        const wordsEl = document.getElementById('chWords' + i);
+        if (wordsEl) wordsEl.textContent = wc.toLocaleString('fr-FR') + ' mots ↻ déjà écrit';
+        log('writeLog', 'Ch.' + (i + 1) + ' "' + plan.chapters[i].title + '" déjà écrit (' + wc + ' mots) — skip', 'info');
+        document.getElementById('writeProgress').style.width = Math.round(((i + 1) / nbCh) * 100) + '%';
+        continue;
+      }
+
       document.getElementById('chNum' + i).classList.add('active');
       log('writeLog', 'Chapitre ' + (i + 1) + '/' + nbCh + ' — "' + plan.chapters[i].title + '"', 'info');
       try {
