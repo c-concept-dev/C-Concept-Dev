@@ -382,11 +382,14 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
   async function llmCallViaWorker(system, userMsg, maxTokens, model) {
     const url = S.config.workerUrl;
+    // Le worker attend une enveloppe { payload: { ... } }
     const body = {
-      model: model || S.config.model,
-      max_tokens: maxTokens || 4096,
-      system: system,
-      messages: [{ role: 'user', content: userMsg }],
+      payload: {
+        model: model || S.config.model,
+        max_tokens: maxTokens || 4096,
+        system: system,
+        messages: [{ role: 'user', content: userMsg }],
+      },
     };
     const maxRetries = 3;
     let lastErr = null;
@@ -422,11 +425,14 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
    */
   async function llmCallMultimodal(system, contentBlocks, maxTokens, model) {
     const url = S.config.workerUrl;
+    // Le worker attend une enveloppe { payload: { ... } }
     const body = {
-      model: model || S.config.model,
-      max_tokens: maxTokens || 2000,
-      system: system,
-      messages: [{ role: 'user', content: contentBlocks }],
+      payload: {
+        model: model || S.config.model,
+        max_tokens: maxTokens || 2000,
+        system: system,
+        messages: [{ role: 'user', content: contentBlocks }],
+      },
     };
     const resp = await fetch(url, {
       method: 'POST',
