@@ -340,6 +340,34 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     scheduleAutosave();
   }
 
+  // V7.4.2 — Réaffiche les boutons « Continuer vers… » selon ce qui est
+  // disponible dans la session. Appelable à tout moment pour s'assurer qu'aucun
+  // bouton de progression ne reste caché alors que l'étape correspondante est
+  // accessible.
+  function reflowContinueButtons() {
+    if (!S.session) return;
+    const totalCh = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+    const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+
+    // Step 3 → 3.5 : tous les chapitres écrits, on peut lancer Opus
+    const toStep35Btn = document.getElementById('toStep35Btn');
+    if (toStep35Btn) {
+      toStep35Btn.style.display = (totalCh > 0 && writtenCh === totalCh) ? 'block' : 'none';
+    }
+
+    // Step 3.5 → 4 : Opus rapport disponible, on peut générer la 4e
+    const toStep4Btn = document.getElementById('toStep4Btn');
+    if (toStep4Btn) {
+      toStep4Btn.style.display = S.session.bookOpusReport ? 'block' : 'none';
+    }
+
+    // Step 4 → 5 : 4e disponible, on peut assembler l'EPUB
+    const assembleBtn = document.getElementById('assembleBtn');
+    if (assembleBtn) {
+      assembleBtn.disabled = !S.session.backCover;
+    }
+  }
+
   function setHeaderStatus(msg) { document.getElementById('headerStatus').textContent = msg; }
 
   function log(zoneId, msg, level) {
@@ -1014,7 +1042,36 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         document.getElementById('backCoverOutput').textContent = S.session.backCover;
         document.getElementById('assembleBtn').disabled = false;
       }
-      setStep(targetStep);
+
+      // V7.4.2 — Choix intelligent du step de restauration
+      // Plutôt que de respecter aveuglément _shell_step (qui peut pointer vers
+      // step 5 alors que l'EPUB n'est pas reproductible sans rejouer Pexels),
+      // on rétrograde au dernier step réellement actionnable.
+      let smartStep = targetStep;
+      const totalChSmart = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+      const writtenChSmart = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+
+      if (targetStep >= 5) {
+        if (S.session.backCover) {
+          smartStep = 4;
+        } else if (S.session.bookOpusReport) {
+          smartStep = 3.5;
+        } else if (writtenChSmart === totalChSmart && totalChSmart > 0) {
+          smartStep = 3;
+        } else {
+          smartStep = 3;
+        }
+      } else if (targetStep === 4 && !S.session.backCover) {
+        smartStep = 3.5;
+      } else if (targetStep === 3.5 && !S.session.bookOpusReport) {
+        smartStep = 3;
+      }
+
+      // V7.4.2 — Réafficher tous les boutons « Continuer » disponibles
+      // peu importe le step courant. L'utilisateur peut toujours avancer manuellement.
+      reflowContinueButtons();
+
+      setStep(smartStep);
       setHeaderStatus('Projet restauré');
     } catch (e) {
       alert('Erreur restauration : ' + e.message);
