@@ -255,6 +255,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   <div class="card-sub">Auteur → Éditeur → Réécriture ciblée si flags critiques.</div>
   <div class="progress-bar-wrap"><div class="progress-bar" id="writeProgress"></div></div>
   <div id="chaptersList"></div>
+  <button class="btn btn-primary btn-full" id="resumeWriteBtn" style="margin-top:14px;display:none">↻ Reprendre l'écriture des chapitres restants</button>
   <div class="log-area" id="writeLog"></div>
   <button class="btn btn-accent btn-full" id="toStep35Btn" style="margin-top:16px;display:none">Chapitres terminés → Relecture Opus</button>
 </div></div>
@@ -976,6 +977,32 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         document.getElementById('toStep3Btn').disabled = false;
       }
       if (S.session.chapters && S.session.chapters.length > 0) renderChaptersList();
+
+      // V7.4.2 — Reprise écriture : déterminer si certains chapitres restent à écrire
+      if (S.session.plan && S.session.plan.chapters) {
+        const totalCh = S.session.plan.chapters.length;
+        const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+        const resumeBtn = document.getElementById('resumeWriteBtn');
+        if (resumeBtn) {
+          if (writtenCh > 0 && writtenCh < totalCh) {
+            // Écriture en cours
+            resumeBtn.textContent = '↻ Reprendre l\'écriture (' + writtenCh + '/' + totalCh + ' chapitres déjà écrits)';
+            resumeBtn.style.display = 'block';
+          } else if (writtenCh === 0 && S.session.plan) {
+            // Plan posé mais aucun chapitre écrit
+            resumeBtn.textContent = '▶ Lancer l\'écriture des ' + totalCh + ' chapitres';
+            resumeBtn.style.display = 'block';
+          } else if (writtenCh === totalCh) {
+            // Tous écrits — afficher la suite vers Opus
+            const opusBtn = document.getElementById('toStep35Btn');
+            if (opusBtn) opusBtn.style.display = 'block';
+            resumeBtn.style.display = 'none';
+          }
+        }
+        // Si on a des rapports Éditeur déjà accumulés dans la session export, les recharger
+        // (ils sont stockés dans S.editorReports en RAM mais pas dans le .ldv.json par défaut)
+      }
+
       if (S.session.bookOpusReport) {
         document.getElementById('opusOutput').style.display = 'block';
         document.getElementById('opusOutput').textContent = S.session.bookOpusReport;
@@ -1506,6 +1533,10 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     document.getElementById('toStep1Btn').addEventListener('click', runDiagnose);
     document.getElementById('toStep2Btn').addEventListener('click', runPartitionAndPlan);
     document.getElementById('toStep3Btn').addEventListener('click', runWriteAllChapters);
+    document.getElementById('resumeWriteBtn').addEventListener('click', () => {
+      document.getElementById('resumeWriteBtn').style.display = 'none';
+      runWriteAllChapters();
+    });
     document.getElementById('toStep35Btn').addEventListener('click', runOpusGlobal);
     document.getElementById('toStep4Btn').addEventListener('click', runBackCover);
     document.getElementById('assembleBtn').addEventListener('click', runAssemble);
