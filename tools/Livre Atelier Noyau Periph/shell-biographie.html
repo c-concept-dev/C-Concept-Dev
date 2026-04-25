@@ -312,6 +312,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     },
     currentStep: 0, rawMarkdown: '', editorReports: [], transversalReport: null,
   };
+  // V7.4.2 — Exposition debug (pour inspection console après pipeline)
+  if (typeof window !== 'undefined') window.S = S;
 
   const PRICING = {
     'claude-sonnet-4-6': { in: 3.0, out: 15.0 },
