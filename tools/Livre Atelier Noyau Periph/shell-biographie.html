@@ -115,7 +115,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     <span id="tkCost">~$0.00</span>
   </div>
   <div class="header-actions">
-    <button class="btn-header" id="saveProjectBtn" style="display:none" title="Sauver .ldv.json">💾 Sauver</button>
+    <button class="btn-header" id="loadProjectBtn" title="Charger un projet .ldv.json">📂 Charger</button>
+    <button class="btn-header" id="saveProjectBtn" title="Sauver .ldv.json (à tout moment)" disabled>💾 Sauver</button>
     <button class="btn-header" id="telemetryBtn" title="Panneau télémétrie (V7.4.2)">🔬 Télémétrie</button>
   </div>
   <div class="step-pills">
@@ -338,6 +339,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
     scheduleAutosave();
+    // V7.4.2 — Réafficher les boutons après chaque changement de step
+    try { reflowContinueButtons(); } catch (_) {}
   }
 
   // V7.4.2 — Réaffiche les boutons « Continuer vers… » selon ce qui est
@@ -345,9 +348,49 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   // bouton de progression ne reste caché alors que l'étape correspondante est
   // accessible.
   function reflowContinueButtons() {
+    // V7.4.2 — Active/affiche les boutons "Continuer/Reprendre" selon l'état réel
+    // de la session, pour tous les steps. Appelable à n'importe quel moment.
+
+    // Bouton Sauver : activé dès qu'on a une session avec au moins matière brute
+    const saveBtn = document.getElementById('saveProjectBtn');
+    if (saveBtn) saveBtn.disabled = !S.session;
+
     if (!S.session) return;
+
     const totalCh = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
     const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+
+    // Step 0 → 1 : matière chargée, on peut lancer le pipeline
+    const toStep1Btn = document.getElementById('toStep1Btn');
+    if (toStep1Btn) {
+      toStep1Btn.disabled = !S.session.parsed;
+    }
+
+    // Step 1 → 2 : diagnostic produit, on peut produire la partition
+    const toStep2Btn = document.getElementById('toStep2Btn');
+    if (toStep2Btn) {
+      toStep2Btn.disabled = !S.session.diagnostic;
+    }
+
+    // Step 2 → 3 : partition + plan + invariant produits, on peut écrire
+    const toStep3Btn = document.getElementById('toStep3Btn');
+    if (toStep3Btn) {
+      toStep3Btn.disabled = !(S.session.bookPartition && S.session.plan && S.session.plan.chapters);
+    }
+
+    // Step 3 reprise : si certains chapitres sont écrits mais pas tous
+    const resumeWriteBtn = document.getElementById('resumeWriteBtn');
+    if (resumeWriteBtn) {
+      if (totalCh > 0 && writtenCh > 0 && writtenCh < totalCh) {
+        resumeWriteBtn.textContent = '↻ Reprendre l\'écriture (' + writtenCh + '/' + totalCh + ' chapitres déjà écrits)';
+        resumeWriteBtn.style.display = 'block';
+      } else if (totalCh > 0 && writtenCh === 0 && S.session.plan) {
+        resumeWriteBtn.textContent = '▶ Lancer l\'écriture des ' + totalCh + ' chapitres';
+        resumeWriteBtn.style.display = 'block';
+      } else {
+        resumeWriteBtn.style.display = 'none';
+      }
+    }
 
     // Step 3 → 3.5 : tous les chapitres écrits, on peut lancer Opus
     const toStep35Btn = document.getElementById('toStep35Btn');
@@ -740,31 +783,72 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
   // V7.4.2 BLOC 2 — Détection du type de tâche depuis le prompt système
   // pour suggérer dans quel Project claude.ai coller.
+  // V7.4.2 — Détection de la tâche depuis le prompt système.
+  // Utilise les MARQUEURS UNIQUES extraits des en-têtes des prompts canon.
+  // Ordre canonique : du plus spécifique au plus générique.
   function detectTaskType(system) {
     if (!system) return { projectName: 'Generic', taskLabel: 'Tâche LLM' };
     const s = system.toLowerCase();
-    if (s.includes("partition singulière") || s.includes("produire la partition")) {
+
+    // 1. Marqueurs structurels d'en-tête (les plus fiables — présents dès le début)
+    if (s.includes("# prompt opératoire") || s.includes("# prompt operatoire")) {
+      return { projectName: 'LDV-Operatoire', taskLabel: 'Opératoire (écriture chapitre)' };
+    }
+    if (s.includes("# prompt architecte")) {
+      return { projectName: 'LDV-Architecte', taskLabel: 'Architecte (conception chapitre)' };
+    }
+    if (s.includes("# prompt postural")) {
+      // Postural seul est rare — généralement il accompagne Architecte ou Opératoire,
+      // déjà détectés ci-dessus. Si Postural seul, c'est l'init.
+      return { projectName: 'LDV-Postural', taskLabel: 'Posture (init)' };
+    }
+
+    // 2. Partition singulière — signature spécifique au prompt PARTITION
+    if (s.includes("partition singulière") || s.includes("partition singuliere")) {
       return { projectName: 'LDV-Partition', taskLabel: 'Partition' };
     }
-    if (s.includes("éditeur senior") && s.includes("totalité")) {
+
+    // 3. Résumé structuré V7.4.2
+    if (s.includes("produire un résumé structuré") || s.includes("résumé narratif structuré") ||
+        s.includes("résumé structuré du chapitre")) {
+      return { projectName: 'LDV-Resume', taskLabel: 'Résumé structuré (V7.4.2)' };
+    }
+
+    // 4. Éditeur transversal
+    if ((s.includes("éditeur") || s.includes("editeur")) &&
+        (s.includes("totalité du livre") || s.includes("livre entier") || s.includes("transversal"))) {
       return { projectName: 'LDV-Editeur', taskLabel: 'Éditeur transversal (livre entier)' };
     }
-    if (s.includes("éditeur") || s.includes("editeur") ||
+
+    // 5. Éditeur LLM (chapitre par chapitre)
+    if (s.includes("éditeur senior") || s.includes("éditeur littéraire") ||
         (s.includes("boussole souveraine") && s.includes("3 contrôles"))) {
       return { projectName: 'LDV-Editeur', taskLabel: 'Éditeur LLM' };
     }
-    if (s.includes("résumé structuré") || s.includes("produire un résumé")) {
-      return { projectName: 'LDV-Resume', taskLabel: 'Résumé structuré (V7.4.2)' };
+
+    // 6. Supervision Opus
+    if (s.includes("superviseur") || s.includes("supervises l'architecture") ||
+        s.includes("supervises la partition")) {
+      return { projectName: 'LDV-Opus', taskLabel: 'Supervision Opus' };
     }
-    if (s.includes("architecte") || s.includes("conception")) {
-      return { projectName: 'LDV-Architecte', taskLabel: 'Architecte (conception chapitre)' };
+
+    // 7. Plan
+    if (s.includes("plan du livre") || s.includes("structure des chapitres") ||
+        s.includes("découper le livre en chapitres")) {
+      return { projectName: 'LDV-Plan', taskLabel: 'Plan du livre' };
     }
-    if (s.includes("opératoire") || s.includes("operatoire")) {
-      return { projectName: 'LDV-Operatoire', taskLabel: 'Opératoire (écriture chapitre)' };
+
+    // 8. 4e de couverture
+    if (s.includes("quatrième de couverture") || s.includes("4e de couverture") ||
+        s.includes("dos du livre")) {
+      return { projectName: 'LDV-4eCouv', taskLabel: '4e de couverture' };
     }
+
+    // 9. Diagnostic (en avant-dernier — la signature "extrême finesse" peut apparaître ailleurs)
     if (s.includes("d'une extrême finesse")) {
       return { projectName: 'LDV-Diagnostic', taskLabel: 'Diagnostic littéraire' };
     }
+
     return { projectName: 'Generic', taskLabel: 'Tâche LLM' };
   }
 
@@ -908,6 +992,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   function scheduleAutosave() {
     if (autosaveTimer) clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(doAutosave, 1500);
+    // V7.4.2 — Réafficher les boutons immédiatement (sans attendre l'autosave)
+    try { reflowContinueButtons(); } catch (_) {}
   }
 
   function doAutosave() {
@@ -994,7 +1080,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       const targetStep = data._shell_step || 0;
       if (S.session.parsed) {
         renderAnalysis(S.session.parsed);
-        document.getElementById('saveProjectBtn').style.display = 'inline-block';
+        document.getElementById('saveProjectBtn').disabled = false;
       }
       if (S.session.diagnostic) {
         document.getElementById('diagOutput').style.display = 'block';
@@ -1103,7 +1189,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         });
         const parsed = AuteurNoyau.loadTranscript(S.session, md);
         renderAnalysis(parsed);
-        document.getElementById('saveProjectBtn').style.display = 'inline-block';
+        document.getElementById('saveProjectBtn').disabled = false;
         setHeaderStatus(parsed.prenom + ' chargé');
         scheduleAutosave();
       } catch (err) { alert('Erreur parsing : ' + err.message); console.error(err); }
