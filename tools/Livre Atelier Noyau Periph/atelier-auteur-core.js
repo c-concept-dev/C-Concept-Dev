@@ -6323,6 +6323,81 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // V7.4.2 — Filtre anti-pollution méta des chapitres
+  // ─────────────────────────────────────────────────────────────────
+  // Détecte les sections d'auto-évaluation que le LLM Opératoire produit parfois
+  // par-dessus le texte du chapitre, et les coupe avant stockage.
+  //
+  // Patterns observés sur Raymond V7.4.2 (Ch.10) :
+  // - Sections markdown "**Vérification de la conception.**", "**Test d'incarnation.**"
+  // - Bloc "AUDIT", "AUDIT 2.0", "AUDIT FINAL"
+  // - Listes "**Signal X — ...**" en série
+  // - Phrases méta type "Conforme.", "X conditions du pacte fondateur"
+  //
+  // Stratégie : trouver le premier marqueur méta et tout couper à partir de là,
+  // en remontant jusqu'à la dernière limite de paragraphe propre.
+  // ─────────────────────────────────────────────────────────────────
+  function sanitizeChapterText(text, lg) {
+    if (!text || typeof text !== 'string') return text;
+
+    const metaMarkers = [
+      /\*\*Vérification de la conception\.?\*\*/i,
+      /\*\*Test d'incarnation\.?\*\*/i,
+      /\*\*Audit(\s+\d+\.\d+|\s+final)?\.?\*\*/i,
+      /\n\s*AUDIT\s*\n/,
+      /\n\s*AUDIT\s+2\.0\s*\n/,
+      /\n\s*AUDIT\s+FINAL\s*\n/,
+      /\*\*Signal\s+\d+\s*[—–-]\s*[^*]+\*\*/,
+      /\*\*Vérification\s+du\s+pacte/i,
+      /\*\*Test\s+du\s+puzzle/i,
+      /\*\*Boussole\s+souveraine/i,
+      /\*\*Trois\s+contrôles\b/i,
+      /\*\*Seize\s+signaux\b/i,
+      /\*\*Conformité\s+canon\b/i,
+    ];
+
+    let earliestPos = text.length;
+    let matchedMarker = null;
+    for (const re of metaMarkers) {
+      const m = text.match(re);
+      if (m && m.index !== undefined && m.index < earliestPos) {
+        earliestPos = m.index;
+        matchedMarker = m[0];
+      }
+    }
+
+    // Aucun marqueur trouvé : texte propre
+    if (earliestPos >= text.length) return text;
+
+    // Marqueur en tout début (< 200 chars) : chapitre entièrement pollué,
+    // on garde tel quel pour inspection plutôt que de produire un chapitre vide.
+    if (earliestPos < 200) {
+      if (lg) lg('  ⚠ Marqueur méta détecté dès le début du chapitre — texte gardé tel quel (' + matchedMarker.substring(0, 40) + ')', 'err');
+      return text;
+    }
+
+    // Couper proprement : remonter jusqu'à la dernière limite de paragraphe
+    const beforeMarker = text.substring(0, earliestPos);
+    const lastBreaks = [
+      beforeMarker.lastIndexOf('\n\n'),
+      beforeMarker.lastIndexOf('\n---\n'),
+      beforeMarker.lastIndexOf('\n✦\n'),
+    ];
+    const lastBreak = Math.max.apply(null, lastBreaks);
+    let cutPos = earliestPos;
+    if (lastBreak > 0 && lastBreak > earliestPos - 500) {
+      cutPos = lastBreak;
+    }
+
+    const cleaned = text.substring(0, cutPos).trim();
+    const removed = text.length - cleaned.length;
+
+    if (lg) lg('  ✓ Pollution méta filtrée (' + removed + ' chars retirés à partir de "' + matchedMarker.substring(0, 40) + '")', 'ok');
+
+    return cleaned;
+  }
+
   /**
    * Phase 3 — Écriture d'un chapitre avec pipeline complet
    * (architecte + supervision + opératoire + tests + réécriture ciblée).
@@ -6335,7 +6410,14 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
     const maxTk = options.maxTokens || 8192;
     const lg = options.onLog || session._onLog;
     const extra = options.extraInstruction || '';
-    const text = await session.writeChapterWithTeam(chIdx, maxTk, lg, extra);
+    let text = await session.writeChapterWithTeam(chIdx, maxTk, lg, extra);
+
+    // V7.4.2 Bloc 6 — Filtre canon anti-pollution méta
+    // Le LLM Opératoire produit parfois ses notes d'auto-évaluation dans le texte
+    // (signature : sections "**Vérification**", "**Test d'incarnation**", "**AUDIT**",
+    // "**Signal X**", "Conforme.", "Trois micro-réveils identifiés.").
+    // Ces sections ne doivent jamais apparaître dans le livre.
+    text = sanitizeChapterText(text, lg);
 
     // Stocker dans session.chapters (déjà géré par V7.3.7 dans certains flux, mais
     // on s'assure d'une cohérence minimale)
