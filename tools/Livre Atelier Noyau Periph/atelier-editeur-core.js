@@ -1618,24 +1618,59 @@ Tu produis UNIQUEMENT le JSON. Pas de préambule, pas de commentaire autour.`;
 
     const userPrompt = userContext + '---\n\nProduis le rapport transversal en JSON strict selon les règles du prompt système.' + scopeInstr;
 
-    const raw = await llmCall(PROMPT_SYSTEME_EDITEUR_TRANSVERSAL, userPrompt, 4000, model);
+    // V7.4.2 Bloc 6 — Appel robuste avec extraction tolérante et retry sur JSON malformé.
+    // max_tokens augmenté à 8000 (le rapport JSON peut être long sur un livre de 15+ chapitres).
+    const RC = (typeof globalThis !== 'undefined' && globalThis.AuteurNoyau && globalThis.AuteurNoyau.RobustCall) ||
+               (typeof window !== 'undefined' && window.AuteurNoyau && window.AuteurNoyau.RobustCall) ||
+               null;
 
-    // Parse tolérant
     let verdict;
-    try {
-      let s = raw.trim();
-      const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (fence) s = fence[1].trim();
-      const firstBrace = s.indexOf('{');
-      const lastBrace = s.lastIndexOf('}');
-      if (firstBrace < 0 || lastBrace < 0) throw new Error('Pas de JSON détecté');
-      verdict = JSON.parse(s.substring(firstBrace, lastBrace + 1));
-    } catch (e) {
-      return {
-        meta: { version: VERSION, date: new Date().toISOString(), mode: 'transversal', scope, at_chapter: atChapter, error: 'JSON parse error: ' + e.message },
-        raw_response: raw,
-        verdict_global: 'indéterminé',
-      };
+    let lastRaw = null;
+    let lastError = null;
+
+    if (RC) {
+      // Path canon avec RobustCall (V7.4.2 Bloc 6)
+      verdict = await RC.callWithRetry({
+        llmCall: llmCall,
+        system: PROMPT_SYSTEME_EDITEUR_TRANSVERSAL,
+        user: userPrompt,
+        maxTokens: 8000,
+        model: model,
+        parseMode: 'json',
+        schema: { fields: ['verdict_global'] },
+        maxRetries: 2,
+      });
+      if (!verdict) {
+        // Fallback minimal — appel direct pour récupérer le raw afin de le retourner
+        try {
+          lastRaw = await llmCall(PROMPT_SYSTEME_EDITEUR_TRANSVERSAL, userPrompt, 8000, model);
+        } catch (e) { lastError = e.message; }
+        return {
+          meta: { version: VERSION, date: new Date().toISOString(), mode: 'transversal', scope, at_chapter: atChapter, error: 'JSON non extractible après retries: ' + (lastError || 'JSON malformé ou tronqué') },
+          raw_response: lastRaw || '(non disponible)',
+          verdict_global: 'indéterminé',
+        };
+      }
+    } else {
+      // Path legacy si RobustCall non disponible (charge des fichiers indépendamment)
+      const raw = await llmCall(PROMPT_SYSTEME_EDITEUR_TRANSVERSAL, userPrompt, 8000, model);
+      try {
+        let s = raw.trim();
+        const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fence) s = fence[1].trim();
+        const firstBrace = s.indexOf('{');
+        const lastBrace = s.lastIndexOf('}');
+        if (firstBrace < 0 || lastBrace < 0) throw new Error('Pas de JSON détecté');
+        // Réparation tolérante : virgules trailing
+        let candidate = s.substring(firstBrace, lastBrace + 1).replace(/,(\s*[}\]])/g, '$1');
+        verdict = JSON.parse(candidate);
+      } catch (e) {
+        return {
+          meta: { version: VERSION, date: new Date().toISOString(), mode: 'transversal', scope, at_chapter: atChapter, error: 'JSON parse error: ' + e.message },
+          raw_response: raw,
+          verdict_global: 'indéterminé',
+        };
+      }
     }
 
     return {
