@@ -50,6 +50,10 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 .atelier-brand{color:var(--mer);font-size:.6rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase}
 .atelier-title{color:var(--blanc);font-family:var(--book);font-size:1.1rem;font-weight:600;flex:1}
 .atelier-status{color:var(--sauge);font-size:.72rem;font-weight:500}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn-header{padding:6px 12px;font-size:.68rem;background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--sauge);border-radius:6px;cursor:pointer;font-family:var(--ui);transition:all .2s}
+.btn-header:hover:not(:disabled){border-color:var(--mer);color:var(--blanc)}
+.btn-header:disabled{opacity:0.4;cursor:not-allowed}
 .step-pills{display:flex;gap:4px;margin-left:auto}
 .step-pill{width:28px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);transition:all .4s}
 .step-pill.active{background:var(--mer);width:40px}
@@ -162,6 +166,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   white-space:pre-wrap;
 }
 
+.restore-banner{background:rgba(200,208,195,.2);border-left:3px solid var(--accent);padding:12px 14px;border-radius:6px;margin-bottom:16px;font-size:.78rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
 .doc-summary{
   background:rgba(143,175,177,.08);border-left:3px solid var(--mer);
   padding:10px 14px;border-radius:6px;margin-bottom:10px;font-size:.78rem;
@@ -183,6 +189,10 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   <div class="atelier-brand">C Concept&amp;Dev</div>
   <div class="atelier-title">Livre de Vie — Atelier Best-Seller <span style="font-size:0.7em;opacity:0.6">V7.4.0-alpha</span></div>
   <div class="atelier-status" id="headerStatus">En attente</div>
+  <div class="header-actions">
+    <button class="btn-header" id="loadProjectBtn" title="Charger un projet .lbs.json">📂 Charger</button>
+    <button class="btn-header" id="saveProjectBtn" title="Sauver .lbs.json (à tout moment)" disabled>💾 Sauver</button>
+  </div>
   <div class="step-pills">
     <div class="step-pill" id="pill0"></div>
     <div class="step-pill" id="pill1"></div>
@@ -200,6 +210,15 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   <div class="card">
     <div class="canon-banner">
       <strong>Architecture V7.4 :</strong> ce shell dirige les deux mêmes noyaux que Biographie — <strong>Auteur</strong> et <strong>Éditeur</strong>. Seule la phase d'entrée diffère : un prompt directeur + des documents d'inspiration au lieu d'un transcript.
+    </div>
+    <div id="restoreBanner" class="restore-banner" style="display:none">
+      <span>⏎</span>
+      <div style="flex:1">
+        <strong>Un projet en cours a été détecté.</strong>
+        <div id="restoreDetails" style="font-size:.7rem;color:var(--ink2);margin-top:2px"></div>
+      </div>
+      <button class="btn btn-ghost" id="restoreBtn" style="padding:8px 16px;font-size:.72rem">Reprendre</button>
+      <button class="btn btn-ghost" id="discardBtn" style="padding:8px 16px;font-size:.72rem">Ignorer</button>
     </div>
     <div class="card-title">Prompt directeur</div>
     <div class="card-sub">Écris ce que tu veux — le sujet du livre, son ambiance, ses personnages, sa forme, son style, ses références. Plus c'est clair, plus le livre sera juste. Le prompt est <strong>maître</strong> : si les documents contredisent, les documents s'effacent.</div>
@@ -335,19 +354,26 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     diagnostic: '',
     editorReports: [],
   };
+  // V7.4.2 — Exposition debug (pour inspection console après pipeline)
+  if (typeof window !== 'undefined') window.S = S;
 
   // ─── HELPERS ─────────────────────────────────────────────────
 
   function setStep(n) {
+    S.currentStep = n;
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById('step' + n).classList.add('active');
+    const stepEl = document.getElementById('step' + n);
+    if (stepEl) stepEl.classList.add('active');
     for (let i = 0; i <= 5; i++) {
       const pill = document.getElementById('pill' + i);
+      if (!pill) continue;
       pill.classList.remove('active', 'done');
       if (i < n) pill.classList.add('done');
       if (i === n) pill.classList.add('active');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    scheduleAutosave();
+    try { reflowContinueButtons(); } catch (_) {}
   }
 
   function setHeaderStatus(msg) {
@@ -378,15 +404,246 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     btn.disabled = S.promptDirecteur.trim().length < 20;
   }
 
+  // ─── PERSISTANCE V7.4.2 — save/load/reflow/autosave ──────────
+
+  // Réaffiche les boutons "Continuer/Reprendre" selon l'état réel à n'importe quel moment.
+  function reflowContinueButtons() {
+    // Bouton Sauver : activé dès qu'il y a quelque chose à sauver (prompt ou docs)
+    const saveBtn = document.getElementById('saveProjectBtn');
+    if (saveBtn) {
+      const hasSomething = S.promptDirecteur.trim().length > 0 ||
+                           S.documents.length > 0 ||
+                           S.session != null;
+      saveBtn.disabled = !hasSomething;
+    }
+
+    // Step 0 → 1 : prompt directeur saisi (au moins 20 chars)
+    const toStep1Btn = document.getElementById('toStep1Btn');
+    if (toStep1Btn) {
+      toStep1Btn.disabled = S.promptDirecteur.trim().length < 20;
+    }
+
+    // Step 1 → 2 : diagnostic produit
+    const toStep2Btn = document.getElementById('toStep2Btn');
+    if (toStep2Btn) {
+      toStep2Btn.disabled = !(S.diagnostic || (S.session && S.session.diagnostic));
+    }
+
+    // Step 2 → 3 : partition + plan dans la session
+    const toStep3Btn = document.getElementById('toStep3Btn');
+    if (toStep3Btn) {
+      const hasPlan = S.session && S.session.plan && S.session.plan.chapters;
+      const hasPartition = S.session && S.session.bookPartition;
+      toStep3Btn.disabled = !(hasPlan && hasPartition);
+      // Étiquette adaptée si certains chapitres sont déjà écrits
+      if (S.session) {
+        const totalCh = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+        const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+        if (totalCh > 0 && writtenCh > 0 && writtenCh < totalCh) {
+          toStep3Btn.textContent = '↻ Reprendre l\'écriture (' + writtenCh + '/' + totalCh + ' chapitres déjà écrits)';
+        } else if (totalCh > 0 && writtenCh === totalCh) {
+          toStep3Btn.textContent = 'Tous les chapitres sont écrits';
+          toStep3Btn.disabled = true;
+        } else {
+          toStep3Btn.textContent = 'Écrire les chapitres';
+        }
+      }
+    }
+
+    // Step 3 → 4 : tous chapitres écrits
+    const toStep4Btn = document.getElementById('toStep4Btn');
+    if (toStep4Btn && S.session) {
+      const totalCh = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+      const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+      toStep4Btn.style.display = (totalCh > 0 && writtenCh === totalCh) ? 'block' : 'none';
+    }
+
+    // Step 4 → 5 : 4e disponible
+    const assembleBtn = document.getElementById('assembleBtn');
+    if (assembleBtn) {
+      assembleBtn.disabled = !(S.session && S.session.backCover);
+    }
+  }
+
+  // Autosave en localStorage (debounced)
+  const AUTOSAVE_KEY = 'lbs_autosave_v74';
+  let autosaveTimer = null;
+  function scheduleAutosave() {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(doAutosave, 1500);
+    try { reflowContinueButtons(); } catch (_) {}
+  }
+
+  function buildSavePayload() {
+    // Construit le payload .lbs.json complet : session noyau + contexte best-seller
+    const payload = S.session
+      ? AuteurNoyau.saveSession(S.session)
+      : { _empty_session: true };
+    payload._shell_step = S.currentStep || 0;
+    payload._shell_config = S.config;
+    payload._shell_kind = 'best-seller';
+    payload._shell_promptDirecteur = S.promptDirecteur;
+    payload._shell_documents = S.documents.map(d => ({
+      name: d.name, size: d.size, ext: d.ext,
+      text: d.text, summary: d.summary,
+    }));
+    payload._shell_diagnostic = S.diagnostic;
+    payload._shell_editorReports = S.editorReports;
+    payload._saved_at = new Date().toISOString();
+    return payload;
+  }
+
+  function doAutosave() {
+    if (!S.promptDirecteur && !S.session) return;
+    try {
+      const data = buildSavePayload();
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+      // Si localStorage plein, on ignore silencieusement
+      console.warn('Autosave failed:', e.message);
+    }
+  }
+
+  function clearAutosave() {
+    try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) {}
+  }
+
+  function saveProjectDownload() {
+    const data = buildSavePayload();
+    const titlePart = S.session && S.session.plan && S.session.plan.title
+      ? S.session.plan.title.replace(/[^\w-]/g, '_').toLowerCase()
+      : 'best-seller';
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = titlePart + '.lbs.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    setHeaderStatus('Projet sauvegardé');
+  }
+
+  function restoreFromSaved(data) {
+    try {
+      // Restaurer le contexte best-seller (avant la session)
+      S.promptDirecteur = data._shell_promptDirecteur || '';
+      S.documents = data._shell_documents || [];
+      S.diagnostic = data._shell_diagnostic || '';
+      S.editorReports = data._shell_editorReports || [];
+      if (data._shell_config) S.config = Object.assign({}, S.config, data._shell_config);
+
+      // Restaurer la session noyau si elle existait
+      if (!data._empty_session) {
+        S.session = AuteurNoyau.restoreSession(data, {
+          config: S.config,
+          llmCall: llmCallViaWorker,
+          onLog: (m, l) => log('writeLog', m, l),
+        });
+      }
+
+      // Refléter dans l'UI
+      const promptInput = document.getElementById('promptInput');
+      if (promptInput) promptInput.value = S.promptDirecteur;
+      try { renderDocList(); } catch (_) { /* peut être appelé avant init */ }
+
+      if (S.diagnostic) {
+        const diagEl = document.getElementById('diagOutput');
+        const statusEl = document.getElementById('extractStatus');
+        if (diagEl) { diagEl.textContent = S.diagnostic; diagEl.style.display = 'block'; }
+        if (statusEl) statusEl.textContent = 'Diagnostic restauré';
+      }
+
+      if (S.session && S.session.bookPartition) {
+        const partEl = document.getElementById('partitionOutput');
+        if (partEl) {
+          partEl.textContent = typeof S.session.bookPartition === 'string'
+            ? S.session.bookPartition
+            : JSON.stringify(S.session.bookPartition, null, 2);
+          partEl.style.display = 'block';
+        }
+      }
+
+      if (S.session && S.session.plan) {
+        const planEl = document.getElementById('planOutput');
+        if (planEl) {
+          planEl.innerHTML = '';
+          S.session.plan.chapters.forEach((c, i) => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:6px 0;border-bottom:1px solid var(--paper)';
+            div.textContent = (i + 1) + '. ' + c.title;
+            planEl.appendChild(div);
+          });
+          planEl.style.display = 'block';
+        }
+      }
+
+      if (S.session && S.session.chapters && S.session.chapters.length > 0) {
+        const listZone = document.getElementById('chaptersList');
+        if (listZone) {
+          listZone.innerHTML = '';
+          S.session.chapters.forEach((ch, i) => {
+            if (!ch) return;
+            const planCh = (S.session.plan && S.session.plan.chapters[i]) || { title: 'Chapitre ' + (i + 1) };
+            const div = document.createElement('div');
+            div.className = 'chapter-item';
+            const writtenOk = ch.text && ch.text.length > 200;
+            div.innerHTML = `
+              <div class="chapter-header">
+                <div class="ch-num ${writtenOk ? 'done' : ''}" id="chNum${i}">${i + 1}</div>
+                <div class="ch-title">${escapeHTML(planCh.title || ch.title || '')}</div>
+                <div class="ch-words" id="chWords${i}">${writtenOk ? (ch.wordCount || 0).toLocaleString('fr-FR') + ' mots' : '—'}</div>
+                <div class="ch-flags" id="chFlags${i}"></div>
+              </div>
+            `;
+            listZone.appendChild(div);
+          });
+        }
+      }
+
+      if (S.session && S.session.backCover) {
+        const bcEl = document.getElementById('backCoverOutput');
+        if (bcEl) bcEl.textContent = S.session.backCover;
+      }
+
+      // Choix intelligent du step à afficher : on rétrograde si le step demandé
+      // est en aval de l'état réel (cas où l'EPUB blob n'est pas persisté).
+      const targetStep = data._shell_step || 0;
+      let smartStep = targetStep;
+      const totalCh = (S.session && S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+      const writtenCh = (S.session && S.session.chapters) ? S.session.chapters.filter(c => c && c.text && c.text.length > 200).length : 0;
+
+      if (targetStep >= 5) {
+        if (S.session && S.session.backCover) smartStep = 4;
+        else if (totalCh > 0 && writtenCh === totalCh) smartStep = 3;
+        else smartStep = Math.max(0, Math.min(targetStep - 1, 3));
+      } else if (targetStep === 4 && !(S.session && S.session.backCover)) {
+        smartStep = 3;
+      } else if (targetStep === 3 && !(S.session && S.session.plan)) {
+        smartStep = 2;
+      } else if (targetStep === 2 && !(S.session && S.session.diagnostic) && !S.diagnostic) {
+        smartStep = 1;
+      }
+
+      setStep(smartStep);
+      setHeaderStatus('Projet restauré');
+      try { reflowContinueButtons(); } catch (_) {}
+    } catch (e) {
+      alert('Erreur restauration : ' + e.message);
+      console.error(e);
+    }
+  }
+
   // ─── LLM CALL VIA WORKER ─────────────────────────────────────
 
   async function llmCallViaWorker(system, userMsg, maxTokens, model) {
     const url = S.config.workerUrl;
-    // Le worker attend une enveloppe { payload: { ... } }
+    const mdl = model || S.config.model;
+    // Le worker attend une enveloppe { payload: { ... } } avec stream:true
+    // pour éviter les timeouts Cloudflare 524 sur les longs appels.
     const body = {
       payload: {
-        model: model || S.config.model,
+        model: mdl,
         max_tokens: maxTokens || 4096,
+        stream: true,
         system: system,
         messages: [{ role: 'user', content: userMsg }],
       },
@@ -404,11 +661,38 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
           const t = await resp.text();
           throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
         }
-        const data = await resp.json();
-        if (data.content && Array.isArray(data.content)) {
-          return data.content.map(c => c.text || '').join('\n').trim();
+        // Parse SSE — agrège les content_block_delta
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let text = '';
+        let buf = '';
+        let usageInfo = null;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(data);
+              if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+                text += evt.delta.text || '';
+              }
+              if (evt.type === 'message_delta' && evt.usage) {
+                usageInfo = Object.assign(usageInfo || {}, evt.usage);
+              }
+              if (evt.type === 'message_start' && evt.message && evt.message.usage) {
+                usageInfo = Object.assign(usageInfo || {}, evt.message.usage);
+              }
+            } catch (_) { /* skip ligne SSE malformée */ }
+          }
         }
-        throw new Error('Format réponse inattendu');
+        if (!text.trim()) throw new Error('Réponse streamée vide');
+        return text.trim();
       } catch (e) {
         lastErr = e;
         if (attempt < maxRetries) {
@@ -425,11 +709,13 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
    */
   async function llmCallMultimodal(system, contentBlocks, maxTokens, model) {
     const url = S.config.workerUrl;
-    // Le worker attend une enveloppe { payload: { ... } }
+    const mdl = model || S.config.model;
+    // Le worker attend une enveloppe { payload: { ... } } avec stream:true
     const body = {
       payload: {
-        model: model || S.config.model,
+        model: mdl,
         max_tokens: maxTokens || 2000,
+        stream: true,
         system: system,
         messages: [{ role: 'user', content: contentBlocks }],
       },
@@ -443,11 +729,31 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       const t = await resp.text();
       throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
     }
-    const data = await resp.json();
-    if (data.content && Array.isArray(data.content)) {
-      return data.content.map(c => c.text || '').join('\n').trim();
+    // Parse SSE
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(data);
+          if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+            text += evt.delta.text || '';
+          }
+        } catch (_) {}
+      }
     }
-    throw new Error('Format réponse inattendu');
+    if (!text.trim()) throw new Error('Réponse streamée vide');
+    return text.trim();
   }
 
   // ─── EXTRACTION DE TEXTE DEPUIS DOCUMENT ─────────────────────
@@ -593,6 +899,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         entry.error = err.message;
       }
       renderDocList();
+      scheduleAutosave();
     }
   }
 
@@ -858,23 +1165,43 @@ Longueur : 800-1500 mots.`;
     const partition = AuteurNoyau.getPartition(S.session);
     const mode = S.config.editeurMode;
 
+    // V7.4.2 — Préparer la liste mais préserver les chapitres déjà écrits
     const listZone = document.getElementById('chaptersList');
     listZone.innerHTML = '';
     for (let i = 0; i < nbCh; i++) {
+      const existing = (S.session.chapters && S.session.chapters[i]) || null;
+      const writtenOk = existing && existing.text && existing.text.length > 200;
       const div = document.createElement('div');
       div.className = 'chapter-item';
       div.innerHTML = `
         <div class="chapter-header">
-          <div class="ch-num" id="chNum${i}">${i + 1}</div>
+          <div class="ch-num ${writtenOk ? 'done' : ''}" id="chNum${i}">${i + 1}</div>
           <div class="ch-title">${escapeHTML(plan.chapters[i].title)}</div>
-          <div class="ch-words" id="chWords${i}">—</div>
+          <div class="ch-words" id="chWords${i}">${writtenOk ? (existing.wordCount || 0).toLocaleString('fr-FR') + ' mots' : '—'}</div>
           <div class="ch-flags" id="chFlags${i}"></div>
         </div>
       `;
       listZone.appendChild(div);
     }
 
+    // Compter combien sont déjà écrits pour la barre de progression
+    let alreadyWritten = 0;
     for (let i = 0; i < nbCh; i++) {
+      const ch = (S.session.chapters && S.session.chapters[i]) || null;
+      if (ch && ch.text && ch.text.length > 200) alreadyWritten++;
+    }
+    if (alreadyWritten > 0) {
+      log('writeLog', alreadyWritten + ' chapitre(s) déjà écrit(s) — reprise à partir du suivant', 'info');
+      const pct = Math.round((alreadyWritten / nbCh) * 100);
+      document.getElementById('writeProgress').style.width = pct + '%';
+    }
+
+    for (let i = 0; i < nbCh; i++) {
+      // V7.4.2 — Skip si déjà écrit
+      const existing = (S.session.chapters && S.session.chapters[i]) || null;
+      if (existing && existing.text && existing.text.length > 200) {
+        continue;
+      }
       document.getElementById('chNum' + i).classList.add('active');
       log('writeLog', 'Chapitre ' + (i + 1) + '/' + nbCh + ' — "' + plan.chapters[i].title + '"', 'info');
 
@@ -925,6 +1252,9 @@ Longueur : 800-1500 mots.`;
         const pct = Math.round(((i + 1) / nbCh) * 100);
         document.getElementById('writeProgress').style.width = pct + '%';
         setHeaderStatus('Chapitres : ' + (i + 1) + '/' + nbCh);
+
+        // V7.4.2 — Autosave après chaque chapitre pour ne rien perdre
+        scheduleAutosave();
       } catch (e) {
         log('writeLog', 'Erreur ch.' + (i + 1) + ' : ' + e.message, 'err');
         console.error(e);
@@ -933,6 +1263,7 @@ Longueur : 800-1500 mots.`;
 
     log('writeLog', 'Tous les chapitres écrits.', 'ok');
     document.getElementById('toStep4Btn').style.display = 'block';
+    try { reflowContinueButtons(); } catch (_) {}
   }
 
   // ─── PHASE 4 — 4e COUVERTURE ─────────────────────────────────
@@ -1011,6 +1342,7 @@ Longueur : 800-1500 mots.`;
     promptInput.addEventListener('input', () => {
       S.promptDirecteur = promptInput.value;
       updateLaunchButton();
+      scheduleAutosave();
     });
 
     // Drop zone documents
@@ -1040,6 +1372,87 @@ Longueur : 800-1500 mots.`;
     document.getElementById('toStep3Btn').addEventListener('click', runWriteAllChapters);
     document.getElementById('toStep4Btn').addEventListener('click', runBackCover);
     document.getElementById('assembleBtn').addEventListener('click', runAssemble);
+
+    // V7.4.2 — Persistance : Save/Load
+    document.getElementById('saveProjectBtn').addEventListener('click', saveProjectDownload);
+
+    // Input file caché pour le bouton "Charger"
+    const loadInput = document.createElement('input');
+    loadInput.type = 'file';
+    loadInput.accept = '.lbs.json,.json';
+    loadInput.style.display = 'none';
+    document.body.appendChild(loadInput);
+    loadInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleLoadFile(e.target.files[0]);
+      loadInput.value = '';
+    });
+    document.getElementById('loadProjectBtn').addEventListener('click', () => loadInput.click());
+
+    function handleLoadFile(file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (data._shell_kind && data._shell_kind !== 'best-seller') {
+            if (!confirm('Ce projet semble être de type "' + data._shell_kind + '" et non "best-seller". Continuer quand même ?')) return;
+          }
+          restoreFromSaved(data);
+        } catch (e) {
+          alert('Erreur lecture du fichier : ' + e.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Drag & drop d'un .lbs.json sur la zone documents (alternative au bouton Charger)
+    const docDropForLoad = document.getElementById('docDropZone');
+    if (docDropForLoad) {
+      docDropForLoad.addEventListener('drop', (e) => {
+        if (e.dataTransfer.files.length === 1) {
+          const f = e.dataTransfer.files[0];
+          if (f.name.endsWith('.lbs.json') || f.name.endsWith('.ldv.json')) {
+            // Intercepter avant le handler par défaut
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            docDropForLoad.classList.remove('drag');
+            handleLoadFile(f);
+          }
+        }
+      }, true);
+    }
+
+    // Détecter un autosave existant et proposer la reprise
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) {
+        const autosaved = JSON.parse(raw);
+        const banner = document.getElementById('restoreBanner');
+        banner.style.display = 'flex';
+        const stepNames = { 0: 'matière', 1: 'extraction', 2: 'partition', 3: 'écriture', 4: '4e couverture', 5: 'assemblage' };
+        const step = autosaved._shell_step || 0;
+        const titlePart = autosaved._shell_promptDirecteur
+          ? '« ' + autosaved._shell_promptDirecteur.substring(0, 60).replace(/\s+/g, ' ').trim() + (autosaved._shell_promptDirecteur.length > 60 ? '…' : '') + ' »'
+          : 'Projet';
+        const savedAt = autosaved._saved_at ? new Date(autosaved._saved_at).toLocaleString('fr-FR') : '?';
+        document.getElementById('restoreDetails').textContent =
+          titlePart + ' · arrêté à : ' + (stepNames[step] || step) + ' · ' + savedAt;
+        document.getElementById('restoreBtn').onclick = () => {
+          banner.style.display = 'none';
+          restoreFromSaved(autosaved);
+        };
+        document.getElementById('discardBtn').onclick = () => {
+          if (confirm('Effacer le projet sauvegardé ?')) {
+            clearAutosave();
+            banner.style.display = 'none';
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('Détection autosave : ' + e.message);
+    }
+
+    // Refléter immédiatement l'état des boutons
+    try { reflowContinueButtons(); } catch (_) {}
   });
 
 })();
