@@ -1425,11 +1425,12 @@ Structure minimale attendue :
 
     const llmCall = async (system, userMsg, maxTokens, model) => {
       const mdl = model || 'claude-sonnet-4-6';
-      // Le worker attend une enveloppe { payload: { ... } }
+      // Le worker attend une enveloppe { payload: { ... } } avec stream:true
       const body = {
         payload: {
           model: mdl,
           max_tokens: maxTokens || 4096,
+          stream: true,
           system: system,
           messages: [{ role: 'user', content: userMsg }],
         },
@@ -1443,11 +1444,31 @@ Structure minimale attendue :
         const t = await resp.text();
         throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
       }
-      const data = await resp.json();
-      if (data.content && Array.isArray(data.content)) {
-        return data.content.map(c => c.text || '').join('\n').trim();
+      // Parse SSE
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const evt = JSON.parse(data);
+            if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+              text += evt.delta.text || '';
+            }
+          } catch (_) {}
+        }
       }
-      throw new Error('Format réponse inattendu');
+      if (!text.trim()) throw new Error('Réponse streamée vide');
+      return text.trim();
     };
 
     document.getElementById('btn-analyze').disabled = true;
