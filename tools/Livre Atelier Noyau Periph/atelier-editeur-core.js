@@ -1315,33 +1315,65 @@ Règles absolues :
    */
   async function reviewBookLLM(chapters, partition, llmCall, options) {
     options = options || {};
-    const per_chapter = [];
-    for (let i = 0; i < chapters.length; i++) {
-      const ch = chapters[i];
-      const context = {
-        chapter_num: ch.num || i + 1,
-        chapter_title: ch.title || '',
-        book_title: options.book_title || '',
-        conception: ch.conception || null,
-      };
-      const r = await reviewChapterLLM(ch.text || '', partition, context, llmCall, options);
-      per_chapter.push({
-        ch_num: context.chapter_num,
-        ch_title: context.chapter_title,
-        mots: (ch.text || '').split(/\s+/).filter(w => w.length > 0).length,
-        flags: r.flags,
-        summary: r.summary,
-        boussole: r.boussole,
-        controles: r.controles,
-      });
-      if (options.onProgress) options.onProgress(i + 1, chapters.length);
+    const concurrency = options.concurrency || 4;  // V7.4.2 Bloc 3 — parallélisation
+    const per_chapter = new Array(chapters.length);
+    let processed = 0;
+
+    // Découpe en lots de `concurrency` chapitres traités en parallèle
+    for (let start = 0; start < chapters.length; start += concurrency) {
+      const end = Math.min(start + concurrency, chapters.length);
+      const promises = [];
+      for (let i = start; i < end; i++) {
+        const ch = chapters[i];
+        const context = {
+          chapter_num: ch.num || i + 1,
+          chapter_title: ch.title || '',
+          book_title: options.book_title || '',
+          conception: ch.conception || null,
+        };
+        const wordCount = (ch.text || '').split(/\s+/).filter(w => w.length > 0).length;
+        promises.push(
+          reviewChapterLLM(ch.text || '', partition, context, llmCall, options)
+            .then(r => ({
+              idx: i,
+              entry: {
+                ch_num: context.chapter_num,
+                ch_title: context.chapter_title,
+                mots: wordCount,
+                flags: r.flags,
+                summary: r.summary,
+                boussole: r.boussole,
+                controles: r.controles,
+              },
+            }))
+            .catch(e => ({ idx: i, error: e }))
+        );
+      }
+      const results = await Promise.all(promises);
+      for (const result of results) {
+        if (result.error) {
+          // Entrée placeholder en cas d'échec — on ne casse pas tout le rapport
+          per_chapter[result.idx] = {
+            ch_num: result.idx + 1,
+            ch_title: chapters[result.idx].title || '',
+            mots: 0,
+            flags: [],
+            summary: { total_flags: 0, total_hits: 0, critical: 0 },
+            error: result.error.message,
+          };
+        } else {
+          per_chapter[result.idx] = result.entry;
+        }
+        processed++;
+        if (options.onProgress) options.onProgress(processed, chapters.length);
+      }
     }
 
     const global_summary = {
       chapters_count: chapters.length,
-      total_flags: per_chapter.reduce((s, c) => s + c.summary.total_flags, 0),
-      total_hits: per_chapter.reduce((s, c) => s + c.summary.total_hits, 0),
-      total_critical: per_chapter.reduce((s, c) => s + c.summary.critical, 0),
+      total_flags: per_chapter.reduce((s, c) => s + (c.summary ? c.summary.total_flags : 0), 0),
+      total_hits: per_chapter.reduce((s, c) => s + (c.summary ? c.summary.total_hits : 0), 0),
+      total_critical: per_chapter.reduce((s, c) => s + (c.summary ? c.summary.critical : 0), 0),
     };
 
     return {
@@ -1349,6 +1381,7 @@ Règles absolues :
         version: VERSION,
         date: new Date().toISOString(),
         mode: 'llm',
+        concurrency: concurrency,  // V7.4.2 Bloc 3
       },
       per_chapter,
       global: global_summary,
