@@ -534,9 +534,14 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     }
     const url = S.config.workerUrl;
     const mdl = model || S.config.model;
+    // Le worker attend une enveloppe { payload: { ... } }
     const body = {
-      model: mdl, max_tokens: maxTokens || 4096, system: system,
-      messages: [{ role: 'user', content: userMsg }],
+      payload: {
+        model: mdl,
+        max_tokens: maxTokens || 4096,
+        system: system,
+        messages: [{ role: 'user', content: userMsg }],
+      },
     };
     const maxRetries = 3;
     let lastErr = null;
