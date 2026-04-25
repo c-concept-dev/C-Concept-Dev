@@ -873,12 +873,28 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         ? `<span style="background:rgba(196,122,74,.15);color:var(--accent);padding:3px 10px;border-radius:6px;font-weight:600">→ Coller dans Project <strong>${escapeHTML(taskInfo.projectName)}</strong></span>`
         : `<span style="background:rgba(143,175,177,.15);color:var(--deep);padding:3px 10px;border-radius:6px">Mode complet (system + user)</span>`;
 
+      // V7.4.2.2 — Étiquette du modèle attendu pour aiguiller l'utilisateur
+      // (Sonnet vs Opus selon ce que le pipeline force pour cet appel précis).
+      const requiredModel = model || S.config.model || 'claude-sonnet-4-6';
+      const isOpusCall = /opus/i.test(requiredModel);
+      const modelLabel = isOpusCall ? 'Claude Opus 4.6' : (
+        /haiku/i.test(requiredModel) ? 'Claude Haiku' :
+        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 4.6' :
+        requiredModel
+      );
+      const modelBadgeBg = isOpusCall ? 'rgba(196,122,74,.15)' : 'rgba(143,175,177,.15)';
+      const modelBadgeColor = isOpusCall ? 'var(--accent)' : 'var(--deep)';
+      const modelBadgeText = isOpusCall ? '⚠ Modèle requis : ' + modelLabel + ' (capacité supérieure attendue)' : 'Modèle requis : ' + modelLabel;
+
       modal.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px">
           <h3 style="font-family:var(--book);color:var(--deep);margin:0">Mode manuel · ${escapeHTML(taskInfo.taskLabel)}</h3>
           <span style="font-size:.7rem;color:var(--ink2);font-weight:600">Appel ${callNum}</span>
         </div>
-        <div style="margin-bottom:12px;font-size:.7rem">${projectBadge}</div>
+        <div style="margin-bottom:8px;font-size:.7rem">${projectBadge}</div>
+        <div style="margin-bottom:12px;padding:6px 10px;background:${modelBadgeBg};color:${modelBadgeColor};border-radius:6px;font-size:.7rem;font-weight:600;display:inline-block">
+          ${escapeHTML(modelBadgeText)}
+        </div>
 
         <div style="display:flex;gap:6px;margin-bottom:12px;background:var(--paper);padding:3px;border-radius:6px">
           <button type="button" id="modeUserOnly" style="flex:1;padding:6px 10px;border:none;background:${useUserOnly?'var(--deep)':'transparent'};color:${useUserOnly?'var(--blanc)':'var(--ink2)'};cursor:pointer;border-radius:4px;font-family:inherit;font-size:.7rem;font-weight:600">User-only (Project)</button>
@@ -903,8 +919,9 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
         <div style="font-size:.65rem;font-weight:700;color:var(--deep);margin-bottom:6px;margin-top:12px">COLLE LA RÉPONSE :</div>
         <textarea id="manualResponse" class="response-area" style="min-height:180px" placeholder="Colle ici la réponse de Claude.ai..."></textarea>
-        <div style="display:flex;gap:10px;margin-top:12px">
+        <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn btn-primary" id="submitManual" style="flex:1">✓ Valider la réponse</button>
+          <button class="btn btn-ghost" id="saveInModal" title="Télécharger un .ldv.json de l'état actuel (avant cet appel)">💾 Sauver</button>
           <button class="btn btn-ghost" id="cancelManual">Annuler</button>
         </div>
       `;
@@ -967,6 +984,26 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         document.body.removeChild(overlay);
         document.removeEventListener('keydown', keyHandler);
         reject(new Error('Annulé'));
+      };
+
+      // V7.4.2.2 — Bouton Sauver intégré à la modale.
+      // Permet de télécharger un .ldv.json de l'état AVANT cet appel,
+      // sans fermer la modale ni perdre la progression. Si le navigateur
+      // ferme/crash pendant la modale, on a au moins l'état d'avant l'appel.
+      modal.querySelector('#saveInModal').onclick = () => {
+        try {
+          saveProjectDownload();
+          const btn = modal.querySelector('#saveInModal');
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Sauvegardé';
+          btn.style.color = 'var(--accent)';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = '';
+          }, 2000);
+        } catch (e) {
+          alert('Erreur sauvegarde : ' + e.message);
+        }
       };
 
       // Raccourcis clavier
