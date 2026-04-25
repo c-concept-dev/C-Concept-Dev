@@ -1467,37 +1467,51 @@ Structure minimale attendue :
           state.report = report;
         } else if (mode === 'hybrid') {
           // Mode hybride — déterministe + LLM chapitre par chapitre
-          log('Mode hybride : déterministe global + LLM par chapitre', 'info');
+          // V7.4.2 BLOC 3 — Parallélisation par lots de 4 (Éditeurs indépendants entre eux)
+          log('Mode hybride : déterministe global + LLM par chapitre (par lots de 4 en parallèle)', 'info');
           const detReport = EditeurNoyau.reviewBook(state.chapters, state.partition, {});
-          // Enrichir chaque chapitre avec un appel LLM
-          for (let i = 0; i < state.chapters.length; i++) {
-            const ch = state.chapters[i];
-            log('  Chapitre ' + (i + 1) + '/' + state.chapters.length + ' — appel LLM...', 'info');
-            try {
-              const hybrid = await EditeurNoyau.reviewChapterHybrid(
-                ch.text, state.partition,
-                { chapter_num: i + 1, chapter_title: ch.title, book_title: state.bookTitle || '' },
-                llmCall
+
+          const BATCH_SIZE = 4;
+          for (let start = 0; start < state.chapters.length; start += BATCH_SIZE) {
+            const end = Math.min(start + BATCH_SIZE, state.chapters.length);
+            log('  Lot ' + (start + 1) + '-' + end + ' / ' + state.chapters.length + ' — ' + (end - start) + ' Éditeurs LLM en parallèle...', 'info');
+
+            const promises = [];
+            for (let i = start; i < end; i++) {
+              const ch = state.chapters[i];
+              promises.push(
+                EditeurNoyau.reviewChapterHybrid(
+                  ch.text, state.partition,
+                  { chapter_num: i + 1, chapter_title: ch.title, book_title: state.bookTitle || '' },
+                  llmCall
+                ).then(hybrid => ({ idx: i, hybrid, error: null }))
+                 .catch(e => ({ idx: i, hybrid: null, error: e }))
               );
-              // Fusionner les flags LLM dans le rapport chapitre existant
-              if (detReport.per_chapter[i]) {
-                // Conserver les flags déterministes déjà présents
-                const existingCodes = new Set((detReport.per_chapter[i].flags || []).map(f => f.code));
+            }
+            const results = await Promise.all(promises);
+
+            // Fusion des résultats — séquentielle pour éviter toute collision
+            // sur detReport.per_chapter[i]
+            for (const { idx, hybrid, error } of results) {
+              if (error) {
+                log('    ⚠ LLM a échoué sur Ch.' + (idx + 1) + ' : ' + error.message, 'warn');
+                continue;
+              }
+              if (detReport.per_chapter[idx] && hybrid) {
+                const existingCodes = new Set((detReport.per_chapter[idx].flags || []).map(f => f.code));
                 for (const llmFlag of hybrid.flags) {
                   if (!existingCodes.has(llmFlag.code)) {
-                    detReport.per_chapter[i].flags.push(llmFlag);
+                    detReport.per_chapter[idx].flags.push(llmFlag);
                   }
                 }
-                detReport.per_chapter[i].boussole = hybrid.boussole;
-                detReport.per_chapter[i].controles = hybrid.controles;
-                // Re-calcul sommaire chapitre
-                detReport.per_chapter[i].summary.total_flags = detReport.per_chapter[i].flags.length;
-                detReport.per_chapter[i].summary.critical = detReport.per_chapter[i].flags.filter(f => f.severity === 'haute').length;
+                detReport.per_chapter[idx].boussole = hybrid.boussole;
+                detReport.per_chapter[idx].controles = hybrid.controles;
+                detReport.per_chapter[idx].summary.total_flags = detReport.per_chapter[idx].flags.length;
+                detReport.per_chapter[idx].summary.critical = detReport.per_chapter[idx].flags.filter(f => f.severity === 'haute').length;
               }
-            } catch (e) {
-              log('    ⚠ LLM a échoué sur ce chapitre : ' + e.message, 'warn');
             }
           }
+
           // Re-calcul sommaire global
           detReport.global.total_flags = detReport.per_chapter.reduce((s, c) => s + c.summary.total_flags, 0);
           detReport.global.total_critical = detReport.per_chapter.reduce((s, c) => s + (c.summary.critical || 0), 0);
