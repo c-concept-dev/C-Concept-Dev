@@ -1425,11 +1425,14 @@ Structure minimale attendue :
 
     const llmCall = async (system, userMsg, maxTokens, model) => {
       const mdl = model || 'claude-sonnet-4-6';
+      // Le worker attend une enveloppe { payload: { ... } }
       const body = {
-        model: mdl,
-        max_tokens: maxTokens || 4096,
-        system: system,
-        messages: [{ role: 'user', content: userMsg }],
+        payload: {
+          model: mdl,
+          max_tokens: maxTokens || 4096,
+          system: system,
+          messages: [{ role: 'user', content: userMsg }],
+        },
       };
       const resp = await fetch(workerUrl, {
         method: 'POST',
