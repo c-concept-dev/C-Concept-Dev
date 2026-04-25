@@ -5979,7 +5979,7 @@ Ecris. Pas de commentaire, pas de balise.`;
         }
       } else { lg('  \u2192 CORS bloqu\u00e9', 'err'); }
     } else { lg('  \u2192 pas de r\u00e9sultat Pexels', 'err'); }
-    await sleep(250);
+    await new Promise(r => setTimeout(r, 250));
 
     // Chapter images — V7.2.3 : désactivé (images de chapitre retirées).
     // La couverture et la 4e de couverture restent actives plus haut.
