@@ -596,6 +596,165 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
     return rs.length >= 1 && rs[0].resume && rs[0].resume.personnages_actifs.length === 2;
   });
 
+  // ─── PARTIE I — V7.4.2 Blocs 6, 5, 4, 3 (RobustCall, Opus ciblé, Gouvernance, Parallélisation) ───
+  console.log('\nI. V7.4.2 Robustesse + Opus ciblé + Gouvernance + Parallélisation\n');
+
+  // Bloc 6 — RobustCall
+  await tAsync('I.1 — RobustCall.extractJSON tolère fences', async () => {
+    const r = AuteurNoyau.RobustCall.extractJSON('```json\n{"a":1}\n```');
+    return r && r.a === 1;
+  });
+
+  await tAsync('I.2 — RobustCall.extractJSON répare virgules trailing', async () => {
+    const r = AuteurNoyau.RobustCall.extractJSON('{"a":1, "b":2,}');
+    return r && r.b === 2;
+  });
+
+  await tAsync('I.3 — RobustCall.validateSchema détecte champs manquants', async () => {
+    const v = AuteurNoyau.RobustCall.validateSchema({a:1}, {fields:['a','b']});
+    return v.ok === false && v.missing.includes('b');
+  });
+
+  await tAsync('I.4 — RobustCall.callWithRetry retry sur JSON malformé', async () => {
+    let calls = 0;
+    const responses = ['pas du json', '{"a":1, "b":2}'];
+    const r = await AuteurNoyau.RobustCall.callWithRetry({
+      llmCall: async () => responses[calls++] || responses[1],
+      system: 's', user: 'u',
+      parseMode: 'json',
+      schema: { fields: ['a', 'b'] },
+    });
+    return calls === 2 && r && r.a === 1;
+  });
+
+  await tAsync('I.5 — RobustCall.callWithRetry fallback après échecs', async () => {
+    const r = await AuteurNoyau.RobustCall.callWithRetry({
+      llmCall: async () => 'jamais valide',
+      system: 's', user: 'u',
+      parseMode: 'json',
+      schema: { fields: ['a'] },
+      maxRetries: 1,
+      fallback: () => ({ fallback_used: true }),
+    });
+    return r && r.fallback_used === true;
+  });
+
+  // Bloc 5 — Opus ciblé
+  await tAsync('I.6 — reviewBookOpus mode global (V7.4.1 par défaut)', async () => {
+    const report = await AuteurNoyau.reviewBookOpus(session, { opusMode: 'global' });
+    return typeof report === 'string' && report.length > 50 &&
+           session._lastOpusMode === 'global';
+  });
+
+  await tAsync('I.7 — reviewBookOpus mode ciblé avec editorReports', async () => {
+    // Test isolé avec session fraîche pour ne pas dépendre de l'état partagé
+    const testSession = AuteurNoyau.createSession({ llmCall: mockLlmCall, onLog: () => {} });
+    AuteurNoyau.loadTranscript(testSession, '# S, 45 ans\n\n## TOUR 1\n— A.\n');
+    testSession.chapters = [
+      { title: 'C1', text: 'texte 1 '.repeat(100), wordCount: 200 },
+      { title: 'C2', text: 'texte 2 '.repeat(100), wordCount: 200 },
+      { title: 'C3', text: 'texte 3 '.repeat(100), wordCount: 200 },
+    ];
+    const fakeReports = [
+      { flags: [{severity: 'haute', code: 'X'}] },
+      { flags: [] },
+      { flags: [{severity: 'basse'}, {severity: 'basse'}, {severity: 'basse'}] },
+    ];
+    const report = await AuteurNoyau.reviewBookOpus(testSession, {
+      opusMode: 'ciblé',
+      editorReports: fakeReports,
+    });
+    return typeof report === 'string' && testSession._lastOpusMode === 'ciblé';
+  });
+
+  await tAsync('I.8 — reviewBookOpus mode motifs', async () => {
+    const report = await AuteurNoyau.reviewBookOpus(session, { opusMode: 'motifs' });
+    return typeof report === 'string' && session._lastOpusMode === 'motifs';
+  });
+
+  // Bloc 4 — Gouvernance granulaire
+  await tAsync('I.9 — rewriteChapter relance un chapitre seul', async () => {
+    const oldText = session.chapters[0].text;
+    const r = await AuteurNoyau.rewriteChapter(session, 0, {});
+    return r && r.accepted === true && r.text && r.oldText === oldText;
+  });
+
+  await tAsync('I.10 — applyManualEdit synchronise et invalide résumé', async () => {
+    const testSession = AuteurNoyau.createSession({ llmCall: mockLlmCall, onLog: () => {} });
+    AuteurNoyau.loadTranscript(testSession, '# S, 45 ans\n\n## TOUR 1\n— A.\n');
+    testSession.chapters[0] = { title: 'C1', text: 'original'.repeat(50), wordCount: 100 };
+    const newText = 'Nouveau texte édité manuellement. '.repeat(50);
+    const r = AuteurNoyau.applyManualEdit(testSession, 0, newText, {});
+    const ch = AuteurNoyau.getChapters(testSession)[0];
+    return r.text === newText && ch.manuallyEdited === true && !!ch.editedAt;
+  });
+
+  await tAsync('I.11 — invalidateDownstream marque artefacts stale', async () => {
+    const testSession = AuteurNoyau.createSession({ llmCall: mockLlmCall, onLog: () => {} });
+    AuteurNoyau.loadTranscript(testSession, '# S, 45 ans\n\n## TOUR 1\n— A.\n');
+    testSession.chapters[0] = { title: 'C1', text: 'X'.repeat(100), wordCount: 100 };
+    testSession.bookOpusReport = 'fake report';
+    testSession.backCover = 'fake back';
+    AuteurNoyau.invalidateDownstream(testSession, 0);
+    const stale = AuteurNoyau.getStaleArtifacts(testSession);
+    return stale.stale.includes('bookOpusReport') && stale.stale.includes('backCover');
+  });
+
+  // Bloc 3 — Parallélisation reviewBookLLM
+  await tAsync('I.12 — reviewBookLLM parallélisé respecte ordre', async () => {
+    const chapters = [
+      { title: 'C1', text: 'Texte ch 1. '.repeat(100) },
+      { title: 'C2', text: 'Texte ch 2. '.repeat(100) },
+      { title: 'C3', text: 'Texte ch 3. '.repeat(100) },
+    ];
+    const partition = session.bookPartition || {};
+    const report = await EditeurNoyau.reviewBookLLM(chapters, partition, mockLlmCall, { concurrency: 2 });
+    return report.per_chapter.length === 3 &&
+           report.per_chapter[0].ch_num === 1 &&
+           report.per_chapter[2].ch_num === 3 &&
+           report.meta.concurrency === 2;
+  });
+
+  await tAsync('I.13 — reviewBookLLM gère les échecs sans casser la passe', async () => {
+    let calls = 0;
+    const failingMock = (sys, user) => {
+      calls++;
+      if (calls === 2) return Promise.reject(new Error('Erreur simulée'));
+      return mockLlmCall(sys, user);
+    };
+    const chapters = [
+      { title: 'C1', text: 'Texte. '.repeat(100) },
+      { title: 'C2', text: 'Texte. '.repeat(100) },
+      { title: 'C3', text: 'Texte. '.repeat(100) },
+    ];
+    const report = await EditeurNoyau.reviewBookLLM(chapters, session.bookPartition || {}, failingMock, { concurrency: 3 });
+    return report.per_chapter.length === 3 &&
+           !!report.per_chapter.some(c => c.error);
+  });
+
+  // Bloc 2 — Mode manuel optimisé (test détection)
+  await tAsync('I.14 — getPrompts expose tous les prompts pour Projects', async () => {
+    const p = AuteurNoyau.getPrompts();
+    return !!(p.POSTURAL && p.ARCHITECTE && p.OPERATOIRE && p.PARTITION && p.RESUME_STRUCTURE);
+  });
+
+  // Bloc 6 — generateChapterResume utilise RobustCall et fallback
+  await tAsync('I.15 — generateChapterResume fallback si JSON invalide tous les retries', async () => {
+    let calls = 0;
+    const badMock = async (sys, user) => {
+      calls++;
+      return 'pas du json valide';
+    };
+    const testSession = AuteurNoyau.createSession({ llmCall: badMock, onLog: () => {} });
+    AuteurNoyau.loadTranscript(testSession, '# S, 45 ans\n\n## TOUR 1\n— A.\n');
+    testSession.chapters[0] = { title: 'C1', text: 'texte du chapitre. '.repeat(100), wordCount: 200 };
+    testSession.initChapterMemory();
+    testSession.chapterMemory.chapitres.push({ num: 1, titre: 'C1' });
+    const r = await AuteurNoyau.generateChapterResume(testSession, 0, { mode: 'full' });
+    // Devrait avoir le fallback (3 appels = 1 + 2 retries)
+    return r && r._fallback === true && calls === 3;
+  });
+
   // ─── PARTIE G — Canon universel ───
   console.log('\nG. Canon universel (hardcoding)\n');
 
