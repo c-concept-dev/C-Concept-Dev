@@ -2084,8 +2084,173 @@ Le livre qui sera écrit sur la base de ta partition doit être UNIQUE — impos
 `;
 
 // ═══════════════════════════════════════════════════════════════════
-// V7.4.2 — PROMPT SYSTÈME : RÉSUMÉ NARRATIF STRUCTURÉ PAR CHAPITRE
+// V7.4.2 — BLOC 6 — ROBUSTESSE DES APPELS LLM
 // ═══════════════════════════════════════════════════════════════════
+//
+// Module utilitaire qui durcit les appels LLM contre les erreurs
+// fréquentes (JSON malformé, réponse tronquée, format inattendu).
+//
+// Trois mécanismes :
+//   1. Validation JSON avec extraction tolérante (fences, balises, etc.)
+//   2. Retry avec contre-prompt si le format n'est pas respecté (max 2)
+//   3. Mode dégradé : si tout échoue, on continue avec un fallback
+//      plutôt que de bloquer toute la session
+// ═══════════════════════════════════════════════════════════════════
+
+const RobustCall = {
+  /**
+   * Tente d'extraire un objet JSON d'une réponse LLM brute.
+   * Tolère : fences ```json...```, ```...```, texte avant/après, etc.
+   * Retourne null si vraiment rien d'exploitable.
+   */
+  extractJSON(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    let s = raw.trim();
+
+    // 1. Tenter d'extraire entre fences ```json ... ``` ou ``` ... ```
+    const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fence) s = fence[1].trim();
+
+    // 2. Trouver le premier { et le dernier }
+    const firstBrace = s.indexOf('{');
+    const lastBrace = s.lastIndexOf('}');
+    if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) return null;
+
+    const candidate = s.substring(firstBrace, lastBrace + 1);
+
+    // 3. Tenter le parse direct
+    try {
+      return JSON.parse(candidate);
+    } catch (_) {}
+
+    // 4. Réparation : virgules trailing, simples au lieu de doubles, etc.
+    let repaired = candidate
+      .replace(/,(\s*[}\]])/g, '$1')                // virgules trailing
+      .replace(/'/g, '"')                            // quotes simples → doubles
+      .replace(/(\w+):/g, '"$1":')                  // clés non-quotées (basique)
+      .replace(/""(\w+)"":/g, '"$1":');              // double-double-quote
+    try {
+      return JSON.parse(repaired);
+    } catch (_) {}
+
+    return null;
+  },
+
+  /**
+   * Valide qu'un objet JSON contient les champs attendus.
+   * schema = { fields: ['x', 'y.z'], optional: ['a'] }
+   * Retourne { ok, missing }
+   */
+  validateSchema(obj, schema) {
+    if (!obj || typeof obj !== 'object') return { ok: false, missing: ['__root__'] };
+    const missing = [];
+    for (const field of (schema.fields || [])) {
+      const parts = field.split('.');
+      let cur = obj;
+      for (const p of parts) {
+        if (cur == null || !(p in cur)) { missing.push(field); break; }
+        cur = cur[p];
+      }
+    }
+    return { ok: missing.length === 0, missing };
+  },
+
+  /**
+   * Appel LLM robuste avec retry intelligent.
+   *
+   * options = {
+   *   llmCall,      // function(system, user, maxTokens, model) → text
+   *   system,
+   *   user,
+   *   maxTokens,
+   *   model,
+   *   schema,       // { fields, optional } — pour validation JSON
+   *   parseMode,    // 'json' | 'text' (défaut text)
+   *   maxRetries,   // défaut 2 (1 essai + 2 retries)
+   *   onRetry,      // function(attempt, reason) — log
+   *   fallback,     // function() → valeur de repli en cas d'échec total
+   * }
+   *
+   * Retourne :
+   *   - en parseMode='json' : objet parsé valide, ou fallback() si échec
+   *   - en parseMode='text' : texte brut (avec retry sur réponse trop courte)
+   */
+  async callWithRetry(options) {
+    const {
+      llmCall, system, user,
+      maxTokens = 4096,
+      model = null,
+      schema = null,
+      parseMode = 'text',
+      maxRetries = 2,
+      onRetry = null,
+      fallback = null,
+      minLength = 50,
+    } = options;
+
+    if (!llmCall) throw new Error('RobustCall.callWithRetry : llmCall requis');
+
+    let lastError = null;
+    let lastRaw = null;
+    let currentUser = user;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const raw = await llmCall(system, currentUser, maxTokens, model);
+        lastRaw = raw;
+
+        // Validation longueur de base — uniquement en mode text
+        // (en mode JSON, c'est le schéma qui valide la structure)
+        if (parseMode === 'text') {
+          if (!raw || raw.trim().length < minLength) {
+            lastError = 'Réponse trop courte (' + (raw ? raw.length : 0) + ' chars)';
+            if (onRetry) onRetry(attempt + 1, lastError);
+            currentUser = user + '\n\n[NOTE — réponse précédente trop courte, sois plus complet]';
+            continue;
+          }
+          return raw;
+        }
+
+        // Mode JSON : extraction
+        const parsed = RobustCall.extractJSON(raw);
+        if (!parsed) {
+          lastError = 'JSON non extractible';
+          if (onRetry) onRetry(attempt + 1, lastError);
+          currentUser = user + '\n\n[NOTE — sortie précédente n\'était pas du JSON valide. Produis UNIQUEMENT un objet JSON, sans préambule, sans commentaire, encadré par { et }]';
+          continue;
+        }
+
+        // Validation schéma si fourni
+        if (schema) {
+          const v = RobustCall.validateSchema(parsed, schema);
+          if (!v.ok) {
+            lastError = 'Schéma invalide, manque : ' + v.missing.join(', ');
+            if (onRetry) onRetry(attempt + 1, lastError);
+            currentUser = user + '\n\n[NOTE — sortie précédente JSON manquait les champs : ' + v.missing.join(', ') + '. Inclus tous les champs obligatoires]';
+            continue;
+          }
+        }
+
+        return parsed;
+      } catch (e) {
+        lastError = e.message;
+        if (onRetry) onRetry(attempt + 1, lastError);
+      }
+    }
+
+    // Tous les retries ont échoué — fallback ou null
+    if (fallback) {
+      try {
+        return fallback(lastRaw, lastError);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  },
+};
+
+
 //
 // Ce prompt est utilisé après chaque chapitre écrit pour que le LLM
 // produise un résumé structuré en 5 registres. Ce résumé est stocké
@@ -6235,39 +6400,47 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
 
     session._onLog('↺ Résumé structuré Ch.' + (chIdx + 1) + ' (' + mode + ')...', 'info');
 
-    let raw;
-    try {
-      raw = await session.llmCall(PROMPT_RESUME_STRUCTURE, userPrompt, maxTokens, model);
-    } catch (e) {
-      session._onLog('  ⚠ Échec LLM résumé : ' + e.message + ' — mémoire structurée ignorée pour ce chapitre', 'warn');
+    // V7.4.2 Bloc 6 — Appel robuste avec retry et fallback automatique
+    const resume = await RobustCall.callWithRetry({
+      llmCall: session.llmCall,
+      system: PROMPT_RESUME_STRUCTURE,
+      user: userPrompt,
+      maxTokens: maxTokens,
+      model: model,
+      parseMode: 'json',
+      schema: { fields: ['resume_narratif', 'personnages_actifs', 'lieux_decrits'] },
+      maxRetries: 2,
+      onRetry: (attempt, reason) => {
+        session._onLog('  ⟳ Retry résumé Ch.' + (chIdx + 1) + ' (essai ' + attempt + ') : ' + reason, 'warn');
+      },
+      fallback: (lastRaw, lastError) => {
+        session._onLog('  ⚠ Résumé Ch.' + (chIdx + 1) + ' a échoué après retries : ' + lastError + ' — fallback minimal', 'warn');
+        return {
+          resume_narratif: ch.text.split(/\s+/).slice(0, 100).join(' ') + '...',
+          personnages_actifs: [],
+          lieux_decrits: [],
+          scenes_fortes: [],
+          dettes_ouvertes: [],
+          dettes_refermees: [],
+          echos_poses: [],
+          echos_repris: [],
+          _fallback: true,
+          _fallback_reason: lastError,
+        };
+      },
+    });
+
+    if (!resume) {
+      session._onLog('  ⚠ Résumé Ch.' + (chIdx + 1) + ' impossible — mémoire structurée ignorée pour ce chapitre', 'warn');
       return null;
     }
 
-    // Parse tolérant
-    let resume;
-    try {
-      let s = raw.trim();
-      const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (fence) s = fence[1].trim();
-      const firstBrace = s.indexOf('{');
-      const lastBrace = s.lastIndexOf('}');
-      if (firstBrace < 0 || lastBrace < 0) throw new Error('Pas de JSON détecté');
-      resume = JSON.parse(s.substring(firstBrace, lastBrace + 1));
-    } catch (e) {
-      session._onLog('  ⚠ JSON résumé invalide : ' + e.message + ' — fallback minimal', 'warn');
-      // Fallback : résumé minimal basé sur le texte
-      resume = {
-        resume_narratif: ch.text.split(/\s+/).slice(0, 100).join(' ') + '...',
-        personnages_actifs: [],
-        lieux_decrits: [],
-        scenes_fortes: [],
-        dettes_ouvertes: [],
-        dettes_refermees: [],
-        echos_poses: [],
-        echos_repris: [],
-        _fallback: true,
-      };
-    }
+    // Garantir que les 5 registres existent même si seulement 3 étaient validés
+    resume.scenes_fortes = resume.scenes_fortes || [];
+    resume.dettes_ouvertes = resume.dettes_ouvertes || [];
+    resume.dettes_refermees = resume.dettes_refermees || [];
+    resume.echos_poses = resume.echos_poses || [];
+    resume.echos_repris = resume.echos_repris || [];
 
     // Stocker dans ChapterMemory
     session.initChapterMemory();
@@ -6308,6 +6481,163 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
         titre: c.titre,
         resume: c.resume_structure,
       }));
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // V7.4.2 BLOC 4 — GOUVERNANCE GRANULAIRE
+  // ═══════════════════════════════════════════════════════════════════
+  //
+  // Fonctions canon pour le contrôle fin chapitre par chapitre.
+  // Permet à l'utilisateur (via le shell) de :
+  //   - Réécrire un chapitre seul (sans tout relancer)
+  //   - Éditer manuellement un chapitre et synchroniser les structures
+  //   - Invalider la mémoire structurée d'un chapitre modifié
+  //   - Réinitialiser les rapports en aval
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Réécrit un seul chapitre depuis zéro (Architecte + Opératoire).
+   * Utile quand l'utilisateur veut relancer un chapitre dont il n'est pas
+   * satisfait sans toucher aux autres. Utilise les chapitres précédents
+   * existants comme contexte (prevCtx + ChapterMemory).
+   *
+   * Effets de bord :
+   *   - Le texte du chapitre est remplacé
+   *   - L'éventuel résumé structuré du chapitre est invalidé (à régénérer)
+   *   - Les chapitres suivants restent inchangés (leur contexte ne change pas
+   *     car ils ont été écrits AVEC l'ancienne version — l'utilisateur peut
+   *     décider de les régénérer après s'il le souhaite)
+   */
+  async function rewriteChapter(session, chIdx, options) {
+    if (!session) throw new Error('AuteurNoyau.rewriteChapter : session requise');
+    if (chIdx < 0 || !session.plan || !session.plan.chapters || chIdx >= session.plan.chapters.length) {
+      throw new Error('AuteurNoyau.rewriteChapter : chIdx invalide');
+    }
+    options = options || {};
+    session._onLog('↻ Réécriture complète Ch.' + (chIdx + 1) + '...', 'info');
+
+    // On sauvegarde l'ancienne version pour rollback si besoin
+    const oldText = (session.chapters[chIdx] && session.chapters[chIdx].text) || null;
+    const oldEntry = session.chapterMemory && session.chapterMemory.chapitres
+      ? session.chapterMemory.chapitres.find(c => c.num === chIdx + 1)
+      : null;
+
+    // Invalider le résumé structuré (sera régénéré ensuite si demandé)
+    if (oldEntry && oldEntry.resume_structure) {
+      delete oldEntry.resume_structure;
+    }
+
+    // Retirer aussi l'ancienne entrée ChapterMemory pour qu'updateChapterMemory
+    // puisse créer la nouvelle proprement
+    if (session.chapterMemory && session.chapterMemory.chapitres) {
+      session.chapterMemory.chapitres = session.chapterMemory.chapitres.filter(c => c.num !== chIdx + 1);
+    }
+
+    try {
+      const text = await writeChapter(session, chIdx, options);
+      session._onLog('  ✓ Ch.' + (chIdx + 1) + ' réécrit (' + text.split(/\s+/).length + ' mots)', 'ok');
+      return { text, accepted: true, oldText };
+    } catch (e) {
+      // Rollback en cas d'erreur
+      if (oldText && session.chapters[chIdx]) {
+        session.chapters[chIdx].text = oldText;
+        session.chapters[chIdx].wordCount = oldText.split(/\s+/).filter(Boolean).length;
+      }
+      if (oldEntry && session.chapterMemory) {
+        session.chapterMemory.chapitres.push(oldEntry);
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Synchronise les structures internes après une édition manuelle d'un chapitre.
+   * Quand l'utilisateur modifie un chapitre à la main dans le shell, le code doit :
+   *   - Mettre à jour session.chapters[chIdx].text et wordCount
+   *   - Invalider le résumé structuré (qui ne reflète plus la nouvelle version)
+   *   - Optionnellement régénérer le résumé via generateChapterResume
+   */
+  function applyManualEdit(session, chIdx, newText, options) {
+    if (!session) throw new Error('AuteurNoyau.applyManualEdit : session requise');
+    if (!session.chapters[chIdx]) {
+      throw new Error('AuteurNoyau.applyManualEdit : chapitre ' + (chIdx + 1) + ' inexistant');
+    }
+    if (!newText || typeof newText !== 'string' || newText.length < 50) {
+      throw new Error('AuteurNoyau.applyManualEdit : texte trop court ou invalide');
+    }
+
+    const oldText = session.chapters[chIdx].text;
+    session.chapters[chIdx].text = newText;
+    session.chapters[chIdx].wordCount = newText.split(/\s+/).filter(Boolean).length;
+    session.chapters[chIdx].manuallyEdited = true;
+    session.chapters[chIdx].editedAt = new Date().toISOString();
+
+    // Invalider le résumé structuré
+    if (session.chapterMemory && session.chapterMemory.chapitres) {
+      const entry = session.chapterMemory.chapitres.find(c => c.num === chIdx + 1);
+      if (entry && entry.resume_structure) {
+        entry.resume_structure_invalidated_at = new Date().toISOString();
+        entry.resume_structure_old = entry.resume_structure;
+        delete entry.resume_structure;
+      }
+    }
+
+    session._onLog('✏ Édition manuelle Ch.' + (chIdx + 1) + ' (' + session.chapters[chIdx].wordCount + ' mots, ' +
+      (oldText ? oldText.split(/\s+/).length : 0) + ' avant)', 'info');
+
+    return { text: newText, oldText, wordCount: session.chapters[chIdx].wordCount };
+  }
+
+  /**
+   * Invalide les artefacts en aval du livre quand un chapitre a changé.
+   * À appeler après rewriteChapter ou applyManualEdit pour signaler que :
+   *   - bookOpusReport n'est plus à jour
+   *   - les résumés structurés des chapitres en aval peuvent être obsolètes
+   *   - la 4e couverture est à regénérer si elle existe
+   *
+   * Cette fonction ne supprime rien — elle marque les artefacts comme "stale"
+   * pour que l'utilisateur sache ce qui doit être relancé.
+   */
+  function invalidateDownstream(session, chIdx) {
+    if (!session) return null;
+    const stale = {
+      ch_modified: chIdx + 1,
+      timestamp: new Date().toISOString(),
+      stale: [],
+    };
+
+    if (session.bookOpusReport) {
+      session._opusReportStale = true;
+      stale.stale.push('bookOpusReport');
+    }
+    if (session.backCover) {
+      session._backCoverStale = true;
+      stale.stale.push('backCover');
+    }
+
+    // Marquer les chapitres en aval qui pourraient avoir une mémoire dépassée
+    if (session.chapterMemory && session.chapterMemory.chapitres) {
+      const downstreamChapters = session.chapterMemory.chapitres.filter(c => c.num > chIdx + 1);
+      if (downstreamChapters.length > 0) {
+        stale.stale.push('chapterMemory.chapitres[' + (chIdx + 2) + '-' + (chIdx + 1 + downstreamChapters.length) + ']');
+      }
+    }
+
+    session._onLog('⚠ Artefacts marqués obsolètes après modif Ch.' + (chIdx + 1) + ' : ' +
+      (stale.stale.length > 0 ? stale.stale.join(', ') : '(aucun)'), 'warn');
+
+    return stale;
+  }
+
+  /**
+   * Vérifie quels artefacts de la session sont marqués comme obsolètes (stale).
+   */
+  function getStaleArtifacts(session) {
+    if (!session) return { stale: [] };
+    const stale = [];
+    if (session._opusReportStale) stale.push('bookOpusReport');
+    if (session._backCoverStale) stale.push('backCover');
+    return { stale };
   }
 
 
@@ -6460,6 +6790,17 @@ Réécris le chapitre en corrigeant les défauts. Ne commente pas, n'explique pa
    * Phase 4 — Relecture Opus globale (post-écriture).
    * Version enrichie V7.4 : rapport structuré en 4 sections, canon-compatible.
    */
+  /**
+   * Phase 4 — Relecture Opus globale (post-écriture).
+   *
+   * V7.4.2 Bloc 5 — Trois modes de relecture :
+   *   - 'global'  : relit le livre entier (V7.4.1 par défaut, ~2$/livre long)
+   *   - 'ciblé'   : relit uniquement les chapitres avec flags critiques + adjacents (~0.8$/livre long)
+   *   - 'motifs'  : focus sur la mise en mouvement des motifs-pivots (~0.5$)
+   *
+   * En mode 'ciblé', options.editorReports doit être passé (tableau des rapports
+   * Éditeur par chapitre). Sans editorReports, on retombe sur 'global'.
+   */
   async function reviewBookOpus(session, options) {
     if (!session) throw new Error('AuteurNoyau.reviewBookOpus : session requise');
     if (!session.llmCall) throw new Error('AuteurNoyau.reviewBookOpus : ctx.llmCall non injecté');
@@ -6467,11 +6808,80 @@ Réécris le chapitre en corrigeant les défauts. Ne commente pas, n'explique pa
       throw new Error('Aucun chapitre à relire');
     }
     options = options || {};
-
-    const fullBook = session.chapters.map(c => '# ' + c.title + '\n\n' + c.text).join('\n\n---\n\n');
+    const opusMode = options.opusMode || 'global';
     const partition = session.bookPartition;
 
-    const system = `Tu es un éditeur senior. Tu relis un livre terminé, chapitre par chapitre, puis dans sa totalité. Ton rôle est de juger sa TENUE GLOBALE — la cohérence qui émerge de l'ensemble, et pas juste de chaque chapitre pris isolément.
+    // Sélection des chapitres selon le mode
+    let chaptersToReview;
+    let modeLabel;
+    let modeContext = '';
+
+    if (opusMode === 'ciblé' || opusMode === 'cible' || opusMode === 'targeted') {
+      const editorReports = options.editorReports || [];
+      if (!Array.isArray(editorReports) || editorReports.length === 0) {
+        session._onLog('  Mode ciblé sans rapports Éditeur — retour au mode global', 'warn');
+        chaptersToReview = session.chapters.map((c, i) => ({ idx: i, ch: c, reason: 'all' }));
+        modeLabel = 'global (fallback)';
+      } else {
+        // Identifier les chapitres flaggés
+        const flagged = new Set();
+        for (let i = 0; i < editorReports.length; i++) {
+          const r = editorReports[i];
+          if (!r) continue;
+          const flags = r.flags || [];
+          const critical = flags.filter(f => f.severity === 'haute').length;
+          const total = flags.length;
+          if (critical >= 1 || total >= 3) flagged.add(i);
+        }
+        // Toujours inclure premier et dernier chapitre (ouverture/clôture canon)
+        flagged.add(0);
+        flagged.add(session.chapters.length - 1);
+        // Inclure adjacents pour contexte
+        const expanded = new Set(flagged);
+        for (const i of flagged) {
+          if (i > 0) expanded.add(i - 1);
+          if (i < session.chapters.length - 1) expanded.add(i + 1);
+        }
+        const sortedIdx = Array.from(expanded).sort((a, b) => a - b);
+        chaptersToReview = sortedIdx.map(i => {
+          const reason = flagged.has(i) ? 'flagged' : 'context';
+          return { idx: i, ch: session.chapters[i], reason };
+        });
+        modeLabel = 'ciblé';
+        const flaggedNums = Array.from(flagged).sort((a, b) => a - b).map(i => i + 1);
+        modeContext = `\nChapitres relus en priorité (flaggés par l'Éditeur ou positions canon) : ${flaggedNums.join(', ')}.`;
+      }
+    } else if (opusMode === 'motifs') {
+      // En mode motifs : pas de filtrage, on relit tout mais avec un prompt focalisé
+      chaptersToReview = session.chapters.map((c, i) => ({ idx: i, ch: c, reason: 'all' }));
+      modeLabel = 'motifs';
+    } else {
+      // Mode global (défaut)
+      chaptersToReview = session.chapters.map((c, i) => ({ idx: i, ch: c, reason: 'all' }));
+      modeLabel = 'global';
+    }
+
+    // Construction du texte du livre selon les chapitres sélectionnés
+    let fullBook;
+    if (opusMode === 'ciblé' || opusMode === 'cible' || opusMode === 'targeted') {
+      // Mode ciblé : chapitres flaggés en intégral, adjacents en résumé court
+      fullBook = chaptersToReview.map(item => {
+        if (item.reason === 'flagged') {
+          return `[Ch.${item.idx + 1} — RELU EN INTÉGRAL]\n# ${item.ch.title}\n\n${item.ch.text}`;
+        } else {
+          // Adjacent : résumé court (200 premiers mots)
+          const short = (item.ch.text || '').split(/\s+/).slice(0, 200).join(' ');
+          return `[Ch.${item.idx + 1} — contexte adjacent, résumé]\n# ${item.ch.title}\n\n${short}...`;
+        }
+      }).join('\n\n---\n\n');
+    } else {
+      fullBook = chaptersToReview.map(item =>
+        `# Ch.${item.idx + 1} — ${item.ch.title}\n\n${item.ch.text}`
+      ).join('\n\n---\n\n');
+    }
+
+    // Système — adapté selon le mode
+    let system = `Tu es un éditeur senior. Tu relis un livre terminé, chapitre par chapitre, puis dans sa totalité. Ton rôle est de juger sa TENUE GLOBALE — la cohérence qui émerge de l'ensemble, et pas juste de chaque chapitre pris isolément.
 
 Ton cadre canon :
 - La Boussole Souveraine (intrigue OU texte, sinon coupe) — appliquée au livre entier
@@ -6489,13 +6899,38 @@ Ce que tu traques en particulier :
 
 Tu produis un rapport structuré.`;
 
+    if (opusMode === 'motifs') {
+      system += `\n\n[FOCUS V7.4.2 BLOC 5 — MODE MOTIFS]
+Pour cette relecture, tu te concentres EXCLUSIVEMENT sur les motifs-pivots de la partition. Les autres dimensions (péril, narrateur, scènes) ne sont pas ton sujet ici. Tu suis la mise en mouvement de chaque motif à travers le livre : où il se charge, où il mute, où il s'éteint, où il est répété à l'identique (mauvais signe).`;
+    }
+
     let partitionBlock = '';
     if (partition) {
       try { partitionBlock = '\n\nPARTITION DU LIVRE :\n' + JSON.stringify(partition, null, 2).substring(0, 3000); }
       catch (_) {}
     }
 
-    const user = `Voici le livre complet (${session.chapters.length} chapitres) :${partitionBlock}
+    // User prompt selon le mode
+    let user;
+    if (opusMode === 'motifs') {
+      user = `Voici le livre complet (${session.chapters.length} chapitres) :${partitionBlock}
+
+${fullBook}
+
+---
+
+Produis un rapport CIBLÉ MOTIFS en 3 sections :
+
+## 1. CARTOGRAPHIE DES MOTIFS-PIVOTS
+Pour chaque motif de la partition : à quels chapitres il s'active, comment il évolue, sa séquence de stades respectée ou pas.
+
+## 2. MOTIFS QUI S'ÉTEIGNENT
+Lesquels disparaissent dans la seconde moitié du livre alors qu'ils étaient présents dans la première ? Lesquels sont remplacés par autre chose ? Lesquels sont oubliés sans remplacement ?
+
+## 3. VERDICT MOTIFS
+Le saupoudrage tient-il jusqu'au bout ? Les motifs sont-ils des énergies (mutent) ou des idées (répètent) ? Recommandation pour ajustement.`;
+    } else {
+      user = `Voici le livre (${chaptersToReview.length} chapitre(s) inclus dans cette relecture) :${partitionBlock}${modeContext}
 
 ${fullBook}
 
@@ -6504,7 +6939,7 @@ ${fullBook}
 Produis un rapport de relecture globale en 4 sections :
 
 ## 1. TENUE DES CHAPITRES
-Pour chaque chapitre : verdict (tient / partiel / faible) + une phrase de justification.
+Pour chaque chapitre relu : verdict (tient / partiel / faible) + une phrase de justification.
 
 ## 2. MOTIFS DE LA PARTITION
 Lesquels se sont chargés, à quels moments ? Lesquels se sont éteints ? Le saupoudrage a-t-il tenu jusqu'au bout ?
@@ -6516,13 +6951,31 @@ Qu'est-ce qui traverse le livre entier et le dilue ? (régime qui dérive, péri
 Le livre tient-il comme totalité ? Si non, où est le défaut le plus grave et que faut-il corriger en priorité ? Quels chapitres demandent un retour urgent ?
 
 Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
+    }
 
     const maxTk = options.maxTokens || 8192;
-    const model = options.model || 'claude-opus-4-6';  // Opus pour la relecture globale canon
+    const model = options.model || 'claude-opus-4-6';
 
-    session._onLog('Relecture Opus globale en cours (' + session.chapters.length + ' chapitres)...', 'info');
-    const report = await session.llmCall(system, user, maxTk, model);
+    session._onLog('Relecture Opus ' + modeLabel + ' (' + chaptersToReview.length + ' chapitre(s))...', 'info');
+
+    // Bloc 6 : appel robuste avec retry sur réponse trop courte
+    const report = await RobustCall.callWithRetry({
+      llmCall: session.llmCall,
+      system: system,
+      user: user,
+      maxTokens: maxTk,
+      model: model,
+      parseMode: 'text',
+      minLength: 200,
+      maxRetries: 1,
+      onRetry: (attempt, reason) => {
+        session._onLog('  ⟳ Retry Opus (essai ' + attempt + ') : ' + reason, 'warn');
+      },
+      fallback: (lastRaw) => lastRaw || '(Relecture Opus a échoué après retries)',
+    });
+
     session.bookOpusReport = report;
+    session._lastOpusMode = modeLabel;
     return report;
   }
 
@@ -6639,6 +7092,10 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
     writeChapter,
     generateChapterResume,    // V7.4.2 — mémoire narrative structurée
     rewriteTargeted,          // V7.4.1 — boucle Auteur ↔ Éditeur
+    rewriteChapter,           // V7.4.2 Bloc 4 — réécrire un chapitre seul
+    applyManualEdit,          // V7.4.2 Bloc 4 — appliquer une édition manuelle
+    invalidateDownstream,     // V7.4.2 Bloc 4 — marquer artefacts obsolètes
+    getStaleArtifacts,        // V7.4.2 Bloc 4 — lire les obsolescences
     reviewBookOpus,
     buildBackCover,
     buildEpub,
@@ -6657,6 +7114,8 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
     getPrompts,
     // Prompts exposés pour inspection/debug
     PROMPT_RESUME_STRUCTURE,   // V7.4.2
+    // V7.4.2 Bloc 6 — Module de robustesse des appels LLM
+    RobustCall,
     // Core exposé pour debug avancé
     _AuteurCore: AuteurCore,
   };
