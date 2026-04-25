@@ -534,11 +534,13 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     }
     const url = S.config.workerUrl;
     const mdl = model || S.config.model;
-    // Le worker attend une enveloppe { payload: { ... } }
+    // Le worker attend une enveloppe { payload: { ... } } avec stream:true
+    // pour éviter les timeouts Cloudflare 524 sur les longs chapitres.
     const body = {
       payload: {
         model: mdl,
         max_tokens: maxTokens || 4096,
+        stream: true,
         system: system,
         messages: [{ role: 'user', content: userMsg }],
       },
@@ -555,22 +557,67 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
           const t = await resp.text();
           throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
         }
-        const data = await resp.json();
-        if (data.content && Array.isArray(data.content)) {
-          const text = data.content.map(c => c.text || '').join('\n').trim();
-          let tokIn, tokOut;
-          if (data.usage) {
-            tokIn = data.usage.input_tokens; tokOut = data.usage.output_tokens;
-            accountTokens(mdl, tokIn, tokOut);
-          } else {
-            tokIn = Math.ceil((system.length + userMsg.length) / 4);
-            tokOut = Math.ceil(text.length / 4);
-            accountTokens(mdl, tokIn, tokOut);
+
+        // Parse SSE stream (Server-Sent Events) — chaque ligne `data: {...}`
+        // contient un événement Anthropic, on agrège les content_block_delta.text
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let text = '';
+        let buf = '';
+        let usageInfo = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(data);
+              // Agrégation du texte
+              if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+                text += evt.delta.text || '';
+              }
+              // Usage final (envoyé en message_delta ou message_stop)
+              if (evt.type === 'message_delta' && evt.usage) {
+                usageInfo = Object.assign(usageInfo || {}, evt.usage);
+              }
+              if (evt.type === 'message_start' && evt.message && evt.message.usage) {
+                usageInfo = Object.assign(usageInfo || {}, evt.message.usage);
+              }
+            } catch (_) { /* skip malformed SSE lines */ }
           }
-          telemetryEnd(telemetryEntry, { response: text, tokens_in: tokIn, tokens_out: tokOut, retries: attempt - 1 });
-          return text;
         }
-        throw new Error('Format réponse inattendu');
+        // Drain final
+        if (buf.trim().startsWith('data: ')) {
+          try {
+            const evt = JSON.parse(buf.slice(6).trim());
+            if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+              text += evt.delta.text || '';
+            }
+          } catch (_) {}
+        }
+
+        if (!text.trim()) {
+          throw new Error('Réponse streamée vide');
+        }
+
+        text = text.trim();
+        let tokIn, tokOut;
+        if (usageInfo) {
+          tokIn = usageInfo.input_tokens; tokOut = usageInfo.output_tokens;
+          accountTokens(mdl, tokIn, tokOut);
+        } else {
+          tokIn = Math.ceil((system.length + userMsg.length) / 4);
+          tokOut = Math.ceil(text.length / 4);
+          accountTokens(mdl, tokIn, tokOut);
+        }
+        telemetryEnd(telemetryEntry, { response: text, tokens_in: tokIn, tokens_out: tokOut, retries: attempt - 1 });
+        return text;
       } catch (e) {
         lastErr = e;
         if (attempt < maxRetries) await new Promise(r => setTimeout(r, 2000 * attempt));
