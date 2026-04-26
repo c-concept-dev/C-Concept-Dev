@@ -168,6 +168,10 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
 .restore-banner{background:rgba(200,208,195,.2);border-left:3px solid var(--accent);padding:12px 14px;border-radius:6px;margin-bottom:16px;font-size:.78rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 
+.mode-toggle{display:flex;gap:8px;margin-bottom:16px;background:var(--paper);padding:4px;border-radius:10px}
+.mode-toggle button{flex:1;padding:8px 14px;border:none;background:transparent;font-family:inherit;font-size:.72rem;cursor:pointer;border-radius:6px;color:var(--ink2);transition:all .2s;font-weight:600}
+.mode-toggle button.active{background:var(--deep);color:var(--blanc)}
+
 .doc-summary{
   background:rgba(143,175,177,.08);border-left:3px solid var(--mer);
   padding:10px 14px;border-radius:6px;margin-bottom:10px;font-size:.78rem;
@@ -237,6 +241,28 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     <div id="docList" class="doc-list"></div>
 
     <div class="field" style="margin-top:20px">
+      <label>Mode d'exécution</label>
+      <div class="mode-toggle">
+        <button type="button" class="active" data-mode="api">🚀 API (worker)</button>
+        <button type="button" data-mode="manual">✍️ Manuel (copier-coller)</button>
+      </div>
+    </div>
+
+    <!-- V7.4.2.2 — Panneau Configuration mode manuel -->
+    <div id="manualConfigPanel" style="display:none;background:rgba(196,122,74,.08);border-left:3px solid var(--accent);border-radius:6px;padding:14px 16px;margin-bottom:16px;font-size:.75rem">
+      <details>
+        <summary style="cursor:pointer;font-weight:600;color:var(--deep);font-size:.82rem">⚙ Configuration mode manuel — créer les Projects claude.ai (une fois pour toutes)</summary>
+        <p style="margin-top:10px;line-height:1.6;color:var(--ink)">
+          Pour éviter de coller le prompt système (~120 KB) à chaque appel, crée des <strong>Projects claude.ai</strong> avec leurs <em>custom instructions</em> pré-remplies. Le shell ne te demandera plus que le user prompt (court, lisible) qu'il faudra coller dans le Project correspondant.
+        </p>
+        <div id="projectsList" style="margin-top:12px"></div>
+        <p style="margin-top:12px;color:var(--ink2);font-style:italic">
+          Tu peux aussi rester en mode "Complet" qui inclut le system dans chaque copier-coller — c'est plus lourd mais ne nécessite aucune préparation.
+        </p>
+      </details>
+    </div>
+
+    <div class="field" style="margin-top:20px">
       <label>Modèle LLM</label>
       <select id="modelSelect">
         <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (production)</option>
@@ -251,7 +277,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
         <option value="short">Court — ~12 000 mots, 5-7 chapitres</option>
       </select>
     </div>
-    <div class="field">
+    <div class="field" id="fieldWorker">
       <label>Worker URL (Cloudflare)</label>
       <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev">
     </div>
@@ -348,11 +374,14 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       length: 'medium',
       workerUrl: 'https://clone-proxy.11drumboy11.workers.dev',
       editeurMode: 'hybrid',
+      execMode: 'api',           // V7.4.2.2 — 'api' | 'manual'
+      manualMode: 'user-only',   // V7.4.2.2 — 'user-only' | 'full'
     },
     promptDirecteur: '',
     documents: [],         // [{ name, size, ext, text, summary }]
     diagnostic: '',
     editorReports: [],
+    _manualCallCounter: 0, // V7.4.2.2 — compteur d'appels manuels pour la modale
   };
   // V7.4.2 — Exposition debug (pour inspection console après pipeline)
   if (typeof window !== 'undefined') window.S = S;
@@ -632,9 +661,342 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     }
   }
 
+
+  // ─── MODE MANUEL V7.4.2 — copier-coller dans Claude.ai ──────
+
+  // Liste les 5 Projects claude.ai à créer avec bouton "Copier les instructions" pour chacun.
+  // Les prompts sont récupérés via AuteurNoyau.getPrompts() et EditeurNoyau.PROMPT_SYSTEME_EDITEUR_LLM
+  function renderProjectsList() {
+    const zone = document.getElementById('projectsList');
+    if (!zone || zone.dataset.rendered === 'true') return;
+
+    let prompts = {};
+    try { prompts = AuteurNoyau.getPrompts() || {}; } catch (_) {}
+    const editorPrompt = (typeof EditeurNoyau !== 'undefined' && EditeurNoyau.PROMPT_SYSTEME_EDITEUR_LLM) || '';
+    const transversalPrompt = (typeof EditeurNoyau !== 'undefined' && EditeurNoyau.PROMPT_SYSTEME_EDITEUR_TRANSVERSAL) || '';
+
+    // 6 Projects (incluant Resume V7.4.2 et Editeur transversal)
+    const projects = [
+      {
+        name: 'LDV-Diagnostic',
+        usage: 'Diagnostic littéraire (1 appel par livre)',
+        instructions: 'Tu es un lecteur d\'une extrême finesse. Pour ce projet, tu produis des diagnostics littéraires de transcripts d\'entretien — tu lis la matière brute et tu identifies genre, tonalité, voix narrative, tension motrice, péril, personnages, lieu, temporalité, références, pièges, singularité.',
+      },
+      {
+        name: 'LDV-Partition',
+        usage: 'Partition singulière 9 dimensions (1 appel par livre)',
+        instructions: prompts.PARTITION || '(prompt PARTITION non disponible — vérifie le chargement de atelier-auteur-core.js)',
+      },
+      {
+        name: 'LDV-Architecte',
+        usage: 'Conception JSON par chapitre (1 appel par chapitre)',
+        instructions: (prompts.POSTURAL || '') + '\n\n---\n\n' + (prompts.ARCHITECTE || ''),
+      },
+      {
+        name: 'LDV-Operatoire',
+        usage: 'Écriture du chapitre (1 appel par chapitre)',
+        instructions: (prompts.POSTURAL || '') + '\n\n---\n\n' + (prompts.OPERATOIRE || ''),
+      },
+      {
+        name: 'LDV-Editeur',
+        usage: 'Relecture canon par chapitre + transversal (1-N appels par livre)',
+        instructions: editorPrompt + (transversalPrompt ? '\n\n---\n\nPour la relecture transversale (livre entier), suis ces instructions complémentaires :\n\n' + transversalPrompt : ''),
+      },
+      {
+        name: 'LDV-Resume',
+        usage: 'Résumé narratif structuré V7.4.2 (1 appel par chapitre)',
+        instructions: (typeof AuteurNoyau !== 'undefined' && AuteurNoyau.PROMPT_RESUME_STRUCTURE) || '(prompt résumé non disponible)',
+      },
+    ];
+
+    let html = '';
+    for (const p of projects) {
+      const sizeKB = Math.round(p.instructions.length / 1024 * 10) / 10;
+      html += `
+        <div style="border:1px solid var(--sauge);border-radius:8px;padding:10px 12px;margin:8px 0;background:white">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+            <div style="font-weight:700;color:var(--deep)">${escapeHTML(p.name)}</div>
+            <div style="font-size:.62rem;color:var(--ink2)">${sizeKB} KB</div>
+          </div>
+          <div style="font-size:.7rem;color:var(--ink2);margin-bottom:8px">${escapeHTML(p.usage)}</div>
+          <button type="button" class="btn btn-ghost copyProjectBtn" data-name="${escapeHTML(p.name)}" style="padding:6px 12px;font-size:.7rem">📋 Copier les custom instructions</button>
+        </div>
+      `;
+    }
+    zone.innerHTML = html;
+    zone.dataset.rendered = 'true';
+
+    // Attacher les handlers
+    zone.querySelectorAll('.copyProjectBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.name;
+        const project = projects.find(p => p.name === name);
+        if (!project) return;
+        navigator.clipboard.writeText(project.instructions).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = '✓ Copié — colle dans le Project ' + name;
+          setTimeout(() => { btn.textContent = orig; }, 2500);
+        }).catch(e => {
+          alert('Erreur copie : ' + e.message);
+        });
+      });
+    });
+  }
+
+  // V7.4.2 BLOC 2 — Détection du type de tâche depuis le prompt système
+  // pour suggérer dans quel Project claude.ai coller.
+  // V7.4.2 — Détection de la tâche depuis le prompt système.
+  // Utilise les MARQUEURS UNIQUES extraits des en-têtes des prompts canon.
+  // Ordre canonique : du plus spécifique au plus générique.
+  function detectTaskType(system) {
+    if (!system) return { projectName: 'Generic', taskLabel: 'Tâche LLM' };
+    const s = system.toLowerCase();
+
+    // 1. Marqueurs structurels d'en-tête (les plus fiables — présents dès le début)
+    if (s.includes("# prompt opératoire") || s.includes("# prompt operatoire")) {
+      return { projectName: 'LDV-Operatoire', taskLabel: 'Opératoire (écriture chapitre)' };
+    }
+    if (s.includes("# prompt architecte")) {
+      return { projectName: 'LDV-Architecte', taskLabel: 'Architecte (conception chapitre)' };
+    }
+    if (s.includes("# prompt postural")) {
+      // Postural seul est rare — généralement il accompagne Architecte ou Opératoire,
+      // déjà détectés ci-dessus. Si Postural seul, c'est l'init.
+      return { projectName: 'LDV-Postural', taskLabel: 'Posture (init)' };
+    }
+
+    // 2. Partition singulière — signature spécifique au prompt PARTITION
+    if (s.includes("partition singulière") || s.includes("partition singuliere")) {
+      return { projectName: 'LDV-Partition', taskLabel: 'Partition' };
+    }
+
+    // 3. Résumé structuré V7.4.2
+    if (s.includes("produire un résumé structuré") || s.includes("résumé narratif structuré") ||
+        s.includes("résumé structuré du chapitre")) {
+      return { projectName: 'LDV-Resume', taskLabel: 'Résumé structuré (V7.4.2)' };
+    }
+
+    // 4. Éditeur transversal
+    if ((s.includes("éditeur") || s.includes("editeur")) &&
+        (s.includes("totalité du livre") || s.includes("livre entier") || s.includes("transversal"))) {
+      return { projectName: 'LDV-Editeur', taskLabel: 'Éditeur transversal (livre entier)' };
+    }
+
+    // 5. Éditeur LLM (chapitre par chapitre)
+    if (s.includes("éditeur senior") || s.includes("éditeur littéraire") ||
+        (s.includes("boussole souveraine") && s.includes("3 contrôles"))) {
+      return { projectName: 'LDV-Editeur', taskLabel: 'Éditeur LLM' };
+    }
+
+    // 6. Supervision Opus
+    if (s.includes("superviseur") || s.includes("supervises l'architecture") ||
+        s.includes("supervises la partition")) {
+      return { projectName: 'LDV-Opus', taskLabel: 'Supervision Opus' };
+    }
+
+    // 7. Plan
+    if (s.includes("plan du livre") || s.includes("structure des chapitres") ||
+        s.includes("découper le livre en chapitres")) {
+      return { projectName: 'LDV-Plan', taskLabel: 'Plan du livre' };
+    }
+
+    // 8. 4e de couverture
+    if (s.includes("quatrième de couverture") || s.includes("4e de couverture") ||
+        s.includes("dos du livre")) {
+      return { projectName: 'LDV-4eCouv', taskLabel: '4e de couverture' };
+    }
+
+    // 9. Diagnostic (en avant-dernier — la signature "extrême finesse" peut apparaître ailleurs)
+    if (s.includes("d'une extrême finesse")) {
+      return { projectName: 'LDV-Diagnostic', taskLabel: 'Diagnostic littéraire' };
+    }
+
+    return { projectName: 'Generic', taskLabel: 'Tâche LLM' };
+  }
+
+  // Compteur global d'appels manuel pour indicateur de progression
+  if (!S.manualCounter) S.manualCounter = { done: 0, total: 0 };
+
+  async function llmCallManual(system, userMsg, maxTokens, model) {
+    return new Promise((resolve, reject) => {
+      S.manualCounter.total++;
+      const callNum = S.manualCounter.done + 1;
+      const totalEst = Math.max(callNum, S.manualCounter.total);
+      const taskInfo = detectTaskType(system);
+      const useUserOnly = S.config.manualMode === 'user-only';
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:white;border-radius:12px;max-width:900px;width:100%;max-height:92vh;overflow-y:auto;padding:24px';
+
+      const projectBadge = useUserOnly
+        ? `<span style="background:rgba(196,122,74,.15);color:var(--accent);padding:3px 10px;border-radius:6px;font-weight:600">→ Coller dans Project <strong>${escapeHTML(taskInfo.projectName)}</strong></span>`
+        : `<span style="background:rgba(143,175,177,.15);color:var(--deep);padding:3px 10px;border-radius:6px">Mode complet (system + user)</span>`;
+
+      // V7.4.2.2 — Étiquette du modèle attendu pour aiguiller l'utilisateur
+      // (Sonnet vs Opus selon ce que le pipeline force pour cet appel précis).
+      const requiredModel = model || S.config.model || 'claude-sonnet-4-6';
+      const isOpusCall = /opus/i.test(requiredModel);
+      const modelLabel = isOpusCall ? 'Claude Opus 4.6' : (
+        /haiku/i.test(requiredModel) ? 'Claude Haiku' :
+        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 4.6' :
+        requiredModel
+      );
+      const modelBadgeBg = isOpusCall ? 'rgba(196,122,74,.15)' : 'rgba(143,175,177,.15)';
+      const modelBadgeColor = isOpusCall ? 'var(--accent)' : 'var(--deep)';
+      const modelBadgeText = isOpusCall ? '⚠ Modèle requis : ' + modelLabel + ' (capacité supérieure attendue)' : 'Modèle requis : ' + modelLabel;
+
+      modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+          <h3 style="font-family:var(--book);color:var(--deep);margin:0">Mode manuel · ${escapeHTML(taskInfo.taskLabel)}</h3>
+          <span style="font-size:.7rem;color:var(--ink2);font-weight:600">Appel ${callNum}</span>
+        </div>
+        <div style="margin-bottom:8px;font-size:.7rem">${projectBadge}</div>
+        <div style="margin-bottom:12px;padding:6px 10px;background:${modelBadgeBg};color:${modelBadgeColor};border-radius:6px;font-size:.7rem;font-weight:600;display:inline-block">
+          ${escapeHTML(modelBadgeText)}
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:12px;background:var(--paper);padding:3px;border-radius:6px">
+          <button type="button" id="modeUserOnly" style="flex:1;padding:6px 10px;border:none;background:${useUserOnly?'var(--deep)':'transparent'};color:${useUserOnly?'var(--blanc)':'var(--ink2)'};cursor:pointer;border-radius:4px;font-family:inherit;font-size:.7rem;font-weight:600">User-only (Project)</button>
+          <button type="button" id="modeFull" style="flex:1;padding:6px 10px;border:none;background:${useUserOnly?'transparent':'var(--deep)'};color:${useUserOnly?'var(--ink2)':'var(--blanc)'};cursor:pointer;border-radius:4px;font-family:inherit;font-size:.7rem;font-weight:600">Complet (system + user)</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin:8px 0">
+          <button class="btn btn-accent" id="copyMainBtn" style="flex:1;padding:10px">📋 ${useUserOnly?'Copier le user prompt':'Copier le prompt complet'}</button>
+          <button class="btn btn-ghost" id="copyOtherBtn" style="padding:10px;font-size:.7rem" title="Copier l'autre format">↻ ${useUserOnly?'Copier complet':'Copier user-only'}</button>
+        </div>
+        <div style="font-size:.62rem;color:var(--ink2);margin-bottom:8px">
+          Raccourcis : <strong>Ctrl/Cmd+Shift+C</strong> pour copier · <strong>Ctrl/Cmd+Enter</strong> pour valider
+        </div>
+
+        <details style="margin:10px 0;border:1px solid var(--sauge);border-radius:6px;padding:8px">
+          <summary style="cursor:pointer;font-size:.7rem;font-weight:600;color:var(--deep)">Voir aperçu (system : ${system.length} chars · user : ${userMsg.length} chars)</summary>
+          <div style="font-size:.62rem;font-weight:700;color:var(--deep);margin:10px 0 4px">SYSTÈME (premier KB)</div>
+          <div class="prompt-block" style="max-height:100px;font-size:.65rem">${escapeHTML(system.substring(0, 1000))}${system.length > 1000 ? '\n...['+(system.length-1000)+' chars de plus]' : ''}</div>
+          <div style="font-size:.62rem;font-weight:700;color:var(--deep);margin:10px 0 4px">USER (premier KB)</div>
+          <div class="prompt-block" style="max-height:120px;font-size:.65rem">${escapeHTML(userMsg.substring(0, 1500))}${userMsg.length > 1500 ? '\n...['+(userMsg.length-1500)+' chars de plus]' : ''}</div>
+        </details>
+
+        <div style="font-size:.65rem;font-weight:700;color:var(--deep);margin-bottom:6px;margin-top:12px">COLLE LA RÉPONSE :</div>
+        <textarea id="manualResponse" class="response-area" style="min-height:180px" placeholder="Colle ici la réponse de Claude.ai..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary" id="submitManual" style="flex:1">✓ Valider la réponse</button>
+          <button class="btn btn-ghost" id="saveInModal" title="Télécharger un .lbs.json de l'état actuel (avant cet appel)">💾 Sauver</button>
+          <button class="btn btn-ghost" id="cancelManual">Annuler</button>
+        </div>
+      `;
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      // État local du modal pour basculer le mode
+      let currentUserOnly = useUserOnly;
+
+      const updateModeButtons = () => {
+        const btnUO = modal.querySelector('#modeUserOnly');
+        const btnFull = modal.querySelector('#modeFull');
+        btnUO.style.background = currentUserOnly ? 'var(--deep)' : 'transparent';
+        btnUO.style.color = currentUserOnly ? 'var(--blanc)' : 'var(--ink2)';
+        btnFull.style.background = currentUserOnly ? 'transparent' : 'var(--deep)';
+        btnFull.style.color = currentUserOnly ? 'var(--ink2)' : 'var(--blanc)';
+        modal.querySelector('#copyMainBtn').textContent = '📋 ' + (currentUserOnly ? 'Copier le user prompt' : 'Copier le prompt complet');
+        modal.querySelector('#copyOtherBtn').textContent = '↻ ' + (currentUserOnly ? 'Copier complet' : 'Copier user-only');
+      };
+
+      const copyMain = () => {
+        const txt = currentUserOnly ? userMsg : ('[SYSTEM]\n' + system + '\n\n[USER]\n' + userMsg);
+        navigator.clipboard.writeText(txt).then(() => {
+          const btn = modal.querySelector('#copyMainBtn');
+          btn.textContent = '✓ Copié';
+          setTimeout(() => {
+            btn.textContent = '📋 ' + (currentUserOnly ? 'Copier le user prompt' : 'Copier le prompt complet');
+          }, 1500);
+        });
+      };
+
+      const copyOther = () => {
+        const txt = currentUserOnly ? ('[SYSTEM]\n' + system + '\n\n[USER]\n' + userMsg) : userMsg;
+        navigator.clipboard.writeText(txt).then(() => {
+          const btn = modal.querySelector('#copyOtherBtn');
+          btn.textContent = '✓ Copié';
+          setTimeout(() => {
+            btn.textContent = '↻ ' + (currentUserOnly ? 'Copier complet' : 'Copier user-only');
+          }, 1500);
+        });
+      };
+
+      modal.querySelector('#modeUserOnly').onclick = () => { currentUserOnly = true; S.config.manualMode = 'user-only'; updateModeButtons(); };
+      modal.querySelector('#modeFull').onclick = () => { currentUserOnly = false; S.config.manualMode = 'full'; updateModeButtons(); };
+      modal.querySelector('#copyMainBtn').onclick = copyMain;
+      modal.querySelector('#copyOtherBtn').onclick = copyOther;
+
+      const submit = () => {
+        const resp = modal.querySelector('#manualResponse').value.trim();
+        if (resp.length < 10) { alert('Réponse trop courte'); return; }
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', keyHandler);
+        S.manualCounter.done++;
+        accountTokens(model || S.config.model, Math.ceil((system.length + userMsg.length) / 4), Math.ceil(resp.length / 4));
+        resolve(resp);
+      };
+
+      modal.querySelector('#submitManual').onclick = submit;
+      modal.querySelector('#cancelManual').onclick = () => {
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', keyHandler);
+        reject(new Error('Annulé'));
+      };
+
+      // V7.4.2.2 — Bouton Sauver intégré à la modale.
+      // Permet de télécharger un .lbs.json de l'état AVANT cet appel,
+      // sans fermer la modale ni perdre la progression. Si le navigateur
+      // ferme/crash pendant la modale, on a au moins l'état d'avant l'appel.
+      modal.querySelector('#saveInModal').onclick = () => {
+        try {
+          saveProjectDownload();
+          const btn = modal.querySelector('#saveInModal');
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Sauvegardé';
+          btn.style.color = 'var(--accent)';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = '';
+          }, 2000);
+        } catch (e) {
+          alert('Erreur sauvegarde : ' + e.message);
+        }
+      };
+
+      // Raccourcis clavier
+      const keyHandler = (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+          e.preventDefault();
+          copyMain();
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          submit();
+        } else if (e.key === 'Escape') {
+          // Pas de cancel par Escape (risque trop élevé d'annuler par erreur)
+        }
+      };
+      document.addEventListener('keydown', keyHandler);
+
+      // Focus auto sur la textarea de réponse
+      setTimeout(() => modal.querySelector('#manualResponse').focus(), 100);
+    });
+  }
+
   // ─── LLM CALL VIA WORKER ─────────────────────────────────────
 
   async function llmCallViaWorker(system, userMsg, maxTokens, model) {
+    // V7.4.2.2 — Routage mode manuel : si l'utilisateur a choisi "manuel",
+    // on bascule sur llmCallManual qui ouvre une modale copier-coller.
+    // Aucun appel HTTP ne part vers le worker en mode manuel.
+    if (S.config.execMode === 'manual') {
+      return await llmCallManual(system, userMsg, maxTokens, model);
+    }
+
     const url = S.config.workerUrl;
     const mdl = model || S.config.model;
     // Le worker attend une enveloppe { payload: { ... } } avec stream:true
@@ -708,6 +1070,17 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
    * contentBlocks : tableau [{type:'image', source:{...}}, {type:'text', text:'...'}]
    */
   async function llmCallMultimodal(system, contentBlocks, maxTokens, model) {
+    // V7.4.2.2 — Mode manuel : les images base64 sont impossibles à copier-coller
+    // dans une conv Claude.ai. On extrait le texte des contentBlocks et on délègue
+    // à llmCallManual avec un user prompt textuel uniquement.
+    if (S.config.execMode === 'manual') {
+      const textParts = (contentBlocks || []).filter(b => b && b.type === 'text').map(b => b.text || '');
+      const imageCount = (contentBlocks || []).filter(b => b && b.type === 'image').length;
+      const userMsg = textParts.join('\n\n') +
+        (imageCount > 0 ? `\n\n⚠️ ${imageCount} image(s) prévue(s) en mode API (non transmise(s) en manuel — réponds depuis le texte seul).` : '');
+      return await llmCallManual(system, userMsg, maxTokens, model);
+    }
+
     const url = S.config.workerUrl;
     const mdl = model || S.config.model;
     // Le worker attend une enveloppe { payload: { ... } } avec stream:true
@@ -1365,6 +1738,20 @@ Longueur : 800-1500 mots.`;
     document.getElementById('lengthSelect').addEventListener('change', (e) => S.config.length = e.target.value);
     document.getElementById('workerUrl').addEventListener('change', (e) => S.config.workerUrl = e.target.value);
     document.getElementById('editeurMode').addEventListener('change', (e) => S.config.editeurMode = e.target.value);
+
+    // V7.4.2.2 — Sélecteur API / Manuel
+    document.querySelectorAll('.mode-toggle button[data-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-toggle button[data-mode]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        S.config.execMode = btn.dataset.mode;
+        const fieldWorker = document.getElementById('fieldWorker');
+        if (fieldWorker) fieldWorker.style.display = (S.config.execMode === 'manual') ? 'none' : 'block';
+        const manualPanel = document.getElementById('manualConfigPanel');
+        if (manualPanel) manualPanel.style.display = (S.config.execMode === 'manual') ? 'block' : 'none';
+        if (S.config.execMode === 'manual') renderProjectsList();
+      });
+    });
 
     // Navigation
     document.getElementById('toStep1Btn').addEventListener('click', runExtraction);
