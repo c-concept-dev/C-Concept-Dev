@@ -55279,7 +55279,7 @@ var Worker_default = {
       return new Response(null, { headers: CORS });
     const url = new URL(request2.url);
     const p = url.pathname;
-    const _protected = ['/rag-query','/rag-search','/generate-presentation','/llm-proxy','/rag-stats'];
+    const _protected = ['/rag-query','/rag-search','/generate-presentation','/llm-proxy','/rag-stats','/voices','/models','/speak'];
     if (_protected.some(r => p.startsWith(r))) {
       const k = request2.headers.get('X-API-Key') || request2.headers.get('x-api-key');
       if (env2.WORKER_API_KEY && k !== env2.WORKER_API_KEY)
@@ -55339,6 +55339,12 @@ var Worker_default = {
       return handleTTSGoogle(request2, env2);
     if (p === "/tts-openai" && request2.method === "POST")
       return handleTTSOpenAI(request2, env2);
+    if (p === "/voices" && request2.method === "GET")
+      return handleVoicesList(url, env2);
+    if (p === "/models" && request2.method === "GET")
+      return handleModelsList(env2);
+    if (p === "/speak" && request2.method === "POST")
+      return handleSpeak(request2, env2);
     if (request2.method === "POST")
       return handleAnthropicProxy(request2, env2);
     return jsonErr("Not found", 404);
@@ -57453,6 +57459,173 @@ async function handleTTSOpenAI(request2, env2) {
   }
 }
 __name(handleTTSOpenAI, "handleTTSOpenAI");
+
+// ═══════════════════════════════════════════════════════════════════
+// VOIX — énumération des catalogues + synthèse normalisée
+//   GET  /voices?lang=fr-FR   catalogue agrégé
+//   GET  /models              modèles OpenAI réellement actifs sur le compte
+//   POST /speak               { provider, voice, text, model?, speed?, instructions? }
+//                             renvoie TOUJOURS de l'audio/mpeg brut
+// Secret optionnel : ELEVENLABS_API_KEY
+// ═══════════════════════════════════════════════════════════════════
+
+function voiceFamily(name) {
+  const n = String(name).toLowerCase();
+  const families = ["chirp3-hd", "chirp", "journey", "studio", "neural2", "wavenet", "polyglot", "news"];
+  for (const f of families) if (n.includes(f)) return f;
+  return "standard";
+}
+__name(voiceFamily, "voiceFamily");
+
+async function handleVoicesList(url, env2) {
+  const lang = url.searchParams.get("lang") || "fr-FR";
+  const out = { lang, google: [], openai: [], elevenlabs: [], errors: {} };
+
+  // Google — le seul fournisseur dont le catalogue s'interroge vraiment
+  if (env2.GOOGLE_TTS_KEY) {
+    try {
+      const r = await fetch(
+        "https://texttospeech.googleapis.com/v1/voices?languageCode=" +
+        encodeURIComponent(lang) + "&key=" + env2.GOOGLE_TTS_KEY
+      );
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error?.message || ("HTTP " + r.status));
+      out.google = (d.voices || []).map((v) => ({
+        id: v.name,
+        family: voiceFamily(v.name),
+        gender: String(v.ssmlGender || "").toLowerCase(),
+        sampleRate: v.naturalSampleRateHertz,
+        languages: v.languageCodes
+      })).sort((a, b) => a.family.localeCompare(b.family) || a.id.localeCompare(b.id));
+    } catch (e) { out.errors.google = e.message; }
+  } else {
+    out.errors.google = "GOOGLE_TTS_KEY non configurée";
+  }
+
+  // OpenAI — pas d'endpoint /voices, la liste est fixe
+  if (env2.OPENAI_API_KEY) {
+    out.openai = ["alloy","ash","ballad","cedar","coral","echo","fable",
+                  "marin","nova","onyx","sage","shimmer","verse"]
+      .map((id) => ({ id, note: "disponibilité selon le modèle — voir /models" }));
+  } else {
+    out.errors.openai = "OPENAI_API_KEY non configurée";
+  }
+
+  // ElevenLabs — actif dès que le secret est posé
+  if (env2.ELEVENLABS_API_KEY) {
+    try {
+      const r = await fetch("https://api.elevenlabs.io/v1/voices", {
+        headers: { "xi-api-key": env2.ELEVENLABS_API_KEY }
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.detail?.message || ("HTTP " + r.status));
+      out.elevenlabs = (d.voices || []).map((v) => ({
+        id: v.voice_id, name: v.name, category: v.category,
+        labels: v.labels, preview: v.preview_url
+      }));
+    } catch (e) { out.errors.elevenlabs = e.message; }
+  } else {
+    out.errors.elevenlabs = "ELEVENLABS_API_KEY non configurée";
+  }
+
+  out.counts = {
+    google: out.google.length,
+    openai: out.openai.length,
+    elevenlabs: out.elevenlabs.length
+  };
+  return json(out);
+}
+__name(handleVoicesList, "handleVoicesList");
+
+// Source de vérité sur les modèles vivants : le compte, pas la documentation.
+async function handleModelsList(env2) {
+  if (!env2.OPENAI_API_KEY) return jsonErr("OPENAI_API_KEY non configurée", 500);
+  const r = await fetch("https://api.openai.com/v1/models", {
+    headers: { Authorization: "Bearer " + env2.OPENAI_API_KEY }
+  });
+  const d = await r.json();
+  if (!r.ok) return jsonErr(d?.error?.message || ("HTTP " + r.status), r.status);
+  const ids = (d.data || []).map((m) => m.id).sort();
+  return json({
+    realtime: ids.filter((i) => i.includes("realtime")),
+    speech: ids.filter((i) => i.includes("tts") || i.includes("audio")),
+    total: ids.length
+  });
+}
+__name(handleModelsList, "handleModelsList");
+
+async function handleSpeak(request2, env2) {
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  const { provider = "google", voice, text, model, speed = 1, instructions } = body;
+  if (!text) return jsonErr("Champ 'text' manquant", 400);
+  if (!voice) return jsonErr("Champ 'voice' manquant", 400);
+
+  const audioHeaders = { ...CORS, "Content-Type": "audio/mpeg", "Cache-Control": "no-store" };
+
+  if (provider === "google") {
+    if (!env2.GOOGLE_TTS_KEY) return jsonErr("GOOGLE_TTS_KEY non configurée", 500);
+    // Chirp 3 HD refuse ssmlGender et pitch
+    const isChirp3 = String(voice).includes("Chirp3-HD");
+    const languageCode = String(voice).split("-").slice(0, 2).join("-");
+    const audioConfig = { audioEncoding: "MP3" };
+    if (speed && speed !== 1) audioConfig.speakingRate = speed;
+    const r = await fetch(
+      "https://texttospeech.googleapis.com/v1/text:synthesize?key=" + env2.GOOGLE_TTS_KEY,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input: { text },
+          voice: isChirp3 ? { languageCode, name: voice } : { languageCode, name: voice },
+          audioConfig
+        })
+      }
+    );
+    const d = await r.json();
+    if (!r.ok) return json({ error: "Google TTS", detail: d }, r.status);
+    // base64 -> octets, pour homogénéiser avec les autres fournisseurs
+    const bin = atob(d.audioContent);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Response(bytes, { headers: audioHeaders });
+  }
+
+  if (provider === "openai") {
+    if (!env2.OPENAI_API_KEY) return jsonErr("OPENAI_API_KEY non configurée", 500);
+    const payload = {
+      model: model || env2.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+      voice, input: text, speed, response_format: "mp3"
+    };
+    if (instructions) payload.instructions = instructions;
+    const r = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + env2.OPENAI_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) return json({ error: "OpenAI TTS", detail: await r.text() }, r.status);
+    return new Response(r.body, { headers: audioHeaders });
+  }
+
+  if (provider === "elevenlabs") {
+    if (!env2.ELEVENLABS_API_KEY) return jsonErr("ELEVENLABS_API_KEY non configurée", 500);
+    const r = await fetch(
+      "https://api.elevenlabs.io/v1/text-to-speech/" + encodeURIComponent(voice) +
+      "?output_format=mp3_44100_128",
+      {
+        method: "POST",
+        headers: { "xi-api-key": env2.ELEVENLABS_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ text, model_id: model || "eleven_multilingual_v2" })
+      }
+    );
+    if (!r.ok) return json({ error: "ElevenLabs", detail: await r.text() }, r.status);
+    return new Response(r.body, { headers: audioHeaders });
+  }
+
+  return jsonErr("Fournisseur inconnu : " + provider, 400);
+}
+__name(handleSpeak, "handleSpeak");
+
 export {
   Worker_default as default
 };
