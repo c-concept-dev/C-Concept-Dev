@@ -1,3 +1,98 @@
+// ═══════════════════════════════════════════════════════════════════
+// __audioKit — correctifs v19.1
+//   1. AudioContext + MediaStreamSource UNIQUES et partagés
+//      (WebKit rend muet tout createMediaStreamSource() supplémentaire
+//       sur un stream déjà consommé par un autre AudioContext)
+//   2. Élément <audio> unique débloqué au premier geste utilisateur
+//      (politique autoplay Safari : play() hors geste = NotAllowedError)
+//   3. Liste de modèles Realtime avec repli automatique
+// ═══════════════════════════════════════════════════════════════════
+window.__audioKit = (function () {
+    let ctx = null, micSource = null, micStream = null, audioEl = null, unlocked = false;
+
+    async function context() {
+        if (!ctx || ctx.state === 'closed') {
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('[audioKit] AudioContext créé, état =', ctx.state);
+        }
+        if (ctx.state === 'suspended') {
+            try { await ctx.resume(); console.log('[audioKit] AudioContext repris →', ctx.state); }
+            catch (e) { console.warn('[audioKit] resume() refusé (hors geste utilisateur)', e); }
+        }
+        return ctx;
+    }
+
+    // Une seule source micro pour toute l'application ; chaque module s'y branche.
+    async function micSourceFor(stream) {
+        const c = await context();
+        if (micSource && micStream === stream) return micSource;
+        if (micSource) { try { micSource.disconnect(); } catch (e) {} }
+        micStream = stream;
+        micSource = c.createMediaStreamSource(stream);
+        const track = stream.getAudioTracks()[0];
+        console.log('[audioKit] Source micro créée —',
+            track ? `piste "${track.label}" enabled=${track.enabled} state=${track.readyState}` : 'AUCUNE PISTE AUDIO');
+        return micSource;
+    }
+
+    // Débloque un élément <audio> unique : une fois autorisé, il le reste.
+    function unlock() {
+        if (unlocked) return;
+        if (!audioEl) { audioEl = new Audio(); audioEl.preload = 'auto'; }
+        audioEl.src = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA4UOLD8nKVOWfh+UlK3z/177OXrfOdKl7pyn3Xf//WreyTRUoAWgBgkOAGbZHBgG1OF6zM82DWbZaUmMBptgQhGjsyYqc9ae9XFz280948NMBWInljyzsNRFLPWdnZGWrddDsjK1unuSrVN9jJsK8KuQtQCtMBjCEtImISdNKJOopIpBFpNSTKF0KcRJ5cVPENSXf9D0eXfoJEeQ==';
+        audioEl.volume = 0;
+        audioEl.play().then(() => {
+            audioEl.pause(); audioEl.currentTime = 0; audioEl.volume = 1; unlocked = true;
+            console.log('[audioKit] ✅ Élément audio débloqué');
+        }).catch((e) => console.warn('[audioKit] déblocage audio différé', e && e.name));
+        // Reprend aussi l'AudioContext : le geste utilisateur est le seul moment où c'est permis.
+        context();
+    }
+
+    // Renvoie TOUJOURS le même élément — c'est ce qui satisfait Safari.
+    function getAudio(url) {
+        if (!audioEl) { audioEl = new Audio(); audioEl.preload = 'auto'; }
+        try { audioEl.pause(); } catch (e) {}
+        audioEl.onended = null; audioEl.onerror = null; audioEl.onplay = null;
+        audioEl.currentTime = 0;
+        audioEl.volume = 1;
+        audioEl.src = url;
+        return audioEl;
+    }
+
+    // Ordre de préférence. Les identifiants exacts doivent être confirmés par
+    // GET /v1/models sur le compte : le repli rend une entrée erronée inoffensive.
+    const REALTIME_MODELS = [
+        'gpt-realtime-2.1-mini',
+        'gpt-realtime-1.5',
+        'gpt-realtime-mini'
+    ];
+
+    async function connectRealtime(rt, voice) {
+        let last = null;
+        for (const model of REALTIME_MODELS) {
+            try {
+                await rt.connect(voice, model);
+                console.log('[audioKit] ✅ Realtime connecté avec', model);
+                return model;
+            } catch (e) {
+                last = e;
+                const msg = String(e && e.message || e);
+                console.warn('[audioKit] Realtime refusé pour', model, '—', msg.slice(0, 120));
+                if (!/model_not_found|does not exist|404/i.test(msg)) break;
+                try { rt.disconnect && rt.disconnect(); } catch (_) {}
+            }
+        }
+        throw last || new Error('Aucun modèle Realtime disponible');
+    }
+
+    ['pointerdown', 'touchend', 'keydown'].forEach((ev) =>
+        window.addEventListener(ev, unlock, { once: false, capture: true, passive: true }));
+
+    return { context, micSourceFor, unlock, getAudio, REALTIME_MODELS, connectRealtime,
+             get ctx() { return ctx; }, get micSource() { return micSource; } };
+})();
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // THÉRAPEUTE IA — CORE ENGINE v8.0
 // C Concept&Dev — Fichier noyau unique
@@ -539,7 +634,7 @@ async function speakWithElevenLabs(text, onDone) {
         
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
+        const audio = window.__audioKit.getAudio(audioUrl);
         
         audio.onplay = () => {
             console.log('[ElevenLabs] ▶️ Playing audio');
@@ -2371,7 +2466,7 @@ async function speakWithElevenLabs(text, onDone) {
         
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
+        const audio = window.__audioKit.getAudio(audioUrl);
         
         audio.onplay = () => {
             console.log('[ElevenLabs] ▶️ Playing audio');
@@ -2747,7 +2842,7 @@ class TTSQueue {
             if (!window.realtimeTTS) {
                 window.realtimeTTS = new RealtimeTTS();
             }
-            await window.realtimeTTS.connect(voice, 'gpt-4o-mini-realtime-preview');
+            await window.__audioKit.connectRealtime(window.realtimeTTS, voice);
             
             // Wait for session.created
             let waitCount = 0;
@@ -2818,7 +2913,7 @@ class TTSQueue {
             const audioBlob = new Blob([audioBuffer], { type: contentType });
             const audioUrl = URL.createObjectURL(audioBlob);
             
-            this.currentAudio = new Audio(audioUrl);
+            this.currentAudio = window.__audioKit.getAudio(audioUrl);
             
             this.currentAudio.onended = () => {
                 const totalTime = performance.now() - startTime;
@@ -3007,7 +3102,7 @@ class TTSQueue {
             const audioBlob = this.base64ToBlob(audioData, 'audio/mpeg');
             const audioUrl = URL.createObjectURL(audioBlob);
             
-            this.currentAudio = new Audio(audioUrl);
+            this.currentAudio = window.__audioKit.getAudio(audioUrl);
             
             const audioStartTime = performance.now();
             
@@ -3213,7 +3308,7 @@ class RealtimeTTS {
         this.pendingResolve = null;
         this.pendingReject = null;
         this.voice = 'alloy';
-        this.model = 'gpt-4o-mini-realtime-preview';
+        this.model = window.__audioKit.REALTIME_MODELS[0];
         this.proxyUrl = state.openAIProxyUrl || 'https://openai-proxy.11drumboy11.workers.dev';
         console.log('[RealtimeTTS] Instance created');
     }
@@ -3221,7 +3316,7 @@ class RealtimeTTS {
     /**
      * Connect to OpenAI Realtime via WebRTC using ephemeral token
      */
-    async connect(voice = 'alloy', model = 'gpt-4o-mini-realtime-preview') {
+    async connect(voice = 'alloy', model = window.__audioKit.REALTIME_MODELS[0]) {
         if (this.connected || this.connecting) {
             console.log('[RealtimeTTS] Already connected/connecting');
             return;
@@ -3525,13 +3620,12 @@ class AudioInterruptionDetector {
         this.isCalibrating = true;
         
         try {
-            // Créer contexte audio
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // v19.1: réutilise le contexte et la source partagés
+            this.audioContext = await window.__audioKit.context();
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 256;
             
-            // Connecter micro
-            this.microphone = this.audioContext.createMediaStreamSource(stream);
+            this.microphone = await window.__audioKit.micSourceFor(stream);
             this.microphone.connect(this.analyser);
             
             // Buffer pour analyse
@@ -3645,13 +3739,13 @@ class AudioInterruptionDetector {
     cleanup() {
         this.stopMonitoring();
         
-        if (this.microphone) {
-            this.microphone.disconnect();
+        // v19.1: source et contexte partagés — on ne détache que sa propre branche
+        if (this.microphone && this.analyser) {
+            try { this.microphone.disconnect(this.analyser); } catch (e) {}
         }
-        
-        if (this.audioContext) {
-            this.audioContext.close();
-        }
+        this.microphone = null;
+        this.analyser = null;
+        this.audioContext = null;
     }
 }
 
@@ -4255,14 +4349,27 @@ class AutoSaveManager {
                 timestamp: Date.now(),
                 messages: conversationSystem.messages || [],
                 responseCount: conversationSystem.responseCount || 0,
-                audioFeatures: window.audioFeatures || [],
-                videoDetections: window.videoDetections || [],
+                // v19.1: séries plafonnées — elles croissent ~10/s et faisaient
+                // exploser le quota localStorage, d'où les sauvegardes corrompues
+                audioFeatures: (window.audioFeatures || []).slice(-600),
+                videoDetections: (window.videoDetections || []).slice(-600),
                 themes: conversationSystem.themes || [],
                 concordanceHistory: window.concordanceTracker?.history || [],
                 presentationPlayed: conversationSystem.presentationPlayed || false
             };
             
-            localStorage.setItem(this.saveKey, JSON.stringify(saveData));
+            const payload = JSON.stringify(saveData);
+            try {
+                localStorage.setItem(this.saveKey, payload);
+            } catch (e) {
+                if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+                    console.warn('[AutoSave] ⚠️ Quota localStorage atteint (' +
+                                 Math.round(payload.length / 1024) + ' Ko) — sauvegarde allégée');
+                    const light = Object.assign({}, saveData, { audioFeatures: [], videoDetections: [] });
+                    try { localStorage.setItem(this.saveKey, JSON.stringify(light)); }
+                    catch (e2) { localStorage.removeItem(this.saveKey); throw e2; }
+                } else { throw e; }
+            }
             
             console.log('[AutoSave] 💾 Saved:', {
                 messages: saveData.messages.length,
@@ -18874,11 +18981,13 @@ let meydaAnalyzer = null;
 async function startRealtimeAudioAnalysis(mediaStream) {
     console.log('[Phase 2.3] 🎤 Initializing real-time audio analysis...');
     
-    // Créer AudioContext
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Créer source depuis le stream
-    const source = audioContext.createMediaStreamSource(mediaStream);
+    // v19.1: contexte ET source partagés (voir __audioKit)
+    audioContext = await window.__audioKit.context();
+    const source = await window.__audioKit.micSourceFor(mediaStream);
+    if (audioContext.state !== 'running') {
+        console.warn('[Phase 2.3] ⚠️ AudioContext non actif (' + audioContext.state +
+                     ') — les features resteront nulles jusqu\'à un geste utilisateur');
+    }
     
     // Créer analyser
     audioAnalyser = audioContext.createAnalyser();
@@ -18969,10 +19078,9 @@ function stopRealtimeAudioAnalysis() {
         console.log('[Phase 2.3] 📊 Total features extracted:', audioFeatures.length);
     }
     
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-    }
+    // v19.1: contexte partagé — ne pas le fermer, il sert aussi au détecteur
+    // d'interruption et à la lecture TTS
+    audioContext = null;
 }
 
 function getAudioAnalysisResults() {
