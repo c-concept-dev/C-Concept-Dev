@@ -260,6 +260,8 @@ Le livre tient comme totalité. Prêt à livrer.`);
       },
       rapport_au_lecteur: {
         posture: 'confidence basse, sans didactique',
+        regime_narratif: 'JE-sujet au présent, confidence basse, transitions marquées par blancs',
+        justification_matiere: ['Je regarde mes mains.', 'Je ne sais pas ce que je cherche.'],
         citation_matiere: 'Je ne sais pas ce que je cherche.',
       },
       dynamique_narrative: {
@@ -272,7 +274,6 @@ Le livre tient comme totalité. Prêt à livrer.`);
         motif_saupoudrage_principal: 'lumière',
         citation_matiere: 'Le silence revient.',
       },
-      regime_narratif: { pov: 'JE-sujet', transitions: 'marquées par blancs' },
     }, null, 2));
   }
 
@@ -464,7 +465,7 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
   await AuteurNoyau.writeChapter(session, 1, { onLog: () => {} });
 
   await tAsync('D.1 — reviewBookOpus retourne rapport structuré', async () => {
-    const r = await AuteurNoyau.reviewBookOpus(session, { model: 'claude-sonnet-4-6' });
+    const r = await AuteurNoyau.reviewBookOpus(session, { model: 'claude-sonnet-5' });
     return typeof r === 'string' && r.length > 100;
   });
 
@@ -585,8 +586,8 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
       },
       onLog: () => {},
     });
-    await testSession.llmCall('sys', 'user', 100, 'claude-haiku-4-5');
-    return receivedModel === 'claude-haiku-4-5';
+    await testSession.llmCall('sys', 'user', 100, 'claude-haiku-4-5-20251001');
+    return receivedModel === 'claude-haiku-4-5-20251001';
   });
 
   await tAsync('H.13 — saveSession/restoreSession préservent les résumés structurés', async () => {
@@ -773,6 +774,264 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
     const src = fs.readFileSync(require('path').join(__dirname, '../atelier-editeur-core.js'), 'utf-8');
     const bad = src.match(/['"]\s*(Kevin|Nadia|Raymond)\s*['"]\s*\)?\s*[,;}]/g);
     return !bad || bad.length === 0;
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // V.x — VALIDATION DE PARTITION : politiques souple / stricte (V7.4.3)
+  // ═══════════════════════════════════════════════════════════
+  // Fixture : partition 9 dimensions complète et bien formée.
+  function makeValidPartition() {
+    const dim = (extra) => Object.assign({ couleur: 'x', citation_matiere: 'le silence revient dans la piece' }, extra || {});
+    return {
+      respiration: dim(), lexique: dim(), syntaxe_du_sujet: dim(),
+      temporalite_interieure: dim(), corps_et_geste: dim(), lieux_et_objets: dim(),
+      rapport_au_lecteur: dim({
+        regime_narratif: 'JE-sujet au present, confidence basse sans didactique',
+        justification_matiere: ['je regarde mes mains', 'je ne sais pas ce que je cherche'],
+      }),
+      dynamique_narrative: dim(),
+      procedes_de_transe: dim({ mots_pivots_isomorphes: [{ mot: 'silence', count_cible: 5 }] }),
+    };
+  }
+  const TRANSCRIPT_FIX = 'Le silence revient dans la piece. Je regarde mes mains. Je ne sais pas ce que je cherche.';
+
+  await tAsync('V.1 — souple : 9 dimensions complètes → ok sans warning', async () => {
+    const r = AuteurNoyau.validateBookPartition(makeValidPartition(), { strict: false });
+    return r.ok === true && !r.warning;
+  });
+
+  await tAsync('V.2 — souple : procedes_de_transe absente → ok AVEC warning', async () => {
+    const p = makeValidPartition(); delete p.procedes_de_transe;
+    const r = AuteurNoyau.validateBookPartition(p, { strict: false });
+    return r.ok === true && typeof r.warning === 'string' && r.warning.includes('procedes_de_transe');
+  });
+
+  await tAsync('V.3 — strict : 9/9 complète et bien formée → ok', async () => {
+    const r = AuteurNoyau.validateBookPartition(makeValidPartition(), { strict: true });
+    return r.ok === true && r.strict === true;
+  });
+
+  await tAsync('V.4 — strict : procedes_de_transe absente → REJET (9/9 exigé)', async () => {
+    const p = makeValidPartition(); delete p.procedes_de_transe;
+    const r = AuteurNoyau.validateBookPartition(p, { strict: true });
+    return r.ok === false && /procedes_de_transe/.test(r.error);
+  });
+
+  await tAsync('V.5 — strict : regime_narratif absent → REJET (structure dim.7)', async () => {
+    const p = makeValidPartition(); delete p.rapport_au_lecteur.regime_narratif;
+    const r = AuteurNoyau.validateBookPartition(p, { strict: true });
+    return r.ok === false && /regime_narratif/.test(r.error);
+  });
+
+  await tAsync('V.6 — strict : justification_matiere non-tableau → REJET (structure dim.7)', async () => {
+    const p = makeValidPartition(); p.rapport_au_lecteur.justification_matiere = 'pas un tableau';
+    const r = AuteurNoyau.validateBookPartition(p, { strict: true });
+    return r.ok === false && /justification_matiere/.test(r.error);
+  });
+
+  await tAsync('V.7 — strict : mots_pivots_isomorphes non-tableau → REJET (structure transe)', async () => {
+    const p = makeValidPartition(); p.procedes_de_transe.mots_pivots_isomorphes = 'pas un tableau';
+    const r = AuteurNoyau.validateBookPartition(p, { strict: true });
+    return r.ok === false && /mots_pivots_isomorphes/.test(r.error);
+  });
+
+  await tAsync('V.8 — strict+transcript : citation présente → acceptée', async () => {
+    const r = AuteurNoyau.validateBookPartition(makeValidPartition(), { strict: true, transcript: TRANSCRIPT_FIX });
+    return r.ok === true;
+  });
+
+  await tAsync('V.9 — strict+transcript : citation absente du transcript → REJET (garantie 1)', async () => {
+    const p = makeValidPartition();
+    p.respiration.citation_matiere = 'cette phrase ne figure nulle part dans la matiere source';
+    const r = AuteurNoyau.validateBookPartition(p, { strict: true, transcript: TRANSCRIPT_FIX });
+    return r.ok === false && /citation/.test(r.error);
+  });
+
+  await tAsync('V.10 — souple inchangé : citation hors transcript NON vérifiée (pas de faux rejet)', async () => {
+    const p = makeValidPartition();
+    p.respiration.citation_matiere = 'phrase absente mais on est en mode souple donc toleree';
+    const r = AuteurNoyau.validateBookPartition(p, { strict: false, transcript: TRANSCRIPT_FIX });
+    return r.ok === true;
+  });
+
+  // ── Contrat de supervision Opus : la 9e dimension doit être révisable (point 1 Codex) ──
+  await tAsync('V.11 — supervision Opus : procedes_de_transe RÉVISABLE', async () => {
+    // Mock Opus renvoyant une révision JSON réaliste ciblant la 9e dimension
+    const opusMock = (system, user) => Promise.resolve(JSON.stringify({
+      verdict: 'révision',
+      raisonnement: 'procedes_de_transe trop générique, resserrée sur un motif unique',
+      revision: {
+        respiration: null, lexique: null, syntaxe_du_sujet: null,
+        temporalite_interieure: null, corps_et_geste: null, lieux_et_objets: null,
+        rapport_au_lecteur: null, dynamique_narrative: null,
+        procedes_de_transe: {
+          motif_saupoudrage_principal: 'le seuil',
+          mots_pivots_isomorphes: [{ mot: 'seuil', count_cible: 7 }],
+          citation_matiere: 'je reste sur le seuil',
+        },
+      },
+    }));
+    const s = AuteurNoyau.createSession({ llmCall: opusMock, onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diagnostic de test';
+    const res = await s.superviseBookPartition(makeValidPartition());
+    return res.ok === true
+      && res.revision
+      && res.revision.procedes_de_transe
+      && res.revision.procedes_de_transe.motif_saupoudrage_principal === 'le seuil'
+      && !res.revision.respiration; // les dimensions null ne sont pas dans la révision
+  });
+
+  await tAsync('V.12 — supervision Opus : verdict validé → aucune révision', async () => {
+    const opusMock = () => Promise.resolve(JSON.stringify({ verdict: 'validé', raisonnement: 'ok' }));
+    const s = AuteurNoyau.createSession({ llmCall: opusMock, onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diagnostic de test';
+    const res = await s.superviseBookPartition(makeValidPartition());
+    return res.ok === true && res.revision === null;
+  });
+
+  // ── FUSION : supervisePartition applique réellement la révision (L1, cœur du chantier) ──
+  // Mock Opus qui révise une dimension avec une valeur VALIDE (citation présente dans le transcript)
+  function opusReviseValid() {
+    return () => Promise.resolve(JSON.stringify({
+      verdict: 'révision', raisonnement: 'respiration resserrée',
+      revision: {
+        respiration: { couleur: 'souffle court', citation_matiere: 'je regarde mes mains' },
+        procedes_de_transe: null, lexique: null, syntaxe_du_sujet: null,
+        temporalite_interieure: null, corps_et_geste: null, lieux_et_objets: null,
+        rapport_au_lecteur: null, dynamique_narrative: null,
+      },
+    }));
+  }
+
+  await tAsync('V.13 — FUSION : révision valide → session.bookPartition mise à jour', async () => {
+    const s = AuteurNoyau.createSession({ llmCall: opusReviseValid(), onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    const base = makeValidPartition();
+    const res = await AuteurNoyau.supervisePartition(s, base);
+    return res.status === 'supervision_ok'
+      && res.applied === true
+      && s.bookPartition.respiration.couleur === 'souffle court'         // révision appliquée
+      && s.bookPartition.lexique.citation_matiere !== undefined;          // dimension intacte préservée
+  });
+
+  await tAsync('V.14 — FUSION : dimensions non révisées préservées intactes', async () => {
+    const s = AuteurNoyau.createSession({ llmCall: opusReviseValid(), onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    const base = makeValidPartition();
+    const originalTranse = JSON.stringify(base.procedes_de_transe);
+    await AuteurNoyau.supervisePartition(s, base);
+    return JSON.stringify(s.bookPartition.procedes_de_transe) === originalTranse
+      && s.bookPartition.rapport_au_lecteur.regime_narratif.includes('JE-sujet');
+  });
+
+  await tAsync('V.15 — FUSION : historique partition_before/after tracé', async () => {
+    const s = AuteurNoyau.createSession({ llmCall: opusReviseValid(), onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    await AuteurNoyau.supervisePartition(s, makeValidPartition());
+    const h = s._partitionHistory;
+    return h && h.opus_verdict === 'révision'
+      && Array.isArray(h.revised_dimensions) && h.revised_dimensions.includes('respiration')
+      && h.partition_before.respiration.couleur === 'x'                  // avant : fixture
+      && h.partition_after.respiration.couleur === 'souffle court';      // après : révisé
+  });
+
+  await tAsync('V.16 — verdict validé → partition conservée, appliquée, historique validé', async () => {
+    const opusMock = () => Promise.resolve(JSON.stringify({ verdict: 'validé' }));
+    const s = AuteurNoyau.createSession({ llmCall: opusMock, onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    const res = await AuteurNoyau.supervisePartition(s, makeValidPartition());
+    return res.status === 'supervision_ok' && res.applied === true
+      && s._partitionHistory.opus_verdict === 'validé'
+      && s.bookPartition !== null;
+  });
+
+  await tAsync('V.17 — supervision INDISPONIBLE (exception Opus) → Sonnet conservée, jamais "validée"', async () => {
+    const opusThrows = () => Promise.reject(new Error('timeout réseau'));
+    const s = AuteurNoyau.createSession({ llmCall: opusThrows, onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    const base = makeValidPartition();
+    const res = await AuteurNoyau.supervisePartition(s, base);
+    return res.status === 'supervision_indisponible'
+      && res.applied === false
+      && !/validée/i.test(res.message)                                   // ne ment pas
+      && res.partition === base;                                         // Sonnet conservée
+  });
+
+  // ── L4 : dé-fençage JSON — corrige le "mode dégradé" observé en prod ──
+  await tAsync('V.18 — révision INVALIDE (casse la partition) → rejetée, Sonnet conservée, statut distinct', async () => {
+    const opusBad = () => Promise.resolve(JSON.stringify({
+      verdict: 'révision', raisonnement: 'mauvaise révision',
+      revision: {
+        rapport_au_lecteur: { distance_narrative: 'x', citation_matiere: 'je regarde mes mains' },
+        respiration: null, lexique: null, syntaxe_du_sujet: null, temporalite_interieure: null,
+        corps_et_geste: null, lieux_et_objets: null, dynamique_narrative: null, procedes_de_transe: null,
+      },
+    }));
+    const s = AuteurNoyau.createSession({ llmCall: opusBad, onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    const base = makeValidPartition();
+    const res = await AuteurNoyau.supervisePartition(s, base);
+    return res.status === 'supervision_revision_invalide'
+      && res.applied === false
+      && s.bookPartition.rapport_au_lecteur.regime_narratif !== undefined
+      && s._partitionHistory.opus_verdict === 'révision_rejetée';
+  });
+
+  // ── Correctif : "validé" par Opus ne masque pas une partition Sonnet incomplète ──
+  await tAsync('V.21 — Opus "validé" mais partition incomplète → partition_invalide, jamais "validée"', async () => {
+    const opusValide = () => Promise.resolve(JSON.stringify({ verdict: 'validé' }));
+    const s = AuteurNoyau.createSession({ llmCall: opusValide, onLog: () => {} });
+    s.parsed = { transcript: TRANSCRIPT_FIX };
+    s.diagnostic = 'diag';
+    const incomplete = makeValidPartition();
+    delete incomplete.procedes_de_transe;               // partition à 8 dimensions
+    const res = await AuteurNoyau.supervisePartition(s, incomplete);
+    // Le critère fiable est le STATUT (pas le libellé, "non validée" contient "validée")
+    return res.status === 'partition_invalide'
+      && res.applied === false
+      && res.status !== 'supervision_ok'
+      && s._partitionHistory.opus_verdict === 'validé_mais_invalide';
+  });
+
+  await tAsync('V.19 — L4 : _stripFence retire les fences ```json', async () => {
+    const core = AuteurNoyau._AuteurCore;
+    const out = core._stripFence('```json\n{"a":1}\n```');
+    return out === '{"a":1}';
+  });
+
+  await tAsync('V.20 — L4 : parseConception survit à un préambule à accolade + fences', async () => {
+    const core = AuteurNoyau._AuteurCore;
+    const concept = { moment: 'aube', lieu: 'cuisine',
+      forces: ['tension'], tropismes: ['retrait'],
+      desir: 'partir sans bruit', obstacle: 'le seuil',
+      dialogue: 'rien dit', bascule: 'le café', residu: 'la tasse', deplacement: 'vers la porte',
+      revelation: 'il reste', fin: 'la porte ouverte' };
+    // Cas prod : préambule contenant une accolade parasite, puis JSON réel fencé
+    const fenced = 'Voici la conception (format {clé:valeur}) :\n```json\n' + JSON.stringify(concept) + '\n```\nVoilà.';
+    const r = core.parseConception(fenced);
+    // Sans dé-fençage, indexOf('{') aurait capturé le "{clé:valeur}" du préambule → parse cassé.
+    // Avec L4 : le vrai JSON est extrait et parsé.
+    return r.ok === true && r.conception && r.conception.moment === 'aube';
+  });
+
+  await tAsync('V.20b — L4 : parseConception survit à un JSON NON fencé + accolade parasite', async () => {
+    const core = AuteurNoyau._AuteurCore;
+    const concept = { moment: 'crépuscule', lieu: 'jardin',
+      forces: ['attente'], tropismes: ['guet'],
+      desir: 'rester encore', obstacle: 'la nuit',
+      dialogue: 'silence', bascule: 'le vent', residu: 'le froid', deplacement: 'vers le banc',
+      revelation: 'elle part', fin: 'le portail clos' };
+    const nonFenced = 'Format attendu {clé:valeur}. Conception : ' + JSON.stringify(concept) + ' Fin du bloc.';
+    const r = core.parseConception(nonFenced);
+    return r.ok === true && r.conception && r.conception.moment === 'crépuscule';
   });
 
   // ─── RAPPORT FINAL ───
