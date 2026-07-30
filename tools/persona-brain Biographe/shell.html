@@ -240,9 +240,18 @@ function getSelectedDomain() {
 
 // ── LOGGING bridge ──
 window._brainLog = function(m) {
+  // V7.4.3 — plus de innerHTML += avec du texte utilisateur/LLM non échappé
+  // (ex: transcription vocale qui contiendrait littéralement des caractères
+  // HTML). textContent + createElement échappe automatiquement, sans risque
+  // d'exécution de script.
   const t = new Date().toLocaleTimeString();
   const e = document.getElementById('devLog');
-  if (e) { e.innerHTML += t + ' ' + m + '<br>'; e.scrollTop = e.scrollHeight; }
+  if (!e) return;
+  const line = document.createElement('span');
+  line.textContent = t + ' ' + m;
+  e.appendChild(line);
+  e.appendChild(document.createElement('br'));
+  e.scrollTop = e.scrollHeight;
 };
 document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'd') { e.preventDefault(); const d = document.getElementById('devLog'); d.style.display = d.style.display === 'none' ? 'block' : 'none'; } });
 
@@ -274,7 +283,14 @@ window._onDriverResponse = async function(display, isEnd, isPause) {
   showDriverText(display);
   await speak(display);
   BC.autoSave();
-  if (isEnd || isPause) {
+  // V7.4.3 — une pause détectée par le Driver ("reprendre plus tard") ne doit
+  // JAMAIS effacer la sauvegarde ni générer le persona. Avant : isPause était
+  // traité comme isEnd et appelait endSession(), qui efface clearSaved()
+  // immédiatement — une pause simple pouvait détruire tout l'entretien si
+  // l'onglet se fermait avant la génération du persona (non liée à la pause).
+  if (isPause && !isEnd) {
+    setTimeout(() => pauseSession(), 2000);
+  } else if (isEnd) {
     setTimeout(() => endSession(), 2000);
   } else {
     startMic();
@@ -416,22 +432,42 @@ async function triggerMidOutput() {
 
 // ── SESSION END ──
 async function endSession() {
-  stopMic(); stopTTS(); clearInterval(timerInterval); BC.clearSaved();
+  stopMic(); stopTTS(); clearInterval(timerInterval);
+  // V7.4.3 (correctif) — TRANSACTIONNEL, cette fois réellement. generateOutput()
+  // capture SES PROPRES exceptions en interne et retourne toujours un objet
+  // { _meta: { error, quality: 'low' } } — il ne lève JAMAIS d'exception vers
+  // l'appelant. Un try/catch autour de l'appel ne sert donc à rien : il faut
+  // inspecter le contenu retourné pour savoir si la génération a réellement
+  // échoué. Avant : clearSaved() s'exécutait dans TOUS les cas, y compris
+  // quand persona._meta.error était présent — l'entretien était perdu en cas
+  // de panne réseau ou d'échec API, malgré l'apparence de code "transactionnel".
   const dur = Math.floor((Date.now() - timerStart) / 60000);
 
   // Afficher doneScreen IMMÉDIATEMENT — ne pas attendre le persona
   showScreen('doneScreen');
   document.getElementById('doneStats').textContent = BC.config.prenom + ', ' + (BC.config.age || '?') + ' ans — ' + BrainMemory.working.turnCount + ' echanges, ' + dur + ' minutes.';
 
-  // Générer le persona en arrière-plan — non bloquant
+  // Générer le persona — la sauvegarde locale reste intacte pendant la tentative
   setState('thinking'); setStatus('Generation du persona...');
+  let persona = null;
   try {
-    BC._personaJSON = await BC.generateOutput();
-    setStatus('');
+    persona = await BC.generateOutput();
   } catch (e) {
-    // Echec persona — pas grave, la biographie reste disponible
-    setStatus('');
-    console.warn('[endSession] Persona generation failed:', e.message);
+    // Cas défensif : si generateOutput() venait à un jour laisser fuiter une
+    // exception (changement futur), on la traite comme un échec, pas un succès.
+    persona = { _meta: { error: e.message, quality: 'low' } };
+  }
+  BC._personaJSON = persona;
+  setStatus('');
+
+  const generationFailed = !persona || (persona._meta && persona._meta.error);
+  if (generationFailed) {
+    // NE PAS effacer la sauvegarde locale : l'utilisateur peut encore reprendre
+    // la session ou exporter le transcript brut manuellement.
+    console.warn('[endSession] Persona generation failed — sauvegarde locale conservée:', persona && persona._meta && persona._meta.error);
+  } else {
+    // Succès réel confirmé (pas de _meta.error) : on peut effacer la sauvegarde.
+    BC.clearSaved();
   }
 }
 
@@ -448,13 +484,23 @@ async function generateLearning() {
     const result = await BC.generateLearningSynthesis();
     if (result) {
       status.textContent = 'Learning genere — ' + (result.opens?.length || 0) + ' opens, ' + (result.closes?.length || 0) + ' closes.';
-      // Afficher le résumé
-      let html = '<strong>Ce qui ouvre :</strong> ' + (result.opens || []).map(o => typeof o === 'string' ? o : o.pattern).join(' | ') + '<br>';
-      html += '<strong>Ce qui ferme :</strong> ' + (result.closes || []).map(c => typeof c === 'string' ? c : c.pattern).join(' | ') + '<br>';
-      if (result.preferred_rhythm) html += '<strong>Rythme :</strong> ' + result.preferred_rhythm + '<br>';
-      if (result.key_lesson) html += '<strong>Lecon :</strong> ' + result.key_lesson + '<br>';
-      if (result.book_state) html += '<strong>Livre :</strong> ' + result.book_state;
-      display.innerHTML = html;
+      // V7.4.3 — plus de innerHTML avec du contenu produit par le LLM.
+      // Les libellés (<strong>) sont créés par LE CODE ; le contenu du LLM
+      // passe systématiquement en textContent, jamais interprété comme HTML.
+      display.textContent = '';
+      const addLine = (label, value) => {
+        if (!value) return;
+        const strong = document.createElement('strong');
+        strong.textContent = label + ' : ';
+        display.appendChild(strong);
+        display.appendChild(document.createTextNode(value));
+        display.appendChild(document.createElement('br'));
+      };
+      addLine('Ce qui ouvre', (result.opens || []).map(o => typeof o === 'string' ? o : o.pattern).join(' | '));
+      addLine('Ce qui ferme', (result.closes || []).map(c => typeof c === 'string' ? c : c.pattern).join(' | '));
+      addLine('Rythme', result.preferred_rhythm);
+      addLine('Lecon', result.key_lesson);
+      addLine('Livre', result.book_state);
       display.style.display = 'block';
       btn.textContent = 'Learning genere ✓';
     } else {
@@ -508,19 +554,27 @@ async function generateBiography() {
       : { system: 'Ecris une biographie.', user: 'Biographie de ' + ctx.prenom };
 
     const workerUrl = BC.config.workerUrl;
+    // V7.4.3 — modèle corrigé ('claude-opus-4-5-20250514' n'existe pas) +
+    // température conditionnelle : Opus 4.8 rejette (400) tout paramètre
+    // d'échantillonnage à valeur non-défaut (adaptive thinking), comme
+    // Sonnet 5. Voir le même correctif appliqué sur Livre Atelier.
+    const biographyModel = 'claude-opus-4-8';
+    // Liste D'AUTORISATION (pas d'exclusion) : température envoyée seulement
+    // pour les modèles confirmés compatibles. Sûr par défaut si le modèle
+    // change plus tard vers un autre membre de la famille adaptive thinking.
+    const supportsSampling = /^claude-haiku-4-5(-|$)/.test(biographyModel);
+    const biographyPayload = {
+      provider: 'anthropic',
+      model: biographyModel,
+      max_tokens: 4000,
+      system,
+      messages: [{ role: 'user', content: user }],
+    };
+    if (supportsSampling) biographyPayload.temperature = 0.7;
     const resp = await fetch(workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        payload: {
-          provider: 'anthropic',
-          model: 'claude-opus-4-5-20250514',
-          max_tokens: 4000,
-          temperature: 0.7,
-          system,
-          messages: [{ role: 'user', content: user }],
-        }
-      }),
+      body: JSON.stringify({ payload: biographyPayload }),
     });
 
     const data = await resp.json();
