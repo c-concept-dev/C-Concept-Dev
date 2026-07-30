@@ -61,10 +61,30 @@ const BrainCore = {
    */
   init(cfg) {
     if (!cfg.domain) throw new Error('[BrainCore] Domain pack missing — cannot start');
+
+    // V7.4.3 (correctif) — ISOLATION DE SESSION COMPLÈTE, sans exception de
+    // prénom. Le prénom N'EST PAS un identifiant fiable : deux personnes
+    // différentes peuvent le partager, et une VRAIE reprise passe déjà par
+    // restore() (qui restaure explicitement learningProfile depuis la
+    // sauvegarde). init() signifie toujours "nouvel entretien" — le profil
+    // d'apprentissage d'une personne précédente ne doit JAMAIS survivre ici.
     this.config = { ...cfg };
     this.isGenerating = false;
     this.ended = false;
     this._timerStart = Date.now();
+
+    // Garde-fou de couverture — propre à CETTE personne, jamais transporté
+    this._endOverride = false;
+    this._coverageReminder = null;
+    this._coverageRemindCount = 0;
+
+    // Sorties de la session précédente — un ancien persona/biographie ne
+    // doit pas rester téléchargeable ni bloquer l'aperçu intermédiaire
+    // de la nouvelle session (ces champs vivent sur BC, ajoutés par le
+    // shell, hors de portée de BrainMemory.reset()).
+    this._personaJSON = null;
+    this._biographyText = null;
+    this._midOutputShown = false;
 
     // Initialiser les modules
     BrainAPI.init({
@@ -74,8 +94,21 @@ const BrainCore = {
       maxTokens: window.BRAIN_VARIANT?.maxTokens || 500,
     });
     BrainMemory.reset();
+    BrainMemory.learningProfile = null;   // toujours vidé — pas d'exception par prénom
+    BrainMemory._lastImageTurn = null;    // pas couvert par reset() historiquement
 
-    this._log(`Session: ${cfg.prenom}, ${cfg.age || '?'} (${cfg.genre}) | Brain: ${cfg.brain ? 'oui' : 'non'} | Domain: ${cfg.domain.name || 'unknown'}`);
+    // État de l'analyste — la note/résultat de la personne précédente
+    // ne doit jamais fuiter vers le premier tour de la suivante.
+    if (typeof BrainAnalyst !== 'undefined') { BrainAnalyst.lastResult = null; BrainAnalyst.lastNote = null; }
+
+    // Focus attentionnel — remis à zéro, propre à cette personne.
+    if (typeof BrainAttention !== 'undefined') { BrainAttention._lastPeriode = null; BrainAttention._consecutiveTurns = 0; }
+
+    // Dernière image mentale du Driver — ne doit pas être attribuée
+    // par erreur au premier tour d'une nouvelle personne.
+    if (typeof BrainSafety !== 'undefined') BrainSafety._lastImage = null;
+
+    this._log(`Session: ${cfg.prenom}, ${cfg.age || '?'} (${cfg.genre}) | Brain: ${cfg.brain ? 'oui' : 'non'} | Domain: ${cfg.domain.name || 'unknown'} | état complet vidé (analyste, focus, image, learning, outputs)`);
   },
 
   // ════════════════════════════════════════
