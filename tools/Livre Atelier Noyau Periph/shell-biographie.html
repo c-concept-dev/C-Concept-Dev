@@ -178,8 +178,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
     <div class="field"><label>Modèle LLM</label>
       <select id="modelSelect">
-        <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-        <option value="claude-opus-4-6">Claude Opus 4.6 (~5× plus cher)</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5</option>
+        <option value="claude-opus-4-8">Claude Opus 4.8 (~5× plus cher)</option>
       </select>
     </div>
     <div class="field"><label>Longueur cible</label>
@@ -303,7 +303,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   const S = {
     session: null,
     config: {
-      model: 'claude-sonnet-4-6', length: 'long',
+      model: 'claude-sonnet-5', length: 'long',
       workerUrl: 'https://clone-proxy.11drumboy11.workers.dev',
       editeurMode: 'hybrid', rewriteMode: 'auto', opusMode: 'after', execMode: 'api',
       memoryMode: 'full',           // V7.4.2 — full | light | off
@@ -317,9 +317,9 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   if (typeof window !== 'undefined') window.S = S;
 
   const PRICING = {
-    'claude-sonnet-4-6': { in: 3.0, out: 15.0 },
-    'claude-opus-4-6':   { in: 5.0, out: 25.0 },
-    'claude-haiku-4-5':  { in: 0.8, out: 4.0 },
+    'claude-sonnet-5': { in: 3.0, out: 15.0 },
+    'claude-opus-4-8':   { in: 5.0, out: 25.0 },
+    'claude-haiku-4-5-20251001':  { in: 0.8, out: 4.0 },
   };
 
   function setStep(n) {
@@ -447,7 +447,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     u.in += tokensIn || 0;
     u.out += tokensOut || 0;
     u.calls += 1;
-    const pricing = PRICING[model] || PRICING['claude-sonnet-4-6'];
+    const pricing = PRICING[model] || PRICING['claude-sonnet-5'];
     u.cost_usd += ((tokensIn || 0) / 1e6) * pricing.in + ((tokensOut || 0) / 1e6) * pricing.out;
     updateTokenCounter();
   }
@@ -875,11 +875,11 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
       // V7.4.2.2 — Étiquette du modèle attendu pour aiguiller l'utilisateur
       // (Sonnet vs Opus selon ce que le pipeline force pour cet appel précis).
-      const requiredModel = model || S.config.model || 'claude-sonnet-4-6';
+      const requiredModel = model || S.config.model || 'claude-sonnet-5';
       const isOpusCall = /opus/i.test(requiredModel);
-      const modelLabel = isOpusCall ? 'Claude Opus 4.6' : (
+      const modelLabel = isOpusCall ? 'Claude Opus 4.8' : (
         /haiku/i.test(requiredModel) ? 'Claude Haiku' :
-        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 4.6' :
+        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 5' :
         requiredModel
       );
       const modelBadgeBg = isOpusCall ? 'rgba(196,122,74,.15)' : 'rgba(143,175,177,.15)';
@@ -1313,8 +1313,24 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     try {
       await AuteurNoyau.producePartition(S.session);
       document.getElementById('partStatus').textContent = 'Partition OK — supervision Opus...';
-      await AuteurNoyau.supervisePartition(S.session);
-      document.getElementById('partStatus').textContent = 'Partition validée — plan...';
+      // V7.4.3 — l'UI reflète l'état RÉEL de la supervision (ne plus afficher "validée" à tort)
+      const sup = await AuteurNoyau.supervisePartition(S.session);
+      const partStatusEl = document.getElementById('partStatus');
+      if (sup.status === 'supervision_ok') {
+        partStatusEl.textContent = (sup.revised_dimensions && sup.revised_dimensions.length)
+          ? 'Partition révisée par Opus (' + sup.revised_dimensions.join(', ') + ') — plan...'
+          : 'Partition validée par Opus — plan...';
+        partStatusEl.style.color = '';
+      } else if (sup.status === 'supervision_indisponible') {
+        partStatusEl.textContent = 'Supervision indisponible — partition Sonnet conservée, plan...';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      } else if (sup.status === 'supervision_revision_invalide') {
+        partStatusEl.textContent = 'Révision Opus rejetée — partition Sonnet conservée, plan...';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      } else if (sup.status === 'partition_invalide') {
+        partStatusEl.textContent = '⚠ Partition incomplète (non validée) — vérifiez avant d\'écrire';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      }
       const plan = await AuteurNoyau.planBook(S.session);
       renderPlan(plan);
       document.getElementById('partStatus').textContent = 'Plan OK — ' + (plan.chapters || []).length + ' chapitres';
@@ -1461,7 +1477,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       document.getElementById('opusStatus').textContent = 'Éditeur transversal — détection des dilutions traversantes...';
       try {
         const transReport = await EditeurNoyau.reviewBookTransversal(S.session, S.session.llmCall, {
-          model: 'claude-opus-4-6',
+          model: 'claude-opus-4-8',
         });
         S.transversalReport = transReport;
 
@@ -1556,7 +1572,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
       document.getElementById('opusStatus').textContent = 'Opus relit le livre complet en prose...';
       try {
         const report = await AuteurNoyau.reviewBookOpus(S.session, {
-          model: 'claude-opus-4-6',
+          model: 'claude-opus-4-8',
           opusMode: S.config.opusScope || 'ciblé',          // V7.4.2 Bloc 5
           editorReports: S.editorReports || [],              // V7.4.2 Bloc 5 — pour mode ciblé
         });
