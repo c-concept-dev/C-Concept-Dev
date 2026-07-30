@@ -1034,7 +1034,74 @@ Le sujet n'arrive pas à nommer ce qu'il a perdu.
     return r.ok === true && r.conception && r.conception.moment === 'crépuscule';
   });
 
-  // ─── RAPPORT FINAL ───
+  // ═══════════════════════════════════════════════════════════
+  // W.x — PAYLOAD HTTP RÉEL envoyé au worker (pas le mock injecté)
+  // ═══════════════════════════════════════════════════════════
+  // Contrairement à H.12 qui teste le llmCall MOCKÉ des sessions de test,
+  // ces tests interceptent global.fetch pour capturer le payload JSON exact
+  // que la méthode réelle AuteurCore.llmCall() envoie au worker — la seule
+  // façon de prouver la compatibilité API réelle (cf. audit Codex).
+  function makeFakeSSEResponse(text) {
+    const chunks = [`data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text } })}\n\n`, 'data: [DONE]\n\n'];
+    let i = 0;
+    return {
+      ok: true,
+      body: {
+        getReader() {
+          return {
+            async read() {
+              if (i < chunks.length) {
+                return { done: false, value: new TextEncoder().encode(chunks[i++]) };
+              }
+              return { done: true, value: undefined };
+            },
+          };
+        },
+      },
+    };
+  }
+
+  async function captureRealPayload(model) {
+    const originalFetch = global.fetch;
+    let captured = null;
+    global.fetch = async (url, opts) => {
+      captured = JSON.parse(opts.body).payload;
+      return makeFakeSSEResponse('ok');
+    };
+    try {
+      const s = AuteurNoyau.createSession({ onLog: () => {} });
+      s.config.model = model;
+      s.config.workerUrl = 'https://fake-worker.test';
+      await s.llmCall('sys', 'user', 100);
+    } finally {
+      global.fetch = originalFetch;
+    }
+    return captured;
+  }
+
+  await tAsync('W.1 — payload réel Sonnet 5 : temperature ABSENTE (rejet 400 sinon)', async () => {
+    const p = await captureRealPayload('claude-sonnet-5');
+    return p && p.model === 'claude-sonnet-5' && !('temperature' in p);
+  });
+
+  await tAsync('W.2 — payload réel Opus 4.8 : temperature ABSENTE (rejet 400 sinon — bug corrigé)', async () => {
+    const p = await captureRealPayload('claude-opus-4-8');
+    return p && p.model === 'claude-opus-4-8' && !('temperature' in p);
+  });
+
+  await tAsync('W.3 — payload réel Haiku 4.5 : temperature PRÉSENTE (seul modèle qui l\'accepte)', async () => {
+    const p = await captureRealPayload('claude-haiku-4-5-20251001');
+    return p && p.model === 'claude-haiku-4-5-20251001' && p.temperature === 0.85;
+  });
+
+  await tAsync('W.4 — payload réel : aucun des 3 modèles n\'envoie thinking/budget_tokens', async () => {
+    const pSonnet = await captureRealPayload('claude-sonnet-5');
+    const pOpus = await captureRealPayload('claude-opus-4-8');
+    const pHaiku = await captureRealPayload('claude-haiku-4-5-20251001');
+    return !('thinking' in pSonnet) && !('thinking' in pOpus) && !('thinking' in pHaiku);
+  });
+
+
   console.log('\n═══════════════════════════════════════════════════════════');
   console.log(' RAPPORT FINAL');
   console.log('═══════════════════════════════════════════════════════════\n');
