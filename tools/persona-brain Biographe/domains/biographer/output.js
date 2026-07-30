@@ -21,7 +21,10 @@ const BiographerOutput = {
     return {
       system: base.system + `\n\nATTENTION : c'est une biographie INTERMEDIAIRE — l'entretien n'est pas termine. Ecris UNIQUEMENT les chapitres pour lesquels tu as assez de matiere. Pas de conclusion definitive. Termine par une ouverture.`,
       user: `Ecris les premiers chapitres de la biographie de ${ctx.prenom} — ce que tu as deja.`,
-      model: 'claude-opus-4-5-20250514',
+      // V7.4.3 — 'claude-opus-4-5-20250514' n'existe dans aucune table de modèles
+      // Anthropic (mélange invalide entre l'ID Opus 4.5 réel et la date d'Opus 4).
+      // claude-opus-4-8 est Actif, retraite non prévue avant le 28 mai 2027.
+      model: 'claude-opus-4-8',
     };
   },
 
