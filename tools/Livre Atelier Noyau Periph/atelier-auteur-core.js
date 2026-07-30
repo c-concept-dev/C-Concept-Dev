@@ -2052,6 +2052,8 @@ Tu réponds UNIQUEMENT par un JSON valide structuré comme suit. Pas de texte av
     "distance_narrative": "...",
     "niveau_de_confidence": "...",
     "registre_emotionnel": "...",
+    "regime_narratif": "formulation libre en 1-2 phrases de la voix que le livre tient d'un bout à l'autre — PAS un générique type '1re personne', une formulation précise à CE livre",
+    "justification_matiere": ["extrait verbatim 1 du transcript qui fonde le régime", "extrait verbatim 2"],
     "citation_matiere": "..."
   },
   "dynamique_narrative": {
@@ -2103,10 +2105,14 @@ const RobustCall = {
    * Tolère : fences ```json...```, ```...```, texte avant/après, etc.
    * Retourne null si vraiment rien d'exploitable.
    */
+  // V7.4.3 — Retire les fences markdown ```json ... ``` d'une réponse LLM.
+  // Cause n°1 du "mode dégradé" observé en prod : Opus/ChatGPT entourent leur JSON
+  // de ```json, et le texte de préambule peut contenir une accolade parasite qui
+  // fausse indexOf('{'). On dé-fence AVANT toute extraction par accolades.
+  // (défini aussi sur AuteurCore pour les méthodes de session — voir _stripFence là-bas)
   extractJSON(raw) {
     if (!raw || typeof raw !== 'string') return null;
     let s = raw.trim();
-
     // 1. Tenter d'extraire entre fences ```json ... ``` ou ``` ... ```
     const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (fence) s = fence[1].trim();
@@ -2353,6 +2359,42 @@ const AuteurCore = {
   bookPartition: null,  // V7.3 — partition singulière en 9 dimensions (7 voix + 1 dynamique narrative + 1 procédés de transe), Sonnet produit, Opus supervise, invariant du livre
 
   // ═══ PARSER — extraction mécanique (le code COMPTE) ═══
+
+  // V7.4.3 — Retire les fences markdown ```json ... ``` d'une réponse LLM,
+  // AVANT toute extraction par accolades. Corrige le "mode dégradé" observé en
+  // prod (Opus/ChatGPT entourent leur JSON de ```json + préambule à accolade parasite).
+  _stripFence(raw) {
+    if (!raw || typeof raw !== 'string') return raw;
+    let s = raw.trim();
+    const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) return fence[1].trim();
+    return s;
+  },
+
+  // V7.4.3 — Extraction robuste du bloc JSON d'une réponse LLM.
+  // Gère les deux cas de "mode dégradé" :
+  //   (a) JSON fencé ```json ... ``` (via _stripFence)
+  //   (b) JSON non fencé précédé d'un préambule contenant une accolade parasite,
+  //       ex. "Format {clé:valeur}. Voici : {...vrai JSON...}".
+  // Stratégie : après dé-fençage, on balaie chaque position de '{' et on retient
+  // le premier bloc { ... } qui parse réellement. Retourne l'OBJET parsé, ou null.
+  _extractJSONObject(raw) {
+    const s = this._stripFence(raw);
+    if (!s || typeof s !== 'string') return null;
+    // Chemin rapide : premier { / dernier } parse directement
+    const fb = s.indexOf('{'), lb = s.lastIndexOf('}');
+    if (fb >= 0 && lb > fb) {
+      try { return JSON.parse(s.substring(fb, lb + 1)); } catch (_) {}
+    }
+    // Balayage des candidats : chaque '{' comme départ possible, dernier '}' qui parse
+    for (let i = s.indexOf('{'); i >= 0; i = s.indexOf('{', i + 1)) {
+      for (let j = s.lastIndexOf('}'); j > i; j = s.lastIndexOf('}', j - 1)) {
+        try { return JSON.parse(s.substring(i, j + 1)); } catch (_) {}
+      }
+    }
+    return null;
+  },
+
   parse(md) {
     const r = { transcript:'', analysis:'', prenom:'', age:null, tours:0, sections:{} };
     const hdr = md.match(/^##?\s*([A-ZÀ-Ü][\wÀ-ÿ\-]*),?\s*(\d+)\s*ans/m);
@@ -2577,7 +2619,7 @@ Un livre qui tire le lecteur a une courbe de pression qui MONTE : installation �
 
 **Par défaut, pour un portrait long, tu planifies 10 ou 11 chapitres** — sauf si la matière est particulièrement dense (alors 12) ou particulièrement concentrée (alors 9). Tu ne tombes JAMAIS à 8 par facilité ou par reproduction d'un gabarit vu ailleurs. 8 chapitres produisent un livre trop court pour laisser la pression monter — le lecteur passe de "posé" à "résolu" sans le crescendo intermédiaire qui fait les grands livres.
 
-**Le péril, l'événement déclencheur, et l'urgence temporelle sont mentionnés dans le diagnostic renforcé par Opus.** Ton plan doit prévoir leur trajectoire chapitre par chapitre : où le péril est posé (ch.1), où il reste latent, où il revient par touches, où il explose, où il se referme. Un plan de 10-11 chapitres donne l'espace pour cette trajectoire. Un plan de 8 chapitres la comprime.
+**Le péril, l'événement déclencheur, et l'urgence temporelle sont mentionnés dans le diagnostic littéraire.** Ton plan doit prévoir leur trajectoire chapitre par chapitre : où le péril est posé (ch.1), où il reste latent, où il revient par touches, où il explose, où il se referme. Un plan de 10-11 chapitres donne l'espace pour cette trajectoire. Un plan de 8 chapitres la comprime.
 
 IMPORTANT sur les champs "fondatrice" et "mene_vers" :
 - Un chapitre est "fondatrice": true s'il contient une des scènes fondatrices identifiées dans le diagnostic. Il sera écrit en PREMIER par le modèle le plus puissant. Ce sont les piliers du livre — par définition en petit nombre (si tous les chapitres sont fondateurs, aucun ne l'est vraiment).
@@ -3009,28 +3051,29 @@ ${questionsInstr} Une ligne par champ. Aucune justification.`;
       return result;
     }
 
-    // Extraction : chercher le premier { et le dernier }
-    let extracted = rawText.trim();
-    const firstBrace = extracted.indexOf('{');
-    const lastBrace = extracted.lastIndexOf('}');
-    if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
-      result.error = 'pas de JSON détecté';
-      return result;
-    }
-    extracted = extracted.substring(firstBrace, lastBrace + 1);
+    // Extraction : dé-fence puis chercher le premier { et le dernier } (V7.4.3)
+    // V7.4.3 — Extraction robuste (gère fencé ET non-fencé + accolade parasite).
+    let parsed = this._extractJSONObject(rawText);
 
-    // Nettoyage — virgules traînantes, guillemets typographiques
-    extracted = extracted
-      .replace(/[\u201C\u201D]/g, '"')   // guillemets courbes → droits
-      .replace(/[\u2018\u2019]/g, "'")   // apostrophes courbes → droites
-      .replace(/,\s*([}\]])/g, '$1');     // virgules avant } ou ]
-
-    let parsed;
-    try {
-      parsed = JSON.parse(extracted);
-    } catch (e) {
-      result.error = 'JSON invalide : ' + e.message;
-      return result;
+    if (!parsed) {
+      // Fallback : chemin historique (dé-fence + première/dernière accolade + nettoyage)
+      let extracted = this._stripFence(rawText).trim();
+      const firstBrace = extracted.indexOf('{');
+      const lastBrace = extracted.lastIndexOf('}');
+      if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
+        result.error = 'pas de JSON détecté';
+        return result;
+      }
+      extracted = extracted.substring(firstBrace, lastBrace + 1)
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/,\s*([}\]])/g, '$1');
+      try {
+        parsed = JSON.parse(extracted);
+      } catch (e) {
+        result.error = 'JSON invalide : ' + e.message;
+        return result;
+      }
     }
 
     // Validation — tous les champs de chapitre requis présents et non vides
@@ -3212,7 +3255,7 @@ Réponds maintenant en JSON strict.`;
 
     // ── Swap modèle → Opus ──
     const savedModel = this.config.model;
-    this.config.model = 'claude-opus-4-6';
+    this.config.model = 'claude-opus-4-8';
 
     let raw = '';
     try {
@@ -3230,7 +3273,7 @@ Réponds maintenant en JSON strict.`;
       return { ok: false, revision: null, error: 'réponse Opus vide' };
     }
 
-    let extracted = raw.trim();
+    let extracted = this._stripFence(raw).trim();
     const firstBrace = extracted.indexOf('{');
     const lastBrace = extracted.lastIndexOf('}');
     if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
@@ -3281,7 +3324,7 @@ Réponds maintenant en JSON strict.`;
   // ═══════════════════════════════════════════════════════════════════
   // V7.3 — PRODUCTION DE LA PARTITION SINGULIÈRE (Sonnet)
   // ═══════════════════════════════════════════════════════════════════
-  // Appelée après le diagnostic renforcé, avant la planification.
+  // Appelée après le diagnostic littéraire, avant la planification.
   // Sonnet produit la partition en 9 dimensions à partir du transcript
   // + diagnostic. La partition sera ensuite supervisée par Opus
   // (superviseBookPartition) avant d'être validée et sauvegardée dans
@@ -3297,7 +3340,7 @@ Réponds maintenant en JSON strict.`;
       return { ok: false, partition: null, error: 'transcript manquant' };
     }
 
-    // Matière : transcript (tronqué pour rester sous les limites tokens) + diagnostic renforcé
+    // Matière : transcript (tronqué pour rester sous les limites tokens) + diagnostic littéraire
     const transcriptTrunc = (p.transcript || '').substring(0, 30000);
     const diagnosticTrunc = (this.diagnostic || '').substring(0, 8000);
 
@@ -3393,42 +3436,89 @@ Réponds par le JSON complet, concis, fermé.`;
 
     const parsed = parseResult.partition;
 
-    // ── Validation structurelle (le code COMPTE) ──
+    // ── Validation structurelle (le code COMPTE) — V7.4.3 extraite ──
+    return this.validateBookPartition(parsed, { repaired: parseResult.repaired || false });
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // V7.4.3 — VALIDATION DE PARTITION (extraite, réutilisable)
+  // ═══════════════════════════════════════════════════════════════════
+  // Palier 1 : comportement IDENTIQUE à l'inline historique (mode souple).
+  // options.strict et options.transcript seront exploités aux paliers suivants
+  // (validation stricte post-Opus + vérification citations contre transcript).
+  // ═══════════════════════════════════════════════════════════════════
+  validateBookPartition(parsed, options = {}) {
+    const repaired = options.repaired || false;
+    const strict = options.strict || false;
+    const transcript = options.transcript || null;
+
     const requiredDimensions = [
       'respiration', 'lexique', 'syntaxe_du_sujet', 'temporalite_interieure',
-      'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative'
+      'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative',
+      'procedes_de_transe'                                   // V7.4.3 — 9e dimension exigée
     ];
+    const N = requiredDimensions.length;
     const missing = requiredDimensions.filter(d => !parsed[d] || typeof parsed[d] !== 'object');
 
-    // V7.1 — Tolérance : si 1-2 dimensions manquent suite à réparation, on continue avec warning.
-    // La supervision Opus pourra les combler via le mécanisme de révision (verdict="révision" sur
-    // dimensions manquantes). Plus de 2 dimensions manquantes → on rejette (trop de matière perdue).
-    if (missing.length > 2) {
-      return { ok: false, partition: parsed, error: `trop de dimensions manquantes (${missing.length}/8) : ${missing.join(', ')}` };
+    // Tolérance : souple (post-Sonnet) accepte <=2 manquantes ; stricte (post-Opus) exige 9/9.
+    const maxMissing = strict ? 0 : 2;
+    if (missing.length > maxMissing) {
+      return { ok: false, partition: parsed,
+        error: `${strict ? 'validation stricte' : 'trop de dimensions manquantes'} (${missing.length} manquante(s)/${N}) : ${missing.join(', ')}` };
     }
 
-    // Vérification que chaque dimension présente a sa citation_matiere non-vide
     const present = requiredDimensions.filter(d => parsed[d] && typeof parsed[d] === 'object');
+
+    // Normalisation pour comparaison citation <-> transcript (garantie 1)
+    const normalize = (t) => (t || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+    const normTranscript = (strict && transcript) ? normalize(transcript) : null;
+
     const sansCitation = present.filter(d => {
       const c = parsed[d].citation_matiere;
-      return !c || typeof c !== 'string' || c.trim().length < 10;
+      if (!c || typeof c !== 'string' || c.trim().length < 10) return true;
+      if (normTranscript) {
+        const nc = normalize(c);
+        if (nc.length >= 6 && !normTranscript.includes(nc)) return true;
+      }
+      return false;
     });
 
-    // Construction du warning agrégé
+    // Contrôles de structure (garantie 3) — seulement en strict
+    const structErrors = [];
+    if (strict) {
+      const rap = parsed.rapport_au_lecteur || {};
+      const rn = rap.regime_narratif;
+      if (!rn || typeof rn !== 'string' || rn.trim().length < 8) {
+        structErrors.push('rapport_au_lecteur.regime_narratif manquant ou trop générique');
+      }
+      const jm = rap.justification_matiere;
+      if (!Array.isArray(jm) || jm.length === 0) {
+        structErrors.push('rapport_au_lecteur.justification_matiere doit être un tableau non vide');
+      }
+      const trs = parsed.procedes_de_transe || {};
+      if (!Array.isArray(trs.mots_pivots_isomorphes)) {
+        structErrors.push('procedes_de_transe.mots_pivots_isomorphes doit être un tableau');
+      }
+    }
+
+    if (strict) {
+      const errs = [];
+      if (sansCitation.length > 0) errs.push(`${sansCitation.length} dimension(s) sans citation valide : ${sansCitation.join(', ')}`);
+      errs.push(...structErrors);
+      if (errs.length > 0) return { ok: false, partition: parsed, error: errs.join(' ; ') };
+      return { ok: true, partition: parsed, error: null, repaired, strict: true };
+    }
+
     const warnings = [];
     if (missing.length > 0) warnings.push(`${missing.length} dimension(s) manquante(s) après réparation : ${missing.join(', ')} — Opus pourra les combler en supervision`);
     if (sansCitation.length > 0) warnings.push(`${sansCitation.length} dimension(s) sans citation_matiere suffisante : ${sansCitation.join(', ')}`);
-
     if (warnings.length > 0) {
-      return {
-        ok: true,
-        partition: parsed,
-        warning: warnings.join(' ; '),
-        repaired: parseResult.repaired || false
-      };
+      return { ok: true, partition: parsed, warning: warnings.join(' ; '), repaired };
     }
-
-    return { ok: true, partition: parsed, error: null, repaired: parseResult.repaired || false };
+    return { ok: true, partition: parsed, error: null, repaired };
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -3591,7 +3681,8 @@ FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT
     "corps_et_geste":         "dimension révisée complète ou null si inchangée",
     "lieux_et_objets":        "dimension révisée complète ou null si inchangée",
     "rapport_au_lecteur":     "dimension révisée complète ou null si inchangée",
-    "dynamique_narrative":    "dimension révisée complète ou null si inchangée"
+    "dynamique_narrative":    "dimension révisée complète ou null si inchangée",
+    "procedes_de_transe":     "dimension révisée complète ou null si inchangée"
   }
 }
 
@@ -3641,7 +3732,7 @@ Réponds maintenant en JSON strict.`;
 
     // ── Swap modèle → Opus ──
     const savedModel = this.config.model;
-    this.config.model = 'claude-opus-4-6';
+    this.config.model = 'claude-opus-4-8';
 
     let raw = '';
     try {
@@ -3660,7 +3751,7 @@ Réponds maintenant en JSON strict.`;
     }
 
     // ── Parse JSON ──
-    let extracted = raw.trim();
+    let extracted = this._stripFence(raw).trim();
     const firstBrace = extracted.indexOf('{');
     const lastBrace = extracted.lastIndexOf('}');
     if (firstBrace < 0 || lastBrace < 0 || lastBrace < firstBrace) {
@@ -3691,7 +3782,8 @@ Réponds maintenant en JSON strict.`;
       // On ne garde que les dimensions révisées non-null (celles qu'Opus a effectivement modifiées)
       const revision = {};
       const dimensions = ['respiration', 'lexique', 'syntaxe_du_sujet', 'temporalite_interieure',
-                          'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative'];
+                          'corps_et_geste', 'lieux_et_objets', 'rapport_au_lecteur', 'dynamique_narrative',
+                          'procedes_de_transe'];
       for (const d of dimensions) {
         if (parsedResp.revision[d] && typeof parsedResp.revision[d] === 'object') {
           revision[d] = parsedResp.revision[d];
@@ -3730,7 +3822,7 @@ Réponds maintenant en JSON strict.`;
   //   └─ Scène fondatrice vers laquelle on construit (si liaison)
   // ═══════════════════════════════════════════════════════════════════
 
-  // ─── Helpers d'extraction depuis le diagnostic renforcé ───
+  // ─── Helpers d'extraction depuis le diagnostic littéraire ───
   // Déjà dans buildChapterPrompt — extraits ici pour réutilisation.
 
   _extractPromesse() {
@@ -5427,7 +5519,7 @@ Ces trois phrases sont la carte de navigation du livre. Chaque chapitre que tu �
       }
     }
 
-    // ═══ SILENCE AXIAL — extrait de la section SILENCE AXIAL DU LIVRE du diagnostic renforcé ═══
+    // ═══ SILENCE AXIAL — extrait de la section SILENCE AXIAL DU LIVRE du diagnostic littéraire ═══
     // Cette section est produite par Opus Phase 1B. On la réinjecte dans CHAQUE prompt chapitre
     // pour que le LLM ait la contrainte sous les yeux en écrivant, pas dans un préambule oublié.
     let silenceCtx = '';
@@ -5454,7 +5546,7 @@ ${isAtRisk ? `\n⚠️  CE CHAPITRE EST SIGNALÉ COMME À RISQUE. C'est ici que 
       }
     }
 
-    // ═══ PONT UNIVERSEL — extrait de la section PONT UNIVERSEL du diagnostic renforcé ═══
+    // ═══ PONT UNIVERSEL — extrait de la section PONT UNIVERSEL du diagnostic littéraire ═══
     // Symétrique au silence axial : le silence protège l'iceberg, le pont invite le lecteur.
     // Si le chapitre courant est identifié comme scène-pont, le LLM est averti de sa responsabilité
     // particulière : faire basculer la matière particulière en expérience universelle, sans le dire.
@@ -5485,7 +5577,7 @@ ${isThePont ? `\n★ CE CHAPITRE EST IDENTIFIÉ COMME LA SCÈNE-PONT — le mome
       }
     }
 
-    // ═══ CLIMAT ÉMOTIONNEL — extrait de la section ARCHITECTURE ÉMOTIONNELLE du diagnostic renforcé ═══
+    // ═══ CLIMAT ÉMOTIONNEL — extrait de la section ARCHITECTURE ÉMOTIONNELLE du diagnostic littéraire ═══
     // Troisième pilier avec le silence axial et le pont universel. Le silence protège l'iceberg,
     // le pont invite le lecteur à plonger, le climat émotionnel fait que le lecteur ne peut
     // respirer nulle part — même les chapitres calmes portent la teinte de l'émotion-pivot.
@@ -5678,19 +5770,23 @@ Ecris. Pas de commentaire, pas de balise.`;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        // V7.4.3 — claude-sonnet-5 rejette (400) tout paramètre d'échantillonnage
+        // (temperature/top_p/top_k) fixé à une valeur non-défaut : adaptive thinking
+        // toujours actif. On n'envoie temperature que pour les modèles qui l'acceptent.
+        const payload = {
+          model: this.config.model,
+          max_tokens: maxTokens,
+          stream: true,
+          system,
+          messages: [{ role: 'user', content: userMsg }],
+        };
+        if (!/^claude-sonnet-5(-|$)/.test(this.config.model || '')) {
+          payload.temperature = 0.85;
+        }
         const resp = await fetch(this.config.workerUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            payload: {
-              model: this.config.model,
-              max_tokens: maxTokens,
-              temperature: 0.85,
-              stream: true,
-              system,
-              messages: [{ role: 'user', content: userMsg }]
-            }
-          })
+          body: JSON.stringify({ payload })
         });
         if (!resp.ok) {
           const errText = await resp.text();
@@ -6295,9 +6391,79 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
    */
   async function supervisePartition(session, partition) {
     if (!session) throw new Error('AuteurNoyau.supervisePartition : session requise');
-    const partitionOrCurrent = partition || session.bookPartition;
-    if (!partitionOrCurrent) throw new Error('AuteurNoyau.supervisePartition : partition requise');
-    return await session.superviseBookPartition(partitionOrCurrent);
+    const base = partition || session.bookPartition;
+    if (!base) throw new Error('AuteurNoyau.supervisePartition : partition requise');
+
+    const transcript = (session.parsed && session.parsed.transcript) || '';
+
+    // 1. Appel Opus (protégé)
+    let sup;
+    try {
+      sup = await session.superviseBookPartition(base);
+    } catch (e) {
+      return { ok: true, status: 'supervision_indisponible', applied: false, partition: base,
+        message: 'Supervision indisponible — partition Sonnet conservée',
+        error: e && e.message ? e.message : String(e) };
+    }
+
+    if (!sup || sup.ok !== true) {
+      return { ok: true, status: 'supervision_indisponible', applied: false, partition: base,
+        message: 'Supervision indisponible — partition Sonnet conservée',
+        error: (sup && sup.error) || 'réponse de supervision vide' };
+    }
+
+    // 2. Aucune révision proposée → Opus a validé tel quel.
+    //    V7.4.3 (correctif) : on valide quand même la partition en STRICT.
+    //    Un "validé" d'Opus ne doit pas masquer une partition Sonnet incomplète.
+    if (!sup.revision || Object.keys(sup.revision).length === 0) {
+      const revalBase = session.validateBookPartition(base, { strict: true, transcript });
+      if (!revalBase.ok) {
+        session.bookPartition = base; // conservée pour ne pas perdre la matière, mais NON validée
+        session._partitionHistory = { partition_before: base, opus_verdict: 'validé_mais_invalide',
+          revised_dimensions: [], partition_after: base, rejection_reason: revalBase.error };
+        return { ok: true, status: 'partition_invalide', applied: false, partition: base,
+          revised_dimensions: [],
+          message: 'Opus a répondu OK mais la partition échoue le contrôle strict — partition NON retenue comme validée',
+          error: revalBase.error };
+      }
+      session.bookPartition = base;
+      session._partitionHistory = { partition_before: base, opus_verdict: 'validé',
+        revised_dimensions: [], partition_after: base };
+      return { ok: true, status: 'supervision_ok', applied: true, partition: base,
+        revised_dimensions: [], message: 'Partition validée par Opus' };
+    }
+
+    // 3. Fusion atomique sur une COPIE (dimension par dimension)
+    const before = JSON.parse(JSON.stringify(base));
+    const merged = JSON.parse(JSON.stringify(base));
+    const revisedDims = [];
+    for (const dim of Object.keys(sup.revision)) {
+      if (sup.revision[dim] && typeof sup.revision[dim] === 'object') {
+        merged[dim] = sup.revision[dim];
+        revisedDims.push(dim);
+      }
+    }
+
+    // 4. Revalidation STRICTE de la partition fusionnée
+    const reval = session.validateBookPartition(merged, { strict: true, transcript });
+
+    if (!reval.ok) {
+      session.bookPartition = base; // Sonnet conservée
+      session._partitionHistory = { partition_before: before, opus_verdict: 'révision_rejetée',
+        revised_dimensions: revisedDims, partition_after: base, rejection_reason: reval.error };
+      return { ok: true, status: 'supervision_revision_invalide', applied: false, partition: base,
+        revised_dimensions: revisedDims,
+        message: 'Révision Opus rejetée (validation stricte échouée) — partition Sonnet conservée',
+        error: reval.error };
+    }
+
+    // 5. Révision valide → application atomique
+    session.bookPartition = merged;
+    session._partitionHistory = { partition_before: before, opus_verdict: 'révision',
+      revised_dimensions: revisedDims, partition_after: merged };
+    return { ok: true, status: 'supervision_ok', applied: true, partition: merged,
+      revised_dimensions: revisedDims,
+      message: `Partition révisée par Opus et validée (${revisedDims.join(', ')})` };
   }
 
   /**
@@ -6311,10 +6477,11 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
     // Le parsing du plan est fait par le shell historique V7.3.7 — on le ré-implémente
     // ici minimalement : on attend du JSON { title, subtitle, epigraph, chapters:[{title, description}] }
     try {
-      const firstBrace = rawPlan.indexOf('{');
-      const lastBrace = rawPlan.lastIndexOf('}');
+      const cleanPlan = session._stripFence(rawPlan);
+      const firstBrace = cleanPlan.indexOf('{');
+      const lastBrace = cleanPlan.lastIndexOf('}');
       if (firstBrace < 0 || lastBrace < 0) throw new Error('Plan non-JSON');
-      const plan = JSON.parse(rawPlan.substring(firstBrace, lastBrace + 1));
+      const plan = JSON.parse(cleanPlan.substring(firstBrace, lastBrace + 1));
       session.plan = plan;
       session._onLog('Plan : "' + plan.title + '" — ' + (plan.chapters || []).length + ' chapitres', 'ok');
       return plan;
@@ -6446,7 +6613,7 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
    * continuité narrative sur un livre long.
    *
    * Deux variantes configurables via options.mode :
-   *   - 'full'  : Sonnet 4.6 (précision maximale, ~0.05-0.10 $/chapitre)
+   *   - 'full'  : Sonnet 5 (précision maximale, ~0.05-0.10 $/chapitre)
    *   - 'light' : Haiku 4.5 (économique, ~0.02 $/chapitre)
    *   - 'off'   : désactivé — on retombe sur le prevCtx 60 mots V7.3.7
    *
@@ -6468,7 +6635,7 @@ ${plan.phrase_cle ? `<p style="text-align:center;margin:1.5em 0;font-weight:600;
     }
 
     // Modèle selon la variante
-    const model = (mode === 'light') ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
+    const model = (mode === 'light') ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-5';
     const maxTokens = (mode === 'light') ? 1500 : 2500;
 
     // User prompt — contient le texte du chapitre + le contexte minimal
@@ -7036,7 +7203,7 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
     }
 
     const maxTk = options.maxTokens || 8192;
-    const model = options.model || 'claude-opus-4-6';
+    const model = options.model || 'claude-opus-4-8';
 
     session._onLog('Relecture Opus ' + modeLabel + ' (' + chaptersToReview.length + ' chapitre(s))...', 'info');
 
@@ -7170,6 +7337,7 @@ Sois précis, cite des passages, nomme les chapitres par leur numéro.`;
     diagnose,
     producePartition,
     supervisePartition,
+    validateBookPartition: (parsed, options) => AuteurCore.validateBookPartition(parsed, options), // V7.4.3 — validation pure, testable
     planBook,
     writeChapter,
     generateChapterResume,    // V7.4.2 — mémoire narrative structurée
