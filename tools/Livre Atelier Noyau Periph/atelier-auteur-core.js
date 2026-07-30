@@ -5770,9 +5770,11 @@ Ecris. Pas de commentaire, pas de balise.`;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        // V7.4.3 — claude-sonnet-5 rejette (400) tout paramètre d'échantillonnage
-        // (temperature/top_p/top_k) fixé à une valeur non-défaut : adaptive thinking
-        // toujours actif. On n'envoie temperature que pour les modèles qui l'acceptent.
+        // V7.4.3 (correctif) — claude-opus-4-8 ET claude-sonnet-5 rejettent (400) tout
+        // paramètre d'échantillonnage (temperature/top_p/top_k) à valeur non-défaut :
+        // les deux tournent en adaptive thinking. Seul Haiku 4.5 les accepte encore.
+        // Liste D'AUTORISATION (pas d'exclusion) : on n'envoie temperature QUE pour
+        // les modèles confirmés compatibles — sûr par défaut si un futur modèle apparaît.
         const payload = {
           model: this.config.model,
           max_tokens: maxTokens,
@@ -5780,7 +5782,9 @@ Ecris. Pas de commentaire, pas de balise.`;
           system,
           messages: [{ role: 'user', content: userMsg }],
         };
-        if (!/^claude-sonnet-5(-|$)/.test(this.config.model || '')) {
+        const modelId = this.config.model || '';
+        const supportsSampling = /^claude-haiku-4-5(-|$)/.test(modelId);
+        if (supportsSampling) {
           payload.temperature = 0.85;
         }
         const resp = await fetch(this.config.workerUrl, {
