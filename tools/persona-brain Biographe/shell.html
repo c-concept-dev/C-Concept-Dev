@@ -178,6 +178,10 @@ body{font-family:'Montserrat','Segoe UI',sans-serif;background:var(--fond);color
 <div class="brand">C Concept&Dev</div>
 <div class="title">Merci.</div>
 <div class="done-stats" id="doneStats"></div>
+<!-- V7.4.3 (correctif Codex) — statut visible DANS doneScreen. Avant : endSession()
+     écrivait dans #status qui appartient à sessionScreen (invisible après le
+     changement d'écran) — l'utilisateur ne voyait ni "génération en cours" ni l'échec. -->
+<div id="doneStatus" style="font-size:.78rem;color:var(--ink2);text-align:center;margin:8px 0;display:none"></div>
 <button class="btn btn-primary" onclick="generateBiography()" id="btnBiography">Ecrire la biographie</button>
 <div id="biographyStatus" style="font-size:.75rem;color:var(--ink2);text-align:center;margin-top:8px;display:none">Generation en cours avec Opus — quelques instants...</div>
 <button class="btn btn-secondary" id="btnLearning" onclick="generateLearning()">Generer le learning</button>
@@ -363,7 +367,15 @@ document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') 
 
 // ── TIMER ──
 let timerStart = null, timerInterval = null;
-function startTimer() { timerStart = Date.now(); BC._timerStart = timerStart; timerInterval = setInterval(() => { const s = Math.floor((Date.now() - timerStart) / 1000); document.getElementById('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 1000); }
+// V7.4.3 (correctif Codex) — startTimer() accepte un point de départ déjà
+// calculé (reprise) ; sans ça, resumeSession() calculait le bon timerStart
+// puis startTimer() l'écrasait aussitôt avec Date.now(), remettant le
+// chronomètre à zéro à chaque reprise.
+function startTimer(explicitStart) {
+  timerStart = explicitStart || Date.now();
+  BC._timerStart = timerStart;
+  timerInterval = setInterval(() => { const s = Math.floor((Date.now() - timerStart) / 1000); document.getElementById('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 1000);
+}
 
 // ── SESSION START ──
 async function startSession() {
@@ -376,7 +388,17 @@ async function startSession() {
   const domain = getSelectedDomain();
   if (!domain) { alert('Aucune profession disponible.'); return; }
   unlockAudio();
-  BC.init({ prenom, age, genre, workerUrl, brain: BC.config.brain, domain });
+  // V7.4.3 (correctif Codex) — le brain.json du FORMULAIRE (pendingBrain) est
+  // transféré à LA SESSION une seule fois, puis vidé immédiatement. Avant :
+  // BC.config.brain (état de session) était relu et réinjecté ici — un brain
+  // chargé pour Alice restait actif pour Bob si l'opérateur ne rechargeait
+  // pas manuellement le formulaire.
+  const brainForThisSession = BC.pendingBrain;
+  BC.pendingBrain = null;
+  document.getElementById('dropLabel').textContent = 'Charger un brain.json (optionnel)';
+  document.getElementById('dropLabel').classList.remove('loaded');
+  document.getElementById('fileIn').value = '';
+  BC.init({ prenom, age, genre, workerUrl, brain: brainForThisSession, domain });
   document.getElementById('sessionBrand').textContent = domain.label || 'Persona Brain V3';
   showScreen('sessionScreen'); initTTS(); initSTT(); startTimer();
   try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(t => t.stop()); } catch (e) {}
@@ -394,7 +416,7 @@ async function resumeSession() {
   BC.config.domain = DomainRegistry.get(saved.config.domainName) || getSelectedDomain();
   document.getElementById('sessionBrand').textContent = BC.config.domain?.label || 'Persona Brain V3';
   showScreen('sessionScreen'); initTTS(); initSTT();
-  timerStart = Date.now() - (saved.elapsedMs || 0); BC._timerStart = timerStart; startTimer(); updateTurn();
+  startTimer(Date.now() - (saved.elapsedMs || 0)); updateTurn();
   try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(t => t.stop()); } catch (e) {}
   setState('thinking'); setStatus('Reprise...');
   const display = await BC.generateResume();
@@ -447,8 +469,13 @@ async function endSession() {
   showScreen('doneScreen');
   document.getElementById('doneStats').textContent = BC.config.prenom + ', ' + (BC.config.age || '?') + ' ans — ' + BrainMemory.working.turnCount + ' echanges, ' + dur + ' minutes.';
 
-  // Générer le persona — la sauvegarde locale reste intacte pendant la tentative
-  setState('thinking'); setStatus('Generation du persona...');
+  // Générer le persona — la sauvegarde locale reste intacte pendant la tentative.
+  // V7.4.3 (correctif Codex) — #doneStatus (visible dans CET écran), pas #status
+  // (invisible, appartient à sessionScreen qu'on vient de quitter).
+  const doneStatusEl = document.getElementById('doneStatus');
+  doneStatusEl.style.display = 'block';
+  doneStatusEl.textContent = 'Generation du persona...';
+  setState('thinking');
   let persona = null;
   try {
     persona = await BC.generateOutput();
@@ -458,15 +485,21 @@ async function endSession() {
     persona = { _meta: { error: e.message, quality: 'low' } };
   }
   BC._personaJSON = persona;
-  setStatus('');
 
   const generationFailed = !persona || (persona._meta && persona._meta.error);
   if (generationFailed) {
     // NE PAS effacer la sauvegarde locale : l'utilisateur peut encore reprendre
     // la session ou exporter le transcript brut manuellement.
+    // V7.4.3 (correctif Codex) — échec affiché EXPLICITEMENT à l'utilisateur,
+    // pas seulement en console. Avant : rien ne s'affichait, et le bouton
+    // "Telecharger persona.json" pouvait télécharger l'objet d'erreur comme
+    // s'il s'agissait d'un vrai persona.
+    doneStatusEl.style.color = 'var(--accent, #c47a4a)';
+    doneStatusEl.textContent = '⚠ Echec de generation du persona — votre entretien est sauvegardé, vous pouvez le reprendre (ou reessayer "Ecrire la biographie" ci-dessous).';
     console.warn('[endSession] Persona generation failed — sauvegarde locale conservée:', persona && persona._meta && persona._meta.error);
   } else {
     // Succès réel confirmé (pas de _meta.error) : on peut effacer la sauvegarde.
+    doneStatusEl.style.display = 'none';
     BC.clearSaved();
   }
 }
@@ -515,11 +548,28 @@ async function generateLearning() {
 }
 
 // ── EXPORT ──
-function downloadPersona() { if (!BC._personaJSON) return; const b = new Blob([JSON.stringify(BC._personaJSON, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'persona_' + BC.config.prenom.toLowerCase() + '_' + new Date().toISOString().split('T')[0] + '.json'; a.click(); }
+function downloadPersona() {
+  if (!BC._personaJSON) return;
+  // V7.4.3 (correctif Codex) — ne jamais télécharger un objet d'erreur
+  // ({ _meta: { error } }) comme s'il s'agissait d'un vrai persona.
+  if (BC._personaJSON._meta && BC._personaJSON._meta.error) {
+    alert('La génération du persona a échoué (' + BC._personaJSON._meta.error + '). Rien à télécharger — réessayez "Ecrire la biographie", ou utilisez "Telecharger ZIP complet" pour récupérer au moins le transcript brut.');
+    return;
+  }
+  const b = new Blob([JSON.stringify(BC._personaJSON, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'persona_' + BC.config.prenom.toLowerCase() + '_' + new Date().toISOString().split('T')[0] + '.json'; a.click();
+}
 async function downloadZip() {
   if (!BC._personaJSON || typeof JSZip === 'undefined') return;
   const z = new JSZip();
-  z.file('clone_persona.json', JSON.stringify(BC._personaJSON, null, 2));
+  // V7.4.3 (correctif Codex) — en cas d'échec, ne pas inclure l'objet
+  // d'erreur sous le nom clone_persona.json (induirait en erreur un import
+  // ultérieur) ; le transcript brut reste inclus, c'est la vraie matière
+  // récupérable.
+  if (!(BC._personaJSON._meta && BC._personaJSON._meta.error)) {
+    z.file('clone_persona.json', JSON.stringify(BC._personaJSON, null, 2));
+  } else {
+    z.file('persona_ECHEC.txt', 'La génération du persona a échoué : ' + BC._personaJSON._meta.error + '\n\nLe transcript brut est dans persona_transcript.txt — vous pouvez réessayer "Ecrire la biographie" plus tard.');
+  }
   if (BC.config.brain) z.file('clone_brain.json', JSON.stringify(BC.config.brain, null, 2));
   z.file('persona_transcript.txt', BC.getTranscript());
   // Learning inter-session
