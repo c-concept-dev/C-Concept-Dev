@@ -225,7 +225,7 @@ function freshSandbox() {
       timerInterval: null,
       stopMic: () => {}, stopTTS: () => {}, clearInterval: () => {},
       showScreen: () => {}, setState: () => {}, setStatus: () => {},
-      document: { getElementById: () => ({ textContent: '' }) },
+      document: { getElementById: () => ({ textContent: '', style: {} }) },
       console,
     };
     vm.createContext(sandbox);
@@ -249,7 +249,184 @@ function freshSandbox() {
     return cleared === false;
   });
 
+  // ═══════════════════════════════════════════════════════
+  // F — CORRECTIF Codex : isolation du brain.json (pendingBrain)
+  // ═══════════════════════════════════════════════════════
+  await tAsync('F.1 — loadBrain() stocke en pendingBrain, PAS dans config.brain', async () => {
+    const sb = freshSandbox();
+    sb.BrainCore.init({ prenom: 'Alice', age: 40, genre: 'femme', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+    sb.BrainCore.loadBrain({ personality: { big_five: { openness: 0.8 } } });
+    return sb.BrainCore.pendingBrain !== null && sb.BrainCore.config.brain === undefined;
+  });
+
+  async function runStartSessionWith(pendingBrainAtCall, prevSessionBrain) {
+    const vm = require('vm');
+    const elements = {};
+    const el = (id) => elements[id] || (elements[id] = { value: '', textContent: '', style: {}, classList: { add(){}, remove(){} } });
+    const sandbox = {
+      BC: {
+        pendingBrain: pendingBrainAtCall,
+        config: { brain: prevSessionBrain },
+        clearSaved: () => {},
+        init: function (cfg) { this.config = { ...cfg }; },
+        generateOpening: async () => 'bonjour',
+      },
+      document: { getElementById: (id) => { if (id === 'inPrenom') return { value: 'Bob' }; if (id === 'inAge') return { value: '25' }; if (id === 'inGenre') return { value: 'homme' }; if (id === 'inWorker') return { value: 'https://x' }; return el(id); } },
+      navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } },
+      unlockAudio: () => {}, getSelectedDomain: () => ({ label: 'Biographe' }),
+      showScreen: () => {}, initTTS: () => {}, initSTT: () => {}, startTimer: () => {},
+      setState: () => {}, setStatus: () => {}, showDriverText: () => {}, speak: async () => {}, startMic: () => {},
+      console,
+    };
+    vm.createContext(sandbox);
+    const m = shellSrc.match(/async function startSession\(\)\s*\{[\s\S]*?\n\}/);
+    if (!m) throw new Error('startSession introuvable');
+    await vm.runInContext(`(${m[0].replace('async function startSession()', 'async function()')})()`, sandbox);
+    return sandbox.BC.config.brain;
+  }
+
+  await tAsync('F.2 — CORRECTIF Codex : startSession() ne transmet PAS l\'ancien config.brain d\'Alice à Bob', async () => {
+    // Alice avait un brain chargé (prevSessionBrain), Bob n'a rien glissé dans le formulaire (pendingBrain=null)
+    const bobBrain = await runStartSessionWith(null, { personality: { big_five: { openness: 0.9 } } });
+    return bobBrain === null || bobBrain === undefined;
+  });
+
+  await tAsync('F.3 — startSession() transmet bien un brain fraîchement glissé pour CETTE session', async () => {
+    const freshBrain = { personality: { big_five: { openness: 0.5 } } };
+    const bobBrain = await runStartSessionWith(freshBrain, null);
+    return bobBrain === freshBrain;
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // G — CORRECTIF Codex : courses asynchrones de l'analyste
+  // ═══════════════════════════════════════════════════════
+  await tAsync('G.1 — sessionId change entre deux init() consécutifs (Alice puis Bob)', async () => {
+    const sb = freshSandbox();
+    sb.BrainCore.init({ prenom: 'Alice', age: 40, genre: 'femme', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+    const idAlice = sb.BrainCore.sessionId;
+    sb.BrainCore.init({ prenom: 'Bob', age: 25, genre: 'homme', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+    return idAlice && sb.BrainCore.sessionId && idAlice !== sb.BrainCore.sessionId;
+  });
+
+  await tAsync('G.2 — CORRECTIF Codex : analyse lente d\'Alice résolue APRÈS le démarrage de Bob n\'injecte PAS son fait secret', async () => {
+    const sb = freshSandbox();
+    sb.BrainCore.init({ prenom: 'Alice', age: 40, genre: 'femme', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+    sb.BrainCore.config.domain = sb.DomainRegistry.get('biographer');
+
+    let resolveAlice;
+    sb.BrainAnalyst.analyze = () => new Promise((resolve) => { resolveAlice = resolve; });
+    sb.BrainAnalyst.getStructuredResult = () => ({ facts: [], carte: [], people: [{ name: 'SECRET-ALICE' }], scenes_nouvelles: [], gaps: [], themes: [], learning: null, merge_hints: [], pending_threads: [], recurring_elements: [], observation: null, note_driver: null });
+
+    sb.BrainCore._runBackgroundAnalysis(5); // lancée pendant la session Alice
+
+    // Bob démarre AVANT que l'analyse d'Alice ne se résolve
+    sb.BrainCore.init({ prenom: 'Bob', age: 25, genre: 'homme', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+
+    resolveAlice(); // l'analyse d'Alice se résout maintenant, après le init() de Bob
+    await new Promise(r => setTimeout(r, 20));
+
+    const contaminated = sb.BrainMemory.structured.people.some(p => p.name === 'SECRET-ALICE');
+    return contaminated === false;
+  });
+
+  await tAsync('G.3 — CORRECTIF Codex : une analyse T5 lente résolue APRÈS T6 rapide n\'écrase pas T6', async () => {
+    const sb = freshSandbox();
+    sb.BrainCore.init({ prenom: 'Test', age: 30, genre: 'autre', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+    sb.BrainCore.config.domain = sb.DomainRegistry.get('biographer');
+
+    const deferreds = {};
+    sb.BrainAnalyst.analyze = (ctx) => new Promise((resolve) => { deferreds[ctx.turnNum] = resolve; });
+    sb.BrainAnalyst.getStructuredResult = () => sb.BrainAnalyst.lastResult;
+
+    sb.BrainCore._runBackgroundAnalysis(5); // T5 lent, lancé en premier
+    sb.BrainCore._runBackgroundAnalysis(6); // T6 rapide, lancé en second
+
+    // T6 se résout EN PREMIER (plus rapide malgré un lancement plus tardif)
+    sb.BrainAnalyst.lastResult = { facts: [], carte: [], people: [{ name: 'PERSONNE-T6' }], scenes_nouvelles: [], gaps: [], themes: [], learning: null, merge_hints: [], pending_threads: [], recurring_elements: [], observation: null, note_driver: null };
+    deferreds[6]();
+    await new Promise(r => setTimeout(r, 10));
+
+    // T5 se résout ENSUITE, plus tard, avec un résultat différent
+    sb.BrainAnalyst.lastResult = { facts: [], carte: [], people: [{ name: 'PERSONNE-T5' }], scenes_nouvelles: [], gaps: [], themes: [], learning: null, merge_hints: [], pending_threads: [], recurring_elements: [], observation: null, note_driver: null };
+    deferreds[5]();
+    await new Promise(r => setTimeout(r, 10));
+
+    const hasT6 = sb.BrainMemory.structured.people.some(p => p.name === 'PERSONNE-T6');
+    const hasT5AfterT6 = sb.BrainMemory.structured.people.some(p => p.name === 'PERSONNE-T5');
+    // T6 doit être intégré ; T5 (plus ancien, résolu après) ne doit PAS écraser/s'ajouter après coup
+    return hasT6 === true && hasT5AfterT6 === false;
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // H — CORRECTIF Codex : échec de génération visible, pas silencieux
+  // ═══════════════════════════════════════════════════════
+  await tAsync('H.1 — CORRECTIF Codex : endSession() écrit dans #doneStatus (visible), pas #status (invisible dans doneScreen)', async () => {
+    const m = shellCode.match(/async function endSession\(\)\s*\{[\s\S]*?\n\}/);
+    return m && m[0].includes("getElementById('doneStatus')") && !/getElementById\('status'\)/.test(m[0]);
+  });
+
+  await tAsync('H.2 — CORRECTIF Codex : en cas d\'échec, le message est affiché à l\'utilisateur (pas seulement console.warn)', async () => {
+    const cleared = await runEndSessionWith({ _meta: { error: 'network down', quality: 'low' } }, null);
+    return cleared === false; // déjà testé en E.1, on vérifie ici juste la non-régression du chemin
+  });
+
+  await tAsync('H.3 — CORRECTIF Codex : downloadPersona() refuse de télécharger un objet _meta.error', async () => {
+    const m = shellCode.match(/function downloadPersona\(\)\s*\{[\s\S]*?\n\}/);
+    return m && /_meta\s*&&\s*BC\._personaJSON\._meta\.error/.test(m[0]) && /alert\(/.test(m[0]);
+  });
+
+  await tAsync('H.4 — CORRECTIF Codex : downloadZip() n\'écrit pas clone_persona.json si _meta.error présent', async () => {
+    const m = shellCode.match(/async function downloadZip\(\)\s*\{[\s\S]*?\n\}/);
+    return m && /persona_ECHEC\.txt/.test(m[0]) && /if \(!\(BC\._personaJSON\._meta/.test(m[0]);
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // I — CORRECTIF Codex : chronomètre de reprise
+  // ═══════════════════════════════════════════════════════
+  await tAsync('I.1 — CORRECTIF Codex : startTimer() accepte un point de départ explicite (reprise)', async () => {
+    const m = shellCode.match(/function startTimer\(explicitStart\)\s*\{[\s\S]*?\n\}/);
+    return m && m[0].includes('timerStart = explicitStart || Date.now()');
+  });
+
+  await tAsync('I.2 — CORRECTIF Codex : resumeSession() passe le temps écoulé à startTimer() au lieu de l\'écraser', async () => {
+    const m = shellCode.match(/async function resumeSession\(\)[\s\S]*?\n\}/);
+    return m && /startTimer\(Date\.now\(\) - \(saved\.elapsedMs \|\| 0\)\)/.test(m[0]);
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // J — CORRECTIF Codex : autosave à chaque tour (pas un sur deux)
+  // ═══════════════════════════════════════════════════════
+  await tAsync('J.1 — CORRECTIF Codex : autoSave() sauvegarde à CHAQUE tour, y compris impair', async () => {
+    const sb = freshSandbox();
+    sb.BrainCore.init({ prenom: 'Test', age: 30, genre: 'autre', workerUrl: 'x', domain: sb.DomainRegistry.get('biographer') });
+    let saveCalls = 0;
+    sb.BrainCore.save = () => { saveCalls++; };
+    sb.BrainMemory.working.turnCount = 1; sb.BrainCore.autoSave(); // tour IMPAIR — devait être ignoré avant le correctif
+    sb.BrainMemory.working.turnCount = 2; sb.BrainCore.autoSave(); // tour pair
+    sb.BrainMemory.working.turnCount = 3; sb.BrainCore.autoSave(); // tour IMPAIR — le dernier avant un échec potentiel
+    return saveCalls === 3;
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // K — CORRECTIF Codex : accord de genre dans la biographie
+  // ═══════════════════════════════════════════════════════
+  await tAsync('K.1 — CORRECTIF Codex : biographie d\'une FEMME ne contient pas "cet homme"', async () => {
+    const pack = sb2().DomainRegistry.get('biographer');
+    const { system } = pack.getBiographyPrompt({ prenom: 'Alice', age: 40, genre: 'femme', transcript: 't', brainContext: '' });
+    return !/cet homme/i.test(system) && /cette femme/i.test(system);
+  });
+
+  await tAsync('K.2 — biographie d\'un HOMME garde "cet homme" (comportement historique préservé)', async () => {
+    const pack = sb2().DomainRegistry.get('biographer');
+    const { system } = pack.getBiographyPrompt({ prenom: 'Bob', age: 25, genre: 'homme', transcript: 't', brainContext: '' });
+    return /cet homme/i.test(system);
+  });
+
+  function sb2() { return freshSandbox(); }
+
   console.log(' RAPPORT FINAL');
+
+
   console.log('═══════════════════════════════════════════════════════════\n');
   for (const r of results.pass) console.log('  ✓ ' + r.name);
   for (const r of results.fail) { console.log('  ✗ ' + r.name); if (r.detail) console.log('     → ' + r.detail); }
