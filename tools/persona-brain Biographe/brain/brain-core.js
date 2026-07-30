@@ -45,6 +45,13 @@ const BrainCore = {
   isGenerating: false,
   ended: false,
   _timerStart: null,
+  // V7.4.3 (correctif Codex) — identifiant unique généré à chaque init().
+  // Permet à _runBackgroundAnalysis() de détecter si une analyse en cours
+  // appartient encore à LA SESSION ACTUELLE avant de l'intégrer : sans ça,
+  // une analyse lente d'Alice peut s'intégrer dans BrainMemory de Bob si
+  // celui-ci a démarré avant que la promesse d'Alice ne se résolve.
+  sessionId: null,
+  pendingBrain: null,
 
   // ════════════════════════════════════════
   // INITIALISATION
@@ -72,6 +79,14 @@ const BrainCore = {
     this.isGenerating = false;
     this.ended = false;
     this._timerStart = Date.now();
+    // V7.4.3 (correctif Codex) — nouveau sessionId à CHAQUE init(), même
+    // reprise. Toute analyse en vol issue d'une session précédente devient
+    // instantanément détectable comme périmée (voir _runBackgroundAnalysis).
+    this.sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    // Sans ce reset, le garde-fou anti-course intra-session rejetterait à
+    // tort le T1 de la personne suivante (ex: Alice T19 puis Bob T1 — 1<=19
+    // serait rejeté).
+    this._lastIntegratedTurn = 0;
 
     // Garde-fou de couverture — propre à CETTE personne, jamais transporté
     this._endOverride = false;
@@ -461,6 +476,10 @@ const BrainCore = {
     this.config.brain = saved.config.brain;
     this.ended = false;
     this.isGenerating = false;
+    // V7.4.3 (correctif Codex) — nouveau sessionId aussi à la reprise : toute
+    // analyse en vol d'avant la reprise devient périmée.
+    this.sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    this._lastIntegratedTurn = 0;
 
     // Re-init API
     BrainAPI.init({
@@ -496,7 +515,13 @@ const BrainCore = {
   },
 
   autoSave() {
-    if (BrainMemory.working.turnCount > 0 && BrainMemory.working.turnCount % 2 === 0) {
+    // V7.4.3 (correctif Codex) — sauvegarde à CHAQUE tour, pas un sur deux.
+    // Avant : `turnCount % 2 === 0` pouvait laisser le DERNIER échange hors
+    // sauvegarde si endSession() échouait juste après un tour impair — la
+    // protection transactionnelle de endSession() ne sert à rien si la
+    // sauvegarde elle-même est en retard d'un tour. Le coût d'écriture
+    // localStorage à chaque tour est négligeable face au risque de perte.
+    if (BrainMemory.working.turnCount > 0) {
       this.save();
     }
   },
@@ -506,11 +531,15 @@ const BrainCore = {
   // ════════════════════════════════════════
 
   loadBrain(jsonObj) {
+    // V7.4.3 (correctif Codex) — stocké en `pendingBrain` (état du FORMULAIRE,
+    // avant toute session), PAS dans `this.config.brain` (état de LA session
+    // en cours). Avant : un brain chargé par Alice restait dans config.brain
+    // et startSession() le réinjectait explicitement dans init() pour Bob.
     let b = null;
     if (jsonObj.generated_brain_v210) b = jsonObj.generated_brain_v210;
     else if (jsonObj._meta?.schema === 'CLONE-PERSONALITY-1.0') b = jsonObj;
     else if (jsonObj.personality?.big_five) b = jsonObj;
-    if (b) { this.config.brain = b; return b; }
+    if (b) { this.pendingBrain = b; return b; }
     return null;
   },
 
@@ -607,7 +636,20 @@ const BrainCore = {
    * Le Driver a déjà parlé. L'analyste enrichit la mémoire pour le tour SUIVANT.
    * Comme un vrai cerveau : tu parles pendant que ton inconscient analyse.
    */
+  // V7.4.3 (correctif Codex) — dernier tour dont l'analyse a été intégrée.
+  // Empêche qu'une analyse plus ANCIENNE (T5, lente) écrase le résultat
+  // d'une analyse plus RÉCENTE (T6, rapide) résolue avant elle — course
+  // intra-session, indépendante du changement de personne.
+  _lastIntegratedTurn: 0,
+
   _runBackgroundAnalysis(turnNum) {
+    // V7.4.3 (correctif Codex) — capturer le sessionId ET le turnNum ACTUELS
+    // au moment du LANCEMENT de l'analyse (pas à sa résolution). Si init()
+    // ou restore() est rappelé avant que la promesse ne se résolve (nouvelle
+    // personne, ou reprise), le sessionId capturé ne correspondra plus au
+    // sessionId courant — l'intégration sera refusée, silencieusement.
+    const capturedSessionId = this.sessionId;
+
     const recentExchanges = BrainMemory.history.slice(-8).map(m =>
       `[${m.role === 'user' ? this.config.prenom.toUpperCase() : 'DRIVER'}] ${m.content}`
     ).join('\n\n');
@@ -637,9 +679,22 @@ const BrainCore = {
         return BrainAPI.callWithFallback(system, messages, maxTokens, this.modelChains.perception);
       },
     }).then(() => {
+      // Garde-fou 1 — anti-contamination entre personnes : cette analyse
+      // appartient-elle encore à LA SESSION ACTUELLE ?
+      if (capturedSessionId !== this.sessionId) {
+        this._log(`[Analyst] Résultat PÉRIMÉ T${turnNum} ignoré (session changée depuis le lancement)`);
+        return;
+      }
+      // Garde-fou 2 — anti-course intra-session : un tour plus ANCIEN ne doit
+      // jamais écraser un résultat de tour plus RÉCENT déjà intégré.
+      if (turnNum <= this._lastIntegratedTurn) {
+        this._log(`[Analyst] Résultat T${turnNum} ignoré (T${this._lastIntegratedTurn} déjà intégré, plus récent)`);
+        return;
+      }
       const result = BrainAnalyst.getStructuredResult();
       if (result) {
         BrainMemory.integrate(result);
+        this._lastIntegratedTurn = turnNum;
       }
       this._log(`[Analyst] Background done T${turnNum} — note ready for T${turnNum + 1}`);
     }).catch(e => {
