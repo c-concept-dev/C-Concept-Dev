@@ -1424,7 +1424,7 @@ Structure minimale attendue :
     }
 
     const llmCall = async (system, userMsg, maxTokens, model) => {
-      const mdl = model || 'claude-sonnet-4-6';
+      const mdl = model || 'claude-sonnet-5';
       // Le worker attend une enveloppe { payload: { ... } } avec stream:true
       const body = {
         payload: {
