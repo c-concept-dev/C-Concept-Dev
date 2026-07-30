@@ -265,8 +265,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     <div class="field" style="margin-top:20px">
       <label>Modèle LLM</label>
       <select id="modelSelect">
-        <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (production)</option>
-        <option value="claude-opus-4-6">Claude Opus 4.6 (~5× plus cher)</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 (production)</option>
+        <option value="claude-opus-4-8">Claude Opus 4.8 (~5× plus cher)</option>
       </select>
     </div>
     <div class="field">
@@ -370,7 +370,7 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
   const S = {
     session: null,
     config: {
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       length: 'medium',
       workerUrl: 'https://clone-proxy.11drumboy11.workers.dev',
       editeurMode: 'hybrid',
@@ -515,6 +515,8 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     payload._shell_documents = S.documents.map(d => ({
       name: d.name, size: d.size, ext: d.ext,
       text: d.text, summary: d.summary,
+      status: d.status, wordCount: d.wordCount,      // V7.4.3 (L3) — sans status, runExtraction voit 0 doc
+      isImage: d.isImage, imageData: d.imageData,     // V7.4.3 (L3) — préserver les images
     }));
     payload._shell_diagnostic = S.diagnostic;
     payload._shell_editorReports = S.editorReports;
@@ -522,14 +524,62 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     return payload;
   }
 
+  // V7.4.3 (point 3) — Payload ALLÉGÉ pour l'autosave localStorage.
+  // Les images base64 (imageData) peuvent peser plusieurs Mo et dépasser le quota
+  // localStorage (~5 Mo), ce qui désactivait l'autosave SILENCIEUSEMENT. On les
+  // exclut de l'autosave (elles restent dans le .lbs.json téléchargé, lui complet).
+  function buildAutosavePayload() {
+    const data = buildSavePayload();
+    if (Array.isArray(data._shell_documents)) {
+      data._shell_documents = data._shell_documents.map(d => {
+        if (d.isImage && d.imageData) {
+          const { imageData, ...rest } = d;
+          return Object.assign(rest, { imageData: null, _imageStripped: true });
+        }
+        return d;
+      });
+    }
+    data._autosave_lightweight = true;
+    return data;
+  }
+
   function doAutosave() {
     if (!S.promptDirecteur && !S.session) return;
     try {
-      const data = buildSavePayload();
+      const data = buildAutosavePayload();
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      setAutosaveStatus('ok');
     } catch (e) {
-      // Si localStorage plein, on ignore silencieusement
-      console.warn('Autosave failed:', e.message);
+      // V7.4.3 (point 3) — NE PLUS ignorer silencieusement : signal visible.
+      console.warn('Autosave échoué:', e.message);
+      setAutosaveStatus('fail', e && e.name === 'QuotaExceededError'
+        ? 'Sauvegarde auto saturée — téléchargez votre projet (💾) pour ne rien perdre'
+        : 'Sauvegarde auto indisponible — téléchargez votre projet (💾)');
+    }
+  }
+
+  // Signal d'état d'autosave visible (bannière discrète)
+  function setAutosaveStatus(state, message) {
+    let el = document.getElementById('autosaveStatus');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'autosaveStatus';
+      el.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9999;padding:8px 14px;border-radius:8px;font-size:.72rem;font-weight:600;max-width:320px;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:opacity .3s';
+      document.body.appendChild(el);
+    }
+    if (state === 'ok') {
+      el.style.background = 'rgba(143,175,177,.15)';
+      el.style.color = 'var(--deep, #2a4d4f)';
+      el.textContent = '✓ Sauvegarde auto à jour';
+      el.style.opacity = '1';
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => { el.style.opacity = '0'; }, 2000);
+    } else {
+      el.style.background = 'rgba(196,122,74,.15)';
+      el.style.color = 'var(--accent, #c47a4a)';
+      el.textContent = '⚠ ' + (message || 'Sauvegarde auto indisponible');
+      el.style.opacity = '1';
+      clearTimeout(el._hideTimer); // reste affiché tant que le problème persiste
     }
   }
 
@@ -555,7 +605,23 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
     try {
       // Restaurer le contexte best-seller (avant la session)
       S.promptDirecteur = data._shell_promptDirecteur || '';
-      S.documents = data._shell_documents || [];
+      // V7.4.3 — réinjecter status:'ready' pour docs avec texte/image complète.
+      // Une image dont imageData a été retiré par l'autosave allégé (_imageStripped)
+      // est marquée 'incomplete' : elle sera signalée à l'utilisateur, pas présentée comme prête.
+      let strippedImages = 0;
+      S.documents = (data._shell_documents || []).map(d => {
+        if (d.isImage && d._imageStripped && !d.imageData) {
+          strippedImages++;
+          return Object.assign({}, d, { status: 'incomplete' });
+        }
+        if (!d.status && (d.text || (d.isImage && d.imageData))) {
+          return Object.assign({}, d, { status: 'ready' });
+        }
+        return d;
+      });
+      if (strippedImages > 0 && typeof setAutosaveStatus === 'function') {
+        setAutosaveStatus('fail', strippedImages + ' image(s) à re-importer (non conservée(s) par la sauvegarde auto — utilisez le fichier .lbs.json pour tout restaurer)');
+      }
       S.diagnostic = data._shell_diagnostic || '';
       S.editorReports = data._shell_editorReports || [];
       if (data._shell_config) S.config = Object.assign({}, S.config, data._shell_config);
@@ -837,11 +903,11 @@ body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:10
 
       // V7.4.2.2 — Étiquette du modèle attendu pour aiguiller l'utilisateur
       // (Sonnet vs Opus selon ce que le pipeline force pour cet appel précis).
-      const requiredModel = model || S.config.model || 'claude-sonnet-4-6';
+      const requiredModel = model || S.config.model || 'claude-sonnet-5';
       const isOpusCall = /opus/i.test(requiredModel);
-      const modelLabel = isOpusCall ? 'Claude Opus 4.6' : (
+      const modelLabel = isOpusCall ? 'Claude Opus 4.8' : (
         /haiku/i.test(requiredModel) ? 'Claude Haiku' :
-        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 4.6' :
+        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 5' :
         requiredModel
       );
       const modelBadgeBg = isOpusCall ? 'rgba(196,122,74,.15)' : 'rgba(143,175,177,.15)';
@@ -1501,8 +1567,24 @@ Longueur : 800-1500 mots.`;
       await AuteurNoyau.producePartition(S.session);
       document.getElementById('partStatus').textContent = 'Partition OK — supervision Opus…';
 
-      await AuteurNoyau.supervisePartition(S.session);
-      document.getElementById('partStatus').textContent = 'Partition validée — planification…';
+      // V7.4.3 — l'UI reflète l'état RÉEL de la supervision (ne plus afficher "validée" à tort)
+      const sup = await AuteurNoyau.supervisePartition(S.session);
+      const partStatusEl = document.getElementById('partStatus');
+      if (sup.status === 'supervision_ok') {
+        partStatusEl.textContent = (sup.revised_dimensions && sup.revised_dimensions.length)
+          ? 'Partition révisée par Opus (' + sup.revised_dimensions.join(', ') + ') — planification…'
+          : 'Partition validée par Opus — planification…';
+        partStatusEl.style.color = '';
+      } else if (sup.status === 'supervision_indisponible') {
+        partStatusEl.textContent = 'Supervision indisponible — partition Sonnet conservée, planification…';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      } else if (sup.status === 'supervision_revision_invalide') {
+        partStatusEl.textContent = 'Révision Opus rejetée — partition Sonnet conservée, planification…';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      } else if (sup.status === 'partition_invalide') {
+        partStatusEl.textContent = '⚠ Partition incomplète (non validée) — vérifiez avant d\'écrire';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      }
 
       const plan = await AuteurNoyau.planBook(S.session);
 
