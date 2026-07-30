@@ -1408,7 +1408,7 @@ Règles absolues :
   //   scope : 'progression' | 'motifs' | 'dettes' | 'all' (défaut 'all')
   //   at_chapter : N — relire le livre jusqu'au chapitre N seulement (utile
   //     pour un check en cours d'écriture)
-  //   model : défaut 'claude-opus-4-6'
+  //   model : défaut 'claude-opus-4-8'
   // ═════════════════════════════════════════════════════════════════
 
   const PROMPT_SYSTEME_EDITEUR_TRANSVERSAL = `Tu es un éditeur senior qui lit un livre en le prenant comme totalité, pas comme une succession de chapitres.
@@ -1508,7 +1508,7 @@ Tu produis UNIQUEMENT le JSON. Pas de préambule, pas de commentaire autour.`;
     options = options || {};
     const scope = options.scope || 'all';
     const atChapter = options.at_chapter || null;
-    const model = options.model || 'claude-opus-4-6';
+    const model = options.model || 'claude-opus-4-8';
 
     const chapters = session.chapters || [];
     if (chapters.length === 0) throw new Error('reviewBookTransversal : aucun chapitre');
