@@ -30,19 +30,29 @@ const BrainAPI = {
    * @returns {string} Texte de la réponse
    */
   async call(system, messages, maxTokens, model, provider) {
+    // V7.4.3 — la restriction sur temperature/top_p/top_k (400 si non-défaut)
+    // ne s'applique qu'à partir de claude-opus-4-7 et claude-sonnet-5 (adaptive
+    // thinking forcé). claude-sonnet-4-6, claude-opus-4-6 et claude-haiku-4-5
+    // acceptent toujours temperature normalement — vérifié sur la doc Anthropic.
+    // Liste D'EXCLUSION explicite (pas d'autorisation) : seuls les modèles
+    // confirmés incompatibles sont exclus ; tout le reste (y compris un modèle
+    // encore non listé ici) garde le comportement historique par défaut.
+    const usedModel = model || this.defaultModel;
+    const rejectsSampling = /^claude-opus-4-[789]|^claude-opus-5|^claude-sonnet-5|^claude-fable-5|^claude-mythos/.test(usedModel);
+    const supportsSampling = !rejectsSampling;
+    const payload = {
+      provider: provider || 'anthropic',
+      model: usedModel,
+      max_tokens: maxTokens || this.defaultMaxTokens,
+      system: system,
+      messages: messages
+    };
+    if (supportsSampling) payload.temperature = this.defaultTemperature;
+
     const r = await fetch(this.workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        payload: {
-          provider: provider || 'anthropic',
-          model: model || this.defaultModel,
-          max_tokens: maxTokens || this.defaultMaxTokens,
-          temperature: this.defaultTemperature,
-          system: system,
-          messages: messages
-        }
-      })
+      body: JSON.stringify({ payload })
     });
     if (!r.ok) throw new Error('API ' + r.status);
     const d = await r.json();
