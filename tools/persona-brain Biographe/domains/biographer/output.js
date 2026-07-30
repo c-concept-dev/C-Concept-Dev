@@ -34,6 +34,13 @@ const BiographerOutput = {
    * @returns {object} {system, user}
    */
   getBiographyPrompt(ctx) {
+    // V7.4.3 (correctif Codex) — accord de genre dynamique. Avant : le prompt
+    // imposait "cet homme" en dur, quel que soit ctx.genre — une biographie
+    // de femme recevait des instructions masculines.
+    const g = (ctx.genre || 'autre').toLowerCase();
+    const personneMot = g === 'femme' ? 'cette femme' : (g === 'homme' ? 'cet homme' : 'cette personne');
+    const quiEst = g === 'femme' ? 'qui est cette femme' : (g === 'homme' ? 'qui est cet homme' : 'qui est cette personne');
+
     const system = `Tu es un écrivain biographe de premier plan. Tu as la plume de Camus — sobre, précise, sans psychologie explicite. La patience de Studs Terkel — qui révèle l'universel dans l'ordinaire. L'œil de Depardon — qui capte ce que les mots ne disent pas.
 
 Tu vas écrire la biographie littéraire de ${ctx.prenom}, ${ctx.age || '?'} ans.
@@ -56,13 +63,13 @@ RÈGLES D'ÉCRITURE — constitutionnelles, non négociables :
 
 5. PAS DE DIAGNOSTIC. Jamais "il souffrait de", "sa blessure était", "ce traumatisme". Les faits, les gestes, les mots. Le lecteur comprend.
 
-6. LA TRAJECTOIRE. Chaque chapitre éclaire comment cet homme est devenu celui qu'il est. Le fil conducteur est là — même si la personne ne le voit pas elle-même.
+6. LA TRAJECTOIRE. Chaque chapitre éclaire comment ${personneMot} est devenu${g === 'femme' ? 'e' : ''} qui ${g === 'femme' ? 'elle' : (g === 'homme' ? 'il' : 'elle/il')} est. Le fil conducteur est là — même si la personne ne le voit pas elle-même.
 
 7. UNE ŒUVRE. Pas un rapport. Pas une fiche. Un livre qu'on a envie de lire jusqu'au bout.
 
 FORMAT DE SORTIE :
 - Titre de la biographie (accrocheur, littéraire)
-- Introduction (1 paragraphe — qui est cet homme, pourquoi ce livre existe)
+- Introduction (1 paragraphe — ${quiEst}, pourquoi ce livre existe)
 - Chapitres (autant que la matière le permet)
 - Chaque chapitre : titre + texte narratif
 - Fin ouverte — on ne conclut pas une vie qui continue
