@@ -9,7 +9,6 @@
   });
 
   const ConstraintRegistry = Object.freeze({
-    ...(globalThis.JMMJSLimitationsCore?.FieldRegistry || {}),
     place: {
       effect: "generation",
       requiredData: ["geocoding"],
@@ -110,6 +109,41 @@
       requiredData: ["surface", "slope", "width", "services"],
       unknownPolicy: "block-if-imperative",
     },
+    limitationSide: {
+      effect: "explanation",
+      requiredData: [],
+      unknownPolicy: "preserve-unknown",
+    },
+    limitationTrigger: {
+      effect: "generation-audit",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
+    limitationConsequence: {
+      effect: "generation-audit",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
+    limitationTemporality: {
+      effect: "explanation",
+      requiredData: [],
+      unknownPolicy: "preserve-unknown",
+    },
+    maxWithoutPause: {
+      effect: "generation-audit",
+      requiredData: ["segment-times"],
+      unknownPolicy: "block-if-set",
+    },
+    maxStanding: {
+      effect: "generation-audit",
+      requiredData: ["pause-places"],
+      unknownPolicy: "block-if-set",
+    },
+    helperAvailable: {
+      effect: "explanation",
+      requiredData: [],
+      unknownPolicy: "preserve-unknown",
+    },
     noStairs: {
       effect: "generation-audit",
       requiredData: ["steps"],
@@ -126,6 +160,11 @@
       unknownPolicy: "rank-only",
     },
     ascentMinutes: {
+      effect: "generation-audit",
+      requiredData: ["elevation", "segment-times"],
+      unknownPolicy: "block-if-set",
+    },
+    descentMinutes: {
       effect: "generation-audit",
       requiredData: ["elevation", "segment-times"],
       unknownPolicy: "block-if-set",
@@ -350,10 +389,6 @@
     const terrain = request.terrain || [];
     const preferences = request.preferences || [];
     const derived = [];
-    const functionalRules = Array.isArray(request.derivedFunctionalRules)
-      ? request.derivedFunctionalRules
-      : [];
-    derived.push(...functionalRules.map((rule) => rule.label));
     const explicitDuration = Math.max(
       0,
       finite(request.time?.availableMinutes) || 0,
@@ -512,6 +547,9 @@
         avoidExposure,
         maxUp: explicitMaxUp,
         maxDown: explicitMaxDown,
+        maxContinuousAscentMinutes: request.effort?.maxContinuousAscentMinutes || null,
+        maxContinuousDescentMinutes: request.effort?.maxContinuousDescentMinutes || null,
+        recovery: request.effort?.recovery || null,
         requireRegular,
         requireWide,
         requireShortcuts,
@@ -524,12 +562,6 @@
         maxDown: suggestedMaxDown,
         preferRegular: suggestedRegular,
         preferShortcuts: suggestedShortcuts,
-      },
-      functionalRules,
-      functional: {
-        pauseIntervalMinutes: finite(
-          request.functionalPausePlan?.intervalMinutes,
-        ),
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
       routing: {
@@ -662,8 +694,41 @@
             : STATUS.VIOLATED
           : STATUS.UNKNOWN,
         known(route.maxContinuousAscentMinutes)
-          ? `${Math.round(route.maxContinuousAscentMinutes)} min pour ${ascentRequest} min maximum`
-          : "durée des montées continues non calculée",
+          ? `${Number(route.maxContinuousAscentMinutes).toFixed(1)} min pour ${ascentRequest} min maximum`
+          : known(route.elevationCoveragePercent)
+            ? `altitude présente sur ${Math.round(route.elevationCoveragePercent)} % de la trace : durée de montée continue invérifiable`
+            : "durée des montées continues non calculée",
+      );
+    const descentRequest = compiled.request.effort?.maxContinuousDescentMinutes;
+    if (descentRequest === "none")
+      add(
+        "continuous-descent",
+        "Aucune descente",
+        "hard",
+        known(route.descentMeters)
+          ? route.descentMeters < 5
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        known(route.descentMeters)
+          ? `${Math.round(route.descentMeters)} m D−`
+          : "altitude absente",
+      );
+    else if (descentRequest)
+      add(
+        "continuous-descent",
+        "Descente continue maximale",
+        "hard",
+        known(route.maxContinuousDescentMinutes)
+          ? route.maxContinuousDescentMinutes <= Number(descentRequest)
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        known(route.maxContinuousDescentMinutes)
+          ? `${Number(route.maxContinuousDescentMinutes).toFixed(1)} min pour ${descentRequest} min maximum`
+          : known(route.elevationCoveragePercent)
+            ? `altitude présente sur ${Math.round(route.elevationCoveragePercent)} % de la trace : durée de descente continue invérifiable`
+            : "durée des descentes continues non calculée",
       );
     if (compiled.request.effort?.recovery)
       add(
@@ -676,8 +741,10 @@
             : STATUS.VIOLATED
           : STATUS.UNKNOWN,
         typeof route.recoverySatisfied === "boolean"
-          ? "séquence de récupération analysée"
-          : "récupération non calculée",
+          ? `${Number(route.recoveryMinutesFound || 0).toFixed(1)} min faciles mesurées après l’effort`
+          : known(route.elevationCoveragePercent)
+            ? `altitude présente sur ${Math.round(route.elevationCoveragePercent)} % de la trace : récupération invérifiable`
+            : "récupération non calculée",
       );
     const surfaces = Array.isArray(route.surfaces) ? route.surfaces : [];
     const incompatible = surfaces.filter(
@@ -836,10 +903,6 @@
           ? `${route.shortcuts.length} repli(s) calculé(s)`
           : "repli non prouvé ; rester attentif à la proximité du départ",
       );
-    const auditFunctionalRules =
-      globalThis.JMMJSLimitationsCore?.auditFunctionalRules;
-    if (typeof auditFunctionalRules === "function")
-      checks.push(...auditFunctionalRules(route, compiled, STATUS));
     const blocking = checks.filter(
       (x) => x.severity === "hard" && x.status !== STATUS.RESPECTED,
     );
