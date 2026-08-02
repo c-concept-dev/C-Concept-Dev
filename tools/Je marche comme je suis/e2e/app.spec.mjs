@@ -135,6 +135,26 @@ test("@critical la synthèse avant calcul permet de revenir modifier une règle"
   await expect(page.locator("#create")).not.toBeVisible();
 });
 
+test("@critical D-024 affiche et audite une limitation fonctionnelle confirmée", async ({ page }) => {
+  await mockWorker(page);
+  await openApp(page);
+  await page.locator("#place").fill("Départ D-024");
+  await page.locator("#lat").fill("43.596");
+  await page.locator("#lon").fill("1.432");
+  await page.getByRole("button", { name: "Continuer" }).click();
+  await page.locator("#footwear").selectOption({ label: "Baskets classiques" });
+  await page.locator("#limitationSide").selectOption({ label: "Droit" });
+  await page.locator("#limitationTrigger").selectOption({ label: "Descente" });
+  await page.locator("#limitationConsequence").selectOption({ label: "Éviter" });
+  await page.locator("#limitationConfirmed").check();
+  await page.getByRole("button", { name: "Continuer" }).click();
+  await page.getByRole("button", { name: "Continuer" }).click();
+  await expect(page.locator("#constraintSummary")).toContainText("seuil 4 %");
+  await expect(page.locator("#constraintSummary")).toContainText(/aucun seuil explicite/i);
+  await page.getByRole("button", { name: "Confirmer et calculer" }).click();
+  await expect(page.locator("#detail")).toContainText(/Descente à éviter|pente descendante/i);
+});
+
 test("@critical reste utilisable sur iPhone sans débordement horizontal majeur", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "iphone", "Contrôle réservé au projet iPhone");
   await openApp(page);
