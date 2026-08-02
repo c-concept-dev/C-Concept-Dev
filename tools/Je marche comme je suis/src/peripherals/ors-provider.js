@@ -47,6 +47,7 @@
             avoidFeatures: routing.avoidFeatures || [],
             weightings: routing.weightings || {},
             restrictions: routing.restrictions || {},
+            count: Math.max(1, Math.min(3, Math.round(count))),
           },
           count,
         );
