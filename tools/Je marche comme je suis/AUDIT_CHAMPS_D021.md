@@ -7,8 +7,8 @@
 - Champs visibles : **41**
 - Groupes de choix : **5**
 - Choix visibles : **62**
-- Entrées complètes : **29**
-- Entrées partielles : **17**
+- Entrées complètes : **30**
+- Entrées partielles : **16**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
 
@@ -50,7 +50,7 @@
 | downSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente descendante auditée lorsqu’elle est disponible. |
 | recovery | field | audit | conditional | elevation, segment-times, benches | block-if-set | complete | Séquence facile mesurée après effort ; banc jamais présumé. |
 | weather | field | generation-audit | preparation | observed-weather | preserve-unknown | complete | Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie. |
-| pauses | field | generation-audit | preparation | pause-places | block-if-required | partial | Temps inclus dans le budget ; positionnement réel à compléter. |
+| pauses | field | generation-audit | preparation | pause-places | block-if-required | complete | Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables. |
 | freeText | field | explanation-confirmation | preparation | structured-limitations | confirm | partial | Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres. |
 | strict | field | selection | imperative | — | block-unknown-hard | complete | Empêche les assouplissements silencieux. |
 | shortcuts | field | generation-audit | conditional | shortcut-routes | block-if-required | partial | Demande compilée ; calcul de raccourcis réels à compléter. |
