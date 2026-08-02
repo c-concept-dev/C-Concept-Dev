@@ -9,6 +9,7 @@
   });
 
   const ConstraintRegistry = Object.freeze({
+    ...(globalThis.JMMJSLimitationsCore?.FieldRegistry || {}),
     place: {
       effect: "generation",
       requiredData: ["geocoding"],
@@ -349,6 +350,10 @@
     const terrain = request.terrain || [];
     const preferences = request.preferences || [];
     const derived = [];
+    const functionalRules = Array.isArray(request.derivedFunctionalRules)
+      ? request.derivedFunctionalRules
+      : [];
+    derived.push(...functionalRules.map((rule) => rule.label));
     const explicitDuration = Math.max(
       0,
       finite(request.time?.availableMinutes) || 0,
@@ -519,6 +524,12 @@
         maxDown: suggestedMaxDown,
         preferRegular: suggestedRegular,
         preferShortcuts: suggestedShortcuts,
+      },
+      functionalRules,
+      functional: {
+        pauseIntervalMinutes: finite(
+          request.functionalPausePlan?.intervalMinutes,
+        ),
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
       routing: {
@@ -825,6 +836,10 @@
           ? `${route.shortcuts.length} repli(s) calculé(s)`
           : "repli non prouvé ; rester attentif à la proximité du départ",
       );
+    const auditFunctionalRules =
+      globalThis.JMMJSLimitationsCore?.auditFunctionalRules;
+    if (typeof auditFunctionalRules === "function")
+      checks.push(...auditFunctionalRules(route, compiled, STATUS));
     const blocking = checks.filter(
       (x) => x.severity === "hard" && x.status !== STATUS.RESPECTED,
     );
