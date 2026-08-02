@@ -25,9 +25,16 @@
         data = await response.json();
       } catch {}
       if (!response.ok) {
-        throw new Error(
+        const error = new Error(
           data?.error?.message || data?.message || `Réponse ${response.status}`,
         );
+        error.status = response.status;
+        const retryHeader = response.headers?.get?.("Retry-After");
+        const retryBody = data?.error?.retryAfterSeconds;
+        const retryAfterSeconds = Number(retryHeader ?? retryBody);
+        if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0)
+          error.retryAfterSeconds = retryAfterSeconds;
+        throw error;
       }
       if (!data) throw new Error("Réponse cartographique illisible.");
       return data;
