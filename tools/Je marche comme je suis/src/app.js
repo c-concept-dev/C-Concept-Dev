@@ -450,6 +450,52 @@
     });
     if (b.length && !S.nav.active) S.map.fitBounds(b, { padding: [24, 24] });
   }
+  function routeAuditFacts(route) {
+    const checks = Array.isArray(route.checks) ? route.checks : [];
+    const respected = checks.filter((check) => check.status === "respected").length;
+    const violated = checks.filter((check) => check.status === "violated").length;
+    const unknown = checks.filter((check) =>
+      ["unknown", "uncertain"].includes(check.status),
+    ).length;
+    return { respected, violated, unknown };
+  }
+  function routeFactBadges(route) {
+    const facts = routeAuditFacts(route);
+    const badges = [
+      `<span class="fact ok">${facts.respected} contrôle${facts.respected > 1 ? "s" : ""} respecté${facts.respected > 1 ? "s" : ""}</span>`,
+    ];
+    if (facts.unknown)
+      badges.push(
+        `<span class="fact verify">${facts.unknown} élément${facts.unknown > 1 ? "s" : ""} à vérifier</span>`,
+      );
+    if (facts.violated)
+      badges.push(
+        `<span class="fact blocked">${facts.violated} limite${facts.violated > 1 ? "s" : ""} dépassée${facts.violated > 1 ? "s" : ""}</span>`,
+      );
+    return badges.join("");
+  }
+  function whyThisRoute(route) {
+    const facts = routeAuditFacts(route);
+    const parts = [];
+    if (route.orientation === "Confortable")
+      parts.push("Durée et effort contenus pour préserver une marge confortable");
+    else if (route.orientation === "Agréable")
+      parts.push("Meilleur équilibre trouvé entre durée disponible et critères de plaisir");
+    else if (route.orientation === "Tonique")
+      parts.push("Effort plus soutenu, tout en restant dans les limites confirmées");
+    else if (route.orientation === "Très courte")
+      parts.push("Option courte pour sortir un peu et revenir rapidement");
+    else if (route.why) parts.push(route.why);
+    if (Number.isFinite(Number(route.total)))
+      parts.push(`${metricLabel(route.total)} min au total`);
+    if (Number.isFinite(Number(route.ascent)))
+      parts.push(`${metricLabel(route.ascent)} m de dénivelé positif`);
+    if (facts.unknown)
+      parts.push(`${facts.unknown} donnée${facts.unknown > 1 ? "s" : ""} reste${facts.unknown > 1 ? "nt" : ""} à vérifier`);
+    if (route.proposalStatus === "adaptation")
+      parts.push("Cette option nécessite votre accord explicite avant départ");
+    return parts.join(" · ") || "Boucle réelle contrôlée par le moteur commun.";
+  }
   async function render() {
     E.placeholder.style.display = "none";
     E.map.classList.add("show");
@@ -477,13 +523,9 @@
           metricLabel(r.total ?? r.walking) +
           '</b><span>min total</span></span><span class="metric"><b>' +
           metricLabel(r.ascent) +
-          '</b><span>m D+</span></span></span><span class="scores"><span class="score">Compat. ' +
-          metricLabel(r.compatibility) +
-          ' %</span><span class="score">Plaisir ' +
-          metricLabel(r.pleasure) +
-          ' %</span><span class="score">Confiance ' +
-          metricLabel(r.confidence) +
-          " %</span></span></button>",
+          '</b><span>m D+</span></span></span><span class="route-facts">' +
+          routeFactBadges(r) +
+          "</span></button>",
       )
       .join("");
     $$("[data-route]").forEach(
@@ -780,7 +822,7 @@
       '<div class="detail-top"><div><span class="kicker">Profil d’altitude</span>' +
       profile(r.coords) +
       '</div><div class="why"><strong>Pourquoi ce parcours ?</strong><br>' +
-      esc(r.why || "Non fourni.") +
+      esc(whyThisRoute(r)) +
       '</div></div><div class="data-grid"><div class="data"><b>' +
       metricLabel(r.walking ?? r.total) +
       ' min</b><span>marche</span></div><div class="data"><b>' +
@@ -1635,6 +1677,51 @@
       .join("|");
     return `${Math.round(route.distance || 0)}:${sample}`;
   }
+  function routeSamples(route, maximum = 36) {
+    const coords = Array.isArray(route?.coords) ? route.coords : [];
+    if (coords.length <= maximum) return coords;
+    const sampled = [];
+    for (let index = 0; index < maximum; index += 1) {
+      sampled.push(coords[Math.round((coords.length - 1) * index / (maximum - 1))]);
+    }
+    return sampled;
+  }
+  function pointDistanceMeters(a, b) {
+    if (!a || !b) return Infinity;
+    const p1 = (Number(a[1]) * Math.PI) / 180;
+    const p2 = (Number(b[1]) * Math.PI) / 180;
+    const dp = ((Number(b[1]) - Number(a[1])) * Math.PI) / 180;
+    const dl = ((Number(b[0]) - Number(a[0])) * Math.PI) / 180;
+    const h =
+      Math.sin(dp / 2) ** 2 +
+      Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  }
+  function directedRouteCoverage(source, target, toleranceMeters = 45) {
+    const sourcePoints = routeSamples(source);
+    const targetPoints = routeSamples(target);
+    if (!sourcePoints.length || !targetPoints.length) return 0;
+    const covered = sourcePoints.filter((point) =>
+      targetPoints.some((candidate) => pointDistanceMeters(point, candidate) <= toleranceMeters),
+    ).length;
+    return covered / sourcePoints.length;
+  }
+  function routeGeometricOverlap(a, b) {
+    return Math.min(directedRouteCoverage(a, b), directedRouteCoverage(b, a));
+  }
+  function routesAreDistinct(a, b, maximumOverlap = 0.72) {
+    return routeGeometricOverlap(a, b) < maximumOverlap;
+  }
+  function diverseRoutes(routes, maximum = 3) {
+    const selected = [];
+    for (const route of routes) {
+      if (selected.every((existing) => routesAreDistinct(route, existing))) {
+        selected.push(route);
+        if (selected.length >= maximum) break;
+      }
+    }
+    return selected;
+  }
   function respectsTime(route) {
     return route.audit?.checks?.some(
       (check) => check.id === "time" && check.status === "respected",
@@ -1686,7 +1773,7 @@
         const acceptable = current.filter(
           (route) => route.proposalStatus !== "adaptation" && respectsTime(route),
         );
-        if (acceptable.length >= 3) break;
+        if (diverseRoutes(acceptable, 3).length >= 3) break;
       }
     } catch (e) {
       serviceState("ors", "Indisponible", "error");
@@ -1748,7 +1835,11 @@
     const selectionPool = substantial.length ? substantial : pool;
     const picks = [];
     const selectProfile = (orientation, name, minimum, maximum, scorer) => {
-      const available = selectionPool.filter((route) => !picks.some((pick) => pick.route === route));
+      const available = selectionPool.filter(
+        (route) =>
+          !picks.some((pick) => pick.route === route) &&
+          picks.every((pick) => routesAreDistinct(route, pick.route)),
+      );
       const preferred = available.filter((route) => inRange(route, minimum, maximum));
       const candidates = preferred.length ? preferred : available;
       const route = [...candidates].sort((a, b) => scorer(a) - scorer(b))[0];
@@ -1758,12 +1849,19 @@
     selectProfile("agréable", "L’agréable", 0.75, 1, pleasureScore);
     selectProfile("tonique", "La plus tonique", 0.6, 0.95, tonicScore);
     if (picks.length < 3 && micro.length) {
-      const route = micro.find((candidate) => !picks.some((pick) => pick.route === candidate));
+      const route = micro.find(
+        (candidate) =>
+          !picks.some((pick) => pick.route === candidate) &&
+          picks.every((pick) => routesAreDistinct(candidate, pick.route)),
+      );
       if (route) picks.push({ route, orientation: "très courte", name: "La très courte" });
     }
     for (const route of selectionPool) {
       if (picks.length >= 3) break;
-      if (!picks.some((pick) => pick.route === route))
+      if (
+        !picks.some((pick) => pick.route === route) &&
+        picks.every((pick) => routesAreDistinct(route, pick.route))
+      )
         picks.push({ route, orientation: "alternative", name: "Une autre possibilité" });
     }
     const selectedRoutes = picks.map(({ route, orientation, name }) => {
@@ -1788,7 +1886,9 @@
         resultLabel +
         " parmi " +
         all.length +
-        " candidate(s), " +
+        " candidate(s), dont " +
+        selectedRoutes.length +
+        " géométrie(s) suffisamment différente(s), " +
         completedBatches +
         " palier(s) de distance exploré(s) · " +
         engine,
