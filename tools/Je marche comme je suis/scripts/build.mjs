@@ -8,6 +8,7 @@ const read = (relativePath) =>
 
 const bundles = {
   CORE: [
+    "src/core/limitations-core.js",
     "src/core/route-engine-core.js",
     "src/core/gpx-core.js",
     "src/core/peripheral-registry.js",
