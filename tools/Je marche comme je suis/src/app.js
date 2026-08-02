@@ -8,6 +8,7 @@
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
+  const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -28,6 +29,7 @@
       request: null,
       compiled: null,
       bases: null,
+      weather: null,
       layerControl: null,
       requestCounts: { ors: 0, geo: 0, mapillary: 0 },
       nav: {
@@ -762,6 +764,28 @@
     }),
   );
   const geoapifyProvider = peripherals.require("geoapify");
+  peripherals.register(
+    globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
+  );
+  const weatherProvider = peripherals.require("open-meteo");
+  async function loadWeatherFor(latitude, longitude, minutes) {
+    try {
+      const raw = await weatherProvider.forecast({
+        latitude,
+        longitude,
+        hours: Math.max(1, Number(minutes || 60) / 60 + 1),
+      });
+      const summary = summarizeForecast(raw.hourly, {
+        startIndex: raw.startIndex,
+        count: raw.count,
+      });
+      const assessment = assessForecast(summary);
+      S.weather = { summary, assessment, timezone: raw.timezone };
+    } catch (error) {
+      S.weather = { summary: null, assessment: assessForecast(null), error: error.message };
+    }
+    return S.weather;
+  }
   function clearEnrichment() {
     S.poiLayers.forEach((x) => x.remove());
     S.photoLayers.forEach((x) => x.remove());
@@ -1012,6 +1036,8 @@
       ' %</b><span>couverture altitude</span></div><div class="data"><b>' +
       esc(r.elevationQuality || "—") +
       '</b><span>qualité altitude</span></div><div class="data"><b>' +
+      esc(r.weather?.assessment?.label || "—") +
+      '</b><span>météo Open-Meteo</span></div><div class="data"><b>' +
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
@@ -1883,8 +1909,9 @@
     return Number.isFinite(seconds) && seconds > 0 ? Math.min(60, seconds) : null;
   }
   async function direct(req) {
-    const c = await geocode(),
-      requestedTarget = Math.max(500, S.compiled.targetMeters),
+    const c = await geocode();
+    await loadWeatherFor(c.lat, c.lon, req.time?.availableMinutes);
+    const requestedTarget = Math.max(500, S.compiled.targetMeters),
       targetFactors = [1, 0.78, 0.58, 0.4],
       unique = new Map();
     const engine = "OpenRouteService sécurisé";
@@ -1963,6 +1990,10 @@
       }
       all = verified;
     }
+    if (S.weather?.assessment)
+      all = all.map((route) =>
+        applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
+      );
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
       adaptations = all.filter((x) => x.proposalStatus === "adaptation"),
@@ -2235,12 +2266,23 @@
     const text = await file.text();
     const compiled = S.compiled || compileConstraints(S.request);
     const parsed = parseGPXText(text, file.name.replace(/\.gpx$/i, ""));
+    if (parsed[0]?.points?.[0])
+      await loadWeatherFor(
+        Number(parsed[0].points[0][1]),
+        Number(parsed[0].points[0][0]),
+        S.request?.time?.availableMinutes,
+      );
     const audited = parsed.map((source, index) =>
       auditedGPXCandidate(source, compiled, index),
     );
-    const compatible = audited.filter((route) => route.proposalStatus === "compatible");
-    const toVerify = audited.filter((route) => route.proposalStatus === "verify");
-    const adaptations = audited.filter((route) => route.proposalStatus === "adaptation");
+    const weatherAudited = S.weather?.assessment
+      ? audited.map((route) =>
+          applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
+        )
+      : audited;
+    const compatible = weatherAudited.filter((route) => route.proposalStatus === "compatible");
+    const toVerify = weatherAudited.filter((route) => route.proposalStatus === "verify");
+    const adaptations = weatherAudited.filter((route) => route.proposalStatus === "adaptation");
     const pool = compatible.length
       ? compatible
       : toVerify.length
