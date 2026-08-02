@@ -1,12 +1,12 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T21:22:36.022Z",
+  "generatedAt": "2026-08-02T21:28:28.134Z",
   "counts": {
     "visibleFields": 41,
     "choiceGroups": 5,
     "visibleChoices": 62,
-    "complete": 29,
-    "partial": 17
+    "complete": 30,
+    "partial": 16
   },
   "structuralCoverage": {
     "orphanFields": [],
@@ -424,8 +424,8 @@
         "pause-places"
       ],
       "unknownPolicy": "block-if-required",
-      "status": "partial",
-      "note": "Temps inclus dans le budget ; positionnement réel à compléter."
+      "status": "complete",
+      "note": "Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables."
     },
     {
       "id": "freeText",
