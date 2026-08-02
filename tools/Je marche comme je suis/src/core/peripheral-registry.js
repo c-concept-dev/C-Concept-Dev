@@ -6,6 +6,7 @@
     routing: Object.freeze(["createRoundTrips"]),
     enrichment: Object.freeze(["enrich"]),
     importer: Object.freeze(["importRoute"]),
+    weather: Object.freeze(["forecast"]),
   });
 
   function createPeripheralRegistry() {
