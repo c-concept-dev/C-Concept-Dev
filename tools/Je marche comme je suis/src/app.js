@@ -6,10 +6,10 @@
     auditRoute: auditRoute,
   } = globalThis.JMMJSRouteEngineCore;
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
+  const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
-    validateFunctionalLimitation,
-    prepareRequestWithFunctionalLimitations,
+    mergeStructuredLimitationIntoRequest,
   } = globalThis.JMMJSLimitationsCore;
   const $ = (s) => document.querySelector(s),
     $$ = (s) => [...document.querySelectorAll(s)],
@@ -258,7 +258,7 @@
   }
   function buildRequest() {
     return {
-      schemaVersion: "1.3",
+      schemaVersion: "1.2",
       createdAt: new Date().toISOString(),
       start: {
         label: val("#place"),
@@ -302,11 +302,11 @@
             : val("#helperAvailable") === "no"
               ? false
               : null,
-        confirmed: $("#limitationConfirmed").checked,
       },
       effort: {
         profile: val("#effort"),
         maxContinuousAscentMinutes: val("#ascentMinutes") || null,
+        maxContinuousDescentMinutes: val("#descentMinutes") || null,
         maxAscentSlopePercent: num("#upSlope"),
         maxDescentSlopePercent: num("#downSlope"),
         recovery: val("#recovery"),
@@ -363,6 +363,12 @@
       imperative.push(summaryItem("Pente montante maximale", `${compiled.hard.maxUp} %`, "Réglage d’effort", "Impératif", 2));
     if (compiled.hard.maxDown !== null)
       imperative.push(summaryItem("Pente descendante maximale", `${compiled.hard.maxDown} %`, "Réglage d’effort", "Impératif", 2));
+    if (request.effort?.maxContinuousAscentMinutes)
+      imperative.push(summaryItem("Montée continue maximale", request.effort.maxContinuousAscentMinutes === "none" ? "aucune montée" : `${request.effort.maxContinuousAscentMinutes} min`, "Choix direct ou règle D-024 confirmée", "Impératif", 2));
+    if (request.effort?.maxContinuousDescentMinutes)
+      imperative.push(summaryItem("Descente continue maximale", request.effort.maxContinuousDescentMinutes === "none" ? "aucune descente" : `${request.effort.maxContinuousDescentMinutes} min`, "Choix direct ou règle D-024 confirmée", "Impératif", 2));
+    if (request.effort?.recovery)
+      imperative.push(summaryItem("Récupération après effort", request.effort.recovery, "Choix direct", "Impératif", 2, "Une récupération non prouvée restera invérifiable."));
     if (compiled.hard.avoidStairs)
       imperative.push(summaryItem("Escaliers", "à éviter dès la génération puis à contrôler", request.hardConstraints?.avoidStairs ? "Interdiction explicite" : "Limitation ou équipement", "Impératif", request.hardConstraints?.avoidStairs ? 3 : 1, "Une donnée absente restera invérifiable."));
     if (compiled.hard.avoidExposure)
@@ -373,32 +379,6 @@
       imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
     if (compiled.hard.requiredServices.length)
       imperative.push(summaryItem("Services requis", compiled.hard.requiredServices.join(", "), "Services ou pauses", "Impératif", 2, "Ils devront être documentés avant une qualification compatible."));
-
-    for (const rule of request.derivedFunctionalRules || []) {
-      const value = rule.thresholdPercent != null
-        ? `${rule.label} · seuil ${rule.thresholdPercent} %`
-        : rule.thresholdMinutes != null
-          ? `${rule.label} · seuil ${rule.thresholdMinutes} min`
-          : rule.label;
-      const note = rule.thresholdOrigin === "prudent-default"
-        ? "Seuil prudent D-024 appliqué uniquement parce qu’aucun seuil explicite n’a été choisi."
-        : rule.auditKind === "pause-plan" && rule.thresholdMinutes == null
-          ? "Le seuil manque : cette inconnue impérative restera « À vérifier ». Aucun banc n’est présumé."
-          : rule.auditKind === "fallback"
-            ? "Un repli ne sera déclaré réel qu’avec une géométrie ou une preuve."
-            : rule.unknownPolicy === "manual_review"
-              ? "Une donnée absente restera « À vérifier », jamais compatible."
-              : "Règle dérivée de la conséquence confirmée.";
-      const item = summaryItem(
-        "Règle fonctionnelle D-024",
-        value,
-        "Conséquence explicitement confirmée",
-        rule.severity === "hard" ? "Impératif" : "Préférence prudente",
-        1,
-        note,
-      );
-      (rule.severity === "hard" ? imperative : preferences).push(item);
-    }
 
     if (compiled.advisory.maxUp !== null)
       preferences.push(summaryItem("Montée prudente", `privilégier une pente autour de ${compiled.advisory.maxUp} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
@@ -419,14 +399,18 @@
     if (request.equipment?.length)
       preparation.push(summaryItem("Équipement", request.equipment.join(", "), "Équipement emporté", "Préparation et audit", 1));
     if (request.functionalLimitation?.trigger && request.functionalLimitation?.consequence)
-      preparation.push(summaryItem(
-        "Limitation fonctionnelle déclarée",
-        describeFunctionalLimitation(request.functionalLimitation),
-        "Déclaration de l’utilisateur, sans diagnostic",
-        request.functionalLimitation.confirmed ? "Confirmée" : "À confirmer",
-        1,
-        "L’accompagnant et l’équipement ne relèvent aucune capacité déclarée.",
-      ));
+      preparation.push(
+        summaryItem(
+          "Conséquence fonctionnelle",
+          describeFunctionalLimitation(request.functionalLimitation),
+          "Réglage confirmé par l’utilisateur",
+          request.derivedFunctionalRules?.some((rule) => rule.severity === "imperative")
+            ? "Impératif"
+            : "Préférence prudente",
+          1,
+          "Le moteur utilise les conséquences déclarées, sans poser de diagnostic.",
+        ),
+      );
     if (request.pausePlan)
       preparation.push(summaryItem("Pauses", request.pausePlan, "Plan de pauses", "Budget et préparation", 2));
     preparation.push(summaryItem("Comparaison des sens", compiled.hard.compareDirections ? "activée" : "désactivée", "Prudence et repli", compiled.hard.compareDirections ? "Contrôle" : "Information", 3));
@@ -466,7 +450,8 @@
   function renderConstraintSummary() {
     const host = $("#constraintSummary");
     if (!host) return;
-    const request = prepareRequestWithFunctionalLimitations(buildRequest());
+    const rawRequest = buildRequest();
+    const request = mergeStructuredLimitationIntoRequest(rawRequest);
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
     host.innerHTML =
@@ -546,6 +531,9 @@
       descent: metric(m.descentMeters, hasElevation ? e.down : null),
       maxAscent: metric(m.maxContinuousAscentMinutes),
       maxDescent: metric(m.maxContinuousDescentMinutes),
+      elevationCoverage: metric(m.elevationCoveragePercent),
+      elevationQuality: m.elevationQuality || null,
+      recoveryMinutesFound: metric(m.recoveryMinutesFound),
       maxUp: metric(m.maxAscentSlopePercent),
       maxDown: metric(m.maxDescentSlopePercent),
       terrain: r.terrainTypes || [],
@@ -1015,6 +1003,12 @@
       ' %</b><span>pente montée</span></div><div class="data"><b>' +
       metricLabel(r.maxDown, 1) +
       ' %</b><span>pente descente</span></div><div class="data"><b>' +
+      metricLabel(r.recoveryMinutesFound, 1) +
+      ' min</b><span>récupération facile</span></div><div class="data"><b>' +
+      metricLabel(r.elevationCoverage, 0) +
+      ' %</b><span>couverture altitude</span></div><div class="data"><b>' +
+      esc(r.elevationQuality || "—") +
+      '</b><span>qualité altitude</span></div><div class="data"><b>' +
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
@@ -1474,61 +1468,19 @@
         ? [12, 13, 15].includes(id)
         : false;
   }
-  function elevationEvidence(coords, paceKmh) {
-    let maxUpPercent = 0,
-      maxDownPercent = 0,
-      currentAscentMinutes = 0,
-      maxContinuousAscentMinutes = 0,
-      recoveryEasyMinutes = 0,
-      currentRecoveryMinutes = 0,
-      afterAscent = false,
-      knownSegments = 0;
-    for (let index = 1; index < coords.length; index += 1) {
-      const previous = coords[index - 1],
-        current = coords[index];
-      if (
-        !Number.isFinite(Number(previous[2])) ||
-        !Number.isFinite(Number(current[2]))
-      )
-        continue;
-      const meters = distance([previous, current]);
-      if (meters < 1) continue;
-      knownSegments += 1;
-      const slope = ((Number(current[2]) - Number(previous[2])) / meters) * 100,
-        minutes = meters / Math.max(1, (paceKmh * 1e3) / 60);
-      if (slope > 1) {
-        maxUpPercent = Math.max(maxUpPercent, slope);
-        currentAscentMinutes += minutes;
-        maxContinuousAscentMinutes = Math.max(
-          maxContinuousAscentMinutes,
-          currentAscentMinutes,
-        );
-        currentRecoveryMinutes = 0;
-        afterAscent = true;
-      } else {
-        if (slope < -1)
-          maxDownPercent = Math.max(maxDownPercent, Math.abs(slope));
-        if (afterAscent && Math.abs(slope) <= 3) {
-          currentRecoveryMinutes += minutes;
-          recoveryEasyMinutes = Math.max(
-            recoveryEasyMinutes,
-            currentRecoveryMinutes,
-          );
-        } else if (Math.abs(slope) > 3) {
-          currentRecoveryMinutes = 0;
-        }
-        currentAscentMinutes = 0;
-      }
-    }
-    return {
-      known: knownSegments > 0,
-      maxUpPercent: Math.round(maxUpPercent * 10) / 10,
-      maxDownPercent: Math.round(maxDownPercent * 10) / 10,
-      maxContinuousAscentMinutes:
-        Math.round(maxContinuousAscentMinutes * 10) / 10,
-      recoveryEasyMinutes: Math.round(recoveryEasyMinutes * 10) / 10,
-    };
+  function recoveryMinutesRequested(value) {
+    if (value === "5 min faciles") return 5;
+    if (value === "10 min faciles") return 10;
+    return 0;
   }
+  function elevationEvidence(coords, paceKmh, recovery = "") {
+    return analyzeElevationProfile(
+      coords,
+      paceKmh,
+      recoveryMinutesRequested(recovery),
+    );
+  }
+
   function analyzeORS(f, req, i) {
     const p = f.properties || {},
       sum = p.summary || {},
@@ -1719,17 +1671,18 @@
         stairsMeters: stairsMeters,
         surfaces: surfaces,
         ascentMeters: elevationDetails.known ? elevation.up : null,
-        maxContinuousAscentMinutes: elevationDetails.known
+        maxContinuousAscentMinutes: elevationDetails.completeEnough
           ? elevationDetails.maxContinuousAscentMinutes
           : null,
-        recoverySatisfied:
-          req.effort?.recovery === "5 min faciles"
-            ? elevationDetails.known &&
-              elevationDetails.recoveryEasyMinutes >= 5
-            : req.effort?.recovery === "10 min faciles"
-              ? elevationDetails.known &&
-                elevationDetails.recoveryEasyMinutes >= 10
-              : undefined,
+        maxContinuousDescentMinutes: elevationDetails.completeEnough
+          ? elevationDetails.maxContinuousDescentMinutes
+          : null,
+        elevationCoveragePercent: elevationDetails.coverage,
+        elevationQuality: elevationDetails.quality,
+        recoverySatisfied: req.effort?.recovery
+          ? elevationDetails.recoverySatisfied
+          : undefined,
+        recoveryMinutesFound: elevationDetails.recoveryMinutesFound,
         shortcuts: compiled.hard.requireShortcuts ? undefined : [],
         directionsCompared: Boolean(compiled.hard.compareDirections),
       },
@@ -1785,9 +1738,14 @@
           totalMinutes: walkingMinutes + compiled.time.pauseMinutes,
           ascentMeters: elevationDetails.known ? elevation.up : null,
           descentMeters: elevationDetails.known ? elevation.down : null,
-          maxContinuousAscentMinutes: elevationDetails.known
+          maxContinuousAscentMinutes: elevationDetails.completeEnough
             ? elevationDetails.maxContinuousAscentMinutes
-            : 0,
+            : null,
+          maxContinuousDescentMinutes: elevationDetails.completeEnough
+            ? elevationDetails.maxContinuousDescentMinutes
+            : null,
+          elevationCoveragePercent: elevationDetails.coverage,
+          recoveryMinutesFound: elevationDetails.recoveryMinutesFound,
           maxAscentSlopePercent: maxUp,
           maxDescentSlopePercent: maxDown,
         },
@@ -2076,9 +2034,9 @@
     const summary = summarizePoints(source.points);
     const walkingMinutes =
       summary.distanceMeters / Math.max(1, (compiled.paceKmh * 1e3) / 60);
-    const forwardElevation = elevationEvidence(originalCoords, compiled.paceKmh);
+    const forwardElevation = elevationEvidence(originalCoords, compiled.paceKmh, compiled.request.effort?.recovery || "");
     const reverseCoords = [...originalCoords].reverse();
-    const reverseElevation = elevationEvidence(reverseCoords, compiled.paceKmh);
+    const reverseElevation = elevationEvidence(reverseCoords, compiled.paceKmh, compiled.request.effort?.recovery || "");
     const elevationComplete = summary.elevationCoverage >= 0.999;
     const common = {
       walkingMinutes,
@@ -2104,16 +2062,17 @@
           maxContinuousAscentMinutes: elevationComplete
             ? details.maxContinuousAscentMinutes
             : null,
-          recoverySatisfied:
-            !recoveryTarget
+          maxContinuousDescentMinutes: elevationComplete
+            ? details.maxContinuousDescentMinutes
+            : null,
+          elevationCoveragePercent: Math.round(summary.elevationCoverage * 100),
+          elevationQuality: elevationComplete ? "complete" : "partial-insufficient",
+          recoverySatisfied: !recoveryTarget
+            ? undefined
+            : !elevationComplete
               ? undefined
-              : !elevationComplete
-                ? undefined
-                : recoveryTarget === "5 min faciles"
-                  ? details.recoveryEasyMinutes >= 5
-                  : recoveryTarget === "10 min faciles"
-                    ? details.recoveryEasyMinutes >= 10
-                    : undefined,
+              : details.recoverySatisfied,
+          recoveryMinutesFound: details.recoveryMinutesFound,
         },
         compiled,
       );
@@ -2178,6 +2137,11 @@
           maxContinuousAscentMinutes: elevationComplete
             ? details.maxContinuousAscentMinutes
             : null,
+          maxContinuousDescentMinutes: elevationComplete
+            ? details.maxContinuousDescentMinutes
+            : null,
+          elevationCoveragePercent: Math.round(summary.elevationCoverage * 100),
+          elevationQuality: elevationComplete ? "complete" : "partial-insufficient",
           maxAscentSlopePercent: elevationComplete ? details.maxUpPercent : null,
           maxDescentSlopePercent: elevationComplete ? details.maxDownPercent : null,
         },
@@ -2239,15 +2203,7 @@
   });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
-    const rawRequest = buildRequest();
-    const functionalIssues = validateFunctionalLimitation(
-      rawRequest.functionalLimitation,
-    );
-    if (functionalIssues.length) {
-      go(1);
-      return say(functionalIssues.join(" "));
-    }
-    S.request = prepareRequestWithFunctionalLimitations(rawRequest);
+    S.request = mergeStructuredLimitationIntoRequest(buildRequest());
     S.compiled = compileConstraints(S.request);
     const miss = [];
     if (!S.request.start.label && !Number.isFinite(S.request.start.latitude))
