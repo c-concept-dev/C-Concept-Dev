@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node --test test/*.test.mjs",
-    "check": "npm run build && npm test"
+    "check": "npm run build && npm run audit:fields && npm test",
+    "audit:fields": "node scripts/audit-fields.mjs"
   }
 }
