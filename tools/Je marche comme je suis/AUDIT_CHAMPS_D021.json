@@ -1,0 +1,550 @@
+{
+  "version": "D-021",
+  "generatedAt": "2026-08-02T17:27:19.573Z",
+  "counts": {
+    "visibleFields": 33,
+    "choiceGroups": 5,
+    "visibleChoices": 62,
+    "complete": 16,
+    "partial": 22
+  },
+  "structuralCoverage": {
+    "orphanFields": [],
+    "missingFields": [],
+    "orphanChoices": [],
+    "missingChoices": [],
+    "passed": true
+  },
+  "rows": [
+    {
+      "id": "place",
+      "kind": "field",
+      "effect": "generation",
+      "severity": "information",
+      "requiredData": [
+        "geocoding"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Géocodage et génération depuis un départ réel."
+    },
+    {
+      "id": "lat",
+      "kind": "field",
+      "effect": "generation",
+      "severity": "information",
+      "requiredData": [
+        "coordinate"
+      ],
+      "unknownPolicy": "fallback-place",
+      "status": "complete",
+      "note": "Coordonnée utilisée par la génération."
+    },
+    {
+      "id": "lon",
+      "kind": "field",
+      "effect": "generation",
+      "severity": "information",
+      "requiredData": [
+        "coordinate"
+      ],
+      "unknownPolicy": "fallback-place",
+      "status": "complete",
+      "note": "Coordonnée utilisée par la génération."
+    },
+    {
+      "id": "returnRadius",
+      "kind": "field",
+      "effect": "audit",
+      "severity": "imperative",
+      "requiredData": [
+        "geometry"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Fermeture contrôlée après calcul."
+    },
+    {
+      "id": "returnTime",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "clock"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Réduit le budget disponible."
+    },
+    {
+      "id": "duration",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "duration"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Plafond audité sur la durée réelle."
+    },
+    {
+      "id": "timeIncludes",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "pause-plan"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Détermine les composantes incluses dans le budget."
+    },
+    {
+      "id": "margin",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "duration"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Soustraite avant génération et auditée."
+    },
+    {
+      "id": "pace",
+      "kind": "field",
+      "effect": "generation",
+      "severity": "information",
+      "requiredData": [
+        "duration"
+      ],
+      "unknownPolicy": "use-prudent-default",
+      "status": "complete",
+      "note": "Transforme le budget de marche en cible de distance."
+    },
+    {
+      "id": "age",
+      "kind": "field",
+      "effect": "explanation",
+      "severity": "preparation",
+      "requiredData": [],
+      "unknownPolicy": "allow",
+      "status": "partial",
+      "note": "N’interdit rien ; son effet de confirmation reste limité."
+    },
+    {
+      "id": "level",
+      "kind": "field",
+      "effect": "generation-ranking",
+      "severity": "preference",
+      "requiredData": [],
+      "unknownPolicy": "use-prudent-default",
+      "status": "partial",
+      "note": "Influence la prudence de génération, sans calibration terrain."
+    },
+    {
+      "id": "company",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "preparation",
+      "requiredData": [],
+      "unknownPolicy": "allow",
+      "status": "partial",
+      "note": "Conservé dans la demande ; isolement et traversées restent incomplets."
+    },
+    {
+      "id": "fitness",
+      "kind": "field",
+      "effect": "generation",
+      "severity": "preference",
+      "requiredData": [],
+      "unknownPolicy": "use-prudent-default",
+      "status": "partial",
+      "note": "Influence la cible, sans calibration terrain."
+    },
+    {
+      "id": "fatigue",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "shortcuts"
+      ],
+      "unknownPolicy": "use-prudent-default",
+      "status": "partial",
+      "note": "Réduit la cible et favorise les replis ; contrôle des replis incomplet."
+    },
+    {
+      "id": "pain",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "functional-effects"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "partial",
+      "note": "Déclenche une prudence générale ; conséquences structurées à compléter."
+    },
+    {
+      "id": "balance",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "surface",
+        "width"
+      ],
+      "unknownPolicy": "block-if-imperative",
+      "status": "partial",
+      "note": "Favorise régularité et prudence ; largeur/dévers encore incomplets."
+    },
+    {
+      "id": "painDetail",
+      "kind": "field",
+      "effect": "explanation",
+      "severity": "preparation",
+      "requiredData": [
+        "structured-limitations"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "partial",
+      "note": "Texte conservé mais aucune extraction automatique non confirmée."
+    },
+    {
+      "id": "footwear",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "surface"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Matrice de surfaces et audit des incompatibilités documentées."
+    },
+    {
+      "id": "noStairs",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "steps"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Évitement ORS et contrôle des données de marches."
+    },
+    {
+      "id": "noExposure",
+      "kind": "field",
+      "effect": "audit",
+      "severity": "imperative",
+      "requiredData": [
+        "exposure"
+      ],
+      "unknownPolicy": "block",
+      "status": "partial",
+      "note": "Contrôle prévu mais preuve d’exposition encore souvent absente."
+    },
+    {
+      "id": "effort",
+      "kind": "field",
+      "effect": "generation-ranking",
+      "severity": "preference",
+      "requiredData": [
+        "elevation"
+      ],
+      "unknownPolicy": "rank-only",
+      "status": "complete",
+      "note": "Classement par profil et métriques d’effort."
+    },
+    {
+      "id": "ascentMinutes",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "elevation",
+        "segment-times"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "partial",
+      "note": "Champ compilé ; mesure continue à consolider."
+    },
+    {
+      "id": "upSlope",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "steepness"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "complete",
+      "note": "Pente montante auditée lorsqu’elle est disponible."
+    },
+    {
+      "id": "downSlope",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "steepness"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "complete",
+      "note": "Pente descendante auditée lorsqu’elle est disponible."
+    },
+    {
+      "id": "recovery",
+      "kind": "field",
+      "effect": "audit",
+      "severity": "conditional",
+      "requiredData": [
+        "elevation",
+        "segment-times",
+        "benches"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "partial",
+      "note": "Règle compilée ; segment facile ou banc pas toujours prouvé."
+    },
+    {
+      "id": "weather",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "preparation",
+      "requiredData": [
+        "observed-weather"
+      ],
+      "unknownPolicy": "preserve-unknown",
+      "status": "partial",
+      "note": "Constat manuel conservé ; Open-Meteo n’est pas encore intégré."
+    },
+    {
+      "id": "pauses",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "preparation",
+      "requiredData": [
+        "pause-places"
+      ],
+      "unknownPolicy": "block-if-required",
+      "status": "partial",
+      "note": "Temps inclus dans le budget ; positionnement réel à compléter."
+    },
+    {
+      "id": "freeText",
+      "kind": "field",
+      "effect": "explanation-confirmation",
+      "severity": "preparation",
+      "requiredData": [
+        "structured-limitations"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "partial",
+      "note": "Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres."
+    },
+    {
+      "id": "strict",
+      "kind": "field",
+      "effect": "selection",
+      "severity": "imperative",
+      "requiredData": [],
+      "unknownPolicy": "block-unknown-hard",
+      "status": "complete",
+      "note": "Empêche les assouplissements silencieux."
+    },
+    {
+      "id": "shortcuts",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "shortcut-routes"
+      ],
+      "unknownPolicy": "block-if-required",
+      "status": "partial",
+      "note": "Demande compilée ; calcul de raccourcis réels à compléter."
+    },
+    {
+      "id": "bothWays",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "reverse-audit"
+      ],
+      "unknownPolicy": "block-if-required",
+      "status": "complete",
+      "note": "Les deux sens sont audités."
+    },
+    {
+      "id": "private",
+      "kind": "field",
+      "effect": "persistence",
+      "severity": "preparation",
+      "requiredData": [],
+      "unknownPolicy": "allow",
+      "status": "partial",
+      "note": "Intention de non-persistance présente ; audit complet du stockage à faire."
+    },
+    {
+      "id": "gpxFile",
+      "kind": "field",
+      "effect": "route-source",
+      "severity": "imperative",
+      "requiredData": [
+        "geometry"
+      ],
+      "unknownPolicy": "block",
+      "status": "partial",
+      "note": "Import présent ; parité complète avec ORS prévue en D-022."
+    },
+    {
+      "id": "equipment",
+      "kind": "choice-group",
+      "choices": [
+        "Canne",
+        "Bâtons",
+        "Déambulateur",
+        "Poussette",
+        "Fauteuil roulant",
+        "Sac lourd",
+        "Eau",
+        "Téléphone chargé"
+      ],
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "surface",
+        "width",
+        "kerb",
+        "steps"
+      ],
+      "unknownPolicy": "block-if-imperative",
+      "status": "partial",
+      "note": "Options ORS et audits présents pour certains équipements seulement."
+    },
+    {
+      "id": "limits",
+      "kind": "choice-group",
+      "choices": [
+        "Montée difficile",
+        "Descente difficile",
+        "Terrain irrégulier",
+        "Genoux",
+        "Hanches",
+        "Chevilles",
+        "Pieds",
+        "Dos",
+        "Essoufflement",
+        "Fatigue rapide",
+        "Équilibre",
+        "Vertiges",
+        "Peur du vide",
+        "Escaliers",
+        "Station debout",
+        "Pauses fréquentes",
+        "Toilettes",
+        "Rester près du départ",
+        "Rester près d’une route"
+      ],
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "surface",
+        "slope",
+        "width",
+        "services"
+      ],
+      "unknownPolicy": "block-if-imperative",
+      "status": "partial",
+      "note": "Plusieurs limitations sont traduites ; seuils fonctionnels à structurer."
+    },
+    {
+      "id": "terrain",
+      "kind": "choice-group",
+      "choices": [
+        "Goudron accepté",
+        "Chemin stabilisé",
+        "Voie verte",
+        "Terre sèche",
+        "Sentier naturel",
+        "Terrain régulier",
+        "Peu de pierres",
+        "Peu de racines",
+        "Pas de boue",
+        "Chemin large",
+        "Peu de circulation",
+        "Peu de traversées"
+      ],
+      "effect": "generation-ranking-audit",
+      "severity": "preference",
+      "requiredData": [
+        "surface",
+        "waytype",
+        "traffic"
+      ],
+      "unknownPolicy": "preserve-unknown",
+      "status": "partial",
+      "note": "Influence génération et classement ; régularité/largeur restent souvent inconnues."
+    },
+    {
+      "id": "wishes",
+      "kind": "choice-group",
+      "choices": [
+        "Point de vue",
+        "Rivière",
+        "Lac",
+        "Forêt",
+        "Ombre",
+        "Village",
+        "Patrimoine",
+        "Curiosité locale",
+        "Boulangerie",
+        "Café",
+        "Restaurant",
+        "Pique-nique",
+        "Bancs",
+        "Calme",
+        "Peu de goudron",
+        "Photo"
+      ],
+      "effect": "generation-ranking",
+      "severity": "preference",
+      "requiredData": [
+        "green",
+        "noise",
+        "pois"
+      ],
+      "unknownPolicy": "rank-only",
+      "status": "partial",
+      "note": "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."
+    },
+    {
+      "id": "services",
+      "kind": "choice-group",
+      "choices": [
+        "Toilettes",
+        "Eau potable",
+        "Banc",
+        "Pharmacie",
+        "Parking",
+        "Transport public",
+        "Réseau téléphonique"
+      ],
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "pois"
+      ],
+      "unknownPolicy": "block",
+      "status": "partial",
+      "note": "Recherche possible après sélection ; impératifs avant sélection à réaliser."
+    }
+  ]
+}
