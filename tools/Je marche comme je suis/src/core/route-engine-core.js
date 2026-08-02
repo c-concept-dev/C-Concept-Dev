@@ -399,37 +399,51 @@
         "Passages exposés exclus en raison des vertiges ou de la peur du vide.",
       );
 
-    let maxUp = finite(request.effort?.maxAscentSlopePercent);
-    let maxDown = finite(request.effort?.maxDescentSlopePercent);
-    if (
-      maxUp === null &&
+    const explicitMaxUp = finite(request.effort?.maxAscentSlopePercent);
+    const explicitMaxDown = finite(request.effort?.maxDescentSlopePercent);
+    const suggestedMaxUp =
+      explicitMaxUp === null &&
       (has(limitations, "Montée difficile") ||
         has(limitations, "Essoufflement"))
-    )
-      maxUp = 6;
-    if (
-      maxDown === null &&
+        ? 6
+        : null;
+    const suggestedMaxDown =
+      explicitMaxDown === null &&
       (has(limitations, "Descente difficile") || has(limitations, "Genoux"))
-    )
-      maxDown = 4;
-    if (maxUp !== null && request.effort?.maxAscentSlopePercent == null)
-      derived.push(`Pente montante limitée à ${maxUp} %.`);
-    if (maxDown !== null && request.effort?.maxDescentSlopePercent == null)
-      derived.push(`Pente descendante limitée à ${maxDown} %.`);
+        ? 4
+        : null;
+    if (suggestedMaxUp !== null)
+      derived.push(
+        `Pente montante de ${suggestedMaxUp} % privilégiée, sans en faire une interdiction implicite.`,
+      );
+    if (suggestedMaxDown !== null)
+      derived.push(
+        `Pente descendante de ${suggestedMaxDown} % privilégiée, sans en faire une interdiction implicite.`,
+      );
 
-    const requireRegular =
-      mobilityAid ||
+    const explicitRegular = has(terrain, "Terrain régulier");
+    const suggestedRegular = Boolean(
       has(limitations, "Terrain irrégulier") ||
-      has(limitations, "Équilibre") ||
-      has(limitations, "Chevilles") ||
-      has(limitations, "Pieds") ||
-      has(terrain, "Terrain régulier");
+        has(limitations, "Équilibre") ||
+        has(limitations, "Chevilles") ||
+        has(limitations, "Pieds"),
+    );
+    const requireRegular = mobilityAid || explicitRegular;
     const requireWide = mobilityAid || has(terrain, "Chemin large");
-    const requireShortcuts = Boolean(
+    const suggestedShortcuts = Boolean(
       fatigue >= 4 ||
         has(limitations, "Fatigue rapide") ||
         has(limitations, "Rester près du départ"),
     );
+    const requireShortcuts = Boolean(request.hardConstraints?.requireShortcuts);
+    if (suggestedRegular && !requireRegular)
+      derived.push(
+        "Terrain régulier privilégié en raison de la limitation déclarée ; sa présence doit être vérifiée si la donnée manque.",
+      );
+    if (suggestedShortcuts && !requireShortcuts)
+      derived.push(
+        "Parcours courts et proches du départ privilégiés ; aucun raccourci n’est rendu impératif sans demande explicite.",
+      );
     const returnRadiusMeters = Number.isFinite(
       Number(request.start?.returnRadius),
     )
@@ -470,7 +484,7 @@
             smoothness_type: "good",
             maximum_sloped_kerb: 0.06,
             maximum_incline:
-              [3, 6, 10, 15].find((x) => x >= (maxUp || 6)) || 15,
+              [3, 6, 10, 15].find((x) => x >= (explicitMaxUp || suggestedMaxUp || 6)) || 15,
             minimum_width: requireWide ? 1.2 : undefined,
           }
         : null;
@@ -491,14 +505,20 @@
       hard: {
         avoidStairs,
         avoidExposure,
-        maxUp,
-        maxDown,
+        maxUp: explicitMaxUp,
+        maxDown: explicitMaxDown,
         requireRegular,
         requireWide,
         requireShortcuts,
         compareDirections: Boolean(request.options?.compareDirections),
         returnRadiusMeters,
         requiredServices,
+      },
+      advisory: {
+        maxUp: suggestedMaxUp,
+        maxDown: suggestedMaxDown,
+        preferRegular: suggestedRegular,
+        preferShortcuts: suggestedShortcuts,
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
       routing: {
@@ -747,6 +767,63 @@
         route.directionsCompared
           ? "deux sens analysés"
           : "comparaison non réalisée",
+      );
+    const advisory = compiled.advisory || {};
+    if (advisory.maxUp !== null && advisory.maxUp !== undefined)
+      add(
+        "advisory-up-slope",
+        "Montée prudente privilégiée",
+        "advisory",
+        known(route.maxUpPercent)
+          ? route.maxUpPercent <= advisory.maxUp
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        known(route.maxUpPercent)
+          ? `${route.maxUpPercent} % ; préférence prudente ${advisory.maxUp} %`
+          : "pente montante absente",
+      );
+    if (advisory.maxDown !== null && advisory.maxDown !== undefined)
+      add(
+        "advisory-down-slope",
+        "Descente prudente privilégiée",
+        "advisory",
+        known(route.maxDownPercent)
+          ? route.maxDownPercent <= advisory.maxDown
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        known(route.maxDownPercent)
+          ? `${route.maxDownPercent} % ; préférence prudente ${advisory.maxDown} %`
+          : "pente descendante absente",
+      );
+    if (advisory.preferRegular && !hard.requireRegular)
+      add(
+        "advisory-regularity",
+        "Terrain régulier privilégié",
+        "advisory",
+        typeof route.regularitySafe === "boolean"
+          ? route.regularitySafe
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        typeof route.regularitySafe === "boolean"
+          ? "régularité documentée"
+          : "régularité à vérifier avant de partir",
+      );
+    if (advisory.preferShortcuts && !hard.requireShortcuts)
+      add(
+        "advisory-shortcuts",
+        "Retour facile privilégié",
+        "advisory",
+        Array.isArray(route.shortcuts)
+          ? route.shortcuts.length
+            ? STATUS.RESPECTED
+            : STATUS.UNKNOWN
+          : STATUS.UNKNOWN,
+        Array.isArray(route.shortcuts) && route.shortcuts.length
+          ? `${route.shortcuts.length} repli(s) calculé(s)`
+          : "repli non prouvé ; rester attentif à la proximité du départ",
       );
     const blocking = checks.filter(
       (x) => x.severity === "hard" && x.status !== STATUS.RESPECTED,
