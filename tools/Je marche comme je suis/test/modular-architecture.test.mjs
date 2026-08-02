@@ -23,6 +23,7 @@ function moduleContext() {
 test("the generated HTML embeds every source module", () => {
   const html = read("je-marche-comme-je-suis-p0.html");
   for (const source of [
+    "src/core/limitations-core.js",
     "src/core/route-engine-core.js",
     "src/core/gpx-core.js",
     "src/core/peripheral-registry.js",
@@ -285,4 +286,27 @@ test("D-022 intègre le noyau GPX au build autonome", () => {
   assert.match(app, /auditRoute\(/);
   assert.match(app, /Distance recalculée/);
   assert.match(app, /surfaces, marches, largeur et exposition non fournies par le GPX restent invérifiables/);
+});
+
+test("D-024 structure les limitations confirmées dans le noyau commun", () => {
+  const app = read("src/app.js");
+  const routeCore = read("src/core/route-engine-core.js");
+  const template = read("je-marche-comme-je-suis.template.html");
+  for (const id of [
+    "limitationSide",
+    "limitationTrigger",
+    "limitationConsequence",
+    "limitationTemporality",
+    "maxWithoutPause",
+    "maxStanding",
+    "helperAvailable",
+    "limitationConfirmed",
+  ])
+    assert.match(template, new RegExp(`id="${id}"`));
+  assert.match(app, /prepareRequestWithFunctionalLimitations/);
+  assert.match(app, /validateFunctionalLimitation/);
+  assert.match(app, /Règle fonctionnelle D-024/);
+  assert.match(routeCore, /auditFunctionalRules\(route, compiled, STATUS\)/);
+  assert.match(app, /auditedGPXCandidate/);
+  assert.match(app, /analyzeORSWithCore/);
 });
