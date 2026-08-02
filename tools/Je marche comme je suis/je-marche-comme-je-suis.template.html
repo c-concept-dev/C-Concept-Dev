@@ -796,30 +796,58 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     ><button class="chip">Pauses fréquentes</button
                     ><button class="chip">Toilettes</button
                     ><button class="chip">Rester près du départ</button
-                    ><button class="chip">Rester près d’une route</button></div><label class="check"
+                    ><button class="chip">Rester près d’une route</button></div>
+  <div class="card limitation-structure" id="limitationStructure">
+    <h3>Préciser la conséquence concrète</h3>
+    <p class="hint">Ces réglages décrivent ce qui gêne aujourd’hui. Ils ne constituent pas un diagnostic.</p>
+    <div class="two">
+      <label>Côté atteint
+        <select id="limitationSide">
+          <option>Non précisé</option><option>Gauche</option><option>Droit</option>
+          <option>Bilatéral</option><option>Non pertinent</option>
+        </select>
+      </label>
+      <label>Déclencheur principal
+        <select id="limitationTrigger">
+          <option value="">Non précisé</option><option>Montée</option><option>Descente</option>
+          <option>Terrain irrégulier</option><option>Durée</option>
+          <option>Station debout</option><option>Marche rapide</option><option>Autre</option>
+        </select>
+      </label>
+      <label>Conséquence recherchée
+        <select id="limitationConsequence">
+          <option value="">Non précisée</option><option>Éviter</option><option>Limiter</option>
+          <option>Ralentir</option><option>Prévoir une pause</option><option>Prévoir un repli</option>
+        </select>
+      </label>
+      <label>Contexte
+        <select id="limitationTemporality">
+          <option>Aujourd’hui</option><option>Habituelle</option><option>Permanente</option>
+          <option>Seulement aujourd’hui</option>
+        </select>
+      </label>
+      <label>Maximum sans pause (minutes)
+        <input id="maxWithoutPause" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif">
+      </label>
+      <label>Maximum debout (minutes)
+        <input id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif">
+      </label>
+      <label>Accompagnant capable d’aider
+        <select id="helperAvailable">
+          <option value="">Non précisé</option><option value="yes">Oui</option><option value="no">Non</option>
+        </select>
+      </label>
+    </div>
+  </div><label class="check"
                     ><input id="noStairs" type="checkbox" /> Aucun escalier —
                     impératif</label
                   ><label class="check"
                     ><input id="noExposure" type="checkbox" /> Aucun passage
                     exposé — impératif</label
-                  ></div><div class="card" id="limitationStructure"><h3>Préciser la conséquence concrète</h3><p>
-                    Décrivez uniquement l’effet fonctionnel que vous constatez.
-                    Le moteur ne pose et ne déduit aucun diagnostic.
-                  </p><div class="two"><div class="field"><label>Côté atteint</label
-                      ><select class="input" id="limitationSide"><option>Non précisé</option><option>Gauche</option><option>Droit</option><option>Bilatéral</option><option>Non pertinent</option></select></div><div class="field"><label>Déclencheur principal</label
-                      ><select class="input" id="limitationTrigger"><option value="">Non précisé</option><option>Montée</option><option>Descente</option><option>Terrain irrégulier</option><option>Durée</option><option>Station debout</option><option>Marche rapide</option><option>Autre</option></select></div><div class="field"><label>Conséquence recherchée</label
-                      ><select class="input" id="limitationConsequence"><option value="">Non précisée</option><option>Éviter</option><option>Limiter</option><option>Ralentir</option><option>Prévoir une pause</option><option>Prévoir un repli</option></select></div><div class="field"><label>Temporalité</label
-                      ><select class="input" id="limitationTemporality"><option>Aujourd’hui</option><option>Habituelle</option><option>Permanente</option><option>Seulement aujourd’hui</option></select></div><div class="field"><label>Durée maximale sans pause · facultative</label
-                      ><input class="input" id="maxWithoutPause" type="number" min="1" max="240" inputmode="numeric" placeholder="Minutes" /></div><div class="field"><label>Durée maximale debout · facultative</label
-                      ><input class="input" id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Minutes" /></div><div class="field"><label>Accompagnant capable d’aider</label
-                      ><select class="input" id="helperAvailable"><option value="">Non précisé</option><option value="yes">Oui</option><option value="no">Non</option></select></div></div><label class="check"
-                    ><input id="limitationConfirmed" type="checkbox" /> Je
-                    confirme que cette conséquence décrit ce que je souhaite
-                    éviter, limiter ou prévoir.</label
                   ></div><div class="nav"><button class="secondary prev" type="button">Retour</button
                   ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Effort recherché</h3><p>Montées et descentes sont séparées.</p><div class="field"><label>Profil</label
                     ><select class="input" id="effort"><option value="gentle">Reprise douce</option><option value="pleasure" selected>Plaisir maximal</option><option value="ascent">Travail de la montée</option><option value="endurance">Endurance</option></select></div><div class="two"><div class="field"><label>Montée continue</label
-                      ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select></div><div class="field"><label>Pente montante max.</label
+                      ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select></div><div class="field"><label>Descente continue max.</label><select class="input" id="descentMinutes"><option value="">Sans demande</option><option value="2">2 min max.</option><option value="5">5 min max.</option><option value="10">10 min max.</option><option value="15">15 min max.</option><option value="none">Aucune descente</option></select></div><div class="field"><label>Pente montante max.</label
                       ><select class="input" id="upSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select></div></div><div class="two"><div class="field"><label>Pente descendante max.</label
                       ><select class="input" id="downSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select></div><div class="field"><label>Récupération après montée</label
                       ><select class="input" id="recovery"><option value="">Non précisée</option><option>5 min faciles</option><option>10 min faciles</option><option>Avec un banc</option></select></div></div></div><div class="card"><h3>Terrain souhaité</h3><p>Une donnée inconnue doit rester inconnue.</p><div class="chips group" data-group="terrain"><button class="chip">Goudron accepté</button
