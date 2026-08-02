@@ -82,6 +82,7 @@ test("the ORS peripheral sends only compiled routing options", async () => {
       avoidFeatures: ["steps"],
       weightings: { green: 0.5 },
       restrictions: {},
+      count: 3,
     },
     6,
   ]);
@@ -171,8 +172,8 @@ test("D-013 never restores the exact-route dead end", () => {
 
 test("D-015 retries progressively shorter ORS targets before adaptations", () => {
   const app = read("src/app.js");
-  assert.match(app, /targetFactors = \[1, 0\.82, 0\.68, 0\.54, 0\.4\]/);
-  assert.match(app, /for \(const factor of targetFactors\)/);
+  assert.match(app, /targetFactors = \[1, 0\.78, 0\.58, 0\.4\]/);
+  assert.match(app, /for \(let batchIndex = 0; batchIndex < targetFactors\.length/);
   assert.match(app, /acceptable\.length >= 3/);
   assert.match(app, /respectsTime\(route\)/);
 });
@@ -192,4 +193,23 @@ test("D-016 selects profiles by duration bands and keeps micro-walks separate", 
   assert.match(app, /ratio\(route\) < 0\.4/);
   assert.match(app, /orientation: "très courte"/);
   assert.match(app, /const substantial = pool\.filter\(\(route\) => ratio\(route\) >= 0\.4\)/);
+});
+
+
+test("D-017 caps ORS generation at twelve requests and uses batches of three", () => {
+  const app = read("src/app.js");
+  const provider = read("src/peripherals/ors-provider.js");
+  assert.match(app, /targetFactors = \[1, 0\.78, 0\.58, 0\.4\]/);
+  assert.match(app, /count: 3/);
+  assert.match(provider, /Math\.min\(3, Math\.round\(count\)\)/);
+  assert.doesNotMatch(app, /calcul et analyse de 6 boucles candidates/);
+});
+
+test("D-017 handles ORS retry-after without a blind retry storm", () => {
+  const app = read("src/app.js");
+  const client = read("src/peripherals/service-client.js");
+  assert.match(app, /function retryDelay/);
+  assert.match(app, /await wait\(1200\)/);
+  assert.match(app, /OpenRouteService demande une pause/);
+  assert.match(client, /retryAfterSeconds/);
 });
