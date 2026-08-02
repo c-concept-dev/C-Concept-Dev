@@ -35,7 +35,7 @@
         timezone: data.timezone || null,
       };
     }
-    return Object.freeze({ id: "open-meteo", forecast });
+    return Object.freeze({ id: "open-meteo", kind: "weather", forecast });
   }
   globalThis.JMMJSOpenMeteoProvider = Object.freeze({ createOpenMeteoProvider });
 })();
