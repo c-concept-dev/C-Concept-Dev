@@ -9,10 +9,17 @@ const coreSource = readFileSync(
   new URL("../src/core/route-engine-core.js", import.meta.url),
   "utf8",
 );
+const limitationsSource = readFileSync(
+  new URL("../src/core/limitations-core.js", import.meta.url),
+  "utf8",
+);
 assert.ok(coreSource, "Le noyau testable doit exister comme module source.");
 
 const context = { console, Date, globalThis: null };
 context.globalThis = context;
+vm.runInNewContext(limitationsSource, context, {
+  filename: "jmmjs-limitations-core.js",
+});
 vm.runInNewContext(coreSource, context, {
   filename: "jmmjs-route-engine-core.js",
 });
