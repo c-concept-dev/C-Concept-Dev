@@ -1,12 +1,12 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T17:27:19.573Z",
+  "generatedAt": "2026-08-02T17:34:00.083Z",
   "counts": {
     "visibleFields": 33,
     "choiceGroups": 5,
     "visibleChoices": 62,
-    "complete": 16,
-    "partial": 22
+    "complete": 17,
+    "partial": 21
   },
   "structuralCoverage": {
     "orphanFields": [],
@@ -401,8 +401,8 @@
         "geometry"
       ],
       "unknownPolicy": "block",
-      "status": "partial",
-      "note": "Import présent ; parité complète avec ORS prévue en D-022."
+      "status": "complete",
+      "note": "Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables."
     },
     {
       "id": "equipment",
