@@ -388,6 +388,8 @@
       sources: r.sources || [],
       mode: r.mode || "api",
       violations: r.violations || [],
+      proposalStatus: r.proposalStatus || "compatible",
+      canNavigate: r.canNavigate !== false,
     };
   }
   function initMap(c) {
@@ -466,7 +468,7 @@
           '" data-route="' +
           i +
           '"><span class="kicker">' +
-          esc(r.orientation || "option " + (i + 1)) +
+          esc(r.proposalStatus === "verify" ? "à vérifier" : r.proposalStatus === "adaptation" ? "adaptation à valider" : r.orientation || "option " + (i + 1)) +
           '</span><span class="route-name">' +
           esc(r.name) +
           '</span><span class="metrics"><span class="metric"><b>' +
@@ -753,6 +755,12 @@
       button.textContent = "Rechercher";
     }
   }
+  function formatStepDuration(minutes) {
+    const value = Number(minutes);
+    if (!Number.isFinite(value) || value <= 0) return "moins d’une minute";
+    const rounded = Math.max(1, Math.round(value));
+    return rounded === 1 ? "environ 1 min" : `environ ${rounded} min`;
+  }
   function checkStatusLabel(status) {
     return (
       {
@@ -821,8 +829,8 @@
           "<strong>" +
           esc(s.title) +
           "</strong> · " +
-          (s.durationMinutes ?? "?") +
-          " min — " +
+          formatStepDuration(s.durationMinutes) +
+          " — " +
           esc(s.instruction || "") +
           (s.warning ? " ⚠ " + esc(s.warning) : ""),
       ) +
@@ -844,8 +852,12 @@
       list([...r.warnings, ...r.unknowns]) +
       "</details><details><summary>Sources</summary>" +
       list(r.sources) +
-      '</details><div class="exports"><button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><a class="small" id="googleBtn" target="_blank">Google Maps simplifié ↗</a><a class="small" id="appleBtn" target="_blank">Plans simplifié ↗</a><button class="small" id="printBtn">Imprimer</button></div>';
-    $("#startNavBtn").onclick = startNavigation;
+      '</details><div class="exports">' +
+      (r.canNavigate
+        ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button>'
+        : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
+      '<button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><a class="small" id="googleBtn" target="_blank">Google Maps simplifié ↗</a><a class="small" id="appleBtn" target="_blank">Plans simplifié ↗</a><button class="small" id="printBtn">Imprimer</button></div>';
+    if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
     $("#gpxBtn").onclick = gpx;
     $("#jsonBtn").onclick = () =>
       download(JSON.stringify(r, null, 2), slug(r.name) + ".json");
@@ -1524,9 +1536,21 @@
       maxUp = useReverse ? forwardDown : forwardUp,
       maxDown = useReverse ? forwardUp : forwardDown,
       unknownSurface = surfaces.find((x) => x.id === 0)?.percent || 0,
+      hardViolations = audit.violations.filter((x) => x.severity === "hard"),
+      hardUnknowns = audit.unknowns.filter((x) => x.severity === "hard"),
+      advisoryMisses = audit.checks.filter(
+        (x) => x.severity === "advisory" && x.status !== "respected",
+      ),
+      proposalStatus = audit.admissible
+        ? "compatible"
+        : hardViolations.length
+          ? "adaptation"
+          : "verify",
       compatibility = audit.admissible
-        ? Math.max(1, 100 - audit.unknowns.length * 8)
-        : 0,
+        ? Math.max(1, 100 - advisoryMisses.length * 6)
+        : hardViolations.length
+          ? 0
+          : Math.max(1, 65 - hardUnknowns.length * 10),
       checks = audit.checks.map((x) => ({
         constraint: x.label,
         status: x.status,
@@ -1564,11 +1588,13 @@
           Math.round(90 - audit.unknowns.length * 10 - unknownSurface / 2),
         ),
         constraintChecks: checks,
-        warnings: audit.blocking.map(
-          (x) =>
-            `${x.label} : ${x.status === "unknown" ? "invérifiable" : "violée"}.`,
-        ),
-        unknowns: audit.unknowns.map((x) => x.label),
+        warnings: [
+          ...hardViolations.map((x) => `${x.label} : violée ; adaptation explicite nécessaire.`),
+          ...advisoryMisses.map((x) =>
+            `${x.label} : ${x.status === "unknown" ? "à vérifier" : "préférence prudente non satisfaite"}.`,
+          ),
+        ],
+        unknowns: hardUnknowns.map((x) => x.label),
         geometry: { type: "LineString", coordinates: coords },
         steps: (p.segments || [])
           .flatMap((x) => x.steps || [])
@@ -1579,7 +1605,9 @@
           })),
         sources: ["OpenRouteService / OpenStreetMap"],
         mode: "api",
-        violations: audit.blocking.map((x) => x.label),
+        violations: hardViolations.map((x) => x.label),
+        proposalStatus,
+        canNavigate: proposalStatus === "compatible",
         audit: audit,
       },
       i,
@@ -1598,62 +1626,156 @@
     serviceState("ors", "Connecté", "ok");
     return fs.map((f, i) => analyzeORSWithCore(f, req, i));
   }
+  function routeFingerprint(route) {
+    const coords = route.coords || [];
+    if (!coords.length) return `${Math.round(route.distance || 0)}:${Math.round(route.walking || 0)}`;
+    const sample = [coords[0], coords[Math.floor(coords.length / 2)], coords.at(-1)]
+      .filter(Boolean)
+      .map((point) => point.slice(0, 2).map((value) => Number(value).toFixed(4)).join(","))
+      .join("|");
+    return `${Math.round(route.distance || 0)}:${sample}`;
+  }
+  function respectsTime(route) {
+    return route.audit?.checks?.some(
+      (check) => check.id === "time" && check.status === "respected",
+    );
+  }
   async function direct(req) {
     const c = await geocode(),
-      target = S.compiled.targetMeters;
-    let all;
+      requestedTarget = Math.max(500, S.compiled.targetMeters),
+      targetFactors = [1, 0.82, 0.68, 0.54, 0.4],
+      unique = new Map();
     const engine = "OpenRouteService sécurisé";
-    if (target < 500)
-      throw Error(
-        "Le temps restant après les pauses et la marge est insuffisant pour calculer une boucle de 500 m.",
-      );
+    let completedBatches = 0;
     try {
-      all = await directORS(c, target, req);
+      for (const factor of targetFactors) {
+        const target = Math.max(500, Math.round(requestedTarget * factor));
+        status(
+          completedBatches
+            ? `Aucune proposition ne respecte encore votre temps : nouvelle recherche plus courte (${Math.round(factor * 100)} % de la cible initiale)…`
+            : "OpenRouteService sécurisé : calcul et analyse de 6 boucles candidates…",
+        );
+        const batch = await directORS(c, target, req);
+        completedBatches += 1;
+        for (const route of batch) {
+          const key = routeFingerprint(route);
+          const previous = unique.get(key);
+          if (!previous || (route.compatibility || 0) > (previous.compatibility || 0))
+            unique.set(key, route);
+        }
+        const current = [...unique.values()];
+        const acceptable = current.filter(
+          (route) => route.proposalStatus !== "adaptation" && respectsTime(route),
+        );
+        if (acceptable.length >= 3) break;
+      }
     } catch (e) {
       serviceState("ors", "Indisponible", "error");
-      throw Error(
-        "OpenRouteService est indisponible : aucun repli non vérifié n’a été utilisé. " +
-          e.message,
-      );
+      if (!unique.size)
+        throw Error(
+          "OpenRouteService est indisponible : aucun repli non vérifié n’a été utilisé. " +
+            e.message,
+        );
     }
-    const exact = req.hardConstraints.noSilentCompromise
-      ? all.filter((x) => !x.violations?.length)
-      : all;
-    if (!exact.length)
-      throw Error(
-        "Aucun parcours exact ne respecte toutes les contraintes impératives. Modifiez une limite explicitement : aucun assouplissement n’a été appliqué.",
-      );
-    const byComfort = [...exact].sort(
-        (a, b) => b.compatibility - a.compatibility || a.ascent - b.ascent,
-      ),
-      byPleasure = [...exact].sort(
-        (a, b) => b.pleasure - a.pleasure || b.confidence - a.confidence,
-      ),
-      byTonic = [...exact].sort(
-        (a, b) => b.ascent - a.ascent || b.distance - a.distance,
-      ),
-      picks = [];
-    [
-      byComfort[0],
-      byPleasure.find((x) => !picks.includes(x)),
-      byTonic.find((x) => !picks.includes(x)),
-      ...exact,
-    ].forEach((x) => {
-      if (x && !picks.includes(x) && picks.length < 3) picks.push(x);
+    const all = [...unique.values()];
+    const compatible = all.filter((x) => x.proposalStatus === "compatible"),
+      toVerify = all.filter((x) => x.proposalStatus === "verify"),
+      adaptations = all.filter((x) => x.proposalStatus === "adaptation"),
+      pool = compatible.length
+        ? compatible
+        : toVerify.length
+          ? toVerify
+          : adaptations.length
+            ? adaptations
+            : all.map((route) => ({
+                ...route,
+                proposalStatus: "adaptation",
+                canNavigate: false,
+                why: "Cette géométrie réelle est présentée uniquement comme base d’adaptation explicite. Elle ne doit pas être suivie tant que les limites signalées ne sont pas résolues.",
+              }));
+    const walkingBudget = Math.max(1, Number(S.compiled?.time?.walkingBudgetMinutes) || 1);
+    const ratio = (route) => (Number(route.walking ?? route.total) || 0) / walkingBudget;
+    const inRange = (route, minimum, maximum) => {
+      const value = ratio(route);
+      return value >= minimum && value <= maximum;
+    };
+    const rangeDistance = (route, minimum, maximum, target) => {
+      const value = ratio(route);
+      if (value < minimum) return minimum - value + Math.abs(target - minimum);
+      if (value > maximum) return value - maximum + Math.abs(maximum - target);
+      return Math.abs(value - target);
+    };
+    const numeric = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+    const comfortScore = (route) =>
+      rangeDistance(route, 0.45, 0.7, 0.58) * 180 +
+      numeric(route.ascent) * 0.08 +
+      numeric(route.maxUp) * 2 +
+      (100 - numeric(route.confidence)) * 0.35 -
+      numeric(route.compatibility) * 0.12;
+    const pleasureScore = (route) =>
+      rangeDistance(route, 0.75, 1, 0.9) * 150 -
+      numeric(route.pleasure) * 0.75 -
+      numeric(route.confidence) * 0.2 +
+      numeric(route.ascent) * 0.015;
+    const tonicScore = (route) =>
+      rangeDistance(route, 0.6, 0.95, 0.78) * 130 -
+      numeric(route.ascent) * 0.22 -
+      numeric(route.distance) * 0.0008 -
+      numeric(route.maxUp) * 1.2;
+    const micro = [...pool]
+      .filter((route) => ratio(route) < 0.4)
+      .sort((a, b) => b.compatibility - a.compatibility || b.walking - a.walking);
+    const substantial = pool.filter((route) => ratio(route) >= 0.4);
+    const selectionPool = substantial.length ? substantial : pool;
+    const picks = [];
+    const selectProfile = (orientation, name, minimum, maximum, scorer) => {
+      const available = selectionPool.filter((route) => !picks.some((pick) => pick.route === route));
+      const preferred = available.filter((route) => inRange(route, minimum, maximum));
+      const candidates = preferred.length ? preferred : available;
+      const route = [...candidates].sort((a, b) => scorer(a) - scorer(b))[0];
+      if (route) picks.push({ route, orientation, name });
+    };
+    selectProfile("confortable", "La plus confortable", 0.45, 0.7, comfortScore);
+    selectProfile("agréable", "L’agréable", 0.75, 1, pleasureScore);
+    selectProfile("tonique", "La plus tonique", 0.6, 0.95, tonicScore);
+    if (picks.length < 3 && micro.length) {
+      const route = micro.find((candidate) => !picks.some((pick) => pick.route === candidate));
+      if (route) picks.push({ route, orientation: "très courte", name: "La très courte" });
+    }
+    for (const route of selectionPool) {
+      if (picks.length >= 3) break;
+      if (!picks.some((pick) => pick.route === route))
+        picks.push({ route, orientation: "alternative", name: "Une autre possibilité" });
+    }
+    const selectedRoutes = picks.map(({ route, orientation, name }) => {
+      route.name = name;
+      route.orientation = orientation;
+      return route;
     });
-    picks.forEach((x, i) => {
-      x.name = ["La plus confortable", "L’agréable", "La plus tonique"][i];
-      x.orientation = ["confortable", "agréable", "tonique"][i];
+    selectedRoutes.forEach((x) => {
+      if (x.proposalStatus === "verify")
+        x.why = "Aucune incompatibilité impérative n’est mesurée, mais une ou plusieurs données essentielles doivent être vérifiées avant de partir.";
+      if (x.proposalStatus === "adaptation")
+        x.why = "Cette géométrie réelle n’est pas recommandée telle quelle : elle montre l’adaptation minimale à discuter, sans modifier silencieusement vos limites.";
     });
+    const resultLabel = compatible.length
+      ? "compatible(s)"
+      : toVerify.length
+        ? "à vérifier avant de partir"
+        : "présentée(s) comme adaptation explicite, non recommandée(s) telle(s) quelle(s)";
     status(
-      picks.length +
-        " boucle(s) réelle(s) compatible(s) parmi " +
+      selectedRoutes.length +
+        " proposition(s) réelle(s) " +
+        resultLabel +
+        " parmi " +
         all.length +
-        " candidate(s) · " +
+        " candidate(s), " +
+        completedBatches +
+        " palier(s) de distance exploré(s) · " +
         engine,
     );
     setTimeout(() => status(""), 4500);
-    return picks;
+    return selectedRoutes;
   }
   async function parseGPX(file) {
     if (!file) throw Error("Choisissez un GPX.");
