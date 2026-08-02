@@ -2623,7 +2623,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
     "Près de toilettes": "Toilettes",
   });
 
+  function validPoint(point) {
+    return (
+      Array.isArray(point) &&
+      Number.isFinite(Number(point[0])) &&
+      Number.isFinite(Number(point[1]))
+    );
+  }
+
+  function sanitizeCoords(coords = []) {
+    return (Array.isArray(coords) ? coords : []).filter(validPoint);
+  }
+
   function haversine(a, b) {
+    if (!validPoint(a) || !validPoint(b)) return 0;
     const rad = Math.PI / 180;
     const lat1 = Number(a[1]) * rad;
     const lat2 = Number(b[1]) * rad;
@@ -2636,6 +2649,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function cumulativeDistances(coords = []) {
+    coords = sanitizeCoords(coords);
     const cumulative = [0];
     for (let index = 1; index < coords.length; index += 1)
       cumulative.push(
@@ -2726,6 +2740,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function planPauses({ coords = [], walkingMinutes = 0, pausePlan, pois = [] } = {}) {
     const plan = String(pausePlan || "Aucune pause programmée");
+    coords = sanitizeCoords(coords);
+    pois = Array.isArray(pois) ? pois : [];
     if (plan === "Aucune pause programmée")
       return {
         plan,
@@ -2887,12 +2903,28 @@ svg.leaflet-image-layer.leaflet-interactive path {
     return next;
   }
 
+  function safePlanPauses(input = {}) {
+    try {
+      return planPauses(input);
+    } catch (error) {
+      return {
+        plan: String(input.pausePlan || "Aucune pause programmée"),
+        status: "unknown",
+        markers: [],
+        evidence: `Le positionnement des pauses a échoué sans interrompre le calcul : ${error.message}`,
+        error: error.message,
+      };
+    }
+  }
+
   globalThis.JMMJSPausePlannerCore = Object.freeze({
     SERVICE_TYPES,
+    sanitizeCoords,
     cumulativeDistances,
     interpolateAtDistance,
     ascentEnds,
     planPauses,
+    safePlanPauses,
     applyPausePlan,
   });
 })();
@@ -3387,7 +3419,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
-  const { planPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
+  const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -3997,8 +4029,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
       l.on("click", () => select(i));
       S.layers.push(l);
       if (i === S.selected)
-        (r.pauseMarkers || []).forEach((pause, pauseIndex) => {
-          const marker = L.circleMarker([pause.lat, pause.lon], {
+        (r.pauseMarkers || [])
+          .filter(
+            (pause) =>
+              Number.isFinite(Number(pause?.lat)) &&
+              Number.isFinite(Number(pause?.lon)),
+          )
+          .forEach((pause, pauseIndex) => {
+          const marker = L.circleMarker([Number(pause.lat), Number(pause.lon)], {
             radius: 7,
             color: "#5b4d3e",
             weight: 2,
@@ -5421,7 +5459,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
       );
     all = all.map((route) => {
-      const planned = planPauses({
+      const planned = safePlanPauses({
         coords: route.coords,
         walkingMinutes: route.walking ?? route.total,
         pausePlan: req.pausePlan,
@@ -5716,7 +5754,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         )
       : audited;
     const pauseAudited = weatherAudited.map((route) => {
-      const planned = planPauses({
+      const planned = safePlanPauses({
         coords: route.coords,
         walkingMinutes: route.walking ?? route.total,
         pausePlan: S.request?.pausePlan,
@@ -5775,7 +5813,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }
     } catch (x) {
       status("");
-      say(x.message);
+      S.step = 3;
+      document.querySelectorAll(".step").forEach((step, index) =>
+        step.classList.toggle("active", index === 3),
+      );
+      say(
+        "Le calcul n’a pas été réinitialisé. Erreur : " +
+          (x?.message || "erreur inconnue"),
+      );
+      renderConstraintSummary();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       $("#create").disabled = false;
     }
