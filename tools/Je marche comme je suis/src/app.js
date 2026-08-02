@@ -95,6 +95,7 @@
     $$("[data-go]").forEach((x, i) =>
       x.classList.toggle("active", i === S.step),
     );
+    if (S.step === 3) renderConstraintSummary();
     $(".form-body").scrollTop = 0;
   }
   function serviceState(name, label, state = "idle") {
@@ -166,7 +167,7 @@
     $("#apiBox").hidden = m !== "api";
     $("#gpxBox").hidden = m !== "gpx";
     $("#create").textContent =
-      m === "api" ? "Calculer les boucles réelles" : "Analyser le GPX";
+      m === "api" ? "Confirmer et calculer" : "Confirmer et analyser le GPX";
     $("#modeHelp").textContent =
       m === "api"
         ? "OpenRouteService est protégé par Cloudflare. Si le moteur est indisponible, aucun parcours non vérifié ne le remplace silencieusement."
@@ -304,6 +305,124 @@
       },
       freeText: val("#freeText"),
     };
+  }
+  function summaryItem(label, value, origin, severity, step, note = "") {
+    return { label, value, origin, severity, step, note };
+  }
+  function constraintSummaryModel(request, compiled) {
+    const imperative = [];
+    const preferences = [];
+    const preparation = [];
+    const verification = [];
+    const returnLabel = {
+      0: "retour exactement au départ",
+      50: "retour dans un rayon de 50 m",
+      100: "retour dans un rayon de 100 m",
+      vehicle: "retour près du véhicule",
+      lodging: "retour près du logement",
+    }[String(request.start?.returnRadius)] || "retour dans un rayon de 50 m";
+    imperative.push(
+      summaryItem(
+        "Temps utilisable",
+        `${Math.round(compiled.time.walkingBudgetMinutes)} min de marche, ${Math.round(compiled.time.pauseMinutes)} min de pauses et ${Math.round(compiled.time.marginMinutes)} min de marge`,
+        "Durée, pauses, marge et heure limite",
+        "Impératif",
+        0,
+        "Aucun parcours dépassant ce budget ne sera déclaré compatible.",
+      ),
+      summaryItem(
+        "Retour",
+        returnLabel,
+        "Choix du départ",
+        "Impératif",
+        0,
+      ),
+    );
+    if (compiled.hard.maxUp !== null)
+      imperative.push(summaryItem("Pente montante maximale", `${compiled.hard.maxUp} %`, "Réglage d’effort", "Impératif", 2));
+    if (compiled.hard.maxDown !== null)
+      imperative.push(summaryItem("Pente descendante maximale", `${compiled.hard.maxDown} %`, "Réglage d’effort", "Impératif", 2));
+    if (compiled.hard.avoidStairs)
+      imperative.push(summaryItem("Escaliers", "à éviter dès la génération puis à contrôler", request.hardConstraints?.avoidStairs ? "Interdiction explicite" : "Limitation ou équipement", "Impératif", request.hardConstraints?.avoidStairs ? 3 : 1, "Une donnée absente restera invérifiable."));
+    if (compiled.hard.avoidExposure)
+      imperative.push(summaryItem("Passages exposés", "à éviter", request.hardConstraints?.avoidExposure ? "Interdiction explicite" : "Limitation déclarée", "Impératif", request.hardConstraints?.avoidExposure ? 3 : 1, "Une preuve insuffisante conduira à « À vérifier »."));
+    if (compiled.hard.requireRegular)
+      imperative.push(summaryItem("Terrain régulier", "obligatoire", request.terrain?.includes("Terrain régulier") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Terrain régulier") ? 2 : 1, "Si la régularité n’est pas documentée, le parcours ne sera pas déclaré compatible."));
+    if (compiled.hard.requireWide)
+      imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
+    if (compiled.hard.requiredServices.length)
+      imperative.push(summaryItem("Services requis", compiled.hard.requiredServices.join(", "), "Services ou pauses", "Impératif", 2, "Ils devront être documentés avant une qualification compatible."));
+
+    if (compiled.advisory.maxUp !== null)
+      preferences.push(summaryItem("Montée prudente", `privilégier une pente autour de ${compiled.advisory.maxUp} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
+    if (compiled.advisory.maxDown !== null)
+      preferences.push(summaryItem("Descente prudente", `privilégier une pente autour de ${compiled.advisory.maxDown} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
+    if (compiled.advisory.preferRegular && !compiled.hard.requireRegular)
+      preferences.push(summaryItem("Régularité", "terrain régulier privilégié", "Limitation fonctionnelle", "Préférence prudente", 1, "L’absence de donnée sera signalée sans bloquer automatiquement."));
+    if (compiled.advisory.preferShortcuts)
+      preferences.push(summaryItem("Proximité et repli", "parcours courts ou proches du départ privilégiés", "Fatigue ou besoin de repli", "Préférence prudente", 1));
+    if (request.terrain?.length)
+      preferences.push(summaryItem("Terrain souhaité", request.terrain.join(", "), "Choix de terrain", "Préférence", 2));
+    if (request.preferences?.length)
+      preferences.push(summaryItem("Envies", request.preferences.join(", "), "Envies du jour", "Préférence", 2));
+    if (request.effort?.profile)
+      preferences.push(summaryItem("Profil de sortie", request.effort.profile, "Effort recherché", "Classement", 2));
+
+    preparation.push(summaryItem("Chaussures", request.footwear || "non renseignées", "Équipement porté", "Préparation et audit", 1, "Elles peuvent restreindre les surfaces mais ne compensent jamais une limitation."));
+    if (request.equipment?.length)
+      preparation.push(summaryItem("Équipement", request.equipment.join(", "), "Équipement emporté", "Préparation et audit", 1));
+    if (request.pausePlan)
+      preparation.push(summaryItem("Pauses", request.pausePlan, "Plan de pauses", "Budget et préparation", 2));
+    preparation.push(summaryItem("Comparaison des sens", compiled.hard.compareDirections ? "activée" : "désactivée", "Prudence et repli", compiled.hard.compareDirections ? "Contrôle" : "Information", 3));
+    preparation.push(summaryItem("Compromis silencieux", request.hardConstraints?.noSilentCompromise ? "interdit" : "non activé", "Prudence et repli", "Règle système", 3));
+
+    for (const item of imperative) {
+      if (item.note && /invérifiable|À vérifier/.test(item.note)) verification.push(item);
+    }
+    return { imperative, preferences, preparation, verification };
+  }
+  function renderSummaryGroup(title, items, className) {
+    if (!items.length) return "";
+    return (
+      '<section class="constraint-summary-group ' + className + '"><h4>' +
+      esc(title) +
+      "</h4>" +
+      items
+        .map(
+          (item) =>
+            '<article class="constraint-summary-item"><div><strong>' +
+            esc(item.label) +
+            "</strong><span>" +
+            esc(item.value) +
+            '</span><small>Origine : ' +
+            esc(item.origin) +
+            " · " +
+            esc(item.severity) +
+            (item.note ? "<br>" + esc(item.note) : "") +
+            '</small></div><button type="button" class="summary-edit" data-edit-step="' +
+            item.step +
+            '">Modifier</button></article>',
+        )
+        .join("") +
+      "</section>"
+    );
+  }
+  function renderConstraintSummary() {
+    const host = $("#constraintSummary");
+    if (!host) return;
+    const request = buildRequest();
+    const compiled = compileConstraints(request);
+    const model = constraintSummaryModel(request, compiled);
+    host.innerHTML =
+      '<div class="constraint-summary-head"><div><h3>Le moteur appliquera</h3><p>Vérifiez les règles avant tout appel cartographique. Cliquer sur « Modifier » ramène au réglage d’origine.</p></div><span class="summary-ready">Aucun calcul lancé</span></div>' +
+      renderSummaryGroup("Contraintes impératives", model.imperative, "imperative") +
+      renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
+      renderSummaryGroup("Préparation et contrôles", model.preparation, "preparation");
+    host.querySelectorAll("[data-edit-step]").forEach(
+      (button) => (button.onclick = () => go(Number(button.dataset.editStep))),
+    );
+    S.request = request;
+    S.compiled = compiled;
   }
   function save(r) {
     if (!$("#private").checked)
@@ -1988,6 +2107,12 @@
       ),
     ];
   }
+  $("#form").addEventListener("input", () => {
+    if (S.step === 3) renderConstraintSummary();
+  });
+  $("#form").addEventListener("change", () => {
+    if (S.step === 3) renderConstraintSummary();
+  });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
     S.request = buildRequest();
