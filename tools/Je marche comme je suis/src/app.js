@@ -5,6 +5,7 @@
     compileConstraints: compileConstraints,
     auditRoute: auditRoute,
   } = globalThis.JMMJSRouteEngineCore;
+  const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const $ = (s) => document.querySelector(s),
     $$ = (s) => [...document.querySelectorAll(s)],
     S = {
@@ -2015,97 +2016,165 @@
     setTimeout(() => status(""), 4500);
     return selectedRoutes;
   }
+  function auditedGPXCandidate(source, compiled, index) {
+    const originalCoords = source.points.map((point) => point.slice(0, 3));
+    const summary = summarizePoints(source.points);
+    const walkingMinutes =
+      summary.distanceMeters / Math.max(1, (compiled.paceKmh * 1e3) / 60);
+    const forwardElevation = elevationEvidence(originalCoords, compiled.paceKmh);
+    const reverseCoords = [...originalCoords].reverse();
+    const reverseElevation = elevationEvidence(reverseCoords, compiled.paceKmh);
+    const elevationComplete = summary.elevationCoverage >= 0.999;
+    const common = {
+      walkingMinutes,
+      totalMinutes: walkingMinutes + compiled.time.pauseMinutes,
+      startEndDistanceMeters: distance([originalCoords[0], originalCoords.at(-1)]),
+      surfaces: [],
+      ascentMeters: elevationComplete ? summary.ascentMeters : null,
+      stairsMeters: null,
+      exposureSafe: undefined,
+      regularitySafe: undefined,
+      minimumWidthMeters: null,
+      shortcuts: compiled.hard.requireShortcuts ? undefined : [],
+      directionsCompared: Boolean(compiled.hard.compareDirections),
+    };
+    const recoveryTarget = compiled.request.effort?.recovery;
+    const auditFor = (details, ascentMeters) =>
+      auditRoute(
+        {
+          ...common,
+          ascentMeters: elevationComplete ? ascentMeters : null,
+          maxUpPercent: elevationComplete ? details.maxUpPercent : null,
+          maxDownPercent: elevationComplete ? details.maxDownPercent : null,
+          maxContinuousAscentMinutes: elevationComplete
+            ? details.maxContinuousAscentMinutes
+            : null,
+          recoverySatisfied:
+            !recoveryTarget
+              ? undefined
+              : !elevationComplete
+                ? undefined
+                : recoveryTarget === "5 min faciles"
+                  ? details.recoveryEasyMinutes >= 5
+                  : recoveryTarget === "10 min faciles"
+                    ? details.recoveryEasyMinutes >= 10
+                    : undefined,
+        },
+        compiled,
+      );
+    const forwardAudit = auditFor(forwardElevation, summary.ascentMeters);
+    const reverseAudit = compiled.hard.compareDirections
+      ? auditFor(reverseElevation, summary.descentMeters)
+      : null;
+    const useReverse =
+      reverseAudit &&
+      (reverseAudit.blocking.length < forwardAudit.blocking.length ||
+        (reverseAudit.blocking.length === forwardAudit.blocking.length &&
+          reverseAudit.unknowns.length < forwardAudit.unknowns.length));
+    const audit = useReverse ? reverseAudit : forwardAudit;
+    const coords = useReverse ? reverseCoords : originalCoords;
+    const details = useReverse ? reverseElevation : forwardElevation;
+    const hardViolations = audit.violations.filter((item) => item.severity === "hard");
+    const hardUnknowns = audit.unknowns.filter((item) => item.severity === "hard");
+    const proposalStatus = audit.admissible
+      ? "compatible"
+      : hardViolations.length
+        ? "adaptation"
+        : "verify";
+    const coveragePercent = Math.round(summary.elevationCoverage * 100);
+    const evidenceNotes = [
+      `distance recalculée depuis ${source.points.length} points GPX`,
+      elevationComplete
+        ? "altitude complète et métriques de relief recalculées"
+        : `altitude incomplète (${coveragePercent} % de la distance couverte) : relief invérifiable`,
+      summary.recordedDurationMinutes !== null
+        ? `durée enregistrée disponible (${Math.round(summary.recordedDurationMinutes)} min), non utilisée pour remplacer l’allure choisie`
+        : "horodatage absent ou incomplet",
+      "surfaces, marches, largeur et exposition non fournies par le GPX restent invérifiables",
+    ];
+    const warnings = audit.blocking.map(
+      (item) =>
+        `${item.label} : ${item.status === "unknown" ? "invérifiable" : "violée"}.`,
+    );
+    if (!elevationComplete)
+      warnings.push(`Altitude GPX incomplète : ${coveragePercent} % de couverture.`);
+    return normalize(
+      {
+        name: source.name,
+        orientation: useReverse ? "GPX importé · sens inverse retenu" : "GPX importé",
+        why:
+          "Trace GPX contrôlée par compileConstraints() et auditRoute(), comme une route ORS. " +
+          evidenceNotes.join(" · "),
+        metrics: {
+          distanceMeters: summary.distanceMeters,
+          walkingMinutes,
+          breakMinutes: compiled.time.pauseMinutes,
+          totalMinutes: walkingMinutes + compiled.time.pauseMinutes,
+          ascentMeters: elevationComplete
+            ? useReverse
+              ? summary.descentMeters
+              : summary.ascentMeters
+            : null,
+          descentMeters: elevationComplete
+            ? useReverse
+              ? summary.ascentMeters
+              : summary.descentMeters
+            : null,
+          maxContinuousAscentMinutes: elevationComplete
+            ? details.maxContinuousAscentMinutes
+            : null,
+          maxAscentSlopePercent: elevationComplete ? details.maxUpPercent : null,
+          maxDescentSlopePercent: elevationComplete ? details.maxDownPercent : null,
+        },
+        constraintChecks: audit.checks.map((item) => ({
+          constraint: item.label,
+          status: item.status,
+          evidence: item.evidence,
+          severity: item.severity,
+        })),
+        warnings,
+        unknowns: audit.unknowns.map((item) => item.label),
+        geometry: { coordinates: coords },
+        sources: [
+          "Fichier GPX importé localement",
+          `Distance recalculée (${Math.round(summary.distanceMeters)} m)`,
+          `Couverture altitude ${coveragePercent} %`,
+        ],
+        mode: "gpx",
+        violations: hardViolations.map((item) => item.label),
+        proposalStatus,
+        canNavigate: proposalStatus !== "adaptation",
+      },
+      index,
+    );
+  }
   async function parseGPX(file) {
     if (!file) throw Error("Choisissez un GPX.");
-    const d = new DOMParser().parseFromString(
-      await file.text(),
-      "application/xml",
+    const text = await file.text();
+    const compiled = S.compiled || compileConstraints(S.request);
+    const parsed = parseGPXText(text, file.name.replace(/\.gpx$/i, ""));
+    const audited = parsed.map((source, index) =>
+      auditedGPXCandidate(source, compiled, index),
     );
-    if (d.querySelector("parsererror")) throw Error("GPX invalide.");
-    const n = [...d.querySelectorAll("trkpt,rtept")];
-    if (n.length < 2) throw Error("Trace trop courte.");
-    const c = n.map((x) => [
-        +x.getAttribute("lon"),
-        +x.getAttribute("lat"),
-        x.querySelector("ele") ? +x.querySelector("ele").textContent : null,
-      ]),
-      e = elev(c),
-      dist = distance(c),
-      compiled = S.compiled || compileConstraints(S.request),
-      walkingMinutes = dist / Math.max(1, (compiled.paceKmh * 1e3) / 60),
-      elevationDetails = elevationEvidence(c, compiled.paceKmh),
-      raw = {
-        walkingMinutes: walkingMinutes,
-        totalMinutes: walkingMinutes + compiled.time.pauseMinutes,
-        startEndDistanceMeters: distance([c[0], c.at(-1)]),
-        surfaces: [],
-        ascentMeters: elevationDetails.known ? e.up : null,
-        maxUpPercent: elevationDetails.known
-          ? elevationDetails.maxUpPercent
-          : null,
-        maxDownPercent: elevationDetails.known
-          ? elevationDetails.maxDownPercent
-          : null,
-        maxContinuousAscentMinutes: elevationDetails.known
-          ? elevationDetails.maxContinuousAscentMinutes
-          : null,
-        recoverySatisfied:
-          S.request.effort?.recovery === "5 min faciles"
-            ? elevationDetails.known &&
-              elevationDetails.recoveryEasyMinutes >= 5
-            : S.request.effort?.recovery === "10 min faciles"
-              ? elevationDetails.known &&
-                elevationDetails.recoveryEasyMinutes >= 10
-              : undefined,
-        directionsCompared: Boolean(compiled.hard.compareDirections),
-      },
-      audit = auditRoute(raw, compiled);
-    return [
-      normalize(
-        {
-          name: d.querySelector("trk>name,rte>name")?.textContent || file.name,
-          orientation: "GPX importé",
-          why: "Trace GPX contrôlée par le même noyau que les parcours ORS. Les données de terrain absentes restent invérifiables.",
-          metrics: {
-            distanceMeters: dist,
-            walkingMinutes: walkingMinutes,
-            breakMinutes: compiled.time.pauseMinutes,
-            totalMinutes: walkingMinutes + compiled.time.pauseMinutes,
-            ascentMeters: elevationDetails.known ? e.up : null,
-            descentMeters: elevationDetails.known ? e.down : null,
-            maxContinuousAscentMinutes: elevationDetails.known
-              ? elevationDetails.maxContinuousAscentMinutes
-              : 0,
-            maxAscentSlopePercent: elevationDetails.known
-              ? elevationDetails.maxUpPercent
-              : 0,
-            maxDescentSlopePercent: elevationDetails.known
-              ? elevationDetails.maxDownPercent
-              : 0,
-          },
-          compatibilityScore: audit.admissible
-            ? Math.max(1, 100 - audit.unknowns.length * 10)
-            : 0,
-          confidenceScore: Math.max(1, 80 - audit.unknowns.length * 12),
-          constraintChecks: audit.checks.map((item) => ({
-            constraint: item.label,
-            status: item.status,
-            evidence: item.evidence,
-            severity: item.severity,
-          })),
-          warnings: audit.blocking.map(
-            (item) =>
-              `${item.label} : ${item.status === "unknown" ? "invérifiable" : "violée"}.`,
-          ),
-          unknowns: audit.unknowns.map((item) => item.label),
-          geometry: { coordinates: c },
-          sources: ["GPX importé"],
-          mode: "gpx",
-          violations: audit.blocking.map((item) => item.label),
-        },
-        0,
-      ),
-    ];
+    const compatible = audited.filter((route) => route.proposalStatus === "compatible");
+    const toVerify = audited.filter((route) => route.proposalStatus === "verify");
+    const adaptations = audited.filter((route) => route.proposalStatus === "adaptation");
+    const pool = compatible.length
+      ? compatible
+      : toVerify.length
+        ? toVerify
+        : adaptations;
+    const selected = diverseRoutes(pool, 3);
+    const label = compatible.length
+      ? "compatible(s)"
+      : toVerify.length
+        ? "à vérifier avant de partir"
+        : "présentée(s) comme adaptation explicite";
+    status(
+      `${selected.length} trace(s) GPX ${label} parmi ${audited.length} trace(s) ou segment(s) analysé(s) · audit universel`,
+    );
+    setTimeout(() => status(""), 4500);
+    return selected;
   }
   $("#form").addEventListener("input", () => {
     if (S.step === 3) renderConstraintSummary();
