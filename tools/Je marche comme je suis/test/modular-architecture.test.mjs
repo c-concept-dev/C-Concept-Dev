@@ -16,7 +16,7 @@ function moduleContext() {
   load("src/core/peripheral-registry.js", context);
   load("src/peripherals/service-client.js", context);
   load("src/peripherals/ors-provider.js", context);
-  load("src/peripherals/geoapify-provider.js", context);
+  load("src/peripherals/geoapify-provider.js", "src/peripherals/open-meteo-provider.js", context);
   return context;
 }
 
@@ -28,7 +28,7 @@ test("the generated HTML embeds every source module", () => {
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
     "src/peripherals/ors-provider.js",
-    "src/peripherals/geoapify-provider.js",
+    "src/peripherals/geoapify-provider.js", "src/peripherals/open-meteo-provider.js",
     "src/app.js",
   ]) {
     assert.ok(html.includes(read(source).trim()), `${source} absent du build`);
