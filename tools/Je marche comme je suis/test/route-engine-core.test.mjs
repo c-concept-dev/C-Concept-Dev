@@ -110,14 +110,17 @@ test("margin and planned pauses are deducted before target distance", () => {
   assert.equal(compiled.targetMeters, 2660);
 });
 
-test("physical limitations remain stricter than hiking footwear", () => {
+test("physical limitations create prudent preferences without an implicit veto", () => {
   const compiled = compileConstraints(
     request({
       footwear: "Randonnée montantes",
-      limitations: ["Genoux", "Descente difficile"],
+      limitations: ["Genoux", "Descente difficile", "Chevilles"],
     }),
   );
-  assert.equal(compiled.hard.maxDown, 4);
+  assert.equal(compiled.hard.maxDown, null);
+  assert.equal(compiled.advisory.maxDown, 4);
+  assert.equal(compiled.hard.requireRegular, false);
+  assert.equal(compiled.advisory.preferRegular, true);
   assert.deepEqual([...compiled.footwearForbiddenSurfaceIds], [13]);
 });
 
@@ -177,4 +180,28 @@ test("a fully evidenced simple loop is admissible", () => {
   );
   assert.equal(audit.admissible, true);
   assert.equal(audit.blocking.length, 0);
+});
+
+
+test("an unknown advisory regularity check does not block a proposal", () => {
+  const compiled = compileConstraints(
+    request({ limitations: ["Chevilles"] }),
+  );
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 100 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  assert.equal(audit.admissible, true);
+  assert.equal(
+    audit.checks.find((item) => item.id === "advisory-regularity").status,
+    "unknown",
+  );
 });
