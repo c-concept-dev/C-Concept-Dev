@@ -701,7 +701,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
               ><small
                 >Analyse localement une trace que vous possédez déjà avec le
                 même moteur de contrôle.</small
-              ></button></div></section><div class="workspace"><form class="panel" id="form"><div class="form-head"><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress"><button class="active" type="button" data-go="0">
+              ></button></div></section><div class="workspace"><form class="panel" id="form" onsubmit="return false"><div class="form-head"><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress"><button class="active" type="button" data-go="0">
                   1 · Départ</button
                 ><button type="button" data-go="1">2 · Aujourd’hui</button
                 ><button type="button" data-go="2">3 · Terrain & envie</button
@@ -3402,7 +3402,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         timezone: data.timezone || null,
       };
     }
-    return Object.freeze({ id: "open-meteo", forecast });
+    return Object.freeze({ id: "open-meteo", kind: "weather", forecast });
   }
   globalThis.JMMJSOpenMeteoProvider = Object.freeze({ createOpenMeteoProvider });
 })();
@@ -3425,6 +3425,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
   } = globalThis.JMMJSLimitationsCore;
+  const formElement = document.querySelector("#form");
+  if (formElement)
+    formElement.addEventListener("submit", (event) => event.preventDefault());
+
   const $ = (s) => document.querySelector(s),
     $$ = (s) => [...document.querySelectorAll(s)],
     S = {
