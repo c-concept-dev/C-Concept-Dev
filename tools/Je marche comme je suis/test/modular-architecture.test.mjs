@@ -24,6 +24,7 @@ test("the generated HTML embeds every source module", () => {
   const html = read("je-marche-comme-je-suis-p0.html");
   for (const source of [
     "src/core/route-engine-core.js",
+    "src/core/gpx-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
     "src/peripherals/ors-provider.js",
@@ -272,4 +273,16 @@ test("D-021 distingue couverture structurelle et réalisation fonctionnelle", as
   assert.equal(services.status, "partial");
   assert.equal(weather.status, "partial");
   assert.equal(duration.status, "complete");
+});
+
+test("D-022 intègre le noyau GPX au build autonome", () => {
+  const html = read("je-marche-comme-je-suis-p0.html");
+  const gpxCore = read("src/core/gpx-core.js");
+  assert.ok(html.includes(gpxCore.trim()));
+  const app = read("src/app.js");
+  assert.match(app, /parseGPXText/);
+  assert.match(app, /auditedGPXCandidate/);
+  assert.match(app, /auditRoute\(/);
+  assert.match(app, /Distance recalculée/);
+  assert.match(app, /surfaces, marches, largeur et exposition non fournies par le GPX restent invérifiables/);
 });
