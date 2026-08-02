@@ -7,6 +7,7 @@
   } = globalThis.JMMJSRouteEngineCore;
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
+  const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -1931,7 +1932,37 @@
             e.message,
         );
     }
-    const all = [...unique.values()];
+    let all = [...unique.values()];
+    const requiredServices = S.compiled?.hard?.requiredServices || [];
+    if (requiredServices.length) {
+      status("Vérification des services impératifs avant sélection…");
+      const verified = [];
+      for (const route of all) {
+        try {
+          const pois = await geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 });
+          route.pois = pois;
+          const assessment = assessRequiredServices(requiredServices, pois, {
+            searched: true,
+            providerAvailable: true,
+            radiusMeters: 300,
+          });
+          verified.push(applyServiceAssessment(route, assessment));
+        } catch (error) {
+          const assessment = assessRequiredServices(requiredServices, [], {
+            searched: false,
+            providerAvailable: false,
+            radiusMeters: 300,
+          });
+          const checked = applyServiceAssessment(route, assessment);
+          checked.warnings = [
+            ...(checked.warnings || []),
+            "Services impératifs invérifiables : " + error.message,
+          ];
+          verified.push(checked);
+        }
+      }
+      all = verified;
+    }
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
       adaptations = all.filter((x) => x.proposalStatus === "adaptation"),
@@ -2106,11 +2137,18 @@
     const details = useReverse ? reverseElevation : forwardElevation;
     const hardViolations = audit.violations.filter((item) => item.severity === "hard");
     const hardUnknowns = audit.unknowns.filter((item) => item.severity === "hard");
-    const proposalStatus = audit.admissible
+    let proposalStatus = audit.admissible
       ? "compatible"
       : hardViolations.length
         ? "adaptation"
         : "verify";
+    const serviceAssessment = assessRequiredServices(
+      compiled.hard.requiredServices || [],
+      [],
+      { searched: false, providerAvailable: false, radiusMeters: 300 },
+    );
+    if (serviceAssessment.unknown.length && proposalStatus === "compatible")
+      proposalStatus = "verify";
     const coveragePercent = Math.round(summary.elevationCoverage * 100);
     const evidenceNotes = [
       `distance recalculée depuis ${source.points.length} points GPX`,
@@ -2162,12 +2200,20 @@
           maxDescentSlopePercent: elevationComplete ? details.maxDownPercent : null,
         },
         terrainEvidence: common.terrainEvidence,
-        constraintChecks: audit.checks.map((item) => ({
-          constraint: item.label,
-          status: item.status,
-          evidence: item.evidence,
-          severity: item.severity,
-        })),
+        constraintChecks: [
+          ...audit.checks.map((item) => ({
+            constraint: item.label,
+            status: item.status,
+            evidence: item.evidence,
+            severity: item.severity,
+          })),
+          ...serviceAssessment.checks.map((item) => ({
+            constraint: `Service requis : ${item.service}`,
+            status: item.status,
+            evidence: item.evidence,
+            severity: "hard",
+          })),
+        ],
         warnings,
         unknowns: audit.unknowns.map((item) => item.label),
         geometry: { coordinates: coords },
