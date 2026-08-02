@@ -802,6 +802,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
                   ><label class="check"
                     ><input id="noExposure" type="checkbox" /> Aucun passage
                     exposé — impératif</label
+                  ></div><div class="card" id="limitationStructure"><h3>Préciser la conséquence concrète</h3><p>
+                    Décrivez uniquement l’effet fonctionnel que vous constatez.
+                    Le moteur ne pose et ne déduit aucun diagnostic.
+                  </p><div class="two"><div class="field"><label>Côté atteint</label
+                      ><select class="input" id="limitationSide"><option>Non précisé</option><option>Gauche</option><option>Droit</option><option>Bilatéral</option><option>Non pertinent</option></select></div><div class="field"><label>Déclencheur principal</label
+                      ><select class="input" id="limitationTrigger"><option value="">Non précisé</option><option>Montée</option><option>Descente</option><option>Terrain irrégulier</option><option>Durée</option><option>Station debout</option><option>Marche rapide</option><option>Autre</option></select></div><div class="field"><label>Conséquence recherchée</label
+                      ><select class="input" id="limitationConsequence"><option value="">Non précisée</option><option>Éviter</option><option>Limiter</option><option>Ralentir</option><option>Prévoir une pause</option><option>Prévoir un repli</option></select></div><div class="field"><label>Temporalité</label
+                      ><select class="input" id="limitationTemporality"><option>Aujourd’hui</option><option>Habituelle</option><option>Permanente</option><option>Seulement aujourd’hui</option></select></div><div class="field"><label>Durée maximale sans pause · facultative</label
+                      ><input class="input" id="maxWithoutPause" type="number" min="1" max="240" inputmode="numeric" placeholder="Minutes" /></div><div class="field"><label>Durée maximale debout · facultative</label
+                      ><input class="input" id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Minutes" /></div><div class="field"><label>Accompagnant capable d’aider</label
+                      ><select class="input" id="helperAvailable"><option value="">Non précisé</option><option value="yes">Oui</option><option value="no">Non</option></select></div></div><label class="check"
+                    ><input id="limitationConfirmed" type="checkbox" /> Je
+                    confirme que cette conséquence décrit ce que je souhaite
+                    éviter, limiter ou prévoir.</label
                   ></div><div class="nav"><button class="secondary prev" type="button">Retour</button
                   ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Effort recherché</h3><p>Montées et descentes sont séparées.</p><div class="field"><label>Profil</label
                     ><select class="input" id="effort"><option value="gentle">Reprise douce</option><option value="pleasure" selected>Plaisir maximal</option><option value="ascent">Travail de la montée</option><option value="endurance">Endurance</option></select></div><div class="two"><div class="field"><label>Montée continue</label
