@@ -7,8 +7,8 @@
 - Champs visibles : **33**
 - Groupes de choix : **5**
 - Choix visibles : **62**
-- Entrées complètes : **16**
-- Entrées partielles : **22**
+- Entrées complètes : **17**
+- Entrées partielles : **21**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
 
@@ -48,7 +48,7 @@
 | shortcuts | field | generation-audit | conditional | shortcut-routes | block-if-required | partial | Demande compilée ; calcul de raccourcis réels à compléter. |
 | bothWays | field | generation-audit | conditional | reverse-audit | block-if-required | complete | Les deux sens sont audités. |
 | private | field | persistence | preparation | — | allow | partial | Intention de non-persistance présente ; audit complet du stockage à faire. |
-| gpxFile | field | route-source | imperative | geometry | block | partial | Import présent ; parité complète avec ORS prévue en D-022. |
+| gpxFile | field | route-source | imperative | geometry | block | complete | Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables. |
 | equipment | choice-group | generation-audit | conditional | surface, width, kerb, steps | block-if-imperative | partial | Options ORS et audits présents pour certains équipements seulement. |
 | limits | choice-group | generation-audit | conditional | surface, slope, width, services | block-if-imperative | partial | Plusieurs limitations sont traduites ; seuils fonctionnels à structurer. |
 | terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | Influence génération et classement ; régularité/largeur restent souvent inconnues. |
