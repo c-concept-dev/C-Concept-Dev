@@ -4,10 +4,10 @@
 
 ## Résumé
 
-- Champs visibles : **33**
+- Champs visibles : **41**
 - Groupes de choix : **5**
 - Choix visibles : **62**
-- Entrées complètes : **17**
+- Entrées complètes : **25**
 - Entrées partielles : **21**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
@@ -36,6 +36,14 @@
 | footwear | field | generation-audit | imperative | surface | block | complete | Matrice de surfaces et audit des incompatibilités documentées. |
 | noStairs | field | generation-audit | imperative | steps | block | complete | Évitement ORS et contrôle des données de marches. |
 | noExposure | field | audit | imperative | exposure | block | partial | Contrôle prévu mais preuve d’exposition encore souvent absente. |
+| limitationSide | field | explanation | preparation | — | preserve-unknown | complete | Côté déclaré conservé comme contexte, sans diagnostic ni déduction. |
+| limitationTrigger | field | generation-audit | imperative | confirmed-functional-effect | confirm | complete | Déclencheur concret raccordé aux règles fonctionnelles D-024. |
+| limitationConsequence | field | generation-audit | imperative | confirmed-functional-effect | confirm | complete | Conséquence appliquée uniquement après confirmation explicite. |
+| limitationTemporality | field | explanation | preparation | — | preserve-unknown | complete | Temporalité conservée dans chaque règle dérivée. |
+| maxWithoutPause | field | generation-audit | imperative | pause-plan | block-if-set | complete | Seuil facultatif conservé et utilisé sans remplacement automatique. |
+| maxStanding | field | audit | imperative | standing-duration | block-if-set | complete | Seuil facultatif audité ; une mesure absente reste à vérifier. |
+| helperAvailable | field | preparation | preparation | — | preserve-unknown | complete | Contexte de préparation sans bonus de capacité. |
+| limitationConfirmed | field | confirmation | imperative | confirmed-functional-effect | confirm | complete | Confirmation obligatoire avant toute règle dérivée. |
 | effort | field | generation-ranking | preference | elevation | rank-only | complete | Classement par profil et métriques d’effort. |
 | ascentMinutes | field | generation-audit | conditional | elevation, segment-times | block-if-set | partial | Champ compilé ; mesure continue à consolider. |
 | upSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente montante auditée lorsqu’elle est disponible. |
