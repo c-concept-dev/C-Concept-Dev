@@ -7,19 +7,10 @@ const read = (path) => readFileSync(new URL(path, root), "utf8");
 function loadRegistries() {
   const context = { console, globalThis: null };
   context.globalThis = context;
-  vm.runInNewContext(read("src/core/limitations-core.js"), context, {
-    filename: "src/core/limitations-core.js",
-  });
   vm.runInNewContext(read("src/core/route-engine-core.js"), context, {
     filename: "src/core/route-engine-core.js",
   });
-  return {
-    ...context.JMMJSRouteEngineCore,
-    ConstraintRegistry: Object.freeze({
-      ...context.JMMJSRouteEngineCore.ConstraintRegistry,
-      ...context.JMMJSLimitationsCore.FieldRegistry,
-    }),
-  };
+  return context.JMMJSRouteEngineCore;
 }
 
 function visibleFields(template) {
@@ -62,10 +53,11 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   noStairs: ["complete", "Évitement ORS et contrôle des données de marches."],
   noExposure: ["partial", "Contrôle prévu mais preuve d’exposition encore souvent absente."],
   effort: ["complete", "Classement par profil et métriques d’effort."],
-  ascentMinutes: ["partial", "Champ compilé ; mesure continue à consolider."],
+  ascentMinutes: ["complete", "Durée maximale de montée continue calculée par le noyau altimétrique D-025."],
+  descentMinutes: ["complete", "Durée maximale de descente continue calculée par le noyau altimétrique D-025."],
   upSlope: ["complete", "Pente montante auditée lorsqu’elle est disponible."],
   downSlope: ["complete", "Pente descendante auditée lorsqu’elle est disponible."],
-  recovery: ["partial", "Règle compilée ; segment facile ou banc pas toujours prouvé."],
+  recovery: ["complete", "Séquence facile mesurée après effort ; banc jamais présumé."],
   terrain: ["partial", "Influence génération et classement ; régularité/largeur restent souvent inconnues."],
   weather: ["partial", "Constat manuel conservé ; Open-Meteo n’est pas encore intégré."],
   wishes: ["partial", "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."],
@@ -76,22 +68,21 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   shortcuts: ["partial", "Demande compilée ; calcul de raccourcis réels à compléter."],
   bothWays: ["complete", "Les deux sens sont audités."],
   private: ["partial", "Intention de non-persistance présente ; audit complet du stockage à faire."],
-  limitationSide: ["complete", "Côté déclaré conservé comme contexte, sans diagnostic ni déduction."],
-  limitationTrigger: ["complete", "Déclencheur concret raccordé aux règles fonctionnelles D-024."],
-  limitationConsequence: ["complete", "Conséquence appliquée uniquement après confirmation explicite."],
-  limitationTemporality: ["complete", "Temporalité conservée dans chaque règle dérivée."],
-  maxWithoutPause: ["complete", "Seuil facultatif conservé et utilisé sans remplacement automatique."],
-  maxStanding: ["complete", "Seuil facultatif audité ; une mesure absente reste à vérifier."],
-  helperAvailable: ["complete", "Contexte de préparation sans bonus de capacité."],
-  limitationConfirmed: ["complete", "Confirmation obligatoire avant toute règle dérivée."],
+  limitationSide: ["complete", "Côté déclaré, conservé dans la demande et expliqué."],
+  limitationTrigger: ["complete", "Déclencheur traduit en conséquence fonctionnelle confirmée."],
+  limitationConsequence: ["complete", "Éviter, limiter, ralentir, pause ou repli modifient la demande."],
+  limitationTemporality: ["complete", "Contexte temporel conservé dans la règle dérivée."],
+  maxWithoutPause: ["complete", "Seuil utilisateur transformé en plan de pause et règle explicite."],
+  maxStanding: ["complete", "Seuil utilisateur transformé en règle de préparation contrôlable."],
+  helperAvailable: ["complete", "Information de préparation conservée sans bonus de capacité."],
   gpxFile: ["complete", "Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables."],
 });
 
 function severityFor(id, entry) {
-  if (["returnRadius", "returnTime", "duration", "timeIncludes", "margin", "footwear", "noStairs", "noExposure", "services", "strict", "limitationTrigger", "limitationConsequence", "maxWithoutPause", "maxStanding", "limitationConfirmed", "gpxFile"].includes(id)) return "imperative";
+  if (["returnRadius", "returnTime", "duration", "timeIncludes", "margin", "footwear", "noStairs", "noExposure", "services", "strict", "gpxFile"].includes(id)) return "imperative";
   if (["fatigue", "pain", "balance", "equipment", "limits", "ascentMinutes", "upSlope", "downSlope", "recovery", "shortcuts", "bothWays"].includes(id)) return "conditional";
   if (["effort", "terrain", "wishes", "level", "fitness"].includes(id)) return "preference";
-  if (["age", "company", "painDetail", "weather", "pauses", "freeText", "private", "limitationSide", "limitationTemporality", "helperAvailable"].includes(id)) return "preparation";
+  if (["age", "company", "painDetail", "weather", "pauses", "freeText", "private"].includes(id)) return "preparation";
   return entry.effect.includes("audit") ? "conditional" : "information";
 }
 
