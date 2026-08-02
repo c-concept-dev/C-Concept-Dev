@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "jmmjs-map-services",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-08-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "ratelimits": [
+    {
+      "name": "SERVICE_RATE_LIMITER",
+      "namespace_id": "10260802",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    }
+  ]
+}
