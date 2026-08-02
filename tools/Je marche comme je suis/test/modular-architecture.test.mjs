@@ -252,3 +252,24 @@ test("D-020 affiche une synthèse éditable avant tout appel ORS", () => {
   assert.match(app, /data-edit-step/);
   assert.match(app, /if \(S\.step === 3\) renderConstraintSummary\(\)/);
 });
+
+test("D-021 couvre chaque champ et chaque choix visible par le registre", async () => {
+  const { buildFieldAudit } = await import("../scripts/audit-fields.mjs");
+  const audit = buildFieldAudit();
+  assert.equal(audit.structuralCoverage.passed, true);
+  assert.deepEqual(audit.structuralCoverage.orphanFields, []);
+  assert.deepEqual(audit.structuralCoverage.orphanChoices, []);
+  assert.ok(audit.counts.visibleFields >= 30);
+  assert.ok(audit.counts.visibleChoices >= 50);
+});
+
+test("D-021 distingue couverture structurelle et réalisation fonctionnelle", async () => {
+  const { buildFieldAudit } = await import("../scripts/audit-fields.mjs");
+  const audit = buildFieldAudit();
+  const services = audit.rows.find((row) => row.id === "services");
+  const weather = audit.rows.find((row) => row.id === "weather");
+  const duration = audit.rows.find((row) => row.id === "duration");
+  assert.equal(services.status, "partial");
+  assert.equal(weather.status, "partial");
+  assert.equal(duration.status, "complete");
+});
