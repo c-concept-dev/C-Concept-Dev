@@ -62,7 +62,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   weather: ["partial", "Constat manuel conservé ; Open-Meteo n’est pas encore intégré."],
   wishes: ["partial", "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."],
   pauses: ["partial", "Temps inclus dans le budget ; positionnement réel à compléter."],
-  services: ["partial", "Recherche possible après sélection ; impératifs avant sélection à réaliser."],
+  services: ["complete", "Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier."],
   freeText: ["partial", "Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres."],
   strict: ["complete", "Empêche les assouplissements silencieux."],
   shortcuts: ["partial", "Demande compilée ; calcul de raccourcis réels à compléter."],
