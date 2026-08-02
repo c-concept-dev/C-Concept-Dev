@@ -14,6 +14,7 @@ const bundles = {
     "src/core/terrain-evidence-core.js",
     "src/core/services-core.js",
     "src/core/weather-core.js",
+    "src/core/pause-planner-core.js",
     "src/core/limitations-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
