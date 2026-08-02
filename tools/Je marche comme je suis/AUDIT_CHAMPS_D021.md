@@ -7,8 +7,8 @@
 - Champs visibles : **41**
 - Groupes de choix : **5**
 - Choix visibles : **62**
-- Entrées complètes : **28**
-- Entrées partielles : **18**
+- Entrées complètes : **29**
+- Entrées partielles : **17**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
 
@@ -49,7 +49,7 @@
 | upSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente montante auditée lorsqu’elle est disponible. |
 | downSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente descendante auditée lorsqu’elle est disponible. |
 | recovery | field | audit | conditional | elevation, segment-times, benches | block-if-set | complete | Séquence facile mesurée après effort ; banc jamais présumé. |
-| weather | field | generation-audit | preparation | observed-weather | preserve-unknown | partial | Constat manuel conservé ; Open-Meteo n’est pas encore intégré. |
+| weather | field | generation-audit | preparation | observed-weather | preserve-unknown | complete | Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie. |
 | pauses | field | generation-audit | preparation | pause-places | block-if-required | partial | Temps inclus dans le budget ; positionnement réel à compléter. |
 | freeText | field | explanation-confirmation | preparation | structured-limitations | confirm | partial | Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres. |
 | strict | field | selection | imperative | — | block-unknown-hard | complete | Empêche les assouplissements silencieux. |
