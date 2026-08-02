@@ -9,6 +9,7 @@
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
+  const { planPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -553,6 +554,8 @@
       shortcuts: r.shortcuts || [],
       steps: r.steps || [],
       waypoints: r.waypoints || [],
+      pausePlan: r.pausePlan || null,
+      pauseMarkers: r.pauseMarkers || [],
       sources: r.sources || [],
       mode: r.mode || "api",
       violations: r.violations || [],
@@ -615,6 +618,19 @@
       }).addTo(S.map);
       l.on("click", () => select(i));
       S.layers.push(l);
+      if (i === S.selected)
+        (r.pauseMarkers || []).forEach((pause, pauseIndex) => {
+          const marker = L.circleMarker([pause.lat, pause.lon], {
+            radius: 7,
+            color: "#5b4d3e",
+            weight: 2,
+            fillColor: "#f3df9b",
+            fillOpacity: 1,
+          })
+            .bindTooltip(`Pause ${pauseIndex + 1} — ${pause.label}`)
+            .addTo(S.map);
+          S.layers.push(marker);
+        });
     });
     if (b.length && !S.nav.active) S.map.fitBounds(b, { padding: [24, 24] });
   }
@@ -1017,7 +1033,9 @@
       metricLabel(r.walking ?? r.total) +
       ' min</b><span>marche</span></div><div class="data"><b>' +
       metricLabel(r.breaks) +
-      ' min</b><span>pauses</span></div><div class="data"><b>' +
+      ' min</b><span>budget pauses</span></div><div class="data"><b>' +
+      (r.pauseMarkers || []).length +
+      '</b><span>pauses positionnées</span></div><div class="data"><b>' +
       metricLabel(r.ascent) +
       " / " +
       metricLabel(r.descent) +
@@ -1063,6 +1081,23 @@
           "</strong> — " +
           esc(c.constraint) +
           (c.evidence ? " : " + esc(c.evidence) : ""),
+      ) +
+      "</details><details><summary>Pauses positionnées (" +
+      (r.pauseMarkers || []).length +
+      ")</summary>" +
+      list(
+        r.pauseMarkers || [],
+        (pause, index) =>
+          "<strong>Pause " +
+          (index + 1) +
+          "</strong> — " +
+          esc(pause.label) +
+          (Number.isFinite(Number(pause.routeMeters))
+            ? " à " + Math.round(pause.routeMeters) + " m du départ"
+            : "") +
+          (Number.isFinite(Number(pause.offRouteMeters))
+            ? " · " + Math.round(pause.offRouteMeters) + " m hors trace"
+            : ""),
       ) +
       "</details><details><summary>Carnet étape par étape (" +
       r.steps.length +
@@ -1961,31 +1996,44 @@
     }
     let all = [...unique.values()];
     const requiredServices = S.compiled?.hard?.requiredServices || [];
-    if (requiredServices.length) {
+    const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
+      req.pausePlan,
+    );
+    if (requiredServices.length || pauseNeedsPoi) {
       status("Vérification des services impératifs avant sélection…");
       const verified = [];
       for (const route of all) {
         try {
           const pois = await geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 });
           route.pois = pois;
-          const assessment = assessRequiredServices(requiredServices, pois, {
-            searched: true,
-            providerAvailable: true,
-            radiusMeters: 300,
-          });
-          verified.push(applyServiceAssessment(route, assessment));
+          if (requiredServices.length) {
+            const assessment = assessRequiredServices(requiredServices, pois, {
+              searched: true,
+              providerAvailable: true,
+              radiusMeters: 300,
+            });
+            verified.push(applyServiceAssessment(route, assessment));
+          } else verified.push(route);
         } catch (error) {
-          const assessment = assessRequiredServices(requiredServices, [], {
-            searched: false,
-            providerAvailable: false,
-            radiusMeters: 300,
-          });
-          const checked = applyServiceAssessment(route, assessment);
-          checked.warnings = [
-            ...(checked.warnings || []),
-            "Services impératifs invérifiables : " + error.message,
-          ];
-          verified.push(checked);
+          if (requiredServices.length) {
+            const assessment = assessRequiredServices(requiredServices, [], {
+              searched: false,
+              providerAvailable: false,
+              radiusMeters: 300,
+            });
+            const checked = applyServiceAssessment(route, assessment);
+            checked.warnings = [
+              ...(checked.warnings || []),
+              "Services impératifs invérifiables : " + error.message,
+            ];
+            verified.push(checked);
+          } else {
+            route.warnings = [
+              ...(route.warnings || []),
+              "Point de pause invérifiable : " + error.message,
+            ];
+            verified.push(route);
+          }
         }
       }
       all = verified;
@@ -1994,6 +2042,15 @@
       all = all.map((route) =>
         applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
       );
+    all = all.map((route) => {
+      const planned = planPauses({
+        coords: route.coords,
+        walkingMinutes: route.walking ?? route.total,
+        pausePlan: req.pausePlan,
+        pois: route.pois,
+      });
+      return applyPausePlan(route, req.pausePlan, planned);
+    });
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
       adaptations = all.filter((x) => x.proposalStatus === "adaptation"),
@@ -2280,9 +2337,18 @@
           applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
         )
       : audited;
-    const compatible = weatherAudited.filter((route) => route.proposalStatus === "compatible");
-    const toVerify = weatherAudited.filter((route) => route.proposalStatus === "verify");
-    const adaptations = weatherAudited.filter((route) => route.proposalStatus === "adaptation");
+    const pauseAudited = weatherAudited.map((route) => {
+      const planned = planPauses({
+        coords: route.coords,
+        walkingMinutes: route.walking ?? route.total,
+        pausePlan: S.request?.pausePlan,
+        pois: route.pois,
+      });
+      return applyPausePlan(route, S.request?.pausePlan, planned);
+    });
+    const compatible = pauseAudited.filter((route) => route.proposalStatus === "compatible");
+    const toVerify = pauseAudited.filter((route) => route.proposalStatus === "verify");
+    const adaptations = pauseAudited.filter((route) => route.proposalStatus === "adaptation");
     const pool = compatible.length
       ? compatible
       : toVerify.length
