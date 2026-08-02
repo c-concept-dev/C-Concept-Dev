@@ -1,12 +1,12 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T21:11:02.472Z",
+  "generatedAt": "2026-08-02T21:17:12.184Z",
   "counts": {
     "visibleFields": 41,
     "choiceGroups": 5,
     "visibleChoices": 62,
-    "complete": 27,
-    "partial": 19
+    "complete": 28,
+    "partial": 18
   },
   "structuralCoverage": {
     "orphanFields": [],
@@ -634,8 +634,8 @@
         "pois"
       ],
       "unknownPolicy": "block",
-      "status": "partial",
-      "note": "Recherche possible après sélection ; impératifs avant sélection à réaliser."
+      "status": "complete",
+      "note": "Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier."
     }
   ]
 }
