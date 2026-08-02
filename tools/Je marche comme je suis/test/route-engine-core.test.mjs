@@ -5,13 +5,11 @@ import vm from "node:vm";
 
 const htmlPath = new URL("../je-marche-comme-je-suis-p0.html", import.meta.url);
 const html = readFileSync(htmlPath, "utf8");
-const coreSource = html.match(
-  /\/\* JMMJS_ROUTE_ENGINE_CORE_START \*\/([\s\S]*?)\/\* JMMJS_ROUTE_ENGINE_CORE_END \*\//,
-)?.[1];
-assert.ok(
-  coreSource,
-  "Le noyau testable doit rester intégré au HTML autonome.",
+const coreSource = readFileSync(
+  new URL("../src/core/route-engine-core.js", import.meta.url),
+  "utf8",
 );
+assert.ok(coreSource, "Le noyau testable doit exister comme module source.");
 
 const context = { console, Date, globalThis: null };
 context.globalThis = context;

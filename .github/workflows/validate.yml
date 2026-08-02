@@ -1,4 +1,4 @@
-name: Validate JSON Schemas
+name: Validate repository
 
 on:
   push:
@@ -23,6 +23,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install jsonschema
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
     
     - name: Validate Brain JSON (if exists)
       run: |
@@ -32,6 +37,15 @@ jobs:
           echo "⚠️ Brain.json not found - skipping validation"
         fi
     
-    - name: Run tests
+    - name: Validate modular walking application
+      run: |
+        npm --prefix "tools/Je marche comme je suis" run build
+        git diff --exit-code -- "tools/Je marche comme je suis/je-marche-comme-je-suis-p0.html"
+        npm --prefix "tools/Je marche comme je suis" test
+
+    - name: Validate walking services Worker
+      run: npm --prefix WalkServicesWorker test
+
+    - name: Run remaining validations
       run: |
         echo "✅ All validations passed"
