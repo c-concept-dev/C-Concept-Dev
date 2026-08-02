@@ -59,7 +59,7 @@
 | gpxFile | field | route-source | imperative | geometry | block | complete | Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables. |
 | equipment | choice-group | generation-audit | conditional | surface, width, kerb, steps | block-if-imperative | partial | Options ORS et audits présents pour certains équipements seulement. |
 | limits | choice-group | generation-audit | conditional | surface, slope, width, services | block-if-imperative | partial | Plusieurs limitations sont traduites ; seuils fonctionnels à structurer. |
-| terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | Influence génération et classement ; régularité/largeur restent souvent inconnues. |
+| terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée. |
 | wishes | choice-group | generation-ranking | preference | green, noise, pois | rank-only | partial | Classement partiel ; plusieurs envies nécessitent des POI avant sélection. |
 | services | choice-group | generation-audit | imperative | pois | block | partial | Recherche possible après sélection ; impératifs avant sélection à réaliser. |
 
