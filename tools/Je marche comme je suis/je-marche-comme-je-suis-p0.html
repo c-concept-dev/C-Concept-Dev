@@ -2516,6 +2516,106 @@ svg.leaflet-image-layer.leaflet-interactive path {
 })();
 (() => {
   "use strict";
+  const CRITICAL_CODES = new Set([66, 67, 75, 77, 82, 86, 95, 96, 99]);
+  const THUNDER_CODES = new Set([95, 96, 99]);
+  const finiteValues = (values = []) => (Array.isArray(values) ? values : []).map(Number).filter(Number.isFinite);
+  const maxOrNull = (values) => {
+    const valid = finiteValues(values);
+    return valid.length ? Math.max(...valid) : null;
+  };
+  const minOrNull = (values) => {
+    const valid = finiteValues(values);
+    return valid.length ? Math.min(...valid) : null;
+  };
+  function summarizeForecast(hourly = {}, options = {}) {
+    const startIndex = Math.max(0, Number(options.startIndex) || 0);
+    const count = Math.max(1, Number(options.count) || 3);
+    const slice = (key) => Array.isArray(hourly[key]) ? hourly[key].slice(startIndex, startIndex + count) : [];
+    const codes = finiteValues(slice("weather_code"));
+    const summary = {
+      source: "Open-Meteo",
+      startTime: slice("time")[0] || null,
+      endTime: slice("time").at(-1) || null,
+      temperatureMinC: minOrNull(slice("temperature_2m")),
+      temperatureMaxC: maxOrNull(slice("temperature_2m")),
+      apparentMinC: minOrNull(slice("apparent_temperature")),
+      apparentMaxC: maxOrNull(slice("apparent_temperature")),
+      precipitationProbabilityMax: maxOrNull(slice("precipitation_probability")),
+      precipitationMm: finiteValues(slice("precipitation")).reduce((sum, value) => sum + value, 0),
+      windGustMaxKmh: maxOrNull(slice("wind_gusts_10m")),
+      visibilityMinM: minOrNull(slice("visibility")),
+      weatherCodes: codes,
+      coverageHours: Math.min(count, slice("time").length),
+      requestedHours: count,
+    };
+    summary.complete = summary.coverageHours >= count;
+    return summary;
+  }
+  function assessForecast(summary) {
+    if (!summary || !summary.coverageHours) {
+      return {
+        level: "unknown",
+        label: "Prévision indisponible",
+        checks: [{ status: "unknown", label: "Météo prévue pendant la balade", evidence: "Aucune prévision horaire exploitable n’a été obtenue." }],
+        warnings: [],
+      };
+    }
+    const warnings = [];
+    const hasCriticalCode = summary.weatherCodes.some((code) => CRITICAL_CODES.has(code));
+    const thunder = summary.weatherCodes.some((code) => THUNDER_CODES.has(code));
+    const strongGust = Number.isFinite(summary.windGustMaxKmh) && summary.windGustMaxKmh >= 70;
+    const poorVisibility = Number.isFinite(summary.visibilityMinM) && summary.visibilityMinM < 500;
+    if (thunder) warnings.push("Risque orageux prévu pendant la plage de sortie.");
+    else if (hasCriticalCode) warnings.push("Phénomène météo marqué prévu pendant la plage de sortie.");
+    if (strongGust) warnings.push(`Rafales prévues jusqu’à ${Math.round(summary.windGustMaxKmh)} km/h.`);
+    if (poorVisibility) warnings.push(`Visibilité prévue pouvant descendre à ${Math.round(summary.visibilityMinM)} m.`);
+    if (Number.isFinite(summary.precipitationProbabilityMax) && summary.precipitationProbabilityMax >= 60)
+      warnings.push(`Probabilité de précipitations jusqu’à ${Math.round(summary.precipitationProbabilityMax)} %.`);
+    if (Number.isFinite(summary.apparentMaxC) && summary.apparentMaxC >= 32)
+      warnings.push(`Température ressentie prévue jusqu’à ${Math.round(summary.apparentMaxC)} °C.`);
+    if (Number.isFinite(summary.apparentMinC) && summary.apparentMinC <= 0)
+      warnings.push(`Température ressentie minimale prévue : ${Math.round(summary.apparentMinC)} °C.`);
+    const critical = hasCriticalCode || strongGust || poorVisibility;
+    const status = critical ? "violated" : summary.complete ? "respected" : "unknown";
+    return {
+      level: critical ? "critical" : warnings.length ? "caution" : "favorable",
+      label: critical ? "Conditions défavorables" : warnings.length ? "Prudence météo" : "Conditions sans alerte technique",
+      checks: [{
+        status,
+        label: "Météo prévue pendant la balade",
+        evidence: critical
+          ? warnings.join(" ")
+          : summary.complete
+            ? `Prévision Open-Meteo disponible sur ${summary.coverageHours} h ; aucun phénomène critique selon les seuils techniques D-028.`
+            : `Prévision Open-Meteo partielle : ${summary.coverageHours} h sur ${summary.requestedHours} h demandées.`,
+      }],
+      warnings,
+    };
+  }
+  function applyWeatherAssessment(route, summary, assessment) {
+    const next = { ...route };
+    next.weather = { summary, assessment };
+    next.checks = [
+      ...(Array.isArray(next.checks) ? next.checks : []),
+      ...assessment.checks.map((check) => ({
+        constraint: check.label,
+        status: check.status,
+        evidence: check.evidence,
+        severity: assessment.level === "critical" ? "hard" : "advisory",
+      })),
+    ];
+    next.warnings = [...new Set([...(next.warnings || []), ...assessment.warnings])];
+    if (assessment.level === "critical") {
+      next.proposalStatus = "adaptation";
+      next.canNavigate = false;
+      next.violations = [...new Set([...(next.violations || []), "Météo défavorable prévue"])];
+    }
+    return next;
+  }
+  globalThis.JMMJSWeatherCore = Object.freeze({ summarizeForecast, assessForecast, applyWeatherAssessment });
+})();
+(() => {
+  "use strict";
 
   const TRIGGERS = Object.freeze({
     "Montée": { effect: "slope_up" },
@@ -2951,6 +3051,47 @@ svg.leaflet-image-layer.leaflet-interactive path {
   });
 })();
 /* JMMJS_GEOAPIFY_PROVIDER_END */
+(() => {
+  "use strict";
+  function createOpenMeteoProvider({ fetchImpl = fetch } = {}) {
+    async function forecast({ latitude, longitude, hours = 3 }) {
+      if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)))
+        throw new TypeError("Coordonnées météo invalides.");
+      const params = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        timezone: "auto",
+        forecast_days: "2",
+        hourly: [
+          "temperature_2m",
+          "apparent_temperature",
+          "precipitation_probability",
+          "precipitation",
+          "weather_code",
+          "wind_gusts_10m",
+          "visibility",
+        ].join(","),
+      });
+      const response = await fetchImpl(`https://api.open-meteo.com/v1/forecast?${params}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Open-Meteo indisponible (${response.status}).`);
+      const data = await response.json();
+      const times = data?.hourly?.time || [];
+      const now = Date.now();
+      let startIndex = times.findIndex((value) => Date.parse(value) >= now - 30 * 60 * 1000);
+      if (startIndex < 0) startIndex = 0;
+      return {
+        hourly: data.hourly || {},
+        startIndex,
+        count: Math.max(1, Math.ceil(Number(hours) || 1)),
+        timezone: data.timezone || null,
+      };
+    }
+    return Object.freeze({ id: "open-meteo", forecast });
+  }
+  globalThis.JMMJSOpenMeteoProvider = Object.freeze({ createOpenMeteoProvider });
+})();
 </script>
     <script data-jmmjs-bundle="app">
 (() => {
@@ -2963,6 +3104,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
+  const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -2983,6 +3125,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       request: null,
       compiled: null,
       bases: null,
+      weather: null,
       layerControl: null,
       requestCounts: { ors: 0, geo: 0, mapillary: 0 },
       nav: {
@@ -3717,6 +3860,28 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }),
   );
   const geoapifyProvider = peripherals.require("geoapify");
+  peripherals.register(
+    globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
+  );
+  const weatherProvider = peripherals.require("open-meteo");
+  async function loadWeatherFor(latitude, longitude, minutes) {
+    try {
+      const raw = await weatherProvider.forecast({
+        latitude,
+        longitude,
+        hours: Math.max(1, Number(minutes || 60) / 60 + 1),
+      });
+      const summary = summarizeForecast(raw.hourly, {
+        startIndex: raw.startIndex,
+        count: raw.count,
+      });
+      const assessment = assessForecast(summary);
+      S.weather = { summary, assessment, timezone: raw.timezone };
+    } catch (error) {
+      S.weather = { summary: null, assessment: assessForecast(null), error: error.message };
+    }
+    return S.weather;
+  }
   function clearEnrichment() {
     S.poiLayers.forEach((x) => x.remove());
     S.photoLayers.forEach((x) => x.remove());
@@ -3967,6 +4132,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       ' %</b><span>couverture altitude</span></div><div class="data"><b>' +
       esc(r.elevationQuality || "—") +
       '</b><span>qualité altitude</span></div><div class="data"><b>' +
+      esc(r.weather?.assessment?.label || "—") +
+      '</b><span>météo Open-Meteo</span></div><div class="data"><b>' +
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
@@ -4838,8 +5005,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     return Number.isFinite(seconds) && seconds > 0 ? Math.min(60, seconds) : null;
   }
   async function direct(req) {
-    const c = await geocode(),
-      requestedTarget = Math.max(500, S.compiled.targetMeters),
+    const c = await geocode();
+    await loadWeatherFor(c.lat, c.lon, req.time?.availableMinutes);
+    const requestedTarget = Math.max(500, S.compiled.targetMeters),
       targetFactors = [1, 0.78, 0.58, 0.4],
       unique = new Map();
     const engine = "OpenRouteService sécurisé";
@@ -4918,6 +5086,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }
       all = verified;
     }
+    if (S.weather?.assessment)
+      all = all.map((route) =>
+        applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
+      );
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
       adaptations = all.filter((x) => x.proposalStatus === "adaptation"),
@@ -5190,12 +5362,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const text = await file.text();
     const compiled = S.compiled || compileConstraints(S.request);
     const parsed = parseGPXText(text, file.name.replace(/\.gpx$/i, ""));
+    if (parsed[0]?.points?.[0])
+      await loadWeatherFor(
+        Number(parsed[0].points[0][1]),
+        Number(parsed[0].points[0][0]),
+        S.request?.time?.availableMinutes,
+      );
     const audited = parsed.map((source, index) =>
       auditedGPXCandidate(source, compiled, index),
     );
-    const compatible = audited.filter((route) => route.proposalStatus === "compatible");
-    const toVerify = audited.filter((route) => route.proposalStatus === "verify");
-    const adaptations = audited.filter((route) => route.proposalStatus === "adaptation");
+    const weatherAudited = S.weather?.assessment
+      ? audited.map((route) =>
+          applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
+        )
+      : audited;
+    const compatible = weatherAudited.filter((route) => route.proposalStatus === "compatible");
+    const toVerify = weatherAudited.filter((route) => route.proposalStatus === "verify");
+    const adaptations = weatherAudited.filter((route) => route.proposalStatus === "adaptation");
     const pool = compatible.length
       ? compatible
       : toVerify.length
