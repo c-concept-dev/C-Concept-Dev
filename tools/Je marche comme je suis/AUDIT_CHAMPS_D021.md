@@ -7,8 +7,8 @@
 - Champs visibles : **41**
 - Groupes de choix : **5**
 - Choix visibles : **62**
-- Entrées complètes : **27**
-- Entrées partielles : **19**
+- Entrées complètes : **28**
+- Entrées partielles : **18**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
 
@@ -61,7 +61,7 @@
 | limits | choice-group | generation-audit | conditional | surface, slope, width, services | block-if-imperative | partial | Plusieurs limitations sont traduites ; seuils fonctionnels à structurer. |
 | terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée. |
 | wishes | choice-group | generation-ranking | preference | green, noise, pois | rank-only | partial | Classement partiel ; plusieurs envies nécessitent des POI avant sélection. |
-| services | choice-group | generation-audit | imperative | pois | block | partial | Recherche possible après sélection ; impératifs avant sélection à réaliser. |
+| services | choice-group | generation-audit | imperative | pois | block | complete | Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier. |
 
 ## Conclusion
 
