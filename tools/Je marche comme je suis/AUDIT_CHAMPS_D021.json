@@ -1,11 +1,11 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T17:40:23.136Z",
+  "generatedAt": "2026-08-02T20:14:06.072Z",
   "counts": {
-    "visibleFields": 33,
+    "visibleFields": 41,
     "choiceGroups": 5,
     "visibleChoices": 62,
-    "complete": 17,
+    "complete": 25,
     "partial": 21
   },
   "structuralCoverage": {
@@ -248,6 +248,96 @@
       "unknownPolicy": "block",
       "status": "partial",
       "note": "Contrôle prévu mais preuve d’exposition encore souvent absente."
+    },
+    {
+      "id": "limitationSide",
+      "kind": "field",
+      "effect": "explanation",
+      "severity": "preparation",
+      "requiredData": [],
+      "unknownPolicy": "preserve-unknown",
+      "status": "complete",
+      "note": "Côté déclaré conservé comme contexte, sans diagnostic ni déduction."
+    },
+    {
+      "id": "limitationTrigger",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "confirmed-functional-effect"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "complete",
+      "note": "Déclencheur concret raccordé aux règles fonctionnelles D-024."
+    },
+    {
+      "id": "limitationConsequence",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "confirmed-functional-effect"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "complete",
+      "note": "Conséquence appliquée uniquement après confirmation explicite."
+    },
+    {
+      "id": "limitationTemporality",
+      "kind": "field",
+      "effect": "explanation",
+      "severity": "preparation",
+      "requiredData": [],
+      "unknownPolicy": "preserve-unknown",
+      "status": "complete",
+      "note": "Temporalité conservée dans chaque règle dérivée."
+    },
+    {
+      "id": "maxWithoutPause",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "pause-plan"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "complete",
+      "note": "Seuil facultatif conservé et utilisé sans remplacement automatique."
+    },
+    {
+      "id": "maxStanding",
+      "kind": "field",
+      "effect": "audit",
+      "severity": "imperative",
+      "requiredData": [
+        "standing-duration"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "complete",
+      "note": "Seuil facultatif audité ; une mesure absente reste à vérifier."
+    },
+    {
+      "id": "helperAvailable",
+      "kind": "field",
+      "effect": "preparation",
+      "severity": "preparation",
+      "requiredData": [],
+      "unknownPolicy": "preserve-unknown",
+      "status": "complete",
+      "note": "Contexte de préparation sans bonus de capacité."
+    },
+    {
+      "id": "limitationConfirmed",
+      "kind": "field",
+      "effect": "confirmation",
+      "severity": "imperative",
+      "requiredData": [
+        "confirmed-functional-effect"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "complete",
+      "note": "Confirmation obligatoire avant toute règle dérivée."
     },
     {
       "id": "effort",
