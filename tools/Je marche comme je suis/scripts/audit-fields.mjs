@@ -61,7 +61,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   terrain: ["partial", "D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée."],
   weather: ["complete", "Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie."],
   wishes: ["partial", "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."],
-  pauses: ["partial", "Temps inclus dans le budget ; positionnement réel à compléter."],
+  pauses: ["complete", "Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables."],
   services: ["complete", "Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier."],
   freeText: ["partial", "Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres."],
   strict: ["complete", "Empêche les assouplissements silencieux."],
