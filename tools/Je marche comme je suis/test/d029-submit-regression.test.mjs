@@ -42,3 +42,38 @@ test("l'application installe une protection submit précoce", () => {
     /formElement\.addEventListener\("submit", \(event\) => event\.preventDefault\(\)\)/,
   );
 });
+
+
+test("le registre accepte le type weather avec forecast", () => {
+  const source = readFileSync(
+    new URL("../src/core/peripheral-registry.js", import.meta.url),
+    "utf8",
+  );
+  const context = { globalThis: null };
+  context.globalThis = context;
+  vm.runInNewContext(source, context);
+  const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
+  assert.doesNotThrow(() =>
+    registry.register({
+      id: "weather-test",
+      kind: "weather",
+      forecast() {},
+    }),
+  );
+  assert.equal(registry.has("weather-test"), true);
+});
+
+test("le contrat weather exige forecast", () => {
+  const source = readFileSync(
+    new URL("../src/core/peripheral-registry.js", import.meta.url),
+    "utf8",
+  );
+  const context = { globalThis: null };
+  context.globalThis = context;
+  vm.runInNewContext(source, context);
+  const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
+  assert.throws(
+    () => registry.register({ id: "weather-broken", kind: "weather" }),
+    /doit implémenter forecast/,
+  );
+});
