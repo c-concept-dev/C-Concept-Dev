@@ -6,6 +6,7 @@
     auditRoute: auditRoute,
   } = globalThis.JMMJSRouteEngineCore;
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
+  const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -538,6 +539,7 @@
       maxDown: metric(m.maxDescentSlopePercent),
       terrain: r.terrainTypes || [],
       surfaces: r.surfaces || [],
+      terrainEvidence: r.terrainEvidence || null,
       compatibility: metric(r.compatibilityScore),
       pleasure: metric(r.pleasureScore),
       confidence: metric(r.confidenceScore),
@@ -1012,7 +1014,11 @@
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
-      '</b><span>raccourcis</span></div></div><div class="tags">' +
+      '</b><span>raccourcis</span></div><div class="data"><b>' +
+      esc(r.terrainEvidence?.quality === "documented" ? "Documentée" : r.terrainEvidence?.quality === "partial" ? "Partielle" : "Absente") +
+      '</b><span>preuve terrain</span></div><div class="data"><b>' +
+      metricLabel(r.terrainEvidence?.surfaceCoveragePercent) +
+      ' %</b><span>surface documentée</span></div></div><div class="tags">' +
       [...r.terrain, ...surfaces]
         .map((x) => '<span class="tag">' + esc(x) + "</span>")
         .join("") +
@@ -1061,6 +1067,10 @@
       ) +
       "</details><details><summary>Réserves et inconnues</summary>" +
       list([...r.warnings, ...r.unknowns]) +
+      "</details><details><summary>Qualité des preuves terrain</summary>" +
+      (r.terrainEvidence
+        ? "<ul><li><strong>" + esc(r.terrainEvidence.label) + "</strong> — " + esc(r.terrainEvidence.evidence) + "</li><li>Largeur : " + esc(r.terrainEvidence.widthEvidence) + "</li><li>Exposition : " + esc(r.terrainEvidence.exposureEvidence) + "</li></ul>"
+        : '<p class="kicker">Preuve terrain non évaluée</p>') +
       "</details><details><summary>Sources</summary>" +
       list(r.sources) +
       '</details><div class="exports">' +
@@ -1638,6 +1648,7 @@
         percent: Math.round(x.amount),
         id: Number(x.value),
       })),
+      terrainEvidence = assessTerrainEvidence({ surfaces, source: "OpenRouteService / OpenStreetMap" }),
       steepness = extraSummary(extras, "steepness"),
       ways = extraSummary(extras, "waytypes").length
         ? extraSummary(extras, "waytypes")
@@ -1670,6 +1681,9 @@
         ]),
         stairsMeters: stairsMeters,
         surfaces: surfaces,
+        regularitySafe: terrainEvidence.regularitySafe,
+        minimumWidthMeters: terrainEvidence.minimumWidthMeters,
+        exposureSafe: terrainEvidence.exposureSafe,
         ascentMeters: elevationDetails.known ? elevation.up : null,
         maxContinuousAscentMinutes: elevationDetails.completeEnough
           ? elevationDetails.maxContinuousAscentMinutes
@@ -1750,6 +1764,7 @@
           maxDescentSlopePercent: maxDown,
         },
         surfaces: surfaces,
+        terrainEvidence: terrainEvidence,
         compatibilityScore: compatibility,
         pleasureScore: Math.max(
           1,
@@ -2043,6 +2058,7 @@
       totalMinutes: walkingMinutes + compiled.time.pauseMinutes,
       startEndDistanceMeters: distance([originalCoords[0], originalCoords.at(-1)]),
       surfaces: [],
+      terrainEvidence: absentTerrainEvidence("Fichier GPX"),
       ascentMeters: elevationComplete ? summary.ascentMeters : null,
       stairsMeters: null,
       exposureSafe: undefined,
@@ -2145,6 +2161,7 @@
           maxAscentSlopePercent: elevationComplete ? details.maxUpPercent : null,
           maxDescentSlopePercent: elevationComplete ? details.maxDownPercent : null,
         },
+        terrainEvidence: common.terrainEvidence,
         constraintChecks: audit.checks.map((item) => ({
           constraint: item.label,
           status: item.status,
