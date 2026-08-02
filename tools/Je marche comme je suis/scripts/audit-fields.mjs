@@ -67,7 +67,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   shortcuts: ["partial", "Demande compilée ; calcul de raccourcis réels à compléter."],
   bothWays: ["complete", "Les deux sens sont audités."],
   private: ["partial", "Intention de non-persistance présente ; audit complet du stockage à faire."],
-  gpxFile: ["partial", "Import présent ; parité complète avec ORS prévue en D-022."],
+  gpxFile: ["complete", "Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables."],
 });
 
 function severityFor(id, entry) {
