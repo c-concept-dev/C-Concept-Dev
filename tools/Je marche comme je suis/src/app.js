@@ -1615,13 +1615,13 @@
   }
   async function directORS(c, target, req) {
     status(
-      "OpenRouteService sécurisé : calcul et analyse de 6 boucles candidates…",
+      "OpenRouteService sécurisé : calcul et analyse de 3 boucles candidates…",
     );
     const fs = await orsProvider.createRoundTrips({
       coordinate: [c.lon, c.lat],
       targetMeters: target,
       compiled: S.compiled,
-      count: 6,
+      count: 3,
     });
     serviceState("ors", "Connecté", "ok");
     return fs.map((f, i) => analyzeORSWithCore(f, req, i));
@@ -1640,22 +1640,41 @@
       (check) => check.id === "time" && check.status === "respected",
     );
   }
+  const wait = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds));
+  function retryDelay(error) {
+    const seconds = Number(error?.retryAfterSeconds);
+    return Number.isFinite(seconds) && seconds > 0 ? Math.min(60, seconds) : null;
+  }
   async function direct(req) {
     const c = await geocode(),
       requestedTarget = Math.max(500, S.compiled.targetMeters),
-      targetFactors = [1, 0.82, 0.68, 0.54, 0.4],
+      targetFactors = [1, 0.78, 0.58, 0.4],
       unique = new Map();
     const engine = "OpenRouteService sécurisé";
     let completedBatches = 0;
     try {
-      for (const factor of targetFactors) {
+      for (let batchIndex = 0; batchIndex < targetFactors.length; batchIndex += 1) {
+        const factor = targetFactors[batchIndex];
         const target = Math.max(500, Math.round(requestedTarget * factor));
         status(
           completedBatches
             ? `Aucune proposition ne respecte encore votre temps : nouvelle recherche plus courte (${Math.round(factor * 100)} % de la cible initiale)…`
-            : "OpenRouteService sécurisé : calcul et analyse de 6 boucles candidates…",
+            : "OpenRouteService sécurisé : calcul et analyse de 3 boucles candidates…",
         );
-        const batch = await directORS(c, target, req);
+        if (batchIndex > 0) await wait(1200);
+        let batch;
+        try {
+          batch = await directORS(c, target, req);
+        } catch (error) {
+          const delay = retryDelay(error);
+          if (delay == null) throw error;
+          status(
+            `OpenRouteService demande une pause. Nouvelle tentative dans ${delay} seconde${delay > 1 ? "s" : ""}…`,
+          );
+          await wait(delay * 1000);
+          batch = await directORS(c, target, req);
+        }
         completedBatches += 1;
         for (const route of batch) {
           const key = routeFingerprint(route);
