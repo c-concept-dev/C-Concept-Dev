@@ -9,7 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -45,6 +45,25 @@ jobs:
 
     - name: Validate walking services Worker
       run: npm --prefix WalkServicesWorker test
+
+    - name: Install Playwright
+      run: |
+        npm --prefix "tools/Je marche comme je suis" install
+        npx --prefix "tools/Je marche comme je suis" playwright install --with-deps chromium webkit
+
+    - name: Run critical browser tests
+      run: npm --prefix "tools/Je marche comme je suis" run e2e:critical
+
+    - name: Upload Playwright report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: |
+          tools/Je marche comme je suis/playwright-report/
+          tools/Je marche comme je suis/test-results/
+        if-no-files-found: warn
+        retention-days: 14
 
     - name: Run remaining validations
       run: |
