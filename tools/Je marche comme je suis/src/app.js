@@ -9,7 +9,7 @@
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
-  const { planPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
+  const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -619,8 +619,14 @@
       l.on("click", () => select(i));
       S.layers.push(l);
       if (i === S.selected)
-        (r.pauseMarkers || []).forEach((pause, pauseIndex) => {
-          const marker = L.circleMarker([pause.lat, pause.lon], {
+        (r.pauseMarkers || [])
+          .filter(
+            (pause) =>
+              Number.isFinite(Number(pause?.lat)) &&
+              Number.isFinite(Number(pause?.lon)),
+          )
+          .forEach((pause, pauseIndex) => {
+          const marker = L.circleMarker([Number(pause.lat), Number(pause.lon)], {
             radius: 7,
             color: "#5b4d3e",
             weight: 2,
@@ -2043,7 +2049,7 @@
         applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
       );
     all = all.map((route) => {
-      const planned = planPauses({
+      const planned = safePlanPauses({
         coords: route.coords,
         walkingMinutes: route.walking ?? route.total,
         pausePlan: req.pausePlan,
@@ -2338,7 +2344,7 @@
         )
       : audited;
     const pauseAudited = weatherAudited.map((route) => {
-      const planned = planPauses({
+      const planned = safePlanPauses({
         coords: route.coords,
         walkingMinutes: route.walking ?? route.total,
         pausePlan: S.request?.pausePlan,
@@ -2397,7 +2403,16 @@
       }
     } catch (x) {
       status("");
-      say(x.message);
+      S.step = 3;
+      document.querySelectorAll(".step").forEach((step, index) =>
+        step.classList.toggle("active", index === 3),
+      );
+      say(
+        "Le calcul n’a pas été réinitialisé. Erreur : " +
+          (x?.message || "erreur inconnue"),
+      );
+      renderConstraintSummary();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       $("#create").disabled = false;
     }
