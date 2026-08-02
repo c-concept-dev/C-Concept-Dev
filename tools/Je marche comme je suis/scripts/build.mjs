@@ -28,10 +28,5 @@ for (const [name, files] of Object.entries(bundles)) {
   html = html.replace(marker, () => bundledScript);
 }
 
-const generatedNotice =
-  "<!-- FICHIER GENERE : modifier le gabarit ou src/, puis lancer npm run build. -->";
-writeFileSync(
-  resolve(root, "je-marche-comme-je-suis-p0.html"),
-  `${generatedNotice}\n${html}\n`,
-);
+writeFileSync(resolve(root, "je-marche-comme-je-suis-p0.html"), `${html}\n`);
 console.log("HTML autonome reconstruit depuis les modules source.");
