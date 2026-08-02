@@ -1,15 +1,4 @@
-# Architecture canonique — Je marche comme je suis
-
-## Une seule application dans le dépôt
-
-Le répertoire `tools/Je marche comme je suis/` contient désormais l'unique
-implémentation de l'application. L'ancien prototype parallèle
-`tools/je-marche-comme-je-suis/index.html` a été retiré.
-
-Le nom historique `je-marche-comme-je-suis-p0.html` est conservé uniquement
-pour ne pas casser l'URL publique et les favoris existants. Son contenu n'est
-plus un monolithe source : c'est un artefact autonome, entièrement reconstruit
-depuis les modules du dépôt.
+# Architecture — Je marche comme je suis
 
 ## Règle de construction
 
@@ -19,8 +8,7 @@ gabarit et de ces modules. Il reste autonome : les modules sont intégrés dans
 le HTML au moment de la construction.
 
 Il ne faut donc jamais modifier directement le JavaScript inclus dans le HTML
-généré. Toute évolution passe par le gabarit ou `src/`, puis par `npm run build`.
-La CI reconstruit le fichier et refuse toute divergence.
+généré.
 
 ## Noyau
 
@@ -39,10 +27,8 @@ démarrage.
 - `src/peripherals/ors-provider.js` traduit les contraintes compilées en demande
   de boucles ORS. Il ne décide jamais qu’une route est compatible : cette
   décision appartient au noyau.
-- `src/peripherals/geoapify-provider.js` transforme les données Geoapify en
-  preuves structurées proches de la trace.
-- Les prochains adaptateurs météo, terrain et Mapillary suivront le même
-  principe : fournir des preuves structurées au noyau, sans modifier les
+- Les prochains adaptateurs Geoapify, météo, terrain et Mapillary suivront le
+  même principe : fournir des preuves structurées au noyau, sans modifier les
   contraintes humaines.
 
 ## Interface
