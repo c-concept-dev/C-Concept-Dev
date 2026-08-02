@@ -2401,6 +2401,122 @@ svg.leaflet-image-layer.leaflet-interactive path {
 (() => {
   "use strict";
 
+  const SERVICE_LABELS = Object.freeze([
+    "Toilettes",
+    "Eau potable",
+    "Banc",
+    "Pharmacie",
+    "Parking",
+    "Transport public",
+    "Réseau téléphonique",
+  ]);
+
+  function normalizeServices(values = []) {
+    return [...new Set((Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter((value) => SERVICE_LABELS.includes(value)))];
+  }
+
+  function assessRequiredServices(required = [], pois = [], options = {}) {
+    const requested = normalizeServices(required);
+    const providerAvailable = options.providerAvailable !== false;
+    const searched = options.searched === true;
+    const radiusMeters = Number.isFinite(Number(options.radiusMeters))
+      ? Number(options.radiusMeters)
+      : 300;
+    const foundTypes = new Set(
+      (Array.isArray(pois) ? pois : []).map((poi) => String(poi?.type || "")),
+    );
+
+    const checks = requested.map((service) => {
+      if (!providerAvailable || !searched) {
+        return {
+          service,
+          status: "unknown",
+          evidence: `${service} requis : recherche cartographique non disponible.`,
+        };
+      }
+      if (service === "Réseau téléphonique") {
+        return {
+          service,
+          status: "unknown",
+          evidence:
+            "Réseau téléphonique requis : Geoapify et OpenStreetMap ne prouvent pas la couverture mobile.",
+        };
+      }
+      const found = foundTypes.has(service);
+      return {
+        service,
+        status: found ? "respected" : "violated",
+        evidence: found
+          ? `${service} documenté à moins de ${radiusMeters} m de la trace.`
+          : `${service} non trouvé à moins de ${radiusMeters} m de la trace lors de la recherche.`,
+      };
+    });
+
+    return {
+      requested,
+      checks,
+      respected: checks.filter((check) => check.status === "respected"),
+      violated: checks.filter((check) => check.status === "violated"),
+      unknown: checks.filter((check) => check.status === "unknown"),
+      admissible: checks.every((check) => check.status === "respected"),
+      status:
+        checks.some((check) => check.status === "violated")
+          ? "violated"
+          : checks.some((check) => check.status === "unknown")
+            ? "unknown"
+            : "respected",
+    };
+  }
+
+  function applyServiceAssessment(route, assessment) {
+    const next = { ...route };
+    const existing = Array.isArray(next.checks) ? next.checks : [];
+    next.checks = [
+      ...existing.filter((check) => !String(check.constraint || "").startsWith("Service requis :")),
+      ...assessment.checks.map((check) => ({
+        constraint: `Service requis : ${check.service}`,
+        status: check.status,
+        evidence: check.evidence,
+        severity: "hard",
+      })),
+    ];
+    next.requiredServiceAssessment = assessment;
+    next.pois = Array.isArray(next.pois) ? next.pois : [];
+
+    if (assessment.violated.length) {
+      next.proposalStatus = "adaptation";
+      next.canNavigate = false;
+      next.violations = [
+        ...new Set([
+          ...(next.violations || []),
+          ...assessment.violated.map((check) => `Service requis : ${check.service}`),
+        ]),
+      ];
+    } else if (assessment.unknown.length && next.proposalStatus === "compatible") {
+      next.proposalStatus = "verify";
+      next.canNavigate = false;
+      next.unknowns = [
+        ...new Set([
+          ...(next.unknowns || []),
+          ...assessment.unknown.map((check) => `Service requis : ${check.service}`),
+        ]),
+      ];
+    }
+    return next;
+  }
+
+  globalThis.JMMJSServicesCore = Object.freeze({
+    SERVICE_LABELS,
+    normalizeServices,
+    assessRequiredServices,
+    applyServiceAssessment,
+  });
+})();
+(() => {
+  "use strict";
+
   const TRIGGERS = Object.freeze({
     "Montée": { effect: "slope_up" },
     "Descente": { effect: "slope_down" },
@@ -2759,6 +2875,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       return "Eau potable";
     if (categories.some((value) => value.includes("bench"))) return "Banc";
     if (categories.some((value) => value.includes("shelter"))) return "Abri";
+    if (categories.some((value) => value.includes("pharmacy"))) return "Pharmacie";
+    if (categories.some((value) => value.includes("parking"))) return "Parking";
+    if (categories.some((value) => value.includes("public_transport") || value.includes("bus") || value.includes("railway"))) return "Transport public";
     if (categories.some((value) => value.includes("cafe"))) return "Café";
     if (categories.some((value) => value.startsWith("heritage")))
       return "Patrimoine";
@@ -2843,6 +2962,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   } = globalThis.JMMJSRouteEngineCore;
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
+  const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -4767,7 +4887,37 @@ svg.leaflet-image-layer.leaflet-interactive path {
             e.message,
         );
     }
-    const all = [...unique.values()];
+    let all = [...unique.values()];
+    const requiredServices = S.compiled?.hard?.requiredServices || [];
+    if (requiredServices.length) {
+      status("Vérification des services impératifs avant sélection…");
+      const verified = [];
+      for (const route of all) {
+        try {
+          const pois = await geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 });
+          route.pois = pois;
+          const assessment = assessRequiredServices(requiredServices, pois, {
+            searched: true,
+            providerAvailable: true,
+            radiusMeters: 300,
+          });
+          verified.push(applyServiceAssessment(route, assessment));
+        } catch (error) {
+          const assessment = assessRequiredServices(requiredServices, [], {
+            searched: false,
+            providerAvailable: false,
+            radiusMeters: 300,
+          });
+          const checked = applyServiceAssessment(route, assessment);
+          checked.warnings = [
+            ...(checked.warnings || []),
+            "Services impératifs invérifiables : " + error.message,
+          ];
+          verified.push(checked);
+        }
+      }
+      all = verified;
+    }
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
       adaptations = all.filter((x) => x.proposalStatus === "adaptation"),
@@ -4942,11 +5092,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const details = useReverse ? reverseElevation : forwardElevation;
     const hardViolations = audit.violations.filter((item) => item.severity === "hard");
     const hardUnknowns = audit.unknowns.filter((item) => item.severity === "hard");
-    const proposalStatus = audit.admissible
+    let proposalStatus = audit.admissible
       ? "compatible"
       : hardViolations.length
         ? "adaptation"
         : "verify";
+    const serviceAssessment = assessRequiredServices(
+      compiled.hard.requiredServices || [],
+      [],
+      { searched: false, providerAvailable: false, radiusMeters: 300 },
+    );
+    if (serviceAssessment.unknown.length && proposalStatus === "compatible")
+      proposalStatus = "verify";
     const coveragePercent = Math.round(summary.elevationCoverage * 100);
     const evidenceNotes = [
       `distance recalculée depuis ${source.points.length} points GPX`,
@@ -4998,12 +5155,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
           maxDescentSlopePercent: elevationComplete ? details.maxDownPercent : null,
         },
         terrainEvidence: common.terrainEvidence,
-        constraintChecks: audit.checks.map((item) => ({
-          constraint: item.label,
-          status: item.status,
-          evidence: item.evidence,
-          severity: item.severity,
-        })),
+        constraintChecks: [
+          ...audit.checks.map((item) => ({
+            constraint: item.label,
+            status: item.status,
+            evidence: item.evidence,
+            severity: item.severity,
+          })),
+          ...serviceAssessment.checks.map((item) => ({
+            constraint: `Service requis : ${item.service}`,
+            status: item.status,
+            evidence: item.evidence,
+            severity: "hard",
+          })),
+        ],
         warnings,
         unknowns: audit.unknowns.map((item) => item.label),
         geometry: { coordinates: coords },
