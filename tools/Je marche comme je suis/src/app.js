@@ -15,6 +15,10 @@
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
   } = globalThis.JMMJSLimitationsCore;
+  const formElement = document.querySelector("#form");
+  if (formElement)
+    formElement.addEventListener("submit", (event) => event.preventDefault());
+
   const $ = (s) => document.querySelector(s),
     $$ = (s) => [...document.querySelectorAll(s)],
     S = {
