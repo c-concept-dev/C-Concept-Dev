@@ -1,6 +1,6 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T21:05:21.996Z",
+  "generatedAt": "2026-08-02T21:11:02.472Z",
   "counts": {
     "visibleFields": 41,
     "choiceGroups": 5,
@@ -582,7 +582,7 @@
       ],
       "unknownPolicy": "preserve-unknown",
       "status": "partial",
-      "note": "Influence génération et classement ; régularité/largeur restent souvent inconnues."
+      "note": "D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée."
     },
     {
       "id": "wishes",
