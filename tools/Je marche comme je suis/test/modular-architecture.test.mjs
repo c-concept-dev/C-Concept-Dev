@@ -237,3 +237,18 @@ test("D-019 exige une diversité géométrique réelle avant de remplir trois ca
   assert.match(app, /picks\.every\(\(pick\) => routesAreDistinct\(route, pick\.route\)\)/);
   assert.match(app, /géométrie\(s\) suffisamment différente\(s\)/);
 });
+
+
+test("D-020 affiche une synthèse éditable avant tout appel ORS", () => {
+  const app = read("src/app.js");
+  const template = read("je-marche-comme-je-suis.template.html");
+  assert.match(template, /id="constraintSummary"/);
+  assert.match(template, /Confirmer et calculer/);
+  assert.match(app, /function constraintSummaryModel/);
+  assert.match(app, /function renderConstraintSummary/);
+  assert.match(app, /Contraintes impératives/);
+  assert.match(app, /Préférences prudentes et envies/);
+  assert.match(app, /Préparation et contrôles/);
+  assert.match(app, /data-edit-step/);
+  assert.match(app, /if \(S\.step === 3\) renderConstraintSummary\(\)/);
+});
