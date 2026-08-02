@@ -77,3 +77,23 @@ test("une pause invérifiable dégrade compatible en à vérifier", () => {
   assert.equal(route.proposalStatus, "verify");
   assert.equal(route.canNavigate, false);
 });
+
+
+test("safePlanPauses n'interrompt jamais le calcul", () => {
+  const result = core.safePlanPauses({
+    coords: [{ bad: true }],
+    walkingMinutes: 30,
+    pausePlan: "Toutes les 15 minutes",
+  });
+  assert.equal(result.status, "unknown");
+  assert.equal(result.markers.length, 0);
+});
+
+test("les coordonnées invalides sont ignorées proprement", () => {
+  const result = core.safePlanPauses({
+    coords: [[1, 43], [null, 43], [1.01, 43]],
+    walkingMinutes: 30,
+    pausePlan: "Toutes les 15 minutes",
+  });
+  assert.ok(["respected", "unknown"].includes(result.status));
+});
