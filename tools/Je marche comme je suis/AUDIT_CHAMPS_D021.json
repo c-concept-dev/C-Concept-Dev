@@ -1,12 +1,12 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T21:17:12.184Z",
+  "generatedAt": "2026-08-02T21:22:36.022Z",
   "counts": {
     "visibleFields": 41,
     "choiceGroups": 5,
     "visibleChoices": 62,
-    "complete": 28,
-    "partial": 18
+    "complete": 29,
+    "partial": 17
   },
   "structuralCoverage": {
     "orphanFields": [],
@@ -412,8 +412,8 @@
         "observed-weather"
       ],
       "unknownPolicy": "preserve-unknown",
-      "status": "partial",
-      "note": "Constat manuel conservé ; Open-Meteo n’est pas encore intégré."
+      "status": "complete",
+      "note": "Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie."
     },
     {
       "id": "pauses",
