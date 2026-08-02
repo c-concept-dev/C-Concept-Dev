@@ -174,7 +174,7 @@ test("D-015 retries progressively shorter ORS targets before adaptations", () =>
   const app = read("src/app.js");
   assert.match(app, /targetFactors = \[1, 0\.78, 0\.58, 0\.4\]/);
   assert.match(app, /for \(let batchIndex = 0; batchIndex < targetFactors\.length/);
-  assert.match(app, /acceptable\.length >= 3/);
+  assert.match(app, /diverseRoutes\(acceptable, 3\)\.length >= 3/);
   assert.match(app, /respectsTime\(route\)/);
 });
 
@@ -212,4 +212,28 @@ test("D-017 handles ORS retry-after without a blind retry storm", () => {
   assert.match(app, /await wait\(1200\)/);
   assert.match(app, /OpenRouteService demande une pause/);
   assert.match(client, /retryAfterSeconds/);
+});
+
+
+test("D-018 retire les scores fixes et affiche des faits auditables", () => {
+  const app = read("src/app.js");
+  const template = read("je-marche-comme-je-suis.template.html");
+  assert.doesNotMatch(app, /Compat\. \D*metricLabel\(r\.compatibility\)/);
+  assert.doesNotMatch(app, /Plaisir \D*metricLabel\(r\.pleasure\)/);
+  assert.doesNotMatch(app, /Confiance \D*metricLabel\(r\.confidence\)/);
+  assert.match(app, /routeAuditFacts/);
+  assert.match(app, /élément.*à vérifier/);
+  assert.match(app, /whyThisRoute/);
+  assert.match(template, /leaflet-control-layers-toggle::after/);
+  assert.doesNotMatch(template, /\.scores\{display:flex/);
+});
+
+test("D-019 exige une diversité géométrique réelle avant de remplir trois cartes", () => {
+  const app = read("src/app.js");
+  assert.match(app, /function routeGeometricOverlap/);
+  assert.match(app, /function routesAreDistinct/);
+  assert.match(app, /maximumOverlap = 0\.72/);
+  assert.match(app, /diverseRoutes\(acceptable, 3\)\.length >= 3/);
+  assert.match(app, /picks\.every\(\(pick\) => routesAreDistinct\(route, pick\.route\)\)/);
+  assert.match(app, /géométrie\(s\) suffisamment différente\(s\)/);
 });
