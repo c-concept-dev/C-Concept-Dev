@@ -58,7 +58,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   upSlope: ["complete", "Pente montante auditée lorsqu’elle est disponible."],
   downSlope: ["complete", "Pente descendante auditée lorsqu’elle est disponible."],
   recovery: ["complete", "Séquence facile mesurée après effort ; banc jamais présumé."],
-  terrain: ["partial", "Influence génération et classement ; régularité/largeur restent souvent inconnues."],
+  terrain: ["partial", "D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée."],
   weather: ["partial", "Constat manuel conservé ; Open-Meteo n’est pas encore intégré."],
   wishes: ["partial", "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."],
   pauses: ["partial", "Temps inclus dans le budget ; positionnement réel à compléter."],
