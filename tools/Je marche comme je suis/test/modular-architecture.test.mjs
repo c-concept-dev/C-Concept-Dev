@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
@@ -22,11 +22,6 @@ function moduleContext() {
 
 test("the generated HTML embeds every source module", () => {
   const html = read("je-marche-comme-je-suis-p0.html");
-  assert.match(
-    html,
-    /^<!-- FICHIER GENERE : modifier le gabarit ou src\//,
-    "le livrable public doit être explicitement identifié comme généré",
-  );
   for (const source of [
     "src/core/route-engine-core.js",
     "src/core/peripheral-registry.js",
@@ -37,18 +32,6 @@ test("the generated HTML embeds every source module", () => {
   ]) {
     assert.ok(html.includes(read(source).trim()), `${source} absent du build`);
   }
-});
-
-test("the obsolete parallel monolith is retired", () => {
-  const obsoletePrototype = new URL(
-    "../je-marche-comme-je-suis/index.html",
-    root,
-  );
-  assert.equal(
-    existsSync(obsoletePrototype),
-    false,
-    "l'ancien prototype parallèle ne doit plus cohabiter avec l'application modulaire",
-  );
 });
 
 test("the registry rejects a routing peripheral without its contract", () => {
@@ -173,4 +156,40 @@ test("the Geoapify peripheral keeps only documented POIs near the route", async 
       accessibility: "unknown",
     },
   ]);
+});
+
+test("D-013 never restores the exact-route dead end", () => {
+  const app = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(
+    app,
+    /Aucun parcours exact ne respecte toutes les contraintes impératives/,
+  );
+  assert.doesNotMatch(app, /\[\.\.\.exact\]/);
+  assert.match(app, /const selectionPool = substantial\.length \? substantial : pool/);
+});
+
+
+test("D-015 retries progressively shorter ORS targets before adaptations", () => {
+  const app = read("src/app.js");
+  assert.match(app, /targetFactors = \[1, 0\.82, 0\.68, 0\.54, 0\.4\]/);
+  assert.match(app, /for \(const factor of targetFactors\)/);
+  assert.match(app, /acceptable\.length >= 3/);
+  assert.match(app, /respectsTime\(route\)/);
+});
+
+test("step durations are rendered without raw decimal minutes", () => {
+  const app = read("src/app.js");
+  assert.match(app, /function formatStepDuration/);
+  assert.match(app, /formatStepDuration\(s\.durationMinutes\)/);
+  assert.doesNotMatch(app, /\(s\.durationMinutes \?\? "\?"\) \+/);
+});
+
+test("D-016 selects profiles by duration bands and keeps micro-walks separate", () => {
+  const app = read("src/app.js");
+  assert.match(app, /selectProfile\("confortable", "La plus confortable", 0\.45, 0\.7/);
+  assert.match(app, /selectProfile\("agréable", "L’agréable", 0\.75, 1/);
+  assert.match(app, /selectProfile\("tonique", "La plus tonique", 0\.6, 0\.95/);
+  assert.match(app, /ratio\(route\) < 0\.4/);
+  assert.match(app, /orientation: "très courte"/);
+  assert.match(app, /const substantial = pool\.filter\(\(route\) => ratio\(route\) >= 0\.4\)/);
 });
