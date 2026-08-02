@@ -12,6 +12,7 @@ const bundles = {
     "src/core/gpx-core.js",
     "src/core/elevation-profile-core.js",
     "src/core/terrain-evidence-core.js",
+    "src/core/services-core.js",
     "src/core/limitations-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
