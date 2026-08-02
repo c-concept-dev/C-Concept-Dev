@@ -7,7 +7,20 @@
     "Près de toilettes": "Toilettes",
   });
 
+  function validPoint(point) {
+    return (
+      Array.isArray(point) &&
+      Number.isFinite(Number(point[0])) &&
+      Number.isFinite(Number(point[1]))
+    );
+  }
+
+  function sanitizeCoords(coords = []) {
+    return (Array.isArray(coords) ? coords : []).filter(validPoint);
+  }
+
   function haversine(a, b) {
+    if (!validPoint(a) || !validPoint(b)) return 0;
     const rad = Math.PI / 180;
     const lat1 = Number(a[1]) * rad;
     const lat2 = Number(b[1]) * rad;
@@ -20,6 +33,7 @@
   }
 
   function cumulativeDistances(coords = []) {
+    coords = sanitizeCoords(coords);
     const cumulative = [0];
     for (let index = 1; index < coords.length; index += 1)
       cumulative.push(
@@ -110,6 +124,8 @@
 
   function planPauses({ coords = [], walkingMinutes = 0, pausePlan, pois = [] } = {}) {
     const plan = String(pausePlan || "Aucune pause programmée");
+    coords = sanitizeCoords(coords);
+    pois = Array.isArray(pois) ? pois : [];
     if (plan === "Aucune pause programmée")
       return {
         plan,
@@ -271,12 +287,28 @@
     return next;
   }
 
+  function safePlanPauses(input = {}) {
+    try {
+      return planPauses(input);
+    } catch (error) {
+      return {
+        plan: String(input.pausePlan || "Aucune pause programmée"),
+        status: "unknown",
+        markers: [],
+        evidence: `Le positionnement des pauses a échoué sans interrompre le calcul : ${error.message}`,
+        error: error.message,
+      };
+    }
+  }
+
   globalThis.JMMJSPausePlannerCore = Object.freeze({
     SERVICE_TYPES,
+    sanitizeCoords,
     cumulativeDistances,
     interpolateAtDistance,
     ascentEnds,
     planPauses,
+    safePlanPauses,
     applyPausePlan,
   });
 })();
