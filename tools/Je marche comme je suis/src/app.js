@@ -6,6 +6,11 @@
     auditRoute: auditRoute,
   } = globalThis.JMMJSRouteEngineCore;
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
+  const {
+    describeFunctionalLimitation,
+    validateFunctionalLimitation,
+    prepareRequestWithFunctionalLimitations,
+  } = globalThis.JMMJSLimitationsCore;
   const $ = (s) => document.querySelector(s),
     $$ = (s) => [...document.querySelectorAll(s)],
     S = {
@@ -253,7 +258,7 @@
   }
   function buildRequest() {
     return {
-      schemaVersion: "1.2",
+      schemaVersion: "1.3",
       createdAt: new Date().toISOString(),
       start: {
         label: val("#place"),
@@ -284,6 +289,21 @@
       footwear: val("#footwear"),
       equipment: chosen("equipment"),
       limitations: chosen("limits"),
+      functionalLimitation: {
+        side: val("#limitationSide"),
+        trigger: val("#limitationTrigger"),
+        consequence: val("#limitationConsequence"),
+        temporality: val("#limitationTemporality"),
+        maxWithoutPauseMinutes: num("#maxWithoutPause"),
+        maxStandingMinutes: num("#maxStanding"),
+        helperAvailable:
+          val("#helperAvailable") === "yes"
+            ? true
+            : val("#helperAvailable") === "no"
+              ? false
+              : null,
+        confirmed: $("#limitationConfirmed").checked,
+      },
       effort: {
         profile: val("#effort"),
         maxContinuousAscentMinutes: val("#ascentMinutes") || null,
@@ -354,6 +374,32 @@
     if (compiled.hard.requiredServices.length)
       imperative.push(summaryItem("Services requis", compiled.hard.requiredServices.join(", "), "Services ou pauses", "Impératif", 2, "Ils devront être documentés avant une qualification compatible."));
 
+    for (const rule of request.derivedFunctionalRules || []) {
+      const value = rule.thresholdPercent != null
+        ? `${rule.label} · seuil ${rule.thresholdPercent} %`
+        : rule.thresholdMinutes != null
+          ? `${rule.label} · seuil ${rule.thresholdMinutes} min`
+          : rule.label;
+      const note = rule.thresholdOrigin === "prudent-default"
+        ? "Seuil prudent D-024 appliqué uniquement parce qu’aucun seuil explicite n’a été choisi."
+        : rule.auditKind === "pause-plan" && rule.thresholdMinutes == null
+          ? "Le seuil manque : cette inconnue impérative restera « À vérifier ». Aucun banc n’est présumé."
+          : rule.auditKind === "fallback"
+            ? "Un repli ne sera déclaré réel qu’avec une géométrie ou une preuve."
+            : rule.unknownPolicy === "manual_review"
+              ? "Une donnée absente restera « À vérifier », jamais compatible."
+              : "Règle dérivée de la conséquence confirmée.";
+      const item = summaryItem(
+        "Règle fonctionnelle D-024",
+        value,
+        "Conséquence explicitement confirmée",
+        rule.severity === "hard" ? "Impératif" : "Préférence prudente",
+        1,
+        note,
+      );
+      (rule.severity === "hard" ? imperative : preferences).push(item);
+    }
+
     if (compiled.advisory.maxUp !== null)
       preferences.push(summaryItem("Montée prudente", `privilégier une pente autour de ${compiled.advisory.maxUp} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
     if (compiled.advisory.maxDown !== null)
@@ -372,6 +418,15 @@
     preparation.push(summaryItem("Chaussures", request.footwear || "non renseignées", "Équipement porté", "Préparation et audit", 1, "Elles peuvent restreindre les surfaces mais ne compensent jamais une limitation."));
     if (request.equipment?.length)
       preparation.push(summaryItem("Équipement", request.equipment.join(", "), "Équipement emporté", "Préparation et audit", 1));
+    if (request.functionalLimitation?.trigger && request.functionalLimitation?.consequence)
+      preparation.push(summaryItem(
+        "Limitation fonctionnelle déclarée",
+        describeFunctionalLimitation(request.functionalLimitation),
+        "Déclaration de l’utilisateur, sans diagnostic",
+        request.functionalLimitation.confirmed ? "Confirmée" : "À confirmer",
+        1,
+        "L’accompagnant et l’équipement ne relèvent aucune capacité déclarée.",
+      ));
     if (request.pausePlan)
       preparation.push(summaryItem("Pauses", request.pausePlan, "Plan de pauses", "Budget et préparation", 2));
     preparation.push(summaryItem("Comparaison des sens", compiled.hard.compareDirections ? "activée" : "désactivée", "Prudence et repli", compiled.hard.compareDirections ? "Contrôle" : "Information", 3));
@@ -411,7 +466,7 @@
   function renderConstraintSummary() {
     const host = $("#constraintSummary");
     if (!host) return;
-    const request = buildRequest();
+    const request = prepareRequestWithFunctionalLimitations(buildRequest());
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
     host.innerHTML =
@@ -2184,7 +2239,15 @@
   });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
-    S.request = buildRequest();
+    const rawRequest = buildRequest();
+    const functionalIssues = validateFunctionalLimitation(
+      rawRequest.functionalLimitation,
+    );
+    if (functionalIssues.length) {
+      go(1);
+      return say(functionalIssues.join(" "));
+    }
+    S.request = prepareRequestWithFunctionalLimitations(rawRequest);
     S.compiled = compileConstraints(S.request);
     const miss = [];
     if (!S.request.start.label && !Number.isFinite(S.request.start.latitude))
