@@ -9,6 +9,9 @@
       return "Eau potable";
     if (categories.some((value) => value.includes("bench"))) return "Banc";
     if (categories.some((value) => value.includes("shelter"))) return "Abri";
+    if (categories.some((value) => value.includes("pharmacy"))) return "Pharmacie";
+    if (categories.some((value) => value.includes("parking"))) return "Parking";
+    if (categories.some((value) => value.includes("public_transport") || value.includes("bus") || value.includes("railway"))) return "Transport public";
     if (categories.some((value) => value.includes("cafe"))) return "Café";
     if (categories.some((value) => value.startsWith("heritage")))
       return "Patrimoine";
