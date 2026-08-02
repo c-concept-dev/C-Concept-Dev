@@ -167,15 +167,10 @@ async function testMapillary(env) {
 
 async function testORS(env) {
   if (!env.ORS_API_KEY) throw new HTTPError(503, "Secret OpenRouteService non configuré.");
-  const response = await fetch("https://api.openrouteservice.org/v2/directions/foot-walking/geojson", {
-    method: "POST",
-    headers: { Accept: "application/json", Authorization: env.ORS_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      coordinates: [[2.2945, 48.8584]],
-      options: { round_trip: { length: 500, points: 4, seed: 17 } }
-    })
-  });
-  const data = await providerJson(response);
+  const query = new URLSearchParams({ api_key: env.ORS_API_KEY, text: "Paris", size: "1" });
+  const data = await providerJson(await fetch(`https://api.openrouteservice.org/geocode/search?${query}`, {
+    headers: { Accept: "application/json" }
+  }));
   return { resultCount: data?.features?.length || 0 };
 }
 
