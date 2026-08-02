@@ -13,11 +13,13 @@ const bundles = {
     "src/core/elevation-profile-core.js",
     "src/core/terrain-evidence-core.js",
     "src/core/services-core.js",
+    "src/core/weather-core.js",
     "src/core/limitations-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
     "src/peripherals/ors-provider.js",
     "src/peripherals/geoapify-provider.js",
+    "src/peripherals/open-meteo-provider.js",
   ],
   APP: ["src/app.js"],
 };
