@@ -16,6 +16,7 @@ const bundles = {
     "src/core/weather-core.js",
     "src/core/pause-planner-core.js",
     "src/core/fallback-core.js",
+    "src/core/privacy-core.js",
     "src/core/limitations-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
