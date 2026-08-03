@@ -730,6 +730,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .control-synthesis span{text-align:right;opacity:.82}
 @media(max-width:760px){.control-synthesis{align-items:flex-start;flex-direction:column;gap:.2rem}.control-synthesis span{text-align:left}}
 
+
+.export-certification{flex:1 1 100%;margin-bottom:.35rem;padding:.42rem .58rem;border-radius:8px;font-size:.74rem;line-height:1.25}
+.export-certification[data-status="exact"]{background:#eef5ef;border:1px solid #abc4ad}
+.export-certification[data-status="unavailable"]{background:#fff0ea;border:1px solid #d99a7b}
+#gpxBtn:disabled{opacity:.55;cursor:not-allowed}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
