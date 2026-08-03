@@ -4101,7 +4101,56 @@ svg.leaflet-image-layer.leaflet-interactive path {
       parts.push("Cette option nécessite votre accord explicite avant départ");
     return parts.join(" · ") || "Boucle réelle contrôlée par le moteur commun.";
   }
+  function ensurePauseMarkers(route) {
+    if (!route) return route;
+    const existing = Array.isArray(route.pauseMarkers)
+      ? route.pauseMarkers.filter(
+          (pause) =>
+            Number.isFinite(Number(pause?.lat)) &&
+            Number.isFinite(Number(pause?.lon)),
+        )
+      : [];
+    if (existing.length) {
+      route.pauseMarkers = existing.map((pause) => ({
+        ...pause,
+        lat: Number(pause.lat),
+        lon: Number(pause.lon),
+      }));
+      return route;
+    }
+
+    const requestedPlan =
+      typeof route.pausePlan === "string"
+        ? route.pausePlan
+        : route.pausePlan?.plan || S.request?.pausePlan;
+    if (!requestedPlan || requestedPlan === "Aucune pause programmée") {
+      route.pauseMarkers = [];
+      return route;
+    }
+
+    const planned = safePlanPauses({
+      coords: route.coords,
+      walkingMinutes: route.walking ?? route.total,
+      pausePlan: requestedPlan,
+      pois: route.pois,
+    });
+    route.pausePlan = planned;
+    route.pauseMarkers = (planned.markers || [])
+      .filter(
+        (pause) =>
+          Number.isFinite(Number(pause?.lat)) &&
+          Number.isFinite(Number(pause?.lon)),
+      )
+      .map((pause) => ({
+        ...pause,
+        lat: Number(pause.lat),
+        lon: Number(pause.lon),
+      }));
+    return route;
+  }
+
   async function render() {
+    S.routes = S.routes.map(ensurePauseMarkers);
     E.placeholder.style.display = "none";
     E.map.classList.add("show");
     E.results.classList.add("show");
@@ -4441,7 +4490,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     );
   }
   function renderDetail() {
-    const r = S.routes[S.selected],
+    const r = ensurePauseMarkers(S.routes[S.selected]),
+      pauseMarkers = r.pauseMarkers,
       surfaces = r.surfaces.map(
         (x) => x.type + (x.percent != null ? " " + x.percent + " %" : ""),
       );
@@ -4455,7 +4505,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       ' min</b><span>marche</span></div><div class="data"><b>' +
       metricLabel(r.breaks) +
       ' min</b><span>budget pauses</span></div><div class="data"><b>' +
-      (r.pauseMarkers || []).length +
+      pauseMarkers.length +
       '</b><span>pauses positionnées</span></div><div class="data"><b>' +
       metricLabel(r.ascent) +
       " / " +
@@ -4504,10 +4554,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
           (c.evidence ? " : " + esc(c.evidence) : ""),
       ) +
       "</details><details><summary>Pauses positionnées (" +
-      (r.pauseMarkers || []).length +
+      pauseMarkers.length +
       ")</summary>" +
       list(
-        r.pauseMarkers || [],
+        pauseMarkers,
         (pause, index) =>
           "<strong>Pause " +
           (index + 1) +
