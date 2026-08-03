@@ -3428,6 +3428,70 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <script data-jmmjs-bundle="app">
 (() => {
   "use strict";
+  const PROFILE_KEY = "jmmjs-profile";
+
+  function createPrivacyController({
+    storage = globalThis.localStorage,
+    profileKey = PROFILE_KEY,
+  } = {}) {
+    let privateMode = false;
+
+    function purge() {
+      try {
+        storage?.removeItem(profileKey);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function setPrivateMode(enabled) {
+      privateMode = Boolean(enabled);
+      if (privateMode) purge();
+      return privateMode;
+    }
+
+    function persistProfile(profile) {
+      if (privateMode) {
+        purge();
+        return { persisted: false, reason: "private-mode" };
+      }
+      try {
+        storage?.setItem(profileKey, JSON.stringify(profile));
+        return { persisted: true, reason: "saved" };
+      } catch (error) {
+        return {
+          persisted: false,
+          reason: "storage-error",
+          error: error.message,
+        };
+      }
+    }
+
+    function storageStatus() {
+      let profilePresent = false;
+      try {
+        profilePresent = Boolean(storage?.getItem(profileKey));
+      } catch {}
+      return { privateMode, profilePresent, profileKey };
+    }
+
+    return Object.freeze({
+      setPrivateMode,
+      persistProfile,
+      purge,
+      storageStatus,
+    });
+  }
+
+  globalThis.JMMJSPrivacyCore = Object.freeze({
+    PROFILE_KEY,
+    createPrivacyController,
+  });
+})();
+
+(() => {
+  "use strict";
   const {
     ConstraintRegistry: ConstraintRegistry,
     compileConstraints: compileConstraints,
@@ -3439,6 +3503,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
+  const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
+    storage: globalThis.localStorage,
+  });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -3904,8 +3971,22 @@ svg.leaflet-image-layer.leaflet-interactive path {
     S.compiled = compiled;
   }
   function save(r) {
-    if (!$("#private").checked)
-      localStorage.setItem("jmmjs-profile", JSON.stringify(r));
+    privacyController.setPrivateMode(Boolean($("#private")?.checked));
+    const result = privacyController.persistProfile(r);
+    if (!result.persisted && result.reason === "storage-error")
+      say("Le profil n’a pas pu être mémorisé, mais le calcul continue.");
+    return result;
+  }
+
+  function updatePrivacyStatus() {
+    const checkbox = $("#private");
+    if (!checkbox) return;
+    const enabled = privacyController.setPrivateMode(checkbox.checked);
+    const status = $("#privacyStatus");
+    if (status)
+      status.textContent = enabled
+        ? "Mode privé actif · aucune persistance locale"
+        : "Mode normal · mémorisation locale autorisée";
   }
   function download(c, n, t = "application/json") {
     const a = document.createElement("a");
@@ -5903,13 +5984,26 @@ svg.leaflet-image-layer.leaflet-interactive path {
       $("#create").disabled = false;
     }
   };
+  const privateCheckbox = $("#private");
+  if (privateCheckbox) {
+    const privacyStatus = document.createElement("small");
+    privacyStatus.id = "privacyStatus";
+    privacyStatus.className = "privacy-status";
+    privateCheckbox.closest("label")?.insertAdjacentElement(
+      "afterend",
+      privacyStatus,
+    );
+    privateCheckbox.addEventListener("change", updatePrivacyStatus);
+    updatePrivacyStatus();
+  }
+
   $("#loadPois").onclick = loadPois;
   $("#loadPhotos").onclick = loadPhotos;
   $("#helpBtn").onclick = () => $("#helpModal").classList.add("show");
   $("#closeHelp").onclick = () => $("#helpModal").classList.remove("show");
   $("#clearBtn").onclick = () => {
     if (confirm("Effacer le profil mémorisé ?")) {
-      localStorage.removeItem("jmmjs-profile");
+      privacyController.purge();
       location.reload();
     }
   };
