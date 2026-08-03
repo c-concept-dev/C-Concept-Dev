@@ -1168,16 +1168,15 @@
     );
   }
 
-  function renderWeatherCompact(target, weather = S.weather) {
-    const element =
-      typeof target === "string" ? document.querySelector(target) : target;
-    if (!element) return;
-    element.innerHTML = weatherCompactHtml(weather);
-    element.dataset.level = weather?.assessment?.level || "unknown";
+  function bindWeatherDetails(scope) {
+    if (!scope) return;
+    scope.querySelectorAll(".weather-details-toggle").forEach((detailsToggle) => {
+      if (detailsToggle.dataset.bound === "true") return;
+      const container = detailsToggle.closest(".weather-compact");
+      const detailsPanel = container?.querySelector(".weather-details-panel");
+      if (!detailsPanel) return;
 
-    const detailsToggle = element.querySelector(".weather-details-toggle");
-    const detailsPanel = element.querySelector(".weather-details-panel");
-    if (detailsToggle && detailsPanel)
+      detailsToggle.dataset.bound = "true";
       detailsToggle.onclick = () => {
         const expanded = detailsToggle.getAttribute("aria-expanded") === "true";
         detailsToggle.setAttribute("aria-expanded", String(!expanded));
@@ -1187,6 +1186,16 @@
         );
         detailsPanel.hidden = expanded;
       };
+    });
+  }
+
+  function renderWeatherCompact(target, weather = S.weather) {
+    const element =
+      typeof target === "string" ? document.querySelector(target) : target;
+    if (!element) return;
+    element.innerHTML = weatherCompactHtml(weather);
+    element.dataset.level = weather?.assessment?.level || "unknown";
+    bindWeatherDetails(element);
 
     const retry = element.querySelector(".weather-retry");
     if (retry)
@@ -1549,6 +1558,7 @@
         ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
       '<button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><a class="small" id="googleBtn" target="_blank">Google Maps simplifié ↗</a><a class="small" id="appleBtn" target="_blank">Plans simplifié ↗</a><button class="small" id="printBtn">Imprimer</button></div>';
+    bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
     $("#gpxBtn").onclick = gpx;
     $("#jsonBtn").onclick = () =>
