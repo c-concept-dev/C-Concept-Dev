@@ -822,7 +822,9 @@
     f = (x) => esc(typeof x === "string" ? x : JSON.stringify(x)),
   ) {
     return a?.length
-      ? "<ul>" + a.map((x) => "<li>" + f(x) + "</li>").join("") + "</ul>"
+      ? "<ul>" +
+          a.map((x, index) => "<li>" + f(x, index) + "</li>").join("") +
+          "</ul>"
       : '<p class="kicker">Aucune donnée</p>';
   }
   function distanceBetween(a, b) {
