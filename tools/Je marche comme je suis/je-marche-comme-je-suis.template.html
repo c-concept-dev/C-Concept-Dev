@@ -696,6 +696,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .weather-result{margin:0 0 .7rem}
 @media(max-width:760px){.weather-compact{gap:.38rem;font-size:.76rem}.weather-compact-verdict{max-width:11rem}}
 
+
+.departure-compact{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);gap:.45rem;align-items:center}
+.departure-compact .input{min-width:0}
+.weather-compact-departure{font-weight:700;opacity:.8}
+@media(max-width:760px){.departure-compact{grid-template-columns:1fr 1fr}.departure-compact select{grid-column:1/-1}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -873,7 +879,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     ><button class="chip">Pas de boue</button
                     ><button class="chip">Chemin large</button
                     ><button class="chip">Peu de circulation</button
-                    ><button class="chip">Peu de traversées</button></div><div class="field"><label>Météo du lieu de balade</label
+                    ><button class="chip">Peu de traversées</button></div><div class="field"><label>Départ prévu</label
+                    ><div class="departure-compact">
+                      <select class="input" id="departureMode">
+                        <option value="now">Partir maintenant</option>
+                        <option value="scheduled">Choisir une date et une heure</option>
+                      </select>
+                      <input class="input" id="departureDate" type="date" disabled />
+                      <input class="input" id="departureTime" type="time" disabled />
+                    </div>
+                    <small id="departureStatus">La météo sera analysée à partir de maintenant.</small>
+                  </div>
+                  <div class="field"><label>Météo du lieu de balade</label
                     ><div
                       class="weather-compact"
                       id="weatherCompact"
