@@ -36,6 +36,10 @@
       retryDelays: [700, 1500],
       cacheTtlMs: 120000,
     });
+  const {
+    assessRouteSet,
+    buildReturnLinks,
+  } = globalThis.JMMJSMobileSafetyCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -885,11 +889,33 @@
     return route;
   }
 
+  function renderResultQualityBanner() {
+    let banner = document.querySelector("#resultQualityBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "resultQualityBanner";
+      banner.className = "result-quality-banner";
+      E.grid.parentElement.insertBefore(banner, E.grid);
+    }
+    const requested =
+      Number(S.compiled?.time?.walkingBudgetMinutes) ||
+      Number(S.request?.durationMinutes) ||
+      0;
+    const assessment = assessRouteSet(S.routes, requested);
+    banner.hidden = !assessment.insufficient;
+    banner.innerHTML = assessment.insufficient
+      ? '<strong>Aucune balade suffisamment proche de votre demande n’a été trouvée.</strong><span>' +
+        esc(assessment.reasons.join(" ")) +
+        '</span><small>Aucune contrainte n’a été retirée silencieusement. Les tentatives restent visibles pour comprendre le résultat.</small>'
+      : "";
+  }
+
   async function render() {
     S.routes = S.routes.map(ensurePauseMarkers);
     E.placeholder.style.display = "none";
     E.map.classList.add("show");
     E.results.classList.add("show");
+    renderResultQualityBanner();
     $("#resultMode").textContent =
       S.routes[0].mode === "api"
         ? "Calcul direct"
@@ -1321,24 +1347,54 @@
     );
   }
 
+  function toggleWeatherDetails(container) {
+    const toggle = container?.querySelector(".weather-details-toggle");
+    const panel = container?.querySelector(".weather-details-panel");
+    if (!toggle || !panel) return;
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    toggle.setAttribute(
+      "aria-label",
+      expanded ? "Afficher le détail météo" : "Masquer le détail météo",
+    );
+    panel.hidden = expanded;
+    container.dataset.expanded = String(!expanded);
+  }
+
   function bindWeatherDetails(scope) {
     if (!scope) return;
-    scope.querySelectorAll(".weather-details-toggle").forEach((detailsToggle) => {
-      if (detailsToggle.dataset.bound === "true") return;
-      const container = detailsToggle.closest(".weather-compact");
-      const detailsPanel = container?.querySelector(".weather-details-panel");
-      if (!detailsPanel) return;
+    scope.querySelectorAll(".weather-compact").forEach((container) => {
+      if (container.dataset.weatherBound === "true") return;
+      const toggle = container.querySelector(".weather-details-toggle");
+      const panel = container.querySelector(".weather-details-panel");
+      if (!toggle || !panel) return;
 
-      detailsToggle.dataset.bound = "true";
-      detailsToggle.onclick = () => {
-        const expanded = detailsToggle.getAttribute("aria-expanded") === "true";
-        detailsToggle.setAttribute("aria-expanded", String(!expanded));
-        detailsToggle.setAttribute(
-          "aria-label",
-          expanded ? "Afficher le détail météo" : "Masquer le détail météo",
-        );
-        detailsPanel.hidden = expanded;
+      container.dataset.weatherBound = "true";
+      container.setAttribute("role", "button");
+      container.setAttribute("tabindex", "0");
+      container.setAttribute("aria-label", "Afficher ou masquer le détail météo");
+
+      const activate = (event) => {
+        if (event.target.closest(".weather-retry")) return;
+        if (event.target.closest(".weather-details-panel")) return;
+        toggleWeatherDetails(container);
       };
+
+      container.addEventListener("pointerup", (event) => {
+        if (!["touch", "pen"].includes(event.pointerType)) return;
+        event.preventDefault();
+        container.dataset.ignoreClickUntil = String(Date.now() + 700);
+        activate(event);
+      });
+      container.addEventListener("click", (event) => {
+        if (Date.now() < Number(container.dataset.ignoreClickUntil || 0)) return;
+        activate(event);
+      });
+      container.addEventListener("keydown", (event) => {
+        if (!["Enter", " "].includes(event.key)) return;
+        event.preventDefault();
+        toggleWeatherDetails(container);
+      });
     });
   }
 
@@ -1845,7 +1901,7 @@
       (r.canNavigate
         ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
-      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><a class="small" id="googleBtn" target="_blank" rel="noopener">Google Maps simplifié ↗</a><a class="small" id="appleBtn" target="_blank" rel="noopener">Plans simplifié ↗</a><button class="small" id="printBtn">Imprimer</button></div>';
+      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Secours · rejoindre le départ</strong><span>Retour simple depuis votre position actuelle. La boucle n’est pas exportée.</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
     const exportAudit = auditRouteExport(r);
@@ -1876,13 +1932,17 @@
       );
     $("#printBtn").onclick = () => print();
 
-    const links = mapLinks(r);
-    $("#googleBtn").href = links.google || "#";
-    $("#appleBtn").href = links.apple || "#";
-    $("#googleBtn").title =
-      "Itinéraire simplifié : Google Maps ne reprend pas tous les points de la trace.";
-    $("#appleBtn").title =
-      "Itinéraire simplifié : Plans ne reprend pas tous les points de la trace.";
+    const returnLinks = buildReturnLinks(r, "walking");
+    $("#returnGoogleBtn").href = returnLinks.google || "#";
+    $("#returnAppleBtn").href = returnLinks.apple || "#";
+    $("#copyStartBtn").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(returnLinks.coordinates);
+        say("Coordonnées du départ copiées.");
+      } catch {
+        say("Coordonnées du départ : " + returnLinks.coordinates);
+      }
+    };
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
   }
@@ -2025,6 +2085,9 @@
     }
     S.nav.active = true;
     S.nav.follow = true;
+    const returnLinks = buildReturnLinks(r, "walking");
+    if ($("#navReturnGoogle")) $("#navReturnGoogle").href = returnLinks.google || "#";
+    if ($("#navReturnApple")) $("#navReturnApple").href = returnLinks.apple || "#";
     S.nav.lastAlong = 0;
     S.nav.positions = [];
     S.nav.startedAt = Date.now();
@@ -3242,11 +3305,33 @@
   $("#loadPhotos").onclick = loadPhotos;
   $("#helpBtn").onclick = () => $("#helpModal").classList.add("show");
   $("#closeHelp").onclick = () => $("#helpModal").classList.remove("show");
-  $("#clearBtn").onclick = () => {
-    if (confirm("Effacer le profil mémorisé ?")) {
+  function ensureClearDataDialog() {
+    let modal = $("#clearDataModal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "clearDataModal";
+    modal.className = "modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.innerHTML =
+      '<div class="modal-card clear-data-card"><h2>Effacer mes données ?</h2><p>Le profil local, les préférences et les résultats mémorisés seront supprimés de cet appareil.</p><div class="modal-actions"><button type="button" id="cancelClearData">Annuler</button><button type="button" class="danger" id="confirmClearData">Effacer</button></div></div>';
+    document.body.appendChild(modal);
+    $("#cancelClearData").onclick = () => modal.classList.remove("show");
+    $("#confirmClearData").onclick = () => {
       privacyController.purge();
+      modal.classList.remove("show");
       location.reload();
-    }
+    };
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) modal.classList.remove("show");
+    });
+    return modal;
+  }
+
+  $("#clearBtn").onclick = () => {
+    const modal = ensureClearDataDialog();
+    modal.classList.add("show");
+    $("#confirmClearData")?.focus();
   };
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
