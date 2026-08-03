@@ -16,6 +16,12 @@
   const {
     synthesizeRoutePresentation,
   } = globalThis.JMMJSAlertSynthesisCore;
+  const {
+    auditRouteExport,
+    buildExactGpx,
+    buildMapLinks,
+    buildJsonExport,
+  } = globalThis.JMMJSExportCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -1620,16 +1626,44 @@
       (r.canNavigate
         ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
-      '<button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><a class="small" id="googleBtn" target="_blank">Google Maps simplifié ↗</a><a class="small" id="appleBtn" target="_blank">Plans simplifié ↗</a><button class="small" id="printBtn">Imprimer</button></div>';
+      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><a class="small" id="googleBtn" target="_blank" rel="noopener">Google Maps simplifié ↗</a><a class="small" id="appleBtn" target="_blank" rel="noopener">Plans simplifié ↗</a><button class="small" id="printBtn">Imprimer</button></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
-    $("#gpxBtn").onclick = gpx;
+    const exportAudit = auditRouteExport(r);
+    const certification = $("#exportCertification");
+    if (certification) {
+      certification.dataset.status = exportAudit.exactEligible
+        ? "exact"
+        : "unavailable";
+      certification.textContent = exportAudit.exactEligible
+        ? `Géométrie exacte certifiée · ${exportAudit.coordinateCount} points · boucle fermée à ${exportAudit.closureMeters} m`
+        : `Export exact indisponible · ${exportAudit.reasons.join(" ")}`;
+    }
+
+    const gpxButton = $("#gpxBtn");
+    gpxButton.disabled = !exportAudit.exactEligible;
+    gpxButton.title = exportAudit.exactEligible
+      ? `GPX exact certifié · ${exportAudit.coordinateCount} points · fermeture ${exportAudit.closureMeters} m`
+      : `GPX exact indisponible : ${exportAudit.reasons.join(" ")}`;
+    gpxButton.textContent = exportAudit.exactEligible
+      ? "↓ GPX exact"
+      : "GPX exact indisponible";
+    gpxButton.onclick = gpx;
+
     $("#jsonBtn").onclick = () =>
-      download(JSON.stringify(r, null, 2), slug(r.name) + ".json");
+      download(
+        JSON.stringify(buildJsonExport(r), null, 2),
+        slug(r.name) + ".json",
+      );
     $("#printBtn").onclick = () => print();
-    const l = mapLinks(r);
-    $("#googleBtn").href = l.google;
-    $("#appleBtn").href = l.apple;
+
+    const links = mapLinks(r);
+    $("#googleBtn").href = links.google || "#";
+    $("#appleBtn").href = links.apple || "#";
+    $("#googleBtn").title =
+      "Itinéraire simplifié : Google Maps ne reprend pas tous les points de la trace.";
+    $("#appleBtn").title =
+      "Itinéraire simplifié : Plans ne reprend pas tous les points de la trace.";
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
   }
@@ -1639,59 +1673,24 @@
     render();
   }
   function mapLinks(r) {
-    const s = [
-        r.coords[0],
-        ...r.coords
-          .slice(1, -1)
-          .filter((_, i, a) => i % Math.max(1, Math.floor(a.length / 6)) === 0)
-          .slice(0, 6),
-        r.coords.at(-1),
-      ],
-      f = (c) => c[1] + "," + c[0];
-    return {
-      google:
-        "https://www.google.com/maps/dir/?api=1&origin=" +
-        encodeURIComponent(f(s[0])) +
-        "&destination=" +
-        encodeURIComponent(f(s.at(-1))) +
-        "&travelmode=walking&waypoints=" +
-        encodeURIComponent(s.slice(1, -1).map(f).join("|")),
-      apple:
-        "https://maps.apple.com/?saddr=" +
-        encodeURIComponent(f(s[0])) +
-        "&daddr=" +
-        encodeURIComponent(s.slice(1).map(f).join("+to:")) +
-        "&dirflg=w",
-    };
+    return buildMapLinks(r);
   }
   function gpx() {
-    const r = S.routes[S.selected],
-      pts = r.coords
-        .map(
-          (c) =>
-            '<trkpt lat="' +
-            c[1] +
-            '" lon="' +
-            c[0] +
-            '">' +
-            (Number.isFinite(+c[2]) ? "<ele>" + c[2] + "</ele>" : "") +
-            "</trkpt>",
-        )
-        .join(""),
-      d = esc([r.why, ...r.warnings].join(" | "));
-    download(
-      '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Je marche comme je suis" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>' +
-        esc(r.name) +
-        "</name><desc>" +
-        d +
-        "</desc></metadata><trk><name>" +
-        esc(r.name) +
-        "</name><trkseg>" +
-        pts +
-        "</trkseg></trk></gpx>",
-      slug(r.name) + ".gpx",
-      "application/gpx+xml",
-    );
+    const route = S.routes[S.selected];
+    const audit = auditRouteExport(route);
+    if (!audit.exactEligible)
+      return say(
+        "GPX exact indisponible : " + audit.reasons.join(" "),
+      );
+    try {
+      download(
+        buildExactGpx(route),
+        slug(route.name) + ".gpx",
+        "application/gpx+xml",
+      );
+    } catch (error) {
+      say("Export GPX impossible : " + error.message);
+    }
   }
   function meters(a, b) {
     return distance([
