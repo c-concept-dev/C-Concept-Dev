@@ -30,6 +30,12 @@
     auditParsedGPX,
     formatGPXAudit,
   } = globalThis.JMMJSGPXSafetyCore;
+  const serviceResilience =
+    globalThis.JMMJSServiceResilienceCore.createServiceResilience({
+      timeoutMs: 12000,
+      retryDelays: [700, 1500],
+      cacheTtlMs: 120000,
+    });
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -148,6 +154,78 @@
       x.dataset.state = state;
     }
   }
+  const SERVICE_LABELS = Object.freeze({
+    ors: "OpenRouteService",
+    geo: "Geoapify",
+    mapillary: "Mapillary",
+    weather: "Open-Meteo",
+    geocode: "Recherche du lieu",
+  });
+
+  function serviceDiagnosticHtml(name, result, retryAction = null) {
+    const diagnostic = result?.diagnostic;
+    const label = SERVICE_LABELS[name] || name;
+    if (!diagnostic)
+      return `<strong>${esc(label)}</strong> · opération terminée`;
+
+    const retry =
+      diagnostic.retryable && retryAction
+        ? `<button type="button" class="service-retry" data-retry="${esc(
+            retryAction,
+          )}">Réessayer</button>`
+        : "";
+
+    return (
+      `<strong>${esc(label)}</strong> · ${esc(diagnostic.userMessage)} ` +
+      `<span class="service-diagnostic-code">${esc(
+        diagnostic.code,
+      )}${diagnostic.status ? ` · ${diagnostic.status}` : ""}</span>` +
+      retry +
+      `<small>Aucun résultat de remplacement n’a été inventé.</small>`
+    );
+  }
+
+  function showServiceDiagnostic(name, result, {
+    target = null,
+    retryAction = null,
+  } = {}) {
+    const element =
+      typeof target === "string" ? document.querySelector(target) : target;
+    if (element) {
+      element.innerHTML = serviceDiagnosticHtml(
+        name,
+        result,
+        retryAction,
+      );
+      element.dataset.diagnostic = result?.ok ? "ok" : "error";
+    }
+    const diagnostic = result?.diagnostic;
+    serviceState(
+      name,
+      result?.ok ? "Connecté" : diagnostic?.retryable ? "Temporaire" : "Échec",
+      result?.ok ? "ok" : "error",
+    );
+    if (diagnostic) say(diagnostic.userMessage);
+  }
+
+  async function resilientService({
+    name,
+    key,
+    operation,
+    allowRetry = true,
+    allowCache = false,
+    timeoutMs = 12000,
+  }) {
+    return serviceResilience.execute({
+      service: SERVICE_LABELS[name] || name,
+      key,
+      operation,
+      allowRetry,
+      allowCache,
+      customTimeoutMs: timeoutMs,
+    });
+  }
+
   function countRequest(name, n = 1) {
     S.requestCounts[name] = (S.requestCounts[name] || 0) + n;
     const x = $('[data-count="' + name + '"]');
@@ -172,12 +250,18 @@
     button.disabled = true;
     serviceState(name, "Test…");
     try {
-      await proxyFetch(name, "/test", { service: name });
+      const result = await resilientService({
+        name,
+        key: "test",
+        allowRetry: true,
+        operation: () => proxyFetch(name, "/test", { service: name }),
+      });
+      if (!result.ok) {
+        showServiceDiagnostic(name, result);
+        return;
+      }
       serviceState(name, "Connecté", "ok");
       say("Connexion sécurisée vérifiée.");
-    } catch (e) {
-      serviceState(name, "Échec", "error");
-      say(e.message);
     } finally {
       button.disabled = false;
     }
@@ -281,13 +365,29 @@
     const q = val("#place").trim();
     if (!q) throw Error("Indiquez un départ.");
     status("Recherche du lieu…");
-    const r = await fetch(
-        "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" +
-          encodeURIComponent(q),
-        { headers: { "Accept-Language": "fr" } },
-      ),
-      a = await r.json();
-    if (!r.ok || !a.length) throw Error("Lieu introuvable.");
+    const result = await resilientService({
+      name: "geocode",
+      key: q.toLowerCase(),
+      allowRetry: true,
+      allowCache: true,
+      operation: async () => {
+        const response = await fetch(
+          "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" +
+            encodeURIComponent(q),
+          { headers: { "Accept-Language": "fr" } },
+        );
+        if (!response.ok) {
+          const error = new Error(`Recherche du lieu : ${response.status}`);
+          error.status = response.status;
+          throw error;
+        }
+        return response.json();
+      },
+    });
+    if (!result.ok)
+      throw result.error || new Error(result.diagnostic.userMessage);
+    const a = result.value;
+    if (!a.length) throw Error("Lieu introuvable.");
     $("#lat").value = (+a[0].lat).toFixed(6);
     $("#lon").value = (+a[0].lon).toFixed(6);
     $("#place").value = a[0].display_name.split(",").slice(0, 3).join(",");
@@ -1291,7 +1391,21 @@
     button.disabled = true;
     button.textContent = "Recherche…";
     try {
-      const pois = await geoapifyProvider.enrich({ route: r });
+      const result = await resilientService({
+        name: "geo",
+        key: `pois:${r.name}:${r.coords.length}`,
+        allowRetry: true,
+        allowCache: true,
+        operation: () => geoapifyProvider.enrich({ route: r }),
+      });
+      if (!result.ok) {
+        showServiceDiagnostic("geo", result, {
+          target: E.poiContent,
+          retryAction: "pois",
+        });
+        return;
+      }
+      const pois = result.value;
       r.pois = pois;
       E.poiContent.innerHTML = pois.length
         ? '<div class="poi-list">' +
@@ -1332,11 +1446,18 @@
       serviceState("geo", "Connecté", "ok");
       say(pois.length + " point(s) utile(s) trouvé(s).");
     } catch (e) {
-      serviceState("geo", "Échec", "error");
-      E.poiContent.innerHTML =
-        '<p class="empty-data">Recherche Geoapify impossible : ' +
-        esc(e.message) +
-        "</p>";
+      const result = {
+        ok: false,
+        diagnostic:
+          globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+            e,
+            "Geoapify",
+          ),
+      };
+      showServiceDiagnostic("geo", result, {
+        target: E.poiContent,
+        retryAction: "pois",
+      });
     } finally {
       button.disabled = false;
       button.textContent = "Rechercher";
@@ -1358,9 +1479,24 @@
     button.disabled = true;
     button.textContent = "Recherche…";
     try {
-      const data = await proxyFetch("mapillary", "/mapillary/images", {
-          coordinates: r.coords,
-        }),
+      const result = await resilientService({
+        name: "mapillary",
+        key: `photos:${r.name}:${r.coords.length}`,
+        allowRetry: true,
+        allowCache: true,
+        operation: () =>
+          proxyFetch("mapillary", "/mapillary/images", {
+            coordinates: r.coords,
+          }),
+      });
+      if (!result.ok) {
+        showServiceDiagnostic("mapillary", result, {
+          target: E.photoContent,
+          retryAction: "photos",
+        });
+        return;
+      }
+      const data = result.value,
         extra = Math.max(0, Number(data.requestCount || 1) - 1);
       if (extra) countRequest("mapillary", extra);
       const unique = new Map();
@@ -1468,11 +1604,18 @@
       serviceState("mapillary", "Connecté", "ok");
       say(photos.length + " photographie(s) indicative(s).");
     } catch (e) {
-      serviceState("mapillary", "Échec", "error");
-      E.photoContent.innerHTML =
-        '<p class="empty-data">Recherche Mapillary impossible : ' +
-        esc(e.message) +
-        "</p>";
+      const result = {
+        ok: false,
+        diagnostic:
+          globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+            e,
+            "Mapillary",
+          ),
+      };
+      showServiceDiagnostic("mapillary", result, {
+        target: E.photoContent,
+        retryAction: "photos",
+      });
     } finally {
       button.disabled = false;
       button.textContent = "Rechercher";
@@ -2426,14 +2569,24 @@
     status(
       "OpenRouteService sécurisé : calcul et analyse de 3 boucles candidates…",
     );
-    const fs = await orsProvider.createRoundTrips({
-      coordinate: [c.lon, c.lat],
-      targetMeters: target,
-      compiled: S.compiled,
-      count: 3,
+    const result = await resilientService({
+      name: "ors",
+      key: `${c.lat.toFixed(5)}:${c.lon.toFixed(5)}:${Math.round(target)}`,
+      allowRetry: true,
+      operation: () =>
+        orsProvider.createRoundTrips({
+          coordinate: [c.lon, c.lat],
+          targetMeters: target,
+          compiled: S.compiled,
+          count: 3,
+        }),
     });
+    if (!result.ok) {
+      showServiceDiagnostic("ors", result);
+      throw result.error || new Error(result.diagnostic.userMessage);
+    }
     serviceState("ors", "Connecté", "ok");
-    return fs.map((f, i) => analyzeORSWithCore(f, req, i));
+    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];
@@ -3076,6 +3229,14 @@
     privateCheckbox.addEventListener("change", updatePrivacyStatus);
     updatePrivacyStatus();
   }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest(".service-retry");
+    if (!button) return;
+    const action = button.dataset.retry;
+    if (action === "pois") void loadPois();
+    if (action === "photos") void loadPhotos();
+  });
 
   $("#loadPois").onclick = loadPois;
   $("#loadPhotos").onclick = loadPhotos;
