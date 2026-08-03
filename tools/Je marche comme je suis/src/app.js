@@ -1060,14 +1060,6 @@
     const gust = Number.isFinite(Number(summary.windGustMaxKmh))
       ? Math.round(summary.windGustMaxKmh)
       : "—";
-    const title = [
-      `Prévision ${summary.startTime || "horaire"} à ${summary.endTime || "fin de sortie"}`,
-      `Ressenti : ${summary.apparentMinC ?? "—"} à ${summary.apparentMaxC ?? "—"} °C`,
-      `Précipitations prévues : ${summary.precipitationMm ?? "—"} mm`,
-      `Visibilité minimale : ${summary.visibilityMinM ?? "—"} m`,
-      "Source : Open-Meteo",
-    ].join(" · ");
-
     return (
       '<span class="weather-compact-icon">' +
       weatherIcon(assessment, summary) +
@@ -1085,9 +1077,41 @@
       esc(assessment.label) +
       '</span><button type="button" class="weather-details-toggle" aria-expanded="false" aria-label="Afficher le détail météo">ⓘ</button>' +
       '<div class="weather-details-panel" hidden>' +
-      weatherDetailsHtml(weather, title) +
+      weatherDetailsHtml(weather) +
       '</div>'
     );
+  }
+
+  function formatWeatherTime(value) {
+    if (!value || value === "—") return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .format(date)
+      .replace(":", " h ");
+  }
+
+  function formatWeatherPeriod(start, end) {
+    const formattedStart = formatWeatherTime(start);
+    const formattedEnd = formatWeatherTime(end);
+    if (formattedStart === "—" && formattedEnd === "—") return "Horaire inconnu";
+    if (formattedStart === formattedEnd) return formattedStart;
+    return `${formattedStart} → ${formattedEnd}`;
+  }
+
+  function formatWeatherDistance(value) {
+    const meters = Number(value);
+    if (!Number.isFinite(meters)) return null;
+    if (meters >= 10000)
+      return `${Math.round(meters / 1000)} km`;
+    if (meters >= 1000)
+      return `${(meters / 1000).toLocaleString("fr-FR", {
+        maximumFractionDigits: 1,
+      })} km`;
+    return `${Math.round(meters)} m`;
   }
 
   function weatherHourlyRows(weather) {
@@ -1103,8 +1127,7 @@
       if (!summary) continue;
       rows.push({
         label: result.point?.label || "Parcours",
-        start: summary.startTime || "—",
-        end: summary.endTime || "—",
+        period: formatWeatherPeriod(summary.startTime, summary.endTime),
         temperature:
           Number.isFinite(Number(summary.temperatureMinC)) &&
           Number.isFinite(Number(summary.temperatureMaxC))
@@ -1121,7 +1144,7 @@
     return rows.slice(0, 4);
   }
 
-  function weatherDetailsHtml(weather, fallbackTitle = "") {
+  function weatherDetailsHtml(weather) {
     const rows = weatherHourlyRows(weather);
     const detailRows = rows.length
       ? rows
@@ -1130,19 +1153,17 @@
               '<div class="weather-detail-row"><strong>' +
               esc(row.label) +
               '</strong><span>' +
-              esc(row.start) +
-              ' → ' +
-              esc(row.end) +
+              esc(row.period) +
               '</span><span>' +
               esc(row.temperature) +
-              '</span><span>☂ ' +
+              '</span><span>Pluie ' +
               esc(row.rain) +
-              '</span><span>↗ ' +
+              '</span><span>Rafales ' +
               esc(row.gust) +
               '</span></div>',
           )
           .join("")
-      : '<div class="weather-detail-empty">Aucun détail horaire disponible.</div>';
+      : '<div class="weather-detail-empty">Aucun détail météo disponible.</div>';
 
     const summary = weather?.summary;
     const apparent =
@@ -1153,14 +1174,26 @@
     const coverage =
       summary &&
       Number.isFinite(Number(summary.coverageHours))
-        ? `Prévision analysée sur ${summary.coverageHours} h`
+        ? `Prévision analysée : ${summary.coverageHours} h`
         : null;
-    const source = summary?.source ? `Source : ${summary.source}` : "Source : Open-Meteo";
+    const precipitation =
+      summary &&
+      Number.isFinite(Number(summary.precipitationMm))
+        ? `Précipitations prévues : ${Number(summary.precipitationMm).toLocaleString(
+            "fr-FR",
+            { maximumFractionDigits: 1 },
+          )} mm`
+        : null;
+    const visibility = formatWeatherDistance(summary?.visibilityMinM);
+    const visibilityLabel = visibility
+      ? `Visibilité minimale : ${visibility}`
+      : null;
+    const source = `Source : ${summary?.source || "Open-Meteo"}`;
 
     return (
       detailRows +
       '<div class="weather-detail-meta">' +
-      [apparent, coverage, source, fallbackTitle]
+      [apparent, coverage, precipitation, visibilityLabel, source]
         .filter(Boolean)
         .map((item) => '<span>' + esc(item) + '</span>')
         .join("") +
