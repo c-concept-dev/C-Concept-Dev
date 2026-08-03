@@ -720,6 +720,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .weather-compact:has(.weather-details-panel:not([hidden])){flex-wrap:wrap;white-space:normal}
 @media(max-width:760px){.weather-detail-row{grid-template-columns:1fr 1fr}.weather-detail-row span:nth-child(n+3){font-size:.72rem}}
 
+
+.weather-detail-row{grid-template-columns:minmax(4.8rem,.75fr) minmax(7rem,1.1fr) minmax(5rem,.75fr) minmax(5.5rem,.8fr) minmax(6rem,.85fr)}
+.weather-detail-meta{padding-top:.45rem;border-top:1px solid rgba(0,0,0,.08)}
+.weather-detail-meta span{white-space:nowrap}
+@media(max-width:760px){
+  .weather-detail-row{grid-template-columns:minmax(4.5rem,.8fr) minmax(7rem,1.2fr)}
+  .weather-detail-row span:nth-child(n+3){font-size:.72rem}
+  .weather-detail-meta span{white-space:normal}
+}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -4925,14 +4935,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const gust = Number.isFinite(Number(summary.windGustMaxKmh))
       ? Math.round(summary.windGustMaxKmh)
       : "—";
-    const title = [
-      `Prévision ${summary.startTime || "horaire"} à ${summary.endTime || "fin de sortie"}`,
-      `Ressenti : ${summary.apparentMinC ?? "—"} à ${summary.apparentMaxC ?? "—"} °C`,
-      `Précipitations prévues : ${summary.precipitationMm ?? "—"} mm`,
-      `Visibilité minimale : ${summary.visibilityMinM ?? "—"} m`,
-      "Source : Open-Meteo",
-    ].join(" · ");
-
     return (
       '<span class="weather-compact-icon">' +
       weatherIcon(assessment, summary) +
@@ -4950,9 +4952,41 @@ svg.leaflet-image-layer.leaflet-interactive path {
       esc(assessment.label) +
       '</span><button type="button" class="weather-details-toggle" aria-expanded="false" aria-label="Afficher le détail météo">ⓘ</button>' +
       '<div class="weather-details-panel" hidden>' +
-      weatherDetailsHtml(weather, title) +
+      weatherDetailsHtml(weather) +
       '</div>'
     );
+  }
+
+  function formatWeatherTime(value) {
+    if (!value || value === "—") return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .format(date)
+      .replace(":", " h ");
+  }
+
+  function formatWeatherPeriod(start, end) {
+    const formattedStart = formatWeatherTime(start);
+    const formattedEnd = formatWeatherTime(end);
+    if (formattedStart === "—" && formattedEnd === "—") return "Horaire inconnu";
+    if (formattedStart === formattedEnd) return formattedStart;
+    return `${formattedStart} → ${formattedEnd}`;
+  }
+
+  function formatWeatherDistance(value) {
+    const meters = Number(value);
+    if (!Number.isFinite(meters)) return null;
+    if (meters >= 10000)
+      return `${Math.round(meters / 1000)} km`;
+    if (meters >= 1000)
+      return `${(meters / 1000).toLocaleString("fr-FR", {
+        maximumFractionDigits: 1,
+      })} km`;
+    return `${Math.round(meters)} m`;
   }
 
   function weatherHourlyRows(weather) {
@@ -4968,8 +5002,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       if (!summary) continue;
       rows.push({
         label: result.point?.label || "Parcours",
-        start: summary.startTime || "—",
-        end: summary.endTime || "—",
+        period: formatWeatherPeriod(summary.startTime, summary.endTime),
         temperature:
           Number.isFinite(Number(summary.temperatureMinC)) &&
           Number.isFinite(Number(summary.temperatureMaxC))
@@ -4986,7 +5019,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     return rows.slice(0, 4);
   }
 
-  function weatherDetailsHtml(weather, fallbackTitle = "") {
+  function weatherDetailsHtml(weather) {
     const rows = weatherHourlyRows(weather);
     const detailRows = rows.length
       ? rows
@@ -4995,19 +5028,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
               '<div class="weather-detail-row"><strong>' +
               esc(row.label) +
               '</strong><span>' +
-              esc(row.start) +
-              ' → ' +
-              esc(row.end) +
+              esc(row.period) +
               '</span><span>' +
               esc(row.temperature) +
-              '</span><span>☂ ' +
+              '</span><span>Pluie ' +
               esc(row.rain) +
-              '</span><span>↗ ' +
+              '</span><span>Rafales ' +
               esc(row.gust) +
               '</span></div>',
           )
           .join("")
-      : '<div class="weather-detail-empty">Aucun détail horaire disponible.</div>';
+      : '<div class="weather-detail-empty">Aucun détail météo disponible.</div>';
 
     const summary = weather?.summary;
     const apparent =
@@ -5018,14 +5049,26 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const coverage =
       summary &&
       Number.isFinite(Number(summary.coverageHours))
-        ? `Prévision analysée sur ${summary.coverageHours} h`
+        ? `Prévision analysée : ${summary.coverageHours} h`
         : null;
-    const source = summary?.source ? `Source : ${summary.source}` : "Source : Open-Meteo";
+    const precipitation =
+      summary &&
+      Number.isFinite(Number(summary.precipitationMm))
+        ? `Précipitations prévues : ${Number(summary.precipitationMm).toLocaleString(
+            "fr-FR",
+            { maximumFractionDigits: 1 },
+          )} mm`
+        : null;
+    const visibility = formatWeatherDistance(summary?.visibilityMinM);
+    const visibilityLabel = visibility
+      ? `Visibilité minimale : ${visibility}`
+      : null;
+    const source = `Source : ${summary?.source || "Open-Meteo"}`;
 
     return (
       detailRows +
       '<div class="weather-detail-meta">' +
-      [apparent, coverage, source, fallbackTitle]
+      [apparent, coverage, precipitation, visibilityLabel, source]
         .filter(Boolean)
         .map((item) => '<span>' + esc(item) + '</span>')
         .join("") +
@@ -6765,6 +6808,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
+
 
 
 
