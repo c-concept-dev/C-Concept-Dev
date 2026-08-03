@@ -734,7 +734,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
                         placeholder="Place du Capitole, Toulouse"
                       /><button class="locate" id="locate" type="button">
                         ◎ Me situer
-                      </button></div></div><div class="two"><div class="field"><label>Latitude</label
+                      </button></div></div><div class="field"><label>Départ prévu</label
+                    ><div class="departure-compact">
+                      <select class="input" id="departureMode">
+                        <option value="now">Partir maintenant</option>
+                        <option value="scheduled">Choisir une date et une heure</option>
+                      </select>
+                      <input class="input" id="departureDate" type="date" disabled />
+                      <input class="input" id="departureTime" type="time" disabled />
+                    </div>
+                    <small id="departureStatus">La météo sera analysée à partir de maintenant.</small>
+                  </div>
+                  <div class="field"><label>Météo du lieu de balade</label
+                    ><div
+                      class="weather-compact"
+                      id="weatherCompact"
+                      data-level="unknown"
+                      role="status"
+                      aria-live="polite"
+                    ><span class="weather-compact-icon">◌</span><strong>Météo automatique après localisation</strong></div></div><div class="two"><div class="field"><label>Latitude</label
                       ><input class="input" id="lat" inputmode="decimal" /></div><div class="field"><label>Longitude</label
                       ><input class="input" id="lon" inputmode="decimal" /></div></div><div class="two"><div class="field"><label>Retour souhaité</label
                       ><select class="input" id="returnRadius"><option value="0">Exactement au départ</option><option value="50">Rayon de 50 m</option><option value="100">Rayon de 100 m</option><option value="vehicle">Près du véhicule</option><option value="lodging">Près du logement</option></select></div><div class="field"><label>Retour impératif</label
@@ -884,25 +902,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     ><button class="chip">Pas de boue</button
                     ><button class="chip">Chemin large</button
                     ><button class="chip">Peu de circulation</button
-                    ><button class="chip">Peu de traversées</button></div><div class="field"><label>Départ prévu</label
-                    ><div class="departure-compact">
-                      <select class="input" id="departureMode">
-                        <option value="now">Partir maintenant</option>
-                        <option value="scheduled">Choisir une date et une heure</option>
-                      </select>
-                      <input class="input" id="departureDate" type="date" disabled />
-                      <input class="input" id="departureTime" type="time" disabled />
-                    </div>
-                    <small id="departureStatus">La météo sera analysée à partir de maintenant.</small>
-                  </div>
-                  <div class="field"><label>Météo du lieu de balade</label
-                    ><div
-                      class="weather-compact"
-                      id="weatherCompact"
-                      data-level="unknown"
-                      role="status"
-                      aria-live="polite"
-                    ><span class="weather-compact-icon">◌</span><strong>Météo automatique après localisation</strong></div></div></div><div class="card"><h3>Envies et services</h3><p>Les préférences classent sans masquer les contraintes.</p><div class="chips group" data-group="wishes"><button class="chip">Point de vue</button
+                    ><button class="chip">Peu de traversées</button></div></div><div class="card"><h3>Envies et services</h3><p>Les préférences classent sans masquer les contraintes.</p><div class="chips group" data-group="wishes"><button class="chip">Point de vue</button
                     ><button class="chip">Rivière</button
                     ><button class="chip">Lac</button
                     ><button class="chip">Forêt</button
