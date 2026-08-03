@@ -114,7 +114,10 @@
     $$("[data-go]").forEach((x, i) =>
       x.classList.toggle("active", i === S.step),
     );
-    if (S.step === 3) renderConstraintSummary();
+    if (S.step === 3) {
+      renderConstraintSummary();
+      void refreshWeatherPreview();
+    }
     $(".form-body").scrollTop = 0;
   }
   function serviceState(name, label, state = "idle") {
@@ -297,7 +300,7 @@
         painIntensity: num("#pain"),
         painDetail: val("#painDetail"),
         balanceConfidence: num("#balance"),
-        weather: val("#weather"),
+        weather: "",
       },
       footwear: val("#footwear"),
       equipment: chosen("equipment"),
@@ -881,7 +884,86 @@
     } catch (error) {
       S.weather = { summary: null, assessment: assessForecast(null), error: error.message };
     }
+    renderWeatherCompact("#weatherCompact");
     return S.weather;
+  }
+
+  function weatherIcon(assessment, summary) {
+    if (!assessment || assessment.level === "unknown") return "◌";
+    if (assessment.level === "critical") return "⚠";
+    if (
+      Number(summary?.precipitationProbabilityMax || 0) >= 40 ||
+      Number(summary?.precipitationMm || 0) > 0
+    )
+      return "☂";
+    return "☀";
+  }
+
+  function weatherCompactHtml(weather = S.weather) {
+    const summary = weather?.summary;
+    const assessment = weather?.assessment;
+    if (!summary || !assessment)
+      return '<span class="weather-compact-icon">◌</span><strong>Météo automatique indisponible</strong>';
+
+    const min = Number.isFinite(Number(summary.temperatureMinC))
+      ? Math.round(summary.temperatureMinC)
+      : "—";
+    const max = Number.isFinite(Number(summary.temperatureMaxC))
+      ? Math.round(summary.temperatureMaxC)
+      : "—";
+    const rain = Number.isFinite(Number(summary.precipitationProbabilityMax))
+      ? Math.round(summary.precipitationProbabilityMax)
+      : "—";
+    const gust = Number.isFinite(Number(summary.windGustMaxKmh))
+      ? Math.round(summary.windGustMaxKmh)
+      : "—";
+    const title = [
+      `Prévision ${summary.startTime || "horaire"} à ${summary.endTime || "fin de sortie"}`,
+      `Ressenti : ${summary.apparentMinC ?? "—"} à ${summary.apparentMaxC ?? "—"} °C`,
+      `Précipitations prévues : ${summary.precipitationMm ?? "—"} mm`,
+      `Visibilité minimale : ${summary.visibilityMinM ?? "—"} m`,
+      "Source : Open-Meteo",
+    ].join(" · ");
+
+    return (
+      '<span class="weather-compact-icon">' +
+      weatherIcon(assessment, summary) +
+      '</span><span><strong>' +
+      esc(min + "–" + max + " °C") +
+      '</strong></span><span>☂ ' +
+      esc(rain + " %") +
+      '</span><span>↗ ' +
+      esc(gust + " km/h") +
+      '</span><span class="weather-compact-verdict">' +
+      esc(assessment.label) +
+      '</span><span class="weather-compact-info" title="' +
+      esc(title) +
+      '" aria-label="Détails météo" tabindex="0">ⓘ</span>'
+    );
+  }
+
+  function renderWeatherCompact(target, weather = S.weather) {
+    const element =
+      typeof target === "string" ? document.querySelector(target) : target;
+    if (!element) return;
+    element.innerHTML = weatherCompactHtml(weather);
+    element.dataset.level = weather?.assessment?.level || "unknown";
+  }
+
+  async function refreshWeatherPreview() {
+    const banner = $("#weatherCompact");
+    if (!banner) return;
+    banner.innerHTML =
+      '<span class="weather-compact-icon">◌</span><strong>Recherche météo…</strong>';
+    try {
+      const point = await geocode();
+      await loadWeatherFor(point.lat, point.lon, num("#duration"));
+      renderWeatherCompact(banner);
+    } catch (error) {
+      banner.innerHTML =
+        '<span class="weather-compact-icon">◌</span><strong>Météo disponible après localisation</strong>';
+      banner.title = error.message;
+    }
   }
   function clearEnrichment() {
     S.poiLayers.forEach((x) => x.remove());
@@ -1107,7 +1189,11 @@
         (x) => x.type + (x.percent != null ? " " + x.percent + " %" : ""),
       );
     E.detail.innerHTML =
-      '<div class="detail-top"><div><span class="kicker">Profil d’altitude</span>' +
+      '<div class="weather-compact weather-result" data-level="' +
+      esc(r.weather?.assessment?.level || "unknown") +
+      '">' +
+      weatherCompactHtml(r.weather) +
+      '</div><div class="detail-top"><div><span class="kicker">Profil d’altitude</span>' +
       profile(r.coords) +
       '</div><div class="why"><strong>Pourquoi ce parcours ?</strong><br>' +
       esc(whyThisRoute(r)) +
@@ -1136,8 +1222,6 @@
       ' %</b><span>couverture altitude</span></div><div class="data"><b>' +
       esc(r.elevationQuality || "—") +
       '</b><span>qualité altitude</span></div><div class="data"><b>' +
-      esc(r.weather?.assessment?.label || "—") +
-      '</b><span>météo Open-Meteo</span></div><div class="data"><b>' +
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
