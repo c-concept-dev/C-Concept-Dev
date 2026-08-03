@@ -10,6 +10,7 @@
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
+  const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -559,6 +560,8 @@
       steps: r.steps || [],
       waypoints: r.waypoints || [],
       pausePlan: r.pausePlan || null,
+      shortcuts: Array.isArray(r.shortcuts) ? r.shortcuts : [],
+      fallbacks: Array.isArray(r.fallbacks) ? r.fallbacks : [],
       pauseMarkers: r.pauseMarkers || [],
       sources: r.sources || [],
       mode: r.mode || "api",
@@ -1180,13 +1183,10 @@
         r.pois,
         (p) => "<strong>" + esc(p.name) + "</strong> · " + esc(p.type || ""),
       ) +
-      "</details><details><summary>Raccourcis (" +
-      r.shortcuts.length +
-      ")</summary>" +
-      list(
-        r.shortcuts,
-        (s) => "km " + (s.atKm ?? "?") + " · " + esc(s.description),
-      ) +
+      "</details><details><summary>Raccourcis réels (" + r.shortcuts.length + ")</summary>" +
+      list(r.shortcuts,(shortcut,index)=>"<strong>Raccourci "+(index+1)+"</strong> — "+Math.round(shortcut.savedMeters)+" m économisés"+(Number.isFinite(Number(shortcut.savedMinutes))?" · environ "+shortcut.savedMinutes.toFixed(1)+" min":"")+" · "+esc(shortcut.evidence)) +
+      "</details><details><summary>Replis sur ses pas (" + r.fallbacks.length + ")</summary>" +
+      list(r.fallbacks,(fallback,index)=>"<strong>Repli "+(index+1)+"</strong> — demi-tour à "+Math.round(fallback.outboundMeters)+" m du départ"+(Number.isFinite(Number(fallback.totalMinutes))?" · retour total environ "+fallback.totalMinutes.toFixed(1)+" min":"")+" · "+esc(fallback.evidence)) +
       "</details><details><summary>Réserves et inconnues</summary>" +
       list([...r.warnings, ...r.unknowns]) +
       "</details><details><summary>Qualité des preuves terrain</summary>" +
@@ -2109,7 +2109,8 @@
         pausePlan: req.pausePlan,
         pois: route.pois,
       });
-      return applyPausePlan(route, req.pausePlan, planned);
+      const paused = applyPausePlan(route, req.pausePlan, planned);
+      return applyFallbackAnalysis(paused, safeAnalyzeFallbacks({ coords: paused.coords, walkingMinutes: paused.walking ?? paused.total, shortcutsRequested: Boolean(req.shortcuts) }));
     });
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
@@ -2404,7 +2405,8 @@
         pausePlan: S.request?.pausePlan,
         pois: route.pois,
       });
-      return applyPausePlan(route, S.request?.pausePlan, planned);
+      const paused = applyPausePlan(route, S.request?.pausePlan, planned);
+      return applyFallbackAnalysis(paused, safeAnalyzeFallbacks({ coords: paused.coords, walkingMinutes: paused.walking ?? paused.total, shortcutsRequested: Boolean(S.request?.shortcuts) }));
     });
     const compatible = pauseAudited.filter((route) => route.proposalStatus === "compatible");
     const toVerify = pauseAudited.filter((route) => route.proposalStatus === "verify");
