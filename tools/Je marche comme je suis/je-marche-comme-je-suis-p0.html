@@ -730,6 +730,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .weather-detail-meta span{white-space:normal}
 }
 
+
+.control-synthesis{display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin-top:.65rem;padding:.5rem .65rem;border:1px solid var(--line,#d9d0c3);border-radius:9px;background:#f7f5f0;font-size:.78rem}
+.control-synthesis span{text-align:right;opacity:.82}
+@media(max-width:760px){.control-synthesis{align-items:flex-start;flex-direction:column;gap:.2rem}.control-synthesis span{text-align:left}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -3875,6 +3880,151 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 (() => {
   "use strict";
+
+  const STATUS_RANK = Object.freeze({
+    respected: 1,
+    unknown: 2,
+    uncertain: 2,
+    violated: 3,
+  });
+
+  function normalizeText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\d+(?:[.,]\d+)?/g, "#")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function warningCategory(message) {
+    const text = normalizeText(message);
+    if (text.includes("temperature ressentie") && text.includes("jusqu"))
+      return "weather-apparent-max";
+    if (text.includes("temperature ressentie minimale"))
+      return "weather-apparent-min";
+    if (text.includes("rafales"))
+      return "weather-gust";
+    if (text.includes("probabilite de precipitation"))
+      return "weather-rain-probability";
+    if (text.includes("visibilite"))
+      return "weather-visibility";
+    if (text.includes("orage"))
+      return "weather-thunder";
+    if (text.includes("phenomene meteo"))
+      return "weather-phenomenon";
+    if (text.includes("service") && text.includes("inverifiable"))
+      return "service-unverifiable";
+    if (text.includes("pause") && text.includes("inverifiable"))
+      return "pause-unverifiable";
+    if (text.includes("altitude"))
+      return "altitude";
+    if (text.includes("terrain"))
+      return "terrain";
+    return `generic:${text}`;
+  }
+
+  function numericValues(message) {
+    return [...String(message || "").matchAll(/-?\d+(?:[.,]\d+)?/g)]
+      .map((match) => Number(match[0].replace(",", ".")))
+      .filter(Number.isFinite);
+  }
+
+  function warningPriority(category, message) {
+    const values = numericValues(message);
+    if (!values.length) return 0;
+    if (
+      category === "weather-apparent-min" ||
+      category === "weather-visibility"
+    )
+      return -Math.min(...values);
+    return Math.max(...values);
+  }
+
+  function dedupeWarnings(warnings = []) {
+    const selected = new Map();
+    for (const raw of Array.isArray(warnings) ? warnings : []) {
+      const message = String(raw || "").trim();
+      if (!message) continue;
+      const category = warningCategory(message);
+      const candidate = {
+        message,
+        priority: warningPriority(category, message),
+      };
+      const current = selected.get(category);
+      if (
+        !current ||
+        candidate.priority > current.priority ||
+        (candidate.priority === current.priority &&
+          candidate.message.length > current.message.length)
+      )
+        selected.set(category, candidate);
+    }
+    return [...selected.values()].map((entry) => entry.message);
+  }
+
+  function checkKey(check) {
+    return normalizeText(check?.constraint || check?.label || "contrôle");
+  }
+
+  function dedupeChecks(checks = []) {
+    const selected = new Map();
+    for (const raw of Array.isArray(checks) ? checks : []) {
+      if (!raw) continue;
+      const check = { ...raw };
+      const key = checkKey(check);
+      const current = selected.get(key);
+      const rank = STATUS_RANK[check.status] || 0;
+      const currentRank = STATUS_RANK[current?.status] || 0;
+      if (
+        !current ||
+        rank > currentRank ||
+        (rank === currentRank &&
+          String(check.evidence || "").length >
+            String(current.evidence || "").length)
+      )
+        selected.set(key, check);
+    }
+    return [...selected.values()];
+  }
+
+  function summarizeChecks(checks = []) {
+    const summary = {
+      respected: 0,
+      unknown: 0,
+      violated: 0,
+      total: 0,
+    };
+    for (const check of checks) {
+      if (check.status === "respected") summary.respected += 1;
+      else if (check.status === "violated") summary.violated += 1;
+      else summary.unknown += 1;
+    }
+    summary.total =
+      summary.respected + summary.unknown + summary.violated;
+    return summary;
+  }
+
+  function synthesizeRoutePresentation(route = {}) {
+    const next = { ...route };
+    next.warnings = dedupeWarnings(route.warnings);
+    next.unknowns = dedupeWarnings(route.unknowns);
+    next.checks = dedupeChecks(route.checks);
+    next.controlSummary = summarizeChecks(next.checks);
+    return next;
+  }
+
+  globalThis.JMMJSAlertSynthesisCore = Object.freeze({
+    dedupeWarnings,
+    dedupeChecks,
+    summarizeChecks,
+    synthesizeRoutePresentation,
+  });
+})();
+
+(() => {
+  "use strict";
   const {
     ConstraintRegistry: ConstraintRegistry,
     compileConstraints: compileConstraints,
@@ -3888,6 +4038,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     chooseWeatherPoints,
     aggregateWeatherResults,
   } = globalThis.JMMJSMultiPointWeatherCore;
+  const {
+    synthesizeRoutePresentation,
+  } = globalThis.JMMJSAlertSynthesisCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -5345,6 +5498,31 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }[status] || status
     );
   }
+  function controlSummaryHtml(route) {
+    const summary =
+      route.controlSummary ||
+      (() => {
+        const checks = Array.isArray(route.checks) ? route.checks : [];
+        return {
+          respected: checks.filter((item) => item.status === "respected").length,
+          violated: checks.filter((item) => item.status === "violated").length,
+          unknown: checks.filter(
+            (item) => !["respected", "violated"].includes(item.status),
+          ).length,
+          total: checks.length,
+        };
+      })();
+
+    const parts = [];
+    if (summary.respected)
+      parts.push(`${summary.respected} respecté${summary.respected > 1 ? "s" : ""}`);
+    if (summary.unknown)
+      parts.push(`${summary.unknown} à vérifier`);
+    if (summary.violated)
+      parts.push(`${summary.violated} dépassé${summary.violated > 1 ? "s" : ""}`);
+    return parts.join(" · ") || "Aucun contrôle";
+  }
+
   function renderDetail() {
     const r = ensurePauseMarkers(S.routes[S.selected]),
       pauseMarkers = r.pauseMarkers,
@@ -5399,7 +5577,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       r.warnings
         .map((x) => '<span class="tag warn">⚠ ' + esc(x) + "</span>")
         .join("") +
-      "</div><details open><summary>Contrôles (" +
+      '</div><div class="control-synthesis"><strong>Contrôles</strong><span>' +
+      esc(controlSummaryHtml(r)) +
+      '</span></div><details><summary>Détail des contrôles (' +
       r.checks.length +
       ")</summary>" +
       list(
@@ -6388,7 +6568,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
         pois: route.pois,
       });
       const paused = applyPausePlan(route, req.pausePlan, planned);
-      return applyFallbackAnalysis(paused, safeAnalyzeFallbacks({ coords: paused.coords, walkingMinutes: paused.walking ?? paused.total, shortcutsRequested: Boolean(req.shortcuts) }));
+      return synthesizeRoutePresentation(
+        applyFallbackAnalysis(
+          paused,
+          safeAnalyzeFallbacks({
+            coords: paused.coords,
+            walkingMinutes: paused.walking ?? paused.total,
+            shortcutsRequested: Boolean(req.shortcuts),
+          }),
+        ),
+      );
     });
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
@@ -6693,7 +6882,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
         pois: route.pois,
       });
       const paused = applyPausePlan(route, S.request?.pausePlan, planned);
-      return applyFallbackAnalysis(paused, safeAnalyzeFallbacks({ coords: paused.coords, walkingMinutes: paused.walking ?? paused.total, shortcutsRequested: Boolean(S.request?.shortcuts) }));
+      return synthesizeRoutePresentation(
+        applyFallbackAnalysis(
+          paused,
+          safeAnalyzeFallbacks({
+            coords: paused.coords,
+            walkingMinutes: paused.walking ?? paused.total,
+            shortcutsRequested: Boolean(S.request?.shortcuts),
+          }),
+        ),
+      );
     });
     const compatible = pauseAudited.filter((route) => route.proposalStatus === "compatible");
     const toVerify = pauseAudited.filter((route) => route.proposalStatus === "verify");
@@ -6808,6 +7006,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
+
 
 
 
