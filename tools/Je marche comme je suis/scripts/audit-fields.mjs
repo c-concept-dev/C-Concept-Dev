@@ -67,7 +67,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   strict: ["complete", "Empêche les assouplissements silencieux."],
   shortcuts: ["complete", "Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés."],
   bothWays: ["complete", "Les deux sens sont audités."],
-  private: ["partial", "Intention de non-persistance présente ; audit complet du stockage à faire."],
+  private: ["complete", "Le mode privé efface immédiatement le profil local et bloque toute nouvelle persistance sans interrompre le calcul."],
   limitationSide: ["complete", "Côté déclaré, conservé dans la demande et expliqué."],
   limitationTrigger: ["complete", "Déclencheur traduit en conséquence fonctionnelle confirmée."],
   limitationConsequence: ["complete", "Éviter, limiter, ralentir, pause ou repli modifient la demande."],
