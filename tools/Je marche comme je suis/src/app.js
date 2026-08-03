@@ -11,6 +11,9 @@
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
+  const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
+    storage: globalThis.localStorage,
+  });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -476,8 +479,22 @@
     S.compiled = compiled;
   }
   function save(r) {
-    if (!$("#private").checked)
-      localStorage.setItem("jmmjs-profile", JSON.stringify(r));
+    privacyController.setPrivateMode(Boolean($("#private")?.checked));
+    const result = privacyController.persistProfile(r);
+    if (!result.persisted && result.reason === "storage-error")
+      say("Le profil n’a pas pu être mémorisé, mais le calcul continue.");
+    return result;
+  }
+
+  function updatePrivacyStatus() {
+    const checkbox = $("#private");
+    if (!checkbox) return;
+    const enabled = privacyController.setPrivateMode(checkbox.checked);
+    const status = $("#privacyStatus");
+    if (status)
+      status.textContent = enabled
+        ? "Mode privé actif · aucune persistance locale"
+        : "Mode normal · mémorisation locale autorisée";
   }
   function download(c, n, t = "application/json") {
     const a = document.createElement("a");
@@ -2475,13 +2492,26 @@
       $("#create").disabled = false;
     }
   };
+  const privateCheckbox = $("#private");
+  if (privateCheckbox) {
+    const privacyStatus = document.createElement("small");
+    privacyStatus.id = "privacyStatus";
+    privacyStatus.className = "privacy-status";
+    privateCheckbox.closest("label")?.insertAdjacentElement(
+      "afterend",
+      privacyStatus,
+    );
+    privateCheckbox.addEventListener("change", updatePrivacyStatus);
+    updatePrivacyStatus();
+  }
+
   $("#loadPois").onclick = loadPois;
   $("#loadPhotos").onclick = loadPhotos;
   $("#helpBtn").onclick = () => $("#helpModal").classList.add("show");
   $("#closeHelp").onclick = () => $("#helpModal").classList.remove("show");
   $("#clearBtn").onclick = () => {
     if (confirm("Effacer le profil mémorisé ?")) {
-      localStorage.removeItem("jmmjs-profile");
+      privacyController.purge();
       location.reload();
     }
   };
