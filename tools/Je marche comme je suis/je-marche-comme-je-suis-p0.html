@@ -709,6 +709,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 
 .weather-compact-zone{font-weight:800;opacity:.82}
+
+.weather-details-toggle{flex:0 0 auto;border:0;background:transparent;padding:.1rem .25rem;font:inherit;font-weight:800;cursor:pointer;opacity:.75}
+.weather-details-toggle:hover,.weather-details-toggle:focus-visible{opacity:1;outline:2px solid currentColor;outline-offset:2px;border-radius:4px}
+.weather-details-panel{flex-basis:100%;width:100%;margin-top:.5rem;padding:.55rem .65rem;border-top:1px solid rgba(0,0,0,.12);white-space:normal}
+.weather-detail-row{display:grid;grid-template-columns:minmax(4.5rem,.8fr) minmax(8rem,1.4fr) repeat(3,minmax(4.5rem,.7fr));gap:.45rem;align-items:center;padding:.28rem 0;font-size:.76rem}
+.weather-detail-row+ .weather-detail-row{border-top:1px solid rgba(0,0,0,.08)}
+.weather-detail-meta{display:flex;flex-wrap:wrap;gap:.35rem .75rem;margin-top:.45rem;font-size:.72rem;opacity:.78}
+.weather-detail-empty{font-size:.76rem;opacity:.75}
+.weather-compact:has(.weather-details-panel:not([hidden])){flex-wrap:wrap;white-space:normal}
+@media(max-width:760px){.weather-detail-row{grid-template-columns:1fr 1fr}.weather-detail-row span:nth-child(n+3){font-size:.72rem}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -4937,9 +4948,88 @@ svg.leaflet-image-layer.leaflet-interactive path {
       esc(weather?.departure?.label || "Maintenant") +
       '</span><span class="weather-compact-verdict">' +
       esc(assessment.label) +
-      '</span><span class="weather-compact-info" title="' +
-      esc(title) +
-      '" aria-label="Détails météo" tabindex="0">ⓘ</span>'
+      '</span><button type="button" class="weather-details-toggle" aria-expanded="false" aria-label="Afficher le détail météo">ⓘ</button>' +
+      '<div class="weather-details-panel" hidden>' +
+      weatherDetailsHtml(weather, title) +
+      '</div>'
+    );
+  }
+
+  function weatherHourlyRows(weather) {
+    const rows = [];
+    const points = Array.isArray(weather?.points) && weather.points.length
+      ? weather.points
+      : weather?.summary
+        ? [{ point: weather.representativePoint || { label: "Départ" }, summary: weather.summary }]
+        : [];
+
+    for (const result of points) {
+      const summary = result?.summary;
+      if (!summary) continue;
+      rows.push({
+        label: result.point?.label || "Parcours",
+        start: summary.startTime || "—",
+        end: summary.endTime || "—",
+        temperature:
+          Number.isFinite(Number(summary.temperatureMinC)) &&
+          Number.isFinite(Number(summary.temperatureMaxC))
+            ? `${Math.round(summary.temperatureMinC)}–${Math.round(summary.temperatureMaxC)} °C`
+            : "—",
+        rain: Number.isFinite(Number(summary.precipitationProbabilityMax))
+          ? `${Math.round(summary.precipitationProbabilityMax)} %`
+          : "—",
+        gust: Number.isFinite(Number(summary.windGustMaxKmh))
+          ? `${Math.round(summary.windGustMaxKmh)} km/h`
+          : "—",
+      });
+    }
+    return rows.slice(0, 4);
+  }
+
+  function weatherDetailsHtml(weather, fallbackTitle = "") {
+    const rows = weatherHourlyRows(weather);
+    const detailRows = rows.length
+      ? rows
+          .map(
+            (row) =>
+              '<div class="weather-detail-row"><strong>' +
+              esc(row.label) +
+              '</strong><span>' +
+              esc(row.start) +
+              ' → ' +
+              esc(row.end) +
+              '</span><span>' +
+              esc(row.temperature) +
+              '</span><span>☂ ' +
+              esc(row.rain) +
+              '</span><span>↗ ' +
+              esc(row.gust) +
+              '</span></div>',
+          )
+          .join("")
+      : '<div class="weather-detail-empty">Aucun détail horaire disponible.</div>';
+
+    const summary = weather?.summary;
+    const apparent =
+      summary &&
+      Number.isFinite(Number(summary.apparentMaxC))
+        ? `Ressenti maximal : ${Math.round(summary.apparentMaxC)} °C`
+        : null;
+    const coverage =
+      summary &&
+      Number.isFinite(Number(summary.coverageHours))
+        ? `Prévision analysée sur ${summary.coverageHours} h`
+        : null;
+    const source = summary?.source ? `Source : ${summary.source}` : "Source : Open-Meteo";
+
+    return (
+      detailRows +
+      '<div class="weather-detail-meta">' +
+      [apparent, coverage, source, fallbackTitle]
+        .filter(Boolean)
+        .map((item) => '<span>' + esc(item) + '</span>')
+        .join("") +
+      '</div>'
     );
   }
 
@@ -4949,6 +5039,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if (!element) return;
     element.innerHTML = weatherCompactHtml(weather);
     element.dataset.level = weather?.assessment?.level || "unknown";
+
+    const detailsToggle = element.querySelector(".weather-details-toggle");
+    const detailsPanel = element.querySelector(".weather-details-panel");
+    if (detailsToggle && detailsPanel)
+      detailsToggle.onclick = () => {
+        const expanded = detailsToggle.getAttribute("aria-expanded") === "true";
+        detailsToggle.setAttribute("aria-expanded", String(!expanded));
+        detailsToggle.setAttribute(
+          "aria-label",
+          expanded ? "Afficher le détail météo" : "Masquer le détail météo",
+        );
+        detailsPanel.hidden = expanded;
+      };
+
     const retry = element.querySelector(".weather-retry");
     if (retry)
       retry.onclick = () => {
@@ -6651,6 +6755,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
+
 
 
 
