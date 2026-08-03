@@ -25,6 +25,11 @@
   const {
     summarizeTerrainProof,
   } = globalThis.JMMJSTerrainProofCore;
+  const {
+    auditGPXInput,
+    auditParsedGPX,
+    formatGPXAudit,
+  } = globalThis.JMMJSGPXSafetyCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -2891,11 +2896,45 @@
       index,
     );
   }
+  function renderGPXAudit(audit) {
+    const target = $("#gpxAuditStatus");
+    if (!target) return;
+    target.dataset.status = audit?.accepted ? "accepted" : "rejected";
+    target.textContent = formatGPXAudit(audit);
+    const warnings = Array.isArray(audit?.warnings) ? audit.warnings : [];
+    target.title = warnings.join(" ");
+  }
+
   async function parseGPX(file) {
     if (!file) throw Error("Choisissez un GPX.");
+
     const text = await file.text();
+    const inputAudit = auditGPXInput({
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      text,
+    });
+    renderGPXAudit(inputAudit);
+    if (!inputAudit.accepted)
+      throw Error(inputAudit.errors.join(" "));
+
     const compiled = S.compiled || compileConstraints(S.request);
     const parsed = parseGPXText(text, file.name.replace(/\.gpx$/i, ""));
+    const parsedAudit = auditParsedGPX(parsed);
+    renderGPXAudit({
+      ...parsedAudit,
+      stats: {
+        ...inputAudit.stats,
+        ...parsedAudit.stats,
+      },
+      warnings: [
+        ...(inputAudit.warnings || []),
+        ...(parsedAudit.warnings || []),
+      ],
+    });
+    if (!parsedAudit.accepted)
+      throw Error(parsedAudit.errors.join(" "));
     if (parsed[0]?.points?.[0])
       await loadWeatherFor(
         Number(parsed[0].points[0][1]),
