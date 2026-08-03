@@ -868,19 +868,94 @@
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
   const weatherProvider = peripherals.require("open-meteo");
+  function localDateValue(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  function localTimeValue(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function scheduledDeparture() {
+    const mode = $("#departureMode")?.value || "now";
+    if (mode === "now")
+      return { mode, date: new Date(), iso: null, label: "Maintenant" };
+
+    const dateValue = $("#departureDate")?.value;
+    const timeValue = $("#departureTime")?.value;
+    if (!dateValue || !timeValue)
+      return {
+        mode,
+        date: null,
+        iso: null,
+        label: "Date et heure à préciser",
+      };
+
+    const date = new Date(`${dateValue}T${timeValue}:00`);
+    return {
+      mode,
+      date,
+      iso: `${dateValue}T${timeValue}`,
+      label: new Intl.DateTimeFormat("fr-FR", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date),
+    };
+  }
+
+  function validateDepartureSchedule() {
+    const schedule = scheduledDeparture();
+    if (!schedule.date)
+      return {
+        valid: false,
+        schedule,
+        message: "Choisissez une date et une heure de départ.",
+      };
+    if (schedule.mode !== "now" && schedule.date.getTime() < Date.now() - 60_000)
+      return {
+        valid: false,
+        schedule,
+        message: "La date de départ ne peut pas être dans le passé.",
+      };
+    return { valid: true, schedule, message: "" };
+  }
+
+  function updateDepartureControls() {
+    const custom = ($("#departureMode")?.value || "now") === "scheduled";
+    if ($("#departureDate")) $("#departureDate").disabled = !custom;
+    if ($("#departureTime")) $("#departureTime").disabled = !custom;
+    if ($("#departureStatus"))
+      $("#departureStatus").textContent = custom
+        ? "La météo sera analysée pour la date et l’heure choisies."
+        : "La météo sera analysée à partir de maintenant.";
+  }
+
   async function loadWeatherFor(latitude, longitude, minutes) {
     try {
+      const departure = validateDepartureSchedule();
+      if (!departure.valid) throw new Error(departure.message);
       const raw = await weatherProvider.forecast({
         latitude,
         longitude,
         hours: Math.max(1, Number(minutes || 60) / 60 + 1),
+        startAt: departure.schedule.iso,
       });
       const summary = summarizeForecast(raw.hourly, {
         startIndex: raw.startIndex,
         count: raw.count,
       });
       const assessment = assessForecast(summary);
-      S.weather = { summary, assessment, timezone: raw.timezone };
+      S.weather = {
+        summary,
+        assessment,
+        timezone: raw.timezone,
+        departure: departure.schedule,
+      };
     } catch (error) {
       S.weather = {
         summary: null,
@@ -947,6 +1022,8 @@
       esc(rain + " %") +
       '</span><span>↗ ' +
       esc(gust + " km/h") +
+      '</span><span class="weather-compact-departure">' +
+      esc(weather?.departure?.label || "Maintenant") +
       '</span><span class="weather-compact-verdict">' +
       esc(assessment.label) +
       '</span><span class="weather-compact-info" title="' +
@@ -2558,6 +2635,9 @@
   });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
+    const departureValidation = validateDepartureSchedule();
+    if (!departureValidation.valid)
+      return say(departureValidation.message);
     S.request = mergeStructuredLimitationIntoRequest(buildRequest());
     S.compiled = compileConstraints(S.request);
     const miss = [];
@@ -2595,6 +2675,25 @@
       $("#create").disabled = false;
     }
   };
+  const departureMode = $("#departureMode");
+  const departureDate = $("#departureDate");
+  const departureTime = $("#departureTime");
+  if (departureDate) departureDate.min = localDateValue(new Date());
+  if (departureTime && !departureTime.value)
+    departureTime.value = localTimeValue(new Date());
+  if (departureMode) {
+    departureMode.addEventListener("change", updateDepartureControls);
+    departureDate?.addEventListener("change", () => {
+      if ($("#departureMode")?.value === "scheduled")
+        void refreshWeatherPreview();
+    });
+    departureTime?.addEventListener("change", () => {
+      if ($("#departureMode")?.value === "scheduled")
+        void refreshWeatherPreview();
+    });
+    updateDepartureControls();
+  }
+
   const privateCheckbox = $("#private");
   if (privateCheckbox) {
     const privacyStatus = document.createElement("small");
