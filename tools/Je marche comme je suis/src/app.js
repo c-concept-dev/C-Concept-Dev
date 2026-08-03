@@ -13,6 +13,9 @@
     chooseWeatherPoints,
     aggregateWeatherResults,
   } = globalThis.JMMJSMultiPointWeatherCore;
+  const {
+    synthesizeRoutePresentation,
+  } = globalThis.JMMJSAlertSynthesisCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -1470,6 +1473,31 @@
       }[status] || status
     );
   }
+  function controlSummaryHtml(route) {
+    const summary =
+      route.controlSummary ||
+      (() => {
+        const checks = Array.isArray(route.checks) ? route.checks : [];
+        return {
+          respected: checks.filter((item) => item.status === "respected").length,
+          violated: checks.filter((item) => item.status === "violated").length,
+          unknown: checks.filter(
+            (item) => !["respected", "violated"].includes(item.status),
+          ).length,
+          total: checks.length,
+        };
+      })();
+
+    const parts = [];
+    if (summary.respected)
+      parts.push(`${summary.respected} respecté${summary.respected > 1 ? "s" : ""}`);
+    if (summary.unknown)
+      parts.push(`${summary.unknown} à vérifier`);
+    if (summary.violated)
+      parts.push(`${summary.violated} dépassé${summary.violated > 1 ? "s" : ""}`);
+    return parts.join(" · ") || "Aucun contrôle";
+  }
+
   function renderDetail() {
     const r = ensurePauseMarkers(S.routes[S.selected]),
       pauseMarkers = r.pauseMarkers,
@@ -1524,7 +1552,9 @@
       r.warnings
         .map((x) => '<span class="tag warn">⚠ ' + esc(x) + "</span>")
         .join("") +
-      "</div><details open><summary>Contrôles (" +
+      '</div><div class="control-synthesis"><strong>Contrôles</strong><span>' +
+      esc(controlSummaryHtml(r)) +
+      '</span></div><details><summary>Détail des contrôles (' +
       r.checks.length +
       ")</summary>" +
       list(
@@ -2513,7 +2543,16 @@
         pois: route.pois,
       });
       const paused = applyPausePlan(route, req.pausePlan, planned);
-      return applyFallbackAnalysis(paused, safeAnalyzeFallbacks({ coords: paused.coords, walkingMinutes: paused.walking ?? paused.total, shortcutsRequested: Boolean(req.shortcuts) }));
+      return synthesizeRoutePresentation(
+        applyFallbackAnalysis(
+          paused,
+          safeAnalyzeFallbacks({
+            coords: paused.coords,
+            walkingMinutes: paused.walking ?? paused.total,
+            shortcutsRequested: Boolean(req.shortcuts),
+          }),
+        ),
+      );
     });
     const compatible = all.filter((x) => x.proposalStatus === "compatible"),
       toVerify = all.filter((x) => x.proposalStatus === "verify"),
@@ -2818,7 +2857,16 @@
         pois: route.pois,
       });
       const paused = applyPausePlan(route, S.request?.pausePlan, planned);
-      return applyFallbackAnalysis(paused, safeAnalyzeFallbacks({ coords: paused.coords, walkingMinutes: paused.walking ?? paused.total, shortcutsRequested: Boolean(S.request?.shortcuts) }));
+      return synthesizeRoutePresentation(
+        applyFallbackAnalysis(
+          paused,
+          safeAnalyzeFallbacks({
+            coords: paused.coords,
+            walkingMinutes: paused.walking ?? paused.total,
+            shortcutsRequested: Boolean(S.request?.shortcuts),
+          }),
+        ),
+      );
     });
     const compatible = pauseAudited.filter((route) => route.proposalStatus === "compatible");
     const toVerify = pauseAudited.filter((route) => route.proposalStatus === "verify");
