@@ -65,7 +65,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   services: ["complete", "Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier."],
   freeText: ["partial", "Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres."],
   strict: ["complete", "Empêche les assouplissements silencieux."],
-  shortcuts: ["partial", "Demande compilée ; calcul de raccourcis réels à compléter."],
+  shortcuts: ["complete", "Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés."],
   bothWays: ["complete", "Les deux sens sont audités."],
   private: ["partial", "Intention de non-persistance présente ; audit complet du stockage à faire."],
   limitationSide: ["complete", "Côté déclaré, conservé dans la demande et expliqué."],
