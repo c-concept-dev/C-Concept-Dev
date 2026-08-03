@@ -704,6 +704,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 
 .weather-compact-zone{font-weight:800;opacity:.82}
+
+.weather-details-toggle{flex:0 0 auto;border:0;background:transparent;padding:.1rem .25rem;font:inherit;font-weight:800;cursor:pointer;opacity:.75}
+.weather-details-toggle:hover,.weather-details-toggle:focus-visible{opacity:1;outline:2px solid currentColor;outline-offset:2px;border-radius:4px}
+.weather-details-panel{flex-basis:100%;width:100%;margin-top:.5rem;padding:.55rem .65rem;border-top:1px solid rgba(0,0,0,.12);white-space:normal}
+.weather-detail-row{display:grid;grid-template-columns:minmax(4.5rem,.8fr) minmax(8rem,1.4fr) repeat(3,minmax(4.5rem,.7fr));gap:.45rem;align-items:center;padding:.28rem 0;font-size:.76rem}
+.weather-detail-row+ .weather-detail-row{border-top:1px solid rgba(0,0,0,.08)}
+.weather-detail-meta{display:flex;flex-wrap:wrap;gap:.35rem .75rem;margin-top:.45rem;font-size:.72rem;opacity:.78}
+.weather-detail-empty{font-size:.76rem;opacity:.75}
+.weather-compact:has(.weather-details-panel:not([hidden])){flex-wrap:wrap;white-space:normal}
+@media(max-width:760px){.weather-detail-row{grid-template-columns:1fr 1fr}.weather-detail-row span:nth-child(n+3){font-size:.72rem}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
