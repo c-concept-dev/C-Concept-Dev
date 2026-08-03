@@ -62,7 +62,7 @@
       throw lastError || new Error("Open-Meteo indisponible.");
     }
 
-    async function fetchForecast({ latitude, longitude, hours }) {
+    async function fetchForecast({ latitude, longitude, hours, startAt }) {
       const params = new URLSearchParams({
         latitude: String(latitude),
         longitude: String(longitude),
@@ -85,9 +85,12 @@
       const data = await response.json();
       const times = data?.hourly?.time || [];
       const now = nowImpl();
+      const requestedTimestamp = startAt
+        ? Date.parse(startAt)
+        : now - 30 * 60 * 1000;
 
       let startIndex = times.findIndex(
-        (value) => Date.parse(value) >= now - 30 * 60 * 1000,
+        (value) => Date.parse(value) >= requestedTimestamp,
       );
       if (startIndex < 0) startIndex = 0;
 
@@ -97,17 +100,18 @@
         count: Math.max(1, Math.ceil(Number(hours) || 1)),
         timezone: data.timezone || null,
         fetchedAt: now,
+        requestedStartAt: startAt || null,
       };
     }
 
-    async function forecast({ latitude, longitude, hours = 3 }) {
+    async function forecast({ latitude, longitude, hours = 3, startAt = null }) {
       if (
         !Number.isFinite(Number(latitude)) ||
         !Number.isFinite(Number(longitude))
       )
         throw new TypeError("Coordonnées météo invalides.");
 
-      const key = cacheKey(latitude, longitude, hours);
+      const key = `${cacheKey(latitude, longitude, hours)}:${startAt || "now"}`;
       const cached = cache.get(key);
       const now = nowImpl();
 
@@ -116,7 +120,12 @@
 
       if (pending.has(key)) return pending.get(key);
 
-      const operation = fetchForecast({ latitude, longitude, hours })
+      const operation = fetchForecast({
+        latitude,
+        longitude,
+        hours,
+        startAt,
+      })
         .then((value) => {
           cache.set(key, { savedAt: nowImpl(), value });
           return { ...value, cache: "miss" };
