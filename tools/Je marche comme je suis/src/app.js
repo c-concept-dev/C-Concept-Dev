@@ -9,6 +9,10 @@
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
+  const {
+    chooseWeatherPoints,
+    aggregateWeatherResults,
+  } = globalThis.JMMJSMultiPointWeatherCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -970,6 +974,57 @@
     return S.weather;
   }
 
+  async function loadWeatherForRoute(route, minutes) {
+    const points = chooseWeatherPoints(route);
+    if (!points.length) return S.weather;
+
+    const departure = validateDepartureSchedule();
+    if (!departure.valid)
+      return {
+        summary: null,
+        assessment: assessForecast(null),
+        error: departure.message,
+        partial: true,
+        points: [],
+      };
+
+    const results = [];
+    for (const point of points) {
+      try {
+        const raw = await weatherProvider.forecast({
+          latitude: point.lat,
+          longitude: point.lon,
+          hours: Math.max(1, Number(minutes || 60) / 60 + 1),
+          startAt: departure.schedule.iso,
+        });
+        const summary = summarizeForecast(raw.hourly, {
+          startIndex: raw.startIndex,
+          count: raw.count,
+        });
+        results.push({
+          point,
+          summary,
+          assessment: assessForecast(summary),
+          timezone: raw.timezone,
+        });
+      } catch (error) {
+        results.push({
+          point,
+          summary: null,
+          assessment: assessForecast(null),
+          error: error.message,
+        });
+      }
+    }
+
+    const aggregated = aggregateWeatherResults(results);
+    return {
+      ...aggregated,
+      departure: departure.schedule,
+      timezone: results.find((result) => result.timezone)?.timezone || null,
+    };
+  }
+
   function weatherIcon(assessment, summary) {
     if (!assessment || assessment.level === "unknown") return "◌";
     if (assessment.level === "critical") return "⚠";
@@ -1022,6 +1077,8 @@
       esc(rain + " %") +
       '</span><span>↗ ' +
       esc(gust + " km/h") +
+      '</span><span class="weather-compact-zone">' +
+      esc(weather?.representativePoint?.label || "Départ") +
       '</span><span class="weather-compact-departure">' +
       esc(weather?.departure?.label || "Maintenant") +
       '</span><span class="weather-compact-verdict">' +
@@ -2297,10 +2354,21 @@
       }
       all = verified;
     }
-    if (S.weather?.assessment)
-      all = all.map((route) =>
-        applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
+    const weatherChecked = [];
+    for (const route of all) {
+      const routeWeather = await loadWeatherForRoute(
+        route,
+        route.walking ?? route.total ?? req.time?.availableMinutes,
       );
+      const checked = applyWeatherAssessment(
+        route,
+        routeWeather.summary,
+        routeWeather.assessment,
+      );
+      checked.weather = routeWeather;
+      weatherChecked.push(checked);
+    }
+    all = weatherChecked;
     all = all.map((route) => {
       const planned = safePlanPauses({
         coords: route.coords,
@@ -2592,11 +2660,20 @@
     const audited = parsed.map((source, index) =>
       auditedGPXCandidate(source, compiled, index),
     );
-    const weatherAudited = S.weather?.assessment
-      ? audited.map((route) =>
-          applyWeatherAssessment(route, S.weather.summary, S.weather.assessment),
-        )
-      : audited;
+    const weatherAudited = [];
+    for (const route of audited) {
+      const routeWeather = await loadWeatherForRoute(
+        route,
+        route.walking ?? route.total ?? S.request?.time?.availableMinutes,
+      );
+      const checked = applyWeatherAssessment(
+        route,
+        routeWeather.summary,
+        routeWeather.assessment,
+      );
+      checked.weather = routeWeather;
+      weatherAudited.push(checked);
+    }
     const pauseAudited = weatherAudited.map((route) => {
       const planned = safePlanPauses({
         coords: route.coords,
