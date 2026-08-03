@@ -55,7 +55,7 @@
 | strict | field | selection | imperative | — | block-unknown-hard | complete | Empêche les assouplissements silencieux. |
 | shortcuts | field | generation-audit | conditional | shortcut-routes | block-if-required | partial | Demande compilée ; calcul de raccourcis réels à compléter. |
 | bothWays | field | generation-audit | conditional | reverse-audit | block-if-required | complete | Les deux sens sont audités. |
-| private | field | persistence | preparation | — | allow | partial | Intention de non-persistance présente ; audit complet du stockage à faire. |
+| private | field | persistence | preparation | — | allow | complete | Le mode privé efface immédiatement le profil local et bloque toute nouvelle persistance sans interrompre le calcul. |
 | gpxFile | field | route-source | imperative | geometry | block | complete | Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables. |
 | equipment | choice-group | generation-audit | conditional | surface, width, kerb, steps | block-if-imperative | partial | Options ORS et audits présents pour certains équipements seulement. |
 | limits | choice-group | generation-audit | conditional | surface, slope, width, services | block-if-imperative | partial | Plusieurs limitations sont traduites ; seuils fonctionnels à structurer. |
