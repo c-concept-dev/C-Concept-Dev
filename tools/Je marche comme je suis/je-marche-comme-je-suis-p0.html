@@ -701,6 +701,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .weather-retry:hover{opacity:1}
 .weather-retry:disabled{opacity:.35;cursor:wait}
 
+
+.departure-compact{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);gap:.45rem;align-items:center}
+.departure-compact .input{min-width:0}
+.weather-compact-departure{font-weight:700;opacity:.8}
+@media(max-width:760px){.departure-compact{grid-template-columns:1fr 1fr}.departure-compact select{grid-column:1/-1}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -878,7 +884,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     ><button class="chip">Pas de boue</button
                     ><button class="chip">Chemin large</button
                     ><button class="chip">Peu de circulation</button
-                    ><button class="chip">Peu de traversées</button></div><div class="field"><label>Météo du lieu de balade</label
+                    ><button class="chip">Peu de traversées</button></div><div class="field"><label>Départ prévu</label
+                    ><div class="departure-compact">
+                      <select class="input" id="departureMode">
+                        <option value="now">Partir maintenant</option>
+                        <option value="scheduled">Choisir une date et une heure</option>
+                      </select>
+                      <input class="input" id="departureDate" type="date" disabled />
+                      <input class="input" id="departureTime" type="time" disabled />
+                    </div>
+                    <small id="departureStatus">La météo sera analysée à partir de maintenant.</small>
+                  </div>
+                  <div class="field"><label>Météo du lieu de balade</label
                     ><div
                       class="weather-compact"
                       id="weatherCompact"
@@ -3449,7 +3466,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       throw lastError || new Error("Open-Meteo indisponible.");
     }
 
-    async function fetchForecast({ latitude, longitude, hours }) {
+    async function fetchForecast({ latitude, longitude, hours, startAt }) {
       const params = new URLSearchParams({
         latitude: String(latitude),
         longitude: String(longitude),
@@ -3472,9 +3489,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const data = await response.json();
       const times = data?.hourly?.time || [];
       const now = nowImpl();
+      const requestedTimestamp = startAt
+        ? Date.parse(startAt)
+        : now - 30 * 60 * 1000;
 
       let startIndex = times.findIndex(
-        (value) => Date.parse(value) >= now - 30 * 60 * 1000,
+        (value) => Date.parse(value) >= requestedTimestamp,
       );
       if (startIndex < 0) startIndex = 0;
 
@@ -3484,17 +3504,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
         count: Math.max(1, Math.ceil(Number(hours) || 1)),
         timezone: data.timezone || null,
         fetchedAt: now,
+        requestedStartAt: startAt || null,
       };
     }
 
-    async function forecast({ latitude, longitude, hours = 3 }) {
+    async function forecast({ latitude, longitude, hours = 3, startAt = null }) {
       if (
         !Number.isFinite(Number(latitude)) ||
         !Number.isFinite(Number(longitude))
       )
         throw new TypeError("Coordonnées météo invalides.");
 
-      const key = cacheKey(latitude, longitude, hours);
+      const key = `${cacheKey(latitude, longitude, hours)}:${startAt || "now"}`;
       const cached = cache.get(key);
       const now = nowImpl();
 
@@ -3503,7 +3524,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
       if (pending.has(key)) return pending.get(key);
 
-      const operation = fetchForecast({ latitude, longitude, hours })
+      const operation = fetchForecast({
+        latitude,
+        longitude,
+        hours,
+        startAt,
+      })
         .then((value) => {
           cache.set(key, { savedAt: nowImpl(), value });
           return { ...value, cache: "miss" };
@@ -3532,6 +3558,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     createOpenMeteoProvider,
   });
 })();
+
 
 </script>
     <script data-jmmjs-addon="fallback-core">
@@ -4486,19 +4513,94 @@ svg.leaflet-image-layer.leaflet-interactive path {
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
   const weatherProvider = peripherals.require("open-meteo");
+  function localDateValue(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  function localTimeValue(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function scheduledDeparture() {
+    const mode = $("#departureMode")?.value || "now";
+    if (mode === "now")
+      return { mode, date: new Date(), iso: null, label: "Maintenant" };
+
+    const dateValue = $("#departureDate")?.value;
+    const timeValue = $("#departureTime")?.value;
+    if (!dateValue || !timeValue)
+      return {
+        mode,
+        date: null,
+        iso: null,
+        label: "Date et heure à préciser",
+      };
+
+    const date = new Date(`${dateValue}T${timeValue}:00`);
+    return {
+      mode,
+      date,
+      iso: `${dateValue}T${timeValue}`,
+      label: new Intl.DateTimeFormat("fr-FR", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date),
+    };
+  }
+
+  function validateDepartureSchedule() {
+    const schedule = scheduledDeparture();
+    if (!schedule.date)
+      return {
+        valid: false,
+        schedule,
+        message: "Choisissez une date et une heure de départ.",
+      };
+    if (schedule.mode !== "now" && schedule.date.getTime() < Date.now() - 60_000)
+      return {
+        valid: false,
+        schedule,
+        message: "La date de départ ne peut pas être dans le passé.",
+      };
+    return { valid: true, schedule, message: "" };
+  }
+
+  function updateDepartureControls() {
+    const custom = ($("#departureMode")?.value || "now") === "scheduled";
+    if ($("#departureDate")) $("#departureDate").disabled = !custom;
+    if ($("#departureTime")) $("#departureTime").disabled = !custom;
+    if ($("#departureStatus"))
+      $("#departureStatus").textContent = custom
+        ? "La météo sera analysée pour la date et l’heure choisies."
+        : "La météo sera analysée à partir de maintenant.";
+  }
+
   async function loadWeatherFor(latitude, longitude, minutes) {
     try {
+      const departure = validateDepartureSchedule();
+      if (!departure.valid) throw new Error(departure.message);
       const raw = await weatherProvider.forecast({
         latitude,
         longitude,
         hours: Math.max(1, Number(minutes || 60) / 60 + 1),
+        startAt: departure.schedule.iso,
       });
       const summary = summarizeForecast(raw.hourly, {
         startIndex: raw.startIndex,
         count: raw.count,
       });
       const assessment = assessForecast(summary);
-      S.weather = { summary, assessment, timezone: raw.timezone };
+      S.weather = {
+        summary,
+        assessment,
+        timezone: raw.timezone,
+        departure: departure.schedule,
+      };
     } catch (error) {
       S.weather = {
         summary: null,
@@ -4565,6 +4667,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       esc(rain + " %") +
       '</span><span>↗ ' +
       esc(gust + " km/h") +
+      '</span><span class="weather-compact-departure">' +
+      esc(weather?.departure?.label || "Maintenant") +
       '</span><span class="weather-compact-verdict">' +
       esc(assessment.label) +
       '</span><span class="weather-compact-info" title="' +
@@ -6176,6 +6280,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
+    const departureValidation = validateDepartureSchedule();
+    if (!departureValidation.valid)
+      return say(departureValidation.message);
     S.request = mergeStructuredLimitationIntoRequest(buildRequest());
     S.compiled = compileConstraints(S.request);
     const miss = [];
@@ -6213,6 +6320,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
       $("#create").disabled = false;
     }
   };
+  const departureMode = $("#departureMode");
+  const departureDate = $("#departureDate");
+  const departureTime = $("#departureTime");
+  if (departureDate) departureDate.min = localDateValue(new Date());
+  if (departureTime && !departureTime.value)
+    departureTime.value = localTimeValue(new Date());
+  if (departureMode) {
+    departureMode.addEventListener("change", updateDepartureControls);
+    departureDate?.addEventListener("change", () => {
+      if ($("#departureMode")?.value === "scheduled")
+        void refreshWeatherPreview();
+    });
+    departureTime?.addEventListener("change", () => {
+      if ($("#departureMode")?.value === "scheduled")
+        void refreshWeatherPreview();
+    });
+    updateDepartureControls();
+  }
+
   const privateCheckbox = $("#private");
   if (privateCheckbox) {
     const privacyStatus = document.createElement("small");
@@ -6239,6 +6365,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
+
 
 
 </script>
