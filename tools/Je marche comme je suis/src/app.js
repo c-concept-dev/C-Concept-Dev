@@ -22,6 +22,9 @@
     buildMapLinks,
     buildJsonExport,
   } = globalThis.JMMJSExportCore;
+  const {
+    summarizeTerrainProof,
+  } = globalThis.JMMJSTerrainProofCore;
   const { safePlanPauses, applyPausePlan } = globalThis.JMMJSPausePlannerCore;
   const { safeAnalyzeFallbacks, applyFallbackAnalysis } = globalThis.JMMJSFallbackCore;
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
@@ -582,6 +585,9 @@
       terrain: r.terrainTypes || [],
       surfaces: r.surfaces || [],
       terrainEvidence: r.terrainEvidence || null,
+      terrainProof:
+        r.terrainProof ||
+        summarizeTerrainProof(r.terrainEvidence || {}),
       compatibility: metric(r.compatibilityScore),
       pleasure: metric(r.pleasureScore),
       confidence: metric(r.confidenceScore),
@@ -1450,6 +1456,10 @@
             }
           }),
       );
+      r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, {
+        photos,
+      });
+      renderDetail();
       serviceState("mapillary", "Connecté", "ok");
       say(photos.length + " photographie(s) indicative(s).");
     } catch (e) {
@@ -1504,6 +1514,66 @@
     return parts.join(" · ") || "Aucun contrôle";
   }
 
+  function terrainProofLevelClass(level) {
+    return `terrain-proof-level terrain-proof-${level || "undocumented"}`;
+  }
+
+  function terrainProofDetailsHtml(route) {
+    const proof =
+      route.terrainProof ||
+      summarizeTerrainProof(route.terrainEvidence || {});
+    const items = proof.items
+      .map(
+        (item) =>
+          '<li><span class="' +
+          terrainProofLevelClass(item.level) +
+          '">' +
+          esc(item.levelLabel) +
+          '</span><strong>' +
+          esc(item.label) +
+          "</strong> — " +
+          esc(item.statement) +
+          '<small>Source : ' +
+          esc(item.source) +
+          " · " +
+          esc(item.reason) +
+          "</small></li>",
+      )
+      .join("");
+
+    const photo = proof.photoSummary || {};
+    const photoMeta = photo.count
+      ? '<p class="terrain-proof-meta">Photographies : ' +
+        photo.count +
+        (Number.isFinite(Number(photo.latestAgeDays))
+          ? " · plus récente : il y a " +
+            Math.round(photo.latestAgeDays) +
+            " jour(s)"
+          : "") +
+        (Number.isFinite(Number(photo.nearestDistanceMeters))
+          ? " · plus proche : " +
+            Math.round(photo.nearestDistanceMeters) +
+            " m de la trace"
+          : "") +
+        "</p>"
+      : "";
+
+    return (
+      '<div class="terrain-proof-summary"><span class="' +
+      terrainProofLevelClass(proof.overallLevel) +
+      '">' +
+      esc(proof.overallLabel) +
+      "</span><strong>Niveau global de preuve terrain</strong></div>" +
+      "<ul class=\"terrain-proof-list\">" +
+      items +
+      "</ul>" +
+      photoMeta +
+      '<p class="terrain-proof-rule">' +
+      esc(proof.rule) +
+      "</p>"
+    );
+  }
+
   function renderDetail() {
     const r = ensurePauseMarkers(S.routes[S.selected]),
       pauseMarkers = r.pauseMarkers,
@@ -1548,7 +1618,10 @@
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
       '</b><span>raccourcis</span></div><div class="data"><b>' +
-      esc(r.terrainEvidence?.quality === "documented" ? "Documentée" : r.terrainEvidence?.quality === "partial" ? "Partielle" : "Absente") +
+      esc(
+        (r.terrainProof ||
+          summarizeTerrainProof(r.terrainEvidence || {})).overallLabel,
+      ) +
       '</b><span>preuve terrain</span></div><div class="data"><b>' +
       metricLabel(r.terrainEvidence?.surfaceCoveragePercent) +
       ' %</b><span>surface documentée</span></div></div><div class="tags">' +
@@ -1616,10 +1689,8 @@
       list(r.fallbacks,(fallback,index)=>"<strong>Repli "+(index+1)+"</strong> — demi-tour à "+Math.round(fallback.outboundMeters)+" m du départ"+(Number.isFinite(Number(fallback.totalMinutes))?" · retour total environ "+fallback.totalMinutes.toFixed(1)+" min":"")+" · "+esc(fallback.evidence)) +
       "</details><details><summary>Réserves et inconnues</summary>" +
       list([...r.warnings, ...r.unknowns]) +
-      "</details><details><summary>Qualité des preuves terrain</summary>" +
-      (r.terrainEvidence
-        ? "<ul><li><strong>" + esc(r.terrainEvidence.label) + "</strong> — " + esc(r.terrainEvidence.evidence) + "</li><li>Largeur : " + esc(r.terrainEvidence.widthEvidence) + "</li><li>Exposition : " + esc(r.terrainEvidence.exposureEvidence) + "</li></ul>"
-        : '<p class="kicker">Preuve terrain non évaluée</p>') +
+      "</details><details><summary>Niveau de preuve terrain</summary>" +
+      terrainProofDetailsHtml(r) +
       "</details><details><summary>Sources</summary>" +
       list(r.sources) +
       '</details><div class="exports">' +
