@@ -715,6 +715,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .weather-compact:has(.weather-details-panel:not([hidden])){flex-wrap:wrap;white-space:normal}
 @media(max-width:760px){.weather-detail-row{grid-template-columns:1fr 1fr}.weather-detail-row span:nth-child(n+3){font-size:.72rem}}
 
+
+.weather-detail-row{grid-template-columns:minmax(4.8rem,.75fr) minmax(7rem,1.1fr) minmax(5rem,.75fr) minmax(5.5rem,.8fr) minmax(6rem,.85fr)}
+.weather-detail-meta{padding-top:.45rem;border-top:1px solid rgba(0,0,0,.08)}
+.weather-detail-meta span{white-space:nowrap}
+@media(max-width:760px){
+  .weather-detail-row{grid-template-columns:minmax(4.5rem,.8fr) minmax(7rem,1.2fr)}
+  .weather-detail-row span:nth-child(n+3){font-size:.72rem}
+  .weather-detail-meta span{white-space:normal}
+}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
