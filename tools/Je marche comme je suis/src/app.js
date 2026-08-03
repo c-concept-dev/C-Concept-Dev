@@ -1083,9 +1083,88 @@
       esc(weather?.departure?.label || "Maintenant") +
       '</span><span class="weather-compact-verdict">' +
       esc(assessment.label) +
-      '</span><span class="weather-compact-info" title="' +
-      esc(title) +
-      '" aria-label="Détails météo" tabindex="0">ⓘ</span>'
+      '</span><button type="button" class="weather-details-toggle" aria-expanded="false" aria-label="Afficher le détail météo">ⓘ</button>' +
+      '<div class="weather-details-panel" hidden>' +
+      weatherDetailsHtml(weather, title) +
+      '</div>'
+    );
+  }
+
+  function weatherHourlyRows(weather) {
+    const rows = [];
+    const points = Array.isArray(weather?.points) && weather.points.length
+      ? weather.points
+      : weather?.summary
+        ? [{ point: weather.representativePoint || { label: "Départ" }, summary: weather.summary }]
+        : [];
+
+    for (const result of points) {
+      const summary = result?.summary;
+      if (!summary) continue;
+      rows.push({
+        label: result.point?.label || "Parcours",
+        start: summary.startTime || "—",
+        end: summary.endTime || "—",
+        temperature:
+          Number.isFinite(Number(summary.temperatureMinC)) &&
+          Number.isFinite(Number(summary.temperatureMaxC))
+            ? `${Math.round(summary.temperatureMinC)}–${Math.round(summary.temperatureMaxC)} °C`
+            : "—",
+        rain: Number.isFinite(Number(summary.precipitationProbabilityMax))
+          ? `${Math.round(summary.precipitationProbabilityMax)} %`
+          : "—",
+        gust: Number.isFinite(Number(summary.windGustMaxKmh))
+          ? `${Math.round(summary.windGustMaxKmh)} km/h`
+          : "—",
+      });
+    }
+    return rows.slice(0, 4);
+  }
+
+  function weatherDetailsHtml(weather, fallbackTitle = "") {
+    const rows = weatherHourlyRows(weather);
+    const detailRows = rows.length
+      ? rows
+          .map(
+            (row) =>
+              '<div class="weather-detail-row"><strong>' +
+              esc(row.label) +
+              '</strong><span>' +
+              esc(row.start) +
+              ' → ' +
+              esc(row.end) +
+              '</span><span>' +
+              esc(row.temperature) +
+              '</span><span>☂ ' +
+              esc(row.rain) +
+              '</span><span>↗ ' +
+              esc(row.gust) +
+              '</span></div>',
+          )
+          .join("")
+      : '<div class="weather-detail-empty">Aucun détail horaire disponible.</div>';
+
+    const summary = weather?.summary;
+    const apparent =
+      summary &&
+      Number.isFinite(Number(summary.apparentMaxC))
+        ? `Ressenti maximal : ${Math.round(summary.apparentMaxC)} °C`
+        : null;
+    const coverage =
+      summary &&
+      Number.isFinite(Number(summary.coverageHours))
+        ? `Prévision analysée sur ${summary.coverageHours} h`
+        : null;
+    const source = summary?.source ? `Source : ${summary.source}` : "Source : Open-Meteo";
+
+    return (
+      detailRows +
+      '<div class="weather-detail-meta">' +
+      [apparent, coverage, source, fallbackTitle]
+        .filter(Boolean)
+        .map((item) => '<span>' + esc(item) + '</span>')
+        .join("") +
+      '</div>'
     );
   }
 
@@ -1095,6 +1174,20 @@
     if (!element) return;
     element.innerHTML = weatherCompactHtml(weather);
     element.dataset.level = weather?.assessment?.level || "unknown";
+
+    const detailsToggle = element.querySelector(".weather-details-toggle");
+    const detailsPanel = element.querySelector(".weather-details-panel");
+    if (detailsToggle && detailsPanel)
+      detailsToggle.onclick = () => {
+        const expanded = detailsToggle.getAttribute("aria-expanded") === "true";
+        detailsToggle.setAttribute("aria-expanded", String(!expanded));
+        detailsToggle.setAttribute(
+          "aria-label",
+          expanded ? "Afficher le détail météo" : "Masquer le détail météo",
+        );
+        detailsPanel.hidden = expanded;
+      };
+
     const retry = element.querySelector(".weather-retry");
     if (retry)
       retry.onclick = () => {
