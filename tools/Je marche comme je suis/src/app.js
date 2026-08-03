@@ -882,7 +882,14 @@
       const assessment = assessForecast(summary);
       S.weather = { summary, assessment, timezone: raw.timezone };
     } catch (error) {
-      S.weather = { summary: null, assessment: assessForecast(null), error: error.message };
+      S.weather = {
+        summary: null,
+        assessment: assessForecast(null),
+        error: error.message,
+        temporary:
+          /\((429|502|503|504)\)/.test(error.message) ||
+          /network|fetch/i.test(error.message),
+      };
     }
     renderWeatherCompact("#weatherCompact");
     return S.weather;
@@ -903,7 +910,13 @@
     const summary = weather?.summary;
     const assessment = weather?.assessment;
     if (!summary || !assessment)
-      return '<span class="weather-compact-icon">◌</span><strong>Météo automatique indisponible</strong>';
+      return (
+        '<span class="weather-compact-icon">◌</span><strong>' +
+        (weather?.temporary
+          ? "Météo temporairement indisponible"
+          : "Météo automatique indisponible") +
+        '</strong><button type="button" class="weather-retry" title="Réessayer la météo">↻</button>'
+      );
 
     const min = Number.isFinite(Number(summary.temperatureMinC))
       ? Math.round(summary.temperatureMinC)
@@ -948,6 +961,12 @@
     if (!element) return;
     element.innerHTML = weatherCompactHtml(weather);
     element.dataset.level = weather?.assessment?.level || "unknown";
+    const retry = element.querySelector(".weather-retry");
+    if (retry)
+      retry.onclick = () => {
+        retry.disabled = true;
+        void refreshWeatherPreview();
+      };
   }
 
   async function refreshWeatherPreview() {
