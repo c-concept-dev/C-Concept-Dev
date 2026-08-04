@@ -66,6 +66,7 @@
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
   const { MODES: RECOVERY_MODES, createRecoveryRequest } = globalThis.JMMJSRecoveryRouteCore;
+  const { prepareOfflineSnapshot, saveOfflineSnapshot, clearOfflineSnapshot } = globalThis.JMMJSOfflinePreparationCore;
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -1977,11 +1978,12 @@
       list(r.sources) +
       '</details><div class="exports">' +
       (r.canNavigate
-        ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button>'
+        ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
       '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Secours · rejoindre le départ</strong><span>Retour simple depuis votre position actuelle. La boucle n’est pas exportée.</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
+    if ($("#prepareOfflineBtn")) $("#prepareOfflineBtn").onclick = prepareOffline;
     const exportAudit = auditRouteExport(r);
     const certification = $("#exportCertification");
     if (certification) {
@@ -2144,6 +2146,48 @@
       "°"
     );
   }
+
+  function offlineStatusRows(snapshot) {
+    const rows = [
+      ["✓", "Application", "disponible"],
+      ["✓", "Trace exacte", "disponible"],
+      ["✓", "Consignes et étapes", "disponibles"],
+      ["✓", "Coordonnées de départ", "disponibles"],
+      ["✓", "GPX", "disponible depuis le résultat"],
+      [snapshot.availability.weather === "dated" ? "△" : "—", "Météo", snapshot.availability.weather === "dated" ? "enregistrée mais datée" : "non disponible"],
+      ["△", "Nouveau calcul et actualisations", "non garantis sans réseau"],
+      ["△", "Fond cartographique complet", "non garanti hors connexion"],
+    ];
+    return rows.map(([icon, label, state]) => `<li><strong>${icon} ${esc(label)}</strong> — ${esc(state)}</li>`).join("");
+  }
+
+  async function prepareOffline() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Aucune promenade sélectionnée.");
+    try {
+      const snapshot = prepareOfflineSnapshot(route);
+      saveOfflineSnapshot(globalThis.localStorage, snapshot);
+      let modal = $("#offlinePreparationModal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "offlinePreparationModal";
+        modal.className = "modal";
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        document.body.appendChild(modal);
+      }
+      modal.innerHTML = `<div class="modal-card"><h2>Préparation hors connexion</h2><p>La trace sélectionnée et ses consignes sont enregistrées sur cet appareil.</p><ul>${offlineStatusRows(snapshot)}</ul><p><strong>Important :</strong> hors connexion, aucun nouveau parcours, aucune météo actualisée, aucune nouvelle photo et aucune fermeture récente ne sont garantis.</p><div class="modal-actions"><button type="button" id="clearOfflinePreparation">Effacer la préparation</button><button type="button" id="closeOfflinePreparation">Fermer</button></div></div>`;
+      modal.classList.add("show");
+      $("#closeOfflinePreparation").onclick = () => modal.classList.remove("show");
+      $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+      }
+    } catch (error) {
+      say(error?.message || "Préparation hors connexion impossible.");
+    }
+  }
+
   async function keepAwake() {
     try {
       if ("wakeLock" in navigator)
@@ -3563,6 +3607,7 @@
       const clearIncidents = $("#clearServiceIncidents");
       if (clearIncidents) clearIncidents.onclick = () => {
         serviceObservability.clear();
+      clearOfflineSnapshot(globalThis.localStorage);
         if (incidentSummary) incidentSummary.innerHTML = "<p>Aucun incident technique enregistré.</p>";
       };
       modal.classList.add("show");
@@ -3633,6 +3678,7 @@
       privacyController.purge();
       sessionPrivacyController.clearSession();
       serviceObservability.clear();
+      clearOfflineSnapshot(globalThis.localStorage);
       modal.classList.remove("show");
       location.reload();
     };
@@ -3647,6 +3693,7 @@
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
