@@ -674,7 +674,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 .constraint-summary-card{background:#fff;border-left-color:var(--sea2)}
 .constraint-summary-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.constraint-summary-head h3{margin:0 0 4px}.constraint-summary-head p{margin:0;color:var(--muted);font-size:9px;line-height:1.45}.summary-ready{white-space:nowrap;background:#edf4f2;border-radius:999px;padding:5px 8px;font-size:8px;font-weight:800;color:#365f62}.constraint-summary-group{margin-top:12px}.constraint-summary-group h4{font-size:10px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.08em}.constraint-summary-group.imperative h4{color:#854f42}.constraint-summary-group.preference h4{color:#526c50}.constraint-summary-group.preparation h4{color:#4f6668}.constraint-summary-item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border:1px solid #e6dfd5;border-radius:9px;padding:9px 10px;margin:6px 0;background:#faf9f6}.constraint-summary-item strong,.constraint-summary-item span,.constraint-summary-item small{display:block}.constraint-summary-item strong{font-size:10px}.constraint-summary-item span{font-size:9px;margin-top:2px}.constraint-summary-item small{font-size:8px;color:var(--muted);line-height:1.4;margin-top:3px}.summary-edit{border:1px solid var(--beige);background:#fff;border-radius:7px;padding:6px 8px;font-size:8px;font-weight:800;flex:none}.summary-edit:hover,.summary-edit:focus{border-color:var(--sea2);outline:2px solid #8fafb155;outline-offset:1px}
-</style>
+.nav-offroute-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.nav-offroute-actions[hidden]{display:none}.nav-offroute-actions button{min-height:44px;border:1px solid #fff8;background:#fff;color:#17324d;border-radius:10px;padding:8px 12px;font-weight:700}.nav-offroute-actions button:focus-visible{outline:3px solid #ffd166;outline-offset:2px}</style>
     <style>
 :root{--sage:#C8D0C3;--beige:#D8CDBB;--sand:#E6D7C3;--sea:#8FAFB1;--sea2:#54777a;--ink:#333;--muted:#666;--warn:#9b5c3b;--shadow:0 18px 50px #3332}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:linear-gradient(135deg,var(--sand),var(--beige));font-family:Montserrat,system-ui,sans-serif;line-height:1.5}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--sea2);outline-offset:2px}
 .shell{width:min(1480px,100%);margin:auto;padding:18px clamp(8px,2.7vw,38px) 44px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:15px}.brand{display:flex;align-items:center;gap:12px}.brandmark{width:47px;height:47px;display:grid;place-items:center;border:2px solid var(--sea);border-radius:50%;background:#fff;font-size:23px}.brand strong{display:block;font-size:clamp(16px,2vw,22px)}.brand span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-weight:700}.actions{display:flex;gap:7px}.ghost,.small{border:1px solid var(--beige);background:#fff;border-radius:10px;padding:9px 12px;font-weight:700}.hero{background:#fffffff2;border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.hero-head{padding:clamp(22px,3.5vw,38px) clamp(18px,3.8vw,46px) 24px;border-bottom:1px solid var(--beige);display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end}.eyebrow{margin:0 0 7px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em}h1{font-size:clamp(29px,4.1vw,55px);line-height:1.05;letter-spacing:-.045em;margin:0;max-width:900px}h1 em{color:var(--sea2);font-style:normal}.promise{margin:12px 0 0;color:var(--muted);font-size:clamp(13px,1.4vw,17px)}.privacy{background:var(--sand);padding:11px 14px;border-radius:12px;font-size:10px;font-weight:700;max-width:250px}
@@ -1090,7 +1090,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     Mapillary est prêt via le relais Cloudflare sécurisé.
                   </p></div></section></div><div class="nav-hud" id="navHud"><div class="nav-top"><div class="nav-phase">Phase 2 · Guidage GPS personnel</div><div class="nav-instruction" id="navInstruction">
                   Recherche de votre position…
-                </div><div class="nav-alert" id="navAlert"></div></div><div class="nav-bottom"><div class="nav-metrics"><div class="nav-metric"><b id="navRemaining">—</b><span>RESTE</span></div><div class="nav-metric"><b id="navDeviation">—</b><span>ÉCART TRACE</span></div><div class="nav-metric"><b id="navAccuracy">—</b><span>PRÉCISION</span></div><div class="nav-metric"><b id="navSpeed">—</b><span>VITESSE</span></div></div><div class="nav-controls"><button id="navFollow" type="button">◎ Me suivre</button
+                </div><div class="nav-alert" id="navAlert"></div><div class="nav-offroute-actions" id="navOffRouteActions" hidden><button id="navBackToTrace" type="button">Revenir sur la trace</button><button id="navJoinStart" type="button">Rejoindre le départ</button><button id="navIgnore10" type="button">Ignorer pendant 10 minutes</button><button id="navContinueNoRecalc" type="button">Continuer sans recalcul</button></div></div><div class="nav-bottom"><div class="nav-metrics"><div class="nav-metric"><b id="navRemaining">—</b><span>RESTE</span></div><div class="nav-metric"><b id="navDeviation">—</b><span>ÉCART TRACE</span></div><div class="nav-metric"><b id="navAccuracy">—</b><span>PRÉCISION</span></div><div class="nav-metric"><b id="navSpeed">—</b><span>VITESSE</span></div></div><div class="nav-controls"><button id="navFollow" type="button">◎ Me suivre</button
                   ><button id="navOverview" type="button">
                     ⊞ Vue d’ensemble</button
                   ><button id="navStop" class="stop" type="button">
@@ -4386,6 +4386,115 @@ svg.leaflet-image-layer.leaflet-interactive path {
     buildReturnLinks,
   });
 })();
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  root.JMMJSOffRouteCore = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const DEFAULTS = Object.freeze({
+    deviationMeters: 50,
+    maximumAccuracyMeters: 35,
+    persistenceMs: 20000,
+    reentryMeters: 35,
+    ignoreMs: 10 * 60 * 1000,
+  });
+
+  function finite(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function createOffRouteMonitor(options = {}) {
+    const rules = { ...DEFAULTS, ...options };
+    let candidateSince = null;
+    let alertActive = false;
+    let ignoredUntil = 0;
+
+    function reset() {
+      candidateSince = null;
+      alertActive = false;
+      ignoredUntil = 0;
+    }
+
+    function ignore(now = Date.now(), durationMs = rules.ignoreMs) {
+      ignoredUntil = finite(now) + Math.max(0, finite(durationMs, rules.ignoreMs));
+      candidateSince = null;
+      alertActive = false;
+      return ignoredUntil;
+    }
+
+    function continueWithoutRecalculation() {
+      candidateSince = null;
+      alertActive = false;
+    }
+
+    function update(sample = {}) {
+      const now = finite(sample.timestamp, Date.now());
+      const deviation = Math.max(0, finite(sample.deviationMeters));
+      const accuracy = Math.max(0, finite(sample.accuracyMeters, Infinity));
+      const reliable = accuracy <= rules.maximumAccuracyMeters;
+      const offRoute = deviation > rules.deviationMeters;
+      const backOnRoute = deviation <= rules.reentryMeters;
+
+      if (backOnRoute) {
+        candidateSince = null;
+        alertActive = false;
+      }
+
+      if (now < ignoredUntil) {
+        return {
+          status: "ignored",
+          alert: false,
+          reliable,
+          deviationMeters: deviation,
+          accuracyMeters: accuracy,
+          ignoredUntil,
+          remainingIgnoreMs: ignoredUntil - now,
+        };
+      }
+
+      if (!reliable || !offRoute) {
+        candidateSince = null;
+        if (!offRoute) alertActive = false;
+        return {
+          status: reliable ? "on_route" : "gps_uncertain",
+          alert: false,
+          reliable,
+          deviationMeters: deviation,
+          accuracyMeters: accuracy,
+          candidateSince: null,
+        };
+      }
+
+      if (candidateSince === null) candidateSince = now;
+      const durationMs = Math.max(0, now - candidateSince);
+      if (durationMs >= rules.persistenceMs) alertActive = true;
+
+      return {
+        status: alertActive ? "off_route" : "confirming",
+        alert: alertActive,
+        reliable: true,
+        deviationMeters: deviation,
+        accuracyMeters: accuracy,
+        candidateSince,
+        durationMs,
+        remainingConfirmationMs: Math.max(0, rules.persistenceMs - durationMs),
+      };
+    }
+
+    return {
+      update,
+      reset,
+      ignore,
+      continueWithoutRecalculation,
+      getState: () => ({ candidateSince, alertActive, ignoredUntil, rules: { ...rules } }),
+    };
+  }
+
+  return { DEFAULTS, createOffRouteMonitor };
+});
 (() => {
   "use strict";
 
@@ -6026,6 +6135,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       storage: globalThis.sessionStorage,
     });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
+  const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -6065,6 +6175,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         lastAlong: 0,
         lastPosition: null,
         startedAt: 0,
+        offRoute: null,
       },
     },
     E = {
@@ -8122,6 +8233,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     S.nav.lastAlong = 0;
     S.nav.positions = [];
     S.nav.startedAt = Date.now();
+    offRouteMonitor.reset();
+    S.nav.offRoute = null;
     document.body.classList.add("navigating");
     draw();
     setTimeout(() => {
@@ -8215,17 +8328,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
       p.remaining < 35 && elapsed > 12e4
         ? "Vous êtes revenu au point d’arrivée."
         : stepText(r, p);
-    const limit = Math.max(30, c.accuracy * 1.5),
-      alerts = [];
-    if (c.accuracy > 50)
-      alerts.push("GPS imprécis : fiez-vous aussi au terrain.");
-    if (p.off > limit)
-      alerts.push(
-        "Vous êtes à environ " + Math.round(p.off) + " m de la trace.",
-      );
-    const a = $("#navAlert");
-    a.textContent = alerts.join(" ");
-    a.classList.toggle("show", !!alerts.length);
+    const offRoute = offRouteMonitor.update({
+      deviationMeters: p.off,
+      accuracyMeters: c.accuracy,
+      timestamp: g.timestamp || Date.now(),
+    });
+    S.nav.offRoute = offRoute;
+    const a = $("#navAlert"), actions = $("#navOffRouteActions");
+    if (offRoute.status === "gps_uncertain") {
+      a.textContent = "GPS imprécis : l’écart à la trace ne peut pas être confirmé.";
+      a.classList.add("show");
+      actions?.setAttribute("hidden", "");
+    } else if (offRoute.status === "confirming") {
+      a.textContent = "Écart détecté, confirmation en cours…";
+      a.classList.add("show");
+      actions?.setAttribute("hidden", "");
+    } else if (offRoute.alert) {
+      a.textContent = "Vous êtes à environ " + Math.round(p.off) + " m de la trace depuis au moins 20 secondes.";
+      a.classList.add("show");
+      actions?.removeAttribute("hidden");
+    } else if (offRoute.status === "ignored") {
+      a.textContent = "Alerte de sortie de trace ignorée temporairement.";
+      a.classList.add("show");
+      actions?.setAttribute("hidden", "");
+    } else {
+      a.textContent = "";
+      a.classList.remove("show");
+      actions?.setAttribute("hidden", "");
+    }
     if (S.nav.follow)
       S.map.setView([pos.lat, pos.lon], Math.max(17, S.map.getZoom()), {
         animate: true,
@@ -8276,6 +8406,27 @@ svg.leaflet-image-layer.leaflet-interactive path {
       { padding: [70, 70] },
     );
     $("#navFollow").textContent = "◎ Me suivre";
+  };
+  $("#navIgnore10").onclick = () => {
+    offRouteMonitor.ignore(Date.now());
+    $("#navOffRouteActions")?.setAttribute("hidden", "");
+    say("Alerte ignorée pendant 10 minutes. La trace reste visible.");
+  };
+  $("#navContinueNoRecalc").onclick = () => {
+    offRouteMonitor.continueWithoutRecalculation();
+    $("#navOffRouteActions")?.setAttribute("hidden", "");
+    say("Vous continuez sans recalcul. La boucle initiale reste la référence.");
+  };
+  $("#navBackToTrace").onclick = () => {
+    const nearest = S.nav.offRoute?.alert && S.nav.lastPosition
+      ? nearestProgress(S.nav.lastPosition, S.routes[S.selected])
+      : null;
+    if (nearest) S.map.setView([nearest.nearest.lat, nearest.nearest.lon], 18);
+    say("Le point le plus proche de la trace est affiché. Aucun itinéraire de récupération n’a été calculé.");
+  };
+  $("#navJoinStart").onclick = () => {
+    $("#navReturnGoogle")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    say("Utilisez une commande de retour au départ. Elle est distincte de la boucle initiale.");
   };
   $("#navStop").onclick = stopNavigation;
   document.addEventListener("visibilitychange", () => {
