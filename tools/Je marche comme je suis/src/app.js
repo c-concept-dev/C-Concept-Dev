@@ -8,6 +8,7 @@
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
+  const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -320,10 +321,14 @@
     globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
   );
   peripherals.register(
+    globalThis.JMMJSIgnElevationProvider.createIgnElevationProvider({ client: serviceClient }),
+  );
+  peripherals.register(
     globalThis.JMMJSRecoveryRouteProvider.createRecoveryRouteProvider({ client: serviceClient }),
   );
   const orsProvider = peripherals.require("ors");
   const overpassProvider = peripherals.require("overpass");
+  const ignElevationProvider = peripherals.require("ign-elevation");
   const recoveryRouteProvider = peripherals.require("recovery-route");
   async function proxyFetch(name, path, body, count = 1) {
     return serviceClient.post(name, path, body, count);
@@ -1897,6 +1902,8 @@
       ' %</b><span>couverture altitude</span></div><div class="data"><b>' +
       esc(r.elevationQuality || "—") +
       '</b><span>qualité altitude</span></div><div class="data"><b>' +
+      esc(r.ignElevation?.comparison?.label || r.ignElevation?.label || "Non contrôlé") +
+      '</b><span>contrôle IGN</span></div><div class="data"><b>' +
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
@@ -1974,6 +1981,10 @@
       list([...r.warnings, ...r.unknowns]) +
       "</details><details><summary>Niveau de preuve terrain</summary>" +
       terrainProofDetailsHtml(r) +
+      "</details><details><summary>Contrôle altimétrique IGN</summary>" +
+      (r.ignElevation?.comparison
+        ? "<p>D+ ORS : <strong>" + esc(metricLabel(r.ascent)) + " m</strong><br>D+ IGN : <strong>" + esc(metricLabel(r.ignElevation.ascentMeters)) + " m</strong><br>Écart : <strong>" + esc(metricLabel(r.ignElevation.comparison.differenceMeters)) + " m</strong></p><p>Le profil IGN est un contrôle complémentaire et ne remplace pas la géométrie ORS.</p>"
+        : "<p>" + esc(r.ignElevation?.message || "Contrôle IGN non documenté.") + "</p>") +
       "</details><details><summary>Sources</summary>" +
       list(r.sources) +
       '</details><div class="exports">' +
@@ -3029,6 +3040,34 @@
       }
     }
     all = terrainChecked;
+    status("Contrôle altimétrique complémentaire IGN…");
+    const ignChecked = [];
+    for (const route of all) {
+      try {
+        const rawIgn = await resilientService({
+          name: "ign",
+          key: "elevation",
+          allowRetry: true,
+          allowCache: true,
+          operation: () => ignElevationProvider.inspect({ route }),
+        });
+        if (!rawIgn.ok) {
+          ignChecked.push(markIgnUnavailable(route, rawIgn.diagnostic?.message));
+          continue;
+        }
+        ignChecked.push(applyIgnElevationControl(route, rawIgn.value));
+      } catch (error) {
+        const diagnostic = globalThis.JMMJSServiceResilienceCore.classifyServiceError(error, "IGN");
+        const retained = markIgnUnavailable(route, diagnostic.message);
+        retained.serviceStates = [
+          ...(retained.serviceStates || []),
+          secondaryServiceWarning("ign", diagnostic, false),
+        ];
+        retained.serviceSummary = summarizeServiceStates(retained.serviceStates);
+        ignChecked.push(retained);
+      }
+    }
+    all = ignChecked;
     const requiredServices = S.compiled?.hard?.requiredServices || [];
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
