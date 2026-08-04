@@ -28,6 +28,25 @@
     const message = String(error?.message || "Erreur inconnue");
     const lower = message.toLowerCase();
 
+    if (error?.code === "cooldown")
+      return {
+        code: "cooldown",
+        status,
+        retryable: true,
+        retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
+        userMessage: message,
+        technicalMessage: message,
+      };
+
+    if (error?.code === "search-quota" || error?.code === "session-quota")
+      return {
+        code: error.code,
+        status,
+        retryable: false,
+        userMessage: message,
+        technicalMessage: message,
+      };
+
     if (
       error?.name === "AbortError" ||
       lower.includes("timeout") ||
