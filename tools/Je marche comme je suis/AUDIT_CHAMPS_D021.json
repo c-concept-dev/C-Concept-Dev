@@ -1,16 +1,18 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-02T21:28:28.134Z",
+  "generatedAt": "2026-08-04T17:27:32.957Z",
   "counts": {
-    "visibleFields": 41,
+    "visibleFields": 43,
     "choiceGroups": 5,
     "visibleChoices": 62,
-    "complete": 30,
+    "complete": 33,
     "partial": 16
   },
   "structuralCoverage": {
     "orphanFields": [],
-    "missingFields": [],
+    "missingFields": [
+      "weather"
+    ],
     "orphanChoices": [],
     "missingChoices": [],
     "passed": true
@@ -27,6 +29,42 @@
       "unknownPolicy": "block",
       "status": "complete",
       "note": "Géocodage et génération depuis un départ réel."
+    },
+    {
+      "id": "departureMode",
+      "kind": "field",
+      "effect": "generation-context",
+      "severity": "information",
+      "requiredData": [
+        "departure-schedule"
+      ],
+      "unknownPolicy": "use-now",
+      "status": "complete",
+      "note": "Choisit un départ immédiat ou programmé."
+    },
+    {
+      "id": "departureDate",
+      "kind": "field",
+      "effect": "generation-context",
+      "severity": "information",
+      "requiredData": [
+        "departure-schedule"
+      ],
+      "unknownPolicy": "required-if-scheduled",
+      "status": "complete",
+      "note": "Date utilisée pour la météo et la lumière du jour lorsque le départ est programmé."
+    },
+    {
+      "id": "departureTime",
+      "kind": "field",
+      "effect": "generation-context",
+      "severity": "information",
+      "requiredData": [
+        "departure-schedule"
+      ],
+      "unknownPolicy": "required-if-scheduled",
+      "status": "complete",
+      "note": "Heure utilisée pour la météo et la lumière du jour lorsque le départ est programmé."
     },
     {
       "id": "lat",
@@ -404,18 +442,6 @@
       "note": "Séquence facile mesurée après effort ; banc jamais présumé."
     },
     {
-      "id": "weather",
-      "kind": "field",
-      "effect": "generation-audit",
-      "severity": "preparation",
-      "requiredData": [
-        "observed-weather"
-      ],
-      "unknownPolicy": "preserve-unknown",
-      "status": "complete",
-      "note": "Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie."
-    },
-    {
       "id": "pauses",
       "kind": "field",
       "effect": "generation-audit",
@@ -458,8 +484,8 @@
         "shortcut-routes"
       ],
       "unknownPolicy": "block-if-required",
-      "status": "partial",
-      "note": "Demande compilée ; calcul de raccourcis réels à compléter."
+      "status": "complete",
+      "note": "Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés."
     },
     {
       "id": "bothWays",
@@ -480,8 +506,8 @@
       "severity": "preparation",
       "requiredData": [],
       "unknownPolicy": "allow",
-      "status": "partial",
-      "note": "Intention de non-persistance présente ; audit complet du stockage à faire."
+      "status": "complete",
+      "note": "Le mode privé efface immédiatement le profil local et bloque toute nouvelle persistance sans interrompre le calcul."
     },
     {
       "id": "gpxFile",
@@ -634,8 +660,20 @@
         "pois"
       ],
       "unknownPolicy": "block",
-      "status": "complete",
-      "note": "Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier."
+      "status": "partial",
+      "note": "Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources."
+    },
+    {
+      "id": "weather",
+      "kind": "internal-field",
+      "effect": "generation-audit",
+      "severity": "preparation",
+      "requiredData": [
+        "observed-weather"
+      ],
+      "unknownPolicy": "preserve-unknown",
+      "status": "partial",
+      "note": "Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur."
     }
   ]
 }
