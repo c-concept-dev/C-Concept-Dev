@@ -789,7 +789,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
               Trois propositions : confortable, agréable et tonique — sans
               compromis caché.
             </p></div><div class="privacy">
-            ◉ Vos réponses restent locales jusqu’à l’action que vous choisissez.
+            ◉ Vos réponses restent locales jusqu’à l’action que vous choisissez.<br><button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button>
           </div></section><section class="mode-wrap"><div class="mode-title"><h2>Comment partir ?</h2><span>Le même profil sert à créer ou analyser une balade.</span></div><div class="modes"><button class="mode active" type="button" data-mode="api"><b>1. Créer ma balade sur mesure</b
               ><small
                 >OpenRouteService calcule de vraies boucles ; le moteur contrôle
@@ -1019,7 +1019,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
                   ><div class="helper" id="modeHelp"></div></div><div class="card" id="apiBox"><h3>Services cartographiques sécurisés</h3><p>
                     Les clés sont conservées comme secrets Cloudflare. Elles ne
                     sont jamais envoyées au navigateur, écrites dans GitHub ou
-                    enregistrées dans localStorage.
+                    enregistrées dans localStorage. Les limitations physiques,
+                    douleurs, fatigue, âge et texte libre restent dans le navigateur.
                   </p><div class="service-list"><div class="service-card"><div class="service-head"><span class="service-name"
                           >OpenRouteService · calcul des boucles</span
                         ><span class="service-state" data-status="ors"
@@ -4643,6 +4644,108 @@ svg.leaflet-image-layer.leaflet-interactive path {
     createPrivacyController,
   });
 })();
+(() => {
+  "use strict";
+
+  const SESSION_KEY = "jmmjs-session-privacy";
+  const SENSITIVE_KEYS = new Set([
+    "person",
+    "dailyState",
+    "limitations",
+    "functionalLimitation",
+    "freeText",
+    "pain",
+    "painDetail",
+    "fatigue",
+    "balanceConfidence",
+    "age",
+    "footwear",
+    "equipment",
+  ]);
+
+  function cloneAllowed(value, path = []) {
+    if (Array.isArray(value)) return value.map((item, index) => cloneAllowed(item, [...path, index]));
+    if (!value || typeof value !== "object") return value;
+    const output = {};
+    for (const [key, child] of Object.entries(value)) {
+      if (SENSITIVE_KEYS.has(key)) continue;
+      output[key] = cloneAllowed(child, [...path, key]);
+    }
+    return output;
+  }
+
+  function createSessionPrivacyController({
+    storage = globalThis.sessionStorage,
+    now = () => new Date(),
+  } = {}) {
+    const transmissions = [];
+
+    function prepareProviderPayload(service, path, payload) {
+      const sanitized = cloneAllowed(payload ?? {});
+      recordTransmission(service, path, sanitized);
+      return sanitized;
+    }
+
+    function recordTransmission(service, path, payload) {
+      const entry = {
+        service: String(service || "service"),
+        path: String(path || ""),
+        at: now().toISOString(),
+        includesCoordinates:
+          Object.prototype.hasOwnProperty.call(payload || {}, "coordinate") ||
+          Object.prototype.hasOwnProperty.call(payload || {}, "bbox") ||
+          Object.prototype.hasOwnProperty.call(payload || {}, "lat") ||
+          Object.prototype.hasOwnProperty.call(payload || {}, "lon"),
+        includesHealthData: false,
+      };
+      transmissions.push(entry);
+      if (transmissions.length > 20) transmissions.shift();
+      try {
+        storage?.setItem(
+          SESSION_KEY,
+          JSON.stringify({
+            lastActivityAt: entry.at,
+            transmissionCount: transmissions.length,
+          }),
+        );
+      } catch {}
+      return entry;
+    }
+
+    function summary() {
+      return {
+        transmissionCount: transmissions.length,
+        transmissions: transmissions.map((entry) => ({ ...entry })),
+        healthDataSent: transmissions.some((entry) => entry.includesHealthData),
+        coordinatesSent: transmissions.some((entry) => entry.includesCoordinates),
+      };
+    }
+
+    function clearSession() {
+      transmissions.length = 0;
+      try {
+        storage?.removeItem(SESSION_KEY);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    return Object.freeze({
+      prepareProviderPayload,
+      recordTransmission,
+      summary,
+      clearSession,
+    });
+  }
+
+  globalThis.JMMJSSessionPrivacyCore = Object.freeze({
+    SESSION_KEY,
+    SENSITIVE_KEYS,
+    cloneAllowed,
+    createSessionPrivacyController,
+  });
+})();
 /* JMMJS_LIMITATIONS_CORE_START */
 (() => {
   "use strict";
@@ -5121,7 +5224,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 (() => {
   "use strict";
 
-  function createServiceClient({ baseUrl, fetchImpl = fetch, onRequest }) {
+  function createServiceClient({
+    baseUrl,
+    fetchImpl = fetch,
+    onRequest,
+    prepareRequest,
+  }) {
     if (!/^https:\/\//.test(baseUrl || "")) {
       throw new TypeError("Le relais cartographique doit utiliser HTTPS.");
     }
@@ -5130,6 +5238,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       if (!/^\/[a-z0-9/_-]+$/i.test(path || "")) {
         throw new TypeError("Chemin de service invalide.");
       }
+      const preparedBody = prepareRequest
+        ? prepareRequest(service, path, body ?? {})
+        : body ?? {};
       onRequest?.(service, count);
       const response = await fetchImpl(baseUrl + path, {
         method: "POST",
@@ -5137,7 +5248,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body ?? {}),
+        body: JSON.stringify(preparedBody),
       });
       let data = null;
       try {
@@ -5527,6 +5638,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
     storage: globalThis.localStorage,
   });
+  const sessionPrivacyController =
+    globalThis.JMMJSSessionPrivacyCore.createSessionPrivacyController({
+      storage: globalThis.sessionStorage,
+    });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -5756,6 +5871,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     baseUrl: SERVICE_PROXY,
     fetchImpl: fetch,
     onRequest: countRequest,
+    prepareRequest: (service, path, body) =>
+      sessionPrivacyController.prepareProviderPayload(service, path, body),
   });
   const peripherals =
     globalThis.JMMJSPeripheralRegistry.createPeripheralRegistry();
@@ -8838,6 +8955,39 @@ svg.leaflet-image-layer.leaflet-interactive path {
     updateDepartureControls();
   }
 
+  function ensurePrivacyDetailsDialog() {
+    let modal = $("#privacyDetailsModal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "privacyDetailsModal";
+    modal.className = "modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "privacyDetailsTitle");
+    modal.innerHTML =
+      '<div class="modal-card clear-data-card"><h2 id="privacyDetailsTitle">Données et services externes</h2><p>Vos limitations, douleurs, fatigue, âge, texte libre, chaussures et équipements ne sont pas envoyés aux fournisseurs cartographiques.</p><p>Lors d’un calcul ou d’un enrichissement, seules les données techniques nécessaires sont transmises : coordonnées de départ, géométrie ou zone de recherche, paramètres de routage et moment utile pour la météo.</p><p id="privacyTransmissionStatus">Aucune transmission effectuée dans cette session.</p><div class="modal-actions"><button type="button" id="closePrivacyDetails">Fermer</button></div></div>';
+    document.body.appendChild(modal);
+    $("#closePrivacyDetails").onclick = () => modal.classList.remove("show");
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) modal.classList.remove("show");
+    });
+    return modal;
+  }
+
+  const privacyDetailsButton = $("#privacyDetailsBtn");
+  if (privacyDetailsButton)
+    privacyDetailsButton.onclick = () => {
+      const modal = ensurePrivacyDetailsDialog();
+      const summary = sessionPrivacyController.summary();
+      const status = $("#privacyTransmissionStatus");
+      if (status)
+        status.textContent = summary.transmissionCount
+          ? `${summary.transmissionCount} transmission${summary.transmissionCount > 1 ? "s" : ""} technique${summary.transmissionCount > 1 ? "s" : ""} dans cette session. Données de santé transmises : aucune.`
+          : "Aucune transmission effectuée dans cette session.";
+      modal.classList.add("show");
+      $("#closePrivacyDetails")?.focus();
+    };
+
   const privateCheckbox = $("#private");
   if (privateCheckbox) {
     const privacyStatus = document.createElement("small");
@@ -8900,6 +9050,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("#cancelClearData").onclick = () => modal.classList.remove("show");
     $("#confirmClearData").onclick = () => {
       privacyController.purge();
+      sessionPrivacyController.clearSession();
       modal.classList.remove("show");
       location.reload();
     };
