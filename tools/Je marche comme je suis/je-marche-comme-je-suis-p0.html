@@ -6309,6 +6309,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     weather: Object.freeze(["forecast"]),
     "terrain-proof": Object.freeze(["inspect"]),
     "elevation-control": Object.freeze(["inspect"]),
+    recovery: Object.freeze(["createLink"]),
   });
 
   function createPeripheralRegistry() {
@@ -6718,7 +6719,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     return {
       id: "recovery-route",
-      kind: "routing",
+      kind: "recovery",
       label: "Liaison de récupération ORS",
       capabilities: Object.freeze(["return_to_trace", "return_to_start"]),
       async createLink(request) {
