@@ -1103,6 +1103,7 @@
   const datatourismeProvider = peripherals.require("datatourisme");
   const photoReconProvider = globalThis.JMMJSPhotoReconProvider.createPhotoReconProvider({ client: serviceClient });
   const userReportsProvider = globalThis.JMMJSUserReportsProvider.createUserReportsProvider({ client: serviceClient });
+  const officialClosuresProvider = globalThis.JMMJSOfficialClosuresProvider.createOfficialClosuresProvider({ client: serviceClient });
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -1694,6 +1695,38 @@
     finally { button.disabled = false; button.textContent = "Consulter"; }
   }
 
+
+  function ensureOfficialClosuresPanel() {
+    let panel = $("#officialClosuresPanel");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.className = "enrichment";
+    panel.id = "officialClosuresPanel";
+    panel.hidden = true;
+    panel.innerHTML = '<div class="enrichment-head"><div><h3>Réseaux officiels et fermetures</h3><p>Avis publiés par des sources identifiées · couverture non exhaustive</p></div><button class="small" id="loadOfficialClosures" type="button">Consulter</button></div><div id="officialClosuresContent"><p class="empty-data">Consultez les informations officielles disponibles à proximité du parcours.</p></div>';
+    const anchor = ensureReportsPanel();
+    anchor?.insertAdjacentElement("afterend", panel);
+    $("#loadOfficialClosures").onclick = loadOfficialClosures;
+    return panel;
+  }
+
+  async function loadOfficialClosures() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Choisissez un parcours.");
+    const panel = ensureOfficialClosuresPanel();
+    const target = panel.querySelector("#officialClosuresContent");
+    const button = panel.querySelector("#loadOfficialClosures");
+    button.disabled = true; button.textContent = "Recherche…";
+    try {
+      const result = await resilientService({ name: "official-closures", key: `official:${route.name}:${route.coords.length}`, allowRetry: true, allowCache: true, operation: () => officialClosuresProvider.nearby({ route, radiusMeters: 300 }) });
+      if (!result.ok) { target.innerHTML = '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.unavailableText()) + '</p>'; return; }
+      const items = globalThis.JMMJSOfficialClosuresCore.normalizeOfficialItems(result.value, { nearestRouteDistance, routeCoords: route.coords });
+      target.innerHTML = items.length ? '<div class="poi-list">' + items.map((item) => { const status=globalThis.JMMJSOfficialClosuresCore.displayStatus(item); return '<article class="poi-item"><strong>' + esc(item.label) + '</strong><span>' + (item.distance == null ? "Distance non calculée" : item.distance + " m de la trace") + '</span><span>' + esc(status.activity) + ' · ' + esc(status.validity) + '</span><span>' + esc(status.authority) + '</span>' + (item.sourceUrl ? '<a href="' + esc(item.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Consulter la source officielle ↗</a>' : '') + '</article>'; }).join("") + '</div>' : '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.absenceText()) + '</p>';
+      say(items.length + " information(s) officielle(s) affichée(s).");
+    } catch (error) { target.innerHTML = '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.unavailableText()) + '</p>'; }
+    finally { button.disabled = false; button.textContent = "Consulter"; }
+  }
+
   function formatStepDuration(minutes) {
     const value = Number(minutes);
     if (!Number.isFinite(value) || value <= 0) return "moins d’une minute";
@@ -1970,6 +2003,7 @@
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
     ensureReportsPanel().hidden = false;
+    ensureOfficialClosuresPanel().hidden = false;
   }
   function select(i) {
     S.selected = i;
