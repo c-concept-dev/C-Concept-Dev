@@ -7,6 +7,7 @@
     fetchImpl = fetch,
     onRequest,
     prepareRequest,
+    requestGovernor,
   }) {
     if (!/^https:\/\//.test(baseUrl || "")) {
       throw new TypeError("Le relais cartographique doit utiliser HTTPS.");
@@ -16,6 +17,7 @@
       if (!/^\/[a-z0-9/_-]+$/i.test(path || "")) {
         throw new TypeError("Chemin de service invalide.");
       }
+      requestGovernor?.beforeRequest(service, count);
       const preparedBody = prepareRequest
         ? prepareRequest(service, path, body ?? {})
         : body ?? {};
@@ -42,6 +44,7 @@
         const retryAfterSeconds = Number(retryHeader ?? retryBody);
         if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0)
           error.retryAfterSeconds = retryAfterSeconds;
+        requestGovernor?.noteFailure(service, error);
         throw error;
       }
       if (!data) throw new Error("Réponse cartographique illisible.");
