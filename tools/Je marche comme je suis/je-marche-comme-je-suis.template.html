@@ -735,6 +735,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .export-certification[data-status="exact"]{background:#eef5ef;border:1px solid #abc4ad}
 .export-certification[data-status="unavailable"]{background:#fff0ea;border:1px solid #d99a7b}
 .map-export-warning{flex:1 1 100%;font-size:.9rem;line-height:1.35;color:var(--muted)}
+.reservation-warning{flex-basis:100%;padding:8px 10px;border-left:4px solid #b65a37;background:#fff1ea;border-radius:8px;font-size:8px;line-height:1.4}.nav-reserve{margin-top:7px;padding:7px 9px;border-radius:8px;background:#fff1ea;color:#71351f;font-size:9px;font-weight:800}.nav-reserve[hidden]{display:none}.nav-controls{flex-wrap:wrap}.nav-controls #navTurnBack{flex-basis:100%;background:#eef3f1;border-color:var(--sea2);font-size:11px}
 #googleMapsExportBtn[aria-disabled="true"]{pointer-events:none;opacity:.55}
 #gpxBtn:disabled{opacity:.55;cursor:not-allowed}
 
@@ -765,23 +766,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 .result-quality-banner{display:grid;gap:.25rem;margin:0 0 10px;padding:10px 12px;border:1px solid #d99a7b;border-left:4px solid #a94f2d;border-radius:10px;background:#fff0ea;font-size:.78rem}
 .result-quality-banner[hidden]{display:none}
-.return-safety{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:6px;flex-basis:100%;margin-top:5px;padding:8px;border:1px solid var(--beige);border-radius:9px;background:#f7f5f0}
-.return-safety strong,.return-safety span{grid-column:1/-1}
-.return-safety span{font-size:8px;color:var(--muted)}
 .weather-compact{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .weather-compact[data-expanded="true"]{box-shadow:0 0 0 2px rgba(84,119,122,.2)}
 .clear-data-card{max-width:430px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .modal-actions button{border:1px solid var(--beige);border-radius:9px;background:#fff;padding:10px 14px;font-weight:800}
 .modal-actions .danger{background:#8b321f;color:#fff;border-color:#8b321f}
-.nav-return{display:flex;gap:6px;margin-top:6px}
-.nav-return a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--beige);background:#fff;border-radius:10px;padding:9px 5px;font-size:9px;font-weight:800;color:var(--ink)}
 @media(max-width:760px){
   input,select,textarea,.input{font-size:16px!important}
   .weather-compact{min-height:48px;cursor:pointer;flex-wrap:wrap;white-space:normal}
   .weather-details-toggle{min-width:44px;min-height:44px;margin-left:auto}
-  .return-safety{grid-template-columns:1fr}
-  .return-safety a,.return-safety button{width:100%;text-align:center}
 }
 
 /* Correctif de lisibilité des résultats */
@@ -797,9 +791,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .terrain-proof-list li{font-size:.86rem;line-height:1.5}
 .terrain-proof-list small{font-size:.76rem;line-height:1.45;opacity:.84}
 .terrain-proof-meta,.terrain-proof-rule{font-size:.82rem}
-.return-safety{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px}
-.return-safety strong,.return-safety span{grid-column:1/-1}
-.return-safety a,.return-safety button{min-height:42px;white-space:normal}
 .daylight-return-grid{display:flex;flex-wrap:wrap;gap:.45rem 1rem}
 .weather-compact{gap:.75rem;padding:.65rem .8rem}
 @media(max-width:760px){
@@ -808,7 +799,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .detail ul{font-size:.95rem}
   .terrain-proof-list li{font-size:.95rem}
   .terrain-proof-list small{font-size:.84rem}
-  .return-safety{grid-template-columns:1fr}
 }
 
 </style>
@@ -1119,12 +1109,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     Mapillary est prêt via le relais Cloudflare sécurisé.
                   </p></div></section></div><div class="nav-hud" id="navHud"><div class="nav-top"><div class="nav-phase">Phase 2 · Guidage GPS personnel</div><div class="nav-instruction" id="navInstruction">
                   Recherche de votre position…
-                </div><div class="nav-alert" id="navAlert"></div><div class="nav-offroute-actions" id="navOffRouteActions" hidden><button id="navBackToTrace" type="button">Revenir sur la trace</button><button id="navJoinStart" type="button">Rejoindre le départ</button><button id="navIgnore10" type="button">Ignorer pendant 10 minutes</button><button id="navContinueNoRecalc" type="button">Continuer sans recalcul</button></div></div><div class="nav-bottom"><div class="nav-metrics"><div class="nav-metric"><b id="navRemaining">—</b><span>RESTE</span></div><div class="nav-metric"><b id="navDeviation">—</b><span>ÉCART TRACE</span></div><div class="nav-metric"><b id="navAccuracy">—</b><span>PRÉCISION</span></div><div class="nav-metric"><b id="navSpeed">—</b><span>VITESSE</span></div></div><div class="nav-controls"><button id="navFollow" type="button">◎ Me suivre</button
+                </div><div class="nav-alert" id="navAlert"></div><div class="nav-reserve" id="navReserveBanner" hidden></div><div class="nav-offroute-actions" id="navOffRouteActions" hidden><button id="navBackToTrace" type="button">Revenir sur la trace</button><button id="navJoinStart" type="button">Rejoindre le départ</button><button id="navIgnore10" type="button">Ignorer pendant 10 minutes</button><button id="navContinueNoRecalc" type="button">Continuer sans recalcul</button></div></div><div class="nav-bottom"><div class="nav-metrics"><div class="nav-metric"><b id="navRemaining">—</b><span>RESTE</span></div><div class="nav-metric"><b id="navDeviation">—</b><span>ÉCART TRACE</span></div><div class="nav-metric"><b id="navAccuracy">—</b><span>PRÉCISION</span></div><div class="nav-metric"><b id="navSpeed">—</b><span>VITESSE</span></div></div><div class="nav-controls"><button id="navTurnBack" type="button">↶ Faire demi-tour</button><button id="navFollow" type="button">◎ Me suivre</button
                   ><button id="navOverview" type="button">
                     ⊞ Vue d’ensemble</button
                   ><button id="navStop" class="stop" type="button">
                     Arrêter
-                  </button></div><div class="nav-return"><a id="navGoogleRoute" target="_blank" rel="noopener">Boucle approximative · Google Maps</a><a id="navReturnGoogle" target="_blank" rel="noopener">Retour au départ · Google</a><a id="navReturnApple" target="_blank" rel="noopener">Retour au départ · Plans</a></div></div></div></section></div></main></div><div id="helpModal" class="modal"><div class="modal-card"><h2>Préparer puis marcher</h2><ol><li><strong>Phase 1 :</strong> remplissez le questionnaire et obtenez
+                  </button></div></div></div></section></div></main></div><div id="helpModal" class="modal"><div class="modal-card"><h2>Préparer puis marcher</h2><ol><li><strong>Phase 1 :</strong> remplissez le questionnaire et obtenez
             une vraie trace par OpenRouteService, ou analysez un GPX existant.
           </li><li>
             Comparez les parcours sur Plan IGN, photo aérienne, OSM ou
