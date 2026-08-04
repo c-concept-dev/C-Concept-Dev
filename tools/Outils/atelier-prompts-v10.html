@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Atelier de prompts V10.3 Ultime</title>
+<title>Atelier de prompts V10.4</title>
 <!-- ==========================================================================
  * JOURNAL 9.2 — corrections suite à l'audit de la 9.1 (31/07/2026) :
  *
@@ -697,6 +697,64 @@ tbody tr:hover{background:var(--papier)}
 .arch-sortie{white-space:pre-wrap;max-height:none;min-height:180px}
 @media(max-width:700px){.arch-synthese{grid-template-columns:1fr}.arch-entete{grid-template-columns:auto 1fr}.arch-mini-actions{grid-column:1/-1}}
 
+/* ---------- espace Débutant / Tous les outils --------------------------- *
+ * Divulgation progressive au niveau des ONGLETS du rail, complémentaire de
+ * .selon-niveau qui joue au niveau des CHAMPS à l'intérieur d'une vue. Même
+ * principe : rien n'est retiré du DOM, juste masqué. */
+body[data-espace="debutant"] .avance-seulement{display:none}
+
+.bascule-espace{
+  display:flex;gap:2px;margin:0 22px 6px;padding:2px;
+  background:var(--surface-creuse);border-radius:var(--r);
+}
+.bascule-espace button{
+  flex:1;border:0;background:none;padding:7px 4px;font-size:11.5px;
+  font-family:var(--texte);color:var(--encre-doux);cursor:pointer;border-radius:2px;
+  transition:background var(--transition),color var(--transition);
+}
+.bascule-espace button[aria-pressed="true"]{background:var(--surface);color:var(--encre);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.bascule-espace button:hover{color:var(--encre)}
+.note-espace{padding:0 22px 16px;font-size:11.5px;color:var(--encre-tres-doux);line-height:1.4}
+
+/* ---------- exemple annoté (Accueil) ------------------------------------ */
+.exemple-bloc{border:1px solid var(--trait);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--surface)}
+.exemple-etiquette{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--signal);margin-bottom:4px}
+.exemple-explication{font-size:12.5px;color:var(--encre-doux);margin-bottom:8px;line-height:1.45}
+.exemple-texte{white-space:pre-wrap;font-family:var(--mono);font-size:12.5px;background:var(--surface-creuse);border-radius:2px;padding:10px 12px;margin:0;line-height:1.5}
+
+/* ---------- glossaire ---------------------------------------------------- */
+.glossaire-terme{border-bottom:1px solid var(--trait);padding-bottom:12px}
+.glossaire-terme:last-child{border-bottom:0;padding-bottom:0}
+.glossaire-mot{font-weight:600;font-size:14px;margin-bottom:4px;color:var(--encre)}
+.glossaire-def{font-size:13px;color:var(--encre-doux);line-height:1.5}
+
+/* ---------- visite guidée ------------------------------------------------ */
+#visite-fond{
+  position:fixed;inset:0;background:rgba(10,16,20,.55);z-index:9000;
+}
+.visite-cible-actif{
+  position:relative;z-index:9001;border-radius:var(--r);
+  outline:3px solid var(--signal);outline-offset:3px;
+}
+.visite-carte{
+  position:fixed;z-index:9002;width:290px;max-width:calc(100vw - 32px);
+  background:var(--surface);border:1px solid var(--trait);border-radius:var(--r);
+  padding:16px 18px;box-shadow:0 14px 34px rgba(0,0,0,.3);
+}
+.visite-carte .visite-etape{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--signal);margin-bottom:6px;
+}
+.visite-carte h3{font-size:15px;margin:0 0 6px}
+.visite-carte p{font-size:13px;color:var(--encre-doux);line-height:1.5;margin:0}
+.visite-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px}
+.visite-actions button.lien{background:none;border:0;color:var(--encre-tres-doux);font-size:12.5px;cursor:pointer;padding:6px 4px}
+.visite-actions button.lien:hover{color:var(--encre-doux);text-decoration:underline}
+
+@media(max-width:900px){
+  .visite-carte{width:calc(100vw - 32px)}
+}
+
 </style>
 </head>
 <body data-niveau-affichage="essentiel">
@@ -706,14 +764,20 @@ tbody tr:hover{background:var(--papier)}
 <nav class="rail" aria-label="Sections">
   <div class="marque">
     <div class="nom">Atelier<br>de prompts</div>
-    <div class="version">10.3.0 &middot; socle 9.2 &middot; architecte 3.4</div>
+    <div class="version">10.4.0 &middot; socle 9.2 &middot; architecte 3.4</div>
   </div>
+
+  <div class="bascule-espace" role="group" aria-label="Niveau d'accès aux outils">
+    <button type="button" id="btn-espace-debutant" aria-pressed="true">Débutant</button>
+    <button type="button" id="btn-espace-avance" aria-pressed="false">Tous les outils</button>
+  </div>
+  <p class="note-espace" id="note-espace">Seul l'essentiel est affiché pour commencer. Passez à « Tous les outils » quand vous serez à l'aise.</p>
 
   <div class="rail-groupe exergue">Commencer</div>
   <div role="tablist" aria-orientation="vertical">
     <button type="button" class="rail-lien" role="tab" aria-selected="true" aria-controls="vue-accueil" id="onglet-accueil" data-vue="accueil"><span class="jeton">•</span>Accueil</button>
   </div>
-  <div style="padding:8px 14px">
+  <div class="avance-seulement" style="padding:8px 14px">
     <label class="etiquette" for="niveau-affichage" style="font-size:11px">Niveau d'affichage</label>
     <select id="niveau-affichage" style="width:100%">
       <option value="essentiel">Essentiel</option>
@@ -721,7 +785,6 @@ tbody tr:hover{background:var(--papier)}
       <option value="expert">Expert</option>
     </select>
   </div>
-  <button type="button" class="rail-lien" data-espace="avance" data-vue="rapide" id="lien-espace-avance" style="text-align:left"><span class="jeton">▸</span>Espace avancé — tous les outils</button>
 
   <div class="rail-groupe exergue">Quotidien</div>
   <div role="tablist" aria-orientation="vertical">
@@ -730,15 +793,15 @@ tbody tr:hover{background:var(--papier)}
 
   <div class="rail-groupe exergue">Rédaction</div>
   <div role="tablist" aria-orientation="vertical">
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-architecte" id="onglet-architecte" data-vue="architecte"><span class="jeton">A1</span>Architecte pro</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-architecte" id="onglet-architecte" data-vue="architecte"><span class="jeton">A1</span>Architecte pro</button>
     <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-generation" id="onglet-generation" data-vue="generation"><span class="jeton">01</span>Atelier avancé</button>
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-dictee" id="onglet-dictee" data-vue="dictee"><span class="jeton">02</span>Dictée</button>
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-editeur" id="onglet-editeur" data-vue="editeur"><span class="jeton">03</span>Éditeur</button>
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-lot" id="onglet-lot" data-vue="lot"><span class="jeton">04</span>Traitement par lot</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-dictee" id="onglet-dictee" data-vue="dictee"><span class="jeton">02</span>Dictée</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-editeur" id="onglet-editeur" data-vue="editeur"><span class="jeton">03</span>Éditeur</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-lot" id="onglet-lot" data-vue="lot"><span class="jeton">04</span>Traitement par lot</button>
   </div>
 
-  <div class="rail-groupe exergue">Vérification</div>
-  <div role="tablist" aria-orientation="vertical">
+  <div class="rail-groupe exergue avance-seulement">Vérification</div>
+  <div role="tablist" aria-orientation="vertical" class="avance-seulement">
     <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-mesures" id="onglet-mesures" data-vue="mesures"><span class="jeton">05</span>Mesures</button>
     <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-comparaison" id="onglet-comparaison" data-vue="comparaison"><span class="jeton">06</span>Comparaison</button>
     <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-versions" id="onglet-versions" data-vue="versions"><span class="jeton">07</span>Versions</button>
@@ -746,20 +809,25 @@ tbody tr:hover{background:var(--papier)}
 
   <div class="rail-groupe exergue">Exécution</div>
   <div role="tablist" aria-orientation="vertical">
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-api" id="onglet-api" data-vue="api"><span class="jeton">08</span>Envoi direct</button>
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-banc" id="onglet-banc" data-vue="banc"><span class="jeton">09</span>Banc d'essai</button>
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-suivi" id="onglet-suivi" data-vue="suivi"><span class="jeton">10</span>Suivi</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-api" id="onglet-api" data-vue="api"><span class="jeton">08</span>Envoi direct</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-banc" id="onglet-banc" data-vue="banc"><span class="jeton">09</span>Banc d'essai</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-suivi" id="onglet-suivi" data-vue="suivi"><span class="jeton">10</span>Suivi</button>
     <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-bibliotheque" id="onglet-bibliotheque" data-vue="bibliotheque"><span class="jeton">11</span>Bibliothèque</button>
-    <button type="button" class="rail-lien" role="tab" aria-selected="false" aria-controls="vue-qualite" id="onglet-qualite" data-vue="qualite"><span class="jeton">12</span>Comparer des prompts</button>
+    <button type="button" class="rail-lien avance-seulement" role="tab" aria-selected="false" aria-controls="vue-qualite" id="onglet-qualite" data-vue="qualite"><span class="jeton">12</span>Comparer des prompts</button>
   </div>
 
   <div class="rail-pied">
     <button type="button" class="bouton menu primaire" id="btn-nouvelle-demande-globale">Nouvelle demande — vider les champs</button>
+    <button type="button" class="bouton menu" id="btn-revoir-visite">Revoir la visite guidée</button>
     <button type="button" class="bouton menu" id="btn-sensible">Mode données sensibles</button>
+    <button type="button" class="bouton menu" id="btn-export-sauvegarde">Exporter mes données</button>
+    <button type="button" class="bouton menu" id="btn-import-sauvegarde">Importer une sauvegarde</button>
+    <input type="file" id="input-import-sauvegarde" accept="application/json" class="cache">
     <button type="button" class="bouton menu" id="btn-purge">Effacer les données locales</button>
     <button type="button" class="bouton menu" id="btn-theme">Thème sombre</button>
     <button type="button" class="bouton menu" id="btn-modeles">Modèles de demande</button>
     <button type="button" class="bouton menu" id="btn-recents">Prompts récents</button>
+    <button type="button" class="bouton menu" id="btn-glossaire">Glossaire</button>
     <button type="button" class="bouton menu" id="btn-mode-aide">Aide au survol</button>
     <div class="exergue" id="temoin-brouillon" style="margin-top:6px"></div>
   </div>
@@ -776,10 +844,10 @@ tbody tr:hover{background:var(--papier)}
   </header>
   <ol id="fil-etapes" class="fil-etapes" aria-label="Étapes du parcours">
     <li data-etape="demande" aria-current="step">1. Demande</li>
-    <li data-etape="analyse" class="etape-a-venir" title="Disponible une fois le Lot 2 livré">2. Analyse</li>
-    <li data-etape="prompt" class="etape-a-venir" title="Disponible une fois le Lot 2 livré">3. Prompt</li>
-    <li data-etape="execution" class="etape-a-venir" title="Disponible une fois le Lot 2 livré">4. Exécution</li>
-    <li data-etape="evaluation" class="etape-a-venir" title="Disponible une fois le Lot 3 livré">5. Évaluation</li>
+    <li data-etape="analyse" class="etape-a-venir" title="Étape à venir dans votre parcours">2. Analyse</li>
+    <li data-etape="prompt" class="etape-a-venir" title="Étape à venir dans votre parcours">3. Prompt</li>
+    <li data-etape="execution" class="etape-a-venir" title="Étape à venir dans votre parcours">4. Exécution</li>
+    <li data-etape="evaluation" class="etape-a-venir" title="Étape à venir dans votre parcours">5. Évaluation</li>
   </ol>
   <div class="panneau">
     <div class="champ">
@@ -825,7 +893,18 @@ tbody tr:hover{background:var(--papier)}
     <p class="aide selon-niveau" data-niveau-min="expert">Niveau Expert : le parcours Architecte transmet reglages_manuels.profondeur au schéma 3.4 ; l'espace avancé donne un accès direct aux 13 vues historiques, au JSON d'analyse et aux journaux techniques.</p>
     <div class="actions-principales" style="margin-top:16px">
       <button type="button" class="bouton primaire" id="btn-accueil-lancer">Continuer</button>
-      <a href="#" data-espace="avance" class="bouton" id="lien-accueil-affiner">Affiner dans l'espace avancé</a>
+      <a href="#" class="bouton" id="lien-accueil-affiner">Régler moi-même dans l'Atelier avancé</a>
+      <button type="button" class="bouton" id="btn-accueil-exemple">Voir un exemple annoté</button>
+    </div>
+    <div class="panneau cache" id="accueil-exemple-panneau" style="margin-top:18px">
+      <div class="exergue">Exemple</div>
+      <p class="aide" style="margin:6px 0 14px">Voici ce que l'Atelier construit pour une demande simple.
+      Chaque bloc du prompt est expliqué juste au-dessus : c'est la même mécanique qui s'applique à votre
+      propre demande.</p>
+      <div id="accueil-exemple-contenu"></div>
+      <div class="barre-actions" style="margin-top:6px">
+        <button type="button" class="bouton" id="btn-accueil-exemple-fermer">Fermer l'exemple</button>
+      </div>
     </div>
   </div>
 </section>
@@ -1827,12 +1906,36 @@ tbody tr:hover{background:var(--papier)}
   </div>
 </div>
 
+<div class="voile" id="voile-glossaire">
+  <div class="modale" role="dialog" aria-modal="true" aria-labelledby="titre-glossaire" tabindex="-1">
+    <div class="modale-entete">
+      <div><div class="exergue">Vocabulaire</div><h3 class="titre-section" style="font-size:17px" id="titre-glossaire">Glossaire</h3></div>
+      <button type="button" class="fermer" data-fermer="voile-glossaire" aria-label="Fermer">&times;</button>
+    </div>
+    <div class="pile" id="liste-glossaire"></div>
+  </div>
+</div>
+
 <div id="bulle" role="tooltip"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <button type="button" id="retour-haut" aria-label="Revenir en haut">&uarr;</button>
+
+<!-- ============================= VISITE GUIDÉE ========================== -->
+<div id="visite-fond" class="cache" aria-hidden="true"></div>
+<div class="visite-carte cache" id="visite-carte" role="dialog" aria-modal="true"
+     aria-labelledby="visite-titre" aria-describedby="visite-texte">
+  <div class="visite-etape" id="visite-etape"></div>
+  <h3 id="visite-titre"></h3>
+  <p id="visite-texte"></p>
+  <div class="visite-actions">
+    <button type="button" class="lien" id="visite-passer">Passer la visite</button>
+    <button type="button" class="bouton primaire" id="visite-suivant">Suivant</button>
+  </div>
+</div>
+
 <script>
 'use strict';
-const VERSION_OUTIL = 'Atelier de prompts 10.3.0';
+const VERSION_OUTIL = 'Atelier de prompts 10.4.0';
 const VERSION_CONFORMITE = '1.3';
 /* ==========================================================================
    ATELIER DE PROMPTS 9.2.0 — moteur de conformité 1.3
@@ -1854,6 +1957,35 @@ const VERSION_CONFORMITE = '1.3';
    ========================================================================== */
 
 let modeSensible = false;
+
+/* ---------------------------------------------------------------------- *
+ * TABLE DES MATIÈRES DE CE BLOC
+ * ---------------------------------------------------------------------- *
+ * Repère de navigation seul — aucune incidence sur l'exécution. Chercher
+ * le numéro (ex. « 9. PERSISTANCE ») pour sauter à la section.
+ *
+ *  1. RÉFÉRENTIELS          — formats, verrous, profils, modèles, tarifs
+ *  2. ÉTAT                  — état global partagé entre les vues
+ *  3. UTILITAIRES           — helpers génériques ($, échappement, dates…)
+ *  4. MOTEUR D'ASSEMBLAGE   — contexte, sections, assembler()/assemblerAnnote()
+ *  5. MESURES               — indice de complétude, budget de contexte
+ *  6. NAVIGATION            — ouvrirVue() et le rail d'onglets
+ *  7. CONSTRUCTION DE L'INTERFACE — peuplement des listes et sélecteurs
+ *  8. GÉNÉRATION            — Atelier avancé : demande → prompt
+ *  9. PERSISTANCE           — brouillon, récents, versions, suivi
+ * 10. ÉDITEUR               — retouche manuelle du prompt
+ * 11. TRAITEMENT PAR LOT    — plusieurs demandes en une passe
+ * 12. COMPARAISON           — diff entre deux prompts ou deux réponses
+ * 13. DICTÉE                — saisie vocale
+ * 14. API                   — envoi direct, banc d'essai, modèles Anthropic
+ * 15. THÈME                 — clair/sombre
+ * 15 bis.      ESPACE DÉBUTANT / TOUS LES OUTILS — divulgation des onglets
+ * 15 ter.      VISITE GUIDÉE       — visite au premier lancement
+ * 15 quater.   EXEMPLE ANNOTÉ      — démonstration commentée sur l'Accueil
+ * 15 quinquies GLOSSAIRE           — vocabulaire de l'outil, à la demande
+ * 15 sexies.   SAUVEGARDE / RESTAURATION — export/import de toutes les données
+ * 16. BRANCHEMENTS         — tous les écouteurs d'événements, en un point
+ * ---------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------- *
  * 1. RÉFÉRENTIELS
@@ -2313,6 +2445,24 @@ function sansAccents(t){
   return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
 
+/* Bornent la recherche de formules de préambule/clôture à la clause
+   d'ouverture ou de fermeture réelle (jusqu'à la première ponctuation
+   forte ou un saut de ligne), plutôt qu'à une fenêtre de caractères
+   arbitraire. Un mot générique comme « voici » ou « ci-dessous » cesse
+   ainsi de déclencher un faux échec lorsqu'il apparaît légitimement
+   plus loin dans un livrable ; la borne de secours (max) protège
+   seulement contre un texte sans ponctuation. */
+function premierePhrase(t, max){
+  const s = t.trimStart().slice(0, max);
+  const m = s.match(/^[\s\S]*?[.!?:\n]/);
+  return m ? m[0] : s;
+}
+function dernierePhrase(t, max){
+  const s = t.trimEnd().slice(-max);
+  const m = s.match(/[.!?:\n][\s\S]*$/);
+  return m ? m[0].replace(/^[.!?:\n]\s*/, '') : s;
+}
+
 function echapper(t){
   return String(t).replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
@@ -2723,6 +2873,24 @@ function assembler(ctx, actifs){
   return blocs.join('\n\n');
 }
 
+/* Miroir exact d'assembler() ci-dessus, seule différence : chaque bloc
+   garde l'identifiant du verrou qui l'a produit, pour l'exemple annoté de
+   l'Accueil. Même ORDRE, mêmes SECTIONS, même règle de rôle en tête et
+   d'omission des sections vides — aucune règle d'assemblage n'est
+   dupliquée, seulement capturée. Si assembler() change, reporter le
+   changement ici. */
+function assemblerAnnote(ctx, actifs){
+  const blocs = [{id:'tache', texte:'## TÂCHE\n' + ctx.demande}];
+  ORDRE.forEach(id => {
+    if(actifs.indexOf(id) === -1) return;
+    const bloc = SECTIONS[id](ctx);
+    if(!bloc) return;
+    const entree = {id:id, texte:bloc};
+    if(id === 'role') blocs.unshift(entree); else blocs.push(entree);
+  });
+  return blocs;
+}
+
 /* ---------------------------------------------------------------------- *
  * 5. MESURES
  * ---------------------------------------------------------------------- *
@@ -3006,7 +3174,7 @@ const CONTROLES = [
   {id:'preambule', nom:'Aucun préambule',
    utile: c => c.verrous.indexOf('interdits') > -1,
    test: t => {
-     const debut = sansAccents(t.trimStart().slice(0, 220));
+     const debut = sansAccents(premierePhrase(t, 220));
      const trouve = OUVERTURES.filter(o => debut.includes(sansAccents(o)));
      return {statut: trouve.length ? 'echec' : 'reussi',
        detail: trouve.length ? 'formule d\u2019ouverture : « ' + trouve[0] + ' »' : 'entrée en matière directe'};
@@ -3015,7 +3183,7 @@ const CONTROLES = [
   {id:'postambule', nom:'Aucune conclusion de politesse',
    utile: c => c.verrous.indexOf('interdits') > -1 && !(FORMATS[c.format] && FORMATS[c.format].communication),
    test: t => {
-     const fin = sansAccents(t.trimEnd().slice(-320));
+     const fin = sansAccents(dernierePhrase(t, 320));
      const trouve = FERMETURES.filter(f => fin.includes(sansAccents(f)));
      return {statut: trouve.length ? 'echec' : 'reussi',
        detail: trouve.length ? 'formule de clôture : « ' + trouve[0] + ' »' : 'se termine sur le livrable'};
@@ -4350,6 +4518,15 @@ async function listerModelesAnthropic(cle){
       schema:  cap(m, 'structured_outputs', a.schema === undefined ? false : a.schema),
       contexte: m.max_input_tokens || a.contexte || 200000,
       sortieMax: m.max_tokens || a.sortieMax || 8192,
+      /* retention/zdr ne figurent dans aucune réponse d'API — seule la table
+         locale les connaît. Un modèle déjà répertorié doit garder cette
+         information après actualisation (l'avertissement de rétention
+         obligatoire sur les Covered Models en dépend directement) ; un
+         modèle tout nouveau, absent de la table locale, reste avec un
+         statut inconnu plutôt que ZDR par défaut — l'absence de preuve
+         n'est pas une preuve d'éligibilité. */
+      retention: a.retention === undefined ? 'selon des conditions non encore vérifiées pour ce nouveau modèle' : a.retention,
+      zdr: a.zdr === undefined ? null : a.zdr,
       note: a.note || 'Tarif à renseigner : il ne figure pas dans la réponse de l\u2019API.'
     };
   });
@@ -4922,7 +5099,8 @@ function effacerToutesDonnees(){
               'Cette action est irréversible.')) return;
   ['atelier.brouillon','atelier.versions','atelier.recents','atelier.suivi',
    'atelier.theme','atelier.sensible','atelier.cle','atelier.modele','atelier.max',
-   'atelier.apprentissage','atelier10.architecte','atelier10.preferences']
+   'atelier.apprentissage','atelier10.architecte','atelier10.preferences',
+   'atelier10.espace','atelier10.visiteFaite']
     .forEach(k => { coffre.effacer('local', k); coffre.effacer('session', k); });
   etat.versions = []; etat.recents = [];
   etat.suivi = {total:0, sommeNotes:0, tokens:0, dictees:0, formats:{}};
@@ -5493,6 +5671,289 @@ function majCompteurDemande(){
 }
 
 /* ---------------------------------------------------------------------- *
+ * 15 bis. ESPACE DÉBUTANT / TOUS LES OUTILS
+ * ---------------------------------------------------------------------- *
+ * Divulgation progressive au niveau des onglets du rail. Par défaut, une
+ * personne non initiée ne voit que ce qui suffit à obtenir un résultat
+ * complet (Accueil, Rapide, Atelier avancé, Bibliothèque). Rien n'est
+ * retiré du DOM : .avance-seulement est juste masqué en CSS, donc aucune
+ * fonctionnalité n'est perdue, seulement différée à un choix explicite.
+ * ---------------------------------------------------------------------- */
+
+function appliquerEspace(espace){
+  document.body.dataset.espace = espace;
+  $('#btn-espace-debutant').setAttribute('aria-pressed', String(espace === 'debutant'));
+  $('#btn-espace-avance').setAttribute('aria-pressed', String(espace === 'avance'));
+  $('#note-espace').textContent = espace === 'debutant'
+    ? 'Seul l\u2019essentiel est affiché pour commencer. Passez à « Tous les outils » quand vous serez à l\u2019aise.'
+    : 'Tous les outils sont affichés. Repassez en Débutant pour retrouver un espace simplifié.';
+  /* Si l'onglet actif vient d'être masqué (passage en Débutant depuis un
+     onglet avancé), on ne laisse jamais l'utilisateur sur une vue fantôme :
+     retour à l'Accueil, point d'entrée toujours visible. */
+  const actif = $('.rail-lien[aria-selected="true"]');
+  if(espace === 'debutant' && actif && actif.classList.contains('avance-seulement')){
+    ouvrirVue('accueil');
+  }
+  /* Le parcours Architecte, sans clé API, demande de copier une requête
+     d'analyse vers un autre LLM puis d'en recoller la réponse — la
+     navette la plus exigeante des trois, pas la plus simple. Au niveau
+     d'affichage Essentiel, ce champ est masqué : sa valeur par défaut
+     s'applique donc en silence. Il serait malhonnête de laisser
+     « architecte » silencieux comme défaut pour un public débutant sans
+     API — Rapide (local, aucune navette) est le choix honnête ici. */
+  const parcoursSel = $('#accueil-parcours');
+  if(parcoursSel){
+    parcoursSel.value = (espace === 'debutant') ? 'rapide-local' : 'architecte';
+    parcoursSel.dispatchEvent(new Event('change'));
+  }
+}
+
+function initEspace(){
+  const sauve = lire('atelier10.espace', 'debutant');
+  appliquerEspace(sauve === 'avance' ? 'avance' : 'debutant');
+  $('#btn-espace-debutant').addEventListener('click', () => { appliquerEspace('debutant'); ecrire('atelier10.espace', 'debutant'); });
+  $('#btn-espace-avance').addEventListener('click',   () => { appliquerEspace('avance');   ecrire('atelier10.espace', 'avance'); });
+}
+
+/* ---------------------------------------------------------------------- *
+ * 15 ter. VISITE GUIDÉE
+ * ---------------------------------------------------------------------- *
+ * Se déclenche une seule fois, au tout premier lancement, sur l'Accueil.
+ * Rejouable à tout moment depuis le pied de rail. N'exige aucune action
+ * réelle de l'utilisateur sur l'application pendant la visite : chaque
+ * étape se contente de montrer et d'expliquer, sans bloquer d'interaction
+ * une fois la visite fermée.
+ * ---------------------------------------------------------------------- */
+
+const VISITE_ETAPES = [
+  { cible: '#accueil-demande',
+    titre: 'Commencez ici',
+    texte: 'Décrivez simplement ce que vous voulez obtenir, comme si vous en parliez à quelqu\u2019un. Aucun vocabulaire technique n\u2019est nécessaire.' },
+  { cible: '#btn-accueil-lancer',
+    titre: 'Un clic suffit',
+    texte: 'L\u2019Atelier transforme votre demande en instructions précises pour l\u2019IA, prêtes à copier-coller.' },
+  { cible: '.bascule-espace',
+    titre: 'Deux niveaux d\u2019accès',
+    texte: 'Vous êtes en mode Débutant : seul l\u2019essentiel est affiché. « Tous les outils » révèle les réglages avancés, pour quand vous en aurez besoin.' },
+  { cible: '#onglet-bibliotheque',
+    titre: 'Besoin d\u2019inspiration ?',
+    texte: 'La Bibliothèque propose des demandes déjà rédigées, pour démarrer sans page blanche.' },
+  { cible: '#btn-glossaire',
+    titre: 'Un mot vous \u00e9chappe ?',
+    texte: 'Le Glossaire d\u00e9finit en une ligne le vocabulaire de l\u2019Atelier \u2014 verrou, parcours, profil... Toujours accessible depuis ce menu.' }
+];
+
+let visiteIndex = 0;
+let visiteRepositionner = null;
+
+function positionnerCarteVisite(cible){
+  const carte = $('#visite-carte');
+  const r = cible.getBoundingClientRect();
+  const marge = 14;
+  /* Largeur réelle de la carte, mesurée une fois rendue (visible mais
+     potentiellement hors-écran le temps du calcul — sans incidence, la
+     carte est en position:fixed et invisible pour l'utilisateur pendant
+     cette unique frame de mesure). */
+  const lc = carte.getBoundingClientRect();
+  let haut = r.bottom + marge;
+  if(haut + lc.height > window.innerHeight - marge) haut = Math.max(marge, r.top - lc.height - marge);
+  let gauche = r.left;
+  if(gauche + lc.width > window.innerWidth - marge) gauche = window.innerWidth - lc.width - marge;
+  gauche = Math.max(marge, gauche);
+  carte.style.top = haut + 'px';
+  carte.style.left = gauche + 'px';
+}
+
+function afficherEtapeVisite(i){
+  const precedent = $('.visite-cible-actif');
+  if(precedent) precedent.classList.remove('visite-cible-actif');
+
+  const etape = VISITE_ETAPES[i];
+  const cible = document.querySelector(etape.cible);
+  if(!cible){ terminerVisite(); return; }
+
+  cible.classList.add('visite-cible-actif');
+  cible.scrollIntoView({block:'center', behavior:'smooth'});
+
+  $('#visite-etape').textContent = 'Étape ' + (i + 1) + ' sur ' + VISITE_ETAPES.length;
+  $('#visite-titre').textContent = etape.titre;
+  $('#visite-texte').textContent = etape.texte;
+  $('#visite-suivant').textContent = (i === VISITE_ETAPES.length - 1) ? 'Terminer' : 'Suivant';
+
+  $('#visite-fond').classList.remove('cache');
+  $('#visite-carte').classList.remove('cache');
+
+  clearTimeout(visiteRepositionner);
+  visiteRepositionner = setTimeout(() => positionnerCarteVisite(cible), 320);
+}
+
+function demarrerVisite(){
+  visiteIndex = 0;
+  afficherEtapeVisite(visiteIndex);
+}
+
+function terminerVisite(){
+  const cible = $('.visite-cible-actif');
+  if(cible) cible.classList.remove('visite-cible-actif');
+  $('#visite-fond').classList.add('cache');
+  $('#visite-carte').classList.add('cache');
+  ecrire('atelier10.visiteFaite', true);
+}
+
+function initVisiteGuidee(){
+  $('#visite-suivant').addEventListener('click', () => {
+    visiteIndex++;
+    if(visiteIndex >= VISITE_ETAPES.length) terminerVisite();
+    else afficherEtapeVisite(visiteIndex);
+  });
+  $('#visite-passer').addEventListener('click', terminerVisite);
+  $('#btn-revoir-visite').addEventListener('click', () => {
+    appliquerEspace('debutant'); ecrire('atelier10.espace', 'debutant');
+    ouvrirVue('accueil');
+    demarrerVisite();
+  });
+  window.addEventListener('resize', () => {
+    const cible = $('.visite-cible-actif');
+    if(cible && !$('#visite-carte').classList.contains('cache')) positionnerCarteVisite(cible);
+  });
+  if(!lire('atelier10.visiteFaite', false)) demarrerVisite();
+}
+
+/* ---------------------------------------------------------------------- *
+ * 15 quater. EXEMPLE ANNOTÉ
+ * ---------------------------------------------------------------------- *
+ * Montre, une fois, le trajet complet demande → prompt sur un cas concret,
+ * avec chaque bloc relié à la raison de sa présence. Réutilise le moteur
+ * réel (contexte, profilDuFormat, actifsAdaptes, assemblerAnnote) : ce
+ * n'est jamais une simulation, c'est la même mécanique que la vôtre.
+ * ---------------------------------------------------------------------- */
+
+const EXEMPLE_DEMANDE_ANNOTE = 'R\u00e9dige un e-mail \u00e0 mon \u00e9quipe pour annoncer le report de la r\u00e9union de lundi \u00e0 mercredi 14h.';
+
+function rendreExempleAnnote(blocs){
+  return blocs.map(b => {
+    if(b.id === 'tache'){
+      return '<div class="exemple-bloc"><div class="exemple-etiquette">Ce que vous avez demand\u00e9</div>' +
+        '<div class="exemple-explication">Reformul\u00e9 en t\u00eate d\u2019instruction, pour que le mod\u00e8le sache d\u00e8s ' +
+        'la premi\u00e8re ligne ce qu\u2019il doit produire.</div>' +
+        '<pre class="exemple-texte">' + echapper(b.texte) + '</pre></div>';
+    }
+    const v = VERROUS.find(x => x.id === b.id);
+    return '<div class="exemple-bloc"><div class="exemple-etiquette">' + echapper(v ? v.nom : b.id) + '</div>' +
+      '<div class="exemple-explication">' + echapper(v ? v.faille : '') + '</div>' +
+      '<pre class="exemple-texte">' + echapper(b.texte) + '</pre></div>';
+  }).join('');
+}
+
+function afficherExempleAnnote(){
+  $('#accueil-demande').value = EXEMPLE_DEMANDE_ANNOTE;
+  const ctx = contexte(EXEMPLE_DEMANDE_ANNOTE, 'email', 'minimal', {destinataire: 'votre \u00e9quipe, sans jargon technique'});
+  const profil = profilDuFormat('email');
+  const actifs = actifsAdaptes(profil.verrous, ctx);
+  const blocs = assemblerAnnote(ctx, actifs);
+  $('#accueil-exemple-contenu').innerHTML = rendreExempleAnnote(blocs);
+  $('#accueil-exemple-panneau').classList.remove('cache');
+  $('#accueil-exemple-panneau').scrollIntoView({block:'nearest', behavior:'smooth'});
+  signaler('Exemple charg\u00e9 dans le champ demande \u2014 remplacez-le par la v\u00f4tre quand vous \u00eates pr\u00eat\u00b7e.');
+}
+
+function initExempleAnnote(){
+  $('#btn-accueil-exemple').addEventListener('click', afficherExempleAnnote);
+  $('#btn-accueil-exemple-fermer').addEventListener('click', () => $('#accueil-exemple-panneau').classList.add('cache'));
+}
+
+/* ---------------------------------------------------------------------- *
+ * 15 quinquies. GLOSSAIRE
+ * ---------------------------------------------------------------------- *
+ * Les bulles d'aide (AIDES) expliquent un champ précis, au survol. Le
+ * glossaire couvre l'autre cas : un mot du vocabulaire de l'outil
+ * lui-même (« verrou », « parcours »...), consultable d'un geste depuis
+ * n'importe quelle vue, sans devoir se souvenir de quel champ le porte.
+ * ---------------------------------------------------------------------- */
+
+const GLOSSAIRE = [
+  {terme:'Prompt', def:'Le texte final que vous copiez-collez dans ChatGPT, Claude ou un autre assistant IA. C\u2019est ce que l\u2019Atelier construit pour vous.'},
+  {terme:'Verrou', def:'Une consigne pr\u00e9cise ajout\u00e9e au prompt pour fermer une \u00e9chappatoire connue des mod\u00e8les de langage \u2014 par exemple, les emp\u00eacher de commencer par une formule de politesse. Chaque verrou actif correspond \u00e0 une section du prompt final.'},
+  {terme:'Parcours', def:'Le chemin choisi pour obtenir votre prompt : Rapide (imm\u00e9diat, sans IA externe), Atelier avanc\u00e9 (r\u00e9glages manuels complets), ou Architecte (une IA analyse d\u2019abord votre demande en d\u00e9tail).'},
+  {terme:'Format', def:'La forme attendue du r\u00e9sultat \u2014 un e-mail, un tableau, du code, une liste, etc. D\u00e9termine par quoi la r\u00e9ponse doit commencer et finir.'},
+  {terme:'Profil', def:'Le jeu de verrous appliqu\u00e9 par d\u00e9faut selon le type de livrable demand\u00e9. Une r\u00e9ponse courte n\u2019a pas besoin des m\u00eames pr\u00e9cisions qu\u2019un rapport structur\u00e9.'},
+  {terme:'Banc d\u2019essai / conformit\u00e9', def:'Un contr\u00f4le qui v\u00e9rifie qu\u2019une r\u00e9ponse obtenue respecte bien ce que le prompt demandait \u2014 bon format, pas de pr\u00e9ambule inutile, rien de tronqu\u00e9.'},
+  {terme:'Architecte', def:'Un parcours o\u00f9 une IA analyse d\u2019abord votre demande avant de construire le prompt. Plus pr\u00e9cis sur des demandes complexes, mais suppose un aller-retour avec un assistant IA.'}
+];
+
+function peuplerGlossaire(){
+  const z = $('#liste-glossaire');
+  if(!z || z.dataset.pret) return;
+  z.innerHTML = GLOSSAIRE.map(g =>
+    '<div class="glossaire-terme"><div class="glossaire-mot">' + echapper(g.terme) + '</div>' +
+    '<div class="glossaire-def">' + echapper(g.def) + '</div></div>'
+  ).join('');
+  z.dataset.pret = '1';
+}
+
+/* ---------------------------------------------------------------------- *
+ * 15 sexies. SAUVEGARDE / RESTAURATION
+ * ---------------------------------------------------------------------- *
+ * Tout ce que l'outil retient vit uniquement dans le stockage de ce
+ * navigateur — un vidage de cache, un changement de poste, ou une purge
+ * automatique (Safari est agressif sur le stockage inactif) l'efface sans
+ * préavis. Cette sauvegarde couvre les données qui ont demandé du temps à
+ * produire (versions, historique, statistiques, apprentissage, brouillon
+ * Architecte, préférences) — jamais la clé API ni sa configuration, qui
+ * n'ont rien à faire dans un fichier qu'on peut égarer ou transmettre. La
+ * liste des clés reprend volontairement celle d'effacerToutesDonnees, à
+ * l'exception de la clé API, du modèle retenu et du plafond de tokens.
+ * ---------------------------------------------------------------------- */
+
+const SAUVEGARDE_CLES = [
+  'atelier.brouillon','atelier.versions','atelier.recents','atelier.suivi',
+  'atelier.apprentissage','atelier.theme',
+  'atelier10.architecte','atelier10.preferences','atelier10.espace','atelier10.visiteFaite'
+];
+
+function exporterSauvegarde(){
+  const donnees = {};
+  let n = 0;
+  SAUVEGARDE_CLES.forEach(cle => {
+    const v = lire(cle, undefined);
+    if(v !== undefined){ donnees[cle] = v; n++; }
+  });
+  const paquet = {outil:'Atelier de prompts', version: VERSION_OUTIL, exporte: new Date().toISOString(), donnees: donnees};
+  telecharger('atelier-sauvegarde-' + new Date().toISOString().slice(0,10) + '.json',
+    JSON.stringify(paquet, null, 2), 'application/json');
+  signaler(n ? ('Sauvegarde téléchargée \u2014 ' + n + ' éléments.') : 'Rien à sauvegarder pour le moment.');
+}
+
+function importerSauvegarde(fichier){
+  if(modeSensible){
+    signaler('Désactivez le mode données sensibles avant d\u2019importer une sauvegarde.', 'alerte');
+    return;
+  }
+  if(fichier.size > 5 * 1024 * 1024){
+    signaler('Fichier trop volumineux (' + Math.round(fichier.size / 1024 / 1024) + ' Mo, maximum 5 Mo).', 'alerte');
+    return;
+  }
+  const lecteur = new FileReader();
+  lecteur.onload = () => {
+    let paquet;
+    try{ paquet = JSON.parse(lecteur.result); }
+    catch(e){ signaler('Fichier illisible : ce n\u2019est pas un JSON valide.', 'alerte'); return; }
+    if(!paquet || typeof paquet.donnees !== 'object'){
+      signaler('Ce fichier ne ressemble pas à une sauvegarde de l\u2019Atelier.', 'alerte'); return;
+    }
+    if(!confirm('Restaurer cette sauvegarde \u00e9crasera vos versions, prompts r\u00e9cents, statistiques ' +
+                'et pr\u00e9f\u00e9rences actuels sur ce navigateur.\n\nContinuer ?')) return;
+    let n = 0;
+    SAUVEGARDE_CLES.forEach(cle => {
+      if(paquet.donnees[cle] !== undefined){ ecrire(cle, paquet.donnees[cle]); n++; }
+    });
+    signaler(n + ' éléments restaurés \u2014 rechargez la page pour les voir apparaître.', 'succes');
+  };
+  lecteur.onerror = () => signaler('Échec de la lecture du fichier.', 'alerte');
+  lecteur.readAsText(fichier);
+}
+
+/* ---------------------------------------------------------------------- *
  * 16. BRANCHEMENTS
  * ---------------------------------------------------------------------- */
 
@@ -5666,7 +6127,13 @@ function brancher(){
       }
     }
   });
-  $('#lien-accueil-affiner').addEventListener('click', e => { e.preventDefault(); ouvrirVue('rapide'); });
+  $('#lien-accueil-affiner').addEventListener('click', e => {
+    e.preventDefault();
+    appliquerEspace('avance'); ecrire('atelier10.espace', 'avance');
+    ouvrirVue('generation');
+    const demande = $('#accueil-demande').value.trim();
+    if(demande){ $('#demande').value = demande; $('#demande').dispatchEvent(new Event('input')); }
+  });
 
   /* Niveau d'affichage — persiste uniquement une préférence de
      présentation, ne touche jamais aux champs de saisie ni au prompt
@@ -5854,6 +6321,7 @@ function brancher(){
 
   $('#btn-modeles').addEventListener('click', () => ouvrirModale('voile-modeles'));
   $('#btn-recents').addEventListener('click', () => ouvrirModale('voile-recents', afficherRecents));
+  $('#btn-glossaire').addEventListener('click', () => ouvrirModale('voile-glossaire', peuplerGlossaire));
   $$('[data-fermer]').forEach(b => b.addEventListener('click', () => fermerModale(b.dataset.fermer)));
   $$('.voile').forEach(v => v.addEventListener('click', e => {
     if(e.target === v) fermerModale(v.id);
@@ -5932,6 +6400,13 @@ function brancher(){
 
   $('#btn-sensible').addEventListener('click', () => basculerModeSensible(!modeSensible));
   $('#btn-purge').addEventListener('click', effacerToutesDonnees);
+  $('#btn-export-sauvegarde').addEventListener('click', exporterSauvegarde);
+  $('#btn-import-sauvegarde').addEventListener('click', () => $('#input-import-sauvegarde').click());
+  $('#input-import-sauvegarde').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if(f) importerSauvegarde(f);
+    e.target.value = '';
+  });
 
   $('#btn-theme').addEventListener('click', () =>
     appliquerTheme(document.documentElement.dataset.theme === 'sombre' ? 'clair' : 'sombre'));
@@ -6153,6 +6628,9 @@ function demarrer(){
   rafraichirVerrous();
   majCompteurDemande();
   brancher();
+  initEspace();
+  initVisiteGuidee();
+  initExempleAnnote();
   /* L'écouteur de #format est créé dans brancher() : le déclencher avant
      laissait, au tout premier chargement sans brouillon, les treize
      verrous cochés par défaut du gabarit HTML au lieu du profil réel,
