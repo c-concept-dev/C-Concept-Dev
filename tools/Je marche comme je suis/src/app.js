@@ -7,6 +7,7 @@
   } = globalThis.JMMJSRouteEngineCore;
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
+  const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -214,6 +215,7 @@
     ors: "OpenRouteService",
     geo: "Geoapify",
     mapillary: "Mapillary",
+    overpass: "Overpass / OpenStreetMap",
     weather: "Open-Meteo",
     geocode: "Recherche du lieu",
   });
@@ -308,7 +310,11 @@
   peripherals.register(
     globalThis.JMMJSORSProvider.createORSProvider({ client: serviceClient }),
   );
+  peripherals.register(
+    globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
+  );
   const orsProvider = peripherals.require("ors");
+  const overpassProvider = peripherals.require("overpass");
   async function proxyFetch(name, path, body, count = 1) {
     return serviceClient.post(name, path, body, count);
   }
@@ -2846,6 +2852,43 @@
       }
     }
     let all = [...unique.values()];
+    status("Documentation du terrain avec OpenStreetMap…");
+    const terrainChecked = [];
+    for (const route of all) {
+      try {
+        const rawTerrain = await resilientService({
+          name: "overpass",
+          key: "terrain",
+          allowRetry: true,
+          allowCache: true,
+          operation: () => overpassProvider.inspect({ route }),
+        });
+        if (!rawTerrain.ok) {
+          terrainChecked.push(markOverpassUnavailable(route, rawTerrain.diagnostic?.message));
+          continue;
+        }
+        const proof = summarizeOverpassTerrain(rawTerrain.value, {
+          routeLengthMeters: route.distance,
+          retrievedAt: Date.now(),
+        });
+        const enriched = applyOverpassTerrain(route, proof);
+        enriched.terrainProof = summarizeTerrainProof(enriched.terrainEvidence || {});
+        terrainChecked.push(enriched);
+      } catch (error) {
+        const diagnostic = globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+          error,
+          "Overpass",
+        );
+        const retained = markOverpassUnavailable(route, diagnostic.message);
+        retained.serviceStates = [
+          ...(retained.serviceStates || []),
+          secondaryServiceWarning("overpass", diagnostic, false),
+        ];
+        retained.serviceSummary = summarizeServiceStates(retained.serviceStates);
+        terrainChecked.push(retained);
+      }
+    }
+    all = terrainChecked;
     const requiredServices = S.compiled?.hard?.requiredServices || [];
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
