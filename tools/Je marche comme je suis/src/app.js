@@ -642,8 +642,7 @@
       );
     if (request.pausePlan)
       preparation.push(summaryItem("Pauses", request.pausePlan, "Plan de pauses", "Budget et préparation", 2));
-    preparation.push(summaryItem("Comparaison des sens", compiled.hard.compareDirections ? "activée" : "désactivée", "Prudence et repli", compiled.hard.compareDirections ? "Contrôle" : "Information", 3));
-    preparation.push(summaryItem("Compromis silencieux", request.hardConstraints?.noSilentCompromise ? "interdit" : "non activé", "Prudence et repli", "Règle système", 3));
+    preparation.push(summaryItem("Comparaison des sens", compiled.hard.compareDirections ? "activée" : "désactivée", "Options de calcul", compiled.hard.compareDirections ? "Contrôle" : "Information", 3));
 
     for (const item of imperative) {
       if (item.note && /invérifiable|À vérifier/.test(item.note)) verification.push(item);
@@ -1963,21 +1962,21 @@
         .join("") +
       '</div><div class="control-synthesis"><strong>Contrôles</strong><span>' +
       esc(controlSummaryHtml(r)) +
-      '</span></div><details><summary>Détail des contrôles (' +
-      r.checks.length +
-      ")</summary>" +
+      '</span></div><div class="detail-groups"><details class="detail-group"><summary>Parcours</summary><div class="detail-group-content"><section class="detail-subsection"><h4>Carnet étape par étape (' +
+      r.steps.length +
+      ")</h4>" +
       list(
-        r.checks,
-        (c) =>
+        r.steps,
+        (s) =>
           "<strong>" +
-          esc(checkStatusLabel(c.status)) +
-          "</strong> — " +
-          esc(c.constraint) +
-          (c.evidence ? " : " + esc(c.evidence) : ""),
+          esc(s.title) +
+          "</strong> · " +
+          formatStepDuration(s.durationMinutes) +
+          " — " +
+          esc(s.instruction || "") +
+          (s.warning ? " ⚠ " + esc(s.warning) : ""),
       ) +
-      "</details><details><summary>Pauses positionnées (" +
-      pauseMarkers.length +
-      ")</summary>" +
+      '</section><section class="detail-subsection"><h4>Pauses positionnées (' + pauseMarkers.length + ")</h4>" +
       list(
         pauseMarkers,
         (pause, index) =>
@@ -1992,46 +1991,35 @@
             ? " · " + Math.round(pause.offRouteMeters) + " m hors trace"
             : ""),
       ) +
-      "</details><details><summary>Carnet étape par étape (" +
-      r.steps.length +
-      ")</summary>" +
-      list(
-        r.steps,
-        (s) =>
-          "<strong>" +
-          esc(s.title) +
-          "</strong> · " +
-          formatStepDuration(s.durationMinutes) +
-          " — " +
-          esc(s.instruction || "") +
-          (s.warning ? " ⚠ " + esc(s.warning) : ""),
-      ) +
-      "</details><details><summary>Points d’intérêt (" +
-      r.pois.length +
-      ")</summary>" +
-      list(
-        r.pois,
-        (p) => "<strong>" + esc(p.name) + "</strong> · " + esc(p.type || ""),
-      ) +
-      "</details><details><summary>Raccourcis réels (" + r.shortcuts.length + ")</summary>" +
+      '</section><section class="detail-subsection"><h4>Raccourcis réels (' + r.shortcuts.length + ")</h4>" +
       list(r.shortcuts,(shortcut,index)=>"<strong>Raccourci "+(index+1)+"</strong> — "+Math.round(shortcut.savedMeters)+" m économisés"+(Number.isFinite(Number(shortcut.savedMinutes))?" · environ "+shortcut.savedMinutes.toFixed(1)+" min":"")+" · "+esc(shortcut.evidence)) +
-      "</details><details><summary>Replis sur ses pas (" + r.fallbacks.length + ")</summary>" +
+      '</section><section class="detail-subsection"><h4>Replis sur ses pas (' + r.fallbacks.length + ")</h4>" +
       list(r.fallbacks,(fallback,index)=>"<strong>Repli "+(index+1)+"</strong> — demi-tour à "+Math.round(fallback.outboundMeters)+" m du départ"+(Number.isFinite(Number(fallback.totalMinutes))?" · retour total environ "+fallback.totalMinutes.toFixed(1)+" min":"")+" · "+esc(fallback.evidence)) +
-      "</details><details><summary>Réserves et inconnues</summary>" +
+      '</section></div></details><details class="detail-group"><summary>Contraintes et réserves</summary><div class="detail-group-content"><section class="detail-subsection"><h4>Détail des contrôles (' + r.checks.length + ")</h4>" +
+      list(
+        r.checks,
+        (c) =>
+          "<strong>" +
+          esc(checkStatusLabel(c.status)) +
+          "</strong> — " +
+          esc(c.constraint) +
+          (c.evidence ? " : " + esc(c.evidence) : ""),
+      ) +
+      '</section><section class="detail-subsection"><h4>Réserves et inconnues</h4>' +
       list([...r.warnings, ...r.unknowns]) +
-      "</details><details><summary>Niveau de preuve terrain</summary>" +
+      '</section><section class="detail-subsection"><h4>Niveau de preuve terrain</h4>' +
       terrainProofDetailsHtml(r) +
-      "</details><details><summary>Contrôle altimétrique IGN</summary>" +
+      '</section><section class="detail-subsection"><h4>Contrôle altimétrique IGN</h4>' +
       (r.ignElevation?.comparison
         ? "<p>D+ ORS : <strong>" + esc(metricLabel(r.ascent)) + " m</strong><br>D+ IGN : <strong>" + esc(metricLabel(r.ignElevation.ascentMeters)) + " m</strong><br>Écart : <strong>" + esc(metricLabel(r.ignElevation.comparison.differenceMeters)) + " m</strong></p><p>Le profil IGN est un contrôle complémentaire et ne remplace pas la géométrie ORS.</p>"
         : "<p>" + esc(r.ignElevation?.message || "Contrôle IGN non documenté.") + "</p>") +
-      "</details><details><summary>Sources</summary>" +
+      '</section></div></details><details class="detail-group"><summary>Autour du parcours</summary><div class="detail-group-content"><section class="detail-subsection"><h4>Points d’intérêt (' + r.pois.length + ")</h4>" +
+      list(r.pois,(p) => "<strong>" + esc(p.name) + "</strong> · " + esc(p.type || "")) +
+      '</section><p>Les points utiles, photographies, signalements, fermetures et le potentiel de tranquillité sont consultables dans les panneaux placés sous cette fiche.</p></div></details><details class="detail-group"><summary>Sources et exports</summary><div class="detail-group-content"><section class="detail-subsection"><h4>Sources</h4>' +
       list(r.sources) +
-      '</details><div class="exports">' +
-      '<button class="small start-nav" id="startNavBtn">' +
-      (r.canNavigate ? '▶ Phase 2 · Suivre ce trajet' : '▶ Continuer malgré les réserves') +
-      '</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>' +
-      (r.canNavigate ? '' : '<span class="reservation-warning">Cette promenade n’est pas recommandée dans votre situation actuelle. Les réserves resteront visibles pendant la marche.</span>') +
+      '</section><p>Le GPX conserve la géométrie de référence. Google Maps recalcule un itinéraire approximatif.</p></div></details></div>' +
+      '<div class="result-reserve-summary ' + (r.canNavigate && !["critical", "caution"].includes(r.daylightReturn?.level) ? 'ok' : '') + '"><div><strong>' + (r.canNavigate ? 'Trace prête à suivre' : 'Balade non recommandée telle quelle') + '</strong><span>' + esc(controlSummaryHtml(r)) + (["critical", "caution"].includes(r.daylightReturn?.level) ? ' · ' + esc(r.daylightReturn.label) : '') + (r.canNavigate ? '' : ' · Les réserves resteront visibles pendant la marche.') + '</span></div><button class="small start-nav" id="startNavBtn">' + (r.canNavigate ? '▶ Phase 2 · Suivre ce trajet' : '▶ Continuer malgré les réserves') + '</button></div><div class="exports">' +
+      '<button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>' +
       '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><a class="small" id="googleMapsExportBtn" target="_blank" rel="noopener">Google Maps approximatif ↗</a><span class="map-export-warning" id="googleMapsExportWarning">Google Maps recalcule l’itinéraire : le tracé peut différer de la géométrie ORS et du GPX.</span><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
