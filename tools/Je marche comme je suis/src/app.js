@@ -65,6 +65,7 @@
     });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
+  const { MODES: RECOVERY_MODES, createRecoveryRequest } = globalThis.JMMJSRecoveryRouteCore;
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -105,6 +106,8 @@
         lastPosition: null,
         startedAt: 0,
         offRoute: null,
+        recoveryLayer: null,
+        recoveryLink: null,
       },
     },
     E = {
@@ -315,8 +318,12 @@
   peripherals.register(
     globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
   );
+  peripherals.register(
+    globalThis.JMMJSRecoveryRouteProvider.createRecoveryRouteProvider({ client: serviceClient }),
+  );
   const orsProvider = peripherals.require("ors");
   const overpassProvider = peripherals.require("overpass");
+  const recoveryRouteProvider = peripherals.require("recovery-route");
   async function proxyFetch(name, path, body, count = 1) {
     return serviceClient.post(name, path, body, count);
   }
@@ -2164,6 +2171,9 @@
     S.nav.startedAt = Date.now();
     offRouteMonitor.reset();
     S.nav.offRoute = null;
+    S.nav.recoveryLayer?.remove?.();
+    S.nav.recoveryLayer = null;
+    S.nav.recoveryLink = null;
     document.body.classList.add("navigating");
     draw();
     setTimeout(() => {
@@ -2309,10 +2319,11 @@
     S.nav.active = false;
     S.nav.wake?.release?.().catch(() => {});
     S.nav.wake = null;
-    [S.nav.marker, S.nav.accuracy, S.nav.trail, S.nav.remaining].forEach((x) =>
+    [S.nav.marker, S.nav.accuracy, S.nav.trail, S.nav.remaining, S.nav.recoveryLayer].forEach((x) =>
       x?.remove(),
     );
-    S.nav.marker = S.nav.accuracy = S.nav.trail = S.nav.remaining = null;
+    S.nav.marker = S.nav.accuracy = S.nav.trail = S.nav.remaining = S.nav.recoveryLayer = null;
+    S.nav.recoveryLink = null;
     document.body.classList.remove("navigating");
     try {
       document.exitFullscreen?.();
@@ -2346,17 +2357,60 @@
     $("#navOffRouteActions")?.setAttribute("hidden", "");
     say("Vous continuez sans recalcul. La boucle initiale reste la référence.");
   };
-  $("#navBackToTrace").onclick = () => {
-    const nearest = S.nav.offRoute?.alert && S.nav.lastPosition
-      ? nearestProgress(S.nav.lastPosition, S.routes[S.selected])
-      : null;
-    if (nearest) S.map.setView([nearest.nearest.lat, nearest.nearest.lon], 18);
-    say("Le point le plus proche de la trace est affiché. Aucun itinéraire de récupération n’a été calculé.");
-  };
-  $("#navJoinStart").onclick = () => {
-    $("#navReturnGoogle")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    say("Utilisez une commande de retour au départ. Elle est distincte de la boucle initiale.");
-  };
+  async function requestRecoveryLink(mode) {
+    const route = S.routes[S.selected];
+    const current = S.nav.lastPosition;
+    if (!route || !current) {
+      say("Votre position actuelle n’est pas disponible. La boucle initiale reste affichée.");
+      return;
+    }
+    const nearest = nearestProgress(current, route);
+    const start = route.coords?.[0];
+    const target = mode === RECOVERY_MODES.START
+      ? start
+      : nearest ? [nearest.nearest.lon, nearest.nearest.lat] : null;
+    if (!Array.isArray(target)) {
+      say("La destination de récupération ne peut pas être déterminée.");
+      return;
+    }
+    let request;
+    try {
+      request = createRecoveryRequest({
+        current: [current.lon, current.lat],
+        target: [Number(target[0]), Number(target[1])],
+        mode,
+        profile: S.compiled?.routing?.profile || "foot-walking",
+      });
+    } catch (error) {
+      say(error.message || "Demande de récupération invalide.");
+      return;
+    }
+    const label = mode === RECOVERY_MODES.START ? "retour au départ" : "retour à la trace";
+    say("Calcul d’une liaison ORS de " + label + "…");
+    const result = await resilientService({
+      name: "ors",
+      key: `recovery:${mode}:${current.lat.toFixed(5)}:${current.lon.toFixed(5)}:${target[1]}:${target[0]}`,
+      allowRetry: true,
+      operation: () => recoveryRouteProvider.createLink(request),
+    });
+    if (!result.ok) {
+      showServiceDiagnostic("ors", result);
+      say("La liaison de récupération n’a pas pu être calculée. La boucle initiale reste la référence.");
+      return;
+    }
+    const link = result.value;
+    S.nav.recoveryLayer?.remove?.();
+    S.nav.recoveryLink = link;
+    S.nav.recoveryLayer = L.polyline(
+      link.coordinates.map((point) => [point[1], point[0]]),
+      { color: "#d66a00", weight: 7, opacity: 0.9, dashArray: "10 8" },
+    ).addTo(S.map);
+    S.map.fitBounds(S.nav.recoveryLayer.getBounds(), { padding: [70, 70] });
+    const distance = link.distanceMeters == null ? "" : " · " + fmtDistance(link.distanceMeters);
+    say("Liaison ORS de " + label + " affichée" + distance + ". Elle reste distincte de la boucle initiale.");
+  }
+  $("#navBackToTrace").onclick = () => requestRecoveryLink(RECOVERY_MODES.TRACE);
+  $("#navJoinStart").onclick = () => requestRecoveryLink(RECOVERY_MODES.START);
   $("#navStop").onclick = stopNavigation;
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && S.nav.active && !S.nav.wake)
