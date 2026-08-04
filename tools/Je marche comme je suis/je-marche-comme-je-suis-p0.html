@@ -4,7 +4,7 @@
     /><meta name="theme-color" content="#8FAFB1" /><meta name="apple-mobile-web-app-capable" content="yes" /><meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
-    /><meta name="mobile-web-app-capable" content="yes" /><title>Je marche comme je suis — Balades sur mesure</title><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link
+    /><meta name="mobile-web-app-capable" content="yes" /><title>Je marche comme je suis — Balades sur mesure</title><link rel="manifest" href="./manifest.webmanifest" /><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     /><!-- Leaflet 1.9.4 is embedded below so the map works when external CDNs are blocked. -->
@@ -4561,6 +4561,99 @@ svg.leaflet-image-layer.leaflet-interactive path {
 });
 (() => {
   "use strict";
+  const STORAGE_KEY = "jmmjs.offline-preparation.v1";
+
+  function finite(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function normalizeCoords(coords) {
+    if (!Array.isArray(coords)) return [];
+    return coords
+      .map((point) => [finite(point?.[0]), finite(point?.[1])])
+      .filter(([lon, lat]) => lon !== null && lat !== null && lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90);
+  }
+
+  function prepareOfflineSnapshot(route, { savedAt = new Date().toISOString() } = {}) {
+    const coords = normalizeCoords(route?.coords);
+    if (coords.length < 2) throw new Error("Trace insuffisante pour la préparation hors connexion.");
+    const weatherRetrievedAt = route?.weather?.retrievedAt || route?.weather?.forecast?.retrievedAt || null;
+    return {
+      version: 1,
+      savedAt,
+      route: {
+        id: String(route?.id || route?.name || "promenade"),
+        name: String(route?.name || "Promenade préparée"),
+        coords,
+        start: coords[0],
+        distanceKm: finite(route?.distance ?? route?.distanceKm),
+        totalMinutes: finite(route?.total),
+        walkingMinutes: finite(route?.walking),
+        steps: Array.isArray(route?.steps) ? route.steps.map((step) => ({
+          title: String(step?.title || "Étape"),
+          instruction: String(step?.instruction || ""),
+          durationMinutes: finite(step?.durationMinutes),
+          warning: step?.warning ? String(step.warning) : null,
+        })) : [],
+        shortcuts: Array.isArray(route?.shortcuts) ? route.shortcuts : [],
+        fallbacks: Array.isArray(route?.fallbacks) ? route.fallbacks : [],
+        warnings: Array.isArray(route?.warnings) ? route.warnings.map(String) : [],
+        essentialPois: Array.isArray(route?.pois)
+          ? route.pois.filter((poi) => poi?.essential || ["toilettes", "eau", "abri", "pharmacie"].includes(String(poi?.type || "").toLowerCase())).map((poi) => ({
+              name: String(poi?.name || "Point utile"),
+              type: String(poi?.type || ""),
+              coordinates: normalizeCoords([poi?.coordinates || poi?.coords])[0] || null,
+            }))
+          : [],
+      },
+      availability: {
+        application: "available",
+        trace: "available",
+        instructions: "available",
+        departure: "available",
+        gpx: "available",
+        weather: weatherRetrievedAt ? "dated" : "unavailable",
+        weatherRetrievedAt,
+        pois: Array.isArray(route?.pois) && route.pois.length ? "dated" : "unavailable",
+        photos: Array.isArray(route?.photos) && route.photos.length ? "dated" : "unavailable",
+        newRouteCalculation: "not-guaranteed",
+        weatherRefresh: "not-guaranteed",
+        newPhotos: "not-guaranteed",
+        recentClosures: "not-guaranteed",
+        fullMapBackground: "not-guaranteed",
+      },
+    };
+  }
+
+  function saveOfflineSnapshot(storage, snapshot) {
+    storage?.setItem?.(STORAGE_KEY, JSON.stringify(snapshot));
+    return snapshot;
+  }
+
+  function loadOfflineSnapshot(storage) {
+    try {
+      const raw = storage?.getItem?.(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearOfflineSnapshot(storage) {
+    storage?.removeItem?.(STORAGE_KEY);
+  }
+
+  globalThis.JMMJSOfflinePreparationCore = {
+    STORAGE_KEY,
+    prepareOfflineSnapshot,
+    saveOfflineSnapshot,
+    loadOfflineSnapshot,
+    clearOfflineSnapshot,
+  };
+})();
+(() => {
+  "use strict";
 
   const SERVICE_TYPES = Object.freeze({
     "Avec un banc": "Banc",
@@ -6224,6 +6317,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
   const { MODES: RECOVERY_MODES, createRecoveryRequest } = globalThis.JMMJSRecoveryRouteCore;
+  const { prepareOfflineSnapshot, saveOfflineSnapshot, clearOfflineSnapshot } = globalThis.JMMJSOfflinePreparationCore;
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -8135,11 +8229,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       list(r.sources) +
       '</details><div class="exports">' +
       (r.canNavigate
-        ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button>'
+        ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
       '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Secours · rejoindre le départ</strong><span>Retour simple depuis votre position actuelle. La boucle n’est pas exportée.</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
+    if ($("#prepareOfflineBtn")) $("#prepareOfflineBtn").onclick = prepareOffline;
     const exportAudit = auditRouteExport(r);
     const certification = $("#exportCertification");
     if (certification) {
@@ -8302,6 +8397,48 @@ svg.leaflet-image-layer.leaflet-interactive path {
       "°"
     );
   }
+
+  function offlineStatusRows(snapshot) {
+    const rows = [
+      ["✓", "Application", "disponible"],
+      ["✓", "Trace exacte", "disponible"],
+      ["✓", "Consignes et étapes", "disponibles"],
+      ["✓", "Coordonnées de départ", "disponibles"],
+      ["✓", "GPX", "disponible depuis le résultat"],
+      [snapshot.availability.weather === "dated" ? "△" : "—", "Météo", snapshot.availability.weather === "dated" ? "enregistrée mais datée" : "non disponible"],
+      ["△", "Nouveau calcul et actualisations", "non garantis sans réseau"],
+      ["△", "Fond cartographique complet", "non garanti hors connexion"],
+    ];
+    return rows.map(([icon, label, state]) => `<li><strong>${icon} ${esc(label)}</strong> — ${esc(state)}</li>`).join("");
+  }
+
+  async function prepareOffline() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Aucune promenade sélectionnée.");
+    try {
+      const snapshot = prepareOfflineSnapshot(route);
+      saveOfflineSnapshot(globalThis.localStorage, snapshot);
+      let modal = $("#offlinePreparationModal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "offlinePreparationModal";
+        modal.className = "modal";
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        document.body.appendChild(modal);
+      }
+      modal.innerHTML = `<div class="modal-card"><h2>Préparation hors connexion</h2><p>La trace sélectionnée et ses consignes sont enregistrées sur cet appareil.</p><ul>${offlineStatusRows(snapshot)}</ul><p><strong>Important :</strong> hors connexion, aucun nouveau parcours, aucune météo actualisée, aucune nouvelle photo et aucune fermeture récente ne sont garantis.</p><div class="modal-actions"><button type="button" id="clearOfflinePreparation">Effacer la préparation</button><button type="button" id="closeOfflinePreparation">Fermer</button></div></div>`;
+      modal.classList.add("show");
+      $("#closeOfflinePreparation").onclick = () => modal.classList.remove("show");
+      $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+      }
+    } catch (error) {
+      say(error?.message || "Préparation hors connexion impossible.");
+    }
+  }
+
   async function keepAwake() {
     try {
       if ("wakeLock" in navigator)
@@ -9721,6 +9858,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const clearIncidents = $("#clearServiceIncidents");
       if (clearIncidents) clearIncidents.onclick = () => {
         serviceObservability.clear();
+      clearOfflineSnapshot(globalThis.localStorage);
         if (incidentSummary) incidentSummary.innerHTML = "<p>Aucun incident technique enregistré.</p>";
       };
       modal.classList.add("show");
@@ -9791,6 +9929,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       privacyController.purge();
       sessionPrivacyController.clearSession();
       serviceObservability.clear();
+      clearOfflineSnapshot(globalThis.localStorage);
       modal.classList.remove("show");
       location.reload();
     };
@@ -9805,6 +9944,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
