@@ -1102,6 +1102,7 @@
   peripherals.register(globalThis.JMMJSDatatourismeProvider.createDatatourismeProvider({ client: serviceClient, nearestRouteDistance }));
   const datatourismeProvider = peripherals.require("datatourisme");
   const photoReconProvider = globalThis.JMMJSPhotoReconProvider.createPhotoReconProvider({ client: serviceClient });
+  const userReportsProvider = globalThis.JMMJSUserReportsProvider.createUserReportsProvider({ client: serviceClient });
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -1661,6 +1662,38 @@
       button.textContent = "Rechercher";
     }
   }
+
+  function ensureReportsPanel() {
+    let panel = $("#reportsPanel");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.className = "enrichment";
+    panel.id = "reportsPanel";
+    panel.hidden = true;
+    panel.innerHTML = '<div class="enrichment-head"><div><h3>Signalements récents</h3><p>Informations datées d’utilisateurs · non vérifiées par une autorité</p></div><button class="small" id="loadReports" type="button">Consulter</button></div><div id="reportsContent"><p class="empty-data">Consultez les signalements récents à proximité du parcours.</p></div>';
+    const anchor = $("#photoPanel");
+    anchor?.insertAdjacentElement("afterend", panel);
+    $("#loadReports").onclick = loadUserReports;
+    return panel;
+  }
+  async function loadUserReports() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Choisissez un parcours.");
+    const panel = ensureReportsPanel();
+    const target = panel.querySelector("#reportsContent");
+    const button = panel.querySelector("#loadReports");
+    button.disabled = true; button.textContent = "Recherche…";
+    try {
+      const result = await resilientService({ name: "reports", key: `reports:${route.name}:${route.coords.length}`, allowRetry: true, allowCache: false, operation: () => userReportsProvider.nearby({ route, radiusMeters: 300 }) });
+      if (!result.ok) { target.innerHTML = '<p class="empty-data">Signalements indisponibles. La promenade reste utilisable.</p>'; return; }
+      const reports = globalThis.JMMJSUserReportsCore.normalizeReports(result.value, { nearestRouteDistance, routeCoords: route.coords });
+      const warning = globalThis.JMMJSUserReportsCore.warningText();
+      target.innerHTML = reports.length ? '<div class="poi-list">' + reports.map((report) => { const status=globalThis.JMMJSUserReportsCore.displayStatus(report); return '<article class="poi-item"><strong>' + esc(report.label) + '</strong><span>' + (report.distance == null ? "Distance non calculée" : report.distance + " m de la trace") + '</span><span>' + esc(status.age) + ' · ' + esc(status.confirmation) + '</span><span>' + esc(status.authority) + '</span><small>' + esc(warning) + '</small></article>'; }).join("") + '</div>' : '<p class="empty-data">Aucun signalement récent à moins de 300 m. Cela ne garantit pas l’absence d’obstacle.</p>';
+      say(reports.length + " signalement(s) récent(s) affiché(s).");
+    } catch (error) { target.innerHTML = '<p class="empty-data">Signalements indisponibles. La promenade reste utilisable.</p>'; }
+    finally { button.disabled = false; button.textContent = "Consulter"; }
+  }
+
   function formatStepDuration(minutes) {
     const value = Number(minutes);
     if (!Number.isFinite(value) || value <= 0) return "moins d’une minute";
@@ -1936,6 +1969,7 @@
     };
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
+    ensureReportsPanel().hidden = false;
   }
   function select(i) {
     S.selected = i;
