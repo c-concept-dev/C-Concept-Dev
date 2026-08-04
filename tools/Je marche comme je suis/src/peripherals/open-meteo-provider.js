@@ -68,6 +68,7 @@
         longitude: String(longitude),
         timezone: "auto",
         forecast_days: "2",
+        daily: "sunrise,sunset",
         hourly: [
           "temperature_2m",
           "apparent_temperature",
@@ -96,6 +97,7 @@
 
       return {
         hourly: data.hourly || {},
+        daily: data.daily || {},
         startIndex,
         count: Math.max(1, Math.ceil(Number(hours) || 1)),
         timezone: data.timezone || null,
