@@ -409,6 +409,8 @@
     validateFunctionalLimitation,
     describeFunctionalLimitation,
     prepareRequestWithFunctionalLimitations,
+    // Alias conservé pour compatibilité avec app.js et les anciens HTML autonomes.
+    mergeStructuredLimitationIntoRequest: prepareRequestWithFunctionalLimitations,
     auditFunctionalRules,
   });
 })();
