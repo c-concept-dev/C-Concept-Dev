@@ -16,9 +16,10 @@ test('la géométrie est présentée comme référence et non comme certificatio
   assert.match(app, /arrivée à \$\{exportAudit\.closureMeters\} m du départ/);
 });
 
-test('la zone de résultats et les actions de prudence ont une mise en page lisible', () => {
+test('la zone de résultats reste lisible et le demi-tour est prioritaire en phase 2', () => {
   assert.match(template, /body\.has-results \.workspace/);
-  assert.match(template, /\.return-safety\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(template, /\.return-safety\{/);
+  assert.match(template, /#navTurnBack\{flex-basis:100%/);
   assert.match(template, /\.detail summary\{font-size:\.88rem/);
 });
 
