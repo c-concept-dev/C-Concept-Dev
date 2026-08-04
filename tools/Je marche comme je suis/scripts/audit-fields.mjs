@@ -35,6 +35,9 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   lon: ["complete", "Coordonnée utilisée par la génération."],
   returnRadius: ["complete", "Fermeture contrôlée après calcul."],
   returnTime: ["complete", "Réduit le budget disponible."],
+  departureMode: ["complete", "Choisit un départ immédiat ou programmé."],
+  departureDate: ["complete", "Date utilisée pour la météo et la lumière du jour lorsque le départ est programmé."],
+  departureTime: ["complete", "Heure utilisée pour la météo et la lumière du jour lorsque le départ est programmé."],
   duration: ["complete", "Plafond audité sur la durée réelle."],
   timeIncludes: ["complete", "Détermine les composantes incluses dans le budget."],
   margin: ["complete", "Soustraite avant génération et auditée."],
@@ -59,10 +62,10 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   downSlope: ["complete", "Pente descendante auditée lorsqu’elle est disponible."],
   recovery: ["complete", "Séquence facile mesurée après effort ; banc jamais présumé."],
   terrain: ["partial", "D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée."],
-  weather: ["complete", "Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie."],
+  weather: ["partial", "Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur."],
   wishes: ["partial", "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."],
   pauses: ["complete", "Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables."],
-  services: ["complete", "Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier."],
+  services: ["partial", "Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources."],
   freeText: ["partial", "Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres."],
   strict: ["complete", "Empêche les assouplissements silencieux."],
   shortcuts: ["complete", "Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés."],
@@ -127,6 +130,20 @@ export function buildFieldAudit() {
       choices: values,
       effect: entry?.effect || null,
       severity: entry ? severityFor(group, entry) : null,
+      requiredData: entry?.requiredData || [],
+      unknownPolicy: entry?.unknownPolicy || null,
+      status,
+      note,
+    });
+  }
+  for (const id of missingFields) {
+    const entry = ConstraintRegistry[id];
+    const [status, note] = IMPLEMENTATION_STATUS[id] || ["unreviewed", "État fonctionnel non qualifié."];
+    rows.push({
+      id,
+      kind: "internal-field",
+      effect: entry?.effect || null,
+      severity: entry ? severityFor(id, entry) : null,
       requiredData: entry?.requiredData || [],
       unknownPolicy: entry?.unknownPolicy || null,
       status,
