@@ -6690,6 +6690,79 @@ svg.leaflet-image-layer.leaflet-interactive path {
     createOpenMeteoProvider,
   });
 })();
+(function (global) {
+  "use strict";
+
+  const LABELS = Object.freeze({ high: "élevé", medium: "modéré", low: "faible", unknown: "non documenté" });
+
+  function finite(value) {
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  }
+
+  function assessTranquilityPotential(input = {}) {
+    const indicators = [];
+    let score = 0;
+
+    const roadDistance = finite(input.distanceToMajorRoadMeters);
+    if (roadDistance !== null) {
+      const points = roadDistance >= 500 ? 2 : roadDistance >= 200 ? 1 : -2;
+      score += points;
+      indicators.push({ key: "roads", label: roadDistance >= 500 ? "éloignement des routes principales" : roadDistance >= 200 ? "routes principales modérément proches" : "route principale proche", value: roadDistance, points });
+    }
+
+    const buildingDensity = finite(input.buildingDensityPerKm2);
+    if (buildingDensity !== null) {
+      const points = buildingDensity <= 80 ? 2 : buildingDensity <= 250 ? 0 : -2;
+      score += points;
+      indicators.push({ key: "buildings", label: buildingDensity <= 80 ? "faible densité de bâti" : buildingDensity <= 250 ? "densité de bâti intermédiaire" : "forte densité de bâti", value: buildingDensity, points });
+    }
+
+    for (const [key, label, value, lowThreshold, highThreshold] of [
+      ["parking", "parkings proches", input.parkingCount, 0, 3],
+      ["commerce", "commerces proches", input.commerceCount, 0, 4],
+      ["tourism", "équipements touristiques proches", input.touristPoiCount, 0, 3],
+      ["officialRoutes", "itinéraires officiels proches", input.officialRouteCount, 0, 2],
+    ]) {
+      const count = finite(value);
+      if (count === null) continue;
+      const points = count <= lowThreshold ? 1 : count >= highThreshold ? -1 : 0;
+      score += points;
+      indicators.push({ key, label: count === 0 ? `aucun ${label}` : `${count} ${label}`, value: count, points });
+    }
+
+    const environment = String(input.environment || "").toLowerCase();
+    if (["rural", "forest", "natural"].includes(environment)) {
+      score += 1;
+      indicators.push({ key: "environment", label: "environnement rural ou naturel", value: environment, points: 1 });
+    } else if (["urban", "dense_urban"].includes(environment)) {
+      score -= 1;
+      indicators.push({ key: "environment", label: "environnement urbain", value: environment, points: -1 });
+    }
+
+    if (indicators.length < 2) {
+      return {
+        status: "unknown",
+        level: "unknown",
+        label: LABELS.unknown,
+        score: null,
+        indicators,
+        warning: "Les données disponibles sont insuffisantes pour estimer un potentiel de tranquillité. La fréquentation réelle n’est pas connue.",
+      };
+    }
+
+    const level = score >= 3 ? "high" : score <= -2 ? "low" : "medium";
+    return {
+      status: "estimated",
+      level,
+      label: LABELS[level],
+      score,
+      indicators,
+      warning: "Cet indice décrit seulement un potentiel de tranquillité à partir d’indices cartographiques. La fréquentation réelle n’est pas connue.",
+    };
+  }
+
+  global.JMMJSTranquilityPotentialCore = { LABELS, assessTranquilityPotential };
+})(globalThis);
 </script>
     <script data-jmmjs-bundle="app">
 (() => {
@@ -8258,6 +8331,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       if (!geoResult.ok && !tourismResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
       const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
+      r.poiEvidenceLoaded = true;
       E.poiContent.innerHTML = pois.length
         ? '<div class="poi-list">' +
           pois
@@ -8419,6 +8493,52 @@ svg.leaflet-image-layer.leaflet-interactive path {
       say(items.length + " information(s) officielle(s) affichée(s).");
     } catch (error) { target.innerHTML = '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.unavailableText()) + '</p>'; }
     finally { button.disabled = false; button.textContent = "Consulter"; }
+  }
+
+
+  function ensureTranquilityPanel() {
+    let panel = $("#tranquilityPanel");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.className = "enrichment";
+    panel.id = "tranquilityPanel";
+    panel.hidden = true;
+    panel.innerHTML = '<div class="enrichment-head"><div><h3>Potentiel de tranquillité</h3><p>Estimation cartographique · jamais une mesure de fréquentation réelle</p></div><button class="small" id="assessTranquility" type="button">Estimer</button></div><div id="tranquilityContent"><p class="empty-data">Chargez d’abord les points d’intérêt pour documenter une partie des indices.</p></div>';
+    const anchor = ensureOfficialClosuresPanel();
+    anchor?.insertAdjacentElement("afterend", panel);
+    $("#assessTranquility").onclick = assessTranquilityForSelectedRoute;
+    return panel;
+  }
+
+  function tranquilityIndicatorsFromRoute(route) {
+    if (!route?.poiEvidenceLoaded) return {};
+    const pois = Array.isArray(route.pois) ? route.pois : [];
+    const category = (poi) => String(poi.category || poi.type || "").toLowerCase();
+    const count = (terms) => pois.filter((poi) => terms.some((term) => category(poi).includes(term))).length;
+    return {
+      parkingCount: count(["parking"]),
+      commerceCount: count(["shop", "commerce", "cafe", "restaurant", "pharmacy"]),
+      touristPoiCount: count(["tourism", "heritage", "viewpoint", "museum", "attraction"]),
+      officialRouteCount: Number.isFinite(Number(route.officialRouteCount)) ? Number(route.officialRouteCount) : null,
+      distanceToMajorRoadMeters: Number.isFinite(Number(route.distanceToMajorRoadMeters)) ? Number(route.distanceToMajorRoadMeters) : null,
+      buildingDensityPerKm2: Number.isFinite(Number(route.buildingDensityPerKm2)) ? Number(route.buildingDensityPerKm2) : null,
+      environment: route.environment || null,
+    };
+  }
+
+  function assessTranquilityForSelectedRoute() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Choisissez un parcours.");
+    const panel = ensureTranquilityPanel();
+    const target = panel.querySelector("#tranquilityContent");
+    const assessment = globalThis.JMMJSTranquilityPotentialCore.assessTranquilityPotential(tranquilityIndicatorsFromRoute(route));
+    route.tranquilityPotential = assessment;
+    if (assessment.status === "unknown") {
+      target.innerHTML = '<p class="empty-data">' + esc(assessment.warning) + '</p>';
+      return;
+    }
+    target.innerHTML = '<article class="poi-item"><strong>Potentiel de tranquillité : ' + esc(assessment.label) + '</strong><span>Indices documentés :</span><ul>' + assessment.indicators.map((item) => '<li>' + esc(item.label) + '</li>').join("") + '</ul><small>' + esc(assessment.warning) + '</small></article>';
+    say("Potentiel de tranquillité estimé : " + assessment.label + ".");
   }
 
   function formatStepDuration(minutes) {
@@ -8698,6 +8818,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     E.photoPanel.hidden = false;
     ensureReportsPanel().hidden = false;
     ensureOfficialClosuresPanel().hidden = false;
+    ensureTranquilityPanel().hidden = false;
   }
   function select(i) {
     S.selected = i;
