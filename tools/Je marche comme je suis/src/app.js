@@ -54,6 +54,10 @@
     globalThis.JMMJSSessionPrivacyCore.createSessionPrivacyController({
       storage: globalThis.sessionStorage,
     });
+  const requestGovernor =
+    globalThis.JMMJSRequestGovernorCore.createRequestGovernor({
+      limits: { ors: 12, geo: 24, mapillary: 24, weather: 12, geocode: 12, session: 80 },
+    });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -285,6 +289,7 @@
     onRequest: countRequest,
     prepareRequest: (service, path, body) =>
       sessionPrivacyController.prepareProviderPayload(service, path, body),
+    requestGovernor,
   });
   const peripherals =
     globalThis.JMMJSPeripheralRegistry.createPeripheralRegistry();
@@ -3307,6 +3312,8 @@
     const departureValidation = validateDepartureSchedule();
     if (!departureValidation.valid)
       return say(departureValidation.message);
+    requestGovernor.beginSearch();
+    S.requestCounts = { ors: 0, geo: 0, mapillary: 0, weather: 0, geocode: 0 };
     S.request = mergeStructuredLimitationIntoRequest(buildRequest());
     S.compiled = compileConstraints(S.request);
     const miss = [];
