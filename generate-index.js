@@ -299,6 +299,47 @@ function generateIndex() {
       margin-top: 5px;
     }
 
+
+    .featured-tool {
+      display: block;
+      background: linear-gradient(135deg, #16212B 0%, #2C5F7C 100%);
+      color: white;
+      padding: 26px 30px;
+      border-radius: 16px;
+      box-shadow: 0 14px 36px rgba(22,33,43,.22);
+      margin-bottom: 28px;
+      text-decoration: none;
+      transition: transform .25s, box-shadow .25s;
+    }
+
+    .featured-tool:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 18px 42px rgba(22,33,43,.28);
+    }
+
+    .featured-tool-kicker {
+      display: block;
+      color: #C8D0C3;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .featured-tool strong {
+      display: block;
+      color: white;
+      font-size: 1.45rem;
+      margin-bottom: 5px;
+    }
+
+    .featured-tool-description {
+      display: block;
+      color: #E7E9E3;
+      line-height: 1.5;
+    }
+
     .search-box {
       background: white;
       padding: 25px;
@@ -529,6 +570,13 @@ function generateIndex() {
         </div>
       </div>
     </header>
+
+
+    <a class="featured-tool" href="tools/Outils/atelier-prompts-v10.html" target="_blank" rel="noopener">
+      <span class="featured-tool-kicker">Outil professionnel · Accès direct</span>
+      <strong>Atelier de prompts V10.3 Ultime</strong>
+      <span class="featured-tool-description">Transformer une demande brute en prompt proportionné, l’éditer, l’exécuter et mesurer son utilité réelle.</span>
+    </a>
 
     <div class="search-box">
       <input 
