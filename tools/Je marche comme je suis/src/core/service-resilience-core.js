@@ -85,6 +85,21 @@
       };
 
     if (
+      lower.includes("aucune boucle") ||
+      lower.includes("aucun itinéraire") ||
+      lower.includes("aucun itineraire") ||
+      lower.includes("no route") ||
+      lower.includes("no path")
+    )
+      return {
+        code: "no-result",
+        status,
+        retryable: false,
+        userMessage: `${service} n’a trouvé aucun itinéraire pédestre exploitable depuis ce point.`,
+        technicalMessage: message,
+      };
+
+    if (
       lower.includes("json") ||
       lower.includes("réponse invalide") ||
       lower.includes("reponse invalide")
