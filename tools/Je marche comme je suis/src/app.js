@@ -269,7 +269,7 @@
     const diagnostic = result?.diagnostic;
     serviceState(
       name,
-      result?.ok ? "Connecté" : diagnostic?.retryable ? "Temporaire" : "Échec",
+      result?.ok ? "Test réussi" : diagnostic?.retryable ? "Temporaire" : "Échec",
       result?.ok ? "ok" : "error",
     );
     if (diagnostic) say(diagnostic.userMessage);
@@ -350,7 +350,7 @@
         showServiceDiagnostic(name, result);
         return;
       }
-      serviceState(name, "Connecté", "ok");
+      serviceState(name, "Test réussi", "ok");
       say("Connexion sécurisée vérifiée.");
     } finally {
       button.disabled = false;
@@ -1001,6 +1001,7 @@
     E.placeholder.style.display = "none";
     E.map.classList.add("show");
     E.results.classList.add("show");
+    document.body.classList.add("has-results");
     renderResultQualityBanner();
     $("#resultMode").textContent =
       S.routes[0].mode === "api"
@@ -1595,7 +1596,7 @@
               " m",
           ),
       );
-      serviceState("geo", "Connecté", "ok");
+      serviceState("geo", "Requête réussie", "ok");
       say(pois.length + " point(s) utile(s) trouvé(s).");
     } catch (e) {
       const result = {
@@ -1655,7 +1656,7 @@
         : '<p class="empty-data">Aucune image localisée à moins de 120 m. Cela ne renseigne pas l’état du terrain.</p>';
       r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, { photos });
       renderDetail();
-      serviceState("mapillary", "Connecté", "ok");
+      serviceState("mapillary", "Requête réussie", "ok");
       say(photos.length + " image(s) indicative(s) de repérage.");
     } catch (e) {
       const result = { ok: false, diagnostic: globalThis.JMMJSServiceResilienceCore.classifyServiceError(e, "Photos de repérage") };
@@ -1883,8 +1884,8 @@
     const departure = scheduledDeparture();
     const durationMinutes = Math.max(0, Number(route?.walking ?? route?.total ?? 0) + Number(route?.breaks ?? 0));
     const assessment = core.assessDaylight({
-      latitude: coords[0],
-      longitude: coords[1],
+      latitude: coords[1],
+      longitude: coords[0],
       departureAt: departure.date,
       durationMinutes,
     });
@@ -2039,14 +2040,14 @@
         ? "exact"
         : "unavailable";
       certification.textContent = exportAudit.exactEligible
-        ? `Géométrie exacte certifiée · ${exportAudit.coordinateCount} points · boucle fermée à ${exportAudit.closureMeters} m`
+        ? `Géométrie de référence disponible · ${exportAudit.coordinateCount} points · arrivée à ${exportAudit.closureMeters} m du départ`
         : `Export exact indisponible · ${exportAudit.reasons.join(" ")}`;
     }
 
     const gpxButton = $("#gpxBtn");
     gpxButton.disabled = !exportAudit.exactEligible;
     gpxButton.title = exportAudit.exactEligible
-      ? `GPX exact certifié · ${exportAudit.coordinateCount} points · fermeture ${exportAudit.closureMeters} m`
+      ? `GPX de référence · ${exportAudit.coordinateCount} points · arrivée à ${exportAudit.closureMeters} m du départ`
       : `GPX exact indisponible : ${exportAudit.reasons.join(" ")}`;
     gpxButton.textContent = exportAudit.exactEligible
       ? "↓ GPX exact"
@@ -2930,7 +2931,7 @@
       error.serviceName = "ors";
       throw error;
     }
-    serviceState("ors", "Connecté", "ok");
+    serviceState("ors", "Requête réussie", "ok");
     return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
   }
   function routeFingerprint(route) {
