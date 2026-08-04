@@ -10,6 +10,7 @@
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
+  const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
     chooseWeatherPoints,
@@ -1098,6 +1099,8 @@
     }),
   );
   const geoapifyProvider = peripherals.require("geoapify");
+  peripherals.register(globalThis.JMMJSDatatourismeProvider.createDatatourismeProvider({ client: serviceClient, nearestRouteDistance }));
+  const datatourismeProvider = peripherals.require("datatourisme");
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -1551,34 +1554,18 @@
     button.disabled = true;
     button.textContent = "Recherche…";
     try {
-      const result = await resilientService({
-        name: "geo",
-        key: `pois:${r.name}:${r.coords.length}`,
-        allowRetry: true,
-        allowCache: true,
-        operation: () => geoapifyProvider.enrich({ route: r }),
-      });
-      if (!result.ok) {
-        showServiceDiagnostic("geo", result, {
-          target: E.poiContent,
-          retryAction: "pois",
-        });
-        return;
-      }
-      const pois = result.value;
+      const [geoResult, tourismResult] = await Promise.all([
+        resilientService({ name: "geo", key: `pois:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => geoapifyProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
+        resilientService({ name: "tourism", key: `tourism:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => datatourismeProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
+      ]);
+      if (!geoResult.ok && !tourismResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
+      const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
       E.poiContent.innerHTML = pois.length
         ? '<div class="poi-list">' +
           pois
             .map(
-              (p) =>
-                '<article class="poi-item"><strong>' +
-                esc(p.name) +
-                "</strong><span>" +
-                esc(p.type) +
-                " · " +
-                p.distance +
-                " m de la trace</span><span>Accessibilité : inconnue</span></article>",
+              (p) => { const view = describePoi(p); return '<article class="poi-item"><strong>' + esc(view.name) + "</strong><span>" + esc(view.type) + " · " + view.distance + " m de la trace · détour estimé " + view.detourMeters + " m</span><span>Source : " + esc(view.source || "Source non précisée") + "</span><span>" + esc(view.hoursLabel) + " · " + esc(view.presenceLabel) + "</span><span>" + esc(view.accessibilityLabel) + "</span></article>"; },
             )
             .join("") +
           "</div>"
@@ -3097,7 +3084,8 @@
       const verified = [];
       for (const route of all) {
         try {
-          const pois = await geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 });
+          const [geoPois, tourismPois] = await Promise.all([geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []), datatourismeProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => [])]);
+          const pois = mergeTourismPois([geoPois, tourismPois], { maxDistanceMeters: 300, maxDetourMeters: 600 });
           route.pois = pois;
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, pois, {
