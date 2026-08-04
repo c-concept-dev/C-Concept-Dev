@@ -69,6 +69,7 @@
   const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
   const { MODES: RECOVERY_MODES, createRecoveryRequest } = globalThis.JMMJSRecoveryRouteCore;
   const { prepareOfflineSnapshot, saveOfflineSnapshot, clearOfflineSnapshot } = globalThis.JMMJSOfflinePreparationCore;
+  const { buildSafetySharePackage, markReturned, readReturned, clearReturned } = globalThis.JMMJSSafetySharingCore;
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -2027,7 +2028,7 @@
       (r.canNavigate
         ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
-      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Secours · rejoindre le départ</strong><span>Retour simple depuis votre position actuelle. La boucle n’est pas exportée.</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
+      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Prudence et repli</strong><span>Partage facultatif. Aucun suivi en direct, aucune alerte automatique et aucun contact conservé.</span><button class="small" id="shareRouteBtn" type="button">Partager le parcours</button><button class="small" id="shareReturnBtn" type="button">Partager l’heure de retour</button><button class="small" id="copySafetyMessageBtn" type="button">Copier un message préparé</button><button class="small" id="copyCurrentPositionBtn" type="button">Copier ma position actuelle</button><button class="small" id="safetyReturnedBtn" type="button">Je suis revenu</button><a class="small" href="tel:112">Appeler le 112</a><span>Retour simple vers le départ :</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
     if ($("#prepareOfflineBtn")) $("#prepareOfflineBtn").onclick = prepareOffline;
@@ -2070,11 +2071,30 @@
         say("Coordonnées du départ : " + returnLinks.coordinates);
       }
     };
+    bindSafetySharing(r);
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
     ensureReportsPanel().hidden = false;
     ensureOfficialClosuresPanel().hidden = false;
     ensureTranquilityPanel().hidden = false;
+  }
+  async function copyOrShare(title, text) {
+    if (navigator.share) { try { await navigator.share({ title, text }); return true; } catch (error) { if (error?.name === "AbortError") return false; } }
+    try { await navigator.clipboard.writeText(text); say("Message copié."); return true; } catch { say(text); return false; }
+  }
+  function bindSafetySharing(route) {
+    const pack = buildSafetySharePackage(route);
+    const returned = readReturned(sessionStorage);
+    const returnedBtn = $("#safetyReturnedBtn");
+    if (returnedBtn && returned?.routeId === String(route.id || route.name || "promenade")) { returnedBtn.textContent = "Retour confirmé sur cet appareil"; returnedBtn.disabled = true; }
+    if ($("#shareRouteBtn")) $("#shareRouteBtn").onclick = () => copyOrShare("Ma promenade", pack.routeText + " " + pack.returnText);
+    if ($("#shareReturnBtn")) $("#shareReturnBtn").onclick = () => copyOrShare("Mon heure de retour", pack.returnText + " " + pack.warning);
+    if ($("#copySafetyMessageBtn")) $("#copySafetyMessageBtn").onclick = async () => { try { await navigator.clipboard.writeText(pack.preparedMessage); say("Message préparé copié."); } catch { say(pack.preparedMessage); } };
+    if ($("#copyCurrentPositionBtn")) $("#copyCurrentPositionBtn").onclick = () => {
+      if (!navigator.geolocation) return say("Géolocalisation indisponible.");
+      navigator.geolocation.getCurrentPosition(async (position) => { const text = globalThis.JMMJSSafetySharingCore.formatPoint([position.coords.longitude, position.coords.latitude]); try { await navigator.clipboard.writeText(text); say("Position actuelle copiée."); } catch { say("Position actuelle : " + text); } }, () => say("Position actuelle non obtenue. Aucune donnée n’a été transmise."), { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 });
+    };
+    if (returnedBtn) returnedBtn.onclick = () => { markReturned(sessionStorage, { routeId: String(route.id || route.name || "promenade") }); returnedBtn.textContent = "Retour confirmé sur cet appareil"; returnedBtn.disabled = true; say("Retour enregistré uniquement sur cet appareil. Aucun message n’a été envoyé automatiquement."); };
   }
   function select(i) {
     S.selected = i;
