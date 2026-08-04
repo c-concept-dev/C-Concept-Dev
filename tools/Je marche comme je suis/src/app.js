@@ -1101,6 +1101,7 @@
   const geoapifyProvider = peripherals.require("geoapify");
   peripherals.register(globalThis.JMMJSDatatourismeProvider.createDatatourismeProvider({ client: serviceClient, nearestRouteDistance }));
   const datatourismeProvider = peripherals.require("datatourisme");
+  const photoReconProvider = globalThis.JMMJSPhotoReconProvider.createPhotoReconProvider({ client: serviceClient });
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -1631,138 +1632,30 @@
         key: `photos:${r.name}:${r.coords.length}`,
         allowRetry: true,
         allowCache: true,
-        operation: () =>
-          proxyFetch("mapillary", "/mapillary/images", {
-            coordinates: r.coords,
-          }),
+        operation: () => photoReconProvider.enrich({ route: r }),
       });
       if (!result.ok) {
-        showServiceDiagnostic("mapillary", result, {
-          target: E.photoContent,
-          retryAction: "photos",
-        });
+        showServiceDiagnostic("mapillary", result, { target: E.photoContent, retryAction: "photos" });
         return;
       }
-      const data = result.value,
-        extra = Math.max(0, Number(data.requestCount || 1) - 1);
-      if (extra) countRequest("mapillary", extra);
-      const unique = new Map();
-      (data.data || []).forEach((photo) => {
-        const c = photo.geometry?.coordinates;
-        if (
-          !photo.id ||
-          !photo.thumb_1024_url ||
-          !c ||
-          unique.has(String(photo.id))
-        )
-          return;
-        const d = Math.round(nearestRouteDistance(c, r.coords));
-        if (d <= 120)
-          unique.set(String(photo.id), {
-            id: String(photo.id),
-            sequence: String(photo.sequence?.id || photo.sequence || ""),
-            capturedAt: Number(photo.captured_at),
-            date: captureDate(Number(photo.captured_at)),
-            thumb: photo.thumb_1024_url,
-            lon: c[0],
-            lat: c[1],
-            distance: d,
-          });
-      });
-      const candidates = [...unique.values()].sort(
-          (a, b) =>
-            (b.capturedAt || 0) - (a.capturedAt || 0) ||
-            a.distance - b.distance,
-        ),
-        photos = [];
-      for (const p of candidates) {
-        if (
-          photos.some(
-            (x) =>
-              distanceBetween([p.lon, p.lat], [x.lon, x.lat]) < 60 ||
-              (p.sequence &&
-                p.sequence === x.sequence &&
-                Math.abs((p.capturedAt || 0) - (x.capturedAt || 0)) < 6e4),
-          )
-        )
-          continue;
-        photos.push(p);
-        if (photos.length === 12) break;
-      }
+      const photos = globalThis.JMMJSPhotoReconCore.chooseReconPhotos({
+        streetView: result.value.streetView,
+        mapillary: result.value.mapillary,
+        nearestRouteDistance,
+        routeCoords: r.coords,
+        limit: 12,
+      }).map((p) => ({ ...p, date: p.date || captureDate(p.capturedAt) }));
+      const warning = globalThis.JMMJSPhotoReconCore.warningText();
       E.photoContent.innerHTML = photos.length
-        ? '<div class="photo-list">' +
-          photos
-            .map(
-              (p) =>
-                '<article class="photo-item"><button type="button" data-photo="' +
-                esc(p.id) +
-                '"><img src="' +
-                esc(p.thumb) +
-                '" alt="Photographie Mapillary près du parcours" loading="lazy"><span class="photo-meta"><strong>' +
-                esc(p.date) +
-                "</strong><br>" +
-                p.distance +
-                " m de la trace</span></button></article>",
-            )
-            .join("") +
-          "</div>"
-        : '<p class="empty-data">Aucune photographie à moins de 120 m. Cela ne renseigne pas l’état du terrain.</p>';
-      S.photoLayers.forEach((x) => x.remove());
-      S.photoLayers = [];
-      S.photoMarkers = new Map();
-      photos.forEach((p) => {
-        const html =
-            '<div class="mapillary-popup"><strong>Photo Mapillary</strong><img src="' +
-            esc(p.thumb) +
-            '" alt="Photo Mapillary"><small>' +
-            esc(p.date) +
-            " · " +
-            p.distance +
-            ' m</small><small>Photographie indicative, potentiellement ancienne. Elle ne garantit pas l’état actuel du passage.</small><a href="https://www.mapillary.com/app/?pKey=' +
-            encodeURIComponent(p.id) +
-            '&focus=photo" target="_blank" rel="noopener">Voir dans Mapillary ↗</a></div>',
-          marker = L.circleMarker([p.lat, p.lon], {
-            radius: 6,
-            color: "#54777a",
-            fillColor: "#fff",
-            fillOpacity: 1,
-            weight: 3,
-          })
-            .addTo(S.map)
-            .bindPopup(html, { maxWidth: 260 });
-        S.photoLayers.push(marker);
-        S.photoMarkers.set(p.id, marker);
-      });
-      $$("[data-photo]").forEach(
-        (b) =>
-          (b.onclick = () => {
-            const p = photos.find((x) => x.id === b.dataset.photo),
-              m = S.photoMarkers.get(b.dataset.photo);
-            if (p) {
-              S.map.setView([p.lat, p.lon], Math.max(17, S.map.getZoom()));
-              m?.openPopup();
-            }
-          }),
-      );
-      r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, {
-        photos,
-      });
+        ? '<div class="photo-list">' + photos.map((p) => '<article class="photo-item"><strong>' + esc(p.source) + '</strong><br><span class="photo-meta">' + esc(p.date || "Date inconnue") + ' · ' + p.distance + ' m de la trace</span>' + (p.thumb ? '<img src="' + esc(p.thumb) + '" alt="Image de repérage ' + esc(p.source) + '" loading="lazy">' : '') + (p.externalUrl ? '<a href="' + esc(p.externalUrl) + '" target="_blank" rel="noopener noreferrer">Voir dans ' + esc(p.source) + ' ↗</a>' : '') + '<small>' + esc(warning) + '</small></article>').join('') + '</div>'
+        : '<p class="empty-data">Aucune image localisée à moins de 120 m. Cela ne renseigne pas l’état du terrain.</p>';
+      r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, { photos });
       renderDetail();
       serviceState("mapillary", "Connecté", "ok");
-      say(photos.length + " photographie(s) indicative(s).");
+      say(photos.length + " image(s) indicative(s) de repérage.");
     } catch (e) {
-      const result = {
-        ok: false,
-        diagnostic:
-          globalThis.JMMJSServiceResilienceCore.classifyServiceError(
-            e,
-            "Mapillary",
-          ),
-      };
-      showServiceDiagnostic("mapillary", result, {
-        target: E.photoContent,
-        retryAction: "photos",
-      });
+      const result = { ok: false, diagnostic: globalThis.JMMJSServiceResilienceCore.classifyServiceError(e, "Photos de repérage") };
+      showServiceDiagnostic("mapillary", result, { target: E.photoContent, retryAction: "photos" });
     } finally {
       button.disabled = false;
       button.textContent = "Rechercher";
