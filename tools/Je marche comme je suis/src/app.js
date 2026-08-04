@@ -64,6 +64,7 @@
       storage: globalThis.sessionStorage,
     });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
+  const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -103,6 +104,7 @@
         lastAlong: 0,
         lastPosition: null,
         startedAt: 0,
+        offRoute: null,
       },
     },
     E = {
@@ -2160,6 +2162,8 @@
     S.nav.lastAlong = 0;
     S.nav.positions = [];
     S.nav.startedAt = Date.now();
+    offRouteMonitor.reset();
+    S.nav.offRoute = null;
     document.body.classList.add("navigating");
     draw();
     setTimeout(() => {
@@ -2253,17 +2257,34 @@
       p.remaining < 35 && elapsed > 12e4
         ? "Vous êtes revenu au point d’arrivée."
         : stepText(r, p);
-    const limit = Math.max(30, c.accuracy * 1.5),
-      alerts = [];
-    if (c.accuracy > 50)
-      alerts.push("GPS imprécis : fiez-vous aussi au terrain.");
-    if (p.off > limit)
-      alerts.push(
-        "Vous êtes à environ " + Math.round(p.off) + " m de la trace.",
-      );
-    const a = $("#navAlert");
-    a.textContent = alerts.join(" ");
-    a.classList.toggle("show", !!alerts.length);
+    const offRoute = offRouteMonitor.update({
+      deviationMeters: p.off,
+      accuracyMeters: c.accuracy,
+      timestamp: g.timestamp || Date.now(),
+    });
+    S.nav.offRoute = offRoute;
+    const a = $("#navAlert"), actions = $("#navOffRouteActions");
+    if (offRoute.status === "gps_uncertain") {
+      a.textContent = "GPS imprécis : l’écart à la trace ne peut pas être confirmé.";
+      a.classList.add("show");
+      actions?.setAttribute("hidden", "");
+    } else if (offRoute.status === "confirming") {
+      a.textContent = "Écart détecté, confirmation en cours…";
+      a.classList.add("show");
+      actions?.setAttribute("hidden", "");
+    } else if (offRoute.alert) {
+      a.textContent = "Vous êtes à environ " + Math.round(p.off) + " m de la trace depuis au moins 20 secondes.";
+      a.classList.add("show");
+      actions?.removeAttribute("hidden");
+    } else if (offRoute.status === "ignored") {
+      a.textContent = "Alerte de sortie de trace ignorée temporairement.";
+      a.classList.add("show");
+      actions?.setAttribute("hidden", "");
+    } else {
+      a.textContent = "";
+      a.classList.remove("show");
+      actions?.setAttribute("hidden", "");
+    }
     if (S.nav.follow)
       S.map.setView([pos.lat, pos.lon], Math.max(17, S.map.getZoom()), {
         animate: true,
@@ -2314,6 +2335,27 @@
       { padding: [70, 70] },
     );
     $("#navFollow").textContent = "◎ Me suivre";
+  };
+  $("#navIgnore10").onclick = () => {
+    offRouteMonitor.ignore(Date.now());
+    $("#navOffRouteActions")?.setAttribute("hidden", "");
+    say("Alerte ignorée pendant 10 minutes. La trace reste visible.");
+  };
+  $("#navContinueNoRecalc").onclick = () => {
+    offRouteMonitor.continueWithoutRecalculation();
+    $("#navOffRouteActions")?.setAttribute("hidden", "");
+    say("Vous continuez sans recalcul. La boucle initiale reste la référence.");
+  };
+  $("#navBackToTrace").onclick = () => {
+    const nearest = S.nav.offRoute?.alert && S.nav.lastPosition
+      ? nearestProgress(S.nav.lastPosition, S.routes[S.selected])
+      : null;
+    if (nearest) S.map.setView([nearest.nearest.lat, nearest.nearest.lon], 18);
+    say("Le point le plus proche de la trace est affiché. Aucun itinéraire de récupération n’a été calculé.");
+  };
+  $("#navJoinStart").onclick = () => {
+    $("#navReturnGoogle")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    say("Utilisez une commande de retour au départ. Elle est distincte de la boucle initiale.");
   };
   $("#navStop").onclick = stopNavigation;
   document.addEventListener("visibilitychange", () => {
