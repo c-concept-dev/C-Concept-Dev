@@ -16,7 +16,8 @@ function moduleContext() {
   load("src/core/peripheral-registry.js", context);
   load("src/peripherals/service-client.js", context);
   load("src/peripherals/ors-provider.js", context);
-  load("src/peripherals/geoapify-provider.js", "src/peripherals/open-meteo-provider.js", context);
+  load("src/peripherals/geoapify-provider.js", context);
+  load("src/peripherals/open-meteo-provider.js", context);
   return context;
 }
 
