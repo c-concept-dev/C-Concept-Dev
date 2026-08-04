@@ -21,6 +21,7 @@ const bundles = {
     "src/core/official-closures-core.js",
     "src/core/tranquility-potential-core.js",
     "src/core/daylight-return-core.js",
+    "src/core/safety-sharing-core.js",
     "src/core/weather-core.js",
     "src/core/multi-point-weather-core.js",
     "src/core/enriched-weather-core.js",
