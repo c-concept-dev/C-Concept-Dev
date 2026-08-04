@@ -17,6 +17,7 @@ const bundles = {
     "src/core/services-core.js",
     "src/core/weather-core.js",
     "src/core/multi-point-weather-core.js",
+    "src/core/enriched-weather-core.js",
     "src/core/alert-synthesis-core.js",
     "src/core/export-core.js",
     "src/core/terrain-proof-core.js",
