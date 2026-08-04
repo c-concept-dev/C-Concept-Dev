@@ -7,6 +7,7 @@
     enrichment: Object.freeze(["enrich"]),
     importer: Object.freeze(["importRoute"]),
     weather: Object.freeze(["forecast"]),
+    "terrain-proof": Object.freeze(["inspect"]),
   });
 
   function createPeripheralRegistry() {
