@@ -11,6 +11,6 @@ assert.ok(app.includes("function weatherDetailsHtml"));
 assert.ok(app.includes("function weatherHourlyRows"));
 assert.ok(app.includes('class="weather-details-toggle"'));
 assert.ok(app.includes('aria-expanded="false"'));
-assert.ok(app.includes("detailsPanel.hidden = expanded"));
+assert.ok(app.includes("panel.hidden = expanded"));
 assert.ok(template.includes(".weather-details-panel"));
 assert.ok(!app.includes('title="' + " + esc(title)"));
