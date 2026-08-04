@@ -4495,6 +4495,70 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   return { DEFAULTS, createOffRouteMonitor };
 });
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  root.JMMJSRecoveryRouteCore = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const MODES = Object.freeze({ TRACE: "trace", START: "start" });
+
+  function finiteCoordinate(point, label) {
+    if (!Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite)) {
+      throw new TypeError(`${label} invalide.`);
+    }
+    const [lon, lat] = point;
+    if (lon < -180 || lon > 180 || lat < -90 || lat > 90) {
+      throw new RangeError(`${label} hors limites.`);
+    }
+    return [lon, lat];
+  }
+
+  function createRecoveryRequest({ current, target, mode = MODES.TRACE, profile = "foot-walking" }) {
+    if (!Object.values(MODES).includes(mode)) throw new TypeError("Mode de récupération invalide.");
+    if (typeof profile !== "string" || !profile.trim()) throw new TypeError("Profil de récupération invalide.");
+    return Object.freeze({
+      current: finiteCoordinate(current, "Position actuelle"),
+      target: finiteCoordinate(target, "Destination de récupération"),
+      mode,
+      profile: profile.trim(),
+    });
+  }
+
+  function normalizeRecoveryRoute(payload, request) {
+    const route = payload?.route || payload;
+    const coordinates = route?.geometry?.coordinates || route?.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length < 2) {
+      throw new TypeError("Liaison de récupération ORS invalide.");
+    }
+    const normalized = coordinates.map((point, index) =>
+      finiteCoordinate(point, `Point ${index + 1} de la liaison`),
+    );
+    const start = normalized[0];
+    const end = normalized.at(-1);
+    const tolerance = 0.002;
+    const near = (a, b) => Math.abs(a[0] - b[0]) <= tolerance && Math.abs(a[1] - b[1]) <= tolerance;
+    if (!near(start, request.current) || !near(end, request.target)) {
+      throw new TypeError("La liaison de récupération ne rejoint pas les points demandés.");
+    }
+    return Object.freeze({
+      kind: "recovery_link",
+      mode: request.mode,
+      coordinates: normalized,
+      distanceMeters: Number.isFinite(Number(route.distanceMeters ?? route.distance))
+        ? Number(route.distanceMeters ?? route.distance)
+        : null,
+      durationSeconds: Number.isFinite(Number(route.durationSeconds ?? route.duration))
+        ? Number(route.durationSeconds ?? route.duration)
+        : null,
+      source: "OpenRouteService",
+      replacesOriginalRoute: false,
+    });
+  }
+
+  return { MODES, createRecoveryRequest, normalizeRecoveryRoute };
+});
 (() => {
   "use strict";
 
@@ -5911,6 +5975,29 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   globalThis.JMMJSOverpassProvider = Object.freeze({ createOverpassProvider, simplifyCoordinates });
 })();
+/* JMMJS_RECOVERY_ROUTE_PROVIDER_START */
+(() => {
+  "use strict";
+
+  function createRecoveryRouteProvider({ client }) {
+    if (!client || typeof client.post !== "function") {
+      throw new TypeError("L’adaptateur de récupération exige un client de services.");
+    }
+    return {
+      id: "recovery-route",
+      kind: "routing",
+      label: "Liaison de récupération ORS",
+      capabilities: Object.freeze(["return_to_trace", "return_to_start"]),
+      async createLink(request) {
+        const data = await client.post("ors", "/ors/recovery-route", request, 1);
+        return globalThis.JMMJSRecoveryRouteCore.normalizeRecoveryRoute(data, request);
+      },
+    };
+  }
+
+  globalThis.JMMJSRecoveryRouteProvider = Object.freeze({ createRecoveryRouteProvider });
+})();
+/* JMMJS_RECOVERY_ROUTE_PROVIDER_END */
 (() => {
   "use strict";
 
@@ -6136,6 +6223,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const offRouteMonitor = globalThis.JMMJSOffRouteCore.createOffRouteMonitor();
+  const { MODES: RECOVERY_MODES, createRecoveryRequest } = globalThis.JMMJSRecoveryRouteCore;
   const {
     describeFunctionalLimitation,
     mergeStructuredLimitationIntoRequest,
@@ -6176,6 +6264,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         lastPosition: null,
         startedAt: 0,
         offRoute: null,
+        recoveryLayer: null,
+        recoveryLink: null,
       },
     },
     E = {
@@ -6386,8 +6476,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
   peripherals.register(
     globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
   );
+  peripherals.register(
+    globalThis.JMMJSRecoveryRouteProvider.createRecoveryRouteProvider({ client: serviceClient }),
+  );
   const orsProvider = peripherals.require("ors");
   const overpassProvider = peripherals.require("overpass");
+  const recoveryRouteProvider = peripherals.require("recovery-route");
   async function proxyFetch(name, path, body, count = 1) {
     return serviceClient.post(name, path, body, count);
   }
@@ -8235,6 +8329,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     S.nav.startedAt = Date.now();
     offRouteMonitor.reset();
     S.nav.offRoute = null;
+    S.nav.recoveryLayer?.remove?.();
+    S.nav.recoveryLayer = null;
+    S.nav.recoveryLink = null;
     document.body.classList.add("navigating");
     draw();
     setTimeout(() => {
@@ -8380,10 +8477,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
     S.nav.active = false;
     S.nav.wake?.release?.().catch(() => {});
     S.nav.wake = null;
-    [S.nav.marker, S.nav.accuracy, S.nav.trail, S.nav.remaining].forEach((x) =>
+    [S.nav.marker, S.nav.accuracy, S.nav.trail, S.nav.remaining, S.nav.recoveryLayer].forEach((x) =>
       x?.remove(),
     );
-    S.nav.marker = S.nav.accuracy = S.nav.trail = S.nav.remaining = null;
+    S.nav.marker = S.nav.accuracy = S.nav.trail = S.nav.remaining = S.nav.recoveryLayer = null;
+    S.nav.recoveryLink = null;
     document.body.classList.remove("navigating");
     try {
       document.exitFullscreen?.();
@@ -8417,17 +8515,60 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("#navOffRouteActions")?.setAttribute("hidden", "");
     say("Vous continuez sans recalcul. La boucle initiale reste la référence.");
   };
-  $("#navBackToTrace").onclick = () => {
-    const nearest = S.nav.offRoute?.alert && S.nav.lastPosition
-      ? nearestProgress(S.nav.lastPosition, S.routes[S.selected])
-      : null;
-    if (nearest) S.map.setView([nearest.nearest.lat, nearest.nearest.lon], 18);
-    say("Le point le plus proche de la trace est affiché. Aucun itinéraire de récupération n’a été calculé.");
-  };
-  $("#navJoinStart").onclick = () => {
-    $("#navReturnGoogle")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    say("Utilisez une commande de retour au départ. Elle est distincte de la boucle initiale.");
-  };
+  async function requestRecoveryLink(mode) {
+    const route = S.routes[S.selected];
+    const current = S.nav.lastPosition;
+    if (!route || !current) {
+      say("Votre position actuelle n’est pas disponible. La boucle initiale reste affichée.");
+      return;
+    }
+    const nearest = nearestProgress(current, route);
+    const start = route.coords?.[0];
+    const target = mode === RECOVERY_MODES.START
+      ? start
+      : nearest ? [nearest.nearest.lon, nearest.nearest.lat] : null;
+    if (!Array.isArray(target)) {
+      say("La destination de récupération ne peut pas être déterminée.");
+      return;
+    }
+    let request;
+    try {
+      request = createRecoveryRequest({
+        current: [current.lon, current.lat],
+        target: [Number(target[0]), Number(target[1])],
+        mode,
+        profile: S.compiled?.routing?.profile || "foot-walking",
+      });
+    } catch (error) {
+      say(error.message || "Demande de récupération invalide.");
+      return;
+    }
+    const label = mode === RECOVERY_MODES.START ? "retour au départ" : "retour à la trace";
+    say("Calcul d’une liaison ORS de " + label + "…");
+    const result = await resilientService({
+      name: "ors",
+      key: `recovery:${mode}:${current.lat.toFixed(5)}:${current.lon.toFixed(5)}:${target[1]}:${target[0]}`,
+      allowRetry: true,
+      operation: () => recoveryRouteProvider.createLink(request),
+    });
+    if (!result.ok) {
+      showServiceDiagnostic("ors", result);
+      say("La liaison de récupération n’a pas pu être calculée. La boucle initiale reste la référence.");
+      return;
+    }
+    const link = result.value;
+    S.nav.recoveryLayer?.remove?.();
+    S.nav.recoveryLink = link;
+    S.nav.recoveryLayer = L.polyline(
+      link.coordinates.map((point) => [point[1], point[0]]),
+      { color: "#d66a00", weight: 7, opacity: 0.9, dashArray: "10 8" },
+    ).addTo(S.map);
+    S.map.fitBounds(S.nav.recoveryLayer.getBounds(), { padding: [70, 70] });
+    const distance = link.distanceMeters == null ? "" : " · " + fmtDistance(link.distanceMeters);
+    say("Liaison ORS de " + label + " affichée" + distance + ". Elle reste distincte de la boucle initiale.");
+  }
+  $("#navBackToTrace").onclick = () => requestRecoveryLink(RECOVERY_MODES.TRACE);
+  $("#navJoinStart").onclick = () => requestRecoveryLink(RECOVERY_MODES.START);
   $("#navStop").onclick = stopNavigation;
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && S.nav.active && !S.nav.wake)
