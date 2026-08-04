@@ -697,11 +697,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 @media(max-width:760px){.weather-compact{gap:.38rem;font-size:.76rem}.weather-compact-verdict{max-width:11rem}}
 
 
-.weather-retry{flex:0 0 auto;border:0;background:transparent;padding:.1rem .25rem;font:inherit;font-weight:800;cursor:pointer;opacity:.75}
-.weather-retry:hover{opacity:1}
-.weather-retry:disabled{opacity:.35;cursor:wait}
-
-
 .departure-compact{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);gap:.45rem;align-items:center}
 .departure-compact .input{min-width:0}
 .weather-compact-departure{font-weight:700;opacity:.8}
@@ -761,7 +756,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .gpx-audit-status[data-status="rejected"]{background:#fff0ea;border-color:#d99a7b}
 
 
-.service-diagnostic-code{display:inline-flex;margin-left:.35rem;padding:.12rem .35rem;border-radius:999px;background:rgba(0,0,0,.07);font-size:.68rem}
+.service-diagnostic-code{display:inline-flex;margin-left:.35rem;padding:.12rem .35rem;border-radius:999px;background:rgba(0,0,0,.07);font-size:.68rem}.service-failure{padding:1.1rem;border:1px solid #c78262;border-radius:18px;background:#fff7f2;color:#2d2926}.service-failure[data-state="no-result"]{border-color:#ad9b66;background:#fffdf4}.service-failure-kicker{margin:0 0 .35rem;font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.service-failure h2{margin:.1rem 0 .45rem;font-size:1.2rem}.service-failure p{margin:.35rem 0;line-height:1.45}.service-failure-assurance{font-weight:700}.service-failure-actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.9rem}.service-failure-actions button{min-height:44px}.status[data-kind="blocking-service-failure"]{padding:0;background:transparent;border:0}
 .service-retry{margin-left:.45rem;border:1px solid currentColor;border-radius:7px;background:transparent;padding:.22rem .45rem;font:inherit;font-weight:750;cursor:pointer}
 [data-diagnostic="error"] small{display:block;margin-top:.3rem;opacity:.75}
 
@@ -2739,6 +2734,1526 @@ svg.leaflet-image-layer.leaflet-interactive path {
 (() => {
   "use strict";
 
+  function validCoord(point) {
+    return (
+      Array.isArray(point) &&
+      Number.isFinite(Number(point[0])) &&
+      Number.isFinite(Number(point[1]))
+    );
+  }
+
+  function haversine(a, b) {
+    if (!validCoord(a) || !validCoord(b)) return 0;
+    const rad = Math.PI / 180;
+    const lat1 = Number(a[1]) * rad;
+    const lat2 = Number(b[1]) * rad;
+    const dLat = (Number(b[1]) - Number(a[1])) * rad;
+    const dLon = (Number(b[0]) - Number(a[0])) * rad;
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  }
+
+  function routeExtentMeters(coords = []) {
+    const valid = (Array.isArray(coords) ? coords : []).filter(validCoord);
+    if (valid.length < 2) return 0;
+    const start = valid[0];
+    return Math.max(...valid.map((point) => haversine(start, point)));
+  }
+
+  function midpoint(coords = []) {
+    const valid = (Array.isArray(coords) ? coords : []).filter(validCoord);
+    return valid.length ? valid[Math.floor(valid.length / 2)] : null;
+  }
+
+  function highestPoint(coords = []) {
+    const valid = (Array.isArray(coords) ? coords : []).filter(
+      (point) => validCoord(point) && Number.isFinite(Number(point[2])),
+    );
+    if (!valid.length) return null;
+    return valid.reduce((highest, point) =>
+      Number(point[2]) > Number(highest[2]) ? point : highest,
+    );
+  }
+
+  function chooseWeatherPoints(route = {}) {
+    const coords = (Array.isArray(route.coords) ? route.coords : []).filter(validCoord);
+    if (!coords.length) return [];
+
+    const points = [{
+      id: "start",
+      label: "Départ",
+      lon: Number(coords[0][0]),
+      lat: Number(coords[0][1]),
+    }];
+
+    const distanceMeters = Number(route.distanceMeters || route.distance || 0);
+    const extent = routeExtentMeters(coords);
+    if (distanceMeters >= 6000 || extent >= 2500) {
+      const middle = midpoint(coords);
+      if (middle)
+        points.push({
+          id: "middle",
+          label: "Parcours",
+          lon: Number(middle[0]),
+          lat: Number(middle[1]),
+        });
+    }
+
+    const altitudeCoverage =
+      coords.filter((point) => Number.isFinite(Number(point[2]))).length /
+      coords.length;
+    const high = highestPoint(coords);
+    const startElevation = Number(coords[0]?.[2]);
+    if (
+      high &&
+      altitudeCoverage >= 0.8 &&
+      Number.isFinite(startElevation) &&
+      Number(high[2]) - startElevation >= 150
+    )
+      points.push({
+        id: "high",
+        label: "Point haut",
+        lon: Number(high[0]),
+        lat: Number(high[1]),
+        elevation: Number(high[2]),
+      });
+
+    const priority = { start: 1, middle: 2, high: 3 };
+    const unique = new Map();
+    for (const point of points) {
+      const key = `${point.lon.toFixed(4)}:${point.lat.toFixed(4)}`;
+      const existing = unique.get(key);
+      if (
+        !existing ||
+        (priority[point.id] || 0) > (priority[existing.id] || 0)
+      )
+        unique.set(key, point);
+    }
+    return [...unique.values()];
+  }
+
+  const LEVEL_RANK = Object.freeze({
+    unknown: 0,
+    favorable: 1,
+    caution: 2,
+    critical: 3,
+  });
+
+  function aggregateWeatherResults(results = []) {
+    if (!results.length)
+      return {
+        summary: null,
+        assessment: {
+          level: "unknown",
+          label: "Prévision indisponible",
+          warnings: [],
+          checks: [],
+        },
+        representativePoint: null,
+        points: [],
+        partial: true,
+      };
+
+    const ranked = [...results].sort(
+      (left, right) =>
+        (LEVEL_RANK[right.assessment?.level] || 0) -
+        (LEVEL_RANK[left.assessment?.level] || 0),
+    );
+    const representative = ranked[0];
+    const valid = results.filter((result) => result.summary);
+    const numberValues = (key) =>
+      valid
+        .map((result) => Number(result.summary[key]))
+        .filter(Number.isFinite);
+    const min = (key) => {
+      const values = numberValues(key);
+      return values.length ? Math.min(...values) : null;
+    };
+    const max = (key) => {
+      const values = numberValues(key);
+      return values.length ? Math.max(...values) : null;
+    };
+
+    const mergedSummary = valid.length
+      ? {
+          source: "Open-Meteo",
+          startTime: valid[0].summary.startTime || null,
+          endTime: valid[0].summary.endTime || null,
+          temperatureMinC: min("temperatureMinC"),
+          temperatureMaxC: max("temperatureMaxC"),
+          apparentMinC: min("apparentMinC"),
+          apparentMaxC: max("apparentMaxC"),
+          precipitationProbabilityMax: max("precipitationProbabilityMax"),
+          precipitationMm: max("precipitationMm"),
+          windGustMaxKmh: max("windGustMaxKmh"),
+          visibilityMinM: min("visibilityMinM"),
+          coverageHours: Math.min(
+            ...valid.map((result) => Number(result.summary.coverageHours) || 0),
+          ),
+          requestedHours: Math.max(
+            ...valid.map((result) => Number(result.summary.requestedHours) || 0),
+          ),
+          complete: valid.every((result) => result.summary.complete),
+          weatherCodes: [
+            ...new Set(
+              valid.flatMap((result) => result.summary.weatherCodes || []),
+            ),
+          ],
+        }
+      : null;
+
+    const partial = results.some(
+      (result) =>
+        !result.summary ||
+        !result.summary.complete ||
+        result.assessment?.level === "unknown",
+    );
+
+    return {
+      summary: mergedSummary,
+      assessment: {
+        ...representative.assessment,
+        label:
+          partial && representative.assessment?.level !== "critical"
+            ? `${representative.assessment?.label || "Prévision"} · partiel`
+            : representative.assessment?.label,
+        warnings: [
+          ...new Set(
+            results.flatMap((result) => result.assessment?.warnings || []),
+          ),
+        ],
+      },
+      representativePoint: representative.point,
+      points: results,
+      partial,
+    };
+  }
+
+  globalThis.JMMJSMultiPointWeatherCore = Object.freeze({
+    chooseWeatherPoints,
+    aggregateWeatherResults,
+    routeExtentMeters,
+  });
+})();
+(() => {
+  "use strict";
+
+  const STATUS_RANK = Object.freeze({
+    respected: 1,
+    unknown: 2,
+    uncertain: 2,
+    violated: 3,
+  });
+
+  function normalizeText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\d+(?:[.,]\d+)?/g, "#")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function warningCategory(message) {
+    const text = normalizeText(message);
+    if (text.includes("temperature ressentie") && text.includes("jusqu"))
+      return "weather-apparent-max";
+    if (text.includes("temperature ressentie minimale"))
+      return "weather-apparent-min";
+    if (text.includes("rafales"))
+      return "weather-gust";
+    if (text.includes("probabilite de precipitation"))
+      return "weather-rain-probability";
+    if (text.includes("visibilite"))
+      return "weather-visibility";
+    if (text.includes("orage"))
+      return "weather-thunder";
+    if (text.includes("phenomene meteo"))
+      return "weather-phenomenon";
+    if (text.includes("service") && text.includes("inverifiable"))
+      return "service-unverifiable";
+    if (text.includes("pause") && text.includes("inverifiable"))
+      return "pause-unverifiable";
+    if (text.includes("altitude"))
+      return "altitude";
+    if (text.includes("terrain"))
+      return "terrain";
+    return `generic:${text}`;
+  }
+
+  function numericValues(message) {
+    return [...String(message || "").matchAll(/-?\d+(?:[.,]\d+)?/g)]
+      .map((match) => Number(match[0].replace(",", ".")))
+      .filter(Number.isFinite);
+  }
+
+  function warningPriority(category, message) {
+    const values = numericValues(message);
+    if (!values.length) return 0;
+    if (
+      category === "weather-apparent-min" ||
+      category === "weather-visibility"
+    )
+      return -Math.min(...values);
+    return Math.max(...values);
+  }
+
+  function dedupeWarnings(warnings = []) {
+    const selected = new Map();
+    for (const raw of Array.isArray(warnings) ? warnings : []) {
+      const message = String(raw || "").trim();
+      if (!message) continue;
+      const category = warningCategory(message);
+      const candidate = {
+        message,
+        priority: warningPriority(category, message),
+      };
+      const current = selected.get(category);
+      if (
+        !current ||
+        candidate.priority > current.priority ||
+        (candidate.priority === current.priority &&
+          candidate.message.length > current.message.length)
+      )
+        selected.set(category, candidate);
+    }
+    return [...selected.values()].map((entry) => entry.message);
+  }
+
+  function checkKey(check) {
+    return normalizeText(check?.constraint || check?.label || "contrôle");
+  }
+
+  function dedupeChecks(checks = []) {
+    const selected = new Map();
+    for (const raw of Array.isArray(checks) ? checks : []) {
+      if (!raw) continue;
+      const check = { ...raw };
+      const key = checkKey(check);
+      const current = selected.get(key);
+      const rank = STATUS_RANK[check.status] || 0;
+      const currentRank = STATUS_RANK[current?.status] || 0;
+      if (
+        !current ||
+        rank > currentRank ||
+        (rank === currentRank &&
+          String(check.evidence || "").length >
+            String(current.evidence || "").length)
+      )
+        selected.set(key, check);
+    }
+    return [...selected.values()];
+  }
+
+  function summarizeChecks(checks = []) {
+    const summary = {
+      respected: 0,
+      unknown: 0,
+      violated: 0,
+      total: 0,
+    };
+    for (const check of checks) {
+      if (check.status === "respected") summary.respected += 1;
+      else if (check.status === "violated") summary.violated += 1;
+      else summary.unknown += 1;
+    }
+    summary.total =
+      summary.respected + summary.unknown + summary.violated;
+    return summary;
+  }
+
+  function synthesizeRoutePresentation(route = {}) {
+    const next = { ...route };
+    next.warnings = dedupeWarnings(route.warnings);
+    next.unknowns = dedupeWarnings(route.unknowns);
+    next.checks = dedupeChecks(route.checks);
+    next.controlSummary = summarizeChecks(next.checks);
+    return next;
+  }
+
+  globalThis.JMMJSAlertSynthesisCore = Object.freeze({
+    dedupeWarnings,
+    dedupeChecks,
+    summarizeChecks,
+    synthesizeRoutePresentation,
+  });
+})();
+(() => {
+  "use strict";
+
+  const LOOP_TOLERANCE_METERS = 30;
+
+  function validCoord(coord) {
+    return (
+      Array.isArray(coord) &&
+      Number.isFinite(Number(coord[0])) &&
+      Number.isFinite(Number(coord[1])) &&
+      Number(coord[0]) >= -180 &&
+      Number(coord[0]) <= 180 &&
+      Number(coord[1]) >= -90 &&
+      Number(coord[1]) <= 90
+    );
+  }
+
+  function sanitizeCoords(coords = []) {
+    return (Array.isArray(coords) ? coords : [])
+      .filter(validCoord)
+      .map((coord) => [
+        Number(coord[0]),
+        Number(coord[1]),
+        Number.isFinite(Number(coord[2])) ? Number(coord[2]) : null,
+      ]);
+  }
+
+  function haversine(a, b) {
+    if (!validCoord(a) || !validCoord(b)) return Infinity;
+    const rad = Math.PI / 180;
+    const lat1 = Number(a[1]) * rad;
+    const lat2 = Number(b[1]) * rad;
+    const dLat = (Number(b[1]) - Number(a[1])) * rad;
+    const dLon = (Number(b[0]) - Number(a[0])) * rad;
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  }
+
+  function xmlEscape(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&apos;");
+  }
+
+  function auditRouteExport(route = {}) {
+    const original = Array.isArray(route.coords) ? route.coords : [];
+    const coords = sanitizeCoords(original);
+    const reasons = [];
+
+    if (coords.length < 2) reasons.push("Géométrie insuffisante.");
+    if (coords.length !== original.length)
+      reasons.push("La géométrie contient des coordonnées invalides.");
+
+    const closureMeters =
+      coords.length >= 2 ? haversine(coords[0], coords.at(-1)) : Infinity;
+    if (!Number.isFinite(closureMeters) || closureMeters > LOOP_TOLERANCE_METERS)
+      reasons.push("La trace ne revient pas suffisamment près du départ.");
+
+    if (
+      route.proposalStatus &&
+      !["compatible", "respected"].includes(route.proposalStatus)
+    )
+      reasons.push("Le parcours n’est pas déclaré compatible.");
+    if (route.canNavigate === false)
+      reasons.push("La navigation est désactivée pour ce parcours.");
+
+    return {
+      exactEligible: reasons.length === 0,
+      geometryValid: coords.length >= 2 && coords.length === original.length,
+      closedLoop:
+        Number.isFinite(closureMeters) &&
+        closureMeters <= LOOP_TOLERANCE_METERS,
+      closureMeters: Number.isFinite(closureMeters)
+        ? Math.round(closureMeters)
+        : null,
+      coordinateCount: coords.length,
+      reasons,
+      label: reasons.length
+        ? "Export exact indisponible"
+        : "Géométrie exacte certifiée",
+    };
+  }
+
+  function pointXml(coord) {
+    const elevation = Number.isFinite(Number(coord[2]))
+      ? `<ele>${Number(coord[2])}</ele>`
+      : "";
+    return `<trkpt lat="${Number(coord[1])}" lon="${Number(coord[0])}">${elevation}</trkpt>`;
+  }
+
+  function routePointXml(coord) {
+    const elevation = Number.isFinite(Number(coord[2]))
+      ? `<ele>${Number(coord[2])}</ele>`
+      : "";
+    return `<rtept lat="${Number(coord[1])}" lon="${Number(coord[0])}">${elevation}</rtept>`;
+  }
+
+  function pauseWaypointXml(pause, index) {
+    const lat = Number(pause?.lat);
+    const lon = Number(pause?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
+    const name =
+      pause?.label || `Pause ${index + 1}`;
+    const description = [
+      pause?.minute ? `Pause prévue à ${pause.minute} min` : null,
+      Number.isFinite(Number(pause?.distanceMeters))
+        ? `${Math.round(Number(pause.distanceMeters))} m du départ`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      `<wpt lat="${lat}" lon="${lon}">` +
+      `<name>${xmlEscape(name)}</name>` +
+      (description ? `<desc>${xmlEscape(description)}</desc>` : "") +
+      `<type>Pause</type></wpt>`
+    );
+  }
+
+  function alternativeRouteXml(item, index, typeLabel) {
+    const coords = sanitizeCoords(item?.geometry);
+    if (coords.length < 2) return "";
+    const name = item?.label || `${typeLabel} ${index + 1}`;
+    return (
+      `<rte><name>${xmlEscape(name)}</name>` +
+      `<desc>${xmlEscape(item?.evidence || typeLabel)}</desc>` +
+      coords.map(routePointXml).join("") +
+      `</rte>`
+    );
+  }
+
+  function buildExactGpx(route = {}, options = {}) {
+    const audit = auditRouteExport(route);
+    if (!audit.exactEligible) {
+      const error = new Error(audit.reasons.join(" "));
+      error.code = "EXPORT_NOT_EXACT";
+      error.audit = audit;
+      throw error;
+    }
+
+    const coords = sanitizeCoords(route.coords);
+    const pauses = Array.isArray(route.pauseMarkers)
+      ? route.pauseMarkers
+      : [];
+    const shortcuts = Array.isArray(route.shortcuts) ? route.shortcuts : [];
+    const fallbacks = Array.isArray(route.fallbacks) ? route.fallbacks : [];
+
+    const warnings = Array.isArray(route.warnings) ? route.warnings : [];
+    const description = [
+      route.why,
+      ...warnings,
+      `Coordonnées exactes : ${coords.length}`,
+      `Fermeture de boucle : ${audit.closureMeters} m`,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<gpx version="1.1" creator="Je marche comme je suis" ` +
+      `xmlns="http://www.topografix.com/GPX/1/1" ` +
+      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+      `xsi:schemaLocation="http://www.topografix.com/GPX/1/1 ` +
+      `http://www.topografix.com/GPX/1/1/gpx.xsd">` +
+      `<metadata><name>${xmlEscape(route.name || "Balade")}</name>` +
+      `<desc>${xmlEscape(description)}</desc>` +
+      `<extensions><exportCertification>` +
+      `${xmlEscape(audit.label)}</exportCertification>` +
+      `<coordinateCount>${audit.coordinateCount}</coordinateCount>` +
+      `<closureMeters>${audit.closureMeters}</closureMeters>` +
+      `</extensions></metadata>` +
+      pauses.map(pauseWaypointXml).join("") +
+      `<trk><name>${xmlEscape(route.name || "Balade")}</name>` +
+      `<type>walking</type><trkseg>${coords.map(pointXml).join("")}</trkseg></trk>` +
+      shortcuts
+        .map((item, index) =>
+          alternativeRouteXml(item, index, "Raccourci réel"),
+        )
+        .join("") +
+      fallbacks
+        .map((item, index) =>
+          alternativeRouteXml(item, index, "Repli sur ses pas"),
+        )
+        .join("") +
+      `</gpx>`
+    );
+  }
+
+  function simplifiedWaypoints(route = {}, maximum = 8) {
+    const coords = sanitizeCoords(route.coords);
+    if (coords.length <= maximum) return coords;
+    const result = [coords[0]];
+    const interiorCount = maximum - 2;
+    for (let index = 1; index <= interiorCount; index += 1) {
+      const position = Math.round(
+        (index * (coords.length - 1)) / (interiorCount + 1),
+      );
+      result.push(coords[position]);
+    }
+    result.push(coords.at(-1));
+    return result;
+  }
+
+  function buildMapLinks(route = {}) {
+    const points = simplifiedWaypoints(route, 8);
+    if (points.length < 2) return { google: null, apple: null, simplified: true };
+    const format = (coord) => `${coord[1]},${coord[0]}`;
+    const origin = format(points[0]);
+    const destination = format(points.at(-1));
+    const intermediate = points.slice(1, -1).map(format);
+
+    return {
+      google:
+        "https://www.google.com/maps/dir/?api=1&origin=" +
+        encodeURIComponent(origin) +
+        "&destination=" +
+        encodeURIComponent(destination) +
+        "&travelmode=walking" +
+        (intermediate.length
+          ? "&waypoints=" + encodeURIComponent(intermediate.join("|"))
+          : ""),
+      apple:
+        "https://maps.apple.com/?saddr=" +
+        encodeURIComponent(origin) +
+        "&daddr=" +
+        encodeURIComponent(
+          [...intermediate, destination].join("+to:"),
+        ) +
+        "&dirflg=w",
+      simplified: true,
+      waypointCount: points.length,
+    };
+  }
+
+  function buildJsonExport(route = {}) {
+    return {
+      schema: "jmmjs-route-export-v1",
+      generatedAt: new Date().toISOString(),
+      exportCertification: auditRouteExport(route),
+      route,
+    };
+  }
+
+  globalThis.JMMJSExportCore = Object.freeze({
+    LOOP_TOLERANCE_METERS,
+    sanitizeCoords,
+    auditRouteExport,
+    buildExactGpx,
+    buildMapLinks,
+    buildJsonExport,
+    simplifiedWaypoints,
+  });
+})();
+(() => {
+  "use strict";
+
+  const LEVEL_RANK = Object.freeze({
+    confirmed: 5,
+    probable: 4,
+    partial: 3,
+    undocumented: 2,
+    contradictory: 1,
+  });
+
+  const LEVEL_LABEL = Object.freeze({
+    confirmed: "Confirmé",
+    probable: "Probable",
+    partial: "Partiel",
+    undocumented: "Non documenté",
+    contradictory: "Contradictoire",
+  });
+
+  function daysBetween(timestamp, now = Date.now()) {
+    const value = Number(timestamp);
+    if (!Number.isFinite(value)) return null;
+    return Math.max(0, Math.floor((now - value) / 86400000));
+  }
+
+  function finiteProvided(value) {
+    return value !== null && value !== undefined && value !== "" &&
+      Number.isFinite(Number(value));
+  }
+
+  function sourceRecord({
+    name,
+    kind,
+    capturedAt = null,
+    distanceMeters = null,
+    note = "",
+  }) {
+    return {
+      name: String(name || "Source inconnue"),
+      kind: String(kind || "unknown"),
+      capturedAt: Number.isFinite(Number(capturedAt))
+        ? Number(capturedAt)
+        : null,
+      ageDays: daysBetween(capturedAt),
+      distanceMeters: Number.isFinite(Number(distanceMeters))
+        ? Math.round(Number(distanceMeters))
+        : null,
+      note: String(note || ""),
+    };
+  }
+
+  function evidenceItem({
+    id,
+    label,
+    level,
+    statement,
+    source,
+    reason,
+  }) {
+    return {
+      id,
+      label,
+      level,
+      levelLabel: LEVEL_LABEL[level] || level,
+      statement,
+      source,
+      reason,
+    };
+  }
+
+  function weakestLevel(items = []) {
+    const levels = items.map((item) => item.level).filter(Boolean);
+    if (!levels.length) return "undocumented";
+    if (levels.includes("contradictory")) return "contradictory";
+    return levels.reduce((weakest, level) =>
+      (LEVEL_RANK[level] || 0) < (LEVEL_RANK[weakest] || 0)
+        ? level
+        : weakest,
+    );
+  }
+
+  function summarizeTerrainProof(
+    terrainEvidence = {},
+    {
+      photos = [],
+      contradictions = [],
+      now = Date.now(),
+    } = {},
+  ) {
+    const cartographicSource = sourceRecord({
+      name: terrainEvidence.source || "Cartographie",
+      kind: "cartography",
+      note:
+        "La date de mise à jour n’est pas fournie par la réponse de calcul.",
+    });
+
+    const coverage = Number(terrainEvidence.surfaceCoveragePercent);
+    const surfaceLevel =
+      Number.isFinite(coverage) && coverage >= 90
+        ? "probable"
+        : Number.isFinite(coverage) && coverage > 0
+          ? "partial"
+          : "undocumented";
+
+    const items = [
+      evidenceItem({
+        id: "surface",
+        label: "Surface",
+        level: surfaceLevel,
+        statement:
+          surfaceLevel === "undocumented"
+            ? "Surface non documentée."
+            : `${Math.round(coverage)} % de la trace possède une surface cartographiée.`,
+        source: cartographicSource.name,
+        reason:
+          surfaceLevel === "probable"
+            ? "La cartographie couvre presque toute la trace, sans observation directe."
+            : surfaceLevel === "partial"
+              ? "Une partie seulement de la trace est documentée."
+              : "Aucune donnée exploitable n’a été fournie.",
+      }),
+      evidenceItem({
+        id: "regularity",
+        label: "Régularité",
+        level:
+          terrainEvidence.regularitySafe === true ||
+          terrainEvidence.regularitySafe === false
+            ? "probable"
+            : "undocumented",
+        statement:
+          terrainEvidence.regularitySafe === true
+            ? "Terrain probablement régulier sur la portion documentée."
+            : terrainEvidence.regularitySafe === false
+              ? "Irrégularités cartographiques probables."
+              : "Régularité non documentée.",
+        source: cartographicSource.name,
+        reason:
+          terrainEvidence.regularitySafe == null
+            ? "La source ne permet pas de conclure."
+            : "Conclusion issue des types de surfaces cartographiés.",
+      }),
+      evidenceItem({
+        id: "width",
+        label: "Largeur",
+        level: finiteProvided(terrainEvidence.minimumWidthMeters)
+          ? "probable"
+          : "undocumented",
+        statement: finiteProvided(terrainEvidence.minimumWidthMeters)
+          ? `Largeur minimale déclarée : ${Number(
+              terrainEvidence.minimumWidthMeters,
+            ).toLocaleString("fr-FR")} m.`
+          : "Largeur non documentée.",
+        source: cartographicSource.name,
+        reason:
+          terrainEvidence.widthEvidence ||
+          "La largeur n’est pas fournie par la source.",
+      }),
+      evidenceItem({
+        id: "exposure",
+        label: "Exposition",
+        level:
+          terrainEvidence.exposureSafe === true ||
+          terrainEvidence.exposureSafe === false
+            ? "probable"
+            : "undocumented",
+        statement:
+          terrainEvidence.exposureSafe === true
+            ? "Absence d’exposition probablement documentée."
+            : terrainEvidence.exposureSafe === false
+              ? "Passage exposé probablement documenté."
+              : "Exposition non documentée.",
+        source: cartographicSource.name,
+        reason:
+          terrainEvidence.exposureEvidence ||
+          "L’exposition n’est pas fournie par la source.",
+      }),
+    ];
+
+    const normalizedPhotos = (Array.isArray(photos) ? photos : [])
+      .filter((photo) => Number.isFinite(Number(photo.capturedAt)))
+      .map((photo) =>
+        sourceRecord({
+          name: "Mapillary",
+          kind: "photograph",
+          capturedAt: photo.capturedAt,
+          distanceMeters: photo.distance,
+          note:
+            "Photographie indicative : elle ne garantit pas l’état actuel ni l’ensemble du parcours.",
+        }),
+      )
+      .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0));
+
+    items.push(
+      evidenceItem({
+        id: "photos",
+        label: "Photographies",
+        level: normalizedPhotos.length ? "partial" : "undocumented",
+        statement: normalizedPhotos.length
+          ? `${normalizedPhotos.length} photographie(s) à moins de 120 m de la trace.`
+          : "Aucune photographie exploitable trouvée à moins de 120 m.",
+        source: normalizedPhotos.length ? "Mapillary" : "Aucune",
+        reason: normalizedPhotos.length
+          ? "Contexte visuel ponctuel uniquement ; aucune validation globale du terrain."
+          : "Une absence de photographie ne prouve pas l’absence d’un risque.",
+      }),
+    );
+
+    const contradictionList = (Array.isArray(contradictions)
+      ? contradictions
+      : []
+    ).filter(Boolean);
+    if (contradictionList.length) {
+      items.push(
+        evidenceItem({
+          id: "contradictions",
+          label: "Contradictions",
+          level: "contradictory",
+          statement: contradictionList.join(" · "),
+          source: "Sources multiples",
+          reason:
+            "Des informations incompatibles empêchent une conclusion fiable.",
+        }),
+      );
+    }
+
+    const overallLevel = weakestLevel(items);
+    const latestPhoto = normalizedPhotos[0] || null;
+    const nearestPhotoDistance = normalizedPhotos.length
+      ? Math.min(
+          ...normalizedPhotos
+            .map((photo) => photo.distanceMeters)
+            .filter(Number.isFinite),
+        )
+      : null;
+
+    return {
+      overallLevel,
+      overallLabel: LEVEL_LABEL[overallLevel],
+      items,
+      sources: [cartographicSource, ...normalizedPhotos],
+      photoSummary: {
+        count: normalizedPhotos.length,
+        latestAgeDays: latestPhoto
+          ? Math.max(
+              0,
+              Math.floor((now - latestPhoto.capturedAt) / 86400000),
+            )
+          : null,
+        nearestDistanceMeters: Number.isFinite(nearestPhotoDistance)
+          ? nearestPhotoDistance
+          : null,
+      },
+      rule:
+        "Une donnée non trouvée ne signifie jamais que l’élément est absent.",
+    };
+  }
+
+  globalThis.JMMJSTerrainProofCore = Object.freeze({
+    LEVEL_LABEL,
+    summarizeTerrainProof,
+  });
+})();
+(() => {
+  "use strict";
+
+  const MAX_FILE_BYTES = 15 * 1024 * 1024;
+  const MAX_TRACK_POINTS = 250000;
+  const MAX_TRACKS = 100;
+
+  function countMatches(text, pattern) {
+    return (String(text || "").match(pattern) || []).length;
+  }
+
+  function auditGPXInput({
+    fileName = "",
+    fileSize = 0,
+    mimeType = "",
+    text = "",
+  } = {}) {
+    const errors = [];
+    const warnings = [];
+    const normalizedName = String(fileName || "").trim();
+    const normalizedMime = String(mimeType || "").toLowerCase();
+    const content = String(text || "");
+
+    if (!normalizedName.toLowerCase().endsWith(".gpx"))
+      errors.push("Le fichier doit porter l’extension .gpx.");
+
+    if (!Number.isFinite(Number(fileSize)) || Number(fileSize) <= 0)
+      errors.push("Le fichier GPX est vide.");
+    else if (Number(fileSize) > MAX_FILE_BYTES)
+      errors.push(
+        `Le fichier dépasse la limite de ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} Mo.`,
+      );
+
+    if (
+      normalizedMime &&
+      ![
+        "application/gpx+xml",
+        "application/xml",
+        "text/xml",
+        "text/plain",
+        "application/octet-stream",
+      ].includes(normalizedMime)
+    )
+      warnings.push(
+        `Type de fichier inhabituel : ${normalizedMime}. Le contenu XML sera contrôlé.`,
+      );
+
+    if (!content.trim())
+      errors.push("Le fichier GPX ne contient aucune donnée.");
+    if (/<!DOCTYPE/i.test(content) || /<!ENTITY/i.test(content))
+      errors.push(
+        "Les déclarations DOCTYPE et ENTITY ne sont pas acceptées dans un GPX.",
+      );
+    if (!/<gpx\b/i.test(content))
+      errors.push("Le document ne contient pas de balise GPX.");
+    if (/<parsererror\b/i.test(content))
+      errors.push("Le contenu XML signale une erreur d’analyse.");
+
+    const trackPointCount = countMatches(content, /<trkpt\b/gi);
+    const routePointCount = countMatches(content, /<rtept\b/gi);
+    const waypointCount = countMatches(content, /<wpt\b/gi);
+    const trackCount = countMatches(content, /<trk\b/gi);
+    const totalGeometryPoints = trackPointCount + routePointCount;
+
+    if (totalGeometryPoints === 0)
+      errors.push("Aucun point de trace ou de route n’a été trouvé.");
+    if (totalGeometryPoints > MAX_TRACK_POINTS)
+      errors.push(
+        `Le fichier contient trop de points (${totalGeometryPoints.toLocaleString(
+          "fr-FR",
+        )}).`,
+      );
+    if (trackCount > MAX_TRACKS)
+      errors.push(`Le fichier contient trop de traces (${trackCount}).`);
+
+    return {
+      accepted: errors.length === 0,
+      errors,
+      warnings,
+      stats: {
+        fileName: normalizedName,
+        fileSize: Number(fileSize) || 0,
+        trackCount,
+        trackPointCount,
+        routePointCount,
+        waypointCount,
+        totalGeometryPoints,
+      },
+    };
+  }
+
+  function auditParsedGPX(parsed = []) {
+    const errors = [];
+    const warnings = [];
+    const candidates = Array.isArray(parsed) ? parsed : [];
+
+    if (!candidates.length)
+      errors.push("Aucune trace exploitable n’a été produite.");
+
+    let validCandidates = 0;
+    let totalPoints = 0;
+
+    for (const [index, candidate] of candidates.entries()) {
+      const points = Array.isArray(candidate?.points)
+        ? candidate.points
+        : [];
+      const validPoints = points.filter(
+        (point) =>
+          Array.isArray(point) &&
+          Number.isFinite(Number(point[0])) &&
+          Number.isFinite(Number(point[1])) &&
+          Number(point[0]) >= -180 &&
+          Number(point[0]) <= 180 &&
+          Number(point[1]) >= -90 &&
+          Number(point[1]) <= 90,
+      );
+
+      totalPoints += validPoints.length;
+      if (validPoints.length >= 2) validCandidates += 1;
+      else
+        warnings.push(
+          `La trace ${index + 1} contient moins de deux coordonnées valides.`,
+        );
+
+      if (validPoints.length !== points.length)
+        warnings.push(
+          `La trace ${index + 1} contient ${
+            points.length - validPoints.length
+          } coordonnée(s) invalide(s).`,
+        );
+    }
+
+    if (!validCandidates)
+      errors.push("Aucune trace ne contient assez de coordonnées valides.");
+
+    return {
+      accepted: errors.length === 0,
+      errors,
+      warnings,
+      stats: {
+        candidateCount: candidates.length,
+        validCandidateCount: validCandidates,
+        totalValidPoints: totalPoints,
+      },
+    };
+  }
+
+  function formatGPXAudit(audit = {}) {
+    if (!audit.accepted)
+      return `GPX refusé · ${(audit.errors || []).join(" ")}`;
+    const stats = audit.stats || {};
+    return [
+      "GPX contrôlé",
+      Number.isFinite(stats.totalGeometryPoints)
+        ? `${stats.totalGeometryPoints.toLocaleString("fr-FR")} points`
+        : null,
+      Number.isFinite(stats.trackCount)
+        ? `${stats.trackCount} trace(s)`
+        : null,
+      audit.warnings?.length
+        ? `${audit.warnings.length} avertissement(s)`
+        : "aucune anomalie bloquante",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  globalThis.JMMJSGPXSafetyCore = Object.freeze({
+    MAX_FILE_BYTES,
+    MAX_TRACK_POINTS,
+    auditGPXInput,
+    auditParsedGPX,
+    formatGPXAudit,
+  });
+})();
+(() => {
+  "use strict";
+
+  const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+  const DEFAULT_TIMEOUT_MS = 12000;
+  const DEFAULT_RETRY_DELAYS = Object.freeze([700, 1500]);
+
+  function wait(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  function numericStatus(error) {
+    const candidates = [
+      error?.status,
+      error?.response?.status,
+      error?.cause?.status,
+    ];
+    for (const candidate of candidates) {
+      const value = Number(candidate);
+      if (Number.isFinite(value)) return value;
+    }
+    const match = String(error?.message || "").match(/\b(401|403|429|500|502|503|504)\b/);
+    return match ? Number(match[1]) : null;
+  }
+
+  function classifyServiceError(error, service = "service") {
+    const status = numericStatus(error);
+    const message = String(error?.message || "Erreur inconnue");
+    const lower = message.toLowerCase();
+
+    if (
+      error?.name === "AbortError" ||
+      lower.includes("timeout") ||
+      lower.includes("délai") ||
+      lower.includes("delai")
+    )
+      return {
+        code: "timeout",
+        status,
+        retryable: true,
+        userMessage: `${service} met trop de temps à répondre.`,
+        technicalMessage: message,
+      };
+
+    if (status === 401 || status === 403)
+      return {
+        code: "authentication",
+        status,
+        retryable: false,
+        userMessage: `${service} refuse l’accès. La configuration sécurisée doit être vérifiée.`,
+        technicalMessage: message,
+      };
+
+    if (status === 429)
+      return {
+        code: "quota",
+        status,
+        retryable: true,
+        userMessage: `${service} a atteint sa limite temporaire de requêtes.`,
+        technicalMessage: message,
+      };
+
+    if (status && RETRYABLE_STATUS.has(status))
+      return {
+        code: "temporary",
+        status,
+        retryable: true,
+        userMessage: `${service} est temporairement indisponible.`,
+        technicalMessage: message,
+      };
+
+    if (
+      error instanceof TypeError ||
+      lower.includes("failed to fetch") ||
+      lower.includes("network") ||
+      lower.includes("réseau") ||
+      lower.includes("reseau")
+    )
+      return {
+        code: "network",
+        status,
+        retryable: true,
+        userMessage: `Connexion impossible avec ${service}.`,
+        technicalMessage: message,
+      };
+
+    if (
+      lower.includes("aucune boucle") ||
+      lower.includes("aucun itinéraire") ||
+      lower.includes("aucun itineraire") ||
+      lower.includes("no route") ||
+      lower.includes("no path")
+    )
+      return {
+        code: "no-result",
+        status,
+        retryable: false,
+        userMessage: `${service} n’a trouvé aucun itinéraire pédestre exploitable depuis ce point.`,
+        technicalMessage: message,
+      };
+
+    if (
+      lower.includes("json") ||
+      lower.includes("réponse invalide") ||
+      lower.includes("reponse invalide")
+    )
+      return {
+        code: "invalid-response",
+        status,
+        retryable: false,
+        userMessage: `${service} a renvoyé une réponse inexploitable.`,
+        technicalMessage: message,
+      };
+
+    return {
+      code: "unknown",
+      status,
+      retryable: false,
+      userMessage: `${service} n’a pas pu terminer l’opération.`,
+      technicalMessage: message,
+    };
+  }
+
+  function createServiceResilience({
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    retryDelays = DEFAULT_RETRY_DELAYS,
+    cacheTtlMs = 2 * 60 * 1000,
+    now = Date.now,
+  } = {}) {
+    const pending = new Map();
+    const cache = new Map();
+
+    async function withTimeout(operation, milliseconds) {
+      let timer = null;
+      try {
+        return await Promise.race([
+          Promise.resolve().then(operation),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              const error = new Error(`Timeout après ${milliseconds} ms`);
+              error.name = "AbortError";
+              reject(error);
+            }, milliseconds);
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    }
+
+    async function execute({
+      service,
+      key,
+      operation,
+      allowRetry = true,
+      allowCache = false,
+      customTimeoutMs = timeoutMs,
+    }) {
+      if (typeof operation !== "function")
+        throw new TypeError("Une opération de service est requise.");
+
+      const operationKey = `${service}:${key || "default"}`;
+      const cached = cache.get(operationKey);
+      if (
+        allowCache &&
+        cached &&
+        now() - cached.savedAt < cacheTtlMs
+      )
+        return {
+          ok: true,
+          value: cached.value,
+          attempts: 0,
+          cache: "hit",
+          diagnostic: null,
+        };
+
+      if (pending.has(operationKey)) return pending.get(operationKey);
+
+      const task = (async () => {
+        const maximumAttempts =
+          allowRetry ? retryDelays.length + 1 : 1;
+        let lastDiagnostic = null;
+
+        for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+          try {
+            const value = await withTimeout(operation, customTimeoutMs);
+            if (allowCache)
+              cache.set(operationKey, {
+                savedAt: now(),
+                value,
+              });
+            return {
+              ok: true,
+              value,
+              attempts: attempt + 1,
+              cache: "miss",
+              diagnostic: null,
+            };
+          } catch (error) {
+            lastDiagnostic = classifyServiceError(error, service);
+            if (
+              !allowRetry ||
+              !lastDiagnostic.retryable ||
+              attempt >= maximumAttempts - 1
+            )
+              return {
+                ok: false,
+                value: null,
+                attempts: attempt + 1,
+                cache: "miss",
+                diagnostic: lastDiagnostic,
+                error,
+              };
+            await wait(retryDelays[attempt]);
+          }
+        }
+
+        return {
+          ok: false,
+          value: null,
+          attempts: maximumAttempts,
+          cache: "miss",
+          diagnostic: lastDiagnostic,
+        };
+      })().finally(() => pending.delete(operationKey));
+
+      pending.set(operationKey, task);
+      return task;
+    }
+
+    function clearCache(service = null) {
+      if (!service) return cache.clear();
+      for (const key of cache.keys())
+        if (key.startsWith(`${service}:`)) cache.delete(key);
+    }
+
+    return Object.freeze({
+      execute,
+      clearCache,
+      classifyServiceError,
+    });
+  }
+
+  globalThis.JMMJSServiceResilienceCore = Object.freeze({
+    RETRYABLE_STATUS,
+    DEFAULT_TIMEOUT_MS,
+    DEFAULT_RETRY_DELAYS,
+    classifyServiceError,
+    createServiceResilience,
+  });
+})();
+(() => {
+  "use strict";
+
+  const SERVICE_ROLES = Object.freeze({
+    ors: Object.freeze({ level: "A", label: "Calcul des itinéraires", blocksGeometry: true }),
+    geo: Object.freeze({ level: "C", label: "Points d’intérêt et services", blocksGeometry: false }),
+    mapillary: Object.freeze({ level: "C", label: "Photographies du terrain", blocksGeometry: false }),
+    weather: Object.freeze({ level: "D", label: "Météo", blocksGeometry: false }),
+    ign: Object.freeze({ level: "C", label: "Comparaison cartographique", blocksGeometry: false }),
+  });
+
+  const DIAGNOSTIC_COPY = Object.freeze({
+    timeout: Object.freeze({
+      title: "La recherche a pris trop de temps",
+      body: "Le service n’a pas répondu dans le délai prévu. Aucun résultat incomplet n’a été présenté comme une promenade validée.",
+      state: "timeout",
+    }),
+    quota: Object.freeze({
+      title: "Le service de calcul est temporairement limité",
+      body: "La recherche n’a pas pu être terminée en raison d’une limitation temporaire du service. Vos informations sont conservées.",
+      state: "limited",
+    }),
+    "no-result": Object.freeze({
+      title: "Aucun itinéraire pédestre n’a été trouvé depuis ce point",
+      body: "Le moteur cartographique n’a pas trouvé de réseau pédestre exploitable pour construire une boucle depuis le départ choisi.",
+      state: "no-result",
+    }),
+    "invalid-response": Object.freeze({
+      title: "La réponse cartographique est inexploitable",
+      body: "Le service a répondu, mais les données reçues ne permettent pas de présenter une boucle valide.",
+      state: "invalid",
+    }),
+    authentication: Object.freeze({
+      title: "La connexion sécurisée au service a échoué",
+      body: "La connexion sécurisée au service n’a pas pu être établie. Aucune clé ni information technique sensible n’est affichée.",
+      state: "authorization",
+    }),
+    network: Object.freeze({
+      title: "La recherche d’itinéraires n’a pas abouti",
+      body: "Le service nécessaire au calcul des promenades n’a pas pu être joint. Aucune boucle n’a été créée et vos critères ont été conservés.",
+      state: "unavailable",
+    }),
+    temporary: Object.freeze({
+      title: "La recherche d’itinéraires n’a pas abouti",
+      body: "Le service nécessaire au calcul des promenades est temporairement indisponible. Aucune boucle n’a été créée et vos critères ont été conservés.",
+      state: "unavailable",
+    }),
+    unknown: Object.freeze({
+      title: "La recherche d’itinéraires n’a pas abouti",
+      body: "Le service nécessaire au calcul des promenades n’a pas terminé l’opération. Aucune boucle de remplacement n’a été fabriquée.",
+      state: "unavailable",
+    }),
+  });
+
+  function roleFor(service) {
+    return SERVICE_ROLES[service] || Object.freeze({
+      level: "C",
+      label: "Service complémentaire",
+      blocksGeometry: false,
+    });
+  }
+
+  function buildBlockingFailure({ service = "ors", diagnostic = null } = {}) {
+    const code = diagnostic?.code || "unknown";
+    const copy = DIAGNOSTIC_COPY[code] || DIAGNOSTIC_COPY.unknown;
+    const retryable = Boolean(diagnostic?.retryable);
+    const actions = [];
+    if (retryable) actions.push({ id: "retry", label: "Réessayer" });
+    if (code === "no-result") {
+      actions.push(
+        { id: "change-start", label: "Déplacer le point de départ" },
+        { id: "edit-request", label: "Modifier la durée ou la distance" },
+      );
+    } else {
+      actions.push(
+        { id: "edit-request", label: "Modifier ma demande" },
+        { id: "change-start", label: "Changer le point de départ" },
+      );
+    }
+    actions.push({ id: "home", label: "Revenir à l’accueil" });
+    return Object.freeze({
+      kind: "blocking-service-failure",
+      service,
+      role: roleFor(service),
+      code,
+      state: copy.state,
+      title: copy.title,
+      body: copy.body,
+      retryable,
+      attempts: Number(diagnostic?.attempts) || null,
+      actions: Object.freeze(actions),
+      assurance: "Vos critères sont conservés. Aucun parcours de remplacement n’a été inventé.",
+    });
+  }
+
+  function buildSecondaryState({
+    service,
+    diagnostic = null,
+    imperative = false,
+    staleAt = null,
+  } = {}) {
+    const role = roleFor(service);
+    if (staleAt) {
+      return Object.freeze({
+        service,
+        role,
+        status: imperative ? "unknown" : "stale",
+        label: "Non actualisé",
+        message: `Dernière mise à jour disponible : ${staleAt}. Ces informations peuvent ne plus représenter les conditions actuelles.`,
+        blocksValidation: imperative,
+      });
+    }
+    return Object.freeze({
+      service,
+      role,
+      status: imperative ? "unknown" : "unavailable",
+      label: imperative ? "Inconnu — vérification indisponible" : "Indisponible",
+      message: imperative
+        ? "Une exigence impérative dépend de cette information. Elle ne peut pas être déclarée respectée tant que la vérification est indisponible."
+        : "Cette information complémentaire n’a pas pu être obtenue. La géométrie et les autres données déjà auditées ne sont pas modifiées.",
+      diagnosticCode: diagnostic?.code || "unknown",
+      blocksValidation: imperative,
+    });
+  }
+
+  function summarizeServiceStates(states = []) {
+    const normalized = (Array.isArray(states) ? states : []).filter(Boolean);
+    const blocking = normalized.filter((item) => item.blocksValidation);
+    return Object.freeze({
+      title: "Certaines informations n’ont pas pu être obtenues",
+      states: Object.freeze(normalized),
+      blocksValidation: blocking.length > 0,
+      conclusion: blocking.length
+        ? "La promenade ne peut pas être validée en mode strict, car une exigence impérative n’a pas pu être vérifiée."
+        : "La promenade reste consultable, mais certaines informations complémentaires manquent.",
+    });
+  }
+
+  globalThis.JMMJSServiceContinuityCore = Object.freeze({
+    SERVICE_ROLES,
+    DIAGNOSTIC_COPY,
+    roleFor,
+    buildBlockingFailure,
+    buildSecondaryState,
+    summarizeServiceStates,
+  });
+})();
+(() => {
+  "use strict";
+
+  function minutes(route = {}) {
+    const value = Number(route.total ?? route.walking);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function assessRouteSet(routes = [], requestedMinutes = 0, options = {}) {
+    const list = Array.isArray(routes) ? routes : [];
+    const requested = Math.max(0, Number(requestedMinutes) || 0);
+    const minimumRatio = Number(options.minimumRatio) || 0.7;
+    const expectedCount = Number(options.expectedCount) || 3;
+    const minimum = requested * minimumRatio;
+    const credible = list.filter((route) => minutes(route) >= minimum);
+    const bestMinutes = list.reduce((best, route) => Math.max(best, minutes(route)), 0);
+    const allNonRecommended =
+      list.length > 0 &&
+      list.every(
+        (route) =>
+          route.canNavigate === false ||
+          ["verify", "adaptation"].includes(route.proposalStatus),
+      );
+
+    const reasons = [];
+    if (requested > 0 && credible.length === 0)
+      reasons.push(
+        `La meilleure tentative dure ${Math.round(bestMinutes)} min pour environ ${Math.round(requested)} min demandées.`,
+      );
+    if (list.length < expectedCount)
+      reasons.push(`${list.length} proposition(s) seulement au lieu de ${expectedCount}.`);
+    if (allNonRecommended)
+      reasons.push("Toutes les tentatives nécessitent une vérification ou une adaptation.");
+
+    return {
+      insufficient: list.length === 0 || credible.length === 0 || allNonRecommended,
+      bestMinutes: Math.round(bestMinutes),
+      credibleCount: credible.length,
+      routeCount: list.length,
+      reasons,
+    };
+  }
+
+  function buildReturnLinks(route = {}, travelMode = "walking") {
+    const first = Array.isArray(route.coords) ? route.coords[0] : null;
+    if (
+      !Array.isArray(first) ||
+      !Number.isFinite(Number(first[0])) ||
+      !Number.isFinite(Number(first[1]))
+    )
+      return { google: null, apple: null, coordinates: null };
+
+    const destination = `${Number(first[1]).toFixed(6)},${Number(first[0]).toFixed(6)}`;
+    const googleMode = travelMode === "bicycling" ? "bicycling" : "walking";
+    const appleFlag = travelMode === "bicycling" ? "b" : "w";
+
+    return {
+      google:
+        "https://www.google.com/maps/dir/?api=1&destination=" +
+        encodeURIComponent(destination) +
+        "&travelmode=" +
+        googleMode +
+        "&dir_action=navigate",
+      apple:
+        "https://maps.apple.com/?daddr=" +
+        encodeURIComponent(destination) +
+        "&dirflg=" +
+        appleFlag,
+      coordinates: destination,
+    };
+  }
+
+  globalThis.JMMJSMobileSafetyCore = Object.freeze({
+    assessRouteSet,
+    buildReturnLinks,
+  });
+})();
+(() => {
+  "use strict";
+
   const SERVICE_TYPES = Object.freeze({
     "Avec un banc": "Banc",
     "Dans un café": "Café",
@@ -3052,46 +4567,209 @@ svg.leaflet-image-layer.leaflet-interactive path {
 })();
 (() => {
   "use strict";
+  const validPoint=(p)=>Array.isArray(p)&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+  const sanitizeCoords=(coords=[])=> (Array.isArray(coords)?coords:[]).filter(validPoint);
+  function haversine(a,b){if(!validPoint(a)||!validPoint(b))return 0;const r=Math.PI/180,lat1=Number(a[1])*r,lat2=Number(b[1])*r,dLat=(Number(b[1])-Number(a[1]))*r,dLon=(Number(b[0])-Number(a[0]))*r,h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;return 6371000*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
+  function cumulativeDistances(coords=[]){coords=sanitizeCoords(coords);const out=[0];for(let i=1;i<coords.length;i++)out.push(out.at(-1)+haversine(coords[i-1],coords[i]));return out;}
+  function minutes(distance,total,walking){if(!Number.isFinite(Number(distance))||!Number.isFinite(Number(total))||!Number.isFinite(Number(walking))||Number(total)<=0||Number(walking)<=0)return null;return Number(distance)/Number(total)*Number(walking);}
+  function buildBacktrackFallbacks(coords=[],walkingMinutes=0){coords=sanitizeCoords(coords);if(coords.length<3)return[];const cum=cumulativeDistances(coords),total=cum.at(-1)||0;return[.25,.5,.75].map((fraction,index)=>{let checkpointIndex=cum.findIndex(v=>v>=total*fraction);if(checkpointIndex<1)checkpointIndex=1;const outboundMeters=cum[checkpointIndex],point=coords[checkpointIndex],fallbackMeters=outboundMeters*2;return{id:`backtrack-${index+1}`,kind:'backtrack',label:`Retour sur ses pas à ${Math.round(fraction*100)} %`,checkpointIndex,checkpoint:{lon:Number(point[0]),lat:Number(point[1])},outboundMeters,totalMeters:fallbackMeters,totalMinutes:minutes(fallbackMeters,total,walkingMinutes),geometry:[...coords.slice(0,checkpointIndex+1),...coords.slice(0,checkpointIndex).reverse()],evidence:'Aller-retour construit uniquement avec la portion de trace déjà parcourue.'};});}
+  const key=(p)=>`${Number(p[0]).toFixed(5)}:${Number(p[1]).toFixed(5)}`;
+  function buildNodeShortcuts(coords=[],walkingMinutes=0){coords=sanitizeCoords(coords);if(coords.length<8)return[];const cum=cumulativeDistances(coords),total=cum.at(-1)||0,first=new Map(),items=[];coords.forEach((point,index)=>{const k=key(point),start=first.get(k);if(start===undefined){first.set(k,index);return;}if(index-start<3)return;const skipped=cum[index]-cum[start],connection=haversine(coords[start],coords[index]);if(skipped<250||connection>2)return;const geometry=[...coords.slice(0,start+1),...coords.slice(index)],newTotal=cumulativeDistances(geometry).at(-1)||0,saved=total-newTotal;if(saved<=0)return;items.push({id:`shortcut-${start}-${index}`,kind:'existing-node',label:'Raccourci par point de passage commun',savedMeters:saved,savedMinutes:minutes(saved,total,walkingMinutes),totalMeters:newTotal,totalMinutes:minutes(newTotal,total,walkingMinutes),geometry,evidence:'Deux passages utilisent le même point géométrique ; aucun chemin extérieur n’est ajouté.'});});return items.sort((a,b)=>b.savedMeters-a.savedMeters).slice(0,3);}
+  function analyzeFallbacks({coords=[],walkingMinutes=0,shortcutsRequested=false}={}){if(!shortcutsRequested)return{requested:false,status:'respected',shortcuts:[],fallbacks:[],evidence:'Aucun raccourci ou repli demandé.'};coords=sanitizeCoords(coords);if(coords.length<3)return{requested:true,status:'unknown',shortcuts:[],fallbacks:[],evidence:'Géométrie insuffisante pour calculer un repli réel.'};const shortcuts=buildNodeShortcuts(coords,walkingMinutes),fallbacks=buildBacktrackFallbacks(coords,walkingMinutes);return{requested:true,status:fallbacks.length?'respected':'unknown',shortcuts,fallbacks,evidence:shortcuts.length?`${shortcuts.length} raccourci réel et ${fallbacks.length} replis calculés.`:`${fallbacks.length} replis sur ses pas calculés ; aucun raccourci traversant n’est prouvé.`};}
+  function safeAnalyzeFallbacks(input={}){try{return analyzeFallbacks(input)}catch(error){return{requested:Boolean(input.shortcutsRequested),status:'unknown',shortcuts:[],fallbacks:[],evidence:`Le calcul des replis a échoué sans interrompre le parcours : ${error.message}`,error:error.message};}}
+  function applyFallbackAnalysis(route,analysis){const next={...route};next.shortcuts=analysis.shortcuts||[];next.fallbacks=analysis.fallbacks||[];next.fallbackAnalysis=analysis;next.checks=[...(Array.isArray(next.checks)?next.checks:[]),{constraint:'Raccourcis et replis réels',status:analysis.status,evidence:analysis.evidence,severity:analysis.requested?'hard':'advisory'}];if(analysis.requested&&analysis.status==='unknown'&&next.proposalStatus==='compatible'){next.proposalStatus='verify';next.canNavigate=false;next.unknowns=[...new Set([...(next.unknowns||[]),'Raccourci ou repli à vérifier'])];}return next;}
+  globalThis.JMMJSFallbackCore=Object.freeze({sanitizeCoords,cumulativeDistances,buildBacktrackFallbacks,buildNodeShortcuts,analyzeFallbacks,safeAnalyzeFallbacks,applyFallbackAnalysis});
+})();
+(() => {
+  "use strict";
+  const PROFILE_KEY = "jmmjs-profile";
 
-  const TRIGGERS = Object.freeze({
-    "Montée": { effect: "slope_up" },
-    "Descente": { effect: "slope_down" },
-    "Terrain irrégulier": { effect: "regularity" },
-    "Durée": { effect: "duration" },
-    "Station debout": { effect: "standing" },
-    "Marche rapide": { effect: "pace" },
-    "Autre": { effect: "information" },
+  function createPrivacyController({
+    storage = globalThis.localStorage,
+    profileKey = PROFILE_KEY,
+  } = {}) {
+    let privateMode = false;
+
+    function purge() {
+      try {
+        storage?.removeItem(profileKey);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function setPrivateMode(enabled) {
+      privateMode = Boolean(enabled);
+      if (privateMode) purge();
+      return privateMode;
+    }
+
+    function persistProfile(profile) {
+      if (privateMode) {
+        purge();
+        return { persisted: false, reason: "private-mode" };
+      }
+      try {
+        storage?.setItem(profileKey, JSON.stringify(profile));
+        return { persisted: true, reason: "saved" };
+      } catch (error) {
+        return {
+          persisted: false,
+          reason: "storage-error",
+          error: error.message,
+        };
+      }
+    }
+
+    function storageStatus() {
+      let profilePresent = false;
+      try {
+        profilePresent = Boolean(storage?.getItem(profileKey));
+      } catch {}
+      return { privateMode, profilePresent, profileKey };
+    }
+
+    return Object.freeze({
+      setPrivateMode,
+      persistProfile,
+      purge,
+      storageStatus,
+    });
+  }
+
+  globalThis.JMMJSPrivacyCore = Object.freeze({
+    PROFILE_KEY,
+    createPrivacyController,
+  });
+})();
+/* JMMJS_LIMITATIONS_CORE_START */
+(() => {
+  "use strict";
+
+  const SIDES = Object.freeze([
+    "Non précisé",
+    "Gauche",
+    "Droit",
+    "Bilatéral",
+    "Non pertinent",
+  ]);
+  const TRIGGERS = Object.freeze([
+    "Montée",
+    "Descente",
+    "Terrain irrégulier",
+    "Durée",
+    "Station debout",
+    "Marche rapide",
+    "Autre",
+  ]);
+  const CONSEQUENCES = Object.freeze([
+    "Éviter",
+    "Limiter",
+    "Ralentir",
+    "Prévoir une pause",
+    "Prévoir un repli",
+  ]);
+  const TEMPORALITIES = Object.freeze([
+    "Aujourd’hui",
+    "Habituelle",
+    "Permanente",
+    "Seulement aujourd’hui",
+  ]);
+
+  const FieldRegistry = Object.freeze({
+    limitationSide: {
+      effect: "explanation",
+      requiredData: [],
+      unknownPolicy: "preserve-unknown",
+    },
+    limitationTrigger: {
+      effect: "generation-audit",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
+    limitationConsequence: {
+      effect: "generation-audit",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
+    limitationTemporality: {
+      effect: "explanation",
+      requiredData: [],
+      unknownPolicy: "preserve-unknown",
+    },
+    maxWithoutPause: {
+      effect: "generation-audit",
+      requiredData: ["pause-plan"],
+      unknownPolicy: "block-if-set",
+    },
+    maxStanding: {
+      effect: "audit",
+      requiredData: ["standing-duration"],
+      unknownPolicy: "block-if-set",
+    },
+    helperAvailable: {
+      effect: "preparation",
+      requiredData: [],
+      unknownPolicy: "preserve-unknown",
+    },
+    limitationConfirmed: {
+      effect: "confirmation",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
   });
 
-  const CONSEQUENCES = Object.freeze({
-    "Éviter": "avoid",
-    "Limiter": "limit",
-    "Ralentir": "slow",
-    "Prévoir une pause": "pause",
-    "Prévoir un repli": "fallback",
-  });
-
-  function finiteOrNull(value) {
+  function finitePositiveOrNull(value) {
     if (value === "" || value === null || value === undefined) return null;
     const number = Number(value);
-    return Number.isFinite(number) ? number : null;
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  function enumOr(value, allowed, fallback) {
+    return allowed.includes(value) ? value : fallback;
   }
 
   function normalizeFunctionalLimitation(value = {}) {
     return {
-      side: value.side || "Non précisé",
-      trigger: value.trigger || "",
-      consequence: value.consequence || "",
-      temporality: value.temporality || "Aujourd’hui",
-      maxWithoutPauseMinutes: finiteOrNull(value.maxWithoutPauseMinutes),
-      maxStandingMinutes: finiteOrNull(value.maxStandingMinutes),
+      side: enumOr(value.side, SIDES, "Non précisé"),
+      trigger: enumOr(value.trigger, TRIGGERS, ""),
+      consequence: enumOr(value.consequence, CONSEQUENCES, ""),
+      temporality: enumOr(value.temporality, TEMPORALITIES, "Aujourd’hui"),
+      maxWithoutPauseMinutes: finitePositiveOrNull(
+        value.maxWithoutPauseMinutes,
+      ),
+      maxStandingMinutes: finitePositiveOrNull(value.maxStandingMinutes),
       helperAvailable:
         value.helperAvailable === true
           ? true
           : value.helperAvailable === false
             ? false
             : null,
+      confirmed: value.confirmed === true,
     };
+  }
+
+  function hasFunctionalLimitation(value = {}) {
+    const item = normalizeFunctionalLimitation(value);
+    return Boolean(
+      item.trigger ||
+        item.consequence ||
+        item.maxWithoutPauseMinutes !== null ||
+        item.maxStandingMinutes !== null,
+    );
+  }
+
+  function validateFunctionalLimitation(value = {}) {
+    const item = normalizeFunctionalLimitation(value);
+    if (!hasFunctionalLimitation(item)) return [];
+    const issues = [];
+    if (!item.trigger) issues.push("Choisissez le déclencheur principal.");
+    if (!item.consequence)
+      issues.push("Choisissez la conséquence fonctionnelle recherchée.");
+    if (!item.confirmed)
+      issues.push("Confirmez explicitement cette conséquence fonctionnelle.");
+    return issues;
   }
 
   function describeFunctionalLimitation(value = {}) {
@@ -3099,10 +4777,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const parts = [];
     if (item.trigger) parts.push(`déclencheur : ${item.trigger.toLowerCase()}`);
     if (item.consequence)
-      parts.push(`conséquence souhaitée : ${item.consequence.toLowerCase()}`);
-    if (item.side && item.side !== "Non précisé")
-      parts.push(`côté : ${item.side.toLowerCase()}`);
-    if (item.temporality) parts.push(`contexte : ${item.temporality.toLowerCase()}`);
+      parts.push(`conséquence confirmée : ${item.consequence.toLowerCase()}`);
+    if (item.side !== "Non précisé")
+      parts.push(`côté déclaré : ${item.side.toLowerCase()}`);
+    parts.push(`temporalité : ${item.temporality.toLowerCase()}`);
     if (item.maxWithoutPauseMinutes !== null)
       parts.push(`${item.maxWithoutPauseMinutes} min maximum sans pause`);
     if (item.maxStandingMinutes !== null)
@@ -3110,125 +4788,276 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if (item.helperAvailable !== null)
       parts.push(
         item.helperAvailable
-          ? "accompagnant capable d’aider"
-          : "aucun accompagnant capable d’aider",
+          ? "accompagnant capable d’aider : oui"
+          : "accompagnant capable d’aider : non",
       );
     return parts.join(" · ");
   }
 
-  function mergeStructuredLimitationIntoRequest(request) {
-    const next = structuredClone
-      ? structuredClone(request)
-      : JSON.parse(JSON.stringify(request));
+  function clone(value) {
+    return typeof structuredClone === "function"
+      ? structuredClone(value)
+      : JSON.parse(JSON.stringify(value));
+  }
+
+  function prepareRequestWithFunctionalLimitations(request = {}) {
+    const next = clone(request);
     const profile = normalizeFunctionalLimitation(next.functionalLimitation);
     next.functionalLimitation = profile;
-    next.derivedFunctionalRules = [];
+    next.derivedFunctionalRules = (next.derivedFunctionalRules || []).filter(
+      (rule) => rule.source !== "D-024",
+    );
+    if (
+      !profile.confirmed ||
+      !profile.trigger ||
+      !profile.consequence
+    )
+      return next;
 
-    if (!profile.trigger || !profile.consequence) return next;
-
-    const trigger = TRIGGERS[profile.trigger]?.effect;
-    const consequence = CONSEQUENCES[profile.consequence];
-    const hard = consequence === "avoid";
-    const addRule = (id, label, severity, data = {}) =>
-      next.derivedFunctionalRules.push({
+    const rules = next.derivedFunctionalRules;
+    const addRule = (id, label, severity, auditKind, data = {}) =>
+      rules.push({
         id,
         label,
         severity,
-        source: "functionalLimitation",
+        auditKind,
+        source: "D-024",
         trigger: profile.trigger,
         consequence: profile.consequence,
         temporality: profile.temporality,
         ...data,
       });
+    const avoid = profile.consequence === "Éviter";
+    const imperativeOrAdvisory = avoid ? "hard" : "advisory";
 
-    if (trigger === "regularity") {
-      next.terrain = Array.from(new Set([...(next.terrain || []), "Terrain régulier"]));
+    next.effort = next.effort || {};
+    next.person = next.person || {};
+    next.options = next.options || {};
+    next.hardConstraints = next.hardConstraints || {};
+    next.terrain = Array.isArray(next.terrain) ? next.terrain : [];
+
+    if (profile.trigger === "Terrain irrégulier") {
+      if (avoid && !next.terrain.includes("Terrain régulier"))
+        next.terrain.push("Terrain régulier");
       addRule(
         "functional-regularity",
-        "Terrain régulier",
-        hard ? "imperative" : "strong_preference",
-        { unknownPolicy: hard ? "manual_review" : "warn" },
+        avoid ? "Terrain régulier obligatoire" : "Terrain régulier privilégié",
+        imperativeOrAdvisory,
+        "regularity",
+        { unknownPolicy: avoid ? "manual_review" : "warn" },
       );
     }
 
-    if (trigger === "slope_up") {
-      if (hard && next.effort?.maxAscentSlopePercent == null)
-        next.effort.maxAscentSlopePercent = 4;
+    if (["Montée", "Descente"].includes(profile.trigger)) {
+      const field =
+        profile.trigger === "Montée"
+          ? "maxAscentSlopePercent"
+          : "maxDescentSlopePercent";
+      const explicitThreshold = finitePositiveOrNull(next.effort[field]);
+      const derivedThreshold = avoid && explicitThreshold === null ? 4 : null;
+      if (derivedThreshold !== null) next.effort[field] = derivedThreshold;
       addRule(
-        "functional-ascent",
-        "Montée liée à la limitation",
-        hard ? "imperative" : "strong_preference",
-        { unknownPolicy: hard ? "manual_review" : "warn" },
+        profile.trigger === "Montée"
+          ? "functional-ascent"
+          : "functional-descent",
+        `${profile.trigger} ${avoid ? "à éviter" : "à adapter"}`,
+        imperativeOrAdvisory,
+        profile.trigger === "Montée" ? "ascent-slope" : "descent-slope",
+        {
+          thresholdPercent: explicitThreshold ?? derivedThreshold,
+          thresholdOrigin:
+            explicitThreshold !== null
+              ? "user"
+              : derivedThreshold !== null
+                ? "prudent-default"
+                : "none",
+          unknownPolicy: avoid ? "manual_review" : "warn",
+        },
       );
     }
 
-    if (trigger === "slope_down") {
-      if (hard && next.effort?.maxDescentSlopePercent == null)
-        next.effort.maxDescentSlopePercent = 4;
+    if (profile.maxWithoutPauseMinutes !== null) {
+      next.functionalPausePlan = {
+        intervalMinutes: profile.maxWithoutPauseMinutes,
+        claim: "pause programmée, sans lieu de pause ni banc présumé",
+      };
       addRule(
-        "functional-descent",
-        "Descente liée à la limitation",
-        hard ? "imperative" : "strong_preference",
-        { unknownPolicy: hard ? "manual_review" : "warn" },
+        "functional-max-without-pause",
+        "Durée maximale sans pause",
+        "hard",
+        "pause-plan",
+        {
+          thresholdMinutes: profile.maxWithoutPauseMinutes,
+          unknownPolicy: "manual_review",
+        },
       );
     }
 
-    if (trigger === "duration" && profile.maxWithoutPauseMinutes !== null) {
-      addRule("functional-duration", "Durée maximale sans pause", "imperative", {
-        thresholdMinutes: profile.maxWithoutPauseMinutes,
-        unknownPolicy: "block",
-      });
-      if (!next.pausePlan || next.pausePlan === "Aucune")
-        next.pausePlan = `Pause au plus tard après ${profile.maxWithoutPauseMinutes} min`;
-    }
+    if (profile.maxStandingMinutes !== null)
+      addRule(
+        "functional-max-standing",
+        "Durée maximale debout",
+        "hard",
+        "standing-duration",
+        {
+          thresholdMinutes: profile.maxStandingMinutes,
+          unknownPolicy: "manual_review",
+        },
+      );
 
-    if (trigger === "standing" && profile.maxStandingMinutes !== null) {
-      addRule("functional-standing", "Durée maximale debout", "imperative", {
-        thresholdMinutes: profile.maxStandingMinutes,
-        unknownPolicy: "manual_review",
-      });
-      if (!next.pausePlan || next.pausePlan === "Aucune")
-        next.pausePlan = `Assise ou pause au plus tard après ${profile.maxStandingMinutes} min`;
-    }
-
-    if (trigger === "pace") {
-      next.person = next.person || {};
-      if (consequence === "slow" || consequence === "avoid")
-        next.person.paceKmh = Math.min(Number(next.person.paceKmh) || 3.2, 2.8);
-      addRule("functional-pace", "Allure adaptée", "strong_preference", {
-        unknownPolicy: "warn",
-      });
-    }
-
-    if (consequence === "pause") {
+    if (profile.consequence === "Prévoir une pause") {
       const threshold =
-        profile.maxWithoutPauseMinutes ?? profile.maxStandingMinutes ?? 20;
-      next.pausePlan = `Pause au plus tard après ${threshold} min`;
-      addRule("functional-pause", "Pause liée à la limitation", "imperative", {
-        thresholdMinutes: threshold,
-        unknownPolicy: "manual_review",
-      });
+        profile.maxWithoutPauseMinutes ?? profile.maxStandingMinutes;
+      if (threshold !== null)
+        next.functionalPausePlan = {
+          intervalMinutes: threshold,
+          claim: "pause programmée, sans lieu de pause ni banc présumé",
+        };
+      addRule(
+        "functional-pause",
+        threshold === null
+          ? "Seuil de pause à confirmer"
+          : `Pause au plus tard après ${threshold} min`,
+        "hard",
+        "pause-plan",
+        {
+          thresholdMinutes: threshold,
+          unknownPolicy: "manual_review",
+          noBenchClaim: true,
+        },
+      );
     }
 
-    if (consequence === "fallback") {
-      next.options = next.options || {};
+    if (profile.consequence === "Prévoir un repli") {
       next.options.shortcuts = true;
-      addRule("functional-fallback", "Repli ou raccourci demandé", "imperative", {
-        unknownPolicy: "manual_review",
-      });
+      next.hardConstraints.requireShortcuts = true;
+      addRule(
+        "functional-fallback",
+        "Raccourci ou repli réel demandé",
+        "hard",
+        "fallback",
+        { unknownPolicy: "manual_review", requiresGeometry: true },
+      );
     }
+
+    if (
+      profile.trigger === "Marche rapide" &&
+      profile.consequence === "Ralentir"
+    ) {
+      const selectedPace = finitePositiveOrNull(next.person.paceKmh) || 3.2;
+      const targetPace = Math.max(1, Math.round(selectedPace * 0.8 * 10) / 10);
+      next.person.paceKmh = targetPace;
+      addRule(
+        "functional-pace",
+        `Allure cible réduite de ${selectedPace} à ${targetPace} km/h`,
+        "advisory",
+        "pace",
+        {
+          selectedPaceKmh: selectedPace,
+          targetPaceKmh: targetPace,
+          unknownPolicy: "warn",
+        },
+      );
+    }
+
+    const alreadyCovered = rules.some(
+      (rule) => rule.source === "D-024" && rule.trigger === profile.trigger,
+    );
+    if (!alreadyCovered)
+      addRule(
+        "functional-manual-review",
+        `${profile.trigger} : ${profile.consequence.toLowerCase()}`,
+        avoid ? "hard" : "advisory",
+        "manual-review",
+        { unknownPolicy: avoid ? "manual_review" : "warn" },
+      );
 
     return next;
   }
 
+  function auditFunctionalRules(route = {}, compiled = {}, status = {}) {
+    const RESPECTED = status.RESPECTED || "respected";
+    const VIOLATED = status.VIOLATED || "violated";
+    const UNKNOWN = status.UNKNOWN || "unknown";
+    const known = (value) =>
+      value !== null && value !== undefined && Number.isFinite(Number(value));
+    const rules = compiled.functionalRules || [];
+    return rules.map((rule) => {
+      let result = UNKNOWN;
+      let evidence = "donnée nécessaire absente : À vérifier";
+      if (rule.auditKind === "regularity") {
+        if (typeof route.regularitySafe === "boolean") {
+          result = route.regularitySafe ? RESPECTED : VIOLATED;
+          evidence = route.regularitySafe
+            ? "régularité documentée"
+            : "terrain irrégulier documenté";
+        } else evidence = "régularité non documentée : À vérifier";
+      } else if (
+        rule.auditKind === "ascent-slope" ||
+        rule.auditKind === "descent-slope"
+      ) {
+        const value =
+          rule.auditKind === "ascent-slope"
+            ? route.maxUpPercent
+            : route.maxDownPercent;
+        if (known(value) && known(rule.thresholdPercent)) {
+          result = Number(value) <= Number(rule.thresholdPercent)
+            ? RESPECTED
+            : VIOLATED;
+          evidence = `${Number(value)} % pour ${Number(rule.thresholdPercent)} % maximum`;
+        } else evidence = "pente ou seuil absent : À vérifier";
+      } else if (rule.auditKind === "pause-plan") {
+        const planned = compiled.functional?.pauseIntervalMinutes;
+        if (known(rule.thresholdMinutes) && known(planned)) {
+          result = Number(planned) <= Number(rule.thresholdMinutes)
+            ? RESPECTED
+            : VIOLATED;
+          evidence = `pause programmée au plus tard après ${planned} min ; aucun banc ni lieu de pause présumé`;
+        } else evidence = "seuil ou plan de pause non confirmé : À vérifier";
+      } else if (rule.auditKind === "standing-duration") {
+        if (known(route.maxStandingMinutes)) {
+          result = Number(route.maxStandingMinutes) <= Number(rule.thresholdMinutes)
+            ? RESPECTED
+            : VIOLATED;
+          evidence = `${Number(route.maxStandingMinutes)} min debout pour ${Number(rule.thresholdMinutes)} min maximum`;
+        } else evidence = "durée debout non mesurée : À vérifier";
+      } else if (rule.auditKind === "fallback") {
+        if (Array.isArray(route.shortcuts)) {
+          result = route.shortcuts.length ? RESPECTED : VIOLATED;
+          evidence = route.shortcuts.length
+            ? `${route.shortcuts.length} repli(s) calculé(s)`
+            : "aucun repli réel calculé";
+        } else evidence = "repli non calculé : À vérifier";
+      } else if (rule.auditKind === "pace") {
+        result = RESPECTED;
+        evidence = `allure cible expliquée : ${rule.targetPaceKmh} km/h`;
+      } else evidence = "conséquence confirmée mais non vérifiable automatiquement : À vérifier";
+      return {
+        id: rule.id,
+        label: rule.label,
+        severity: rule.severity,
+        status: result,
+        evidence,
+        source: "D-024",
+      };
+    });
+  }
+
   globalThis.JMMJSLimitationsCore = Object.freeze({
+    SIDES,
     TRIGGERS,
     CONSEQUENCES,
+    TEMPORALITIES,
+    FieldRegistry,
     normalizeFunctionalLimitation,
+    hasFunctionalLimitation,
+    validateFunctionalLimitation,
     describeFunctionalLimitation,
-    mergeStructuredLimitationIntoRequest,
+    prepareRequestWithFunctionalLimitations,
+    auditFunctionalRules,
   });
 })();
+/* JMMJS_LIMITATIONS_CORE_END */
 /* JMMJS_PERIPHERAL_REGISTRY_START */
 (() => {
   "use strict";
@@ -3644,1457 +5473,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     createOpenMeteoProvider,
   });
 })();
-
-
 </script>
-    <script data-jmmjs-addon="fallback-core">
-(() => {
-  "use strict";
-  const validPoint=(p)=>Array.isArray(p)&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
-  const sanitizeCoords=(coords=[])=> (Array.isArray(coords)?coords:[]).filter(validPoint);
-  function haversine(a,b){if(!validPoint(a)||!validPoint(b))return 0;const r=Math.PI/180,lat1=Number(a[1])*r,lat2=Number(b[1])*r,dLat=(Number(b[1])-Number(a[1]))*r,dLon=(Number(b[0])-Number(a[0]))*r,h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;return 6371000*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
-  function cumulativeDistances(coords=[]){coords=sanitizeCoords(coords);const out=[0];for(let i=1;i<coords.length;i++)out.push(out.at(-1)+haversine(coords[i-1],coords[i]));return out;}
-  function minutes(distance,total,walking){if(!Number.isFinite(Number(distance))||!Number.isFinite(Number(total))||!Number.isFinite(Number(walking))||Number(total)<=0||Number(walking)<=0)return null;return Number(distance)/Number(total)*Number(walking);}
-  function buildBacktrackFallbacks(coords=[],walkingMinutes=0){coords=sanitizeCoords(coords);if(coords.length<3)return[];const cum=cumulativeDistances(coords),total=cum.at(-1)||0;return[.25,.5,.75].map((fraction,index)=>{let checkpointIndex=cum.findIndex(v=>v>=total*fraction);if(checkpointIndex<1)checkpointIndex=1;const outboundMeters=cum[checkpointIndex],point=coords[checkpointIndex],fallbackMeters=outboundMeters*2;return{id:`backtrack-${index+1}`,kind:'backtrack',label:`Retour sur ses pas à ${Math.round(fraction*100)} %`,checkpointIndex,checkpoint:{lon:Number(point[0]),lat:Number(point[1])},outboundMeters,totalMeters:fallbackMeters,totalMinutes:minutes(fallbackMeters,total,walkingMinutes),geometry:[...coords.slice(0,checkpointIndex+1),...coords.slice(0,checkpointIndex).reverse()],evidence:'Aller-retour construit uniquement avec la portion de trace déjà parcourue.'};});}
-  const key=(p)=>`${Number(p[0]).toFixed(5)}:${Number(p[1]).toFixed(5)}`;
-  function buildNodeShortcuts(coords=[],walkingMinutes=0){coords=sanitizeCoords(coords);if(coords.length<8)return[];const cum=cumulativeDistances(coords),total=cum.at(-1)||0,first=new Map(),items=[];coords.forEach((point,index)=>{const k=key(point),start=first.get(k);if(start===undefined){first.set(k,index);return;}if(index-start<3)return;const skipped=cum[index]-cum[start],connection=haversine(coords[start],coords[index]);if(skipped<250||connection>2)return;const geometry=[...coords.slice(0,start+1),...coords.slice(index)],newTotal=cumulativeDistances(geometry).at(-1)||0,saved=total-newTotal;if(saved<=0)return;items.push({id:`shortcut-${start}-${index}`,kind:'existing-node',label:'Raccourci par point de passage commun',savedMeters:saved,savedMinutes:minutes(saved,total,walkingMinutes),totalMeters:newTotal,totalMinutes:minutes(newTotal,total,walkingMinutes),geometry,evidence:'Deux passages utilisent le même point géométrique ; aucun chemin extérieur n’est ajouté.'});});return items.sort((a,b)=>b.savedMeters-a.savedMeters).slice(0,3);}
-  function analyzeFallbacks({coords=[],walkingMinutes=0,shortcutsRequested=false}={}){if(!shortcutsRequested)return{requested:false,status:'respected',shortcuts:[],fallbacks:[],evidence:'Aucun raccourci ou repli demandé.'};coords=sanitizeCoords(coords);if(coords.length<3)return{requested:true,status:'unknown',shortcuts:[],fallbacks:[],evidence:'Géométrie insuffisante pour calculer un repli réel.'};const shortcuts=buildNodeShortcuts(coords,walkingMinutes),fallbacks=buildBacktrackFallbacks(coords,walkingMinutes);return{requested:true,status:fallbacks.length?'respected':'unknown',shortcuts,fallbacks,evidence:shortcuts.length?`${shortcuts.length} raccourci réel et ${fallbacks.length} replis calculés.`:`${fallbacks.length} replis sur ses pas calculés ; aucun raccourci traversant n’est prouvé.`};}
-  function safeAnalyzeFallbacks(input={}){try{return analyzeFallbacks(input)}catch(error){return{requested:Boolean(input.shortcutsRequested),status:'unknown',shortcuts:[],fallbacks:[],evidence:`Le calcul des replis a échoué sans interrompre le parcours : ${error.message}`,error:error.message};}}
-  function applyFallbackAnalysis(route,analysis){const next={...route};next.shortcuts=analysis.shortcuts||[];next.fallbacks=analysis.fallbacks||[];next.fallbackAnalysis=analysis;next.checks=[...(Array.isArray(next.checks)?next.checks:[]),{constraint:'Raccourcis et replis réels',status:analysis.status,evidence:analysis.evidence,severity:analysis.requested?'hard':'advisory'}];if(analysis.requested&&analysis.status==='unknown'&&next.proposalStatus==='compatible'){next.proposalStatus='verify';next.canNavigate=false;next.unknowns=[...new Set([...(next.unknowns||[]),'Raccourci ou repli à vérifier'])];}return next;}
-  globalThis.JMMJSFallbackCore=Object.freeze({sanitizeCoords,cumulativeDistances,buildBacktrackFallbacks,buildNodeShortcuts,analyzeFallbacks,safeAnalyzeFallbacks,applyFallbackAnalysis});
-})();
-</script>
-<script data-jmmjs-bundle="app">
-(() => {
-  "use strict";
-  const PROFILE_KEY = "jmmjs-profile";
-
-  function createPrivacyController({
-    storage = globalThis.localStorage,
-    profileKey = PROFILE_KEY,
-  } = {}) {
-    let privateMode = false;
-
-    function purge() {
-      try {
-        storage?.removeItem(profileKey);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-
-    function setPrivateMode(enabled) {
-      privateMode = Boolean(enabled);
-      if (privateMode) purge();
-      return privateMode;
-    }
-
-    function persistProfile(profile) {
-      if (privateMode) {
-        purge();
-        return { persisted: false, reason: "private-mode" };
-      }
-      try {
-        storage?.setItem(profileKey, JSON.stringify(profile));
-        return { persisted: true, reason: "saved" };
-      } catch (error) {
-        return {
-          persisted: false,
-          reason: "storage-error",
-          error: error.message,
-        };
-      }
-    }
-
-    function storageStatus() {
-      let profilePresent = false;
-      try {
-        profilePresent = Boolean(storage?.getItem(profileKey));
-      } catch {}
-      return { privateMode, profilePresent, profileKey };
-    }
-
-    return Object.freeze({
-      setPrivateMode,
-      persistProfile,
-      purge,
-      storageStatus,
-    });
-  }
-
-  globalThis.JMMJSPrivacyCore = Object.freeze({
-    PROFILE_KEY,
-    createPrivacyController,
-  });
-})();
-
-(() => {
-  "use strict";
-
-  function validCoord(point) {
-    return (
-      Array.isArray(point) &&
-      Number.isFinite(Number(point[0])) &&
-      Number.isFinite(Number(point[1]))
-    );
-  }
-
-  function haversine(a, b) {
-    if (!validCoord(a) || !validCoord(b)) return 0;
-    const rad = Math.PI / 180;
-    const lat1 = Number(a[1]) * rad;
-    const lat2 = Number(b[1]) * rad;
-    const dLat = (Number(b[1]) - Number(a[1])) * rad;
-    const dLon = (Number(b[0]) - Number(a[0])) * rad;
-    const h =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-  }
-
-  function routeExtentMeters(coords = []) {
-    const valid = (Array.isArray(coords) ? coords : []).filter(validCoord);
-    if (valid.length < 2) return 0;
-    const start = valid[0];
-    return Math.max(...valid.map((point) => haversine(start, point)));
-  }
-
-  function midpoint(coords = []) {
-    const valid = (Array.isArray(coords) ? coords : []).filter(validCoord);
-    return valid.length ? valid[Math.floor(valid.length / 2)] : null;
-  }
-
-  function highestPoint(coords = []) {
-    const valid = (Array.isArray(coords) ? coords : []).filter(
-      (point) => validCoord(point) && Number.isFinite(Number(point[2])),
-    );
-    if (!valid.length) return null;
-    return valid.reduce((highest, point) =>
-      Number(point[2]) > Number(highest[2]) ? point : highest,
-    );
-  }
-
-  function chooseWeatherPoints(route = {}) {
-    const coords = (Array.isArray(route.coords) ? route.coords : []).filter(validCoord);
-    if (!coords.length) return [];
-
-    const points = [{
-      id: "start",
-      label: "Départ",
-      lon: Number(coords[0][0]),
-      lat: Number(coords[0][1]),
-    }];
-
-    const distanceMeters = Number(route.distanceMeters || route.distance || 0);
-    const extent = routeExtentMeters(coords);
-    if (distanceMeters >= 6000 || extent >= 2500) {
-      const middle = midpoint(coords);
-      if (middle)
-        points.push({
-          id: "middle",
-          label: "Parcours",
-          lon: Number(middle[0]),
-          lat: Number(middle[1]),
-        });
-    }
-
-    const altitudeCoverage =
-      coords.filter((point) => Number.isFinite(Number(point[2]))).length /
-      coords.length;
-    const high = highestPoint(coords);
-    const startElevation = Number(coords[0]?.[2]);
-    if (
-      high &&
-      altitudeCoverage >= 0.8 &&
-      Number.isFinite(startElevation) &&
-      Number(high[2]) - startElevation >= 150
-    )
-      points.push({
-        id: "high",
-        label: "Point haut",
-        lon: Number(high[0]),
-        lat: Number(high[1]),
-        elevation: Number(high[2]),
-      });
-
-    const priority = { start: 1, middle: 2, high: 3 };
-    const unique = new Map();
-    for (const point of points) {
-      const key = `${point.lon.toFixed(4)}:${point.lat.toFixed(4)}`;
-      const existing = unique.get(key);
-      if (
-        !existing ||
-        (priority[point.id] || 0) > (priority[existing.id] || 0)
-      )
-        unique.set(key, point);
-    }
-    return [...unique.values()];
-  }
-
-  const LEVEL_RANK = Object.freeze({
-    unknown: 0,
-    favorable: 1,
-    caution: 2,
-    critical: 3,
-  });
-
-  function aggregateWeatherResults(results = []) {
-    if (!results.length)
-      return {
-        summary: null,
-        assessment: {
-          level: "unknown",
-          label: "Prévision indisponible",
-          warnings: [],
-          checks: [],
-        },
-        representativePoint: null,
-        points: [],
-        partial: true,
-      };
-
-    const ranked = [...results].sort(
-      (left, right) =>
-        (LEVEL_RANK[right.assessment?.level] || 0) -
-        (LEVEL_RANK[left.assessment?.level] || 0),
-    );
-    const representative = ranked[0];
-    const valid = results.filter((result) => result.summary);
-    const numberValues = (key) =>
-      valid
-        .map((result) => Number(result.summary[key]))
-        .filter(Number.isFinite);
-    const min = (key) => {
-      const values = numberValues(key);
-      return values.length ? Math.min(...values) : null;
-    };
-    const max = (key) => {
-      const values = numberValues(key);
-      return values.length ? Math.max(...values) : null;
-    };
-
-    const mergedSummary = valid.length
-      ? {
-          source: "Open-Meteo",
-          startTime: valid[0].summary.startTime || null,
-          endTime: valid[0].summary.endTime || null,
-          temperatureMinC: min("temperatureMinC"),
-          temperatureMaxC: max("temperatureMaxC"),
-          apparentMinC: min("apparentMinC"),
-          apparentMaxC: max("apparentMaxC"),
-          precipitationProbabilityMax: max("precipitationProbabilityMax"),
-          precipitationMm: max("precipitationMm"),
-          windGustMaxKmh: max("windGustMaxKmh"),
-          visibilityMinM: min("visibilityMinM"),
-          coverageHours: Math.min(
-            ...valid.map((result) => Number(result.summary.coverageHours) || 0),
-          ),
-          requestedHours: Math.max(
-            ...valid.map((result) => Number(result.summary.requestedHours) || 0),
-          ),
-          complete: valid.every((result) => result.summary.complete),
-          weatherCodes: [
-            ...new Set(
-              valid.flatMap((result) => result.summary.weatherCodes || []),
-            ),
-          ],
-        }
-      : null;
-
-    const partial = results.some(
-      (result) =>
-        !result.summary ||
-        !result.summary.complete ||
-        result.assessment?.level === "unknown",
-    );
-
-    return {
-      summary: mergedSummary,
-      assessment: {
-        ...representative.assessment,
-        label:
-          partial && representative.assessment?.level !== "critical"
-            ? `${representative.assessment?.label || "Prévision"} · partiel`
-            : representative.assessment?.label,
-        warnings: [
-          ...new Set(
-            results.flatMap((result) => result.assessment?.warnings || []),
-          ),
-        ],
-      },
-      representativePoint: representative.point,
-      points: results,
-      partial,
-    };
-  }
-
-  globalThis.JMMJSMultiPointWeatherCore = Object.freeze({
-    chooseWeatherPoints,
-    aggregateWeatherResults,
-    routeExtentMeters,
-  });
-})();
-
-(() => {
-  "use strict";
-
-  const STATUS_RANK = Object.freeze({
-    respected: 1,
-    unknown: 2,
-    uncertain: 2,
-    violated: 3,
-  });
-
-  function normalizeText(value) {
-    return String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/\d+(?:[.,]\d+)?/g, "#")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
-  function warningCategory(message) {
-    const text = normalizeText(message);
-    if (text.includes("temperature ressentie") && text.includes("jusqu"))
-      return "weather-apparent-max";
-    if (text.includes("temperature ressentie minimale"))
-      return "weather-apparent-min";
-    if (text.includes("rafales"))
-      return "weather-gust";
-    if (text.includes("probabilite de precipitation"))
-      return "weather-rain-probability";
-    if (text.includes("visibilite"))
-      return "weather-visibility";
-    if (text.includes("orage"))
-      return "weather-thunder";
-    if (text.includes("phenomene meteo"))
-      return "weather-phenomenon";
-    if (text.includes("service") && text.includes("inverifiable"))
-      return "service-unverifiable";
-    if (text.includes("pause") && text.includes("inverifiable"))
-      return "pause-unverifiable";
-    if (text.includes("altitude"))
-      return "altitude";
-    if (text.includes("terrain"))
-      return "terrain";
-    return `generic:${text}`;
-  }
-
-  function numericValues(message) {
-    return [...String(message || "").matchAll(/-?\d+(?:[.,]\d+)?/g)]
-      .map((match) => Number(match[0].replace(",", ".")))
-      .filter(Number.isFinite);
-  }
-
-  function warningPriority(category, message) {
-    const values = numericValues(message);
-    if (!values.length) return 0;
-    if (
-      category === "weather-apparent-min" ||
-      category === "weather-visibility"
-    )
-      return -Math.min(...values);
-    return Math.max(...values);
-  }
-
-  function dedupeWarnings(warnings = []) {
-    const selected = new Map();
-    for (const raw of Array.isArray(warnings) ? warnings : []) {
-      const message = String(raw || "").trim();
-      if (!message) continue;
-      const category = warningCategory(message);
-      const candidate = {
-        message,
-        priority: warningPriority(category, message),
-      };
-      const current = selected.get(category);
-      if (
-        !current ||
-        candidate.priority > current.priority ||
-        (candidate.priority === current.priority &&
-          candidate.message.length > current.message.length)
-      )
-        selected.set(category, candidate);
-    }
-    return [...selected.values()].map((entry) => entry.message);
-  }
-
-  function checkKey(check) {
-    return normalizeText(check?.constraint || check?.label || "contrôle");
-  }
-
-  function dedupeChecks(checks = []) {
-    const selected = new Map();
-    for (const raw of Array.isArray(checks) ? checks : []) {
-      if (!raw) continue;
-      const check = { ...raw };
-      const key = checkKey(check);
-      const current = selected.get(key);
-      const rank = STATUS_RANK[check.status] || 0;
-      const currentRank = STATUS_RANK[current?.status] || 0;
-      if (
-        !current ||
-        rank > currentRank ||
-        (rank === currentRank &&
-          String(check.evidence || "").length >
-            String(current.evidence || "").length)
-      )
-        selected.set(key, check);
-    }
-    return [...selected.values()];
-  }
-
-  function summarizeChecks(checks = []) {
-    const summary = {
-      respected: 0,
-      unknown: 0,
-      violated: 0,
-      total: 0,
-    };
-    for (const check of checks) {
-      if (check.status === "respected") summary.respected += 1;
-      else if (check.status === "violated") summary.violated += 1;
-      else summary.unknown += 1;
-    }
-    summary.total =
-      summary.respected + summary.unknown + summary.violated;
-    return summary;
-  }
-
-  function synthesizeRoutePresentation(route = {}) {
-    const next = { ...route };
-    next.warnings = dedupeWarnings(route.warnings);
-    next.unknowns = dedupeWarnings(route.unknowns);
-    next.checks = dedupeChecks(route.checks);
-    next.controlSummary = summarizeChecks(next.checks);
-    return next;
-  }
-
-  globalThis.JMMJSAlertSynthesisCore = Object.freeze({
-    dedupeWarnings,
-    dedupeChecks,
-    summarizeChecks,
-    synthesizeRoutePresentation,
-  });
-})();
-
-(() => {
-  "use strict";
-
-  const LOOP_TOLERANCE_METERS = 30;
-
-  function validCoord(coord) {
-    return (
-      Array.isArray(coord) &&
-      Number.isFinite(Number(coord[0])) &&
-      Number.isFinite(Number(coord[1])) &&
-      Number(coord[0]) >= -180 &&
-      Number(coord[0]) <= 180 &&
-      Number(coord[1]) >= -90 &&
-      Number(coord[1]) <= 90
-    );
-  }
-
-  function sanitizeCoords(coords = []) {
-    return (Array.isArray(coords) ? coords : [])
-      .filter(validCoord)
-      .map((coord) => [
-        Number(coord[0]),
-        Number(coord[1]),
-        Number.isFinite(Number(coord[2])) ? Number(coord[2]) : null,
-      ]);
-  }
-
-  function haversine(a, b) {
-    if (!validCoord(a) || !validCoord(b)) return Infinity;
-    const rad = Math.PI / 180;
-    const lat1 = Number(a[1]) * rad;
-    const lat2 = Number(b[1]) * rad;
-    const dLat = (Number(b[1]) - Number(a[1])) * rad;
-    const dLon = (Number(b[0]) - Number(a[0])) * rad;
-    const h =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-  }
-
-  function xmlEscape(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&apos;");
-  }
-
-  function auditRouteExport(route = {}) {
-    const original = Array.isArray(route.coords) ? route.coords : [];
-    const coords = sanitizeCoords(original);
-    const reasons = [];
-
-    if (coords.length < 2) reasons.push("Géométrie insuffisante.");
-    if (coords.length !== original.length)
-      reasons.push("La géométrie contient des coordonnées invalides.");
-
-    const closureMeters =
-      coords.length >= 2 ? haversine(coords[0], coords.at(-1)) : Infinity;
-    if (!Number.isFinite(closureMeters) || closureMeters > LOOP_TOLERANCE_METERS)
-      reasons.push("La trace ne revient pas suffisamment près du départ.");
-
-    if (
-      route.proposalStatus &&
-      !["compatible", "respected"].includes(route.proposalStatus)
-    )
-      reasons.push("Le parcours n’est pas déclaré compatible.");
-    if (route.canNavigate === false)
-      reasons.push("La navigation est désactivée pour ce parcours.");
-
-    return {
-      exactEligible: reasons.length === 0,
-      geometryValid: coords.length >= 2 && coords.length === original.length,
-      closedLoop:
-        Number.isFinite(closureMeters) &&
-        closureMeters <= LOOP_TOLERANCE_METERS,
-      closureMeters: Number.isFinite(closureMeters)
-        ? Math.round(closureMeters)
-        : null,
-      coordinateCount: coords.length,
-      reasons,
-      label: reasons.length
-        ? "Export exact indisponible"
-        : "Géométrie exacte certifiée",
-    };
-  }
-
-  function pointXml(coord) {
-    const elevation = Number.isFinite(Number(coord[2]))
-      ? `<ele>${Number(coord[2])}</ele>`
-      : "";
-    return `<trkpt lat="${Number(coord[1])}" lon="${Number(coord[0])}">${elevation}</trkpt>`;
-  }
-
-  function routePointXml(coord) {
-    const elevation = Number.isFinite(Number(coord[2]))
-      ? `<ele>${Number(coord[2])}</ele>`
-      : "";
-    return `<rtept lat="${Number(coord[1])}" lon="${Number(coord[0])}">${elevation}</rtept>`;
-  }
-
-  function pauseWaypointXml(pause, index) {
-    const lat = Number(pause?.lat);
-    const lon = Number(pause?.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
-    const name =
-      pause?.label || `Pause ${index + 1}`;
-    const description = [
-      pause?.minute ? `Pause prévue à ${pause.minute} min` : null,
-      Number.isFinite(Number(pause?.distanceMeters))
-        ? `${Math.round(Number(pause.distanceMeters))} m du départ`
-        : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    return (
-      `<wpt lat="${lat}" lon="${lon}">` +
-      `<name>${xmlEscape(name)}</name>` +
-      (description ? `<desc>${xmlEscape(description)}</desc>` : "") +
-      `<type>Pause</type></wpt>`
-    );
-  }
-
-  function alternativeRouteXml(item, index, typeLabel) {
-    const coords = sanitizeCoords(item?.geometry);
-    if (coords.length < 2) return "";
-    const name = item?.label || `${typeLabel} ${index + 1}`;
-    return (
-      `<rte><name>${xmlEscape(name)}</name>` +
-      `<desc>${xmlEscape(item?.evidence || typeLabel)}</desc>` +
-      coords.map(routePointXml).join("") +
-      `</rte>`
-    );
-  }
-
-  function buildExactGpx(route = {}, options = {}) {
-    const audit = auditRouteExport(route);
-    if (!audit.exactEligible) {
-      const error = new Error(audit.reasons.join(" "));
-      error.code = "EXPORT_NOT_EXACT";
-      error.audit = audit;
-      throw error;
-    }
-
-    const coords = sanitizeCoords(route.coords);
-    const pauses = Array.isArray(route.pauseMarkers)
-      ? route.pauseMarkers
-      : [];
-    const shortcuts = Array.isArray(route.shortcuts) ? route.shortcuts : [];
-    const fallbacks = Array.isArray(route.fallbacks) ? route.fallbacks : [];
-
-    const warnings = Array.isArray(route.warnings) ? route.warnings : [];
-    const description = [
-      route.why,
-      ...warnings,
-      `Coordonnées exactes : ${coords.length}`,
-      `Fermeture de boucle : ${audit.closureMeters} m`,
-    ]
-      .filter(Boolean)
-      .join(" | ");
-
-    return (
-      `<?xml version="1.0" encoding="UTF-8"?>` +
-      `<gpx version="1.1" creator="Je marche comme je suis" ` +
-      `xmlns="http://www.topografix.com/GPX/1/1" ` +
-      `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
-      `xsi:schemaLocation="http://www.topografix.com/GPX/1/1 ` +
-      `http://www.topografix.com/GPX/1/1/gpx.xsd">` +
-      `<metadata><name>${xmlEscape(route.name || "Balade")}</name>` +
-      `<desc>${xmlEscape(description)}</desc>` +
-      `<extensions><exportCertification>` +
-      `${xmlEscape(audit.label)}</exportCertification>` +
-      `<coordinateCount>${audit.coordinateCount}</coordinateCount>` +
-      `<closureMeters>${audit.closureMeters}</closureMeters>` +
-      `</extensions></metadata>` +
-      pauses.map(pauseWaypointXml).join("") +
-      `<trk><name>${xmlEscape(route.name || "Balade")}</name>` +
-      `<type>walking</type><trkseg>${coords.map(pointXml).join("")}</trkseg></trk>` +
-      shortcuts
-        .map((item, index) =>
-          alternativeRouteXml(item, index, "Raccourci réel"),
-        )
-        .join("") +
-      fallbacks
-        .map((item, index) =>
-          alternativeRouteXml(item, index, "Repli sur ses pas"),
-        )
-        .join("") +
-      `</gpx>`
-    );
-  }
-
-  function simplifiedWaypoints(route = {}, maximum = 8) {
-    const coords = sanitizeCoords(route.coords);
-    if (coords.length <= maximum) return coords;
-    const result = [coords[0]];
-    const interiorCount = maximum - 2;
-    for (let index = 1; index <= interiorCount; index += 1) {
-      const position = Math.round(
-        (index * (coords.length - 1)) / (interiorCount + 1),
-      );
-      result.push(coords[position]);
-    }
-    result.push(coords.at(-1));
-    return result;
-  }
-
-  function buildMapLinks(route = {}) {
-    const points = simplifiedWaypoints(route, 8);
-    if (points.length < 2) return { google: null, apple: null, simplified: true };
-    const format = (coord) => `${coord[1]},${coord[0]}`;
-    const origin = format(points[0]);
-    const destination = format(points.at(-1));
-    const intermediate = points.slice(1, -1).map(format);
-
-    return {
-      google:
-        "https://www.google.com/maps/dir/?api=1&origin=" +
-        encodeURIComponent(origin) +
-        "&destination=" +
-        encodeURIComponent(destination) +
-        "&travelmode=walking" +
-        (intermediate.length
-          ? "&waypoints=" + encodeURIComponent(intermediate.join("|"))
-          : ""),
-      apple:
-        "https://maps.apple.com/?saddr=" +
-        encodeURIComponent(origin) +
-        "&daddr=" +
-        encodeURIComponent(
-          [...intermediate, destination].join("+to:"),
-        ) +
-        "&dirflg=w",
-      simplified: true,
-      waypointCount: points.length,
-    };
-  }
-
-  function buildJsonExport(route = {}) {
-    return {
-      schema: "jmmjs-route-export-v1",
-      generatedAt: new Date().toISOString(),
-      exportCertification: auditRouteExport(route),
-      route,
-    };
-  }
-
-  globalThis.JMMJSExportCore = Object.freeze({
-    LOOP_TOLERANCE_METERS,
-    sanitizeCoords,
-    auditRouteExport,
-    buildExactGpx,
-    buildMapLinks,
-    buildJsonExport,
-    simplifiedWaypoints,
-  });
-})();
-
-(() => {
-  "use strict";
-
-  const LEVEL_RANK = Object.freeze({
-    confirmed: 5,
-    probable: 4,
-    partial: 3,
-    undocumented: 2,
-    contradictory: 1,
-  });
-
-  const LEVEL_LABEL = Object.freeze({
-    confirmed: "Confirmé",
-    probable: "Probable",
-    partial: "Partiel",
-    undocumented: "Non documenté",
-    contradictory: "Contradictoire",
-  });
-
-  function daysBetween(timestamp, now = Date.now()) {
-    const value = Number(timestamp);
-    if (!Number.isFinite(value)) return null;
-    return Math.max(0, Math.floor((now - value) / 86400000));
-  }
-
-  function finiteProvided(value) {
-    return value !== null && value !== undefined && value !== "" &&
-      Number.isFinite(Number(value));
-  }
-
-  function sourceRecord({
-    name,
-    kind,
-    capturedAt = null,
-    distanceMeters = null,
-    note = "",
-  }) {
-    return {
-      name: String(name || "Source inconnue"),
-      kind: String(kind || "unknown"),
-      capturedAt: Number.isFinite(Number(capturedAt))
-        ? Number(capturedAt)
-        : null,
-      ageDays: daysBetween(capturedAt),
-      distanceMeters: Number.isFinite(Number(distanceMeters))
-        ? Math.round(Number(distanceMeters))
-        : null,
-      note: String(note || ""),
-    };
-  }
-
-  function evidenceItem({
-    id,
-    label,
-    level,
-    statement,
-    source,
-    reason,
-  }) {
-    return {
-      id,
-      label,
-      level,
-      levelLabel: LEVEL_LABEL[level] || level,
-      statement,
-      source,
-      reason,
-    };
-  }
-
-  function weakestLevel(items = []) {
-    const levels = items.map((item) => item.level).filter(Boolean);
-    if (!levels.length) return "undocumented";
-    if (levels.includes("contradictory")) return "contradictory";
-    return levels.reduce((weakest, level) =>
-      (LEVEL_RANK[level] || 0) < (LEVEL_RANK[weakest] || 0)
-        ? level
-        : weakest,
-    );
-  }
-
-  function summarizeTerrainProof(
-    terrainEvidence = {},
-    {
-      photos = [],
-      contradictions = [],
-      now = Date.now(),
-    } = {},
-  ) {
-    const cartographicSource = sourceRecord({
-      name: terrainEvidence.source || "Cartographie",
-      kind: "cartography",
-      note:
-        "La date de mise à jour n’est pas fournie par la réponse de calcul.",
-    });
-
-    const coverage = Number(terrainEvidence.surfaceCoveragePercent);
-    const surfaceLevel =
-      Number.isFinite(coverage) && coverage >= 90
-        ? "probable"
-        : Number.isFinite(coverage) && coverage > 0
-          ? "partial"
-          : "undocumented";
-
-    const items = [
-      evidenceItem({
-        id: "surface",
-        label: "Surface",
-        level: surfaceLevel,
-        statement:
-          surfaceLevel === "undocumented"
-            ? "Surface non documentée."
-            : `${Math.round(coverage)} % de la trace possède une surface cartographiée.`,
-        source: cartographicSource.name,
-        reason:
-          surfaceLevel === "probable"
-            ? "La cartographie couvre presque toute la trace, sans observation directe."
-            : surfaceLevel === "partial"
-              ? "Une partie seulement de la trace est documentée."
-              : "Aucune donnée exploitable n’a été fournie.",
-      }),
-      evidenceItem({
-        id: "regularity",
-        label: "Régularité",
-        level:
-          terrainEvidence.regularitySafe === true ||
-          terrainEvidence.regularitySafe === false
-            ? "probable"
-            : "undocumented",
-        statement:
-          terrainEvidence.regularitySafe === true
-            ? "Terrain probablement régulier sur la portion documentée."
-            : terrainEvidence.regularitySafe === false
-              ? "Irrégularités cartographiques probables."
-              : "Régularité non documentée.",
-        source: cartographicSource.name,
-        reason:
-          terrainEvidence.regularitySafe == null
-            ? "La source ne permet pas de conclure."
-            : "Conclusion issue des types de surfaces cartographiés.",
-      }),
-      evidenceItem({
-        id: "width",
-        label: "Largeur",
-        level: finiteProvided(terrainEvidence.minimumWidthMeters)
-          ? "probable"
-          : "undocumented",
-        statement: finiteProvided(terrainEvidence.minimumWidthMeters)
-          ? `Largeur minimale déclarée : ${Number(
-              terrainEvidence.minimumWidthMeters,
-            ).toLocaleString("fr-FR")} m.`
-          : "Largeur non documentée.",
-        source: cartographicSource.name,
-        reason:
-          terrainEvidence.widthEvidence ||
-          "La largeur n’est pas fournie par la source.",
-      }),
-      evidenceItem({
-        id: "exposure",
-        label: "Exposition",
-        level:
-          terrainEvidence.exposureSafe === true ||
-          terrainEvidence.exposureSafe === false
-            ? "probable"
-            : "undocumented",
-        statement:
-          terrainEvidence.exposureSafe === true
-            ? "Absence d’exposition probablement documentée."
-            : terrainEvidence.exposureSafe === false
-              ? "Passage exposé probablement documenté."
-              : "Exposition non documentée.",
-        source: cartographicSource.name,
-        reason:
-          terrainEvidence.exposureEvidence ||
-          "L’exposition n’est pas fournie par la source.",
-      }),
-    ];
-
-    const normalizedPhotos = (Array.isArray(photos) ? photos : [])
-      .filter((photo) => Number.isFinite(Number(photo.capturedAt)))
-      .map((photo) =>
-        sourceRecord({
-          name: "Mapillary",
-          kind: "photograph",
-          capturedAt: photo.capturedAt,
-          distanceMeters: photo.distance,
-          note:
-            "Photographie indicative : elle ne garantit pas l’état actuel ni l’ensemble du parcours.",
-        }),
-      )
-      .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0));
-
-    items.push(
-      evidenceItem({
-        id: "photos",
-        label: "Photographies",
-        level: normalizedPhotos.length ? "partial" : "undocumented",
-        statement: normalizedPhotos.length
-          ? `${normalizedPhotos.length} photographie(s) à moins de 120 m de la trace.`
-          : "Aucune photographie exploitable trouvée à moins de 120 m.",
-        source: normalizedPhotos.length ? "Mapillary" : "Aucune",
-        reason: normalizedPhotos.length
-          ? "Contexte visuel ponctuel uniquement ; aucune validation globale du terrain."
-          : "Une absence de photographie ne prouve pas l’absence d’un risque.",
-      }),
-    );
-
-    const contradictionList = (Array.isArray(contradictions)
-      ? contradictions
-      : []
-    ).filter(Boolean);
-    if (contradictionList.length) {
-      items.push(
-        evidenceItem({
-          id: "contradictions",
-          label: "Contradictions",
-          level: "contradictory",
-          statement: contradictionList.join(" · "),
-          source: "Sources multiples",
-          reason:
-            "Des informations incompatibles empêchent une conclusion fiable.",
-        }),
-      );
-    }
-
-    const overallLevel = weakestLevel(items);
-    const latestPhoto = normalizedPhotos[0] || null;
-    const nearestPhotoDistance = normalizedPhotos.length
-      ? Math.min(
-          ...normalizedPhotos
-            .map((photo) => photo.distanceMeters)
-            .filter(Number.isFinite),
-        )
-      : null;
-
-    return {
-      overallLevel,
-      overallLabel: LEVEL_LABEL[overallLevel],
-      items,
-      sources: [cartographicSource, ...normalizedPhotos],
-      photoSummary: {
-        count: normalizedPhotos.length,
-        latestAgeDays: latestPhoto
-          ? Math.max(
-              0,
-              Math.floor((now - latestPhoto.capturedAt) / 86400000),
-            )
-          : null,
-        nearestDistanceMeters: Number.isFinite(nearestPhotoDistance)
-          ? nearestPhotoDistance
-          : null,
-      },
-      rule:
-        "Une donnée non trouvée ne signifie jamais que l’élément est absent.",
-    };
-  }
-
-  globalThis.JMMJSTerrainProofCore = Object.freeze({
-    LEVEL_LABEL,
-    summarizeTerrainProof,
-  });
-})();
-
-
-(() => {
-  "use strict";
-
-  const MAX_FILE_BYTES = 15 * 1024 * 1024;
-  const MAX_TRACK_POINTS = 250000;
-  const MAX_TRACKS = 100;
-
-  function countMatches(text, pattern) {
-    return (String(text || "").match(pattern) || []).length;
-  }
-
-  function auditGPXInput({
-    fileName = "",
-    fileSize = 0,
-    mimeType = "",
-    text = "",
-  } = {}) {
-    const errors = [];
-    const warnings = [];
-    const normalizedName = String(fileName || "").trim();
-    const normalizedMime = String(mimeType || "").toLowerCase();
-    const content = String(text || "");
-
-    if (!normalizedName.toLowerCase().endsWith(".gpx"))
-      errors.push("Le fichier doit porter l’extension .gpx.");
-
-    if (!Number.isFinite(Number(fileSize)) || Number(fileSize) <= 0)
-      errors.push("Le fichier GPX est vide.");
-    else if (Number(fileSize) > MAX_FILE_BYTES)
-      errors.push(
-        `Le fichier dépasse la limite de ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} Mo.`,
-      );
-
-    if (
-      normalizedMime &&
-      ![
-        "application/gpx+xml",
-        "application/xml",
-        "text/xml",
-        "text/plain",
-        "application/octet-stream",
-      ].includes(normalizedMime)
-    )
-      warnings.push(
-        `Type de fichier inhabituel : ${normalizedMime}. Le contenu XML sera contrôlé.`,
-      );
-
-    if (!content.trim())
-      errors.push("Le fichier GPX ne contient aucune donnée.");
-    if (/<!DOCTYPE/i.test(content) || /<!ENTITY/i.test(content))
-      errors.push(
-        "Les déclarations DOCTYPE et ENTITY ne sont pas acceptées dans un GPX.",
-      );
-    if (!/<gpx\b/i.test(content))
-      errors.push("Le document ne contient pas de balise GPX.");
-    if (/<parsererror\b/i.test(content))
-      errors.push("Le contenu XML signale une erreur d’analyse.");
-
-    const trackPointCount = countMatches(content, /<trkpt\b/gi);
-    const routePointCount = countMatches(content, /<rtept\b/gi);
-    const waypointCount = countMatches(content, /<wpt\b/gi);
-    const trackCount = countMatches(content, /<trk\b/gi);
-    const totalGeometryPoints = trackPointCount + routePointCount;
-
-    if (totalGeometryPoints === 0)
-      errors.push("Aucun point de trace ou de route n’a été trouvé.");
-    if (totalGeometryPoints > MAX_TRACK_POINTS)
-      errors.push(
-        `Le fichier contient trop de points (${totalGeometryPoints.toLocaleString(
-          "fr-FR",
-        )}).`,
-      );
-    if (trackCount > MAX_TRACKS)
-      errors.push(`Le fichier contient trop de traces (${trackCount}).`);
-
-    return {
-      accepted: errors.length === 0,
-      errors,
-      warnings,
-      stats: {
-        fileName: normalizedName,
-        fileSize: Number(fileSize) || 0,
-        trackCount,
-        trackPointCount,
-        routePointCount,
-        waypointCount,
-        totalGeometryPoints,
-      },
-    };
-  }
-
-  function auditParsedGPX(parsed = []) {
-    const errors = [];
-    const warnings = [];
-    const candidates = Array.isArray(parsed) ? parsed : [];
-
-    if (!candidates.length)
-      errors.push("Aucune trace exploitable n’a été produite.");
-
-    let validCandidates = 0;
-    let totalPoints = 0;
-
-    for (const [index, candidate] of candidates.entries()) {
-      const points = Array.isArray(candidate?.points)
-        ? candidate.points
-        : [];
-      const validPoints = points.filter(
-        (point) =>
-          Array.isArray(point) &&
-          Number.isFinite(Number(point[0])) &&
-          Number.isFinite(Number(point[1])) &&
-          Number(point[0]) >= -180 &&
-          Number(point[0]) <= 180 &&
-          Number(point[1]) >= -90 &&
-          Number(point[1]) <= 90,
-      );
-
-      totalPoints += validPoints.length;
-      if (validPoints.length >= 2) validCandidates += 1;
-      else
-        warnings.push(
-          `La trace ${index + 1} contient moins de deux coordonnées valides.`,
-        );
-
-      if (validPoints.length !== points.length)
-        warnings.push(
-          `La trace ${index + 1} contient ${
-            points.length - validPoints.length
-          } coordonnée(s) invalide(s).`,
-        );
-    }
-
-    if (!validCandidates)
-      errors.push("Aucune trace ne contient assez de coordonnées valides.");
-
-    return {
-      accepted: errors.length === 0,
-      errors,
-      warnings,
-      stats: {
-        candidateCount: candidates.length,
-        validCandidateCount: validCandidates,
-        totalValidPoints: totalPoints,
-      },
-    };
-  }
-
-  function formatGPXAudit(audit = {}) {
-    if (!audit.accepted)
-      return `GPX refusé · ${(audit.errors || []).join(" ")}`;
-    const stats = audit.stats || {};
-    return [
-      "GPX contrôlé",
-      Number.isFinite(stats.totalGeometryPoints)
-        ? `${stats.totalGeometryPoints.toLocaleString("fr-FR")} points`
-        : null,
-      Number.isFinite(stats.trackCount)
-        ? `${stats.trackCount} trace(s)`
-        : null,
-      audit.warnings?.length
-        ? `${audit.warnings.length} avertissement(s)`
-        : "aucune anomalie bloquante",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-  }
-
-  globalThis.JMMJSGPXSafetyCore = Object.freeze({
-    MAX_FILE_BYTES,
-    MAX_TRACK_POINTS,
-    auditGPXInput,
-    auditParsedGPX,
-    formatGPXAudit,
-  });
-})();
-
-(() => {
-  "use strict";
-
-  const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-  const DEFAULT_TIMEOUT_MS = 12000;
-  const DEFAULT_RETRY_DELAYS = Object.freeze([700, 1500]);
-
-  function wait(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-  }
-
-  function numericStatus(error) {
-    const candidates = [
-      error?.status,
-      error?.response?.status,
-      error?.cause?.status,
-    ];
-    for (const candidate of candidates) {
-      const value = Number(candidate);
-      if (Number.isFinite(value)) return value;
-    }
-    const match = String(error?.message || "").match(/\b(401|403|429|500|502|503|504)\b/);
-    return match ? Number(match[1]) : null;
-  }
-
-  function classifyServiceError(error, service = "service") {
-    const status = numericStatus(error);
-    const message = String(error?.message || "Erreur inconnue");
-    const lower = message.toLowerCase();
-
-    if (
-      error?.name === "AbortError" ||
-      lower.includes("timeout") ||
-      lower.includes("délai") ||
-      lower.includes("delai")
-    )
-      return {
-        code: "timeout",
-        status,
-        retryable: true,
-        userMessage: `${service} met trop de temps à répondre.`,
-        technicalMessage: message,
-      };
-
-    if (status === 401 || status === 403)
-      return {
-        code: "authentication",
-        status,
-        retryable: false,
-        userMessage: `${service} refuse l’accès. La configuration sécurisée doit être vérifiée.`,
-        technicalMessage: message,
-      };
-
-    if (status === 429)
-      return {
-        code: "quota",
-        status,
-        retryable: true,
-        userMessage: `${service} a atteint sa limite temporaire de requêtes.`,
-        technicalMessage: message,
-      };
-
-    if (status && RETRYABLE_STATUS.has(status))
-      return {
-        code: "temporary",
-        status,
-        retryable: true,
-        userMessage: `${service} est temporairement indisponible.`,
-        technicalMessage: message,
-      };
-
-    if (
-      error instanceof TypeError ||
-      lower.includes("failed to fetch") ||
-      lower.includes("network") ||
-      lower.includes("réseau") ||
-      lower.includes("reseau")
-    )
-      return {
-        code: "network",
-        status,
-        retryable: true,
-        userMessage: `Connexion impossible avec ${service}.`,
-        technicalMessage: message,
-      };
-
-    if (
-      lower.includes("json") ||
-      lower.includes("réponse invalide") ||
-      lower.includes("reponse invalide")
-    )
-      return {
-        code: "invalid-response",
-        status,
-        retryable: false,
-        userMessage: `${service} a renvoyé une réponse inexploitable.`,
-        technicalMessage: message,
-      };
-
-    return {
-      code: "unknown",
-      status,
-      retryable: false,
-      userMessage: `${service} n’a pas pu terminer l’opération.`,
-      technicalMessage: message,
-    };
-  }
-
-  function createServiceResilience({
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    retryDelays = DEFAULT_RETRY_DELAYS,
-    cacheTtlMs = 2 * 60 * 1000,
-    now = Date.now,
-  } = {}) {
-    const pending = new Map();
-    const cache = new Map();
-
-    async function withTimeout(operation, milliseconds) {
-      let timer = null;
-      try {
-        return await Promise.race([
-          Promise.resolve().then(operation),
-          new Promise((_, reject) => {
-            timer = setTimeout(() => {
-              const error = new Error(`Timeout après ${milliseconds} ms`);
-              error.name = "AbortError";
-              reject(error);
-            }, milliseconds);
-          }),
-        ]);
-      } finally {
-        if (timer) clearTimeout(timer);
-      }
-    }
-
-    async function execute({
-      service,
-      key,
-      operation,
-      allowRetry = true,
-      allowCache = false,
-      customTimeoutMs = timeoutMs,
-    }) {
-      if (typeof operation !== "function")
-        throw new TypeError("Une opération de service est requise.");
-
-      const operationKey = `${service}:${key || "default"}`;
-      const cached = cache.get(operationKey);
-      if (
-        allowCache &&
-        cached &&
-        now() - cached.savedAt < cacheTtlMs
-      )
-        return {
-          ok: true,
-          value: cached.value,
-          attempts: 0,
-          cache: "hit",
-          diagnostic: null,
-        };
-
-      if (pending.has(operationKey)) return pending.get(operationKey);
-
-      const task = (async () => {
-        const maximumAttempts =
-          allowRetry ? retryDelays.length + 1 : 1;
-        let lastDiagnostic = null;
-
-        for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
-          try {
-            const value = await withTimeout(operation, customTimeoutMs);
-            if (allowCache)
-              cache.set(operationKey, {
-                savedAt: now(),
-                value,
-              });
-            return {
-              ok: true,
-              value,
-              attempts: attempt + 1,
-              cache: "miss",
-              diagnostic: null,
-            };
-          } catch (error) {
-            lastDiagnostic = classifyServiceError(error, service);
-            if (
-              !allowRetry ||
-              !lastDiagnostic.retryable ||
-              attempt >= maximumAttempts - 1
-            )
-              return {
-                ok: false,
-                value: null,
-                attempts: attempt + 1,
-                cache: "miss",
-                diagnostic: lastDiagnostic,
-                error,
-              };
-            await wait(retryDelays[attempt]);
-          }
-        }
-
-        return {
-          ok: false,
-          value: null,
-          attempts: maximumAttempts,
-          cache: "miss",
-          diagnostic: lastDiagnostic,
-        };
-      })().finally(() => pending.delete(operationKey));
-
-      pending.set(operationKey, task);
-      return task;
-    }
-
-    function clearCache(service = null) {
-      if (!service) return cache.clear();
-      for (const key of cache.keys())
-        if (key.startsWith(`${service}:`)) cache.delete(key);
-    }
-
-    return Object.freeze({
-      execute,
-      clearCache,
-      classifyServiceError,
-    });
-  }
-
-  globalThis.JMMJSServiceResilienceCore = Object.freeze({
-    RETRYABLE_STATUS,
-    DEFAULT_TIMEOUT_MS,
-    DEFAULT_RETRY_DELAYS,
-    classifyServiceError,
-    createServiceResilience,
-  });
-})();
-
-(() => {
-  "use strict";
-
-  function minutes(route = {}) {
-    const value = Number(route.total ?? route.walking);
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  function assessRouteSet(routes = [], requestedMinutes = 0, options = {}) {
-    const list = Array.isArray(routes) ? routes : [];
-    const requested = Math.max(0, Number(requestedMinutes) || 0);
-    const minimumRatio = Number(options.minimumRatio) || 0.7;
-    const expectedCount = Number(options.expectedCount) || 3;
-    const minimum = requested * minimumRatio;
-    const credible = list.filter((route) => minutes(route) >= minimum);
-    const bestMinutes = list.reduce((best, route) => Math.max(best, minutes(route)), 0);
-    const allNonRecommended =
-      list.length > 0 &&
-      list.every(
-        (route) =>
-          route.canNavigate === false ||
-          ["verify", "adaptation"].includes(route.proposalStatus),
-      );
-
-    const reasons = [];
-    if (requested > 0 && credible.length === 0)
-      reasons.push(
-        `La meilleure tentative dure ${Math.round(bestMinutes)} min pour environ ${Math.round(requested)} min demandées.`,
-      );
-    if (list.length < expectedCount)
-      reasons.push(`${list.length} proposition(s) seulement au lieu de ${expectedCount}.`);
-    if (allNonRecommended)
-      reasons.push("Toutes les tentatives nécessitent une vérification ou une adaptation.");
-
-    return {
-      insufficient: list.length === 0 || credible.length === 0 || allNonRecommended,
-      bestMinutes: Math.round(bestMinutes),
-      credibleCount: credible.length,
-      routeCount: list.length,
-      reasons,
-    };
-  }
-
-  function buildReturnLinks(route = {}, travelMode = "walking") {
-    const first = Array.isArray(route.coords) ? route.coords[0] : null;
-    if (
-      !Array.isArray(first) ||
-      !Number.isFinite(Number(first[0])) ||
-      !Number.isFinite(Number(first[1]))
-    )
-      return { google: null, apple: null, coordinates: null };
-
-    const destination = `${Number(first[1]).toFixed(6)},${Number(first[0]).toFixed(6)}`;
-    const googleMode = travelMode === "bicycling" ? "bicycling" : "walking";
-    const appleFlag = travelMode === "bicycling" ? "b" : "w";
-
-    return {
-      google:
-        "https://www.google.com/maps/dir/?api=1&destination=" +
-        encodeURIComponent(destination) +
-        "&travelmode=" +
-        googleMode +
-        "&dir_action=navigate",
-      apple:
-        "https://maps.apple.com/?daddr=" +
-        encodeURIComponent(destination) +
-        "&dirflg=" +
-        appleFlag,
-      coordinates: destination,
-    };
-  }
-
-  globalThis.JMMJSMobileSafetyCore = Object.freeze({
-    assessRouteSet,
-    buildReturnLinks,
-  });
-})();
-
+    <script data-jmmjs-bundle="app">
 (() => {
   "use strict";
   const {
@@ -5133,6 +5513,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
       retryDelays: [700, 1500],
       cacheTtlMs: 120000,
     });
+  const {
+    buildBlockingFailure,
+    buildSecondaryState,
+    summarizeServiceStates,
+  } = globalThis.JMMJSServiceContinuityCore;
   const {
     assessRouteSet,
     buildReturnLinks,
@@ -5235,6 +5620,41 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function status(m) {
     E.status.hidden = !m;
     E.status.innerHTML = m || "";
+  }
+  function blockingFailureHtml(view) {
+    const actions = view.actions
+      .map(
+        (action, index) =>
+          `<button type="button" class="${index === 0 ? "primary" : "secondary"} service-failure-action" data-service-action="${esc(action.id)}">${esc(action.label)}</button>`,
+      )
+      .join("");
+    return (
+      `<section class="service-failure" data-state="${esc(view.state)}" role="alert" aria-live="assertive">` +
+      `<p class="service-failure-kicker">Recherche interrompue · données conservées</p>` +
+      `<h2>${esc(view.title)}</h2>` +
+      `<p>${esc(view.body)}</p>` +
+      `<p class="service-failure-assurance">${esc(view.assurance)}</p>` +
+      `<div class="service-failure-actions">${actions}</div>` +
+      `</section>`
+    );
+  }
+
+  function showBlockingServiceFailure(result, service = "ors") {
+    const view = buildBlockingFailure({
+      service,
+      diagnostic: {
+        ...(result?.diagnostic || {}),
+        attempts: result?.attempts,
+      },
+    });
+    status(blockingFailureHtml(view));
+    E.status.dataset.kind = "blocking-service-failure";
+    E.status.dataset.state = view.state;
+    return view;
+  }
+
+  function secondaryServiceWarning(service, diagnostic, imperative = false) {
+    return buildSecondaryState({ service, diagnostic, imperative });
   }
   function go(n) {
     S.step = Math.max(0, Math.min(3, n));
@@ -7743,7 +8163,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     });
     if (!result.ok) {
       showServiceDiagnostic("ors", result);
-      throw result.error || new Error(result.diagnostic.userMessage);
+      const error = result.error || new Error(result.diagnostic.userMessage);
+      error.serviceResult = result;
+      error.serviceName = "ors";
+      throw error;
     }
     serviceState("ors", "Connecté", "ok");
     return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
@@ -7858,11 +8281,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }
     } catch (e) {
       serviceState("ors", "Indisponible", "error");
-      if (!unique.size)
-        throw Error(
+      if (!unique.size) {
+        if (e?.serviceResult) throw e;
+        const wrapped = Error(
           "OpenRouteService est indisponible : aucun repli non vérifié n’a été utilisé. " +
             e.message,
         );
+        wrapped.serviceName = "ors";
+        wrapped.serviceResult = {
+          ok: false,
+          attempts: 1,
+          diagnostic: globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+            e,
+            "OpenRouteService",
+          ),
+        };
+        throw wrapped;
+      }
     }
     let all = [...unique.values()];
     const requiredServices = S.compiled?.hard?.requiredServices || [];
@@ -7892,15 +8327,37 @@ svg.leaflet-image-layer.leaflet-interactive path {
               radiusMeters: 300,
             });
             const checked = applyServiceAssessment(route, assessment);
+            const diagnostic =
+              globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+                error,
+                "Geoapify",
+              );
+            const serviceState = secondaryServiceWarning("geo", diagnostic, true);
+            checked.serviceStates = [
+              ...(checked.serviceStates || []),
+              serviceState,
+            ];
+            checked.serviceSummary = summarizeServiceStates(checked.serviceStates);
             checked.warnings = [
               ...(checked.warnings || []),
-              "Services impératifs invérifiables : " + error.message,
+              serviceState.label + " : " + serviceState.message,
             ];
             verified.push(checked);
           } else {
+            const diagnostic =
+              globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+                error,
+                "Geoapify",
+              );
+            const serviceState = secondaryServiceWarning("geo", diagnostic, false);
+            route.serviceStates = [
+              ...(route.serviceStates || []),
+              serviceState,
+            ];
+            route.serviceSummary = summarizeServiceStates(route.serviceStates);
             route.warnings = [
               ...(route.warnings || []),
-              "Point de pause invérifiable : " + error.message,
+              "Point de pause non vérifié : " + serviceState.message,
             ];
             verified.push(route);
           }
@@ -8343,15 +8800,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
         render();
       }
     } catch (x) {
-      status("");
+      const blockingServiceFailure = x?.serviceResult
+        ? showBlockingServiceFailure(x.serviceResult, x.serviceName || "ors")
+        : null;
+      if (!blockingServiceFailure) status("");
       S.step = 3;
       document.querySelectorAll(".step").forEach((step, index) =>
         step.classList.toggle("active", index === 3),
       );
-      say(
-        "Le calcul n’a pas été réinitialisé. Erreur : " +
-          (x?.message || "erreur inconnue"),
-      );
+      if (!blockingServiceFailure)
+        say(
+          "Le calcul n’a pas été réinitialisé. Erreur : " +
+            (x?.message || "erreur inconnue"),
+        );
       renderConstraintSummary();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
@@ -8391,6 +8852,29 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   document.addEventListener("click", (event) => {
+    const failureAction = event.target.closest(".service-failure-action");
+    if (failureAction) {
+      const action = failureAction.dataset.serviceAction;
+      if (action === "retry") {
+        status("");
+        $("#create")?.click();
+      }
+      if (action === "edit-request") {
+        status("");
+        go(1);
+      }
+      if (action === "change-start") {
+        status("");
+        go(0);
+        $("#place")?.focus();
+      }
+      if (action === "home") {
+        status("");
+        go(0);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
     const button = event.target.closest(".service-retry");
     if (!button) return;
     const action = button.dataset.retry;
@@ -8433,18 +8917,5 @@ svg.leaflet-image-layer.leaflet-interactive path {
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
 </script>
   </body></html>
