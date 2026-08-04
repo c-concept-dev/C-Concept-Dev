@@ -13,10 +13,20 @@
       throw new TypeError("Le relais cartographique doit utiliser HTTPS.");
     }
 
+    const unavailablePaths = new Set();
+
+    function unavailableEndpointError(path) {
+      const error = new Error(`Endpoint indisponible pour cette session : ${path}`);
+      error.status = 404;
+      error.code = "endpoint-unavailable";
+      return error;
+    }
+
     async function post(service, path, body, count = 1) {
       if (!/^\/[a-z0-9/_-]+$/i.test(path || "")) {
         throw new TypeError("Chemin de service invalide.");
       }
+      if (unavailablePaths.has(path)) throw unavailableEndpointError(path);
       requestGovernor?.beforeRequest(service, count);
       const preparedBody = prepareRequest
         ? prepareRequest(service, path, body ?? {})
@@ -44,6 +54,7 @@
         const retryAfterSeconds = Number(retryHeader ?? retryBody);
         if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0)
           error.retryAfterSeconds = retryAfterSeconds;
+        if (response.status === 404) unavailablePaths.add(path);
         requestGovernor?.noteFailure(service, error);
         throw error;
       }
@@ -51,7 +62,10 @@
       return data;
     }
 
-    return Object.freeze({ post });
+    return Object.freeze({
+      post,
+      isEndpointUnavailable: (path) => unavailablePaths.has(path),
+    });
   }
 
   globalThis.JMMJSServiceClient = Object.freeze({ createServiceClient });
