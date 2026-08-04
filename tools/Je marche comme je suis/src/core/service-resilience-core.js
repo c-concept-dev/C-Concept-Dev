@@ -61,6 +61,15 @@
         technicalMessage: message,
       };
 
+    if (status === 404 || error?.code === "endpoint-unavailable")
+      return {
+        code: "endpoint-unavailable",
+        status: 404,
+        retryable: false,
+        userMessage: `${service} n’est pas disponible dans le relais actuel.`,
+        technicalMessage: message,
+      };
+
     if (status === 401 || status === 403)
       return {
         code: "authentication",
