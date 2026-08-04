@@ -58,6 +58,10 @@
     globalThis.JMMJSRequestGovernorCore.createRequestGovernor({
       limits: { ors: 12, geo: 24, mapillary: 24, weather: 12, geocode: 12, session: 80 },
     });
+  const serviceObservability =
+    globalThis.JMMJSServiceObservabilityCore.createServiceObservability({
+      storage: globalThis.sessionStorage,
+    });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -268,7 +272,7 @@
     allowCache = false,
     timeoutMs = 12000,
   }) {
-    return serviceResilience.execute({
+    const result = await serviceResilience.execute({
       service: SERVICE_LABELS[name] || name,
       key,
       operation,
@@ -276,6 +280,14 @@
       allowCache,
       customTimeoutMs: timeoutMs,
     });
+    serviceObservability.record({
+      service: SERVICE_LABELS[name] || name,
+      operation: key || "operation",
+      ok: result.ok,
+      diagnostic: result.diagnostic,
+      attempts: result.attempts,
+    });
+    return result;
   }
 
   function countRequest(name, n = 1) {
@@ -3384,7 +3396,7 @@
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-labelledby", "privacyDetailsTitle");
     modal.innerHTML =
-      '<div class="modal-card clear-data-card"><h2 id="privacyDetailsTitle">Données et services externes</h2><p>Vos limitations, douleurs, fatigue, âge, texte libre, chaussures et équipements ne sont pas envoyés aux fournisseurs cartographiques.</p><p>Lors d’un calcul ou d’un enrichissement, seules les données techniques nécessaires sont transmises : coordonnées de départ, géométrie ou zone de recherche, paramètres de routage et moment utile pour la météo.</p><p id="privacyTransmissionStatus">Aucune transmission effectuée dans cette session.</p><div class="modal-actions"><button type="button" id="closePrivacyDetails">Fermer</button></div></div>';
+      '<div class="modal-card clear-data-card"><h2 id="privacyDetailsTitle">Données et services externes</h2><p>Vos limitations, douleurs, fatigue, âge, texte libre, chaussures et équipements ne sont pas envoyés aux fournisseurs cartographiques.</p><p>Lors d’un calcul ou d’un enrichissement, seules les données techniques nécessaires sont transmises : coordonnées de départ, géométrie ou zone de recherche, paramètres de routage et moment utile pour la météo.</p><p id="privacyTransmissionStatus">Aucune transmission effectuée dans cette session.</p><h3>Incidents techniques de la session</h3><div id="serviceIncidentSummary"><p>Aucun incident technique enregistré.</p></div><div class="modal-actions"><button type="button" id="clearServiceIncidents">Effacer l’historique technique</button><button type="button" id="closePrivacyDetails">Fermer</button></div></div>';
     document.body.appendChild(modal);
     $("#closePrivacyDetails").onclick = () => modal.classList.remove("show");
     modal.addEventListener("click", (event) => {
@@ -3403,6 +3415,17 @@
         status.textContent = summary.transmissionCount
           ? `${summary.transmissionCount} transmission${summary.transmissionCount > 1 ? "s" : ""} technique${summary.transmissionCount > 1 ? "s" : ""} dans cette session. Données de santé transmises : aucune.`
           : "Aucune transmission effectuée dans cette session.";
+      const incidents = serviceObservability.list({ failuresOnly: true });
+      const incidentSummary = $("#serviceIncidentSummary");
+      if (incidentSummary)
+        incidentSummary.innerHTML = incidents.length
+          ? `<ul>${incidents.slice(-5).reverse().map((item) => `<li><strong>${esc(item.service)}</strong> · ${esc(item.message)} <small>${esc(new Date(item.at).toLocaleString("fr-FR"))} · code ${esc(item.code)} · ${item.attempts} tentative${item.attempts > 1 ? "s" : ""}</small></li>`).join("")}</ul><p>${incidents.length} incident${incidents.length > 1 ? "s" : ""} conservé${incidents.length > 1 ? "s" : ""} dans cette session, sans coordonnées ni données de santé.</p>`
+          : "<p>Aucun incident technique enregistré.</p>";
+      const clearIncidents = $("#clearServiceIncidents");
+      if (clearIncidents) clearIncidents.onclick = () => {
+        serviceObservability.clear();
+        if (incidentSummary) incidentSummary.innerHTML = "<p>Aucun incident technique enregistré.</p>";
+      };
       modal.classList.add("show");
       $("#closePrivacyDetails")?.focus();
     };
@@ -3470,6 +3493,7 @@
     $("#confirmClearData").onclick = () => {
       privacyController.purge();
       sessionPrivacyController.clearSession();
+      serviceObservability.clear();
       modal.classList.remove("show");
       location.reload();
     };
