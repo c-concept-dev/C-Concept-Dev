@@ -1875,6 +1875,29 @@
     );
   }
 
+  function daylightReturnHtml(route) {
+    const core = globalThis.JMMJSDaylightReturnCore;
+    const coords = Array.isArray(route?.coords) ? route.coords[0] : null;
+    if (!core || !Array.isArray(coords)) return "";
+    const departure = scheduledDeparture();
+    const durationMinutes = Math.max(0, Number(route?.walking ?? route?.total ?? 0) + Number(route?.breaks ?? 0));
+    const assessment = core.assessDaylight({
+      latitude: coords[0],
+      longitude: coords[1],
+      departureAt: departure.date,
+      durationMinutes,
+    });
+    route.daylightReturn = assessment;
+    if (assessment.status !== "calculated") {
+      return '<section class="daylight-return" data-level="unknown"><h3>Lumière du jour</h3><p>Lumière du jour non déterminée.</p><small>' + esc(assessment.reason || "Données insuffisantes.") + '</small></section>';
+    }
+    const time = (value) => new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+    const margin = assessment.marginMinutes >= 0
+      ? assessment.marginMinutes + " min"
+      : Math.abs(assessment.marginMinutes) + " min après le coucher du soleil";
+    return '<section class="daylight-return" data-level="' + esc(assessment.level) + '"><h3>Lumière du jour</h3><p><strong>' + esc(assessment.label) + '</strong></p><div class="daylight-return-grid"><span>Retour estimé : ' + esc(time(assessment.returnAt)) + '</span><span>Coucher du soleil : ' + esc(time(assessment.sunset)) + '</span><span>Marge : ' + esc(margin) + '</span></div><small>Calcul local astronomique. Cette marge est une règle UX, pas une garantie de sécurité ni de visibilité réelle.</small></section>';
+  }
+
   function renderDetail() {
     const r = ensurePauseMarkers(S.routes[S.selected]),
       pauseMarkers = r.pauseMarkers,
@@ -1886,7 +1909,7 @@
       esc(r.weather?.assessment?.level || "unknown") +
       '">' +
       weatherCompactHtml(r.weather) +
-      '</div><div class="detail-top"><div><span class="kicker">Profil d’altitude</span>' +
+      '</div>' + daylightReturnHtml(r) + '<div class="detail-top"><div><span class="kicker">Profil d’altitude</span>' +
       profile(r.coords) +
       '</div><div class="why"><strong>Pourquoi ce parcours ?</strong><br>' +
       esc(whyThisRoute(r)) +
