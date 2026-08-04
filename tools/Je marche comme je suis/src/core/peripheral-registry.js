@@ -9,6 +9,7 @@
     weather: Object.freeze(["forecast"]),
     "terrain-proof": Object.freeze(["inspect"]),
     "elevation-control": Object.freeze(["inspect"]),
+    recovery: Object.freeze(["createLink"]),
   });
 
   function createPeripheralRegistry() {
