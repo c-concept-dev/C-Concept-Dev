@@ -2840,6 +2840,43 @@ svg.leaflet-image-layer.leaflet-interactive path {
  function describePoi(p){return {...p,hoursLabel:p.hours||"Horaires non documentés",presenceLabel:"Présence à vérifier",accessibilityLabel:p.accessibility==="documented"?"Accessibilité documentée":"Accessibilité inconnue"};}
  globalThis.JMMJSTourismServicesCore=Object.freeze({mergeTourismPois,describePoi});
 })();
+(function (global) {
+  "use strict";
+  const MAX_DISTANCE_METERS = 120;
+  function normalizePhoto(item, source, nearestRouteDistance, routeCoords) {
+    const coords = item?.coordinates || item?.geometry?.coordinates || null;
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    const distance = Math.round(Number(nearestRouteDistance(coords, routeCoords)));
+    if (!Number.isFinite(distance) || distance > MAX_DISTANCE_METERS) return null;
+    const capturedAt = Number(item.capturedAt ?? item.captured_at ?? item.dateTimestamp);
+    return {
+      id: String(item.id || item.panoId || item.pano_id || ""),
+      source,
+      lon: Number(coords[0]), lat: Number(coords[1]), distance,
+      capturedAt: Number.isFinite(capturedAt) ? capturedAt : null,
+      date: item.date || null,
+      thumb: item.thumb || item.thumb_1024_url || null,
+      heading: Number.isFinite(Number(item.heading)) ? Number(item.heading) : null,
+      externalUrl: item.externalUrl || null,
+      sequence: String(item.sequence?.id || item.sequence || ""),
+    };
+  }
+  function chooseReconPhotos({ streetView = [], mapillary = [], nearestRouteDistance, routeCoords, limit = 12 } = {}) {
+    const sv = streetView.map((x) => normalizePhoto(x, "Google Street View", nearestRouteDistance, routeCoords)).filter(Boolean);
+    const mp = mapillary.map((x) => normalizePhoto(x, "Mapillary", nearestRouteDistance, routeCoords)).filter(Boolean);
+    const all = [...sv, ...mp].sort((a,b) => a.distance-b.distance || (b.capturedAt||0)-(a.capturedAt||0));
+    const selected = [];
+    for (const p of all) {
+      if (!p.id || selected.some((x) => x.source===p.source && x.id===p.id)) continue;
+      if (selected.some((x) => Math.hypot(x.lon-p.lon, x.lat-p.lat) < 0.0005)) continue;
+      selected.push(p);
+      if (selected.length >= limit) break;
+    }
+    return selected;
+  }
+  function warningText() { return "Cette image aide au repérage. Elle ne garantit pas l’état actuel du passage."; }
+  global.JMMJSPhotoReconCore = { MAX_DISTANCE_METERS, normalizePhoto, chooseReconPhotos, warningText };
+})(globalThis);
 (() => {
   "use strict";
   const CRITICAL_CODES = new Set([66, 67, 75, 77, 82, 86, 95, 96, 99]);
@@ -6182,6 +6219,28 @@ svg.leaflet-image-layer.leaflet-interactive path {
  function createDatatourismeProvider({client,nearestRouteDistance}){return{id:"datatourisme",kind:"enrichment",label:"DATAtourisme",async enrich({route,radiusMeters=300,limit=40}){if(!Array.isArray(route?.coords)||route.coords.length<2)throw new TypeError("Trace invalide pour DATAtourisme.");const data=await client.post("tourism","/datatourisme/places",{route:route.coords.map(p=>p.slice(0,2)),radiusMeters,limit});return(data.items||data.features||[]).map((it,i)=>{const p=it.properties||it,c=it.geometry?.coordinates||[p.lon,p.lat],d=Number.isFinite(+p.distance)?+p.distance:nearestRouteDistance(c,route.coords);return{id:p.id||p.identifier||`dt-${i}`,type:type(p.type||p.category||p.typeLabel),name:p.name||p.label||"Lieu touristique",distance:Math.round(d),detourMeters:Math.round(d*2),lon:+c[0],lat:+c[1],source:"DATAtourisme",sources:["DATAtourisme"],hours:p.openingHours||p.hours||null,accessibility:"unknown"};}).filter(p=>Number.isFinite(p.lon)&&Number.isFinite(p.lat)&&p.distance<=radiusMeters).slice(0,limit);}}}
  globalThis.JMMJSDatatourismeProvider=Object.freeze({createDatatourismeProvider});
 })();
+(function (global) {
+  "use strict";
+  function createPhotoReconProvider({ client }) {
+    if (!client) throw new Error("Client de services requis.");
+    return {
+      id: "photo-recon",
+      async enrich({ route }) {
+        const coordinates = route?.coords || [];
+        const [streetView, mapillary] = await Promise.allSettled([
+          client.post("/streetview/metadata", { coordinates }),
+          client.post("/mapillary/images", { coordinates }),
+        ]);
+        return {
+          streetView: streetView.status === "fulfilled" ? (streetView.value?.data || []) : [],
+          mapillary: mapillary.status === "fulfilled" ? (mapillary.value?.data || []) : [],
+          warnings: [streetView, mapillary].filter((x) => x.status === "rejected").map((x) => String(x.reason?.message || "Service photo indisponible")),
+        };
+      },
+    };
+  }
+  global.JMMJSPhotoReconProvider = { createPhotoReconProvider };
+})(globalThis);
 (() => {
   "use strict";
 
@@ -7544,6 +7603,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const geoapifyProvider = peripherals.require("geoapify");
   peripherals.register(globalThis.JMMJSDatatourismeProvider.createDatatourismeProvider({ client: serviceClient, nearestRouteDistance }));
   const datatourismeProvider = peripherals.require("datatourisme");
+  const photoReconProvider = globalThis.JMMJSPhotoReconProvider.createPhotoReconProvider({ client: serviceClient });
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -8074,138 +8134,30 @@ svg.leaflet-image-layer.leaflet-interactive path {
         key: `photos:${r.name}:${r.coords.length}`,
         allowRetry: true,
         allowCache: true,
-        operation: () =>
-          proxyFetch("mapillary", "/mapillary/images", {
-            coordinates: r.coords,
-          }),
+        operation: () => photoReconProvider.enrich({ route: r }),
       });
       if (!result.ok) {
-        showServiceDiagnostic("mapillary", result, {
-          target: E.photoContent,
-          retryAction: "photos",
-        });
+        showServiceDiagnostic("mapillary", result, { target: E.photoContent, retryAction: "photos" });
         return;
       }
-      const data = result.value,
-        extra = Math.max(0, Number(data.requestCount || 1) - 1);
-      if (extra) countRequest("mapillary", extra);
-      const unique = new Map();
-      (data.data || []).forEach((photo) => {
-        const c = photo.geometry?.coordinates;
-        if (
-          !photo.id ||
-          !photo.thumb_1024_url ||
-          !c ||
-          unique.has(String(photo.id))
-        )
-          return;
-        const d = Math.round(nearestRouteDistance(c, r.coords));
-        if (d <= 120)
-          unique.set(String(photo.id), {
-            id: String(photo.id),
-            sequence: String(photo.sequence?.id || photo.sequence || ""),
-            capturedAt: Number(photo.captured_at),
-            date: captureDate(Number(photo.captured_at)),
-            thumb: photo.thumb_1024_url,
-            lon: c[0],
-            lat: c[1],
-            distance: d,
-          });
-      });
-      const candidates = [...unique.values()].sort(
-          (a, b) =>
-            (b.capturedAt || 0) - (a.capturedAt || 0) ||
-            a.distance - b.distance,
-        ),
-        photos = [];
-      for (const p of candidates) {
-        if (
-          photos.some(
-            (x) =>
-              distanceBetween([p.lon, p.lat], [x.lon, x.lat]) < 60 ||
-              (p.sequence &&
-                p.sequence === x.sequence &&
-                Math.abs((p.capturedAt || 0) - (x.capturedAt || 0)) < 6e4),
-          )
-        )
-          continue;
-        photos.push(p);
-        if (photos.length === 12) break;
-      }
+      const photos = globalThis.JMMJSPhotoReconCore.chooseReconPhotos({
+        streetView: result.value.streetView,
+        mapillary: result.value.mapillary,
+        nearestRouteDistance,
+        routeCoords: r.coords,
+        limit: 12,
+      }).map((p) => ({ ...p, date: p.date || captureDate(p.capturedAt) }));
+      const warning = globalThis.JMMJSPhotoReconCore.warningText();
       E.photoContent.innerHTML = photos.length
-        ? '<div class="photo-list">' +
-          photos
-            .map(
-              (p) =>
-                '<article class="photo-item"><button type="button" data-photo="' +
-                esc(p.id) +
-                '"><img src="' +
-                esc(p.thumb) +
-                '" alt="Photographie Mapillary près du parcours" loading="lazy"><span class="photo-meta"><strong>' +
-                esc(p.date) +
-                "</strong><br>" +
-                p.distance +
-                " m de la trace</span></button></article>",
-            )
-            .join("") +
-          "</div>"
-        : '<p class="empty-data">Aucune photographie à moins de 120 m. Cela ne renseigne pas l’état du terrain.</p>';
-      S.photoLayers.forEach((x) => x.remove());
-      S.photoLayers = [];
-      S.photoMarkers = new Map();
-      photos.forEach((p) => {
-        const html =
-            '<div class="mapillary-popup"><strong>Photo Mapillary</strong><img src="' +
-            esc(p.thumb) +
-            '" alt="Photo Mapillary"><small>' +
-            esc(p.date) +
-            " · " +
-            p.distance +
-            ' m</small><small>Photographie indicative, potentiellement ancienne. Elle ne garantit pas l’état actuel du passage.</small><a href="https://www.mapillary.com/app/?pKey=' +
-            encodeURIComponent(p.id) +
-            '&focus=photo" target="_blank" rel="noopener">Voir dans Mapillary ↗</a></div>',
-          marker = L.circleMarker([p.lat, p.lon], {
-            radius: 6,
-            color: "#54777a",
-            fillColor: "#fff",
-            fillOpacity: 1,
-            weight: 3,
-          })
-            .addTo(S.map)
-            .bindPopup(html, { maxWidth: 260 });
-        S.photoLayers.push(marker);
-        S.photoMarkers.set(p.id, marker);
-      });
-      $$("[data-photo]").forEach(
-        (b) =>
-          (b.onclick = () => {
-            const p = photos.find((x) => x.id === b.dataset.photo),
-              m = S.photoMarkers.get(b.dataset.photo);
-            if (p) {
-              S.map.setView([p.lat, p.lon], Math.max(17, S.map.getZoom()));
-              m?.openPopup();
-            }
-          }),
-      );
-      r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, {
-        photos,
-      });
+        ? '<div class="photo-list">' + photos.map((p) => '<article class="photo-item"><strong>' + esc(p.source) + '</strong><br><span class="photo-meta">' + esc(p.date || "Date inconnue") + ' · ' + p.distance + ' m de la trace</span>' + (p.thumb ? '<img src="' + esc(p.thumb) + '" alt="Image de repérage ' + esc(p.source) + '" loading="lazy">' : '') + (p.externalUrl ? '<a href="' + esc(p.externalUrl) + '" target="_blank" rel="noopener noreferrer">Voir dans ' + esc(p.source) + ' ↗</a>' : '') + '<small>' + esc(warning) + '</small></article>').join('') + '</div>'
+        : '<p class="empty-data">Aucune image localisée à moins de 120 m. Cela ne renseigne pas l’état du terrain.</p>';
+      r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, { photos });
       renderDetail();
       serviceState("mapillary", "Connecté", "ok");
-      say(photos.length + " photographie(s) indicative(s).");
+      say(photos.length + " image(s) indicative(s) de repérage.");
     } catch (e) {
-      const result = {
-        ok: false,
-        diagnostic:
-          globalThis.JMMJSServiceResilienceCore.classifyServiceError(
-            e,
-            "Mapillary",
-          ),
-      };
-      showServiceDiagnostic("mapillary", result, {
-        target: E.photoContent,
-        retryAction: "photos",
-      });
+      const result = { ok: false, diagnostic: globalThis.JMMJSServiceResilienceCore.classifyServiceError(e, "Photos de repérage") };
+      showServiceDiagnostic("mapillary", result, { target: E.photoContent, retryAction: "photos" });
     } finally {
       button.disabled = false;
       button.textContent = "Rechercher";
