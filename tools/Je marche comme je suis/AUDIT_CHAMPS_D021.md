@@ -4,10 +4,10 @@
 
 ## Résumé
 
-- Champs visibles : **41**
+- Champs visibles : **43**
 - Groupes de choix : **5**
 - Choix visibles : **62**
-- Entrées complètes : **30**
+- Entrées complètes : **33**
 - Entrées partielles : **16**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
@@ -17,6 +17,9 @@
 | Champ / groupe | Type | Effet | Sévérité | Données requises | Inconnu | État | Observation |
 |---|---|---|---|---|---|---|---|
 | place | field | generation | information | geocoding | block | complete | Géocodage et génération depuis un départ réel. |
+| departureMode | field | generation-context | information | departure-schedule | use-now | complete | Choisit un départ immédiat ou programmé. |
+| departureDate | field | generation-context | information | departure-schedule | required-if-scheduled | complete | Date utilisée pour la météo et la lumière du jour lorsque le départ est programmé. |
+| departureTime | field | generation-context | information | departure-schedule | required-if-scheduled | complete | Heure utilisée pour la météo et la lumière du jour lorsque le départ est programmé. |
 | lat | field | generation | information | coordinate | fallback-place | complete | Coordonnée utilisée par la génération. |
 | lon | field | generation | information | coordinate | fallback-place | complete | Coordonnée utilisée par la génération. |
 | returnRadius | field | audit | imperative | geometry | block | complete | Fermeture contrôlée après calcul. |
@@ -49,11 +52,10 @@
 | upSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente montante auditée lorsqu’elle est disponible. |
 | downSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente descendante auditée lorsqu’elle est disponible. |
 | recovery | field | audit | conditional | elevation, segment-times, benches | block-if-set | complete | Séquence facile mesurée après effort ; banc jamais présumé. |
-| weather | field | generation-audit | preparation | observed-weather | preserve-unknown | complete | Constat manuel conservé et prévision horaire Open-Meteo analysée sur la durée de sortie. |
 | pauses | field | generation-audit | preparation | pause-places | block-if-required | complete | Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables. |
 | freeText | field | explanation-confirmation | preparation | structured-limitations | confirm | partial | Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres. |
 | strict | field | selection | imperative | — | block-unknown-hard | complete | Empêche les assouplissements silencieux. |
-| shortcuts | field | generation-audit | conditional | shortcut-routes | block-if-required | partial | Demande compilée ; calcul de raccourcis réels à compléter. |
+| shortcuts | field | generation-audit | conditional | shortcut-routes | block-if-required | complete | Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés. |
 | bothWays | field | generation-audit | conditional | reverse-audit | block-if-required | complete | Les deux sens sont audités. |
 | private | field | persistence | preparation | — | allow | complete | Le mode privé efface immédiatement le profil local et bloque toute nouvelle persistance sans interrompre le calcul. |
 | gpxFile | field | route-source | imperative | geometry | block | complete | Import multi-traces/segments ; distance et altitude recalculées ; audit universel ORS/GPX ; données terrain absentes préservées comme invérifiables. |
@@ -61,7 +63,8 @@
 | limits | choice-group | generation-audit | conditional | surface, slope, width, services | block-if-imperative | partial | Plusieurs limitations sont traduites ; seuils fonctionnels à structurer. |
 | terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée. |
 | wishes | choice-group | generation-ranking | preference | green, noise, pois | rank-only | partial | Classement partiel ; plusieurs envies nécessitent des POI avant sélection. |
-| services | choice-group | generation-audit | imperative | pois | block | complete | Les services impératifs sont recherchés et audités avant la sélection ; une recherche impossible reste À vérifier. |
+| services | choice-group | generation-audit | imperative | pois | block | partial | Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources. |
+| weather | internal-field | generation-audit | preparation | observed-weather | preserve-unknown | partial | Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur. |
 
 ## Conclusion
 
