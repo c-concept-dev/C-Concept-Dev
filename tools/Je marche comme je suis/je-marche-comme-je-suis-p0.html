@@ -2833,6 +2833,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     applyServiceAssessment,
   });
 })();
+(() => { "use strict";
+ const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+ const dist=(a,b)=>{const r=Math.PI/180,p1=+a.lat*r,p2=+b.lat*r,dp=p2-p1,dl=(+b.lon-+a.lon)*r,h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 6371000*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));};
+ function mergeTourismPois(groups=[],o={}){const max=+(o.maxDistanceMeters||300),detourMax=+(o.maxDetourMeters||600),out=[];for(const p of groups.flat().filter(Boolean)){const d=+p.distance,dt=Number.isFinite(+p.detourMeters)?+p.detourMeters:d*2;if(!Number.isFinite(d)||d>max||dt>detourMax)continue;const n={...p,distance:Math.round(d),detourMeters:Math.round(dt),hours:p.hours||null};const i=out.findIndex(x=>dist(x,n)<=60&&(norm(x.name)===norm(n.name)||norm(x.type)===norm(n.type)));if(i<0)out.push(n);else{const a=out[i],sources=[...new Set([...(a.sources||[a.source]).filter(Boolean),...(n.sources||[n.source]).filter(Boolean)])];out[i]={...(a.distance<=n.distance?a:n),name:a.name&&a.name!==a.type?a.name:n.name,sources,source:sources.join(" + "),hours:a.hours||n.hours||null,accessibility:a.accessibility==="documented"||n.accessibility==="documented"?"documented":"unknown"};}}return out.sort((a,b)=>a.distance-b.distance);}
+ function describePoi(p){return {...p,hoursLabel:p.hours||"Horaires non documentés",presenceLabel:"Présence à vérifier",accessibilityLabel:p.accessibility==="documented"?"Accessibilité documentée":"Accessibilité inconnue"};}
+ globalThis.JMMJSTourismServicesCore=Object.freeze({mergeTourismPois,describePoi});
+})();
 (() => {
   "use strict";
   const CRITICAL_CODES = new Set([66, 67, 75, 77, 82, 86, 95, 96, 99]);
@@ -6170,6 +6177,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   });
 })();
 /* JMMJS_GEOAPIFY_PROVIDER_END */
+(() => { "use strict";
+ const type=v=>{v=String(v||"").toLowerCase();if(v.includes("toilet"))return"Toilettes";if(v.includes("water"))return"Eau potable";if(v.includes("bench")||v.includes("rest"))return"Banc";if(v.includes("shelter"))return"Abri";if(v.includes("pharmacy"))return"Pharmacie";if(v.includes("cafe")||v.includes("restaurant"))return"Café";if(v.includes("shop"))return"Commerce";if(v.includes("parking"))return"Parking";if(v.includes("view"))return"Point de vue";if(v.includes("heritage")||v.includes("museum")||v.includes("castle"))return"Patrimoine";return"Lieu touristique";};
+ function createDatatourismeProvider({client,nearestRouteDistance}){return{id:"datatourisme",kind:"enrichment",label:"DATAtourisme",async enrich({route,radiusMeters=300,limit=40}){if(!Array.isArray(route?.coords)||route.coords.length<2)throw new TypeError("Trace invalide pour DATAtourisme.");const data=await client.post("tourism","/datatourisme/places",{route:route.coords.map(p=>p.slice(0,2)),radiusMeters,limit});return(data.items||data.features||[]).map((it,i)=>{const p=it.properties||it,c=it.geometry?.coordinates||[p.lon,p.lat],d=Number.isFinite(+p.distance)?+p.distance:nearestRouteDistance(c,route.coords);return{id:p.id||p.identifier||`dt-${i}`,type:type(p.type||p.category||p.typeLabel),name:p.name||p.label||"Lieu touristique",distance:Math.round(d),detourMeters:Math.round(d*2),lon:+c[0],lat:+c[1],source:"DATAtourisme",sources:["DATAtourisme"],hours:p.openingHours||p.hours||null,accessibility:"unknown"};}).filter(p=>Number.isFinite(p.lon)&&Number.isFinite(p.lat)&&p.distance<=radiusMeters).slice(0,limit);}}}
+ globalThis.JMMJSDatatourismeProvider=Object.freeze({createDatatourismeProvider});
+})();
 (() => {
   "use strict";
 
@@ -6441,6 +6453,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
+  const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
     chooseWeatherPoints,
@@ -7529,6 +7542,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }),
   );
   const geoapifyProvider = peripherals.require("geoapify");
+  peripherals.register(globalThis.JMMJSDatatourismeProvider.createDatatourismeProvider({ client: serviceClient, nearestRouteDistance }));
+  const datatourismeProvider = peripherals.require("datatourisme");
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -7982,34 +7997,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
     button.disabled = true;
     button.textContent = "Recherche…";
     try {
-      const result = await resilientService({
-        name: "geo",
-        key: `pois:${r.name}:${r.coords.length}`,
-        allowRetry: true,
-        allowCache: true,
-        operation: () => geoapifyProvider.enrich({ route: r }),
-      });
-      if (!result.ok) {
-        showServiceDiagnostic("geo", result, {
-          target: E.poiContent,
-          retryAction: "pois",
-        });
-        return;
-      }
-      const pois = result.value;
+      const [geoResult, tourismResult] = await Promise.all([
+        resilientService({ name: "geo", key: `pois:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => geoapifyProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
+        resilientService({ name: "tourism", key: `tourism:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => datatourismeProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
+      ]);
+      if (!geoResult.ok && !tourismResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
+      const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
       E.poiContent.innerHTML = pois.length
         ? '<div class="poi-list">' +
           pois
             .map(
-              (p) =>
-                '<article class="poi-item"><strong>' +
-                esc(p.name) +
-                "</strong><span>" +
-                esc(p.type) +
-                " · " +
-                p.distance +
-                " m de la trace</span><span>Accessibilité : inconnue</span></article>",
+              (p) => { const view = describePoi(p); return '<article class="poi-item"><strong>' + esc(view.name) + "</strong><span>" + esc(view.type) + " · " + view.distance + " m de la trace · détour estimé " + view.detourMeters + " m</span><span>Source : " + esc(view.source || "Source non précisée") + "</span><span>" + esc(view.hoursLabel) + " · " + esc(view.presenceLabel) + "</span><span>" + esc(view.accessibilityLabel) + "</span></article>"; },
             )
             .join("") +
           "</div>"
@@ -9528,7 +9527,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const verified = [];
       for (const route of all) {
         try {
-          const pois = await geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 });
+          const [geoPois, tourismPois] = await Promise.all([geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []), datatourismeProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => [])]);
+          const pois = mergeTourismPois([geoPois, tourismPois], { maxDistanceMeters: 300, maxDetourMeters: 600 });
           route.pois = pois;
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, pois, {
