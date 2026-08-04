@@ -741,7 +741,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .terrain-proof-level{display:inline-flex;align-items:center;padding:.2rem .45rem;border-radius:999px;font-size:.7rem;font-weight:800;white-space:nowrap}
 .terrain-proof-confirmed{background:#dcebdd;color:#284d2d}
 .terrain-proof-probable{background:#e9f0df;color:#3d542b}
-.terrain-proof-partial{background:#fff3c9;color:#6d5511}
+.terrain-proof-partial{background:#fff3c9;color:#6d5511}.terrain-proof-very-partial{background:#f4ead0;color:#6b5524}
 .terrain-proof-undocumented{background:#ece9e3;color:#5f5b54}
 .terrain-proof-contradictory{background:#f8d8cf;color:#7a2f1d}
 .terrain-proof-list{display:grid;gap:.45rem;margin:.4rem 0;padding-left:1rem}
@@ -780,6 +780,33 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .weather-details-toggle{min-width:44px;min-height:44px;margin-left:auto}
   .return-safety{grid-template-columns:1fr}
   .return-safety a,.return-safety button{width:100%;text-align:center}
+}
+
+/* Correctif de lisibilité des résultats */
+@media(min-width:1200px){
+  body.has-results .workspace{grid-template-columns:minmax(340px,430px) minmax(0,1fr)}
+  body.has-results .results{padding:20px 28px 36px}
+  body.has-results .detail{padding:18px}
+}
+.detail details{font-size:.92rem}
+.detail summary{font-size:.88rem;line-height:1.4;min-height:34px;display:flex;align-items:center;cursor:pointer}
+.detail ul{font-size:.82rem;line-height:1.55}
+.detail li+li{margin-top:.35rem}
+.terrain-proof-list li{font-size:.86rem;line-height:1.5}
+.terrain-proof-list small{font-size:.76rem;line-height:1.45;opacity:.84}
+.terrain-proof-meta,.terrain-proof-rule{font-size:.82rem}
+.return-safety{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px}
+.return-safety strong,.return-safety span{grid-column:1/-1}
+.return-safety a,.return-safety button{min-height:42px;white-space:normal}
+.daylight-return-grid{display:flex;flex-wrap:wrap;gap:.45rem 1rem}
+.weather-compact{gap:.75rem;padding:.65rem .8rem}
+@media(max-width:760px){
+  .detail{padding:12px}
+  .detail summary{font-size:1rem;min-height:44px}
+  .detail ul{font-size:.95rem}
+  .terrain-proof-list li{font-size:.95rem}
+  .terrain-proof-list small{font-size:.84rem}
+  .return-safety{grid-template-columns:1fr}
 }
 
 </style>
@@ -4034,6 +4061,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     confirmed: 5,
     probable: 4,
     partial: 3,
+    "very-partial": 2.5,
     undocumented: 2,
     contradictory: 1,
   });
@@ -4042,6 +4070,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     confirmed: "Confirmé",
     probable: "Probable",
     partial: "Partiel",
+    "very-partial": "Très partiellement documenté",
     undocumented: "Non documenté",
     contradictory: "Contradictoire",
   });
@@ -4127,8 +4156,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const surfaceLevel =
       Number.isFinite(coverage) && coverage >= 90
         ? "probable"
-        : Number.isFinite(coverage) && coverage > 0
+        : Number.isFinite(coverage) && coverage >= 25
           ? "partial"
+          : Number.isFinite(coverage) && coverage > 0
+            ? "very-partial"
           : "undocumented";
 
     const items = [
@@ -4146,6 +4177,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
             ? "La cartographie couvre presque toute la trace, sans observation directe."
             : surfaceLevel === "partial"
               ? "Une partie seulement de la trace est documentée."
+              : surfaceLevel === "very-partial"
+                ? "Moins d’un quart de la trace est documenté ; aucune conclusion globale n’est possible."
               : "Aucune donnée exploitable n’a été fournie.",
       }),
       evidenceItem({
@@ -7195,7 +7228,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const diagnostic = result?.diagnostic;
     serviceState(
       name,
-      result?.ok ? "Connecté" : diagnostic?.retryable ? "Temporaire" : "Échec",
+      result?.ok ? "Test réussi" : diagnostic?.retryable ? "Temporaire" : "Échec",
       result?.ok ? "ok" : "error",
     );
     if (diagnostic) say(diagnostic.userMessage);
@@ -7276,7 +7309,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         showServiceDiagnostic(name, result);
         return;
       }
-      serviceState(name, "Connecté", "ok");
+      serviceState(name, "Test réussi", "ok");
       say("Connexion sécurisée vérifiée.");
     } finally {
       button.disabled = false;
@@ -7927,6 +7960,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     E.placeholder.style.display = "none";
     E.map.classList.add("show");
     E.results.classList.add("show");
+    document.body.classList.add("has-results");
     renderResultQualityBanner();
     $("#resultMode").textContent =
       S.routes[0].mode === "api"
@@ -8521,7 +8555,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
               " m",
           ),
       );
-      serviceState("geo", "Connecté", "ok");
+      serviceState("geo", "Requête réussie", "ok");
       say(pois.length + " point(s) utile(s) trouvé(s).");
     } catch (e) {
       const result = {
@@ -8581,7 +8615,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         : '<p class="empty-data">Aucune image localisée à moins de 120 m. Cela ne renseigne pas l’état du terrain.</p>';
       r.terrainProof = summarizeTerrainProof(r.terrainEvidence || {}, { photos });
       renderDetail();
-      serviceState("mapillary", "Connecté", "ok");
+      serviceState("mapillary", "Requête réussie", "ok");
       say(photos.length + " image(s) indicative(s) de repérage.");
     } catch (e) {
       const result = { ok: false, diagnostic: globalThis.JMMJSServiceResilienceCore.classifyServiceError(e, "Photos de repérage") };
@@ -8809,8 +8843,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const departure = scheduledDeparture();
     const durationMinutes = Math.max(0, Number(route?.walking ?? route?.total ?? 0) + Number(route?.breaks ?? 0));
     const assessment = core.assessDaylight({
-      latitude: coords[0],
-      longitude: coords[1],
+      latitude: coords[1],
+      longitude: coords[0],
       departureAt: departure.date,
       durationMinutes,
     });
@@ -8965,14 +8999,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
         ? "exact"
         : "unavailable";
       certification.textContent = exportAudit.exactEligible
-        ? `Géométrie exacte certifiée · ${exportAudit.coordinateCount} points · boucle fermée à ${exportAudit.closureMeters} m`
+        ? `Géométrie de référence disponible · ${exportAudit.coordinateCount} points · arrivée à ${exportAudit.closureMeters} m du départ`
         : `Export exact indisponible · ${exportAudit.reasons.join(" ")}`;
     }
 
     const gpxButton = $("#gpxBtn");
     gpxButton.disabled = !exportAudit.exactEligible;
     gpxButton.title = exportAudit.exactEligible
-      ? `GPX exact certifié · ${exportAudit.coordinateCount} points · fermeture ${exportAudit.closureMeters} m`
+      ? `GPX de référence · ${exportAudit.coordinateCount} points · arrivée à ${exportAudit.closureMeters} m du départ`
       : `GPX exact indisponible : ${exportAudit.reasons.join(" ")}`;
     gpxButton.textContent = exportAudit.exactEligible
       ? "↓ GPX exact"
@@ -9856,7 +9890,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       error.serviceName = "ors";
       throw error;
     }
-    serviceState("ors", "Connecté", "ok");
+    serviceState("ors", "Requête réussie", "ok");
     return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
   }
   function routeFingerprint(route) {
