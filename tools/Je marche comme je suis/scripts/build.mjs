@@ -23,6 +23,7 @@ const bundles = {
     "src/core/service-resilience-core.js",
     "src/core/service-continuity-core.js",
     "src/core/mobile-safety-core.js",
+    "src/core/off-route-core.js",
     "src/core/pause-planner-core.js",
     "src/core/fallback-core.js",
     "src/core/privacy-core.js",
