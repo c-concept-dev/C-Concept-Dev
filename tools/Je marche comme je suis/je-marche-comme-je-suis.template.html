@@ -741,7 +741,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .terrain-proof-level{display:inline-flex;align-items:center;padding:.2rem .45rem;border-radius:999px;font-size:.7rem;font-weight:800;white-space:nowrap}
 .terrain-proof-confirmed{background:#dcebdd;color:#284d2d}
 .terrain-proof-probable{background:#e9f0df;color:#3d542b}
-.terrain-proof-partial{background:#fff3c9;color:#6d5511}
+.terrain-proof-partial{background:#fff3c9;color:#6d5511}.terrain-proof-very-partial{background:#f4ead0;color:#6b5524}
 .terrain-proof-undocumented{background:#ece9e3;color:#5f5b54}
 .terrain-proof-contradictory{background:#f8d8cf;color:#7a2f1d}
 .terrain-proof-list{display:grid;gap:.45rem;margin:.4rem 0;padding-left:1rem}
@@ -780,6 +780,33 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .weather-details-toggle{min-width:44px;min-height:44px;margin-left:auto}
   .return-safety{grid-template-columns:1fr}
   .return-safety a,.return-safety button{width:100%;text-align:center}
+}
+
+/* Correctif de lisibilité des résultats */
+@media(min-width:1200px){
+  body.has-results .workspace{grid-template-columns:minmax(340px,430px) minmax(0,1fr)}
+  body.has-results .results{padding:20px 28px 36px}
+  body.has-results .detail{padding:18px}
+}
+.detail details{font-size:.92rem}
+.detail summary{font-size:.88rem;line-height:1.4;min-height:34px;display:flex;align-items:center;cursor:pointer}
+.detail ul{font-size:.82rem;line-height:1.55}
+.detail li+li{margin-top:.35rem}
+.terrain-proof-list li{font-size:.86rem;line-height:1.5}
+.terrain-proof-list small{font-size:.76rem;line-height:1.45;opacity:.84}
+.terrain-proof-meta,.terrain-proof-rule{font-size:.82rem}
+.return-safety{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px}
+.return-safety strong,.return-safety span{grid-column:1/-1}
+.return-safety a,.return-safety button{min-height:42px;white-space:normal}
+.daylight-return-grid{display:flex;flex-wrap:wrap;gap:.45rem 1rem}
+.weather-compact{gap:.75rem;padding:.65rem .8rem}
+@media(max-width:760px){
+  .detail{padding:12px}
+  .detail summary{font-size:1rem;min-height:44px}
+  .detail ul{font-size:.95rem}
+  .terrain-proof-list li{font-size:.95rem}
+  .terrain-proof-list small{font-size:.84rem}
+  .return-safety{grid-template-columns:1fr}
 }
 
 </style>
