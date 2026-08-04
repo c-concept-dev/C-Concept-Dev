@@ -25,6 +25,7 @@ const bundles = {
     "src/core/mobile-safety-core.js",
     "src/core/off-route-core.js",
     "src/core/recovery-route-core.js",
+    "src/core/offline-preparation-core.js",
     "src/core/pause-planner-core.js",
     "src/core/fallback-core.js",
     "src/core/privacy-core.js",
