@@ -1183,9 +1183,10 @@
         startIndex: raw.startIndex,
         count: raw.count,
       });
-      const assessment = assessForecast(summary);
+      const enrichedSummary = globalThis.JMMJSEnrichedWeatherCore.enrichWeatherSummary(summary, raw, departure.schedule, minutes);
+      const assessment = assessForecast(enrichedSummary);
       S.weather = {
-        summary,
+        summary: enrichedSummary,
         assessment,
         timezone: raw.timezone,
         departure: departure.schedule,
@@ -1231,10 +1232,16 @@
           startIndex: raw.startIndex,
           count: raw.count,
         });
+        const enrichedSummary = globalThis.JMMJSEnrichedWeatherCore.enrichWeatherSummary(
+          summary,
+          raw,
+          departure.schedule,
+          minutes,
+        );
         results.push({
           point,
-          summary,
-          assessment: assessForecast(summary),
+          summary: enrichedSummary,
+          assessment: assessForecast(enrichedSummary),
           timezone: raw.timezone,
         });
       } catch (error) {
@@ -1419,11 +1426,24 @@
       ? `Visibilité minimale : ${visibility}`
       : null;
     const source = `Source : ${summary?.source || "Open-Meteo"}`;
+    const retrievedAt = summary?.retrievedAt
+      ? `Prévision récupérée à ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(summary.retrievedAt))}`
+      : null;
+    const model = summary?.model ? `Modèle ou sélection : ${summary.model}` : null;
+    const returnAt = summary?.estimatedReturnAt
+      ? `Retour estimé : ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(summary.estimatedReturnAt))}`
+      : null;
+    const sunset = summary?.sunset
+      ? `Coucher du soleil : ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(summary.sunset))}`
+      : null;
+    const margin = Number.isFinite(Number(summary?.daylightMarginMinutes))
+      ? `Marge avant la nuit : ${Math.round(Number(summary.daylightMarginMinutes))} min`
+      : null;
 
     return (
       detailRows +
       '<div class="weather-detail-meta">' +
-      [apparent, coverage, precipitation, visibilityLabel, source]
+      [apparent, coverage, precipitation, visibilityLabel, retrievedAt, model, returnAt, sunset, margin, source]
         .filter(Boolean)
         .map((item) => '<span>' + esc(item) + '</span>')
         .join("") +
