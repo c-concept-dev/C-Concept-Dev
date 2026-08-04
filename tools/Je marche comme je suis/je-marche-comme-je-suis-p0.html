@@ -2634,6 +2634,92 @@ svg.leaflet-image-layer.leaflet-interactive path {
 (() => {
   "use strict";
 
+  function finite(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function normalizeIgnElevation(payload = {}) {
+    const raw = Array.isArray(payload.elevations)
+      ? payload.elevations
+      : Array.isArray(payload.profile)
+        ? payload.profile
+        : [];
+    const elevations = raw
+      .map((item) => finite(typeof item === "object" ? item.elevation ?? item.z ?? item.altitude : item))
+      .filter((value) => value !== null);
+    const ascent = finite(payload.ascentMeters ?? payload.ascent ?? payload.positiveElevation);
+    const descent = finite(payload.descentMeters ?? payload.descent ?? payload.negativeElevation);
+    return Object.freeze({
+      elevations: Object.freeze(elevations),
+      ascentMeters: ascent,
+      descentMeters: descent,
+      source: payload.source || "IGN Géoplateforme",
+      retrievedAt: payload.retrievedAt || new Date().toISOString(),
+    });
+  }
+
+  function compareElevation({ orsAscentMeters, ignAscentMeters, absoluteThresholdMeters = 20, relativeThreshold = 0.15 } = {}) {
+    const ors = finite(orsAscentMeters);
+    const ign = finite(ignAscentMeters);
+    if (ors === null || ign === null) {
+      return Object.freeze({ status: "unknown", label: "Contrôle IGN non documenté", differenceMeters: null, relativeDifference: null, divergent: false });
+    }
+    const differenceMeters = Math.abs(ign - ors);
+    const relativeDifference = ors > 0 ? differenceMeters / ors : (differenceMeters > 0 ? 1 : 0);
+    const divergent = differenceMeters > absoluteThresholdMeters || relativeDifference > relativeThreshold;
+    return Object.freeze({
+      status: divergent ? "conflicting" : "documented",
+      label: divergent ? "Écart altimétrique à examiner" : "Contrôle altimétrique cohérent",
+      differenceMeters,
+      relativeDifference,
+      divergent,
+    });
+  }
+
+  function applyIgnElevationControl(route, payload, options = {}) {
+    const normalized = normalizeIgnElevation(payload);
+    const comparison = compareElevation({
+      orsAscentMeters: route?.ascent,
+      ignAscentMeters: normalized.ascentMeters,
+      ...options,
+    });
+    return {
+      ...route,
+      ignElevation: {
+        ...normalized,
+        comparison,
+        role: "Contrôle complémentaire uniquement",
+      },
+      sources: [...new Set([...(route?.sources || []), normalized.source])],
+      warnings: comparison.divergent
+        ? [...(route?.warnings || []), `Écart altimétrique ORS/IGN : ${Math.round(comparison.differenceMeters)} m.`]
+        : [...(route?.warnings || [])],
+    };
+  }
+
+  function markIgnUnavailable(route, message = "Contrôle IGN indisponible.") {
+    return {
+      ...route,
+      ignElevation: {
+        status: "unavailable",
+        label: "Contrôle IGN indisponible",
+        message,
+        role: "Contrôle complémentaire uniquement",
+      },
+    };
+  }
+
+  globalThis.JMMJSIgnElevationCore = Object.freeze({
+    normalizeIgnElevation,
+    compareElevation,
+    applyIgnElevationControl,
+    markIgnUnavailable,
+  });
+})();
+(() => {
+  "use strict";
+
   const SERVICE_LABELS = Object.freeze([
     "Toilettes",
     "Eau potable",
@@ -5766,6 +5852,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     importer: Object.freeze(["importRoute"]),
     weather: Object.freeze(["forecast"]),
     "terrain-proof": Object.freeze(["inspect"]),
+    "elevation-control": Object.freeze(["inspect"]),
   });
 
   function createPeripheralRegistry() {
@@ -6068,6 +6155,41 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   globalThis.JMMJSOverpassProvider = Object.freeze({ createOverpassProvider, simplifyCoordinates });
 })();
+(() => {
+  "use strict";
+
+  function sampleCoordinates(coordinates = [], maxPoints = 120) {
+    if (!Array.isArray(coordinates) || coordinates.length < 2) return [];
+    if (coordinates.length <= maxPoints) return coordinates.map((point) => [Number(point[0]), Number(point[1])]);
+    const last = coordinates.length - 1;
+    return Array.from({ length: maxPoints }, (_, index) => {
+      const point = coordinates[Math.round((index * last) / (maxPoints - 1))];
+      return [Number(point[0]), Number(point[1])];
+    });
+  }
+
+  function createIgnElevationProvider({ client }) {
+    if (!client || typeof client.post !== "function") {
+      throw new TypeError("L’adaptateur IGN exige un client de services.");
+    }
+    return Object.freeze({
+      id: "ign-elevation",
+      kind: "elevation-control",
+      label: "IGN Géoplateforme",
+      capabilities: Object.freeze(["elevation-profile", "ascent-control"]),
+      async inspect({ route, maxPoints = 120 }) {
+        const coordinates = sampleCoordinates(route?.coords, maxPoints);
+        if (coordinates.length < 2) throw new TypeError("Trace invalide pour le contrôle IGN.");
+        return client.post("ign", "/ign/elevation", {
+          route: coordinates,
+          routeLengthMeters: Number(route?.distance) || 0,
+        });
+      },
+    });
+  }
+
+  globalThis.JMMJSIgnElevationProvider = Object.freeze({ createIgnElevationProvider, sampleCoordinates });
+})();
 /* JMMJS_RECOVERY_ROUTE_PROVIDER_START */
 (() => {
   "use strict";
@@ -6259,6 +6381,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const { parseGPXText, summarizePoints } = globalThis.JMMJSGPXCore;
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
+  const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
   const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -6571,10 +6694,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
   );
   peripherals.register(
+    globalThis.JMMJSIgnElevationProvider.createIgnElevationProvider({ client: serviceClient }),
+  );
+  peripherals.register(
     globalThis.JMMJSRecoveryRouteProvider.createRecoveryRouteProvider({ client: serviceClient }),
   );
   const orsProvider = peripherals.require("ors");
   const overpassProvider = peripherals.require("overpass");
+  const ignElevationProvider = peripherals.require("ign-elevation");
   const recoveryRouteProvider = peripherals.require("recovery-route");
   async function proxyFetch(name, path, body, count = 1) {
     return serviceClient.post(name, path, body, count);
@@ -8148,6 +8275,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       ' %</b><span>couverture altitude</span></div><div class="data"><b>' +
       esc(r.elevationQuality || "—") +
       '</b><span>qualité altitude</span></div><div class="data"><b>' +
+      esc(r.ignElevation?.comparison?.label || r.ignElevation?.label || "Non contrôlé") +
+      '</b><span>contrôle IGN</span></div><div class="data"><b>' +
       r.pois.length +
       '</b><span>points d’intérêt</span></div><div class="data"><b>' +
       r.shortcuts.length +
@@ -8225,6 +8354,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
       list([...r.warnings, ...r.unknowns]) +
       "</details><details><summary>Niveau de preuve terrain</summary>" +
       terrainProofDetailsHtml(r) +
+      "</details><details><summary>Contrôle altimétrique IGN</summary>" +
+      (r.ignElevation?.comparison
+        ? "<p>D+ ORS : <strong>" + esc(metricLabel(r.ascent)) + " m</strong><br>D+ IGN : <strong>" + esc(metricLabel(r.ignElevation.ascentMeters)) + " m</strong><br>Écart : <strong>" + esc(metricLabel(r.ignElevation.comparison.differenceMeters)) + " m</strong></p><p>Le profil IGN est un contrôle complémentaire et ne remplace pas la géométrie ORS.</p>"
+        : "<p>" + esc(r.ignElevation?.message || "Contrôle IGN non documenté.") + "</p>") +
       "</details><details><summary>Sources</summary>" +
       list(r.sources) +
       '</details><div class="exports">' +
@@ -9280,6 +9413,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }
     }
     all = terrainChecked;
+    status("Contrôle altimétrique complémentaire IGN…");
+    const ignChecked = [];
+    for (const route of all) {
+      try {
+        const rawIgn = await resilientService({
+          name: "ign",
+          key: "elevation",
+          allowRetry: true,
+          allowCache: true,
+          operation: () => ignElevationProvider.inspect({ route }),
+        });
+        if (!rawIgn.ok) {
+          ignChecked.push(markIgnUnavailable(route, rawIgn.diagnostic?.message));
+          continue;
+        }
+        ignChecked.push(applyIgnElevationControl(route, rawIgn.value));
+      } catch (error) {
+        const diagnostic = globalThis.JMMJSServiceResilienceCore.classifyServiceError(error, "IGN");
+        const retained = markIgnUnavailable(route, diagnostic.message);
+        retained.serviceStates = [
+          ...(retained.serviceStates || []),
+          secondaryServiceWarning("ign", diagnostic, false),
+        ];
+        retained.serviceSummary = summarizeServiceStates(retained.serviceStates);
+        ignChecked.push(retained);
+      }
+    }
+    all = ignChecked;
     const requiredServices = S.compiled?.hard?.requiredServices || [];
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
