@@ -37,6 +37,11 @@
       cacheTtlMs: 120000,
     });
   const {
+    buildBlockingFailure,
+    buildSecondaryState,
+    summarizeServiceStates,
+  } = globalThis.JMMJSServiceContinuityCore;
+  const {
     assessRouteSet,
     buildReturnLinks,
   } = globalThis.JMMJSMobileSafetyCore;
@@ -138,6 +143,41 @@
   function status(m) {
     E.status.hidden = !m;
     E.status.innerHTML = m || "";
+  }
+  function blockingFailureHtml(view) {
+    const actions = view.actions
+      .map(
+        (action, index) =>
+          `<button type="button" class="${index === 0 ? "primary" : "secondary"} service-failure-action" data-service-action="${esc(action.id)}">${esc(action.label)}</button>`,
+      )
+      .join("");
+    return (
+      `<section class="service-failure" data-state="${esc(view.state)}" role="alert" aria-live="assertive">` +
+      `<p class="service-failure-kicker">Recherche interrompue · données conservées</p>` +
+      `<h2>${esc(view.title)}</h2>` +
+      `<p>${esc(view.body)}</p>` +
+      `<p class="service-failure-assurance">${esc(view.assurance)}</p>` +
+      `<div class="service-failure-actions">${actions}</div>` +
+      `</section>`
+    );
+  }
+
+  function showBlockingServiceFailure(result, service = "ors") {
+    const view = buildBlockingFailure({
+      service,
+      diagnostic: {
+        ...(result?.diagnostic || {}),
+        attempts: result?.attempts,
+      },
+    });
+    status(blockingFailureHtml(view));
+    E.status.dataset.kind = "blocking-service-failure";
+    E.status.dataset.state = view.state;
+    return view;
+  }
+
+  function secondaryServiceWarning(service, diagnostic, imperative = false) {
+    return buildSecondaryState({ service, diagnostic, imperative });
   }
   function go(n) {
     S.step = Math.max(0, Math.min(3, n));
@@ -2646,7 +2686,10 @@
     });
     if (!result.ok) {
       showServiceDiagnostic("ors", result);
-      throw result.error || new Error(result.diagnostic.userMessage);
+      const error = result.error || new Error(result.diagnostic.userMessage);
+      error.serviceResult = result;
+      error.serviceName = "ors";
+      throw error;
     }
     serviceState("ors", "Connecté", "ok");
     return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
@@ -2761,11 +2804,23 @@
       }
     } catch (e) {
       serviceState("ors", "Indisponible", "error");
-      if (!unique.size)
-        throw Error(
+      if (!unique.size) {
+        if (e?.serviceResult) throw e;
+        const wrapped = Error(
           "OpenRouteService est indisponible : aucun repli non vérifié n’a été utilisé. " +
             e.message,
         );
+        wrapped.serviceName = "ors";
+        wrapped.serviceResult = {
+          ok: false,
+          attempts: 1,
+          diagnostic: globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+            e,
+            "OpenRouteService",
+          ),
+        };
+        throw wrapped;
+      }
     }
     let all = [...unique.values()];
     const requiredServices = S.compiled?.hard?.requiredServices || [];
@@ -2795,15 +2850,37 @@
               radiusMeters: 300,
             });
             const checked = applyServiceAssessment(route, assessment);
+            const diagnostic =
+              globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+                error,
+                "Geoapify",
+              );
+            const serviceState = secondaryServiceWarning("geo", diagnostic, true);
+            checked.serviceStates = [
+              ...(checked.serviceStates || []),
+              serviceState,
+            ];
+            checked.serviceSummary = summarizeServiceStates(checked.serviceStates);
             checked.warnings = [
               ...(checked.warnings || []),
-              "Services impératifs invérifiables : " + error.message,
+              serviceState.label + " : " + serviceState.message,
             ];
             verified.push(checked);
           } else {
+            const diagnostic =
+              globalThis.JMMJSServiceResilienceCore.classifyServiceError(
+                error,
+                "Geoapify",
+              );
+            const serviceState = secondaryServiceWarning("geo", diagnostic, false);
+            route.serviceStates = [
+              ...(route.serviceStates || []),
+              serviceState,
+            ];
+            route.serviceSummary = summarizeServiceStates(route.serviceStates);
             route.warnings = [
               ...(route.warnings || []),
-              "Point de pause invérifiable : " + error.message,
+              "Point de pause non vérifié : " + serviceState.message,
             ];
             verified.push(route);
           }
@@ -3246,15 +3323,19 @@
         render();
       }
     } catch (x) {
-      status("");
+      const blockingServiceFailure = x?.serviceResult
+        ? showBlockingServiceFailure(x.serviceResult, x.serviceName || "ors")
+        : null;
+      if (!blockingServiceFailure) status("");
       S.step = 3;
       document.querySelectorAll(".step").forEach((step, index) =>
         step.classList.toggle("active", index === 3),
       );
-      say(
-        "Le calcul n’a pas été réinitialisé. Erreur : " +
-          (x?.message || "erreur inconnue"),
-      );
+      if (!blockingServiceFailure)
+        say(
+          "Le calcul n’a pas été réinitialisé. Erreur : " +
+            (x?.message || "erreur inconnue"),
+        );
       renderConstraintSummary();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
@@ -3294,6 +3375,29 @@
   }
 
   document.addEventListener("click", (event) => {
+    const failureAction = event.target.closest(".service-failure-action");
+    if (failureAction) {
+      const action = failureAction.dataset.serviceAction;
+      if (action === "retry") {
+        status("");
+        $("#create")?.click();
+      }
+      if (action === "edit-request") {
+        status("");
+        go(1);
+      }
+      if (action === "change-start") {
+        status("");
+        go(0);
+        $("#place")?.focus();
+      }
+      if (action === "home") {
+        status("");
+        go(0);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
     const button = event.target.closest(".service-retry");
     if (!button) return;
     const action = button.dataset.retry;
