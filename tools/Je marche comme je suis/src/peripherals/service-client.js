@@ -2,7 +2,12 @@
 (() => {
   "use strict";
 
-  function createServiceClient({ baseUrl, fetchImpl = fetch, onRequest }) {
+  function createServiceClient({
+    baseUrl,
+    fetchImpl = fetch,
+    onRequest,
+    prepareRequest,
+  }) {
     if (!/^https:\/\//.test(baseUrl || "")) {
       throw new TypeError("Le relais cartographique doit utiliser HTTPS.");
     }
@@ -11,6 +16,9 @@
       if (!/^\/[a-z0-9/_-]+$/i.test(path || "")) {
         throw new TypeError("Chemin de service invalide.");
       }
+      const preparedBody = prepareRequest
+        ? prepareRequest(service, path, body ?? {})
+        : body ?? {};
       onRequest?.(service, count);
       const response = await fetchImpl(baseUrl + path, {
         method: "POST",
@@ -18,7 +26,7 @@
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body ?? {}),
+        body: JSON.stringify(preparedBody),
       });
       let data = null;
       try {
