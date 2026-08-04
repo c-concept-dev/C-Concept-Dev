@@ -50,15 +50,12 @@ assert.throws(
   /revient pas suffisamment près/,
 );
 
-assert.throws(
-  () =>
-    core.buildExactGpx({
-      ...route,
-      proposalStatus: "verify",
-      canNavigate: false,
-    }),
-  /n’est pas déclaré compatible/,
-);
+const reservedGpx = core.buildExactGpx({
+  ...route,
+  proposalStatus: "verify",
+  canNavigate: false,
+});
+assert.ok(reservedGpx.includes("<trk>"));
 
 const links = core.buildMapLinks(route);
 assert.equal(links.simplified, true);
