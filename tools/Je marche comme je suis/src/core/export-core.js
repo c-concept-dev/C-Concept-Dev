@@ -61,14 +61,6 @@
     if (!Number.isFinite(closureMeters) || closureMeters > LOOP_TOLERANCE_METERS)
       reasons.push("La trace ne revient pas suffisamment près du départ.");
 
-    if (
-      route.proposalStatus &&
-      !["compatible", "respected"].includes(route.proposalStatus)
-    )
-      reasons.push("Le parcours n’est pas déclaré compatible.");
-    if (route.canNavigate === false)
-      reasons.push("La navigation est désactivée pour ce parcours.");
-
     return {
       exactEligible: reasons.length === 0,
       geometryValid: coords.length >= 2 && coords.length === original.length,
@@ -82,7 +74,7 @@
       reasons,
       label: reasons.length
         ? "Export exact indisponible"
-        : "Géométrie exacte certifiée",
+        : "Géométrie de référence disponible",
     };
   }
 
