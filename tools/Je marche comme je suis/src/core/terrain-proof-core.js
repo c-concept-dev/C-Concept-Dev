@@ -5,6 +5,7 @@
     confirmed: 5,
     probable: 4,
     partial: 3,
+    "very-partial": 2.5,
     undocumented: 2,
     contradictory: 1,
   });
@@ -13,6 +14,7 @@
     confirmed: "Confirmé",
     probable: "Probable",
     partial: "Partiel",
+    "very-partial": "Très partiellement documenté",
     undocumented: "Non documenté",
     contradictory: "Contradictoire",
   });
@@ -98,8 +100,10 @@
     const surfaceLevel =
       Number.isFinite(coverage) && coverage >= 90
         ? "probable"
-        : Number.isFinite(coverage) && coverage > 0
+        : Number.isFinite(coverage) && coverage >= 25
           ? "partial"
+          : Number.isFinite(coverage) && coverage > 0
+            ? "very-partial"
           : "undocumented";
 
     const items = [
@@ -117,6 +121,8 @@
             ? "La cartographie couvre presque toute la trace, sans observation directe."
             : surfaceLevel === "partial"
               ? "Une partie seulement de la trace est documentée."
+              : surfaceLevel === "very-partial"
+                ? "Moins d’un quart de la trace est documenté ; aucune conclusion globale n’est possible."
               : "Aucune donnée exploitable n’a été fournie.",
       }),
       evidenceItem({
