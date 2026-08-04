@@ -8,6 +8,7 @@
     importer: Object.freeze(["importRoute"]),
     weather: Object.freeze(["forecast"]),
     "terrain-proof": Object.freeze(["inspect"]),
+    "elevation-control": Object.freeze(["inspect"]),
   });
 
   function createPeripheralRegistry() {
