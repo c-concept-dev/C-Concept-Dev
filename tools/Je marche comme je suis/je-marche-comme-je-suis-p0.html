@@ -2940,6 +2940,100 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function warningText() { return "Signalement utilisateur daté. Vérifiez la situation sur place ; il ne constitue pas une confirmation officielle."; }
   global.JMMJSUserReportsCore = { CATEGORIES, MAX_DISTANCE_METERS, MAX_NOTE_LENGTH, expiryFor, normalizeReport, normalizeReports, buildSubmission, displayStatus, warningText };
 })(globalThis);
+(function (global) {
+  "use strict";
+
+  const MAX_DISTANCE_METERS = 300;
+  const ALLOWED_TYPES = Object.freeze({
+    closure: "Fermeture temporaire",
+    works: "Travaux",
+    restriction: "Restriction d’accès",
+    official_route: "Itinéraire officiel",
+    warning: "Information officielle",
+  });
+
+  function validCoordinates(coords) {
+    return Array.isArray(coords) && coords.length >= 2 &&
+      Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1])) &&
+      Number(coords[0]) >= -180 && Number(coords[0]) <= 180 &&
+      Number(coords[1]) >= -90 && Number(coords[1]) <= 90;
+  }
+
+  function normalizeDate(value) {
+    if (value == null || value === "") return null;
+    const timestamp = Number.isFinite(Number(value)) ? Number(value) : Date.parse(String(value));
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  function normalizeOfficialItem(item, { now = Date.now(), nearestRouteDistance, routeCoords } = {}) {
+    const type = String(item?.type || item?.category || "");
+    if (!ALLOWED_TYPES[type]) return null;
+    const coordinates = item?.coordinates || item?.geometry?.coordinates;
+    if (!validCoordinates(coordinates)) return null;
+    const publishedAt = normalizeDate(item.publishedAt ?? item.published_at ?? item.updatedAt);
+    const startsAt = normalizeDate(item.startsAt ?? item.starts_at);
+    const endsAt = normalizeDate(item.endsAt ?? item.ends_at ?? item.expiresAt);
+    if (Number.isFinite(endsAt) && endsAt < now) return null;
+    const distance = typeof nearestRouteDistance === "function"
+      ? Math.round(Number(nearestRouteDistance(coordinates, routeCoords)))
+      : null;
+    if (Number.isFinite(distance) && distance > MAX_DISTANCE_METERS) return null;
+    const sourceName = String(item.sourceName || item.source || item.authority || "").trim();
+    if (!sourceName) return null;
+    return {
+      id: String(item.id || ""),
+      type,
+      label: String(item.label || item.title || ALLOWED_TYPES[type]).trim().slice(0, 160),
+      sourceName,
+      sourceUrl: String(item.sourceUrl || item.url || "").trim(),
+      lon: Number(coordinates[0]),
+      lat: Number(coordinates[1]),
+      distance: Number.isFinite(distance) ? distance : null,
+      publishedAt,
+      startsAt,
+      endsAt,
+      official: true,
+      status: type === "official_route" ? "documented" : "official_notice",
+    };
+  }
+
+  function normalizeOfficialItems(items, options = {}) {
+    return (Array.isArray(items) ? items : [])
+      .map((item) => normalizeOfficialItem(item, options))
+      .filter(Boolean)
+      .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity) || (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
+  }
+
+  function displayStatus(item, now = Date.now()) {
+    const active = !Number.isFinite(item.startsAt) || item.startsAt <= now;
+    const remaining = Number.isFinite(item.endsAt) ? Math.ceil((item.endsAt - now) / 86400000) : null;
+    return {
+      activity: active ? "Information actuellement applicable" : "Information à venir",
+      validity: Number.isFinite(remaining)
+        ? `Fin indiquée dans ${Math.max(0, remaining)} jour${remaining > 1 ? "s" : ""}`
+        : "Date de fin non documentée",
+      authority: `Source officielle : ${item.sourceName}`,
+    };
+  }
+
+  function absenceText() {
+    return "Aucune fermeture publiée trouvée dans les sources interrogées. Cela ne garantit pas que le chemin soit ouvert.";
+  }
+
+  function unavailableText() {
+    return "Réseaux officiels et fermetures indisponibles. La promenade reste consultable ; vérifiez les informations locales avant de partir.";
+  }
+
+  global.JMMJSOfficialClosuresCore = {
+    MAX_DISTANCE_METERS,
+    ALLOWED_TYPES,
+    normalizeOfficialItem,
+    normalizeOfficialItems,
+    displayStatus,
+    absenceText,
+    unavailableText,
+  };
+})(globalThis);
 (() => {
   "use strict";
   const CRITICAL_CODES = new Set([66, 67, 75, 77, 82, 86, 95, 96, 99]);
@@ -6322,6 +6416,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
   global.JMMJSUserReportsProvider = { createUserReportsProvider };
 })(globalThis);
+(function (global) {
+  "use strict";
+  function createOfficialClosuresProvider({ client }) {
+    if (!client) throw new Error("Client de services requis.");
+    return {
+      id: "official-closures",
+      async nearby({ route, radiusMeters = 300 }) {
+        const response = await client.post("/official/closures", {
+          coordinates: route?.coords || [],
+          radiusMeters,
+        });
+        return response?.data || [];
+      },
+    };
+  }
+  global.JMMJSOfficialClosuresProvider = { createOfficialClosuresProvider };
+})(globalThis);
 (() => {
   "use strict";
 
@@ -7686,6 +7797,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const datatourismeProvider = peripherals.require("datatourisme");
   const photoReconProvider = globalThis.JMMJSPhotoReconProvider.createPhotoReconProvider({ client: serviceClient });
   const userReportsProvider = globalThis.JMMJSUserReportsProvider.createUserReportsProvider({ client: serviceClient });
+  const officialClosuresProvider = globalThis.JMMJSOfficialClosuresProvider.createOfficialClosuresProvider({ client: serviceClient });
   peripherals.register(
     globalThis.JMMJSOpenMeteoProvider.createOpenMeteoProvider({ fetchImpl: fetch }),
   );
@@ -8277,6 +8389,38 @@ svg.leaflet-image-layer.leaflet-interactive path {
     finally { button.disabled = false; button.textContent = "Consulter"; }
   }
 
+
+  function ensureOfficialClosuresPanel() {
+    let panel = $("#officialClosuresPanel");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.className = "enrichment";
+    panel.id = "officialClosuresPanel";
+    panel.hidden = true;
+    panel.innerHTML = '<div class="enrichment-head"><div><h3>Réseaux officiels et fermetures</h3><p>Avis publiés par des sources identifiées · couverture non exhaustive</p></div><button class="small" id="loadOfficialClosures" type="button">Consulter</button></div><div id="officialClosuresContent"><p class="empty-data">Consultez les informations officielles disponibles à proximité du parcours.</p></div>';
+    const anchor = ensureReportsPanel();
+    anchor?.insertAdjacentElement("afterend", panel);
+    $("#loadOfficialClosures").onclick = loadOfficialClosures;
+    return panel;
+  }
+
+  async function loadOfficialClosures() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Choisissez un parcours.");
+    const panel = ensureOfficialClosuresPanel();
+    const target = panel.querySelector("#officialClosuresContent");
+    const button = panel.querySelector("#loadOfficialClosures");
+    button.disabled = true; button.textContent = "Recherche…";
+    try {
+      const result = await resilientService({ name: "official-closures", key: `official:${route.name}:${route.coords.length}`, allowRetry: true, allowCache: true, operation: () => officialClosuresProvider.nearby({ route, radiusMeters: 300 }) });
+      if (!result.ok) { target.innerHTML = '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.unavailableText()) + '</p>'; return; }
+      const items = globalThis.JMMJSOfficialClosuresCore.normalizeOfficialItems(result.value, { nearestRouteDistance, routeCoords: route.coords });
+      target.innerHTML = items.length ? '<div class="poi-list">' + items.map((item) => { const status=globalThis.JMMJSOfficialClosuresCore.displayStatus(item); return '<article class="poi-item"><strong>' + esc(item.label) + '</strong><span>' + (item.distance == null ? "Distance non calculée" : item.distance + " m de la trace") + '</span><span>' + esc(status.activity) + ' · ' + esc(status.validity) + '</span><span>' + esc(status.authority) + '</span>' + (item.sourceUrl ? '<a href="' + esc(item.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Consulter la source officielle ↗</a>' : '') + '</article>'; }).join("") + '</div>' : '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.absenceText()) + '</p>';
+      say(items.length + " information(s) officielle(s) affichée(s).");
+    } catch (error) { target.innerHTML = '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.unavailableText()) + '</p>'; }
+    finally { button.disabled = false; button.textContent = "Consulter"; }
+  }
+
   function formatStepDuration(minutes) {
     const value = Number(minutes);
     if (!Number.isFinite(value) || value <= 0) return "moins d’une minute";
@@ -8553,6 +8697,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
     ensureReportsPanel().hidden = false;
+    ensureOfficialClosuresPanel().hidden = false;
   }
   function select(i) {
     S.selected = i;
