@@ -3142,6 +3142,62 @@ svg.leaflet-image-layer.leaflet-interactive path {
 (() => {
   "use strict";
 
+  function validDate(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
+
+  function enrichWeatherSummary(summary, raw = {}, departure = {}, minutes = 60) {
+    if (!summary) return null;
+    const departureDate = validDate(departure?.date || departure?.iso || summary.startTime);
+    const durationMinutes = Math.max(0, Number(minutes) || 0);
+    const returnDate = departureDate
+      ? new Date(departureDate.getTime() + durationMinutes * 60_000)
+      : null;
+    const sunrise = raw?.daily?.sunrise?.[0] || null;
+    const sunset = raw?.daily?.sunset?.[0] || null;
+    const sunsetDate = validDate(sunset);
+    const daylightMarginMinutes =
+      returnDate && sunsetDate
+        ? Math.round((sunsetDate.getTime() - returnDate.getTime()) / 60_000)
+        : null;
+    return {
+      ...summary,
+      retrievedAt: Number.isFinite(Number(raw?.fetchedAt))
+        ? new Date(Number(raw.fetchedAt)).toISOString()
+        : null,
+      timezone: raw?.timezone || null,
+      sunrise,
+      sunset,
+      estimatedReturnAt: returnDate ? returnDate.toISOString() : null,
+      daylightMarginMinutes,
+      model: "best match",
+    };
+  }
+
+  function daylightAssessment(summary) {
+    const margin = Number(summary?.daylightMarginMinutes);
+    if (!Number.isFinite(margin))
+      return { level: "unknown", label: "Lumière du jour non déterminée" };
+    if (margin < 0)
+      return { level: "critical", label: "Retour estimé après le coucher du soleil" };
+    if (margin < 15)
+      return { level: "critical", label: "Marge avant la nuit très faible" };
+    if (margin < 30)
+      return { level: "caution", label: "Marge avant la nuit faible" };
+    if (margin < 60)
+      return { level: "favorable", label: "Marge avant la nuit correcte" };
+    return { level: "favorable", label: "Marge avant la nuit confortable" };
+  }
+
+  globalThis.JMMJSEnrichedWeatherCore = Object.freeze({
+    enrichWeatherSummary,
+    daylightAssessment,
+  });
+})();
+(() => {
+  "use strict";
+
   const STATUS_RANK = Object.freeze({
     respected: 1,
     unknown: 2,
@@ -6283,6 +6339,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         longitude: String(longitude),
         timezone: "auto",
         forecast_days: "2",
+        daily: "sunrise,sunset",
         hourly: [
           "temperature_2m",
           "apparent_temperature",
@@ -6311,6 +6368,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
       return {
         hourly: data.hourly || {},
+        daily: data.daily || {},
         startIndex,
         count: Math.max(1, Math.ceil(Number(hours) || 1)),
         timezone: data.timezone || null,
@@ -7556,9 +7614,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
         startIndex: raw.startIndex,
         count: raw.count,
       });
-      const assessment = assessForecast(summary);
+      const enrichedSummary = globalThis.JMMJSEnrichedWeatherCore.enrichWeatherSummary(summary, raw, departure.schedule, minutes);
+      const assessment = assessForecast(enrichedSummary);
       S.weather = {
-        summary,
+        summary: enrichedSummary,
         assessment,
         timezone: raw.timezone,
         departure: departure.schedule,
@@ -7604,10 +7663,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
           startIndex: raw.startIndex,
           count: raw.count,
         });
+        const enrichedSummary = globalThis.JMMJSEnrichedWeatherCore.enrichWeatherSummary(
+          summary,
+          raw,
+          departure.schedule,
+          minutes,
+        );
         results.push({
           point,
-          summary,
-          assessment: assessForecast(summary),
+          summary: enrichedSummary,
+          assessment: assessForecast(enrichedSummary),
           timezone: raw.timezone,
         });
       } catch (error) {
@@ -7792,11 +7857,24 @@ svg.leaflet-image-layer.leaflet-interactive path {
       ? `Visibilité minimale : ${visibility}`
       : null;
     const source = `Source : ${summary?.source || "Open-Meteo"}`;
+    const retrievedAt = summary?.retrievedAt
+      ? `Prévision récupérée à ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(summary.retrievedAt))}`
+      : null;
+    const model = summary?.model ? `Modèle ou sélection : ${summary.model}` : null;
+    const returnAt = summary?.estimatedReturnAt
+      ? `Retour estimé : ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(summary.estimatedReturnAt))}`
+      : null;
+    const sunset = summary?.sunset
+      ? `Coucher du soleil : ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(summary.sunset))}`
+      : null;
+    const margin = Number.isFinite(Number(summary?.daylightMarginMinutes))
+      ? `Marge avant la nuit : ${Math.round(Number(summary.daylightMarginMinutes))} min`
+      : null;
 
     return (
       detailRows +
       '<div class="weather-detail-meta">' +
-      [apparent, coverage, precipitation, visibilityLabel, source]
+      [apparent, coverage, precipitation, visibilityLabel, retrievedAt, model, returnAt, sunset, margin, source]
         .filter(Boolean)
         .map((item) => '<span>' + esc(item) + '</span>')
         .join("") +
