@@ -24,6 +24,21 @@
       requiredData: ["coordinate"],
       unknownPolicy: "fallback-place",
     },
+    departureMode: {
+      effect: "generation-context",
+      requiredData: ["departure-schedule"],
+      unknownPolicy: "use-now",
+    },
+    departureDate: {
+      effect: "generation-context",
+      requiredData: ["departure-schedule"],
+      unknownPolicy: "required-if-scheduled",
+    },
+    departureTime: {
+      effect: "generation-context",
+      requiredData: ["departure-schedule"],
+      unknownPolicy: "required-if-scheduled",
+    },
     returnRadius: {
       effect: "audit",
       requiredData: ["geometry"],
@@ -532,6 +547,12 @@
     return {
       request,
       derived,
+      functionalRules: Array.isArray(request.derivedFunctionalRules)
+        ? request.derivedFunctionalRules.map((rule) => ({ ...rule }))
+        : [],
+      functional: request.functionalPausePlan
+        ? { pauseIntervalMinutes: request.functionalPausePlan.intervalMinutes }
+        : {},
       time: {
         explicitDuration,
         clockBudgetMinutes: clock,
@@ -903,6 +924,15 @@
           ? `${route.shortcuts.length} repli(s) calculé(s)`
           : "repli non prouvé ; rester attentif à la proximité du départ",
       );
+    const functionalAuditor = globalThis.JMMJSLimitationsCore?.auditFunctionalRules;
+    if (typeof functionalAuditor === "function") {
+      const functionalChecks = functionalAuditor(route, compiled, STATUS);
+      for (const check of functionalChecks) {
+        const existingIndex = checks.findIndex((item) => item.id === check.id);
+        if (existingIndex >= 0) checks[existingIndex] = check;
+        else checks.push(check);
+      }
+    }
     const blocking = checks.filter(
       (x) => x.severity === "hard" && x.status !== STATUS.RESPECTED,
     );
