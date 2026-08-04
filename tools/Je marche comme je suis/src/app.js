@@ -112,6 +112,8 @@
         offRoute: null,
         recoveryLayer: null,
         recoveryLink: null,
+        turnBack: false,
+        continuedDespiteReservations: false,
       },
     },
     E = {
@@ -2026,10 +2028,11 @@
       "</details><details><summary>Sources</summary>" +
       list(r.sources) +
       '</details><div class="exports">' +
-      (r.canNavigate
-        ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>'
-        : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
-      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><a class="small" id="googleMapsExportBtn" target="_blank" rel="noopener">Google Maps approximatif ↗</a><span class="map-export-warning" id="googleMapsExportWarning">Google Maps recalcule l’itinéraire : le tracé peut différer de la géométrie ORS et du GPX.</span><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Prudence et repli</strong><span>Partage facultatif. Aucun suivi en direct, aucune alerte automatique et aucun contact conservé.</span><button class="small" id="shareRouteBtn" type="button">Partager le parcours</button><button class="small" id="shareReturnBtn" type="button">Partager l’heure de retour</button><button class="small" id="copySafetyMessageBtn" type="button">Copier un message préparé</button><button class="small" id="copyCurrentPositionBtn" type="button">Copier ma position actuelle</button><button class="small" id="safetyReturnedBtn" type="button">Je suis revenu</button><a class="small" href="tel:112">Appeler le 112</a><span>Retour simple vers le départ :</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
+      '<button class="small start-nav" id="startNavBtn">' +
+      (r.canNavigate ? '▶ Phase 2 · Suivre ce trajet' : '▶ Continuer malgré les réserves') +
+      '</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>' +
+      (r.canNavigate ? '' : '<span class="reservation-warning">Cette promenade n’est pas recommandée dans votre situation actuelle. Les réserves resteront visibles pendant la marche.</span>') +
+      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><a class="small" id="googleMapsExportBtn" target="_blank" rel="noopener">Google Maps approximatif ↗</a><span class="map-export-warning" id="googleMapsExportWarning">Google Maps recalcule l’itinéraire : le tracé peut différer de la géométrie ORS et du GPX.</span><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
     if ($("#prepareOfflineBtn")) $("#prepareOfflineBtn").onclick = prepareOffline;
@@ -2080,18 +2083,6 @@
       );
     $("#printBtn").onclick = () => print();
 
-    const returnLinks = buildReturnLinks(r, "walking");
-    $("#returnGoogleBtn").href = returnLinks.google || "#";
-    $("#returnAppleBtn").href = returnLinks.apple || "#";
-    $("#copyStartBtn").onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(returnLinks.coordinates);
-        say("Coordonnées du départ copiées.");
-      } catch {
-        say("Coordonnées du départ : " + returnLinks.coordinates);
-      }
-    };
-    bindSafetySharing(r);
     E.poiPanel.hidden = false;
     E.photoPanel.hidden = false;
     ensureReportsPanel().hidden = false;
@@ -2199,10 +2190,12 @@
         seg = Math.sqrt(l2),
         along = cum + t * seg;
       let score = off;
-      if (S.nav.lastAlong < 25 && along > total * 0.75) score += 150;
-      if (along < S.nav.lastAlong - 60) score += (S.nav.lastAlong - along) * 2;
-      if (along > S.nav.lastAlong + 700)
-        score += (along - S.nav.lastAlong - 700) * 0.5;
+      if (!S.nav.turnBack) {
+        if (S.nav.lastAlong < 25 && along > total * 0.75) score += 150;
+        if (along < S.nav.lastAlong - 60) score += (S.nav.lastAlong - along) * 2;
+        if (along > S.nav.lastAlong + 700)
+          score += (along - S.nav.lastAlong - 700) * 0.5;
+      }
       if (!best || score < best.score)
         best = {
           score: score,
@@ -2216,8 +2209,11 @@
         };
       cum += seg;
     }
-    if (best && best.along >= S.nav.lastAlong - 30)
-      S.nav.lastAlong = Math.max(S.nav.lastAlong, best.along);
+    if (best) {
+      if (S.nav.turnBack) S.nav.lastAlong = best.along;
+      else if (best.along >= S.nav.lastAlong - 30)
+        S.nav.lastAlong = Math.max(S.nav.lastAlong, best.along);
+    }
     return best;
   }
   function stepText(r, p) {
@@ -2230,6 +2226,19 @@
       cap = bearing(p.nearest, { lat: +look[1], lon: +look[0] });
     return (
       "Continuez sur la trace vers le " +
+      compass(cap) +
+      " · cap " +
+      Math.round(cap) +
+      "°"
+    );
+  }
+
+  function turnBackStepText(r, p) {
+    const previous = r.coords[Math.max(0, p.i - 2)];
+    if (!previous) return "Revenez sur vos pas vers le départ.";
+    const cap = bearing(p.nearest, { lat: +previous[1], lon: +previous[0] });
+    return (
+      "Faites demi-tour et suivez la trace en sens inverse vers le " +
       compass(cap) +
       " · cap " +
       Math.round(cap) +
@@ -2289,6 +2298,16 @@
       return say("Ce navigateur ne fournit pas la géolocalisation.");
     const r = S.routes[S.selected];
     if (!r || r.coords.length < 2) return say("Aucune trace réelle à suivre.");
+    const exportAudit = auditRouteExport(r);
+    if (!exportAudit.geometryValid || !exportAudit.closedLoop)
+      return say("Cette trace ne peut pas être suivie : sa géométrie est invalide ou la boucle n’est pas fermée.");
+    if (!r.canNavigate) {
+      const accepted = globalThis.confirm(
+        "Cette promenade dépasse ou ne permet pas de vérifier certaines de vos contraintes actuelles. Voulez-vous poursuivre malgré ces réserves ?",
+      );
+      if (!accepted) return;
+      S.nav.continuedDespiteReservations = true;
+    } else S.nav.continuedDespiteReservations = false;
     try {
       await leafletReady;
       if (!window.L) throw Error("Leaflet indisponible");
@@ -2297,16 +2316,17 @@
     }
     S.nav.active = true;
     S.nav.follow = true;
-    const returnLinks = buildReturnLinks(r, "walking");
-    const navigationMapLinks = mapLinks(r);
-    if ($("#navGoogleRoute")) {
-      $("#navGoogleRoute").href = navigationMapLinks.google || "#";
-      $("#navGoogleRoute").title =
-        "Itinéraire pédestre recalculé par Google Maps. Le tracé peut différer de la trace ORS et du GPX.";
-    }
-    if ($("#navReturnGoogle")) $("#navReturnGoogle").href = returnLinks.google || "#";
-    if ($("#navReturnApple")) $("#navReturnApple").href = returnLinks.apple || "#";
     S.nav.lastAlong = 0;
+    S.nav.turnBack = false;
+    const reserveBanner = $("#navReserveBanner");
+    if (reserveBanner) {
+      reserveBanner.hidden = !S.nav.continuedDespiteReservations;
+      reserveBanner.textContent = S.nav.continuedDespiteReservations
+        ? "Vous avez choisi de poursuivre malgré des réserves. Consultez les contraintes dans la fiche à votre retour."
+        : "";
+    }
+    const turnBackButton = $("#navTurnBack");
+    if (turnBackButton) turnBackButton.textContent = "↶ Faire demi-tour";
     S.nav.positions = [];
     S.nav.startedAt = Date.now();
     offRouteMonitor.reset();
@@ -2386,10 +2406,15 @@
         opacity: 0.55,
       }).addTo(S.map);
     else S.nav.trail.setLatLngs(S.nav.positions);
-    const rest = [
-      [p.nearest.lat, p.nearest.lon],
-      ...r.coords.slice(p.i + 1).map((x) => [+x[1], +x[0]]),
-    ];
+    const rest = S.nav.turnBack
+      ? [
+          [p.nearest.lat, p.nearest.lon],
+          ...r.coords.slice(0, p.i + 1).reverse().map((x) => [+x[1], +x[0]]),
+        ]
+      : [
+          [p.nearest.lat, p.nearest.lon],
+          ...r.coords.slice(p.i + 1).map((x) => [+x[1], +x[0]]),
+        ];
     if (!S.nav.remaining)
       S.nav.remaining = L.polyline(rest, {
         color: "#1264d8",
@@ -2397,16 +2422,19 @@
         opacity: 0.9,
       }).addTo(S.map);
     else S.nav.remaining.setLatLngs(rest);
-    $("#navRemaining").textContent = fmtDistance(p.remaining);
+    $("#navRemaining").textContent = fmtDistance(S.nav.turnBack ? p.along : p.remaining);
     $("#navDeviation").textContent = fmtDistance(p.off);
     $("#navAccuracy").textContent = "± " + Math.round(c.accuracy) + " m";
     $("#navSpeed").textContent =
       speed === null ? "—" : speed.toFixed(1) + " km/h";
     const elapsed = Date.now() - S.nav.startedAt;
+    const remainingDistance = S.nav.turnBack ? p.along : p.remaining;
     $("#navInstruction").textContent =
-      p.remaining < 35 && elapsed > 12e4
-        ? "Vous êtes revenu au point d’arrivée."
-        : stepText(r, p);
+      remainingDistance < 35 && elapsed > 12e4
+        ? "Vous êtes revenu au point de départ."
+        : S.nav.turnBack
+          ? turnBackStepText(r, p)
+          : stepText(r, p);
     const offRoute = offRouteMonitor.update({
       deviationMeters: p.off,
       accuracyMeters: c.accuracy,
@@ -2464,6 +2492,8 @@
     );
     S.nav.marker = S.nav.accuracy = S.nav.trail = S.nav.remaining = S.nav.recoveryLayer = null;
     S.nav.recoveryLink = null;
+    S.nav.turnBack = false;
+    S.nav.continuedDespiteReservations = false;
     document.body.classList.remove("navigating");
     try {
       document.exitFullscreen?.();
@@ -2486,6 +2516,28 @@
       { padding: [70, 70] },
     );
     $("#navFollow").textContent = "◎ Me suivre";
+  };
+  $("#navTurnBack").onclick = () => {
+    S.nav.turnBack = !S.nav.turnBack;
+    S.nav.lastAlong = 0;
+    const button = $("#navTurnBack");
+    button.textContent = S.nav.turnBack
+      ? "↷ Reprendre la boucle"
+      : "↶ Faire demi-tour";
+    const route = S.routes[S.selected];
+    if (route && S.nav.lastPosition) {
+      const p = nearestProgress(S.nav.lastPosition, route);
+      if (p) {
+        const rest = S.nav.turnBack
+          ? [[p.nearest.lat, p.nearest.lon], ...route.coords.slice(0, p.i + 1).reverse().map((x) => [+x[1], +x[0]])]
+          : [[p.nearest.lat, p.nearest.lon], ...route.coords.slice(p.i + 1).map((x) => [+x[1], +x[0]])];
+        S.nav.remaining?.setLatLngs(rest);
+        $("#navRemaining").textContent = fmtDistance(S.nav.turnBack ? p.along : p.remaining);
+      }
+    }
+    say(S.nav.turnBack
+      ? "Demi-tour activé : suivez la trace enregistrée en sens inverse jusqu’au départ."
+      : "Demi-tour annulé : reprise de la boucle dans son sens initial.");
   };
   $("#navIgnore10").onclick = () => {
     offRouteMonitor.ignore(Date.now());
