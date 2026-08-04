@@ -50,6 +50,10 @@
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
     storage: globalThis.localStorage,
   });
+  const sessionPrivacyController =
+    globalThis.JMMJSSessionPrivacyCore.createSessionPrivacyController({
+      storage: globalThis.sessionStorage,
+    });
   const { analyzeElevationProfile } = globalThis.JMMJSElevationProfileCore;
   const {
     describeFunctionalLimitation,
@@ -279,6 +283,8 @@
     baseUrl: SERVICE_PROXY,
     fetchImpl: fetch,
     onRequest: countRequest,
+    prepareRequest: (service, path, body) =>
+      sessionPrivacyController.prepareProviderPayload(service, path, body),
   });
   const peripherals =
     globalThis.JMMJSPeripheralRegistry.createPeripheralRegistry();
@@ -3361,6 +3367,39 @@
     updateDepartureControls();
   }
 
+  function ensurePrivacyDetailsDialog() {
+    let modal = $("#privacyDetailsModal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "privacyDetailsModal";
+    modal.className = "modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "privacyDetailsTitle");
+    modal.innerHTML =
+      '<div class="modal-card clear-data-card"><h2 id="privacyDetailsTitle">Données et services externes</h2><p>Vos limitations, douleurs, fatigue, âge, texte libre, chaussures et équipements ne sont pas envoyés aux fournisseurs cartographiques.</p><p>Lors d’un calcul ou d’un enrichissement, seules les données techniques nécessaires sont transmises : coordonnées de départ, géométrie ou zone de recherche, paramètres de routage et moment utile pour la météo.</p><p id="privacyTransmissionStatus">Aucune transmission effectuée dans cette session.</p><div class="modal-actions"><button type="button" id="closePrivacyDetails">Fermer</button></div></div>';
+    document.body.appendChild(modal);
+    $("#closePrivacyDetails").onclick = () => modal.classList.remove("show");
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) modal.classList.remove("show");
+    });
+    return modal;
+  }
+
+  const privacyDetailsButton = $("#privacyDetailsBtn");
+  if (privacyDetailsButton)
+    privacyDetailsButton.onclick = () => {
+      const modal = ensurePrivacyDetailsDialog();
+      const summary = sessionPrivacyController.summary();
+      const status = $("#privacyTransmissionStatus");
+      if (status)
+        status.textContent = summary.transmissionCount
+          ? `${summary.transmissionCount} transmission${summary.transmissionCount > 1 ? "s" : ""} technique${summary.transmissionCount > 1 ? "s" : ""} dans cette session. Données de santé transmises : aucune.`
+          : "Aucune transmission effectuée dans cette session.";
+      modal.classList.add("show");
+      $("#closePrivacyDetails")?.focus();
+    };
+
   const privateCheckbox = $("#private");
   if (privateCheckbox) {
     const privacyStatus = document.createElement("small");
@@ -3423,6 +3462,7 @@
     $("#cancelClearData").onclick = () => modal.classList.remove("show");
     $("#confirmClearData").onclick = () => {
       privacyController.purge();
+      sessionPrivacyController.clearSession();
       modal.classList.remove("show");
       location.reload();
     };
