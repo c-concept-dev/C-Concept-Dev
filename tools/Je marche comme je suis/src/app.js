@@ -1564,6 +1564,7 @@
       if (!geoResult.ok && !tourismResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
       const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
+      r.poiEvidenceLoaded = true;
       E.poiContent.innerHTML = pois.length
         ? '<div class="poi-list">' +
           pois
@@ -1725,6 +1726,52 @@
       say(items.length + " information(s) officielle(s) affichée(s).");
     } catch (error) { target.innerHTML = '<p class="empty-data">' + esc(globalThis.JMMJSOfficialClosuresCore.unavailableText()) + '</p>'; }
     finally { button.disabled = false; button.textContent = "Consulter"; }
+  }
+
+
+  function ensureTranquilityPanel() {
+    let panel = $("#tranquilityPanel");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.className = "enrichment";
+    panel.id = "tranquilityPanel";
+    panel.hidden = true;
+    panel.innerHTML = '<div class="enrichment-head"><div><h3>Potentiel de tranquillité</h3><p>Estimation cartographique · jamais une mesure de fréquentation réelle</p></div><button class="small" id="assessTranquility" type="button">Estimer</button></div><div id="tranquilityContent"><p class="empty-data">Chargez d’abord les points d’intérêt pour documenter une partie des indices.</p></div>';
+    const anchor = ensureOfficialClosuresPanel();
+    anchor?.insertAdjacentElement("afterend", panel);
+    $("#assessTranquility").onclick = assessTranquilityForSelectedRoute;
+    return panel;
+  }
+
+  function tranquilityIndicatorsFromRoute(route) {
+    if (!route?.poiEvidenceLoaded) return {};
+    const pois = Array.isArray(route.pois) ? route.pois : [];
+    const category = (poi) => String(poi.category || poi.type || "").toLowerCase();
+    const count = (terms) => pois.filter((poi) => terms.some((term) => category(poi).includes(term))).length;
+    return {
+      parkingCount: count(["parking"]),
+      commerceCount: count(["shop", "commerce", "cafe", "restaurant", "pharmacy"]),
+      touristPoiCount: count(["tourism", "heritage", "viewpoint", "museum", "attraction"]),
+      officialRouteCount: Number.isFinite(Number(route.officialRouteCount)) ? Number(route.officialRouteCount) : null,
+      distanceToMajorRoadMeters: Number.isFinite(Number(route.distanceToMajorRoadMeters)) ? Number(route.distanceToMajorRoadMeters) : null,
+      buildingDensityPerKm2: Number.isFinite(Number(route.buildingDensityPerKm2)) ? Number(route.buildingDensityPerKm2) : null,
+      environment: route.environment || null,
+    };
+  }
+
+  function assessTranquilityForSelectedRoute() {
+    const route = S.routes[S.selected];
+    if (!route) return say("Choisissez un parcours.");
+    const panel = ensureTranquilityPanel();
+    const target = panel.querySelector("#tranquilityContent");
+    const assessment = globalThis.JMMJSTranquilityPotentialCore.assessTranquilityPotential(tranquilityIndicatorsFromRoute(route));
+    route.tranquilityPotential = assessment;
+    if (assessment.status === "unknown") {
+      target.innerHTML = '<p class="empty-data">' + esc(assessment.warning) + '</p>';
+      return;
+    }
+    target.innerHTML = '<article class="poi-item"><strong>Potentiel de tranquillité : ' + esc(assessment.label) + '</strong><span>Indices documentés :</span><ul>' + assessment.indicators.map((item) => '<li>' + esc(item.label) + '</li>').join("") + '</ul><small>' + esc(assessment.warning) + '</small></article>';
+    say("Potentiel de tranquillité estimé : " + assessment.label + ".");
   }
 
   function formatStepDuration(minutes) {
@@ -2004,6 +2051,7 @@
     E.photoPanel.hidden = false;
     ensureReportsPanel().hidden = false;
     ensureOfficialClosuresPanel().hidden = false;
+    ensureTranquilityPanel().hidden = false;
   }
   function select(i) {
     S.selected = i;
