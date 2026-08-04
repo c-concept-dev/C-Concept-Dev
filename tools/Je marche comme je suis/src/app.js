@@ -2029,7 +2029,7 @@
       (r.canNavigate
         ? '<button class="small start-nav" id="startNavBtn">▶ Phase 2 · Suivre ce trajet</button><button class="small" id="prepareOfflineBtn">Préparer hors connexion</button>'
         : '<button class="small" disabled title="Validez d’abord l’adaptation ou vérifiez les données manquantes">Trajet non recommandé tel quel</button>') +
-      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Prudence et repli</strong><span>Partage facultatif. Aucun suivi en direct, aucune alerte automatique et aucun contact conservé.</span><button class="small" id="shareRouteBtn" type="button">Partager le parcours</button><button class="small" id="shareReturnBtn" type="button">Partager l’heure de retour</button><button class="small" id="copySafetyMessageBtn" type="button">Copier un message préparé</button><button class="small" id="copyCurrentPositionBtn" type="button">Copier ma position actuelle</button><button class="small" id="safetyReturnedBtn" type="button">Je suis revenu</button><a class="small" href="tel:112">Appeler le 112</a><span>Retour simple vers le départ :</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
+      '<div class="export-certification" id="exportCertification"></div><button class="small" id="gpxBtn">↓ GPX exact</button><a class="small" id="googleMapsExportBtn" target="_blank" rel="noopener">Google Maps approximatif ↗</a><span class="map-export-warning" id="googleMapsExportWarning">Google Maps recalcule l’itinéraire : le tracé peut différer de la géométrie ORS et du GPX.</span><button class="small" id="jsonBtn">↓ JSON</button><button class="small" id="printBtn">Imprimer</button><div class="return-safety"><strong>Prudence et repli</strong><span>Partage facultatif. Aucun suivi en direct, aucune alerte automatique et aucun contact conservé.</span><button class="small" id="shareRouteBtn" type="button">Partager le parcours</button><button class="small" id="shareReturnBtn" type="button">Partager l’heure de retour</button><button class="small" id="copySafetyMessageBtn" type="button">Copier un message préparé</button><button class="small" id="copyCurrentPositionBtn" type="button">Copier ma position actuelle</button><button class="small" id="safetyReturnedBtn" type="button">Je suis revenu</button><a class="small" href="tel:112">Appeler le 112</a><span>Retour simple vers le départ :</span><a class="small" id="returnGoogleBtn" target="_blank" rel="noopener">Google Maps ↗</a><a class="small" id="returnAppleBtn" target="_blank" rel="noopener">Plans ↗</a><button class="small" id="copyStartBtn" type="button">Copier le départ</button></div></div>';
     bindWeatherDetails(E.detail);
     if ($("#startNavBtn")) $("#startNavBtn").onclick = startNavigation;
     if ($("#prepareOfflineBtn")) $("#prepareOfflineBtn").onclick = prepareOffline;
@@ -2053,6 +2053,25 @@
       ? "↓ GPX exact"
       : "GPX exact indisponible";
     gpxButton.onclick = gpx;
+
+    const externalMapLinks = mapLinks(r);
+    const googleMapsExportButton = $("#googleMapsExportBtn");
+    if (googleMapsExportButton) {
+      googleMapsExportButton.href = externalMapLinks.google || "#";
+      googleMapsExportButton.setAttribute(
+        "aria-label",
+        "Ouvrir un itinéraire pédestre recalculé et approximatif dans Google Maps",
+      );
+      googleMapsExportButton.title = externalMapLinks.google
+        ? `Google Maps recalculera cette boucle à partir de ${externalMapLinks.waypointCount || 0} points simplifiés. Le GPX reste la géométrie de référence.`
+        : "Export Google Maps indisponible : géométrie insuffisante.";
+      googleMapsExportButton.setAttribute(
+        "aria-disabled",
+        externalMapLinks.google ? "false" : "true",
+      );
+      if (!externalMapLinks.google)
+        googleMapsExportButton.removeAttribute("href");
+    }
 
     $("#jsonBtn").onclick = () =>
       download(
@@ -2279,6 +2298,12 @@
     S.nav.active = true;
     S.nav.follow = true;
     const returnLinks = buildReturnLinks(r, "walking");
+    const navigationMapLinks = mapLinks(r);
+    if ($("#navGoogleRoute")) {
+      $("#navGoogleRoute").href = navigationMapLinks.google || "#";
+      $("#navGoogleRoute").title =
+        "Itinéraire pédestre recalculé par Google Maps. Le tracé peut différer de la trace ORS et du GPX.";
+    }
     if ($("#navReturnGoogle")) $("#navReturnGoogle").href = returnLinks.google || "#";
     if ($("#navReturnApple")) $("#navReturnApple").href = returnLinks.apple || "#";
     S.nav.lastAlong = 0;
