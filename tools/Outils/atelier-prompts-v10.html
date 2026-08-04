@@ -890,6 +890,17 @@ body[data-espace="debutant"] .avance-seulement{display:none}
         <option value="avec-api">Avec API</option>
       </select>
     </div>
+    <div class="champ cache" id="accueil-cle-conteneur">
+      <label class="etiquette" for="accueil-cle">Clé API</label>
+      <div style="display:flex;gap:10px">
+        <input type="password" id="accueil-cle" class="code" placeholder="sk-ant-…" style="flex:1">
+        <button type="button" class="bouton" id="btn-accueil-cle-voir">Afficher</button>
+        <button type="button" class="bouton" id="btn-accueil-cle-memoriser">Mémoriser</button>
+      </div>
+      <p class="aide">Reste dans ce navigateur, n'est transmise qu'au fournisseur sélectionné. Non mémorisée par
+      défaut — disparaît à la fermeture de l'onglet, sauf clic sur « Mémoriser ».
+      <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></p>
+    </div>
     <p class="aide selon-niveau" data-niveau-min="expert">Niveau Expert : le parcours Architecte transmet reglages_manuels.profondeur au schéma 3.4 ; l'espace avancé donne un accès direct aux 13 vues historiques, au JSON d'analyse et aux journaux techniques.</p>
     <div class="actions-principales" style="margin-top:16px">
       <button type="button" class="bouton primaire" id="btn-accueil-lancer">Continuer</button>
@@ -1984,6 +1995,7 @@ let modeSensible = false;
  * 15 quater.   EXEMPLE ANNOTÉ      — démonstration commentée sur l'Accueil
  * 15 quinquies GLOSSAIRE           — vocabulaire de l'outil, à la demande
  * 15 sexies.   SAUVEGARDE / RESTAURATION — export/import de toutes les données
+ * 15 septies.  CLÉ API SUR L'ACCUEIL — accès direct depuis le mode Avec API
  * 16. BRANCHEMENTS         — tous les écouteurs d'événements, en un point
  * ---------------------------------------------------------------------- */
 
@@ -5191,7 +5203,7 @@ async function bancAppel(prompt, modele, signal){
 
 async function lancerBanc(){
   if(bancEnCours){ signaler('Un banc est déjà en cours', 'alerte'); return; }
-  if(!$('#api-cle').value.trim()){ signaler('Saisissez une clé API dans l\u2019onglet Envoi direct', 'alerte'); return; }
+  if(!$('#api-cle').value.trim()){ signaler('Saisissez une clé API (sur l\u2019Accueil en mode « Avec API », ou dans Envoi direct)', 'alerte'); return; }
   const a = $('#banc-a').value.trim(), b = $('#banc-b').value.trim();
   if(!a){ signaler('Renseignez au moins le prompt A', 'alerte'); return; }
   if(!etat.contrat){ signaler('Assemblez un prompt dans l\u2019onglet Génération : le contrat en découle', 'alerte'); return; }
@@ -5954,6 +5966,43 @@ function importerSauvegarde(fichier){
 }
 
 /* ---------------------------------------------------------------------- *
+ * 15 septies. CLÉ API SUR L'ACCUEIL
+ * ---------------------------------------------------------------------- *
+ * #api-cle (onglet Envoi direct) reste la source de vérité — ce bloc ne
+ * fait qu'y donner un accès direct depuis l'Accueil quand « Avec API »
+ * est choisi, plutôt que de forcer un détour par un onglet qui, en
+ * espace Débutant, est de toute façon masqué. Synchronisation à deux
+ * sens : peu importe où la clé est tapée, elle reste unique.
+ * ---------------------------------------------------------------------- */
+
+function synchroniserChampsCle(source, cible){
+  if(!source || !cible || source.value === cible.value) return;
+  cible.value = source.value;
+}
+
+function initAccueilCle(){
+  const modeSel = $('#accueil-mode');
+  const conteneur = $('#accueil-cle-conteneur');
+  const champAccueil = $('#accueil-cle');
+  const champApi = $('#api-cle');
+
+  const majVisibilite = () => conteneur.classList.toggle('cache', modeSel.value !== 'avec-api');
+  majVisibilite();
+  modeSel.addEventListener('change', majVisibilite);
+
+  champAccueil.value = champApi.value; // reprend une clé déjà chargée au démarrage (chargerConfigApi)
+  champAccueil.addEventListener('input', () => synchroniserChampsCle(champAccueil, champApi));
+  champApi.addEventListener('input', () => synchroniserChampsCle(champApi, champAccueil));
+
+  $('#btn-accueil-cle-voir').addEventListener('click', () => {
+    const cache = champAccueil.type === 'password';
+    champAccueil.type = cache ? 'text' : 'password';
+    $('#btn-accueil-cle-voir').textContent = cache ? 'Masquer' : 'Afficher';
+  });
+  $('#btn-accueil-cle-memoriser').addEventListener('click', enregistrerCle);
+}
+
+/* ---------------------------------------------------------------------- *
  * 16. BRANCHEMENTS
  * ---------------------------------------------------------------------- */
 
@@ -6631,6 +6680,7 @@ function demarrer(){
   initEspace();
   initVisiteGuidee();
   initExempleAnnote();
+  initAccueilCle();
   /* L'écouteur de #format est créé dans brancher() : le déclencher avant
      laissait, au tout premier chargement sans brouillon, les treize
      verrous cochés par défaut du gabarit HTML au lieu du profil réel,
