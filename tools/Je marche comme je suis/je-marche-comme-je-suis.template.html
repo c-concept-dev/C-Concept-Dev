@@ -801,6 +801,33 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .terrain-proof-list small{font-size:.84rem}
 }
 
+/* Harmonisation des limitations et simplification des résultats */
+.limitation-structure{border-left:4px solid var(--sea);background:linear-gradient(180deg,#fff,#fbfaf7)}
+.limitation-structure h3{margin-bottom:.25rem}.limitation-structure .hint{margin-bottom:1rem}
+.limitation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem 1rem}
+.limitation-field{display:grid;gap:.35rem;font-size:.9rem;font-weight:700;color:var(--ink)}
+.limitation-field .input{width:100%;min-height:44px;background:#fff;border:1px solid var(--beige);border-radius:10px;padding:.65rem .75rem}
+.limitation-field-wide{grid-column:1/-1}
+.number-with-unit{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.5rem}
+.number-with-unit>span{font-size:.82rem;color:var(--muted);font-weight:700}
+.imperative-options{grid-column:1/-1;margin:1rem 0 0;padding:.8rem;border:1px solid var(--beige);border-radius:12px}
+.imperative-options legend{padding:0 .35rem;font-size:.82rem;font-weight:800}
+.option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.option-tile{display:flex;align-items:flex-start;gap:.65rem;min-height:44px;padding:.75rem .85rem;border:1px solid var(--beige);border-radius:11px;background:#fff;cursor:pointer}
+.option-tile:hover{border-color:var(--sea2)}.option-tile:focus-within{outline:2px solid var(--sea2);outline-offset:2px}
+.option-tile input{margin-top:.15rem}.option-tile span{display:grid;gap:.15rem}.option-tile small{color:var(--muted);font-weight:500;line-height:1.35}
+.option-tile-wide{width:100%}.calculation-options p,.privacy-options p{margin-bottom:.75rem}
+.result-reserve-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;align-items:center;margin:0 0 12px;padding:12px 14px;border:1px solid #d99a7b;border-left:4px solid #a94f2d;border-radius:11px;background:#fff4ef}
+.result-reserve-summary.ok{border-color:#abc4ad;border-left-color:var(--sea2);background:#eef5ef}
+.result-reserve-summary strong{font-size:.98rem}.result-reserve-summary span{display:block;margin-top:.2rem;font-size:.8rem;color:var(--muted)}
+.result-reserve-summary .start-nav{white-space:nowrap}
+.detail-groups{display:grid;gap:.5rem;margin-top:.7rem}.detail-group{border:1px solid #e7e0d6!important;border-radius:10px;padding:0!important;overflow:hidden}
+.detail-group>summary{padding:.75rem .85rem!important;background:#faf8f4;min-height:44px!important}.detail-group[open]>summary{border-bottom:1px solid #e7e0d6}
+.detail-group-content{padding:.25rem .85rem .8rem}.detail-subsection{padding:.65rem 0}.detail-subsection+.detail-subsection{border-top:1px solid #eee8df}
+.detail-subsection h4{margin:0 0 .35rem;font-size:.84rem}.detail-subsection p{font-size:.82rem;line-height:1.5}
+.exports{align-items:center}.exports .start-nav{display:none!important}
+@media(max-width:760px){.limitation-grid,.option-grid{grid-template-columns:1fr}.limitation-field-wide{grid-column:auto}.result-reserve-summary{grid-template-columns:1fr}.result-reserve-summary .start-nav{width:100%}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark">⌁</div><div><strong>Je marche comme je suis</strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -933,53 +960,51 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     ><button class="chip">Rester près du départ</button
                     ><button class="chip">Rester près d’une route</button></div>
   <div class="card limitation-structure" id="limitationStructure">
-    <h3>Préciser la conséquence concrète</h3>
-    <p class="hint">Ces réglages décrivent ce qui gêne aujourd’hui. Ils ne constituent pas un diagnostic.</p>
-    <div class="two">
-      <label>Côté atteint
-        <select id="limitationSide">
+    <h3>Préciser ce qui vous gêne aujourd’hui</h3>
+    <p class="hint">Ces réglages décrivent une conséquence concrète, sans poser de diagnostic.</p>
+    <div class="limitation-grid">
+      <label class="limitation-field"><span>Où êtes-vous gêné ?</span>
+        <select class="input" id="limitationSide">
           <option>Non précisé</option><option>Gauche</option><option>Droit</option>
           <option>Bilatéral</option><option>Non pertinent</option>
         </select>
       </label>
-      <label>Déclencheur principal
-        <select id="limitationTrigger">
+      <label class="limitation-field"><span>Qu’est-ce qui déclenche la gêne ?</span>
+        <select class="input" id="limitationTrigger">
           <option value="">Non précisé</option><option>Montée</option><option>Descente</option>
           <option>Terrain irrégulier</option><option>Durée</option>
           <option>Station debout</option><option>Marche rapide</option><option>Autre</option>
         </select>
       </label>
-      <label>Conséquence recherchée
-        <select id="limitationConsequence">
+      <label class="limitation-field"><span>Qu’aimeriez-vous éviter ou faciliter ?</span>
+        <select class="input" id="limitationConsequence">
           <option value="">Non précisée</option><option>Éviter</option><option>Limiter</option>
           <option>Ralentir</option><option>Prévoir une pause</option><option>Prévoir un repli</option>
         </select>
       </label>
-      <label>Contexte
-        <select id="limitationTemporality">
+      <label class="limitation-field"><span>Dans quel contexte ?</span>
+        <select class="input" id="limitationTemporality">
           <option>Aujourd’hui</option><option>Habituelle</option><option>Permanente</option>
           <option>Seulement aujourd’hui</option>
         </select>
       </label>
-      <label>Maximum sans pause (minutes)
-        <input id="maxWithoutPause" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif">
+      <label class="limitation-field"><span>Combien de temps sans pause ?</span>
+        <span class="number-with-unit"><input class="input" id="maxWithoutPause" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif"><span>min</span></span>
       </label>
-      <label>Maximum debout (minutes)
-        <input id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif">
+      <label class="limitation-field"><span>Combien de temps debout ?</span>
+        <span class="number-with-unit"><input class="input" id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif"><span>min</span></span>
       </label>
-      <label>Accompagnant capable d’aider
-        <select id="helperAvailable">
+      <label class="limitation-field limitation-field-wide"><span>Quelqu’un peut-il vous aider ?</span>
+        <select class="input" id="helperAvailable">
           <option value="">Non précisé</option><option value="yes">Oui</option><option value="no">Non</option>
         </select>
       </label>
     </div>
-  </div><label class="check"
-                    ><input id="noStairs" type="checkbox" /> Aucun escalier —
-                    impératif</label
-                  ><label class="check"
-                    ><input id="noExposure" type="checkbox" /> Aucun passage
-                    exposé — impératif</label
-                  ></div><div class="nav"><button class="secondary prev" type="button">Retour</button
+    <fieldset class="imperative-options"><legend>Contraintes impératives</legend>
+      <label class="option-tile"><input id="noStairs" type="checkbox"><span>Aucun escalier</span></label>
+      <label class="option-tile"><input id="noExposure" type="checkbox"><span>Aucun passage exposé</span></label>
+    </fieldset>
+  </div></div><div class="nav"><button class="secondary prev" type="button">Retour</button
                   ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Effort recherché</h3><p>Montées et descentes sont séparées.</p><div class="field"><label>Profil</label
                     ><select class="input" id="effort"><option value="gentle">Reprise douce</option><option value="pleasure" selected>Plaisir maximal</option><option value="ascent">Travail de la montée</option><option value="endurance">Endurance</option></select></div><div class="two"><div class="field"><label>Montée continue</label
                       ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select></div><div class="field"><label>Descente continue max.</label><select class="input" id="descentMinutes"><option value="">Sans demande</option><option value="2">2 min max.</option><option value="5">5 min max.</option><option value="10">10 min max.</option><option value="15">15 min max.</option><option value="none">Aucune descente</option></select></div><div class="field"><label>Pente montante max.</label
@@ -1023,19 +1048,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     class="input textarea"
                     id="freeText"
                     placeholder="J’ai une heure, je suis en baskets, mon genou gêne en descente…"
-                  ></textarea></div><div class="card"><h3>Prudence et repli</h3><label class="check"
-                    ><input id="strict" type="checkbox" checked /> Aucun
-                    compromis silencieux</label
-                  ><label class="check"
-                    ><input id="shortcuts" type="checkbox" checked /> Rechercher
-                    des raccourcis</label
-                  ><label class="check"
-                    ><input id="bothWays" type="checkbox" checked /> Comparer
-                    les deux sens</label
-                  ><label class="check"
-                    ><input id="private" type="checkbox" /> Mode privé : ne rien
-                    mémoriser</label
-                  ><div class="helper" id="modeHelp"></div></div><div class="card" id="apiBox"><h3>Services cartographiques sécurisés</h3><p>
+                  ></textarea></div><div class="card calculation-options"><h3>Options de calcul</h3><p>Le moteur conserve toujours vos contraintes et ne les assouplit jamais silencieusement.</p><input id="strict" type="checkbox" checked hidden aria-hidden="true"><div class="option-grid"><label class="option-tile"><input id="shortcuts" type="checkbox" checked><span><strong>Rechercher des raccourcis</strong><small>Repérer des variantes réelles plus courtes lorsqu’elles existent.</small></span></label><label class="option-tile"><input id="bothWays" type="checkbox" checked><span><strong>Comparer les deux sens</strong><small>Évaluer la boucle dans les deux orientations.</small></span></label></div></div><div class="card privacy-options"><h3>Confidentialité</h3><label class="option-tile option-tile-wide"><input id="private" type="checkbox"><span><strong>Mode privé</strong><small>Ne rien mémoriser sur cet appareil.</small></span></label><div class="helper" id="modeHelp"></div></div><div class="card" id="apiBox"><h3>Services cartographiques sécurisés</h3><p>
                     Les clés sont conservées comme secrets Cloudflare. Elles ne
                     sont jamais envoyées au navigateur, écrites dans GitHub ou
                     enregistrées dans localStorage. Les limitations physiques,
