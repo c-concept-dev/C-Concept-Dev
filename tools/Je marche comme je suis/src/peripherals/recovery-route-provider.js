@@ -8,7 +8,7 @@
     }
     return {
       id: "recovery-route",
-      kind: "routing",
+      kind: "recovery",
       label: "Liaison de récupération ORS",
       capabilities: Object.freeze(["return_to_trace", "return_to_start"]),
       async createLink(request) {
