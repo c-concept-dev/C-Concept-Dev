@@ -27,6 +27,7 @@ const bundles = {
     "src/core/privacy-core.js",
     "src/core/session-privacy-core.js",
     "src/core/request-governor-core.js",
+    "src/core/service-observability-core.js",
     "src/core/limitations-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
