@@ -1,4 +1,4 @@
-const CACHE = "jmmjs-shell-d045-v1";
+const CACHE = "jmmjs-shell-charte-v2";
 const SHELL = ["./", "./je-marche-comme-je-suis-p0.html", "./manifest.webmanifest"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
