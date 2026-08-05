@@ -5,8 +5,8 @@
   "start_url": "./je-marche-comme-je-suis-p0.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f0e8",
-  "theme_color": "#8FAFB1",
+  "background_color": "#fafafa",
+  "theme_color": "#3d8d94",
   "lang": "fr",
   "icons": []
 }
