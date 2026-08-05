@@ -203,6 +203,17 @@
   function secondaryServiceWarning(service, diagnostic, imperative = false) {
     return buildSecondaryState({ service, diagnostic, imperative });
   }
+  function scrollToActiveStep() {
+    const body = $(".form-body");
+    if (body) body.scrollTop = 0;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const target = $(".form-head") || $(".panel");
+        if (target && window.innerWidth <= 1000)
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }),
+    );
+  }
   function go(n) {
     S.step = Math.max(0, Math.min(3, n));
     $$(".step").forEach((x, i) => x.classList.toggle("active", i === S.step));
@@ -213,7 +224,7 @@
       renderConstraintSummary();
       void refreshWeatherPreview();
     }
-    $(".form-body").scrollTop = 0;
+    scrollToActiveStep();
   }
   function serviceState(name, label, state = "idle") {
     const x = $('[data-status="' + name + '"]');
@@ -682,11 +693,26 @@
     const request = mergeStructuredLimitationIntoRequest(rawRequest);
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
+    const all = [...model.imperative, ...model.preferences, ...model.preparation];
+    const valueOf = (label, fallback = "Non renseigné") =>
+      all.find((item) => item.label === label)?.value || fallback;
+    const imperativeCount = model.imperative.length;
+    const essentials = [
+      ["Temps disponible", valueOf("Temps utilisable", request.duration ? request.duration + " min" : "Non renseigné")],
+      ["Profil", valueOf("Profil de sortie", request.effort || "Non renseigné")],
+      ["Chaussures", valueOf("Chaussures")],
+      ["Pauses", valueOf("Pauses", "Aucune programmée")],
+      ["Contraintes impératives", String(imperativeCount)],
+    ];
     host.innerHTML =
-      '<div class="constraint-summary-head"><div><h3>Le moteur appliquera</h3><p>Vérifiez les règles avant tout appel cartographique. Cliquer sur « Modifier » ramène au réglage d’origine.</p></div><span class="summary-ready">Aucun calcul lancé</span></div>' +
+      '<div class="constraint-summary-head"><div><h3>Votre balade en résumé</h3><p>Les détails restent accessibles à la demande.</p></div><span class="summary-ready">Aucun calcul lancé</span></div>' +
+      '<div class="summary-essentials">' +
+      essentials.map(([label, value]) => '<div class="summary-essential"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>').join("") +
+      '</div><details class="summary-details"><summary>Afficher tous les réglages</summary>' +
       renderSummaryGroup("Contraintes impératives", model.imperative, "imperative") +
       renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
-      renderSummaryGroup("Préparation et contrôles", model.preparation, "preparation");
+      renderSummaryGroup("Préparation et contrôles", model.preparation, "preparation") +
+      '</details>';
     host.querySelectorAll("[data-edit-step]").forEach(
       (button) => (button.onclick = () => go(Number(button.dataset.editStep))),
     );
@@ -3700,17 +3726,13 @@
         ? showBlockingServiceFailure(x.serviceResult, x.serviceName || "ors")
         : null;
       if (!blockingServiceFailure) status("");
-      S.step = 3;
-      document.querySelectorAll(".step").forEach((step, index) =>
-        step.classList.toggle("active", index === 3),
-      );
+      go(3);
       if (!blockingServiceFailure)
         say(
           "Le calcul n’a pas été réinitialisé. Erreur : " +
             (x?.message || "erreur inconnue"),
         );
       renderConstraintSummary();
-      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       $("#create").disabled = false;
     }
@@ -3812,8 +3834,7 @@
       if (action === "home") {
         status("");
         go(0);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+        }
       return;
     }
     const button = event.target.closest(".service-retry");
