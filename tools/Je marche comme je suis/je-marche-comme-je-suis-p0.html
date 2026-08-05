@@ -827,6 +827,38 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .detail-subsection h4{margin:0 0 .35rem;font-size:.84rem}.detail-subsection p{font-size:.82rem;line-height:1.5}
 .exports{align-items:center}.exports .start-nav{display:none!important}
 @media(max-width:760px){.limitation-grid,.option-grid{grid-template-columns:1fr}.limitation-field-wide{grid-column:auto}.result-reserve-summary{grid-template-columns:1fr}.result-reserve-summary .start-nav{width:100%}}
+/* D-UX final compactage */
+.calculation-options,.privacy-options{padding:10px 12px}
+.calculation-options>p{margin:0 0 4px;font-size:7.5px}
+.calculation-options .option-grid{display:block}
+.calculation-options .option-tile{min-height:0;padding:6px 2px;border:0;border-radius:0;background:transparent;align-items:flex-start}
+.calculation-options .option-tile+.option-tile{border-top:1px solid #e7e0d6}
+.calculation-options .option-tile:hover{border-color:#e7e0d6;background:#fff8}
+.calculation-options .option-tile strong{font-size:10px}
+.calculation-options .option-tile small{font-size:7.5px;line-height:1.25}
+.privacy-options{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+.privacy-options h3{grid-column:1/-1;margin-bottom:0}
+.privacy-options .option-tile{grid-column:1/-1;min-height:0;padding:6px 2px;border:0;background:transparent}
+.privacy-options .option-tile strong{font-size:10px}.privacy-options .option-tile small{font-size:7.5px}
+.privacy-options .helper{display:none!important}
+.api-compact{border-left-width:3px!important;background:transparent!important}
+.api-compact>summary{min-height:36px;padding:6px 10px;font-size:11px}
+.around-bundle{border:1px solid var(--beige);border-radius:12px;background:#fff;margin-top:8px;overflow:hidden}
+.around-bundle>summary{display:flex;justify-content:space-between;align-items:center;cursor:pointer;list-style:none;padding:10px 12px;font-size:11px;font-weight:800}
+.around-bundle>summary::-webkit-details-marker{display:none}
+.around-bundle>summary:after{content:'Afficher';font-size:7.5px;color:var(--sea2)}
+.around-bundle[open]>summary:after{content:'Masquer'}
+.around-bundle-content{padding:0 8px 8px}
+.around-bundle .enrichment{margin-top:6px;border-radius:9px;padding:7px 8px}
+.tranquility-summary{font-size:8px}.tranquility-summary>strong{display:block;font-size:9px}
+.tranquility-summary details{border:0!important;padding:3px 0 0!important}
+.tranquility-summary summary{font-size:8px!important;color:var(--sea2);cursor:pointer}
+body.has-results .workspace{grid-template-columns:minmax(300px,360px) minmax(0,1fr)}
+body.has-results .panel .prompt-zone,body.has-results .panel .calculation-options,body.has-results .panel .privacy-options,body.has-results .panel .api-compact{display:none!important}
+body.has-results .form-head{padding-bottom:4px}
+body.has-results .form-body{padding-top:3px}
+@media(max-width:1000px){body.has-results .workspace{grid-template-columns:1fr}body.has-results .panel .prompt-zone,body.has-results .panel .calculation-options,body.has-results .panel .privacy-options,body.has-results .panel .api-compact{display:block!important}}
+
 
 
 /* Resserrement final des contrôles secondaires */
@@ -1149,7 +1181,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                   ><span>✓ GPX exact, guidage et retour de secours</span></div></div></div><div id="map" class="map"></div><div id="status" class="status" hidden></div><div id="results" class="results"><div class="phase-note"><b>Phase 1</b> Préparez, comparez et sélectionnez une trace
                 réelle. La phase 2 suit ensuite cette trace avec le GPS du
                 téléphone.
-              </div><div class="results-head"><h2>Trois manières de partir</h2><span id="resultMode" class="kicker"></span></div><div id="routeGrid" class="route-grid"></div><div id="detail" class="detail"></div><section class="enrichment" id="poiPanel" hidden><div class="enrichment-head"><div><h3>Points utiles près du parcours</h3><p>Geoapify · résultats à moins de 300 m de la trace</p></div><button class="small" id="loadPois" type="button">
+              </div><div class="results-head"><h2>Trois manières de partir</h2><span id="resultMode" class="kicker"></span></div><div id="routeGrid" class="route-grid"></div><div id="detail" class="detail"></div><details class="around-bundle" id="aroundBundle"><summary>Autour du parcours</summary><div class="around-bundle-content" id="aroundBundleContent"><section class="enrichment" id="poiPanel" hidden><div class="enrichment-head"><div><h3>Points utiles près du parcours</h3><p>Geoapify · résultats à moins de 300 m de la trace</p></div><button class="small" id="loadPois" type="button">
                     Rechercher
                   </button></div><div id="poiContent"><p class="empty-data">
                     Geoapify est prêt via le relais Cloudflare sécurisé.
@@ -1160,7 +1192,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                   garantit pas l’état actuel du passage.
                 </p><div id="photoContent"><p class="empty-data">
                     Mapillary est prêt via le relais Cloudflare sécurisé.
-                  </p></div></section></div><div class="nav-hud" id="navHud"><div class="nav-top"><div class="nav-phase">Phase 2 · Guidage GPS personnel</div><div class="nav-instruction" id="navInstruction">
+                  </p></div></section></div></details></div><div class="nav-hud" id="navHud"><div class="nav-top"><div class="nav-phase">Phase 2 · Guidage GPS personnel</div><div class="nav-instruction" id="navInstruction">
                   Recherche de votre position…
                 </div><div class="nav-alert" id="navAlert"></div><div class="nav-reserve" id="navReserveBanner" hidden></div><div class="nav-offroute-actions" id="navOffRouteActions" hidden><button id="navBackToTrace" type="button">Revenir sur la trace</button><button id="navJoinStart" type="button">Rejoindre le départ</button><button id="navIgnore10" type="button">Ignorer pendant 10 minutes</button><button id="navContinueNoRecalc" type="button">Continuer sans recalcul</button></div></div><div class="nav-bottom"><div class="nav-metrics"><div class="nav-metric"><b id="navRemaining">—</b><span>RESTE</span></div><div class="nav-metric"><b id="navDeviation">—</b><span>ÉCART TRACE</span></div><div class="nav-metric"><b id="navAccuracy">—</b><span>PRÉCISION</span></div><div class="nav-metric"><b id="navSpeed">—</b><span>VITESSE</span></div></div><div class="nav-controls"><button id="navTurnBack" type="button">↶ Faire demi-tour</button><button id="navFollow" type="button">◎ Me suivre</button
                   ><button id="navOverview" type="button">
@@ -8792,7 +8824,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       target.innerHTML = '<p class="empty-data">' + esc(assessment.warning) + '</p>';
       return;
     }
-    target.innerHTML = '<article class="poi-item"><strong>Potentiel de tranquillité : ' + esc(assessment.label) + '</strong><span>Indices documentés :</span><ul>' + assessment.indicators.map((item) => '<li>' + esc(item.label) + '</li>').join("") + '</ul><small>' + esc(assessment.warning) + '</small></article>';
+    target.innerHTML = '<div class="tranquility-summary"><strong>Potentiel de tranquillité : ' + esc(assessment.label) + '</strong><details><summary>Voir les indices</summary><span>Indices documentés :</span><ul>' + assessment.indicators.map((item) => '<li>' + esc(item.label) + '</li>').join("") + '</ul><small>' + esc(assessment.warning) + '</small></details></div>';
     say("Potentiel de tranquillité estimé : " + assessment.label + ".");
   }
 
