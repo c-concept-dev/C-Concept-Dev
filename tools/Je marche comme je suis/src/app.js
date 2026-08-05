@@ -1773,7 +1773,7 @@
       target.innerHTML = '<p class="empty-data">' + esc(assessment.warning) + '</p>';
       return;
     }
-    target.innerHTML = '<article class="poi-item"><strong>Potentiel de tranquillité : ' + esc(assessment.label) + '</strong><span>Indices documentés :</span><ul>' + assessment.indicators.map((item) => '<li>' + esc(item.label) + '</li>').join("") + '</ul><small>' + esc(assessment.warning) + '</small></article>';
+    target.innerHTML = '<div class="tranquility-summary"><strong>Potentiel de tranquillité : ' + esc(assessment.label) + '</strong><details><summary>Voir les indices</summary><span>Indices documentés :</span><ul>' + assessment.indicators.map((item) => '<li>' + esc(item.label) + '</li>').join("") + '</ul><small>' + esc(assessment.warning) + '</small></details></div>';
     say("Potentiel de tranquillité estimé : " + assessment.label + ".");
   }
 
