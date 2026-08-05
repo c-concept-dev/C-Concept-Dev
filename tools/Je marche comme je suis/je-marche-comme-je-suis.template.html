@@ -826,6 +826,37 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .detail-group-content{padding:.25rem .85rem .8rem}.detail-subsection{padding:.65rem 0}.detail-subsection+.detail-subsection{border-top:1px solid #eee8df}
 .detail-subsection h4{margin:0 0 .35rem;font-size:.84rem}.detail-subsection p{font-size:.82rem;line-height:1.5}
 .exports{align-items:center}.exports .start-nav{display:none!important}
+
+/* Lot épuration : mode simple par défaut, détails à la demande */
+.form-head{scroll-margin-top:12px}
+.limitation-structure{padding:12px;background:#fbfaf7;border-left-width:3px}
+.limitation-structure>h3{font-size:13px;font-weight:750;margin:0 0 2px}
+.limitation-structure>.hint{font-size:8.5px;margin:0 0 10px}
+.limitation-core{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}
+.limitation-core .limitation-field span:first-child,.limitation-advanced .limitation-field span:first-child{font-size:9px;font-weight:750;line-height:1.25}
+.limitation-core .input,.limitation-advanced .input{min-height:34px;padding:7px 9px;font-size:10px}
+.limitation-advanced{margin-top:9px;border-top:1px solid #e4ddd2;padding-top:7px}
+.limitation-advanced>summary{cursor:pointer;list-style:none;font-size:9px;font-weight:800;color:#46696b;padding:5px 0}
+.limitation-advanced>summary::-webkit-details-marker{display:none}
+.limitation-advanced>summary::after{content:" +"}.limitation-advanced[open]>summary::after{content:" –"}
+.limitation-advanced .limitation-grid{margin-top:6px}
+.imperative-options{margin:8px 0 0;padding:6px 0 0;border:0;border-top:1px solid #e8e1d7;display:flex;gap:14px;flex-wrap:wrap}
+.imperative-options legend{font-size:8px;font-weight:800;padding:0;margin-bottom:4px}
+.imperative-choice{border:0;background:transparent;padding:2px 0;min-height:0;font-size:9px}
+.constraint-summary-card{padding:12px}
+.constraint-summary-head{margin-bottom:8px;align-items:center}
+.constraint-summary-head h3{font-size:13px}.constraint-summary-head p{display:none}
+.summary-essentials{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 14px;margin:2px 0 8px}
+.summary-essential{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #ebe5dc;font-size:9px}
+.summary-essential span{color:var(--muted)}.summary-essential strong{text-align:right}
+.summary-details{border-top:0;margin-top:4px}
+.summary-details>summary{cursor:pointer;font-size:9px;font-weight:800;color:#46696b;padding:7px 0;list-style:none}
+.summary-details>summary::-webkit-details-marker{display:none}.summary-details>summary::after{content:" +"}.summary-details[open]>summary::after{content:" –"}
+.summary-details .constraint-summary-group{margin-top:8px}
+.placeholder{min-height:520px}.placeholder>div{max-width:430px}.placeholder .mapicon{font-size:44px}.placeholder h2{font-size:22px}.placeholder p{font-size:10px}
+.feature-list.feature-list-simple{grid-template-columns:1fr;max-width:330px;margin:14px auto 0;gap:5px}.feature-list.feature-list-simple span{text-align:center;padding:7px;font-size:8.5px;background:transparent;border-bottom:1px solid #e6dfd5;border-radius:0}
+@media(max-width:760px){.limitation-core,.summary-essentials{grid-template-columns:1fr}.form-head{scroll-margin-top:8px}.limitation-structure{padding:10px}.constraint-summary-card{padding:10px}}
+
 @media(max-width:760px){.limitation-grid,.option-grid{grid-template-columns:1fr}.limitation-field-wide{grid-column:auto}.result-reserve-summary{grid-template-columns:1fr}.result-reserve-summary .start-nav{width:100%}}
 /* D-UX final compactage */
 .calculation-options,.privacy-options{padding:10px 12px}
@@ -1032,32 +1063,14 @@ body.has-results .form-body{padding-top:3px}
                     ><button class="chip">Rester près du départ</button
                     ><button class="chip">Rester près d’une route</button></div>
   <div class="card limitation-structure" id="limitationStructure">
-    <h3>Préciser ce qui vous gêne aujourd’hui</h3>
-    <p class="hint">Ces réglages décrivent une conséquence concrète, sans poser de diagnostic.</p>
-    <div class="limitation-grid">
-      <label class="limitation-field"><span>Où êtes-vous gêné ?</span>
-        <select class="input" id="limitationSide">
-          <option>Non précisé</option><option>Gauche</option><option>Droit</option>
-          <option>Bilatéral</option><option>Non pertinent</option>
-        </select>
-      </label>
+    <h3>Ce qui compte aujourd’hui</h3>
+    <p class="hint">Quelques repères suffisent. Les précisions restent facultatives.</p>
+    <div class="limitation-core">
       <label class="limitation-field"><span>Qu’est-ce qui déclenche la gêne ?</span>
         <select class="input" id="limitationTrigger">
           <option value="">Non précisé</option><option>Montée</option><option>Descente</option>
           <option>Terrain irrégulier</option><option>Durée</option>
           <option>Station debout</option><option>Marche rapide</option><option>Autre</option>
-        </select>
-      </label>
-      <label class="limitation-field"><span>Qu’aimeriez-vous éviter ou faciliter ?</span>
-        <select class="input" id="limitationConsequence">
-          <option value="">Non précisée</option><option>Éviter</option><option>Limiter</option>
-          <option>Ralentir</option><option>Prévoir une pause</option><option>Prévoir un repli</option>
-        </select>
-      </label>
-      <label class="limitation-field"><span>Dans quel contexte ?</span>
-        <select class="input" id="limitationTemporality">
-          <option>Aujourd’hui</option><option>Habituelle</option><option>Permanente</option>
-          <option>Seulement aujourd’hui</option>
         </select>
       </label>
       <label class="limitation-field"><span>Combien de temps sans pause ?</span>
@@ -1066,17 +1079,40 @@ body.has-results .form-body{padding-top:3px}
       <label class="limitation-field"><span>Combien de temps debout ?</span>
         <span class="number-with-unit"><input class="input" id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif"><span>min</span></span>
       </label>
-      <label class="limitation-field limitation-field-wide"><span>Quelqu’un peut-il vous aider ?</span>
+      <label class="limitation-field"><span>Quelqu’un peut-il vous aider ?</span>
         <select class="input" id="helperAvailable">
           <option value="">Non précisé</option><option value="yes">Oui</option><option value="no">Non</option>
         </select>
       </label>
     </div>
-    <fieldset class="imperative-options"><legend>Contraintes impératives</legend>
-      <label class="imperative-choice"><input id="noStairs" type="checkbox"><span>Aucun escalier</span></label>
-      <label class="imperative-choice"><input id="noExposure" type="checkbox"><span>Aucun passage exposé</span></label>
-    </fieldset>
-  </div></div><div class="nav"><button class="secondary prev" type="button">Retour</button
+    <details class="limitation-advanced">
+      <summary>Ajouter des contraintes précises</summary>
+      <div class="limitation-grid">
+        <label class="limitation-field"><span>Où êtes-vous gêné ?</span>
+          <select class="input" id="limitationSide">
+            <option>Non précisé</option><option>Gauche</option><option>Droit</option>
+            <option>Bilatéral</option><option>Non pertinent</option>
+          </select>
+        </label>
+        <label class="limitation-field"><span>Qu’aimeriez-vous éviter ou faciliter ?</span>
+          <select class="input" id="limitationConsequence">
+            <option value="">Non précisée</option><option>Éviter</option><option>Limiter</option>
+            <option>Ralentir</option><option>Prévoir une pause</option><option>Prévoir un repli</option>
+          </select>
+        </label>
+        <label class="limitation-field"><span>Dans quel contexte ?</span>
+          <select class="input" id="limitationTemporality">
+            <option>Aujourd’hui</option><option>Habituelle</option><option>Permanente</option>
+            <option>Seulement aujourd’hui</option>
+          </select>
+        </label>
+      </div>
+      <fieldset class="imperative-options"><legend>Contraintes impératives</legend>
+        <label class="imperative-choice"><input id="noStairs" type="checkbox"><span>Aucun escalier</span></label>
+        <label class="imperative-choice"><input id="noExposure" type="checkbox"><span>Aucun passage exposé</span></label>
+      </fieldset>
+    </details>
+  </div></div></div><div class="nav"><button class="secondary prev" type="button">Retour</button
                   ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Effort recherché</h3><p>Montées et descentes sont séparées.</p><div class="field"><label>Profil</label
                     ><select class="input" id="effort"><option value="gentle">Reprise douce</option><option value="pleasure" selected>Plaisir maximal</option><option value="ascent">Travail de la montée</option><option value="endurance">Endurance</option></select></div><div class="two"><div class="field"><label>Montée continue</label
                       ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select></div><div class="field"><label>Descente continue max.</label><select class="input" id="descentMinutes"><option value="">Sans demande</option><option value="2">2 min max.</option><option value="5">5 min max.</option><option value="10">10 min max.</option><option value="15">15 min max.</option><option value="none">Aucune descente</option></select></div><div class="field"><label>Pente montante max.</label
@@ -1173,12 +1209,9 @@ body.has-results .form-body{padding-top:3px}
                     Confirmer et calculer
                   </button></div></section></div></form><section class="stage"><div class="placeholder" id="placeholder"><div><div class="mapicon">⌖</div><h2>Votre balade prendra forme ici</h2><p>
                   L’outil transforme vos réponses en contraintes contrôlables.
-                </p><div class="feature-list"><span>✓ Montées et descentes séparées</span
-                  ><span>✓ Chaussures et terrain</span
-                  ><span>✓ Pauses, services et intérêts</span
-                  ><span>✓ Inconnues visibles</span
-                  ><span>✓ Trois parcours différents</span
-                  ><span>✓ GPX exact, guidage et retour de secours</span></div></div></div><div id="map" class="map"></div><div id="status" class="status" hidden></div><div id="results" class="results"><div class="phase-note"><b>Phase 1</b> Préparez, comparez et sélectionnez une trace
+                </p><div class="feature-list feature-list-simple"><span>✓ Adaptée à votre état du jour</span
+                  ><span>✓ Une vraie boucle revenant au départ</span
+                  ><span>✓ GPX de référence et suivi intégré</span></div></div></div><div id="map" class="map"></div><div id="status" class="status" hidden></div><div id="results" class="results"><div class="phase-note"><b>Phase 1</b> Préparez, comparez et sélectionnez une trace
                 réelle. La phase 2 suit ensuite cette trace avec le GPS du
                 téléphone.
               </div><div class="results-head"><h2>Trois manières de partir</h2><span id="resultMode" class="kicker"></span></div><div id="routeGrid" class="route-grid"></div><div id="detail" class="detail"></div><details class="around-bundle" id="aroundBundle"><summary>Autour du parcours</summary><div class="around-bundle-content" id="aroundBundleContent"><section class="enrichment" id="poiPanel" hidden><div class="enrichment-head"><div><h3>Points utiles près du parcours</h3><p>Geoapify · résultats à moins de 300 m de la trace</p></div><button class="small" id="loadPois" type="button">
