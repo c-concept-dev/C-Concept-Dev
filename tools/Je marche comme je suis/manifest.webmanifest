@@ -1,12 +1,12 @@
 {
   "name": "Je marche comme je suis",
   "short_name": "Je marche",
-  "description": "Préparation et suivi prudent de promenades personnalisées.",
+  "description": "Promenades prudentes sur mesure et suivi de trace.",
   "start_url": "./je-marche-comme-je-suis-p0.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fafafa",
-  "theme_color": "#3d8d94",
+  "background_color": "#E8E2D4",
+  "theme_color": "#8A9A5B",
   "lang": "fr",
   "icons": []
 }
