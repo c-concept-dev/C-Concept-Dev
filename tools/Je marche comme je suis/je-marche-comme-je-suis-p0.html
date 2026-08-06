@@ -759,7 +759,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .gpx-audit-status[data-status="rejected"]{background:#fff0ea;border-color:#d99a7b}
 
 
-.service-diagnostic-code{display:inline-flex;margin-left:.35rem;padding:.12rem .35rem;border-radius:999px;background:rgba(0,0,0,.07);font-size:.68rem}.service-failure{padding:1.1rem;border:1px solid #c78262;border-radius:18px;background:#fff7f2;color:#2d2926}.service-failure[data-state="no-result"]{border-color:#ad9b66;background:#fffdf4}.service-failure-kicker{margin:0 0 .35rem;font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.service-failure h2{margin:.1rem 0 .45rem;font-size:1.2rem}.service-failure p{margin:.35rem 0;line-height:1.45}.service-failure-assurance{font-weight:700}.service-failure-actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.9rem}.service-failure-actions button{min-height:44px}.status[data-kind="blocking-service-failure"]{padding:0;background:transparent;border:0}
+.service-diagnostic-code{display:inline-flex;margin-left:.35rem;padding:.12rem .35rem;border-radius:999px;background:rgba(0,0,0,.07);font-size:.68rem}.service-failure{padding:1.1rem;border:1px solid #c78262;border-radius:18px;background:#fff7f2;color:#2d2926}.service-failure[data-state="no-result"]{border-color:#ad9b66;background:#fffdf4}.service-failure-kicker{margin:0 0 .35rem;font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.service-failure h2{margin:.1rem 0 .45rem;font-size:1.2rem}.service-failure p{margin:.35rem 0;line-height:1.45}.service-failure-assurance{font-weight:700}.service-failure-actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.9rem}.service-failure-actions button{min-height:44px}.status[data-kind="blocking-service-failure"]{padding:0;background:transparent;border:0}.fallback-starts-loading{margin:.6rem 0;font-size:.85rem;color:var(--text-muted)}.fallback-starts-panel{margin-top:.7rem;padding:1rem;border:1px solid var(--border);border-radius:15px;background:var(--surface)}.fallback-starts-intro{margin:0 0 .7rem;font-size:.85rem}.fallback-starts-empty{margin:0;font-size:.85rem}.fallback-start-card{padding:.75rem;border:1px solid var(--border);border-radius:12px;margin-bottom:.6rem;background:var(--surface-alt)}.fallback-start-card:last-child{margin-bottom:0}.fallback-start-access{margin:.2rem 0 0;font-size:.78rem;color:var(--text-muted)}.fallback-start-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem}.fallback-start-actions button{min-height:40px}
 .service-retry{margin-left:.45rem;border:1px solid currentColor;border-radius:7px;background:transparent;padding:.22rem .45rem;font:inherit;font-weight:750;cursor:pointer}
 [data-diagnostic="error"] small{display:block;margin-top:.3rem;opacity:.75}
 
@@ -5037,17 +5037,17 @@ footer,.footer{color:var(--footer)}
     }),
     "no-routable-start": Object.freeze({
       title: "Aucun point de départ routable n’a été trouvé à cet endroit",
-      body: "Le moteur cartographique ne trouve aucun accès piéton exploitable depuis ce point précis, pas seulement aucune boucle.",
+      body: "Le moteur cartographique ne trouve aucun accès piéton exploitable depuis ce point précis, pas seulement aucune boucle. Je peux chercher un départ plus adapté à proximité si vous le souhaitez.",
       state: "no-result",
     }),
     "no-route": Object.freeze({
       title: "Aucune boucle n’a été trouvée depuis ce point",
-      body: "Un accès piéton existe à cet endroit, mais aucune boucle de la longueur demandée n’a pu être construite.",
+      body: "Un accès piéton existe à cet endroit, mais aucune boucle de la longueur demandée n’a pu être construite. Je peux chercher un départ plus adapté à proximité si vous le souhaitez.",
       state: "no-result",
     }),
     "preferences-too-restrictive": Object.freeze({
       title: "Aucune boucle ne satisfait les préférences choisies",
-      body: "Une boucle existe probablement à cet endroit, mais pas en respectant les préférences facultatives sélectionnées (calme, verdure).",
+      body: "Une boucle existe probablement à cet endroit, mais pas en respectant les préférences facultatives sélectionnées (calme, verdure). Je peux aussi chercher un départ plus adapté à proximité.",
       state: "no-result",
     }),
     "provider-unavailable": Object.freeze({
@@ -5107,7 +5107,18 @@ footer,.footer{color:var(--footer)}
       "no-route",
       "preferences-too-restrictive",
     ]);
+    const fallbackStartsFamily = new Set([
+      "no-routable-start",
+      "no-route",
+      "preferences-too-restrictive",
+    ]);
     if (noResultFamily.has(code)) {
+      if (fallbackStartsFamily.has(code)) {
+        actions.push(
+          { id: "fallback-5km", label: "Chercher un départ à moins de 5 km" },
+          { id: "fallback-10km", label: "Élargir jusqu’à 10 km" },
+        );
+      }
       actions.push(
         { id: "change-start", label: "Déplacer le point de départ" },
         { id: "edit-request", label: "Modifier la durée ou la distance" },
@@ -6840,6 +6851,34 @@ footer,.footer{color:var(--footer)}
         }
         return routes;
       },
+      async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
+        if (
+          !origin ||
+          !Number.isFinite(origin.lat) ||
+          !Number.isFinite(origin.lon)
+        ) {
+          throw new TypeError("Origine invalide pour la recherche de départs alternatifs.");
+        }
+        if (!Number.isFinite(targetMeters) || targetMeters < 500) {
+          throw new RangeError("La boucle ORS doit viser au moins 500 m.");
+        }
+        const routing = compiled?.routing;
+        const data = await client.post("ors", "/fallback-starts", {
+          origin: { lat: origin.lat, lon: origin.lon },
+          targetMeters,
+          radiusMeters,
+          profile: routing?.profile,
+          avoidFeatures: routing?.avoidFeatures || [],
+          weightings: routing?.weightings || {},
+          restrictions: routing?.restrictions || {},
+        });
+        return {
+          outcome: data.outcome,
+          starts: Array.isArray(data.starts) ? data.starts : [],
+          candidatesConsidered: data.candidatesConsidered,
+          candidatesTested: data.candidatesTested,
+        };
+      },
     };
   }
 
@@ -7455,6 +7494,70 @@ footer,.footer{color:var(--footer)}
     E.status.dataset.state = view.state;
     return view;
   }
+
+  function fallbackStartCardHtml(start, index) {
+    const km = (start.distanceFromOriginMeters / 1000).toFixed(1);
+    const parking =
+      start.access?.parking === "documented" ? "Parking documenté à proximité" : "Stationnement non documenté";
+    const transport =
+      start.access?.publicTransport === "documented"
+        ? "Transport public à proximité"
+        : "Transport public non documenté";
+    return (
+      `<div class="fallback-start-card" data-fallback-index="${index}">` +
+      `<p><strong>Départ alternatif</strong> · ${km.replace(".", ",")} km de votre point de départ · ${start.routesFound} boucle${start.routesFound > 1 ? "s" : ""} trouvée${start.routesFound > 1 ? "s" : ""}</p>` +
+      `<p class="fallback-start-access">${esc(parking)} · ${esc(transport)}</p>` +
+      `<div class="fallback-start-actions">` +
+      `<button type="button" class="primary fallback-start-action" data-fallback-action="use">Voir les promenades</button>` +
+      `<button type="button" class="secondary fallback-start-action" data-fallback-action="dismiss">Refuser ce départ</button>` +
+      `</div></div>`
+    );
+  }
+
+  function renderFallbackStarts(result) {
+    const container = document.createElement("div");
+    container.className = "fallback-starts-panel";
+    container.setAttribute("role", "status");
+    container.setAttribute("aria-live", "polite");
+    if (!result.starts.length) {
+      container.innerHTML =
+        `<p class="fallback-starts-empty">Aucun départ alternatif routable n’a été trouvé parmi ${result.candidatesConsidered || 0} lieu${(result.candidatesConsidered || 0) > 1 ? "x" : ""} candidat${(result.candidatesConsidered || 0) > 1 ? "s" : ""} testé${(result.candidatesTested || 0) > 1 ? "s" : ""}. Vos critères sont conservés.</p>`;
+    } else {
+      container.innerHTML =
+        `<p class="fallback-starts-intro">${result.starts.length} départ${result.starts.length > 1 ? "s" : ""} alternatif${result.starts.length > 1 ? "s" : ""} trouvé${result.starts.length > 1 ? "s" : ""}. Le déplacement du départ est toujours explicite : rien n’est lancé sans votre confirmation.</p>` +
+        result.starts.map((start, index) => fallbackStartCardHtml(start, index)).join("");
+      container._fallbackStarts = result.starts;
+    }
+    E.status.appendChild(container);
+    return container;
+  }
+
+  async function searchFallbackStarts(radiusMeters) {
+    const origin = coords();
+    if (!origin) return;
+    const panel = $(".service-failure");
+    if (panel) {
+      const note = document.createElement("p");
+      note.className = "fallback-starts-loading";
+      note.textContent = "Recherche de départs alternatifs en cours…";
+      panel.after(note);
+    }
+    try {
+      const target = Math.max(500, S.compiled?.targetMeters || 2500);
+      const result = await orsProvider.findFallbackStarts({
+        origin,
+        targetMeters: target,
+        radiusMeters,
+        compiled: S.compiled,
+      });
+      $(".fallback-starts-loading")?.remove();
+      renderFallbackStarts(result);
+    } catch (error) {
+      $(".fallback-starts-loading")?.remove();
+      say("La recherche de départs alternatifs n’a pas abouti : " + (error?.message || "erreur inconnue"));
+    }
+  }
+
 
   function secondaryServiceWarning(service, diagnostic, imperative = false) {
     return buildSecondaryState({ service, diagnostic, imperative });
@@ -11107,6 +11210,30 @@ footer,.footer{color:var(--footer)}
         status("");
         go(0);
         }
+      if (action === "fallback-5km") void searchFallbackStarts(5000);
+      if (action === "fallback-10km") void searchFallbackStarts(10000);
+      return;
+    }
+    const fallbackAction = event.target.closest(".fallback-start-action");
+    if (fallbackAction) {
+      const card = fallbackAction.closest(".fallback-start-card");
+      const panel = card?.closest(".fallback-starts-panel");
+      const index = Number(card?.dataset.fallbackIndex);
+      const starts = panel?._fallbackStarts || [];
+      const start = starts[index];
+      const kind = fallbackAction.dataset.fallbackAction;
+      if (kind === "dismiss") {
+        card?.remove();
+        return;
+      }
+      if (kind === "use" && start) {
+        const [lon, lat] = start.coordinates;
+        $("#lat").value = lat.toFixed(6);
+        $("#lon").value = lon.toFixed(6);
+        $("#place").value = "";
+        status("");
+        $("#create")?.click();
+      }
       return;
     }
     const button = event.target.closest(".service-retry");
