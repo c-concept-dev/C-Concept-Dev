@@ -1040,6 +1040,7 @@
       .map(
         (r, i) =>
           '<button class="route-card ' +
+          (r.orientation === "Confortable" ? "route-comfortable " : r.orientation === "Agréable" ? "route-agreable " : r.orientation === "Tonique" ? "route-tonique " : "") +
           (i === S.selected ? "selected" : "") +
           '" data-route="' +
           i +
