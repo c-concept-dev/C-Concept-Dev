@@ -21,14 +21,34 @@
       state: "limited",
     }),
     "no-result": Object.freeze({
-      title: "Aucune boucle compatible n’a été trouvée depuis ce point",
-      body: "OpenRouteService a répondu, mais aucune boucle exploitable ne correspond au départ et aux contraintes impératives actuelles.",
+      title: "Aucun itinéraire pédestre n’a été trouvé depuis ce point",
+      body: "Le moteur cartographique n’a pas trouvé de réseau pédestre exploitable pour construire une boucle depuis le départ choisi.",
       state: "no-result",
     }),
-    "preferences-no-result": Object.freeze({
-      title: "Aucune boucle compatible n’a été trouvée avec cette demande",
-      body: "OpenRouteService fonctionne. Un essai avec les préférences facultatives puis un essai neutre conservant les contraintes impératives n’ont produit aucune boucle exploitable.",
+    "no-routable-start": Object.freeze({
+      title: "Aucun point de départ routable n’a été trouvé à cet endroit",
+      body: "Le moteur cartographique ne trouve aucun accès piéton exploitable depuis ce point précis, pas seulement aucune boucle.",
       state: "no-result",
+    }),
+    "no-route": Object.freeze({
+      title: "Aucune boucle n’a été trouvée depuis ce point",
+      body: "Un accès piéton existe à cet endroit, mais aucune boucle de la longueur demandée n’a pu être construite.",
+      state: "no-result",
+    }),
+    "preferences-too-restrictive": Object.freeze({
+      title: "Aucune boucle ne satisfait les préférences choisies",
+      body: "Une boucle existe probablement à cet endroit, mais pas en respectant les préférences facultatives sélectionnées (calme, verdure).",
+      state: "no-result",
+    }),
+    "provider-unavailable": Object.freeze({
+      title: "Le calcul d’itinéraires est temporairement indisponible",
+      body: "Le service de calcul des promenades ne répond pas correctement pour le moment. Aucune boucle n’a été créée et vos critères ont été conservés.",
+      state: "unavailable",
+    }),
+    "invalid-request": Object.freeze({
+      title: "La demande envoyée au service de calcul est invalide",
+      body: "Certains paramètres de la recherche n’ont pas pu être transmis correctement. Vos critères sont conservés.",
+      state: "invalid",
     }),
     "invalid-response": Object.freeze({
       title: "La réponse cartographique est inexploitable",
@@ -71,7 +91,13 @@
     const retryable = Boolean(diagnostic?.retryable);
     const actions = [];
     if (retryable) actions.push({ id: "retry", label: "Réessayer" });
-    if (code === "no-result" || code === "preferences-no-result") {
+    const noResultFamily = new Set([
+      "no-result",
+      "no-routable-start",
+      "no-route",
+      "preferences-too-restrictive",
+    ]);
+    if (noResultFamily.has(code)) {
       actions.push(
         { id: "change-start", label: "Déplacer le point de départ" },
         { id: "edit-request", label: "Modifier la durée ou la distance" },
