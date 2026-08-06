@@ -481,10 +481,13 @@
       has(limitations, "Terrain irrégulier") ||
         has(limitations, "Équilibre") ||
         has(limitations, "Chevilles") ||
-        has(limitations, "Pieds"),
+        has(limitations, "Pieds") ||
+        explicitRegular,
     );
-    const requireRegular = mobilityAid || explicitRegular;
-    const requireWide = mobilityAid || has(terrain, "Chemin large");
+    const requireRegular = mobilityAid;
+    const explicitWide = has(terrain, "Chemin large");
+    const suggestedWide = explicitWide;
+    const requireWide = mobilityAid;
     const suggestedShortcuts = Boolean(
       fatigue >= 4 ||
         has(limitations, "Fatigue rapide") ||
@@ -493,7 +496,11 @@
     const requireShortcuts = Boolean(request.hardConstraints?.requireShortcuts);
     if (suggestedRegular && !requireRegular)
       derived.push(
-        "Terrain régulier privilégié en raison de la limitation déclarée ; sa présence doit être vérifiée si la donnée manque.",
+        "Terrain régulier privilégié en raison de la limitation déclarée ou de la préférence cochée ; sa présence doit être vérifiée si la donnée manque.",
+      );
+    if (suggestedWide && !requireWide)
+      derived.push(
+        "Chemin large privilégié comme préférence cochée, sans devenir une restriction impérative ; sa présence doit être vérifiée si la donnée manque.",
       );
     if (suggestedShortcuts && !requireShortcuts)
       derived.push(
@@ -582,6 +589,7 @@
         maxUp: suggestedMaxUp,
         maxDown: suggestedMaxDown,
         preferRegular: suggestedRegular,
+        preferWide: suggestedWide,
         preferShortcuts: suggestedShortcuts,
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
@@ -909,6 +917,20 @@
         typeof route.regularitySafe === "boolean"
           ? "régularité documentée"
           : "régularité à vérifier avant de partir",
+      );
+    if (advisory.preferWide && !hard.requireWide)
+      add(
+        "advisory-width",
+        "Chemin large privilégié",
+        "advisory",
+        known(route.minimumWidthMeters)
+          ? route.minimumWidthMeters >= 1.2
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        known(route.minimumWidthMeters)
+          ? `${route.minimumWidthMeters} m minimum`
+          : "largeur à vérifier avant de partir",
       );
     if (advisory.preferShortcuts && !hard.requireShortcuts)
       add(
