@@ -440,6 +440,50 @@ test("ORS provider-unavailable stops immediately instead of burning through ever
   assert.ok(upstreamCalls < 15, "should not exhaust every seed against a dead provider");
 });
 
+test("ORS provider error responses are logged with the real upstream message body", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
+  });
+  const upstreamBody = {
+    error: { code: 2010, message: "Route could not be found - Please check supplied parameters." },
+  };
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(upstreamBody), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  const errorLogs = [];
+  console.error = (line) => errorLogs.push(line);
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [1.444, 43.604], targetMeters: 5000 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 502);
+  const entry = errorLogs
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .find((parsed) => parsed?.event === "provider-error-body");
+  assert.ok(entry, "expected a provider-error-body log entry");
+  assert.equal(entry.status, 400);
+  assert.deepEqual(entry.body, upstreamBody);
+  assert.equal(entry.url, "https://api.openrouteservice.org/v2/directions/foot-walking/geojson");
+});
+
 test("ORS invalid-request is reported for malformed input without calling the provider", async (t) => {
   const originalFetch = globalThis.fetch;
   let upstreamCalls = 0;

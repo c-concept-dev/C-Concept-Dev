@@ -107,7 +107,42 @@ async function readJson(request) {
   }
 }
 
-async function providerJson(response) {
+function redactedProviderUrl(requestUrl) {
+  try {
+    const parsed = new URL(requestUrl);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
+async function providerJson(response, requestUrl) {
+  if (!response.ok) {
+    const clone = response.clone();
+    let body;
+    try {
+      body = await response.json();
+    } catch {
+      body = await clone.text();
+    }
+    console.error(
+      JSON.stringify({
+        event: "provider-error-body",
+        url: redactedProviderUrl(requestUrl),
+        status: response.status,
+        body,
+      }),
+    );
+    const message =
+      body?.error?.message ||
+      body?.message ||
+      body?.error ||
+      `Réponse fournisseur ${response.status}`;
+    throw new HTTPError(502, String(message), {
+      code: "provider-error",
+      upstreamStatus: response.status,
+    });
+  }
   let data;
   try {
     data = await response.json();
@@ -117,17 +152,6 @@ async function providerJson(response) {
       `Réponse fournisseur illisible (${response.status}).`,
       { code: "provider-error", upstreamStatus: response.status },
     );
-  }
-  if (!response.ok) {
-    const message =
-      data?.error?.message ||
-      data?.message ||
-      data?.error ||
-      `Réponse fournisseur ${response.status}`;
-    throw new HTTPError(502, String(message), {
-      code: "provider-error",
-      upstreamStatus: response.status,
-    });
   }
   return data;
 }
@@ -330,10 +354,12 @@ async function testGeoapify(env) {
     limit: "1",
     apiKey: env.GEOAPIFY_API_KEY,
   });
+  const url = `https://api.geoapify.com/v1/geocode/search?${query}`;
   const data = await providerJson(
-    await fetchWithTimeout(`https://api.geoapify.com/v1/geocode/search?${query}`, {
+    await fetchWithTimeout(url, {
       headers: { Accept: "application/json" },
     }, TIMEOUT_MS.geoapify),
+    url,
   );
   return { resultCount: data?.features?.length || 0 };
 }
@@ -346,13 +372,15 @@ async function testMapillary(env) {
     bbox: "2.2940,48.8580,2.2950,48.8590",
     limit: "1",
   });
+  const url = `https://graph.mapillary.com/images?${query}`;
   const data = await providerJson(
-    await fetchWithTimeout(`https://graph.mapillary.com/images?${query}`, {
+    await fetchWithTimeout(url, {
       headers: {
         Accept: "application/json",
         Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`,
       },
     }, TIMEOUT_MS.mapillary),
+    url,
   );
   return { resultCount: data?.data?.length || 0 };
 }
@@ -416,10 +444,12 @@ async function handleGeoapifyPlaces(request, env, origin) {
     lang: "fr",
     apiKey: env.GEOAPIFY_API_KEY,
   });
+  const url = `https://api.geoapify.com/v2/places?${query}`;
   const data = await providerJson(
-    await fetchWithTimeout(`https://api.geoapify.com/v2/places?${query}`, {
+    await fetchWithTimeout(url, {
       headers: { Accept: "application/geo+json" },
     }, TIMEOUT_MS.geoapify),
+    url,
   );
   return json(data, 200, origin);
 }
@@ -430,13 +460,14 @@ async function fetchMapillaryBox(box, env) {
     bbox: box.join(","),
     limit: "30",
   });
-  const response = await fetchWithTimeout(`https://graph.mapillary.com/images?${query}`, {
+  const url = `https://graph.mapillary.com/images?${query}`;
+  const response = await fetchWithTimeout(url, {
     headers: {
       Accept: "application/json",
       Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`,
     },
   }, TIMEOUT_MS.mapillary);
-  return providerJson(response);
+  return providerJson(response, url);
 }
 
 async function handleMapillaryImages(request, env, origin) {
@@ -574,7 +605,7 @@ async function handleIgnElevation(request, origin) {
       sampling: String(route.length),
     }),
   }, TIMEOUT_MS.ign);
-  const data = await providerJson(response);
+  const data = await providerJson(response, IGN_ELEVATION_URL);
   const elevations = (Array.isArray(data?.elevations) ? data.elevations : [])
     .map((item) => ({
       lon: Number(item?.lon),
@@ -816,9 +847,10 @@ async function fetchORSRoundTrip({
   routingOptions = {},
   baseUrl = DEFAULT_ORS_BASE_URL,
 }) {
+  const url = `${baseUrl}/v2/directions/${profile}/geojson`;
   return providerJson(
     await fetchWithTimeout(
-      `${baseUrl}/v2/directions/${profile}/geojson`,
+      url,
       {
         method: "POST",
         headers: {
@@ -862,6 +894,7 @@ async function fetchORSRoundTrip({
       },
       TIMEOUT_MS.ors,
     ),
+    url,
   );
 }
 
