@@ -2295,7 +2295,13 @@
       $("#closeOfflinePreparation").onclick = () => modal.classList.remove("show");
       $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-        navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+        try {
+          await navigator.serviceWorker.register("./service-worker.js");
+        } catch {
+          throw new Error(
+            "Préparation hors connexion indisponible : service-worker.js manque à côté du fichier HTML.",
+          );
+        }
       }
     } catch (error) {
       say(error?.message || "Préparation hors connexion impossible.");
@@ -3880,7 +3886,6 @@
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
 })();
