@@ -10,13 +10,20 @@ function load(path, globalName) {
   return context[globalName];
 }
 
-test("service resilience distinguishes an ORS preference no-result from an outage", () => {
+test("service resilience recognizes the current preferences-too-restrictive contract, not the retired vocabulary", () => {
   const core = load("../src/core/service-resilience-core.js", "JMMJSServiceResilienceCore");
-  const error = new Error("Aucune boucle avec ces préférences");
-  error.code = "ors-preferences-no-result";
-  const result = core.classifyServiceError(error, "OpenRouteService");
-  assert.equal(result.code, "preferences-no-result");
-  assert.equal(result.retryable, false);
+  const current = core.classifyServiceError(
+    { code: "preferences-too-restrictive", message: "x" },
+    "OpenRouteService",
+  );
+  assert.equal(current.code, "preferences-too-restrictive");
+  assert.equal(current.retryable, false);
+  const retired = core.classifyServiceError(
+    { code: "ors-preferences-no-result", message: "Aucune boucle avec ces préférences" },
+    "OpenRouteService",
+  );
+  assert.notEqual(retired.code, "preferences-too-restrictive");
+  assert.notEqual(retired.code, "preferences-no-result", "le vocabulaire retiré ne doit plus être produit");
 });
 
 test("service worker falls back to the shell only for navigations", () => {
