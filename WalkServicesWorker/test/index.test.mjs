@@ -892,3 +892,125 @@ test("fallback-starts reports invalid-request without calling any provider", asy
   assert.equal(data.outcome, "invalid-request");
   assert.equal(calls, 0);
 });
+
+test("fallback-starts reports provider-unavailable instead of no-fallback-starts on a real ORS outage (audit W-B02)", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let orsCalls = 0;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("overpass")) {
+      return new Response(
+        JSON.stringify({
+          elements: [
+            { type: "node", id: 1, lat: 43.62, lon: 1.41, tags: { amenity: "parking" } },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    orsCalls += 1;
+    return new Response("bad gateway", { status: 503 });
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/fallback-starts", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ origin: { lat: 43.60, lon: 1.44 }, targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 502);
+  const data = await response.json();
+  assert.equal(data.outcome, "provider-unavailable");
+  assert.notEqual(data.outcome, "no-fallback-starts");
+  assert.equal(data.retryable, true);
+  assert.equal(orsCalls, 1, "should stop at the first real provider failure instead of testing every candidate");
+});
+
+test("readJson enforces the real body size even without a Content-Length header (audit W-B03)", async (t) => {
+  const oversized = "x".repeat(760_000);
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/test", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: `{"service":"geo","padding":"${oversized}"}`,
+    }),
+    { SERVICE_RATE_LIMITER: limiter, GEOAPIFY_API_KEY: "secret" },
+    {},
+  );
+  assert.equal(response.status, 413);
+});
+
+test("the ORS base URL is configurable via env.ORS_BASE_URL (audit W-B04)", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let calledUrl = null;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (url, options) => {
+    calledUrl = String(url);
+    const body = JSON.parse(options.body);
+    const [lon, lat] = body.coordinates[0];
+    return new Response(
+      JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: [[lon, lat], [lon + 0.001, lat], [lon, lat]] },
+            properties: { summary: { distance: body.options.round_trip.length, duration: 900 } },
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/geo+json" } },
+    );
+  };
+
+  await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [1.444, 43.604], targetMeters: 2500 }),
+    }),
+    {
+      SERVICE_RATE_LIMITER: limiter,
+      ORS_API_KEY: "hidden-ors-key",
+      ORS_BASE_URL: "https://ors-mock.example.test",
+    },
+    {},
+  );
+
+  assert.ok(calledUrl.startsWith("https://ors-mock.example.test/"));
+});
+
+test("an ORS request that times out is classified as a retryable provider-unavailable outcome (audit W-B01)", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => {
+    const error = new Error("The operation was aborted.");
+    error.name = "AbortError";
+    throw error;
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [1.444, 43.604], targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 502);
+  const data = await response.json();
+  assert.equal(data.outcome, "provider-unavailable");
+  assert.equal(data.retryable, true);
+});
