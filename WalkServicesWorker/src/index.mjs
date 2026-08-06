@@ -12,6 +12,10 @@ const ORS_SEEDS = [
 ];
 const ORS_BATCH_SIZE = 6;
 const MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
+const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+const IGN_ELEVATION_URL =
+  "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevationLine.json";
+const IGN_ELEVATION_RESOURCE = "ign_rge_alti_wld";
 
 class HTTPError extends Error {
   constructor(status, message, details = {}) {
@@ -147,6 +151,79 @@ function validateCoordinates(value) {
       throw new HTTPError(400, "Point de trace hors limites.");
     return [lon, lat];
   });
+}
+
+function validateRouteCoordinates(value, maximum, label) {
+  if (!Array.isArray(value) || value.length < 2 || value.length > maximum) {
+    throw new HTTPError(400, `${label} invalide ou trop volumineuse.`);
+  }
+  return value.map((point) => {
+    if (!Array.isArray(point) || point.length < 2)
+      throw new HTTPError(400, `Point ${label.toLowerCase()} invalide.`);
+    const lon = finiteNumber(point[0], "Longitude");
+    const lat = finiteNumber(point[1], "Latitude");
+    if (Math.abs(lon) > 180 || Math.abs(lat) > 90)
+      throw new HTTPError(400, `Point ${label.toLowerCase()} hors limites.`);
+    return [lon, lat];
+  });
+}
+
+function pointSegmentDistanceMeters(point, start, end) {
+  const latitude = ((point[1] + start[1] + end[1]) / 3) * (Math.PI / 180);
+  const scaleX = 111320 * Math.max(0.2, Math.cos(latitude));
+  const scaleY = 111320;
+  const px = (point[0] - start[0]) * scaleX;
+  const py = (point[1] - start[1]) * scaleY;
+  const ex = (end[0] - start[0]) * scaleX;
+  const ey = (end[1] - start[1]) * scaleY;
+  const denominator = ex * ex + ey * ey;
+  const ratio = denominator
+    ? Math.max(0, Math.min(1, (px * ex + py * ey) / denominator))
+    : 0;
+  return Math.hypot(px - ratio * ex, py - ratio * ey);
+}
+
+function distanceToWayMeters(point, geometry = []) {
+  let minimum = Infinity;
+  for (let index = 1; index < geometry.length; index += 1) {
+    const start = [Number(geometry[index - 1]?.lon), Number(geometry[index - 1]?.lat)];
+    const end = [Number(geometry[index]?.lon), Number(geometry[index]?.lat)];
+    if (![...start, ...end].every(Number.isFinite)) continue;
+    minimum = Math.min(minimum, pointSegmentDistanceMeters(point, start, end));
+  }
+  return minimum;
+}
+
+export function matchTerrainSegments(route, elements, bufferMeters) {
+  const ways = (Array.isArray(elements) ? elements : []).filter(
+    (item) =>
+      item?.type === "way" &&
+      Array.isArray(item.geometry) &&
+      item.geometry.length >= 2,
+  );
+  const segments = [];
+  for (let index = 1; index < route.length; index += 1) {
+    const start = route[index - 1];
+    const end = route[index];
+    const midpoint = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
+    let best = null;
+    let bestDistance = Infinity;
+    for (const way of ways) {
+      const distance = distanceToWayMeters(midpoint, way.geometry);
+      if (distance < bestDistance) {
+        best = way;
+        bestDistance = distance;
+      }
+    }
+    if (!best || bestDistance > bufferMeters) continue;
+    segments.push({
+      id: best.id ?? null,
+      lengthMeters: haversineMeters(start, end),
+      tags: best.tags || {},
+      matchDistanceMeters: Math.round(bestDistance * 10) / 10,
+    });
+  }
+  return segments;
 }
 
 export function sampleRoute(coordinates, maximum = 30) {
@@ -353,6 +430,98 @@ async function handleMapillaryImages(request, env, origin) {
   );
 }
 
+async function handleOverpassTerrain(request, origin) {
+  const body = await readJson(request);
+  const route = validateRouteCoordinates(body.route, 80, "Trace Overpass");
+  const bufferMeters = Math.max(
+    10,
+    Math.min(50, finiteNumber(body.bufferMeters ?? 25, "Tampon Overpass")),
+  );
+  const line = route.map(([lon, lat]) => `${lat},${lon}`).join(",");
+  const query = `[out:json][timeout:20];way["highway"](around:${bufferMeters},${line});out tags geom;`;
+  const response = await fetch(OVERPASS_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      "User-Agent": "Je-marche-comme-je-suis/1.0",
+    },
+    body: new URLSearchParams({ data: query }).toString(),
+  });
+  const data = await providerJson(response);
+  const segments = matchTerrainSegments(route, data?.elements, bufferMeters);
+  return json(
+    {
+      segments,
+      routeLengthMeters: Math.max(
+        0,
+        Number(body.routeLengthMeters) ||
+          route.slice(1).reduce(
+            (total, point, index) =>
+              total + haversineMeters(route[index], point),
+            0,
+          ),
+      ),
+      retrievedAt: new Date().toISOString(),
+      source: "Overpass / OpenStreetMap",
+    },
+    200,
+    origin,
+  );
+}
+
+async function handleIgnElevation(request, origin) {
+  const body = await readJson(request);
+  const route = validateRouteCoordinates(body.route, 120, "Trace IGN");
+  const response = await fetch(IGN_ELEVATION_URL, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lon: route.map((point) => point[0]).join("|"),
+      lat: route.map((point) => point[1]).join("|"),
+      resource: IGN_ELEVATION_RESOURCE,
+      delimiter: "|",
+      indent: "false",
+      measures: "false",
+      zonly: "false",
+      profile_mode: "simple",
+      sampling: String(route.length),
+    }),
+  });
+  const data = await providerJson(response);
+  const elevations = (Array.isArray(data?.elevations) ? data.elevations : [])
+    .map((item) => ({
+      lon: Number(item?.lon),
+      lat: Number(item?.lat),
+      z: Number(item?.z),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.lon) &&
+        Number.isFinite(item.lat) &&
+        Number.isFinite(item.z) &&
+        item.z > -99990,
+    );
+  if (!elevations.length)
+    throw new HTTPError(502, "IGN ne couvre pas cette trace altimétrique.");
+  return json(
+    {
+      elevations,
+      ascentMeters: Number.isFinite(Number(data?.height_differences?.positive))
+        ? Number(data.height_differences.positive)
+        : null,
+      descentMeters: Number.isFinite(Number(data?.height_differences?.negative))
+        ? Math.abs(Number(data.height_differences.negative))
+        : null,
+      coveragePercent: Math.round((elevations.length / route.length) * 100),
+      source: "IGN Géoplateforme · RGE ALTI",
+      retrievedAt: new Date().toISOString(),
+    },
+    200,
+    origin,
+  );
+}
+
 async function handleORSRoundTrips(request, env, origin) {
   if (!env.ORS_API_KEY)
     throw new HTTPError(503, "Secret OpenRouteService non configuré.");
@@ -552,6 +721,10 @@ async function routeRequest(request, env, origin) {
     return handleGeoapifyPlaces(request, env, origin);
   if (pathname === "/v1/mapillary/images")
     return handleMapillaryImages(request, env, origin);
+  if (pathname === "/v1/overpass/terrain")
+    return handleOverpassTerrain(request, origin);
+  if (pathname === "/v1/ign/elevation")
+    return handleIgnElevation(request, origin);
   if (pathname === "/v1/ors/round-trips")
     return handleORSRoundTrips(request, env, origin);
   throw new HTTPError(404, "Route inconnue.");
