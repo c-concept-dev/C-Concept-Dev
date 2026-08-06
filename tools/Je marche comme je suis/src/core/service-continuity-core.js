@@ -27,17 +27,17 @@
     }),
     "no-routable-start": Object.freeze({
       title: "Aucun point de départ routable n’a été trouvé à cet endroit",
-      body: "Le moteur cartographique ne trouve aucun accès piéton exploitable depuis ce point précis, pas seulement aucune boucle.",
+      body: "Le moteur cartographique ne trouve aucun accès piéton exploitable depuis ce point précis, pas seulement aucune boucle. Je peux chercher un départ plus adapté à proximité si vous le souhaitez.",
       state: "no-result",
     }),
     "no-route": Object.freeze({
       title: "Aucune boucle n’a été trouvée depuis ce point",
-      body: "Un accès piéton existe à cet endroit, mais aucune boucle de la longueur demandée n’a pu être construite.",
+      body: "Un accès piéton existe à cet endroit, mais aucune boucle de la longueur demandée n’a pu être construite. Je peux chercher un départ plus adapté à proximité si vous le souhaitez.",
       state: "no-result",
     }),
     "preferences-too-restrictive": Object.freeze({
       title: "Aucune boucle ne satisfait les préférences choisies",
-      body: "Une boucle existe probablement à cet endroit, mais pas en respectant les préférences facultatives sélectionnées (calme, verdure).",
+      body: "Une boucle existe probablement à cet endroit, mais pas en respectant les préférences facultatives sélectionnées (calme, verdure). Je peux aussi chercher un départ plus adapté à proximité.",
       state: "no-result",
     }),
     "provider-unavailable": Object.freeze({
@@ -97,7 +97,18 @@
       "no-route",
       "preferences-too-restrictive",
     ]);
+    const fallbackStartsFamily = new Set([
+      "no-routable-start",
+      "no-route",
+      "preferences-too-restrictive",
+    ]);
     if (noResultFamily.has(code)) {
+      if (fallbackStartsFamily.has(code)) {
+        actions.push(
+          { id: "fallback-5km", label: "Chercher un départ à moins de 5 km" },
+          { id: "fallback-10km", label: "Élargir jusqu’à 10 km" },
+        );
+      }
       actions.push(
         { id: "change-start", label: "Déplacer le point de départ" },
         { id: "edit-request", label: "Modifier la durée ou la distance" },
