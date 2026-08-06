@@ -21,14 +21,15 @@ test('la charte graphique JMMJS v1 du 06/08/2026 est la source visuelle active',
 test('la sauge porte les actions et les niveaux de balade gardent leurs accents réservés', () => {
   assert.match(template, /\.primary\{[^}]*background:var\(--sage\)/s);
   assert.match(template, /\.primary:hover\{background:var\(--sage-hover\)/);
-  assert.match(template, /\.route-card\.route-comfortable\{border-top:4px solid var\(--ochre\)\}/);
-  assert.match(template, /\.route-card\.route-agreable\{border-top:4px solid var\(--sage\)\}/);
-  assert.match(template, /\.route-card\.route-tonique\{border-top:4px solid var\(--terracotta\)\}/);
+  assert.match(template, /\.route-card\.route-comfortable\{border:2px solid var\(--ochre\);background:rgba\(201,161,90,\.10\)\}/);
+  assert.match(template, /\.route-card\.route-agreable\{border:2px solid var\(--sage\);background:var\(--sage\);color:#FFFFFF\}/);
+  assert.match(template, /\.route-card\.route-tonique\{border:2px solid var\(--terracotta\);background:var\(--surface\)\}/);
 });
 
-test('le manifeste et le cache PWA portent la nouvelle identité', () => {
+test('le manifeste, les icônes et le cache PWA portent la nouvelle identité', () => {
   assert.equal(manifest.theme_color, '#8A9A5B');
   assert.equal(manifest.background_color, '#E8E2D4');
-  assert.equal(manifest.icons.length, 0);
+  assert.equal(manifest.icons.length, 2);
   assert.match(worker, /jmmjs-shell-charte-v1-20260806/);
+  assert.match(template, /apple-touch-icon-180\.png/);
 });
