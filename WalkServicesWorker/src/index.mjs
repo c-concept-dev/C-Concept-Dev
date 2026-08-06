@@ -19,6 +19,23 @@ const OVERPASS_URLS = [
 const IGN_ELEVATION_URL =
   "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevationLine.json";
 const IGN_ELEVATION_RESOURCE = "ign_rge_alti_wld";
+const DEFAULT_ORS_BASE_URL = "https://api.openrouteservice.org";
+const TIMEOUT_MS = {
+  ors: 10_000,
+  ign: 7_000,
+  geoapify: 7_000,
+  mapillary: 7_000,
+};
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const FALLBACK_START_TAGS = [
   ["amenity", "parking"],
@@ -72,10 +89,19 @@ function requireOrigin(request) {
 }
 
 async function readJson(request) {
-  const length = Number(request.headers.get("Content-Length") || 0);
-  if (length > 750_000) throw new HTTPError(413, "Requête trop volumineuse.");
+  const declaredLength = Number(request.headers.get("Content-Length") || 0);
+  if (declaredLength > 750_000)
+    throw new HTTPError(413, "Requête trop volumineuse.");
+  let text;
   try {
-    return await request.json();
+    text = await request.text();
+  } catch {
+    throw new HTTPError(400, "Corps de requête illisible.");
+  }
+  if (new TextEncoder().encode(text).length > 750_000)
+    throw new HTTPError(413, "Requête trop volumineuse.");
+  try {
+    return JSON.parse(text);
   } catch {
     throw new HTTPError(400, "JSON invalide.");
   }
@@ -305,9 +331,9 @@ async function testGeoapify(env) {
     apiKey: env.GEOAPIFY_API_KEY,
   });
   const data = await providerJson(
-    await fetch(`https://api.geoapify.com/v1/geocode/search?${query}`, {
+    await fetchWithTimeout(`https://api.geoapify.com/v1/geocode/search?${query}`, {
       headers: { Accept: "application/json" },
-    }),
+    }, TIMEOUT_MS.geoapify),
   );
   return { resultCount: data?.features?.length || 0 };
 }
@@ -321,12 +347,12 @@ async function testMapillary(env) {
     limit: "1",
   });
   const data = await providerJson(
-    await fetch(`https://graph.mapillary.com/images?${query}`, {
+    await fetchWithTimeout(`https://graph.mapillary.com/images?${query}`, {
       headers: {
         Accept: "application/json",
         Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`,
       },
-    }),
+    }, TIMEOUT_MS.mapillary),
   );
   return { resultCount: data?.data?.length || 0 };
 }
@@ -342,6 +368,7 @@ async function testORS(env) {
     index: 0,
     apiKey: env.ORS_API_KEY,
     points: 3,
+    baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL,
   });
   const feature = data?.features?.[0];
   const coordinates = feature?.geometry?.coordinates;
@@ -390,9 +417,9 @@ async function handleGeoapifyPlaces(request, env, origin) {
     apiKey: env.GEOAPIFY_API_KEY,
   });
   const data = await providerJson(
-    await fetch(`https://api.geoapify.com/v2/places?${query}`, {
+    await fetchWithTimeout(`https://api.geoapify.com/v2/places?${query}`, {
       headers: { Accept: "application/geo+json" },
-    }),
+    }, TIMEOUT_MS.geoapify),
   );
   return json(data, 200, origin);
 }
@@ -403,12 +430,12 @@ async function fetchMapillaryBox(box, env) {
     bbox: box.join(","),
     limit: "30",
   });
-  const response = await fetch(`https://graph.mapillary.com/images?${query}`, {
+  const response = await fetchWithTimeout(`https://graph.mapillary.com/images?${query}`, {
     headers: {
       Accept: "application/json",
       Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`,
     },
-  });
+  }, TIMEOUT_MS.mapillary);
   return providerJson(response);
 }
 
@@ -532,7 +559,7 @@ async function handleOverpassTerrain(request, origin) {
 async function handleIgnElevation(request, origin) {
   const body = await readJson(request);
   const route = validateRouteCoordinates(body.route, 120, "Trace IGN");
-  const response = await fetch(IGN_ELEVATION_URL, {
+  const response = await fetchWithTimeout(IGN_ELEVATION_URL, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -546,7 +573,7 @@ async function handleIgnElevation(request, origin) {
       profile_mode: "simple",
       sampling: String(route.length),
     }),
-  });
+  }, TIMEOUT_MS.ign);
   const data = await providerJson(response);
   const elevations = (Array.isArray(data?.elevations) ? data.elevations : [])
     .map((item) => ({
@@ -645,6 +672,7 @@ async function handleORSRoundTrips(request, env, origin) {
           apiKey: env.ORS_API_KEY,
           profile: routing.profile,
           routingOptions: routing.options,
+          baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL,
         }),
       ),
     );
@@ -786,10 +814,11 @@ async function fetchORSRoundTrip({
   points,
   profile = "foot-walking",
   routingOptions = {},
+  baseUrl = DEFAULT_ORS_BASE_URL,
 }) {
   return providerJson(
-    await fetch(
-      `https://api.openrouteservice.org/v2/directions/${profile}/geojson`,
+    await fetchWithTimeout(
+      `${baseUrl}/v2/directions/${profile}/geojson`,
       {
         method: "POST",
         headers: {
@@ -831,6 +860,7 @@ async function fetchORSRoundTrip({
           },
         }),
       },
+      TIMEOUT_MS.ors,
     ),
   );
 }
@@ -942,7 +972,8 @@ async function handleFallbackStarts(request, env, origin) {
 
   const starts = [];
   let orsRequestCount = 0;
-  for (const candidate of candidates.slice(0, FALLBACK_MAX_TESTED)) {
+  let providerFailure = null;
+  candidates: for (const candidate of candidates.slice(0, FALLBACK_MAX_TESTED)) {
     if (starts.length >= FALLBACK_TARGET_SUCCESSES) break;
     let routesFound = 0;
     for (
@@ -961,6 +992,7 @@ async function handleFallbackStarts(request, env, origin) {
           apiKey: env.ORS_API_KEY,
           profile: routing.profile,
           routingOptions: routing.options,
+          baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL,
         });
         const feature = data?.features?.[0];
         if (
@@ -971,8 +1003,13 @@ async function handleFallbackStarts(request, env, origin) {
           routesFound += 1;
           break;
         }
-      } catch {
-        // Cette tentative échoue ; on continue sans jamais fabriquer de géométrie.
+      } catch (error) {
+        const type = classifyORSError(error);
+        if (type === "provider-unavailable") {
+          providerFailure = error;
+          break candidates;
+        }
+        // no-routable-start / no-route : ce candidat n'est pas routable, on passe au suivant sans fabriquer de géométrie.
       }
     }
     if (routesFound > 0) {
@@ -985,6 +1022,21 @@ async function handleFallbackStarts(request, env, origin) {
         tags: candidate.tags,
       });
     }
+  }
+  if (providerFailure) {
+    const upstreamStatus = providerFailure?.upstreamStatus;
+    return json(
+      {
+        outcome: "provider-unavailable",
+        starts: [],
+        candidatesConsidered: candidates.length,
+        orsRequestCount,
+        retryable: !upstreamStatus || upstreamStatus >= 500,
+        providerStatus: upstreamStatus || null,
+      },
+      502,
+      origin,
+    );
   }
   return json(
     {
