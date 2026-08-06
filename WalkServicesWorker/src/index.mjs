@@ -759,6 +759,7 @@ async function handleORSRoundTrips(request, env, origin) {
         partialErrors: failureTypes.length,
         imperativesPreserved: routing.imperativesPreserved,
         preferencesApplied: routing.preferencesApplied,
+        preferencesIgnored: routing.preferencesIgnored,
         retryable: false,
       },
       200,
@@ -768,7 +769,10 @@ async function handleORSRoundTrips(request, env, origin) {
   const hasNoRoute = failureTypes.includes("no-route");
   if (!hasNoRoute) {
     return json(
-      orsEnvelope("no-routable-start", 200, { requestCount }),
+      orsEnvelope("no-routable-start", 200, {
+        requestCount,
+        preferencesIgnored: routing.preferencesIgnored,
+      }),
       200,
       origin,
     );
@@ -776,7 +780,14 @@ async function handleORSRoundTrips(request, env, origin) {
   const outcome = routing.preferencesApplied.length
     ? "preferences-too-restrictive"
     : "no-route";
-  return json(orsEnvelope(outcome, 200, { requestCount }), 200, origin);
+  return json(
+    orsEnvelope(outcome, 200, {
+      requestCount,
+      preferencesIgnored: routing.preferencesIgnored,
+    }),
+    200,
+    origin,
+  );
 }
 
 function sanitizeORSRouting(body) {
@@ -794,9 +805,17 @@ function sanitizeORSRouting(body) {
   const options = {};
   if (avoidFeatures.length) options.avoid_features = avoidFeatures;
   const profileParams = {};
-  const preferencesApplied = Object.keys(weightings);
-  if (preferencesApplied.length && profile === "foot-walking")
-    profileParams.weightings = weightings;
+  // ORS rejette la requête avec l'erreur 2002 ("Parameter 'options' has
+  // incorrect value or format") dès que profile_params.weightings est combiné
+  // à options.round_trip — confirmé le 06/08/2026 par deux appels isolés
+  // directs à l'API ORS (round_trip seul : 200 ; round_trip + weightings :
+  // 400/2002, même message que celui observé en production). Ce Worker ne
+  // génère jamais que des boucles round_trip, donc les weightings ne peuvent
+  // jamais être transmis à ORS ici : on les dégrade proprement plutôt que de
+  // planter, et on trace ce qui a été demandé mais ignoré pour que Main
+  // puisse le signaler à l'utilisateur.
+  const preferencesIgnored = Object.keys(weightings);
+  const preferencesApplied = [];
   let imperativesPreserved = true;
   if (profile === "wheelchair") {
     const source = body.restrictions || {};
@@ -832,7 +851,7 @@ function sanitizeORSRouting(body) {
     profileParams.restrictions = restrictions;
   }
   if (Object.keys(profileParams).length) options.profile_params = profileParams;
-  return { profile, options, preferencesApplied, imperativesPreserved };
+  return { profile, options, preferencesApplied, preferencesIgnored, imperativesPreserved };
 }
 
 async function fetchORSRoundTrip({
