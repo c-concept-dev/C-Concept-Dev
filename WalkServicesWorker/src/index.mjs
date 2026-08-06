@@ -10,12 +10,29 @@ const GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage"].join(",");
 const ORS_SEEDS = [
   17, 41, 83, 121, 167, 211, 257, 301, 347, 389, 433, 479, 523, 569, 613,
 ];
-const ORS_BATCH_SIZE = 3;
+const ORS_BATCH_SIZE = 6;
 const MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+const OVERPASS_URLS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
 const IGN_ELEVATION_URL =
   "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevationLine.json";
 const IGN_ELEVATION_RESOURCE = "ign_rge_alti_wld";
+
+const FALLBACK_START_TAGS = [
+  ["amenity", "parking"],
+  ["highway", "trailhead"],
+  ["tourism", "information"],
+  ["leisure", "park"],
+  ["public_transport", "station"],
+  ["railway", "station"],
+  ["amenity", "bus_station"],
+];
+const FALLBACK_MAX_CANDIDATES = 6;
+const FALLBACK_MAX_TESTED = 3;
+const FALLBACK_MAX_ORS_ATTEMPTS_PER_START = 2;
+const FALLBACK_TARGET_SUCCESSES = 3;
 
 class HTTPError extends Error {
   constructor(status, message, details = {}) {
@@ -55,19 +72,10 @@ function requireOrigin(request) {
 }
 
 async function readJson(request) {
-  const declaredLength = Number(request.headers.get("Content-Length") || 0);
-  if (declaredLength > 750_000)
-    throw new HTTPError(413, "Requête trop volumineuse.");
-  let bytes;
+  const length = Number(request.headers.get("Content-Length") || 0);
+  if (length > 750_000) throw new HTTPError(413, "Requête trop volumineuse.");
   try {
-    bytes = await request.arrayBuffer();
-  } catch {
-    throw new HTTPError(400, "Corps de requête illisible.");
-  }
-  if (bytes.byteLength > 750_000)
-    throw new HTTPError(413, "Requête trop volumineuse.");
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
+    return await request.json();
   } catch {
     throw new HTTPError(400, "JSON invalide.");
   }
@@ -81,6 +89,7 @@ async function providerJson(response) {
     throw new HTTPError(
       502,
       `Réponse fournisseur illisible (${response.status}).`,
+      { code: "provider-error", upstreamStatus: response.status },
     );
   }
   if (!response.ok) {
@@ -97,17 +106,21 @@ async function providerJson(response) {
   return data;
 }
 
-function isORSNoRouteError(error) {
+function classifyORSError(error) {
   const message = String(error?.message || "").toLowerCase();
-  return (
-    error?.code === "ors-no-route" ||
+  if (
     message.includes("cannot find point") ||
-    message.includes("could not find routable point") ||
+    message.includes("could not find routable point")
+  )
+    return "no-routable-start";
+  if (
     message.includes("unable to find a route") ||
     message.includes("couldn't find a route") ||
     message.includes("no route found") ||
     message.includes("no path found")
-  );
+  )
+    return "no-route";
+  return "provider-unavailable";
 }
 
 function finiteNumber(value, label) {
@@ -439,6 +452,36 @@ async function handleMapillaryImages(request, env, origin) {
   );
 }
 
+async function fetchOverpassWithFallback(query) {
+  let lastError = null;
+  for (const url of OVERPASS_URLS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "User-Agent": "Je-marche-comme-je-suis/1.0",
+        },
+        body: new URLSearchParams({ data: query }).toString(),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!response.ok) {
+        lastError = new Error(`Overpass ${response.status} (${url}).`);
+        continue;
+      }
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timer);
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Aucune instance Overpass disponible.");
+}
+
 async function handleOverpassTerrain(request, origin) {
   const body = await readJson(request);
   const route = validateRouteCoordinates(body.route, 80, "Trace Overpass");
@@ -448,31 +491,38 @@ async function handleOverpassTerrain(request, origin) {
   );
   const line = route.map(([lon, lat]) => `${lat},${lon}`).join(",");
   const query = `[out:json][timeout:20];way["highway"](around:${bufferMeters},${line});out tags geom;`;
-  const response = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      "User-Agent": "Je-marche-comme-je-suis/1.0",
-    },
-    body: new URLSearchParams({ data: query }).toString(),
-  });
-  const data = await providerJson(response);
+  const routeLengthMeters = Math.max(
+    0,
+    Number(body.routeLengthMeters) ||
+      route.slice(1).reduce(
+        (total, point, index) => total + haversineMeters(route[index], point),
+        0,
+      ),
+  );
+  let data;
+  try {
+    data = await fetchOverpassWithFallback(query);
+  } catch {
+    return json(
+      {
+        segments: [],
+        routeLengthMeters,
+        retrievedAt: new Date().toISOString(),
+        source: "Overpass / OpenStreetMap",
+        status: "terrain-unavailable",
+      },
+      200,
+      origin,
+    );
+  }
   const segments = matchTerrainSegments(route, data?.elements, bufferMeters);
   return json(
     {
       segments,
-      routeLengthMeters: Math.max(
-        0,
-        Number(body.routeLengthMeters) ||
-          route.slice(1).reduce(
-            (total, point, index) =>
-              total + haversineMeters(route[index], point),
-            0,
-          ),
-      ),
+      routeLengthMeters,
       retrievedAt: new Date().toISOString(),
       source: "Overpass / OpenStreetMap",
+      status: "ok",
     },
     200,
     origin,
@@ -531,197 +581,143 @@ async function handleIgnElevation(request, origin) {
   );
 }
 
-function orsErrorRecord(error) {
+function orsEnvelope(outcome, status, extra = {}) {
   return {
-    message: String(error?.message || "Erreur ORS"),
-    code: error?.code || "ors-error",
-    upstreamStatus: Number(error?.upstreamStatus) || null,
+    outcome,
+    provider: "ors",
+    routes: [],
+    requestCount: 0,
+    retryable: false,
+    ...extra,
   };
-}
-
-function isORSProviderUnavailable(error) {
-  const status = Number(error?.upstreamStatus);
-  return status === 429 || status >= 500 || error?.code === "provider-unreadable";
-}
-
-function isORSClientRejection(error) {
-  const status = Number(error?.upstreamStatus);
-  return status === 400 || status === 404 || status === 422;
-}
-
-async function runORSFamily({
-  lon,
-  lat,
-  target,
-  apiKey,
-  profile,
-  routingOptions,
-  seedOffset = 0,
-  desiredCount = 3,
-}) {
-  const seeds = ORS_SEEDS.slice(seedOffset, seedOffset + ORS_BATCH_SIZE);
-  const settled = await Promise.allSettled(
-    seeds.map((seed, batchIndex) =>
-      fetchORSRoundTrip({
-        lon,
-        lat,
-        target,
-        seed,
-        index: seedOffset + batchIndex,
-        apiKey,
-        profile,
-        routingOptions,
-      }),
-    ),
-  );
-  const routes = [];
-  const errors = [];
-  for (const result of settled) {
-    if (result.status === "rejected") {
-      errors.push(result.reason);
-      continue;
-    }
-    const feature = result.value?.features?.[0];
-    if (
-      feature?.geometry?.type === "LineString" &&
-      Array.isArray(feature.geometry.coordinates) &&
-      feature.geometry.coordinates.length >= 2
-    ) {
-      routes.push(feature);
-      if (routes.length >= desiredCount) break;
-    } else {
-      errors.push(
-        new HTTPError(502, "Boucle ORS sans géométrie GeoJSON exploitable.", {
-          code: "ors-invalid-geometry",
-        }),
-      );
-    }
-  }
-  return { routes, errors, requestCount: seeds.length };
 }
 
 async function handleORSRoundTrips(request, env, origin) {
   if (!env.ORS_API_KEY)
-    throw new HTTPError(503, "Secret OpenRouteService non configuré.");
-  const body = await readJson(request);
+    return json(
+      orsEnvelope("provider-unavailable", 502, { retryable: true }),
+      502,
+      origin,
+    );
+  let body;
+  try {
+    body = await readJson(request);
+  } catch {
+    return json(orsEnvelope("invalid-request", 400), 400, origin);
+  }
   if (!Array.isArray(body.coordinate) || body.coordinate.length !== 2)
-    throw new HTTPError(400, "Départ ORS invalide.");
-  const lon = finiteNumber(body.coordinate[0], "Longitude");
-  const lat = finiteNumber(body.coordinate[1], "Latitude");
-  const target = finiteNumber(body.targetMeters, "Distance cible");
+    return json(orsEnvelope("invalid-request", 400), 400, origin);
+  let lon, lat, target;
+  try {
+    lon = finiteNumber(body.coordinate[0], "Longitude");
+    lat = finiteNumber(body.coordinate[1], "Latitude");
+    target = finiteNumber(body.targetMeters, "Distance cible");
+  } catch {
+    return json(orsEnvelope("invalid-request", 400), 400, origin);
+  }
   if (
     Math.abs(lon) > 180 ||
     Math.abs(lat) > 90 ||
     target < 500 ||
     target > 30000
   ) {
-    throw new HTTPError(400, "Paramètres ORS hors limites.");
+    return json(orsEnvelope("invalid-request", 400), 400, origin);
   }
-
   const routing = sanitizeORSRouting(body);
-  const desiredCount = Math.max(1, Math.min(3, Math.round(Number(body.count) || 3)));
-  const preferred = await runORSFamily({
-    lon,
-    lat,
-    target,
-    apiKey: env.ORS_API_KEY,
-    profile: routing.profile,
-    routingOptions: routing.options,
-    desiredCount,
-  });
-
-  if (preferred.routes.length) {
+  const routes = [];
+  const failureTypes = [];
+  let requestCount = 0;
+  let providerFailure = null;
+  batches: for (
+    let offset = 0;
+    offset < ORS_SEEDS.length && routes.length < ORS_BATCH_SIZE;
+    offset += ORS_BATCH_SIZE
+  ) {
+    const seeds = ORS_SEEDS.slice(offset, offset + ORS_BATCH_SIZE);
+    const settled = await Promise.allSettled(
+      seeds.map((seed, batchIndex) =>
+        fetchORSRoundTrip({
+          lon,
+          lat,
+          target,
+          seed,
+          index: offset + batchIndex,
+          apiKey: env.ORS_API_KEY,
+          profile: routing.profile,
+          routingOptions: routing.options,
+        }),
+      ),
+    );
+    requestCount += seeds.length;
+    for (const result of settled) {
+      if (result.status === "rejected") {
+        const type = classifyORSError(result.reason);
+        failureTypes.push(type);
+        if (type === "provider-unavailable") {
+          providerFailure = result.reason;
+          break batches;
+        }
+        continue;
+      }
+      const feature = result.value?.features?.[0];
+      if (
+        feature?.geometry?.type === "LineString" &&
+        Array.isArray(feature.geometry.coordinates) &&
+        feature.geometry.coordinates.length >= 2
+      ) {
+        routes.push(feature);
+      } else {
+        failureTypes.push("no-route");
+      }
+    }
+    if (
+      !routes.length &&
+      failureTypes.length &&
+      failureTypes.every((type) => type === "no-routable-start")
+    ) {
+      break;
+    }
+  }
+  if (providerFailure) {
+    const upstreamStatus = providerFailure?.upstreamStatus;
+    return json(
+      orsEnvelope("provider-unavailable", 502, {
+        requestCount,
+        retryable: !upstreamStatus || upstreamStatus >= 500,
+        providerStatus: upstreamStatus || null,
+      }),
+      502,
+      origin,
+    );
+  }
+  if (routes.length) {
     return json(
       {
-        routes: preferred.routes,
-        requestCount: preferred.requestCount,
-        partialErrors: preferred.errors.length,
         outcome: "success",
+        provider: "ors",
+        routes,
+        requestCount,
+        partialErrors: failureTypes.length,
+        imperativesPreserved: routing.imperativesPreserved,
         preferencesApplied: routing.preferencesApplied,
-        preferencesRelaxed: [],
+        retryable: false,
       },
       200,
       origin,
     );
   }
-
-  if (preferred.errors.some(isORSProviderUnavailable)) {
-    const error = preferred.errors.find(isORSProviderUnavailable);
-    throw new HTTPError(502, error?.message || "OpenRouteService indisponible.", {
-      code: error?.code || "provider-error",
-      upstreamStatus: error?.upstreamStatus,
-    });
+  const hasNoRoute = failureTypes.includes("no-route");
+  if (!hasNoRoute) {
+    return json(
+      orsEnvelope("no-routable-start", 200, { requestCount }),
+      200,
+      origin,
+    );
   }
-
-  let totalRequests = preferred.requestCount;
-  let allErrors = [...preferred.errors];
-  if (routing.preferencesApplied.length) {
-    const neutral = await runORSFamily({
-      lon,
-      lat,
-      target,
-      apiKey: env.ORS_API_KEY,
-      profile: routing.profile,
-      routingOptions: routing.hardOptions,
-      seedOffset: ORS_BATCH_SIZE,
-      desiredCount,
-    });
-    totalRequests += neutral.requestCount;
-    allErrors = allErrors.concat(neutral.errors);
-    if (neutral.routes.length) {
-      return json(
-        {
-          routes: neutral.routes,
-          requestCount: totalRequests,
-          partialErrors: allErrors.length,
-          outcome: "success-with-relaxed-preferences",
-          preferencesApplied: [],
-          preferencesRelaxed: routing.preferencesApplied,
-          notice:
-            "Aucune boucle n’a été obtenue avec les préférences facultatives. Les contraintes impératives ont été conservées et les préférences ont seulement servi au classement après calcul.",
-        },
-        200,
-        origin,
-      );
-    }
-    if (neutral.errors.some(isORSProviderUnavailable)) {
-      const error = neutral.errors.find(isORSProviderUnavailable);
-      throw new HTTPError(502, error?.message || "OpenRouteService indisponible.", {
-        code: error?.code || "provider-error",
-        upstreamStatus: error?.upstreamStatus,
-      });
-    }
-  }
-
-  const onlyNoRouteOrRejected =
-    allErrors.length > 0 &&
-    allErrors.every((error) => isORSNoRouteError(error) || isORSClientRejection(error));
-  return json(
-    {
-      routes: [],
-      requestCount: totalRequests,
-      partialErrors: allErrors.length,
-      outcome: "no-result",
-      preferencesApplied: routing.preferencesApplied,
-      preferencesRelaxed: [],
-      error: {
-        code: routing.preferencesApplied.length
-          ? "ors-preferences-no-result"
-          : "ors-no-route",
-        reason: routing.preferencesApplied.length
-          ? "preferences-and-network-incompatible"
-          : "no-compatible-loop",
-        message: routing.preferencesApplied.length
-          ? "OpenRouteService fonctionne, mais aucune boucle compatible n’a été trouvée autour de ce départ, même après un essai sans les préférences facultatives."
-          : "OpenRouteService fonctionne, mais aucune boucle pédestre compatible n’a été trouvée autour de ce départ.",
-        details: onlyNoRouteOrRejected
-          ? allErrors.slice(0, 3).map(orsErrorRecord)
-          : [],
-      },
-    },
-    200,
-    origin,
-  );
+  const outcome = routing.preferencesApplied.length
+    ? "preferences-too-restrictive"
+    : "no-route";
+  return json(orsEnvelope(outcome, 200, { requestCount }), 200, origin);
 }
 
 function sanitizeORSRouting(body) {
@@ -739,42 +735,45 @@ function sanitizeORSRouting(body) {
   const options = {};
   if (avoidFeatures.length) options.avoid_features = avoidFeatures;
   const profileParams = {};
-  if (Object.keys(weightings).length && profile === "foot-walking")
+  const preferencesApplied = Object.keys(weightings);
+  if (preferencesApplied.length && profile === "foot-walking")
     profileParams.weightings = weightings;
+  let imperativesPreserved = true;
   if (profile === "wheelchair") {
     const source = body.restrictions || {};
+    const allowedKerb = [0.03, 0.06, 0.1];
+    const allowedIncline = [3, 6, 10, 15];
+    const requestedKerb = source.maximum_sloped_kerb;
+    const requestedIncline = source.maximum_incline;
+    if (
+      requestedKerb !== undefined &&
+      !allowedKerb.includes(Number(requestedKerb))
+    )
+      imperativesPreserved = false;
+    if (
+      requestedIncline !== undefined &&
+      !allowedIncline.includes(Number(requestedIncline))
+    )
+      imperativesPreserved = false;
     const restrictions = {
       surface_type: "cobblestone:flattened",
       track_type: "grade1",
       smoothness_type: "good",
-      maximum_sloped_kerb: [0.03, 0.06, 0.1].includes(
-        Number(source.maximum_sloped_kerb),
-      )
-        ? Number(source.maximum_sloped_kerb)
+      maximum_sloped_kerb: allowedKerb.includes(Number(requestedKerb))
+        ? Number(requestedKerb)
         : 0.06,
-      maximum_incline: [3, 6, 10, 15].includes(Number(source.maximum_incline))
-        ? Number(source.maximum_incline)
+      maximum_incline: allowedIncline.includes(Number(requestedIncline))
+        ? Number(requestedIncline)
         : 6,
     };
     const width = Number(source.minimum_width);
     if (Number.isFinite(width) && width >= 0.5 && width <= 3)
       restrictions.minimum_width = width;
+    else if (source.minimum_width !== undefined) imperativesPreserved = false;
     profileParams.restrictions = restrictions;
   }
   if (Object.keys(profileParams).length) options.profile_params = profileParams;
-  const hardOptions = { ...options };
-  if (hardOptions.profile_params?.weightings) {
-    hardOptions.profile_params = { ...hardOptions.profile_params };
-    delete hardOptions.profile_params.weightings;
-    if (!Object.keys(hardOptions.profile_params).length)
-      delete hardOptions.profile_params;
-  }
-  return {
-    profile,
-    options,
-    hardOptions,
-    preferencesApplied: Object.keys(weightings),
-  };
+  return { profile, options, preferencesApplied, imperativesPreserved };
 }
 
 async function fetchORSRoundTrip({
@@ -836,6 +835,171 @@ async function fetchORSRoundTrip({
   );
 }
 
+function buildFallbackStartsQuery(lat, lon, radiusMeters) {
+  const clauses = FALLBACK_START_TAGS.map(
+    ([key, value]) =>
+      `node["${key}"="${value}"](around:${radiusMeters},${lat},${lon});` +
+      `way["${key}"="${value}"](around:${radiusMeters},${lat},${lon});`,
+  ).join("");
+  return `[out:json][timeout:20];(${clauses});out center tags 60;`;
+}
+
+function candidateAccess(tags = {}) {
+  return {
+    parking: tags.amenity === "parking" ? "documented" : "unknown",
+    publicTransport:
+      tags.public_transport === "station" ||
+      tags.railway === "station" ||
+      tags.amenity === "bus_station"
+        ? "documented"
+        : "unknown",
+  };
+}
+
+function extractFallbackCandidates(elements, origin) {
+  const candidates = [];
+  for (const element of Array.isArray(elements) ? elements : []) {
+    const lat = element.lat ?? element.center?.lat;
+    const lon = element.lon ?? element.center?.lon;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const distanceFromOriginMeters = Math.round(
+      haversineMeters([origin.lon, origin.lat], [lon, lat]),
+    );
+    candidates.push({
+      id: `${element.type}/${element.id}`,
+      coordinates: [lon, lat],
+      distanceFromOriginMeters,
+      access: candidateAccess(element.tags),
+      tags: element.tags || {},
+    });
+  }
+  candidates.sort(
+    (a, b) => a.distanceFromOriginMeters - b.distanceFromOriginMeters,
+  );
+  return candidates;
+}
+
+async function handleFallbackStarts(request, env, origin) {
+  if (!env.ORS_API_KEY)
+    return json(
+      orsEnvelope("provider-unavailable", 502, { retryable: true }),
+      502,
+      origin,
+    );
+  let body;
+  try {
+    body = await readJson(request);
+  } catch {
+    return json({ outcome: "invalid-request", starts: [] }, 400, origin);
+  }
+  const originLat = Number(body?.origin?.lat);
+  const originLon = Number(body?.origin?.lon);
+  const target = Number(body?.targetMeters);
+  if (
+    !Number.isFinite(originLat) ||
+    !Number.isFinite(originLon) ||
+    Math.abs(originLat) > 90 ||
+    Math.abs(originLon) > 180 ||
+    !Number.isFinite(target) ||
+    target < 500 ||
+    target > 30000
+  ) {
+    return json({ outcome: "invalid-request", starts: [] }, 400, origin);
+  }
+  const radiusMeters = Math.max(
+    1000,
+    Math.min(10000, Number(body.radiusMeters) || 10000),
+  );
+  const maximumCandidates = Math.max(
+    1,
+    Math.min(FALLBACK_MAX_CANDIDATES, Number(body.maximumCandidates) || FALLBACK_MAX_CANDIDATES),
+  );
+  const routing = sanitizeORSRouting(body);
+
+  let elements;
+  try {
+    const data = await fetchOverpassWithFallback(
+      buildFallbackStartsQuery(originLat, originLon, radiusMeters),
+    );
+    elements = data?.elements;
+  } catch {
+    return json(
+      { outcome: "provider-unavailable", starts: [], retryable: true },
+      502,
+      origin,
+    );
+  }
+  const candidates = extractFallbackCandidates(elements, {
+    lat: originLat,
+    lon: originLon,
+  }).slice(0, maximumCandidates);
+  if (!candidates.length)
+    return json(
+      { outcome: "no-fallback-starts", starts: [], candidatesConsidered: 0 },
+      200,
+      origin,
+    );
+
+  const starts = [];
+  let orsRequestCount = 0;
+  for (const candidate of candidates.slice(0, FALLBACK_MAX_TESTED)) {
+    if (starts.length >= FALLBACK_TARGET_SUCCESSES) break;
+    let routesFound = 0;
+    for (
+      let attempt = 0;
+      attempt < FALLBACK_MAX_ORS_ATTEMPTS_PER_START;
+      attempt += 1
+    ) {
+      orsRequestCount += 1;
+      try {
+        const data = await fetchORSRoundTrip({
+          lon: candidate.coordinates[0],
+          lat: candidate.coordinates[1],
+          target,
+          seed: ORS_SEEDS[attempt],
+          index: attempt,
+          apiKey: env.ORS_API_KEY,
+          profile: routing.profile,
+          routingOptions: routing.options,
+        });
+        const feature = data?.features?.[0];
+        if (
+          feature?.geometry?.type === "LineString" &&
+          Array.isArray(feature.geometry.coordinates) &&
+          feature.geometry.coordinates.length >= 2
+        ) {
+          routesFound += 1;
+          break;
+        }
+      } catch {
+        // Cette tentative échoue ; on continue sans jamais fabriquer de géométrie.
+      }
+    }
+    if (routesFound > 0) {
+      starts.push({
+        id: candidate.id,
+        coordinates: candidate.coordinates,
+        distanceFromOriginMeters: candidate.distanceFromOriginMeters,
+        access: candidate.access,
+        routesFound,
+        tags: candidate.tags,
+      });
+    }
+  }
+  return json(
+    {
+      outcome: starts.length ? "fallback-starts-found" : "no-fallback-starts",
+      starts,
+      candidatesConsidered: candidates.length,
+      candidatesTested: Math.min(candidates.length, FALLBACK_MAX_TESTED),
+      orsRequestCount,
+      imperativesPreserved: routing.imperativesPreserved,
+    },
+    200,
+    origin,
+  );
+}
+
 async function routeRequest(request, env, origin) {
   const pathname = new URL(request.url).pathname;
   if (request.method !== "POST")
@@ -851,6 +1015,8 @@ async function routeRequest(request, env, origin) {
     return handleIgnElevation(request, origin);
   if (pathname === "/v1/ors/round-trips")
     return handleORSRoundTrips(request, env, origin);
+  if (pathname === "/v1/fallback-starts")
+    return handleFallbackStarts(request, env, origin);
   throw new HTTPError(404, "Route inconnue.");
 }
 
@@ -866,20 +1032,17 @@ export default {
           headers: corsHeaders(origin),
         });
       const pathname = new URL(request.url).pathname;
-      if (env.ENVIRONMENT === "production" && !env.SERVICE_RATE_LIMITER)
-        throw new HTTPError(503, "Limitation de débit non configurée en production.");
-      if (env.SERVICE_RATE_LIMITER) {
-        const clientHint = request.headers.get("CF-Connecting-IP") || "anonymous";
-        const ephemeralKey = `${origin}:${pathname}:${clientHint}`;
-        const { success } = await env.SERVICE_RATE_LIMITER.limit({
-          key: ephemeralKey,
-        });
-        if (!success)
-          throw new HTTPError(
-            429,
-            "Trop de requêtes. Réessayez dans une minute.",
-          );
-      }
+      if (!env.SERVICE_RATE_LIMITER)
+        throw new HTTPError(503, "Limiteur de débit non configuré.");
+      const visitor = request.headers.get("CF-Connecting-IP") || "visiteur-inconnu";
+      const { success } = await env.SERVICE_RATE_LIMITER.limit({
+        key: `${origin}:${pathname}:${visitor}`,
+      });
+      if (!success)
+        throw new HTTPError(
+          429,
+          "Trop de requêtes. Réessayez dans une minute.",
+        );
       const response = await routeRequest(request, env, origin);
       console.log(
         JSON.stringify({
