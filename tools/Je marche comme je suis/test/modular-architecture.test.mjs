@@ -97,11 +97,10 @@ test("the ORS peripheral preserves a structured no-route outcome", async () => {
       async post() {
         return {
           routes: [],
-          outcome: "no-result",
-          error: {
-            code: "ors-no-route",
-            message: "Aucun départ pédestre routable à proximité.",
-          },
+          outcome: "no-routable-start",
+          provider: "ors",
+          requestCount: 6,
+          retryable: false,
         };
       },
     },
@@ -115,8 +114,9 @@ test("the ORS peripheral preserves a structured no-route outcome", async () => {
         compiled: { routing: { profile: "foot-walking" } },
       }),
     (error) =>
-      error.code === "ors-no-route" &&
-      /Aucun départ pédestre routable/.test(error.message),
+      error.code === "no-routable-start" &&
+      error.retryable === false &&
+      error.requestCount === 6,
   );
 });
 
