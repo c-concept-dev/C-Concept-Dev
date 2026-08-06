@@ -261,3 +261,36 @@ test("ORS round trips whitelist wheelchair restrictions and routing options", as
   const data = await response.json();
   assert.equal(data.routes.length, 6);
 });
+
+test("ORS no-route is a successful empty search and stops after one batch", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let upstreamCalls = 0;
+  globalThis.fetch = async () => {
+    upstreamCalls += 1;
+    return new Response(
+      JSON.stringify({ error: { message: "Cannot find point 0: 0.0,0.0" } }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
+    );
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [0, 0], targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.deepEqual(data.routes, []);
+  assert.equal(data.outcome, "no-result");
+  assert.equal(data.error.code, "ors-no-route");
+  assert.equal(data.requestCount, 6);
+  assert.equal(upstreamCalls, 6);
+});
