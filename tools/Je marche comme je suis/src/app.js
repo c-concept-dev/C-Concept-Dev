@@ -836,14 +836,14 @@
     if (!S.map) {
       S.map = L.map("map", { zoomControl: true }).setView([c.lat, c.lon], 14);
       const wmts =
-          "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+          "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM_0_19&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
         ign = L.tileLayer(
-          wmts + "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&FORMAT=image/png",
-          { maxZoom: 19, attribution: "© IGN · Géoplateforme" },
+          wmts + "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&FORMAT=image%2Fpng",
+          { maxZoom: 19, maxNativeZoom: 19, attribution: "© IGN · Géoplateforme" },
         ),
         ortho = L.tileLayer(
-          wmts + "&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&FORMAT=image/jpeg",
-          { maxZoom: 19, attribution: "© IGN · Géoplateforme" },
+          wmts + "&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&FORMAT=image%2Fjpeg",
+          { maxZoom: 19, maxNativeZoom: 19, attribution: "© IGN · Géoplateforme" },
         ),
         osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
@@ -860,6 +860,15 @@
         OpenTopoMap: topo,
       };
       ign.addTo(S.map);
+      let ignFallbackActivated = false;
+      const fallbackToOsm = () => {
+        if (ignFallbackActivated || !S.map?.hasLayer(ign)) return;
+        ignFallbackActivated = true;
+        S.map.removeLayer(ign);
+        osm.addTo(S.map);
+        say("Le fond IGN est momentanément indisponible : OpenStreetMap est affiché.");
+      };
+      ign.on("tileerror", fallbackToOsm);
       S.layerControl = L.control
         .layers(S.bases, null, { collapsed: true, position: "topright" })
         .addTo(S.map);
