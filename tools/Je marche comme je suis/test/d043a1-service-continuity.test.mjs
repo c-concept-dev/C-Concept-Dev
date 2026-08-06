@@ -58,3 +58,16 @@ assert.match(staleWeather.message, /Dernière mise à jour/);
 const summary = summarizeServiceStates([optionalPoi, requiredPoi]);
 assert.equal(summary.blocksValidation, true);
 assert.match(summary.conclusion, /mode strict/);
+
+for (const code of ["no-routable-start", "no-route", "preferences-too-restrictive"]) {
+  const failure = buildBlockingFailure({
+    service: "ors",
+    diagnostic: { code, retryable: false },
+  });
+  assert.equal(
+    failure.actions.some((action) => action.id === "change-start"),
+    true,
+    `${code} devrait proposer de changer de départ`,
+  );
+  assert.notEqual(failure.title, "La recherche d’itinéraires n’a pas abouti");
+}
