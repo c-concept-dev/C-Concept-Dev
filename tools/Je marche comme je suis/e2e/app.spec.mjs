@@ -151,8 +151,8 @@ test("@critical D-024 affiche et audite une limitation fonctionnelle confirmée"
   await page.locator("#limitationConfirmed").check();
   await page.getByRole("button", { name: "Continuer" }).click();
   await page.getByRole("button", { name: "Continuer" }).click();
-  await expect(page.locator("#constraintSummary")).toContainText("seuil 4 %");
-  await expect(page.locator("#constraintSummary")).toContainText(/aucun seuil explicite/i);
+  await expect(page.locator("#constraintSummary")).toContainText(/Pente descendante maximale\s*4\s*%/);
+  await expect(page.locator("#constraintSummary")).toContainText(/Pente descendante maximale\s*4\s*%[\s\S]{0,80}·\s*Impératif/);
   await page.getByRole("button", { name: "Confirmer et calculer" }).click();
   await expect(page.locator("#detail")).toContainText(/Descente à éviter|pente descendante/i);
 });
