@@ -10,7 +10,7 @@ const GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage"].join(",");
 const ORS_SEEDS = [
   17, 41, 83, 121, 167, 211, 257, 301, 347, 389, 433, 479, 523, 569, 613,
 ];
-const ORS_BATCH_SIZE = 6;
+const ORS_BATCH_SIZE = 3;
 const MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const IGN_ELEVATION_URL =
@@ -55,10 +55,19 @@ function requireOrigin(request) {
 }
 
 async function readJson(request) {
-  const length = Number(request.headers.get("Content-Length") || 0);
-  if (length > 750_000) throw new HTTPError(413, "Requête trop volumineuse.");
+  const declaredLength = Number(request.headers.get("Content-Length") || 0);
+  if (declaredLength > 750_000)
+    throw new HTTPError(413, "Requête trop volumineuse.");
+  let bytes;
   try {
-    return await request.json();
+    bytes = await request.arrayBuffer();
+  } catch {
+    throw new HTTPError(400, "Corps de requête illisible.");
+  }
+  if (bytes.byteLength > 750_000)
+    throw new HTTPError(413, "Requête trop volumineuse.");
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new HTTPError(400, "JSON invalide.");
   }
@@ -522,6 +531,75 @@ async function handleIgnElevation(request, origin) {
   );
 }
 
+function orsErrorRecord(error) {
+  return {
+    message: String(error?.message || "Erreur ORS"),
+    code: error?.code || "ors-error",
+    upstreamStatus: Number(error?.upstreamStatus) || null,
+  };
+}
+
+function isORSProviderUnavailable(error) {
+  const status = Number(error?.upstreamStatus);
+  return status === 429 || status >= 500 || error?.code === "provider-unreadable";
+}
+
+function isORSClientRejection(error) {
+  const status = Number(error?.upstreamStatus);
+  return status === 400 || status === 404 || status === 422;
+}
+
+async function runORSFamily({
+  lon,
+  lat,
+  target,
+  apiKey,
+  profile,
+  routingOptions,
+  seedOffset = 0,
+  desiredCount = 3,
+}) {
+  const seeds = ORS_SEEDS.slice(seedOffset, seedOffset + ORS_BATCH_SIZE);
+  const settled = await Promise.allSettled(
+    seeds.map((seed, batchIndex) =>
+      fetchORSRoundTrip({
+        lon,
+        lat,
+        target,
+        seed,
+        index: seedOffset + batchIndex,
+        apiKey,
+        profile,
+        routingOptions,
+      }),
+    ),
+  );
+  const routes = [];
+  const errors = [];
+  for (const result of settled) {
+    if (result.status === "rejected") {
+      errors.push(result.reason);
+      continue;
+    }
+    const feature = result.value?.features?.[0];
+    if (
+      feature?.geometry?.type === "LineString" &&
+      Array.isArray(feature.geometry.coordinates) &&
+      feature.geometry.coordinates.length >= 2
+    ) {
+      routes.push(feature);
+      if (routes.length >= desiredCount) break;
+    } else {
+      errors.push(
+        new HTTPError(502, "Boucle ORS sans géométrie GeoJSON exploitable.", {
+          code: "ors-invalid-geometry",
+        }),
+      );
+    }
+  }
+  return { routes, errors, requestCount: seeds.length };
+}
+
 async function handleORSRoundTrips(request, env, origin) {
   if (!env.ORS_API_KEY)
     throw new HTTPError(503, "Secret OpenRouteService non configuré.");
@@ -539,74 +617,108 @@ async function handleORSRoundTrips(request, env, origin) {
   ) {
     throw new HTTPError(400, "Paramètres ORS hors limites.");
   }
+
   const routing = sanitizeORSRouting(body);
-  const routes = [];
-  const errors = [];
-  let requestCount = 0;
-  for (
-    let offset = 0;
-    offset < ORS_SEEDS.length && routes.length < ORS_BATCH_SIZE;
-    offset += ORS_BATCH_SIZE
-  ) {
-    const seeds = ORS_SEEDS.slice(offset, offset + ORS_BATCH_SIZE);
-    const settled = await Promise.allSettled(
-      seeds.map((seed, batchIndex) =>
-        fetchORSRoundTrip({
-          lon,
-          lat,
-          target,
-          seed,
-          index: offset + batchIndex,
-          apiKey: env.ORS_API_KEY,
-          profile: routing.profile,
-          routingOptions: routing.options,
-        }),
-      ),
+  const desiredCount = Math.max(1, Math.min(3, Math.round(Number(body.count) || 3)));
+  const preferred = await runORSFamily({
+    lon,
+    lat,
+    target,
+    apiKey: env.ORS_API_KEY,
+    profile: routing.profile,
+    routingOptions: routing.options,
+    desiredCount,
+  });
+
+  if (preferred.routes.length) {
+    return json(
+      {
+        routes: preferred.routes,
+        requestCount: preferred.requestCount,
+        partialErrors: preferred.errors.length,
+        outcome: "success",
+        preferencesApplied: routing.preferencesApplied,
+        preferencesRelaxed: [],
+      },
+      200,
+      origin,
     );
-    requestCount += seeds.length;
-    for (const result of settled) {
-      if (result.status === "rejected") {
-        errors.push(result.reason?.message || "Erreur ORS");
-        continue;
-      }
-      const feature = result.value?.features?.[0];
-      if (
-        feature?.geometry?.type === "LineString" &&
-        Array.isArray(feature.geometry.coordinates) &&
-        feature.geometry.coordinates.length >= 2
-      ) {
-        routes.push(feature);
-      } else {
-        errors.push("Boucle ORS sans géométrie GeoJSON exploitable.");
-      }
-    }
-    if (!routes.length && settled.every(
-      (result) => result.status === "rejected" && isORSNoRouteError(result.reason),
-    )) {
+  }
+
+  if (preferred.errors.some(isORSProviderUnavailable)) {
+    const error = preferred.errors.find(isORSProviderUnavailable);
+    throw new HTTPError(502, error?.message || "OpenRouteService indisponible.", {
+      code: error?.code || "provider-error",
+      upstreamStatus: error?.upstreamStatus,
+    });
+  }
+
+  let totalRequests = preferred.requestCount;
+  let allErrors = [...preferred.errors];
+  if (routing.preferencesApplied.length) {
+    const neutral = await runORSFamily({
+      lon,
+      lat,
+      target,
+      apiKey: env.ORS_API_KEY,
+      profile: routing.profile,
+      routingOptions: routing.hardOptions,
+      seedOffset: ORS_BATCH_SIZE,
+      desiredCount,
+    });
+    totalRequests += neutral.requestCount;
+    allErrors = allErrors.concat(neutral.errors);
+    if (neutral.routes.length) {
       return json(
         {
-          routes: [],
-          requestCount,
-          partialErrors: errors.length,
-          outcome: "no-result",
-          error: {
-            code: "ors-no-route",
-            message:
-              "OpenRouteService n’a trouvé aucun départ pédestre routable à proximité de ce point.",
-          },
+          routes: neutral.routes,
+          requestCount: totalRequests,
+          partialErrors: allErrors.length,
+          outcome: "success-with-relaxed-preferences",
+          preferencesApplied: [],
+          preferencesRelaxed: routing.preferencesApplied,
+          notice:
+            "Aucune boucle n’a été obtenue avec les préférences facultatives. Les contraintes impératives ont été conservées et les préférences ont seulement servi au classement après calcul.",
         },
         200,
         origin,
       );
     }
+    if (neutral.errors.some(isORSProviderUnavailable)) {
+      const error = neutral.errors.find(isORSProviderUnavailable);
+      throw new HTTPError(502, error?.message || "OpenRouteService indisponible.", {
+        code: error?.code || "provider-error",
+        upstreamStatus: error?.upstreamStatus,
+      });
+    }
   }
-  if (!routes.length)
-    throw new HTTPError(
-      502,
-      errors[0] || "Aucune boucle OpenRouteService renvoyée.",
-    );
+
+  const onlyNoRouteOrRejected =
+    allErrors.length > 0 &&
+    allErrors.every((error) => isORSNoRouteError(error) || isORSClientRejection(error));
   return json(
-    { routes, requestCount, partialErrors: errors.length },
+    {
+      routes: [],
+      requestCount: totalRequests,
+      partialErrors: allErrors.length,
+      outcome: "no-result",
+      preferencesApplied: routing.preferencesApplied,
+      preferencesRelaxed: [],
+      error: {
+        code: routing.preferencesApplied.length
+          ? "ors-preferences-no-result"
+          : "ors-no-route",
+        reason: routing.preferencesApplied.length
+          ? "preferences-and-network-incompatible"
+          : "no-compatible-loop",
+        message: routing.preferencesApplied.length
+          ? "OpenRouteService fonctionne, mais aucune boucle compatible n’a été trouvée autour de ce départ, même après un essai sans les préférences facultatives."
+          : "OpenRouteService fonctionne, mais aucune boucle pédestre compatible n’a été trouvée autour de ce départ.",
+        details: onlyNoRouteOrRejected
+          ? allErrors.slice(0, 3).map(orsErrorRecord)
+          : [],
+      },
+    },
     200,
     origin,
   );
@@ -650,7 +762,19 @@ function sanitizeORSRouting(body) {
     profileParams.restrictions = restrictions;
   }
   if (Object.keys(profileParams).length) options.profile_params = profileParams;
-  return { profile, options };
+  const hardOptions = { ...options };
+  if (hardOptions.profile_params?.weightings) {
+    hardOptions.profile_params = { ...hardOptions.profile_params };
+    delete hardOptions.profile_params.weightings;
+    if (!Object.keys(hardOptions.profile_params).length)
+      delete hardOptions.profile_params;
+  }
+  return {
+    profile,
+    options,
+    hardOptions,
+    preferencesApplied: Object.keys(weightings),
+  };
 }
 
 async function fetchORSRoundTrip({
@@ -742,9 +866,13 @@ export default {
           headers: corsHeaders(origin),
         });
       const pathname = new URL(request.url).pathname;
+      if (env.ENVIRONMENT === "production" && !env.SERVICE_RATE_LIMITER)
+        throw new HTTPError(503, "Limitation de débit non configurée en production.");
       if (env.SERVICE_RATE_LIMITER) {
+        const clientHint = request.headers.get("CF-Connecting-IP") || "anonymous";
+        const ephemeralKey = `${origin}:${pathname}:${clientHint}`;
         const { success } = await env.SERVICE_RATE_LIMITER.limit({
-          key: `${origin}:${pathname}`,
+          key: ephemeralKey,
         });
         if (!success)
           throw new HTTPError(
