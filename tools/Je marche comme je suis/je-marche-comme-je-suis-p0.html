@@ -4764,6 +4764,16 @@ footer,.footer{color:var(--footer)}
         technicalMessage: message,
       };
 
+    if (error?.code === "ors-preferences-no-result")
+      return {
+        code: "preferences-no-result",
+        status,
+        retryable: false,
+        userMessage: message,
+        technicalMessage: message,
+        preferencesApplied: error?.preferencesApplied || [],
+      };
+
     if (
       error?.code === "ors-no-route" ||
       lower.includes("aucune boucle") ||
@@ -4980,8 +4990,13 @@ footer,.footer{color:var(--footer)}
       state: "limited",
     }),
     "no-result": Object.freeze({
-      title: "Aucun itinéraire pédestre n’a été trouvé depuis ce point",
-      body: "Le moteur cartographique n’a pas trouvé de réseau pédestre exploitable pour construire une boucle depuis le départ choisi.",
+      title: "Aucune boucle compatible n’a été trouvée depuis ce point",
+      body: "OpenRouteService a répondu, mais aucune boucle exploitable ne correspond au départ et aux contraintes impératives actuelles.",
+      state: "no-result",
+    }),
+    "preferences-no-result": Object.freeze({
+      title: "Aucune boucle compatible n’a été trouvée avec cette demande",
+      body: "OpenRouteService fonctionne. Un essai avec les préférences facultatives puis un essai neutre conservant les contraintes impératives n’ont produit aucune boucle exploitable.",
       state: "no-result",
     }),
     "invalid-response": Object.freeze({
@@ -5025,7 +5040,7 @@ footer,.footer{color:var(--footer)}
     const retryable = Boolean(diagnostic?.retryable);
     const actions = [];
     if (retryable) actions.push({ id: "retry", label: "Réessayer" });
-    if (code === "no-result") {
+    if (code === "no-result" || code === "preferences-no-result") {
       actions.push(
         { id: "change-start", label: "Déplacer le point de départ" },
         { id: "edit-request", label: "Modifier la durée ou la distance" },
@@ -6666,6 +6681,12 @@ footer,.footer{color:var(--footer)}
           data?.error?.message || data?.message || `Réponse ${response.status}`,
         );
         error.status = response.status;
+        error.code = data?.error?.code || data?.code || undefined;
+        error.reason = data?.error?.reason || undefined;
+        error.details = data?.error?.details || undefined;
+        error.outcome = data?.outcome || undefined;
+        error.requestCount = Number(data?.requestCount) || undefined;
+        error.preferencesApplied = data?.preferencesApplied || [];
         const retryHeader = response.headers?.get?.("Retry-After");
         const retryBody = data?.error?.retryAfterSeconds;
         const retryAfterSeconds = Number(retryHeader ?? retryBody);
@@ -6747,8 +6768,17 @@ footer,.footer{color:var(--footer)}
             data?.error?.message || "Aucune boucle OpenRouteService renvoyée.",
           );
           error.code = data?.error?.code || "ors-no-route";
+          error.reason = data?.error?.reason || null;
+          error.details = data?.error?.details || [];
+          error.outcome = data?.outcome || "no-result";
+          error.requestCount = Number(data?.requestCount) || 0;
+          error.preferencesApplied = data?.preferencesApplied || [];
           throw error;
         }
+        routes.outcome = data?.outcome || "success";
+        routes.requestCount = Number(data?.requestCount) || 0;
+        routes.preferencesRelaxed = data?.preferencesRelaxed || [];
+        routes.notice = data?.notice || "";
         return routes;
       },
     };
@@ -9471,11 +9501,17 @@ footer,.footer{color:var(--footer)}
       $("#closeOfflinePreparation").onclick = () => modal.classList.remove("show");
       $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        const workerUrl = new URL("service-worker.js", document.baseURI);
         try {
-          await navigator.serviceWorker.register("./service-worker.js");
-        } catch {
+          const probe = await fetch(workerUrl, { cache: "no-store" });
+          if (!probe.ok)
+            throw new Error(`service-worker.js répond ${probe.status}`);
+          await navigator.serviceWorker.register(workerUrl.href, { scope: "./" });
+        } catch (error) {
           throw new Error(
-            "Préparation hors connexion indisponible : service-worker.js manque à côté du fichier HTML.",
+            "Préparation hors connexion indisponible : le service worker n’est pas publié au même emplacement que l’application (" +
+              workerUrl.href +
+              ").",
           );
         }
       }
@@ -10205,8 +10241,31 @@ footer,.footer{color:var(--footer)}
       error.serviceName = "ors";
       throw error;
     }
-    serviceState("ors", "Requête réussie", "ok");
-    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
+    const relaxed = Array.isArray(result.value.preferencesRelaxed)
+      ? result.value.preferencesRelaxed
+      : [];
+    serviceState(
+      "ors",
+      relaxed.length ? "Boucles trouvées · préférences reclassées" : "Requête réussie",
+      "ok",
+    );
+    if (relaxed.length)
+      say(
+        "Aucune boucle n’a été obtenue avec les préférences " +
+          relaxed.join(" et ") +
+          ". Les contraintes impératives ont été conservées ; ces préférences servent maintenant au classement.",
+      );
+    return result.value.map((f, i) => {
+      const route = analyzeORSWithCore(f, req, i);
+      if (relaxed.length) {
+        route.warnings = [
+          ...(route.warnings || []),
+          `Préférences facultatives non imposées au routage : ${relaxed.join(", ")}. Elles restent évaluées après calcul.`,
+        ];
+        route.routingNotice = result.value.notice || "Préférences facultatives reclassées après calcul.";
+      }
+      return route;
+    });
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];
