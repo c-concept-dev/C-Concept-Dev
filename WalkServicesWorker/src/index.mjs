@@ -14,9 +14,10 @@ const ORS_BATCH_SIZE = 6;
 const MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
 
 class HTTPError extends Error {
-  constructor(status, message) {
+  constructor(status, message, details = {}) {
     super(message);
     this.status = status;
+    Object.assign(this, details);
   }
 }
 
@@ -75,9 +76,25 @@ async function providerJson(response) {
       data?.message ||
       data?.error ||
       `Réponse fournisseur ${response.status}`;
-    throw new HTTPError(502, String(message));
+    throw new HTTPError(502, String(message), {
+      code: "provider-error",
+      upstreamStatus: response.status,
+    });
   }
   return data;
+}
+
+function isORSNoRouteError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    error?.code === "ors-no-route" ||
+    message.includes("cannot find point") ||
+    message.includes("could not find routable point") ||
+    message.includes("unable to find a route") ||
+    message.includes("couldn't find a route") ||
+    message.includes("no route found") ||
+    message.includes("no path found")
+  );
 }
 
 function finiteNumber(value, label) {
@@ -393,6 +410,25 @@ async function handleORSRoundTrips(request, env, origin) {
       } else {
         errors.push("Boucle ORS sans géométrie GeoJSON exploitable.");
       }
+    }
+    if (!routes.length && settled.every(
+      (result) => result.status === "rejected" && isORSNoRouteError(result.reason),
+    )) {
+      return json(
+        {
+          routes: [],
+          requestCount,
+          partialErrors: errors.length,
+          outcome: "no-result",
+          error: {
+            code: "ors-no-route",
+            message:
+              "OpenRouteService n’a trouvé aucun départ pédestre routable à proximité de ce point.",
+          },
+        },
+        200,
+        origin,
+      );
     }
   }
   if (!routes.length)
