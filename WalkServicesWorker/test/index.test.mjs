@@ -194,7 +194,7 @@ test("ORS health check creates a real GeoJSON round trip", async (t) => {
   assert.equal(data.routeDurationSeconds, 780);
 });
 
-test("ORS round trips use GeoJSON and stop after the first six successful candidates", async (t) => {
+test("ORS round trips use GeoJSON and stop after the first four successful candidates", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -244,9 +244,9 @@ test("ORS round trips use GeoJSON and stop after the first six successful candid
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.routes.length, 6);
-  assert.equal(data.requestCount, 6);
-  assert.equal(upstreamCalls, 6);
+  assert.equal(data.routes.length, 4);
+  assert.equal(data.requestCount, 4);
+  assert.equal(upstreamCalls, 4);
 });
 
 test("ORS round trips whitelist wheelchair restrictions and routing options", async (t) => {
@@ -313,7 +313,7 @@ test("ORS round trips whitelist wheelchair restrictions and routing options", as
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.routes.length, 6);
+  assert.equal(data.routes.length, 4);
 });
 
 test("ORS no-routable-start stops after one batch and reports the new outcome envelope", async (t) => {
@@ -346,8 +346,8 @@ test("ORS no-routable-start stops after one batch and reports the new outcome en
   assert.equal(data.outcome, "no-routable-start");
   assert.equal(data.provider, "ors");
   assert.equal(data.retryable, false);
-  assert.equal(data.requestCount, 6);
-  assert.equal(upstreamCalls, 6);
+  assert.equal(data.requestCount, 4);
+  assert.equal(upstreamCalls, 4);
 });
 
 test("ORS no-route (routable start, no loop) tries every batch before giving up", async (t) => {

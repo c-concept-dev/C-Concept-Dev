@@ -10,7 +10,7 @@ const GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage"].join(",");
 const ORS_SEEDS = [
   17, 41, 83, 121, 167, 211, 257, 301, 347, 389, 433, 479, 523, 569, 613,
 ];
-const ORS_BATCH_SIZE = 6;
+const ORS_BATCH_SIZE = 4;
 const MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
 const OVERPASS_URLS = [
   "https://overpass-api.de/api/interpreter",
