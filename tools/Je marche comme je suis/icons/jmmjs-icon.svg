@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Je marche comme je suis">
+  <rect width="512" height="512" rx="64" fill="#E8E2D4"/>
+  <path d="M112 402c54-36 84-76 93-120 12-59-20-85 4-135 18-38 57-57 116-57" fill="none" stroke="#3A3628" stroke-width="28" stroke-linecap="round"/>
+  <path d="M124 406c53-36 82-74 91-117" fill="none" stroke="#8A9A5B" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="326" cy="91" r="31" fill="#C9A15A"/>
+  <circle cx="111" cy="404" r="25" fill="#B5502E"/>
+  <path d="M315 206c24-17 48-18 72-3M278 263c30-14 59-12 87 7" fill="none" stroke="#6F7E48" stroke-width="13" stroke-linecap="round"/>
+</svg>
