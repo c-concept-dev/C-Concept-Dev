@@ -34,6 +34,39 @@ assert.equal(
   classifyServiceError({ status: 503, message: "503" }, "Météo").retryable,
   true,
 );
+
+assert.equal(
+  classifyServiceError({ code: "no-routable-start", message: "x" }, "ORS").code,
+  "no-routable-start",
+);
+assert.equal(
+  classifyServiceError({ code: "no-routable-start", message: "x" }, "ORS").retryable,
+  false,
+);
+assert.equal(
+  classifyServiceError({ code: "preferences-too-restrictive", message: "x" }, "ORS").code,
+  "preferences-too-restrictive",
+);
+assert.equal(
+  classifyServiceError({ code: "no-route", message: "x" }, "ORS").code,
+  "no-route",
+);
+assert.equal(
+  classifyServiceError({ code: "provider-unavailable", retryable: true, message: "x" }, "ORS").retryable,
+  true,
+);
+assert.equal(
+  classifyServiceError({ code: "provider-unavailable", retryable: false, message: "x" }, "ORS").retryable,
+  false,
+);
+assert.equal(
+  classifyServiceError({ code: "invalid-request", message: "x" }, "ORS").code,
+  "invalid-request",
+);
+assert.equal(
+  classifyServiceError({ code: "invalid-request", message: "x" }, "ORS").retryable,
+  false,
+);
 assert.deepEqual(
   JSON.parse(JSON.stringify(classifyServiceError(
     { status: 502, message: "Cannot find point 0: 0.0,0.0" },
