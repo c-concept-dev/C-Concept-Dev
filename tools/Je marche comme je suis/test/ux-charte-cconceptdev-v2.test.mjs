@@ -33,3 +33,10 @@ test('le manifeste, les icônes et le cache PWA portent la nouvelle identité', 
   assert.match(worker, /jmmjs-shell-charte-v1-20260806/);
   assert.match(template, /apple-touch-icon-180\.png/);
 });
+
+test('le service worker est enregistré seulement lors de la préparation hors connexion', () => {
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  assert.equal((app.match(/serviceWorker\.register/g) || []).length, 1);
+  assert.match(app, /await navigator\.serviceWorker\.register\("\.\/service-worker\.js"\)/);
+  assert.match(app, /service-worker\.js manque à côté du fichier HTML/);
+});
