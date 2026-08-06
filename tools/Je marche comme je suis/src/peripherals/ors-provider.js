@@ -53,7 +53,11 @@
         );
         const routes = Array.isArray(data.routes) ? data.routes : [];
         if (!routes.length) {
-          throw new Error("Aucune boucle OpenRouteService renvoyée.");
+          const error = new Error(
+            data?.error?.message || "Aucune boucle OpenRouteService renvoyée.",
+          );
+          error.code = data?.error?.code || "ors-no-route";
+          throw error;
         }
         return routes;
       },
