@@ -88,6 +88,25 @@
         technicalMessage: message,
       };
 
+    if (
+      error?.code === "ors-no-route" ||
+      lower.includes("aucune boucle") ||
+      lower.includes("aucun itinéraire") ||
+      lower.includes("aucun itineraire") ||
+      lower.includes("cannot find point") ||
+      lower.includes("could not find routable point") ||
+      lower.includes("unable to find a route") ||
+      lower.includes("no route") ||
+      lower.includes("no path")
+    )
+      return {
+        code: "no-result",
+        status,
+        retryable: false,
+        userMessage: `${service} n’a trouvé aucun itinéraire pédestre exploitable depuis ce point.`,
+        technicalMessage: message,
+      };
+
     if (status && RETRYABLE_STATUS.has(status))
       return {
         code: "temporary",
@@ -109,21 +128,6 @@
         status,
         retryable: true,
         userMessage: `Connexion impossible avec ${service}.`,
-        technicalMessage: message,
-      };
-
-    if (
-      lower.includes("aucune boucle") ||
-      lower.includes("aucun itinéraire") ||
-      lower.includes("aucun itineraire") ||
-      lower.includes("no route") ||
-      lower.includes("no path")
-    )
-      return {
-        code: "no-result",
-        status,
-        retryable: false,
-        userMessage: `${service} n’a trouvé aucun itinéraire pédestre exploitable depuis ce point.`,
         technicalMessage: message,
       };
 
