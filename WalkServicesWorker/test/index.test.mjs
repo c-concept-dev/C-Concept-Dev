@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import worker, {
   buildMapillaryBoxes,
+  matchTerrainSegments,
   sampleRoute,
   validateBBox,
 } from "../src/index.mjs";
@@ -293,4 +294,135 @@ test("ORS no-route is a successful empty search and stops after one batch", asyn
   assert.equal(data.error.code, "ors-no-route");
   assert.equal(data.requestCount, 6);
   assert.equal(upstreamCalls, 6);
+});
+
+test("terrain matching keeps only route segments close to documented OSM ways", () => {
+  const route = [
+    [1.44, 43.6],
+    [1.441, 43.6],
+  ];
+  const segments = matchTerrainSegments(
+    route,
+    [
+      {
+        type: "way",
+        id: 42,
+        tags: { highway: "footway", surface: "asphalt" },
+        geometry: [
+          { lon: 1.44, lat: 43.60001 },
+          { lon: 1.441, lat: 43.60001 },
+        ],
+      },
+      {
+        type: "way",
+        id: 99,
+        tags: { highway: "steps" },
+        geometry: [
+          { lon: 1.44, lat: 43.61 },
+          { lon: 1.441, lat: 43.61 },
+        ],
+      },
+    ],
+    25,
+  );
+  assert.equal(segments.length, 1);
+  assert.equal(segments[0].id, 42);
+  assert.equal(segments[0].tags.surface, "asphalt");
+  assert.ok(segments[0].lengthMeters > 70);
+  assert.ok(segments[0].matchDistanceMeters < 2);
+});
+
+test("Overpass terrain endpoint validates the trace and returns matched evidence", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (url, options) => {
+    assert.equal(String(url), "https://overpass-api.de/api/interpreter");
+    assert.match(String(options.body), /way%5B%22highway%22%5D/);
+    return new Response(
+      JSON.stringify({
+        elements: [
+          {
+            type: "way",
+            id: 42,
+            tags: { highway: "path", smoothness: "good" },
+            geometry: [
+              { lon: 1.44, lat: 43.6 },
+              { lon: 1.441, lat: 43.6 },
+            ],
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/terrain", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.441, 43.6],
+        ],
+        bufferMeters: 25,
+        routeLengthMeters: 81,
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.segments.length, 1);
+  assert.equal(data.routeLengthMeters, 81);
+  assert.equal(data.source, "Overpass / OpenStreetMap");
+});
+
+test("IGN elevation endpoint uses elevationLine and removes uncovered values", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (url, options) => {
+    assert.equal(
+      String(url),
+      "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevationLine.json",
+    );
+    const body = JSON.parse(options.body);
+    assert.equal(body.resource, "ign_rge_alti_wld");
+    assert.equal(body.sampling, "3");
+    return new Response(
+      JSON.stringify({
+        elevations: [
+          { lon: 1.44, lat: 43.6, z: 150 },
+          { lon: 1.4405, lat: 43.6005, z: -99999 },
+          { lon: 1.441, lat: 43.601, z: 162 },
+        ],
+        height_differences: { positive: 12, negative: 0 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ign/elevation", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.4405, 43.6005],
+          [1.441, 43.601],
+        ],
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.elevations.length, 2);
+  assert.equal(data.ascentMeters, 12);
+  assert.equal(data.coveragePercent, 67);
 });
