@@ -57,8 +57,17 @@
             data?.error?.message || "Aucune boucle OpenRouteService renvoyée.",
           );
           error.code = data?.error?.code || "ors-no-route";
+          error.reason = data?.error?.reason || null;
+          error.details = data?.error?.details || [];
+          error.outcome = data?.outcome || "no-result";
+          error.requestCount = Number(data?.requestCount) || 0;
+          error.preferencesApplied = data?.preferencesApplied || [];
           throw error;
         }
+        routes.outcome = data?.outcome || "success";
+        routes.requestCount = Number(data?.requestCount) || 0;
+        routes.preferencesRelaxed = data?.preferencesRelaxed || [];
+        routes.notice = data?.notice || "";
         return routes;
       },
     };
