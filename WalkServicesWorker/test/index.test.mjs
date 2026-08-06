@@ -29,6 +29,59 @@ test("Geoapify bounding boxes are constrained", () => {
   assert.throws(() => validateBBox([2, 48, 3, 49]), /trop étendue/);
 });
 
+test("rate limiting is keyed per visitor, not just per origin and path", async () => {
+  const seenKeys = [];
+  const trackingLimiter = {
+    limit: async ({ key }) => {
+      seenKeys.push(key);
+      return { success: true };
+    },
+  };
+  await worker.fetch(
+    new Request("https://worker.example/v1/test", {
+      method: "POST",
+      headers: {
+        Origin: allowedOrigin,
+        "CF-Connecting-IP": "203.0.113.10",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ service: "geo" }),
+    }),
+    { SERVICE_RATE_LIMITER: trackingLimiter, GEOAPIFY_API_KEY: "secret" },
+    {},
+  );
+  await worker.fetch(
+    new Request("https://worker.example/v1/test", {
+      method: "POST",
+      headers: {
+        Origin: allowedOrigin,
+        "CF-Connecting-IP": "198.51.100.20",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ service: "geo" }),
+    }),
+    { SERVICE_RATE_LIMITER: trackingLimiter, GEOAPIFY_API_KEY: "secret" },
+    {},
+  );
+  assert.equal(seenKeys.length, 2);
+  assert.notEqual(seenKeys[0], seenKeys[1]);
+  assert.ok(seenKeys[0].endsWith(":203.0.113.10"));
+  assert.ok(seenKeys[1].endsWith(":198.51.100.20"));
+});
+
+test("requests fail closed when the rate limiter binding is missing", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/test", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ service: "geo" }),
+    }),
+    { GEOAPIFY_API_KEY: "secret" },
+    {},
+  );
+  assert.equal(response.status, 503);
+});
+
 test("unapproved origins are rejected before provider access", async () => {
   const response = await worker.fetch(
     new Request("https://worker.example/v1/test", {
@@ -141,7 +194,7 @@ test("ORS health check creates a real GeoJSON round trip", async (t) => {
   assert.equal(data.routeDurationSeconds, 780);
 });
 
-test("ORS round trips use GeoJSON and stop after the requested three successful candidates", async (t) => {
+test("ORS round trips use GeoJSON and stop after the first six successful candidates", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -191,9 +244,9 @@ test("ORS round trips use GeoJSON and stop after the requested three successful 
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.routes.length, 3);
-  assert.equal(data.requestCount, 3);
-  assert.equal(upstreamCalls, 3);
+  assert.equal(data.routes.length, 6);
+  assert.equal(data.requestCount, 6);
+  assert.equal(upstreamCalls, 6);
 });
 
 test("ORS round trips whitelist wheelchair restrictions and routing options", async (t) => {
@@ -260,10 +313,10 @@ test("ORS round trips whitelist wheelchair restrictions and routing options", as
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.routes.length, 3);
+  assert.equal(data.routes.length, 6);
 });
 
-test("ORS no-route is a successful empty search and stops after one batch", async (t) => {
+test("ORS no-routable-start stops after one batch and reports the new outcome envelope", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -290,10 +343,229 @@ test("ORS no-route is a successful empty search and stops after one batch", asyn
   assert.equal(response.status, 200);
   const data = await response.json();
   assert.deepEqual(data.routes, []);
-  assert.equal(data.outcome, "no-result");
-  assert.equal(data.error.code, "ors-no-route");
-  assert.equal(data.requestCount, 3);
-  assert.equal(upstreamCalls, 3);
+  assert.equal(data.outcome, "no-routable-start");
+  assert.equal(data.provider, "ors");
+  assert.equal(data.retryable, false);
+  assert.equal(data.requestCount, 6);
+  assert.equal(upstreamCalls, 6);
+});
+
+test("ORS no-route (routable start, no loop) tries every batch before giving up", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let upstreamCalls = 0;
+  globalThis.fetch = async () => {
+    upstreamCalls += 1;
+    return new Response(
+      JSON.stringify({ error: { message: "Unable to find a route" } }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
+    );
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [0, 0], targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.outcome, "no-route");
+  assert.equal(data.requestCount, 15);
+  assert.equal(upstreamCalls, 15);
+});
+
+test("ORS preferences-too-restrictive is reported instead of plain no-route when green/quiet were requested", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({ error: { message: "No route found" } }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
+    );
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coordinate: [0, 0],
+        targetMeters: 2500,
+        weightings: { green: { factor: 1 } },
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.outcome, "preferences-too-restrictive");
+});
+
+test("ORS provider-unavailable stops immediately instead of burning through every seed", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let upstreamCalls = 0;
+  globalThis.fetch = async () => {
+    upstreamCalls += 1;
+    return new Response("bad gateway", { status: 503 });
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [0, 0], targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 502);
+  const data = await response.json();
+  assert.equal(data.outcome, "provider-unavailable");
+  assert.equal(data.retryable, true);
+  assert.equal(data.providerStatus, 503);
+  assert.ok(upstreamCalls < 15, "should not exhaust every seed against a dead provider");
+});
+
+test("ORS invalid-request is reported for malformed input without calling the provider", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let upstreamCalls = 0;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => {
+    upstreamCalls += 1;
+    throw new Error("must not be called");
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ coordinate: [0], targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 400);
+  const data = await response.json();
+  assert.equal(data.outcome, "invalid-request");
+  assert.equal(data.requestCount, 0);
+  assert.equal(upstreamCalls, 0);
+});
+
+test("ORS success reports preferencesApplied and imperativesPreserved", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const [lon, lat] = body.coordinates[0];
+    return new Response(
+      JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [lon, lat],
+                [lon + 0.001, lat + 0.001],
+                [lon, lat],
+              ],
+            },
+            properties: { summary: { distance: body.options.round_trip.length, duration: 1200 } },
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/geo+json" } },
+    );
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coordinate: [1.444, 43.604],
+        targetMeters: 5000,
+        weightings: { green: { factor: 1 } },
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.outcome, "success");
+  assert.deepEqual(data.preferencesApplied, ["green"]);
+  assert.equal(data.imperativesPreserved, true);
+});
+
+test("ORS flags imperativesPreserved as false when a requested wheelchair restriction is silently substituted", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const [lon, lat] = body.coordinates[0];
+    return new Response(
+      JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [lon, lat],
+                [lon + 0.001, lat],
+                [lon, lat],
+              ],
+            },
+            properties: { summary: { distance: body.options.round_trip.length, duration: 1200 } },
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/geo+json" } },
+    );
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/ors/round-trips", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coordinate: [1.444, 43.604],
+        targetMeters: 5000,
+        profile: "wheelchair",
+        restrictions: { maximum_incline: 8 },
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  const data = await response.json();
+  assert.equal(data.imperativesPreserved, false);
 });
 
 test("terrain matching keeps only route segments close to documented OSM ways", () => {
@@ -378,6 +650,71 @@ test("Overpass terrain endpoint validates the trace and returns matched evidence
   assert.equal(data.segments.length, 1);
   assert.equal(data.routeLengthMeters, 81);
   assert.equal(data.source, "Overpass / OpenStreetMap");
+  assert.equal(data.status, "ok");
+});
+
+test("Overpass terrain falls back to the second instance on failure", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const calledUrls = [];
+  globalThis.fetch = async (url) => {
+    calledUrls.push(String(url));
+    if (String(url).includes("overpass-api.de"))
+      return new Response("bad gateway", { status: 502 });
+    return new Response(JSON.stringify({ elements: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/terrain", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.441, 43.6],
+        ],
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, "ok");
+  assert.equal(calledUrls.length, 2);
+  assert.ok(calledUrls[1].includes("overpass.kumi.systems"));
+});
+
+test("Overpass terrain returns terrain-unavailable without blocking the walk when every instance fails", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response("bad gateway", { status: 502 });
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/terrain", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.441, 43.6],
+        ],
+        routeLengthMeters: 81,
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, "terrain-unavailable");
+  assert.deepEqual(data.segments, []);
+  assert.equal(data.routeLengthMeters, 81);
 });
 
 test("IGN elevation endpoint uses elevationLine and removes uncovered values", async (t) => {
@@ -427,64 +764,131 @@ test("IGN elevation endpoint uses elevationLine and removes uncovered values", a
   assert.equal(data.coveragePercent, 67);
 });
 
-
-test("ORS relaxes only optional green/quiet preferences and keeps hard options", async (t) => {
+test("fallback-starts finds a plausible alternative departure and stops within budget", async (t) => {
   const originalFetch = globalThis.fetch;
-  t.after(() => { globalThis.fetch = originalFetch; });
-  let calls = 0;
-  globalThis.fetch = async (_url, options) => {
-    calls += 1;
-    const body = JSON.parse(options.body);
-    const weighted = Boolean(body.options?.profile_params?.weightings);
-    if (weighted) {
-      return new Response(JSON.stringify({ error: { message: "No route found with dynamic weighting" } }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let orsCalls = 0;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes("overpass")) {
+      return new Response(
+        JSON.stringify({
+          elements: [
+            { type: "node", id: 1, lat: 43.62, lon: 1.41, tags: { amenity: "parking" } },
+            { type: "node", id: 2, lat: 43.70, lon: 1.50, tags: { leisure: "park" } },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }
-    assert.deepEqual(body.options.avoid_features, ["steps"]);
+    orsCalls += 1;
+    const body = JSON.parse(options.body);
     const [lon, lat] = body.coordinates[0];
-    return new Response(JSON.stringify({
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: [[lon, lat], [lon + 0.001, lat], [lon, lat]] },
-        properties: { summary: { distance: 3000, duration: 1800 } },
-      }],
-    }), { status: 200, headers: { "Content-Type": "application/geo+json" } });
+    return new Response(
+      JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: [[lon, lat], [lon + 0.001, lat], [lon, lat]] },
+            properties: { summary: { distance: body.options.round_trip.length, duration: 900 } },
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/geo+json" } },
+    );
   };
-  const response = await worker.fetch(new Request("https://worker.example/v1/ors/round-trips", {
-    method: "POST",
-    headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      coordinate: [1.444, 43.604], targetMeters: 3000,
-      avoidFeatures: ["steps"], weightings: { green: { factor: 1 }, quiet: { factor: 1 } }, count: 3,
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/fallback-starts", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ origin: { lat: 43.60, lon: 1.44 }, targetMeters: 2500, radiusMeters: 10000 }),
     }),
-  }), { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" }, {});
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.outcome, "success-with-relaxed-preferences");
-  assert.deepEqual(data.preferencesRelaxed.sort(), ["green", "quiet"]);
-  assert.equal(data.routes.length, 3);
-  assert.equal(calls, 6);
+  assert.equal(data.outcome, "fallback-starts-found");
+  assert.equal(data.starts.length, 2);
+  assert.equal(data.starts[0].access.parking, "documented");
+  assert.equal(data.starts[0].distanceFromOriginMeters > 0, true);
+  assert.ok(!("reason" in data.starts[0]), "no unverifiable qualitative claim should be fabricated");
+  assert.equal(orsCalls, 2, "one successful attempt per candidate, no wasted second try");
 });
 
-test("ORS provider outage stops after the first family instead of multiplying retries", async (t) => {
+test("fallback-starts never tests more than 3 candidates or 2 ORS attempts each", async (t) => {
   const originalFetch = globalThis.fetch;
-  t.after(() => { globalThis.fetch = originalFetch; });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let orsCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("overpass")) {
+      return new Response(
+        JSON.stringify({
+          elements: Array.from({ length: 6 }, (_, index) => ({
+            type: "node",
+            id: index,
+            lat: 43.6 + index * 0.01,
+            lon: 1.44 + index * 0.01,
+            tags: { amenity: "parking" },
+          })),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    orsCalls += 1;
+    return new Response(
+      JSON.stringify({ error: { message: "Unable to find a route" } }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
+    );
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/fallback-starts", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ origin: { lat: 43.60, lon: 1.44 }, targetMeters: 2500, maximumCandidates: 6 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.outcome, "no-fallback-starts");
+  assert.equal(data.candidatesConsidered, 6);
+  assert.equal(data.candidatesTested, 3);
+  assert.equal(orsCalls, 6, "3 candidates x 2 attempts maximum");
+});
+
+test("fallback-starts reports invalid-request without calling any provider", async (t) => {
+  const originalFetch = globalThis.fetch;
   let calls = 0;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
   globalThis.fetch = async () => {
     calls += 1;
-    return new Response(JSON.stringify({ error: { message: "upstream unavailable" } }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+    throw new Error("must not be called");
   };
-  const response = await worker.fetch(new Request("https://worker.example/v1/ors/round-trips", {
-    method: "POST",
-    headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
-    body: JSON.stringify({ coordinate: [1.444, 43.604], targetMeters: 3000, weightings: { green: { factor: 1 } } }),
-  }), { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" }, {});
-  assert.equal(response.status, 502);
-  assert.equal(calls, 3);
+
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/fallback-starts", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({ origin: { lat: 999, lon: 1.44 }, targetMeters: 2500 }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
+    {},
+  );
+
+  assert.equal(response.status, 400);
+  const data = await response.json();
+  assert.equal(data.outcome, "invalid-request");
+  assert.equal(calls, 0);
 });
