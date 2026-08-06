@@ -120,6 +120,57 @@ test("the ORS peripheral preserves a structured no-route outcome", async () => {
   );
 });
 
+test("the ORS peripheral posts fallback-starts searches with the origin and radius", async () => {
+  const context = moduleContext();
+  let call;
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: {
+      async post(...args) {
+        call = args;
+        return {
+          outcome: "fallback-starts-found",
+          starts: [{ id: "node/1", coordinates: [1.41, 43.62], distanceFromOriginMeters: 3200, access: { parking: "documented", publicTransport: "unknown" }, routesFound: 1 }],
+          candidatesConsidered: 2,
+          candidatesTested: 1,
+        };
+      },
+    },
+  });
+
+  const result = await provider.findFallbackStarts({
+    origin: { lat: 43.6, lon: 1.44 },
+    targetMeters: 2500,
+    radiusMeters: 5000,
+    compiled: { routing: { profile: "foot-walking", avoidFeatures: ["steps"], weightings: {}, restrictions: {} } },
+  });
+
+  assert.equal(call[0], "ors");
+  assert.equal(call[1], "/fallback-starts");
+  assert.deepEqual(JSON.parse(JSON.stringify(call[2])), {
+    origin: { lat: 43.6, lon: 1.44 },
+    targetMeters: 2500,
+    radiusMeters: 5000,
+    profile: "foot-walking",
+    avoidFeatures: ["steps"],
+    weightings: {},
+    restrictions: {},
+  });
+  assert.equal(result.outcome, "fallback-starts-found");
+  assert.equal(result.starts.length, 1);
+  assert.equal(result.starts[0].distanceFromOriginMeters, 3200);
+});
+
+test("the ORS peripheral rejects a fallback-starts search without a valid origin", async () => {
+  const context = moduleContext();
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: { async post() { throw new Error("must not be called"); } },
+  });
+  await assert.rejects(
+    () => provider.findFallbackStarts({ origin: null, targetMeters: 2500 }),
+    (error) => /origine invalide/i.test(error.message),
+  );
+});
+
 test("the service client preserves a structured Worker error", async () => {
   const context = moduleContext();
   const client = context.JMMJSServiceClient.createServiceClient({
