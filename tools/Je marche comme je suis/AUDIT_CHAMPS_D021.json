@@ -1,6 +1,6 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-04T17:27:32.957Z",
+  "generatedAt": "2026-08-06T08:46:42.426Z",
   "counts": {
     "visibleFields": 43,
     "choiceGroups": 5,
@@ -264,16 +264,6 @@
       "note": "Matrice de surfaces et audit des incompatibilités documentées."
     },
     {
-      "id": "limitationSide",
-      "kind": "field",
-      "effect": "explanation",
-      "severity": "information",
-      "requiredData": [],
-      "unknownPolicy": "preserve-unknown",
-      "status": "complete",
-      "note": "Côté déclaré, conservé dans la demande et expliqué."
-    },
-    {
       "id": "limitationTrigger",
       "kind": "field",
       "effect": "generation-audit",
@@ -284,28 +274,6 @@
       "unknownPolicy": "confirm",
       "status": "complete",
       "note": "Déclencheur traduit en conséquence fonctionnelle confirmée."
-    },
-    {
-      "id": "limitationConsequence",
-      "kind": "field",
-      "effect": "generation-audit",
-      "severity": "conditional",
-      "requiredData": [
-        "confirmed-functional-effect"
-      ],
-      "unknownPolicy": "confirm",
-      "status": "complete",
-      "note": "Éviter, limiter, ralentir, pause ou repli modifient la demande."
-    },
-    {
-      "id": "limitationTemporality",
-      "kind": "field",
-      "effect": "explanation",
-      "severity": "information",
-      "requiredData": [],
-      "unknownPolicy": "preserve-unknown",
-      "status": "complete",
-      "note": "Contexte temporel conservé dans la règle dérivée."
     },
     {
       "id": "maxWithoutPause",
@@ -340,6 +308,38 @@
       "unknownPolicy": "preserve-unknown",
       "status": "complete",
       "note": "Information de préparation conservée sans bonus de capacité."
+    },
+    {
+      "id": "limitationSide",
+      "kind": "field",
+      "effect": "explanation",
+      "severity": "information",
+      "requiredData": [],
+      "unknownPolicy": "preserve-unknown",
+      "status": "complete",
+      "note": "Côté déclaré, conservé dans la demande et expliqué."
+    },
+    {
+      "id": "limitationConsequence",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "confirmed-functional-effect"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "complete",
+      "note": "Éviter, limiter, ralentir, pause ou repli modifient la demande."
+    },
+    {
+      "id": "limitationTemporality",
+      "kind": "field",
+      "effect": "explanation",
+      "severity": "information",
+      "requiredData": [],
+      "unknownPolicy": "preserve-unknown",
+      "status": "complete",
+      "note": "Contexte temporel conservé dans la règle dérivée."
     },
     {
       "id": "noStairs",
