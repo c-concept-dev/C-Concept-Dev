@@ -141,7 +141,7 @@ test("ORS health check creates a real GeoJSON round trip", async (t) => {
   assert.equal(data.routeDurationSeconds, 780);
 });
 
-test("ORS round trips use GeoJSON and stop after the first six successful candidates", async (t) => {
+test("ORS round trips use GeoJSON and stop after the requested three successful candidates", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -191,9 +191,9 @@ test("ORS round trips use GeoJSON and stop after the first six successful candid
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.routes.length, 6);
-  assert.equal(data.requestCount, 6);
-  assert.equal(upstreamCalls, 6);
+  assert.equal(data.routes.length, 3);
+  assert.equal(data.requestCount, 3);
+  assert.equal(upstreamCalls, 3);
 });
 
 test("ORS round trips whitelist wheelchair restrictions and routing options", async (t) => {
@@ -260,7 +260,7 @@ test("ORS round trips whitelist wheelchair restrictions and routing options", as
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.routes.length, 6);
+  assert.equal(data.routes.length, 3);
 });
 
 test("ORS no-route is a successful empty search and stops after one batch", async (t) => {
@@ -292,8 +292,8 @@ test("ORS no-route is a successful empty search and stops after one batch", asyn
   assert.deepEqual(data.routes, []);
   assert.equal(data.outcome, "no-result");
   assert.equal(data.error.code, "ors-no-route");
-  assert.equal(data.requestCount, 6);
-  assert.equal(upstreamCalls, 6);
+  assert.equal(data.requestCount, 3);
+  assert.equal(upstreamCalls, 3);
 });
 
 test("terrain matching keeps only route segments close to documented OSM ways", () => {
@@ -425,4 +425,66 @@ test("IGN elevation endpoint uses elevationLine and removes uncovered values", a
   assert.equal(data.elevations.length, 2);
   assert.equal(data.ascentMeters, 12);
   assert.equal(data.coveragePercent, 67);
+});
+
+
+test("ORS relaxes only optional green/quiet preferences and keeps hard options", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let calls = 0;
+  globalThis.fetch = async (_url, options) => {
+    calls += 1;
+    const body = JSON.parse(options.body);
+    const weighted = Boolean(body.options?.profile_params?.weightings);
+    if (weighted) {
+      return new Response(JSON.stringify({ error: { message: "No route found with dynamic weighting" } }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    assert.deepEqual(body.options.avoid_features, ["steps"]);
+    const [lon, lat] = body.coordinates[0];
+    return new Response(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[lon, lat], [lon + 0.001, lat], [lon, lat]] },
+        properties: { summary: { distance: 3000, duration: 1800 } },
+      }],
+    }), { status: 200, headers: { "Content-Type": "application/geo+json" } });
+  };
+  const response = await worker.fetch(new Request("https://worker.example/v1/ors/round-trips", {
+    method: "POST",
+    headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      coordinate: [1.444, 43.604], targetMeters: 3000,
+      avoidFeatures: ["steps"], weightings: { green: { factor: 1 }, quiet: { factor: 1 } }, count: 3,
+    }),
+  }), { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" }, {});
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.outcome, "success-with-relaxed-preferences");
+  assert.deepEqual(data.preferencesRelaxed.sort(), ["green", "quiet"]);
+  assert.equal(data.routes.length, 3);
+  assert.equal(calls, 6);
+});
+
+test("ORS provider outage stops after the first family instead of multiplying retries", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ error: { message: "upstream unavailable" } }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const response = await worker.fetch(new Request("https://worker.example/v1/ors/round-trips", {
+    method: "POST",
+    headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+    body: JSON.stringify({ coordinate: [1.444, 43.604], targetMeters: 3000, weightings: { green: { factor: 1 } } }),
+  }), { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" }, {});
+  assert.equal(response.status, 502);
+  assert.equal(calls, 3);
 });
