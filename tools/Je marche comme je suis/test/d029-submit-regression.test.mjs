@@ -31,7 +31,7 @@ test("le formulaire bloque la soumission HTML native", () => {
   );
   assert.match(
     html,
-    /<form class="panel" id="form" onsubmit="return false">/,
+    /<form class="panel" id="form" novalidate onsubmit="return false">/,
   );
 });
 
