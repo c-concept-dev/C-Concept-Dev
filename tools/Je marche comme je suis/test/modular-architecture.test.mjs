@@ -90,6 +90,36 @@ test("the ORS peripheral sends only compiled routing options", async () => {
   ]);
 });
 
+test("the ORS peripheral preserves a structured no-route outcome", async () => {
+  const context = moduleContext();
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: {
+      async post() {
+        return {
+          routes: [],
+          outcome: "no-result",
+          error: {
+            code: "ors-no-route",
+            message: "Aucun départ pédestre routable à proximité.",
+          },
+        };
+      },
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      provider.createRoundTrips({
+        coordinate: [1.44, 43.6],
+        targetMeters: 2500,
+        compiled: { routing: { profile: "foot-walking" } },
+      }),
+    (error) =>
+      error.code === "ors-no-route" &&
+      /Aucun départ pédestre routable/.test(error.message),
+  );
+});
+
 test("the service client preserves a structured Worker error", async () => {
   const context = moduleContext();
   const client = context.JMMJSServiceClient.createServiceClient({
