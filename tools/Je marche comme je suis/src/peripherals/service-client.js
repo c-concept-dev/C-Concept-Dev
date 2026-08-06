@@ -49,6 +49,12 @@
           data?.error?.message || data?.message || `Réponse ${response.status}`,
         );
         error.status = response.status;
+        error.code = data?.error?.code || data?.code || undefined;
+        error.reason = data?.error?.reason || undefined;
+        error.details = data?.error?.details || undefined;
+        error.outcome = data?.outcome || undefined;
+        error.requestCount = Number(data?.requestCount) || undefined;
+        error.preferencesApplied = data?.preferencesApplied || [];
         const retryHeader = response.headers?.get?.("Retry-After");
         const retryBody = data?.error?.retryAfterSeconds;
         const retryAfterSeconds = Number(retryHeader ?? retryBody);
