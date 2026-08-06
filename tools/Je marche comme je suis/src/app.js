@@ -2304,11 +2304,17 @@
       $("#closeOfflinePreparation").onclick = () => modal.classList.remove("show");
       $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        const workerUrl = new URL("service-worker.js", document.baseURI);
         try {
-          await navigator.serviceWorker.register("./service-worker.js");
-        } catch {
+          const probe = await fetch(workerUrl, { cache: "no-store" });
+          if (!probe.ok)
+            throw new Error(`service-worker.js répond ${probe.status}`);
+          await navigator.serviceWorker.register(workerUrl.href, { scope: "./" });
+        } catch (error) {
           throw new Error(
-            "Préparation hors connexion indisponible : service-worker.js manque à côté du fichier HTML.",
+            "Préparation hors connexion indisponible : le service worker n’est pas publié au même emplacement que l’application (" +
+              workerUrl.href +
+              ").",
           );
         }
       }
@@ -3038,8 +3044,31 @@
       error.serviceName = "ors";
       throw error;
     }
-    serviceState("ors", "Requête réussie", "ok");
-    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
+    const relaxed = Array.isArray(result.value.preferencesRelaxed)
+      ? result.value.preferencesRelaxed
+      : [];
+    serviceState(
+      "ors",
+      relaxed.length ? "Boucles trouvées · préférences reclassées" : "Requête réussie",
+      "ok",
+    );
+    if (relaxed.length)
+      say(
+        "Aucune boucle n’a été obtenue avec les préférences " +
+          relaxed.join(" et ") +
+          ". Les contraintes impératives ont été conservées ; ces préférences servent maintenant au classement.",
+      );
+    return result.value.map((f, i) => {
+      const route = analyzeORSWithCore(f, req, i);
+      if (relaxed.length) {
+        route.warnings = [
+          ...(route.warnings || []),
+          `Préférences facultatives non imposées au routage : ${relaxed.join(", ")}. Elles restent évaluées après calcul.`,
+        ];
+        route.routingNotice = result.value.notice || "Préférences facultatives reclassées après calcul.";
+      }
+      return route;
+    });
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];
