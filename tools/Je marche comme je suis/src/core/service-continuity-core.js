@@ -21,8 +21,13 @@
       state: "limited",
     }),
     "no-result": Object.freeze({
-      title: "Aucun itinéraire pédestre n’a été trouvé depuis ce point",
-      body: "Le moteur cartographique n’a pas trouvé de réseau pédestre exploitable pour construire une boucle depuis le départ choisi.",
+      title: "Aucune boucle compatible n’a été trouvée depuis ce point",
+      body: "OpenRouteService a répondu, mais aucune boucle exploitable ne correspond au départ et aux contraintes impératives actuelles.",
+      state: "no-result",
+    }),
+    "preferences-no-result": Object.freeze({
+      title: "Aucune boucle compatible n’a été trouvée avec cette demande",
+      body: "OpenRouteService fonctionne. Un essai avec les préférences facultatives puis un essai neutre conservant les contraintes impératives n’ont produit aucune boucle exploitable.",
       state: "no-result",
     }),
     "invalid-response": Object.freeze({
@@ -66,7 +71,7 @@
     const retryable = Boolean(diagnostic?.retryable);
     const actions = [];
     if (retryable) actions.push({ id: "retry", label: "Réessayer" });
-    if (code === "no-result") {
+    if (code === "no-result" || code === "preferences-no-result") {
       actions.push(
         { id: "change-start", label: "Déplacer le point de départ" },
         { id: "edit-request", label: "Modifier la durée ou la distance" },
