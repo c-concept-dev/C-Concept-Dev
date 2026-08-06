@@ -88,14 +88,49 @@
         technicalMessage: message,
       };
 
-    if (error?.code === "ors-preferences-no-result")
+    if (error?.code === "no-routable-start")
       return {
-        code: "preferences-no-result",
+        code: "no-routable-start",
         status,
         retryable: false,
-        userMessage: message,
+        userMessage: `${service} ne trouve aucun point de départ pédestre routable à cet endroit.`,
         technicalMessage: message,
-        preferencesApplied: error?.preferencesApplied || [],
+      };
+
+    if (error?.code === "preferences-too-restrictive")
+      return {
+        code: "preferences-too-restrictive",
+        status,
+        retryable: false,
+        userMessage: `${service} ne trouve pas de boucle compatible avec les préférences choisies (calme, verdure).`,
+        technicalMessage: message,
+      };
+
+    if (error?.code === "no-route")
+      return {
+        code: "no-route",
+        status,
+        retryable: false,
+        userMessage: `${service} n’a trouvé aucun itinéraire pédestre exploitable depuis ce point.`,
+        technicalMessage: message,
+      };
+
+    if (error?.code === "provider-unavailable")
+      return {
+        code: "provider-unavailable",
+        status,
+        retryable: error?.retryable !== false,
+        userMessage: `${service} est temporairement indisponible.`,
+        technicalMessage: message,
+      };
+
+    if (error?.code === "invalid-request")
+      return {
+        code: "invalid-request",
+        status,
+        retryable: false,
+        userMessage: `${service} a reçu une demande invalide.`,
+        technicalMessage: message,
       };
 
     if (
