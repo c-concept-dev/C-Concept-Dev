@@ -6,24 +6,29 @@ const template = readFileSync(new URL('../je-marche-comme-je-suis.template.html'
 const manifest = JSON.parse(readFileSync(new URL('../manifest.webmanifest', import.meta.url), 'utf8'));
 const worker = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 
-test('la charte C-Concept&Dev v2 est la source visuelle active', () => {
-  assert.match(template, /CHARTE C-CONCEPT&DEV V2 — identité officielle/);
-  assert.match(template, /--teal:#3d8d94/);
-  assert.match(template, /--navy:#1b5e70/);
-  assert.match(template, /--sand:#E4D8C3/);
-  assert.match(template, /--font-heading:'Montserrat'/);
-  assert.match(template, /--font-body:'Open Sans'/);
-  assert.match(template, /--font-mono:'JetBrains Mono'/);
+test('la charte graphique JMMJS v1 du 06/08/2026 est la source visuelle active', () => {
+  assert.match(template, /CHARTE GRAPHIQUE JMMJS V1 — identité officielle du 06\/08\/2026/);
+  assert.match(template, /--cream:#E8E2D4/);
+  assert.match(template, /--sage:#8A9A5B/);
+  assert.match(template, /--ochre:#C9A15A/);
+  assert.match(template, /--terracotta:#B5502E/);
+  assert.match(template, /--ink:#3A3628/);
+  assert.match(template, /--font-brand:'Kalam'/);
+  assert.match(template, /--font-ui:'IBM Plex Sans'/);
+  assert.match(template, /--font-mono:'IBM Plex Mono'/);
 });
 
-test('les boutons principaux restent carrés et suivent la couleur teal', () => {
-  assert.match(template, /--radius-button:0/);
-  assert.match(template, /\.primary\{[^}]*border-radius:var\(--radius-button\)[^}]*background:var\(--teal\)/s);
-  assert.match(template, /\.primary:hover\{background:var\(--surface\);color:var\(--teal\)\}/);
+test('la sauge porte les actions et les niveaux de balade gardent leurs accents réservés', () => {
+  assert.match(template, /\.primary\{[^}]*background:var\(--sage\)/s);
+  assert.match(template, /\.primary:hover\{background:var\(--sage-hover\)/);
+  assert.match(template, /\.route-card\.route-comfortable\{border-top:4px solid var\(--ochre\)\}/);
+  assert.match(template, /\.route-card\.route-agreable\{border-top:4px solid var\(--sage\)\}/);
+  assert.match(template, /\.route-card\.route-tonique\{border-top:4px solid var\(--terracotta\)\}/);
 });
 
 test('le manifeste et le cache PWA portent la nouvelle identité', () => {
-  assert.equal(manifest.theme_color, '#3d8d94');
-  assert.equal(manifest.background_color, '#fafafa');
-  assert.match(worker, /jmmjs-shell-charte-v2/);
+  assert.equal(manifest.theme_color, '#8A9A5B');
+  assert.equal(manifest.background_color, '#E8E2D4');
+  assert.equal(manifest.icons.length, 0);
+  assert.match(worker, /jmmjs-shell-charte-v1-20260806/);
 });
