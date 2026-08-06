@@ -2435,7 +2435,8 @@
       $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
         try {
-          await navigator.serviceWorker.register("./service-worker.js");
+          const workerUrl = new URL("service-worker.js", document.baseURI);
+          await navigator.serviceWorker.register(workerUrl.href);
         } catch {
           throw new Error(
             "Préparation hors connexion indisponible : service-worker.js manque à côté du fichier HTML.",
