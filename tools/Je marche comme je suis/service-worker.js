@@ -1,4 +1,4 @@
-const CACHE = "jmmjs-shell-charte-v1-20260806";
+const CACHE = "jmmjs-shell-charte-v1-20260806-fix-icons";
 const SHELL = ["./", "./je-marche-comme-je-suis-p0.html", "./manifest.webmanifest", "./icons/jmmjs-icon.svg", "./icons/favicon-32.png", "./icons/apple-touch-icon-180.png", "./icons/jmmjs-icon-192.png", "./icons/jmmjs-icon-512.png"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
