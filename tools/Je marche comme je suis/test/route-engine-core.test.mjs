@@ -139,6 +139,62 @@ test("wheelchair selects the dedicated ORS profile and enforceable restrictions"
   assert.deepEqual([...compiled.routing.avoidFeatures], ["steps"]);
   assert.equal(compiled.routing.restrictions.minimum_width, 1.2);
   assert.equal(compiled.hard.requireRegular, true);
+  assert.equal(compiled.hard.requireWide, true);
+});
+
+test("Chemin large alone is a soft signal, never a hard restriction", () => {
+  const compiled = compileConstraints(request({ terrain: ["Chemin large"] }));
+  assert.equal(compiled.hard.requireWide, false);
+  assert.equal(compiled.advisory.preferWide, true);
+  assert.equal(compiled.routing.restrictions, null);
+});
+
+test("Terrain régulier alone is a soft signal, never a hard restriction", () => {
+  const compiled = compileConstraints(request({ terrain: ["Terrain régulier"] }));
+  assert.equal(compiled.hard.requireRegular, false);
+  assert.equal(compiled.advisory.preferRegular, true);
+});
+
+test("Chemin large and Terrain régulier together remain soft but count as two independent strong preferences", () => {
+  const compiled = compileConstraints(
+    request({ terrain: ["Chemin large", "Terrain régulier"] }),
+  );
+  assert.equal(compiled.hard.requireWide, false);
+  assert.equal(compiled.hard.requireRegular, false);
+  assert.equal(compiled.advisory.preferWide, true);
+  assert.equal(compiled.advisory.preferRegular, true);
+});
+
+test("a declared mobility aid keeps Chemin large and Terrain régulier imperative even without ticking them", () => {
+  const compiled = compileConstraints(request({ equipment: ["Déambulateur"] }));
+  assert.equal(compiled.hard.requireWide, true);
+  assert.equal(compiled.hard.requireRegular, true);
+});
+
+test("advisory width and regularity checks never mark a route as a hard violation when data is missing", () => {
+  const compiled = compileConstraints(request({ terrain: ["Chemin large", "Terrain régulier"] }));
+  const audit = auditRoute(
+    {
+      totalMinutes: 30,
+      surfaces: [],
+      regularitySafe: undefined,
+      minimumWidthMeters: undefined,
+      exposureSafe: undefined,
+      shortcuts: [],
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const widthCheck = audit.checks.find((c) => c.id === "advisory-width");
+  const regularityCheck = audit.checks.find((c) => c.id === "advisory-regularity");
+  assert.equal(widthCheck.severity, "advisory");
+  assert.equal(widthCheck.status, "unknown");
+  assert.equal(regularityCheck.severity, "advisory");
+  assert.equal(regularityCheck.status, "unknown");
+  assert.equal(
+    audit.blocking.some((c) => c.id === "advisory-width" || c.id === "advisory-regularity"),
+    false,
+  );
 });
 
 test("an unknown imperative exposure check blocks the route", () => {
