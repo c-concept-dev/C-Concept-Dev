@@ -65,6 +65,34 @@
         }
         return routes;
       },
+      async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
+        if (
+          !origin ||
+          !Number.isFinite(origin.lat) ||
+          !Number.isFinite(origin.lon)
+        ) {
+          throw new TypeError("Origine invalide pour la recherche de départs alternatifs.");
+        }
+        if (!Number.isFinite(targetMeters) || targetMeters < 500) {
+          throw new RangeError("La boucle ORS doit viser au moins 500 m.");
+        }
+        const routing = compiled?.routing;
+        const data = await client.post("ors", "/fallback-starts", {
+          origin: { lat: origin.lat, lon: origin.lon },
+          targetMeters,
+          radiusMeters,
+          profile: routing?.profile,
+          avoidFeatures: routing?.avoidFeatures || [],
+          weightings: routing?.weightings || {},
+          restrictions: routing?.restrictions || {},
+        });
+        return {
+          outcome: data.outcome,
+          starts: Array.isArray(data.starts) ? data.starts : [],
+          candidatesConsidered: data.candidatesConsidered,
+          candidatesTested: data.candidatesTested,
+        };
+      },
     };
   }
 
