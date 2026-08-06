@@ -26,14 +26,15 @@ export default defineConfig({
   },
   webServer: {
     command: "python3 -m http.server 8000 --bind 127.0.0.1",
-    cwd: path.resolve(here, "../.."),
-    url: "http://127.0.0.1:8000/tools/Je%20marche%20comme%20je%20suis/je-marche-comme-je-suis-p0.html",
+    cwd: here,
+    url: "http://127.0.0.1:8000/je-marche-comme-je-suis-p0.html",
     reuseExistingServer: !process.env.CI,
     timeout: 30_000
   },
   projects: [
     { name: "chromium-desktop", use: { ...devices["Desktop Chrome"] } },
     { name: "webkit-desktop", use: { ...devices["Desktop Safari"] } },
-    { name: "iphone", use: { ...devices["iPhone 15"] } }
+    { name: "iphone", use: { ...devices["iPhone 15"] } },
+    { name: "android-chrome", use: { ...devices["Pixel 7"] } }
   ]
 });
