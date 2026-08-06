@@ -1819,10 +1819,13 @@ footer,.footer{color:var(--footer)}
       has(limitations, "Terrain irrégulier") ||
         has(limitations, "Équilibre") ||
         has(limitations, "Chevilles") ||
-        has(limitations, "Pieds"),
+        has(limitations, "Pieds") ||
+        explicitRegular,
     );
-    const requireRegular = mobilityAid || explicitRegular;
-    const requireWide = mobilityAid || has(terrain, "Chemin large");
+    const requireRegular = mobilityAid;
+    const explicitWide = has(terrain, "Chemin large");
+    const suggestedWide = explicitWide;
+    const requireWide = mobilityAid;
     const suggestedShortcuts = Boolean(
       fatigue >= 4 ||
         has(limitations, "Fatigue rapide") ||
@@ -1831,7 +1834,11 @@ footer,.footer{color:var(--footer)}
     const requireShortcuts = Boolean(request.hardConstraints?.requireShortcuts);
     if (suggestedRegular && !requireRegular)
       derived.push(
-        "Terrain régulier privilégié en raison de la limitation déclarée ; sa présence doit être vérifiée si la donnée manque.",
+        "Terrain régulier privilégié en raison de la limitation déclarée ou de la préférence cochée ; sa présence doit être vérifiée si la donnée manque.",
+      );
+    if (suggestedWide && !requireWide)
+      derived.push(
+        "Chemin large privilégié comme préférence cochée, sans devenir une restriction impérative ; sa présence doit être vérifiée si la donnée manque.",
       );
     if (suggestedShortcuts && !requireShortcuts)
       derived.push(
@@ -1920,6 +1927,7 @@ footer,.footer{color:var(--footer)}
         maxUp: suggestedMaxUp,
         maxDown: suggestedMaxDown,
         preferRegular: suggestedRegular,
+        preferWide: suggestedWide,
         preferShortcuts: suggestedShortcuts,
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
@@ -2247,6 +2255,20 @@ footer,.footer{color:var(--footer)}
         typeof route.regularitySafe === "boolean"
           ? "régularité documentée"
           : "régularité à vérifier avant de partir",
+      );
+    if (advisory.preferWide && !hard.requireWide)
+      add(
+        "advisory-width",
+        "Chemin large privilégié",
+        "advisory",
+        known(route.minimumWidthMeters)
+          ? route.minimumWidthMeters >= 1.2
+            ? STATUS.RESPECTED
+            : STATUS.VIOLATED
+          : STATUS.UNKNOWN,
+        known(route.minimumWidthMeters)
+          ? `${route.minimumWidthMeters} m minimum`
+          : "largeur à vérifier avant de partir",
       );
     if (advisory.preferShortcuts && !hard.requireShortcuts)
       add(
@@ -5095,7 +5117,7 @@ footer,.footer{color:var(--footer)}
     });
   }
 
-  function buildBlockingFailure({ service = "ors", diagnostic = null } = {}) {
+  function buildBlockingFailure({ service = "ors", diagnostic = null, relaxable = null } = {}) {
     const code = diagnostic?.code || "unknown";
     const copy = DIAGNOSTIC_COPY[code] || DIAGNOSTIC_COPY.unknown;
     const retryable = Boolean(diagnostic?.retryable);
@@ -5113,6 +5135,10 @@ footer,.footer{color:var(--footer)}
       "preferences-too-restrictive",
     ]);
     if (noResultFamily.has(code)) {
+      if (fallbackStartsFamily.has(code) && relaxable?.wide)
+        actions.push({ id: "relax-wide", label: "Réessayer en acceptant des chemins moins larges" });
+      if (fallbackStartsFamily.has(code) && relaxable?.regular)
+        actions.push({ id: "relax-regular", label: "Réessayer en acceptant de courtes portions irrégulières" });
       if (fallbackStartsFamily.has(code)) {
         actions.push(
           { id: "fallback-5km", label: "Chercher un départ à moins de 5 km" },
@@ -7482,17 +7508,81 @@ footer,.footer{color:var(--footer)}
   }
 
   function showBlockingServiceFailure(result, service = "ors") {
+    const relaxable =
+      service === "ors"
+        ? {
+            wide: Boolean(S.compiled?.hard?.requireWide),
+            regular: Boolean(S.compiled?.hard?.requireRegular),
+          }
+        : null;
     const view = buildBlockingFailure({
       service,
       diagnostic: {
         ...(result?.diagnostic || {}),
         attempts: result?.attempts,
       },
+      relaxable,
     });
     status(blockingFailureHtml(view));
     E.status.dataset.kind = "blocking-service-failure";
     E.status.dataset.state = view.state;
     return view;
+  }
+
+  async function retryWithRelaxedTerrain(overrides) {
+    if (!S.request || !S.compiled) return;
+    const originalCompiled = S.compiled;
+    const c = coords();
+    if (!c) {
+      say("Point de départ introuvable pour l’essai assoupli.");
+      return;
+    }
+    const relaxedRestrictions = originalCompiled.routing.restrictions
+      ? {
+          ...originalCompiled.routing.restrictions,
+          minimum_width: overrides.wide
+            ? undefined
+            : originalCompiled.routing.restrictions.minimum_width,
+        }
+      : originalCompiled.routing.restrictions;
+    const relaxedCompiled = {
+      ...originalCompiled,
+      hard: {
+        ...originalCompiled.hard,
+        requireWide: overrides.wide ? false : originalCompiled.hard.requireWide,
+        requireRegular: overrides.regular ? false : originalCompiled.hard.requireRegular,
+      },
+      routing: { ...originalCompiled.routing, restrictions: relaxedRestrictions },
+    };
+    const appliedLabels = [
+      ...(overrides.wide ? ["chemin large traité comme préférence"] : []),
+      ...(overrides.regular ? ["terrain régulier traité comme préférence"] : []),
+    ];
+    $("#create").disabled = true;
+    status("");
+    try {
+      S.compiled = relaxedCompiled;
+      const target = Math.max(500, relaxedCompiled.targetMeters);
+      const batch = await directORS(c, target, S.request);
+      S.routes = batch.map((route) => ({
+        ...route,
+        warnings: [
+          ...(route.warnings || []),
+          ...appliedLabels.map(
+            (label) => `Essai assoupli : ${label} pour cette recherche uniquement ; vos réponses d’origine ne sont pas modifiées.`,
+          ),
+        ],
+      }));
+      S.selected = 0;
+      render();
+      say("Essai assoupli appliqué pour cette recherche : " + appliedLabels.join(", ") + ". Vos réponses d’origine ne sont pas modifiées.");
+    } catch (error) {
+      if (error?.serviceResult) showBlockingServiceFailure(error.serviceResult, error.serviceName || "ors");
+      else say("L’essai assoupli n’a pas abouti : " + (error?.message || "erreur inconnue"));
+    } finally {
+      S.compiled = originalCompiled;
+      $("#create").disabled = false;
+    }
   }
 
   function fallbackStartCardHtml(start, index) {
@@ -7984,7 +8074,9 @@ footer,.footer{color:var(--footer)}
     if (compiled.advisory.maxDown !== null)
       preferences.push(summaryItem("Descente prudente", `privilégier une pente autour de ${compiled.advisory.maxDown} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
     if (compiled.advisory.preferRegular && !compiled.hard.requireRegular)
-      preferences.push(summaryItem("Régularité", "terrain régulier privilégié", "Limitation fonctionnelle", "Préférence prudente", 1, "L’absence de donnée sera signalée sans bloquer automatiquement."));
+      preferences.push(summaryItem("Régularité", "terrain régulier privilégié", "Limitation fonctionnelle ou choix de terrain", "Préférence prudente", 1, "L’absence de donnée sera signalée sans bloquer automatiquement."));
+    if (compiled.advisory.preferWide && !compiled.hard.requireWide)
+      preferences.push(summaryItem("Largeur", "chemin large privilégié", "Choix de terrain", "Préférence prudente", 1, "L’absence de donnée sera signalée sans bloquer automatiquement."));
     if (compiled.advisory.preferShortcuts)
       preferences.push(summaryItem("Proximité et repli", "parcours courts ou proches du départ privilégiés", "Fatigue ou besoin de repli", "Préférence prudente", 1));
     if (request.terrain?.length)
@@ -11212,6 +11304,8 @@ footer,.footer{color:var(--footer)}
         }
       if (action === "fallback-5km") void searchFallbackStarts(5000);
       if (action === "fallback-10km") void searchFallbackStarts(10000);
+      if (action === "relax-wide") void retryWithRelaxedTerrain({ wide: true });
+      if (action === "relax-regular") void retryWithRelaxedTerrain({ regular: true });
       return;
     }
     const fallbackAction = event.target.closest(".fallback-start-action");
