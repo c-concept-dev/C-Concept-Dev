@@ -144,8 +144,9 @@ test("@critical D-024 affiche et audite une limitation fonctionnelle confirmée"
   await page.locator("#lon").fill("1.432");
   await page.getByRole("button", { name: "Continuer" }).click();
   await page.locator("#footwear").selectOption({ label: "Baskets classiques" });
-  await page.locator("#limitationSide").selectOption({ label: "Droit" });
   await page.locator("#limitationTrigger").selectOption({ label: "Descente" });
+  await page.getByText("Ajouter des contraintes précises").click();
+  await page.locator("#limitationSide").selectOption({ label: "Droit" });
   await page.locator("#limitationConsequence").selectOption({ label: "Éviter" });
   await page.locator("#limitationConfirmed").check();
   await page.getByRole("button", { name: "Continuer" }).click();

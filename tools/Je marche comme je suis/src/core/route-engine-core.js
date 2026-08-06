@@ -144,6 +144,11 @@
       requiredData: [],
       unknownPolicy: "preserve-unknown",
     },
+    limitationConfirmed: {
+      effect: "generation-audit",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
     maxWithoutPause: {
       effect: "generation-audit",
       requiredData: ["segment-times"],

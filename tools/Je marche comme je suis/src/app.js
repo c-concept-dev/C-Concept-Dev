@@ -670,6 +670,7 @@
             : val("#helperAvailable") === "no"
               ? false
               : null,
+        confirmed: $("#limitationConfirmed")?.checked || false,
       },
       effort: {
         profile: val("#effort"),

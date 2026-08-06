@@ -47,6 +47,10 @@ package-lock.json
 yarn.lock
 .pnpm-debug.log*
 
+# ═══ PLAYWRIGHT ═══
+test-results/
+playwright-report/
+
 # ═══ PYTHON ═══
 __pycache__/
 *.py[cod]

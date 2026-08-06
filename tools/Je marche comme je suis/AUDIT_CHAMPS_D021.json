@@ -1,8 +1,8 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-06T14:58:08.441Z",
+  "generatedAt": "2026-08-06T16:49:52.369Z",
   "counts": {
-    "visibleFields": 43,
+    "visibleFields": 44,
     "choiceGroups": 5,
     "visibleChoices": 62,
     "complete": 33,
@@ -340,6 +340,18 @@
       "unknownPolicy": "preserve-unknown",
       "status": "complete",
       "note": "Contexte temporel conservé dans la règle dérivée."
+    },
+    {
+      "id": "limitationConfirmed",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "confirmed-functional-effect"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "unreviewed",
+      "note": "État fonctionnel non qualifié."
     },
     {
       "id": "noStairs",
