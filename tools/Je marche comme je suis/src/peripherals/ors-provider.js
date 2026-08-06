@@ -54,20 +54,15 @@
         const routes = Array.isArray(data.routes) ? data.routes : [];
         if (!routes.length) {
           const error = new Error(
-            data?.error?.message || "Aucune boucle OpenRouteService renvoyée.",
+            `OpenRouteService : ${data.outcome || "aucune boucle renvoyée"}.`,
           );
-          error.code = data?.error?.code || "ors-no-route";
-          error.reason = data?.error?.reason || null;
-          error.details = data?.error?.details || [];
-          error.outcome = data?.outcome || "no-result";
-          error.requestCount = Number(data?.requestCount) || 0;
-          error.preferencesApplied = data?.preferencesApplied || [];
+          error.code = data.outcome || "ors-no-route";
+          if (typeof data.retryable === "boolean") error.retryable = data.retryable;
+          error.imperativesPreserved = data.imperativesPreserved;
+          error.preferencesApplied = data.preferencesApplied;
+          error.requestCount = data.requestCount;
           throw error;
         }
-        routes.outcome = data?.outcome || "success";
-        routes.requestCount = Number(data?.requestCount) || 0;
-        routes.preferencesRelaxed = data?.preferencesRelaxed || [];
-        routes.notice = data?.notice || "";
         return routes;
       },
     };
