@@ -101,3 +101,29 @@ assert.equal(
   false,
   "une vraie panne fournisseur ne devrait jamais proposer de départs alternatifs",
 );
+
+const relaxedBoth = buildBlockingFailure({
+  service: "ors",
+  diagnostic: { code: "no-route", retryable: false },
+  relaxable: { wide: true, regular: true },
+});
+assert.equal(relaxedBoth.actions.some((a) => a.id === "relax-wide"), true);
+assert.equal(relaxedBoth.actions.some((a) => a.id === "relax-regular"), true);
+
+const relaxedNone = buildBlockingFailure({
+  service: "ors",
+  diagnostic: { code: "no-route", retryable: false },
+});
+assert.equal(relaxedNone.actions.some((a) => a.id === "relax-wide"), false);
+assert.equal(relaxedNone.actions.some((a) => a.id === "relax-regular"), false);
+
+const providerDownWithRelaxable = buildBlockingFailure({
+  service: "ors",
+  diagnostic: { code: "provider-unavailable", retryable: true },
+  relaxable: { wide: true, regular: true },
+});
+assert.equal(
+  providerDownWithRelaxable.actions.some((a) => a.id === "relax-wide" || a.id === "relax-regular"),
+  false,
+  "aucun assouplissement ne doit être proposé sur une vraie panne, même si relaxable est fourni par erreur",
+);
