@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const APP_URL = "/tools/Je%20marche%20comme%20je%20suis/je-marche-comme-je-suis-p0.html";
+const APP_URL = "/je-marche-comme-je-suis-p0.html";
 const WORKER_PATTERN = "**/jmmjs-map-services.11drumboy11.workers.dev/v1/**";
 
 function routeFeature({ lon, lat, index, target, durationMinutes }) {
@@ -130,6 +130,7 @@ test("@critical la synthèse avant calcul permet de revenir modifier une règle"
   await fillMinimumProfile(page);
   const summary = page.locator("#constraintSummary");
   await expect(summary).toBeVisible();
+  await summary.getByText("Afficher tous les réglages").click();
   const modify = summary.getByRole("button", { name: "Modifier" }).first();
   await modify.click();
   await expect(page.locator("#create")).not.toBeVisible();
