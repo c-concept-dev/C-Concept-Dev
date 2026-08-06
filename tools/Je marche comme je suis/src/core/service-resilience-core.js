@@ -88,6 +88,16 @@
         technicalMessage: message,
       };
 
+    if (error?.code === "ors-preferences-no-result")
+      return {
+        code: "preferences-no-result",
+        status,
+        retryable: false,
+        userMessage: message,
+        technicalMessage: message,
+        preferencesApplied: error?.preferencesApplied || [],
+      };
+
     if (
       error?.code === "ors-no-route" ||
       lower.includes("aucune boucle") ||
