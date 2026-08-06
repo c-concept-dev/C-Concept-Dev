@@ -200,6 +200,70 @@
     return view;
   }
 
+  function fallbackStartCardHtml(start, index) {
+    const km = (start.distanceFromOriginMeters / 1000).toFixed(1);
+    const parking =
+      start.access?.parking === "documented" ? "Parking documenté à proximité" : "Stationnement non documenté";
+    const transport =
+      start.access?.publicTransport === "documented"
+        ? "Transport public à proximité"
+        : "Transport public non documenté";
+    return (
+      `<div class="fallback-start-card" data-fallback-index="${index}">` +
+      `<p><strong>Départ alternatif</strong> · ${km.replace(".", ",")} km de votre point de départ · ${start.routesFound} boucle${start.routesFound > 1 ? "s" : ""} trouvée${start.routesFound > 1 ? "s" : ""}</p>` +
+      `<p class="fallback-start-access">${esc(parking)} · ${esc(transport)}</p>` +
+      `<div class="fallback-start-actions">` +
+      `<button type="button" class="primary fallback-start-action" data-fallback-action="use">Voir les promenades</button>` +
+      `<button type="button" class="secondary fallback-start-action" data-fallback-action="dismiss">Refuser ce départ</button>` +
+      `</div></div>`
+    );
+  }
+
+  function renderFallbackStarts(result) {
+    const container = document.createElement("div");
+    container.className = "fallback-starts-panel";
+    container.setAttribute("role", "status");
+    container.setAttribute("aria-live", "polite");
+    if (!result.starts.length) {
+      container.innerHTML =
+        `<p class="fallback-starts-empty">Aucun départ alternatif routable n’a été trouvé parmi ${result.candidatesConsidered || 0} lieu${(result.candidatesConsidered || 0) > 1 ? "x" : ""} candidat${(result.candidatesConsidered || 0) > 1 ? "s" : ""} testé${(result.candidatesTested || 0) > 1 ? "s" : ""}. Vos critères sont conservés.</p>`;
+    } else {
+      container.innerHTML =
+        `<p class="fallback-starts-intro">${result.starts.length} départ${result.starts.length > 1 ? "s" : ""} alternatif${result.starts.length > 1 ? "s" : ""} trouvé${result.starts.length > 1 ? "s" : ""}. Le déplacement du départ est toujours explicite : rien n’est lancé sans votre confirmation.</p>` +
+        result.starts.map((start, index) => fallbackStartCardHtml(start, index)).join("");
+      container._fallbackStarts = result.starts;
+    }
+    E.status.appendChild(container);
+    return container;
+  }
+
+  async function searchFallbackStarts(radiusMeters) {
+    const origin = coords();
+    if (!origin) return;
+    const panel = $(".service-failure");
+    if (panel) {
+      const note = document.createElement("p");
+      note.className = "fallback-starts-loading";
+      note.textContent = "Recherche de départs alternatifs en cours…";
+      panel.after(note);
+    }
+    try {
+      const target = Math.max(500, S.compiled?.targetMeters || 2500);
+      const result = await orsProvider.findFallbackStarts({
+        origin,
+        targetMeters: target,
+        radiusMeters,
+        compiled: S.compiled,
+      });
+      $(".fallback-starts-loading")?.remove();
+      renderFallbackStarts(result);
+    } catch (error) {
+      $(".fallback-starts-loading")?.remove();
+      say("La recherche de départs alternatifs n’a pas abouti : " + (error?.message || "erreur inconnue"));
+    }
+  }
+
+
   function secondaryServiceWarning(service, diagnostic, imperative = false) {
     return buildSecondaryState({ service, diagnostic, imperative });
   }
@@ -2304,17 +2368,11 @@
       $("#closeOfflinePreparation").onclick = () => modal.classList.remove("show");
       $("#clearOfflinePreparation").onclick = () => { clearOfflineSnapshot(globalThis.localStorage); modal.classList.remove("show"); say("Préparation hors connexion effacée."); };
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-        const workerUrl = new URL("service-worker.js", document.baseURI);
         try {
-          const probe = await fetch(workerUrl, { cache: "no-store" });
-          if (!probe.ok)
-            throw new Error(`service-worker.js répond ${probe.status}`);
-          await navigator.serviceWorker.register(workerUrl.href, { scope: "./" });
-        } catch (error) {
+          await navigator.serviceWorker.register("./service-worker.js");
+        } catch {
           throw new Error(
-            "Préparation hors connexion indisponible : le service worker n’est pas publié au même emplacement que l’application (" +
-              workerUrl.href +
-              ").",
+            "Préparation hors connexion indisponible : service-worker.js manque à côté du fichier HTML.",
           );
         }
       }
@@ -3044,31 +3102,8 @@
       error.serviceName = "ors";
       throw error;
     }
-    const relaxed = Array.isArray(result.value.preferencesRelaxed)
-      ? result.value.preferencesRelaxed
-      : [];
-    serviceState(
-      "ors",
-      relaxed.length ? "Boucles trouvées · préférences reclassées" : "Requête réussie",
-      "ok",
-    );
-    if (relaxed.length)
-      say(
-        "Aucune boucle n’a été obtenue avec les préférences " +
-          relaxed.join(" et ") +
-          ". Les contraintes impératives ont été conservées ; ces préférences servent maintenant au classement.",
-      );
-    return result.value.map((f, i) => {
-      const route = analyzeORSWithCore(f, req, i);
-      if (relaxed.length) {
-        route.warnings = [
-          ...(route.warnings || []),
-          `Préférences facultatives non imposées au routage : ${relaxed.join(", ")}. Elles restent évaluées après calcul.`,
-        ];
-        route.routingNotice = result.value.notice || "Préférences facultatives reclassées après calcul.";
-      }
-      return route;
-    });
+    serviceState("ors", "Requête réussie", "ok");
+    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];
@@ -3880,6 +3915,30 @@
         status("");
         go(0);
         }
+      if (action === "fallback-5km") void searchFallbackStarts(5000);
+      if (action === "fallback-10km") void searchFallbackStarts(10000);
+      return;
+    }
+    const fallbackAction = event.target.closest(".fallback-start-action");
+    if (fallbackAction) {
+      const card = fallbackAction.closest(".fallback-start-card");
+      const panel = card?.closest(".fallback-starts-panel");
+      const index = Number(card?.dataset.fallbackIndex);
+      const starts = panel?._fallbackStarts || [];
+      const start = starts[index];
+      const kind = fallbackAction.dataset.fallbackAction;
+      if (kind === "dismiss") {
+        card?.remove();
+        return;
+      }
+      if (kind === "use" && start) {
+        const [lon, lat] = start.coordinates;
+        $("#lat").value = lat.toFixed(6);
+        $("#lon").value = lon.toFixed(6);
+        $("#place").value = "";
+        status("");
+        $("#create")?.click();
+      }
       return;
     }
     const button = event.target.closest(".service-retry");
