@@ -381,7 +381,7 @@ test("ORS no-route (routable start, no loop) tries every batch before giving up"
   assert.equal(upstreamCalls, 15);
 });
 
-test("ORS preferences-too-restrictive is reported instead of plain no-route when green/quiet were requested", async (t) => {
+test("ORS no-route reports preferencesIgnored instead of a misleading preferences-too-restrictive outcome (audit W-B05)", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -408,7 +408,11 @@ test("ORS preferences-too-restrictive is reported instead of plain no-route when
 
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.outcome, "preferences-too-restrictive");
+  // weightings + round_trip déclenchent l'erreur ORS 2002 (voir sanitizeORSRouting) :
+  // ils ne sont donc jamais envoyés, et un échec de recherche n'est plus jamais
+  // imputable à une préférence trop stricte — seulement signalé comme ignorée.
+  assert.equal(data.outcome, "no-route");
+  assert.deepEqual(data.preferencesIgnored, ["green"]);
 });
 
 test("ORS provider-unavailable stops immediately instead of burning through every seed", async (t) => {
@@ -512,13 +516,15 @@ test("ORS invalid-request is reported for malformed input without calling the pr
   assert.equal(upstreamCalls, 0);
 });
 
-test("ORS success reports preferencesApplied and imperativesPreserved", async (t) => {
+test("ORS success reports imperativesPreserved, and never forwards weightings to round_trip requests (audit W-B05)", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
+  const requestBodies = [];
   globalThis.fetch = async (_url, options) => {
     const body = JSON.parse(options.body);
+    requestBodies.push(body);
     const [lon, lat] = body.coordinates[0];
     return new Response(
       JSON.stringify({
@@ -549,7 +555,7 @@ test("ORS success reports preferencesApplied and imperativesPreserved", async (t
       body: JSON.stringify({
         coordinate: [1.444, 43.604],
         targetMeters: 5000,
-        weightings: { green: { factor: 1 } },
+        weightings: { green: { factor: 1 }, quiet: { factor: 1 } },
       }),
     }),
     { SERVICE_RATE_LIMITER: limiter, ORS_API_KEY: "hidden-ors-key" },
@@ -559,8 +565,17 @@ test("ORS success reports preferencesApplied and imperativesPreserved", async (t
   assert.equal(response.status, 200);
   const data = await response.json();
   assert.equal(data.outcome, "success");
-  assert.deepEqual(data.preferencesApplied, ["green"]);
+  // weightings + round_trip combinés font renvoyer à ORS l'erreur 2002
+  // ("Parameter 'options' has incorrect value or format") — confirmé le
+  // 06/08/2026 par deux appels isolés directs à l'API ORS. sanitizeORSRouting
+  // ne doit donc jamais inclure profile_params.weightings ici : requestée
+  // mais ignorée, pas silencieusement assouplie.
+  assert.deepEqual(data.preferencesApplied, []);
+  assert.deepEqual(data.preferencesIgnored, ["green", "quiet"]);
   assert.equal(data.imperativesPreserved, true);
+  for (const body of requestBodies) {
+    assert.equal(body.options.profile_params, undefined);
+  }
 });
 
 test("ORS flags imperativesPreserved as false when a requested wheelchair restriction is silently substituted", async (t) => {
