@@ -201,6 +201,14 @@ test("D-013 never restores the exact-route dead end", () => {
   assert.match(app, /const selectionPool = substantial\.length \? substantial : pool/);
 });
 
+test("IGN WMTS uses the advertised matrix set and has a visible OSM fallback", () => {
+  const app = read("src/app.js");
+  assert.match(app, /TILEMATRIXSET=PM_0_19/);
+  assert.match(app, /FORMAT=image%2Fpng/);
+  assert.match(app, /ign\.on\("tileerror", fallbackToOsm\)/);
+  assert.match(app, /OpenStreetMap est affiché/);
+});
+
 
 test("D-015 retries progressively shorter ORS targets before adaptations", () => {
   const app = read("src/app.js");
