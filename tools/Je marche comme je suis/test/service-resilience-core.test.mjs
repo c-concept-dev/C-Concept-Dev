@@ -34,6 +34,20 @@ assert.equal(
   classifyServiceError({ status: 503, message: "503" }, "Météo").retryable,
   true,
 );
+assert.deepEqual(
+  JSON.parse(JSON.stringify(classifyServiceError(
+    { status: 502, message: "Cannot find point 0: 0.0,0.0" },
+    "ORS",
+  ))),
+  {
+    code: "no-result",
+    status: 502,
+    retryable: false,
+    userMessage:
+      "ORS n’a trouvé aucun itinéraire pédestre exploitable depuis ce point.",
+    technicalMessage: "Cannot find point 0: 0.0,0.0",
+  },
+);
 
 let calls = 0;
 const resilience = createServiceResilience({
