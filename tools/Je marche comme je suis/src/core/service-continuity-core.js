@@ -85,7 +85,7 @@
     });
   }
 
-  function buildBlockingFailure({ service = "ors", diagnostic = null } = {}) {
+  function buildBlockingFailure({ service = "ors", diagnostic = null, relaxable = null } = {}) {
     const code = diagnostic?.code || "unknown";
     const copy = DIAGNOSTIC_COPY[code] || DIAGNOSTIC_COPY.unknown;
     const retryable = Boolean(diagnostic?.retryable);
@@ -103,6 +103,10 @@
       "preferences-too-restrictive",
     ]);
     if (noResultFamily.has(code)) {
+      if (fallbackStartsFamily.has(code) && relaxable?.wide)
+        actions.push({ id: "relax-wide", label: "Réessayer en acceptant des chemins moins larges" });
+      if (fallbackStartsFamily.has(code) && relaxable?.regular)
+        actions.push({ id: "relax-regular", label: "Réessayer en acceptant de courtes portions irrégulières" });
       if (fallbackStartsFamily.has(code)) {
         actions.push(
           { id: "fallback-5km", label: "Chercher un départ à moins de 5 km" },
