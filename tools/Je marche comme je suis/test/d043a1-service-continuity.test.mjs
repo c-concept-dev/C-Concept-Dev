@@ -70,4 +70,34 @@ for (const code of ["no-routable-start", "no-route", "preferences-too-restrictiv
     `${code} devrait proposer de changer de départ`,
   );
   assert.notEqual(failure.title, "La recherche d’itinéraires n’a pas abouti");
+  assert.equal(
+    failure.actions.some((action) => action.id === "fallback-5km"),
+    true,
+    `${code} devrait proposer une recherche à 5 km`,
+  );
+  assert.equal(
+    failure.actions.some((action) => action.id === "fallback-10km"),
+    true,
+    `${code} devrait proposer une recherche à 10 km`,
+  );
 }
+
+const genericNoResult = buildBlockingFailure({
+  service: "ors",
+  diagnostic: { code: "no-result", retryable: false },
+});
+assert.equal(
+  genericNoResult.actions.some((action) => action.id === "fallback-5km"),
+  false,
+  "no-result générique ne devrait pas proposer de départs alternatifs sans distinction plus précise",
+);
+
+const providerDown = buildBlockingFailure({
+  service: "ors",
+  diagnostic: { code: "provider-unavailable", retryable: true },
+});
+assert.equal(
+  providerDown.actions.some((action) => action.id === "fallback-5km"),
+  false,
+  "une vraie panne fournisseur ne devrait jamais proposer de départs alternatifs",
+);
