@@ -48,9 +48,20 @@
       return { privateMode, profilePresent, profileKey };
     }
 
+    function loadProfile() {
+      try {
+        const raw = storage?.getItem(profileKey);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
     return Object.freeze({
       setPrivateMode,
       persistProfile,
+      loadProfile,
       purge,
       storageStatus,
     });
