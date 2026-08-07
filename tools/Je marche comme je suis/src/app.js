@@ -670,7 +670,6 @@
             : val("#helperAvailable") === "no"
               ? false
               : null,
-        confirmed: $("#limitationConfirmed")?.checked || false,
       },
       effort: {
         profile: val("#effort"),
@@ -1017,12 +1016,15 @@
       if (S.nav.active && i !== S.selected) return;
       const pts = r.coords.map((c) => [+c[1], +c[0]]);
       b.push(...pts);
+      const routeColor =
+        { Confortable: "#C9A15A", Agréable: "#8A9A5B", Tonique: "#B5502E" }[
+          r.orientation
+        ] || "#6B7280";
       const l = L.polyline(pts, {
-        color:
-          i === S.selected ? "#333" : ["#54777a", "#9b6c4d", "#6d7b52"][i % 3],
-        weight: i === S.selected ? 7 : 5,
-        opacity: i === S.selected ? 1 : 0.68,
-        dashArray: i === 1 ? "10 6" : i === 2 ? "3 7" : null,
+        color: i === S.selected ? "#3A3628" : routeColor,
+        weight: i === S.selected ? 6 : 3,
+        opacity: i === S.selected ? 1 : 0.75,
+        dashArray: i === S.selected ? null : "6 5",
       }).addTo(S.map);
       l.on("click", () => select(i));
       S.layers.push(l);
@@ -2977,7 +2979,7 @@
       i,
     );
   }
-  function analyzeORSWithCore(f, req, i, preferencesIgnored = []) {
+  function analyzeORSWithCore(f, req, i) {
     const p = f.properties || {},
       sum = p.summary || {},
       extras = p.extras || {},
@@ -3028,7 +3030,6 @@
         regularitySafe: terrainEvidence.regularitySafe,
         minimumWidthMeters: terrainEvidence.minimumWidthMeters,
         exposureSafe: terrainEvidence.exposureSafe,
-        preferencesIgnored: preferencesIgnored,
         ascentMeters: elevationDetails.known ? elevation.up : null,
         maxContinuousAscentMinutes: elevationDetails.completeEnough
           ? elevationDetails.maxContinuousAscentMinutes
@@ -3172,12 +3173,7 @@
       throw error;
     }
     serviceState("ors", "Requête réussie", "ok");
-    const preferencesIgnored = Array.isArray(result.value.preferencesIgnored)
-      ? result.value.preferencesIgnored
-      : [];
-    return result.value.routes.map((f, i) =>
-      analyzeORSWithCore(f, req, i, preferencesIgnored),
-    );
+    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];
