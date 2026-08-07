@@ -1210,6 +1210,21 @@
       : "";
   }
 
+  function updateTopStartButton() {
+    const wrap = $("#startNavTop");
+    if (!wrap) return;
+    const r = S.routes[S.selected];
+    if (!r) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    const btn = $("#startNavBtnTop");
+    if (btn)
+      btn.textContent = r.canNavigate
+        ? "▶ Suivre cette promenade"
+        : "▶ Continuer malgré les réserves";
+  }
   async function render() {
     S.routes = S.routes.map(ensurePauseMarkers);
     E.placeholder.style.display = "none";
@@ -1250,6 +1265,7 @@
       (b) => (b.onclick = () => select(+b.dataset.route)),
     );
     renderDetail();
+    updateTopStartButton();
     try {
       await leafletReady;
       if (!window.L) throw Error("Leaflet indisponible");
@@ -4066,6 +4082,7 @@
   });
 
   $("#loadPois").onclick = loadPois;
+  if ($("#startNavBtnTop")) $("#startNavBtnTop").onclick = startNavigation;
   $("#loadPhotos").onclick = loadPhotos;
   $("#helpBtn").onclick = () => $("#helpModal").classList.add("show");
   $("#closeHelp").onclick = () => $("#helpModal").classList.remove("show");
