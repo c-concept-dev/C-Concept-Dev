@@ -983,6 +983,13 @@ h1 em{color:var(--teal);font-style:normal}.promise{font-family:var(--font-body);
 .card{background:var(--surface-alt);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:var(--radius-md);padding:16px;margin:14px 0;box-shadow:none}
 .card h3{font-family:var(--font-heading);font-size:20px;font-weight:600;color:var(--text-heading)}.card>p{font-size:13px;color:var(--text-muted)}
 .field{margin:14px 0}.field label,.legend{font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-heading)}
+.field-help{display:block;margin-top:4px;font-family:var(--font-body);font-size:11px;font-weight:400;text-transform:none;letter-spacing:normal;color:var(--text-muted);line-height:1.4}
+.effort-advanced{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.effort-advanced>summary{cursor:pointer;list-style:none;font-family:var(--font-heading);font-size:11px;font-weight:600;color:var(--sage);padding:5px 0}
+.effort-advanced>summary::-webkit-details-marker{display:none}
+.effort-advanced>summary::after{content:" — ouvrir"}.effort-advanced[open]>summary::after{content:" — refermer"}
+.effort-advanced-content{margin-top:6px}
+.effort-advanced-content>.field-help:first-child{margin-top:0;margin-bottom:8px}
 .input{min-height:44px;border-color:var(--border);border-radius:var(--radius-md);padding:11px 12px;background:var(--surface);font-size:15px}.textarea{min-height:92px}
 .locate{min-height:44px;border:1px solid var(--sand);border-radius:var(--radius-button);background:var(--sand);color:var(--navy);font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .range output{border-color:var(--border);border-radius:var(--radius-md);background:var(--surface);font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--navy)}
@@ -1006,6 +1013,11 @@ h1 em{color:var(--teal);font-style:normal}.promise{font-family:var(--font-body);
 .why,.data{border-radius:var(--radius-md);background:var(--surface-alt)}.why{border-left-color:var(--teal);font-size:13px}.data{padding:10px}.profile path{fill:rgba(125,197,203,.25)}.profile polyline{stroke:var(--navy)}
 .detail details{border-top-color:var(--border)}.detail summary{font-family:var(--font-heading);font-size:13px;font-weight:600;color:var(--text-heading)}.detail ul{font-size:12px;color:var(--text-muted)}
 .start-nav{border-radius:var(--radius-button)!important;background:var(--teal)!important;border-color:var(--teal)!important;font-family:var(--font-heading)!important;font-size:10px!important;font-weight:600!important;letter-spacing:.06em!important;text-transform:uppercase!important}.start-nav:hover{background:var(--surface)!important;color:var(--teal)!important}
+.start-nav-top-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:10px 0 16px}
+.start-nav-top-wrap[hidden]{display:none}
+.start-nav-top-btn{border-radius:var(--radius-button);background:var(--teal);border:1px solid var(--teal);color:#fff;font-family:var(--font-heading);font-size:14px;font-weight:600;letter-spacing:.04em;padding:14px 22px;width:100%;box-shadow:var(--shadow-md)}
+.start-nav-top-btn:hover{background:var(--sage-hover)}
+.start-nav-top-hint{font-family:var(--font-body);font-size:11px;color:var(--text-muted)}
 .phase-note{border-radius:var(--radius-md);background:rgba(138,154,91,.10);font-size:11px}.phase-note b{border-radius:var(--radius-sm);background:var(--teal)}
 .result-reserve-summary,.result-reserve-summary.ok{border-radius:var(--radius-md);box-shadow:none}.result-reserve-summary.ok{border-color:rgba(138,154,91,.34);border-left-color:var(--teal);background:rgba(138,154,91,.08)}
 .detail-group,.around-bundle,.api-compact{border-color:var(--border)!important;border-radius:var(--radius-md)!important}.detail-group>summary{background:var(--surface-alt)}
@@ -1024,11 +1036,11 @@ footer,.footer{color:var(--footer)}
               compromis caché.
             </p></div><div class="privacy">
             <span aria-hidden="true">🔒</span> Réponses locales · <button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button>
-          </div></section><section class="mode-wrap"><div class="mode-title"><h2>Comment partir ?</h2></div><div class="modes"><button class="mode active" type="button" data-mode="api"><b>1. Créer ma balade sur mesure</b
+          </div></section><section class="mode-wrap"><div class="mode-title"><h2>Comment partir ?</h2></div><div class="modes"><button class="mode active" type="button" data-mode="api"><b>Créer ma balade sur mesure</b
               ><small
-                >OpenRouteService calcule de vraies boucles ; le moteur contrôle
-                chaque contrainte et conserve les inconnues.</small
-              ><span class="badge">Moteur principal</span></button
+                >Une vraie boucle, calculée selon ce que vous avez déclaré —
+                jamais un itinéraire inventé pour combler les trous.</small
+              ></button
             ></div><button class="mode mode-secondary" type="button" data-mode="gpx">J’ai déjà une trace GPX à analyser</button></section><div class="workspace"><form class="panel" id="form" novalidate onsubmit="return false"><div class="form-head"><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress"><button class="active" type="button" data-go="0">
                   1 · Départ</button
                 ><button type="button" data-go="1">2 · Aujourd’hui</button
@@ -1194,12 +1206,12 @@ footer,.footer{color:var(--footer)}
       </fieldset>
     </details>
   </div></div><div class="nav"><button class="secondary prev" type="button">Retour</button
-                  ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Effort recherché</h3><p>Montées et descentes sont séparées.</p><div class="field"><label>Profil</label
-                    ><select class="input" id="effort"><option value="gentle">Reprise douce</option><option value="pleasure" selected>Plaisir maximal</option><option value="ascent">Travail de la montée</option><option value="endurance">Endurance</option></select></div><div class="two"><div class="field"><label>Montée continue</label
-                      ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select></div><div class="field"><label>Descente continue max.</label><select class="input" id="descentMinutes"><option value="">Sans demande</option><option value="2">2 min max.</option><option value="5">5 min max.</option><option value="10">10 min max.</option><option value="15">15 min max.</option><option value="none">Aucune descente</option></select></div><div class="field"><label>Pente montante max.</label
-                      ><select class="input" id="upSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select></div></div><div class="two"><div class="field"><label>Pente descendante max.</label
-                      ><select class="input" id="downSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select></div><div class="field"><label>Récupération après montée</label
-                      ><select class="input" id="recovery"><option value="">Non précisée</option><option>5 min faciles</option><option>10 min faciles</option><option>Avec un banc</option></select></div></div></div><div class="card"><h3>Terrain souhaité</h3><p>Une donnée inconnue doit rester inconnue.</p><div class="chips group" data-group="terrain"><button class="chip">Goudron accepté</button
+                  ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Effort recherché</h3><p>Ce choix ajuste le rythme de la boucle proposée. Les réglages précis ci-dessous sont facultatifs — utiles seulement si vous voulez affiner.</p><div class="field"><label>Profil</label
+                    ><select class="input" id="effort"><option value="gentle">Reprise douce</option><option value="pleasure" selected>Plaisir maximal</option><option value="ascent">Travail de la montée</option><option value="endurance">Endurance</option></select><small class="field-help">Le rythme général recherché pour la sortie.</small></div><details class="effort-advanced"><summary>Réglages précis (facultatif)</summary><div class="effort-advanced-content"><p class="field-help">Montées et descentes sont séparées : une pente peut être plus ou moins exigeante selon le sens.</p><div class="two"><div class="field"><label>Montée continue</label
+                      ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select><small class="field-help">Combien de temps pouvez-vous monter d’affilée, sans vous arrêter ?</small></div><div class="field"><label>Descente continue max.</label><select class="input" id="descentMinutes"><option value="">Sans demande</option><option value="2">2 min max.</option><option value="5">5 min max.</option><option value="10">10 min max.</option><option value="15">15 min max.</option><option value="none">Aucune descente</option></select><small class="field-help">Combien de temps pouvez-vous descendre d’affilée avant d’avoir besoin d’une pause ?</small></div></div><div class="two"><div class="field"><label>Pente montante max.</label
+                      ><select class="input" id="upSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select><small class="field-help">La pente la plus raide acceptée en montée, en % — 4 est doux, 12 est raide. « Prudente » laisse le moteur rester mesuré.</small></div><div class="field"><label>Pente descendante max.</label
+                      ><select class="input" id="downSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select><small class="field-help">La pente la plus raide acceptée en descente — souvent plus exigeante pour les genoux qu’en montée.</small></div></div><div class="field"><label>Récupération après montée</label
+                      ><select class="input" id="recovery"><option value="">Non précisée</option><option>5 min faciles</option><option>10 min faciles</option><option>Avec un banc</option></select><small class="field-help">Après une montée, préférez-vous un passage plus facile pour souffler, ou un endroit pour vous asseoir ?</small></div></div></details></div><div class="card"><h3>Terrain souhaité</h3><p>Une donnée inconnue doit rester inconnue.</p><div class="chips group" data-group="terrain"><button class="chip">Goudron accepté</button
                     ><button class="chip">Chemin stabilisé</button
                     ><button class="chip">Voie verte</button
                     ><button class="chip">Terre sèche</button
@@ -1295,7 +1307,7 @@ footer,.footer{color:var(--footer)}
                   ><span>✓ GPX de référence et suivi intégré</span></div></div></div><div id="map" class="map"></div><div id="status" class="status" hidden></div><div id="results" class="results"><div class="phase-note"><b>Phase 1</b> Préparez, comparez et sélectionnez une trace
                 réelle. La phase 2 suit ensuite cette trace avec le GPS du
                 téléphone.
-              </div><div class="results-head"><h2>Trois manières de partir</h2><span id="resultMode" class="kicker"></span></div><div id="routeGrid" class="route-grid"></div><div id="detail" class="detail"></div><details class="around-bundle" id="aroundBundle"><summary>Autour du parcours</summary><div class="around-bundle-content" id="aroundBundleContent"><section class="enrichment" id="poiPanel" hidden><div class="enrichment-head"><div><h3>Points utiles près du parcours</h3><p>Geoapify · résultats à moins de 300 m de la trace</p></div><button class="small" id="loadPois" type="button">
+              </div><div class="results-head"><h2>Trois manières de partir</h2><span id="resultMode" class="kicker"></span></div><div id="routeGrid" class="route-grid"></div><div id="startNavTop" class="start-nav-top-wrap" hidden><button type="button" id="startNavBtnTop" class="primary start-nav-top-btn">▶ Suivre cette promenade</button><span class="start-nav-top-hint">Le détail complet reste disponible plus bas si vous voulez vérifier avant.</span></div><div id="detail" class="detail"></div><details class="around-bundle" id="aroundBundle"><summary>Autour du parcours</summary><div class="around-bundle-content" id="aroundBundleContent"><section class="enrichment" id="poiPanel" hidden><div class="enrichment-head"><div><h3>Points utiles près du parcours</h3><p>Geoapify · résultats à moins de 300 m de la trace</p></div><button class="small" id="loadPois" type="button">
                     Rechercher
                   </button></div><div id="poiContent"><p class="empty-data">
                     Geoapify est prêt via le relais Cloudflare sécurisé.
