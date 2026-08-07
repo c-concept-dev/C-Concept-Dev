@@ -63,7 +63,12 @@
           error.requestCount = data.requestCount;
           throw error;
         }
-        return routes;
+        return {
+          routes,
+          preferencesIgnored: Array.isArray(data.preferencesIgnored)
+            ? data.preferencesIgnored
+            : [],
+        };
       },
       async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
         if (

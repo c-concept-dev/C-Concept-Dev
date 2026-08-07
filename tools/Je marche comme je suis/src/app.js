@@ -2977,7 +2977,7 @@
       i,
     );
   }
-  function analyzeORSWithCore(f, req, i) {
+  function analyzeORSWithCore(f, req, i, preferencesIgnored = []) {
     const p = f.properties || {},
       sum = p.summary || {},
       extras = p.extras || {},
@@ -3028,6 +3028,7 @@
         regularitySafe: terrainEvidence.regularitySafe,
         minimumWidthMeters: terrainEvidence.minimumWidthMeters,
         exposureSafe: terrainEvidence.exposureSafe,
+        preferencesIgnored: preferencesIgnored,
         ascentMeters: elevationDetails.known ? elevation.up : null,
         maxContinuousAscentMinutes: elevationDetails.completeEnough
           ? elevationDetails.maxContinuousAscentMinutes
@@ -3171,7 +3172,12 @@
       throw error;
     }
     serviceState("ors", "Requête réussie", "ok");
-    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
+    const preferencesIgnored = Array.isArray(result.value.preferencesIgnored)
+      ? result.value.preferencesIgnored
+      : [];
+    return result.value.routes.map((f, i) =>
+      analyzeORSWithCore(f, req, i, preferencesIgnored),
+    );
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];

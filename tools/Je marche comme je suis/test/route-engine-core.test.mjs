@@ -197,6 +197,75 @@ test("advisory width and regularity checks never mark a route as a hard violatio
   );
 });
 
+test("preferencesIgnored produces a violated advisory check naming both ignored preferences", () => {
+  const compiled = compileConstraints(request());
+  const audit = auditRoute(
+    {
+      walkingMinutes: 45,
+      totalMinutes: 45,
+      startEndDistanceMeters: 0,
+      stairsMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 100 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+      preferencesIgnored: ["green", "quiet"],
+    },
+    compiled,
+  );
+  const check = audit.checks.find((c) => c.id === "advisory-preferences-ignored");
+  assert.ok(check, "expected an advisory-preferences-ignored check");
+  assert.equal(check.severity, "advisory");
+  assert.equal(check.status, "violated");
+  assert.match(check.label, /verte et calme/);
+  assert.match(check.evidence, /préférences verte et calme/);
+});
+
+test("preferencesIgnored with a single value only names that preference", () => {
+  const compiled = compileConstraints(request());
+  const audit = auditRoute(
+    {
+      walkingMinutes: 45,
+      totalMinutes: 45,
+      startEndDistanceMeters: 0,
+      stairsMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 100 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+      preferencesIgnored: ["quiet"],
+    },
+    compiled,
+  );
+  const check = audit.checks.find((c) => c.id === "advisory-preferences-ignored");
+  assert.ok(check, "expected an advisory-preferences-ignored check");
+  assert.match(check.label, /^Préférence calme non appliquée$/);
+  assert.doesNotMatch(check.label, /verte/);
+  assert.doesNotMatch(check.evidence, /verte/);
+});
+
+test("no preferencesIgnored on the route adds no advisory-preferences-ignored check", () => {
+  const compiled = compileConstraints(request());
+  const audit = auditRoute(
+    {
+      walkingMinutes: 45,
+      totalMinutes: 45,
+      startEndDistanceMeters: 0,
+      stairsMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 100 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+      preferencesIgnored: [],
+    },
+    compiled,
+  );
+  assert.equal(
+    audit.checks.find((c) => c.id === "advisory-preferences-ignored"),
+    undefined,
+  );
+});
+
 test("an unknown imperative exposure check blocks the route", () => {
   const compiled = compileConstraints(
     request({

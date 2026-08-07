@@ -2276,6 +2276,22 @@ footer,.footer{color:var(--footer)}
           ? `${route.minimumWidthMeters} m minimum`
           : "largeur à vérifier avant de partir",
       );
+    if (Array.isArray(route.preferencesIgnored) && route.preferencesIgnored.length) {
+      const names = route.preferencesIgnored.map((key) =>
+        key === "green" ? "verte" : key === "quiet" ? "calme" : key,
+      );
+      const plural = names.length > 1;
+      const joined = names.join(" et ");
+      add(
+        "advisory-preferences-ignored",
+        `Préférence${plural ? "s" : ""} ${joined} non appliquée${plural ? "s" : ""}`,
+        "advisory",
+        STATUS.VIOLATED,
+        plural
+          ? `Limitation technique du mode boucle ORS : les préférences ${joined} n’ont pas pu être transmises pour cette recherche.`
+          : `Limitation technique du mode boucle ORS : la préférence ${joined} n’a pas pu être transmise pour cette recherche.`,
+      );
+    }
     if (advisory.preferShortcuts && !hard.requireShortcuts)
       add(
         "advisory-shortcuts",
@@ -6881,7 +6897,12 @@ footer,.footer{color:var(--footer)}
           error.requestCount = data.requestCount;
           throw error;
         }
-        return routes;
+        return {
+          routes,
+          preferencesIgnored: Array.isArray(data.preferencesIgnored)
+            ? data.preferencesIgnored
+            : [],
+        };
       },
       async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
         if (
@@ -10304,7 +10325,7 @@ footer,.footer{color:var(--footer)}
       i,
     );
   }
-  function analyzeORSWithCore(f, req, i) {
+  function analyzeORSWithCore(f, req, i, preferencesIgnored = []) {
     const p = f.properties || {},
       sum = p.summary || {},
       extras = p.extras || {},
@@ -10355,6 +10376,7 @@ footer,.footer{color:var(--footer)}
         regularitySafe: terrainEvidence.regularitySafe,
         minimumWidthMeters: terrainEvidence.minimumWidthMeters,
         exposureSafe: terrainEvidence.exposureSafe,
+        preferencesIgnored: preferencesIgnored,
         ascentMeters: elevationDetails.known ? elevation.up : null,
         maxContinuousAscentMinutes: elevationDetails.completeEnough
           ? elevationDetails.maxContinuousAscentMinutes
@@ -10498,7 +10520,12 @@ footer,.footer{color:var(--footer)}
       throw error;
     }
     serviceState("ors", "Requête réussie", "ok");
-    return result.value.map((f, i) => analyzeORSWithCore(f, req, i));
+    const preferencesIgnored = Array.isArray(result.value.preferencesIgnored)
+      ? result.value.preferencesIgnored
+      : [];
+    return result.value.routes.map((f, i) =>
+      analyzeORSWithCore(f, req, i, preferencesIgnored),
+    );
   }
   function routeFingerprint(route) {
     const coords = route.coords || [];

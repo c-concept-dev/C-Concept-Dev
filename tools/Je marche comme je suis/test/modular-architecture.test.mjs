@@ -59,7 +59,7 @@ test("the ORS peripheral sends only compiled routing options", async () => {
   const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
   registry.register(provider);
 
-  const routes = await registry.require("ors").createRoundTrips({
+  const result = await registry.require("ors").createRoundTrips({
     coordinate: [1.44, 43.6],
     targetMeters: 2500,
     count: 6,
@@ -73,7 +73,8 @@ test("the ORS peripheral sends only compiled routing options", async () => {
     },
   });
 
-  assert.equal(routes.length, 1);
+  assert.equal(result.routes.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.preferencesIgnored)), []);
   assert.deepEqual(JSON.parse(JSON.stringify(call)), [
     "ors",
     "/ors/round-trips",
@@ -88,6 +89,33 @@ test("the ORS peripheral sends only compiled routing options", async () => {
     },
     6,
   ]);
+});
+
+test("the ORS peripheral transmits preferencesIgnored from the Worker response", async () => {
+  const context = moduleContext();
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: {
+      async post() {
+        return {
+          routes: [{ type: "Feature" }],
+          preferencesIgnored: ["green", "quiet"],
+        };
+      },
+    },
+  });
+  const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
+  registry.register(provider);
+
+  const result = await registry.require("ors").createRoundTrips({
+    coordinate: [1.44, 43.6],
+    targetMeters: 2500,
+    compiled: { routing: { profile: "foot-walking" } },
+  });
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(result.preferencesIgnored)),
+    ["green", "quiet"],
+  );
 });
 
 test("the ORS peripheral preserves a structured no-route outcome", async () => {

@@ -937,6 +937,22 @@
           ? `${route.minimumWidthMeters} m minimum`
           : "largeur à vérifier avant de partir",
       );
+    if (Array.isArray(route.preferencesIgnored) && route.preferencesIgnored.length) {
+      const names = route.preferencesIgnored.map((key) =>
+        key === "green" ? "verte" : key === "quiet" ? "calme" : key,
+      );
+      const plural = names.length > 1;
+      const joined = names.join(" et ");
+      add(
+        "advisory-preferences-ignored",
+        `Préférence${plural ? "s" : ""} ${joined} non appliquée${plural ? "s" : ""}`,
+        "advisory",
+        STATUS.VIOLATED,
+        plural
+          ? `Limitation technique du mode boucle ORS : les préférences ${joined} n’ont pas pu être transmises pour cette recherche.`
+          : `Limitation technique du mode boucle ORS : la préférence ${joined} n’a pas pu être transmise pour cette recherche.`,
+      );
+    }
     if (advisory.preferShortcuts && !hard.requireShortcuts)
       add(
         "advisory-shortcuts",
