@@ -857,6 +857,51 @@
     return result;
   }
 
+  function restoreHabitualProfile() {
+    const saved = privacyController.loadProfile();
+    if (!saved) return false;
+    const setVal = (id, value) => {
+      const el = $(id);
+      if (el && value !== undefined && value !== null && value !== "")
+        el.value = value;
+    };
+    const setChecked = (id, value) => {
+      const el = $(id);
+      if (el && typeof value === "boolean") el.checked = value;
+    };
+    const restoreChips = (group, labels) => {
+      if (!Array.isArray(labels)) return;
+      $$(`[data-group="${group}"] .chip`).forEach((chip) => {
+        chip.classList.toggle("active", labels.includes(chip.textContent.trim()));
+      });
+    };
+    // Restauré : préférences durables (équipement, limitations chroniques,
+    // terrain souhaité, envies, allure, chaussures habituelles).
+    // Jamais restauré : départ, date/heure, durée, état du jour (forme,
+    // fatigue, douleur, confiance), texte libre, description de limitation
+    // du jour — conforme au principe déjà affiché « le profil du jour
+    // prime sur les habitudes ».
+    setVal("#footwear", saved.footwear);
+    restoreChips("equipment", saved.equipment);
+    restoreChips("limits", saved.limitations);
+    restoreChips("terrain", saved.terrain);
+    restoreChips("wishes", saved.preferences);
+    restoreChips("services", saved.requiredServices);
+    setVal("#pauses", saved.pausePlan);
+    setVal("#effort", saved.effort?.profile);
+    setVal("#upSlope", saved.effort?.maxAscentSlopePercent);
+    setVal("#downSlope", saved.effort?.maxDescentSlopePercent);
+    setVal("#recovery", saved.effort?.recovery);
+    setVal("#age", saved.person?.age);
+    setVal("#level", saved.person?.usualLevel);
+    setVal("#pace", saved.person?.paceKmh);
+    setChecked("#noStairs", saved.hardConstraints?.avoidStairs);
+    setChecked("#noExposure", saved.hardConstraints?.avoidExposure);
+    setChecked("#shortcuts", saved.options?.shortcuts);
+    setChecked("#bothWays", saved.options?.compareDirections);
+    return true;
+  }
+
   function updatePrivacyStatus() {
     const checkbox = $("#private");
     if (!checkbox) return;
@@ -4057,4 +4102,6 @@
   };
   mode("api");
   $("#duration").dispatchEvent(new Event("input"));
+  if (restoreHabitualProfile())
+    say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
 })();
