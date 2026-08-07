@@ -26,3 +26,16 @@ assert.equal(
 );
 privacy.setPrivateMode(false);
 assert.equal(privacy.persistProfile({}).persisted, true);
+
+const values2 = new Map();
+const storage2 = {
+  getItem: (key) => values2.get(key) ?? null,
+  setItem: (key, value) => values2.set(key, String(value)),
+  removeItem: (key) => values2.delete(key),
+};
+const privacy2 = context.JMMJSPrivacyCore.createPrivacyController({ storage: storage2 });
+assert.equal(privacy2.loadProfile(), null, "no saved profile yet");
+privacy2.persistProfile({ footwear: "Trail", equipment: ["Canne"] });
+assert.deepEqual(JSON.parse(JSON.stringify(privacy2.loadProfile())), { footwear: "Trail", equipment: ["Canne"] });
+values2.set(privacy2.storageStatus().profileKey, "{not valid json");
+assert.equal(privacy2.loadProfile(), null, "corrupted JSON must not throw");
