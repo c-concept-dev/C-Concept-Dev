@@ -3151,7 +3151,7 @@
     return normalize(
       {
         name: "Candidate " + (i + 1),
-        why: `Boucle ORS contrôlée par le noyau commun${useReverse ? " et retenue dans le sens inverse" : ""}.`,
+        why: `Cette boucle respecte les critères indiqués${useReverse ? ", parcourue dans le sens inverse" : ""}.`,
         metrics: {
           distanceMeters: Number(sum.distance) || distance(coords),
           walkingMinutes: walkingMinutes,
