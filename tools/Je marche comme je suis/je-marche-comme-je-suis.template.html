@@ -1153,9 +1153,10 @@ footer,.footer{color:var(--footer)}
                     ><button class="chip">Toilettes</button
                     ><button class="chip">Rester près du départ</button
                     ><button class="chip">Rester près d’une route</button></div>
-  <div class="card limitation-structure" id="limitationStructure">
-    <h3>Ce qui compte aujourd’hui</h3>
-    <p class="hint">Quelques repères suffisent. Les précisions restent facultatives.</p>
+  <div class="card limitation-structure" id="limitationStructure" hidden>
+    <h3>Préciser vos besoins</h3>
+    <p class="hint">Ces informations permettent d’éviter les parcours qui ne vous conviendraient pas aujourd’hui.</p>
+    <p class="hint" id="limitationSelectedList"></p>
     <div class="limitation-core">
       <label class="limitation-field"><span>Qu’est-ce qui déclenche la gêne ?</span>
         <select class="input" id="limitationTrigger">
@@ -1164,10 +1165,10 @@ footer,.footer{color:var(--footer)}
           <option>Station debout</option><option>Marche rapide</option><option>Autre</option>
         </select>
       </label>
-      <label class="limitation-field"><span>Combien de temps sans pause ?</span>
+      <label class="limitation-field" id="fieldMaxWithoutPause"><span>Combien de temps sans pause ?</span>
         <span class="number-with-unit"><input class="input" id="maxWithoutPause" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif"><span>min</span></span>
       </label>
-      <label class="limitation-field"><span>Combien de temps debout ?</span>
+      <label class="limitation-field" id="fieldMaxStanding"><span>Combien de temps debout ?</span>
         <span class="number-with-unit"><input class="input" id="maxStanding" type="number" min="1" max="240" inputmode="numeric" placeholder="Facultatif"><span>min</span></span>
       </label>
       <label class="limitation-field"><span>Quelqu’un peut-il vous aider ?</span>
