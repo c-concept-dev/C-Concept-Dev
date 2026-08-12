@@ -834,10 +834,10 @@
       ["Profil", valueOf("Profil de sortie", request.effort || "Non renseigné")],
       ["Chaussures", valueOf("Chaussures")],
       ["Pauses", valueOf("Pauses", "Aucune programmée")],
-      ["Contraintes impératives", String(imperativeCount)],
+      ["⚠ Contraintes impératives", String(imperativeCount)],
     ];
     host.innerHTML =
-      '<div class="constraint-summary-head"><div><h3>Votre balade en résumé</h3><p>Les détails restent accessibles à la demande.</p></div><span class="summary-ready">Aucun calcul lancé</span></div>' +
+      '<div class="constraint-summary-head"><div><h3>Votre balade en résumé</h3><p>Les détails restent accessibles à la demande.</p></div></div>' +
       '<div class="summary-essentials">' +
       essentials.map(([label, value]) => '<div class="summary-essential"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>').join("") +
       '</div><details class="summary-details"><summary>Afficher tous les réglages</summary>' +
@@ -2158,6 +2158,9 @@
         (x) => x.type + (x.percent != null ? " " + x.percent + " %" : ""),
       );
     E.detail.innerHTML =
+      (S.request?.freeText
+        ? '<div class="personal-note"><span>Votre note</span><p>' + esc(S.request.freeText) + '</p></div>'
+        : '') +
       '<div class="weather-compact weather-result" data-level="' +
       esc(r.weather?.assessment?.level || "unknown") +
       '">' +
