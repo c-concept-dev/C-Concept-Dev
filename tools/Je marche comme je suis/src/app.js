@@ -505,6 +505,8 @@
       (b.onclick = (e) => {
         e.preventDefault();
         b.classList.toggle("active");
+        if (b.closest('[data-group="limits"]'))
+          updateLimitationStructureVisibility();
       }),
   );
   $$(".range input").forEach(
@@ -855,6 +857,24 @@
     if (!result.persisted && result.reason === "storage-error")
       say("Le profil n’a pas pu être mémorisé, mais le calcul continue.");
     return result;
+  }
+
+  function updateLimitationStructureVisibility() {
+    const active = $$('[data-group="limits"] .chip.active').map((c) =>
+      c.textContent.trim(),
+    );
+    const card = $("#limitationStructure");
+    if (!card) return;
+    card.hidden = active.length === 0;
+    const list = $("#limitationSelectedList");
+    if (list)
+      list.textContent = active.length
+        ? "Vous avez indiqué : " + active.join(", ")
+        : "";
+    const pause = $("#fieldMaxWithoutPause");
+    if (pause) pause.hidden = !active.includes("Pauses fréquentes");
+    const standing = $("#fieldMaxStanding");
+    if (standing) standing.hidden = !active.includes("Station debout");
   }
 
   function restoreHabitualProfile() {
@@ -4121,4 +4141,5 @@
   $("#duration").dispatchEvent(new Event("input"));
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
+  updateLimitationStructureVisibility();
 })();
