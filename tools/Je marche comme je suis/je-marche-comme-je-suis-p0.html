@@ -972,6 +972,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)}
 .hero-head{padding:38px clamp(22px,4vw,48px) 30px;border-bottom:1px solid var(--border)}
 .eyebrow{font-family:var(--font-heading);font-size:11px;font-weight:600;letter-spacing:.18em;color:var(--teal)}
+.origin-note{margin:10px 0 0;font-size:12px;font-style:italic;color:var(--text-muted)}
 h1{font-family:var(--font-heading);font-size:clamp(38px,5vw,52px);font-weight:300;line-height:1.05;letter-spacing:0;color:var(--navy)}
 h1 em{color:var(--teal);font-style:normal}.promise{font-family:var(--font-body);font-size:16px;color:var(--text-body)}
 .privacy{background:transparent;border:0;padding:0;max-width:none;border-radius:0;color:var(--text-muted);font-family:var(--font-body);font-weight:400;font-size:11px;display:flex;align-items:center;gap:6px}
@@ -1041,10 +1042,11 @@ footer,.footer{color:var(--footer)}
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
-          ><button class="ghost" id="helpBtn">Aide</button></div></header><main class="hero"><section class="hero-head"><div><p class="eyebrow">Balades pédestres réellement personnalisées</p><h1>Votre corps, votre temps, <em>votre envie du jour.</em></h1><p class="promise">
-              Trois propositions : confortable, agréable et tonique — sans
-              compromis caché.
-            </p></div><div class="privacy">
+          ><button class="ghost" id="helpBtn">Aide</button></div></header><main class="hero"><section class="hero-head"><div><p class="eyebrow">Balades pédestres réellement personnalisées</p><h1>Le seul effort qui reste : <em>sortir.</em></h1><p class="promise">
+              Une activité douce vous a été conseillée ? Ici, préparer une
+              promenade ne vous retient plus — trois propositions concrètes,
+              confortable, agréable ou tonique, sans compromis caché.
+            </p><p class="origin-note">Née d’une vraie demande : quelqu’un à qui une activité prescrite pesait moins que le temps de préparer chaque sortie.</p></div><div class="privacy">
             Réponses locales · <button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button>
           </div></section><section class="mode-wrap"><div class="mode-title"><h2>Comment partir ?</h2></div><div class="modes"><button class="mode active" type="button" data-mode="api"><b>Créer ma balade sur mesure</b
               ><small
