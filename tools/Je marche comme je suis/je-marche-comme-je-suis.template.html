@@ -816,6 +816,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .option-tile:hover{border-color:var(--sea2)}.option-tile:focus-within{outline:2px solid var(--sea2);outline-offset:2px}
 .option-tile input{margin-top:.15rem}.option-tile span{display:grid;gap:.15rem}.option-tile small{color:var(--muted);font-weight:500;line-height:1.35}
 .option-tile-wide{width:100%}.calculation-options p,.privacy-options p{margin-bottom:.75rem}
+.calculation-options>summary{cursor:pointer;list-style:none;font-family:var(--font-heading);font-size:11px;font-weight:600;color:var(--sage);padding:5px 0}
+.calculation-options>summary::-webkit-details-marker{display:none}
+.calculation-options>summary::after{content:" — ouvrir"}.calculation-options[open]>summary::after{content:" — refermer"}
+.privacy-options-compact{padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.privacy-options-compact .option-tile-inline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-body);cursor:pointer;min-height:auto;border:0;background:transparent;padding:0}
+.privacy-options-compact .helper{font-size:11px;color:var(--text-muted);margin-top:2px}
 .result-reserve-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;align-items:center;margin:0 0 12px;padding:12px 14px;border:1px solid #d99a7b;border-left:4px solid #a94f2d;border-radius:11px;background:#fff4ef}
 .result-reserve-summary.ok{border-color:#abc4ad;border-left-color:var(--sea2);background:#eef5ef}
 .result-reserve-summary strong{font-size:.98rem}.result-reserve-summary span{display:block;margin-top:.2rem;font-size:.8rem;color:var(--muted)}
@@ -845,9 +851,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .constraint-summary-card{padding:12px}
 .constraint-summary-head{margin-bottom:8px;align-items:center}
 .constraint-summary-head h3{font-size:13px}.constraint-summary-head p{display:none}
-.summary-essentials{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 14px;margin:2px 0 8px}
-.summary-essential{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #ebe5dc;font-size:9px}
-.summary-essential span{color:var(--muted)}.summary-essential strong{text-align:right}
+.summary-essentials{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 8px}
+.summary-essential{display:flex;align-items:baseline;gap:6px;padding:6px 10px;border-radius:999px;background:var(--surface-alt);border:1px solid var(--border);font-size:11px}
+.summary-essential span{color:var(--text-muted)}.summary-essential strong{color:var(--text-heading)}
+.personal-note{margin-bottom:12px;padding:10px 12px;border-radius:var(--radius-md);background:var(--surface-alt);border:1px solid var(--border)}
+.personal-note>span{display:block;font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px}
+.personal-note>p{margin:0;font-size:13px;color:var(--text-body);white-space:pre-wrap}
 .summary-details{border-top:0;margin-top:4px}
 .summary-details>summary{cursor:pointer;font-size:9px;font-weight:800;color:#46696b;padding:7px 0;list-style:none}
 .summary-details>summary::-webkit-details-marker{display:none}.summary-details>summary::after{content:" +"}.summary-details[open]>summary::after{content:" –"}
@@ -1033,7 +1042,7 @@ footer,.footer{color:var(--footer)}
               Trois propositions : confortable, agréable et tonique — sans
               compromis caché.
             </p></div><div class="privacy">
-            <span aria-hidden="true">🔒</span> Réponses locales · <button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button>
+            Réponses locales · <button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button>
           </div></section><section class="mode-wrap"><div class="mode-title"><h2>Comment partir ?</h2></div><div class="modes"><button class="mode active" type="button" data-mode="api"><b>Créer ma balade sur mesure</b
               ><small
                 >Une vraie boucle, calculée selon ce que vous avez déclaré —
@@ -1244,11 +1253,11 @@ footer,.footer{color:var(--footer)}
                       ><button class="chip hard">Parking</button
                       ><button class="chip hard">Transport public</button
                       ><button class="chip hard">Réseau téléphonique</button></div></div></div><div class="nav"><button class="secondary prev" type="button">Retour</button
-                  ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card constraint-summary-card" id="constraintSummary" aria-live="polite"></div><div class="card"><h3>Avec vos propres mots</h3><p>En cas de contradiction, la valeur prudente prime.</p><textarea
+                  ><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card constraint-summary-card" id="constraintSummary" aria-live="polite"></div><div class="card"><h3>Avec vos propres mots</h3><p>Non analysé par le calcul — simplement redonné avec votre promenade, comme un aide-mémoire.</p><textarea
                     class="input textarea"
                     id="freeText"
                     placeholder="J’ai une heure, je suis en baskets, mon genou gêne en descente…"
-                  ></textarea></div><div class="card calculation-options"><h3>Options de calcul</h3><p>Le moteur conserve toujours vos contraintes et ne les assouplit jamais silencieusement.</p><input id="strict" type="checkbox" checked hidden aria-hidden="true"><div class="option-grid"><label class="option-tile"><input id="shortcuts" type="checkbox" checked><span><strong>Rechercher des raccourcis</strong><small>Repérer des variantes réelles plus courtes lorsqu’elles existent.</small></span></label><label class="option-tile"><input id="bothWays" type="checkbox" checked><span><strong>Comparer les deux sens</strong><small>Évaluer la boucle dans les deux orientations.</small></span></label></div></div><div class="card privacy-options"><h3>Confidentialité</h3><label class="option-tile option-tile-wide"><input id="private" type="checkbox"><span><strong>Mode privé</strong><small>Ne rien mémoriser sur cet appareil.</small></span></label><div class="helper" id="modeHelp"></div></div><details class="card api-compact" id="apiBox"><summary>Services cartographiques sécurisés</summary><div class="api-compact-content"><p>
+                  ></textarea></div><details class="card calculation-options"><summary>Réglages avancés du calcul</summary><div class="calculation-options-content"><p>Le moteur conserve toujours vos contraintes et ne les assouplit jamais silencieusement.</p><input id="strict" type="checkbox" checked hidden aria-hidden="true"><div class="option-grid"><label class="option-tile"><input id="shortcuts" type="checkbox" checked><span><strong>Rechercher des raccourcis</strong><small>Repérer des variantes réelles plus courtes lorsqu’elles existent.</small></span></label><label class="option-tile"><input id="bothWays" type="checkbox" checked><span><strong>Comparer les deux sens</strong><small>Évaluer la boucle dans les deux orientations.</small></span></label></div></div></details><div class="card privacy-options-compact"><label class="option-tile-inline"><input id="private" type="checkbox"><span><strong>Mode privé</strong> — ne rien mémoriser sur cet appareil</span></label><div class="helper" id="modeHelp"></div></div><details class="card api-compact" id="apiBox"><summary>Services cartographiques sécurisés</summary><div class="api-compact-content"><p>
                     Les clés sont conservées comme secrets Cloudflare. Elles ne
                     sont jamais envoyées au navigateur, écrites dans GitHub ou
                     enregistrées dans localStorage. Les limitations physiques,
@@ -1257,7 +1266,7 @@ footer,.footer{color:var(--footer)}
                           >OpenRouteService · calcul des boucles</span
                         ><span class="service-state" data-status="ors"
                           >Non testé</span
-                        ></div><div class="service-actions secure"><span class="service-secure">🔒 Secret Cloudflare</span
+                        ></div><div class="service-actions secure"><span class="service-secure">Secret Cloudflare</span
                         ><button class="small" data-test="ors" type="button">
                           Tester
                         </button></div><div class="service-meta"><span>Requêtes : <b data-count="ors">0</b></span
@@ -1265,7 +1274,7 @@ footer,.footer{color:var(--footer)}
                           >Geoapify · points utiles</span
                         ><span class="service-state" data-status="geo"
                           >Non testé</span
-                        ></div><div class="service-actions secure"><span class="service-secure">🔒 Secret Cloudflare</span
+                        ></div><div class="service-actions secure"><span class="service-secure">Secret Cloudflare</span
                         ><button class="small" data-test="geo" type="button">
                           Tester
                         </button></div><div class="service-meta"><span>Requêtes : <b data-count="geo">0</b></span
@@ -1273,7 +1282,7 @@ footer,.footer{color:var(--footer)}
                           >Mapillary · photographies du terrain</span
                         ><span class="service-state" data-status="mapillary"
                           >Non testé</span
-                        ></div><div class="service-actions secure"><span class="service-secure">🔒 Secret Cloudflare</span
+                        ></div><div class="service-actions secure"><span class="service-secure">Secret Cloudflare</span
                         ><button
                           class="small"
                           data-test="mapillary"
