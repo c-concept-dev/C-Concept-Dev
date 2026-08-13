@@ -15,8 +15,8 @@ test("les champs de limitation reprennent le langage visuel du formulaire", () =
 
 test("Prudence et repli disparaît de la préparation", () => {
   assert.doesNotMatch(template, /<h3>Prudence et repli<\/h3>/);
-  assert.match(template, /<h3>Options de calcul<\/h3>/);
-  assert.match(template, /<h3>Confidentialité<\/h3>/);
+  assert.match(template, /<summary>Réglages avancés du calcul<\/summary>/);
+  assert.match(template, /privacy-options-compact/);
   assert.match(template, /id="strict"[^>]+hidden/);
   assert.doesNotMatch(app, /summaryItem\("Compromis silencieux"/);
 });

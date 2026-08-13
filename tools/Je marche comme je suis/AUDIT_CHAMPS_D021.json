@@ -1,8 +1,8 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-07T06:21:45.717Z",
+  "generatedAt": "2026-08-13T16:11:25.143Z",
   "counts": {
-    "visibleFields": 44,
+    "visibleFields": 43,
     "choiceGroups": 5,
     "visibleChoices": 62,
     "complete": 33,
@@ -11,6 +11,7 @@
   "structuralCoverage": {
     "orphanFields": [],
     "missingFields": [
+      "limitationConfirmed",
       "weather"
     ],
     "orphanChoices": [],
@@ -342,18 +343,6 @@
       "note": "Contexte temporel conservé dans la règle dérivée."
     },
     {
-      "id": "limitationConfirmed",
-      "kind": "field",
-      "effect": "generation-audit",
-      "severity": "conditional",
-      "requiredData": [
-        "confirmed-functional-effect"
-      ],
-      "unknownPolicy": "confirm",
-      "status": "unreviewed",
-      "note": "État fonctionnel non qualifié."
-    },
-    {
       "id": "noStairs",
       "kind": "field",
       "effect": "generation-audit",
@@ -674,6 +663,18 @@
       "unknownPolicy": "block",
       "status": "partial",
       "note": "Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources."
+    },
+    {
+      "id": "limitationConfirmed",
+      "kind": "internal-field",
+      "effect": "generation-audit",
+      "severity": "conditional",
+      "requiredData": [
+        "confirmed-functional-effect"
+      ],
+      "unknownPolicy": "confirm",
+      "status": "unreviewed",
+      "note": "État fonctionnel non qualifié."
     },
     {
       "id": "weather",

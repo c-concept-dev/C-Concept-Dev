@@ -4,7 +4,7 @@
 
 ## Résumé
 
-- Champs visibles : **44**
+- Champs visibles : **43**
 - Groupes de choix : **5**
 - Choix visibles : **62**
 - Entrées complètes : **33**
@@ -44,7 +44,6 @@
 | limitationSide | field | explanation | information | — | preserve-unknown | complete | Côté déclaré, conservé dans la demande et expliqué. |
 | limitationConsequence | field | generation-audit | conditional | confirmed-functional-effect | confirm | complete | Éviter, limiter, ralentir, pause ou repli modifient la demande. |
 | limitationTemporality | field | explanation | information | — | preserve-unknown | complete | Contexte temporel conservé dans la règle dérivée. |
-| limitationConfirmed | field | generation-audit | conditional | confirmed-functional-effect | confirm | unreviewed | État fonctionnel non qualifié. |
 | noStairs | field | generation-audit | imperative | steps | block | complete | Évitement ORS et contrôle des données de marches. |
 | noExposure | field | audit | imperative | exposure | block | partial | Contrôle prévu mais preuve d’exposition encore souvent absente. |
 | effort | field | generation-ranking | preference | elevation | rank-only | complete | Classement par profil et métriques d’effort. |
@@ -65,6 +64,7 @@
 | terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée. |
 | wishes | choice-group | generation-ranking | preference | green, noise, pois | rank-only | partial | Classement partiel ; plusieurs envies nécessitent des POI avant sélection. |
 | services | choice-group | generation-audit | imperative | pois | block | partial | Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources. |
+| limitationConfirmed | internal-field | generation-audit | conditional | confirmed-functional-effect | confirm | unreviewed | État fonctionnel non qualifié. |
 | weather | internal-field | generation-audit | preparation | observed-weather | preserve-unknown | partial | Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur. |
 
 ## Conclusion

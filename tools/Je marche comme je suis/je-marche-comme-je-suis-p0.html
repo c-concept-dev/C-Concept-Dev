@@ -1506,6 +1506,11 @@ footer,.footer{color:var(--footer)}
       requiredData: [],
       unknownPolicy: "preserve-unknown",
     },
+    limitationConfirmed: {
+      effect: "generation-audit",
+      requiredData: ["confirmed-functional-effect"],
+      unknownPolicy: "confirm",
+    },
     maxWithoutPause: {
       effect: "generation-audit",
       requiredData: ["segment-times"],
@@ -2294,6 +2299,22 @@ footer,.footer{color:var(--footer)}
           ? `${route.minimumWidthMeters} m minimum`
           : "largeur à vérifier avant de partir",
       );
+    if (Array.isArray(route.preferencesIgnored) && route.preferencesIgnored.length) {
+      const names = route.preferencesIgnored.map((key) =>
+        key === "green" ? "verte" : key === "quiet" ? "calme" : key,
+      );
+      const plural = names.length > 1;
+      const joined = names.join(" et ");
+      add(
+        "advisory-preferences-ignored",
+        `Préférence${plural ? "s" : ""} ${joined} non appliquée${plural ? "s" : ""}`,
+        "advisory",
+        STATUS.VIOLATED,
+        plural
+          ? `Limitation technique du mode boucle ORS : les préférences ${joined} n’ont pas pu être transmises pour cette recherche.`
+          : `Limitation technique du mode boucle ORS : la préférence ${joined} n’a pas pu être transmise pour cette recherche.`,
+      );
+    }
     if (advisory.preferShortcuts && !hard.requireShortcuts)
       add(
         "advisory-shortcuts",
@@ -6910,7 +6931,12 @@ footer,.footer{color:var(--footer)}
           error.requestCount = data.requestCount;
           throw error;
         }
-        return routes;
+        return {
+          routes,
+          preferencesIgnored: Array.isArray(data.preferencesIgnored)
+            ? data.preferencesIgnored
+            : [],
+        };
       },
       async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
         if (
@@ -7875,9 +7901,9 @@ footer,.footer{color:var(--footer)}
         ? (Math.floor(n / 60) + " h " + (n % 60 || "")).trim()
         : n + " minutes";
   };
-  function mode(m) {
+  function mode(m, reveal = true) {
     S.mode = m;
-    $("#workspace").hidden = false;
+    if (reveal) $("#workspace").hidden = false;
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
@@ -11497,7 +11523,7 @@ footer,.footer{color:var(--footer)}
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
-  mode("api");
+  mode("api", false);
   $("#duration").dispatchEvent(new Event("input"));
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");

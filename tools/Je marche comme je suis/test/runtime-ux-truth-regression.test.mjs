@@ -23,6 +23,12 @@ test('la zone de résultats reste lisible et le demi-tour est prioritaire en pha
   assert.match(template, /\.detail summary\{font-size:\.88rem/);
 });
 
+test('le formulaire ne se révèle qu’au clic, pas à l’initialisation du script', () => {
+  assert.match(template, /<div class="workspace" id="workspace" hidden>/);
+  assert.match(app, /function mode\(m, reveal = true\) \{[\s\S]*?if \(reveal\) \$\("#workspace"\)\.hidden = false;/);
+  assert.match(app, /mode\("api", false\);\s*\n\s*\$\("#duration"\)\.dispatchEvent/);
+});
+
 test('une couverture de surface inférieure à 25 % est très partiellement documentée', () => {
   const context = { globalThis: {} };
   vm.createContext(context);

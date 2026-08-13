@@ -519,9 +519,9 @@
         ? (Math.floor(n / 60) + " h " + (n % 60 || "")).trim()
         : n + " minutes";
   };
-  function mode(m) {
+  function mode(m, reveal = true) {
     S.mode = m;
-    $("#workspace").hidden = false;
+    if (reveal) $("#workspace").hidden = false;
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
@@ -4141,7 +4141,7 @@
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
-  mode("api");
+  mode("api", false);
   $("#duration").dispatchEvent(new Event("input"));
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
