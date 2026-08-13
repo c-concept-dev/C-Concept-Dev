@@ -585,6 +585,7 @@
     S.mode = m;
     if (reveal) $("#workspace").hidden = false;
     if (reveal) document.body.classList.add("journey-started");
+    if (reveal) window.scrollTo(0, 0);
     updateLiveSummary();
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
@@ -600,6 +601,12 @@
           : "Le fichier est lu localement puis contrôlé par le même noyau.";
   }
   $$(".mode").forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
+  if ($("#backToLanding"))
+    $("#backToLanding").onclick = () => {
+      document.body.classList.remove("journey-started");
+      $("#workspace").hidden = true;
+      window.scrollTo(0, 0);
+    };
   $$("[data-test]").forEach(
     (b) => (b.onclick = () => testService(b.dataset.test)),
   );
