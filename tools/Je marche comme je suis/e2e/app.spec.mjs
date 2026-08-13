@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const APP_URL = "/je-marche-comme-je-suis-p0.html";
+const APP_URL = "/tools/Je%20marche%20comme%20je%20suis/je-marche-comme-je-suis-p0.html";
 const WORKER_PATTERN = "**/jmmjs-map-services.11drumboy11.workers.dev/v1/**";
 
 function routeFeature({ lon, lat, index, target, durationMinutes }) {
@@ -58,6 +58,8 @@ async function mockWorker(page, { fail = false } = {}) {
 async function openApp(page) {
   await page.goto(APP_URL);
   await expect(page.getByRole("heading", { name: /Votre corps, votre temps/i })).toBeVisible();
+  await page.getByRole("button", { name: "Créer ma balade sur mesure" }).click();
+  await expect(page.locator("#place")).toBeVisible();
 }
 
 async function fillMinimumProfile(page) {
@@ -130,7 +132,6 @@ test("@critical la synthèse avant calcul permet de revenir modifier une règle"
   await fillMinimumProfile(page);
   const summary = page.locator("#constraintSummary");
   await expect(summary).toBeVisible();
-  await summary.getByText("Afficher tous les réglages").click();
   const modify = summary.getByRole("button", { name: "Modifier" }).first();
   await modify.click();
   await expect(page.locator("#create")).not.toBeVisible();
@@ -144,15 +145,14 @@ test("@critical D-024 affiche et audite une limitation fonctionnelle confirmée"
   await page.locator("#lon").fill("1.432");
   await page.getByRole("button", { name: "Continuer" }).click();
   await page.locator("#footwear").selectOption({ label: "Baskets classiques" });
-  await page.locator("#limitationTrigger").selectOption({ label: "Descente" });
-  await page.getByText("Ajouter des contraintes précises").click();
   await page.locator("#limitationSide").selectOption({ label: "Droit" });
+  await page.locator("#limitationTrigger").selectOption({ label: "Descente" });
   await page.locator("#limitationConsequence").selectOption({ label: "Éviter" });
   await page.locator("#limitationConfirmed").check();
   await page.getByRole("button", { name: "Continuer" }).click();
   await page.getByRole("button", { name: "Continuer" }).click();
-  await expect(page.locator("#constraintSummary")).toContainText(/Pente descendante maximale\s*4\s*%/);
-  await expect(page.locator("#constraintSummary")).toContainText(/Pente descendante maximale\s*4\s*%[\s\S]{0,80}·\s*Impératif/);
+  await expect(page.locator("#constraintSummary")).toContainText("seuil 4 %");
+  await expect(page.locator("#constraintSummary")).toContainText(/aucun seuil explicite/i);
   await page.getByRole("button", { name: "Confirmer et calculer" }).click();
   await expect(page.locator("#detail")).toContainText(/Descente à éviter|pente descendante/i);
 });
