@@ -1,8 +1,9 @@
-const CACHE = "jmmjs-shell-20260806-routing-fix";
+const CACHE = "jmmjs-shell-20260806-d055-ui";
 const SHELL = [
   "./je-marche-comme-je-suis-p0.html",
   "./manifest.webmanifest",
   "./icons/jmmjs-icon.svg",
+  "./icons/hero-landscape.webp",
   "./icons/favicon-32.png",
   "./icons/apple-touch-icon-180.png",
   "./icons/jmmjs-icon-192.png",
