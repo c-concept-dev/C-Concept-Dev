@@ -342,12 +342,64 @@
       }),
     );
   }
+  function updateLiveSummary() {
+    document.body.dataset.wizardStep = String(S.step);
+    const progressButtons = $$("[data-go]");
+    progressButtons.forEach((button, i) => {
+      button.classList.toggle("done", i < S.step);
+      if (i === S.step) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    });
+    const place = val("#place").trim();
+    const duration = Number(val("#duration"));
+    const fitness = Number(val("#fitness"));
+    const fatigue = Number(val("#fatigue"));
+    const pain = Number(val("#pain"));
+    const terrains = chosen("terrain");
+    const wishes = chosen("wishes");
+    const departure = $("#liveDeparture");
+    const today = $("#liveToday");
+    const terrain = $("#liveTerrain");
+    if (departure) {
+      const durationText = Number.isFinite(duration) && duration > 0
+        ? duration >= 60
+          ? `${Math.floor(duration / 60)} h${duration % 60 ? ` ${duration % 60} min` : ""}`
+          : `${duration} min`
+        : null;
+      departure.textContent = [place || null, durationText].filter(Boolean).join(" · ") || "À préciser";
+      departure.parentElement?.classList.toggle("is-ready", Boolean(place || durationText));
+    }
+    if (today) {
+      const parts = [];
+      if (Number.isFinite(fitness)) parts.push(`forme ${fitness}/5`);
+      if (Number.isFinite(fatigue)) parts.push(`fatigue ${fatigue}/5`);
+      if (Number.isFinite(pain)) parts.push(`douleur ${pain}/10`);
+      today.textContent = parts.length ? parts.join(" · ") : "À préciser";
+      today.parentElement?.classList.toggle("is-ready", S.step >= 1 || parts.length > 0);
+    }
+    if (terrain) {
+      const parts = [...terrains.slice(0, 2), ...wishes.slice(0, 1)];
+      terrain.textContent = parts.length ? parts.join(" · ") : "À préciser";
+      terrain.parentElement?.classList.toggle("is-ready", parts.length > 0);
+    }
+    const titles = [
+      ["Votre préparation", "Votre balade prend son point de départ", "Commencez par préciser le lieu, le temps disponible et votre rythme."],
+      ["Votre état du jour", "L’application s’adapte à aujourd’hui", "Forme, fatigue, douleurs et équipement restent des données de préparation, pas un diagnostic."],
+      ["Terrain & envie", "Votre préférence devient une recherche contrôlable", "Le moteur distingue les contraintes impératives des préférences de plaisir."],
+      ["Vérification", "Votre demande est prête à être contrôlée", "Relisez les contraintes avant de lancer le calcul. Rien n’est assoupli silencieusement."],
+    ];
+    const [kicker, title, intro] = titles[S.step] || titles[0];
+    if ($("#liveKicker")) $("#liveKicker").textContent = kicker;
+    if ($("#liveTitle")) $("#liveTitle").textContent = title;
+    if ($("#liveIntro")) $("#liveIntro").textContent = intro;
+  }
   function go(n) {
     S.step = Math.max(0, Math.min(3, n));
     $$(".step").forEach((x, i) => x.classList.toggle("active", i === S.step));
     $$("[data-go]").forEach((x, i) =>
       x.classList.toggle("active", i === S.step),
     );
+    updateLiveSummary();
     if (S.step === 3) {
       renderConstraintSummary();
       void refreshWeatherPreview();
@@ -507,10 +559,14 @@
         b.classList.toggle("active");
         if (b.closest('[data-group="limits"]'))
           updateLimitationStructureVisibility();
+        updateLiveSummary();
       }),
   );
   $$(".range input").forEach(
-    (x) => (x.oninput = () => (x.nextElementSibling.textContent = x.value)),
+    (x) => (x.oninput = () => {
+      x.nextElementSibling.textContent = x.value;
+      updateLiveSummary();
+    }),
   );
   $("#duration").oninput = () => {
     const n = +val("#duration");
@@ -519,9 +575,17 @@
         ? (Math.floor(n / 60) + " h " + (n % 60 || "")).trim()
         : n + " minutes";
   };
-  function mode(m) {
+  formElement?.addEventListener("input", (event) => {
+    if (!event.target?.classList?.contains("chip")) updateLiveSummary();
+  });
+  formElement?.addEventListener("change", updateLiveSummary);
+  updateLiveSummary();
+
+  function mode(m, reveal = true) {
     S.mode = m;
-    $("#workspace").hidden = false;
+    if (reveal) $("#workspace").hidden = false;
+    if (reveal) document.body.classList.add("journey-started");
+    updateLiveSummary();
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
@@ -4142,7 +4206,7 @@
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
-  mode("api");
+  mode("api", false);
   $("#duration").dispatchEvent(new Event("input"));
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
