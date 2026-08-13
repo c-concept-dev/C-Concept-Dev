@@ -623,13 +623,24 @@
       const rect = homeCta.getBoundingClientRect();
       const dx = (event.clientX - rect.left) / rect.width - 0.5;
       const dy = (event.clientY - rect.top) / rect.height - 0.5;
-      homeCta.style.setProperty("--compass-tilt", `${Math.round(dx * 18)}deg`);
-      homeCta.style.setProperty("--compass-shift-x", `${(dx * 10).toFixed(1)}px`);
-      homeCta.style.setProperty("--compass-shift-y", `${(dy * 6).toFixed(1)}px`);
+      homeCta.style.setProperty("--compass-tilt", `${Math.round(dx * 6)}deg`);
+      homeCta.style.setProperty("--compass-shift-x", `${(dx * 6).toFixed(1)}px`);
+      homeCta.style.setProperty("--compass-shift-y", `${(dy * 4).toFixed(1)}px`);
     });
     homeCta.addEventListener("pointerleave", resetHomeMotion);
     homeCta.addEventListener("pointerdown", () => homeCta.classList.add("is-pressing"));
     homeCta.addEventListener("pointerup", () => homeCta.classList.remove("is-pressing"));
+  }
+  if (homeCta) {
+    homeCta.onclick = () => {
+      if (homeCta.classList.contains("is-launching")) return;
+      homeCta.classList.add("is-launching");
+      const delay = reduceMotion ? 0 : 180;
+      window.setTimeout(() => {
+        homeCta.classList.remove("is-launching");
+        mode("api");
+      }, delay);
+    };
   }
   if (heroVisual && !reduceMotion) {
     heroVisual.addEventListener("pointermove", (event) => {
