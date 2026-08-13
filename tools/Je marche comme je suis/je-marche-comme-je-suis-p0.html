@@ -969,7 +969,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .brand span{font-family:var(--font-heading);font-size:9px;font-weight:600;letter-spacing:.15em;color:var(--teal)}
 .ghost,.small,.secondary,.provider,.exports a,.exports button{border-radius:var(--radius-button);border-color:var(--border);background:var(--surface);font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;transition:var(--transition-fast)}
 .ghost:hover,.small:hover,.secondary:hover,.provider:hover,.exports a:hover,.exports button:hover{border-color:var(--teal);color:var(--teal)}
-.hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)}
+.hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);position:relative;overflow:hidden}
+.hero-head{position:relative}
+.hero-glow{position:absolute;top:-120px;right:-80px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(201,161,90,.28) 0%,rgba(138,154,91,.12) 55%,transparent 75%);pointer-events:none;filter:blur(2px)}
+.hero-signature{position:absolute;top:12px;right:32px;width:150px;height:150px;opacity:.9}
+.hero-signature-trail{stroke-dasharray:520;stroke-dashoffset:520}
+@media (prefers-reduced-motion: no-preference){.hero-signature-trail{animation:hero-trail-draw 1.6s .3s cubic-bezier(.4,0,.2,1) forwards}}
+@media (prefers-reduced-motion: reduce){.hero-signature-trail{stroke-dashoffset:0}}
+@keyframes hero-trail-draw{to{stroke-dashoffset:0}}
+@media (max-width:760px){.hero-signature{width:100px;height:100px;top:8px;right:14px}.hero-glow{width:280px;height:280px;top:-80px;right:-60px}}
 .hero-head{padding:38px clamp(22px,4vw,48px) 30px;border-bottom:1px solid var(--border)}
 .eyebrow{font-family:var(--font-heading);font-size:11px;font-weight:600;letter-spacing:.18em;color:var(--teal)}
 h1{font-family:var(--font-heading);font-size:clamp(38px,5vw,52px);font-weight:300;line-height:1.05;letter-spacing:0;color:var(--navy)}
@@ -982,6 +990,11 @@ h1 em{color:var(--teal);font-style:normal}.promise{font-family:var(--font-body);
 .modes{grid-template-columns:1fr}
 .mode{border-color:var(--border);border-radius:var(--radius-lg);padding:17px 18px;background:var(--surface);box-shadow:var(--shadow-md);transition:var(--transition-normal)}
 .mode.active{border:2px solid var(--teal);padding:16px 17px;background:var(--surface);box-shadow:0 0 0 3px rgba(138,154,91,.10)}
+.mode.active{background:linear-gradient(135deg,var(--sage),var(--sage-hover));border-color:var(--sage-hover);color:#fff;transition:transform var(--transition-fast),box-shadow var(--transition-fast)}
+.mode.active b,.mode.active small{color:#fff}
+.mode.active:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.mode.active::after{content:"→";display:inline-block;margin-left:8px;transition:transform var(--transition-fast)}
+.mode.active:hover::after{transform:translateX(4px)}
 .mode b{font-family:var(--font-heading);font-size:16px;font-weight:600;color:var(--navy)}
 .mode-secondary{display:inline-flex;width:auto;min-height:auto;border:0!important;background:transparent!important;box-shadow:none!important;padding:8px 0 0!important;margin:0;font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--teal);text-decoration:underline;text-underline-offset:3px}
 .mode-secondary small,.mode-secondary .badge{display:none}
@@ -1042,7 +1055,7 @@ footer,.footer{color:var(--footer)}
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
-          ><button class="ghost" id="helpBtn">Aide</button></div></header><main class="hero"><section class="hero-head"><div><p class="eyebrow">Balades pédestres réellement personnalisées</p><h1>Votre corps, votre temps, <em>votre envie du jour.</em></h1><p class="promise">
+          ><button class="ghost" id="helpBtn">Aide</button></div></header><main class="hero"><section class="hero-head"><div class="hero-glow" aria-hidden="true"></div><svg class="hero-signature" aria-hidden="true" viewBox="0 0 512 512"><circle cx="377" cy="135" r="53" fill="var(--ochre)"/><path d="M43 363C125 287 195 302 255 260C321 214 348 208 469 177V469H43Z" fill="var(--sage)"/><path class="hero-signature-trail" d="M71 451C130 390 222 391 252 333C283 273 324 258 431 226" fill="none" stroke="var(--terracotta)" stroke-width="10" stroke-linecap="round"/></svg><div><p class="eyebrow">Balades pédestres réellement personnalisées</p><h1>Votre corps, votre temps, <em>votre envie du jour.</em></h1><p class="promise">
               Trois propositions : confortable, agréable et tonique — sans
               compromis caché.
             </p></div><div class="privacy">
@@ -1261,7 +1274,7 @@ footer,.footer{color:var(--footer)}
                     class="input textarea"
                     id="freeText"
                     placeholder="J’ai une heure, je suis en baskets, mon genou gêne en descente…"
-                  ></textarea></div></details><details class="card calculation-options"><summary>Réglages avancés du calcul</summary><div class="calculation-options-content"><p>Le moteur conserve toujours vos contraintes et ne les assouplit jamais silencieusement.</p><input id="strict" type="checkbox" checked hidden aria-hidden="true"><div class="option-grid"><label class="option-tile"><input id="shortcuts" type="checkbox" checked><span><strong>Rechercher des raccourcis</strong><small>Repérer des variantes réelles plus courtes lorsqu’elles existent.</small></span></label><label class="option-tile"><input id="bothWays" type="checkbox" checked><span><strong>Comparer les deux sens</strong><small>Évaluer la boucle dans les deux orientations.</small></span></label></div></div></details><div class="card privacy-options-compact"><label class="option-tile-inline"><input id="private" type="checkbox"><span><strong>Mode privé</strong> — ne rien mémoriser sur cet appareil</span></label><div class="helper" id="modeHelp"></div></div><details class="card api-compact" id="apiBox"><summary>Services cartographiques sécurisés</summary><div class="api-compact-content"><p>
+                  ></textarea></div></details><details class="card calculation-options"><summary>Réglages avancés du calcul</summary><div class="calculation-options-content"><p>Le moteur conserve toujours vos contraintes et ne les assouplit jamais silencieusement.</p><input id="strict" type="checkbox" checked hidden aria-hidden="true"><div class="option-grid"><label class="option-tile"><input id="shortcuts" type="checkbox" checked><span><strong>Rechercher des raccourcis</strong><small>Repérer des variantes réelles plus courtes lorsqu’elles existent.</small></span></label><label class="option-tile"><input id="bothWays" type="checkbox" checked><span><strong>Comparer les deux sens</strong><small>Évaluer la boucle dans les deux orientations.</small></span></label></div></div></details><div class="card privacy-options-compact"><label class="option-tile-inline"><input id="private" type="checkbox"><span><strong>Mode privé</strong> — ne rien mémoriser sur cet appareil</span></label></div><details class="card api-compact" id="apiBox"><summary>Services cartographiques sécurisés</summary><div class="api-compact-content"><p>
                     Les clés sont conservées comme secrets Cloudflare. Elles ne
                     sont jamais envoyées au navigateur, écrites dans GitHub ou
                     enregistrées dans localStorage. Les limitations physiques,
@@ -1505,11 +1518,6 @@ footer,.footer{color:var(--footer)}
       effect: "explanation",
       requiredData: [],
       unknownPolicy: "preserve-unknown",
-    },
-    limitationConfirmed: {
-      effect: "generation-audit",
-      requiredData: ["confirmed-functional-effect"],
-      unknownPolicy: "confirm",
     },
     maxWithoutPause: {
       effect: "generation-audit",
@@ -2299,22 +2307,6 @@ footer,.footer{color:var(--footer)}
           ? `${route.minimumWidthMeters} m minimum`
           : "largeur à vérifier avant de partir",
       );
-    if (Array.isArray(route.preferencesIgnored) && route.preferencesIgnored.length) {
-      const names = route.preferencesIgnored.map((key) =>
-        key === "green" ? "verte" : key === "quiet" ? "calme" : key,
-      );
-      const plural = names.length > 1;
-      const joined = names.join(" et ");
-      add(
-        "advisory-preferences-ignored",
-        `Préférence${plural ? "s" : ""} ${joined} non appliquée${plural ? "s" : ""}`,
-        "advisory",
-        STATUS.VIOLATED,
-        plural
-          ? `Limitation technique du mode boucle ORS : les préférences ${joined} n’ont pas pu être transmises pour cette recherche.`
-          : `Limitation technique du mode boucle ORS : la préférence ${joined} n’a pas pu être transmise pour cette recherche.`,
-      );
-    }
     if (advisory.preferShortcuts && !hard.requireShortcuts)
       add(
         "advisory-shortcuts",
@@ -6931,12 +6923,7 @@ footer,.footer{color:var(--footer)}
           error.requestCount = data.requestCount;
           throw error;
         }
-        return {
-          routes,
-          preferencesIgnored: Array.isArray(data.preferencesIgnored)
-            ? data.preferencesIgnored
-            : [],
-        };
+        return routes;
       },
       async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
         if (
@@ -7901,9 +7888,9 @@ footer,.footer{color:var(--footer)}
         ? (Math.floor(n / 60) + " h " + (n % 60 || "")).trim()
         : n + " minutes";
   };
-  function mode(m, reveal = true) {
+  function mode(m) {
     S.mode = m;
-    if (reveal) $("#workspace").hidden = false;
+    $("#workspace").hidden = false;
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
@@ -7911,10 +7898,11 @@ footer,.footer{color:var(--footer)}
     $("#gpxBox").hidden = m !== "gpx";
     $("#create").textContent =
       m === "api" ? "Confirmer et calculer" : "Confirmer et analyser le GPX";
-    $("#modeHelp").textContent =
-      m === "api"
-        ? "OpenRouteService est protégé par Cloudflare. Si le moteur est indisponible, aucun parcours non vérifié ne le remplace silencieusement."
-        : "Le fichier est lu localement puis contrôlé par le même noyau.";
+    if ($("#modeHelp"))
+      $("#modeHelp").textContent =
+        m === "api"
+          ? "OpenRouteService est protégé par Cloudflare. Si le moteur est indisponible, aucun parcours non vérifié ne le remplace silencieusement."
+          : "Le fichier est lu localement puis contrôlé par le même noyau.";
   }
   $$(".mode").forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
   $$("[data-test]").forEach(
@@ -11523,7 +11511,7 @@ footer,.footer{color:var(--footer)}
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
-  mode("api", false);
+  mode("api");
   $("#duration").dispatchEvent(new Event("input"));
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
