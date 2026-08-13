@@ -1051,7 +1051,7 @@ footer,.footer{color:var(--footer)}
                 >Une vraie boucle, calculée selon ce que vous avez déclaré —
                 jamais un itinéraire inventé pour combler les trous.</small
               ></button
-            ></div><button class="mode mode-secondary" type="button" data-mode="gpx">J’ai déjà une trace GPX à analyser</button></section><div class="workspace"><form class="panel" id="form" novalidate onsubmit="return false"><div class="form-head"><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress"><button class="active" type="button" data-go="0">
+            ></div><button class="mode mode-secondary" type="button" data-mode="gpx">J’ai déjà une trace GPX à analyser</button></section><div class="workspace" id="workspace" hidden><form class="panel" id="form" novalidate onsubmit="return false"><div class="form-head"><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress"><button class="active" type="button" data-go="0">
                   1 · Départ</button
                 ><button type="button" data-go="1">2 · Aujourd’hui</button
                 ><button type="button" data-go="2">3 · Terrain & envie</button
@@ -7876,6 +7876,7 @@ footer,.footer{color:var(--footer)}
   };
   function mode(m) {
     S.mode = m;
+    $("#workspace").hidden = false;
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
