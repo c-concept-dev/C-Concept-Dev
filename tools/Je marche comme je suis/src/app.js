@@ -601,6 +601,76 @@
           : "Le fichier est lu localement puis contrôlé par le même noyau.";
   }
   $$(".mode").forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
+
+  // D056 — accueil vivant, sans simulation de données ni impact sur le moteur.
+  const reduceMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const finePointer = globalThis.matchMedia?.("(pointer: fine)")?.matches;
+  const homeCta = $("#homeCreateWalk");
+  if (homeCta && finePointer && !reduceMotion) {
+    const compass = homeCta.querySelector(".home-compass");
+    const pointCompass = (event) => {
+      if (!compass) return;
+      const r = compass.getBoundingClientRect();
+      const dx = event.clientX - (r.left + r.width / 2);
+      const dy = event.clientY - (r.top + r.height / 2);
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+      homeCta.style.setProperty("--compass-angle", `${angle.toFixed(1)}deg`);
+      homeCta.classList.add("is-compass-tracking");
+    };
+    homeCta.addEventListener("pointermove", pointCompass);
+    homeCta.addEventListener("pointerleave", () => {
+      homeCta.classList.remove("is-compass-tracking");
+      homeCta.style.removeProperty("--compass-angle");
+    });
+  }
+
+  const homeLandscape = $("#homeLandscape");
+  if (homeLandscape && finePointer && !reduceMotion) {
+    let frame = 0;
+    homeLandscape.addEventListener("pointermove", (event) => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const r = homeLandscape.getBoundingClientRect();
+        const x = ((event.clientX - r.left) / r.width - 0.5) * 18;
+        const y = ((event.clientY - r.top) / r.height - 0.5) * 12;
+        homeLandscape.style.setProperty("--px", `${x.toFixed(2)}px`);
+        homeLandscape.style.setProperty("--py", `${y.toFixed(2)}px`);
+      });
+    });
+    homeLandscape.addEventListener("pointerleave", () => {
+      homeLandscape.style.setProperty("--px", "0px");
+      homeLandscape.style.setProperty("--py", "0px");
+    });
+  }
+
+  const moodCards = $$(".walk-mood");
+  moodCards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const open = !card.classList.contains("is-preview");
+      moodCards.forEach((other) => {
+        other.classList.remove("is-preview");
+        other.setAttribute("aria-pressed", "false");
+      });
+      if (open) {
+        card.classList.add("is-preview");
+        card.setAttribute("aria-pressed", "true");
+      }
+    });
+    if (finePointer && !reduceMotion) {
+      card.addEventListener("pointermove", (event) => {
+        const r = card.getBoundingClientRect();
+        const x = ((event.clientX - r.left) / r.width - 0.5) * 8;
+        const y = ((event.clientY - r.top) / r.height - 0.5) * 6;
+        card.style.setProperty("--mx", `${x.toFixed(2)}px`);
+        card.style.setProperty("--my", `${y.toFixed(2)}px`);
+      });
+      card.addEventListener("pointerleave", () => {
+        card.style.setProperty("--mx", "0px");
+        card.style.setProperty("--my", "0px");
+      });
+    }
+  });
+
   if ($("#backToLanding"))
     $("#backToLanding").onclick = () => {
       document.body.classList.remove("journey-started");
