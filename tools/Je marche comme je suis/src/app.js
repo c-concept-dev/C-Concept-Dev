@@ -603,37 +603,43 @@
   $$(".mode").forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
 
   const homeCta = $(".home-cta");
-  const compassNeedle = $(".compass-needle");
-  if (homeCta && compassNeedle) {
-    const updateCompass = (event) => {
+  const homeCompass = $(".home-compass-photo");
+  const heroVisual = $("#heroVisual");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const resetHomeMotion = () => {
+    if (homeCta) {
+      homeCta.style.setProperty("--compass-tilt", "0deg");
+      homeCta.style.setProperty("--compass-shift-x", "0px");
+      homeCta.style.setProperty("--compass-shift-y", "0px");
+      homeCta.classList.remove("is-pressing");
+    }
+    if (heroVisual) {
+      heroVisual.style.setProperty("--hero-shift-x", "0px");
+      heroVisual.style.setProperty("--hero-shift-y", "0px");
+    }
+  };
+  if (homeCta && homeCompass && !reduceMotion) {
+    homeCta.addEventListener("pointermove", (event) => {
       const rect = homeCta.getBoundingClientRect();
-      const x = event.clientX - (rect.left + rect.width * 0.88);
-      const y = event.clientY - (rect.top + rect.height * 0.5);
-      const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
-      compassNeedle.style.transform = `rotate(${Math.round(angle)}deg)`;
-    };
-    homeCta.addEventListener("pointermove", updateCompass);
-    homeCta.addEventListener("pointerleave", () => {
-      compassNeedle.style.transform = "rotate(0deg)";
+      const dx = (event.clientX - rect.left) / rect.width - 0.5;
+      const dy = (event.clientY - rect.top) / rect.height - 0.5;
+      homeCta.style.setProperty("--compass-tilt", `${Math.round(dx * 18)}deg`);
+      homeCta.style.setProperty("--compass-shift-x", `${(dx * 10).toFixed(1)}px`);
+      homeCta.style.setProperty("--compass-shift-y", `${(dy * 6).toFixed(1)}px`);
     });
-    homeCta.addEventListener("pointerdown", () => homeCta.classList.add("compass-tap"));
-    homeCta.addEventListener("animationend", () => homeCta.classList.remove("compass-tap"));
+    homeCta.addEventListener("pointerleave", resetHomeMotion);
+    homeCta.addEventListener("pointerdown", () => homeCta.classList.add("is-pressing"));
+    homeCta.addEventListener("pointerup", () => homeCta.classList.remove("is-pressing"));
   }
-
-  const heroVisual = $(".hero-visual");
-  if (heroVisual && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    heroVisual.classList.add("is-parallax");
+  if (heroVisual && !reduceMotion) {
     heroVisual.addEventListener("pointermove", (event) => {
       const rect = heroVisual.getBoundingClientRect();
-      const dx = (event.clientX - rect.left) / rect.width - .5;
-      const dy = (event.clientY - rect.top) / rect.height - .5;
-      const image = heroVisual.querySelector("img");
-      if (image) image.style.transform = `scale(1.045) translate(${dx * -8}px, ${dy * -6}px)`;
+      const dx = (event.clientX - rect.left) / rect.width - 0.5;
+      const dy = (event.clientY - rect.top) / rect.height - 0.5;
+      heroVisual.style.setProperty("--hero-shift-x", `${(dx * -10).toFixed(1)}px`);
+      heroVisual.style.setProperty("--hero-shift-y", `${(dy * -7).toFixed(1)}px`);
     });
-    heroVisual.addEventListener("pointerleave", () => {
-      const image = heroVisual.querySelector("img");
-      if (image) image.style.transform = "scale(1.025)";
-    });
+    heroVisual.addEventListener("pointerleave", resetHomeMotion);
   }
   if ($("#backToLanding"))
     $("#backToLanding").onclick = () => {
