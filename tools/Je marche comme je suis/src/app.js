@@ -519,9 +519,9 @@
         ? (Math.floor(n / 60) + " h " + (n % 60 || "")).trim()
         : n + " minutes";
   };
-  function mode(m, reveal = true) {
+  function mode(m) {
     S.mode = m;
-    if (reveal) $("#workspace").hidden = false;
+    $("#workspace").hidden = false;
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
@@ -529,10 +529,11 @@
     $("#gpxBox").hidden = m !== "gpx";
     $("#create").textContent =
       m === "api" ? "Confirmer et calculer" : "Confirmer et analyser le GPX";
-    $("#modeHelp").textContent =
-      m === "api"
-        ? "OpenRouteService est protégé par Cloudflare. Si le moteur est indisponible, aucun parcours non vérifié ne le remplace silencieusement."
-        : "Le fichier est lu localement puis contrôlé par le même noyau.";
+    if ($("#modeHelp"))
+      $("#modeHelp").textContent =
+        m === "api"
+          ? "OpenRouteService est protégé par Cloudflare. Si le moteur est indisponible, aucun parcours non vérifié ne le remplace silencieusement."
+          : "Le fichier est lu localement puis contrôlé par le même noyau.";
   }
   $$(".mode").forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
   $$("[data-test]").forEach(
@@ -4141,7 +4142,7 @@
     modal.classList.add("show");
     $("#confirmClearData")?.focus();
   };
-  mode("api", false);
+  mode("api");
   $("#duration").dispatchEvent(new Event("input"));
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
