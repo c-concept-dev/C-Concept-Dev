@@ -521,6 +521,7 @@
   };
   function mode(m) {
     S.mode = m;
+    $("#workspace").hidden = false;
     $$(".mode").forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === m),
     );
