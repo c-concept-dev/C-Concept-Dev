@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const APP_URL = "/tools/Je%20marche%20comme%20je%20suis/je-marche-comme-je-suis-p0.html";
+const APP_URL = "/je-marche-comme-je-suis-p0.html";
 const WORKER_PATTERN = "**/jmmjs-map-services.11drumboy11.workers.dev/v1/**";
 
 function routeFeature({ lon, lat, index, target, durationMinutes }) {
@@ -57,7 +57,13 @@ async function mockWorker(page, { fail = false } = {}) {
 
 async function openApp(page) {
   await page.goto(APP_URL);
-  await page.getByRole("button", { name: "Créer ma balade sur mesure" }).filter({ visible: true }).first().click();
+  const candidates = page.getByRole("button", { name: "Créer ma balade sur mesure" });
+  console.log("DEBUG candidate count:", await candidates.count());
+  for (let i = 0; i < await candidates.count(); i++) {
+    console.log("DEBUG candidate", i, "visible:", await candidates.nth(i).isVisible(), "id:", await candidates.nth(i).getAttribute("id"));
+  }
+  await candidates.filter({ visible: true }).first().click();
+  console.log("DEBUG bodyClass after click:", await page.evaluate(() => document.body.className));
   await expect(page.getByRole("heading", { name: /Votre corps, votre temps/i })).toBeVisible();
   await expect(page.locator("#place")).toBeVisible();
 }
