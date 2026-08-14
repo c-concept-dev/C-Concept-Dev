@@ -1156,6 +1156,53 @@ footer,.footer{color:var(--footer)}
 @media(prefers-reduced-motion:reduce){.mobile-create-hit::before,.mobile-pin-pulse{animation:none!important}.mobile-hotspot::after{transition:none!important}}
 .fact{padding-left:16px;background-repeat:no-repeat;background-position:2px center;background-size:11px 11px}.fact.ok{background-image:url('./icons/status-respecte.webp')}.fact.verify{background-image:url('./icons/status-verifier.webp')}.fact.blocked{background-image:url('./icons/status-bloquant.webp')}
 .profile{border-radius:6px;background-image:radial-gradient(var(--border,#e4ddd2) 1px,transparent 1.3px),linear-gradient(180deg,rgba(138,154,91,.10),rgba(138,154,91,0) 65%);background-size:9px 9px,100% 100%;background-position:0 0,0 0}
+
+/* D075 — progression de préparation en sentier */
+.wizard-path-progress{
+  position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  min-height:100px;margin-top:16px;padding:0 26px 2px;background:none!important;overflow:visible
+}
+.wizard-path-svg{position:absolute;left:5%;right:5%;top:0;width:90%;height:58px;overflow:visible;pointer-events:none;z-index:0}
+.wizard-path-base,.wizard-path-fill{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.2;stroke-dasharray:1.3 2.3}
+.wizard-path-base{stroke:#d8d3c7}.wizard-path-fill{stroke:var(--sage-hover);stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset .65s cubic-bezier(.2,.75,.2,1)}
+.wizard-path-progress[data-step="0"] .wizard-path-fill{stroke-dashoffset:100}.wizard-path-progress[data-step="1"] .wizard-path-fill{stroke-dashoffset:67}.wizard-path-progress[data-step="2"] .wizard-path-fill{stroke-dashoffset:34}.wizard-path-progress[data-step="3"] .wizard-path-fill{stroke-dashoffset:0}
+.wizard-path-progress button{
+  position:relative;z-index:2;display:grid;grid-template-rows:54px 18px auto;justify-items:center;align-items:start;
+  min-width:0!important;min-height:96px!important;padding:0 4px!important;border:0!important;background:transparent!important;
+  color:var(--text-muted)!important;font-family:var(--font-heading);font-size:inherit!important;letter-spacing:0!important;text-transform:none!important;cursor:pointer
+}
+.wizard-node{grid-row:1;width:46px;height:46px;margin-top:1px;display:grid;place-items:center;border-radius:50%;background:#fff;border:1.5px solid #cdc8bc;box-shadow:0 3px 10px rgba(58,54,40,.06);transition:transform .25s ease,border-color .25s ease,background .25s ease,box-shadow .25s ease}
+.wizard-node svg{width:24px;height:24px;fill:none;stroke:#aaa69d;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:opacity .2s,stroke .25s}
+.wizard-number{grid-row:2;align-self:start;width:20px;height:20px;margin-top:-9px;border-radius:50%;display:grid;place-items:center;background:#c8c5be;color:#fff;font:700 10px/1 var(--font-heading);box-shadow:0 2px 5px rgba(58,54,40,.08);transition:.25s}
+.wizard-label{grid-row:3;margin-top:5px;color:var(--text-muted);font:500 11px/1.2 var(--font-heading);white-space:normal;text-align:center;transition:color .25s,font-weight .25s}
+.wizard-path-progress button.active .wizard-node{border-color:var(--sage-hover);box-shadow:0 0 0 5px rgba(138,154,91,.10),0 5px 14px rgba(58,54,40,.08);transform:translateY(-2px)}
+.wizard-path-progress button.active .wizard-node svg{stroke:var(--sage-hover)}
+.wizard-path-progress button.active .wizard-number{background:var(--sage-hover)}
+.wizard-path-progress button.active .wizard-label{color:var(--ink);font-weight:700}
+.wizard-path-progress button.done .wizard-node{border-color:var(--sage-hover);background:#fff}
+.wizard-path-progress button.done .wizard-node svg{opacity:0}
+.wizard-path-progress button.done .wizard-node:after{content:"✓";position:absolute;color:var(--sage-hover);font:700 25px/1 var(--font-heading)}
+.wizard-path-progress button.done .wizard-number{background:var(--sage-hover)}
+.wizard-path-progress button.done .wizard-label{color:var(--sage-hover);font-weight:600}
+.wizard-path-progress[data-step="3"] button.active .wizard-node{background:var(--sage-hover)}
+.wizard-path-progress[data-step="3"] button.active .wizard-node svg{stroke:#fff;stroke-width:2.2}
+.wizard-sprout{position:absolute;right:3px;top:24px;width:28px;height:35px;z-index:2;opacity:.86;pointer-events:none}
+.wizard-sprout:before{content:"";position:absolute;left:13px;bottom:3px;width:2px;height:18px;background:var(--sage-hover);border-radius:2px;transform:rotate(3deg);transform-origin:bottom}
+.wizard-sprout:after,.wizard-sprout i:before{content:"";position:absolute;width:11px;height:7px;background:var(--sage);border-radius:100% 0 100% 0}
+.wizard-sprout:after{left:13px;top:6px;transform:rotate(-25deg)}.wizard-sprout i:before{left:3px;top:12px;transform:rotate(155deg)}
+@keyframes wizardNodeEnter{0%{transform:scale(.88);opacity:.5}65%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
+.wizard-path-progress button.active .wizard-node{animation:wizardNodeEnter .38s ease both}
+@media(max-width:767px){
+  .wizard-path-progress{min-height:92px;padding:0 4px;margin-top:14px}
+  .wizard-path-svg{left:7%;width:86%;top:1px;height:52px}
+  .wizard-path-base,.wizard-path-fill{stroke-width:2}
+  .wizard-path-progress button{grid-template-rows:48px 17px auto;min-height:88px!important;padding:0 1px!important}
+  .wizard-node{width:40px;height:40px}.wizard-node svg{width:21px;height:21px}
+  .wizard-number{width:18px;height:18px;margin-top:-8px;font-size:9px}
+  .wizard-label{font-size:9px!important;line-height:1.12;max-width:72px;margin-top:4px}
+  .wizard-sprout{right:-5px;top:19px;transform:scale(.78)}
+}
+@media(prefers-reduced-motion:reduce){.wizard-path-fill,.wizard-node,.wizard-number,.wizard-label{transition:none!important}.wizard-path-progress button.active .wizard-node{animation:none!important}}
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -1169,11 +1216,29 @@ footer,.footer{color:var(--footer)}
 <span class="landing-mood-hit landing-mood-comfort" aria-hidden="true"></span>
 <span class="landing-mood-hit landing-mood-pleasant" aria-hidden="true"></span>
 <span class="landing-mood-hit landing-mood-tonic" aria-hidden="true"></span>
-</div><div class="landing-mobile-exact" id="landingMobileExact" aria-label="Accueil mobile Je marche comme je suis"><button class="mobile-hotspot mobile-menu-hit" id="landingMobileMenu" type="button" aria-label="Menu"></button><button class="mobile-hotspot mobile-privacy-hit" id="landingMobilePrivacy" type="button" aria-label="Voir les données transmises"></button><button class="mobile-hotspot mobile-create-hit" id="landingMobileCreate" type="button" aria-label="Créer ma balade sur mesure"></button><button class="mobile-hotspot mobile-card-hit mobile-comfort-hit" type="button" aria-label="Ambiance Confortable"></button><button class="mobile-hotspot mobile-card-hit mobile-pleasant-hit" type="button" aria-label="Ambiance Agréable"></button><button class="mobile-hotspot mobile-card-hit mobile-tonic-hit" type="button" aria-label="Ambiance Tonique"></button><span class="mobile-pin-pulse" aria-hidden="true"></span></div><div class="mobile-menu-sheet" id="mobileLandingMenu" aria-hidden="true"><div class="mobile-menu-card" role="dialog" aria-modal="true" aria-label="Menu"><button type="button" id="mobileMenuHelp">Aide</button><button type="button" id="mobileMenuClear">Effacer mes données</button><button type="button" id="mobileMenuGpx">Analyser une trace GPX</button><button type="button" id="mobileMenuClose">Fermer</button></div></div><main class="hero"><section class="hero-head home-hero"><div class="hero-copy"><p class="eyebrow">Balades pédestres réellement personnalisées</p><h1>Votre corps, votre temps, <em>votre envie du jour.</em></h1><p class="promise">Trois propositions : confortable, agréable et tonique — sans compromis caché.</p><div class="privacy">Réponses locales · <button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button></div></div><div class="hero-visual" id="heroVisual" aria-hidden="true"><img src="./icons/hero-landscape.webp" alt="" /><svg class="hero-contours" viewBox="0 0 460 320" focusable="false"><path d="M8 256C70 236 74 184 130 170s80 35 124 4 56-94 112-86 54 74 86 92"/><path d="M-6 283c68-21 83-79 145-85s78 43 126 6 56-89 112-79 55 65 92 72"/><path d="M20 302c76-20 91-66 146-66s73 35 118 10 61-80 112-70 55 53 87 59"/></svg><div class="hero-route"><span class="hero-pin"></span><span class="hero-route-line"></span></div><div class="hero-note" aria-hidden="true"><span class="hero-note-sprout"></span><span class="hero-note-text">Je lui dis comment je me sens aujourd’hui, puis l’application cherche une balade adaptée à mon envie et à mes contraintes.</span><span class="hero-note-blue"></span><span class="hero-note-botanical"></span></div></div></section><section class="mode-wrap home-actions"><div class="modes"><button class="mode active home-cta" id="homeCta" type="button" data-mode="api"><span class="home-cta-icon" aria-hidden="true"></span><span class="home-cta-copy"><b>Créer ma balade sur mesure</b><small>Une vraie boucle, calculée selon ce que vous avez déclaré — jamais un itinéraire inventé pour combler les trous.</small></span><span class="home-compass" aria-hidden="true"><span class="home-compass-photo"></span><span class="home-compass-hint">Cliquez sur la boussole</span></span></button></div><button class="mode mode-secondary" type="button" data-mode="gpx">J’ai déjà une trace GPX à analyser</button><div class="walk-moods" aria-label="Les trois intentions de balade"><article class="walk-mood walk-comfort"><span class="mood-photo" aria-hidden="true"></span><div><strong>Confortable</strong><p>Douce et sans précipitation.</p><div class="mood-tags"><span>Effort doux</span><span>Rythme calme</span></div></div></article><article class="walk-mood walk-pleasant"><span class="mood-photo" aria-hidden="true"></span><div><strong>Agréable</strong><p>Équilibre et plaisir de marcher.</p><div class="mood-tags"><span>Effort modéré</span><span>Rythme régulier</span></div></div></article><article class="walk-mood walk-tonic"><span class="mood-photo" aria-hidden="true"></span><div><strong>Tonique</strong><p>Plus de relief, plus d’élan.</p><div class="mood-tags"><span>Effort soutenu</span><span>Plus de relief</span></div></div></article></div><div class="home-assurances"><span><b>Transparence</b>Données absentes = inconnues</span><span><b>Terrain</b>Vérifié quand les sources le permettent</span><span><b>À votre rythme</b>Le profil du jour prime</span><span><b>Vie privée</b>Vos réponses restent locales</span></div></section><div class="workspace" id="workspace" hidden><form class="panel" id="form" novalidate onsubmit="return false"><div class="form-head"><button class="back-to-landing" id="backToLanding" type="button">← Retour à l’accueil</button><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress"><button class="active" type="button" data-go="0">
-                  1 · Départ</button
-                ><button type="button" data-go="1">2 · Aujourd’hui</button
-                ><button type="button" data-go="2">3 · Terrain & envie</button
-                ><button type="button" data-go="3">4 · Vérifier</button></nav></div><div class="form-body"><section class="step active"><div class="card"><h3>Où partez-vous ?</h3><p>Le départ est aussi l’arrivée.</p><div class="field"><label>Adresse, lieu ou repère</label><div class="row"><input
+</div><div class="landing-mobile-exact" id="landingMobileExact" aria-label="Accueil mobile Je marche comme je suis"><button class="mobile-hotspot mobile-menu-hit" id="landingMobileMenu" type="button" aria-label="Menu"></button><button class="mobile-hotspot mobile-privacy-hit" id="landingMobilePrivacy" type="button" aria-label="Voir les données transmises"></button><button class="mobile-hotspot mobile-create-hit" id="landingMobileCreate" type="button" aria-label="Créer ma balade sur mesure"></button><button class="mobile-hotspot mobile-card-hit mobile-comfort-hit" type="button" aria-label="Ambiance Confortable"></button><button class="mobile-hotspot mobile-card-hit mobile-pleasant-hit" type="button" aria-label="Ambiance Agréable"></button><button class="mobile-hotspot mobile-card-hit mobile-tonic-hit" type="button" aria-label="Ambiance Tonique"></button><span class="mobile-pin-pulse" aria-hidden="true"></span></div><div class="mobile-menu-sheet" id="mobileLandingMenu" aria-hidden="true"><div class="mobile-menu-card" role="dialog" aria-modal="true" aria-label="Menu"><button type="button" id="mobileMenuHelp">Aide</button><button type="button" id="mobileMenuClear">Effacer mes données</button><button type="button" id="mobileMenuGpx">Analyser une trace GPX</button><button type="button" id="mobileMenuClose">Fermer</button></div></div><main class="hero"><section class="hero-head home-hero"><div class="hero-copy"><p class="eyebrow">Balades pédestres réellement personnalisées</p><h1>Votre corps, votre temps, <em>votre envie du jour.</em></h1><p class="promise">Trois propositions : confortable, agréable et tonique — sans compromis caché.</p><div class="privacy">Réponses locales · <button class="small" id="privacyDetailsBtn" type="button">Voir les données transmises</button></div></div><div class="hero-visual" id="heroVisual" aria-hidden="true"><img src="./icons/hero-landscape.webp" alt="" /><svg class="hero-contours" viewBox="0 0 460 320" focusable="false"><path d="M8 256C70 236 74 184 130 170s80 35 124 4 56-94 112-86 54 74 86 92"/><path d="M-6 283c68-21 83-79 145-85s78 43 126 6 56-89 112-79 55 65 92 72"/><path d="M20 302c76-20 91-66 146-66s73 35 118 10 61-80 112-70 55 53 87 59"/></svg><div class="hero-route"><span class="hero-pin"></span><span class="hero-route-line"></span></div><div class="hero-note" aria-hidden="true"><span class="hero-note-sprout"></span><span class="hero-note-text">Je lui dis comment je me sens aujourd’hui, puis l’application cherche une balade adaptée à mon envie et à mes contraintes.</span><span class="hero-note-blue"></span><span class="hero-note-botanical"></span></div></div></section><section class="mode-wrap home-actions"><div class="modes"><button class="mode active home-cta" id="homeCta" type="button" data-mode="api"><span class="home-cta-icon" aria-hidden="true"></span><span class="home-cta-copy"><b>Créer ma balade sur mesure</b><small>Une vraie boucle, calculée selon ce que vous avez déclaré — jamais un itinéraire inventé pour combler les trous.</small></span><span class="home-compass" aria-hidden="true"><span class="home-compass-photo"></span><span class="home-compass-hint">Cliquez sur la boussole</span></span></button></div><button class="mode mode-secondary" type="button" data-mode="gpx">J’ai déjà une trace GPX à analyser</button><div class="walk-moods" aria-label="Les trois intentions de balade"><article class="walk-mood walk-comfort"><span class="mood-photo" aria-hidden="true"></span><div><strong>Confortable</strong><p>Douce et sans précipitation.</p><div class="mood-tags"><span>Effort doux</span><span>Rythme calme</span></div></div></article><article class="walk-mood walk-pleasant"><span class="mood-photo" aria-hidden="true"></span><div><strong>Agréable</strong><p>Équilibre et plaisir de marcher.</p><div class="mood-tags"><span>Effort modéré</span><span>Rythme régulier</span></div></div></article><article class="walk-mood walk-tonic"><span class="mood-photo" aria-hidden="true"></span><div><strong>Tonique</strong><p>Plus de relief, plus d’élan.</p><div class="mood-tags"><span>Effort soutenu</span><span>Plus de relief</span></div></div></article></div><div class="home-assurances"><span><b>Transparence</b>Données absentes = inconnues</span><span><b>Terrain</b>Vérifié quand les sources le permettent</span><span><b>À votre rythme</b>Le profil du jour prime</span><span><b>Vie privée</b>Vos réponses restent locales</span></div></section><div class="workspace" id="workspace" hidden><form class="panel" id="form" novalidate onsubmit="return false"><div class="form-head"><button class="back-to-landing" id="backToLanding" type="button">← Retour à l’accueil</button><h2>Préparer ma balade</h2><p>Le profil du jour prime sur les habitudes.</p><nav class="progress wizard-path-progress" data-step="0" aria-label="Progression de préparation">
+  <svg class="wizard-path-svg" viewBox="0 0 1000 92" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <path class="wizard-path-base" pathLength="100" d="M82 39 C150 20 185 62 252 40 S365 20 420 42 S540 62 594 39 S714 19 765 42 S876 62 934 37"/>
+    <path class="wizard-path-fill" pathLength="100" d="M82 39 C150 20 185 62 252 40 S365 20 420 42 S540 62 594 39 S714 19 765 42 S876 62 934 37"/>
+  </svg>
+  <button class="active" type="button" data-go="0">
+    <span class="wizard-node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.1 7-13a7 7 0 1 0-14 0c0 6.9 7 13 7 13Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+    <span class="wizard-number">1</span><span class="wizard-label">Départ</span>
+  </button>
+  <button type="button" data-go="1">
+    <span class="wizard-node" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3v5M16 3v5M4 10h16M8 13h1M12 13h1M16 13h1M8 16h1M12 16h1M16 16h1"/></svg></span>
+    <span class="wizard-number">2</span><span class="wizard-label">Aujourd’hui</span>
+  </button>
+  <button type="button" data-go="2">
+    <span class="wizard-node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 19 6.2-9 3.1 4.2L16 8l5 11H3Z"/><path d="m14.2 19 2.7-4 1.4 2"/></svg></span>
+    <span class="wizard-number">3</span><span class="wizard-label">Terrain &amp; envie</span>
+  </button>
+  <button type="button" data-go="3">
+    <span class="wizard-node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19.5 6.5"/></svg></span>
+    <span class="wizard-number">4</span><span class="wizard-label">Vérifier</span>
+  </button>
+  <span class="wizard-sprout" aria-hidden="true"><i></i></span>
+</nav></div><div class="form-body"><section class="step active"><div class="card"><h3>Où partez-vous ?</h3><p>Le départ est aussi l’arrivée.</p><div class="field"><label>Adresse, lieu ou repère</label><div class="row"><input
                         class="input"
                         id="place"
                         placeholder="Place du Capitole, Toulouse"
@@ -7840,6 +7905,8 @@ footer,.footer{color:var(--footer)}
   }
   function updateLiveSummary() {
     document.body.dataset.wizardStep = String(S.step);
+    const progressNav = $(".wizard-path-progress");
+    if (progressNav) progressNav.dataset.step = String(S.step);
     const progressButtons = $$("[data-go]");
     progressButtons.forEach((button, i) => {
       button.classList.toggle("done", i < S.step);
