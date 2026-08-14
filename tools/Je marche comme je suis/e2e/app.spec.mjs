@@ -168,3 +168,78 @@ test("@critical reste utilisable sur iPhone sans débordement horizontal majeur"
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 4);
   await expect(page.locator("#place")).toBeVisible();
 });
+
+async function calculateD091Routes(page) {
+  await mockWorker(page);
+  await openApp(page);
+  await fillMinimumProfile(page);
+  await page.getByRole("button", { name: "Confirmer et calculer" }).click();
+  await expect(page.locator("#routeGrid .route-card")).toHaveCount(3);
+}
+
+test("D091 ANOM-001 garde les résultats consultables et ignore un aller-retour rapide", async ({ page }) => {
+  await calculateD091Routes(page);
+  await page.locator('[data-go="2"]').click();
+  const wish = page.getByRole("button", { name: "Point de vue" });
+  await wish.click();
+  await wish.click();
+  await page.waitForTimeout(950);
+  await expect(page.locator("#staleResultsBanner")).toBeHidden();
+  await expect(page.locator("#results")).toHaveClass(/show/);
+  await expect(page.locator("#map")).toHaveClass(/show/);
+
+  await wish.click();
+  await page.waitForTimeout(950);
+  const banner = page.locator("#staleResultsBanner");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("continuer à consulter celui-ci");
+  await expect(banner.getByRole("button")).toHaveCount(1);
+  await expect(page.locator("#routeGrid .route-card")).toHaveCount(3);
+  await expect(page.locator("#detail")).toBeVisible();
+});
+
+test("D091 ANOM-001 n’interrompt pas le GPS et attend le retour volontaire au formulaire", async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.geolocation.watchPosition = () => 91;
+    navigator.geolocation.clearWatch = () => {};
+  });
+  await calculateD091Routes(page);
+  await page.locator("#startNavBtnTop").click();
+  await expect(page.locator("body")).toHaveClass(/navigating/);
+  await page.locator("#duration").evaluate((input) => {
+    input.value = "75";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.waitForTimeout(950);
+  await expect(page.locator("#staleResultsBanner")).toBeHidden();
+  await expect(page.locator("body")).toHaveClass(/navigating/);
+
+  await page.locator("#navStop").click();
+  await expect(page.locator("#staleResultsBanner")).toBeHidden();
+  await page.locator('[data-go="0"]').click();
+  await page.waitForTimeout(950);
+  await expect(page.locator("#staleResultsBanner")).toBeVisible();
+});
+
+test("D091 ANOM-001 confirme une action engageante avec deux choix explicites", async ({ page }) => {
+  await calculateD091Routes(page);
+  await page.locator('[data-go="2"]').click();
+  await page.getByRole("button", { name: "Point de vue" }).click();
+  await page.locator("#gpxBtn").click();
+
+  const modal = page.locator("#staleRouteActionModal");
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole("button", { name: "Garder ce parcours" })).toBeFocused();
+  await expect(modal.getByRole("button")).toHaveCount(2);
+  await expect(modal.getByRole("button", { name: "Recalculer d’abord" })).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await modal.getByRole("button", { name: "Garder ce parcours" }).click();
+  expect((await download).suggestedFilename()).toMatch(/\.gpx$/);
+
+  await page.locator("#jsonBtn").click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole("button", { name: "Recalculer d’abord" }).click();
+  await expect(modal).toBeHidden();
+  await expect(page.locator("#routeGrid .route-card")).toHaveCount(3);
+});
