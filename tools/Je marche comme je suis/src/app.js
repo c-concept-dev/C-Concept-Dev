@@ -607,11 +607,52 @@
   if ($("#landingExactHelp")) $("#landingExactHelp").onclick = () => $("#helpBtn")?.click();
   if ($("#landingExactClear")) $("#landingExactClear").onclick = () => $("#clearBtn")?.click();
   if ($("#landingExactPrivacy")) $("#landingExactPrivacy").onclick = () => $("#privacyDetailsBtn")?.click();
-  if ($("#mobileCreate")) $("#mobileCreate").onclick = () => mode("api");
-  if ($("#mobileGpx")) $("#mobileGpx").onclick = () => mode("gpx");
-  if ($("#mobileHelp")) $("#mobileHelp").onclick = () => $("#helpBtn")?.click();
-  if ($("#mobileClear")) $("#mobileClear").onclick = () => $("#clearBtn")?.click();
-  if ($("#mobilePrivacy")) $("#mobilePrivacy").onclick = () => $("#privacyDetailsBtn")?.click();
+
+  // D074 — accueil portrait exact validé : hotspots tactiles + micro-interactions.
+  const mobileLanding = $("#landingMobileExact");
+  const mobileLandingMenu = $("#mobileLandingMenu");
+  const closeMobileLandingMenu = () => {
+    if (!mobileLandingMenu) return;
+    mobileLandingMenu.classList.remove("show");
+    mobileLandingMenu.setAttribute("aria-hidden", "true");
+  };
+  const openMobileLandingMenu = () => {
+    if (!mobileLandingMenu) return;
+    mobileLandingMenu.classList.add("show");
+    mobileLandingMenu.setAttribute("aria-hidden", "false");
+    $("#mobileMenuHelp")?.focus();
+  };
+  if ($("#landingMobileMenu")) $("#landingMobileMenu").onclick = openMobileLandingMenu;
+  if ($("#mobileMenuClose")) $("#mobileMenuClose").onclick = closeMobileLandingMenu;
+  if ($("#mobileMenuHelp")) $("#mobileMenuHelp").onclick = () => {
+    closeMobileLandingMenu();
+    $("#helpBtn")?.click();
+  };
+  if ($("#mobileMenuClear")) $("#mobileMenuClear").onclick = () => {
+    closeMobileLandingMenu();
+    $("#clearBtn")?.click();
+  };
+  if ($("#mobileMenuGpx")) $("#mobileMenuGpx").onclick = () => {
+    closeMobileLandingMenu();
+    mode("gpx");
+  };
+  mobileLandingMenu?.addEventListener("click", (event) => {
+    if (event.target === mobileLandingMenu) closeMobileLandingMenu();
+  });
+  if ($("#landingMobilePrivacy")) $("#landingMobilePrivacy").onclick = () => $("#privacyDetailsBtn")?.click();
+  if ($("#landingMobileCreate")) $("#landingMobileCreate").onclick = () => {
+    mobileLanding?.classList.add("is-create-tap");
+    window.setTimeout(() => {
+      mobileLanding?.classList.remove("is-create-tap");
+      mode("api");
+    }, 150);
+  };
+  $$(".mobile-card-hit").forEach((card) => {
+    card.addEventListener("pointerdown", () => {
+      card.classList.add("is-tapped");
+      window.setTimeout(() => card.classList.remove("is-tapped"), 260);
+    });
+  });
 
   const homeCta = $(".home-cta");
   const homeCompass = $(".home-compass-photo");
