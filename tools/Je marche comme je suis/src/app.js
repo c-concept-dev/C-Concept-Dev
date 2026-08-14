@@ -1532,7 +1532,7 @@
       wrap = document.createElement("section");
       wrap.id = "routeComparison";
       wrap.className = "result-compare";
-      E.grid.parentElement.insertBefore(wrap, E.grid);
+      E.grid.insertAdjacentElement("afterend", wrap);
     }
     if (!Array.isArray(S.routes) || S.routes.length < 2) {
       wrap.hidden = true;
@@ -1566,12 +1566,27 @@
         `<td><span class="compare-status ${state.className}">${esc(state.label)}</span></td>` +
         `<td><span class="compare-audit">${esc(auditText)}</span></td></tr>`;
     }).join("");
+    const mobileCompare = window.matchMedia?.("(max-width: 767px)")?.matches ?? false;
     wrap.innerHTML =
+      '<button type="button" class="result-compare-toggle" id="routeCompareToggle" aria-expanded="' + (!mobileCompare ? 'true' : 'false') + '" aria-controls="routeCompareBody">' +
+      '<span>Comparer les parcours en détail</span><span>' + (mobileCompare ? 'Afficher' : 'Ouvert') + '</span></button>' +
       '<div class="result-compare-head"><div><h3>Comparer les propositions</h3>' +
       '<p>Uniquement des mesures et contrôles issus des parcours réellement calculés.</p></div></div>' +
+      '<div class="result-compare-body" id="routeCompareBody"' + (mobileCompare ? ' hidden' : '') + '>' +
       '<div class="result-compare-scroll"><table class="result-compare-table"><thead><tr>' +
       '<th>Parcours</th><th>Distance</th><th>Durée</th><th>D+</th><th>Statut</th><th>Contrôles</th>' +
-      `</tr></thead><tbody>${rows}</tbody></table></div>`;
+      `</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    const compareToggle = $("#routeCompareToggle");
+    const compareBody = $("#routeCompareBody");
+    if (compareToggle && compareBody) {
+      compareToggle.onclick = () => {
+        const expanded = compareToggle.getAttribute("aria-expanded") === "true";
+        compareToggle.setAttribute("aria-expanded", String(!expanded));
+        compareBody.hidden = expanded;
+        const state = compareToggle.querySelector("span:last-child");
+        if (state) state.textContent = expanded ? "Afficher" : "Masquer";
+      };
+    }
     $$('[data-compare-route]').forEach((button) => {
       button.onclick = () => select(+button.dataset.compareRoute);
     });
@@ -1657,6 +1672,15 @@
     $$("[data-route]").forEach(
       (b) => (b.onclick = () => select(+b.dataset.route)),
     );
+    if (window.matchMedia?.("(max-width: 767px)")?.matches) {
+      requestAnimationFrame(() => {
+        const card = E.grid.querySelector(`[data-route="${S.selected}"]`);
+        if (!card) return;
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+        const left = Math.max(0, card.offsetLeft - (E.grid.clientWidth - card.offsetWidth) / 2);
+        E.grid.scrollTo({ left, behavior: reduceMotion ? "auto" : "smooth" });
+      });
+    }
     renderDetail();
     updateTopStartButton();
     renderMapSelectionBadge();
