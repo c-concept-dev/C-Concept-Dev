@@ -1486,6 +1486,39 @@
     return route;
   }
 
+  function routeUiMeta(route, index = 0) {
+    const orientation = String(route?.orientation || `Option ${index + 1}`);
+    const normalized = orientation.toLowerCase();
+    const color = normalized.includes("confort")
+      ? "#C9A15A"
+      : normalized.includes("agré") || normalized.includes("agre")
+        ? "#8A9A5B"
+        : normalized.includes("tonique")
+          ? "#B5502E"
+          : "#1B5E70";
+    const label = orientation.charAt(0).toUpperCase() + orientation.slice(1);
+    return { color, label };
+  }
+  function renderMapSelectionBadge() {
+    let badge = $("#mapRouteSelection");
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = "mapRouteSelection";
+      badge.className = "map-route-selection";
+      badge.setAttribute("aria-live", "polite");
+      E.map.parentElement.insertBefore(badge, E.map.nextSibling);
+    }
+    const route = S.routes[S.selected];
+    if (!route || S.nav.active) {
+      badge.hidden = true;
+      return;
+    }
+    const meta = routeUiMeta(route, S.selected);
+    badge.hidden = false;
+    badge.style.setProperty("--route-accent", meta.color);
+    badge.innerHTML = `<span class="map-route-dot" aria-hidden="true"></span><span><small>Trace mise en avant</small><strong>${esc(meta.label)}</strong></span>`;
+  }
+
   function routeCompareStatus(route) {
     if (route?.proposalStatus === "compatible")
       return { label: "Compatible", className: "ok" };
@@ -1524,8 +1557,9 @@
       const auditText = `${audit.respected} respecté${audit.respected > 1 ? "s" : ""}` +
         (audit.unknown ? ` · ${audit.unknown} à vérifier` : "") +
         (audit.violated ? ` · ${audit.violated} dépassé${audit.violated > 1 ? "s" : ""}` : "");
-      return `<tr class="${index === S.selected ? "is-selected" : ""}">` +
-        `<td><button type="button" class="compare-route-pick" data-compare-route="${index}">` +
+      const meta = routeUiMeta(route, index);
+      return `<tr class="${index === S.selected ? "is-selected" : ""}" style="--route-accent:${meta.color}">` +
+        `<td><button type="button" class="compare-route-pick" data-compare-route="${index}" aria-pressed="${index === S.selected ? "true" : "false"}">` +
         `<span class="compare-route-dot" aria-hidden="true"></span><span><strong>${esc(title)}</strong>` +
         `<small>${esc(route.name || `Proposition ${index + 1}`)}</small></span></button></td>` +
         `<td>${esc(distance)}</td><td>${esc(duration)}</td><td>${esc(ascent)}</td>` +
@@ -1601,7 +1635,11 @@
           (i === S.selected ? "selected" : "") +
           '" data-route="' +
           i +
-          '"><span class="kicker">' +
+          '" aria-pressed="' +
+          (i === S.selected ? "true" : "false") +
+          '" style="--route-accent:' +
+          routeUiMeta(r, i).color +
+          '"><span class="route-selection-mark" aria-hidden="true"></span><span class="kicker">' +
           esc(r.proposalStatus === "verify" ? "à vérifier" : r.proposalStatus === "adaptation" ? "adaptation à valider" : r.orientation || "option " + (i + 1)) +
           '</span><span class="route-name">' +
           esc(r.name) +
@@ -1621,6 +1659,7 @@
     );
     renderDetail();
     updateTopStartButton();
+    renderMapSelectionBadge();
     try {
       await leafletReady;
       if (!window.L) throw Error("Leaflet indisponible");
@@ -2492,7 +2531,10 @@
       surfaces = r.surfaces.map(
         (x) => x.type + (x.percent != null ? " " + x.percent + " %" : ""),
       );
+    const selectedMeta = routeUiMeta(r, S.selected);
+    E.detail.style.setProperty("--route-accent", selectedMeta.color);
     E.detail.innerHTML =
+      '<div class="selected-route-context"><span class="selected-route-dot" aria-hidden="true"></span><div><small>Parcours sélectionné</small><strong>' + esc(selectedMeta.label) + '</strong></div><span class="selected-route-sync">Carte · comparaison · profil</span></div>' +
       (S.request?.freeText
         ? '<div class="personal-note"><span>Votre note</span><p>' + esc(S.request.freeText) + '</p></div>'
         : '') +
