@@ -3071,6 +3071,7 @@
     const turnBackButton = $("#navTurnBack");
     if (turnBackButton) turnBackButton.textContent = "↶ Faire demi-tour";
     S.nav.positions = [];
+    S.nav.lastPosition = null;
     S.nav.startedAt = Date.now();
     offRouteMonitor.reset();
     S.nav.offRoute = null;
@@ -3114,6 +3115,8 @@
       if (head === null && d > 3) head = bearing(S.nav.lastPosition, pos);
     }
     S.nav.lastPosition = { ...pos, time: g.timestamp };
+    if (S.nav.follow)
+      $("#navFollow").textContent = "◎ Suivi actif";
     S.nav.positions.push([pos.lat, pos.lon]);
     if (S.nav.positions.length > 600) S.nav.positions.shift();
     const icon = L.divIcon({
@@ -3223,6 +3226,10 @@
     a.textContent =
       "Le tracé reste visible, mais le guidage ne peut pas connaître votre position.";
     a.classList.add("show");
+    if (!S.nav.lastPosition) {
+      S.nav.follow = false;
+      $("#navFollow").textContent = "◎ Position indisponible";
+    }
   }
   function stopNavigation() {
     if (S.nav.watch !== null) navigator.geolocation.clearWatch(S.nav.watch);
@@ -3235,6 +3242,9 @@
     );
     S.nav.marker = S.nav.accuracy = S.nav.trail = S.nav.remaining = S.nav.recoveryLayer = null;
     S.nav.recoveryLink = null;
+    S.nav.lastPosition = null;
+    S.nav.follow = false;
+    $("#navFollow").textContent = "◎ Me suivre";
     S.nav.turnBack = false;
     S.nav.continuedDespiteReservations = false;
     document.body.classList.remove("navigating");
@@ -3246,10 +3256,15 @@
     say("Guidage arrêté. Votre parcours reste prêt.");
   }
   $("#navFollow").onclick = () => {
+    const button = $("#navFollow");
+    if (!S.nav.lastPosition) {
+      S.nav.follow = false;
+      button.textContent = "◎ Position indisponible";
+      return;
+    }
     S.nav.follow = true;
-    $("#navFollow").textContent = "◎ Suivi actif";
-    if (S.nav.lastPosition)
-      S.map.setView([S.nav.lastPosition.lat, S.nav.lastPosition.lon], 17);
+    button.textContent = "◎ Suivi actif";
+    S.map.setView([S.nav.lastPosition.lat, S.nav.lastPosition.lon], 17);
   };
   $("#navOverview").onclick = () => {
     S.nav.follow = false;
