@@ -1218,25 +1218,9 @@
       const l = L.polyline(pts, {
         color: i === S.selected ? "#3A3628" : routeColor,
         weight: i === S.selected ? 6 : 3,
-        opacity: i === S.selected ? 0 : 0.75,
+        opacity: i === S.selected ? 1 : 0.75,
         dashArray: i === S.selected ? null : "6 5",
       }).addTo(S.map);
-      if (i === S.selected) {
-        const targetOpacity = 1;
-        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-          l.setStyle({ opacity: targetOpacity });
-        } else {
-          let start = null;
-          const durationMs = 650;
-          const step = (ts) => {
-            if (!start) start = ts;
-            const t = Math.min(1, (ts - start) / durationMs);
-            l.setStyle({ opacity: t * targetOpacity });
-            if (t < 1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        }
-      }
       l.on("click", () => select(i));
       S.layers.push(l);
       if (i === S.selected)
@@ -1410,9 +1394,7 @@
           '<button class="route-card ' +
           (r.orientation === "Confortable" ? "route-comfortable " : r.orientation === "Agréable" ? "route-agreable " : r.orientation === "Tonique" ? "route-tonique " : "") +
           (i === S.selected ? "selected" : "") +
-          '" style="animation-delay:' +
-          i * 80 +
-          'ms" data-route="' +
+          '" data-route="' +
           i +
           '"><span class="kicker">' +
           esc(r.proposalStatus === "verify" ? "à vérifier" : r.proposalStatus === "adaptation" ? "adaptation à valider" : r.orientation || "option " + (i + 1)) +
