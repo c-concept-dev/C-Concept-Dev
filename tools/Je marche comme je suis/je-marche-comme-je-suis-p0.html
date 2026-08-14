@@ -1057,6 +1057,19 @@ body.journey-started .home-hero,body.journey-started .home-actions{display:none}
 .locate{min-height:44px;border:1px solid var(--sand);border-radius:var(--radius-button);background:var(--sand);color:var(--navy);font-family:var(--font-heading);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .range output{border-color:var(--border);border-radius:var(--radius-md);background:var(--surface);font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--navy)}
 .chip{border-color:var(--border);background:var(--surface);padding:8px 10px;font-family:var(--font-heading);font-size:10px;font-weight:600;color:var(--text-heading)}.chip.active{background:rgba(138,154,91,.10);border-color:var(--teal);color:var(--navy)}
+.chip-icon{padding-left:6px;display:inline-flex;align-items:center;gap:6px}
+.chip-icon:before{content:"";display:inline-block;width:16px;height:16px;background-size:contain;background-repeat:no-repeat;background-position:center;opacity:.85}
+.chip-point-de-vue:before{background-image:url('./icons/envie-point-de-vue.webp')}
+.chip-riviere:before{background-image:url('./icons/envie-riviere.webp')}
+.chip-lac:before{background-image:url('./icons/envie-lac.webp')}
+.chip-foret:before{background-image:url('./icons/envie-foret.webp')}
+.chip-village:before{background-image:url('./icons/envie-village.webp')}
+.chip-patrimoine:before{background-image:url('./icons/envie-patrimoine.webp')}
+.chip-curiosite:before{background-image:url('./icons/envie-curiosite.webp')}
+.terrain-preview{display:flex;gap:10px;margin:10px 0 14px;flex-wrap:wrap}
+.terrain-preview figure{margin:0;text-align:center;width:64px}
+.terrain-preview img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid var(--border);display:block;margin:0 auto 4px}
+.terrain-preview figcaption{font-size:8px;line-height:1.25;color:var(--text-muted)}
 .chip.hard.active{background:#f5e4dc;border-color:#B5502E;color:#8a3a20}.check{font-size:13px}.helper{border-color:var(--border);border-radius:var(--radius-md);background:var(--surface);font-size:12px;color:var(--text-muted)}
 .nav{background:linear-gradient(transparent,var(--surface) 34%)}
 .primary{border:1px solid var(--sage);border-radius:var(--radius-button);background:var(--sage);color:#fff;font-family:var(--font-heading);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;transition:var(--transition-fast)}
@@ -1325,7 +1338,7 @@ footer,.footer{color:var(--footer)}
                       ><select class="input" id="ascentMinutes"><option value="">Sans demande</option><option value="5">5 min max.</option><option value="10">Environ 10 min</option><option value="15">15 min max.</option><option value="20">20 min max.</option><option value="none">Aucune montée</option></select><small class="field-help">Combien de temps pouvez-vous monter d’affilée, sans vous arrêter ?</small></div><div class="field"><label>Descente continue max.</label><select class="input" id="descentMinutes"><option value="">Sans demande</option><option value="2">2 min max.</option><option value="5">5 min max.</option><option value="10">10 min max.</option><option value="15">15 min max.</option><option value="none">Aucune descente</option></select><small class="field-help">Combien de temps pouvez-vous descendre d’affilée avant d’avoir besoin d’une pause ?</small></div></div><div class="two"><div class="field"><label>Pente montante max.</label
                       ><select class="input" id="upSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select><small class="field-help">La pente la plus raide acceptée en montée, en % — 4 est doux, 12 est raide. « Prudente » laisse le moteur rester mesuré.</small></div><div class="field"><label>Pente descendante max.</label
                       ><select class="input" id="downSlope"><option value="">Prudente</option><option>4</option><option>6</option><option>8</option><option>10</option><option>12</option></select><small class="field-help">La pente la plus raide acceptée en descente — souvent plus exigeante pour les genoux qu’en montée.</small></div></div><div class="field"><label>Récupération après montée</label
-                      ><select class="input" id="recovery"><option value="">Non précisée</option><option>5 min faciles</option><option>10 min faciles</option><option>Avec un banc</option></select><small class="field-help">Après une montée, préférez-vous un passage plus facile pour souffler, ou un endroit pour vous asseoir ?</small></div></div></details></div><div class="card"><h3>Terrain souhaité</h3><p>Une donnée inconnue doit rester inconnue.</p><div class="chips group" data-group="terrain"><button class="chip">Goudron accepté</button
+                      ><select class="input" id="recovery"><option value="">Non précisée</option><option>5 min faciles</option><option>10 min faciles</option><option>Avec un banc</option></select><small class="field-help">Après une montée, préférez-vous un passage plus facile pour souffler, ou un endroit pour vous asseoir ?</small></div></div></details></div><div class="card"><h3>Terrain souhaité</h3><p>Une donnée inconnue doit rester inconnue.</p><div class="terrain-preview" aria-hidden="true"><figure><img src="./icons/terrain-bitume.webp" alt="" loading="lazy"><figcaption>Bitume</figcaption></figure><figure><img src="./icons/terrain-chemin-stabilise.webp" alt="" loading="lazy"><figcaption>Chemin stabilisé</figcaption></figure><figure><img src="./icons/terrain-sentier-naturel.webp" alt="" loading="lazy"><figcaption>Sentier naturel</figcaption></figure><figure><img src="./icons/terrain-irregulier.webp" alt="" loading="lazy"><figcaption>Terrain irrégulier</figcaption></figure></div><div class="chips group" data-group="terrain"><button class="chip">Goudron accepté</button
                     ><button class="chip">Chemin stabilisé</button
                     ><button class="chip">Voie verte</button
                     ><button class="chip">Terre sèche</button
@@ -1336,14 +1349,14 @@ footer,.footer{color:var(--footer)}
                     ><button class="chip">Pas de boue</button
                     ><button class="chip">Chemin large</button
                     ><button class="chip">Peu de circulation</button
-                    ><button class="chip">Peu de traversées</button></div></div><div class="card"><h3>Envies et services</h3><p>Les préférences classent sans masquer les contraintes.</p><div class="chips group" data-group="wishes"><button class="chip">Point de vue</button
-                    ><button class="chip">Rivière</button
-                    ><button class="chip">Lac</button
-                    ><button class="chip">Forêt</button
+                    ><button class="chip">Peu de traversées</button></div></div><div class="card"><h3>Envies et services</h3><p>Les préférences classent sans masquer les contraintes.</p><div class="chips group" data-group="wishes"><button class="chip chip-icon chip-point-de-vue">Point de vue</button
+                    ><button class="chip chip-icon chip-riviere">Rivière</button
+                    ><button class="chip chip-icon chip-lac">Lac</button
+                    ><button class="chip chip-icon chip-foret">Forêt</button
                     ><button class="chip">Ombre</button
-                    ><button class="chip">Village</button
-                    ><button class="chip">Patrimoine</button
-                    ><button class="chip">Curiosité locale</button
+                    ><button class="chip chip-icon chip-village">Village</button
+                    ><button class="chip chip-icon chip-patrimoine">Patrimoine</button
+                    ><button class="chip chip-icon chip-curiosite">Curiosité locale</button
                     ><button class="chip">Boulangerie</button
                     ><button class="chip">Café</button
                     ><button class="chip">Restaurant</button
