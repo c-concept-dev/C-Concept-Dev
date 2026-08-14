@@ -3249,7 +3249,7 @@
     S.nav.continuedDespiteReservations = false;
     document.body.classList.remove("navigating");
     try {
-      document.exitFullscreen?.();
+      document.exitFullscreen?.().catch(() => {});
     } catch {}
     draw();
     setTimeout(() => S.map?.invalidateSize(), 100);
