@@ -332,13 +332,16 @@
     return buildSecondaryState({ service, diagnostic, imperative });
   }
   function scrollToActiveStep() {
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     const body = $(".form-body");
-    if (body) body.scrollTop = 0;
+    if (body) body.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const target = $(".form-head") || $(".panel");
-        if (target && window.innerWidth <= 1000)
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (target && window.innerWidth <= 1000) {
+          if (reduceMotion) target.scrollIntoView({ behavior: "auto", block: "start" });
+          else target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }),
     );
   }
@@ -1024,29 +1027,56 @@
     const request = mergeStructuredLimitationIntoRequest(rawRequest);
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
-    const all = [...model.imperative, ...model.preferences, ...model.preparation];
-    const valueOf = (label, fallback = "Non renseigné") =>
-      all.find((item) => item.label === label)?.value || fallback;
-    const imperativeCount = model.imperative.length;
-    const essentials = [
-      ["Temps disponible", valueOf("Temps utilisable", request.duration ? request.duration + " min" : "Non renseigné")],
-      ["Profil", valueOf("Profil de sortie", request.effort || "Non renseigné")],
-      ["Chaussures", valueOf("Chaussures")],
-      ["Pauses", valueOf("Pauses", "Aucune programmée")],
-      ["⚠ Contraintes impératives", String(imperativeCount)],
-    ];
-    host.innerHTML =
-      '<div class="constraint-summary-head"><div><h3>Votre balade en résumé</h3><p>Les détails restent accessibles à la demande.</p></div></div>' +
-      '<div class="summary-essentials">' +
-      essentials.map(([label, value]) => '<div class="summary-essential"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>').join("") +
-      '</div><details class="summary-details"><summary>Afficher tous les réglages</summary>' +
-      renderSummaryGroup("Contraintes impératives", model.imperative, "imperative") +
-      renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
-      renderSummaryGroup("Préparation et contrôles", model.preparation, "preparation") +
-      '</details>';
-    host.querySelectorAll("[data-edit-step]").forEach(
-      (button) => (button.onclick = () => go(Number(button.dataset.editStep))),
+    const valueOr = (value, fallback = "Non renseigné") => {
+      if (Array.isArray(value)) return value.length ? value.join(", ") : fallback;
+      return value === null || value === undefined || value === "" ? fallback : String(value);
+    };
+    const departureText = valueOr(request.start?.label || request.start?.address || request.place || val("#place"));
+    const durationText = request.duration ? `${request.duration} min` : valueOr(val("#duration"));
+    const terrainText = valueOr(request.terrain);
+    const wishesText = valueOr(request.preferences);
+    const pausesText = valueOr(request.pausePlan || val("#pauses"), "Aucune pause programmée");
+    const servicesText = valueOr(compiled.hard.requiredServices, "Aucun service impératif");
+    const reviewBlock = (label, value, step) =>
+      '<article class="review-block"><span>' + esc(label) + '</span><strong>' + esc(value) +
+      '</strong><button type="button" class="review-edit" data-go="' + step + '">Modifier</button></article>';
+
+    const sensitiveGroups = [];
+    if (model.imperative.length)
+      sensitiveGroups.push(renderSummaryGroup("Contraintes impératives", model.imperative, "imperative"));
+    const limitationItems = model.preparation.filter((item) =>
+      /Conséquence fonctionnelle|Équipement|Chaussures/i.test(item.label),
     );
+    if (limitationItems.length)
+      sensitiveGroups.push(renderSummaryGroup("Limitations et préparation", limitationItems, "preparation"));
+
+    const otherPreparation = model.preparation.filter((item) => !limitationItems.includes(item));
+    host.className = "review-card";
+    host.innerHTML =
+      '<div class="review-head"><div><h3>Vérifier avant de calculer</h3><p><strong>Votre balade en résumé.</strong> Voici ce que l’application va réellement demander au moteur. Une donnée absente reste inconnue.</p></div><span class="review-status">Prêt à contrôler</span></div>' +
+      '<div class="review-grid summary-essentials">' +
+      reviewBlock("Départ", departureText, 0) +
+      reviewBlock("Temps disponible", durationText, 0) +
+      reviewBlock("Terrain", terrainText, 2) +
+      reviewBlock("Envies", wishesText, 2) +
+      reviewBlock("Pauses", pausesText, 2) +
+      reviewBlock("Services requis", servicesText, 2) +
+      '</div>' +
+      '<section class="review-sensitive"><div class="review-sensitive-head"><div><h4>Contraintes et limitations déclarées</h4><p>Cette partie reste volontairement sobre. Elle sert uniquement à contrôler les règles qui ne doivent pas être assouplies.</p></div><button type="button" class="summary-edit" data-go="1">Modifier</button></div>' +
+      (sensitiveGroups.length ? sensitiveGroups.join("") : '<p class="review-sensitive-note">Aucune contrainte ou limitation spécifique n’est actuellement renseignée.</p>') +
+      '</section>' +
+      '<details class="review-details summary-details"><summary>Afficher tous les réglages</summary>' +
+      renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
+      renderSummaryGroup("Préparation et contrôles", otherPreparation, "preparation") +
+      '</details>';
+
+    host.querySelectorAll("[data-go]").forEach((button) => {
+      button.onclick = () => go(Number(button.dataset.go));
+    });
+    host.querySelectorAll("[data-edit-step]").forEach((button) => {
+      button.setAttribute("data-go", button.dataset.editStep);
+      button.onclick = () => go(Number(button.dataset.editStep));
+    });
     S.request = request;
     S.compiled = compiled;
   }
