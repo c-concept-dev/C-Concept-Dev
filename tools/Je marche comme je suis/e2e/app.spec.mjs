@@ -64,6 +64,13 @@ async function openApp(page) {
   }
   await candidates.filter({ visible: true }).first().click();
   console.log("DEBUG bodyClass after click:", await page.evaluate(() => document.body.className));
+  console.log("DEBUG h1 state:", await page.evaluate(() => {
+    const h1 = document.querySelector("h1");
+    if (!h1) return "NO H1 IN DOM";
+    const cs = getComputedStyle(h1);
+    const rect = h1.getBoundingClientRect();
+    return JSON.stringify({ text: h1.textContent, display: cs.display, visibility: cs.visibility, opacity: cs.opacity, rect: { w: rect.width, h: rect.height, top: rect.top }, heroDisplay: getComputedStyle(document.querySelector("main.hero")).display });
+  }));
   await expect(page.getByRole("heading", { name: /Votre corps, votre temps/i })).toBeVisible();
   await expect(page.locator("#place")).toBeVisible();
 }
