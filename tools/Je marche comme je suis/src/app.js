@@ -90,6 +90,7 @@
       photoMarkers: new Map(),
       routes: [],
       selected: 0,
+      resultRequestSignature: null,
       request: null,
       compiled: null,
       bases: null,
@@ -863,6 +864,75 @@
     $("#place").value = a[0].display_name.split(",").slice(0, 3).join(",");
     return { lat: +a[0].lat, lon: +a[0].lon };
   }
+  function requestSignature(request) {
+    if (!request || typeof request !== "object") return null;
+    try {
+      const copy = JSON.parse(JSON.stringify(request));
+      delete copy.createdAt;
+      return JSON.stringify(copy);
+    } catch {
+      return null;
+    }
+  }
+  function currentRequestSignature() {
+    try {
+      return requestSignature(
+        mergeStructuredLimitationIntoRequest(buildRequest()),
+      );
+    } catch {
+      return null;
+    }
+  }
+  function staleResultsBanner() {
+    let banner = $("#staleResultsBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "staleResultsBanner";
+      banner.className = "stale-results-banner";
+      banner.setAttribute("role", "status");
+      banner.setAttribute("aria-live", "polite");
+      banner.innerHTML =
+        '<strong>Votre demande a changé.</strong><span>Les parcours précédents sont masqués jusqu’à un nouveau calcul pour éviter de les confondre avec vos critères actuels.</span>';
+      const stage = E.placeholder?.parentElement;
+      if (stage) stage.insertBefore(banner, E.placeholder);
+    }
+    return banner;
+  }
+  function setResultsFreshness() {
+    if (!S.resultRequestSignature || !S.routes.length) return;
+    const current = currentRequestSignature();
+    const fresh = current && current === S.resultRequestSignature;
+    document.body.classList.toggle("results-stale", !fresh);
+    const banner = staleResultsBanner();
+    banner.hidden = fresh;
+    if (fresh) {
+      E.placeholder.style.display = "none";
+      E.results.classList.add("show");
+      E.map.classList.add("show");
+      document.body.classList.add("has-results");
+      renderMapSelectionBadge();
+    } else {
+      E.results.classList.remove("show");
+      E.map.classList.remove("show");
+      E.placeholder.style.display = "block";
+      document.body.classList.remove("has-results");
+      const mapBadge = $("#mapRouteSelection");
+      if (mapBadge) mapBadge.hidden = true;
+    }
+  }
+  function focusResultsAfterRender() {
+    if (window.innerWidth > 1000) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        E.results?.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        }),
+      ),
+    );
+  }
+
   function buildRequest() {
     return {
       schemaVersion: "1.2",
@@ -4339,9 +4409,11 @@
   }
   $("#form").addEventListener("input", () => {
     if (S.step === 3) renderConstraintSummary();
+    setResultsFreshness();
   });
   $("#form").addEventListener("change", () => {
     if (S.step === 3) renderConstraintSummary();
+    setResultsFreshness();
   });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
@@ -4370,11 +4442,23 @@
       if (S.mode === "api") {
         S.routes = await direct(S.request);
         S.selected = 0;
+        S.resultRequestSignature = requestSignature(S.request);
+        go(3);
         await render();
+        const staleBanner = $("#staleResultsBanner");
+        if (staleBanner) staleBanner.hidden = true;
+        document.body.classList.remove("results-stale");
+        focusResultsAfterRender();
       } else {
         S.routes = await parseGPX($("#gpxFile").files[0]);
         S.selected = 0;
+        S.resultRequestSignature = requestSignature(S.request);
+        go(3);
         await render();
+        const staleBanner = $("#staleResultsBanner");
+        if (staleBanner) staleBanner.hidden = true;
+        document.body.classList.remove("results-stale");
+        focusResultsAfterRender();
       }
     } catch (x) {
       const blockingServiceFailure = x?.serviceResult
