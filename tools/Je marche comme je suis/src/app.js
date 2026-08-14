@@ -91,6 +91,7 @@
       routes: [],
       selected: 0,
       resultRequestSignature: null,
+      staleResultsTimer: null,
       request: null,
       compiled: null,
       bases: null,
@@ -457,6 +458,7 @@
       x.classList.toggle("active", i === S.step),
     );
     updateLiveSummary();
+    setResultsFreshness();
     if (S.step === 3) {
       renderConstraintSummary();
       void refreshWeatherPreview();
@@ -907,33 +909,74 @@
       banner.setAttribute("role", "status");
       banner.setAttribute("aria-live", "polite");
       banner.innerHTML =
-        '<strong>Votre demande a changé.</strong><span>Les parcours précédents sont masqués jusqu’à un nouveau calcul pour éviter de les confondre avec vos critères actuels.</span>';
+        '<strong>Avec ce nouveau réglage, je peux vous proposer un autre parcours.</strong><span>Vous pouvez continuer à consulter celui-ci ou relancer le calcul quand vous le souhaitez.</span><button type="button" id="staleRecalculateBtn">Recalculer avec ce réglage</button>';
       const stage = E.placeholder?.parentElement;
       if (stage) stage.insertBefore(banner, E.placeholder);
+      $("#staleRecalculateBtn").onclick = () => formElement?.requestSubmit();
     }
     return banner;
   }
-  function setResultsFreshness() {
-    if (!S.resultRequestSignature || !S.routes.length) return;
+  function resultsAreStale() {
+    if (!S.resultRequestSignature || !S.routes.length) return false;
     const current = currentRequestSignature();
-    const fresh = current && current === S.resultRequestSignature;
-    document.body.classList.toggle("results-stale", !fresh);
+    return Boolean(current && current !== S.resultRequestSignature);
+  }
+  function applyResultsFreshness(stale) {
+    document.body.classList.toggle("results-stale", stale);
     const banner = staleResultsBanner();
-    banner.hidden = fresh;
-    if (fresh) {
-      E.placeholder.style.display = "none";
-      E.results.classList.add("show");
-      E.map.classList.add("show");
-      document.body.classList.add("has-results");
-      renderMapSelectionBadge();
-    } else {
-      E.results.classList.remove("show");
-      E.map.classList.remove("show");
-      E.placeholder.style.display = "block";
-      document.body.classList.remove("has-results");
-      const mapBadge = $("#mapRouteSelection");
-      if (mapBadge) mapBadge.hidden = true;
+    banner.hidden = !stale;
+  }
+  function setResultsFreshness({ immediate = false } = {}) {
+    if (!S.resultRequestSignature || !S.routes.length) return;
+    if (S.nav.active) return;
+    if (S.staleResultsTimer) {
+      clearTimeout(S.staleResultsTimer);
+      S.staleResultsTimer = null;
     }
+    const stale = resultsAreStale();
+    if (!stale || immediate) return applyResultsFreshness(stale);
+    S.staleResultsTimer = setTimeout(() => {
+      S.staleResultsTimer = null;
+      if (!S.nav.active) applyResultsFreshness(resultsAreStale());
+    }, 800);
+  }
+  function chooseStaleRouteAction(actionLabel) {
+    if (!resultsAreStale()) return Promise.resolve("keep");
+    let modal = $("#staleRouteActionModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "staleRouteActionModal";
+      modal.className = "modal";
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "true");
+      modal.setAttribute("aria-labelledby", "staleRouteActionTitle");
+      modal.innerHTML =
+        '<div class="modal-card"><h2 id="staleRouteActionTitle">Vos réglages ont changé</h2><p id="staleRouteActionText"></p><p>Le parcours affiché reste celui calculé précédemment.</p><div class="modal-actions"><button type="button" id="keepStaleRoute">Garder ce parcours</button><button type="button" id="recalculateStaleRoute">Recalculer d’abord</button></div></div>';
+      document.body.appendChild(modal);
+    }
+    $("#staleRouteActionText").textContent =
+      `Avant de ${actionLabel}, choisissez si vous gardez ce parcours ou si vous le recalculez avec vos nouveaux réglages.`;
+    modal.classList.add("show");
+    return new Promise((resolve) => {
+      const keep = $("#keepStaleRoute");
+      const recalculate = $("#recalculateStaleRoute");
+      const settle = (choice) => {
+        modal.classList.remove("show");
+        keep.onclick = null;
+        recalculate.onclick = null;
+        resolve(choice);
+      };
+      keep.onclick = () => settle("keep");
+      recalculate.onclick = () => settle("recalculate");
+      keep.focus();
+    });
+  }
+  async function allowRouteAction(actionLabel) {
+    const choice = await chooseStaleRouteAction(actionLabel);
+    if (choice === "keep") return true;
+    go(3);
+    formElement?.requestSubmit();
+    return false;
   }
   function focusResultsAfterRender() {
     if (window.innerWidth > 1000) return;
@@ -2796,6 +2839,13 @@
     const externalMapLinks = mapLinks(r);
     const googleMapsExportButton = $("#googleMapsExportBtn");
     if (googleMapsExportButton) {
+      googleMapsExportButton.onclick = async (event) => {
+        if (!externalMapLinks.google) return event.preventDefault();
+        if (!resultsAreStale()) return;
+        event.preventDefault();
+        if (await allowRouteAction("ouvrir ce parcours dans Google Maps"))
+          globalThis.open(externalMapLinks.google, "_blank", "noopener");
+      };
       googleMapsExportButton.href = externalMapLinks.google || "#";
       googleMapsExportButton.setAttribute(
         "aria-label",
@@ -2812,11 +2862,13 @@
         googleMapsExportButton.removeAttribute("href");
     }
 
-    $("#jsonBtn").onclick = () =>
+    $("#jsonBtn").onclick = async () => {
+      if (!(await allowRouteAction("télécharger le fichier JSON"))) return;
       download(
         JSON.stringify(buildJsonExport(r), null, 2),
         slug(r.name) + ".json",
       );
+    };
     $("#printBtn").onclick = () => print();
 
     E.poiPanel.hidden = false;
@@ -2851,7 +2903,8 @@
   function mapLinks(r) {
     return buildMapLinks(r);
   }
-  function gpx() {
+  async function gpx() {
+    if (!(await allowRouteAction("télécharger le fichier GPX"))) return;
     const route = S.routes[S.selected];
     const audit = auditRouteExport(route);
     if (!audit.exactEligible)
@@ -3037,6 +3090,8 @@
     } catch {}
   }
   async function startNavigation() {
+    if (!(await allowRouteAction("suivre cette promenade"))) return;
+
     if (!navigator.geolocation)
       return say("Ce navigateur ne fournit pas la géolocalisation.");
     const r = S.routes[S.selected];
@@ -4473,6 +4528,8 @@
         S.routes = await direct(S.request);
         S.selected = 0;
         S.resultRequestSignature = requestSignature(S.request);
+        if (S.staleResultsTimer) clearTimeout(S.staleResultsTimer);
+        S.staleResultsTimer = null;
         go(3);
         await render();
         const staleBanner = $("#staleResultsBanner");
@@ -4483,6 +4540,8 @@
         S.routes = await parseGPX($("#gpxFile").files[0]);
         S.selected = 0;
         S.resultRequestSignature = requestSignature(S.request);
+        if (S.staleResultsTimer) clearTimeout(S.staleResultsTimer);
+        S.staleResultsTimer = null;
         go(3);
         await render();
         const staleBanner = $("#staleResultsBanner");
