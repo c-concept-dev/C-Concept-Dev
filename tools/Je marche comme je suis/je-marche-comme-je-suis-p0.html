@@ -1320,7 +1320,12 @@ footer,.footer{color:var(--footer)}
 @media(max-width:767px){.selected-route-context{position:sticky;top:5px;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(9px);box-shadow:0 5px 16px rgba(58,54,40,.07)}.elevation-card{padding:9px 9px 7px}.profile-wrap .profile{height:76px}.elevation-head small{max-width:105px}.detail-top{gap:9px}.data-grid{gap:5px}.data{min-height:49px;padding:7px 6px}.data b{font-size:10px}.data span{font-size:6.5px;line-height:1.25}.detail-groups{gap:6px}.detail-group>summary{min-height:42px!important}.exports{gap:6px}.exports .small,.exports a{min-height:38px;display:inline-flex;align-items:center;justify-content:center}}
 @media(max-width:900px) and (orientation:landscape){.results{padding-top:10px}.route-card{flex-basis:min(46vw,320px)}.result-map-block .map{height:min(62vh,290px)}.detail-top{grid-template-columns:1fr 1fr}.profile-wrap .profile{height:68px}.selected-route-context{position:static}.data-grid{grid-template-columns:repeat(4,1fr)}}
 @media(prefers-reduced-motion:reduce){.data,.compare-route-dot,.route-card{transition:none!important}.route-card:active{transform:none!important}}
-body.navigating .results{display:block!important;position:absolute;inset:0;padding:0!important;margin:0!important;background:transparent}.navigating .results>*:not(.result-map-block){display:none!important}.navigating .result-map-block{display:block!important;position:absolute;inset:0;margin:0!important;padding:0!important;border:0!important}.navigating .result-map-head{display:none!important}.navigating .result-map-block .map{height:100dvh!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+
+/* D080 — cohérence du parcours : résultats liés à la demande réellement calculée */
+.stale-results-banner{margin:18px 20px 0;border:1px solid #c9a15a;border-left:4px solid #c9a15a;border-radius:12px;background:#fffaf0;padding:12px 14px;color:var(--ink);box-shadow:var(--shadow-sm)}.stale-results-banner[hidden]{display:none!important}.stale-results-banner strong{display:block;margin-bottom:3px;font-family:var(--font-heading);font-size:12px}.stale-results-banner span{display:block;color:var(--muted);font-size:9px;line-height:1.45}.results-stale .stage>.placeholder{display:block!important}.results-stale .live-stage{opacity:.92}
+@media(max-width:1000px){.stale-results-banner{margin:12px 12px 0}}
+
+.navigating .results{display:block!important;position:absolute;inset:0;padding:0!important;margin:0!important;background:transparent}.navigating .results>*:not(.result-map-block){display:none!important}.navigating .result-map-block{display:block!important;position:absolute;inset:0;margin:0!important;padding:0!important;border:0!important}.navigating .result-map-head{display:none!important}.navigating .result-map-block .map{height:100dvh!important;border:0!important;border-radius:0!important;box-shadow:none!important}
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -7736,6 +7741,7 @@ body.navigating .results{display:block!important;position:absolute;inset:0;paddi
       photoMarkers: new Map(),
       routes: [],
       selected: 0,
+      resultRequestSignature: null,
       request: null,
       compiled: null,
       bases: null,
@@ -8509,6 +8515,75 @@ body.navigating .results{display:block!important;position:absolute;inset:0;paddi
     $("#place").value = a[0].display_name.split(",").slice(0, 3).join(",");
     return { lat: +a[0].lat, lon: +a[0].lon };
   }
+  function requestSignature(request) {
+    if (!request || typeof request !== "object") return null;
+    try {
+      const copy = JSON.parse(JSON.stringify(request));
+      delete copy.createdAt;
+      return JSON.stringify(copy);
+    } catch {
+      return null;
+    }
+  }
+  function currentRequestSignature() {
+    try {
+      return requestSignature(
+        mergeStructuredLimitationIntoRequest(buildRequest()),
+      );
+    } catch {
+      return null;
+    }
+  }
+  function staleResultsBanner() {
+    let banner = $("#staleResultsBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "staleResultsBanner";
+      banner.className = "stale-results-banner";
+      banner.setAttribute("role", "status");
+      banner.setAttribute("aria-live", "polite");
+      banner.innerHTML =
+        '<strong>Votre demande a changé.</strong><span>Les parcours précédents sont masqués jusqu’à un nouveau calcul pour éviter de les confondre avec vos critères actuels.</span>';
+      const stage = E.placeholder?.parentElement;
+      if (stage) stage.insertBefore(banner, E.placeholder);
+    }
+    return banner;
+  }
+  function setResultsFreshness() {
+    if (!S.resultRequestSignature || !S.routes.length) return;
+    const current = currentRequestSignature();
+    const fresh = current && current === S.resultRequestSignature;
+    document.body.classList.toggle("results-stale", !fresh);
+    const banner = staleResultsBanner();
+    banner.hidden = fresh;
+    if (fresh) {
+      E.placeholder.style.display = "none";
+      E.results.classList.add("show");
+      E.map.classList.add("show");
+      document.body.classList.add("has-results");
+      renderMapSelectionBadge();
+    } else {
+      E.results.classList.remove("show");
+      E.map.classList.remove("show");
+      E.placeholder.style.display = "block";
+      document.body.classList.remove("has-results");
+      const mapBadge = $("#mapRouteSelection");
+      if (mapBadge) mapBadge.hidden = true;
+    }
+  }
+  function focusResultsAfterRender() {
+    if (window.innerWidth > 1000) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        E.results?.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        }),
+      ),
+    );
+  }
+
   function buildRequest() {
     return {
       schemaVersion: "1.2",
@@ -11985,9 +12060,11 @@ body.navigating .results{display:block!important;position:absolute;inset:0;paddi
   }
   $("#form").addEventListener("input", () => {
     if (S.step === 3) renderConstraintSummary();
+    setResultsFreshness();
   });
   $("#form").addEventListener("change", () => {
     if (S.step === 3) renderConstraintSummary();
+    setResultsFreshness();
   });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
@@ -12016,11 +12093,23 @@ body.navigating .results{display:block!important;position:absolute;inset:0;paddi
       if (S.mode === "api") {
         S.routes = await direct(S.request);
         S.selected = 0;
+        S.resultRequestSignature = requestSignature(S.request);
+        go(3);
         await render();
+        const staleBanner = $("#staleResultsBanner");
+        if (staleBanner) staleBanner.hidden = true;
+        document.body.classList.remove("results-stale");
+        focusResultsAfterRender();
       } else {
         S.routes = await parseGPX($("#gpxFile").files[0]);
         S.selected = 0;
+        S.resultRequestSignature = requestSignature(S.request);
+        go(3);
         await render();
+        const staleBanner = $("#staleResultsBanner");
+        if (staleBanner) staleBanner.hidden = true;
+        document.body.classList.remove("results-stale");
+        focusResultsAfterRender();
       }
     } catch (x) {
       const blockingServiceFailure = x?.serviceResult
