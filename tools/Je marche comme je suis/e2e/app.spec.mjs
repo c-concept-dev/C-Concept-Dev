@@ -164,5 +164,5 @@ test("@critical reste utilisable sur iPhone sans débordement horizontal majeur"
   await openApp(page);
   const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 4);
-  await expect(page.getByRole("button", { name: /Créer ma balade sur mesure/i })).toBeVisible();
+  await expect(page.locator("#place")).toBeVisible();
 });
