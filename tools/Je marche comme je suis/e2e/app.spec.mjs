@@ -74,10 +74,21 @@ async function fillMinimumProfile(page) {
 }
 
 test("@critical crée des boucles réelles auditées sans dépasser trois résultats", async ({ page }) => {
+  page.on("requestfailed", (r) => console.log("DEBUG requestfailed:", r.url(), r.failure()?.errorText));
+  page.on("console", (m) => console.log("DEBUG console:", m.text()));
+  page.on("pageerror", (e) => console.log("DEBUG pageerror:", e.message));
+  page.on("response", async (r) => {
+    if (r.url().includes("workers.dev")) {
+      console.log("DEBUG response:", r.status(), r.url(), (await r.text()).slice(0, 300));
+    }
+  });
   const callCount = await mockWorker(page);
   await openApp(page);
   await fillMinimumProfile(page);
   await page.getByRole("button", { name: "Confirmer et calculer" }).click();
+  await page.waitForTimeout(1000);
+  console.log("DEBUG callCount:", callCount());
+  console.log("DEBUG toast:", await page.locator("#toast").textContent().catch(() => "N/A"));
   await expect(page.locator("#routeGrid .route-card")).toHaveCount(3);
   await expect(page.locator("#resultMode")).toHaveText("Calcul direct");
   await expect(page.locator("#routeGrid")).toContainText(/contrôle.*respecté/i);
