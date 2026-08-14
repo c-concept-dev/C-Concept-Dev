@@ -8022,12 +8022,27 @@ html,body{max-width:100%;overflow-x:hidden}
     E.status?.parentElement?.insertBefore(panel, E.status);
     return panel;
   }
+  function focusCalculationPanel() {
+    const panel = $("#calculationState");
+    if (!panel || !panel.classList.contains("show")) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const rect = panel.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const fullyVisible = rect.top >= 72 && rect.bottom <= viewportHeight - 20;
+    if (fullyVisible) return;
+    panel.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  }
   function beginCalculation(message) {
     const panel = ensureCalculationPanel();
     document.body.classList.add("calculating");
     panel.classList.add("show");
     const target = $("#calculationStateMessage");
     if (target) target.textContent = message || "Préparation de la recherche…";
+    requestAnimationFrame(() => requestAnimationFrame(focusCalculationPanel));
   }
   function endCalculation() {
     document.body.classList.remove("calculating");
