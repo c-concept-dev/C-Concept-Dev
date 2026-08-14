@@ -344,6 +344,8 @@
   }
   function updateLiveSummary() {
     document.body.dataset.wizardStep = String(S.step);
+    const progressNav = $(".wizard-path-progress");
+    if (progressNav) progressNav.dataset.step = String(S.step);
     const progressButtons = $$("[data-go]");
     progressButtons.forEach((button, i) => {
       button.classList.toggle("done", i < S.step);
@@ -559,9 +561,29 @@
         b.classList.toggle("active");
         if (b.closest('[data-group="limits"]'))
           updateLimitationStructureVisibility();
+        if (b.closest('[data-group="terrain"]')) syncTerrainChoiceCards();
         updateLiveSummary();
       }),
   );
+  $$(".terrain-choice").forEach((card) => {
+    card.addEventListener("click", () => {
+      if (card.dataset.terrainDetail) {
+        const details = card.closest(".zone2-card")?.querySelector(".zone2-more");
+        if (details) {
+          details.open = !details.open;
+          card.setAttribute("aria-expanded", String(details.open));
+          if (details.open) details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        return;
+      }
+      const label = card.dataset.terrainLabel;
+      const chip = $$('[data-group="terrain"] .chip').find((item) => item.textContent.trim() === label);
+      chip?.click();
+      syncTerrainChoiceCards();
+    });
+  });
+  syncTerrainChoiceCards();
+
   $$(".range input").forEach(
     (x) => (x.oninput = () => {
       x.nextElementSibling.textContent = x.value;
@@ -1054,6 +1076,17 @@
     if (standing) standing.hidden = !active.includes("Station debout");
   }
 
+  function syncTerrainChoiceCards() {
+    $$(".terrain-choice").forEach((card) => {
+      const label = card.dataset.terrainLabel;
+      if (!label) return;
+      const chip = $$('[data-group="terrain"] .chip').find((item) => item.textContent.trim() === label);
+      const active = !!chip?.classList.contains("active");
+      card.classList.toggle("is-active", active);
+      card.setAttribute("aria-pressed", String(active));
+    });
+  }
+
   function restoreHabitualProfile() {
     const saved = privacyController.loadProfile();
     if (!saved) return false;
@@ -1084,6 +1117,7 @@
     restoreChips("terrain", saved.terrain);
     restoreChips("wishes", saved.preferences);
     restoreChips("services", saved.requiredServices);
+    syncTerrainChoiceCards();
     setVal("#pauses", saved.pausePlan);
     setVal("#effort", saved.effort?.profile);
     setVal("#upSlope", saved.effort?.maxAscentSlopePercent);
