@@ -164,7 +164,43 @@
     E.toast.classList.add("show");
     setTimeout(() => E.toast.classList.remove("show"), 2600);
   }
+  function ensureCalculationPanel() {
+    let panel = $("#calculationState");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.id = "calculationState";
+    panel.className = "calc-state";
+    panel.setAttribute("role", "status");
+    panel.setAttribute("aria-live", "polite");
+    panel.innerHTML =
+      '<span class="calc-state-visual" aria-hidden="true"></span>' +
+      '<span class="calc-state-copy"><span class="calc-state-kicker">Recherche en cours</span>' +
+      '<strong id="calculationStateMessage">Préparation de la recherche…</strong>' +
+      '<p>Le message évolue uniquement lorsque le moteur change réellement d’étape.</p>' +
+      '<small class="calc-state-note">Aucun pourcentage ni résultat intermédiaire n’est simulé.</small></span>';
+    E.status?.parentElement?.insertBefore(panel, E.status);
+    return panel;
+  }
+  function beginCalculation(message) {
+    const panel = ensureCalculationPanel();
+    document.body.classList.add("calculating");
+    panel.classList.add("show");
+    const target = $("#calculationStateMessage");
+    if (target) target.textContent = message || "Préparation de la recherche…";
+  }
+  function endCalculation() {
+    document.body.classList.remove("calculating");
+    $("#calculationState")?.classList.remove("show");
+  }
   function status(m) {
+    const plain = typeof m === "string" && m && !m.trim().startsWith("<");
+    if (document.body.classList.contains("calculating") && plain) {
+      const target = $("#calculationStateMessage");
+      if (target) target.textContent = m.replace(/<[^>]*>/g, "");
+      E.status.hidden = true;
+      E.status.innerHTML = "";
+      return;
+    }
     E.status.hidden = !m;
     E.status.innerHTML = m || "";
   }
@@ -1450,6 +1486,63 @@
     return route;
   }
 
+  function routeCompareStatus(route) {
+    if (route?.proposalStatus === "compatible")
+      return { label: "Compatible", className: "ok" };
+    if (route?.proposalStatus === "verify")
+      return { label: "À vérifier", className: "verify" };
+    return { label: "Adaptation", className: "adapt" };
+  }
+  function renderRouteComparison() {
+    let wrap = $("#routeComparison");
+    if (!wrap) {
+      wrap = document.createElement("section");
+      wrap.id = "routeComparison";
+      wrap.className = "result-compare";
+      E.grid.parentElement.insertBefore(wrap, E.grid);
+    }
+    if (!Array.isArray(S.routes) || S.routes.length < 2) {
+      wrap.hidden = true;
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.hidden = false;
+    const rows = S.routes.map((route, index) => {
+      const state = routeCompareStatus(route);
+      const audit = routeAuditFacts(route);
+      const orientation = String(route.orientation || `Option ${index + 1}`);
+      const title = orientation.charAt(0).toUpperCase() + orientation.slice(1);
+      const duration = Number.isFinite(Number(route.total ?? route.walking))
+        ? `${metricLabel(route.total ?? route.walking)} min`
+        : "—";
+      const ascent = Number.isFinite(Number(route.ascent))
+        ? `${metricLabel(route.ascent)} m`
+        : "—";
+      const distance = Number.isFinite(Number(route.distance))
+        ? `${(Number(route.distance) / 1000).toFixed(1)} km`
+        : "—";
+      const auditText = `${audit.respected} respecté${audit.respected > 1 ? "s" : ""}` +
+        (audit.unknown ? ` · ${audit.unknown} à vérifier` : "") +
+        (audit.violated ? ` · ${audit.violated} dépassé${audit.violated > 1 ? "s" : ""}` : "");
+      return `<tr class="${index === S.selected ? "is-selected" : ""}">` +
+        `<td><button type="button" class="compare-route-pick" data-compare-route="${index}">` +
+        `<span class="compare-route-dot" aria-hidden="true"></span><span><strong>${esc(title)}</strong>` +
+        `<small>${esc(route.name || `Proposition ${index + 1}`)}</small></span></button></td>` +
+        `<td>${esc(distance)}</td><td>${esc(duration)}</td><td>${esc(ascent)}</td>` +
+        `<td><span class="compare-status ${state.className}">${esc(state.label)}</span></td>` +
+        `<td><span class="compare-audit">${esc(auditText)}</span></td></tr>`;
+    }).join("");
+    wrap.innerHTML =
+      '<div class="result-compare-head"><div><h3>Comparer les propositions</h3>' +
+      '<p>Uniquement des mesures et contrôles issus des parcours réellement calculés.</p></div></div>' +
+      '<div class="result-compare-scroll"><table class="result-compare-table"><thead><tr>' +
+      '<th>Parcours</th><th>Distance</th><th>Durée</th><th>D+</th><th>Statut</th><th>Contrôles</th>' +
+      `</tr></thead><tbody>${rows}</tbody></table></div>`;
+    $$('[data-compare-route]').forEach((button) => {
+      button.onclick = () => select(+button.dataset.compareRoute);
+    });
+  }
+
   function renderResultQualityBanner() {
     let banner = document.querySelector("#resultQualityBanner");
     if (!banner) {
@@ -1499,6 +1592,7 @@
         : S.routes[0].mode === "gpx"
           ? "GPX importé"
           : "Analyse contrôlée";
+    renderRouteComparison();
     E.grid.innerHTML = S.routes
       .map(
         (r, i) =>
@@ -4192,15 +4286,20 @@
     if (miss.length) return say("À compléter : " + miss.join(", "));
     save(S.request);
     $("#create").disabled = true;
+    beginCalculation(
+      S.mode === "api"
+        ? "Préparation de la recherche de boucles réelles…"
+        : "Analyse du fichier GPX…",
+    );
     try {
       if (S.mode === "api") {
         S.routes = await direct(S.request);
         S.selected = 0;
-        render();
+        await render();
       } else {
         S.routes = await parseGPX($("#gpxFile").files[0]);
         S.selected = 0;
-        render();
+        await render();
       }
     } catch (x) {
       const blockingServiceFailure = x?.serviceResult
@@ -4215,6 +4314,7 @@
         );
       renderConstraintSummary();
     } finally {
+      endCalculation();
       $("#create").disabled = false;
     }
   };
