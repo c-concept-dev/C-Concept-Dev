@@ -1703,7 +1703,8 @@
     const e = c
       .map((x) => (Number.isFinite(+x[2]) ? +x[2] : null))
       .filter((x) => x !== null);
-    if (e.length < 2) return '<p class="kicker">Profil non disponible</p>';
+    if (e.length < 2)
+      return '<div class="profile-unavailable">Profil d’altitude non disponible</div>';
     const min = Math.min(...e),
       max = Math.max(...e),
       rg = max - min || 1,
@@ -1716,11 +1717,19 @@
         )
         .join(" ");
     return (
-      '<svg class="profile" viewBox="0 0 360 70" preserveAspectRatio="none"><path d="M0,62 L' +
+      '<div class="profile-wrap"><svg class="profile" viewBox="0 0 360 70" preserveAspectRatio="none" role="img" aria-label="Profil d’altitude réel du parcours, de ' +
+      Math.round(min) +
+      ' à ' +
+      Math.round(max) +
+      ' mètres"><path d="M0,62 L' +
       pts.replaceAll(" ", " L") +
       ' L360,62 Z"/><polyline points="' +
       pts +
-      '"/></svg>'
+      '"/></svg><div class="profile-scale"><span>min ' +
+      Math.round(min) +
+      ' m</span><span>max ' +
+      Math.round(max) +
+      ' m</span></div></div>'
     );
   }
   function list(
@@ -2566,9 +2575,9 @@
       esc(r.weather?.assessment?.level || "unknown") +
       '">' +
       weatherCompactHtml(r.weather) +
-      '</div>' + daylightReturnHtml(r) + '<div class="detail-top"><div><span class="kicker">Profil d’altitude</span>' +
+      '</div>' + daylightReturnHtml(r) + '<div class="detail-top"><section class="elevation-card"><div class="elevation-head"><div><span class="kicker">Relief réel</span><strong>Profil d’altitude</strong></div><small>Données disponibles sur la trace</small></div>' +
       profile(r.coords) +
-      '</div><div class="why"><strong>Pourquoi ce parcours ?</strong><br>' +
+      '</section><div class="why"><strong>Pourquoi ce parcours ?</strong><br>' +
       esc(whyThisRoute(r)) +
       '</div></div><div class="data-grid"><div class="data"><b>' +
       metricLabel(r.walking ?? r.total) +
