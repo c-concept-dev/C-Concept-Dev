@@ -607,11 +607,12 @@
   if ($("#landingExactHelp")) $("#landingExactHelp").onclick = () => $("#helpBtn")?.click();
   if ($("#landingExactClear")) $("#landingExactClear").onclick = () => $("#clearBtn")?.click();
   if ($("#landingExactPrivacy")) $("#landingExactPrivacy").onclick = () => $("#privacyDetailsBtn")?.click();
-  if ($("#mlCreate")) $("#mlCreate").onclick = () => mode("api");
-  if ($("#mlGpx")) $("#mlGpx").onclick = () => mode("gpx");
-  if ($("#mlHelp")) $("#mlHelp").onclick = () => $("#helpBtn")?.click();
-  if ($("#mlClear")) $("#mlClear").onclick = () => $("#clearBtn")?.click();
-  if ($("#mlPrivacy")) $("#mlPrivacy").onclick = () => $("#privacyDetailsBtn")?.click();
+  if ($("#mxCreate")) $("#mxCreate").onclick = () => mode("api");
+  if ($("#mxCompass")) $("#mxCompass").onclick = () => mode("api");
+  if ($("#mxGpx")) $("#mxGpx").onclick = () => mode("gpx");
+  if ($("#mxHelp")) $("#mxHelp").onclick = () => $("#helpBtn")?.click();
+  if ($("#mxClear")) $("#mxClear").onclick = () => $("#clearBtn")?.click();
+  if ($("#mxPrivacy")) $("#mxPrivacy").onclick = () => $("#privacyDetailsBtn")?.click();
 
   const homeCta = $(".home-cta");
   const homeCompass = $(".home-compass-photo");
