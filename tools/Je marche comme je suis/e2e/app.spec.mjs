@@ -95,6 +95,8 @@ test("@critical affiche une erreur actionnable sans route fictive quand ORS éch
 
 test("@critical importe un GPX et conserve les données terrain absentes comme invérifiables", async ({ page }) => {
   await page.goto(APP_URL);
+  const mobileMenu = page.getByRole("button", { name: "Menu" }).filter({ visible: true });
+  if (await mobileMenu.count()) await mobileMenu.first().click();
   await page.getByRole("button", { name: "Analyser une trace GPX" }).filter({ visible: true }).first().click();
   await page.locator("#place").fill("Départ GPX D-023");
   await page.locator("#lat").fill("43.596");
