@@ -344,8 +344,6 @@
   }
   function updateLiveSummary() {
     document.body.dataset.wizardStep = String(S.step);
-    const progressNav = $(".wizard-path-progress");
-    if (progressNav) progressNav.dataset.step = String(S.step);
     const progressButtons = $$("[data-go]");
     progressButtons.forEach((button, i) => {
       button.classList.toggle("done", i < S.step);
