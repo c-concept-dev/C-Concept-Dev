@@ -11089,7 +11089,7 @@ html,body{max-width:100%;overflow-x:hidden}
     S.nav.continuedDespiteReservations = false;
     document.body.classList.remove("navigating");
     try {
-      document.exitFullscreen?.();
+      document.exitFullscreen?.().catch(() => {});
     } catch {}
     draw();
     setTimeout(() => S.map?.invalidateSize(), 100);
