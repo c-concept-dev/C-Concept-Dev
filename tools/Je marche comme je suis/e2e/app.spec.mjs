@@ -57,8 +57,8 @@ async function mockWorker(page, { fail = false } = {}) {
 
 async function openApp(page) {
   await page.goto(APP_URL);
+  await page.getByRole("button", { name: "Créer ma balade sur mesure" }).filter({ visible: true }).first().click();
   await expect(page.getByRole("heading", { name: /Votre corps, votre temps/i })).toBeVisible();
-  await page.getByRole("button", { name: "Créer ma balade sur mesure" }).click();
   await expect(page.locator("#place")).toBeVisible();
 }
 
