@@ -774,6 +774,8 @@ body.journey-started .landing-exact{display:none!important}
   .wish-grid .chip{scroll-snap-align:start;min-width:72px}
 }
 @media(prefers-reduced-motion:reduce){.terrain-choice,.terrain-photo,.terrain-check,.wish-grid .chip,.wish-grid .chip:after{transition:none!important}}
+
+
 </style>
     <style>
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:linear-gradient(135deg,var(--sand),var(--beige));font-family:var(--font-body);line-height:1.5}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--sea2);outline-offset:2px}
@@ -1280,6 +1282,24 @@ footer,.footer{color:var(--footer)}
 @media(max-width:767px){.review-grid{grid-template-columns:1fr}.review-block{padding-right:74px}.review-head{display:block}.review-status{display:inline-block;margin-top:8px}}
 @media(prefers-reduced-motion:reduce){.step.active,.wizard-path-progress button.done .wizard-node:after{animation:none!important}.step,.review-card,.review-block,.review-edit{transition:none!important;scroll-behavior:auto!important}}
 
+
+
+/* D079A — chargement honnête + comparaison des propositions réelles */
+.calc-state{display:none;margin:14px 0 8px;padding:16px 18px;border:1px solid rgba(138,154,91,.42);border-radius:14px;background:linear-gradient(135deg,#fff,#f7f5ee);box-shadow:0 8px 22px rgba(58,54,40,.06)}
+.calc-state.show{display:grid;grid-template-columns:56px minmax(0,1fr);gap:14px;align-items:center;animation:calcStateIn .24s ease both}
+.calc-state-visual{position:relative;width:52px;height:52px;border-radius:50%;background:rgba(138,154,91,.09);overflow:hidden}
+.calc-state-visual:before{content:"";position:absolute;left:10px;top:29px;width:34px;height:2px;border-top:2px dashed var(--sage);transform:rotate(-20deg);transform-origin:left center;opacity:.72}
+.calc-state-visual:after{content:"";position:absolute;left:10px;top:27px;width:7px;height:7px;border-radius:50%;background:var(--sage);box-shadow:0 0 0 5px rgba(138,154,91,.11);animation:calcDotTravel 1.65s ease-in-out infinite alternate}
+.calc-state-copy{min-width:0}.calc-state-kicker{display:block;margin-bottom:3px;font-size:8px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;color:var(--sage-hover)}
+.calc-state-copy strong{display:block;font-size:12px;color:var(--ink);line-height:1.35}.calc-state-copy p{margin:3px 0 0;font-size:9px;color:var(--muted);line-height:1.45}.calc-state-note{display:block;margin-top:5px;font-size:7.5px;color:var(--muted)}
+.result-compare{margin:10px 0 14px;border:1px solid var(--border);border-radius:13px;background:#fff;overflow:hidden}.result-compare[hidden]{display:none}
+.result-compare-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:12px 14px;background:#faf9f5;border-bottom:1px solid #e7e0d6}.result-compare-head h3{margin:0;font-size:12px;color:var(--ink)}.result-compare-head p{margin:2px 0 0;font-size:8px;color:var(--muted)}
+.result-compare-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.result-compare-table{width:100%;min-width:610px;border-collapse:collapse}.result-compare-table th,.result-compare-table td{padding:9px 10px;text-align:left;border-bottom:1px solid #eee9df;font-size:8.5px;vertical-align:middle}.result-compare-table th{font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:#fff}.result-compare-table tr:last-child td{border-bottom:0}.result-compare-table tr.is-selected td{background:rgba(138,154,91,.065)}
+.compare-route-pick{display:flex;align-items:center;gap:7px;border:0;background:transparent;padding:0;text-align:left;color:inherit}.compare-route-dot{width:9px;height:9px;border-radius:50%;background:var(--sage);box-shadow:0 0 0 3px rgba(138,154,91,.10)}.compare-route-pick strong{font-size:9px;color:var(--ink)}.compare-route-pick small{display:block;font-size:7.5px;color:var(--muted);font-weight:500}.compare-route-pick:hover strong{color:var(--sage-hover)}
+.compare-status{display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;font-size:7px;font-weight:800;white-space:nowrap}.compare-status.ok{background:rgba(138,154,91,.11);color:var(--sage-hover)}.compare-status.verify{background:rgba(201,161,90,.14);color:#8b6b2b}.compare-status.adapt{background:rgba(181,80,46,.10);color:#8a3a20}.compare-audit{color:var(--muted);font-size:7.5px;white-space:nowrap}
+@keyframes calcDotTravel{from{transform:translate(0,0)}to{transform:translate(27px,-10px)}}@keyframes calcStateIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media(max-width:767px){.calc-state{margin:10px 0;padding:13px 14px}.calc-state.show{grid-template-columns:46px minmax(0,1fr);gap:10px}.calc-state-visual{width:44px;height:44px}.calc-state-visual:before{left:8px;top:25px;width:29px}.calc-state-visual:after{left:8px;top:23px}.result-compare-head{display:block}.result-compare-head p{margin-top:3px}}
+@media(prefers-reduced-motion:reduce){.calc-state.show,.calc-state-visual:after{animation:none!important}.calc-state,.compare-route-pick{transition:none!important}}
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -7769,7 +7789,43 @@ footer,.footer{color:var(--footer)}
     E.toast.classList.add("show");
     setTimeout(() => E.toast.classList.remove("show"), 2600);
   }
+  function ensureCalculationPanel() {
+    let panel = $("#calculationState");
+    if (panel) return panel;
+    panel = document.createElement("section");
+    panel.id = "calculationState";
+    panel.className = "calc-state";
+    panel.setAttribute("role", "status");
+    panel.setAttribute("aria-live", "polite");
+    panel.innerHTML =
+      '<span class="calc-state-visual" aria-hidden="true"></span>' +
+      '<span class="calc-state-copy"><span class="calc-state-kicker">Recherche en cours</span>' +
+      '<strong id="calculationStateMessage">Préparation de la recherche…</strong>' +
+      '<p>Le message évolue uniquement lorsque le moteur change réellement d’étape.</p>' +
+      '<small class="calc-state-note">Aucun pourcentage ni résultat intermédiaire n’est simulé.</small></span>';
+    E.status?.parentElement?.insertBefore(panel, E.status);
+    return panel;
+  }
+  function beginCalculation(message) {
+    const panel = ensureCalculationPanel();
+    document.body.classList.add("calculating");
+    panel.classList.add("show");
+    const target = $("#calculationStateMessage");
+    if (target) target.textContent = message || "Préparation de la recherche…";
+  }
+  function endCalculation() {
+    document.body.classList.remove("calculating");
+    $("#calculationState")?.classList.remove("show");
+  }
   function status(m) {
+    const plain = typeof m === "string" && m && !m.trim().startsWith("<");
+    if (document.body.classList.contains("calculating") && plain) {
+      const target = $("#calculationStateMessage");
+      if (target) target.textContent = m.replace(/<[^>]*>/g, "");
+      E.status.hidden = true;
+      E.status.innerHTML = "";
+      return;
+    }
     E.status.hidden = !m;
     E.status.innerHTML = m || "";
   }
@@ -9055,6 +9111,63 @@ footer,.footer{color:var(--footer)}
     return route;
   }
 
+  function routeCompareStatus(route) {
+    if (route?.proposalStatus === "compatible")
+      return { label: "Compatible", className: "ok" };
+    if (route?.proposalStatus === "verify")
+      return { label: "À vérifier", className: "verify" };
+    return { label: "Adaptation", className: "adapt" };
+  }
+  function renderRouteComparison() {
+    let wrap = $("#routeComparison");
+    if (!wrap) {
+      wrap = document.createElement("section");
+      wrap.id = "routeComparison";
+      wrap.className = "result-compare";
+      E.grid.parentElement.insertBefore(wrap, E.grid);
+    }
+    if (!Array.isArray(S.routes) || S.routes.length < 2) {
+      wrap.hidden = true;
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.hidden = false;
+    const rows = S.routes.map((route, index) => {
+      const state = routeCompareStatus(route);
+      const audit = routeAuditFacts(route);
+      const orientation = String(route.orientation || `Option ${index + 1}`);
+      const title = orientation.charAt(0).toUpperCase() + orientation.slice(1);
+      const duration = Number.isFinite(Number(route.total ?? route.walking))
+        ? `${metricLabel(route.total ?? route.walking)} min`
+        : "—";
+      const ascent = Number.isFinite(Number(route.ascent))
+        ? `${metricLabel(route.ascent)} m`
+        : "—";
+      const distance = Number.isFinite(Number(route.distance))
+        ? `${(Number(route.distance) / 1000).toFixed(1)} km`
+        : "—";
+      const auditText = `${audit.respected} respecté${audit.respected > 1 ? "s" : ""}` +
+        (audit.unknown ? ` · ${audit.unknown} à vérifier` : "") +
+        (audit.violated ? ` · ${audit.violated} dépassé${audit.violated > 1 ? "s" : ""}` : "");
+      return `<tr class="${index === S.selected ? "is-selected" : ""}">` +
+        `<td><button type="button" class="compare-route-pick" data-compare-route="${index}">` +
+        `<span class="compare-route-dot" aria-hidden="true"></span><span><strong>${esc(title)}</strong>` +
+        `<small>${esc(route.name || `Proposition ${index + 1}`)}</small></span></button></td>` +
+        `<td>${esc(distance)}</td><td>${esc(duration)}</td><td>${esc(ascent)}</td>` +
+        `<td><span class="compare-status ${state.className}">${esc(state.label)}</span></td>` +
+        `<td><span class="compare-audit">${esc(auditText)}</span></td></tr>`;
+    }).join("");
+    wrap.innerHTML =
+      '<div class="result-compare-head"><div><h3>Comparer les propositions</h3>' +
+      '<p>Uniquement des mesures et contrôles issus des parcours réellement calculés.</p></div></div>' +
+      '<div class="result-compare-scroll"><table class="result-compare-table"><thead><tr>' +
+      '<th>Parcours</th><th>Distance</th><th>Durée</th><th>D+</th><th>Statut</th><th>Contrôles</th>' +
+      `</tr></thead><tbody>${rows}</tbody></table></div>`;
+    $$('[data-compare-route]').forEach((button) => {
+      button.onclick = () => select(+button.dataset.compareRoute);
+    });
+  }
+
   function renderResultQualityBanner() {
     let banner = document.querySelector("#resultQualityBanner");
     if (!banner) {
@@ -9104,6 +9217,7 @@ footer,.footer{color:var(--footer)}
         : S.routes[0].mode === "gpx"
           ? "GPX importé"
           : "Analyse contrôlée";
+    renderRouteComparison();
     E.grid.innerHTML = S.routes
       .map(
         (r, i) =>
@@ -11797,15 +11911,20 @@ footer,.footer{color:var(--footer)}
     if (miss.length) return say("À compléter : " + miss.join(", "));
     save(S.request);
     $("#create").disabled = true;
+    beginCalculation(
+      S.mode === "api"
+        ? "Préparation de la recherche de boucles réelles…"
+        : "Analyse du fichier GPX…",
+    );
     try {
       if (S.mode === "api") {
         S.routes = await direct(S.request);
         S.selected = 0;
-        render();
+        await render();
       } else {
         S.routes = await parseGPX($("#gpxFile").files[0]);
         S.selected = 0;
-        render();
+        await render();
       }
     } catch (x) {
       const blockingServiceFailure = x?.serviceResult
@@ -11820,6 +11939,7 @@ footer,.footer{color:var(--footer)}
         );
       renderConstraintSummary();
     } finally {
+      endCalculation();
       $("#create").disabled = false;
     }
   };
