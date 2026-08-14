@@ -1178,6 +1178,32 @@ footer,.footer{color:var(--footer)}
   body:not(.journey-started) .home-compass{width:103px!important}
   body:not(.journey-started) .home-compass-photo{width:103px!important;height:74px!important}
 }
+
+/* D067 — mobile portrait = même maquette exacte que desktop, aucune reconstruction */
+@media (max-width:760px){
+  html,body{min-height:0!important;background:#F4EFE4!important}
+  body:not(.journey-started){overflow-x:hidden!important}
+  body:not(.journey-started) .shell{width:100%!important;max-width:none!important;padding:0!important;margin:0!important;min-height:0!important}
+  body:not(.journey-started) .landing-exact{
+    display:block!important;
+    position:relative!important;
+    width:100vw!important;
+    max-width:none!important;
+    height:auto!important;
+    aspect-ratio:1447/1087!important;
+    margin:0!important;
+    background:var(--landing-exact-photo) center top/100% 100% no-repeat!important;
+    box-shadow:none!important;
+    border:0!important;
+    overflow:hidden!important;
+  }
+  body:not(.journey-started) .topbar,
+  body:not(.journey-started) main.hero{display:none!important}
+  body:not(.journey-started) .landing-hotspot,
+  body:not(.journey-started) .landing-mood-hit{display:block!important}
+  body:not(.journey-started) .landing-mood-hit{box-shadow:none!important;transform:none!important}
+  body:not(.journey-started) .landing-hotspot:active::after{opacity:.14!important;transform:scale(.995)!important}
+}
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
