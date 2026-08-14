@@ -13,3 +13,4 @@ test("l’arrêt du guidage absorbe le rejet asynchrone de exitFullscreen", () =
     stopNavigation,
     /document\.exitFullscreen\?\.\(\)\.catch\(\(\) => \{\}\)/,
   );
+});
