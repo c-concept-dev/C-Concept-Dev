@@ -775,6 +775,17 @@ body.journey-started .landing-exact{display:none!important}
 }
 @media(prefers-reduced-motion:reduce){.terrain-choice,.terrain-photo,.terrain-check,.wish-grid .chip,.wish-grid .chip:after{transition:none!important}}
 
+
+/* D077-D078 — transitions sobres + vérification avant calcul */
+.review-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--sage);border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 5px 16px rgba(58,54,40,.05)}
+.review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.review-head h3{margin:0 0 4px;font-size:15px}.review-head p{margin:0;color:var(--muted);font-size:9px;line-height:1.5}.review-status{flex:none;border-radius:999px;background:var(--sage-tint);color:var(--sage-hover);font-size:8px;font-weight:800;padding:6px 9px}
+.review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.review-block{position:relative;border:1px solid #e7e0d6;border-radius:10px;background:#faf9f6;padding:11px 78px 11px 11px;min-height:66px}.review-block>span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}.review-block>strong{display:block;margin-top:4px;font-size:10px;line-height:1.4}.review-edit{position:absolute;top:50%;right:9px;transform:translateY(-50%);border:1px solid var(--beige);background:#fff;border-radius:7px;padding:6px 8px;font-size:8px;font-weight:800;color:var(--ink)}.review-edit:hover,.review-edit:focus-visible{border-color:var(--sage);outline:2px solid rgba(138,154,91,.18);outline-offset:1px}
+.review-sensitive{margin-top:12px;border:1px solid #d9d3c9;border-radius:10px;background:#fff;padding:12px}.review-sensitive-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.review-sensitive-head h4{margin:0;font-size:10px;color:var(--ink)}.review-sensitive-head p{margin:3px 0 0;color:var(--muted);font-size:8px;line-height:1.45}.review-sensitive .summary-edit{background:#fff;color:var(--ink);border-color:#d9d3c9}.review-sensitive .constraint-summary-item{background:#fff;border-color:#e3ddd4;border-left:0}.review-sensitive .constraint-summary-group h4{color:var(--ink)!important;text-transform:none;letter-spacing:0;font-size:9px}.review-sensitive .constraint-summary-item small{color:#716b60}.review-sensitive-note{font-size:8px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+.review-details{margin-top:10px;border-top:1px solid #e7e0d6;padding-top:9px}.review-details>summary{cursor:pointer;font-size:9px;font-weight:800;color:var(--sage-hover)}
+.step.active{animation:stepIn .28s ease both;transform-origin:top center}.wizard-path-progress button.done .wizard-node:after{transition:opacity .2s ease,transform .2s ease}.wizard-path-progress button.done .wizard-node:after{animation:reviewTick .3s ease both}@keyframes reviewTick{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@media(max-width:767px){.review-grid{grid-template-columns:1fr}.review-block{padding-right:74px}.review-head{display:block}.review-status{display:inline-block;margin-top:8px}}
+@media(prefers-reduced-motion:reduce){.step.active,.wizard-path-progress button.done .wizard-node:after{animation:none!important}.step,.review-card,.review-block,.review-edit{transition:none!important;scroll-behavior:auto!important}}
+
 </style>
     <style>
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:linear-gradient(135deg,var(--sand),var(--beige));font-family:var(--font-body);line-height:1.5}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--sea2);outline-offset:2px}
@@ -1270,6 +1281,17 @@ footer,.footer{color:var(--footer)}
   .wizard-sprout{right:-5px;top:19px;transform:scale(.78)}
 }
 @media(prefers-reduced-motion:reduce){.wizard-path-fill,.wizard-node,.wizard-number,.wizard-label{transition:none!important}.wizard-path-progress button.active .wizard-node{animation:none!important}}
+
+/* D077-D078 — transitions sobres + vérification avant calcul */
+.review-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--sage);border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 5px 16px rgba(58,54,40,.05)}
+.review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.review-head h3{margin:0 0 4px;font-size:15px}.review-head p{margin:0;color:var(--muted);font-size:9px;line-height:1.5}.review-status{flex:none;border-radius:999px;background:var(--sage-tint);color:var(--sage-hover);font-size:8px;font-weight:800;padding:6px 9px}
+.review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.review-block{position:relative;border:1px solid #e7e0d6;border-radius:10px;background:#faf9f6;padding:11px 78px 11px 11px;min-height:66px}.review-block>span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}.review-block>strong{display:block;margin-top:4px;font-size:10px;line-height:1.4}.review-edit{position:absolute;top:50%;right:9px;transform:translateY(-50%);border:1px solid var(--beige);background:#fff;border-radius:7px;padding:6px 8px;font-size:8px;font-weight:800;color:var(--ink)}.review-edit:hover,.review-edit:focus-visible{border-color:var(--sage);outline:2px solid rgba(138,154,91,.18);outline-offset:1px}
+.review-sensitive{margin-top:12px;border:1px solid #d9d3c9;border-radius:10px;background:#fff;padding:12px}.review-sensitive-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.review-sensitive-head h4{margin:0;font-size:10px;color:var(--ink)}.review-sensitive-head p{margin:3px 0 0;color:var(--muted);font-size:8px;line-height:1.45}.review-sensitive .summary-edit{background:#fff;color:var(--ink);border-color:#d9d3c9}.review-sensitive .constraint-summary-item{background:#fff;border-color:#e3ddd4;border-left:0}.review-sensitive .constraint-summary-group h4{color:var(--ink)!important;text-transform:none;letter-spacing:0;font-size:9px}.review-sensitive .constraint-summary-item small{color:#716b60}.review-sensitive-note{font-size:8px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+.review-details{margin-top:10px;border-top:1px solid #e7e0d6;padding-top:9px}.review-details>summary{cursor:pointer;font-size:9px;font-weight:800;color:var(--sage-hover)}
+.step.active{animation:stepIn .28s ease both;transform-origin:top center}.wizard-path-progress button.done .wizard-node:after{transition:opacity .2s ease,transform .2s ease}.wizard-path-progress button.done .wizard-node:after{animation:reviewTick .3s ease both}@keyframes reviewTick{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@media(max-width:767px){.review-grid{grid-template-columns:1fr}.review-block{padding-right:74px}.review-head{display:block}.review-status{display:inline-block;margin-top:8px}}
+@media(prefers-reduced-motion:reduce){.step.active,.wizard-path-progress button.done .wizard-node:after{animation:none!important}.step,.review-card,.review-block,.review-edit{transition:none!important;scroll-behavior:auto!important}}
+
 </style>
   </head><body><div class="shell"><header class="topbar"><div class="brand"><div class="brandmark"><img src="./icons/jmmjs-icon.svg" alt="" width="50" height="50" /></div><div><strong>Je marche comme <em>je suis</em></strong
             ><span>Je viens comme je suis, je marche comme j’en ai envie</span></div></div><div class="actions"><button class="ghost" id="clearBtn">Effacer mes données</button
@@ -7927,13 +7949,16 @@ footer,.footer{color:var(--footer)}
     return buildSecondaryState({ service, diagnostic, imperative });
   }
   function scrollToActiveStep() {
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     const body = $(".form-body");
-    if (body) body.scrollTop = 0;
+    if (body) body.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const target = $(".form-head") || $(".panel");
-        if (target && window.innerWidth <= 1000)
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (target && window.innerWidth <= 1000) {
+          if (reduceMotion) target.scrollIntoView({ behavior: "auto", block: "start" });
+          else target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }),
     );
   }
@@ -8619,29 +8644,56 @@ footer,.footer{color:var(--footer)}
     const request = mergeStructuredLimitationIntoRequest(rawRequest);
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
-    const all = [...model.imperative, ...model.preferences, ...model.preparation];
-    const valueOf = (label, fallback = "Non renseigné") =>
-      all.find((item) => item.label === label)?.value || fallback;
-    const imperativeCount = model.imperative.length;
-    const essentials = [
-      ["Temps disponible", valueOf("Temps utilisable", request.duration ? request.duration + " min" : "Non renseigné")],
-      ["Profil", valueOf("Profil de sortie", request.effort || "Non renseigné")],
-      ["Chaussures", valueOf("Chaussures")],
-      ["Pauses", valueOf("Pauses", "Aucune programmée")],
-      ["⚠ Contraintes impératives", String(imperativeCount)],
-    ];
-    host.innerHTML =
-      '<div class="constraint-summary-head"><div><h3>Votre balade en résumé</h3><p>Les détails restent accessibles à la demande.</p></div></div>' +
-      '<div class="summary-essentials">' +
-      essentials.map(([label, value]) => '<div class="summary-essential"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>').join("") +
-      '</div><details class="summary-details"><summary>Afficher tous les réglages</summary>' +
-      renderSummaryGroup("Contraintes impératives", model.imperative, "imperative") +
-      renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
-      renderSummaryGroup("Préparation et contrôles", model.preparation, "preparation") +
-      '</details>';
-    host.querySelectorAll("[data-edit-step]").forEach(
-      (button) => (button.onclick = () => go(Number(button.dataset.editStep))),
+    const valueOr = (value, fallback = "Non renseigné") => {
+      if (Array.isArray(value)) return value.length ? value.join(", ") : fallback;
+      return value === null || value === undefined || value === "" ? fallback : String(value);
+    };
+    const departureText = valueOr(request.start?.label || request.start?.address || request.place || val("#place"));
+    const durationText = request.duration ? `${request.duration} min` : valueOr(val("#duration"));
+    const terrainText = valueOr(request.terrain);
+    const wishesText = valueOr(request.preferences);
+    const pausesText = valueOr(request.pausePlan || val("#pauses"), "Aucune pause programmée");
+    const servicesText = valueOr(compiled.hard.requiredServices, "Aucun service impératif");
+    const reviewBlock = (label, value, step) =>
+      '<article class="review-block"><span>' + esc(label) + '</span><strong>' + esc(value) +
+      '</strong><button type="button" class="review-edit" data-go="' + step + '">Modifier</button></article>';
+
+    const sensitiveGroups = [];
+    if (model.imperative.length)
+      sensitiveGroups.push(renderSummaryGroup("Contraintes impératives", model.imperative, "imperative"));
+    const limitationItems = model.preparation.filter((item) =>
+      /Conséquence fonctionnelle|Équipement|Chaussures/i.test(item.label),
     );
+    if (limitationItems.length)
+      sensitiveGroups.push(renderSummaryGroup("Limitations et préparation", limitationItems, "preparation"));
+
+    const otherPreparation = model.preparation.filter((item) => !limitationItems.includes(item));
+    host.className = "review-card";
+    host.innerHTML =
+      '<div class="review-head"><div><h3>Vérifier avant de calculer</h3><p><strong>Votre balade en résumé.</strong> Voici ce que l’application va réellement demander au moteur. Une donnée absente reste inconnue.</p></div><span class="review-status">Prêt à contrôler</span></div>' +
+      '<div class="review-grid summary-essentials">' +
+      reviewBlock("Départ", departureText, 0) +
+      reviewBlock("Temps disponible", durationText, 0) +
+      reviewBlock("Terrain", terrainText, 2) +
+      reviewBlock("Envies", wishesText, 2) +
+      reviewBlock("Pauses", pausesText, 2) +
+      reviewBlock("Services requis", servicesText, 2) +
+      '</div>' +
+      '<section class="review-sensitive"><div class="review-sensitive-head"><div><h4>Contraintes et limitations déclarées</h4><p>Cette partie reste volontairement sobre. Elle sert uniquement à contrôler les règles qui ne doivent pas être assouplies.</p></div><button type="button" class="summary-edit" data-go="1">Modifier</button></div>' +
+      (sensitiveGroups.length ? sensitiveGroups.join("") : '<p class="review-sensitive-note">Aucune contrainte ou limitation spécifique n’est actuellement renseignée.</p>') +
+      '</section>' +
+      '<details class="review-details summary-details"><summary>Afficher tous les réglages</summary>' +
+      renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
+      renderSummaryGroup("Préparation et contrôles", otherPreparation, "preparation") +
+      '</details>';
+
+    host.querySelectorAll("[data-go]").forEach((button) => {
+      button.onclick = () => go(Number(button.dataset.go));
+    });
+    host.querySelectorAll("[data-edit-step]").forEach((button) => {
+      button.setAttribute("data-go", button.dataset.editStep);
+      button.onclick = () => go(Number(button.dataset.editStep));
+    });
     S.request = request;
     S.compiled = compiled;
   }
