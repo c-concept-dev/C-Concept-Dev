@@ -38,6 +38,21 @@ var DEFAULT_ORS_BASE_URL = "https://api.openrouteservice.org";
 var BATCH_MAX_ROUTES = 8;
 var DATATOURISME_BASE_URL = "https://api.datatourisme.fr/v1";
 var DATATOURISME_FIELDS = "uuid,label,type,isLocatedAt.geo,isLocatedAt.address";
+var DATATOURISME_EXCLUDED_TYPES = [
+  "Hotel",
+  "HotelTrade",
+  "HotelRestaurant",
+  "Accommodation",
+  "LodgingBusiness",
+  "RentalAccommodation",
+  "SelfCateringAccommodation",
+  "CollectiveAccommodation",
+  "HolidayResort",
+  "Guesthouse",
+  "BedAndBreakfast",
+  "Restaurant",
+  "FoodEstablishment"
+].join(",");
 var TIMEOUT_MS = {
   ors: 1e4,
   ign: 7e3,
@@ -497,6 +512,7 @@ async function handleDatatourismePlaces(request, env, origin) {
   const [west, south, east, north] = boundingBoxFromRoute(route, radiusMeters);
   const query = new URLSearchParams({
     geo_bounding: `${north},${west},${south},${east}`,
+    filters: `type[nin]=${DATATOURISME_EXCLUDED_TYPES}`,
     fields: DATATOURISME_FIELDS,
     page_size: String(limit),
     lang: "fr"
