@@ -7692,13 +7692,14 @@ html,body{max-width:100%;overflow-x:hidden}
 (() => {
   "use strict";
 
-  // Classification best-effort : les valeurs exactes de l'ontologie DATAtourisme
-  // (thésaurus PointOfInterestClass) n'ont pas pu être vérifiées sans appel réel
-  // authentifié. Le champ `type` renvoyé par l'API est un tableau d'URI
-  // d'ontologie (ex. ".../ontology/core#PointOfInterest") ; on cherche des
-  // motifs plausibles dans l'ensemble du tableau plutôt que sur une seule
-  // valeur. À AFFINER après le premier appel réel — voir le test de connexion
-  // "tourism" côté Worker pour observer une réponse authentique.
+  // Classification confirmée le 15 août 2026 sur un vrai appel authentifié
+  // (centre de Toulouse) : le champ `type` est un tableau de noms de classe
+  // d'ontologie lisibles (ex. "CulturalSite", "Hotel"), pas des URI complètes
+  // comme initialement supposé — la recherche de motif en sous-chaîne
+  // fonctionne donc directement. Le même appel a aussi révélé qu'une requête
+  // DATAtourisme non filtrée sur une zone urbaine dense renvoie presque
+  // exclusivement de l'hébergement (Hotel, Accommodation, LodgingBusiness...)
+  // — exclu côté Worker via le paramètre `filters`, voir DATATOURISME_EXCLUDED_TYPES.
   function type(typeValue) {
     const values = (Array.isArray(typeValue) ? typeValue : [typeValue])
       .map((value) => String(value || "").toLowerCase());
@@ -7717,7 +7718,11 @@ html,body{max-width:100%;overflow-x:hidden}
     if (has("viewpoint") || has("panorama")) return "Point de vue";
     if (has("heritage") || has("museum") || has("castle") || has("religioussite") || has("culturalsite"))
       return "Patrimoine";
-    return "Curiosité locale";
+    // Un type non reconnu ne doit jamais être présumé "Curiosité locale" —
+    // ce libellé correspond à une envie cochable précise ; l'attribuer par
+    // défaut créerait un faux "respecté" pour cette envie sur n'importe quel
+    // lieu non classé (des hôtels l'ont confirmé lors du premier appel réel).
+    return "Lieu touristique";
   }
 
   // Le champ `label` (et potentiellement d'autres champs multilingues) peut
