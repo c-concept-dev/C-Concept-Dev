@@ -12,8 +12,12 @@
     if (categories.some((value) => value.includes("pharmacy"))) return "Pharmacie";
     if (categories.some((value) => value.includes("parking"))) return "Parking";
     if (categories.some((value) => value.includes("public_transport") || value.includes("bus") || value.includes("railway"))) return "Transport public";
+    if (categories.some((value) => value.includes("bakery"))) return "Boulangerie";
+    if (categories.some((value) => value.includes("restaurant"))) return "Restaurant";
     if (categories.some((value) => value.includes("cafe"))) return "Café";
-    if (categories.some((value) => value.startsWith("heritage")))
+    if (categories.some((value) => value.includes("viewpoint"))) return "Point de vue";
+    if (categories.some((value) => value.includes("picnic"))) return "Pique-nique";
+    if (categories.some((value) => value.startsWith("heritage") || value.startsWith("tourism.sights")))
       return "Patrimoine";
     return "Point utile";
   }
