@@ -179,7 +179,7 @@ async function calculateD091Routes(page) {
 
 test("D091 ANOM-001 garde les résultats consultables et ignore un aller-retour rapide", async ({ page }) => {
   await calculateD091Routes(page);
-  await page.locator('[data-go="2"]').click();
+  await page.locator('nav.progress [data-go="2"]').click();
   const wish = page.getByRole("button", { name: "Point de vue" });
   await wish.click();
   await wish.click();
@@ -216,14 +216,14 @@ test("D091 ANOM-001 n’interrompt pas le GPS et attend le retour volontaire au 
 
   await page.locator("#navStop").click();
   await expect(page.locator("#staleResultsBanner")).toBeHidden();
-  await page.locator('[data-go="0"]').click();
+  await page.locator('nav.progress [data-go="0"]').click();
   await page.waitForTimeout(950);
   await expect(page.locator("#staleResultsBanner")).toBeVisible();
 });
 
 test("D091 ANOM-001 confirme une action engageante avec deux choix explicites", async ({ page }) => {
   await calculateD091Routes(page);
-  await page.locator('[data-go="2"]').click();
+  await page.locator('nav.progress [data-go="2"]').click();
   await page.getByRole("button", { name: "Point de vue" }).click();
   await page.locator("#gpxBtn").click();
 
