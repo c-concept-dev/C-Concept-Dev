@@ -125,7 +125,7 @@ test("D094 datatourismeProvider écarte les lieux hors du rayon demandé", async
   assert.equal(results.length, 0);
 });
 
-test("D094 datatourismeProvider retombe sur Curiosité locale pour un type non reconnu", async () => {
+test("D095 datatourismeProvider retombe sur Lieu touristique (jamais Curiosité locale) pour un type non reconnu", async () => {
   const client = {
     async post() {
       return {
@@ -145,7 +145,31 @@ test("D094 datatourismeProvider retombe sur Curiosité locale pour un type non r
     nearestRouteDistance: () => 20,
   });
   const results = await provider.enrich({ route: makeRoute(), radiusMeters: 300 });
-  assert.equal(results[0].type, "Curiosité locale");
+  assert.equal(results[0].type, "Lieu touristique");
+});
+
+test("D095 datatourismeProvider retombe sur Lieu touristique pour un hôtel non filtré côté client", async () => {
+  const client = {
+    async post() {
+      return {
+        items: [
+          {
+            uuid: "hotel-1",
+            label: "Hotel Le Capitole",
+            type: ["PlaceOfInterest", "Accommodation", "Hotel", "HotelTrade", "LodgingBusiness", "PointOfInterest"],
+            isLocatedAt: { geo: { latitude: 43.0002, longitude: 1.0005 } },
+          },
+        ],
+      };
+    },
+  };
+  const provider = loadProvider().createDatatourismeProvider({
+    client,
+    nearestRouteDistance: () => 20,
+  });
+  const results = await provider.enrich({ route: makeRoute(), radiusMeters: 300 });
+  assert.equal(results[0].type, "Lieu touristique");
+  assert.notEqual(results[0].type, "Curiosité locale");
 });
 
 test("D095 datatourismeProvider simplifie une trace de plus de 80 points avant envoi", async () => {
