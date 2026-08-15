@@ -34,6 +34,25 @@
           routeLengthMeters: Number(route.distance) || 0,
         });
       },
+      async inspectMany({ routes, bufferMeters = 25, maxPoints = 80 }) {
+        const list = Array.isArray(routes) ? routes : [];
+        const items = list.map((route) => {
+          const coordinates = route?.coords;
+          if (!Array.isArray(coordinates) || coordinates.length < 2) {
+            throw new TypeError("Trace invalide pour la preuve terrain Overpass.");
+          }
+          return {
+            route: simplifyCoordinates(coordinates, maxPoints),
+            bufferMeters,
+            routeLengthMeters: Number(route.distance) || 0,
+          };
+        });
+        if (!items.length) return [];
+        const data = await client.post("overpass", "/overpass/terrain-batch", {
+          routes: items,
+        });
+        return Array.isArray(data?.results) ? data.results : [];
+      },
     });
   }
 
