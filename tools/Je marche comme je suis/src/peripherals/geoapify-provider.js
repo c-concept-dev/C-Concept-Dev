@@ -17,6 +17,8 @@
     if (categories.some((value) => value.includes("cafe"))) return "Café";
     if (categories.some((value) => value.includes("viewpoint"))) return "Point de vue";
     if (categories.some((value) => value.includes("picnic"))) return "Pique-nique";
+    if (categories.some((value) => value.startsWith("tourism.attraction")))
+      return "Curiosité locale";
     if (categories.some((value) => value.startsWith("heritage") || value.startsWith("tourism.sights")))
       return "Patrimoine";
     return "Point utile";
