@@ -11,6 +11,68 @@
     "Réseau téléphonique",
   ]);
 
+  const WISH_POI_LABELS = Object.freeze([
+    "Boulangerie",
+    "Café",
+    "Restaurant",
+    "Point de vue",
+    "Pique-nique",
+    "Patrimoine",
+  ]);
+
+  function normalizeWishPois(values = []) {
+    return [...new Set((Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter((value) => WISH_POI_LABELS.includes(value)))];
+  }
+
+  function assessWishPois(wishes = [], pois = [], options = {}) {
+    const requested = normalizeWishPois(wishes);
+    const providerAvailable = options.providerAvailable !== false;
+    const searched = options.searched === true;
+    const radiusMeters = Number.isFinite(Number(options.radiusMeters))
+      ? Number(options.radiusMeters)
+      : 300;
+    const foundTypes = new Set(
+      (Array.isArray(pois) ? pois : []).map((poi) => String(poi?.type || "")),
+    );
+
+    const checks = requested.map((wish) => {
+      if (!providerAvailable || !searched) {
+        return {
+          wish,
+          status: "unknown",
+          evidence: `${wish} souhaité·e : recherche cartographique non disponible.`,
+        };
+      }
+      const found = foundTypes.has(wish);
+      return {
+        wish,
+        status: found ? "respected" : "unknown",
+        evidence: found
+          ? `${wish} documenté·e à moins de ${radiusMeters} m de la trace.`
+          : `${wish} non trouvé·e à moins de ${radiusMeters} m de la trace ; la couverture cartographique reste incomplète, l’absence n’est pas prouvée.`,
+      };
+    });
+
+    return { requested, checks };
+  }
+
+  function applyWishPoiAssessment(route, assessment) {
+    const next = { ...route };
+    const existing = Array.isArray(next.checks) ? next.checks : [];
+    next.checks = [
+      ...existing.filter((check) => !String(check.constraint || "").startsWith("Envie : ")),
+      ...assessment.checks.map((check) => ({
+        constraint: `Envie : ${check.wish}`,
+        status: check.status,
+        evidence: check.evidence,
+        severity: "advisory",
+      })),
+    ];
+    return next;
+  }
+
   function normalizeServices(values = []) {
     return [...new Set((Array.isArray(values) ? values : [])
       .map((value) => String(value || "").trim())
@@ -112,5 +174,9 @@
     normalizeServices,
     assessRequiredServices,
     applyServiceAssessment,
+    WISH_POI_LABELS,
+    normalizeWishPois,
+    assessWishPois,
+    applyWishPoiAssessment,
   });
 })();
