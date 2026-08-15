@@ -596,6 +596,9 @@
         preferRegular: suggestedRegular,
         preferWide: suggestedWide,
         preferShortcuts: suggestedShortcuts,
+        preferAsphalt: has(terrain, "Goudron accepté"),
+        preferNaturalTrail: has(terrain, "Sentier naturel"),
+        preferDryEarth: has(terrain, "Terre sèche"),
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
       routing: {
@@ -608,6 +611,10 @@
   }
 
   function auditRoute(route, compiled) {
+    const surfacePercent = (ids) =>
+      (Array.isArray(route.surfaces) ? route.surfaces : [])
+        .filter((surface) => ids.includes(Number(surface.id)))
+        .reduce((sum, surface) => sum + (Number(surface.percent) || 0), 0);
     const checks = [];
     const add = (id, label, severity, status, evidence) =>
       checks.push({ id, label, severity, status, evidence });
@@ -937,6 +944,57 @@
           ? `${route.minimumWidthMeters} m minimum`
           : "largeur à vérifier avant de partir",
       );
+    if (advisory.preferAsphalt) {
+      const pavedPercent = surfacePercent([1, 3, 4]);
+      const hasSurfaceData = surfacePercent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) > 0;
+      add(
+        "advisory-asphalt",
+        "Goudron accepté",
+        "advisory",
+        !hasSurfaceData
+          ? STATUS.UNKNOWN
+          : pavedPercent >= 60
+            ? STATUS.RESPECTED
+            : pavedPercent < 20
+              ? STATUS.VIOLATED
+              : STATUS.UNKNOWN,
+        hasSurfaceData
+          ? `${Math.round(pavedPercent)} % de surface goudronnée ou pavée documentée`
+          : "surface non documentée",
+      );
+    }
+    if (advisory.preferNaturalTrail) {
+      const dirtPercent = surfacePercent([11, 12]);
+      const hasSurfaceData = surfacePercent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) > 0;
+      add(
+        "advisory-natural-trail",
+        "Sentier naturel privilégié",
+        "advisory",
+        !hasSurfaceData
+          ? STATUS.UNKNOWN
+          : dirtPercent >= 50
+            ? STATUS.RESPECTED
+            : dirtPercent < 10
+              ? STATUS.VIOLATED
+              : STATUS.UNKNOWN,
+        hasSurfaceData
+          ? `${Math.round(dirtPercent)} % de surface terre ou sol nu documentée`
+          : "surface non documentée",
+      );
+    }
+    if (advisory.preferDryEarth) {
+      const dirtPercent = surfacePercent([11, 12]);
+      const hasSurfaceData = surfacePercent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) > 0;
+      add(
+        "advisory-dry-earth",
+        "Terre sèche",
+        "advisory",
+        STATUS.UNKNOWN,
+        hasSurfaceData
+          ? `${Math.round(dirtPercent)} % de surface en terre documentée ; l’état sec ou humide dépend de la météo récente et n’est jamais vérifiable à l’avance`
+          : "surface non documentée ; l’état sec ou humide dépend de la météo récente et n’est jamais vérifiable à l’avance",
+      );
+    }
     if (Array.isArray(route.preferencesIgnored) && route.preferencesIgnored.length) {
       const names = route.preferencesIgnored.map((key) =>
         key === "green" ? "verte" : key === "quiet" ? "calme" : key,
