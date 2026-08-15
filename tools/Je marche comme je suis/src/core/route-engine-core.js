@@ -599,6 +599,8 @@
         preferAsphalt: has(terrain, "Goudron accepté"),
         preferNaturalTrail: has(terrain, "Sentier naturel"),
         preferDryEarth: has(terrain, "Terre sèche"),
+        preferStabilizedPath: has(terrain, "Chemin stabilisé"),
+        preferFewStones: has(terrain, "Peu de pierres"),
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
       routing: {
@@ -993,6 +995,44 @@
         hasSurfaceData
           ? `${Math.round(dirtPercent)} % de surface en terre documentée ; l’état sec ou humide dépend de la météo récente et n’est jamais vérifiable à l’avance`
           : "surface non documentée ; l’état sec ou humide dépend de la météo récente et n’est jamais vérifiable à l’avance",
+      );
+    }
+    if (advisory.preferStabilizedPath) {
+      const compactedGravelPercent = surfacePercent([8]);
+      const hasSurfaceData = surfacePercent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) > 0;
+      add(
+        "advisory-stabilized-path",
+        "Chemin stabilisé privilégié",
+        "advisory",
+        !hasSurfaceData
+          ? STATUS.UNKNOWN
+          : compactedGravelPercent >= 50
+            ? STATUS.RESPECTED
+            : compactedGravelPercent < 15
+              ? STATUS.VIOLATED
+              : STATUS.UNKNOWN,
+        hasSurfaceData
+          ? `${Math.round(compactedGravelPercent)} % de surface en gravier compacté documentée`
+          : "surface non documentée",
+      );
+    }
+    if (advisory.preferFewStones) {
+      const stonyPercent = surfacePercent([10, 14]);
+      const hasSurfaceData = surfacePercent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]) > 0;
+      add(
+        "advisory-few-stones",
+        "Peu de pierres privilégié",
+        "advisory",
+        !hasSurfaceData
+          ? STATUS.UNKNOWN
+          : stonyPercent < 15
+            ? STATUS.RESPECTED
+            : stonyPercent >= 40
+              ? STATUS.VIOLATED
+              : STATUS.UNKNOWN,
+        hasSurfaceData
+          ? `${Math.round(stonyPercent)} % de surface gravier ou pavés documentée`
+          : "surface non documentée",
       );
     }
     if (Array.isArray(route.preferencesIgnored) && route.preferencesIgnored.length) {
