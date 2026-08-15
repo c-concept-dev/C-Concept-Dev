@@ -1,32 +1,47 @@
-const ALLOWED_ORIGINS = new Set([
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+
+// src/index.mjs
+var ALLOWED_ORIGINS = /* @__PURE__ */ new Set([
   "https://htmlpreview.github.io",
   "https://c-concept-dev.github.io",
   "http://localhost:8000",
-  "http://127.0.0.1:8000",
+  "http://127.0.0.1:8000"
 ]);
-
-const GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage", "healthcare.pharmacy", "parking", "public_transport"].join(",");
-
-const ORS_SEEDS = [
-  17, 41, 83, 121, 167, 211, 257, 301, 347, 389, 433, 479, 523, 569, 613,
+var GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage", "healthcare.pharmacy", "parking", "public_transport", "commercial.food_and_drink.bakery", "catering.restaurant", "tourism.attraction", "leisure.picnic", "tourism.sights"].join(",");
+var ORS_SEEDS = [
+  17,
+  41,
+  83,
+  121,
+  167,
+  211,
+  257,
+  301,
+  347,
+  389,
+  433,
+  479,
+  523,
+  569,
+  613
 ];
-const ORS_BATCH_SIZE = 4;
-const MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
-const OVERPASS_URLS = [
+var ORS_BATCH_SIZE = 4;
+var MAPILLARY_FIELDS = "id,geometry,captured_at,thumb_1024_url,sequence";
+var OVERPASS_URLS = [
   "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter"
 ];
-const IGN_ELEVATION_URL =
-  "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevationLine.json";
-const IGN_ELEVATION_RESOURCE = "ign_rge_alti_wld";
-const DEFAULT_ORS_BASE_URL = "https://api.openrouteservice.org";
-const TIMEOUT_MS = {
-  ors: 10_000,
-  ign: 7_000,
-  geoapify: 7_000,
-  mapillary: 7_000,
+var IGN_ELEVATION_URL = "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevationLine.json";
+var IGN_ELEVATION_RESOURCE = "ign_rge_alti_wld";
+var DEFAULT_ORS_BASE_URL = "https://api.openrouteservice.org";
+var BATCH_MAX_ROUTES = 6;
+var TIMEOUT_MS = {
+  ors: 1e4,
+  ign: 7e3,
+  geoapify: 7e3,
+  mapillary: 7e3
 };
-
 async function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -36,29 +51,30 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     clearTimeout(timer);
   }
 }
-
-const FALLBACK_START_TAGS = [
+__name(fetchWithTimeout, "fetchWithTimeout");
+var FALLBACK_START_TAGS = [
   ["amenity", "parking"],
   ["highway", "trailhead"],
   ["tourism", "information"],
   ["leisure", "park"],
   ["public_transport", "station"],
   ["railway", "station"],
-  ["amenity", "bus_station"],
+  ["amenity", "bus_station"]
 ];
-const FALLBACK_MAX_CANDIDATES = 6;
-const FALLBACK_MAX_TESTED = 3;
-const FALLBACK_MAX_ORS_ATTEMPTS_PER_START = 2;
-const FALLBACK_TARGET_SUCCESSES = 3;
-
-class HTTPError extends Error {
+var FALLBACK_MAX_CANDIDATES = 6;
+var FALLBACK_MAX_TESTED = 3;
+var FALLBACK_MAX_ORS_ATTEMPTS_PER_START = 2;
+var FALLBACK_TARGET_SUCCESSES = 3;
+var HTTPError = class extends Error {
+  static {
+    __name(this, "HTTPError");
+  }
   constructor(status, message, details = {}) {
     super(message);
     this.status = status;
     Object.assign(this, details);
   }
-}
-
+};
 function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
@@ -67,46 +83,46 @@ function corsHeaders(origin) {
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
     Vary: "Origin",
-    "X-Content-Type-Options": "nosniff",
+    "X-Content-Type-Options": "nosniff"
   };
 }
-
+__name(corsHeaders, "corsHeaders");
 function json(data, status, origin) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       ...corsHeaders(origin),
-      "Content-Type": "application/json; charset=utf-8",
-    },
+      "Content-Type": "application/json; charset=utf-8"
+    }
   });
 }
-
+__name(json, "json");
 function requireOrigin(request) {
   const origin = request.headers.get("Origin") || "";
   if (!ALLOWED_ORIGINS.has(origin))
-    throw new HTTPError(403, "Origine non autorisée.");
+    throw new HTTPError(403, "Origine non autoris\xE9e.");
   return origin;
 }
-
+__name(requireOrigin, "requireOrigin");
 async function readJson(request) {
   const declaredLength = Number(request.headers.get("Content-Length") || 0);
-  if (declaredLength > 750_000)
-    throw new HTTPError(413, "Requête trop volumineuse.");
+  if (declaredLength > 75e4)
+    throw new HTTPError(413, "Requ\xEAte trop volumineuse.");
   let text;
   try {
     text = await request.text();
   } catch {
-    throw new HTTPError(400, "Corps de requête illisible.");
+    throw new HTTPError(400, "Corps de requ\xEAte illisible.");
   }
-  if (new TextEncoder().encode(text).length > 750_000)
-    throw new HTTPError(413, "Requête trop volumineuse.");
+  if (new TextEncoder().encode(text).length > 75e4)
+    throw new HTTPError(413, "Requ\xEAte trop volumineuse.");
   try {
     return JSON.parse(text);
   } catch {
     throw new HTTPError(400, "JSON invalide.");
   }
 }
-
+__name(readJson, "readJson");
 function redactedProviderUrl(requestUrl) {
   try {
     const parsed = new URL(requestUrl);
@@ -115,7 +131,7 @@ function redactedProviderUrl(requestUrl) {
     return null;
   }
 }
-
+__name(redactedProviderUrl, "redactedProviderUrl");
 async function providerJson(response, requestUrl) {
   if (!response.ok) {
     const clone = response.clone();
@@ -130,17 +146,13 @@ async function providerJson(response, requestUrl) {
         event: "provider-error-body",
         url: redactedProviderUrl(requestUrl),
         status: response.status,
-        body,
-      }),
+        body
+      })
     );
-    const message =
-      body?.error?.message ||
-      body?.message ||
-      body?.error ||
-      `Réponse fournisseur ${response.status}`;
+    const message = body?.error?.message || body?.message || body?.error || `R\xE9ponse fournisseur ${response.status}`;
     throw new HTTPError(502, String(message), {
       code: "provider-error",
-      upstreamStatus: response.status,
+      upstreamStatus: response.status
     });
   }
   let data;
@@ -149,69 +161,53 @@ async function providerJson(response, requestUrl) {
   } catch {
     throw new HTTPError(
       502,
-      `Réponse fournisseur illisible (${response.status}).`,
-      { code: "provider-error", upstreamStatus: response.status },
+      `R\xE9ponse fournisseur illisible (${response.status}).`,
+      { code: "provider-error", upstreamStatus: response.status }
     );
   }
   return data;
 }
-
+__name(providerJson, "providerJson");
 function classifyORSError(error) {
   const message = String(error?.message || "").toLowerCase();
-  if (
-    message.includes("cannot find point") ||
-    message.includes("could not find routable point")
-  )
+  if (message.includes("cannot find point") || message.includes("could not find routable point"))
     return "no-routable-start";
-  if (
-    message.includes("unable to find a route") ||
-    message.includes("couldn't find a route") ||
-    message.includes("no route found") ||
-    message.includes("no path found")
-  )
+  if (message.includes("unable to find a route") || message.includes("couldn't find a route") || message.includes("no route found") || message.includes("no path found"))
     return "no-route";
   return "provider-unavailable";
 }
-
+__name(classifyORSError, "classifyORSError");
 function finiteNumber(value, label) {
   const number = Number(value);
   if (!Number.isFinite(number)) throw new HTTPError(400, `${label} invalide.`);
   return number;
 }
-
-export function validateBBox(value) {
+__name(finiteNumber, "finiteNumber");
+function validateBBox(value) {
   if (!Array.isArray(value) || value.length !== 4)
-    throw new HTTPError(400, "Rectangle géographique invalide.");
-  const [west, south, east, north] = value.map((x, index) =>
-    finiteNumber(x, `Coordonnée ${index + 1}`),
+    throw new HTTPError(400, "Rectangle g\xE9ographique invalide.");
+  const [west, south, east, north] = value.map(
+    (x, index) => finiteNumber(x, `Coordonn\xE9e ${index + 1}`)
   );
-  if (
-    west < -180 ||
-    east > 180 ||
-    south < -90 ||
-    north > 90 ||
-    west >= east ||
-    south >= north
-  ) {
-    throw new HTTPError(400, "Rectangle géographique hors limites.");
+  if (west < -180 || east > 180 || south < -90 || north > 90 || west >= east || south >= north) {
+    throw new HTTPError(400, "Rectangle g\xE9ographique hors limites.");
   }
   if (east - west > 0.3 || north - south > 0.3)
-    throw new HTTPError(400, "Zone Geoapify trop étendue.");
+    throw new HTTPError(400, "Zone Geoapify trop \xE9tendue.");
   return [west, south, east, north];
 }
-
+__name(validateBBox, "validateBBox");
 function haversineMeters(a, b) {
-  const p1 = (a[1] * Math.PI) / 180;
-  const p2 = (b[1] * Math.PI) / 180;
-  const dp = ((b[1] - a[1]) * Math.PI) / 180;
-  const dl = ((b[0] - a[0]) * Math.PI) / 180;
-  const h =
-    Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
-  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  const p1 = a[1] * Math.PI / 180;
+  const p2 = b[1] * Math.PI / 180;
+  const dp = (b[1] - a[1]) * Math.PI / 180;
+  const dl = (b[0] - a[0]) * Math.PI / 180;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 6371e3 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
-
+__name(haversineMeters, "haversineMeters");
 function validateCoordinates(value) {
-  if (!Array.isArray(value) || value.length < 2 || value.length > 5000) {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 5e3) {
     throw new HTTPError(400, "Trace Mapillary invalide ou trop volumineuse.");
   }
   return value.map((point) => {
@@ -224,7 +220,7 @@ function validateCoordinates(value) {
     return [lon, lat];
   });
 }
-
+__name(validateCoordinates, "validateCoordinates");
 function validateRouteCoordinates(value, maximum, label) {
   if (!Array.isArray(value) || value.length < 2 || value.length > maximum) {
     throw new HTTPError(400, `${label} invalide ou trop volumineuse.`);
@@ -239,9 +235,21 @@ function validateRouteCoordinates(value, maximum, label) {
     return [lon, lat];
   });
 }
-
+__name(validateRouteCoordinates, "validateRouteCoordinates");
+function validateRouteBatch(value, maximum) {
+  if (!Array.isArray(value) || !value.length)
+    throw new HTTPError(400, "Liste de traces invalide ou vide.");
+  if (value.length > BATCH_MAX_ROUTES)
+    throw new HTTPError(400, "Trop de traces demand\xE9es en un seul appel group\xE9.");
+  return value.map((item, index) => {
+    if (!item || typeof item !== "object")
+      throw new HTTPError(400, `\xC9l\xE9ment ${index + 1} du lot invalide.`);
+    return item;
+  });
+}
+__name(validateRouteBatch, "validateRouteBatch");
 function pointSegmentDistanceMeters(point, start, end) {
-  const latitude = ((point[1] + start[1] + end[1]) / 3) * (Math.PI / 180);
+  const latitude = (point[1] + start[1] + end[1]) / 3 * (Math.PI / 180);
   const scaleX = 111320 * Math.max(0.2, Math.cos(latitude));
   const scaleY = 111320;
   const px = (point[0] - start[0]) * scaleX;
@@ -249,12 +257,10 @@ function pointSegmentDistanceMeters(point, start, end) {
   const ex = (end[0] - start[0]) * scaleX;
   const ey = (end[1] - start[1]) * scaleY;
   const denominator = ex * ex + ey * ey;
-  const ratio = denominator
-    ? Math.max(0, Math.min(1, (px * ex + py * ey) / denominator))
-    : 0;
+  const ratio = denominator ? Math.max(0, Math.min(1, (px * ex + py * ey) / denominator)) : 0;
   return Math.hypot(px - ratio * ex, py - ratio * ey);
 }
-
+__name(pointSegmentDistanceMeters, "pointSegmentDistanceMeters");
 function distanceToWayMeters(point, geometry = []) {
   let minimum = Infinity;
   for (let index = 1; index < geometry.length; index += 1) {
@@ -265,13 +271,10 @@ function distanceToWayMeters(point, geometry = []) {
   }
   return minimum;
 }
-
-export function matchTerrainSegments(route, elements, bufferMeters) {
+__name(distanceToWayMeters, "distanceToWayMeters");
+function matchTerrainSegments(route, elements, bufferMeters) {
   const ways = (Array.isArray(elements) ? elements : []).filter(
-    (item) =>
-      item?.type === "way" &&
-      Array.isArray(item.geometry) &&
-      item.geometry.length >= 2,
+    (item) => item?.type === "way" && Array.isArray(item.geometry) && item.geometry.length >= 2
   );
   const segments = [];
   for (let index = 1; index < route.length; index += 1) {
@@ -292,18 +295,18 @@ export function matchTerrainSegments(route, elements, bufferMeters) {
       id: best.id ?? null,
       lengthMeters: haversineMeters(start, end),
       tags: best.tags || {},
-      matchDistanceMeters: Math.round(bestDistance * 10) / 10,
+      matchDistanceMeters: Math.round(bestDistance * 10) / 10
     });
   }
   return segments;
 }
-
-export function sampleRoute(coordinates, maximum = 30) {
+__name(matchTerrainSegments, "matchTerrainSegments");
+function sampleRoute(coordinates, maximum = 30) {
   if (coordinates.length <= maximum) return coordinates;
   const cumulative = [0];
   for (let i = 1; i < coordinates.length; i += 1) {
     cumulative.push(
-      cumulative[i - 1] + haversineMeters(coordinates[i - 1], coordinates[i]),
+      cumulative[i - 1] + haversineMeters(coordinates[i - 1], coordinates[i])
     );
   }
   const total = cumulative.at(-1);
@@ -311,181 +314,171 @@ export function sampleRoute(coordinates, maximum = 30) {
   const sampled = [];
   let index = 0;
   for (let i = 0; i < maximum; i += 1) {
-    const target = (total * i) / (maximum - 1);
+    const target = total * i / (maximum - 1);
     while (index < cumulative.length - 1 && cumulative[index] < target)
       index += 1;
     const previous = Math.max(0, index - 1);
-    const chosen =
-      Math.abs(cumulative[index] - target) <
-      Math.abs(cumulative[previous] - target)
-        ? index
-        : previous;
+    const chosen = Math.abs(cumulative[index] - target) < Math.abs(cumulative[previous] - target) ? index : previous;
     const point = coordinates[chosen];
-    if (
-      !sampled.length ||
-      point[0] !== sampled.at(-1)[0] ||
-      point[1] !== sampled.at(-1)[1]
-    )
+    if (!sampled.length || point[0] !== sampled.at(-1)[0] || point[1] !== sampled.at(-1)[1])
       sampled.push(point);
   }
   return sampled;
 }
-
-export function buildMapillaryBoxes(coordinates, radiusMeters = 125) {
+__name(sampleRoute, "sampleRoute");
+function buildMapillaryBoxes(coordinates, radiusMeters = 125) {
   const boxes = sampleRoute(coordinates, 30).map(([lon, lat]) => {
     const padLat = radiusMeters / 111320;
-    const padLon =
-      radiusMeters / (111320 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+    const padLon = radiusMeters / (111320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
     return [lon - padLon, lat - padLat, lon + padLon, lat + padLat];
   });
-  const unique = new Map();
+  const unique = /* @__PURE__ */ new Map();
   for (const box of boxes) {
     const key = box.map((value) => value.toFixed(4)).join(",");
     if (!unique.has(key)) unique.set(key, box);
   }
   return [...unique.values()];
 }
-
+__name(buildMapillaryBoxes, "buildMapillaryBoxes");
 async function testGeoapify(env) {
   if (!env.GEOAPIFY_API_KEY)
-    throw new HTTPError(503, "Secret Geoapify non configuré.");
+    throw new HTTPError(503, "Secret Geoapify non configur\xE9.");
   const query = new URLSearchParams({
     text: "Paris",
     limit: "1",
-    apiKey: env.GEOAPIFY_API_KEY,
+    apiKey: env.GEOAPIFY_API_KEY
   });
   const url = `https://api.geoapify.com/v1/geocode/search?${query}`;
   const data = await providerJson(
     await fetchWithTimeout(url, {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json" }
     }, TIMEOUT_MS.geoapify),
-    url,
+    url
   );
   return { resultCount: data?.features?.length || 0 };
 }
-
+__name(testGeoapify, "testGeoapify");
 async function testMapillary(env) {
   if (!env.MAPILLARY_ACCESS_TOKEN)
-    throw new HTTPError(503, "Secret Mapillary non configuré.");
+    throw new HTTPError(503, "Secret Mapillary non configur\xE9.");
   const query = new URLSearchParams({
     fields: "id",
     bbox: "2.2940,48.8580,2.2950,48.8590",
-    limit: "1",
+    limit: "1"
   });
   const url = `https://graph.mapillary.com/images?${query}`;
   const data = await providerJson(
     await fetchWithTimeout(url, {
       headers: {
         Accept: "application/json",
-        Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`,
-      },
+        Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`
+      }
     }, TIMEOUT_MS.mapillary),
-    url,
+    url
   );
   return { resultCount: data?.data?.length || 0 };
 }
-
+__name(testMapillary, "testMapillary");
 async function testORS(env) {
   if (!env.ORS_API_KEY)
-    throw new HTTPError(503, "Secret OpenRouteService non configuré.");
+    throw new HTTPError(503, "Secret OpenRouteService non configur\xE9.");
   const data = await fetchORSRoundTrip({
     lon: 2.3522,
     lat: 48.8566,
-    target: 1000,
+    target: 1e3,
     seed: ORS_SEEDS[0],
     index: 0,
     apiKey: env.ORS_API_KEY,
     points: 3,
-    baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL,
+    baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL
   });
   const feature = data?.features?.[0];
   const coordinates = feature?.geometry?.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length < 2) {
     throw new HTTPError(
       502,
-      "Le test ORS n’a pas renvoyé de boucle GeoJSON exploitable.",
+      "Le test ORS n\u2019a pas renvoy\xE9 de boucle GeoJSON exploitable."
     );
   }
   return {
     resultCount: 1,
     routeDistanceMeters: Number(feature?.properties?.summary?.distance) || null,
-    routeDurationSeconds:
-      Number(feature?.properties?.summary?.duration) || null,
+    routeDurationSeconds: Number(feature?.properties?.summary?.duration) || null
   };
 }
-
+__name(testORS, "testORS");
 async function handleTest(request, env, origin) {
   const { service } = await readJson(request);
   if (service === "geo")
     return json(
-      { ok: true, service, ...(await testGeoapify(env)) },
+      { ok: true, service, ...await testGeoapify(env) },
       200,
-      origin,
+      origin
     );
   if (service === "mapillary")
     return json(
-      { ok: true, service, ...(await testMapillary(env)) },
+      { ok: true, service, ...await testMapillary(env) },
       200,
-      origin,
+      origin
     );
   if (service === "ors")
-    return json({ ok: true, service, ...(await testORS(env)) }, 200, origin);
+    return json({ ok: true, service, ...await testORS(env) }, 200, origin);
   throw new HTTPError(400, "Service inconnu.");
 }
-
+__name(handleTest, "handleTest");
 async function handleGeoapifyPlaces(request, env, origin) {
   if (!env.GEOAPIFY_API_KEY)
-    throw new HTTPError(503, "Secret Geoapify non configuré.");
+    throw new HTTPError(503, "Secret Geoapify non configur\xE9.");
   const { bbox } = await readJson(request);
   const query = new URLSearchParams({
     categories: GEOAPIFY_CATEGORIES,
     filter: `rect:${validateBBox(bbox).join(",")}`,
     limit: "200",
     lang: "fr",
-    apiKey: env.GEOAPIFY_API_KEY,
+    apiKey: env.GEOAPIFY_API_KEY
   });
   const url = `https://api.geoapify.com/v2/places?${query}`;
   const data = await providerJson(
     await fetchWithTimeout(url, {
-      headers: { Accept: "application/geo+json" },
+      headers: { Accept: "application/geo+json" }
     }, TIMEOUT_MS.geoapify),
-    url,
+    url
   );
   return json(data, 200, origin);
 }
-
+__name(handleGeoapifyPlaces, "handleGeoapifyPlaces");
 async function fetchMapillaryBox(box, env) {
   const query = new URLSearchParams({
     fields: MAPILLARY_FIELDS,
     bbox: box.join(","),
-    limit: "30",
+    limit: "30"
   });
   const url = `https://graph.mapillary.com/images?${query}`;
   const response = await fetchWithTimeout(url, {
     headers: {
       Accept: "application/json",
-      Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`,
-    },
+      Authorization: `OAuth ${env.MAPILLARY_ACCESS_TOKEN}`
+    }
   }, TIMEOUT_MS.mapillary);
   return providerJson(response, url);
 }
-
+__name(fetchMapillaryBox, "fetchMapillaryBox");
 async function handleMapillaryImages(request, env, origin) {
   if (!env.MAPILLARY_ACCESS_TOKEN)
-    throw new HTTPError(503, "Secret Mapillary non configuré.");
+    throw new HTTPError(503, "Secret Mapillary non configur\xE9.");
   const body = await readJson(request);
   const coordinates = validateCoordinates(body.coordinates);
   const boxes = buildMapillaryBoxes(coordinates);
-  const unique = new Map();
+  const unique = /* @__PURE__ */ new Map();
   const errors = [];
   for (let offset = 0; offset < boxes.length; offset += 6) {
     const settled = await Promise.allSettled(
-      boxes.slice(offset, offset + 6).map((box) => fetchMapillaryBox(box, env)),
+      boxes.slice(offset, offset + 6).map((box) => fetchMapillaryBox(box, env))
     );
     for (const result of settled) {
       if (result.status === "rejected") {
         errors.push(
-          result.reason?.message || "Recherche Mapillary impossible.",
+          result.reason?.message || "Recherche Mapillary impossible."
         );
         continue;
       }
@@ -503,28 +496,28 @@ async function handleMapillaryImages(request, env, origin) {
     {
       data: [...unique.values()].slice(0, 400),
       requestCount: boxes.length,
-      partialErrors: errors.length,
+      partialErrors: errors.length
     },
     200,
-    origin,
+    origin
   );
 }
-
+__name(handleMapillaryImages, "handleMapillaryImages");
 async function fetchOverpassWithFallback(query) {
   let lastError = null;
   for (const url of OVERPASS_URLS) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 6e3);
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "User-Agent": "Je-marche-comme-je-suis/1.0",
+          "User-Agent": "Je-marche-comme-je-suis/1.0"
         },
         body: new URLSearchParams({ data: query }).toString(),
-        signal: controller.signal,
+        signal: controller.signal
       });
       clearTimeout(timer);
       if (!response.ok) {
@@ -539,57 +532,61 @@ async function fetchOverpassWithFallback(query) {
   }
   throw lastError || new Error("Aucune instance Overpass disponible.");
 }
-
-async function handleOverpassTerrain(request, origin) {
-  const body = await readJson(request);
-  const route = validateRouteCoordinates(body.route, 80, "Trace Overpass");
+__name(fetchOverpassWithFallback, "fetchOverpassWithFallback");
+async function overpassTerrainForRoute(item) {
+  const route = validateRouteCoordinates(item.route, 80, "Trace Overpass");
   const bufferMeters = Math.max(
     10,
-    Math.min(50, finiteNumber(body.bufferMeters ?? 25, "Tampon Overpass")),
+    Math.min(50, finiteNumber(item.bufferMeters ?? 25, "Tampon Overpass"))
   );
   const line = route.map(([lon, lat]) => `${lat},${lon}`).join(",");
   const query = `[out:json][timeout:20];way["highway"](around:${bufferMeters},${line});out tags geom;`;
   const routeLengthMeters = Math.max(
     0,
-    Number(body.routeLengthMeters) ||
-      route.slice(1).reduce(
-        (total, point, index) => total + haversineMeters(route[index], point),
-        0,
-      ),
+    Number(item.routeLengthMeters) || route.slice(1).reduce(
+      (total, point, index) => total + haversineMeters(route[index], point),
+      0
+    )
   );
   let data;
   try {
     data = await fetchOverpassWithFallback(query);
   } catch {
-    return json(
-      {
-        segments: [],
-        routeLengthMeters,
-        retrievedAt: new Date().toISOString(),
-        source: "Overpass / OpenStreetMap",
-        status: "terrain-unavailable",
-      },
-      200,
-      origin,
-    );
+    return {
+      segments: [],
+      routeLengthMeters,
+      retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      source: "Overpass / OpenStreetMap",
+      status: "terrain-unavailable"
+    };
   }
   const segments = matchTerrainSegments(route, data?.elements, bufferMeters);
-  return json(
-    {
-      segments,
-      routeLengthMeters,
-      retrievedAt: new Date().toISOString(),
-      source: "Overpass / OpenStreetMap",
-      status: "ok",
-    },
-    200,
-    origin,
-  );
+  return {
+    segments,
+    routeLengthMeters,
+    retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    source: "Overpass / OpenStreetMap",
+    status: "ok"
+  };
 }
-
-async function handleIgnElevation(request, origin) {
+__name(overpassTerrainForRoute, "overpassTerrainForRoute");
+async function handleOverpassTerrain(request, origin) {
   const body = await readJson(request);
-  const route = validateRouteCoordinates(body.route, 120, "Trace IGN");
+  const result = await overpassTerrainForRoute(body);
+  return json(result, 200, origin);
+}
+__name(handleOverpassTerrain, "handleOverpassTerrain");
+async function handleOverpassTerrainBatch(request, origin) {
+  const body = await readJson(request);
+  const items = validateRouteBatch(body.routes, BATCH_MAX_ROUTES);
+  const results = await Promise.all(
+    items.map((item) => overpassTerrainForRoute(item))
+  );
+  return json({ results }, 200, origin);
+}
+__name(handleOverpassTerrainBatch, "handleOverpassTerrainBatch");
+async function ignElevationForRoute(item) {
+  const route = validateRouteCoordinates(item.route, 120, "Trace IGN");
   const response = await fetchWithTimeout(IGN_ELEVATION_URL, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -602,43 +599,55 @@ async function handleIgnElevation(request, origin) {
       measures: "false",
       zonly: "false",
       profile_mode: "simple",
-      sampling: String(route.length),
-    }),
+      sampling: String(route.length)
+    })
   }, TIMEOUT_MS.ign);
   const data = await providerJson(response, IGN_ELEVATION_URL);
-  const elevations = (Array.isArray(data?.elevations) ? data.elevations : [])
-    .map((item) => ({
-      lon: Number(item?.lon),
-      lat: Number(item?.lat),
-      z: Number(item?.z),
-    }))
-    .filter(
-      (item) =>
-        Number.isFinite(item.lon) &&
-        Number.isFinite(item.lat) &&
-        Number.isFinite(item.z) &&
-        item.z > -99990,
-    );
-  if (!elevations.length)
-    throw new HTTPError(502, "IGN ne couvre pas cette trace altimétrique.");
-  return json(
-    {
-      elevations,
-      ascentMeters: Number.isFinite(Number(data?.height_differences?.positive))
-        ? Number(data.height_differences.positive)
-        : null,
-      descentMeters: Number.isFinite(Number(data?.height_differences?.negative))
-        ? Math.abs(Number(data.height_differences.negative))
-        : null,
-      coveragePercent: Math.round((elevations.length / route.length) * 100),
-      source: "IGN Géoplateforme · RGE ALTI",
-      retrievedAt: new Date().toISOString(),
-    },
-    200,
-    origin,
+  const elevations = (Array.isArray(data?.elevations) ? data.elevations : []).map((elevationItem) => ({
+    lon: Number(elevationItem?.lon),
+    lat: Number(elevationItem?.lat),
+    z: Number(elevationItem?.z)
+  })).filter(
+    (elevationItem) => Number.isFinite(elevationItem.lon) && Number.isFinite(elevationItem.lat) && Number.isFinite(elevationItem.z) && elevationItem.z > -99990
   );
+  if (!elevations.length)
+    throw new HTTPError(502, "IGN ne couvre pas cette trace altim\xE9trique.");
+  return {
+    ok: true,
+    elevations,
+    ascentMeters: Number.isFinite(Number(data?.height_differences?.positive)) ? Number(data.height_differences.positive) : null,
+    descentMeters: Number.isFinite(Number(data?.height_differences?.negative)) ? Math.abs(Number(data.height_differences.negative)) : null,
+    coveragePercent: Math.round(elevations.length / route.length * 100),
+    source: "IGN G\xE9oplateforme \xB7 RGE ALTI",
+    retrievedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
 }
-
+__name(ignElevationForRoute, "ignElevationForRoute");
+async function handleIgnElevation(request, origin) {
+  const body = await readJson(request);
+  const result = await ignElevationForRoute(body);
+  const { ok, ...payload } = result;
+  return json(payload, 200, origin);
+}
+__name(handleIgnElevation, "handleIgnElevation");
+async function handleIgnElevationBatch(request, origin) {
+  const body = await readJson(request);
+  const items = validateRouteBatch(body.routes, BATCH_MAX_ROUTES);
+  const settled = await Promise.allSettled(
+    items.map((item) => ignElevationForRoute(item))
+  );
+  const results = settled.map((entry) => {
+    if (entry.status === "fulfilled") return entry.value;
+    return {
+      ok: false,
+      status: "elevation-unavailable",
+      message: entry.reason?.message || "IGN indisponible pour cette trace.",
+      retrievedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  });
+  return json({ results }, 200, origin);
+}
+__name(handleIgnElevationBatch, "handleIgnElevationBatch");
 function orsEnvelope(outcome, status, extra = {}) {
   return {
     outcome,
@@ -646,16 +655,16 @@ function orsEnvelope(outcome, status, extra = {}) {
     routes: [],
     requestCount: 0,
     retryable: false,
-    ...extra,
+    ...extra
   };
 }
-
+__name(orsEnvelope, "orsEnvelope");
 async function handleORSRoundTrips(request, env, origin) {
   if (!env.ORS_API_KEY)
     return json(
       orsEnvelope("provider-unavailable", 502, { retryable: true }),
       502,
-      origin,
+      origin
     );
   let body;
   try {
@@ -673,12 +682,7 @@ async function handleORSRoundTrips(request, env, origin) {
   } catch {
     return json(orsEnvelope("invalid-request", 400), 400, origin);
   }
-  if (
-    Math.abs(lon) > 180 ||
-    Math.abs(lat) > 90 ||
-    target < 500 ||
-    target > 30000
-  ) {
+  if (Math.abs(lon) > 180 || Math.abs(lat) > 90 || target < 500 || target > 3e4) {
     return json(orsEnvelope("invalid-request", 400), 400, origin);
   }
   const routing = sanitizeORSRouting(body);
@@ -686,15 +690,11 @@ async function handleORSRoundTrips(request, env, origin) {
   const failureTypes = [];
   let requestCount = 0;
   let providerFailure = null;
-  batches: for (
-    let offset = 0;
-    offset < ORS_SEEDS.length && routes.length < ORS_BATCH_SIZE;
-    offset += ORS_BATCH_SIZE
-  ) {
+  batches: for (let offset = 0; offset < ORS_SEEDS.length && routes.length < ORS_BATCH_SIZE; offset += ORS_BATCH_SIZE) {
     const seeds = ORS_SEEDS.slice(offset, offset + ORS_BATCH_SIZE);
     const settled = await Promise.allSettled(
-      seeds.map((seed, batchIndex) =>
-        fetchORSRoundTrip({
+      seeds.map(
+        (seed, batchIndex) => fetchORSRoundTrip({
           lon,
           lat,
           target,
@@ -703,9 +703,9 @@ async function handleORSRoundTrips(request, env, origin) {
           apiKey: env.ORS_API_KEY,
           profile: routing.profile,
           routingOptions: routing.options,
-          baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL,
-        }),
-      ),
+          baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL
+        })
+      )
     );
     requestCount += seeds.length;
     for (const result of settled) {
@@ -719,21 +719,13 @@ async function handleORSRoundTrips(request, env, origin) {
         continue;
       }
       const feature = result.value?.features?.[0];
-      if (
-        feature?.geometry?.type === "LineString" &&
-        Array.isArray(feature.geometry.coordinates) &&
-        feature.geometry.coordinates.length >= 2
-      ) {
+      if (feature?.geometry?.type === "LineString" && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length >= 2) {
         routes.push(feature);
       } else {
         failureTypes.push("no-route");
       }
     }
-    if (
-      !routes.length &&
-      failureTypes.length &&
-      failureTypes.every((type) => type === "no-routable-start")
-    ) {
+    if (!routes.length && failureTypes.length && failureTypes.every((type) => type === "no-routable-start")) {
       break;
     }
   }
@@ -743,10 +735,10 @@ async function handleORSRoundTrips(request, env, origin) {
       orsEnvelope("provider-unavailable", 502, {
         requestCount,
         retryable: !upstreamStatus || upstreamStatus >= 500,
-        providerStatus: upstreamStatus || null,
+        providerStatus: upstreamStatus || null
       }),
       502,
-      origin,
+      origin
     );
   }
   if (routes.length) {
@@ -760,10 +752,10 @@ async function handleORSRoundTrips(request, env, origin) {
         imperativesPreserved: routing.imperativesPreserved,
         preferencesApplied: routing.preferencesApplied,
         preferencesIgnored: routing.preferencesIgnored,
-        retryable: false,
+        retryable: false
       },
       200,
-      origin,
+      origin
     );
   }
   const hasNoRoute = failureTypes.includes("no-route");
@@ -771,31 +763,26 @@ async function handleORSRoundTrips(request, env, origin) {
     return json(
       orsEnvelope("no-routable-start", 200, {
         requestCount,
-        preferencesIgnored: routing.preferencesIgnored,
+        preferencesIgnored: routing.preferencesIgnored
       }),
       200,
-      origin,
+      origin
     );
   }
-  const outcome = routing.preferencesApplied.length
-    ? "preferences-too-restrictive"
-    : "no-route";
+  const outcome = routing.preferencesApplied.length ? "preferences-too-restrictive" : "no-route";
   return json(
     orsEnvelope(outcome, 200, {
       requestCount,
-      preferencesIgnored: routing.preferencesIgnored,
+      preferencesIgnored: routing.preferencesIgnored
     }),
     200,
-    origin,
+    origin
   );
 }
-
+__name(handleORSRoundTrips, "handleORSRoundTrips");
 function sanitizeORSRouting(body) {
   const profile = body.profile === "wheelchair" ? "wheelchair" : "foot-walking";
-  const avoidFeatures =
-    Array.isArray(body.avoidFeatures) && body.avoidFeatures.includes("steps")
-      ? ["steps"]
-      : [];
+  const avoidFeatures = Array.isArray(body.avoidFeatures) && body.avoidFeatures.includes("steps") ? ["steps"] : [];
   const weightings = {};
   for (const key of ["green", "quiet"]) {
     const factor = Number(body.weightings?.[key]?.factor);
@@ -805,15 +792,6 @@ function sanitizeORSRouting(body) {
   const options = {};
   if (avoidFeatures.length) options.avoid_features = avoidFeatures;
   const profileParams = {};
-  // ORS rejette la requête avec l'erreur 2002 ("Parameter 'options' has
-  // incorrect value or format") dès que profile_params.weightings est combiné
-  // à options.round_trip — confirmé le 06/08/2026 par deux appels isolés
-  // directs à l'API ORS (round_trip seul : 200 ; round_trip + weightings :
-  // 400/2002, même message que celui observé en production). Ce Worker ne
-  // génère jamais que des boucles round_trip, donc les weightings ne peuvent
-  // jamais être transmis à ORS ici : on les dégrade proprement plutôt que de
-  // planter, et on trace ce qui a été demandé mais ignoré pour que Main
-  // puisse le signaler à l'utilisateur.
   const preferencesIgnored = Object.keys(weightings);
   const preferencesApplied = [];
   let imperativesPreserved = true;
@@ -823,37 +801,27 @@ function sanitizeORSRouting(body) {
     const allowedIncline = [3, 6, 10, 15];
     const requestedKerb = source.maximum_sloped_kerb;
     const requestedIncline = source.maximum_incline;
-    if (
-      requestedKerb !== undefined &&
-      !allowedKerb.includes(Number(requestedKerb))
-    )
+    if (requestedKerb !== void 0 && !allowedKerb.includes(Number(requestedKerb)))
       imperativesPreserved = false;
-    if (
-      requestedIncline !== undefined &&
-      !allowedIncline.includes(Number(requestedIncline))
-    )
+    if (requestedIncline !== void 0 && !allowedIncline.includes(Number(requestedIncline)))
       imperativesPreserved = false;
     const restrictions = {
       surface_type: "cobblestone:flattened",
       track_type: "grade1",
       smoothness_type: "good",
-      maximum_sloped_kerb: allowedKerb.includes(Number(requestedKerb))
-        ? Number(requestedKerb)
-        : 0.06,
-      maximum_incline: allowedIncline.includes(Number(requestedIncline))
-        ? Number(requestedIncline)
-        : 6,
+      maximum_sloped_kerb: allowedKerb.includes(Number(requestedKerb)) ? Number(requestedKerb) : 0.06,
+      maximum_incline: allowedIncline.includes(Number(requestedIncline)) ? Number(requestedIncline) : 6
     };
     const width = Number(source.minimum_width);
     if (Number.isFinite(width) && width >= 0.5 && width <= 3)
       restrictions.minimum_width = width;
-    else if (source.minimum_width !== undefined) imperativesPreserved = false;
+    else if (source.minimum_width !== void 0) imperativesPreserved = false;
     profileParams.restrictions = restrictions;
   }
   if (Object.keys(profileParams).length) options.profile_params = profileParams;
   return { profile, options, preferencesApplied, preferencesIgnored, imperativesPreserved };
 }
-
+__name(sanitizeORSRouting, "sanitizeORSRouting");
 async function fetchORSRoundTrip({
   lon,
   lat,
@@ -864,7 +832,7 @@ async function fetchORSRoundTrip({
   points,
   profile = "foot-walking",
   routingOptions = {},
-  baseUrl = DEFAULT_ORS_BASE_URL,
+  baseUrl = DEFAULT_ORS_BASE_URL
 }) {
   const url = `${baseUrl}/v2/directions/${profile}/geojson`;
   return providerJson(
@@ -875,7 +843,7 @@ async function fetchORSRoundTrip({
         headers: {
           Accept: "application/geo+json",
           Authorization: apiKey,
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           coordinates: [[lon, lat]],
@@ -883,61 +851,51 @@ async function fetchORSRoundTrip({
           instructions: true,
           instructions_format: "text",
           language: "fr",
-          extra_info:
-            profile === "wheelchair"
-              ? [
-                  "steepness",
-                  "surface",
-                  "waytype",
-                  "suitability",
-                  "waycategory",
-                  "roadaccessrestrictions",
-                ]
-              : [
-                  "steepness",
-                  "surface",
-                  "waytype",
-                  "suitability",
-                  "green",
-                  "noise",
-                ],
+          extra_info: profile === "wheelchair" ? [
+            "steepness",
+            "surface",
+            "waytype",
+            "suitability",
+            "waycategory",
+            "roadaccessrestrictions"
+          ] : [
+            "steepness",
+            "surface",
+            "waytype",
+            "suitability",
+            "green",
+            "noise"
+          ],
           options: {
             ...routingOptions,
             round_trip: {
-              length: Math.round(target * (0.86 + (index % 5) * 0.07)),
-              points: points ?? 5 + (index % 3),
-              seed,
-            },
-          },
-        }),
+              length: Math.round(target * (0.86 + index % 5 * 0.07)),
+              points: points ?? 5 + index % 3,
+              seed
+            }
+          }
+        })
       },
-      TIMEOUT_MS.ors,
+      TIMEOUT_MS.ors
     ),
-    url,
+    url
   );
 }
-
+__name(fetchORSRoundTrip, "fetchORSRoundTrip");
 function buildFallbackStartsQuery(lat, lon, radiusMeters) {
   const clauses = FALLBACK_START_TAGS.map(
-    ([key, value]) =>
-      `node["${key}"="${value}"](around:${radiusMeters},${lat},${lon});` +
-      `way["${key}"="${value}"](around:${radiusMeters},${lat},${lon});`,
+    ([key, value]) => `node["${key}"="${value}"](around:${radiusMeters},${lat},${lon});way["${key}"="${value}"](around:${radiusMeters},${lat},${lon});`
   ).join("");
   return `[out:json][timeout:20];(${clauses});out center tags 60;`;
 }
-
+__name(buildFallbackStartsQuery, "buildFallbackStartsQuery");
 function candidateAccess(tags = {}) {
   return {
     parking: tags.amenity === "parking" ? "documented" : "unknown",
-    publicTransport:
-      tags.public_transport === "station" ||
-      tags.railway === "station" ||
-      tags.amenity === "bus_station"
-        ? "documented"
-        : "unknown",
+    publicTransport: tags.public_transport === "station" || tags.railway === "station" || tags.amenity === "bus_station" ? "documented" : "unknown"
   };
 }
-
+__name(candidateAccess, "candidateAccess");
 function extractFallbackCandidates(elements, origin) {
   const candidates = [];
   for (const element of Array.isArray(elements) ? elements : []) {
@@ -945,28 +903,28 @@ function extractFallbackCandidates(elements, origin) {
     const lon = element.lon ?? element.center?.lon;
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
     const distanceFromOriginMeters = Math.round(
-      haversineMeters([origin.lon, origin.lat], [lon, lat]),
+      haversineMeters([origin.lon, origin.lat], [lon, lat])
     );
     candidates.push({
       id: `${element.type}/${element.id}`,
       coordinates: [lon, lat],
       distanceFromOriginMeters,
       access: candidateAccess(element.tags),
-      tags: element.tags || {},
+      tags: element.tags || {}
     });
   }
   candidates.sort(
-    (a, b) => a.distanceFromOriginMeters - b.distanceFromOriginMeters,
+    (a, b) => a.distanceFromOriginMeters - b.distanceFromOriginMeters
   );
   return candidates;
 }
-
+__name(extractFallbackCandidates, "extractFallbackCandidates");
 async function handleFallbackStarts(request, env, origin) {
   if (!env.ORS_API_KEY)
     return json(
       orsEnvelope("provider-unavailable", 502, { retryable: true }),
       502,
-      origin,
+      origin
     );
   let body;
   try {
@@ -977,62 +935,48 @@ async function handleFallbackStarts(request, env, origin) {
   const originLat = Number(body?.origin?.lat);
   const originLon = Number(body?.origin?.lon);
   const target = Number(body?.targetMeters);
-  if (
-    !Number.isFinite(originLat) ||
-    !Number.isFinite(originLon) ||
-    Math.abs(originLat) > 90 ||
-    Math.abs(originLon) > 180 ||
-    !Number.isFinite(target) ||
-    target < 500 ||
-    target > 30000
-  ) {
+  if (!Number.isFinite(originLat) || !Number.isFinite(originLon) || Math.abs(originLat) > 90 || Math.abs(originLon) > 180 || !Number.isFinite(target) || target < 500 || target > 3e4) {
     return json({ outcome: "invalid-request", starts: [] }, 400, origin);
   }
   const radiusMeters = Math.max(
-    1000,
-    Math.min(10000, Number(body.radiusMeters) || 10000),
+    1e3,
+    Math.min(1e4, Number(body.radiusMeters) || 1e4)
   );
   const maximumCandidates = Math.max(
     1,
-    Math.min(FALLBACK_MAX_CANDIDATES, Number(body.maximumCandidates) || FALLBACK_MAX_CANDIDATES),
+    Math.min(FALLBACK_MAX_CANDIDATES, Number(body.maximumCandidates) || FALLBACK_MAX_CANDIDATES)
   );
   const routing = sanitizeORSRouting(body);
-
   let elements;
   try {
     const data = await fetchOverpassWithFallback(
-      buildFallbackStartsQuery(originLat, originLon, radiusMeters),
+      buildFallbackStartsQuery(originLat, originLon, radiusMeters)
     );
     elements = data?.elements;
   } catch {
     return json(
       { outcome: "provider-unavailable", starts: [], retryable: true },
       502,
-      origin,
+      origin
     );
   }
   const candidates = extractFallbackCandidates(elements, {
     lat: originLat,
-    lon: originLon,
+    lon: originLon
   }).slice(0, maximumCandidates);
   if (!candidates.length)
     return json(
       { outcome: "no-fallback-starts", starts: [], candidatesConsidered: 0 },
       200,
-      origin,
+      origin
     );
-
   const starts = [];
   let orsRequestCount = 0;
   let providerFailure = null;
   candidates: for (const candidate of candidates.slice(0, FALLBACK_MAX_TESTED)) {
     if (starts.length >= FALLBACK_TARGET_SUCCESSES) break;
     let routesFound = 0;
-    for (
-      let attempt = 0;
-      attempt < FALLBACK_MAX_ORS_ATTEMPTS_PER_START;
-      attempt += 1
-    ) {
+    for (let attempt = 0; attempt < FALLBACK_MAX_ORS_ATTEMPTS_PER_START; attempt += 1) {
       orsRequestCount += 1;
       try {
         const data = await fetchORSRoundTrip({
@@ -1044,14 +988,10 @@ async function handleFallbackStarts(request, env, origin) {
           apiKey: env.ORS_API_KEY,
           profile: routing.profile,
           routingOptions: routing.options,
-          baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL,
+          baseUrl: env.ORS_BASE_URL || DEFAULT_ORS_BASE_URL
         });
         const feature = data?.features?.[0];
-        if (
-          feature?.geometry?.type === "LineString" &&
-          Array.isArray(feature.geometry.coordinates) &&
-          feature.geometry.coordinates.length >= 2
-        ) {
+        if (feature?.geometry?.type === "LineString" && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length >= 2) {
           routesFound += 1;
           break;
         }
@@ -1061,7 +1001,6 @@ async function handleFallbackStarts(request, env, origin) {
           providerFailure = error;
           break candidates;
         }
-        // no-routable-start / no-route : ce candidat n'est pas routable, on passe au suivant sans fabriquer de géométrie.
       }
     }
     if (routesFound > 0) {
@@ -1071,7 +1010,7 @@ async function handleFallbackStarts(request, env, origin) {
         distanceFromOriginMeters: candidate.distanceFromOriginMeters,
         access: candidate.access,
         routesFound,
-        tags: candidate.tags,
+        tags: candidate.tags
       });
     }
   }
@@ -1084,10 +1023,10 @@ async function handleFallbackStarts(request, env, origin) {
         candidatesConsidered: candidates.length,
         orsRequestCount,
         retryable: !upstreamStatus || upstreamStatus >= 500,
-        providerStatus: upstreamStatus || null,
+        providerStatus: upstreamStatus || null
       },
       502,
-      origin,
+      origin
     );
   }
   return json(
@@ -1097,17 +1036,17 @@ async function handleFallbackStarts(request, env, origin) {
       candidatesConsidered: candidates.length,
       candidatesTested: Math.min(candidates.length, FALLBACK_MAX_TESTED),
       orsRequestCount,
-      imperativesPreserved: routing.imperativesPreserved,
+      imperativesPreserved: routing.imperativesPreserved
     },
     200,
-    origin,
+    origin
   );
 }
-
+__name(handleFallbackStarts, "handleFallbackStarts");
 async function routeRequest(request, env, origin) {
   const pathname = new URL(request.url).pathname;
   if (request.method !== "POST")
-    throw new HTTPError(405, "Méthode non autorisée.");
+    throw new HTTPError(405, "M\xE9thode non autoris\xE9e.");
   if (pathname === "/v1/test") return handleTest(request, env, origin);
   if (pathname === "/v1/geoapify/places")
     return handleGeoapifyPlaces(request, env, origin);
@@ -1115,16 +1054,20 @@ async function routeRequest(request, env, origin) {
     return handleMapillaryImages(request, env, origin);
   if (pathname === "/v1/overpass/terrain")
     return handleOverpassTerrain(request, origin);
+  if (pathname === "/v1/overpass/terrain-batch")
+    return handleOverpassTerrainBatch(request, origin);
   if (pathname === "/v1/ign/elevation")
     return handleIgnElevation(request, origin);
+  if (pathname === "/v1/ign/elevation-batch")
+    return handleIgnElevationBatch(request, origin);
   if (pathname === "/v1/ors/round-trips")
     return handleORSRoundTrips(request, env, origin);
   if (pathname === "/v1/fallback-starts")
     return handleFallbackStarts(request, env, origin);
   throw new HTTPError(404, "Route inconnue.");
 }
-
-export default {
+__name(routeRequest, "routeRequest");
+var index_default = {
   async fetch(request, env, ctx) {
     const startedAt = Date.now();
     let origin = request.headers.get("Origin") || "";
@@ -1133,19 +1076,19 @@ export default {
       if (request.method === "OPTIONS")
         return new Response(null, {
           status: 204,
-          headers: corsHeaders(origin),
+          headers: corsHeaders(origin)
         });
       const pathname = new URL(request.url).pathname;
       if (!env.SERVICE_RATE_LIMITER)
-        throw new HTTPError(503, "Limiteur de débit non configuré.");
+        throw new HTTPError(503, "Limiteur de d\xE9bit non configur\xE9.");
       const visitor = request.headers.get("CF-Connecting-IP") || "visiteur-inconnu";
       const { success } = await env.SERVICE_RATE_LIMITER.limit({
-        key: `${origin}:${pathname}:${visitor}`,
+        key: `${origin}:${pathname}:${visitor}`
       });
       if (!success)
         throw new HTTPError(
           429,
-          "Trop de requêtes. Réessayez dans une minute.",
+          "Trop de requ\xEAtes. R\xE9essayez dans une minute."
         );
       const response = await routeRequest(request, env, origin);
       console.log(
@@ -1153,26 +1096,32 @@ export default {
           event: "map-service",
           path: pathname,
           status: response.status,
-          durationMs: Date.now() - startedAt,
-        }),
+          durationMs: Date.now() - startedAt
+        })
       );
       return response;
     } catch (error) {
       const status = error instanceof HTTPError ? error.status : 500;
-      const message =
-        error instanceof Error ? error.message : "Erreur interne.";
+      const message = error instanceof Error ? error.message : "Erreur interne.";
       console.error(
         JSON.stringify({
           event: "map-service-error",
           status,
-          durationMs: Date.now() - startedAt,
-        }),
+          durationMs: Date.now() - startedAt
+        })
       );
       return json(
         { error: { message } },
         status,
-        ALLOWED_ORIGINS.has(origin) ? origin : "null",
+        ALLOWED_ORIGINS.has(origin) ? origin : "null"
       );
     }
-  },
+  }
+};
+export {
+  buildMapillaryBoxes,
+  index_default as default,
+  matchTerrainSegments,
+  sampleRoute,
+  validateBBox
 };
