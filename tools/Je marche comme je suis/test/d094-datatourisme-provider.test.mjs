@@ -147,3 +147,40 @@ test("D094 datatourismeProvider retombe sur Curiosité locale pour un type non r
   const results = await provider.enrich({ route: makeRoute(), radiusMeters: 300 });
   assert.equal(results[0].type, "Curiosité locale");
 });
+
+test("D095 datatourismeProvider simplifie une trace de plus de 80 points avant envoi", async () => {
+  const longRoute = {
+    coords: Array.from({ length: 250 }, (_, i) => [1 + i * 0.0001, 43 + i * 0.0001]),
+  };
+  const calls = [];
+  const client = {
+    async post(service, path, body) {
+      calls.push(body);
+      return { items: [] };
+    },
+  };
+  const provider = loadProvider().createDatatourismeProvider({
+    client,
+    nearestRouteDistance: () => 50,
+  });
+  await provider.enrich({ route: longRoute, radiusMeters: 300 });
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].route.length <= 80, `attendu ≤80 points, obtenu ${calls[0].route.length}`);
+});
+
+test("D095 datatourismeProvider n'altère pas une trace déjà courte", async () => {
+  const shortRoute = { coords: [[1, 43], [1.001, 43.001], [1.002, 43.0005]] };
+  const calls = [];
+  const client = {
+    async post(service, path, body) {
+      calls.push(body);
+      return { items: [] };
+    },
+  };
+  const provider = loadProvider().createDatatourismeProvider({
+    client,
+    nearestRouteDistance: () => 50,
+  });
+  await provider.enrich({ route: shortRoute, radiusMeters: 300 });
+  assert.equal(calls[0].route.length, 3);
+});
