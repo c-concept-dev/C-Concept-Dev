@@ -9,7 +9,7 @@
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
-  const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
+  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS } = globalThis.JMMJSServicesCore;
   const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -4029,46 +4029,74 @@
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
     );
-    if (requiredServices.length || pauseNeedsPoi) {
-      status("Vérification des services impératifs avant sélection…");
+    const wishPois = (req.preferences || []).filter((wish) =>
+      WISH_POI_LABELS.includes(wish),
+    );
+    if (requiredServices.length || pauseNeedsPoi || wishPois.length) {
+      status(
+        wishPois.length && !requiredServices.length && !pauseNeedsPoi
+          ? "Vérification des envies (points d’intérêt) avant sélection…"
+          : "Vérification des services impératifs avant sélection…",
+      );
       const verified = [];
       for (const route of all) {
         try {
           const [geoPois, tourismPois] = await Promise.all([geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []), datatourismeProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => [])]);
           const pois = mergeTourismPois([geoPois, tourismPois], { maxDistanceMeters: 300, maxDetourMeters: 600 });
           route.pois = pois;
+          let processed = route;
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, pois, {
               searched: true,
               providerAvailable: true,
               radiusMeters: 300,
             });
-            verified.push(applyServiceAssessment(route, assessment));
-          } else verified.push(route);
+            processed = applyServiceAssessment(processed, assessment);
+          }
+          if (wishPois.length) {
+            const wishAssessment = assessWishPois(wishPois, pois, {
+              searched: true,
+              providerAvailable: true,
+              radiusMeters: 300,
+            });
+            processed = applyWishPoiAssessment(processed, wishAssessment);
+          }
+          verified.push(processed);
         } catch (error) {
+          let processed = route;
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, [], {
               searched: false,
               providerAvailable: false,
               radiusMeters: 300,
             });
-            const checked = applyServiceAssessment(route, assessment);
+            processed = applyServiceAssessment(processed, assessment);
+          }
+          if (wishPois.length) {
+            const wishAssessment = assessWishPois(wishPois, [], {
+              searched: false,
+              providerAvailable: false,
+              radiusMeters: 300,
+            });
+            processed = applyWishPoiAssessment(processed, wishAssessment);
+          }
+          if (requiredServices.length || wishPois.length) {
             const diagnostic =
               globalThis.JMMJSServiceResilienceCore.classifyServiceError(
                 error,
                 "Geoapify",
               );
             const serviceState = secondaryServiceWarning("geo", diagnostic, true);
-            checked.serviceStates = [
-              ...(checked.serviceStates || []),
+            processed.serviceStates = [
+              ...(processed.serviceStates || []),
               serviceState,
             ];
-            checked.serviceSummary = summarizeServiceStates(checked.serviceStates);
-            checked.warnings = [
-              ...(checked.warnings || []),
+            processed.serviceSummary = summarizeServiceStates(processed.serviceStates);
+            processed.warnings = [
+              ...(processed.warnings || []),
               serviceState.label + " : " + serviceState.message,
             ];
-            verified.push(checked);
+            verified.push(processed);
           } else {
             const diagnostic =
               globalThis.JMMJSServiceResilienceCore.classifyServiceError(
