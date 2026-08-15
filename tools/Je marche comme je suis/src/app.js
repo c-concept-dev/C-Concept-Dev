@@ -620,6 +620,7 @@
           updateLimitationStructureVisibility();
         if (b.closest('[data-group="terrain"]')) syncTerrainChoiceCards();
         updateLiveSummary();
+        setResultsFreshness();
       }),
   );
   $$(".terrain-choice").forEach((card) => {
