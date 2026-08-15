@@ -571,34 +571,33 @@ async function handleMapillaryImages(request, env, origin) {
   );
 }
 __name(handleMapillaryImages, "handleMapillaryImages");
-async function fetchOverpassWithFallback(query) {
-  let lastError = null;
-  for (const url of OVERPASS_URLS) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6e3);
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "User-Agent": "Je-marche-comme-je-suis/1.0"
-        },
-        body: new URLSearchParams({ data: query }).toString(),
-        signal: controller.signal
-      });
-      clearTimeout(timer);
-      if (!response.ok) {
-        lastError = new Error(`Overpass ${response.status} (${url}).`);
-        continue;
-      }
-      return await response.json();
-    } catch (error) {
-      clearTimeout(timer);
-      lastError = error;
-    }
+async function fetchOverpassOne(url, query) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6e3);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        "User-Agent": "Je-marche-comme-je-suis/1.0"
+      },
+      body: new URLSearchParams({ data: query }).toString(),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`Overpass ${response.status} (${url}).`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  throw lastError || new Error("Aucune instance Overpass disponible.");
+}
+__name(fetchOverpassOne, "fetchOverpassOne");
+async function fetchOverpassWithFallback(query) {
+  const attempts = OVERPASS_URLS.map((url) => fetchOverpassOne(url, query));
+  const settled = await Promise.allSettled(attempts);
+  const success = settled.find((entry) => entry.status === "fulfilled");
+  if (success) return success.value;
+  throw settled[0]?.reason || new Error("Aucune instance Overpass disponible.");
 }
 __name(fetchOverpassWithFallback, "fetchOverpassWithFallback");
 async function overpassTerrainForRoute(item) {
@@ -701,18 +700,23 @@ __name(handleIgnElevation, "handleIgnElevation");
 async function handleIgnElevationBatch(request, origin) {
   const body = await readJson(request);
   const items = validateRouteBatch(body.routes, BATCH_MAX_ROUTES);
-  const settled = await Promise.allSettled(
-    items.map((item) => ignElevationForRoute(item))
-  );
-  const results = settled.map((entry) => {
-    if (entry.status === "fulfilled") return entry.value;
-    return {
-      ok: false,
-      status: "elevation-unavailable",
-      message: entry.reason?.message || "IGN indisponible pour cette trace.",
-      retrievedAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-  });
+  const results = new Array(items.length);
+  for (let offset = 0; offset < items.length; offset += 4) {
+    const chunk = items.slice(offset, offset + 4);
+    const settled = await Promise.allSettled(
+      chunk.map((item) => ignElevationForRoute(item))
+    );
+    settled.forEach((entry, chunkIndex) => {
+      results[offset + chunkIndex] = entry.status === "fulfilled"
+        ? entry.value
+        : {
+            ok: false,
+            status: "elevation-unavailable",
+            message: entry.reason?.message || "IGN indisponible pour cette trace.",
+            retrievedAt: (/* @__PURE__ */ new Date()).toISOString()
+          };
+    });
+  }
   return json({ results }, 200, origin);
 }
 __name(handleIgnElevationBatch, "handleIgnElevationBatch");
