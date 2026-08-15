@@ -1813,12 +1813,12 @@
     renderDetail();
     updateTopStartButton();
     renderMapSelectionBadge();
-    const selectedRoute = S.routes[S.selected];
-    if (selectedRoute?.pois) renderPoiDisplay(selectedRoute);
     try {
       await leafletReady;
       if (!window.L) throw Error("Leaflet indisponible");
       draw();
+      const selectedRoute = S.routes[S.selected];
+      if (selectedRoute?.pois) renderPoiDisplay(selectedRoute);
       setTimeout(() => {
         S.map?.invalidateSize();
         draw();
@@ -2374,6 +2374,10 @@
         "</div>"
       : '<p class="empty-data">Aucun point documenté à moins de 300 m. Cela ne prouve pas son absence.</p>';
     S.poiLayers.forEach((x) => x.remove());
+    if (!window.L || !S.map) {
+      S.poiLayers = [];
+      return;
+    }
     const checkedWishes = new Set(S.request?.preferences || []);
     const mapPois = pois.filter((p) => checkedWishes.has(p.type));
     S.poiLayers = mapPois.map((p) => {
