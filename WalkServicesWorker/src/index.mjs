@@ -5,7 +5,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8000",
 ]);
 
-const GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage"].join(",");
+const GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage", "healthcare.pharmacy", "parking", "public_transport"].join(",");
 
 const ORS_SEEDS = [
   17, 41, 83, 121, 167, 211, 257, 301, 347, 389, 433, 479, 523, 569, 613,
