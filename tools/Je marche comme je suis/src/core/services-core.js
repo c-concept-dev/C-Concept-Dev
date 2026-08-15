@@ -18,6 +18,7 @@
     "Point de vue",
     "Pique-nique",
     "Patrimoine",
+    "Curiosité locale",
   ]);
 
   function normalizeWishPois(values = []) {
