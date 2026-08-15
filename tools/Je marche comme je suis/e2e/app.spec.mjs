@@ -43,8 +43,33 @@ async function mockWorker(page, { fail = false } = {}) {
     }
     const request = route.request();
     const body = request.postDataJSON?.() || {};
-    if (request.url().endsWith("/test")) {
+    const url = request.url();
+    if (url.endsWith("/test")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+      return;
+    }
+    if (url.endsWith("/overpass/terrain-batch")) {
+      const results = (body.routes || []).map((item) => ({
+        segments: [],
+        routeLengthMeters: Number(item.routeLengthMeters) || 0,
+        retrievedAt: new Date().toISOString(),
+        source: "Overpass / OpenStreetMap",
+        status: "ok",
+      }));
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results }) });
+      return;
+    }
+    if (url.endsWith("/ign/elevation-batch")) {
+      const results = (body.routes || []).map((item) => ({
+        ok: true,
+        elevations: (item.route || []).map(([lon, lat]) => ({ lon, lat, z: 150 })),
+        ascentMeters: 20,
+        descentMeters: 20,
+        coveragePercent: 100,
+        source: "IGN Géoplateforme · RGE ALTI",
+        retrievedAt: new Date().toISOString(),
+      }));
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results }) });
       return;
     }
     const [lon, lat] = body.coordinate || [1.432, 43.596];
