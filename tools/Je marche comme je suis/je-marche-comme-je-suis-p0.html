@@ -3602,6 +3602,68 @@ html,body{max-width:100%;overflow-x:hidden}
     "Réseau téléphonique",
   ]);
 
+  const WISH_POI_LABELS = Object.freeze([
+    "Boulangerie",
+    "Café",
+    "Restaurant",
+    "Point de vue",
+    "Pique-nique",
+    "Patrimoine",
+  ]);
+
+  function normalizeWishPois(values = []) {
+    return [...new Set((Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter((value) => WISH_POI_LABELS.includes(value)))];
+  }
+
+  function assessWishPois(wishes = [], pois = [], options = {}) {
+    const requested = normalizeWishPois(wishes);
+    const providerAvailable = options.providerAvailable !== false;
+    const searched = options.searched === true;
+    const radiusMeters = Number.isFinite(Number(options.radiusMeters))
+      ? Number(options.radiusMeters)
+      : 300;
+    const foundTypes = new Set(
+      (Array.isArray(pois) ? pois : []).map((poi) => String(poi?.type || "")),
+    );
+
+    const checks = requested.map((wish) => {
+      if (!providerAvailable || !searched) {
+        return {
+          wish,
+          status: "unknown",
+          evidence: `${wish} souhaité·e : recherche cartographique non disponible.`,
+        };
+      }
+      const found = foundTypes.has(wish);
+      return {
+        wish,
+        status: found ? "respected" : "unknown",
+        evidence: found
+          ? `${wish} documenté·e à moins de ${radiusMeters} m de la trace.`
+          : `${wish} non trouvé·e à moins de ${radiusMeters} m de la trace ; la couverture cartographique reste incomplète, l’absence n’est pas prouvée.`,
+      };
+    });
+
+    return { requested, checks };
+  }
+
+  function applyWishPoiAssessment(route, assessment) {
+    const next = { ...route };
+    const existing = Array.isArray(next.checks) ? next.checks : [];
+    next.checks = [
+      ...existing.filter((check) => !String(check.constraint || "").startsWith("Envie : ")),
+      ...assessment.checks.map((check) => ({
+        constraint: `Envie : ${check.wish}`,
+        status: check.status,
+        evidence: check.evidence,
+        severity: "advisory",
+      })),
+    ];
+    return next;
+  }
+
   function normalizeServices(values = []) {
     return [...new Set((Array.isArray(values) ? values : [])
       .map((value) => String(value || "").trim())
@@ -3703,6 +3765,10 @@ html,body{max-width:100%;overflow-x:hidden}
     normalizeServices,
     assessRequiredServices,
     applyServiceAssessment,
+    WISH_POI_LABELS,
+    normalizeWishPois,
+    assessWishPois,
+    applyWishPoiAssessment,
   });
 })();
 (() => { "use strict";
@@ -7543,8 +7609,12 @@ html,body{max-width:100%;overflow-x:hidden}
     if (categories.some((value) => value.includes("pharmacy"))) return "Pharmacie";
     if (categories.some((value) => value.includes("parking"))) return "Parking";
     if (categories.some((value) => value.includes("public_transport") || value.includes("bus") || value.includes("railway"))) return "Transport public";
+    if (categories.some((value) => value.includes("bakery"))) return "Boulangerie";
+    if (categories.some((value) => value.includes("restaurant"))) return "Restaurant";
     if (categories.some((value) => value.includes("cafe"))) return "Café";
-    if (categories.some((value) => value.startsWith("heritage")))
+    if (categories.some((value) => value.includes("viewpoint"))) return "Point de vue";
+    if (categories.some((value) => value.includes("picnic"))) return "Pique-nique";
+    if (categories.some((value) => value.startsWith("heritage") || value.startsWith("tourism.sights")))
       return "Patrimoine";
     return "Point utile";
   }
@@ -7948,7 +8018,7 @@ html,body{max-width:100%;overflow-x:hidden}
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
-  const { assessRequiredServices, applyServiceAssessment } = globalThis.JMMJSServicesCore;
+  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS } = globalThis.JMMJSServicesCore;
   const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -11968,46 +12038,74 @@ html,body{max-width:100%;overflow-x:hidden}
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
     );
-    if (requiredServices.length || pauseNeedsPoi) {
-      status("Vérification des services impératifs avant sélection…");
+    const wishPois = (req.preferences || []).filter((wish) =>
+      WISH_POI_LABELS.includes(wish),
+    );
+    if (requiredServices.length || pauseNeedsPoi || wishPois.length) {
+      status(
+        wishPois.length && !requiredServices.length && !pauseNeedsPoi
+          ? "Vérification des envies (points d’intérêt) avant sélection…"
+          : "Vérification des services impératifs avant sélection…",
+      );
       const verified = [];
       for (const route of all) {
         try {
           const [geoPois, tourismPois] = await Promise.all([geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []), datatourismeProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => [])]);
           const pois = mergeTourismPois([geoPois, tourismPois], { maxDistanceMeters: 300, maxDetourMeters: 600 });
           route.pois = pois;
+          let processed = route;
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, pois, {
               searched: true,
               providerAvailable: true,
               radiusMeters: 300,
             });
-            verified.push(applyServiceAssessment(route, assessment));
-          } else verified.push(route);
+            processed = applyServiceAssessment(processed, assessment);
+          }
+          if (wishPois.length) {
+            const wishAssessment = assessWishPois(wishPois, pois, {
+              searched: true,
+              providerAvailable: true,
+              radiusMeters: 300,
+            });
+            processed = applyWishPoiAssessment(processed, wishAssessment);
+          }
+          verified.push(processed);
         } catch (error) {
+          let processed = route;
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, [], {
               searched: false,
               providerAvailable: false,
               radiusMeters: 300,
             });
-            const checked = applyServiceAssessment(route, assessment);
+            processed = applyServiceAssessment(processed, assessment);
+          }
+          if (wishPois.length) {
+            const wishAssessment = assessWishPois(wishPois, [], {
+              searched: false,
+              providerAvailable: false,
+              radiusMeters: 300,
+            });
+            processed = applyWishPoiAssessment(processed, wishAssessment);
+          }
+          if (requiredServices.length || wishPois.length) {
             const diagnostic =
               globalThis.JMMJSServiceResilienceCore.classifyServiceError(
                 error,
                 "Geoapify",
               );
             const serviceState = secondaryServiceWarning("geo", diagnostic, true);
-            checked.serviceStates = [
-              ...(checked.serviceStates || []),
+            processed.serviceStates = [
+              ...(processed.serviceStates || []),
               serviceState,
             ];
-            checked.serviceSummary = summarizeServiceStates(checked.serviceStates);
-            checked.warnings = [
-              ...(checked.warnings || []),
+            processed.serviceSummary = summarizeServiceStates(processed.serviceStates);
+            processed.warnings = [
+              ...(processed.warnings || []),
               serviceState.label + " : " + serviceState.message,
             ];
-            verified.push(checked);
+            verified.push(processed);
           } else {
             const diagnostic =
               globalThis.JMMJSServiceResilienceCore.classifyServiceError(
