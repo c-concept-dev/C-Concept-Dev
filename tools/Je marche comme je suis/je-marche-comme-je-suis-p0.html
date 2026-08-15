@@ -9983,6 +9983,8 @@ html,body{max-width:100%;overflow-x:hidden}
     renderDetail();
     updateTopStartButton();
     renderMapSelectionBadge();
+    const selectedRoute = S.routes[S.selected];
+    if (selectedRoute?.pois) renderPoiDisplay(selectedRoute);
     try {
       await leafletReady;
       if (!window.L) throw Error("Leaflet indisponible");
@@ -10509,6 +10511,56 @@ html,body{max-width:100%;overflow-x:hidden}
     E.photoContent.innerHTML =
       '<p class="empty-data">Lancez la recherche pour ce parcours.</p>';
   }
+  // Couleurs distinctes par type de point d'intérêt, alignées sur la charte
+  // JMMJS V1 quand c'est possible. "Curiosité locale" sort de la charte
+  // (violet) faute de 7e couleur définie — à revoir si besoin.
+  const POI_MARKER_COLORS = Object.freeze({
+    "Boulangerie": "#C9A15A",
+    "Café": "#7A5230",
+    "Restaurant": "#B5502E",
+    "Point de vue": "#1B5E70",
+    "Pique-nique": "#8A9A5B",
+    "Patrimoine": "#3A3628",
+    "Curiosité locale": "#6B5B95",
+  });
+  function poiMarkerColor(type) {
+    return POI_MARKER_COLORS[type] || "#8a8578";
+  }
+  // Rend la liste complète (panneau) et les marqueurs carte, filtrés sur les
+  // envies effectivement cochées — à la façon d'une recherche par catégorie,
+  // pas un nuage générique de tous les points à proximité. N'effectue aucun
+  // appel réseau : suppose route.pois déjà peuplé (enrichissement automatique
+  // pendant le calcul, ou récupération manuelle via loadPois()).
+  function renderPoiDisplay(route) {
+    const pois = Array.isArray(route?.pois) ? route.pois : [];
+    E.poiContent.innerHTML = pois.length
+      ? '<div class="poi-list">' +
+        pois
+          .map((p) => {
+            const view = describePoi(p);
+            return '<article class="poi-item"><strong>' + esc(view.name) + "</strong><span>" + esc(view.type) + " · " + view.distance + " m de la trace · détour estimé " + view.detourMeters + " m</span><span>Source : " + esc(view.source || "Source non précisée") + "</span><span>" + esc(view.hoursLabel) + " · " + esc(view.presenceLabel) + "</span><span>" + esc(view.accessibilityLabel) + "</span></article>";
+          })
+          .join("") +
+        "</div>"
+      : '<p class="empty-data">Aucun point documenté à moins de 300 m. Cela ne prouve pas son absence.</p>';
+    S.poiLayers.forEach((x) => x.remove());
+    const checkedWishes = new Set(S.request?.preferences || []);
+    const mapPois = pois.filter((p) => checkedWishes.has(p.type));
+    S.poiLayers = mapPois.map((p) => {
+      const color = poiMarkerColor(p.type);
+      return L.circleMarker([p.lat, p.lon], {
+        radius: 7,
+        color: "#fff",
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.95,
+      })
+        .addTo(S.map)
+        .bindPopup(
+          "<strong>" + esc(p.name) + "</strong><br>" + esc(p.type) + " · " + p.distance + " m",
+        );
+    });
+  }
   async function loadPois() {
     const r = S.routes[S.selected];
     if (!r) return say("Choisissez un parcours.");
@@ -10524,35 +10576,7 @@ html,body{max-width:100%;overflow-x:hidden}
       const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
       r.poiEvidenceLoaded = true;
-      E.poiContent.innerHTML = pois.length
-        ? '<div class="poi-list">' +
-          pois
-            .map(
-              (p) => { const view = describePoi(p); return '<article class="poi-item"><strong>' + esc(view.name) + "</strong><span>" + esc(view.type) + " · " + view.distance + " m de la trace · détour estimé " + view.detourMeters + " m</span><span>Source : " + esc(view.source || "Source non précisée") + "</span><span>" + esc(view.hoursLabel) + " · " + esc(view.presenceLabel) + "</span><span>" + esc(view.accessibilityLabel) + "</span></article>"; },
-            )
-            .join("") +
-          "</div>"
-        : '<p class="empty-data">Aucun point documenté à moins de 300 m. Cela ne prouve pas son absence.</p>';
-      S.poiLayers.forEach((x) => x.remove());
-      S.poiLayers = pois.map((p) =>
-        L.circleMarker([p.lat, p.lon], {
-          radius: 6,
-          color: "#333",
-          fillColor: "#C8D0C3",
-          fillOpacity: 0.95,
-          weight: 2,
-        })
-          .addTo(S.map)
-          .bindPopup(
-            "<strong>" +
-              esc(p.name) +
-              "</strong><br>" +
-              esc(p.type) +
-              " · " +
-              p.distance +
-              " m",
-          ),
-      );
+      renderPoiDisplay(r);
       serviceState("geo", "Requête réussie", "ok");
       say(pois.length + " point(s) utile(s) trouvé(s).");
     } catch (e) {
