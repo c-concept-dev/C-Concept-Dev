@@ -3959,7 +3959,9 @@
         throw wrapped;
       }
     }
-    let all = [...unique.values()];
+    let all = [...unique.values()]
+      .sort((left, right) => (right.compatibility || 0) - (left.compatibility || 0))
+      .slice(0, 8);
     status("Documentation du terrain avec OpenStreetMap…");
     let terrainChecked;
     try {
