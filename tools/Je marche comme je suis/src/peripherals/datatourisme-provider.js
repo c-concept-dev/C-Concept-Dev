@@ -55,6 +55,24 @@
     return [Number(lon), Number(lat)];
   }
 
+  // Le Worker plafonne la trace à 200 points ; un vrai tracé ORS peut
+  // largement dépasser ce nombre. On simplifie avant envoi, même principe que
+  // simplifyCoordinates() côté Overpass — seule la forme générale du tracé
+  // compte ici, pas la précision point par point, puisque seul un rectangle
+  // englobant est calculé à partir de ces coordonnées.
+  function simplifyRouteCoordinates(coordinates = [], maxPoints = 80) {
+    if (!Array.isArray(coordinates) || coordinates.length < 2) return [];
+    if (coordinates.length <= maxPoints)
+      return coordinates.map((point) => [Number(point[0]), Number(point[1])]);
+    const last = coordinates.length - 1;
+    const output = [];
+    for (let index = 0; index < maxPoints; index += 1) {
+      const point = coordinates[Math.round((index * last) / (maxPoints - 1))];
+      output.push([Number(point[0]), Number(point[1])]);
+    }
+    return output;
+  }
+
   function createDatatourismeProvider({ client, nearestRouteDistance }) {
     return {
       id: "datatourisme",
@@ -65,7 +83,7 @@
           throw new TypeError("Trace invalide pour DATAtourisme.");
         }
         const data = await client.post("tourism", "/datatourisme/places", {
-          route: route.coords.map((point) => point.slice(0, 2)),
+          route: simplifyRouteCoordinates(route.coords),
           radiusMeters,
           limit,
         });
