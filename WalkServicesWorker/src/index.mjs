@@ -36,11 +36,14 @@ var IGN_ELEVATION_URL = "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/e
 var IGN_ELEVATION_RESOURCE = "ign_rge_alti_wld";
 var DEFAULT_ORS_BASE_URL = "https://api.openrouteservice.org";
 var BATCH_MAX_ROUTES = 6;
+var DATATOURISME_BASE_URL = "https://api.datatourisme.fr/v1";
+var DATATOURISME_FIELDS = "uuid,label,type,isLocatedAt.geo,isLocatedAt.address";
 var TIMEOUT_MS = {
   ors: 1e4,
   ign: 7e3,
   geoapify: 7e3,
-  mapillary: 7e3
+  mapillary: 7e3,
+  datatourisme: 7e3
 };
 async function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
@@ -407,6 +410,24 @@ async function testORS(env) {
   };
 }
 __name(testORS, "testORS");
+async function testDatatourisme(env) {
+  if (!env.DATATOURISME_API_KEY)
+    throw new HTTPError(503, "Secret DATAtourisme non configur\xE9.");
+  const query = new URLSearchParams({
+    geo_bounding: "48.9,2.2,48.8,2.4",
+    fields: "uuid,label",
+    page_size: "1"
+  });
+  const url = `${DATATOURISME_BASE_URL}/placeOfInterest?${query}`;
+  const data = await providerJson(
+    await fetchWithTimeout(url, {
+      headers: { Accept: "application/json", "X-API-Key": env.DATATOURISME_API_KEY }
+    }, TIMEOUT_MS.datatourisme),
+    url
+  );
+  return { resultCount: Array.isArray(data?.objects) ? data.objects.length : 0 };
+}
+__name(testDatatourisme, "testDatatourisme");
 async function handleTest(request, env, origin) {
   const { service } = await readJson(request);
   if (service === "geo")
@@ -423,6 +444,8 @@ async function handleTest(request, env, origin) {
     );
   if (service === "ors")
     return json({ ok: true, service, ...await testORS(env) }, 200, origin);
+  if (service === "tourism")
+    return json({ ok: true, service, ...await testDatatourisme(env) }, 200, origin);
   throw new HTTPError(400, "Service inconnu.");
 }
 __name(handleTest, "handleTest");
@@ -447,6 +470,51 @@ async function handleGeoapifyPlaces(request, env, origin) {
   return json(data, 200, origin);
 }
 __name(handleGeoapifyPlaces, "handleGeoapifyPlaces");
+function boundingBoxFromRoute(route, radiusMeters) {
+  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+  for (const [lon, lat] of route) {
+    if (lon < west) west = lon;
+    if (lon > east) east = lon;
+    if (lat < south) south = lat;
+    if (lat > north) north = lat;
+  }
+  const centerLat = (north + south) / 2;
+  const padLat = radiusMeters / 111320;
+  const padLon = radiusMeters / (111320 * Math.max(0.2, Math.cos(centerLat * Math.PI / 180)));
+  return validateBBox([west - padLon, south - padLat, east + padLon, north + padLat]);
+}
+__name(boundingBoxFromRoute, "boundingBoxFromRoute");
+async function handleDatatourismePlaces(request, env, origin) {
+  if (!env.DATATOURISME_API_KEY)
+    throw new HTTPError(503, "Secret DATAtourisme non configur\xE9.");
+  const body = await readJson(request);
+  const route = validateRouteCoordinates(body.route, 200, "Trace DATAtourisme");
+  const radiusMeters = Math.max(
+    50,
+    Math.min(2000, finiteNumber(body.radiusMeters ?? 300, "Rayon DATAtourisme"))
+  );
+  const limit = Math.max(1, Math.min(50, Number(body.limit) || 40));
+  const [west, south, east, north] = boundingBoxFromRoute(route, radiusMeters);
+  const query = new URLSearchParams({
+    geo_bounding: `${north},${west},${south},${east}`,
+    fields: DATATOURISME_FIELDS,
+    page_size: String(limit),
+    lang: "fr"
+  });
+  const url = `${DATATOURISME_BASE_URL}/placeOfInterest?${query}`;
+  const data = await providerJson(
+    await fetchWithTimeout(url, {
+      headers: { Accept: "application/json", "X-API-Key": env.DATATOURISME_API_KEY }
+    }, TIMEOUT_MS.datatourisme),
+    url
+  );
+  return json(
+    { items: Array.isArray(data?.objects) ? data.objects : [] },
+    200,
+    origin
+  );
+}
+__name(handleDatatourismePlaces, "handleDatatourismePlaces");
 async function fetchMapillaryBox(box, env) {
   const query = new URLSearchParams({
     fields: MAPILLARY_FIELDS,
@@ -1050,6 +1118,8 @@ async function routeRequest(request, env, origin) {
   if (pathname === "/v1/test") return handleTest(request, env, origin);
   if (pathname === "/v1/geoapify/places")
     return handleGeoapifyPlaces(request, env, origin);
+  if (pathname === "/v1/datatourisme/places")
+    return handleDatatourismePlaces(request, env, origin);
   if (pathname === "/v1/mapillary/images")
     return handleMapillaryImages(request, env, origin);
   if (pathname === "/v1/overpass/terrain")
