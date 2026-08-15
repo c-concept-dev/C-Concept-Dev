@@ -24,6 +24,16 @@ test("D092C poiType reconnaît le point de vue", () => {
   assert.equal(poiType(["tourism.attraction.viewpoint"]), "Point de vue");
 });
 
+test("D092C poiType reconnaît Curiosité locale sur le reste de tourism.attraction", () => {
+  assert.equal(poiType(["tourism.attraction.artwork.statue"]), "Curiosité locale");
+  assert.equal(poiType(["tourism.attraction.fountain"]), "Curiosité locale");
+  assert.equal(poiType(["tourism.attraction.clock"]), "Curiosité locale");
+});
+
+test("D092C poiType distingue bien Point de vue de Curiosité locale sur la même catégorie parente", () => {
+  assert.notEqual(poiType(["tourism.attraction.viewpoint"]), poiType(["tourism.attraction.artwork"]));
+});
+
 test("D092C poiType reconnaît le pique-nique", () => {
   assert.equal(poiType(["leisure.picnic.picnic_table"]), "Pique-nique");
 });
