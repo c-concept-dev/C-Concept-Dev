@@ -3970,6 +3970,7 @@
         key: `terrain-batch:${all.map((r) => r.name).join("|")}`,
         allowRetry: true,
         allowCache: false,
+        timeoutMs: 20000,
         operation: () => overpassProvider.inspectMany({ routes: all }),
       });
       if (!rawTerrainBatch.ok) {
@@ -4014,6 +4015,7 @@
         key: `elevation-batch:${all.map((r) => r.name).join("|")}`,
         allowRetry: true,
         allowCache: false,
+        timeoutMs: 20000,
         operation: () => ignElevationProvider.inspectMany({ routes: all }),
       });
       if (!rawIgnBatch.ok) {
