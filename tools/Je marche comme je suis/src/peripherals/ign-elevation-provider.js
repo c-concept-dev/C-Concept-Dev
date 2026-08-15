@@ -28,6 +28,22 @@
           routeLengthMeters: Number(route?.distance) || 0,
         });
       },
+      async inspectMany({ routes, maxPoints = 120 }) {
+        const list = Array.isArray(routes) ? routes : [];
+        const items = list.map((route) => {
+          const coordinates = sampleCoordinates(route?.coords, maxPoints);
+          if (coordinates.length < 2) throw new TypeError("Trace invalide pour le contrôle IGN.");
+          return {
+            route: coordinates,
+            routeLengthMeters: Number(route?.distance) || 0,
+          };
+        });
+        if (!items.length) return [];
+        const data = await client.post("ign", "/ign/elevation-batch", {
+          routes: items,
+        });
+        return Array.isArray(data?.results) ? data.results : [];
+      },
     });
   }
 
