@@ -337,3 +337,104 @@ test("an unknown advisory regularity check does not block a proposal", () => {
     "unknown",
   );
 });
+
+test("D092B-1 Goudron accepté is respected when the route is mostly paved", () => {
+  const compiled = compileConstraints(request({ terrain: ["Goudron accepté"] }));
+  assert.equal(compiled.advisory.preferAsphalt, true);
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 80 }, { id: 11, type: "Terre", percent: 20 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-asphalt");
+  assert.ok(check, "expected an advisory-asphalt check");
+  assert.equal(check.status, "respected");
+  assert.match(check.evidence, /80 %/);
+});
+
+test("D092B-1 Goudron accepté is violated when the route is mostly unpaved", () => {
+  const compiled = compileConstraints(request({ terrain: ["Goudron accepté"] }));
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 11, type: "Terre", percent: 90 }, { id: 3, type: "Asphalte", percent: 10 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-asphalt");
+  assert.equal(check.status, "violated");
+});
+
+test("D092B-1 Goudron accepté stays unknown without any documented surface", () => {
+  const compiled = compileConstraints(request({ terrain: ["Goudron accepté"] }));
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-asphalt");
+  assert.equal(check.status, "unknown");
+  assert.match(check.evidence, /non documentée/);
+});
+
+test("D092B-1 Sentier naturel is respected when the route is mostly dirt or ground", () => {
+  const compiled = compileConstraints(request({ terrain: ["Sentier naturel"] }));
+  assert.equal(compiled.advisory.preferNaturalTrail, true);
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 12, type: "Sol nu", percent: 70 }, { id: 3, type: "Asphalte", percent: 30 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-natural-trail");
+  assert.ok(check, "expected an advisory-natural-trail check");
+  assert.equal(check.status, "respected");
+  assert.match(check.evidence, /70 %/);
+});
+
+test("D092B-1 Terre sèche never claims dryness, only documents earthen surface and stays unknown", () => {
+  const compiled = compileConstraints(request({ terrain: ["Terre sèche"] }));
+  assert.equal(compiled.advisory.preferDryEarth, true);
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 11, type: "Terre", percent: 95 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-dry-earth");
+  assert.ok(check, "expected an advisory-dry-earth check");
+  assert.equal(check.status, "unknown");
+  assert.match(check.evidence, /95 %/);
+  assert.match(check.evidence, /météo/);
+});
