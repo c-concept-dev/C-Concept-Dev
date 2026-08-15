@@ -438,3 +438,101 @@ test("D092B-1 Terre sèche never claims dryness, only documents earthen surface 
   assert.match(check.evidence, /95 %/);
   assert.match(check.evidence, /météo/);
 });
+
+test("D092B-2 Chemin stabilisé is respected when compacted gravel dominates", () => {
+  const compiled = compileConstraints(request({ terrain: ["Chemin stabilisé"] }));
+  assert.equal(compiled.advisory.preferStabilizedPath, true);
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 8, type: "Gravier compacté", percent: 65 }, { id: 3, type: "Asphalte", percent: 35 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-stabilized-path");
+  assert.ok(check, "expected an advisory-stabilized-path check");
+  assert.equal(check.status, "respected");
+  assert.match(check.evidence, /65 %/);
+});
+
+test("D092B-2 Chemin stabilisé is violated when compacted gravel is nearly absent", () => {
+  const compiled = compileConstraints(request({ terrain: ["Chemin stabilisé"] }));
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 95 }, { id: 8, type: "Gravier compacté", percent: 5 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-stabilized-path");
+  assert.equal(check.status, "violated");
+});
+
+test("D092B-2 Peu de pierres is respected when stony surfaces are low", () => {
+  const compiled = compileConstraints(request({ terrain: ["Peu de pierres"] }));
+  assert.equal(compiled.advisory.preferFewStones, true);
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 3, type: "Asphalte", percent: 90 }, { id: 10, type: "Gravier", percent: 10 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-few-stones");
+  assert.ok(check, "expected an advisory-few-stones check");
+  assert.equal(check.status, "respected");
+  assert.match(check.evidence, /10 %/);
+});
+
+test("D092B-2 Peu de pierres is violated when stony surfaces dominate", () => {
+  const compiled = compileConstraints(request({ terrain: ["Peu de pierres"] }));
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [{ id: 10, type: "Gravier", percent: 30 }, { id: 14, type: "Pavés", percent: 20 }, { id: 3, type: "Asphalte", percent: 50 }],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-few-stones");
+  assert.equal(check.status, "violated");
+  assert.match(check.evidence, /50 %/);
+});
+
+test("D092B-2 Chemin stabilisé stays unknown without documented surface", () => {
+  const compiled = compileConstraints(request({ terrain: ["Chemin stabilisé"] }));
+  const audit = auditRoute(
+    {
+      walkingMinutes: 40,
+      totalMinutes: 40,
+      startEndDistanceMeters: 0,
+      surfaces: [],
+      maxUpPercent: 2,
+      maxDownPercent: 2,
+      directionsCompared: true,
+    },
+    compiled,
+  );
+  const check = audit.checks.find((item) => item.id === "advisory-stabilized-path");
+  assert.equal(check.status, "unknown");
+  assert.match(check.evidence, /non documentée/);
+});
