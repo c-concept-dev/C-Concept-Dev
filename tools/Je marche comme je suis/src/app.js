@@ -3961,68 +3961,88 @@
     }
     let all = [...unique.values()];
     status("Documentation du terrain avec OpenStreetMap…");
-    const terrainChecked = [];
-    for (const route of all) {
-      try {
-        const rawTerrain = await resilientService({
-          name: "overpass",
-          key: "terrain",
-          allowRetry: true,
-          allowCache: true,
-          operation: () => overpassProvider.inspect({ route }),
-        });
-        if (!rawTerrain.ok) {
-          terrainChecked.push(markOverpassUnavailable(route, rawTerrain.diagnostic?.message));
-          continue;
+    let terrainChecked;
+    try {
+      const rawTerrainBatch = await resilientService({
+        name: "overpass",
+        key: `terrain-batch:${all.map((r) => r.name).join("|")}`,
+        allowRetry: true,
+        allowCache: false,
+        operation: () => overpassProvider.inspectMany({ routes: all }),
+      });
+      if (!rawTerrainBatch.ok) {
+        throw Object.assign(
+          new Error(rawTerrainBatch.diagnostic?.message || "Overpass indisponible."),
+          { diagnostic: rawTerrainBatch.diagnostic },
+        );
+      }
+      terrainChecked = all.map((route, index) => {
+        const rawTerrain = rawTerrainBatch.value[index];
+        if (!rawTerrain) {
+          return markOverpassUnavailable(route, "Réponse Overpass incomplète pour ce parcours.");
         }
-        const proof = summarizeOverpassTerrain(rawTerrain.value, {
+        const proof = summarizeOverpassTerrain(rawTerrain, {
           routeLengthMeters: route.distance,
           retrievedAt: Date.now(),
         });
         const enriched = applyOverpassTerrain(route, proof);
         enriched.terrainProof = summarizeTerrainProof(enriched.terrainEvidence || {});
-        terrainChecked.push(enriched);
-      } catch (error) {
-        const diagnostic = globalThis.JMMJSServiceResilienceCore.classifyServiceError(
-          error,
-          "Overpass",
-        );
+        return enriched;
+      });
+    } catch (error) {
+      const diagnostic =
+        error.diagnostic ||
+        globalThis.JMMJSServiceResilienceCore.classifyServiceError(error, "Overpass");
+      terrainChecked = all.map((route) => {
         const retained = markOverpassUnavailable(route, diagnostic.message);
         retained.serviceStates = [
           ...(retained.serviceStates || []),
           secondaryServiceWarning("overpass", diagnostic, false),
         ];
         retained.serviceSummary = summarizeServiceStates(retained.serviceStates);
-        terrainChecked.push(retained);
-      }
+        return retained;
+      });
     }
     all = terrainChecked;
     status("Contrôle altimétrique complémentaire IGN…");
-    const ignChecked = [];
-    for (const route of all) {
-      try {
-        const rawIgn = await resilientService({
-          name: "ign",
-          key: "elevation",
-          allowRetry: true,
-          allowCache: true,
-          operation: () => ignElevationProvider.inspect({ route }),
-        });
-        if (!rawIgn.ok) {
-          ignChecked.push(markIgnUnavailable(route, rawIgn.diagnostic?.message));
-          continue;
+    let ignChecked;
+    try {
+      const rawIgnBatch = await resilientService({
+        name: "ign",
+        key: `elevation-batch:${all.map((r) => r.name).join("|")}`,
+        allowRetry: true,
+        allowCache: false,
+        operation: () => ignElevationProvider.inspectMany({ routes: all }),
+      });
+      if (!rawIgnBatch.ok) {
+        throw Object.assign(
+          new Error(rawIgnBatch.diagnostic?.message || "IGN indisponible."),
+          { diagnostic: rawIgnBatch.diagnostic },
+        );
+      }
+      ignChecked = all.map((route, index) => {
+        const rawIgn = rawIgnBatch.value[index];
+        if (!rawIgn || rawIgn.ok === false) {
+          return markIgnUnavailable(
+            route,
+            rawIgn?.message || "Réponse IGN incomplète pour ce parcours.",
+          );
         }
-        ignChecked.push(applyIgnElevationControl(route, rawIgn.value));
-      } catch (error) {
-        const diagnostic = globalThis.JMMJSServiceResilienceCore.classifyServiceError(error, "IGN");
+        return applyIgnElevationControl(route, rawIgn);
+      });
+    } catch (error) {
+      const diagnostic =
+        error.diagnostic ||
+        globalThis.JMMJSServiceResilienceCore.classifyServiceError(error, "IGN");
+      ignChecked = all.map((route) => {
         const retained = markIgnUnavailable(route, diagnostic.message);
         retained.serviceStates = [
           ...(retained.serviceStates || []),
           secondaryServiceWarning("ign", diagnostic, false),
         ];
         retained.serviceSummary = summarizeServiceStates(retained.serviceStates);
-        ignChecked.push(retained);
-      }
+        return retained;
+      });
     }
     all = ignChecked;
     const requiredServices = S.compiled?.hard?.requiredServices || [];
