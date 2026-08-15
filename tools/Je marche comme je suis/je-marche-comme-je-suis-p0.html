@@ -8460,6 +8460,7 @@ html,body{max-width:100%;overflow-x:hidden}
           updateLimitationStructureVisibility();
         if (b.closest('[data-group="terrain"]')) syncTerrainChoiceCards();
         updateLiveSummary();
+        setResultsFreshness();
       }),
   );
   $$(".terrain-choice").forEach((card) => {
