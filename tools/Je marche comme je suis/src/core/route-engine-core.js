@@ -327,7 +327,6 @@
           "Lac",
           "Forêt",
           "Ombre",
-          "Village",
           "Patrimoine",
           "Curiosité locale",
           "Boulangerie",
