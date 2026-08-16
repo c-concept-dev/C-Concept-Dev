@@ -3828,13 +3828,46 @@
       i,
     );
   }
-  async function directORS(c, target, req) {
+  async function fetchPoiTargets(c, target, req) {
+    const wishPois = (req.preferences || []).filter((wish) =>
+      WISH_POI_LABELS.includes(wish),
+    );
+    if (!wishPois.length) return [];
+    const radiusMeters = Math.max(300, Math.min(Math.round(target / 2), 3000));
+    // Aucune vraie boucle n'existe encore à ce stade — on interroge autour du
+    // seul point de départ. Un "parcours" à deux points identiques permet de
+    // réutiliser directement enrich() sans dupliquer son calcul de rectangle.
+    const seedRoute = { coords: [[c.lon, c.lat], [c.lon, c.lat]] };
+    try {
+      const [geoPois, tourismPois] = await Promise.all([
+        geoapifyProvider
+          .enrich({ route: seedRoute, radiusMeters, limit: 50 })
+          .catch(() => []),
+        datatourismeProvider
+          .enrich({ route: seedRoute, radiusMeters, limit: 50 })
+          .catch(() => []),
+      ]);
+      const merged = mergeTourismPois([geoPois, tourismPois], {
+        maxDistanceMeters: radiusMeters,
+        maxDetourMeters: radiusMeters * 2,
+      });
+      return merged
+        .filter((p) => wishPois.includes(p.type))
+        .slice(0, 15)
+        .map((p) => [p.lon, p.lat]);
+    } catch {
+      return [];
+    }
+  }
+  async function directORS(c, target, req, poiTargets = []) {
     status(
-      "OpenRouteService sécurisé : calcul et analyse de 3 boucles candidates…",
+      poiTargets.length
+        ? "OpenRouteService sécurisé : recherche d'une boucle passant par vos envies…"
+        : "OpenRouteService sécurisé : calcul et analyse de 3 boucles candidates…",
     );
     const result = await resilientService({
       name: "ors",
-      key: `${c.lat.toFixed(5)}:${c.lon.toFixed(5)}:${Math.round(target)}`,
+      key: `${c.lat.toFixed(5)}:${c.lon.toFixed(5)}:${Math.round(target)}:${poiTargets.length}`,
       allowRetry: true,
       operation: () =>
         orsProvider.createRoundTrips({
@@ -3842,6 +3875,7 @@
           targetMeters: target,
           compiled: S.compiled,
           count: 3,
+          poiTargets,
         }),
     });
     if (!result.ok) {
@@ -3852,6 +3886,13 @@
       throw error;
     }
     serviceState("ors", "Requête réussie", "ok");
+    if (result.value.poiTargeted) {
+      say(
+        result.value.poiMatchFound
+          ? "Une boucle passant par une de vos envies a été trouvée."
+          : "Aucune boucle trouvée ne passe près d'une envie cochée dans le rayon exploré ; les meilleures boucles disponibles sont proposées quand même, sans détour forcé.",
+      );
+    }
     const preferencesIgnored = Array.isArray(result.value.preferencesIgnored)
       ? result.value.preferencesIgnored
       : [];
@@ -3930,6 +3971,7 @@
     const requestedTarget = Math.max(500, S.compiled.targetMeters),
       targetFactors = [1, 0.78, 0.58, 0.4],
       unique = new Map();
+    const poiTargets = await fetchPoiTargets(c, requestedTarget, req);
     const engine = "OpenRouteService sécurisé";
     let completedBatches = 0;
     try {
@@ -3944,7 +3986,7 @@
         if (batchIndex > 0) await wait(1200);
         let batch;
         try {
-          batch = await directORS(c, target, req);
+          batch = await directORS(c, target, req, poiTargets);
         } catch (error) {
           const delay = retryDelay(error);
           if (delay == null) throw error;
@@ -3952,7 +3994,7 @@
             `OpenRouteService demande une pause. Nouvelle tentative dans ${delay} seconde${delay > 1 ? "s" : ""}…`,
           );
           await wait(delay * 1000);
-          batch = await directORS(c, target, req);
+          batch = await directORS(c, target, req, poiTargets);
         }
         completedBatches += 1;
         for (const route of batch) {
