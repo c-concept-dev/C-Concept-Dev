@@ -5,6 +5,7 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 var ALLOWED_ORIGINS = /* @__PURE__ */ new Set([
   "https://htmlpreview.github.io",
   "https://c-concept-dev.github.io",
+  "https://beta-gate.11drumboy11.workers.dev",
   "http://localhost:8000",
   "http://127.0.0.1:8000"
 ]);
