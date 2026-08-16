@@ -6,7 +6,7 @@
 
 - Champs visibles : **44**
 - Groupes de choix : **5**
-- Choix visibles : **62**
+- Choix visibles : **61**
 - Entrées complètes : **33**
 - Entrées partielles : **16**
 - Champs orphelins : **0**
