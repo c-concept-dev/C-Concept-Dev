@@ -669,6 +669,71 @@ async function handleOverpassTerrainBatch(request, origin) {
   return json({ results }, 200, origin);
 }
 __name(handleOverpassTerrainBatch, "handleOverpassTerrainBatch");
+
+// ---------- Bancs et tables de pique-nique (fiche D100C "Banc") ----------
+async function overpassBenchesForRoute(item) {
+  const route = validateRouteCoordinates(item.route, 80, "Trace Overpass");
+  const bufferMeters = Math.max(
+    15,
+    Math.min(150, finiteNumber(item.bufferMeters ?? 50, "Tampon bancs"))
+  );
+  const line = route.map(([lon, lat]) => `${lat},${lon}`).join(",");
+  const query = `[out:json][timeout:20];(node["amenity"="bench"](around:${bufferMeters},${line});node["leisure"="picnic_table"](around:${bufferMeters},${line}););out body;`;
+  let data;
+  try {
+    data = await fetchOverpassWithFallback(query);
+  } catch {
+    return {
+      benches: [],
+      picnicTables: [],
+      count: 0,
+      retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      source: "Overpass / OpenStreetMap",
+      status: "benches-unavailable"
+    };
+  }
+  const elements = Array.isArray(data?.elements) ? data.elements : [];
+  const benches = elements
+    .filter((el) => el.tags?.amenity === "bench")
+    .map((el) => ({
+      lat: el.lat,
+      lon: el.lon,
+      backrest: el.tags?.backrest === "yes",
+      armrest: el.tags?.armrest === "yes",
+      seats: Number.isFinite(Number(el.tags?.seats)) ? Number(el.tags.seats) : null
+    }));
+  const picnicTables = elements
+    .filter((el) => el.tags?.leisure === "picnic_table")
+    .map((el) => ({
+      lat: el.lat,
+      lon: el.lon,
+      covered: el.tags?.covered === "yes"
+    }));
+  return {
+    benches,
+    picnicTables,
+    count: benches.length + picnicTables.length,
+    retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    source: "Overpass / OpenStreetMap",
+    status: "ok"
+  };
+}
+__name(overpassBenchesForRoute, "overpassBenchesForRoute");
+async function handleOverpassBenches(request, origin) {
+  const body = await readJson(request);
+  const result = await overpassBenchesForRoute(body);
+  return json(result, 200, origin);
+}
+__name(handleOverpassBenches, "handleOverpassBenches");
+async function handleOverpassBenchesBatch(request, origin) {
+  const body = await readJson(request);
+  const items = validateRouteBatch(body.routes, BATCH_MAX_ROUTES);
+  const results = await Promise.all(
+    items.map((item) => overpassBenchesForRoute(item))
+  );
+  return json({ results }, 200, origin);
+}
+__name(handleOverpassBenchesBatch, "handleOverpassBenchesBatch");
 async function ignElevationForRoute(item) {
   const route = validateRouteCoordinates(item.route, 120, "Trace IGN");
   const response = await fetchWithTimeout(IGN_ELEVATION_URL, {
@@ -1216,6 +1281,10 @@ async function routeRequest(request, env, origin) {
     return handleOverpassTerrain(request, origin);
   if (pathname === "/v1/overpass/terrain-batch")
     return handleOverpassTerrainBatch(request, origin);
+  if (pathname === "/v1/overpass/benches")
+    return handleOverpassBenches(request, origin);
+  if (pathname === "/v1/overpass/benches-batch")
+    return handleOverpassBenchesBatch(request, origin);
   if (pathname === "/v1/ign/elevation")
     return handleIgnElevation(request, origin);
   if (pathname === "/v1/ign/elevation-batch")
