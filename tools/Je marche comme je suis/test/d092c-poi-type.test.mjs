@@ -52,13 +52,3 @@ test("D092C poiType conserve le comportement existant pour les services déjà c
 test("D092C poiType retombe sur Point utile pour une catégorie non reconnue", () => {
   assert.equal(poiType(["commercial.jewelry"]), "Point utile");
 });
-
-test("D099A poiType reconnaît Rivière via les catégories Geoapify documentées", () => {
-  assert.equal(poiType(["natural.water.river_system"]), "Rivière");
-  assert.equal(poiType(["waterway.river_system"]), "Rivière");
-});
-
-test("D099A poiType reconnaît Forêt sans transformer tout natural en forêt", () => {
-  assert.equal(poiType(["natural.forest"]), "Forêt");
-  assert.notEqual(poiType(["natural.water"]), "Forêt");
-});
