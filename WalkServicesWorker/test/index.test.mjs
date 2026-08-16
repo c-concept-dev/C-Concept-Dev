@@ -776,6 +776,175 @@ test("Overpass terrain returns terrain-unavailable without blocking the walk whe
   assert.equal(data.routeLengthMeters, 81);
 });
 
+test("Overpass benches endpoint separates benches and picnic tables with their real attributes", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(options.body), /amenity%22%3D%22bench/);
+    assert.match(String(options.body), /leisure%22%3D%22picnic_table/);
+    return new Response(
+      JSON.stringify({
+        elements: [
+          {
+            type: "node",
+            id: 1,
+            lat: 43.6,
+            lon: 1.44,
+            tags: { amenity: "bench", backrest: "yes", seats: "3" },
+          },
+          {
+            type: "node",
+            id: 2,
+            lat: 43.601,
+            lon: 1.441,
+            tags: { leisure: "picnic_table", covered: "yes" },
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/benches", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.441, 43.601],
+        ],
+        bufferMeters: 50,
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, "ok");
+  assert.equal(data.benches.length, 1);
+  assert.equal(data.benches[0].backrest, true);
+  assert.equal(data.benches[0].seats, 3);
+  assert.equal(data.picnicTables.length, 1);
+  assert.equal(data.picnicTables[0].covered, true);
+  assert.equal(data.count, 2);
+});
+
+test("Overpass benches endpoint reports benches-unavailable without blocking the walk when every instance fails", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response("bad gateway", { status: 502 });
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/benches", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.441, 43.6],
+        ],
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, "benches-unavailable");
+  assert.deepEqual(data.benches, []);
+  assert.deepEqual(data.picnicTables, []);
+});
+
+test("Overpass wish-poi endpoint classifies the D100C1 verifiable families and drops unrecognised tags", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        elements: [
+          { type: "way", id: 1, center: { lat: 43.6, lon: 1.44 }, tags: { landuse: "orchard" } },
+          { type: "node", id: 2, lat: 43.601, lon: 1.441, tags: { natural: "tree", denotation: "natural_monument" } },
+          { type: "node", id: 3, lat: 43.602, lon: 1.442, tags: { waterway: "waterfall" } },
+          { type: "node", id: 4, lat: 43.603, lon: 1.443, tags: { natural: "cave_entrance" } },
+          { type: "node", id: 5, lat: 43.604, lon: 1.444, tags: { tourism: "artwork", name: "Statue du Pont" } },
+          { type: "node", id: 6, lat: 43.605, lon: 1.445, tags: { man_made: "watermill" } },
+          { type: "node", id: 7, lat: 43.606, lon: 1.446, tags: { amenity: "fountain", historic: "yes" } },
+          { type: "node", id: 8, lat: 43.607, lon: 1.447, tags: { shop: "ice_cream" } },
+          { type: "node", id: 9, lat: 43.608, lon: 1.448, tags: { amenity: "fountain" } },
+          { type: "node", id: 10, lat: 43.609, lon: 1.449, tags: { shop: "bakery" } },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/wish-poi", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.449, 43.609],
+        ],
+        bufferMeters: 300,
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, "ok");
+  const types = data.pois.map((poi) => poi.type).sort();
+  assert.deepEqual(types, [
+    "Arbre remarquable",
+    "Cascade",
+    "Glacier",
+    "Grotte",
+    "Petit patrimoine",
+    "Petit patrimoine",
+    "Verger ou vignoble",
+    "Œuvre d'art",
+  ]);
+  assert.equal(data.pois.length, 8);
+  const artwork = data.pois.find((poi) => poi.type === "Œuvre d'art");
+  assert.equal(artwork.name, "Statue du Pont");
+  const orchard = data.pois.find((poi) => poi.type === "Verger ou vignoble");
+  assert.equal(orchard.lat, 43.6);
+  assert.equal(orchard.lon, 1.44);
+});
+
+test("Overpass wish-poi endpoint returns wish-poi-unavailable without blocking the walk when every instance fails", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () => new Response("bad gateway", { status: 502 });
+  const response = await worker.fetch(
+    new Request("https://worker.example/v1/overpass/wish-poi", {
+      method: "POST",
+      headers: { Origin: allowedOrigin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: [
+          [1.44, 43.6],
+          [1.441, 43.6],
+        ],
+      }),
+    }),
+    { SERVICE_RATE_LIMITER: limiter },
+    {},
+  );
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.status, "wish-poi-unavailable");
+  assert.deepEqual(data.pois, []);
+});
+
 test("IGN elevation endpoint uses elevationLine and removes uncovered values", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
