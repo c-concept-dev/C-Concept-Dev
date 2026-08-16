@@ -572,7 +572,7 @@
     globalThis.JMMJSORSProvider.createORSProvider({ client: serviceClient }),
   );
   peripherals.register(
-    globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
+    globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient, nearestRouteDistance }),
   );
   peripherals.register(
     globalThis.JMMJSIgnElevationProvider.createIgnElevationProvider({ client: serviceClient }),
@@ -2402,12 +2402,19 @@
     button.disabled = true;
     button.textContent = "Recherche…";
     try {
-      const [geoResult, tourismResult] = await Promise.all([
+      const [geoResult, tourismResult, benchResult, wishPoiResult] = await Promise.all([
         resilientService({ name: "geo", key: `pois:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => geoapifyProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
         resilientService({ name: "tourism", key: `tourism:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => datatourismeProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
+        resilientService({ name: "overpass", key: `benches:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => overpassProvider.enrichBenches({ route: r, radiusMeters: 60, limit: 50 }) }),
+        resilientService({ name: "overpass", key: `wishpoi:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => overpassProvider.enrichWishPoi({ route: r, radiusMeters: 300, limit: 50 }) }),
       ]);
       if (!geoResult.ok && !tourismResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
-      const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
+      const pois = mergeTourismPois([
+        geoResult.ok ? geoResult.value : [],
+        tourismResult.ok ? tourismResult.value : [],
+        benchResult.ok ? benchResult.value : [],
+        wishPoiResult.ok ? wishPoiResult.value : [],
+      ], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
       r.poiEvidenceLoaded = true;
       renderPoiDisplay(r);
@@ -4135,8 +4142,13 @@
       const verified = [];
       for (const route of all) {
         try {
-          const [geoPois, tourismPois] = await Promise.all([geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []), datatourismeProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => [])]);
-          const pois = mergeTourismPois([geoPois, tourismPois], { maxDistanceMeters: 300, maxDetourMeters: 600 });
+          const [geoPois, tourismPois, benchPois, wishPois2] = await Promise.all([
+            geoapifyProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []),
+            datatourismeProvider.enrich({ route, radiusMeters: 300, limit: 50 }).catch(() => []),
+            overpassProvider.enrichBenches({ route, radiusMeters: 60, limit: 50 }).catch(() => []),
+            overpassProvider.enrichWishPoi({ route, radiusMeters: 300, limit: 50 }).catch(() => []),
+          ]);
+          const pois = mergeTourismPois([geoPois, tourismPois, benchPois, wishPois2], { maxDistanceMeters: 300, maxDetourMeters: 600 });
           route.pois = pois;
           let processed = route;
           if (requiredServices.length) {
