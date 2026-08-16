@@ -16,23 +16,6 @@
     "Café",
     "Restaurant",
     "Point de vue",
-    "Rivière",
-    "Lac",
-    "Forêt",
-    "Pique-nique",
-    "Patrimoine",
-    "Curiosité locale",
-  ]);
-
-  // Les envies naturelles ajoutées en D099A sont auditées et utilisées pour
-  // classer les boucles déjà calculées, mais ne déclenchent pas encore de
-  // recherche ORS ciblée supplémentaire. Cette liste explicite garde le
-  // comportement de routage actif antérieur sans augmenter le budget ORS.
-  const ROUTING_POI_LABELS = Object.freeze([
-    "Boulangerie",
-    "Café",
-    "Restaurant",
-    "Point de vue",
     "Pique-nique",
     "Patrimoine",
     "Curiosité locale",
@@ -193,7 +176,6 @@
     assessRequiredServices,
     applyServiceAssessment,
     WISH_POI_LABELS,
-    ROUTING_POI_LABELS,
     normalizeWishPois,
     assessWishPois,
     applyWishPoiAssessment,
