@@ -9,7 +9,18 @@
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
-  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS, ROUTING_POI_LABELS } = globalThis.JMMJSServicesCore;
+  const {
+    assessRequiredServices,
+    applyServiceAssessment,
+    assessDesiredServices,
+    applyDesiredServiceAssessment,
+    assessBenchSpacing,
+    applyBenchSpacingAssessment,
+    assessWishPois,
+    applyWishPoiAssessment,
+    WISH_POI_LABELS,
+    ROUTING_POI_LABELS,
+  } = globalThis.JMMJSServicesCore;
   const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -154,6 +165,18 @@
       $$('[data-group="' + g + '"] .chip.active').map((b) =>
         b.textContent.trim(),
       ),
+    serviceSelections = () => {
+      const desired = [];
+      const required = [];
+      $$("[data-service-choice]").forEach((card) => {
+        const service = String(card.dataset.serviceChoice || "").trim();
+        const state = String(card.dataset.state || "none");
+        if (!service) return;
+        if (state === "desired") desired.push(service);
+        if (state === "required") required.push(service);
+      });
+      return { desired, required };
+    },
     slug = (s) =>
       String(s || "parcours")
         .normalize("NFD")
@@ -608,6 +631,42 @@
       button.disabled = false;
     }
   }
+  function syncServiceChoiceCard(card, state) {
+    if (!card) return;
+    const normalized = ["none", "desired", "required"].includes(state) ? state : "none";
+    card.dataset.state = normalized;
+    card.querySelectorAll("[data-service-state]").forEach((button) => {
+      const active = button.dataset.serviceState === normalized;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    if (card.dataset.serviceChoice === "Banc") {
+      const wrap = $("#benchRequiredIntervalWrap");
+      if (wrap) wrap.hidden = normalized !== "required";
+    }
+  }
+
+  function restoreServiceChoices(desired = [], required = []) {
+    const desiredSet = new Set(Array.isArray(desired) ? desired : []);
+    const requiredSet = new Set(Array.isArray(required) ? required : []);
+    $$("[data-service-choice]").forEach((card) => {
+      const service = card.dataset.serviceChoice;
+      syncServiceChoiceCard(card, requiredSet.has(service) ? "required" : desiredSet.has(service) ? "desired" : "none");
+    });
+  }
+
+  $$("[data-service-state]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const card = button.closest("[data-service-choice]");
+      syncServiceChoiceCard(card, button.dataset.serviceState);
+      updateLiveSummary();
+      setResultsFreshness();
+    });
+  });
+  $$("[data-service-choice]").forEach((card) => syncServiceChoiceCard(card, card.dataset.state || "none"));
+  $("#benchRequiredInterval")?.addEventListener("change", () => setResultsFreshness());
+
   $$(".next").forEach((b) => (b.onclick = () => go(S.step + 1)));
   $$(".prev").forEach((b) => (b.onclick = () => go(S.step - 1)));
   $$("[data-go]").forEach((b) => (b.onclick = () => go(+b.dataset.go)));
@@ -1051,7 +1110,14 @@
       terrain: chosen("terrain"),
       preferences: chosen("wishes"),
       pausePlan: val("#pauses"),
-      requiredServices: chosen("services"),
+      desiredServices: serviceSelections().desired,
+      requiredServices: serviceSelections().required,
+      serviceRequirements: {
+        benchIntervalMinutes:
+          serviceSelections().required.includes("Banc")
+            ? num("#benchRequiredInterval")
+            : null,
+      },
       hardConstraints: {
         avoidStairs: $("#noStairs").checked,
         avoidExposure: $("#noExposure").checked,
@@ -1115,7 +1181,11 @@
     if (compiled.hard.requireWide)
       imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
     if (compiled.hard.requiredServices.length)
-      imperative.push(summaryItem("Services requis", compiled.hard.requiredServices.join(", "), "Services ou pauses", "Impératif", 2, "Ils devront être documentés avant une qualification compatible."));
+      imperative.push(summaryItem("Services nécessaires", compiled.hard.requiredServices.join(", "), "Services ou pauses", "À respecter", 2, "Ils devront être documentés avant une qualification compatible."));
+    if (request.desiredServices?.length)
+      preferences.push(summaryItem("Services souhaités", request.desiredServices.join(", "), "Services ou pauses", "Préférence", 2, "Ils servent réellement au classement des propositions lorsqu’ils sont documentés."));
+    if (request.requiredServices?.includes("Banc") && request.serviceRequirements?.benchIntervalMinutes)
+      imperative.push(summaryItem("Pause assise régulière", `environ toutes les ${request.serviceRequirements.benchIntervalMinutes} min`, "Besoin de bancs", "À respecter", 2, "La répartition des bancs documentés sera contrôlée le long de la trace."));
 
     if (compiled.advisory.maxUp !== null)
       preferences.push(summaryItem("Montée prudente", `privilégier une pente autour de ${compiled.advisory.maxUp} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
@@ -1201,7 +1271,8 @@
     const terrainText = valueOr(request.terrain);
     const wishesText = valueOr(request.preferences);
     const pausesText = valueOr(request.pausePlan || val("#pauses"), "Aucune pause programmée");
-    const servicesText = valueOr(compiled.hard.requiredServices, "Aucun service impératif");
+    const servicesText = valueOr(compiled.hard.requiredServices, "Aucun service nécessaire");
+    const desiredServicesText = valueOr(request.desiredServices, "Aucun service souhaité");
     const reviewBlock = (label, value, step) =>
       '<article class="review-block"><span>' + esc(label) + '</span><strong>' + esc(value) +
       '</strong><button type="button" class="review-edit" data-go="' + step + '">Modifier</button></article>';
@@ -1225,7 +1296,8 @@
       reviewBlock("Terrain", terrainText, 2) +
       reviewBlock("Envies", wishesText, 2) +
       reviewBlock("Pauses", pausesText, 2) +
-      reviewBlock("Services requis", servicesText, 2) +
+      reviewBlock("Services nécessaires", servicesText, 2) +
+      reviewBlock("Services souhaités", desiredServicesText, 2) +
       '</div>' +
       '<section class="review-sensitive"><div class="review-sensitive-head"><div><h4>Contraintes et limitations déclarées</h4><p>Cette partie reste volontairement sobre. Elle sert uniquement à contrôler les règles qui ne doivent pas être assouplies.</p></div><button type="button" class="summary-edit" data-go="1">Modifier</button></div>' +
       (sensitiveGroups.length ? sensitiveGroups.join("") : '<p class="review-sensitive-note">Aucune contrainte ou limitation spécifique n’est actuellement renseignée.</p>') +
@@ -1311,7 +1383,8 @@
     restoreChips("limits", saved.limitations);
     restoreChips("terrain", saved.terrain);
     restoreChips("wishes", saved.preferences);
-    restoreChips("services", saved.requiredServices);
+    restoreServiceChoices(saved.desiredServices, saved.requiredServices);
+    setVal("#benchRequiredInterval", saved.serviceRequirements?.benchIntervalMinutes);
     syncTerrainChoiceCards();
     setVal("#pauses", saved.pausePlan);
     setVal("#effort", saved.effort?.profile);
@@ -4127,17 +4200,18 @@
     }
     all = ignChecked;
     const requiredServices = S.compiled?.hard?.requiredServices || [];
+    const desiredServices = S.request?.desiredServices || [];
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
     );
     const wishPois = (req.preferences || []).filter((wish) =>
       WISH_POI_LABELS.includes(wish),
     );
-    if (requiredServices.length || pauseNeedsPoi || wishPois.length) {
+    if (requiredServices.length || desiredServices.length || pauseNeedsPoi || wishPois.length) {
       status(
-        wishPois.length && !requiredServices.length && !pauseNeedsPoi
+        wishPois.length && !requiredServices.length && !desiredServices.length && !pauseNeedsPoi
           ? "Vérification des envies (points d’intérêt) avant sélection…"
-          : "Vérification des services impératifs avant sélection…",
+          : "Vérification des services souhaités et nécessaires avant sélection…",
       );
       const verified = [];
       for (const route of all) {
@@ -4151,13 +4225,31 @@
           const pois = mergeTourismPois([geoPois, tourismPois, benchPois, wishPois2], { maxDistanceMeters: 300, maxDetourMeters: 600 });
           route.pois = pois;
           let processed = route;
+          if (desiredServices.length) {
+            const desiredAssessment = assessDesiredServices(desiredServices, pois, {
+              searched: true,
+              providerAvailable: true,
+              radiusMeters: 300,
+            });
+            processed = applyDesiredServiceAssessment(processed, desiredAssessment);
+          }
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, pois, {
               searched: true,
               providerAvailable: true,
               radiusMeters: 300,
+              absenceIsUnknown: true,
             });
             processed = applyServiceAssessment(processed, assessment);
+            const benchInterval = Number(req.serviceRequirements?.benchIntervalMinutes);
+            if (requiredServices.includes("Banc") && Number.isFinite(benchInterval) && benchInterval > 0) {
+              const benchAssessment = assessBenchSpacing(processed, pois, {
+                intervalMinutes: benchInterval,
+                walkingMinutes: processed.walking ?? processed.total,
+                maxOffRouteMeters: 60,
+              });
+              processed = applyBenchSpacingAssessment(processed, benchAssessment);
+            }
           }
           if (wishPois.length) {
             const wishAssessment = assessWishPois(wishPois, pois, {
@@ -4170,11 +4262,20 @@
           verified.push(processed);
         } catch (error) {
           let processed = route;
+          if (desiredServices.length) {
+            const desiredAssessment = assessDesiredServices(desiredServices, [], {
+              searched: false,
+              providerAvailable: false,
+              radiusMeters: 300,
+            });
+            processed = applyDesiredServiceAssessment(processed, desiredAssessment);
+          }
           if (requiredServices.length) {
             const assessment = assessRequiredServices(requiredServices, [], {
               searched: false,
               providerAvailable: false,
               radiusMeters: 300,
+              absenceIsUnknown: true,
             });
             processed = applyServiceAssessment(processed, assessment);
           }
@@ -4186,7 +4287,7 @@
             });
             processed = applyWishPoiAssessment(processed, wishAssessment);
           }
-          if (requiredServices.length || wishPois.length) {
+          if (requiredServices.length || desiredServices.length || wishPois.length) {
             const diagnostic =
               globalThis.JMMJSServiceResilienceCore.classifyServiceError(
                 error,
@@ -4292,17 +4393,20 @@
       numeric(route.ascent) * 0.08 +
       numeric(route.maxUp) * 2 +
       (100 - numeric(route.confidence)) * 0.35 -
-      numeric(route.compatibility) * 0.12;
+      numeric(route.compatibility) * 0.12 -
+      numeric(route.desiredServiceScore) * 0.12;
     const pleasureScore = (route) =>
       rangeDistance(route, 0.75, 1, 0.9) * 150 -
       numeric(route.pleasure) * 0.75 -
       numeric(route.confidence) * 0.2 +
-      numeric(route.ascent) * 0.015;
+      numeric(route.ascent) * 0.015 -
+      numeric(route.desiredServiceScore) * 0.35;
     const tonicScore = (route) =>
       rangeDistance(route, 0.6, 0.95, 0.78) * 130 -
       numeric(route.ascent) * 0.22 -
       numeric(route.distance) * 0.0008 -
-      numeric(route.maxUp) * 1.2;
+      numeric(route.maxUp) * 1.2 -
+      numeric(route.desiredServiceScore) * 0.1;
     const micro = [...pool]
       .filter((route) => ratio(route) < 0.4)
       .sort((a, b) => b.compatibility - a.compatibility || b.walking - a.walking);
