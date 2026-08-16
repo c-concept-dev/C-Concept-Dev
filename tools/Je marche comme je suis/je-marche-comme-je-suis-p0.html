@@ -829,6 +829,15 @@ body.journey-started .landing-exact{display:none!important}
 .weather-compact-icon{font-size:1.05rem}
 .weather-compact-verdict{overflow:hidden;text-overflow:ellipsis;font-weight:700}
 .weather-compact-info{cursor:help;opacity:.7}
+.sr-only-coords{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.location-status{display:flex;align-items:center;gap:.5rem;min-height:38px;padding:.5rem .7rem;border-radius:10px;font-size:.85rem;font-weight:600;border:1px solid var(--line,#d9d0c3)}
+.location-status[data-state="pending"]{background:#f4efe4;color:#6b6558}
+.location-status[data-state="found"]{background:#eef3e4;color:#4f6b2f;border-color:#c7d8ab}
+.location-status[data-state="searching"]{background:#f4efe4;color:#8a9a5b}
+.location-status[data-state="error"]{background:#fbeae4;color:#b5502e;border-color:#e6c3b3}
+.checkbox-label{display:flex;align-items:center;gap:.5rem;font-weight:600;cursor:pointer}
+.checkbox-label input{width:auto}
+.return-time-field .field{margin-top:.5rem}
 .weather-compact[data-level="critical"]{background:#fff0ea;border-color:#d99a7b}
 .weather-compact[data-level="caution"]{background:#fff8dd;border-color:#d8be70}
 .weather-compact[data-level="favorable"]{background:#eef5ef;border-color:#abc4ad}
@@ -1575,11 +1584,8 @@ html,body{max-width:100%;overflow-x:hidden}
                       data-level="unknown"
                       role="status"
                       aria-live="polite"
-                    ><span class="weather-compact-icon">◌</span><strong>Météo automatique après localisation</strong></div></div><div class="two"><div class="field"><label>Latitude</label
-                      ><input class="input" id="lat" inputmode="decimal" /></div><div class="field"><label>Longitude</label
-                      ><input class="input" id="lon" inputmode="decimal" /></div></div><div class="two"><div class="field"><label>Retour souhaité</label
-                      ><select class="input" id="returnRadius"><option value="0">Exactement au départ</option><option value="50">Rayon de 50 m</option><option value="100">Rayon de 100 m</option><option value="vehicle">Près du véhicule</option><option value="lodging">Près du logement</option></select></div><div class="field"><label>Retour impératif</label
-                      ><input class="input" id="returnTime" type="time" /></div></div></div><div class="card"><h3>Combien de temps ?</h3><p>Précisez ce que la durée comprend.</p><div class="field"><label
+                    ><span class="weather-compact-icon">◌</span><strong>Météo automatique après localisation</strong></div></div><input class="input sr-only-coords" id="lat" inputmode="decimal" aria-hidden="true" tabindex="-1" /><input class="input sr-only-coords" id="lon" inputmode="decimal" aria-hidden="true" tabindex="-1" /><div class="field"><div class="location-status" id="locationStatus" data-state="pending" role="status" aria-live="polite"><span id="locationStatusIcon" aria-hidden="true">○</span><span id="locationStatusText">Localisation requise</span></div></div><div class="field"><label>Où souhaitez-vous terminer ?</label
+                      ><select class="input" id="returnRadius"><option value="0">Exactement au départ</option><option value="50">Rayon de 50 m</option><option value="100">Rayon de 100 m</option><option value="vehicle">Près du véhicule</option><option value="lodging">Près du logement</option></select></div></div><div class="card"><h3>Combien de temps ?</h3><p>Précisez ce que la durée comprend.</p><div class="field"><label
                       >Durée :
                       <strong id="durationLabel">60 minutes</strong></label
                     ><input
@@ -1593,7 +1599,7 @@ html,body{max-width:100%;overflow-x:hidden}
                       ><select class="input" id="timeIncludes"><option value="walk_breaks">Marche et pauses</option><option value="walk_only">Marche seulement</option><option value="all_stops">
                           Marche, pauses et café
                         </option></select></div><div class="field"><label>Marge de sécurité</label
-                      ><select class="input" id="margin"><option>10</option><option>5</option><option>15</option><option>20</option></select></div></div><div class="field"><label>Allure habituelle</label
+                      ><select class="input" id="margin"><option>10</option><option>5</option><option>15</option><option>20</option></select></div></div><div class="field return-time-field"><label class="checkbox-label"><input type="checkbox" id="returnTimeToggle" /> Je dois être rentré à une heure précise</label><div class="field" id="returnTimeWrap" hidden><label>Au plus tard à</label><input class="input" id="returnTime" type="time" /><small class="field-help">La balade sera calculée pour vous ramener avant cette heure, marge de sécurité comprise.</small></div></div><div class="field"><label>Allure habituelle</label
                     ><select class="input" id="pace"><option value="3.2">Très tranquille · 3,2 km/h</option><option value="3.8">Tranquille · 3,8 km/h</option><option value="4.2" selected>
                         À mon rythme · 4,2 km/h
                       </option><option value="5">Dynamique · 5 km/h</option></select></div></div><div class="nav"><button class="primary next" type="button">Continuer</button></div></section><section class="step"><div class="card"><h3>Comment êtes-vous aujourd’hui ?</h3><p>Ce n’est ni un diagnostic ni une garantie de sécurité.</p><div class="three"><div class="field"><label>Âge facultatif</label
@@ -8992,6 +8998,34 @@ html,body{max-width:100%;overflow-x:hidden}
   $$("[data-test]").forEach(
     (b) => (b.onclick = () => testService(b.dataset.test)),
   );
+  function updateLocationStatus() {
+    const el = $("#locationStatus");
+    if (!el) return;
+    const icon = $("#locationStatusIcon"),
+      text = $("#locationStatusText"),
+      lat = num("#lat"),
+      lon = num("#lon");
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      const place = val("#place").trim();
+      el.dataset.state = "found";
+      icon.textContent = "✓";
+      text.textContent = place ? "Départ localisé — " + place : "Départ localisé";
+    } else {
+      el.dataset.state = "pending";
+      icon.textContent = "○";
+      text.textContent = "Localisation requise";
+    }
+  }
+  if ($("#place")) $("#place").addEventListener("input", updateLocationStatus);
+  if ($("#returnTimeToggle")) {
+    $("#returnTimeToggle").onchange = (e) => {
+      const wrap = $("#returnTimeWrap");
+      if (!wrap) return;
+      wrap.hidden = !e.target.checked;
+      if (!e.target.checked) $("#returnTime").value = "";
+    };
+  }
+  updateLocationStatus();
   $("#locate").onclick = () => {
     if (!navigator.geolocation) return say("Géolocalisation indisponible.");
     const b = $("#locate"),
@@ -9012,6 +9046,7 @@ html,body{max-width:100%;overflow-x:hidden}
         $("#lat").value = best.coords.latitude.toFixed(6);
         $("#lon").value = best.coords.longitude.toFixed(6);
         $("#place").value = "Ma position actuelle";
+        updateLocationStatus();
         status(
           "Position retenue · précision ± " +
             Math.round(best.coords.accuracy) +
@@ -9079,6 +9114,7 @@ html,body{max-width:100%;overflow-x:hidden}
     $("#lat").value = (+a[0].lat).toFixed(6);
     $("#lon").value = (+a[0].lon).toFixed(6);
     $("#place").value = a[0].display_name.split(",").slice(0, 3).join(",");
+    updateLocationStatus();
     return { lat: +a[0].lat, lon: +a[0].lon };
   }
   function requestSignature(request) {
@@ -13009,6 +13045,7 @@ html,body{max-width:100%;overflow-x:hidden}
         $("#lat").value = lat.toFixed(6);
         $("#lon").value = lon.toFixed(6);
         $("#place").value = "";
+        updateLocationStatus();
         status("");
         $("#create")?.click();
       }
