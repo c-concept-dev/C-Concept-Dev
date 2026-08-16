@@ -935,12 +935,44 @@
   $$("[data-test]").forEach(
     (b) => (b.onclick = () => testService(b.dataset.test)),
   );
+  function setPositionStatus(state, label, detail = "") {
+    const host = $("#positionStatus");
+    if (!host) return;
+    host.dataset.state = state || "idle";
+    const labelNode = $("#positionStatusLabel");
+    const detailNode = $("#positionStatusDetail");
+    if (labelNode) labelNode.textContent = label;
+    if (detailNode) detailNode.textContent = detail;
+  }
+  function syncReturnDeadline() {
+    const enabled = Boolean($("#returnDeadlineEnabled")?.checked);
+    const box = $("#returnDeadlineTime");
+    const input = $("#returnTime");
+    if (box) box.hidden = !enabled;
+    if (input) {
+      input.disabled = !enabled;
+      if (!enabled) input.value = "";
+    }
+  }
+  if ($("#returnDeadlineEnabled")) {
+    $("#returnDeadlineEnabled").addEventListener("change", syncReturnDeadline);
+    syncReturnDeadline();
+  }
+  if ($("#place")) {
+    $("#place").addEventListener("input", () => {
+      $("#lat").value = "";
+      $("#lon").value = "";
+      const text = val("#place").trim();
+      setPositionStatus(text ? "found" : "idle", text ? "Lieu saisi" : "Position à définir", text ? "La position exacte sera déterminée au moment du calcul." : "Indiquez un lieu ou utilisez « Me situer ».");
+    });
+  }
   $("#locate").onclick = () => {
     if (!navigator.geolocation) return say("Géolocalisation indisponible.");
     const b = $("#locate"),
       old = b.textContent;
     b.disabled = true;
     b.textContent = "Localisation…";
+    setPositionStatus("searching", "Recherche de votre position…", "Le GPS affine votre position ; cela peut prendre quelques secondes.");
     status("Le téléphone affine votre position GPS…");
     let best = null,
       watch = null,
@@ -955,6 +987,7 @@
         $("#lat").value = best.coords.latitude.toFixed(6);
         $("#lon").value = best.coords.longitude.toFixed(6);
         $("#place").value = "Ma position actuelle";
+        setPositionStatus("found", "Position trouvée", "Précision estimée : ± " + Math.round(best.coords.accuracy) + " m.");
         status(
           "Position retenue · précision ± " +
             Math.round(best.coords.accuracy) +
@@ -962,6 +995,7 @@
         );
         setTimeout(() => status(""), 3500);
       } else {
+        setPositionStatus("error", "Position non trouvée", "Vous pouvez saisir un lieu de départ manuellement.");
         status("");
         say("Position introuvable. Vérifiez l’autorisation GPS.");
       }
@@ -969,6 +1003,7 @@
     watch = navigator.geolocation.watchPosition(
       (p) => {
         if (!best || p.coords.accuracy < best.coords.accuracy) best = p;
+        setPositionStatus("searching", "Recherche de votre position…", "Précision actuelle : ± " + Math.round(best.coords.accuracy) + " m.");
         status(
           "Précision GPS actuelle : ± " +
             Math.round(best.coords.accuracy) +
@@ -995,6 +1030,7 @@
     if (coords()) return coords();
     const q = val("#place").trim();
     if (!q) throw Error("Indiquez un départ.");
+    setPositionStatus("searching", "Recherche du lieu…", "L’application détermine la position correspondant à votre saisie.");
     status("Recherche du lieu…");
     const result = await resilientService({
       name: "geocode",
@@ -1022,6 +1058,7 @@
     $("#lat").value = (+a[0].lat).toFixed(6);
     $("#lon").value = (+a[0].lon).toFixed(6);
     $("#place").value = a[0].display_name.split(",").slice(0, 3).join(",");
+    setPositionStatus("found", "Position trouvée", $("#place").value);
     return { lat: +a[0].lat, lon: +a[0].lon };
   }
   function requestSignature(request) {
@@ -1147,7 +1184,7 @@
       time: {
         availableMinutes: num("#duration"),
         includes: val("#timeIncludes"),
-        returnTime: val("#returnTime") || null,
+        returnTime: $("#returnDeadlineEnabled")?.checked ? (val("#returnTime") || null) : null,
         safetyMarginMinutes: num("#margin"),
       },
       person: {
@@ -1234,7 +1271,7 @@
         "Temps utilisable",
         `${Math.round(compiled.time.walkingBudgetMinutes)} min de marche, ${Math.round(compiled.time.pauseMinutes)} min de pauses et ${Math.round(compiled.time.marginMinutes)} min de marge`,
         "Durée, pauses, marge et heure limite",
-        "Impératif",
+        "À respecter",
         0,
         "Aucun parcours dépassant ce budget ne sera déclaré compatible.",
       ),
@@ -1242,28 +1279,28 @@
         "Retour",
         returnLabel,
         "Choix du départ",
-        "Impératif",
+        "À respecter",
         0,
       ),
     );
     if (compiled.hard.maxUp !== null)
-      imperative.push(summaryItem("Pente montante maximale", `${compiled.hard.maxUp} %`, "Réglage d’effort", "Impératif", 2));
+      imperative.push(summaryItem("Pente montante maximale", `${compiled.hard.maxUp} %`, "Réglage d’effort", "À respecter", 2));
     if (compiled.hard.maxDown !== null)
-      imperative.push(summaryItem("Pente descendante maximale", `${compiled.hard.maxDown} %`, "Réglage d’effort", "Impératif", 2));
+      imperative.push(summaryItem("Pente descendante maximale", `${compiled.hard.maxDown} %`, "Réglage d’effort", "À respecter", 2));
     if (request.effort?.maxContinuousAscentMinutes)
-      imperative.push(summaryItem("Montée continue maximale", request.effort.maxContinuousAscentMinutes === "none" ? "aucune montée" : `${request.effort.maxContinuousAscentMinutes} min`, "Choix direct ou règle D-024 confirmée", "Impératif", 2));
+      imperative.push(summaryItem("Montée continue maximale", request.effort.maxContinuousAscentMinutes === "none" ? "aucune montée" : `${request.effort.maxContinuousAscentMinutes} min`, "Choix direct ou règle D-024 confirmée", "À respecter", 2));
     if (request.effort?.maxContinuousDescentMinutes)
-      imperative.push(summaryItem("Descente continue maximale", request.effort.maxContinuousDescentMinutes === "none" ? "aucune descente" : `${request.effort.maxContinuousDescentMinutes} min`, "Choix direct ou règle D-024 confirmée", "Impératif", 2));
+      imperative.push(summaryItem("Descente continue maximale", request.effort.maxContinuousDescentMinutes === "none" ? "aucune descente" : `${request.effort.maxContinuousDescentMinutes} min`, "Choix direct ou règle D-024 confirmée", "À respecter", 2));
     if (request.effort?.recovery)
-      imperative.push(summaryItem("Récupération après effort", request.effort.recovery, "Choix direct", "Impératif", 2, "Une récupération non prouvée restera invérifiable."));
+      imperative.push(summaryItem("Récupération après effort", request.effort.recovery, "Choix direct", "À respecter", 2, "Une récupération non prouvée restera invérifiable."));
     if (compiled.hard.avoidStairs)
-      imperative.push(summaryItem("Escaliers", "à éviter dès la génération puis à contrôler", request.hardConstraints?.avoidStairs ? "Interdiction explicite" : "Limitation ou équipement", "Impératif", request.hardConstraints?.avoidStairs ? 3 : 1, "Une donnée absente restera invérifiable."));
+      imperative.push(summaryItem("Escaliers", "à éviter dès la génération puis à contrôler", request.hardConstraints?.avoidStairs ? "Interdiction explicite" : "Limitation ou équipement", "À respecter", request.hardConstraints?.avoidStairs ? 3 : 1, "Une donnée absente restera invérifiable."));
     if (compiled.hard.avoidExposure)
-      imperative.push(summaryItem("Passages exposés", "à éviter", request.hardConstraints?.avoidExposure ? "Interdiction explicite" : "Limitation déclarée", "Impératif", request.hardConstraints?.avoidExposure ? 3 : 1, "Une preuve insuffisante conduira à « À vérifier »."));
+      imperative.push(summaryItem("Passages exposés", "à éviter", request.hardConstraints?.avoidExposure ? "Interdiction explicite" : "Limitation déclarée", "À respecter", request.hardConstraints?.avoidExposure ? 3 : 1, "Une preuve insuffisante conduira à « À vérifier »."));
     if (compiled.hard.requireRegular)
-      imperative.push(summaryItem("Terrain régulier", "obligatoire", request.terrain?.includes("Terrain régulier") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Terrain régulier") ? 2 : 1, "Si la régularité n’est pas documentée, le parcours ne sera pas déclaré compatible."));
+      imperative.push(summaryItem("Terrain régulier", "obligatoire", request.terrain?.includes("Terrain régulier") ? "Choix de terrain" : "Équipement de mobilité", "À respecter", request.terrain?.includes("Terrain régulier") ? 2 : 1, "Si la régularité n’est pas documentée, le parcours ne sera pas déclaré compatible."));
     if (compiled.hard.requireWide)
-      imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
+      imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "À respecter", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
     if (compiled.hard.requiredServices.length)
       imperative.push(summaryItem("Services nécessaires", compiled.hard.requiredServices.join(", "), "Services ou pauses", "À respecter", 2, "Ils devront être documentés avant une qualification compatible."));
     if (request.desiredServices?.length)
@@ -1300,7 +1337,7 @@
           describeFunctionalLimitation(request.functionalLimitation),
           "Réglage confirmé par l’utilisateur",
           request.derivedFunctionalRules?.some((rule) => rule.severity === "imperative")
-            ? "Impératif"
+            ? "À respecter"
             : "Préférence prudente",
           1,
           "Le moteur utilise les conséquences déclarées, sans poser de diagnostic.",
@@ -1365,7 +1402,7 @@
 
     const sensitiveGroups = [];
     if (model.imperative.length)
-      sensitiveGroups.push(renderSummaryGroup("Contraintes impératives", model.imperative, "imperative"));
+      sensitiveGroups.push(renderSummaryGroup("Limites à respecter", model.imperative, "imperative"));
     const limitationItems = model.preparation.filter((item) =>
       /Conséquence fonctionnelle|Équipement|Chaussures/i.test(item.label),
     );
