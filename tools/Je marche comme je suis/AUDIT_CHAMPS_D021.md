@@ -23,12 +23,12 @@
 | lat | field | generation | information | coordinate | fallback-place | complete | Coordonnée utilisée par la génération. |
 | lon | field | generation | information | coordinate | fallback-place | complete | Coordonnée utilisée par la génération. |
 | returnRadius | field | audit | imperative | geometry | block | complete | Fermeture contrôlée après calcul. |
-| returnDeadlineEnabled | field | generation-context | information | clock | allow-disabled | unreviewed | État fonctionnel non qualifié. |
-| returnTime | field | generation-audit | imperative | clock | block | complete | Réduit le budget disponible. |
 | duration | field | generation-audit | imperative | duration | block | complete | Plafond audité sur la durée réelle. |
 | timeIncludes | field | generation-audit | imperative | pause-plan | block | complete | Détermine les composantes incluses dans le budget. |
 | margin | field | generation-audit | imperative | duration | block | complete | Soustraite avant génération et auditée. |
 | pace | field | generation | information | duration | use-prudent-default | complete | Transforme le budget de marche en cible de distance. |
+| returnDeadlineEnabled | field | generation-context | information | clock | allow-disabled | unreviewed | État fonctionnel non qualifié. |
+| returnTime | field | generation-audit | imperative | clock | block | complete | Réduit le budget disponible. |
 | age | field | explanation | preparation | — | allow | partial | N’interdit rien ; son effet de confirmation reste limité. |
 | level | field | generation-ranking | preference | — | use-prudent-default | partial | Influence la prudence de génération, sans calibration terrain. |
 | company | field | generation-audit | preparation | — | allow | partial | Conservé dans la demande ; isolement et traversées restent incomplets. |
