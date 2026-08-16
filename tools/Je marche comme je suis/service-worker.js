@@ -1,4 +1,4 @@
-const CACHE = "jmmjs-shell-20260816-d101b-responsive";
+const CACHE = "jmmjs-shell-20260816-d101c-harmonized";
 const SHELL = [
   "./je-marche-comme-je-suis-p0.html",
   "./manifest.webmanifest",
