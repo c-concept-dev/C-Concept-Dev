@@ -3606,6 +3606,23 @@ html,body{max-width:100%;overflow-x:hidden}
     "Café",
     "Restaurant",
     "Point de vue",
+    "Rivière",
+    "Lac",
+    "Forêt",
+    "Pique-nique",
+    "Patrimoine",
+    "Curiosité locale",
+  ]);
+
+  // Les envies naturelles ajoutées en D099A sont auditées et utilisées pour
+  // classer les boucles déjà calculées, mais ne déclenchent pas encore de
+  // recherche ORS ciblée supplémentaire. Cette liste explicite garde le
+  // comportement de routage actif antérieur sans augmenter le budget ORS.
+  const ROUTING_POI_LABELS = Object.freeze([
+    "Boulangerie",
+    "Café",
+    "Restaurant",
+    "Point de vue",
     "Pique-nique",
     "Patrimoine",
     "Curiosité locale",
@@ -3766,6 +3783,7 @@ html,body{max-width:100%;overflow-x:hidden}
     assessRequiredServices,
     applyServiceAssessment,
     WISH_POI_LABELS,
+    ROUTING_POI_LABELS,
     normalizeWishPois,
     assessWishPois,
     applyWishPoiAssessment,
@@ -7619,6 +7637,8 @@ html,body{max-width:100%;overflow-x:hidden}
     if (categories.some((value) => value.includes("restaurant"))) return "Restaurant";
     if (categories.some((value) => value.includes("cafe"))) return "Café";
     if (categories.some((value) => value.includes("viewpoint"))) return "Point de vue";
+    if (categories.some((value) => value.includes("natural.water.river_system") || value.includes("waterway.river_system"))) return "Rivière";
+    if (categories.some((value) => value.includes("natural.forest"))) return "Forêt";
     if (categories.some((value) => value.includes("picnic"))) return "Pique-nique";
     if (categories.some((value) => value.startsWith("tourism.attraction")))
       return "Curiosité locale";
@@ -7721,6 +7741,10 @@ html,body{max-width:100%;overflow-x:hidden}
     if (has("shop") || has("commercial")) return "Commerce";
     if (has("parking")) return "Parking";
     if (has("viewpoint") || has("panorama")) return "Point de vue";
+    if (has("river") || has("stream")) return "Rivière";
+    if (has("lake")) return "Lac";
+    if (has("forest")) return "Forêt";
+    if (has("naturalcuriosity")) return "Curiosité locale";
     if (has("heritage") || has("museum") || has("castle") || has("religioussite") || has("culturalsite"))
       return "Patrimoine";
     // Un type non reconnu ne doit jamais être présumé "Curiosité locale" —
@@ -8184,7 +8208,7 @@ html,body{max-width:100%;overflow-x:hidden}
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
-  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS } = globalThis.JMMJSServicesCore;
+  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS, ROUTING_POI_LABELS } = globalThis.JMMJSServicesCore;
   const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -12005,7 +12029,7 @@ html,body{max-width:100%;overflow-x:hidden}
   }
   async function fetchPoiTargets(c, target, req) {
     const wishPois = (req.preferences || []).filter((wish) =>
-      WISH_POI_LABELS.includes(wish),
+      ROUTING_POI_LABELS.includes(wish),
     );
     if (!wishPois.length) return [];
     const radiusMeters = Math.max(300, Math.min(Math.round(target / 2), 3000));
