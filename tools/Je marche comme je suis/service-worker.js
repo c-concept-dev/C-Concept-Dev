@@ -1,4 +1,4 @@
-const CACHE = "jmmjs-shell-20260806-d055-ui";
+const CACHE = "jmmjs-shell-20260816-d101-wishes";
 const SHELL = [
   "./je-marche-comme-je-suis-p0.html",
   "./manifest.webmanifest",
