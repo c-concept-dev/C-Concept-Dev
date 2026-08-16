@@ -437,7 +437,7 @@
     const fatigue = Number(val("#fatigue"));
     const pain = Number(val("#pain"));
     const terrains = chosen("terrain");
-    const wishes = chosen("wishes");
+    const wishes = $("#freshAirOnly")?.getAttribute("aria-pressed") === "true" ? ["Juste prendre l’air"] : chosen("wishes");
     const departure = $("#liveDeparture");
     const today = $("#liveToday");
     const terrain = $("#liveTerrain");
@@ -667,6 +667,28 @@
   $$("[data-service-choice]").forEach((card) => syncServiceChoiceCard(card, card.dataset.state || "none"));
   $("#benchRequiredInterval")?.addEventListener("change", () => setResultsFreshness());
 
+  function syncFreshAirIntent(active) {
+    const button = $("#freshAirOnly");
+    const card = $("#freshAirIntent");
+    const note = $("#freshAirNote");
+    if (!button || !card) return;
+    const enabled = Boolean(active);
+    button.setAttribute("aria-pressed", String(enabled));
+    card.dataset.active = String(enabled);
+    if (note) note.hidden = !enabled;
+    if (enabled) {
+      $$('[data-group="wishes"] .chip.active').forEach((chip) => chip.classList.remove("active"));
+    }
+  }
+
+  $("#freshAirOnly")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    const active = $("#freshAirOnly")?.getAttribute("aria-pressed") !== "true";
+    syncFreshAirIntent(active);
+    updateLiveSummary();
+    setResultsFreshness();
+  });
+
   $$(".next").forEach((b) => (b.onclick = () => go(S.step + 1)));
   $$(".prev").forEach((b) => (b.onclick = () => go(S.step - 1)));
   $$("[data-go]").forEach((b) => (b.onclick = () => go(+b.dataset.go)));
@@ -674,6 +696,7 @@
     (b) =>
       (b.onclick = (e) => {
         e.preventDefault();
+        if (b.closest('[data-group="wishes"]')) syncFreshAirIntent(false);
         b.classList.toggle("active");
         if (b.closest('[data-group="limits"]'))
           updateLimitationStructureVisibility();
@@ -1108,7 +1131,8 @@
         recovery: val("#recovery"),
       },
       terrain: chosen("terrain"),
-      preferences: chosen("wishes"),
+      walkIntent: $("#freshAirOnly")?.getAttribute("aria-pressed") === "true" ? "fresh_air" : "explore",
+      preferences: $("#freshAirOnly")?.getAttribute("aria-pressed") === "true" ? [] : chosen("wishes"),
       pausePlan: val("#pauses"),
       desiredServices: serviceSelections().desired,
       requiredServices: serviceSelections().required,
@@ -1199,7 +1223,9 @@
       preferences.push(summaryItem("Proximité et repli", "parcours courts ou proches du départ privilégiés", "Fatigue ou besoin de repli", "Préférence prudente", 1));
     if (request.terrain?.length)
       preferences.push(summaryItem("Terrain souhaité", request.terrain.join(", "), "Choix de terrain", "Préférence", 2));
-    if (request.preferences?.length)
+    if (request.walkIntent === "fresh_air")
+      preferences.push(summaryItem("Envie du jour", "Juste prendre l’air", "Choix explicite", "Préférence", 2, "Aucun détour n’est demandé pour rechercher un point d’intérêt. Les contraintes, le terrain et les services restent actifs."));
+    else if (request.preferences?.length)
       preferences.push(summaryItem("Envies", request.preferences.join(", "), "Envies du jour", "Préférence", 2));
     if (request.effort?.profile)
       preferences.push(summaryItem("Profil de sortie", request.effort.profile, "Effort recherché", "Classement", 2));
@@ -1269,7 +1295,7 @@
     const departureText = valueOr(request.start?.label || request.start?.address || request.place || val("#place"));
     const durationText = request.duration ? `${request.duration} min` : valueOr(val("#duration"));
     const terrainText = valueOr(request.terrain);
-    const wishesText = valueOr(request.preferences);
+    const wishesText = request.walkIntent === "fresh_air" ? "Juste prendre l’air · aucun détour pour un lieu particulier" : valueOr(request.preferences);
     const pausesText = valueOr(request.pausePlan || val("#pauses"), "Aucune pause programmée");
     const servicesText = valueOr(compiled.hard.requiredServices, "Aucun service nécessaire");
     const desiredServicesText = valueOr(request.desiredServices, "Aucun service souhaité");
@@ -3909,6 +3935,7 @@
     );
   }
   async function fetchPoiTargets(c, target, req) {
+    if (req.walkIntent === "fresh_air") return [];
     const wishPois = (req.preferences || []).filter((wish) =>
       ROUTING_POI_LABELS.includes(wish),
     );
@@ -4204,7 +4231,7 @@
     const pauseNeedsPoi = ["Avec un banc", "Dans un café", "Près de toilettes"].includes(
       req.pausePlan,
     );
-    const wishPois = (req.preferences || []).filter((wish) =>
+    const wishPois = req.walkIntent === "fresh_air" ? [] : (req.preferences || []).filter((wish) =>
       WISH_POI_LABELS.includes(wish),
     );
     if (requiredServices.length || desiredServices.length || pauseNeedsPoi || wishPois.length) {
