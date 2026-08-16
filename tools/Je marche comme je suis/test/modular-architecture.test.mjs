@@ -86,6 +86,7 @@ test("the ORS peripheral sends only compiled routing options", async () => {
       weightings: { green: 0.5 },
       restrictions: {},
       count: 3,
+      poiTargets: [],
     },
     6,
   ]);
@@ -403,4 +404,93 @@ test("D-022 intègre le noyau GPX au build autonome", () => {
   assert.match(app, /auditRoute\(/);
   assert.match(app, /Distance recalculée/);
   assert.match(app, /surfaces, marches, largeur et exposition non fournies par le GPX restent invérifiables/);
+});
+
+test("D098 createRoundTrips transmet les cibles POI au Worker", async () => {
+  const context = moduleContext();
+  let call;
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: {
+      async post(...args) {
+        call = args;
+        return { routes: [{ type: "Feature" }], poiTargeted: true, poiMatchFound: true };
+      },
+    },
+  });
+  const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
+  registry.register(provider);
+
+  const result = await registry.require("ors").createRoundTrips({
+    coordinate: [1.44, 43.6],
+    targetMeters: 2500,
+    count: 3,
+    poiTargets: [[1.441, 43.601], [1.442, 43.602]],
+    poiRadiusMeters: 80,
+    compiled: {
+      routing: {
+        profile: "foot-walking",
+        avoidFeatures: [],
+        weightings: {},
+        restrictions: {},
+      },
+    },
+  });
+
+  assert.equal(result.poiTargeted, true);
+  assert.equal(result.poiMatchFound, true);
+  assert.deepEqual(call[2].poiTargets, [[1.441, 43.601], [1.442, 43.602]]);
+  assert.equal(call[2].poiRadiusMeters, 80);
+});
+
+test("D098 createRoundTrips plafonne les cibles POI à 15 avant envoi", async () => {
+  const context = moduleContext();
+  let call;
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: {
+      async post(...args) {
+        call = args;
+        return { routes: [{ type: "Feature" }] };
+      },
+    },
+  });
+  const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
+  registry.register(provider);
+
+  const manyTargets = Array.from({ length: 30 }, (_, i) => [1 + i * 0.001, 43 + i * 0.001]);
+  await registry.require("ors").createRoundTrips({
+    coordinate: [1.44, 43.6],
+    targetMeters: 2500,
+    count: 3,
+    poiTargets: manyTargets,
+    compiled: {
+      routing: { profile: "foot-walking", avoidFeatures: [], weightings: {}, restrictions: {} },
+    },
+  });
+
+  assert.equal(call[2].poiTargets.length, 15);
+});
+
+test("D098 createRoundTrips ne signale aucune correspondance POI sans cible fournie", async () => {
+  const context = moduleContext();
+  const provider = context.JMMJSORSProvider.createORSProvider({
+    client: {
+      async post() {
+        return { routes: [{ type: "Feature" }] };
+      },
+    },
+  });
+  const registry = context.JMMJSPeripheralRegistry.createPeripheralRegistry();
+  registry.register(provider);
+
+  const result = await registry.require("ors").createRoundTrips({
+    coordinate: [1.44, 43.6],
+    targetMeters: 2500,
+    count: 3,
+    compiled: {
+      routing: { profile: "foot-walking", avoidFeatures: [], weightings: {}, restrictions: {} },
+    },
+  });
+
+  assert.equal(result.poiTargeted, false);
+  assert.equal(result.poiMatchFound, false);
 });
