@@ -22,6 +22,8 @@
         targetMeters,
         compiled,
         count = 6,
+        poiTargets = [],
+        poiRadiusMeters,
       }) {
         if (
           !Array.isArray(coordinate) ||
@@ -48,6 +50,8 @@
             weightings: routing.weightings || {},
             restrictions: routing.restrictions || {},
             count: Math.max(1, Math.min(3, Math.round(count))),
+            poiTargets: Array.isArray(poiTargets) ? poiTargets.slice(0, 15) : [],
+            poiRadiusMeters,
           },
           count,
         );
@@ -68,6 +72,8 @@
           preferencesIgnored: Array.isArray(data.preferencesIgnored)
             ? data.preferencesIgnored
             : [],
+          poiTargeted: data.poiTargeted === true,
+          poiMatchFound: data.poiMatchFound === true,
         };
       },
       async findFallbackStarts({ origin, targetMeters, radiusMeters, compiled }) {
