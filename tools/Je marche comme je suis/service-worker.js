@@ -1,4 +1,4 @@
-const CACHE = "jmmjs-shell-20260816-d101f-mobile-first";
+const CACHE = "jmmjs-shell-20260816-d101h-desktop-services-fix";
 const SHELL = [
   "./je-marche-comme-je-suis-p0.html",
   "./manifest.webmanifest",
