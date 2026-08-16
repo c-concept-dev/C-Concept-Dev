@@ -734,6 +734,90 @@ async function handleOverpassBenchesBatch(request, origin) {
   return json({ results }, 200, origin);
 }
 __name(handleOverpassBenchesBatch, "handleOverpassBenchesBatch");
+
+// ---------- Envies vérifiables D100C1 (nouvelles familles Overpass) ----------
+// Une seule requête Overpass unioniste par trace, pour ne pas augmenter le
+// budget d'appels au-delà de ce que benches/terrain font déjà (même
+// discipline que D093-D095 : un aller-retour groupé plutôt qu'un par envie).
+function classifyWishPoiTags(tags = {}) {
+  if (tags.landuse === "orchard" || tags.landuse === "vineyard")
+    return "Verger ou vignoble";
+  if (tags.natural === "tree" && tags.denotation === "natural_monument")
+    return "Arbre remarquable";
+  if (tags.waterway === "waterfall") return "Cascade";
+  if (tags.natural === "cave_entrance") return "Grotte";
+  if (tags.tourism === "artwork") return "Œuvre d'art";
+  if (
+    tags.man_made === "watermill" ||
+    tags.historic === "wash_house" ||
+    (tags.amenity === "fountain" && tags.historic)
+  )
+    return "Petit patrimoine";
+  if (tags.shop === "ice_cream") return "Glacier";
+  return null;
+}
+__name(classifyWishPoiTags, "classifyWishPoiTags");
+async function overpassWishPoiForRoute(item) {
+  const route = validateRouteCoordinates(item.route, 80, "Trace Overpass");
+  const bufferMeters = Math.max(
+    50,
+    Math.min(800, finiteNumber(item.bufferMeters ?? 300, "Tampon envies"))
+  );
+  const line = route.map(([lon, lat]) => `${lat},${lon}`).join(",");
+  const around = `around:${bufferMeters},${line}`;
+  const query = `[out:json][timeout:25];(way["landuse"~"^(orchard|vineyard)$"](${around});node["natural"="tree"]["denotation"="natural_monument"](${around});way["waterway"="waterfall"](${around});node["waterway"="waterfall"](${around});node["natural"="cave_entrance"](${around});node["tourism"="artwork"](${around});node["man_made"="watermill"](${around});node["historic"="wash_house"](${around});node["amenity"="fountain"]["historic"](${around});node["shop"="ice_cream"](${around}););out center tags;`;
+  let data;
+  try {
+    data = await fetchOverpassWithFallback(query);
+  } catch {
+    return {
+      pois: [],
+      retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      source: "Overpass / OpenStreetMap",
+      status: "wish-poi-unavailable"
+    };
+  }
+  const elements = Array.isArray(data?.elements) ? data.elements : [];
+  const pois = elements
+    .map((el) => {
+      const type = classifyWishPoiTags(el.tags || {});
+      if (!type) return null;
+      const lat = Number.isFinite(el.lat) ? el.lat : el.center?.lat;
+      const lon = Number.isFinite(el.lon) ? el.lon : el.center?.lon;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      return {
+        id: `osm:${el.type}/${el.id}`,
+        type,
+        name: el.tags?.name || type,
+        lat,
+        lon
+      };
+    })
+    .filter(Boolean);
+  return {
+    pois,
+    retrievedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    source: "Overpass / OpenStreetMap",
+    status: "ok"
+  };
+}
+__name(overpassWishPoiForRoute, "overpassWishPoiForRoute");
+async function handleOverpassWishPoi(request, origin) {
+  const body = await readJson(request);
+  const result = await overpassWishPoiForRoute(body);
+  return json(result, 200, origin);
+}
+__name(handleOverpassWishPoi, "handleOverpassWishPoi");
+async function handleOverpassWishPoiBatch(request, origin) {
+  const body = await readJson(request);
+  const items = validateRouteBatch(body.routes, BATCH_MAX_ROUTES);
+  const results = await Promise.all(
+    items.map((item) => overpassWishPoiForRoute(item))
+  );
+  return json({ results }, 200, origin);
+}
+__name(handleOverpassWishPoiBatch, "handleOverpassWishPoiBatch");
+
 async function ignElevationForRoute(item) {
   const route = validateRouteCoordinates(item.route, 120, "Trace IGN");
   const response = await fetchWithTimeout(IGN_ELEVATION_URL, {
@@ -1285,6 +1369,10 @@ async function routeRequest(request, env, origin) {
     return handleOverpassBenches(request, origin);
   if (pathname === "/v1/overpass/benches-batch")
     return handleOverpassBenchesBatch(request, origin);
+  if (pathname === "/v1/overpass/wish-poi")
+    return handleOverpassWishPoi(request, origin);
+  if (pathname === "/v1/overpass/wish-poi-batch")
+    return handleOverpassWishPoiBatch(request, origin);
   if (pathname === "/v1/ign/elevation")
     return handleIgnElevation(request, origin);
   if (pathname === "/v1/ign/elevation-batch")
