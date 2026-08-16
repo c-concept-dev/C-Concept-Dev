@@ -44,6 +44,11 @@
       requiredData: ["geometry"],
       unknownPolicy: "block",
     },
+    returnDeadlineEnabled: {
+      effect: "generation-context",
+      requiredData: ["clock"],
+      unknownPolicy: "allow-disabled",
+    },
     returnTime: {
       effect: "generation-audit",
       requiredData: ["clock"],
