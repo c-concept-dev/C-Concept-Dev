@@ -31,7 +31,7 @@ test("le manifeste, les icônes et le cache PWA portent la nouvelle identité", 
   assert.equal(manifest.theme_color, "#8A9A5B");
   assert.equal(manifest.background_color, "#E8E2D4");
   assert.equal(manifest.icons.length, 2);
-  assert.match(worker, /jmmjs-shell-20260816-d101f-mobile-first/);
+  assert.match(worker, /jmmjs-shell-20260816-d101h-desktop-services-fix/);
   assert.match(template, /apple-touch-icon-180\.png/);
 });
 
