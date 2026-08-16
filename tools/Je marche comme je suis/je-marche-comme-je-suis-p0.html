@@ -1919,6 +1919,11 @@ html,body{max-width:100%;overflow-x:hidden}
       requiredData: ["geometry"],
       unknownPolicy: "block",
     },
+    returnDeadlineEnabled: {
+      effect: "generation-context",
+      requiredData: ["clock"],
+      unknownPolicy: "allow-disabled",
+    },
     returnTime: {
       effect: "generation-audit",
       requiredData: ["clock"],
