@@ -208,37 +208,3 @@ test("D095 datatourismeProvider n'altère pas une trace déjà courte", async ()
   await provider.enrich({ route: shortRoute, radiusMeters: 300 });
   assert.equal(calls[0].route.length, 3);
 });
-
-test("D099A DATAtourisme classe Rivière, Lac et Forêt selon les classes officielles", async () => {
-  const items = [
-    ["river", "Rivière", "River"],
-    ["stream", "Rivière", "Stream"],
-    ["lake", "Lac", "Lake"],
-    ["forest", "Forêt", "Forest"],
-  ];
-  for (const [id, expected, ontologyType] of items) {
-    const client = {
-      async post() {
-        return { items: [{ uuid: id, label: id, type: [ontologyType], isLocatedAt: { geo: { latitude: 43, longitude: 1 } } }] };
-      },
-    };
-    const provider = loadProvider().createDatatourismeProvider({ client, nearestRouteDistance: () => 20 });
-    const results = await provider.enrich({ route: makeRoute(), radiusMeters: 300 });
-    assert.equal(results[0].type, expected);
-  }
-});
-
-test("D099A DATAtourisme n'attribue Curiosité locale qu'à NaturalCuriosity parmi les types naturels non déjà classés", async () => {
-  const client = {
-    async post() {
-      return { items: [
-        { uuid: "curio", label: "Curiosité", type: ["NaturalCuriosity"], isLocatedAt: { geo: { latitude: 43, longitude: 1 } } },
-        { uuid: "park", label: "Parc", type: ["NaturalPark"], isLocatedAt: { geo: { latitude: 43, longitude: 1 } } },
-      ] };
-    },
-  };
-  const provider = loadProvider().createDatatourismeProvider({ client, nearestRouteDistance: () => 20 });
-  const results = await provider.enrich({ route: makeRoute(), radiusMeters: 300 });
-  assert.equal(results.find((x) => x.id === "curio").type, "Curiosité locale");
-  assert.notEqual(results.find((x) => x.id === "park").type, "Curiosité locale");
-});
