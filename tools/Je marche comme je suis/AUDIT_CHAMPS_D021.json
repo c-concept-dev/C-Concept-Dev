@@ -1,20 +1,50 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-16T16:48:47.466Z",
+  "generatedAt": "2026-08-16T18:01:07.263Z",
   "counts": {
-    "visibleFields": 44,
-    "choiceGroups": 5,
-    "visibleChoices": 65,
-    "complete": 33,
+    "visibleFields": 45,
+    "choiceGroups": 4,
+    "visibleChoices": 58,
+    "complete": 34,
     "partial": 16
   },
   "structuralCoverage": {
     "orphanFields": [],
     "missingFields": [
-      "weather"
+      "weather",
+      "services"
     ],
     "orphanChoices": [],
-    "missingChoices": [],
+    "missingChoices": [
+      {
+        "group": "services",
+        "value": "Toilettes"
+      },
+      {
+        "group": "services",
+        "value": "Eau potable"
+      },
+      {
+        "group": "services",
+        "value": "Banc"
+      },
+      {
+        "group": "services",
+        "value": "Café / restauration"
+      },
+      {
+        "group": "services",
+        "value": "Pharmacie"
+      },
+      {
+        "group": "services",
+        "value": "Parking"
+      },
+      {
+        "group": "services",
+        "value": "Transport public"
+      }
+    ],
     "passed": true
   },
   "rows": [
@@ -466,6 +496,20 @@
       "note": "Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables."
     },
     {
+      "id": "benchRequiredInterval",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "benches",
+        "route-geometry",
+        "walking-time"
+      ],
+      "unknownPolicy": "block-if-set",
+      "status": "complete",
+      "note": "Quand le banc est nécessaire, la répartition des bancs OSM documentés est comparée à la fréquence demandée."
+    },
+    {
       "id": "freeText",
       "kind": "field",
       "effect": "explanation-confirmation",
@@ -658,27 +702,6 @@
       "note": "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."
     },
     {
-      "id": "services",
-      "kind": "choice-group",
-      "choices": [
-        "Toilettes",
-        "Eau potable",
-        "Banc",
-        "Pharmacie",
-        "Parking",
-        "Transport public",
-        "Réseau téléphonique"
-      ],
-      "effect": "generation-audit",
-      "severity": "imperative",
-      "requiredData": [
-        "pois"
-      ],
-      "unknownPolicy": "block",
-      "status": "partial",
-      "note": "Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources."
-    },
-    {
       "id": "weather",
       "kind": "internal-field",
       "effect": "generation-audit",
@@ -689,6 +712,18 @@
       "unknownPolicy": "preserve-unknown",
       "status": "partial",
       "note": "Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur."
+    },
+    {
+      "id": "services",
+      "kind": "internal-field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "pois"
+      ],
+      "unknownPolicy": "block",
+      "status": "partial",
+      "note": "D100C2 distingue souhait et nécessité et les câble au classement/contrôle ; horaires, accessibilité et exhaustivité restent dépendants des sources."
     }
   ]
 }
