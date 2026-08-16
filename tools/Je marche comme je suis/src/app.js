@@ -1410,25 +1410,36 @@
       sensitiveGroups.push(renderSummaryGroup("Limitations et préparation", limitationItems, "preparation"));
 
     const otherPreparation = model.preparation.filter((item) => !limitationItems.includes(item));
-    host.className = "review-card";
+    const needsTextParts = [];
+    if (compiled.hard.requiredServices?.length) needsTextParts.push(`Nécessaires : ${servicesText}`);
+    if (request.desiredServices?.length) needsTextParts.push(`Souhaités : ${desiredServicesText}`);
+    if (request.pausePlan && String(request.pausePlan) !== "Aucune pause programmée") needsTextParts.push(pausesText);
+    const needsText = needsTextParts.length ? needsTextParts.join(" · ") : "Aucun besoin particulier";
+    const terrainWishesText = [terrainText !== "Non renseigné" ? terrainText : null, wishesText !== "Non renseigné" ? wishesText : null]
+      .filter(Boolean).join(" · ") || "À préciser";
+    const attentionHtml = sensitiveGroups.length
+      ? '<section class="review-attention"><div class="review-attention-head"><div><span class="review-attention-icon" aria-hidden="true">!</span><div><h4>Points à contrôler</h4><p>Relisez uniquement les limites qui peuvent modifier ou bloquer la recherche.</p></div></div><button type="button" class="summary-edit" data-go="1">Modifier</button></div>' + sensitiveGroups.join("") + '</section>'
+      : '<div class="review-ok"><span aria-hidden="true">✓</span><strong>Aucun point particulier à contrôler dans vos déclarations.</strong></div>';
+
+    host.className = "review-card review-card-compact";
     host.innerHTML =
-      '<div class="review-head"><div><h3>Vérifier avant de calculer</h3><p><strong>Votre balade en résumé.</strong> Voici ce que l’application va réellement demander au moteur. Une donnée absente reste inconnue.</p></div><span class="review-status">Prêt à contrôler</span></div>' +
-      '<div class="review-grid summary-essentials">' +
+      '<div class="review-head review-head-compact"><div><h3>Vérifier avant de calculer</h3><p>Un dernier coup d’œil suffit. Les détails restent disponibles si vous souhaitez les relire.</p></div><span class="review-status">Prêt</span></div>' +
+      '<div class="review-grid review-grid-compact">' +
       reviewBlock("Départ", departureText, 0) +
-      reviewBlock("Temps disponible", durationText, 0) +
-      reviewBlock("Terrain", terrainText, 2) +
-      reviewBlock("Envies", wishesText, 2) +
+      reviewBlock("Temps", durationText, 0) +
+      reviewBlock("Terrain & envies", terrainWishesText, 2) +
+      reviewBlock("Besoins", needsText, 2) +
+      '</div>' +
+      attentionHtml +
+      '<details class="review-details summary-details"><summary>Voir tous les détails</summary>' +
+      '<div class="review-details-inner">' +
+      renderSummaryGroup("Préférences et envies", model.preferences, "preference") +
+      renderSummaryGroup("Préparation et contrôles", otherPreparation, "preparation") +
+      '<div class="review-details-extra">' +
       reviewBlock("Pauses", pausesText, 2) +
       reviewBlock("Services nécessaires", servicesText, 2) +
       reviewBlock("Services souhaités", desiredServicesText, 2) +
-      '</div>' +
-      '<section class="review-sensitive"><div class="review-sensitive-head"><div><h4>Contraintes et limitations déclarées</h4><p>Cette partie reste volontairement sobre. Elle sert uniquement à contrôler les règles qui ne doivent pas être assouplies.</p></div><button type="button" class="summary-edit" data-go="1">Modifier</button></div>' +
-      (sensitiveGroups.length ? sensitiveGroups.join("") : '<p class="review-sensitive-note">Aucune contrainte ou limitation spécifique n’est actuellement renseignée.</p>') +
-      '</section>' +
-      '<details class="review-details summary-details"><summary>Afficher tous les réglages</summary>' +
-      renderSummaryGroup("Préférences prudentes et envies", model.preferences, "preference") +
-      renderSummaryGroup("Préparation et contrôles", otherPreparation, "preparation") +
-      '</details>';
+      '</div></div></details>';
 
     host.querySelectorAll("[data-go]").forEach((button) => {
       button.onclick = () => go(Number(button.dataset.go));
