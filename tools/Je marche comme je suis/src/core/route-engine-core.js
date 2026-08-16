@@ -224,6 +224,11 @@
       requiredData: ["pause-places"],
       unknownPolicy: "block-if-required",
     },
+    benchRequiredInterval: {
+      effect: "generation-audit",
+      requiredData: ["benches", "route-geometry", "walking-time"],
+      unknownPolicy: "block-if-set",
+    },
     services: {
       effect: "generation-audit",
       requiredData: ["pois"],
@@ -350,10 +355,10 @@
           "Toilettes",
           "Eau potable",
           "Banc",
+          "Café / restauration",
           "Pharmacie",
           "Parking",
           "Transport public",
-          "Réseau téléphonique",
         ].map((value) => [
           value,
           { effect: "generation-audit", severity: "hard" },
@@ -532,6 +537,8 @@
         ...pauseServices,
       ]),
     ];
+    const desiredServices = [...new Set(request.desiredServices || [])]
+      .filter((service) => !requiredServices.includes(service));
 
     const weightings = {};
     if (
@@ -604,6 +611,7 @@
         preferDryEarth: has(terrain, "Terre sèche"),
         preferStabilizedPath: has(terrain, "Chemin stabilisé"),
         preferFewStones: has(terrain, "Peu de pierres"),
+        desiredServices,
       },
       footwearForbiddenSurfaceIds: SURFACE_RULES[request.footwear] || [],
       routing: {
