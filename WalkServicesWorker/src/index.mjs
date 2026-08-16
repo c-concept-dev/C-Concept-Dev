@@ -8,7 +8,7 @@ var ALLOWED_ORIGINS = /* @__PURE__ */ new Set([
   "http://localhost:8000",
   "http://127.0.0.1:8000"
 ]);
-var GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage", "healthcare.pharmacy", "parking", "public_transport", "commercial.food_and_drink.bakery", "catering.restaurant", "tourism.attraction", "leisure.picnic", "tourism.sights"].join(",");
+var GEOAPIFY_CATEGORIES = ["amenity", "catering.cafe", "heritage", "healthcare.pharmacy", "parking", "public_transport", "commercial.food_and_drink.bakery", "catering.restaurant", "tourism.attraction", "leisure.picnic", "tourism.sights", "natural.forest", "natural.water.river_system", "waterway.river_system"].join(",");
 var ORS_SEEDS = [
   17,
   41,
