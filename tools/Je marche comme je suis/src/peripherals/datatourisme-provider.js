@@ -25,10 +25,6 @@
     if (has("shop") || has("commercial")) return "Commerce";
     if (has("parking")) return "Parking";
     if (has("viewpoint") || has("panorama")) return "Point de vue";
-    if (has("river") || has("stream")) return "Rivière";
-    if (has("lake")) return "Lac";
-    if (has("forest")) return "Forêt";
-    if (has("naturalcuriosity")) return "Curiosité locale";
     if (has("heritage") || has("museum") || has("castle") || has("religioussite") || has("culturalsite"))
       return "Patrimoine";
     // Un type non reconnu ne doit jamais être présumé "Curiosité locale" —
