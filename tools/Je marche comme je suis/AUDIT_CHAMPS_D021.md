@@ -4,10 +4,10 @@
 
 ## Résumé
 
-- Champs visibles : **44**
-- Groupes de choix : **5**
-- Choix visibles : **65**
-- Entrées complètes : **33**
+- Champs visibles : **45**
+- Groupes de choix : **4**
+- Choix visibles : **58**
+- Entrées complètes : **34**
 - Entrées partielles : **16**
 - Champs orphelins : **0**
 - Choix orphelins : **0**
@@ -54,6 +54,7 @@
 | downSlope | field | generation-audit | conditional | steepness | block-if-set | complete | Pente descendante auditée lorsqu’elle est disponible. |
 | recovery | field | audit | conditional | elevation, segment-times, benches | block-if-set | complete | Séquence facile mesurée après effort ; banc jamais présumé. |
 | pauses | field | generation-audit | preparation | pause-places | block-if-required | complete | Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables. |
+| benchRequiredInterval | field | generation-audit | imperative | benches, route-geometry, walking-time | block-if-set | complete | Quand le banc est nécessaire, la répartition des bancs OSM documentés est comparée à la fréquence demandée. |
 | freeText | field | explanation-confirmation | preparation | structured-limitations | confirm | partial | Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres. |
 | strict | field | selection | imperative | — | block-unknown-hard | complete | Empêche les assouplissements silencieux. |
 | shortcuts | field | generation-audit | conditional | shortcut-routes | block-if-required | complete | Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés. |
@@ -64,8 +65,8 @@
 | limits | choice-group | generation-audit | conditional | surface, slope, width, services | block-if-imperative | partial | Plusieurs limitations sont traduites ; seuils fonctionnels à structurer. |
 | terrain | choice-group | generation-ranking-audit | preference | surface, waytype, traffic | preserve-unknown | partial | D-026 qualifie la couverture des surfaces et la force de preuve ; largeur et exposition restent invérifiables sans source dédiée. |
 | wishes | choice-group | generation-ranking | preference | green, noise, pois | rank-only | partial | Classement partiel ; plusieurs envies nécessitent des POI avant sélection. |
-| services | choice-group | generation-audit | imperative | pois | block | partial | Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources. |
 | weather | internal-field | generation-audit | preparation | observed-weather | preserve-unknown | partial | Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur. |
+| services | internal-field | generation-audit | imperative | pois | block | partial | D100C2 distingue souhait et nécessité et les câble au classement/contrôle ; horaires, accessibilité et exhaustivité restent dépendants des sources. |
 
 ## Conclusion
 
