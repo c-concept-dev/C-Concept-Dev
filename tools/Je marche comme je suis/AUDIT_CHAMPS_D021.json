@@ -1,8 +1,8 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-16T18:30:09.600Z",
+  "generatedAt": "2026-08-16T19:07:18.240Z",
   "counts": {
-    "visibleFields": 45,
+    "visibleFields": 46,
     "choiceGroups": 4,
     "visibleChoices": 58,
     "complete": 34,
@@ -131,6 +131,18 @@
       "unknownPolicy": "block",
       "status": "complete",
       "note": "Fermeture contrôlée après calcul."
+    },
+    {
+      "id": "returnDeadlineEnabled",
+      "kind": "field",
+      "effect": "generation-context",
+      "severity": "information",
+      "requiredData": [
+        "clock"
+      ],
+      "unknownPolicy": "allow-disabled",
+      "status": "unreviewed",
+      "note": "État fonctionnel non qualifié."
     },
     {
       "id": "returnTime",
