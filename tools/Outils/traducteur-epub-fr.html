@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traducteur FR — C Concept&amp;Dev</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --mer:#8FAFB1;
+    --sauge:#C8D0C3;
+    --beige:#D8CDBB;
+    --sable:#E6D7C3;
+    --ink:#2E3A38;
+    --ink-soft:#5B6664;
+    --paper:#FBF9F5;
+    --line:#D9D2C4;
+    --ok:#7A9B7E;
+    --err:#B6685A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,var(--paper) 0%, #F3EFE6 100%);
+    color:var(--ink);
+    font-family:'Montserrat',sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:48px 24px 80px;}
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'Poppins',sans-serif;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--mer);
+    font-weight:600;
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Lora',serif;
+    font-weight:600;
+    font-size:34px;
+    margin:0 0 8px;
+    color:var(--ink);
+  }
+  .subtitle{
+    font-family:'Lora',serif;
+    font-style:italic;
+    color:var(--ink-soft);
+    font-size:16px;
+    margin:0;
+    max-width:560px;
+    line-height:1.5;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:28px;
+    margin-bottom:20px;
+    box-shadow:0 1px 2px rgba(46,58,56,0.04);
+  }
+  .card h2{
+    font-family:'Poppins',sans-serif;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--ink-soft);
+    margin:0 0 16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .card h2 .num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;height:22px;
+    border-radius:50%;
+    background:var(--sauge);
+    color:#fff;
+    font-size:11px;
+    font-weight:700;
+  }
+  .drop{
+    border:2px dashed var(--line);
+    border-radius:12px;
+    padding:36px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:var(--paper);
+  }
+  .drop.drag{border-color:var(--mer); background:#EFF4F3;}
+  .drop p{margin:6px 0; color:var(--ink-soft); font-size:14px;}
+  .drop .main{font-family:'Lora',serif;font-size:17px;color:var(--ink);font-style:italic;}
+  input[type=file]{display:none;}
+  .filepill{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--sable);
+    border-radius:20px;
+    padding:6px 14px;
+    font-size:13px;
+    margin-top:14px;
+    color:var(--ink);
+  }
+  .row{display:flex; gap:14px; flex-wrap:wrap;}
+  .field{flex:1; min-width:220px;}
+  label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  select, input[type=text], input[type=password]{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-family:'Montserrat',sans-serif;
+    font-size:14px;
+    background:#fff;
+    color:var(--ink);
+  }
+  select:focus, input:focus{outline:2px solid var(--mer); outline-offset:1px;}
+  .hint{font-size:12px; color:var(--ink-soft); margin-top:6px; line-height:1.5;}
+  .toggle-row{display:flex; gap:10px; margin-bottom:16px;}
+  .toggle{
+    flex:1;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    cursor:pointer;
+    background:#fff;
+    transition:border-color .15s, background .15s;
+  }
+  .toggle.active{border-color:var(--mer); background:#EFF4F3;}
+  .toggle .t-title{font-weight:600; font-size:14px; margin-bottom:4px;}
+  .toggle .t-desc{font-size:12px; color:var(--ink-soft); line-height:1.4;}
+  button.primary{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:10px;
+    background:var(--mer);
+    color:#fff;
+    font-family:'Poppins',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    transition:background .15s, transform .1s;
+  }
+  button.primary:hover:not(:disabled){background:#7C9FA1;}
+  button.primary:active:not(:disabled){transform:scale(0.99);}
+  button.primary:disabled{background:#C9CFCD; cursor:not-allowed;}
+  .progress-wrap{margin-top:18px;}
+  .bar-bg{
+    height:8px; border-radius:6px; background:var(--sauge); overflow:hidden;
+  }
+  .bar-fill{
+    height:100%; width:0%; background:var(--mer);
+    transition:width .3s ease;
+  }
+  .progress-label{
+    display:flex; justify-content:space-between;
+    font-size:12px; color:var(--ink-soft); margin-top:8px;
+  }
+  .log{
+    margin-top:14px;
+    max-height:160px;
+    overflow-y:auto;
+    font-family:monospace;
+    font-size:11.5px;
+    background:var(--ink);
+    color:#D8CDBB;
+    border-radius:8px;
+    padding:12px 14px;
+    line-height:1.6;
+  }
+  .log .ok{color:#9FCBA3;}
+  .log .err{color:#E39C8E;}
+  .result{
+    display:none;
+    text-align:center;
+    padding:30px 20px;
+  }
+  .result.show{display:block;}
+  .result .check{
+    width:52px;height:52px;border-radius:50%;
+    background:var(--ok);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 16px;
+    color:#fff; font-size:26px;
+  }
+  .result h3{font-family:'Lora',serif; font-size:20px; margin:0 0 6px;}
+  .result p{color:var(--ink-soft); font-size:13px; margin:0 0 20px;}
+  a.download{
+    display:inline-block;
+    background:var(--ink);
+    color:#fff;
+    text-decoration:none;
+    padding:13px 28px;
+    border-radius:10px;
+    font-family:'Poppins',sans-serif;
+    font-weight:600;
+    font-size:14px;
+  }
+  footer{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:30px;
+    line-height:1.6;
+  }
+  .badge{
+    display:inline-block;
+    background:var(--sable);
+    color:var(--ink);
+    font-size:10.5px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:10px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">C Concept&amp;Dev — Outil interne</div>
+    <h1>Traducteur EPUB / PDF → Français</h1>
+    <p class="subtitle">Dépose un document dans sa langue d'origine, il te revient en français, reconstruit au format EPUB.</p>
+  </header>
+
+  <div class="card">
+    <h2><span class="num">1</span> Type de document</h2>
+    <div class="toggle-row" id="docTypeToggle">
+      <div class="toggle active" data-doctype="text">
+        <div class="t-title">Roman / Document</div>
+        <div class="t-desc">EPUB, PDF, TXT, HTML — traduction de texte classique.</div>
+      </div>
+      <div class="toggle" data-doctype="comic">
+        <div class="t-title">Bande dessinée / Manga</div>
+        <div class="t-desc">CBZ, ZIP d'images, ou images seules — OCR + traduction + réinsertion dans l'image.</div>
+      </div>
+    </div>
+    <div id="comicOptions" style="display:none; margin-top:16px;">
+      <div class="row">
+        <div class="field">
+          <label>Langue de l'OCR</label>
+          <select id="ocrLang">
+            <option value="jpn" selected>Japonais (manga)</option>
+            <option value="eng">Anglais</option>
+            <option value="fra">Français</option>
+            <option value="kor">Coréen (manhwa)</option>
+            <option value="chi_sim">Chinois simplifié (manhua)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sens de lecture</label>
+          <select id="readingDir">
+            <option value="rtl" selected>Droite → gauche (manga)</option>
+            <option value="ltr">Gauche → droite (BD occidentale)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <div class="field">
+          <label>Méthode de détection des bulles</label>
+          <select id="bubbleMethod">
+            <option value="ocr" selected>OCR — regroupement automatique (rapide, actuel)</option>
+            <option value="yolo">YOLO — détection de bulles (bêta)</option>
+          </select>
+          <p class="hint">Le mode YOLO télécharge un modèle de détection entraîné spécifiquement sur des bulles de BD/manga (109 Mo, une seule fois, mis en cache par le navigateur). Il détecte d'abord chaque bulle précisément, puis lit le texte dedans — normalement plus fiable que le regroupement automatique, mais plus lent à démarrer. Licence du modèle : GPL-3.0.</p>
+        </div>
+      </div>
+      <p class="hint">Le sens de lecture n'affecte que l'ordre des pages dans le fichier de sortie, pas le contenu. La détection de bulles est approximative : l'OCR groupe le texte par blocs proches, puis chaque bloc est recouvert d'un cadre et remplacé par le texte français. Sur des pages très denses ou des onomatopées stylisées, attends-toi à des ratés.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span> Document source</h2>
+    <div class="drop" id="drop">
+      <p class="main">Glisse ton fichier ici, ou clique pour choisir</p>
+      <p id="dropHint">.epub · .pdf · .txt · .html — un fichier à la fois</p>
+      <input type="file" id="fileInput" accept=".epub,.pdf,.txt,.html,.htm">
+    </div>
+    <div id="filepillWrap"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span> Connexion à Claude</h2>
+    <div class="toggle-row" id="modeToggle">
+      <div class="toggle active" data-mode="artifact">
+        <div class="t-title">Mode Artifact claude.ai</div>
+        <div class="t-desc">Fonctionne directement si ce fichier est ouvert comme artifact dans une conversation Claude. Aucune clé requise.</div>
+      </div>
+      <div class="toggle" data-mode="proxy">
+        <div class="t-title">Mode Proxy personnel</div>
+        <div class="t-desc">Pour un usage hors claude.ai, en local. Utilise ton Worker Cloudflare (ex. clone-proxy) comme relais vers l'API Claude.</div>
+      </div>
+      <div class="toggle" data-mode="direct">
+        <div class="t-title">Clé API directe</div>
+        <div class="t-desc">Colle ta clé Anthropic ici. Elle reste uniquement en mémoire dans l'onglet, jamais enregistrée sur disque, et disparaît quand tu fermes le fichier.</div>
+      </div>
+    </div>
+    <div id="proxyFields" style="display:none;">
+      <div class="row">
+        <div class="field">
+          <label>URL du endpoint</label>
+          <input type="text" id="endpointUrl" placeholder="https://ton-proxy.workers.dev/translate">
+        </div>
+        <div class="field">
+          <label>Clé / Token (optionnel)</label>
+          <input type="password" id="apiKey" placeholder="Laisse vide si non requis">
+        </div>
+      </div>
+      <p class="hint">Ton proxy doit accepter un POST JSON <code>{model, max_tokens, system, messages}</code> et renvoyer une réponse au format standard de l'API Anthropic <code>/v1/messages</code> (champ <code>content[].text</code>). C'est déjà le contrat que suit ton Worker clone-proxy pour tes autres outils.</p>
+    </div>
+    <div id="directFields" style="display:none;">
+      <div class="field">
+        <label>Clé API Anthropic</label>
+        <input type="password" id="directApiKey" placeholder="sk-ant-...">
+      </div>
+      <p class="hint">La clé n'est stockée que dans une variable JavaScript en mémoire vive, jamais dans le localStorage ni sur disque. Elle est perdue dès que tu recharges ou fermes cette page — tu devras la recoller à chaque session. Comme la clé transite dans ce même navigateur, garde ce fichier HTML pour ton usage personnel uniquement.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">4</span> Réglages</h2>
+    <div class="row">
+      <div class="field">
+        <label>Langue source</label>
+        <select id="srcLang">
+          <option value="auto" selected>Détection automatique</option>
+          <option value="en">Anglais</option>
+          <option value="es">Espagnol</option>
+          <option value="de">Allemand</option>
+          <option value="it">Italien</option>
+          <option value="pt">Portugais</option>
+          <option value="nl">Néerlandais</option>
+          <option value="ru">Russe</option>
+          <option value="zh">Chinois</option>
+          <option value="ja">Japonais</option>
+          <option value="ar">Arabe</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Registre de traduction</label>
+        <select id="registre">
+          <option value="litteraire" selected>Littéraire (romans, récits)</option>
+          <option value="neutre">Neutre (documents, articles)</option>
+          <option value="technique">Technique (précision terminologique)</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:14px;">Le document est découpé en segments d'environ 2000 caractères pour respecter les limites de sortie de l'API. Le nombre de requêtes dépend donc de la longueur du texte — pour un roman entier, prévois plusieurs dizaines d'appels et quelques minutes.</p>
+    <div class="row" style="margin-top:16px;">
+      <div class="field">
+        <label>Chapitres à traiter cette fois (EPUB)</label>
+        <input type="text" id="chapterLimit" placeholder="Laisser vide = tous les chapitres restants">
+        <p class="hint">Pour un EPUB, chaque fichier du livre = un chapitre. Indique un nombre pour traiter seulement les N prochains chapitres non encore traduits, puis relance plus tard dans le même onglet pour continuer là où tu t'es arrêté.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">5</span> Lancer</h2>
+    <button class="primary" id="startBtn" disabled>Choisis d'abord un fichier</button>
+    <div class="progress-wrap" id="progressWrap" style="display:none;">
+      <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+      <div class="progress-label"><span id="progressText">En attente…</span><span id="progressCount"></span></div>
+      <button class="primary" id="partialBtn" style="background:var(--ink); margin-top:14px; display:none;">Télécharger la progression actuelle</button>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="result" id="result">
+      <div class="check">✓</div>
+      <h3 id="resultTitle">Traduction terminée</h3>
+      <p id="resultDesc">Ton EPUB en français est prêt.</p>
+      <a class="download" id="downloadLink" href="#" download>Télécharger l'EPUB</a>
+    </div>
+  </div>
+
+  <footer>
+    Outil interne C Concept&amp;Dev <span class="badge">usage personnel</span><br>
+    À utiliser uniquement sur des textes dont tu détiens les droits ou l'autorisation de traduction.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+<script>
+/* =========================================================
+   Traducteur EPUB/PDF/TXT -> Français
+   C Concept&Dev
+   ========================================================= */
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const TAG_RE = /§§§(\d+)§§§\s*([\s\S]*?)(?=§§§\d+§§§|$)/g;
+
+function buildTaggedPayload(texts) {
+  return texts.map((t, i) => `§§§${i + 1}§§§\n${t}`).join("\n\n");
+}
+
+function parseTaggedResponse(response, count) {
+  const results = new Array(count).fill(null);
+  let m;
+  TAG_RE.lastIndex = 0;
+  while ((m = TAG_RE.exec(response)) !== null) {
+    const idx = parseInt(m[1], 10) - 1;
+    if (idx >= 0 && idx < count) results[idx] = m[2].trim();
+  }
+  return results;
+}
+
+let state = {
+  file: null,
+  mode: "artifact",
+  translatedBlob: null,
+  outFilename: "document_fr.epub",
+  epubContext: null, // conserve la progression entre deux clics sur "Lancer" pour le même fichier
+  comicContext: null,
+};
+
+const partialBtn = document.getElementById("partialBtn");
+let currentPartialExporter = null; // fonction async assignée pendant un run, pour exporter l'état courant
+
+partialBtn.addEventListener("click", async () => {
+  if (!currentPartialExporter) return;
+  partialBtn.disabled = true;
+  partialBtn.textContent = "Préparation du fichier…";
+  try {
+    const { blob, filename } = await currentPartialExporter();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    log(`Téléchargement partiel généré : ${filename}`, "ok");
+  } catch (err) {
+    log(`Impossible de générer le téléchargement partiel : ${err.message}`, "err");
+  }
+  partialBtn.disabled = false;
+  partialBtn.textContent = "Télécharger la progression actuelle";
+});
+
+// ---------- UI wiring ----------
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+const filepillWrap = document.getElementById("filepillWrap");
+const startBtn = document.getElementById("startBtn");
+const modeToggle = document.getElementById("modeToggle");
+const docTypeToggle = document.getElementById("docTypeToggle");
+const comicOptions = document.getElementById("comicOptions");
+const dropHint = document.getElementById("dropHint");
+state.docType = "text";
+
+docTypeToggle.addEventListener("click", (e) => {
+  const t = e.target.closest(".toggle");
+  if (!t) return;
+  [...docTypeToggle.children].forEach((c) => c.classList.remove("active"));
+  t.classList.add("active");
+  state.docType = t.dataset.doctype;
+  if (state.docType === "comic") {
+    comicOptions.style.display = "block";
+    fileInput.setAttribute("accept", ".cbz,.zip,.jpg,.jpeg,.png,.webp");
+    dropHint.textContent = ".cbz · .zip d'images · .jpg/.png — une BD/manga à la fois";
+    document.querySelector('label[for="chapterLimit"], #chapterLimit').closest(".field").querySelector("label").textContent = "Pages à traiter cette fois";
+  } else {
+    comicOptions.style.display = "none";
+    fileInput.setAttribute("accept", ".epub,.pdf,.txt,.html,.htm");
+    dropHint.textContent = ".epub · .pdf · .txt · .html — un fichier à la fois";
+    document.querySelector('label[for="chapterLimit"], #chapterLimit').closest(".field").querySelector("label").textContent = "Chapitres à traiter cette fois (EPUB)";
+  }
+  state.file = null;
+  filepillWrap.innerHTML = "";
+  startBtn.disabled = true;
+  startBtn.textContent = "Choisis d'abord un fichier";
+});
+const proxyFields = document.getElementById("proxyFields");
+const directFields = document.getElementById("directFields");
+const progressWrap = document.getElementById("progressWrap");
+const barFill = document.getElementById("barFill");
+const progressText = document.getElementById("progressText");
+const progressCount = document.getElementById("progressCount");
+const logEl = document.getElementById("log");
+const resultEl = document.getElementById("result");
+const downloadLink = document.getElementById("downloadLink");
+const resultTitle = document.getElementById("resultTitle");
+const resultDesc = document.getElementById("resultDesc");
+
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  drop.classList.remove("drag");
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) setFile(fileInput.files[0]);
+});
+
+function setFile(f) {
+  state.file = f;
+  state.epubContext = null;
+  state.comicContext = null;
+  partialBtn.style.display = "none";
+  currentPartialExporter = null;
+  filepillWrap.innerHTML = `<span class="filepill">📄 ${f.name} · ${(f.size/1024/1024).toFixed(2)} Mo</span>`;
+  startBtn.disabled = false;
+  startBtn.textContent = "Lancer la traduction";
+}
+
+modeToggle.addEventListener("click", (e) => {
+  const t = e.target.closest(".toggle");
+  if (!t) return;
+  [...modeToggle.children].forEach((c) => c.classList.remove("active"));
+  t.classList.add("active");
+  state.mode = t.dataset.mode;
+  proxyFields.style.display = state.mode === "proxy" ? "block" : "none";
+  directFields.style.display = state.mode === "direct" ? "block" : "none";
+});
+
+startBtn.addEventListener("click", runTranslation);
+
+function log(msg, cls) {
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setProgress(done, total, label) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  barFill.style.width = pct + "%";
+  progressText.textContent = label || "Traduction en cours…";
+  progressCount.textContent = `${done} / ${total}`;
+}
+
+// ---------- Translation call ----------
+async function translateSegment(text, registre, srcLang) {
+  const registreInstr = {
+    litteraire: "Registre littéraire : préserve le style, le ton, le rythme des phrases et la voix narrative de l'auteur.",
+    neutre: "Registre neutre et clair, adapté à un document ou un article.",
+    technique: "Registre technique : privilégie la précision terminologique, cohérente d'un segment à l'autre.",
+  }[registre];
+
+  const langInstr = srcLang === "auto" ? "quelle que soit la langue source" : `depuis la langue source (code ${srcLang})`;
+
+  const system = `Tu es un traducteur professionnel. Traduis fidèlement en français ${langInstr}. ${registreInstr}
+Règles strictes :
+- Ne traduis QUE le contenu, sans ajouter de commentaire, note, préambule ou explication.
+- Le texte contient des segments précédés chacun d'une balise exacte du type "§§§N§§§" (N = un numéro). Tu DOIS renvoyer CHAQUE segment précédé de sa balise "§§§N§§§" identique (même numéro), un par ligne avant le texte traduit correspondant, dans le même ordre, sans en oublier aucun.
+- Ne fusionne jamais deux segments, ne divise jamais un segment. Chaque balise "§§§N§§§" doit apparaître exactement une fois dans ta réponse.
+- Conserve les balises HTML simples présentes dans un segment (comme <b>, <i>, <em>, <strong>) en les traduisant correctement autour du texte qu'elles entourent.
+- Si un segment est vide ou ne contient pas de texte traduisible (juste un espace ou un symbole), renvoie-le tel quel après sa balise.`;
+
+  const body = {
+    model: "claude-sonnet-4-6",
+    max_tokens: 1000,
+    system: system,
+    messages: [{ role: "user", content: text }],
+  };
+
+  let url = "https://api.anthropic.com/v1/messages";
+  let headers = { "Content-Type": "application/json" };
+
+  if (state.mode === "proxy") {
+    const endpoint = document.getElementById("endpointUrl").value.trim();
+    const key = sanitizeKey(document.getElementById("apiKey").value);
+    if (!endpoint) throw new Error("URL du endpoint proxy manquante.");
+    url = endpoint;
+    if (key) headers["Authorization"] = `Bearer ${key}`;
+  } else if (state.mode === "direct") {
+    const key = sanitizeKey(document.getElementById("directApiKey").value);
+    if (!key) throw new Error("Colle ta clé API Anthropic dans le champ prévu.");
+    headers["x-api-key"] = key;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => "");
+    throw new Error(`HTTP ${resp.status} ${t.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  const textBlocks = (data.content || []).filter((b) => b.type === "text").map((b) => b.text);
+  return textBlocks.join("\n");
+}
+
+// batch translate an array of raw strings, returns array of translated strings in same order
+async function translateBatch(segments, registre, srcLang, onProgress, onSegmentDone) {
+  const results = new Array(segments.length).fill("");
+  const CHAR_BUDGET = 2200;
+
+  // group segments into chunks under the char budget
+  let groups = [];
+  let cur = [];
+  let curLen = 0;
+  segments.forEach((s, i) => {
+    const len = s.length;
+    if (curLen + len > CHAR_BUDGET && cur.length > 0) {
+      groups.push(cur);
+      cur = [];
+      curLen = 0;
+    }
+    cur.push(i);
+    curLen += len;
+  });
+  if (cur.length) groups.push(cur);
+
+  let done = 0;
+  for (const group of groups) {
+    const joined = buildTaggedPayload(group.map((i) => segments[i]));
+    let translatedJoined;
+    try {
+      translatedJoined = await translateSegment(joined, registre, srcLang);
+    } catch (err) {
+      log(`Erreur sur un groupe de ${group.length} segment(s) : ${err.message}`, "err");
+      try {
+        await sleep(1500);
+        translatedJoined = await translateSegment(joined, registre, srcLang);
+      } catch (err2) {
+        log(`Échec définitif, segments laissés en langue source.`, "err");
+        group.forEach((i) => {
+          results[i] = segments[i];
+          if (onSegmentDone) onSegmentDone(i, results[i]);
+        });
+        done += group.length;
+        onProgress(done, segments.length);
+        continue;
+      }
+    }
+
+    const parsed = parseTaggedResponse(translatedJoined, group.length);
+    const missing = [];
+    parsed.forEach((t, idx) => {
+      if (t === null) missing.push(idx);
+      else {
+        results[group[idx]] = t;
+        if (onSegmentDone) onSegmentDone(group[idx], t);
+      }
+    });
+
+    if (missing.length > 0) {
+      // Correctif ciblé : on ne retraduit QUE les segments dont la balise
+      // n'a pas été retrouvée dans la réponse, un par un — plus rapide et
+      // plus fiable qu'une re-tentative sur tout le groupe.
+      log(`${missing.length} segment(s) sur ${group.length} sans balise retrouvée — retraduction ciblée.`, "err");
+      for (const idx of missing) {
+        const i = group[idx];
+        try {
+          const single = await translateSegment(buildTaggedPayload([segments[i]]), registre, srcLang);
+          const parsedSingle = parseTaggedResponse(single, 1);
+          results[i] = parsedSingle[0] !== null ? parsedSingle[0] : single.trim();
+        } catch (e) {
+          results[i] = segments[i];
+        }
+        if (onSegmentDone) onSegmentDone(i, results[i]);
+      }
+    }
+
+    done += group.length;
+    onProgress(done, segments.length);
+  }
+  return results;
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+function sanitizeKey(raw) {
+  if (!raw) return "";
+  // Retire tout caractère hors Latin-1 (guillemets typographiques, espaces
+  // insécables, emojis collés par erreur...) qui ferait planter les en-têtes HTTP,
+  // et supprime les espaces/retours à la ligne parasites d'un copier-coller.
+  const cleaned = raw.replace(/[^\x00-\xFF]/g, "").trim();
+  if (cleaned !== raw.trim()) {
+    log("Des caractères invisibles ont été retirés de la clé collée.", "ok");
+  }
+  return cleaned;
+}
+
+// ---------- EPUB output builder ----------
+async function buildEpub(title, author, chapters) {
+  // chapters: [{title, htmlBody}]
+  const zip = new JSZip();
+  zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+  zip.folder("META-INF").file("container.xml",
+`<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>`);
+
+  const oebps = zip.folder("OEBPS");
+  const uid = "urn:uuid:" + crypto.randomUUID();
+
+  chapters.forEach((ch, i) => {
+    oebps.file(`chap${i + 1}.xhtml`,
+`<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr">
+<head><meta charset="utf-8"/><title>${escapeXml(ch.title)}</title></head>
+<body><h1>${escapeXml(ch.title)}</h1>${ch.htmlBody}</body>
+</html>`);
+  });
+
+  const manifestItems = chapters.map((ch, i) =>
+    `<item id="chap${i+1}" href="chap${i+1}.xhtml" media-type="application/xhtml+xml"/>`).join("\n    ");
+  const spineItems = chapters.map((ch, i) => `<itemref idref="chap${i+1}"/>`).join("\n    ");
+  const navPoints = chapters.map((ch, i) =>
+    `<navPoint id="np${i+1}" playOrder="${i+1}"><navLabel><text>${escapeXml(ch.title)}</text></navLabel><content src="chap${i+1}.xhtml"/></navPoint>`).join("\n    ");
+
+  oebps.file("content.opf",
+`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <dc:title>${escapeXml(title)}</dc:title>
+    <dc:creator opf:role="aut">${escapeXml(author)}</dc:creator>
+    <dc:language>fr</dc:language>
+    <dc:identifier id="BookId">${uid}</dc:identifier>
+  </metadata>
+  <manifest>
+    ${manifestItems}
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    ${spineItems}
+  </spine>
+</package>`);
+
+  oebps.file("toc.ncx",
+`<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="${uid}"/></head>
+  <docTitle><text>${escapeXml(title)}</text></docTitle>
+  <navMap>
+    ${navPoints}
+  </navMap>
+</ncx>`);
+
+  return zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
+}
+
+function escapeXml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ---------- Input parsers ----------
+
+// EPUB: preserve structure, translate chapter by chapter with checkpointing
+async function parseAndTranslateEpub(file, registre, srcLang, onProgress, chapterLimit) {
+  const fileKey = file.name + "|" + file.size;
+  let ctx = state.epubContext && state.epubContext.key === fileKey ? state.epubContext : null;
+
+  if (!ctx) {
+    const zip = await JSZip.loadAsync(file);
+    const containerXml = await zip.file("META-INF/container.xml").async("string");
+    const opfPath = new DOMParser().parseFromString(containerXml, "application/xml")
+      .querySelector("rootfile").getAttribute("full-path");
+    const opfDir = opfPath.includes("/") ? opfPath.slice(0, opfPath.lastIndexOf("/") + 1) : "";
+    const opfXml = await zip.file(opfPath).async("string");
+    const opfDoc = new DOMParser().parseFromString(opfXml, "application/xml");
+
+    const manifest = {};
+    opfDoc.querySelectorAll("manifest > item").forEach((item) => {
+      manifest[item.getAttribute("id")] = item.getAttribute("href");
+    });
+    const spineIds = [...opfDoc.querySelectorAll("spine > itemref")].map((n) => n.getAttribute("idref"));
+    const titleText = (opfDoc.getElementsByTagName("dc:title")[0] || {}).textContent || file.name.replace(/\.epub$/i, "");
+
+    const BLOCK_SELECTOR = "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dt, dd, figcaption, caption";
+    const chapters = [];
+
+    for (const id of spineIds) {
+      const href = manifest[id];
+      if (!href) continue;
+      const fullPath = opfDir + href;
+      const f = zip.file(fullPath);
+      if (!f) continue;
+      const html = await f.async("string");
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const nodes = [...doc.querySelectorAll(BLOCK_SELECTOR)].filter(
+        (n) => n.textContent.trim().length > 0 && n.children.length <= 3
+      );
+      chapters.push({
+        fullPath,
+        doc,
+        nodes,
+        segments: nodes.map((n) => n.innerHTML.trim()),
+        done: nodes.length === 0, // chapitre sans texte = déjà "fait"
+      });
+    }
+
+    ctx = { key: fileKey, zip, opfPath, opfXml, titleText, chapters };
+    state.epubContext = ctx;
+    log(`EPUB analysé : ${ctx.chapters.length} chapitre(s), ${ctx.chapters.reduce((a, c) => a + c.segments.length, 0)} bloc(s) de texte au total.`);
+  } else {
+    log(`Reprise sur le même fichier : ${ctx.chapters.filter((c) => c.done).length}/${ctx.chapters.length} chapitre(s) déjà traduits.`);
+  }
+
+  // exporter utilisable à tout moment (même en cours de traduction)
+  currentPartialExporter = async () => {
+    const doneCount = ctx.chapters.filter((c) => c.done).length;
+    const blob = await buildEpubZipFromContext(ctx);
+    return { blob, filename: file.name.replace(/\.epub$/i, "") + `_fr_partiel_${doneCount}-${ctx.chapters.length}.epub` };
+  };
+  partialBtn.style.display = "inline-block";
+
+  const remaining = ctx.chapters.filter((c) => !c.done);
+  const toProcess = chapterLimit && chapterLimit > 0 ? remaining.slice(0, chapterLimit) : remaining;
+
+  const totalBlocks = toProcess.reduce((a, c) => a + c.segments.length, 0);
+  let blocksDone = 0;
+
+  for (let ci = 0; ci < toProcess.length; ci++) {
+    const chapter = toProcess[ci];
+    if (chapter.segments.length === 0) { chapter.done = true; continue; }
+
+    await translateBatch(
+      chapter.segments,
+      registre,
+      srcLang,
+      (d, t) => { onProgress(blocksDone + d, totalBlocks, `Chapitre ${ci + 1}/${toProcess.length} de ce lot…`); },
+      (i, translatedText) => {
+        const scratch = document.createElement("div");
+        scratch.innerHTML = translatedText;
+        chapter.nodes[i].innerHTML = scratch.innerHTML;
+      }
+    );
+    blocksDone += chapter.segments.length;
+    chapter.done = true;
+    log(`Chapitre traduit (${ctx.chapters.filter((c) => c.done).length}/${ctx.chapters.length} au total).`, "ok");
+  }
+
+  const allDone = ctx.chapters.every((c) => c.done);
+  const blob = await buildEpubZipFromContext(ctx);
+  const doneCount = ctx.chapters.filter((c) => c.done).length;
+  const filename = allDone
+    ? file.name.replace(/\.epub$/i, "") + "_fr.epub"
+    : file.name.replace(/\.epub$/i, "") + `_fr_partiel_${doneCount}-${ctx.chapters.length}.epub`;
+
+  if (allDone) {
+    state.epubContext = null; // libère la mémoire, terminé
+    partialBtn.style.display = "none";
+  }
+
+  return { blob, filename, allDone, doneCount, totalCount: ctx.chapters.length };
+}
+
+async function buildEpubZipFromContext(ctx) {
+  ctx.chapters.forEach(({ fullPath, doc }) => {
+    // Sérialisation XML stricte (balises auto-fermées, xmlns, entités
+    // échappées) : les liseuses comme Kobo lisent le contenu EPUB comme du
+    // XHTML strict et affichent une page blanche si le markup n'est pas
+    // parfaitement bien formé. Le parsing d'entrée reste tolérant (text/html)
+    // pour absorber les irrégularités du fichier original ou de la traduction,
+    // mais la sortie doit, elle, être du XML valide.
+    doc.documentElement.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+    const serialized = new XMLSerializer().serializeToString(doc.documentElement);
+    const out = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n' + serialized;
+    ctx.zip.file(fullPath, out);
+  });
+  let opfOut = ctx.opfXml
+    .replace(/<dc:language>.*?<\/dc:language>/, "<dc:language>fr</dc:language>")
+    .replace(/(<dc:title[^>]*>)(.*?)(<\/dc:title>)/, `$1${escapeXml(ctx.titleText)} (français)$3`);
+  if (!/<dc:language>/.test(opfOut)) {
+    opfOut = opfOut.replace("</metadata>", "<dc:language>fr</dc:language></metadata>");
+  }
+  ctx.zip.file(ctx.opfPath, opfOut);
+  return ctx.zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
+}
+
+// PDF: extract text per page, rebuild as fresh epub
+async function parseAndTranslatePdf(file, registre, srcLang, onProgress) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let rawPages = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const text = content.items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+    rawPages.push(text);
+  }
+  log(`PDF analysé : ${pdf.numPages} page(s).`);
+
+  // group pages into segments under budget, keep page boundaries roughly
+  const segments = [];
+  let cur = "";
+  rawPages.forEach((pText) => {
+    if ((cur + " " + pText).length > 1800 && cur) {
+      segments.push(cur.trim());
+      cur = pText;
+    } else {
+      cur = cur ? cur + " " + pText : pText;
+    }
+  });
+  if (cur.trim()) segments.push(cur.trim());
+
+  const translated = await translateBatch(segments, registre, srcLang, onProgress);
+  const title = file.name.replace(/\.pdf$/i, "");
+  const chapters = translated.map((t, i) => ({
+    title: `Section ${i + 1}`,
+    htmlBody: t.split(/\n{2,}/).map((p) => `<p>${escapeXml(p).replace(/\n/g, "<br/>")}</p>`).join("\n"),
+  }));
+  const blob = await buildEpub(title + " (français)", "", chapters);
+  return { blob, filename: title + "_fr.epub" };
+}
+
+// TXT / HTML fallback
+async function parseAndTranslateText(file, registre, srcLang, onProgress) {
+  const raw = await file.text();
+  const isHtml = /\.html?$/i.test(file.name);
+  let plain = raw;
+  if (isHtml) {
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    plain = doc.body ? doc.body.textContent : raw;
+  }
+  const paragraphs = plain.split(/\n{2,}|\r\n\r\n/).map((p) => p.trim()).filter(Boolean);
+  const segments = [];
+  let cur = "";
+  paragraphs.forEach((p) => {
+    if ((cur + "\n\n" + p).length > 1800 && cur) {
+      segments.push(cur);
+      cur = p;
+    } else {
+      cur = cur ? cur + "\n\n" + p : p;
+    }
+  });
+  if (cur) segments.push(cur);
+
+  log(`Texte analysé : ${paragraphs.length} paragraphe(s), regroupés en ${segments.length} segment(s).`);
+  const translated = await translateBatch(segments, registre, srcLang, onProgress);
+  const title = file.name.replace(/\.(txt|html?|htm)$/i, "");
+  const chapters = translated.map((t, i) => ({
+    title: `Section ${i + 1}`,
+    htmlBody: t.split(/\n{2,}/).map((p) => `<p>${escapeXml(p).replace(/\n/g, "<br/>")}</p>`).join("\n"),
+  }));
+  const blob = await buildEpub(title + " (français)", "", chapters);
+  return { blob, filename: title + "_fr.epub" };
+}
+
+// ---------- BD / Manga pipeline ----------
+
+let tesseractWorker = null;
+let tesseractWorkerLang = null;
+async function getTesseractWorker(lang) {
+  if (tesseractWorker && tesseractWorkerLang === lang) return tesseractWorker;
+  if (tesseractWorker) { try { await tesseractWorker.terminate(); } catch (e) {} }
+  tesseractWorker = await Tesseract.createWorker(lang);
+  tesseractWorkerLang = lang;
+  return tesseractWorker;
+}
+
+// ---- Détection de bulles par YOLO (modèle kitsumed/yolov8m_seg-speech-bubble, GPL-3.0) ----
+const YOLO_MODEL_URL = "https://huggingface.co/kitsumed/yolov8m_seg-speech-bubble/resolve/main/model_dynamic.onnx";
+const YOLO_INPUT_SIZE = 640;
+let yoloSessionPromise = null;
+
+function getYoloSession() {
+  if (!yoloSessionPromise) {
+    log("Téléchargement du modèle de détection de bulles (109 Mo, une seule fois)…");
+    yoloSessionPromise = ort.InferenceSession.create(YOLO_MODEL_URL, { executionProviders: ["wasm"] })
+      .then((s) => { log("Modèle de détection chargé.", "ok"); return s; })
+      .catch((err) => { yoloSessionPromise = null; throw err; });
+  }
+  return yoloSessionPromise;
+}
+
+function letterboxImage(img, size) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#727272";
+  ctx.fillRect(0, 0, size, size);
+  const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+  const nw = Math.round(img.naturalWidth * scale);
+  const nh = Math.round(img.naturalHeight * scale);
+  const ox = Math.floor((size - nw) / 2);
+  const oy = Math.floor((size - nh) / 2);
+  ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, ox, oy, nw, nh);
+  return { canvas, scale, ox, oy };
+}
+
+function iouBox(a, b) {
+  const x0 = Math.max(a.x0, b.x0), y0 = Math.max(a.y0, b.y0);
+  const x1 = Math.min(a.x1, b.x1), y1 = Math.min(a.y1, b.y1);
+  const inter = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+  const areaA = (a.x1 - a.x0) * (a.y1 - a.y0), areaB = (b.x1 - b.x0) * (b.y1 - b.y0);
+  return inter / (areaA + areaB - inter || 1);
+}
+
+function nmsBoxes(boxes, iouThresh) {
+  boxes.sort((a, b) => b.conf - a.conf);
+  const kept = [];
+  for (const b of boxes) {
+    if (!kept.some((k) => iouBox(b, k) > iouThresh)) kept.push(b);
+  }
+  return kept;
+}
+
+async function detectBubblesYolo(img) {
+  const session = await getYoloSession();
+  const size = YOLO_INPUT_SIZE;
+  const { canvas, scale, ox, oy } = letterboxImage(img, size);
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.getImageData(0, 0, size, size).data;
+  const chw = new Float32Array(3 * size * size);
+  for (let i = 0; i < size * size; i++) {
+    chw[i] = imgData[i * 4] / 255;
+    chw[size * size + i] = imgData[i * 4 + 1] / 255;
+    chw[2 * size * size + i] = imgData[i * 4 + 2] / 255;
+  }
+  const tensor = new ort.Tensor("float32", chw, [1, 3, size, size]);
+  const inputName = session.inputNames[0];
+  const results = await session.run({ [inputName]: tensor });
+  const output = results[session.outputNames[0]];
+  const N = output.dims[2];
+  const data = output.data;
+
+  const boxes = [];
+  for (let i = 0; i < N; i++) {
+    const conf = data[4 * N + i];
+    if (conf < 0.3) continue;
+    const cx = data[0 * N + i], cy = data[1 * N + i], w = data[2 * N + i], h = data[3 * N + i];
+    const x0 = (cx - w / 2 - ox) / scale, y0 = (cy - h / 2 - oy) / scale;
+    const x1 = (cx + w / 2 - ox) / scale, y1 = (cy + h / 2 - oy) / scale;
+    boxes.push({
+      x0: Math.max(0, x0), y0: Math.max(0, y0),
+      x1: Math.min(img.naturalWidth, x1), y1: Math.min(img.naturalHeight, y1),
+      conf,
+    });
+  }
+  return nmsBoxes(boxes, 0.45);
+}
+
+async function ocrCrop(img, bbox, worker) {
+  const w = Math.max(1, Math.round(bbox.x1 - bbox.x0));
+  const h = Math.max(1, Math.round(bbox.y1 - bbox.y0));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, bbox.x0, bbox.y0, w, h, 0, 0, w, h);
+  const { data } = await worker.recognize(canvas);
+  return data.text.trim().replace(/\s+/g, " ");
+}
+
+function naturalSort(a, b) {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+async function extractComicPages(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (ext === "cbz" || ext === "zip") {
+    const zip = await JSZip.loadAsync(file);
+    const names = Object.keys(zip.files)
+      .filter((n) => !zip.files[n].dir && /\.(jpe?g|png|webp)$/i.test(n))
+      .sort(naturalSort);
+    const pages = [];
+    for (const name of names) {
+      const blob = await zip.file(name).async("blob");
+      pages.push({ name, blob });
+    }
+    return pages;
+  }
+  // image seule
+  return [{ name: file.name, blob: file }];
+}
+
+async function loadImageBitmapSafe(blob) {
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error("Image illisible : " + blob.name));
+    img.src = url;
+  });
+  return img;
+}
+
+// dessine un texte français dans une boîte, en réduisant la taille tant que ça déborde
+function drawWrappedText(ctx, text, x, y, w, h) {
+  const padding = 4;
+  const innerW = w - padding * 2;
+  let fontSize = Math.max(10, Math.min(28, Math.floor(h / 3)));
+  let lines = [];
+
+  while (fontSize >= 8) {
+    ctx.font = `${fontSize}px sans-serif`;
+    lines = [];
+    const words = text.split(/\s+/);
+    let line = "";
+    for (const word of words) {
+      const test = line ? line + " " + word : word;
+      if (ctx.measureText(test).width > innerW && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    const totalH = lines.length * (fontSize * 1.15);
+    if (totalH <= h - padding * 2 || fontSize <= 8) break;
+    fontSize -= 1;
+  }
+
+  ctx.fillStyle = "#111";
+  ctx.textBaseline = "top";
+  let ty = y + padding + Math.max(0, (h - padding * 2 - lines.length * fontSize * 1.15) / 2);
+  lines.forEach((line) => {
+    const lw = ctx.measureText(line).width;
+    ctx.fillText(line, x + padding + Math.max(0, (innerW - lw) / 2), ty);
+    ty += fontSize * 1.15;
+  });
+}
+
+async function translateComicPage(img, blocks, registre, ocrLang) {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+
+  if (blocks.length > 0) {
+    const texts = blocks.map((b) => b.text);
+    const langMap = { jpn: "ja", eng: "en", fra: "fr", kor: "ko", chi_sim: "zh" };
+    const translated = await translateBatch(texts, registre, langMap[ocrLang] || "auto", () => {}, null);
+
+    blocks.forEach((b, i) => {
+      const { x0, y0, x1, y1 } = b.bbox;
+      const w = x1 - x0, h = y1 - y0;
+      // recouvre le texte original d'un cadre blanc (pas d'inpainting : le
+      // dessin sous le texte original n'est pas reconstitué)
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
+      ctx.strokeStyle = "#ddd";
+      ctx.strokeRect(x0 - 2, y0 - 2, w + 4, h + 4);
+      drawWrappedText(ctx, translated[i], x0, y0, w, h);
+    });
+  }
+
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.92));
+}
+
+async function parseAndTranslateComic(file, registre, ocrLang, readingDir, bubbleMethod, onProgress, pageLimit) {
+  const fileKey = file.name + "|" + file.size;
+  let ctx = state.comicContext && state.comicContext.key === fileKey ? state.comicContext : null;
+
+  if (!ctx) {
+    log("Extraction des pages…");
+    const rawPages = await extractComicPages(file);
+    ctx = {
+      key: fileKey,
+      pages: rawPages.map((p) => ({ name: p.name, blob: p.blob, done: false, outBlob: null })),
+      readingDir,
+    };
+    state.comicContext = ctx;
+    log(`BD/Manga analysé : ${ctx.pages.length} page(s) détectée(s).`);
+  } else {
+    log(`Reprise sur le même fichier : ${ctx.pages.filter((p) => p.done).length}/${ctx.pages.length} page(s) déjà traduites.`);
+  }
+
+  currentPartialExporter = async () => {
+    const doneCount = ctx.pages.filter((p) => p.done).length;
+    const blob = await buildCbzFromContext(ctx);
+    return { blob, filename: file.name.replace(/\.(cbz|zip)$/i, "") + `_fr_partiel_${doneCount}-${ctx.pages.length}.cbz` };
+  };
+  partialBtn.style.display = "inline-block";
+
+  const remaining = ctx.pages.filter((p) => !p.done);
+  const toProcess = pageLimit && pageLimit > 0 ? remaining.slice(0, pageLimit) : remaining;
+  const ocrWorker = await getTesseractWorker(ocrLang);
+
+  for (let i = 0; i < toProcess.length; i++) {
+    const page = toProcess[i];
+    onProgress(i, toProcess.length, `Analyse page ${i + 1}/${toProcess.length}…`);
+    try {
+      const img = await loadImageBitmapSafe(page.blob);
+      let blocks = [];
+
+      if (bubbleMethod === "yolo") {
+        onProgress(i, toProcess.length, `Détection des bulles (YOLO) page ${i + 1}/${toProcess.length}…`);
+        const boxes = await detectBubblesYolo(img);
+        onProgress(i, toProcess.length, `OCR de ${boxes.length} bulle(s) page ${i + 1}/${toProcess.length}…`);
+        for (const box of boxes) {
+          const text = await ocrCrop(img, box, ocrWorker);
+          if (text.length > 1) blocks.push({ text, bbox: box });
+        }
+      } else {
+        onProgress(i, toProcess.length, `OCR page ${i + 1}/${toProcess.length}…`);
+        const { data } = await ocrWorker.recognize(img);
+        blocks = (data.paragraphs || data.blocks || [])
+          .filter((b) => b.text && b.text.trim().length > 1)
+          .map((b) => ({ text: b.text.trim().replace(/\s+/g, " "), bbox: b.bbox }));
+      }
+
+      onProgress(i, toProcess.length, `Traduction page ${i + 1}/${toProcess.length}…`);
+      page.outBlob = await translateComicPage(img, blocks, registre, ocrLang);
+      page.done = true;
+      log(`Page traduite (${ctx.pages.filter((p) => p.done).length}/${ctx.pages.length} au total, ${blocks.length} bloc(s) de texte).`, "ok");
+    } catch (err) {
+      log(`Page "${page.name}" ignorée (erreur : ${err.message}).`, "err");
+      page.outBlob = page.blob; // on garde la page originale plutôt que de bloquer tout le lot
+      page.done = true;
+    }
+    onProgress(i + 1, toProcess.length, "Page terminée");
+  }
+
+  const allDone = ctx.pages.every((p) => p.done);
+  const blob = await buildCbzFromContext(ctx);
+  const doneCount = ctx.pages.filter((p) => p.done).length;
+  const filename = allDone
+    ? file.name.replace(/\.(cbz|zip)$/i, "") + "_fr.cbz"
+    : file.name.replace(/\.(cbz|zip)$/i, "") + `_fr_partiel_${doneCount}-${ctx.pages.length}.cbz`;
+
+  if (allDone) {
+    state.comicContext = null;
+    partialBtn.style.display = "none";
+  }
+
+  return { blob, filename, allDone, doneCount, totalCount: ctx.pages.length };
+}
+
+async function buildCbzFromContext(ctx) {
+  const zip = new JSZip();
+  const pad = String(ctx.pages.length).length;
+  for (let i = 0; i < ctx.pages.length; i++) {
+    const p = ctx.pages[i];
+    const src = p.outBlob || p.blob;
+    const num = String(i + 1).padStart(pad, "0");
+    zip.file(`page_${num}.jpg`, src);
+  }
+  return zip.generateAsync({ type: "blob", mimeType: "application/vnd.comicbook+zip" });
+}
+
+
+async function runTranslation() {
+  if (!state.file) return;
+  startBtn.disabled = true;
+  startBtn.textContent = "Traduction en cours…";
+  progressWrap.style.display = "block";
+  resultEl.classList.remove("show");
+  logEl.innerHTML = "";
+  partialBtn.style.display = "none";
+  currentPartialExporter = null;
+  setProgress(0, 1, "Analyse du fichier…");
+
+  const registre = document.getElementById("registre").value;
+  const srcLang = document.getElementById("srcLang").value;
+  const ext = state.file.name.split(".").pop().toLowerCase();
+  const chapterLimitRaw = document.getElementById("chapterLimit").value.trim();
+  const chapterLimit = chapterLimitRaw ? parseInt(chapterLimitRaw, 10) : 0;
+
+  const onProgress = (done, total, label) => setProgress(done, total, label || "Traduction des segments…");
+
+  try {
+    let out;
+    if (state.docType === "comic") {
+      const ocrLang = document.getElementById("ocrLang").value;
+      const readingDir = document.getElementById("readingDir").value;
+      const bubbleMethod = document.getElementById("bubbleMethod").value;
+      out = await parseAndTranslateComic(state.file, registre, ocrLang, readingDir, bubbleMethod, onProgress, chapterLimit);
+    } else if (ext === "epub") {
+      out = await parseAndTranslateEpub(state.file, registre, srcLang, onProgress, chapterLimit);
+    } else if (ext === "pdf") {
+      out = await parseAndTranslatePdf(state.file, registre, srcLang, onProgress);
+      out.allDone = true;
+    } else {
+      out = await parseAndTranslateText(state.file, registre, srcLang, onProgress);
+      out.allDone = true;
+    }
+
+    downloadLink.href = URL.createObjectURL(out.blob);
+    downloadLink.download = out.filename;
+
+    const outExt = out.filename.split(".").pop().toUpperCase();
+    if (out.allDone) {
+      log(`Traduction terminée, ${outExt} reconstruit.`, "ok");
+      resultTitle.textContent = "Traduction terminée";
+      resultDesc.textContent = out.filename;
+      downloadLink.textContent = `Télécharger le ${outExt}`;
+      startBtn.textContent = "Traduire un autre fichier";
+      partialBtn.style.display = "none";
+    } else {
+      log(`Lot terminé : ${out.doneCount}/${out.totalCount} ${state.docType === "comic" ? "pages" : "chapitres"} traduit(e)s. Reclique sur "Lancer" pour continuer.`, "ok");
+      resultTitle.textContent = `${out.doneCount}/${out.totalCount} ${state.docType === "comic" ? "pages" : "chapitres"} traduit(e)s`;
+      resultDesc.textContent = "Ce n'est pas fini — tu peux télécharger cette version partielle, ou recliquer sur \"Lancer\" pour continuer sur la suite (dans ce même onglet).";
+      downloadLink.textContent = `Télécharger la version partielle (${outExt})`;
+      startBtn.textContent = "Continuer la traduction";
+    }
+    resultEl.classList.add("show");
+    startBtn.disabled = false;
+  } catch (err) {
+    console.error(err);
+    log(`Erreur fatale : ${err.message}`, "err");
+    progressText.textContent = "Échec de la traduction — voir le journal ci-dessus.";
+    startBtn.textContent = "Réessayer";
+    startBtn.disabled = false;
+  }
+}
+
+</script>
+</body>
+</html>
