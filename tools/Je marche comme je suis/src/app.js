@@ -9,7 +9,7 @@
   const { assessTerrainEvidence, absentTerrainEvidence } = globalThis.JMMJSTerrainEvidenceCore;
   const { summarizeOverpassTerrain, applyOverpassTerrain, markOverpassUnavailable } = globalThis.JMMJSOverpassTerrainCore;
   const { applyIgnElevationControl, markIgnUnavailable } = globalThis.JMMJSIgnElevationCore;
-  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS, ROUTING_POI_LABELS } = globalThis.JMMJSServicesCore;
+  const { assessRequiredServices, applyServiceAssessment, assessWishPois, applyWishPoiAssessment, WISH_POI_LABELS } = globalThis.JMMJSServicesCore;
   const { mergeTourismPois, describePoi } = globalThis.JMMJSTourismServicesCore;
   const { summarizeForecast, assessForecast, applyWeatherAssessment } = globalThis.JMMJSWeatherCore;
   const {
@@ -3830,7 +3830,7 @@
   }
   async function fetchPoiTargets(c, target, req) {
     const wishPois = (req.preferences || []).filter((wish) =>
-      ROUTING_POI_LABELS.includes(wish),
+      WISH_POI_LABELS.includes(wish),
     );
     if (!wishPois.length) return [];
     const radiusMeters = Math.max(300, Math.min(Math.round(target / 2), 3000));
