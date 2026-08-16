@@ -367,7 +367,7 @@ test("D-020 affiche une synthèse éditable avant tout appel ORS", () => {
   assert.match(app, /function constraintSummaryModel/);
   assert.match(app, /function renderConstraintSummary/);
   assert.match(app, /Limites à respecter/);
-  assert.match(app, /Préférences prudentes et envies/);
+  assert.match(app, /Préférences et envies/);
   assert.match(app, /Préparation et contrôles/);
   assert.match(app, /data-edit-step/);
   assert.match(app, /if \(S\.step === 3\) renderConstraintSummary\(\)/);
