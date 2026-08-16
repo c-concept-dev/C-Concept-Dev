@@ -1,6 +1,6 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-16T19:30:16.521Z",
+  "generatedAt": "2026-08-16T19:46:58.612Z",
   "counts": {
     "visibleFields": 46,
     "choiceGroups": 4,
@@ -133,30 +133,6 @@
       "note": "Fermeture contrôlée après calcul."
     },
     {
-      "id": "returnDeadlineEnabled",
-      "kind": "field",
-      "effect": "generation-context",
-      "severity": "information",
-      "requiredData": [
-        "clock"
-      ],
-      "unknownPolicy": "allow-disabled",
-      "status": "unreviewed",
-      "note": "État fonctionnel non qualifié."
-    },
-    {
-      "id": "returnTime",
-      "kind": "field",
-      "effect": "generation-audit",
-      "severity": "imperative",
-      "requiredData": [
-        "clock"
-      ],
-      "unknownPolicy": "block",
-      "status": "complete",
-      "note": "Réduit le budget disponible."
-    },
-    {
       "id": "duration",
       "kind": "field",
       "effect": "generation-audit",
@@ -203,6 +179,30 @@
       "unknownPolicy": "use-prudent-default",
       "status": "complete",
       "note": "Transforme le budget de marche en cible de distance."
+    },
+    {
+      "id": "returnDeadlineEnabled",
+      "kind": "field",
+      "effect": "generation-context",
+      "severity": "information",
+      "requiredData": [
+        "clock"
+      ],
+      "unknownPolicy": "allow-disabled",
+      "status": "unreviewed",
+      "note": "État fonctionnel non qualifié."
+    },
+    {
+      "id": "returnTime",
+      "kind": "field",
+      "effect": "generation-audit",
+      "severity": "imperative",
+      "requiredData": [
+        "clock"
+      ],
+      "unknownPolicy": "block",
+      "status": "complete",
+      "note": "Réduit le budget disponible."
     },
     {
       "id": "age",
