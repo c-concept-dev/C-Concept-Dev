@@ -1712,9 +1712,9 @@ html,body{max-width:100%;overflow-x:hidden}
             <option>Seulement aujourd’hui</option>
           </select>
         </label>
-        <label class="option-tile limitation-field-wide"><input id="limitationConfirmed" type="checkbox"><span><strong>Je confirme cette limite</strong><small>À traiter comme une contrainte impérative, pas seulement une gêne possible.</small></span></label>
+        <label class="option-tile limitation-field-wide"><input id="limitationConfirmed" type="checkbox"><span><strong>Je confirme cette limite</strong><small>Cette limite devra être respectée lors de la recherche de la balade, pas seulement une gêne possible.</small></span></label>
       </div>
-      <fieldset class="imperative-options"><legend>Contraintes impératives</legend>
+      <fieldset class="imperative-options"><legend>Limites à respecter</legend>
         <label class="imperative-choice"><input id="noStairs" type="checkbox"><span>Aucun escalier</span></label>
         <label class="imperative-choice"><input id="noExposure" type="checkbox"><span>Aucun passage exposé</span></label>
       </fieldset>
@@ -3618,6 +3618,7 @@ html,body{max-width:100%;overflow-x:hidden}
     "Pique-nique",
     "Patrimoine",
     "Curiosité locale",
+    "Banc",
   ]);
 
   // Les envies naturelles ajoutées en D099A sont auditées et utilisées pour
@@ -7924,7 +7925,7 @@ html,body{max-width:100%;overflow-x:hidden}
     return output;
   }
 
-  function createOverpassProvider({ client }) {
+  function createOverpassProvider({ client, nearestRouteDistance }) {
     if (!client || typeof client.post !== "function") {
       throw new TypeError("L’adaptateur Overpass exige un client de services.");
     }
@@ -7932,7 +7933,7 @@ html,body{max-width:100%;overflow-x:hidden}
       id: "overpass",
       kind: "terrain-proof",
       label: "Overpass / OpenStreetMap",
-      capabilities: Object.freeze(["surface", "smoothness", "width", "steps", "foot-access"]),
+      capabilities: Object.freeze(["surface", "smoothness", "width", "steps", "foot-access", "benches"]),
       async inspect({ route, bufferMeters = 25, maxPoints = 80 }) {
         const coordinates = route?.coords;
         if (!Array.isArray(coordinates) || coordinates.length < 2) {
@@ -7963,6 +7964,50 @@ html,body{max-width:100%;overflow-x:hidden}
           routes: items,
         });
         return Array.isArray(data?.results) ? data.results : [];
+      },
+      async enrich({ route, radiusMeters = 300, limit = 40 }) {
+        const coordinates = route?.coords;
+        if (!Array.isArray(coordinates) || coordinates.length < 2) {
+          throw new TypeError("Trace invalide pour l’enrichissement Overpass (bancs).");
+        }
+        if (typeof nearestRouteDistance !== "function") {
+          throw new TypeError("L’adaptateur Overpass (bancs) exige nearestRouteDistance.");
+        }
+        const simplifiedRoute = simplifyCoordinates(coordinates, 80);
+        const data = await client.post("overpass", "/overpass/benches", {
+          route: simplifiedRoute,
+          bufferMeters: radiusMeters,
+        });
+        const items = [
+          ...(Array.isArray(data?.benches)
+            ? data.benches.map((b) => ({ ...b, type: "Banc" }))
+            : []),
+          ...(Array.isArray(data?.picnicTables)
+            ? data.picnicTables.map((p) => ({ ...p, type: "Pique-nique" }))
+            : []),
+        ];
+        const unique = new Map();
+        for (const item of items) {
+          const point = [Number(item.lon), Number(item.lat)];
+          if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) continue;
+          const distance = Math.round(nearestRouteDistance(point, coordinates));
+          if (distance > radiusMeters) continue;
+          const id = `${item.type}:${point[0].toFixed(5)},${point[1].toFixed(5)}`;
+          if (!unique.has(id)) {
+            unique.set(id, {
+              id,
+              type: item.type,
+              name: item.type,
+              distance,
+              lon: point[0],
+              lat: point[1],
+              accessibility: item.backrest ? "documented" : "unknown",
+            });
+          }
+        }
+        return [...unique.values()]
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, limit);
       },
     });
   }
@@ -8777,7 +8822,7 @@ html,body{max-width:100%;overflow-x:hidden}
     globalThis.JMMJSORSProvider.createORSProvider({ client: serviceClient }),
   );
   peripherals.register(
-    globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient }),
+    globalThis.JMMJSOverpassProvider.createOverpassProvider({ client: serviceClient, nearestRouteDistance }),
   );
   peripherals.register(
     globalThis.JMMJSIgnElevationProvider.createIgnElevationProvider({ client: serviceClient }),
@@ -9319,7 +9364,7 @@ html,body{max-width:100%;overflow-x:hidden}
         "Temps utilisable",
         `${Math.round(compiled.time.walkingBudgetMinutes)} min de marche, ${Math.round(compiled.time.pauseMinutes)} min de pauses et ${Math.round(compiled.time.marginMinutes)} min de marge`,
         "Durée, pauses, marge et heure limite",
-        "Impératif",
+        "À respecter",
         0,
         "Aucun parcours dépassant ce budget ne sera déclaré compatible.",
       ),
@@ -9327,30 +9372,30 @@ html,body{max-width:100%;overflow-x:hidden}
         "Retour",
         returnLabel,
         "Choix du départ",
-        "Impératif",
+        "À respecter",
         0,
       ),
     );
     if (compiled.hard.maxUp !== null)
-      imperative.push(summaryItem("Pente montante maximale", `${compiled.hard.maxUp} %`, "Réglage d’effort", "Impératif", 2));
+      imperative.push(summaryItem("Pente montante maximale", `${compiled.hard.maxUp} %`, "Réglage d’effort", "À respecter", 2));
     if (compiled.hard.maxDown !== null)
-      imperative.push(summaryItem("Pente descendante maximale", `${compiled.hard.maxDown} %`, "Réglage d’effort", "Impératif", 2));
+      imperative.push(summaryItem("Pente descendante maximale", `${compiled.hard.maxDown} %`, "Réglage d’effort", "À respecter", 2));
     if (request.effort?.maxContinuousAscentMinutes)
-      imperative.push(summaryItem("Montée continue maximale", request.effort.maxContinuousAscentMinutes === "none" ? "aucune montée" : `${request.effort.maxContinuousAscentMinutes} min`, "Choix direct ou règle D-024 confirmée", "Impératif", 2));
+      imperative.push(summaryItem("Montée continue maximale", request.effort.maxContinuousAscentMinutes === "none" ? "aucune montée" : `${request.effort.maxContinuousAscentMinutes} min`, "Choix direct ou règle D-024 confirmée", "À respecter", 2));
     if (request.effort?.maxContinuousDescentMinutes)
-      imperative.push(summaryItem("Descente continue maximale", request.effort.maxContinuousDescentMinutes === "none" ? "aucune descente" : `${request.effort.maxContinuousDescentMinutes} min`, "Choix direct ou règle D-024 confirmée", "Impératif", 2));
+      imperative.push(summaryItem("Descente continue maximale", request.effort.maxContinuousDescentMinutes === "none" ? "aucune descente" : `${request.effort.maxContinuousDescentMinutes} min`, "Choix direct ou règle D-024 confirmée", "À respecter", 2));
     if (request.effort?.recovery)
-      imperative.push(summaryItem("Récupération après effort", request.effort.recovery, "Choix direct", "Impératif", 2, "Une récupération non prouvée restera invérifiable."));
+      imperative.push(summaryItem("Récupération après effort", request.effort.recovery, "Choix direct", "À respecter", 2, "Une récupération non prouvée restera invérifiable."));
     if (compiled.hard.avoidStairs)
-      imperative.push(summaryItem("Escaliers", "à éviter dès la génération puis à contrôler", request.hardConstraints?.avoidStairs ? "Interdiction explicite" : "Limitation ou équipement", "Impératif", request.hardConstraints?.avoidStairs ? 3 : 1, "Une donnée absente restera invérifiable."));
+      imperative.push(summaryItem("Escaliers", "à éviter dès la génération puis à contrôler", request.hardConstraints?.avoidStairs ? "Interdiction explicite" : "Limitation ou équipement", "À respecter", request.hardConstraints?.avoidStairs ? 3 : 1, "Une donnée absente restera invérifiable."));
     if (compiled.hard.avoidExposure)
-      imperative.push(summaryItem("Passages exposés", "à éviter", request.hardConstraints?.avoidExposure ? "Interdiction explicite" : "Limitation déclarée", "Impératif", request.hardConstraints?.avoidExposure ? 3 : 1, "Une preuve insuffisante conduira à « À vérifier »."));
+      imperative.push(summaryItem("Passages exposés", "à éviter", request.hardConstraints?.avoidExposure ? "Interdiction explicite" : "Limitation déclarée", "À respecter", request.hardConstraints?.avoidExposure ? 3 : 1, "Une preuve insuffisante conduira à « À vérifier »."));
     if (compiled.hard.requireRegular)
-      imperative.push(summaryItem("Terrain régulier", "obligatoire", request.terrain?.includes("Terrain régulier") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Terrain régulier") ? 2 : 1, "Si la régularité n’est pas documentée, le parcours ne sera pas déclaré compatible."));
+      imperative.push(summaryItem("Terrain régulier", "obligatoire", request.terrain?.includes("Terrain régulier") ? "Choix de terrain" : "Équipement de mobilité", "À respecter", request.terrain?.includes("Terrain régulier") ? 2 : 1, "Si la régularité n’est pas documentée, le parcours ne sera pas déclaré compatible."));
     if (compiled.hard.requireWide)
-      imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "Impératif", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
+      imperative.push(summaryItem("Chemin large", "obligatoire", request.terrain?.includes("Chemin large") ? "Choix de terrain" : "Équipement de mobilité", "À respecter", request.terrain?.includes("Chemin large") ? 2 : 1, "La largeur absente restera invérifiable."));
     if (compiled.hard.requiredServices.length)
-      imperative.push(summaryItem("Services requis", compiled.hard.requiredServices.join(", "), "Services ou pauses", "Impératif", 2, "Ils devront être documentés avant une qualification compatible."));
+      imperative.push(summaryItem("Services requis", compiled.hard.requiredServices.join(", "), "Services ou pauses", "À respecter", 2, "Ils devront être documentés avant une qualification compatible."));
 
     if (compiled.advisory.maxUp !== null)
       preferences.push(summaryItem("Montée prudente", `privilégier une pente autour de ${compiled.advisory.maxUp} % ou moins`, "Limitation fonctionnelle", "Préférence prudente", 1));
@@ -9379,7 +9424,7 @@ html,body{max-width:100%;overflow-x:hidden}
           describeFunctionalLimitation(request.functionalLimitation),
           "Réglage confirmé par l’utilisateur",
           request.derivedFunctionalRules?.some((rule) => rule.severity === "imperative")
-            ? "Impératif"
+            ? "À respecter"
             : "Préférence prudente",
           1,
           "Le moteur utilise les conséquences déclarées, sans poser de diagnostic.",
@@ -9443,7 +9488,7 @@ html,body{max-width:100%;overflow-x:hidden}
 
     const sensitiveGroups = [];
     if (model.imperative.length)
-      sensitiveGroups.push(renderSummaryGroup("Contraintes impératives", model.imperative, "imperative"));
+      sensitiveGroups.push(renderSummaryGroup("Limites à respecter", model.imperative, "imperative"));
     const limitationItems = model.preparation.filter((item) =>
       /Conséquence fonctionnelle|Équipement|Chaussures/i.test(item.label),
     );
@@ -10637,12 +10682,13 @@ html,body{max-width:100%;overflow-x:hidden}
     button.disabled = true;
     button.textContent = "Recherche…";
     try {
-      const [geoResult, tourismResult] = await Promise.all([
+      const [geoResult, tourismResult, benchesResult] = await Promise.all([
         resilientService({ name: "geo", key: `pois:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => geoapifyProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
         resilientService({ name: "tourism", key: `tourism:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => datatourismeProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
+        resilientService({ name: "overpass", key: `benches:${r.name}:${r.coords.length}`, allowRetry: true, allowCache: true, operation: () => overpassProvider.enrich({ route: r, radiusMeters: 300, limit: 50 }) }),
       ]);
-      if (!geoResult.ok && !tourismResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
-      const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
+      if (!geoResult.ok && !tourismResult.ok && !benchesResult.ok) { showServiceDiagnostic("geo", geoResult, { target: E.poiContent, retryAction: "pois" }); return; }
+      const pois = mergeTourismPois([geoResult.ok ? geoResult.value : [], tourismResult.ok ? tourismResult.value : [], benchesResult.ok ? benchesResult.value : []], { maxDistanceMeters: 300, maxDetourMeters: 600 });
       r.pois = pois;
       r.poiEvidenceLoaded = true;
       renderPoiDisplay(r);
