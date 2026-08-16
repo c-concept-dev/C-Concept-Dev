@@ -10,7 +10,7 @@ test("les champs de limitation reprennent le langage visuel du formulaire", () =
   assert.match(template, /Où êtes-vous gêné \?/);
   assert.match(template, /Qu’est-ce qui déclenche la gêne \?/);
   assert.match(template, /number-with-unit/);
-  assert.match(template, /Contraintes impératives/);
+  assert.match(template, /Limites à respecter/);
 });
 
 test("Prudence et repli disparaît de la préparation", () => {
