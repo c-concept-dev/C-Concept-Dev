@@ -747,6 +747,36 @@ function orsEnvelope(outcome, status, extra = {}) {
   };
 }
 __name(orsEnvelope, "orsEnvelope");
+function validatePoiTargets(value) {
+  if (value === void 0 || value === null) return [];
+  if (!Array.isArray(value)) throw new HTTPError(400, "Cibles POI invalides.");
+  if (value.length > 15) throw new HTTPError(400, "Trop de cibles POI demand\xE9es.");
+  return value.map((point, index) => {
+    if (!Array.isArray(point) || point.length < 2)
+      throw new HTTPError(400, `Cible POI ${index + 1} invalide.`);
+    const lon = finiteNumber(point[0], "Longitude POI");
+    const lat = finiteNumber(point[1], "Latitude POI");
+    if (Math.abs(lon) > 180 || Math.abs(lat) > 90)
+      throw new HTTPError(400, `Cible POI ${index + 1} hors limites.`);
+    return [lon, lat];
+  });
+}
+__name(validatePoiTargets, "validatePoiTargets");
+function routeMatchesPoi(coordinates, poiTargets, radiusMeters) {
+  if (!poiTargets.length) return false;
+  return poiTargets.some((poi) => {
+    let best = Infinity;
+    for (let index = 1; index < coordinates.length; index += 1) {
+      const start = coordinates[index - 1];
+      const end = coordinates[index];
+      if (![...start, ...end].every(Number.isFinite)) continue;
+      best = Math.min(best, pointSegmentDistanceMeters(poi, start, end));
+      if (best <= radiusMeters) return true;
+    }
+    return false;
+  });
+}
+__name(routeMatchesPoi, "routeMatchesPoi");
 async function handleORSRoundTrips(request, env, origin) {
   if (!env.ORS_API_KEY)
     return json(
@@ -773,12 +803,37 @@ async function handleORSRoundTrips(request, env, origin) {
   if (Math.abs(lon) > 180 || Math.abs(lat) > 90 || target < 500 || target > 3e4) {
     return json(orsEnvelope("invalid-request", 400), 400, origin);
   }
+  let poiTargets;
+  try {
+    poiTargets = validatePoiTargets(body.poiTargets);
+  } catch {
+    poiTargets = [];
+  }
+  const poiRadiusMeters = Math.max(
+    20,
+    Math.min(150, Number(body.poiRadiusMeters) || 60)
+  );
+  const seekingPoi = poiTargets.length > 0;
   const routing = sanitizeORSRouting(body);
   const routes = [];
   const failureTypes = [];
   let requestCount = 0;
   let providerFailure = null;
-  batches: for (let offset = 0; offset < ORS_SEEDS.length && routes.length < ORS_BATCH_SIZE; offset += ORS_BATCH_SIZE) {
+  let poiMatchFound = false;
+  // Sans cible POI : comportement inchangé, on s'arrête dès qu'on a assez de
+  // boucles. Avec des cibles POI : on continue d'essayer les graines
+  // restantes tant qu'aucune boucle trouvée ne passe réellement à proximité
+  // — jamais de détour ni de géométrie modifiée, seulement plus de tentatives
+  // parmi les graines déjà prévues. On s'arrête dès qu'une correspondance
+  // réelle est trouvée, ou faute de mieux, une fois toutes les graines
+  // épuisées — le repli se fait alors silencieusement sur les meilleures
+  // boucles obtenues, sans jamais échouer ni forcer quoi que ce soit.
+  batches: for (
+    let offset = 0;
+    offset < ORS_SEEDS.length &&
+    (seekingPoi ? !poiMatchFound : routes.length < ORS_BATCH_SIZE);
+    offset += ORS_BATCH_SIZE
+  ) {
     const seeds = ORS_SEEDS.slice(offset, offset + ORS_BATCH_SIZE);
     const settled = await Promise.allSettled(
       seeds.map(
@@ -809,6 +864,9 @@ async function handleORSRoundTrips(request, env, origin) {
       const feature = result.value?.features?.[0];
       if (feature?.geometry?.type === "LineString" && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length >= 2) {
         routes.push(feature);
+        if (seekingPoi && routeMatchesPoi(feature.geometry.coordinates, poiTargets, poiRadiusMeters)) {
+          poiMatchFound = true;
+        }
       } else {
         failureTypes.push("no-route");
       }
@@ -816,6 +874,15 @@ async function handleORSRoundTrips(request, env, origin) {
     if (!routes.length && failureTypes.length && failureTypes.every((type) => type === "no-routable-start")) {
       break;
     }
+    if (seekingPoi && poiMatchFound) break;
+    if (seekingPoi && routes.length >= ORS_SEEDS.length) break;
+  }
+  if (seekingPoi && routes.length) {
+    routes.sort((a, b) => {
+      const aMatch = routeMatchesPoi(a.geometry.coordinates, poiTargets, poiRadiusMeters) ? 1 : 0;
+      const bMatch = routeMatchesPoi(b.geometry.coordinates, poiTargets, poiRadiusMeters) ? 1 : 0;
+      return bMatch - aMatch;
+    });
   }
   if (providerFailure) {
     const upstreamStatus = providerFailure?.upstreamStatus;
@@ -840,6 +907,8 @@ async function handleORSRoundTrips(request, env, origin) {
         imperativesPreserved: routing.imperativesPreserved,
         preferencesApplied: routing.preferencesApplied,
         preferencesIgnored: routing.preferencesIgnored,
+        poiTargeted: seekingPoi,
+        poiMatchFound: seekingPoi ? poiMatchFound : null,
         retryable: false
       },
       200,
