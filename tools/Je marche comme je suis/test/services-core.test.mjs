@@ -31,18 +31,15 @@ test("une recherche indisponible reste inconnue", () => {
   assert.equal(result.status, "unknown");
 });
 
-test("la couverture mobile n'est jamais inventée", () => {
-  const result = core.assessRequiredServices(
-    ["Réseau téléphonique"],
-    [{ type: "Réseau téléphonique" }],
-    { searched: true },
-  );
-  assert.equal(result.status, "unknown");
+test("la couverture mobile n'est plus proposée tant qu'aucune source réelle n'est câblée", () => {
+  const result = core.normalizeServices(["Réseau téléphonique"]);
+  assert.deepEqual([...result], []);
 });
 
 test("une inconnue impérative transforme compatible en à vérifier", () => {
-  const assessment = core.assessRequiredServices(["Réseau téléphonique"], [], {
-    searched: true,
+  const assessment = core.assessRequiredServices(["Eau potable"], [], {
+    searched: false,
+    providerAvailable: false,
   });
   const route = core.applyServiceAssessment(
     { checks: [], proposalStatus: "compatible", canNavigate: true },
