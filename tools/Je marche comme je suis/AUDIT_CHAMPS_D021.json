@@ -1,10 +1,10 @@
 {
   "version": "D-021",
-  "generatedAt": "2026-08-16T07:19:45.466Z",
+  "generatedAt": "2026-08-16T07:48:28.322Z",
   "counts": {
     "visibleFields": 44,
     "choiceGroups": 5,
-    "visibleChoices": 62,
+    "visibleChoices": 61,
     "complete": 33,
     "partial": 16
   },
@@ -630,7 +630,6 @@
         "Rivière",
         "Lac",
         "Forêt",
-        "Village",
         "Patrimoine",
         "Curiosité locale",
         "Ombre",
