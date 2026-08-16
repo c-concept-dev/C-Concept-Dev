@@ -116,3 +116,23 @@ test("D092C applyWishPoiAssessment remplace les anciens contrôles d'envie sans 
   assert.equal(matches.length, 1);
   assert.equal(matches[0].status, "respected");
 });
+
+
+test("D099A Rivière, Lac et Forêt deviennent des envies POI auditables", () => {
+  const result = core.assessWishPois(
+    ["Rivière", "Lac", "Forêt"],
+    [{ type: "Rivière" }, { type: "Lac" }, { type: "Forêt" }],
+    { searched: true },
+  );
+  assert.equal(result.checks.length, 3);
+  assert.ok(result.checks.every((check) => check.status === "respected"));
+});
+
+test("D099A les envies nature n'augmentent pas encore le routage ORS ciblé", () => {
+  assert.ok(core.WISH_POI_LABELS.includes("Rivière"));
+  assert.ok(core.WISH_POI_LABELS.includes("Lac"));
+  assert.ok(core.WISH_POI_LABELS.includes("Forêt"));
+  assert.ok(!core.ROUTING_POI_LABELS.includes("Rivière"));
+  assert.ok(!core.ROUTING_POI_LABELS.includes("Lac"));
+  assert.ok(!core.ROUTING_POI_LABELS.includes("Forêt"));
+});
