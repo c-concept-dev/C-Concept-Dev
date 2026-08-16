@@ -689,6 +689,66 @@
     setResultsFreshness();
   });
 
+  // D101 — Les envies restent toutes câblées, mais l’interface n’en montre
+  // jamais plus de huit simultanément. Le thème ne modifie ni la sélection
+  // persistante ni les données envoyées au moteur : il ne fait que filtrer
+  // les contrôles visibles.
+  const WISH_THEME_LABELS = Object.freeze({
+    nature: "Nature & paysages",
+    discovery: "Patrimoine & curiosités",
+    gourmet: "Pause & gourmandise",
+    ambience: "Ambiance",
+  });
+
+  function updateWishThemeSummary() {
+    const selected = chosen("wishes");
+    const count = $("#wishSelectionCount");
+    const themeCount = $("#wishThemeCount");
+    const select = $("[data-wish-theme-select]");
+    const freshAir = $("#freshAirOnly")?.getAttribute("aria-pressed") === "true";
+    if (count) {
+      count.textContent = freshAir
+        ? "Juste prendre l’air"
+        : selected.length === 0
+          ? "Aucune envie choisie"
+          : `${selected.length} envie${selected.length > 1 ? "s" : ""} choisie${selected.length > 1 ? "s" : ""}`;
+    }
+    if (themeCount && select) {
+      const visible = $$('[data-group="wishes"] [data-wish-theme]').filter((chip) => !chip.hidden);
+      themeCount.textContent = `${visible.length} choix · ${WISH_THEME_LABELS[select.value] || select.options[select.selectedIndex]?.text || "thème"}`;
+    }
+  }
+
+  function applyWishTheme(theme) {
+    const normalized = WISH_THEME_LABELS[theme] ? theme : "nature";
+    $$('[data-group="wishes"] [data-wish-theme]').forEach((chip) => {
+      chip.hidden = chip.dataset.wishTheme !== normalized;
+    });
+    const select = $("[data-wish-theme-select]");
+    if (select && select.value !== normalized) select.value = normalized;
+    updateWishThemeSummary();
+  }
+
+  $("[data-wish-theme-select]")?.addEventListener("change", (event) => {
+    applyWishTheme(event.currentTarget.value);
+  });
+  $("#wishThemeGrid")?.addEventListener("click", () => {
+    requestAnimationFrame(updateWishThemeSummary);
+  });
+  $("#freshAirOnly")?.addEventListener("click", () => {
+    requestAnimationFrame(updateWishThemeSummary);
+  });
+  applyWishTheme($("[data-wish-theme-select]")?.value || "nature");
+
+  const wishThemeGrid = $("#wishThemeGrid");
+  if (wishThemeGrid && typeof MutationObserver !== "undefined") {
+    new MutationObserver(updateWishThemeSummary).observe(wishThemeGrid, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  }
+
   $$(".next").forEach((b) => (b.onclick = () => go(S.step + 1)));
   $$(".prev").forEach((b) => (b.onclick = () => go(S.step - 1)));
   $$("[data-go]").forEach((b) => (b.onclick = () => go(+b.dataset.go)));
