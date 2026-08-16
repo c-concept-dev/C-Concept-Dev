@@ -22,6 +22,13 @@
     "Pique-nique",
     "Patrimoine",
     "Curiosité locale",
+    "Verger ou vignoble",
+    "Arbre remarquable",
+    "Cascade",
+    "Grotte",
+    "Œuvre d'art",
+    "Petit patrimoine",
+    "Glacier",
   ]);
 
   // Les envies naturelles ajoutées en D099A sont auditées et utilisées pour
