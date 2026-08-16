@@ -12,9 +12,11 @@ test('les limitations avancées sont repliées par défaut', () => {
 });
 
 test('la vérification présente un résumé puis les réglages à la demande', () => {
-  assert.match(app, /Votre balade en résumé/);
-  assert.match(app, /Afficher tous les réglages/);
-  assert.match(app, /summary-essentials/);
+  assert.match(app, /Un dernier coup d’œil suffit/);
+  assert.match(app, /Voir tous les détails/);
+  assert.match(app, /review-grid-compact/);
+  assert.match(app, /Terrain & envies/);
+  assert.match(app, /Besoins/);
 });
 
 test('le changement d’étape replace le mobile au début du formulaire', () => {
