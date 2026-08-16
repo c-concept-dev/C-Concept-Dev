@@ -65,7 +65,8 @@ const IMPLEMENTATION_STATUS = Object.freeze({
   weather: ["partial", "Prévision horaire analysée ; la couverture réelle dépend encore du service et de sa fraîcheur."],
   wishes: ["partial", "Classement partiel ; plusieurs envies nécessitent des POI avant sélection."],
   pauses: ["complete", "Budget conservé et pauses positionnées sur la géométrie ; les lieux non prouvés restent invérifiables."],
-  services: ["partial", "Les services impératifs sont audités ; disponibilité, horaires et accessibilité restent dépendants des sources."],
+  benchRequiredInterval: ["complete", "Quand le banc est nécessaire, la répartition des bancs OSM documentés est comparée à la fréquence demandée."],
+  services: ["partial", "D100C2 distingue souhait et nécessité et les câble au classement/contrôle ; horaires, accessibilité et exhaustivité restent dépendants des sources."],
   freeText: ["partial", "Texte explicatif uniquement tant qu’il n’est pas confirmé en paramètres."],
   strict: ["complete", "Empêche les assouplissements silencieux."],
   shortcuts: ["complete", "Replis sur ses pas calculés sur la géométrie réelle ; raccourcis seulement aux points de passage communs prouvés."],
@@ -82,7 +83,7 @@ const IMPLEMENTATION_STATUS = Object.freeze({
 });
 
 function severityFor(id, entry) {
-  if (["returnRadius", "returnTime", "duration", "timeIncludes", "margin", "footwear", "noStairs", "noExposure", "services", "strict", "gpxFile"].includes(id)) return "imperative";
+  if (["returnRadius", "returnTime", "duration", "timeIncludes", "margin", "footwear", "noStairs", "noExposure", "services", "benchRequiredInterval", "strict", "gpxFile"].includes(id)) return "imperative";
   if (["fatigue", "pain", "balance", "equipment", "limits", "ascentMinutes", "upSlope", "downSlope", "recovery", "shortcuts", "bothWays"].includes(id)) return "conditional";
   if (["effort", "terrain", "wishes", "level", "fitness"].includes(id)) return "preference";
   if (["age", "company", "painDetail", "weather", "pauses", "freeText", "private"].includes(id)) return "preparation";
