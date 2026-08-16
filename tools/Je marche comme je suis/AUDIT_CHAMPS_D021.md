@@ -4,7 +4,7 @@
 
 ## Résumé
 
-- Champs visibles : **45**
+- Champs visibles : **46**
 - Groupes de choix : **4**
 - Choix visibles : **58**
 - Entrées complètes : **34**
@@ -23,6 +23,7 @@
 | lat | field | generation | information | coordinate | fallback-place | complete | Coordonnée utilisée par la génération. |
 | lon | field | generation | information | coordinate | fallback-place | complete | Coordonnée utilisée par la génération. |
 | returnRadius | field | audit | imperative | geometry | block | complete | Fermeture contrôlée après calcul. |
+| returnDeadlineEnabled | field | generation-context | information | clock | allow-disabled | unreviewed | État fonctionnel non qualifié. |
 | returnTime | field | generation-audit | imperative | clock | block | complete | Réduit le budget disponible. |
 | duration | field | generation-audit | imperative | duration | block | complete | Plafond audité sur la durée réelle. |
 | timeIncludes | field | generation-audit | imperative | pause-plan | block | complete | Détermine les composantes incluses dans le budget. |
