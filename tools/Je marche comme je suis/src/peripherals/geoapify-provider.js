@@ -16,8 +16,6 @@
     if (categories.some((value) => value.includes("restaurant"))) return "Restaurant";
     if (categories.some((value) => value.includes("cafe"))) return "Café";
     if (categories.some((value) => value.includes("viewpoint"))) return "Point de vue";
-    if (categories.some((value) => value.includes("natural.water.river_system") || value.includes("waterway.river_system"))) return "Rivière";
-    if (categories.some((value) => value.includes("natural.forest"))) return "Forêt";
     if (categories.some((value) => value.includes("picnic"))) return "Pique-nique";
     if (categories.some((value) => value.startsWith("tourism.attraction")))
       return "Curiosité locale";
