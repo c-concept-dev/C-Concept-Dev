@@ -713,6 +713,31 @@
           ? "Aucune envie choisie"
           : `${selected.length} envie${selected.length > 1 ? "s" : ""} choisie${selected.length > 1 ? "s" : ""}`;
     }
+    const selectedStrip = $("#wishSelectedStrip");
+    const selectedList = $("#wishSelectedList");
+    if (selectedStrip && selectedList) {
+      selectedList.replaceChildren();
+      if (!freshAir && selected.length) {
+        selectedStrip.hidden = false;
+        selected.forEach((label) => {
+          const pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "wish-selected-pill";
+          pill.textContent = label;
+          pill.setAttribute("aria-label", `Retirer l’envie ${label}`);
+          pill.addEventListener("click", () => {
+            const chip = $$('[data-group="wishes"] .chip').find((item) => item.textContent.trim() === label);
+            if (chip) chip.classList.remove("active");
+            updateWishThemeSummary();
+            updateLiveSummary();
+            setResultsFreshness();
+          });
+          selectedList.appendChild(pill);
+        });
+      } else {
+        selectedStrip.hidden = true;
+      }
+    }
     if (themeCount && select) {
       const visible = $$('[data-group="wishes"] [data-wish-theme]').filter((chip) => !chip.hidden);
       themeCount.textContent = `${visible.length} choix · ${WISH_THEME_LABELS[select.value] || select.options[select.selectedIndex]?.text || "thème"}`;
@@ -749,6 +774,55 @@
     });
   }
 
+  function updateDisclosureSummaries() {
+    const gearSummary = $("#gearSummary");
+    const footwear = val("#footwear").trim();
+    const equipment = chosen("equipment");
+    if (gearSummary) {
+      const parts = [];
+      if (footwear) parts.push(footwear);
+      if (equipment.length) parts.push(`${equipment.length} équipement${equipment.length > 1 ? "s" : ""}`);
+      gearSummary.textContent = parts.length ? parts.join(" · ") : "À préciser si nécessaire";
+    }
+    const limits = chosen("limits");
+    const limitSummary = $("#limitationsSummary");
+    if (limitSummary) limitSummary.textContent = limits.length ? `${limits.length} limite${limits.length > 1 ? "s" : ""} indiquée${limits.length > 1 ? "s" : ""}` : "Aucune limite indiquée";
+    const disclosure = $("#limitationsDisclosure");
+    if (disclosure && limits.length) disclosure.open = true;
+  }
+
+  function syncPainDetailVisibility() {
+    const wrap = $("#painDetailWrap");
+    if (!wrap) return;
+    const show = Number(val("#pain") || 0) > 0 || Boolean(val("#painDetail").trim());
+    wrap.hidden = !show;
+  }
+
+  function syncTimeIncludesSwitch() {
+    const select = $("#timeIncludes");
+    if (!select) return;
+    $$('[data-time-includes]').forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.timeIncludes === select.value));
+    });
+  }
+
+  $$('[data-time-includes]').forEach((button) => {
+    button.addEventListener("click", () => {
+      const select = $("#timeIncludes");
+      if (!select) return;
+      select.value = button.dataset.timeIncludes;
+      syncTimeIncludesSwitch();
+      updateLiveSummary();
+      setResultsFreshness();
+    });
+  });
+  syncTimeIncludesSwitch();
+  $("#pain")?.addEventListener("input", syncPainDetailVisibility);
+  $("#painDetail")?.addEventListener("input", syncPainDetailVisibility);
+  $("#footwear")?.addEventListener("change", updateDisclosureSummaries);
+  syncPainDetailVisibility();
+  updateDisclosureSummaries();
+
   $$(".next").forEach((b) => (b.onclick = () => go(S.step + 1)));
   $$(".prev").forEach((b) => (b.onclick = () => go(S.step - 1)));
   $$("[data-go]").forEach((b) => (b.onclick = () => go(+b.dataset.go)));
@@ -761,6 +835,7 @@
         if (b.closest('[data-group="limits"]'))
           updateLimitationStructureVisibility();
         if (b.closest('[data-group="terrain"]')) syncTerrainChoiceCards();
+        if (b.closest('[data-group="limits"]') || b.closest('[data-group="equipment"]')) updateDisclosureSummaries();
         updateLiveSummary();
         setResultsFreshness();
       }),
@@ -953,7 +1028,22 @@
       input.disabled = !enabled;
       if (!enabled) input.value = "";
     }
+    $$('[data-deadline-state]').forEach((button) => {
+      const active = enabled ? button.dataset.deadlineState === "required" : button.dataset.deadlineState === "none";
+      button.setAttribute("aria-pressed", String(active));
+    });
   }
+  $$('[data-deadline-state]').forEach((button) => {
+    button.addEventListener("click", () => {
+      const toggle = $("#returnDeadlineEnabled");
+      if (!toggle) return;
+      toggle.checked = button.dataset.deadlineState === "required";
+      syncReturnDeadline();
+      updateLiveSummary();
+      setResultsFreshness();
+      if (toggle.checked) $("#returnTime")?.focus();
+    });
+  });
   if ($("#returnDeadlineEnabled")) {
     $("#returnDeadlineEnabled").addEventListener("change", syncReturnDeadline);
     syncReturnDeadline();
@@ -1532,6 +1622,8 @@
     setChecked("#noExposure", saved.hardConstraints?.avoidExposure);
     setChecked("#shortcuts", saved.options?.shortcuts);
     setChecked("#bothWays", saved.options?.compareDirections);
+    updateDisclosureSummaries();
+    updateWishThemeSummary();
     return true;
   }
 
