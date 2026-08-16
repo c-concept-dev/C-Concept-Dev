@@ -22,9 +22,9 @@ for (const [name, source] of [["build", html], ["template", template]]) {
   test(`${name}: le retour à heure fixe appartient au bloc Combien de temps et se déplie par case à cocher`, () => {
     const form = formOf(source);
     assert.doesNotMatch(form, /Retour impératif/i);
-    const card = form.match(/<div class="card"><h3>Combien de temps \?<\/h3>[\s\S]*?<\/div><div class="nav">/)?.[0] || "";
+    const card = form.match(/<div class="card time-card"><h3>Combien de temps \?<\/h3>[\s\S]*?<\/div><div class="nav">/)?.[0] || "";
     assert.match(card, /id="returnDeadlineEnabled"[^>]*type="checkbox"/);
-    assert.match(card, /Je dois être rentré à une heure précise/);
+    assert.match(card, /data-deadline-state="required"/);
     assert.match(card, /id="returnDeadlineTime" hidden/);
     assert.match(card, /id="returnTime" type="time"/);
   });
