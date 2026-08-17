@@ -44,6 +44,7 @@
     return {
       bodyAreas: [],
       side: null,
+      areaSides: [],
       triggers: [],
       temporal: {},
       needs: [],
@@ -61,6 +62,7 @@
     return {
       bodyAreas: arr(value.bodyAreas),
       side: typeof value.side === "string" ? value.side : null,
+      areaSides: arr(value.areaSides),
       triggers: arr(value.triggers),
       temporal: obj(value.temporal),
       needs: arr(value.needs),
@@ -150,6 +152,47 @@
       if (entry.re.test(text) && !areas.includes(entry.area)) areas.push(entry.area);
     }
     return areas;
+  }
+
+  // Appariement zone ↔ côté, clause par clause, par proximité — complète
+  // (sans le remplacer) le côté global `side` de D102A, qui reste correct
+  // pour une phrase à une seule zone mais efface les côtés distincts d'une
+  // phrase à plusieurs zones ("genou gauche et hanche droite" → deux zones,
+  // un seul côté global perdu). Pour chaque occurrence de zone dans une
+  // clause, on retient le mot de côté le plus proche EN CARACTÈRES dans
+  // cette même clause. Si aucun côté n'est trouvé dans la clause, ou si
+  // plusieurs zones se disputent le même mot de côté le plus proche à
+  // égalité, le côté de cette zone reste `null` — jamais de choix arbitraire
+  // silencieux.
+  function pairBodyAreasWithSides(text) {
+    const clauses = splitClauses(text);
+    const pairs = [];
+    for (const clause of clauses) {
+      const sideMatches = [];
+      for (const entry of SIDE_PATTERNS) {
+        if (entry.side === "Bilatéral") continue; // traité par le côté global
+        const re = new RegExp(entry.re.source, "gi");
+        let m;
+        while ((m = re.exec(clause))) sideMatches.push({ side: entry.side, index: m.index });
+      }
+      for (const entry of BODY_AREA_PATTERNS) {
+        const re = new RegExp(entry.re.source, "gi");
+        let m;
+        while ((m = re.exec(clause))) {
+          if (!sideMatches.length) {
+            pairs.push({ area: entry.area, side: null });
+            continue;
+          }
+          const nearest = sideMatches.reduce((best, candidate) => {
+            const dist = Math.abs(candidate.index - m.index);
+            const bestDist = Math.abs(best.index - m.index);
+            return dist < bestDist ? candidate : best;
+          }, sideMatches[0]);
+          pairs.push({ area: entry.area, side: nearest.side });
+        }
+      }
+    }
+    return pairs;
   }
 
   const TERRAIN_TRIGGER_PATTERNS = Object.freeze([
@@ -347,12 +390,26 @@
 
     const laterality = extractLaterality(normalized.clean);
     const bodyAreas = extractBodyAreas(normalized.clean);
+    const areaSides = pairBodyAreasWithSides(normalized.clean);
     const terrain = extractTerrainTriggers(normalized.clean);
     const durationInfo = extractDurations(normalized.clean);
     const pauseNeeds = extractPauseNeeds(normalized.clean);
     const painQualifiers = extractPainQualifiers(normalized.clean);
 
-    const uncertain = [...laterality.uncertain, ...durationInfo.uncertain];
+    // Le message d'ambiguïté globale de laterality.uncertain reste utile
+    // quand une zone n'a reçu aucun côté distinct (ex. une seule zone,
+    // deux côtés mentionnés sans lien clair). Il devient trompeur quand
+    // l'appariement par clause a résolu un côté propre à chaque zone
+    // ("genou gauche et hanche droite") : dans ce cas précis, on le
+    // retire plutôt que de signaler une ambiguïté déjà levée.
+    const areaSidesFullyResolved =
+      areaSides.length > 0 && areaSides.every((p) => p.side !== null);
+    const lateralityUncertain =
+      areaSidesFullyResolved && bodyAreas.length > 1
+        ? laterality.uncertain.filter((m) => !m.includes("côté ambigu"))
+        : laterality.uncertain;
+
+    const uncertain = [...lateralityUncertain, ...durationInfo.uncertain];
     if (terrain.conflicting.length)
       uncertain.push(
         `mentions contradictoires pour : ${terrain.conflicting.join(", ")}`,
@@ -370,6 +427,7 @@
     return normalizeCandidateInterpretation({
       bodyAreas,
       side: laterality.side,
+      areaSides,
       triggers,
       temporal: durationInfo.durations.length
         ? { durations: durationInfo.durations }
