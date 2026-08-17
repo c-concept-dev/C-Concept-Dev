@@ -855,6 +855,8 @@
     const chipsHost = $("#painInterpretationChips");
     const uncertainWrap = $("#painInterpretationUncertain");
     const uncertainList = $("#painInterpretationUncertainList");
+    const conflictWrap = $("#painInterpretationConflict");
+    const conflictList = $("#painInterpretationConflictList");
     const emptyMsg = $("#painInterpretationEmpty");
     if (!textarea || !panel || !chipsHost) return;
     const core = globalThis.JMMJSFreeTextInterpretationCore;
@@ -866,11 +868,19 @@
     }
     const candidate = core.interpretFreeText(text);
     lastPainCandidate = candidate;
+    // D102E — confrontation aux champs structurés déjà renseignés
+    // (painIntensity, limitations manuelles). Ne fait jamais de mutation :
+    // uniquement des signaux affichés, à arbitrer par l'utilisateur.
+    const structuredFields = { painIntensity: num("#pain"), limits: chosen("limits") };
+    const coherenceIssues = core.detectCoherenceIssues(candidate, structuredFields);
+    const contradictions = coherenceIssues.filter((issue) => issue.type === "contradiction");
+    const duplicates = coherenceIssues.filter((issue) => issue.type === "duplicate");
     const items = painInterpretationItems(candidate).filter(
       (item) => !painInterpretationRemoved.has(item.id),
     );
     const hasUncertain = candidate.uncertain.length > 0;
-    if (!items.length && !hasUncertain) {
+    const hasConflict = contradictions.length > 0 || duplicates.length > 0;
+    if (!items.length && !hasUncertain && !hasConflict) {
       panel.hidden = true;
       if (emptyMsg) emptyMsg.hidden = false;
       return;
@@ -902,6 +912,15 @@
         const li = document.createElement("li");
         li.textContent = message;
         uncertainList.appendChild(li);
+      });
+    }
+    if (conflictWrap && conflictList) {
+      conflictWrap.hidden = !hasConflict;
+      conflictList.innerHTML = "";
+      [...contradictions, ...duplicates].forEach((issue) => {
+        const li = document.createElement("li");
+        li.textContent = issue.message;
+        conflictList.appendChild(li);
       });
     }
   }
