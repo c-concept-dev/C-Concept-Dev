@@ -1,0 +1,21 @@
+{
+  "id": "human-001",
+  "provenance": "beta-user",
+  "text": "Mon genou gauche me gêne surtout dans les descentes après vingt minutes et j'aime bien pouvoir m'asseoir.",
+  "structured": {
+    "painIntensity": 4,
+    "limits": []
+  },
+  "oracle": {
+    "side": "Gauche",
+    "bodyAreas": ["Genoux"],
+    "positiveTerrain": ["Descente"],
+    "negativeTerrain": [],
+    "durationMinutes": [20],
+    "pauseNeed": true,
+    "painConflict": false,
+    "limitsConflict": false,
+    "uncertain": false
+  },
+  "notes": "Exemple de schéma uniquement — ne pas compter comme donnée réelle."
+}
