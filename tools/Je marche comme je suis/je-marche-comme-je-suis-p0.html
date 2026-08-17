@@ -987,6 +987,20 @@ body.journey-started .landing-exact{display:none!important}
 .free-text-toggle>summary{cursor:pointer;list-style:none;font-family:var(--font-heading);font-size:12px;font-weight:600;color:var(--sage)}
 .free-text-toggle>summary::-webkit-details-marker{display:none}
 .free-text-content{margin-top:8px}
+.pain-interpretation{margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt)}
+.pain-interpretation-title,.pain-interpretation-subtitle{font-size:12px;font-weight:600;color:var(--text-heading);margin:0 0 6px}
+.pain-interpretation-subtitle{margin-top:10px}
+.pain-interpretation-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pain-interpretation-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;background:var(--sage);color:var(--surface);font-size:12px}
+.pain-interpretation-chip-remove{background:transparent;border:0;color:inherit;font-size:13px;line-height:1;cursor:pointer;padding:0 0 0 2px}
+.pain-interpretation-uncertain-list,.pain-interpretation-conflict-list{margin:0;padding-left:18px;font-size:12px;color:var(--text-body)}
+.pain-interpretation-conflict-list{color:var(--terracotta)}
+.pain-interpretation-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pain-interpretation-actions button{min-height:36px;padding:0 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.pain-interpretation-actions .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text-body)}
+.pain-interpretation-actions .btn-primary{background:var(--sage);border:1px solid var(--sage);color:var(--surface)}
+.pain-interpretation-actions .btn-primary[aria-pressed="true"]{background:var(--sage-hover);border-color:var(--sage-hover)}
+.pain-interpretation-empty{margin-top:8px;font-size:12px;color:var(--text-muted)}
 .privacy-options-compact{padding:10px 12px;display:flex;flex-direction:column;gap:4px}
 .privacy-options-compact .option-tile-inline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-body);cursor:pointer;min-height:auto;border:0;background:transparent;padding:0}
 .privacy-options-compact .helper{font-size:11px;color:var(--text-muted);margin-top:2px}
@@ -1801,7 +1815,7 @@ html,body{max-width:100%;overflow-x:hidden}
                       class="input textarea"
                       id="painDetail"
                       placeholder="Genou gauche surtout en descente…"
-                    ></textarea></div></div><details class="card mobile-disclosure" id="gearDisclosure"><summary><span><strong>Chaussures & équipement</strong><small id="gearSummary">À préciser si nécessaire</small></span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="disclosure-body"><p>Elles ne compensent jamais une limitation physique.</p><div class="field"><label>Chaussures</label
+                    ></textarea><div class="pain-interpretation" id="painInterpretation" hidden><p class="pain-interpretation-title">Voici ce que j’ai compris</p><div class="pain-interpretation-chips" id="painInterpretationChips"></div><div class="pain-interpretation-uncertain" id="painInterpretationUncertain" hidden><p class="pain-interpretation-subtitle">J’ai besoin de préciser un point</p><ul class="pain-interpretation-uncertain-list" id="painInterpretationUncertainList"></ul></div><div class="pain-interpretation-conflict" id="painInterpretationConflict" hidden><p class="pain-interpretation-subtitle">À vérifier</p><ul class="pain-interpretation-conflict-list" id="painInterpretationConflictList"></ul></div><div class="pain-interpretation-actions"><button type="button" class="btn-secondary" id="painInterpretationModify">Modifier</button><button type="button" class="btn-primary" id="painInterpretationConfirm">Prendre en compte</button></div></div><p class="pain-interpretation-empty" id="painInterpretationEmpty" hidden>Je n’ai pas identifié de contrainte précise dans ce texte.</p></div></div><details class="card mobile-disclosure" id="gearDisclosure"><summary><span><strong>Chaussures & équipement</strong><small id="gearSummary">À préciser si nécessaire</small></span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="disclosure-body"><p>Elles ne compensent jamais une limitation physique.</p><div class="field"><label>Chaussures</label
                     ><select class="input" id="footwear"><option value="">Choisir…</option><option>Pieds nus</option><option>Tongs ou claquettes</option><option>Sandales</option><option>Chaussures de ville</option><option>Sneakers</option><option>Baskets classiques</option><option>Running</option><option>Trail</option><option>Randonnée basses</option><option>Randonnée montantes</option></select></div><div class="field"><span class="legend">Équipement</span><div class="chips group" data-group="equipment"><button class="chip">Canne</button
                       ><button class="chip">Bâtons</button
                       ><button class="chip">Déambulateur</button
@@ -9904,6 +9918,127 @@ html,body{max-width:100%;overflow-x:hidden}
     wrap.hidden = !show;
   }
 
+  // D102C — UX "Voici ce que j'ai compris". Lit le texte libre, l'interprète
+  // via la Couche 1 déterministe (D102B) et affiche des chips retirables
+  // individuellement. Ne raccorde encore rien à buildRequest() : "Prendre en
+  // compte" mémorise seulement l'interprétation confirmée localement pour
+  // que D102D ait quelque chose à raccorder — aucune contrainte n'est créée
+  // ici, comme l'exige la gouvernance D102.
+  const painInterpretationRemoved = new Set();
+  let painInterpretationConfirmed = false;
+  let lastPainCandidate = null;
+
+  function painInterpretationItems(candidate) {
+    const items = [];
+    if (candidate.bodyAreas.length) {
+      candidate.bodyAreas.forEach((area, index) => {
+        const sideLabel =
+          candidate.side === "Bilatéral"
+            ? "des deux côtés"
+            : candidate.side
+              ? candidate.side.toLowerCase()
+              : "";
+        const label = sideLabel ? `${area} ${sideLabel}` : area;
+        items.push({ id: `area-${index}`, label });
+      });
+    }
+    candidate.triggers.forEach((trigger, index) => {
+      if (trigger.trigger === "pain-qualifier") return;
+      items.push({ id: `trigger-${index}`, label: trigger.trigger });
+    });
+    if (candidate.temporal && Array.isArray(candidate.temporal.durations)) {
+      candidate.temporal.durations.forEach((duration, index) => {
+        const prefix = duration.precision === "approximate" ? "Après ~" : "Après ";
+        items.push({ id: `duration-${index}`, label: `${prefix}${duration.approxMinutes} min` });
+      });
+    }
+    candidate.needs.forEach((need, index) => {
+      if (need.type !== "pause-assise") return;
+      const frequency = need.frequency ? ` (${need.frequency})` : "";
+      items.push({ id: `need-${index}`, label: `Pause assise souhaitée${frequency}` });
+    });
+    return items;
+  }
+
+  function resetPainInterpretationConfirmation() {
+    painInterpretationConfirmed = false;
+    const confirmButton = $("#painInterpretationConfirm");
+    if (confirmButton) {
+      confirmButton.setAttribute("aria-pressed", "false");
+      confirmButton.textContent = "Prendre en compte";
+    }
+  }
+
+  function syncPainInterpretation() {
+    const textarea = $("#painDetail");
+    const panel = $("#painInterpretation");
+    const chipsHost = $("#painInterpretationChips");
+    const uncertainWrap = $("#painInterpretationUncertain");
+    const uncertainList = $("#painInterpretationUncertainList");
+    const emptyMsg = $("#painInterpretationEmpty");
+    if (!textarea || !panel || !chipsHost) return;
+    const core = globalThis.JMMJSFreeTextInterpretationCore;
+    const text = textarea.value;
+    if (!text.trim() || !core) {
+      panel.hidden = true;
+      if (emptyMsg) emptyMsg.hidden = true;
+      return;
+    }
+    const candidate = core.interpretFreeText(text);
+    lastPainCandidate = candidate;
+    const items = painInterpretationItems(candidate).filter(
+      (item) => !painInterpretationRemoved.has(item.id),
+    );
+    const hasUncertain = candidate.uncertain.length > 0;
+    if (!items.length && !hasUncertain) {
+      panel.hidden = true;
+      if (emptyMsg) emptyMsg.hidden = false;
+      return;
+    }
+    if (emptyMsg) emptyMsg.hidden = true;
+    panel.hidden = false;
+    chipsHost.innerHTML = "";
+    items.forEach((item) => {
+      const chip = document.createElement("span");
+      chip.className = "pain-interpretation-chip";
+      chip.textContent = item.label;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "pain-interpretation-chip-remove";
+      remove.setAttribute("aria-label", `Retirer « ${item.label} »`);
+      remove.textContent = "×";
+      remove.addEventListener("click", () => {
+        painInterpretationRemoved.add(item.id);
+        resetPainInterpretationConfirmation();
+        syncPainInterpretation();
+      });
+      chip.appendChild(remove);
+      chipsHost.appendChild(chip);
+    });
+    if (uncertainWrap && uncertainList) {
+      uncertainWrap.hidden = !hasUncertain;
+      uncertainList.innerHTML = "";
+      candidate.uncertain.forEach((message) => {
+        const li = document.createElement("li");
+        li.textContent = message;
+        uncertainList.appendChild(li);
+      });
+    }
+  }
+
+  $("#painInterpretationConfirm")?.addEventListener("click", () => {
+    painInterpretationConfirmed = true;
+    const confirmButton = $("#painInterpretationConfirm");
+    if (confirmButton) {
+      confirmButton.setAttribute("aria-pressed", "true");
+      confirmButton.textContent = "Pris en compte";
+    }
+  });
+  $("#painInterpretationModify")?.addEventListener("click", () => {
+    resetPainInterpretationConfirmation();
+    $("#painDetail")?.focus();
+  });
+
   function syncTimeIncludesSwitch() {
     const select = $("#timeIncludes");
     if (!select) return;
@@ -9925,8 +10060,14 @@ html,body{max-width:100%;overflow-x:hidden}
   syncTimeIncludesSwitch();
   $("#pain")?.addEventListener("input", syncPainDetailVisibility);
   $("#painDetail")?.addEventListener("input", syncPainDetailVisibility);
+  $("#painDetail")?.addEventListener("input", () => {
+    painInterpretationRemoved.clear();
+    resetPainInterpretationConfirmation();
+    syncPainInterpretation();
+  });
   $("#footwear")?.addEventListener("change", updateDisclosureSummaries);
   syncPainDetailVisibility();
+  syncPainInterpretation();
   updateDisclosureSummaries();
 
   $$(".next").forEach((b) => (b.onclick = () => go(S.step + 1)));
