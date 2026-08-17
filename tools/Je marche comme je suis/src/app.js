@@ -825,7 +825,12 @@
             : effectiveSide
               ? effectiveSide.toLowerCase()
               : "";
-        const label = sideLabel ? `${area} ${sideLabel}` : area;
+        const baseLabel = sideLabel ? `${area} ${sideLabel}` : area;
+        const pairedBaseline = areaSides.find((p) => p.area === area)?.baseline || null;
+        const label =
+          pairedBaseline === "usual"
+            ? `${baseLabel} · habituel, non aggravé aujourd’hui`
+            : baseLabel;
         items.push({ id: `area-${index}`, label });
       });
     }
