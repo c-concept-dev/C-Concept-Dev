@@ -110,7 +110,7 @@ test("D102A une interprétation confirmée ne mute jamais painIntensity ni terra
   assert.deepEqual(result.terrain, [], "terrain ne doit jamais être réécrit depuis le texte");
 });
 
-test("D102A detectCoherenceIssues n'invente jamais de problème : toujours vide tant qu'aucune règle n'existe", () => {
+test("D102A detectCoherenceIssues n'invente jamais de problème à partir d'une interprétation vide (règles réelles ajoutées en D102E, testées séparément)", () => {
   const ctx = loadModule("../src/core/free-text-interpretation-core.js");
   const { detectCoherenceIssues, emptyCandidateInterpretation } = ctx.JMMJSFreeTextInterpretationCore;
   const result = detectCoherenceIssues(emptyCandidateInterpretation(), { painIntensity: 0 });
