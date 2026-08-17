@@ -8160,18 +8160,68 @@ html,body{max-width:100%;overflow-x:hidden}
     return [];
   }
 
-  // Point de raccordement unique vers le modèle de requête existant. Ce
-  // module ne l'appelle nulle part (aucun changement de comportement en
-  // D102A) : il est défini et testé ici pour que D102D ait un point
-  // d'entrée déjà éprouvé pour l'inertie, plutôt que d'écrire directement
-  // dans app.js. Tant que l'état n'est pas explicitement "confirmed", ou
-  // que confirmedInterpretation est vide, la requête ressort inchangée.
+  // Vocabulaire partagé avec le formulaire manuel (limitations-core.js /
+  // template) : ce module ne doit jamais inventer un libellé qui n'existe
+  // pas déjà dans #limitationTrigger / #limitationSide, pour que la
+  // contrainte confirmée par texte et la même contrainte saisie à la main
+  // rejoignent strictement le même modèle (plan D102 v1.1, §D102D).
+  const RACCORDABLE_TRIGGERS = Object.freeze([
+    "Descente",
+    "Montée",
+    "Terrain irrégulier",
+    "Station debout",
+  ]);
+  const RACCORDABLE_SIDES = Object.freeze(["Gauche", "Droit", "Bilatéral"]);
+
+  function firstRaccordableTrigger(candidate = {}) {
+    const triggers = Array.isArray(candidate.triggers) ? candidate.triggers : [];
+    const match = triggers.find((t) => RACCORDABLE_TRIGGERS.includes(t.trigger));
+    return match ? match.trigger : null;
+  }
+
+  // Durée max sans pause : uniquement quand le texte confirme À LA FOIS une
+  // durée ET un besoin de pause — jamais une durée seule (ce serait
+  // confondre "apparition de la gêne après X minutes" avec "je peux tenir
+  // X minutes sans pause", deux informations différentes). Cf. discussion
+  // D102D : prudence plutôt qu'ascription automatique.
+  function raccordableMaxWithoutPause(candidate = {}) {
+    const durations =
+      candidate.temporal && Array.isArray(candidate.temporal.durations)
+        ? candidate.temporal.durations
+        : [];
+    const hasPauseNeed = (candidate.needs || []).some((n) => n.type === "pause-assise");
+    if (!hasPauseNeed || !durations.length) return null;
+    return durations[0].approxMinutes ?? null;
+  }
+
+  // Point de raccordement unique vers le modèle de requête existant. Reste
+  // un no-op tant que l'état n'est pas explicitement "confirmed" — aucune
+  // déduction silencieuse. Une fois confirmé, ne remplit QUE les champs du
+  // même formulaire structuré que la saisie manuelle (côté, déclencheur,
+  // durée sans pause si les deux signaux sont présents) : jamais
+  // `consequence`, jamais `confirmed`, jamais `painIntensity`. La
+  // contrainte ne devient active que si l'utilisateur choisit ensuite une
+  // conséquence et coche explicitement "Je confirme cette limite"
+  // (mécanisme D-024 existant) — ce module ne le fait jamais à sa place.
   function mergeConfirmedInterpretationIntoRequest(request = {}, state = {}) {
     const next = clone(request);
     if (!isConfirmed(state)) return next;
-    // Volontairement vide en D102A : le raccordement réel (montée,
-    // descente, terrain, durée, pauses, cohérence avec painIntensity) est
-    // le périmètre de D102D, pas de ce lot.
+    const candidate = state.confirmedInterpretation || {};
+    const existing =
+      next.functionalLimitation && typeof next.functionalLimitation === "object"
+        ? next.functionalLimitation
+        : {};
+    const trigger = firstRaccordableTrigger(candidate);
+    const side = RACCORDABLE_SIDES.includes(candidate.side) ? candidate.side : null;
+    const maxWithoutPauseMinutes = raccordableMaxWithoutPause(candidate);
+    if (!trigger && !side && maxWithoutPauseMinutes === null) return next;
+    next.functionalLimitation = {
+      ...existing,
+      trigger: existing.trigger || trigger,
+      side: existing.side || side,
+      maxWithoutPauseMinutes:
+        existing.maxWithoutPauseMinutes ?? maxWithoutPauseMinutes ?? existing.maxWithoutPauseMinutes,
+    };
     return next;
   }
 
@@ -10026,6 +10076,69 @@ html,body{max-width:100%;overflow-x:hidden}
     }
   }
 
+  // D102D — Raccordement aux contraintes existantes. Deux mécanismes
+  // complémentaires, jamais un second moteur parallèle :
+  // 1) Pré-remplissage visible du VRAI formulaire structuré (#limitationTrigger,
+  //    #limitationSide, la puce "limits" correspondante) au clic sur
+  //    "Prendre en compte" — buildRequest() les lit ensuite exactement comme
+  //    une saisie manuelle, aucun code dupliqué.
+  // 2) applyFreeTextInterpretation(), filet de sécurité au niveau données
+  //    (mergeConfirmedInterpretationIntoRequest) appliqué au même endroit que
+  //    le mécanisme D-024 existant, pour le cas où le pré-remplissage visuel
+  //    aurait été contourné. Dans les deux cas, la contrainte ne devient
+  //    active que si l'utilisateur choisit une conséquence et coche
+  //    "Je confirme cette limite" lui-même — jamais automatiquement.
+  const TRIGGER_TO_LIMITS_CHIP = Object.freeze({
+    "Descente": "Descente difficile",
+    "Montée": "Montée difficile",
+    "Terrain irrégulier": "Terrain irrégulier",
+    "Station debout": "Station debout",
+  });
+
+  function applyFreeTextInterpretation(request) {
+    const core = globalThis.JMMJSFreeTextInterpretationCore;
+    if (!core) return request;
+    return core.mergeConfirmedInterpretationIntoRequest(request, {
+      status: painInterpretationConfirmed ? "confirmed" : "idle",
+      confirmedInterpretation: lastPainCandidate,
+    });
+  }
+
+  function prefillLimitationFromInterpretation(candidate) {
+    if (!candidate) return;
+    const trigger = (candidate.triggers || []).find(
+      (t) => TRIGGER_TO_LIMITS_CHIP[t.trigger],
+    )?.trigger;
+    if (trigger) {
+      const chipLabel = TRIGGER_TO_LIMITS_CHIP[trigger];
+      const chip = $$('[data-group="limits"] .chip').find(
+        (item) => item.textContent.trim() === chipLabel,
+      );
+      if (chip && !chip.classList.contains("active"))
+        chip.classList.add("active");
+      const triggerSelect = $("#limitationTrigger");
+      if (triggerSelect && !triggerSelect.value) triggerSelect.value = trigger;
+    }
+    const sideSelect = $("#limitationSide");
+    if (
+      sideSelect &&
+      (!sideSelect.value || sideSelect.value === "Non précisé") &&
+      ["Gauche", "Droit", "Bilatéral"].includes(candidate.side)
+    ) {
+      sideSelect.value = candidate.side;
+    }
+    const hasPauseNeed = (candidate.needs || []).some((n) => n.type === "pause-assise");
+    const durations =
+      candidate.temporal && Array.isArray(candidate.temporal.durations)
+        ? candidate.temporal.durations
+        : [];
+    const maxWithoutPause = $("#maxWithoutPause");
+    if (hasPauseNeed && durations.length && maxWithoutPause && !maxWithoutPause.value) {
+      maxWithoutPause.value = durations[0].approxMinutes;
+    }
+    updateLimitationStructureVisibility();
+  }
+
   $("#painInterpretationConfirm")?.addEventListener("click", () => {
     painInterpretationConfirmed = true;
     const confirmButton = $("#painInterpretationConfirm");
@@ -10033,6 +10146,7 @@ html,body{max-width:100%;overflow-x:hidden}
       confirmButton.setAttribute("aria-pressed", "true");
       confirmButton.textContent = "Pris en compte";
     }
+    prefillLimitationFromInterpretation(lastPainCandidate);
   });
   $("#painInterpretationModify")?.addEventListener("click", () => {
     resetPainInterpretationConfirmation();
@@ -10411,7 +10525,7 @@ html,body{max-width:100%;overflow-x:hidden}
   function currentRequestSignature() {
     try {
       return requestSignature(
-        mergeStructuredLimitationIntoRequest(buildRequest()),
+        mergeStructuredLimitationIntoRequest(applyFreeTextInterpretation(buildRequest())),
       );
     } catch {
       return null;
@@ -10714,7 +10828,7 @@ html,body{max-width:100%;overflow-x:hidden}
     const host = $("#constraintSummary");
     if (!host) return;
     const rawRequest = buildRequest();
-    const request = mergeStructuredLimitationIntoRequest(rawRequest);
+    const request = mergeStructuredLimitationIntoRequest(applyFreeTextInterpretation(rawRequest));
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
     const valueOr = (value, fallback = "Non renseigné") => {
@@ -14215,7 +14329,7 @@ html,body{max-width:100%;overflow-x:hidden}
       return say(departureValidation.message);
     requestGovernor.beginSearch();
     S.requestCounts = { ors: 0, geo: 0, mapillary: 0, weather: 0, geocode: 0 };
-    S.request = mergeStructuredLimitationIntoRequest(buildRequest());
+    S.request = mergeStructuredLimitationIntoRequest(applyFreeTextInterpretation(buildRequest()));
     S.compiled = compileConstraints(S.request);
     const miss = [];
     if (!S.request.start.label && !Number.isFinite(S.request.start.latitude))
