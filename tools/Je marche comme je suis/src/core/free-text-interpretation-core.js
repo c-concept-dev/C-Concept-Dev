@@ -144,6 +144,8 @@
     { area: "Chevilles", re: /\bchevilles?\b/i },
     { area: "Pieds", re: /\bpieds?\b/i },
     { area: "Dos", re: /\bdos\b/i },
+    { area: "Cou", re: /\b(cou|cervical(?:e|es)?|cervicaux)\b/i },
+    { area: "Épaules", re: /[ée]paules?/i },
   ]);
 
   function extractBodyAreas(text) {
@@ -152,6 +154,24 @@
       if (entry.re.test(text) && !areas.includes(entry.area)) areas.push(entry.area);
     }
     return areas;
+  }
+
+  // D102G2 — état habituel vs gêne active du jour. Ce signal ne cherche
+  // pas à reconstruire un historique médical : il répond uniquement au gap
+  // observé en test réel, où une gêne chronique explicitement non aggravée
+  // était présentée comme une contrainte du jour. Les formulations restent
+  // déclaratives et prudentes ; aucune valeur de douleur n'est déduite.
+  const BASELINE_USUAL_RE =
+    /\b(pas pire que d['’]habitude|comme d['’]habitude|sans lien avec aujourd['’]hui|tout va bien maintenant|rien de nouveau)\b/i;
+
+  function extractBaselineContext(text, bodyAreas = []) {
+    const match = text.match(BASELINE_USUAL_RE);
+    if (!match || !bodyAreas.length) return [];
+    return bodyAreas.map((area) => ({
+      area,
+      baseline: "usual",
+      raw: match[0],
+    }));
   }
 
   // Appariement zone ↔ côté, clause par clause, par proximité — complète
@@ -346,11 +366,11 @@
     },
     {
       polarity: "absent",
-      // D102G1 : ne considérer comme absence de douleur que des formulations
-      // explicitement liées à la douleur. « aucun souci » / « ça va » sont
-      // trop généraux (ex. « sur le plat aucun souci ») et créeraient de faux
-      // conflits avec le curseur pain alors que la phrase décrit le terrain.
-      re: /\b(aucune douleur|pas de douleur|sans douleur)\b|\bje n['’]ai pas mal\b/i,
+      // D102G1/G2 : uniquement des formulations explicitement liées à la
+      // douleur. On couvre aussi « je n'ai pas vraiment mal », qui ne doit
+      // surtout pas être capté par le sous-motif positif « vraiment mal ».
+      // « aucun souci » / « ça va » restent exclus car trop généraux.
+      re: /\b(aucune douleur|pas de douleur|sans douleur)\b|\bje n['’]ai pas (?:vraiment )?mal\b/i,
     },
   ]);
 
@@ -364,6 +384,17 @@
     const clauses = splitClauses(text);
     const results = [];
     for (const clause of clauses) {
+      // « Pas mal » est lexicalement ambigu en français (peut signifier
+      // « plutôt beaucoup »). On ne le classe comme absence que lorsque le
+      // contexte de la même clause le désambiguïse explicitement vers un bon
+      // état du jour — cas réel : « Pas mal aujourd'hui, ça va plutôt bien ».
+      const contextualAbsent =
+        /\bpas mal aujourd['’]hui\b/i.test(clause) &&
+        /(?:ça|ca) va (?:plut[oô]t )?bien/i.test(clause);
+      if (contextualAbsent) {
+        results.push({ polarity: "absent", raw: "pas mal aujourd’hui" });
+        continue;
+      }
       const absent = clause.match(PAIN_QUALIFIER_PATTERNS[2].re);
       if (absent) {
         results.push({ polarity: "absent", raw: absent[0] });
@@ -390,7 +421,12 @@
 
     const laterality = extractLaterality(normalized.clean);
     const bodyAreas = extractBodyAreas(normalized.clean);
-    const areaSides = pairBodyAreasWithSides(normalized.clean);
+    const baselineContexts = extractBaselineContext(normalized.clean, bodyAreas);
+    const areaSides = pairBodyAreasWithSides(normalized.clean).map((pair) => ({
+      ...pair,
+      baseline:
+        baselineContexts.find((item) => item.area === pair.area)?.baseline || null,
+    }));
     const terrain = extractTerrainTriggers(normalized.clean);
     const durationInfo = extractDurations(normalized.clean);
     const pauseNeeds = extractPauseNeeds(normalized.clean);
@@ -424,9 +460,17 @@
       ...painQualifiers.map((p) => ({ trigger: "pain-qualifier", ...p })),
     ];
 
+    const allAreasBaselineUsual =
+      bodyAreas.length > 0 &&
+      baselineContexts.length === bodyAreas.length &&
+      baselineContexts.every((item) => item.baseline === "usual");
+
     return normalizeCandidateInterpretation({
       bodyAreas,
-      side: laterality.side,
+      // Une zone explicitement « habituelle / non aggravée aujourd'hui » ne
+      // doit pas préremplir une latéralité dans la limitation fonctionnelle.
+      // Le côté reste disponible sur areaSides pour l'affichage sémantique.
+      side: allAreasBaselineUsual ? null : laterality.side,
       areaSides,
       triggers,
       temporal: durationInfo.durations.length
@@ -606,6 +650,7 @@
     splitClauses,
     extractLaterality,
     extractBodyAreas,
+    extractBaselineContext,
     extractTerrainTriggers,
     extractNegations,
     extractDurations,
