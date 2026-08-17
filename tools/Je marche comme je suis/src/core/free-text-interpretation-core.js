@@ -393,18 +393,68 @@
     return [];
   }
 
-  // Point de raccordement unique vers le modèle de requête existant. Ce
-  // module ne l'appelle nulle part (aucun changement de comportement en
-  // D102A) : il est défini et testé ici pour que D102D ait un point
-  // d'entrée déjà éprouvé pour l'inertie, plutôt que d'écrire directement
-  // dans app.js. Tant que l'état n'est pas explicitement "confirmed", ou
-  // que confirmedInterpretation est vide, la requête ressort inchangée.
+  // Vocabulaire partagé avec le formulaire manuel (limitations-core.js /
+  // template) : ce module ne doit jamais inventer un libellé qui n'existe
+  // pas déjà dans #limitationTrigger / #limitationSide, pour que la
+  // contrainte confirmée par texte et la même contrainte saisie à la main
+  // rejoignent strictement le même modèle (plan D102 v1.1, §D102D).
+  const RACCORDABLE_TRIGGERS = Object.freeze([
+    "Descente",
+    "Montée",
+    "Terrain irrégulier",
+    "Station debout",
+  ]);
+  const RACCORDABLE_SIDES = Object.freeze(["Gauche", "Droit", "Bilatéral"]);
+
+  function firstRaccordableTrigger(candidate = {}) {
+    const triggers = Array.isArray(candidate.triggers) ? candidate.triggers : [];
+    const match = triggers.find((t) => RACCORDABLE_TRIGGERS.includes(t.trigger));
+    return match ? match.trigger : null;
+  }
+
+  // Durée max sans pause : uniquement quand le texte confirme À LA FOIS une
+  // durée ET un besoin de pause — jamais une durée seule (ce serait
+  // confondre "apparition de la gêne après X minutes" avec "je peux tenir
+  // X minutes sans pause", deux informations différentes). Cf. discussion
+  // D102D : prudence plutôt qu'ascription automatique.
+  function raccordableMaxWithoutPause(candidate = {}) {
+    const durations =
+      candidate.temporal && Array.isArray(candidate.temporal.durations)
+        ? candidate.temporal.durations
+        : [];
+    const hasPauseNeed = (candidate.needs || []).some((n) => n.type === "pause-assise");
+    if (!hasPauseNeed || !durations.length) return null;
+    return durations[0].approxMinutes ?? null;
+  }
+
+  // Point de raccordement unique vers le modèle de requête existant. Reste
+  // un no-op tant que l'état n'est pas explicitement "confirmed" — aucune
+  // déduction silencieuse. Une fois confirmé, ne remplit QUE les champs du
+  // même formulaire structuré que la saisie manuelle (côté, déclencheur,
+  // durée sans pause si les deux signaux sont présents) : jamais
+  // `consequence`, jamais `confirmed`, jamais `painIntensity`. La
+  // contrainte ne devient active que si l'utilisateur choisit ensuite une
+  // conséquence et coche explicitement "Je confirme cette limite"
+  // (mécanisme D-024 existant) — ce module ne le fait jamais à sa place.
   function mergeConfirmedInterpretationIntoRequest(request = {}, state = {}) {
     const next = clone(request);
     if (!isConfirmed(state)) return next;
-    // Volontairement vide en D102A : le raccordement réel (montée,
-    // descente, terrain, durée, pauses, cohérence avec painIntensity) est
-    // le périmètre de D102D, pas de ce lot.
+    const candidate = state.confirmedInterpretation || {};
+    const existing =
+      next.functionalLimitation && typeof next.functionalLimitation === "object"
+        ? next.functionalLimitation
+        : {};
+    const trigger = firstRaccordableTrigger(candidate);
+    const side = RACCORDABLE_SIDES.includes(candidate.side) ? candidate.side : null;
+    const maxWithoutPauseMinutes = raccordableMaxWithoutPause(candidate);
+    if (!trigger && !side && maxWithoutPauseMinutes === null) return next;
+    next.functionalLimitation = {
+      ...existing,
+      trigger: existing.trigger || trigger,
+      side: existing.side || side,
+      maxWithoutPauseMinutes:
+        existing.maxWithoutPauseMinutes ?? maxWithoutPauseMinutes ?? existing.maxWithoutPauseMinutes,
+    };
     return next;
   }
 
