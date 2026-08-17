@@ -177,6 +177,8 @@ test("D102B le résultat d'interpretFreeText respecte toujours le contrat D102A 
   );
 });
 
-test("D102B ce lot ne raccorde toujours rien dans app.js — la limite D102B/D102C/D102D reste respectée", () => {
-  assert.doesNotMatch(APP_SOURCE, /JMMJSFreeTextInterpretationCore/);
+test("D102B ce lot ne raccorde encore rien au constructeur de requête (buildRequest) — la limite D102B/D102D reste respectée", () => {
+  const buildRequestMatch = APP_SOURCE.match(/function buildRequest\(\) \{[\s\S]*?\n  \}/);
+  assert.ok(buildRequestMatch, "buildRequest doit exister");
+  assert.doesNotMatch(buildRequestMatch[0], /JMMJSFreeTextInterpretationCore/);
 });
