@@ -1442,28 +1442,23 @@
     }
     return { imperative, preferences, preparation, verification };
   }
-  function renderSummaryGroup(title, items, className) {
+  function renderSummaryGroup(title, items, className, compact = false) {
     if (!items.length) return "";
     return (
       '<section class="constraint-summary-group ' + className + '"><h4>' +
       esc(title) +
       "</h4>" +
       items
-        .map(
-          (item) =>
-            '<article class="constraint-summary-item"><div><strong>' +
-            esc(item.label) +
-            "</strong><span>" +
-            esc(item.value) +
-            '</span><small>Origine : ' +
-            esc(item.origin) +
-            " · " +
-            esc(item.severity) +
-            (item.note ? "<br>" + esc(item.note) : "") +
-            '</small></div><button type="button" class="summary-edit" data-edit-step="' +
-            item.step +
-            '">Modifier</button></article>',
-        )
+        .map((item) => {
+          const detail = compact
+            ? ""
+            : '<small>Origine : ' + esc(item.origin) + " · " + esc(item.severity) +
+              (item.note ? "<br>" + esc(item.note) : "") + "</small>";
+          return '<article class="constraint-summary-item"><div><strong>' +
+            esc(item.label) + "</strong><span>" + esc(item.value) + "</span>" + detail +
+            '</div><button type="button" class="summary-edit" data-edit-step="' +
+            item.step + '">Modifier</button></article>';
+        })
         .join("") +
       "</section>"
     );
@@ -1492,12 +1487,12 @@
 
     const sensitiveGroups = [];
     if (model.imperative.length)
-      sensitiveGroups.push(renderSummaryGroup("Limites à respecter", model.imperative, "imperative"));
+      sensitiveGroups.push(renderSummaryGroup("Limites à respecter", model.imperative, "imperative", true));
     const limitationItems = model.preparation.filter((item) =>
       /Conséquence fonctionnelle|Équipement|Chaussures/i.test(item.label),
     );
     if (limitationItems.length)
-      sensitiveGroups.push(renderSummaryGroup("Limitations et préparation", limitationItems, "preparation"));
+      sensitiveGroups.push(renderSummaryGroup("Limitations et préparation", limitationItems, "preparation", true));
 
     const otherPreparation = model.preparation.filter((item) => !limitationItems.includes(item));
     const needsTextParts = [];
