@@ -94,23 +94,20 @@ test("D102A une interprétation rejetée ne produit aucun effet même si confirm
   assert.deepEqual(result, request);
 });
 
-test("D102A même une interprétation confirmée ne mute encore rien en D102A (raccordement réel = D102D)", () => {
+test("D102A une interprétation confirmée ne mute jamais painIntensity ni terrain (ces champs restent hors du périmètre de raccordement, même après D102D)", () => {
   const ctx = loadModule("../src/core/free-text-interpretation-core.js");
   const { mergeConfirmedInterpretationIntoRequest } = ctx.JMMJSFreeTextInterpretationCore;
   const state = {
     rawText: "mon genou gauche tire en descente",
     status: "confirmed",
-    confirmedInterpretation: { triggers: ["descente"], side: "Gauche" },
+    confirmedInterpretation: { triggers: [{ trigger: "Descente" }], side: "Gauche" },
     candidateInterpretation: ctx.JMMJSFreeTextInterpretationCore.emptyCandidateInterpretation(),
     coherenceIssues: [],
   };
   const request = { painIntensity: 0, terrain: [] };
   const result = mergeConfirmedInterpretationIntoRequest(request, state);
-  assert.deepEqual(
-    result,
-    request,
-    "aucune mutation de painIntensity ou de terrain sans que D102D ne l'implémente explicitement",
-  );
+  assert.equal(result.painIntensity, 0, "painIntensity ne doit jamais être réécrit depuis le texte");
+  assert.deepEqual(result.terrain, [], "terrain ne doit jamais être réécrit depuis le texte");
 });
 
 test("D102A detectCoherenceIssues n'invente jamais de problème : toujours vide tant qu'aucune règle n'existe", () => {
