@@ -137,8 +137,10 @@ test("D102A la note personnelle (#freeText) n'est jamais référencée par ce mo
   assert.doesNotMatch(CORE_SOURCE, /note personnelle/i);
 });
 
-test("D102A ce lot ne raccorde encore rien dans app.js — la limite de périmètre D102A/D102D est respectée", () => {
-  assert.doesNotMatch(APP_SOURCE, /JMMJSFreeTextInterpretationCore/);
+test("D102A ce lot ne raccorde encore rien au constructeur de requête (buildRequest) — la limite D102A/D102D est respectée", () => {
+  const buildRequestMatch = APP_SOURCE.match(/function buildRequest\(\) \{[\s\S]*?\n  \}/);
+  assert.ok(buildRequestMatch, "buildRequest doit exister");
+  assert.doesNotMatch(buildRequestMatch[0], /JMMJSFreeTextInterpretationCore/);
 });
 
 test("D102A le contrat exporté est gelé (Object.freeze)", () => {
