@@ -987,6 +987,20 @@ body.journey-started .landing-exact{display:none!important}
 .free-text-toggle>summary{cursor:pointer;list-style:none;font-family:var(--font-heading);font-size:12px;font-weight:600;color:var(--sage)}
 .free-text-toggle>summary::-webkit-details-marker{display:none}
 .free-text-content{margin-top:8px}
+.pain-interpretation{margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt)}
+.pain-interpretation-title,.pain-interpretation-subtitle{font-size:12px;font-weight:600;color:var(--text-heading);margin:0 0 6px}
+.pain-interpretation-subtitle{margin-top:10px}
+.pain-interpretation-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pain-interpretation-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;background:var(--sage);color:var(--surface);font-size:12px}
+.pain-interpretation-chip-remove{background:transparent;border:0;color:inherit;font-size:13px;line-height:1;cursor:pointer;padding:0 0 0 2px}
+.pain-interpretation-uncertain-list,.pain-interpretation-conflict-list{margin:0;padding-left:18px;font-size:12px;color:var(--text-body)}
+.pain-interpretation-conflict-list{color:var(--terracotta)}
+.pain-interpretation-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pain-interpretation-actions button{min-height:36px;padding:0 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.pain-interpretation-actions .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text-body)}
+.pain-interpretation-actions .btn-primary{background:var(--sage);border:1px solid var(--sage);color:var(--surface)}
+.pain-interpretation-actions .btn-primary[aria-pressed="true"]{background:var(--sage-hover);border-color:var(--sage-hover)}
+.pain-interpretation-empty{margin-top:8px;font-size:12px;color:var(--text-muted)}
 .privacy-options-compact{padding:10px 12px;display:flex;flex-direction:column;gap:4px}
 .privacy-options-compact .option-tile-inline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-body);cursor:pointer;min-height:auto;border:0;background:transparent;padding:0}
 .privacy-options-compact .helper{font-size:11px;color:var(--text-muted);margin-top:2px}
@@ -1801,7 +1815,7 @@ html,body{max-width:100%;overflow-x:hidden}
                       class="input textarea"
                       id="painDetail"
                       placeholder="Genou gauche surtout en descente…"
-                    ></textarea></div></div><details class="card mobile-disclosure" id="gearDisclosure"><summary><span><strong>Chaussures & équipement</strong><small id="gearSummary">À préciser si nécessaire</small></span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="disclosure-body"><p>Elles ne compensent jamais une limitation physique.</p><div class="field"><label>Chaussures</label
+                    ></textarea><div class="pain-interpretation" id="painInterpretation" hidden><p class="pain-interpretation-title">Voici ce que j’ai compris</p><div class="pain-interpretation-chips" id="painInterpretationChips"></div><div class="pain-interpretation-uncertain" id="painInterpretationUncertain" hidden><p class="pain-interpretation-subtitle">J’ai besoin de préciser un point</p><ul class="pain-interpretation-uncertain-list" id="painInterpretationUncertainList"></ul></div><div class="pain-interpretation-conflict" id="painInterpretationConflict" hidden><p class="pain-interpretation-subtitle">À vérifier</p><ul class="pain-interpretation-conflict-list" id="painInterpretationConflictList"></ul></div><div class="pain-interpretation-actions"><button type="button" class="btn-secondary" id="painInterpretationModify">Modifier</button><button type="button" class="btn-primary" id="painInterpretationConfirm">Prendre en compte</button></div></div><p class="pain-interpretation-empty" id="painInterpretationEmpty" hidden>Je n’ai pas identifié de contrainte précise dans ce texte.</p></div></div><details class="card mobile-disclosure" id="gearDisclosure"><summary><span><strong>Chaussures & équipement</strong><small id="gearSummary">À préciser si nécessaire</small></span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="disclosure-body"><p>Elles ne compensent jamais une limitation physique.</p><div class="field"><label>Chaussures</label
                     ><select class="input" id="footwear"><option value="">Choisir…</option><option>Pieds nus</option><option>Tongs ou claquettes</option><option>Sandales</option><option>Chaussures de ville</option><option>Sneakers</option><option>Baskets classiques</option><option>Running</option><option>Trail</option><option>Randonnée basses</option><option>Randonnée montantes</option></select></div><div class="field"><span class="legend">Équipement</span><div class="chips group" data-group="equipment"><button class="chip">Canne</button
                       ><button class="chip">Bâtons</button
                       ><button class="chip">Déambulateur</button
