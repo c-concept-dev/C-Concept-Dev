@@ -236,7 +236,7 @@
   <header>
     <div class="eyebrow">C Concept&amp;Dev — Outil interne</div>
     <h1>Traducteur EPUB / PDF → Français</h1>
-    <p class="subtitle">Dépose un document dans sa langue d'origine, il te revient en français, reconstruit au format EPUB.</p>
+    <p class="subtitle">Déposez un document dans sa langue d'origine : il vous revient en français, reconstruit au format EPUB — avec, en option, un export PDF.</p>
   </header>
 
   <div class="card">
@@ -281,14 +281,14 @@
           <p class="hint">Le mode YOLO télécharge un modèle de détection entraîné spécifiquement sur des bulles de BD/manga (109 Mo, une seule fois, mis en cache par le navigateur). Il détecte d'abord chaque bulle précisément, puis lit le texte dedans — normalement plus fiable que le regroupement automatique, mais plus lent à démarrer. Licence du modèle : GPL-3.0.</p>
         </div>
       </div>
-      <p class="hint">Le sens de lecture n'affecte que l'ordre des pages dans le fichier de sortie, pas le contenu. La détection de bulles est approximative : l'OCR groupe le texte par blocs proches, puis chaque bloc est recouvert d'un cadre et remplacé par le texte français. Sur des pages très denses ou des onomatopées stylisées, attends-toi à des ratés.</p>
+      <p class="hint">Le sens de lecture n'affecte que l'ordre des pages dans le fichier de sortie, pas le contenu. La détection de bulles est approximative : l'OCR groupe le texte par blocs proches, puis chaque bloc est recouvert d'un cadre et remplacé par le texte français. Sur des pages très denses ou des onomatopées stylisées, attendez-vous à des ratés.</p>
     </div>
   </div>
 
   <div class="card">
     <h2><span class="num">2</span> Document source</h2>
     <div class="drop" id="drop">
-      <p class="main">Glisse ton fichier ici, ou clique pour choisir</p>
+      <p class="main">Glissez votre fichier ici, ou cliquez pour choisir</p>
       <p id="dropHint">.epub · .pdf · .txt · .html — un fichier à la fois</p>
       <input type="file" id="fileInput" accept=".epub,.pdf,.txt,.html,.htm">
     </div>
@@ -304,32 +304,32 @@
       </div>
       <div class="toggle" data-mode="proxy">
         <div class="t-title">Mode Proxy personnel</div>
-        <div class="t-desc">Pour un usage hors claude.ai, en local. Utilise ton Worker Cloudflare (ex. clone-proxy) comme relais vers l'API Claude.</div>
+        <div class="t-desc">Pour un usage hors claude.ai, en local. Utilise votre Worker Cloudflare (ex. clone-proxy) comme relais vers l'API Claude.</div>
       </div>
       <div class="toggle" data-mode="direct">
         <div class="t-title">Clé API directe</div>
-        <div class="t-desc">Colle ta clé Anthropic ici. Elle reste uniquement en mémoire dans l'onglet, jamais enregistrée sur disque, et disparaît quand tu fermes le fichier.</div>
+        <div class="t-desc">Collez votre clé Anthropic ici. Elle reste uniquement en mémoire dans l'onglet, jamais enregistrée sur disque, et disparaît quand vous fermez le fichier.</div>
       </div>
     </div>
     <div id="proxyFields" style="display:none;">
       <div class="row">
         <div class="field">
           <label>URL du endpoint</label>
-          <input type="text" id="endpointUrl" placeholder="https://ton-proxy.workers.dev/translate">
+          <input type="text" id="endpointUrl" placeholder="https://votre-proxy.workers.dev/translate">
         </div>
         <div class="field">
           <label>Clé / Token (optionnel)</label>
           <input type="password" id="apiKey" placeholder="Laisse vide si non requis">
         </div>
       </div>
-      <p class="hint">Ton proxy doit accepter un POST JSON <code>{model, max_tokens, system, messages}</code> et renvoyer une réponse au format standard de l'API Anthropic <code>/v1/messages</code> (champ <code>content[].text</code>). C'est déjà le contrat que suit ton Worker clone-proxy pour tes autres outils.</p>
+      <p class="hint">Votre proxy doit accepter un POST JSON <code>{model, max_tokens, system, messages}</code> et renvoyer une réponse au format standard de l'API Anthropic <code>/v1/messages</code> (champ <code>content[].text</code>). C'est déjà le contrat que suit votre Worker clone-proxy pour vos autres outils.</p>
     </div>
     <div id="directFields" style="display:none;">
       <div class="field">
         <label>Clé API Anthropic</label>
         <input type="password" id="directApiKey" placeholder="sk-ant-...">
       </div>
-      <p class="hint">La clé n'est stockée que dans une variable JavaScript en mémoire vive, jamais dans le localStorage ni sur disque. Elle est perdue dès que tu recharges ou fermes cette page — tu devras la recoller à chaque session. Comme la clé transite dans ce même navigateur, garde ce fichier HTML pour ton usage personnel uniquement.</p>
+      <p class="hint">La clé n'est stockée que dans une variable JavaScript en mémoire vive, jamais dans le localStorage ni sur disque. Elle est perdue dès que vous rechargez ou fermez cette page — vous devrez la recoller à chaque session. Comme la clé transite dans ce même navigateur, gardez ce fichier HTML pour votre usage personnel uniquement.</p>
     </div>
   </div>
 
@@ -361,19 +361,30 @@
         </select>
       </div>
     </div>
-    <p class="hint" style="margin-top:14px;">Le document est découpé en segments d'environ 2000 caractères pour respecter les limites de sortie de l'API. Le nombre de requêtes dépend donc de la longueur du texte — pour un roman entier, prévois plusieurs dizaines d'appels et quelques minutes.</p>
+    <p class="hint" style="margin-top:14px;">Le document est découpé en segments d'environ 2000 caractères pour respecter les limites de sortie de l'API. Le nombre de requêtes dépend donc de la longueur du texte — pour un roman entier, prévoyez plusieurs dizaines d'appels et quelques minutes. Jusqu'à 3 groupes de segments sont traduits en parallèle pour accélérer le traitement.</p>
     <div class="row" style="margin-top:16px;">
       <div class="field">
         <label>Chapitres à traiter cette fois (EPUB)</label>
         <input type="text" id="chapterLimit" placeholder="Laisser vide = tous les chapitres restants">
-        <p class="hint">Pour un EPUB, chaque fichier du livre = un chapitre. Indique un nombre pour traiter seulement les N prochains chapitres non encore traduits, puis relance plus tard dans le même onglet pour continuer là où tu t'es arrêté.</p>
+        <p class="hint">Pour un EPUB, chaque fichier du livre = un chapitre. Indiquez un nombre pour traiter seulement les N prochains chapitres non encore traduits, puis relancez plus tard dans le même onglet pour continuer là où vous vous êtes arrêté(e).</p>
+      </div>
+    </div>
+    <div class="row" style="margin-top:16px;">
+      <div class="field">
+        <label class="toggle" style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:14px;" id="pdfExportToggle">
+          <input type="checkbox" id="alsoExportPdf" style="width:auto; margin-top:2px;">
+          <span>
+            <span class="t-title" style="display:block; text-transform:none; letter-spacing:0; font-size:14px;">Générer aussi une version PDF</span>
+            <span class="t-desc" style="display:block; text-transform:none;">En plus de l'EPUB traduit, produit un PDF paginé du même contenu, images incluses. Mise en page volontairement simple (pas de reproduction de la mise en forme d'origine). Voir aussi le convertisseur autonome en bas de page.</span>
+          </span>
+        </label>
       </div>
     </div>
   </div>
 
   <div class="card">
     <h2><span class="num">5</span> Lancer</h2>
-    <button class="primary" id="startBtn" disabled>Choisis d'abord un fichier</button>
+    <button class="primary" id="startBtn" disabled>Choisissez d'abord un fichier</button>
     <div class="progress-wrap" id="progressWrap" style="display:none;">
       <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
       <div class="progress-label"><span id="progressText">En attente…</span><span id="progressCount"></span></div>
@@ -383,14 +394,33 @@
     <div class="result" id="result">
       <div class="check">✓</div>
       <h3 id="resultTitle">Traduction terminée</h3>
-      <p id="resultDesc">Ton EPUB en français est prêt.</p>
+      <p id="resultDesc">Votre EPUB en français est prêt.</p>
       <a class="download" id="downloadLink" href="#" download>Télécharger l'EPUB</a>
+      <div id="pdfDownloadWrap" style="display:none; margin-top:12px;">
+        <a class="download" id="pdfDownloadLink" href="#" download style="background:var(--ink-soft);">Télécharger aussi le PDF</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="bonusPdfCard">
+    <h2><span class="num">6</span> Bonus — Convertir un EPUB existant en PDF <span class="badge">sans traduction</span></h2>
+    <p class="hint" style="margin-bottom:14px;">Outil indépendant : convertissez un ou plusieurs fichiers EPUB déjà en votre possession (traduits ou non) en PDF paginé, sans passer par l'API Claude. Fonctionne entièrement dans le navigateur, plusieurs fichiers à la fois.</p>
+    <div class="drop" id="pdfDrop">
+      <p class="main">Glissez un ou plusieurs EPUB ici, ou cliquez pour choisir</p>
+      <p class="hint" style="margin:6px 0 0;">.epub — plusieurs fichiers acceptés</p>
+      <input type="file" id="pdfFileInput" accept=".epub" multiple>
+    </div>
+    <div id="pdfFileList" style="margin-top:14px;"></div>
+    <div id="pdfBatchControls" style="display:none; margin-top:16px; gap:10px; flex-wrap:wrap;">
+      <button class="primary" id="pdfConvertBtn" style="width:auto; padding:12px 24px;">Convertir tout en PDF</button>
+      <button class="primary" id="pdfDownloadAllBtn" style="width:auto; padding:12px 24px; background:var(--ink); display:none;">Tout télécharger</button>
+      <button class="primary" id="pdfClearBtn" style="width:auto; padding:12px 24px; background:#fff; color:var(--ink); border:1px solid var(--line);">Tout effacer</button>
     </div>
   </div>
 
   <footer>
     Outil interne C Concept&amp;Dev <span class="badge">usage personnel</span><br>
-    À utiliser uniquement sur des textes dont tu détiens les droits ou l'autorisation de traduction.
+    À utiliser uniquement sur des textes dont vous détenez les droits ou l'autorisation de traduction.
   </footer>
 </div>
 
@@ -398,6 +428,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+<script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script>
 /* =========================================================
    Traducteur EPUB/PDF/TXT -> Français
@@ -485,7 +516,7 @@ docTypeToggle.addEventListener("click", (e) => {
   state.file = null;
   filepillWrap.innerHTML = "";
   startBtn.disabled = true;
-  startBtn.textContent = "Choisis d'abord un fichier";
+  startBtn.textContent = "Choisissez d'abord un fichier";
 });
 const proxyFields = document.getElementById("proxyFields");
 const directFields = document.getElementById("directFields");
@@ -498,6 +529,8 @@ const resultEl = document.getElementById("result");
 const downloadLink = document.getElementById("downloadLink");
 const resultTitle = document.getElementById("resultTitle");
 const resultDesc = document.getElementById("resultDesc");
+const pdfDownloadWrap = document.getElementById("pdfDownloadWrap");
+const pdfDownloadLink = document.getElementById("pdfDownloadLink");
 
 drop.addEventListener("click", () => fileInput.click());
 drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
@@ -550,7 +583,23 @@ function setProgress(done, total, label) {
 }
 
 // ---------- Translation call ----------
-async function translateSegment(text, registre, srcLang) {
+
+// Modèle utilisé pour la traduction. À vérifier/ajuster si Anthropic fait évoluer
+// les identifiants de modèles disponibles (voir docs.claude.com).
+const TRANSLATION_MODEL = "claude-sonnet-5";
+
+// Budget de sortie généreux : un groupe de segments peut peser jusqu'à ~2200
+// caractères de langue source, et une traduction française est structurellement
+// plus longue que l'anglais (souvent +15 à +25 %) ; pour des langues sources très
+// denses en information par caractère (japonais, chinois notamment, utilisées
+// aussi pour la BD/manga), le ratio caractères->tokens de sortie peut être encore
+// plus défavorable. 1000 tokens de sortie était insuffisant et provoquait des
+// troncatures silencieuses (la réponse s'arrête en plein milieu d'un segment,
+// mais la balise "§§§N§§§" déjà ouverte est bien présente, donc l'ancien code la
+// considérait comme "trouvée" et acceptait un texte tronqué sans avertissement).
+const TRANSLATION_MAX_TOKENS = 8192;
+
+async function translateSegment(text, registre, srcLang, maxTokensOverride) {
   const registreInstr = {
     litteraire: "Registre littéraire : préserve le style, le ton, le rythme des phrases et la voix narrative de l'auteur.",
     neutre: "Registre neutre et clair, adapté à un document ou un article.",
@@ -568,8 +617,8 @@ Règles strictes :
 - Si un segment est vide ou ne contient pas de texte traduisible (juste un espace ou un symbole), renvoie-le tel quel après sa balise.`;
 
   const body = {
-    model: "claude-sonnet-4-6",
-    max_tokens: 1000,
+    model: TRANSLATION_MODEL,
+    max_tokens: maxTokensOverride || TRANSLATION_MAX_TOKENS,
     system: system,
     messages: [{ role: "user", content: text }],
   };
@@ -585,7 +634,7 @@ Règles strictes :
     if (key) headers["Authorization"] = `Bearer ${key}`;
   } else if (state.mode === "direct") {
     const key = sanitizeKey(document.getElementById("directApiKey").value);
-    if (!key) throw new Error("Colle ta clé API Anthropic dans le champ prévu.");
+    if (!key) throw new Error("Collez votre clé API Anthropic dans le champ prévu.");
     headers["x-api-key"] = key;
     headers["anthropic-version"] = "2023-06-01";
     headers["anthropic-dangerous-direct-browser-access"] = "true";
@@ -603,10 +652,98 @@ Règles strictes :
   }
   const data = await resp.json();
   const textBlocks = (data.content || []).filter((b) => b.type === "text").map((b) => b.text);
-  return textBlocks.join("\n");
+  const joined = textBlocks.join("\n");
+
+  if (data.stop_reason === "max_tokens") {
+    // La réponse a été coupée par la limite de tokens avant sa fin naturelle :
+    // on ne l'accepte pas telle quelle (texte tronqué en plein mot), on signale
+    // l'incident à l'appelant pour qu'il retente avec un budget plus large ou
+    // qu'il scinde le groupe en segments plus petits.
+    const err = new Error("Réponse tronquée par la limite de tokens (max_tokens atteint).");
+    err.truncated = true;
+    err.partialText = joined;
+    throw err;
+  }
+
+  return joined;
 }
 
-// batch translate an array of raw strings, returns array of translated strings in same order
+// Traduit un seul groupe de segments (déjà fusionnés en un payload balisé),
+// avec repli automatique en cas de troncature (max_tokens atteint) : on
+// retente d'abord avec un budget de sortie doublé, et si le groupe est
+// vraiment trop volumineux pour tenir, on le scinde en deux et on traduit
+// chaque moitié séparément (récursif). Retourne un tableau {idx, text}.
+async function translateGroup(group, segments, registre, srcLang, depth) {
+  const joined = buildTaggedPayload(group.map((i) => segments[i]));
+  let translatedJoined;
+  try {
+    translatedJoined = await translateSegment(joined, registre, srcLang);
+  } catch (err) {
+    if (err.truncated && group.length > 1 && (depth || 0) < 4) {
+      // Réponse coupée par max_tokens sur un groupe de plusieurs segments :
+      // on le scinde en deux et on retraduit chaque moitié — bien plus fiable
+      // qu'un simple doublement du budget, qui peut à nouveau être insuffisant
+      // pour des langues sources très denses (japonais, chinois...).
+      log(`Groupe de ${group.length} segment(s) tronqué par la limite de sortie — scindé en deux.`, "err");
+      const mid = Math.ceil(group.length / 2);
+      const left = await translateGroup(group.slice(0, mid), segments, registre, srcLang, (depth || 0) + 1);
+      const right = await translateGroup(group.slice(mid), segments, registre, srcLang, (depth || 0) + 1);
+      return left.concat(right);
+    }
+    if (err.truncated) {
+      // Un seul segment tronqué même avec le budget maximal : on retente une
+      // fois avec un budget encore plus large avant d'abandonner.
+      try {
+        translatedJoined = await translateSegment(joined, registre, srcLang, TRANSLATION_MAX_TOKENS * 2);
+      } catch (err2) {
+        log(`Segment toujours tronqué après budget doublé — conservé en langue source.`, "err");
+        return group.map((i) => ({ idx: i, text: segments[i] }));
+      }
+    } else {
+      log(`Erreur sur un groupe de ${group.length} segment(s) : ${err.message}`, "err");
+      try {
+        await sleep(1500);
+        translatedJoined = await translateSegment(joined, registre, srcLang);
+      } catch (err2) {
+        log(`Échec définitif, segments laissés en langue source.`, "err");
+        return group.map((i) => ({ idx: i, text: segments[i] }));
+      }
+    }
+  }
+
+  const parsed = parseTaggedResponse(translatedJoined, group.length);
+  const out = [];
+  const missing = [];
+  parsed.forEach((t, idx) => {
+    if (t === null) missing.push(idx);
+    else out.push({ idx: group[idx], text: t });
+  });
+
+  if (missing.length > 0) {
+    // Correctif ciblé : on ne retraduit QUE les segments dont la balise
+    // n'a pas été retrouvée dans la réponse, un par un — plus rapide et
+    // plus fiable qu'une re-tentative sur tout le groupe.
+    log(`${missing.length} segment(s) sur ${group.length} sans balise retrouvée — retraduction ciblée.`, "err");
+    for (const idx of missing) {
+      const i = group[idx];
+      try {
+        const single = await translateSegment(buildTaggedPayload([segments[i]]), registre, srcLang);
+        const parsedSingle = parseTaggedResponse(single, 1);
+        out.push({ idx: i, text: parsedSingle[0] !== null ? parsedSingle[0] : single.trim() });
+      } catch (e) {
+        out.push({ idx: i, text: segments[i] });
+      }
+    }
+  }
+  return out;
+}
+
+// batch translate an array of raw strings, returns array of translated strings in same order.
+// Traite jusqu'à CONCURRENCY groupes en parallèle pour accélérer le traitement
+// des gros volumes (roman entier), tout en gardant l'ordre de réinsertion
+// correct puisque chaque résultat est réassocié à son index d'origine.
+const TRANSLATE_CONCURRENCY = 3;
+
 async function translateBatch(segments, registre, srcLang, onProgress, onSegmentDone) {
   const results = new Array(segments.length).fill("");
   const CHAR_BUDGET = 2200;
@@ -628,59 +765,23 @@ async function translateBatch(segments, registre, srcLang, onProgress, onSegment
   if (cur.length) groups.push(cur);
 
   let done = 0;
-  for (const group of groups) {
-    const joined = buildTaggedPayload(group.map((i) => segments[i]));
-    let translatedJoined;
-    try {
-      translatedJoined = await translateSegment(joined, registre, srcLang);
-    } catch (err) {
-      log(`Erreur sur un groupe de ${group.length} segment(s) : ${err.message}`, "err");
-      try {
-        await sleep(1500);
-        translatedJoined = await translateSegment(joined, registre, srcLang);
-      } catch (err2) {
-        log(`Échec définitif, segments laissés en langue source.`, "err");
-        group.forEach((i) => {
-          results[i] = segments[i];
-          if (onSegmentDone) onSegmentDone(i, results[i]);
-        });
-        done += group.length;
-        onProgress(done, segments.length);
-        continue;
-      }
+  let nextGroupIdx = 0;
+
+  async function worker() {
+    while (nextGroupIdx < groups.length) {
+      const myGroup = groups[nextGroupIdx++];
+      const out = await translateGroup(myGroup, segments, registre, srcLang, 0);
+      out.forEach(({ idx, text }) => {
+        results[idx] = text;
+        if (onSegmentDone) onSegmentDone(idx, text);
+      });
+      done += myGroup.length;
+      onProgress(done, segments.length);
     }
-
-    const parsed = parseTaggedResponse(translatedJoined, group.length);
-    const missing = [];
-    parsed.forEach((t, idx) => {
-      if (t === null) missing.push(idx);
-      else {
-        results[group[idx]] = t;
-        if (onSegmentDone) onSegmentDone(group[idx], t);
-      }
-    });
-
-    if (missing.length > 0) {
-      // Correctif ciblé : on ne retraduit QUE les segments dont la balise
-      // n'a pas été retrouvée dans la réponse, un par un — plus rapide et
-      // plus fiable qu'une re-tentative sur tout le groupe.
-      log(`${missing.length} segment(s) sur ${group.length} sans balise retrouvée — retraduction ciblée.`, "err");
-      for (const idx of missing) {
-        const i = group[idx];
-        try {
-          const single = await translateSegment(buildTaggedPayload([segments[i]]), registre, srcLang);
-          const parsedSingle = parseTaggedResponse(single, 1);
-          results[i] = parsedSingle[0] !== null ? parsedSingle[0] : single.trim();
-        } catch (e) {
-          results[i] = segments[i];
-        }
-        if (onSegmentDone) onSegmentDone(i, results[i]);
-      }
-    }
-
-    done += group.length;
-    onProgress(done, segments.length);
   }
+
+  const workerCount = Math.min(TRANSLATE_CONCURRENCY, groups.length) || 1;
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
   return results;
 }
 
@@ -698,9 +799,121 @@ function sanitizeKey(raw) {
   return cleaned;
 }
 
+// ---------- Helpers XML/EPUB partagés ----------
+
+// Un fragment obtenu via `.innerHTML` (sérialisation HTML du navigateur) peut
+// contenir des balises non auto-fermées (<br>, <img ...> sans "/>") : valide en
+// HTML tolérant, invalide en XML strict. Comme buildEpub() écrit ses chapitres
+// tels quels sans repasser par un sérialiseur XML, tout fragment HTML "brut"
+// injecté dedans doit d'abord être normalisé en XML bien formé ici.
+function sanitizeHtmlToXhtmlFragment(html) {
+  const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${html}</body></html>`, "text/html");
+  doc.querySelectorAll("script, style, link, meta, iframe, object, embed, noscript").forEach((el) => el.remove());
+  const serializedBody = new XMLSerializer().serializeToString(doc.body);
+  return serializedBody.replace(/^<body[^>]*>/, "").replace(/<\/body>\s*$/, "");
+}
+
+function stripHtmlTags(s) {
+  const d = document.createElement("div");
+  d.innerHTML = s;
+  return (d.textContent || d.innerText || "").trim();
+}
+
+// Sérialisation XML stricte (balises auto-fermées, xmlns, entités échappées) :
+// les liseuses comme Kobo lisent le contenu EPUB comme du XHTML strict et
+// affichent une page blanche si le markup n'est pas parfaitement bien formé.
+function serializeXhtmlDoc(doc) {
+  doc.documentElement.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  const serialized = new XMLSerializer().serializeToString(doc.documentElement);
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n' + serialized;
+}
+
+// Repère le document de navigation EPUB3 (manifest item properties="nav") et le
+// toc.ncx EPUB2 (media-type application/x-dtbncx+xml) pour pouvoir traduire les
+// intitulés de la table des matières — sans quoi le sommaire d'un livre traduit
+// reste dans la langue source, ce qui est le défaut de mise en page le plus
+// visible pour l'utilisateur final d'une liseuse.
+async function collectNavItems(zip, opfDir, opfDoc) {
+  const items = [];
+  let navDoc = null, navPath = null, ncxDoc = null, ncxPath = null;
+
+  const navItem = [...opfDoc.querySelectorAll("manifest > item")].find(
+    (it) => (it.getAttribute("properties") || "").split(/\s+/).includes("nav")
+  );
+  if (navItem) {
+    navPath = opfDir + navItem.getAttribute("href");
+    const f = zip.file(navPath);
+    if (f) {
+      try {
+        const html = await f.async("string");
+        navDoc = new DOMParser().parseFromString(html, "text/html");
+        navDoc.querySelectorAll("nav a, nav span").forEach((a) => {
+          const t = a.textContent.trim();
+          if (t) items.push({ text: t, apply: (tr) => { a.textContent = stripHtmlTags(tr); } });
+        });
+      } catch (e) {
+        log(`Nav EPUB3 illisible, sommaire non traduit : ${e.message}`, "err");
+        navDoc = null;
+      }
+    }
+  }
+
+  const ncxItem = [...opfDoc.querySelectorAll("manifest > item")].find(
+    (it) => it.getAttribute("media-type") === "application/x-dtbncx+xml"
+  );
+  if (ncxItem) {
+    ncxPath = opfDir + ncxItem.getAttribute("href");
+    const f = zip.file(ncxPath);
+    if (f) {
+      try {
+        const xml = await f.async("string");
+        ncxDoc = new DOMParser().parseFromString(xml, "application/xml");
+        ncxDoc.querySelectorAll("navLabel > text").forEach((t) => {
+          const orig = t.textContent.trim();
+          if (orig) items.push({ text: orig, apply: (tr) => { t.textContent = stripHtmlTags(tr); } });
+        });
+      } catch (e) {
+        log(`toc.ncx illisible, sommaire non traduit : ${e.message}`, "err");
+        ncxDoc = null;
+      }
+    }
+  }
+
+  return { items, navDoc, navPath, ncxDoc, ncxPath };
+}
+
 // ---------- EPUB output builder ----------
-async function buildEpub(title, author, chapters) {
-  // chapters: [{title, htmlBody}]
+
+// Feuille de style minimale appliquée aux EPUB reconstruits à partir d'un
+// PDF/TXT/HTML : sans elle, le livre s'affiche avec la typographie par défaut,
+// brute, de la liseuse — un point de mise en page relevé lors de l'audit.
+const EPUB_DEFAULT_CSS = `body{font-family:Georgia,"Liberation Serif",serif;line-height:1.5;margin:0;padding:0 1em;}
+h1{font-size:1.4em;margin:1.2em 0 0.6em;text-align:center;}
+p{margin:0 0 0.9em;text-align:justify;text-indent:1.2em;}
+img{max-width:100%;height:auto;display:block;margin:1em auto;}
+.titlepage{text-align:center;margin-top:30%;}
+.titlepage h1{font-size:1.8em;}
+.titlepage .author{font-style:italic;margin-top:0.5em;}
+.titlepage .note{font-size:0.8em;color:#666;margin-top:2em;}
+.pdf-page-image{text-align:center;}
+.pdf-page-image .caption{font-size:0.75em;color:#666;text-align:center;text-indent:0;}`;
+
+function guessImageMediaType(filename) {
+  const ext = (filename.split(".").pop() || "").toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "gif") return "image/gif";
+  return "image/jpeg";
+}
+
+// chapters: [{title, htmlBody}] — htmlBody peut référencer des images via
+// <img src="images/xxx.jpg"/> tant que le fichier correspondant est fourni
+// dans options.images.
+async function buildEpub(title, author, chapters, options) {
+  const opts = options || {};
+  const images = opts.images || []; // [{name, blob}]
+  const sourceTitle = opts.sourceTitle || null;
+
   const zip = new JSZip();
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.folder("META-INF").file("container.xml",
@@ -711,21 +924,44 @@ async function buildEpub(title, author, chapters) {
 
   const oebps = zip.folder("OEBPS");
   const uid = "urn:uuid:" + crypto.randomUUID();
+  oebps.file("style.css", EPUB_DEFAULT_CSS);
 
-  chapters.forEach((ch, i) => {
+  const titlePage = {
+    title: "Page de titre",
+    isTitlePage: true,
+    htmlBody: `<div class="titlepage"><h1>${escapeXml(title)}</h1>${author ? `<p class="author">${escapeXml(author)}</p>` : ""}<p class="note">Traduction française générée automatiquement — C Concept&amp;Dev.</p></div>`,
+  };
+  const allChapters = [titlePage, ...chapters];
+
+  allChapters.forEach((ch, i) => {
     oebps.file(`chap${i + 1}.xhtml`,
 `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr">
-<head><meta charset="utf-8"/><title>${escapeXml(ch.title)}</title></head>
-<body><h1>${escapeXml(ch.title)}</h1>${ch.htmlBody}</body>
+<head><meta charset="utf-8"/><title>${escapeXml(ch.title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body>${ch.isTitlePage ? "" : `<h1>${escapeXml(ch.title)}</h1>`}${ch.htmlBody}</body>
 </html>`);
   });
 
-  const manifestItems = chapters.map((ch, i) =>
-    `<item id="chap${i+1}" href="chap${i+1}.xhtml" media-type="application/xhtml+xml"/>`).join("\n    ");
-  const spineItems = chapters.map((ch, i) => `<itemref idref="chap${i+1}"/>`).join("\n    ");
-  const navPoints = chapters.map((ch, i) =>
-    `<navPoint id="np${i+1}" playOrder="${i+1}"><navLabel><text>${escapeXml(ch.title)}</text></navLabel><content src="chap${i+1}.xhtml"/></navPoint>`).join("\n    ");
+  images.forEach((img) => oebps.file(img.name, img.blob));
+
+  const imageManifestItems = images.map((img, idx) =>
+    `<item id="img${idx + 1}" href="${escapeXml(img.name)}" media-type="${guessImageMediaType(img.name)}"/>`);
+
+  const manifestItems = allChapters.map((ch, i) =>
+    `<item id="chap${i+1}" href="chap${i+1}.xhtml" media-type="application/xhtml+xml"/>`)
+    .concat([`<item id="css" href="style.css" media-type="text/css"/>`], imageManifestItems)
+    .join("\n    ");
+  const spineItems = allChapters.map((ch, i) => `<itemref idref="chap${i+1}"/>`).join("\n    ");
+  const navPoints = [];
+  let playOrder = 0;
+  allChapters.forEach((ch, i) => {
+    if (ch.isTitlePage) return;
+    playOrder++;
+    navPoints.push(`<navPoint id="np${i+1}" playOrder="${playOrder}"><navLabel><text>${escapeXml(ch.title)}</text></navLabel><content src="chap${i+1}.xhtml"/></navPoint>`);
+  });
+  const navPointsXml = navPoints.join("\n    ");
+
+  const sourceTag = sourceTitle ? `\n    <dc:source>${escapeXml(sourceTitle)}</dc:source>` : "";
 
   oebps.file("content.opf",
 `<?xml version="1.0" encoding="UTF-8"?>
@@ -734,7 +970,7 @@ async function buildEpub(title, author, chapters) {
     <dc:title>${escapeXml(title)}</dc:title>
     <dc:creator opf:role="aut">${escapeXml(author)}</dc:creator>
     <dc:language>fr</dc:language>
-    <dc:identifier id="BookId">${uid}</dc:identifier>
+    <dc:identifier id="BookId">${uid}</dc:identifier>${sourceTag}
   </metadata>
   <manifest>
     ${manifestItems}
@@ -751,7 +987,7 @@ async function buildEpub(title, author, chapters) {
   <head><meta name="dtb:uid" content="${uid}"/></head>
   <docTitle><text>${escapeXml(title)}</text></docTitle>
   <navMap>
-    ${navPoints}
+    ${navPointsXml}
   </navMap>
 </ncx>`);
 
@@ -785,6 +1021,27 @@ async function parseAndTranslateEpub(file, registre, srcLang, onProgress, chapte
     const spineIds = [...opfDoc.querySelectorAll("spine > itemref")].map((n) => n.getAttribute("idref"));
     const titleText = (opfDoc.getElementsByTagName("dc:title")[0] || {}).textContent || file.name.replace(/\.epub$/i, "");
 
+    // Le sens de lecture d'origine (livres japonais/arabes convertis en EPUB) n'a
+    // plus lieu d'être une fois le texte traduit en français : on repasse la
+    // colonne vertébrale du livre en lecture occidentale par défaut.
+    const spineEl = opfDoc.querySelector("spine");
+    let readingDirFixed = false;
+    if (spineEl && spineEl.getAttribute("page-progression-direction") === "rtl") {
+      spineEl.removeAttribute("page-progression-direction");
+      readingDirFixed = true;
+    }
+
+    // Repère un éventuel CSS vertical/RTL non corrigeable automatiquement sans
+    // risque de casser la mise en page — on se contente de prévenir l'utilisateur.
+    let verticalCssDetected = false;
+    const cssFiles = Object.keys(zip.files).filter((n) => /\.css$/i.test(n) && !zip.files[n].dir);
+    for (const cssPath of cssFiles) {
+      try {
+        const cssText = await zip.file(cssPath).async("string");
+        if (/writing-mode\s*:\s*vertical/i.test(cssText)) { verticalCssDetected = true; break; }
+      } catch (e) { /* ignore */ }
+    }
+
     const BLOCK_SELECTOR = "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dt, dd, figcaption, caption";
     const chapters = [];
 
@@ -796,23 +1053,69 @@ async function parseAndTranslateEpub(file, registre, srcLang, onProgress, chapte
       if (!f) continue;
       const html = await f.async("string");
       const doc = new DOMParser().parseFromString(html, "text/html");
-      const nodes = [...doc.querySelectorAll(BLOCK_SELECTOR)].filter(
-        (n) => n.textContent.trim().length > 0 && n.children.length <= 3
+
+      // On ne retient que les blocs "feuilles" : un bloc qui contient lui-même un
+      // autre bloc du sélecteur (ex. un <li> avec une sous-liste) n'est pas
+      // sélectionné directement, on laisse ses enfants être traités
+      // individuellement. Cela remplace l'ancien seuil arbitraire de 3 enfants
+      // maximum, qui pouvait faire sauter silencieusement des paragraphes
+      // enrichis (plusieurs <span> de style, notes en ligne, etc.).
+      const blockNodes = [...doc.querySelectorAll(BLOCK_SELECTOR)].filter(
+        (n) => n.textContent.trim().length > 0 && !n.querySelector(BLOCK_SELECTOR)
       );
+      const items = blockNodes.map((n) => ({
+        text: n.innerHTML.trim(),
+        apply: (translatedText) => {
+          const scratch = document.createElement("div");
+          scratch.innerHTML = translatedText;
+          n.innerHTML = scratch.innerHTML;
+        },
+      }));
+
+      // Texte alternatif des images (accessibilité) : traduit séparément car ce
+      // n'est pas du HTML mais un attribut texte brut.
+      [...doc.querySelectorAll("img[alt]")].forEach((img) => {
+        const alt = (img.getAttribute("alt") || "").trim();
+        if (alt) {
+          items.push({
+            text: alt,
+            apply: (translatedText) => img.setAttribute("alt", stripHtmlTags(translatedText)),
+          });
+        }
+      });
+
       chapters.push({
         fullPath,
         doc,
-        nodes,
-        segments: nodes.map((n) => n.innerHTML.trim()),
-        done: nodes.length === 0, // chapitre sans texte = déjà "fait"
+        items,
+        segments: items.map((it) => it.text),
+        done: items.length === 0, // chapitre sans texte = déjà "fait"
       });
     }
 
-    ctx = { key: fileKey, zip, opfPath, opfXml, titleText, chapters };
+    const { items: navItems, navDoc, navPath, ncxDoc, ncxPath } = await collectNavItems(zip, opfDir, opfDoc);
+
+    ctx = {
+      key: fileKey, zip, opfPath, opfDoc, titleText,
+      chapters, navItems, navDoc, navPath, ncxDoc, ncxPath, navDone: navItems.length === 0,
+    };
     state.epubContext = ctx;
-    log(`EPUB analysé : ${ctx.chapters.length} chapitre(s), ${ctx.chapters.reduce((a, c) => a + c.segments.length, 0)} bloc(s) de texte au total.`);
+    log(`EPUB analysé : ${ctx.chapters.length} chapitre(s), ${ctx.chapters.reduce((a, c) => a + c.segments.length, 0)} bloc(s) de texte au total, ${navItems.length} entrée(s) de sommaire.`);
+    if (readingDirFixed) log("Sens de lecture d'origine (droite→gauche) réinitialisé en lecture occidentale pour la version française.", "ok");
+    if (verticalCssDetected) log("CSS en écriture verticale détecté dans le livre source — non modifié automatiquement, à vérifier manuellement après traduction si la mise en page semble incorrecte.", "err");
   } else {
     log(`Reprise sur le même fichier : ${ctx.chapters.filter((c) => c.done).length}/${ctx.chapters.length} chapitre(s) déjà traduits.`);
+  }
+
+  // Le sommaire (table des matières) est traduit en une seule fois, à part du
+  // découpage par chapitres/par lot, car il est généralement de petite taille.
+  if (!ctx.navDone && ctx.navItems.length > 0) {
+    log(`Traduction du sommaire (${ctx.navItems.length} entrée(s))…`);
+    const navTexts = ctx.navItems.map((it) => it.text);
+    const navTranslated = await translateBatch(navTexts, registre, srcLang, () => {}, null);
+    ctx.navItems.forEach((it, i) => it.apply(navTranslated[i]));
+    ctx.navDone = true;
+    log("Sommaire traduit.", "ok");
   }
 
   // exporter utilisable à tout moment (même en cours de traduction)
@@ -839,9 +1142,7 @@ async function parseAndTranslateEpub(file, registre, srcLang, onProgress, chapte
       srcLang,
       (d, t) => { onProgress(blocksDone + d, totalBlocks, `Chapitre ${ci + 1}/${toProcess.length} de ce lot…`); },
       (i, translatedText) => {
-        const scratch = document.createElement("div");
-        scratch.innerHTML = translatedText;
-        chapter.nodes[i].innerHTML = scratch.innerHTML;
+        chapter.items[i].apply(translatedText);
       }
     );
     blocksDone += chapter.segments.length;
@@ -865,61 +1166,264 @@ async function parseAndTranslateEpub(file, registre, srcLang, onProgress, chapte
 }
 
 async function buildEpubZipFromContext(ctx) {
+  // Parsing d'entrée tolérant (text/html) pour absorber les irrégularités du
+  // fichier original ou de la traduction, mais la sortie doit être du XML valide.
   ctx.chapters.forEach(({ fullPath, doc }) => {
-    // Sérialisation XML stricte (balises auto-fermées, xmlns, entités
-    // échappées) : les liseuses comme Kobo lisent le contenu EPUB comme du
-    // XHTML strict et affichent une page blanche si le markup n'est pas
-    // parfaitement bien formé. Le parsing d'entrée reste tolérant (text/html)
-    // pour absorber les irrégularités du fichier original ou de la traduction,
-    // mais la sortie doit, elle, être du XML valide.
-    doc.documentElement.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-    const serialized = new XMLSerializer().serializeToString(doc.documentElement);
-    const out = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n' + serialized;
-    ctx.zip.file(fullPath, out);
+    ctx.zip.file(fullPath, serializeXhtmlDoc(doc));
   });
-  let opfOut = ctx.opfXml
-    .replace(/<dc:language>.*?<\/dc:language>/, "<dc:language>fr</dc:language>")
-    .replace(/(<dc:title[^>]*>)(.*?)(<\/dc:title>)/, `$1${escapeXml(ctx.titleText)} (français)$3`);
-  if (!/<dc:language>/.test(opfOut)) {
-    opfOut = opfOut.replace("</metadata>", "<dc:language>fr</dc:language></metadata>");
+
+  if (ctx.navDoc && ctx.navPath) {
+    ctx.zip.file(ctx.navPath, serializeXhtmlDoc(ctx.navDoc));
   }
-  ctx.zip.file(ctx.opfPath, opfOut);
+  if (ctx.ncxDoc && ctx.ncxPath) {
+    const ncxSerialized = new XMLSerializer().serializeToString(ctx.ncxDoc.documentElement);
+    ctx.zip.file(ctx.ncxPath, '<?xml version="1.0" encoding="UTF-8"?>\n' + ncxSerialized);
+  }
+
+  // Métadonnées OPF modifiées via le DOM plutôt que par regex sur le XML brut :
+  // une regex sur <dc:title> ne matche pas toujours (attributs inhabituels,
+  // espaces, structure légèrement différente d'un éditeur à l'autre) et laissait
+  // silencieusement le titre non modifié dans certains fichiers.
+  const opfDoc = ctx.opfDoc;
+  const dcNS = "http://purl.org/dc/elements/1.1/";
+  const metadataEl = opfDoc.getElementsByTagName("metadata")[0];
+
+  const dcTitle = opfDoc.getElementsByTagName("dc:title")[0];
+  if (dcTitle) dcTitle.textContent = `${ctx.titleText} (français)`;
+
+  let dcLanguage = opfDoc.getElementsByTagName("dc:language")[0];
+  if (dcLanguage) {
+    dcLanguage.textContent = "fr";
+  } else if (metadataEl) {
+    dcLanguage = opfDoc.createElementNS(dcNS, "dc:language");
+    dcLanguage.textContent = "fr";
+    metadataEl.appendChild(dcLanguage);
+  }
+
+  // dc:source conserve la trace du titre d'origine (ouvrage dont celui-ci est
+  // dérivé) — utile pour la traçabilité d'une traduction.
+  if (metadataEl && !opfDoc.getElementsByTagName("dc:source").length) {
+    const dcSource = opfDoc.createElementNS(dcNS, "dc:source");
+    dcSource.textContent = ctx.titleText;
+    metadataEl.appendChild(dcSource);
+  }
+
+  const opfSerialized = new XMLSerializer().serializeToString(opfDoc.documentElement);
+  ctx.zip.file(ctx.opfPath, '<?xml version="1.0" encoding="UTF-8"?>\n' + opfSerialized);
+
   return ctx.zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" });
 }
 
-// PDF: extract text per page, rebuild as fresh epub
+// ---------- Réparation des ligatures typographiques manquantes (PDF) ----------
+// De nombreux PDF professionnels (édition universitaire notamment) utilisent des
+// glyphes de ligature ("fi", "fl", "ff", "ffi", "ffl") dont le mappage Unicode
+// interne est incomplet : à l'extraction, ces glyphes ne restituent pas les deux
+// caractères d'origine mais un seul "f" — "first" devient "frst", "difficult"
+// devient "difcult", "effort" devient "efort", etc. Ce n'est pas un cas isolé :
+// sur un ouvrage universitaire de 517 pages testé pendant le développement, plus
+// de 4200 occurrences de ce type ont été observées. Comme ce texte corrompu sert
+// ensuite d'entrée à la traduction, l'erreur se propage silencieusement dans le
+// résultat. La table ci-dessous (validée par dictionnaire, donc sans ambiguïté)
+// corrige les formes cassées les plus courantes avant traduction.
+const LIGATURE_FIX_MAP = {"fustered":"flustered","pontifcated":"pontificated","efects":"effects","flial":"filial","frebugs":"firebugs","fatulent":"flatulent","defate":"deflate","scofed":"scoffed","transfnite":"transfinite","fuorite":"fluorite","fnalist":"finalist","landfll":"landfill","unverifed":"unverified","bufalos":"buffalos","fotsam":"flotsam","fooder":"flooder","fneness":"fineness","fscal":"fiscal","disafect":"disaffect","misfres":"misfires","sufused":"suffused","ofenders":"offenders","chaufeur":"chauffeur","feshly":"fleshly","fns":"fins","outfts":"outfits","beautifes":"beautifies","stratifed":"stratified","identifed":"identified","indefnite":"indefinite","starfsh":"starfish","fopping":"flopping","circumfex":"circumflex","trifes":"trifles","fing":"fling","skif":"skiff","minefelds":"minefields","infrmaries":"infirmaries","pacifst":"pacifist","fattops":"flattops","ofcialdom":"officialdom","offcialdom":"officialdom","oficialdom":"officialdom","hufiest":"huffiest","hufest":"huffiest","huffest":"huffiest","fbber":"fibber","flls":"fills","tarifs":"tariffs","fabbergasts":"flabbergasts","selfe":"selfie","inefably":"ineffably","ineffciency":"inefficiency","inefciency":"inefficiency","ineficiency":"inefficiency","frth":"firth","tif":"tiff","foggings":"floggings","efusiveness":"effusiveness","fendishly":"fiendishly","snufng":"snuffing","snuffng":"snuffing","fotation":"flotation","newsfash":"newsflash","gaffng":"gaffing","gafng":"gaffing","gafing":"gaffing","fremen":"firemen","fames":"flames","goldfnch":"goldfinch","effciently":"efficiently","eficiently":"efficiently","efciently":"efficiently","infated":"inflated","mufles":"muffles","muffes":"muffles","mufes":"muffles","afects":"affects","profts":"profits","afinity":"affinity","affnity":"affinity","afnity":"affinity","ofciating":"officiating","oficiating":"officiating","offciating":"officiating","flbert":"filbert","transfgures":"transfigures","rebufed":"rebuffed","refect":"reflect","unrefned":"unrefined","skifs":"skiffs","fabby":"flabby","fnalizing":"finalizing","foured":"floured","outfanks":"outflanks","spinof":"spinoff","fatfooted":"flatfooted","refnishes":"refinishes","sulfdes":"sulfides","defcits":"deficits","afinities":"affinities","affnities":"affinities","afnities":"affinities","confuences":"confluences","bufers":"buffers","unftted":"unfitted","frewalls":"firewalls","fuoridated":"fluoridated","benefce":"benefice","fshy":"fishy","foppiest":"floppiest","fresides":"firesides","fbulas":"fibulas","cofeecakes":"coffeecakes","affuence":"affluence","afuence":"affluence","afluence":"affluence","sufocation":"suffocation","unfulflled":"unfulfilled","midrifs":"midriffs","frebreaks":"firebreaks","profer":"proffer","tafeta":"taffeta","prizefghts":"prizefights","personifed":"personified","fattering":"flattering","firting":"flirting","cofees":"coffees","oficially":"officially","offcially":"officially","ofcially":"officially","frestorm":"firestorm","ribofavin":"riboflavin","faw":"flaw","edifes":"edifies","sanctifed":"sanctified","defners":"definers","spify":"spiffy","snufboxes":"snuffboxes","ferier":"fierier","sufixes":"suffixes","sufxes":"suffixes","suffxes":"suffixes","mifs":"miffs","frewater":"firewater","decafeinate":"decaffeinate","feeted":"fleeted","fippantly":"flippantly","founced":"flounced","debriefng":"debriefing","freproofs":"fireproofs","disqualifes":"disqualifies","fles":"files","afectations":"affectations","fukes":"flukes","dofs":"doffs","mellifuous":"mellifluous","taffes":"taffies","tafies":"taffies","tafes":"taffies","fashier":"flashier","confrming":"confirming","sellofs":"selloffs","fatcar":"flatcar","unfagging":"unflagging","profigates":"profligates","refnishing":"refinishing","stufed":"stuffed","felded":"fielded","modifcation":"modification","selfshness":"selfishness","mastif":"mastiff","safrons":"saffrons","ripofs":"ripoffs","fippant":"flippant","prizefght":"prizefight","retroftting":"retrofitting","frmed":"firmed","fgments":"figments","sufragan":"suffragan","fuorides":"fluorides","tafy":"taffy","refexive":"reflexive","fushest":"flushest","bufalo":"buffalo","butterfied":"butterflied","flches":"filches","amplifed":"amplified","flimfamming":"flimflamming","fimflamming":"flimflamming","dissatisfed":"dissatisfied","defciency":"deficiency","stifening":"stiffening","tofees":"toffees","pontifcates":"pontificates","fuidly":"fluidly","rifraff":"riffraff","riffraf":"riffraff","fgurative":"figurative","frmaments":"firmaments","leafets":"leaflets","prefxes":"prefixes","fller":"filler","fightiness":"flightiness","diferential":"differential","silverfshes":"silverfishes","fgures":"figures","specifes":"specifies","snarfng":"snarfing","fummox":"flummox","beatifc":"beatific","flterable":"filterable","stifest":"stiffest","humidifed":"humidified","refling":"refiling","efervesce":"effervesce","semifnal":"semifinal","runof":"runoff","ofshoots":"offshoots","foweriness":"floweriness","infnitive":"infinitive","efecting":"effecting","gufawed":"guffawed","wildfre":"wildfire","semifnalist":"semifinalist","frestorms":"firestorms","amplifes":"amplifies","trifed":"trifled","verifes":"verifies","firtatious":"flirtatious","affliations":"affiliations","afliations":"affiliations","afiliations":"affiliations","codifes":"codifies","signifcance":"significance","vilifed":"vilified","payofs":"payoffs","foated":"floated","indemnifes":"indemnifies","famenco":"flamenco","briefngs":"briefings","cufs":"cuffs","crucifxes":"crucifixes","refner":"refiner","fatteringly":"flatteringly","fefs":"fiefs","fimsiest":"flimsiest","infelds":"infields","feriness":"fieriness","frst":"first","sniffng":"sniffing","snifng":"sniffing","crucifxions":"crucifixions","headfrst":"headfirst","foodlighted":"floodlighted","fzzy":"fizzy","fxing":"fixing","fves":"fives","retroft":"retrofit","foorboards":"floorboards","fnny":"finny","codifcation":"codification","confded":"confided","fyspecking":"flyspecking","undefned":"undefined","afectation":"affectation","fubbing":"flubbing","ffes":"fifes","fltered":"filtered","indiferent":"indifferent","fascos":"fiascos","reconfgured":"reconfigured","cornfowers":"cornflowers","goofest":"goofiest","edifces":"edifices","rustproofng":"rustproofing","fngernail":"fingernail","sufxing":"suffixing","sufixing":"suffixing","suffxing":"suffixing","flming":"filming","fshbowl":"fishbowl","fbbing":"fibbing","rufled":"ruffled","grufer":"gruffer","unifcation":"unification","tofies":"toffies","tofes":"toffies","toffes":"toffies","nullifes":"nullifies","benefciary":"beneficiary","profciently":"proficiently","codifed":"codified","versifed":"versified","fap":"flap","snifs":"sniffs","fsts":"fists","confguring":"configuring","trafcking":"trafficking","traficking":"trafficking","traffcking":"trafficking","fghter":"fighter","fshtails":"fishtails","standof":"standoff","infuences":"influences","fub":"flub","pacifsts":"pacifists","fndings":"findings","refnements":"refinements","afeld":"afield","fngered":"fingered","flly":"filly","flliping":"filliping","fammable":"flammable","stify":"stiffly","stiffy":"stiffly","stifly":"stiffly","fapjack":"flapjack","fiers":"fliers","fnding":"finding","ofending":"offending","fdgeting":"fidgeting","fusters":"flusters","proftably":"profitably","orifce":"orifice","offciated":"officiated","oficiated":"officiated","ofciated":"officiated","feldwork":"fieldwork","logof":"logoff","afrm":"affirm","affrm":"affirm","afirm":"affirm","crucifed":"crucified","fche":"fiche","putrefes":"putrefies","favorings":"flavorings","goldfshes":"goldfishes","feshliest":"fleshliest","fnagle":"finagle","flliped":"filliped","handcuf":"handcuff","prettifed":"prettified","chiefy":"chiefly","spacefights":"spaceflights","infatables":"inflatables","difed":"diffed","freproof":"fireproof","profigacy":"profligacy","specifable":"specifiable","confgured":"configured","flmmakers":"filmmakers","foppies":"floppies","ofense":"offense","pontifcal":"pontifical","closefsted":"closefisted","stifer":"stiffer","firtation":"flirtation","infation":"inflation","fower":"flower","fapping":"flapping","tarif":"tariff","sufocated":"suffocated","difusing":"diffusing","infltration":"infiltration","infamed":"inflamed","fnalize":"finalize","outfelders":"outfielders","fexed":"flexed","forefngers":"forefingers","fve":"five","plaintifs":"plaintiffs","fuff":"fluff","fluf":"fluff","dandruf":"dandruff","efortless":"effortless","backfred":"backfired","flibusters":"filibusters","stagfation":"stagflation","efaces":"effaces","effciency":"efficiency","eficiency":"efficiency","efciency":"efficiency","flmed":"filmed","fnks":"finks","indefnitely":"indefinitely","stultifed":"stultified","dificulties":"difficulties","diffculties":"difficulties","difculties":"difficulties","pacifcally":"pacifically","sunfshes":"sunfishes","modifes":"modifies","fagon":"flagon","signifed":"signified","snife":"sniffle","snifle":"sniffle","sniffe":"sniffle","refective":"reflective","chaufeurs":"chauffeurs","confdently":"confidently","crossfre":"crossfire","ofshoring":"offshoring","frehouses":"firehouses","bonfre":"bonfire","furried":"flurried","reftted":"refitted","frewood":"firewood","reclassifes":"reclassifies","fashbacks":"flashbacks","snufle":"snuffle","snuffe":"snuffle","snufe":"snuffle","fywheel":"flywheel","fatboat":"flatboat","versifes":"versifies","fnances":"finances","sailfsh":"sailfish","syllabifes":"syllabifies","retroftted":"retrofitted","nonfction":"nonfiction","fnagler":"finagler","safower":"safflower","saffower":"safflower","saflower":"safflower","fuxing":"fluxing","fooding":"flooding","selfessness":"selflessness","ficker":"flicker","fery":"fiery","refnances":"refinances","misfts":"misfits","fows":"flows","defnitive":"definitive","specifc":"specific","staffng":"staffing","stafng":"staffing","stafing":"staffing","liftofs":"liftoffs","scientifc":"scientific","defnitively":"definitively","profteers":"profiteers","certifcates":"certificates","feetingly":"fleetingly","fshwife":"fishwife","snuffes":"snuffles","snufles":"snuffles","snufes":"snuffles","bullfghts":"bullfights","infltrate":"infiltrate","fytraps":"flytraps","soporifc":"soporific","sufrage":"suffrage","fef":"fief","bullfghting":"bullfighting","confgurable":"configurable","transfx":"transfix","fexibly":"flexibly","sherifs":"sheriffs","mortifes":"mortifies","refnery":"refinery","transfxing":"transfixing","confgures":"configures","pacifed":"pacified","fashlight":"flashlight","efusions":"effusions","confde":"confide","dufers":"duffers","qualifes":"qualifies","fnessing":"finessing","gaf":"gaff","furrying":"flurrying","snafe":"snaffle","snaffe":"snaffle","snafle":"snaffle","fasher":"flasher","difer":"differ","frmer":"firmer","runofs":"runoffs","infow":"inflow","ffths":"fifths","gentrifes":"gentrifies","cofee":"coffee","artifces":"artifices","fulfll":"fulfill","catfshes":"catfishes","briefy":"briefly","infexibly":"inflexibly","mystifed":"mystified","chaffnch":"chaffinch","chafnch":"chaffinch","chafinch":"chaffinch","fnery":"finery","fasco":"fiasco","fyleaves":"flyleaves","foodstufs":"foodstuffs","ffth":"fifth","specifers":"specifiers","earmuf":"earmuff","fakiness":"flakiness","efciencies":"efficiencies","eficiencies":"efficiencies","effciencies":"efficiencies","scarifed":"scarified","fnished":"finished","foaters":"floaters","wallfowers":"wallflowers","fckleness":"fickleness","declassifed":"declassified","outfelds":"outfields","oficers":"officers","offcers":"officers","ofcers":"officers","traffc":"traffic","trafc":"traffic","trafic":"traffic","fipped":"flipped","fduciaries":"fiduciaries","pontifs":"pontiffs","testifed":"testified","famingo":"flamingo","discomft":"discomfit","stifener":"stiffener","fnagles":"finagles","aflicted":"afflicted","aficted":"afflicted","afficted":"afflicted","defciencies":"deficiencies","typifes":"typifies","infexible":"inflexible","fber":"fiber","campfre":"campfire","rectifable":"rectifiable","foodlight":"floodlight","fippest":"flippest","jifes":"jiffies","jiffes":"jiffies","jifies":"jiffies","dof":"doff","fsheries":"fisheries","fange":"flange","boufants":"bouffants","baffed":"baffled","bafled":"baffled","bafed":"baffled","fatfeet":"flatfeet","felder":"fielder","profciency":"proficiency","fttest":"fittest","fuorescence":"fluorescence","wildfower":"wildflower","fightier":"flightier","faxen":"flaxen","cuttlefshes":"cuttlefishes","fxation":"fixation","intensifes":"intensifies","frecracker":"firecracker","clarifed":"clarified","frebrands":"firebrands","fexibility":"flexibility","afording":"affording","ofhand":"offhand","fbroid":"fibroid","fssures":"fissures","bonfres":"bonfires","forefnger":"forefinger","confdential":"confidential","bif":"biff","sufer":"suffer","fuoridating":"fluoridating","scafolds":"scaffolds","fummoxing":"flummoxing","profigate":"profligate","flimfammed":"flimflammed","fimflammed":"flimflammed","huffng":"huffing","hufng":"huffing","hufing":"huffing","unrufed":"unruffled","unrufled":"unruffled","unruffed":"unruffled","fshtail":"fishtail","deflement":"defilement","fnanced":"financed","ossifcation":"ossification","finched":"flinched","reunifes":"reunifies","fgment":"figment","sufcient":"sufficient","suficient":"sufficient","suffcient":"sufficient","fuoridate":"fluoridate","frming":"firming","mayfowers":"mayflowers","refnanced":"refinanced","fanked":"flanked","horrifc":"horrific","circumfexes":"circumflexes","feshed":"fleshed","fulflled":"fulfilled","fres":"fires","afecting":"affecting","affliate":"affiliate","afliate":"affiliate","afiliate":"affiliate","fashes":"flashes","fdget":"fidget","confned":"confined","ftters":"fitters","nonfammable":"nonflammable","confrm":"confirm","fay":"flay","flufier":"fluffier","fluffer":"fluffier","flufer":"fluffier","fuffier":"fluffier","liftof":"liftoff","feshing":"fleshing","aford":"afford","afairs":"affairs","unfattering":"unflattering","fnitely":"finitely","unfnished":"unfinished","infrm":"infirm","difused":"diffused","fnality":"finality","fushed":"flushed","understafed":"understaffed","fsh":"fish","afronting":"affronting","minefeld":"minefield","fltrates":"filtrates","unclassifed":"unclassified","dignifed":"dignified","frebreak":"firebreak","mufer":"muffler","muffer":"muffler","mufler":"muffler","frmware":"firmware","ofend":"offend","fshiest":"fishiest","butterfies":"butterflies","quantifer":"quantifier","defles":"defiles","disafected":"disaffected","unjustifed":"unjustified","infltrated":"infiltrated","fagships":"flagships","mystifes":"mystifies","grifin":"griffin","grifn":"griffin","griffn":"griffin","liquefed":"liquefied","fnagling":"finagling","difidently":"diffidently","diffdently":"diffidently","difdently":"diffidently","ofensive":"offensive","reflls":"refills","difuseness":"diffuseness","dehumidifer":"dehumidifier","prettifes":"prettifies","forin":"florin","refecting":"reflecting","gruf":"gruff","profteering":"profiteering","fings":"flings","fdelity":"fidelity","humidifers":"humidifiers","fuke":"fluke","stufs":"stuffs","fashbulbs":"flashbulbs","defne":"define","refected":"reflected","fnagled":"finagled","unftting":"unfitting","reflling":"refilling","comfest":"comfiest","whifs":"whiffs","fexible":"flexible","ficked":"flicked","scrufy":"scruffy","fnaglers":"finaglers","faws":"flaws","ftter":"fitter","focked":"flocked","infames":"inflames","infate":"inflate","fligrees":"filigrees","qualifers":"qualifiers","fyweight":"flyweight","dignifes":"dignifies","defnition":"definition","fatfishes":"flatfishes","flatfshes":"flatfishes","refnement":"refinement","sufragist":"suffragist","frebombing":"firebombing","whif":"whiff","fakiest":"flakiest","iffer":"iffier","ifer":"iffier","ifier":"iffier","flufy":"fluffy","fuffy":"fluffy","notifes":"notifies","fues":"flues","fulflment":"fulfilment","suficing":"sufficing","sufcing":"sufficing","suffcing":"sufficing","frewall":"firewall","fagellate":"flagellate","classifable":"classifiable","dogfshes":"dogfishes","offciously":"officiously","ofciously":"officiously","oficiously":"officiously","infeld":"infield","beftting":"befitting","pufed":"puffed","profcients":"proficients","fagship":"flagship","whitefshes":"whitefishes","ofed":"offed","unspecifc":"unspecific","fycatcher":"flycatcher","efect":"effect","scafolding":"scaffolding","fimsy":"flimsy","camoufaged":"camouflaged","petrifed":"petrified","beefer":"beefier","fatfoot":"flatfoot","cofeehouses":"coffeehouses","blufer":"bluffer","ficks":"flicks","sufragans":"suffragans","showof":"showoff","typifed":"typified","fowerbeds":"flowerbeds","ofender":"offender","fowers":"flowers","fuxed":"fluxed","profteered":"profiteered","pacifes":"pacifies","trafickers":"traffickers","traffckers":"traffickers","trafckers":"traffickers","flthiness":"filthiness","snufled":"snuffled","beatifes":"beatifies","aforest":"afforest","unft":"unfit","fimsily":"flimsily","indefnable":"indefinable","defniteness":"definiteness","grafti":"graffiti","grafiti":"graffiti","graffti":"graffiti","mufers":"mufflers","muflers":"mufflers","muffers":"mufflers","benefces":"benefices","infuenced":"influenced","stafer":"staffer","blufest":"bluffest","fooring":"flooring","windsurfng":"windsurfing","whifed":"whiffed","foat":"float","soporifcs":"soporifics","afre":"afire","reconfgure":"reconfigure","fretrap":"firetrap","roofng":"roofing","ffty":"fifty","fuoridation":"fluoridation","foss":"floss","playof":"playoff","fction":"fiction","microflm":"microfilm","exemplifed":"exemplified","outftter":"outfitter","fintlocks":"flintlocks","quantifes":"quantifies","futists":"flutists","prefxing":"prefixing","staf":"staff","fycatchers":"flycatchers","freball":"fireball","earmufs":"earmuffs","rif":"riff","afection":"affection","afronted":"affronted","fickers":"flickers","flufs":"fluffs","fuffs":"fluffs","efeminate":"effeminate","woofng":"woofing","cofning":"coffining","coffning":"coffining","cofining":"coffining","oficiates":"officiates","ofciates":"officiates","offciates":"officiates","intensifer":"intensifier","leafeted":"leafleted","fuctuation":"fluctuation","vivifes":"vivifies","fock":"flock","feshes":"fleshes","afterefects":"aftereffects","scofaw":"scofflaw","scoffaw":"scofflaw","scoflaw":"scofflaw","dogfsh":"dogfish","pufing":"puffing","puffng":"puffing","pufng":"puffing","disafects":"disaffects","efacing":"effacing","cofers":"coffers","fagpole":"flagpole","fnishing":"finishing","aforesting":"afforesting","fches":"fiches","suferers":"sufferers","efrontery":"effrontery","fiest":"fliest","defed":"defied","freplug":"fireplug","ofing":"offing","ofng":"offing","offng":"offing","feeced":"fleeced","calcifed":"calcified","fshnet":"fishnet","difs":"diffs","tofy":"toffy","profles":"profiles","insufcient":"insufficient","insuficient":"insufficient","insuffcient":"insufficient","gafe":"gaffe","oilfelds":"oilfields","difers":"differs","transfxes":"transfixes","difusion":"diffusion","fatboats":"flatboats","justifable":"justifiable","fue":"flue","fanges":"flanges","ferce":"fierce","coifures":"coiffures","refts":"refits","bluefshes":"bluefishes","dyestuf":"dyestuff","fstfuls":"fistfuls","fied":"flied","turfng":"turfing","puf":"puff","infrmities":"infirmities","flters":"filters","fux":"flux","solidifed":"solidified","freflies":"fireflies","firefies":"fireflies","ficking":"flicking","chaffng":"chaffing","reafrms":"reaffirms","reafirms":"reaffirms","reaffrms":"reaffirms","efulgent":"effulgent","clifs":"cliffs","afliated":"affiliated","afiliated":"affiliated","affliated":"affiliated","finging":"flinging","ofshore":"offshore","infdelities":"infidelities","fytrap":"flytrap","mortifed":"mortified","inefective":"ineffective","difculty":"difficulty","dificulty":"difficulty","diffculty":"difficulty","fowered":"flowered","cofeecake":"coffeecake","artifcer":"artificer","declassifes":"declassifies","chafnches":"chaffinches","chaffnches":"chaffinches","chafinches":"chaffinches","fourishes":"flourishes","putrefed":"putrefied","infltrator":"infiltrator","fulfl":"fulfil","sherif":"sheriff","reshufle":"reshuffle","reshuffe":"reshuffle","reshufe":"reshuffle","fnance":"finance","diversifes":"diversifies","crucifxion":"crucifixion","elfsh":"elfish","fddled":"fiddled","afiction":"affliction","affiction":"affliction","afliction":"affliction","fawed":"flawed","ofensives":"offensives","fickered":"flickered","sanctifes":"sanctifies","futter":"flutter","classifed":"classified","ceasefre":"ceasefire","trafcs":"traffics","trafics":"traffics","traffcs":"traffics","cofeepot":"coffeepot","terrifes":"terrifies","airfeld":"airfield","refections":"reflections","fshing":"fishing","superfcial":"superficial","bufed":"buffed","bufng":"buffing","bufing":"buffing","buffng":"buffing","fructifed":"fructified","fnanciers":"financiers","prefgure":"prefigure","trifer":"trifler","defnitions":"definitions","fouring":"flouring","fuxes":"fluxes","fghts":"fights","redefning":"redefining","funkeys":"flunkeys","backfres":"backfires","dafy":"daffy","fddler":"fiddler","clarifes":"clarifies","confdence":"confidence","rarefes":"rarefies","diferent":"different","fowerpot":"flowerpot","fier":"flier","snaffed":"snaffled","snafed":"snaffled","snafled":"snaffled","overfowing":"overflowing","faunts":"flaunts","fftieths":"fiftieths","fghting":"fighting","fnickiest":"finickiest","flatfsh":"flatfish","fatfish":"flatfish","ofertories":"offertories","camoufage":"camouflage","sunfsh":"sunfish","fotations":"flotations","fying":"flying","saflowers":"safflowers","saffowers":"safflowers","safowers":"safflowers","snaffes":"snaffles","snafles":"snaffles","snafes":"snaffles","infnities":"infinities","fipping":"flipping","fshed":"fished","fuoresces":"fluoresces","facks":"flacks","magnifcent":"magnificent","redefne":"redefine","rectifes":"rectifies","bufeting":"buffeting","afterefect":"aftereffect","afability":"affability","fatfoots":"flatfoots","stifes":"stifles","confne":"confine","flaments":"filaments","fedglings":"fledglings","comfer":"comfier","fubs":"flubs","fssure":"fissure","feeing":"fleeing","fips":"flips","fatbeds":"flatbeds","foatation":"floatation","misfre":"misfire","flet":"filet","efervesces":"effervesces","refed":"reffed","refnancing":"refinancing","bufoon":"buffoon","fowcharts":"flowcharts","unofensive":"unoffensive","dwarfng":"dwarfing","swordfsh":"swordfish","benefting":"benefiting","shellfshes":"shellfishes","confdante":"confidante","fxated":"fixated","stafers":"staffers","overfows":"overflows","frsthand":"firsthand","fre":"fire","fxtures":"fixtures","ofloading":"offloading","ofoading":"offloading","offoading":"offloading","fattery":"flattery","infdels":"infidels","frebug":"firebug","efaced":"effaced","unspecifed":"unspecified","pacifcation":"pacification","confscate":"confiscate","fddlesticks":"fiddlesticks","beftted":"befitted","fshhooks":"fishhooks","transfxed":"transfixed","specifer":"specifier","tifed":"tiffed","fguring":"figuring","glorifes":"glorifies","scruffest":"scruffiest","scrufiest":"scruffiest","scrufest":"scruffiest","scoflaws":"scofflaws","scoffaws":"scofflaws","scofaws":"scofflaws","signifcant":"significant","fex":"flex","horrifed":"horrified","deifcation":"deification","faunted":"flaunted","undefnable":"undefinable","feeting":"fleeting","sufuses":"suffuses","scof":"scoff","horsefy":"horsefly","fshnets":"fishnets","affxes":"affixes","afixes":"affixes","afxes":"affixes","jackknifng":"jackknifing","furries":"flurries","strafng":"strafing","stafed":"staffed","suffce":"suffice","sufce":"suffice","sufice":"suffice","scofs":"scoffs","fambes":"flambes","fyspecked":"flyspecked","foater":"floater","cofn":"coffin","coffn":"coffin","cofin":"coffin","notifed":"notified","fanks":"flanks","fnest":"finest","afray":"affray","rufling":"ruffling","fngerings":"fingerings","confrms":"confirms","ofering":"offering","infelders":"infielders","specifcally":"specifically","futtering":"fluttering","infux":"influx","fapped":"flapped","shufe":"shuffle","shufle":"shuffle","shuffe":"shuffle","sunfowers":"sunflowers","feshlier":"fleshlier","fysheet":"flysheet","turnof":"turnoff","blufing":"bluffing","bluffng":"bluffing","blufng":"bluffing","fnally":"finally","sufocating":"suffocating","profted":"profited","dafier":"daffier","daffer":"daffier","dafer":"daffier","intensifers":"intensifiers","fxate":"fixate","clifhanger":"cliffhanger","terrifc":"terrific","difusely":"diffusely","fexitime":"flexitime","fies":"flies","overfowed":"overflowed","fashily":"flashily","fallofs":"falloffs","fnalized":"finalized","discomfts":"discomfits","foras":"floras","rifs":"riffs","reffng":"reffing","refng":"reffing","refing":"reffing","offciate":"officiate","ofciate":"officiate","oficiate":"officiate","benefcially":"beneficially","pufier":"puffier","fimsiness":"flimsiness","focks":"flocks","leafng":"leafing","prefxed":"prefixed","freplugs":"fireplugs","fltration":"filtration","frebomb":"firebomb","vivifed":"vivified","edifce":"edifice","fannels":"flannels","fourishing":"flourishing","stuffer":"stuffier","stufer":"stuffier","stufier":"stuffier","whitefsh":"whitefish","fashy":"flashy","faunting":"flaunting","midrif":"midriff","flmy":"filmy","rectifer":"rectifier","foozie":"floozie","pacifer":"pacifier","elfn":"elfin","defantly":"defiantly","tofee":"toffee","bailif":"bailiff","stufy":"stuffy","flching":"filching","purifed":"purified","aflicting":"afflicting","aficting":"afflicting","afficting":"afflicting","disfgure":"disfigure","defating":"deflating","satisfes":"satisfies","snifling":"sniffling","diference":"difference","muf":"muff","fshermen":"fishermen","ofsets":"offsets","fctions":"fictions","fngerprints":"fingerprints","grufness":"gruffness","suffxed":"suffixed","sufixed":"suffixed","sufxed":"suffixed","infltrating":"infiltrating","dogfght":"dogfight","bailifs":"bailiffs","goofng":"goofing","purifes":"purifies","fshery":"fishery","gufawing":"guffawing","defnitely":"definitely","ramifed":"ramified","foozies":"floozies","snufer":"snuffer","defning":"defining","ofal":"offal","shuffers":"shufflers","shufers":"shufflers","shuflers":"shufflers","fesh":"flesh","ofside":"offside","unsatisfed":"unsatisfied","refnes":"refines","trufes":"truffles","trufles":"truffles","truffes":"truffles","kickofs":"kickoffs","fgurine":"figurine","fab":"flab","fints":"flints","sufuse":"suffuse","aficts":"afflicts","afficts":"afflicts","aflicts":"afflicts","sunfower":"sunflower","conficts":"conflicts","gufaw":"guffaw","magnifers":"magnifiers","unselfsh":"unselfish","firtations":"flirtations","housefy":"housefly","fabbier":"flabbier","fays":"flays","fcklest":"ficklest","cockfghts":"cockfights","outftted":"outfitted","fnancially":"financially","refners":"refiners","defant":"defiant","feeciest":"fleeciest","modifers":"modifiers","fnis":"finis","fubbed":"flubbed","fltrable":"filtrable","fyswatters":"flyswatters","fxed":"fixed","prefguring":"prefiguring","finty":"flinty","fambeing":"flambeing","ladyfnger":"ladyfinger","fnite":"finite","favorful":"flavorful","skinfint":"skinflint","unoffcial":"unofficial","unoficial":"unofficial","unofcial":"unofficial","wildfowers":"wildflowers","layof":"layoff","foodlit":"floodlit","fring":"firing","misfred":"misfired","fophouses":"flophouses","fannelette":"flannelette","fgs":"figs","safron":"saffron","aforests":"afforests","efusion":"effusion","clifhangers":"cliffhangers","fung":"flung","fascoes":"fiascoes","fnches":"finches","frebrand":"firebrand","girafes":"giraffes","fowchart":"flowchart","ffteenth":"fifteenth","fshier":"fishier","confdant":"confidant","refexively":"reflexively","cuffng":"cuffing","cufing":"cuffing","cufng":"cuffing","shufleboard":"shuffleboard","shufeboard":"shuffleboard","shuffeboard":"shuffleboard","fshes":"fishes","disafection":"disaffection","identifes":"identifies","glorifed":"glorified","defling":"defiling","flthier":"filthier","fltrated":"filtrated","cofeepots":"coffeepots","vilifcation":"vilification","infnitives":"infinitives","chafs":"chaffs","blastof":"blastoff","fannel":"flannel","forid":"florid","feriest":"fieriest","fourished":"flourished","befts":"befits","fatting":"flatting","misftting":"misfitting","oficious":"officious","ofcious":"officious","offcious":"officious","quantifers":"quantifiers","refllable":"refillable","efuents":"effluents","efluents":"effluents","effuents":"effluents","unfts":"unfits","stufness":"stuffiness","stufiness":"stuffiness","stuffness":"stuffiness","flched":"filched","reproofng":"reproofing","silverfsh":"silverfish","fzzier":"fizzier","ofshoot":"offshoot","exemplifes":"exemplifies","profcient":"proficient","fask":"flask","proofng":"proofing","sacrifcing":"sacrificing","defnable":"definable","efete":"effete","intensifed":"intensified","modifable":"modifiable","fnesse":"finesse","scufes":"scuffles","scufles":"scuffles","scuffes":"scuffles","fatware":"flatware","flled":"filled","layofs":"layoffs","pacifc":"pacific","jellyfshes":"jellyfishes","snufers":"snuffers","afxed":"affixed","affxed":"affixed","afixed":"affixed","fngernails":"fingernails","infict":"inflict","feeces":"fleeces","fute":"flute","confscates":"confiscates","fxture":"fixture","fagstones":"flagstones","pacifers":"pacifiers","refles":"refiles","infuential":"influential","profled":"profiled","efectuates":"effectuates","fberglass":"fiberglass","fscally":"fiscally","rufe":"ruffle","rufle":"ruffle","ruffe":"ruffle","fuid":"fluid","wafling":"waffling","waffing":"waffling","wafing":"waffling","confrmed":"confirmed","efected":"effected","afirmative":"affirmative","affrmative":"affirmative","afrmative":"affirmative","predefned":"predefined","scarfng":"scarfing","modifed":"modified","fashgun":"flashgun","bullfghter":"bullfighter","fnalists":"finalists","fowery":"flowery","flufiness":"fluffiness","fuffiness":"fluffiness","flufness":"fluffiness","fluffness":"fluffiness","firefy":"firefly","frefly":"firefly","spifest":"spiffiest","spiffest":"spiffiest","spifiest":"spiffiest","efectual":"effectual","distaf":"distaff","fuctuating":"fluctuating","microfches":"microfiches","infghting":"infighting","fatly":"flatly","pufballs":"puffballs","quantifed":"quantified","bullfnches":"bullfinches","infrmary":"infirmary","shellfsh":"shellfish","reafrmed":"reaffirmed","reaffrmed":"reaffirmed","reafirmed":"reaffirmed","ffteen":"fifteen","fnger":"finger","felders":"fielders","fecking":"flecking","cockfght":"cockfight","fawing":"flawing","outfelder":"outfielder","butterfying":"butterflying","unfinching":"unflinching","fypapers":"flypapers","ftful":"fitful","deifes":"deifies","electrifed":"electrified","fip":"flip","confrmation":"confirmation","fagellation":"flagellation","afably":"affably","persifage":"persiflage","faky":"flaky","diffdent":"diffident","difdent":"diffident","difident":"diffident","oficer":"officer","ofcer":"officer","offcer":"officer","frearm":"firearm","fllips":"fillips","flagstaf":"flagstaff","fagstaff":"flagstaff","difering":"differing","flets":"filets","offngs":"offings","ofngs":"offings","ofings":"offings","frepower":"firepower","fummoxes":"flummoxes","mayfower":"mayflower","outftting":"outfitting","fammability":"flammability","feck":"fleck","genufected":"genuflected","famingoes":"flamingoes","fashed":"flashed","fght":"fight","debriefngs":"debriefings","fll":"fill","fuoresce":"fluoresce","rufes":"ruffles","ruffes":"ruffles","rufles":"ruffles","ofhandedly":"offhandedly","ofstages":"offstages","foridly":"floridly","effgies":"effigies","efgies":"effigies","efigies":"effigies","famboyantly":"flamboyantly","verifcation":"verification","trafcker":"trafficker","traficker":"trafficker","traffcker":"trafficker","cafeinated":"caffeinated","fver":"fiver","orifces":"orifices","fxates":"fixates","confnes":"confines","infx":"infix","dofed":"doffed","leafest":"leafiest","fallof":"falloff","outfank":"outflank","acidifes":"acidifies","feecier":"fleecier","stuf":"stuff","unflled":"unfilled","fructifes":"fructifies","fagellates":"flagellates","fea":"flea","cofned":"coffined","cofined":"coffined","coffned":"coffined","outfeld":"outfield","fngertips":"fingertips","outft":"outfit","defes":"defies","artifcial":"artificial","quafs":"quaffs","refned":"refined","frework":"firework","stif":"stiff","futtered":"fluttered","minifoppies":"minifloppies","confgure":"configure","sufces":"suffices","suffces":"suffices","sufices":"suffices","sulfde":"sulfide","fagellated":"flagellated","confrmatory":"confirmatory","certifable":"certifiable","fatulence":"flatulence","fashing":"flashing","traficked":"trafficked","trafcked":"trafficked","traffcked":"trafficked","eficacious":"efficacious","effcacious":"efficacious","efcacious":"efficacious","ragamufns":"ragamuffins","ragamuffns":"ragamuffins","ragamufins":"ragamuffins","mollifes":"mollifies","fagrantly":"flagrantly","fbula":"fibula","ofends":"offends","fipper":"flipper","spoofng":"spoofing","fdgets":"fidgets","conficting":"conflicting","afrms":"affirms","afirms":"affirms","affrms":"affirms","rebuffng":"rebuffing","rebufng":"rebuffing","rebufing":"rebuffing","identifer":"identifier","superfuity":"superfluity","inficted":"inflicted","selfess":"selfless","trife":"trifle","infiction":"infliction","fuent":"fluent","infates":"inflates","fown":"flown","riffes":"riffles","fduciary":"fiduciary","ofoad":"offload","offoad":"offload","ofload":"offload","fagpoles":"flagpoles","standofish":"standoffish","standoffsh":"standoffish","standofsh":"standoffish","testifes":"testifies","ofstage":"offstage","inefable":"ineffable","cofer":"coffer","gratifed":"gratified","stiffng":"stiffing","stifng":"stiffing","fzz":"fizz","fowerbed":"flowerbed","beefest":"beefiest","refled":"refiled","fashest":"flashest","suffciency":"sufficiency","suficiency":"sufficiency","sufciency":"sufficiency","acidifed":"acidified","fatters":"flatters","ftted":"fitted","fannelled":"flannelled","faccid":"flaccid","scrufer":"scruffier","scrufier":"scruffier","scruffer":"scruffier","refnish":"refinish","fbs":"fibs","fuky":"fluky","stupefes":"stupefies","stratifes":"stratifies","duf":"duff","fawlessly":"flawlessly","futed":"fluted","caulifowers":"cauliflowers","funkie":"flunkie","infltrates":"infiltrates","riffe":"riffle","refector":"reflector","defcient":"deficient","ladyfngers":"ladyfingers","showofs":"showoffs","infectional":"inflectional","justifes":"justifies","gunfghts":"gunfights","famethrower":"flamethrower","blufers":"bluffers","gafed":"gaffed","gafs":"gaffs","flibuster":"filibuster","stufily":"stuffily","stuffly":"stuffily","stufly":"stuffily","oficials":"officials","offcials":"officials","ofcials":"officials","handcufs":"handcuffs","magnifed":"magnified","famboyant":"flamboyant","rufians":"ruffians","ruffans":"ruffians","rufans":"ruffians","playofs":"playoffs","gafes":"gaffes","ftness":"fitness","rafish":"raffish","raffsh":"raffish","rafsh":"raffish","efortlessly":"effortlessly","fossed":"flossed","rifng":"riffing","riffng":"riffing","fyovers":"flyovers","foodgates":"floodgates","sufers":"suffers","mufled":"muffled","fuids":"fluids","outfanked":"outflanked","fyby":"flyby","freplaces":"fireplaces","dragonfy":"dragonfly","founcing":"flouncing","puffest":"puffiest","pufiest":"puffiest","pufest":"puffiest","shuffing":"shuffling","shufing":"shuffling","shufling":"shuffling","firt":"flirt","fopped":"flopped","futing":"fluting","flufest":"fluffiest","fluffest":"fluffiest","fuffiest":"fluffiest","flufiest":"fluffiest","fxative":"fixative","microflming":"microfilming","fashback":"flashback","honorifcs":"honorifics","fuoresced":"fluoresced","fint":"flint","emulsifes":"emulsifies","ifiest":"iffiest","iffest":"iffiest","ifest":"iffiest","microfche":"microfiche","feeter":"fleeter","fourish":"flourish","fowed":"flowed","defner":"definer","fxers":"fixers","fnale":"finale","fummoxed":"flummoxed","rafle":"raffle","raffe":"raffle","rafe":"raffle","raffed":"raffled","rafled":"raffled","rafed":"raffled","beautifers":"beautifiers","fash":"flash","chaf":"chaff","fypaper":"flypaper","fxer":"fixer","fick":"flick","fyleaf":"flyleaf","gunfght":"gunfight","profers":"proffers","fank":"flank","fngerprint":"fingerprint","disfguring":"disfiguring","midwifng":"midwifing","beautifer":"beautifier","gunfre":"gunfire","disfgured":"disfigured","bifed":"biffed","freside":"fireside","beft":"befit","knifng":"knifing","rebufs":"rebuffs","purifer":"purifier","foppiness":"floppiness","bluefsh":"bluefish","defated":"deflated","oferings":"offerings","falsifes":"falsifies","trufle":"truffle","trufe":"truffle","truffe":"truffle","faps":"flaps","fzzled":"fizzled","ffties":"fifties","cufed":"cuffed","scufled":"scuffled","festa":"fiesta","qualifer":"qualifier","bufaloes":"buffaloes","fippies":"flippies","fashlights":"flashlights","fintlock":"flintlock","flberts":"filberts","fattered":"flattered","fguratively":"figuratively","insuferable":"insufferable","fippancy":"flippancy","genufecting":"genuflecting","infrmity":"infirmity","fsher":"fisher","feld":"field","stifings":"stiflings","frebombed":"firebombed","rufan":"ruffian","ruffan":"ruffian","rufian":"ruffian","wallfower":"wallflower","countrifed":"countrified","fnal":"final","classifes":"classifies","afiliation":"affiliation","affliation":"affiliation","afliation":"affiliation","fuorine":"fluorine","ofenses":"offenses","fagellating":"flagellating","confscated":"confiscated","fanking":"flanking","reshufes":"reshuffles","reshuffes":"reshuffles","reshufles":"reshuffles","fimsier":"flimsier","rafing":"raffling","rafling":"raffling","raffing":"raffling","liquefes":"liquefies","bufets":"buffets","fngers":"fingers","fyer":"flyer","fashers":"flashers","prolifc":"prolific","fowing":"flowing","redefned":"redefined","fortifes":"fortifies","mufs":"muffs","handcufing":"handcuffing","handcufng":"handcuffing","handcuffng":"handcuffing","infating":"inflating","semifnals":"semifinals","fuency":"fluency","puffn":"puffin","pufn":"puffin","pufin":"puffin","fedgling":"fledgling","confict":"conflict","interofce":"interoffice","interofice":"interoffice","interoffce":"interoffice","defnes":"defines","ratifed":"ratified","refneries":"refineries","humidifer":"humidifier","fgure":"figure","fowerier":"flowerier","benefcent":"beneficent","efective":"effective","sufusion":"suffusion","afcionado":"aficionado","leafess":"leafless","blufed":"bluffed","confnements":"confinements","gentrifed":"gentrified","coiffng":"coiffing","frecrackers":"firecrackers","bufet":"buffet","flimfams":"flimflams","fimflams":"flimflams","deifed":"deified","fnisher":"finisher","fulfls":"fulfils","refle":"refile","fltering":"filtering","justifed":"justified","ffteens":"fifteens","scrufs":"scruffs","leafetted":"leafletted","sufciently":"sufficiently","suffciently":"sufficiently","suficiently":"sufficiently","diferently":"differently","fuctuated":"fluctuated","airfelds":"airfields","frths":"firths","honorifc":"honorific","finching":"flinching","freman":"fireman","fbbed":"fibbed","sailfshes":"sailfishes","artifcers":"artificers","sacrifces":"sacrifices","transfgured":"transfigured","ofline":"offline","ofine":"offline","offine":"offline","codfshes":"codfishes","fyers":"flyers","famingos":"flamingos","suferings":"sufferings","feshiest":"fleshiest","transfxt":"transfixt","takeofs":"takeoffs","fukey":"flukey","feetness":"fleetness","fighty":"flighty","jellyfsh":"jellyfish","reunifed":"reunified","signifes":"signifies","mufn":"muffin","muffn":"muffin","mufin":"muffin","fgurines":"figurines","faying":"flaying","famboyance":"flamboyance","humidifes":"humidifies","ofbeats":"offbeats","firefghting":"firefighting","frefighting":"firefighting","diferences":"differences","misftted":"misfitted","refnished":"refinished","snowfakes":"snowflakes","hufy":"huffy","fannelling":"flannelling","microflms":"microfilms","fzzling":"fizzling","calorifc":"calorific","fak":"flak","rafa":"raffia","rafia":"raffia","raffa":"raffia","suffced":"sufficed","suficed":"sufficed","sufced":"sufficed","freproofing":"fireproofing","fireproofng":"fireproofing","standofs":"standoffs","baffes":"baffles","bafles":"baffles","bafes":"baffles","huf":"huff","profered":"proffered","huffer":"huffier","hufer":"huffier","hufier":"huffier","infnitude":"infinitude","difng":"diffing","diffng":"diffing","difing":"diffing","fxable":"fixable","fddling":"fiddling","fybys":"flybys","fshwives":"fishwives","fgured":"figured","fshtailed":"fishtailed","fbers":"fibers","baflement":"bafflement","baffement":"bafflement","bafement":"bafflement","fbbers":"fibbers","indefnably":"indefinably","futters":"flutters","engulfng":"engulfing","pife":"piffle","pifle":"piffle","piffe":"piffle","afdavit":"affidavit","afidavit":"affidavit","affdavit":"affidavit","fapjacks":"flapjacks","infnitely":"infinitely","infuencing":"influencing","fnder":"finder","pufball":"puffball","sufragists":"suffragists","futtery":"fluttery","founces":"flounces","fukiest":"flukiest","beautifed":"beautified","flling":"filling","frms":"firms","fnesses":"finesses","founce":"flounce","fulflling":"fulfilling","fuorescing":"fluorescing","fning":"fining","fustering":"flustering","difered":"differed","overfow":"overflow","fngertip":"fingertip","fedgelings":"fledgelings","beneftting":"benefitting","coeficients":"coefficients","coefcients":"coefficients","coeffcients":"coefficients","suferer":"sufferer","feecing":"fleecing","frmness":"firmness","afrming":"affirming","afirming":"affirming","affrming":"affirming","nullifed":"nullified","fckler":"fickler","infaming":"inflaming","artifcially":"artificially","sufering":"suffering","unfappable":"unflappable","modifer":"modifier","fle":"file","scafold":"scaffold","infame":"inflame","simplifed":"simplified","fawless":"flawless","foorboard":"floorboard","fxity":"fixity","pacifsm":"pacifism","fllings":"fillings","munifcent":"munificent","nonproft":"nonprofit","snufs":"snuffs","insuferably":"insufferably","defance":"defiance","feece":"fleece","fst":"fist","proft":"profit","fyspecks":"flyspecks","prizefghter":"prizefighter","defates":"deflates","defation":"deflation","rectifed":"rectified","foppy":"floppy","ofloaded":"offloaded","ofoaded":"offloaded","offoaded":"offloaded","fnk":"fink","bufoons":"buffoons","unconfrmed":"unconfirmed","castofs":"castoffs","unmodifed":"unmodified","afuent":"affluent","afluent":"affluent","affuent":"affluent","ftting":"fitting","kickof":"kickoff","fagellums":"flagellums","grifins":"griffins","grifns":"griffins","griffns":"griffins","fnish":"finish","famers":"flamers","profle":"profile","freproofed":"fireproofed","fortifed":"fortified","perfdious":"perfidious","defled":"defiled","ofsetting":"offsetting","wildfres":"wildfires","rectifers":"rectifiers","foweriest":"floweriest","flms":"films","snifled":"sniffled","confuence":"confluence","fushes":"flushes","eforts":"efforts","ruffng":"ruffing","rufng":"ruffing","sufragette":"suffragette","blastofs":"blastoffs","hufly":"huffily","hufily":"huffily","huffly":"huffily","flleted":"filleted","efgy":"effigy","effgy":"effigy","efigy":"effigy","foppier":"floppier","benefcence":"beneficence","bifs":"biffs","redefnes":"redefines","selfessly":"selflessly","sellof":"selloff","fakier":"flakier","bafle":"baffle","baffe":"baffle","bafe":"baffle","certifcated":"certificated","infdel":"infidel","turnofs":"turnoffs","benefcently":"beneficently","refection":"reflection","ofensively":"offensively","amplifers":"amplifiers","difcult":"difficult","dificult":"difficult","diffcult":"difficult","ofer":"offer","afrmation":"affirmation","affrmation":"affirmation","afirmation":"affirmation","specifed":"specified","fctionalize":"fictionalize","efulgence":"effulgence","fghters":"fighters","afirmed":"affirmed","affrmed":"affirmed","afrmed":"affirmed","fossing":"flossing","solidifes":"solidifies","infdelity":"infidelity","confuent":"confluent","mifing":"miffing","mifng":"miffing","miffng":"miffing","fdgeted":"fidgeted","fightiest":"flightiest","difuses":"diffuses","fsherman":"fisherman","fddly":"fiddly","fsticuffs":"fisticuffs","fisticufs":"fisticuffs","confding":"confiding","foury":"floury","ffe":"fife","fzziest":"fizziest","fagella":"flagella","fashbulb":"flashbulb","felding":"fielding","fctional":"fictional","fnishers":"finishers","funkey":"flunkey","famage":"flamage","bufer":"buffer","verifable":"verifiable","afordable":"affordable","confning":"confining","horsefies":"horseflies","fuorocarbon":"fluorocarbon","oafsh":"oafish","fyspeck":"flyspeck","nonprofts":"nonprofits","unqualifed":"unqualified","dissatisfes":"dissatisfies","emulsifed":"emulsified","catfsh":"catfish","stultifes":"stultifies","unifes":"unifies","coffns":"coffins","cofns":"coffins","cofins":"coffins","fttings":"fittings","fusher":"flusher","frearms":"firearms","confnement":"confinement","pufins":"puffins","pufns":"puffins","puffns":"puffins","afixing":"affixing","afxing":"affixing","affxing":"affixing","fbulae":"fibulae","reshufled":"reshuffled","reshufed":"reshuffled","reshuffed":"reshuffled","freballs":"fireballs","flibustered":"filibustered","grafito":"graffito","graffto":"graffito","grafto":"graffito","certifed":"certified","freplace":"fireplace","afix":"affix","affx":"affix","afx":"affix","rafes":"raffles","rafles":"raffles","raffes":"raffles","cutofs":"cutoffs","fyswatter":"flyswatter","effuent":"effluent","efluent":"effluent","efuent":"effluent","fnch":"finch","satisfed":"satisfied","fshtailing":"fishtailing","foozy":"floozy","defned":"defined","boufant":"bouffant","defcit":"deficit","amplifer":"amplifier","misft":"misfit","classifeds":"classifieds","purifers":"purifiers","flmier":"filmier","efusively":"effusively","fssion":"fission","cofeehouse":"coffeehouse","tightfsted":"tightfisted","shuffes":"shuffles","shufes":"shuffles","shufles":"shuffles","dufer":"duffer","revivifes":"revivifies","inefectual":"ineffectual","coifure":"coiffure","afict":"afflict","aflict":"afflict","affict":"afflict","afect":"affect","biffng":"biffing","bifing":"biffing","bifng":"biffing","afictions":"afflictions","aflictions":"afflictions","affictions":"afflictions","famencos":"flamencos","genufect":"genuflect","proftable":"profitable","loafng":"loafing","hoofng":"hoofing","inofensive":"inoffensive","fack":"flack","fdgety":"fidgety","identifable":"identifiable","flufng":"fluffing","flufing":"fluffing","fluffng":"fluffing","fuffing":"fluffing","flufed":"fluffed","fuffed":"fluffed","confscating":"confiscating","famer":"flamer","gadfy":"gadfly","flter":"filter","mummifed":"mummified","infuxes":"influxes","certifes":"certifies","offoads":"offloads","ofloads":"offloads","ofoads":"offloads","fyover":"flyover","payof":"payoff","defnite":"definite","afame":"aflame","fnancier":"financier","foodlights":"floodlights","microflmed":"microfilmed","mifed":"miffed","indiference":"indifference","briefng":"briefing","fuoridates":"fluoridates","conficted":"conflicted","genufection":"genuflection","refning":"refining","foodgate":"floodgate","efervescing":"effervescing","fllet":"fillet","perfdies":"perfidies","focking":"flocking","feas":"fleas","fngering":"fingering","faultfnding":"faultfinding","leafet":"leaflet","afronts":"affronts","futes":"flutes","crucifes":"crucifies","mayfy":"mayfly","coeficient":"coefficient","coefcient":"coefficient","coeffcient":"coefficient","stifeners":"stiffeners","pontif":"pontiff","fosses":"flosses","wolfng":"wolfing","sniffes":"sniffles","snifes":"sniffles","snifles":"sniffles","flamentous":"filamentous","grufest":"gruffest","stafs":"staffs","inficting":"inflicting","confdences":"confidences","mufng":"muffing","muffng":"muffing","aforded":"afforded","disafecting":"disaffecting","fapper":"flapper","frehouse":"firehouse","redefnition":"redefinition","artifce":"artifice","fckle":"fickle","mummifes":"mummifies","inficts":"inflicts","efectually":"effectually","fner":"finer","reftting":"refitting","fnes":"fines","sufusing":"suffusing","forist":"florist","efectuating":"effectuating","refne":"refine","handcufed":"handcuffed","snufling":"snuffling","leafer":"leafier","sufocate":"suffocate","syllabifed":"syllabified","bullfght":"bullfight","foor":"floor","ofsprings":"offsprings","bluf":"bluff","ofertory":"offertory","ofceholder":"officeholder","oficeholder":"officeholder","offceholder":"officeholder","reft":"refit","edifcation":"edification","bufeted":"buffeted","fercely":"fiercely","afections":"affections","wolfsh":"wolfish","fatbed":"flatbed","personifes":"personifies","cutof":"cutoff","leafetting":"leafletting","fuster":"fluster","fywheels":"flywheels","fasks":"flasks","fnicky":"finicky","fagrant":"flagrant","frmly":"firmly","flleting":"filleting","bufs":"buffs","fooded":"flooded","afirmatives":"affirmatives","affrmatives":"affirmatives","afrmatives":"affirmatives","camoufages":"camouflages","efusive":"effusive","chaufeured":"chauffeured","efervesced":"effervesced","revivifed":"revivified","castof":"castoff","fnked":"finked","fddle":"fiddle","camoufaging":"camouflaging","refll":"refill","quarterfnal":"quarterfinal","prolifcally":"prolifically","unproftable":"unprofitable","fanneled":"flanneled","fophouse":"flophouse","stifens":"stiffens","reshuffing":"reshuffling","reshufling":"reshuffling","reshufing":"reshuffling","infuenza":"influenza","quaf":"quaff","stifness":"stiffness","viewfnder":"viewfinder","fanneling":"flanneling","fberboard":"fiberboard","viewfnders":"viewfinders","frm":"firm","certifcate":"certificate","barfng":"barfing","fzzes":"fizzes","backfelds":"backfields","perfdy":"perfidy","fllers":"fillers","profling":"profiling","fightless":"flightless","starfshes":"starfishes","flthiest":"filthiest","trifing":"trifling","infationary":"inflationary","favorless":"flavorless","frmament":"firmament","fabbiness":"flabbiness","fstful":"fistful","rebuf":"rebuff","refex":"reflex","snaffing":"snaffling","snafling":"snaffling","snafing":"snaffling","selfsh":"selfish","afront":"affront","fattop":"flattop","wafles":"waffles","wafes":"waffles","waffes":"waffles","justifably":"justifiably","hufed":"huffed","frstborns":"firstborns","bullfnch":"bullfinch","infammation":"inflammation","magnifcence":"magnificence","mif":"miff","cuf":"cuff","weakfshes":"weakfishes","ftfully":"fitfully","frsts":"firsts","beneft":"benefit","infammable":"inflammable","swordfshes":"swordfishes","efectively":"effectively","fnancing":"financing","sacrifce":"sacrifice","fippy":"flippy","funkies":"flunkies","fabbiest":"flabbiest","bufered":"buffered","afirmations":"affirmations","afrmations":"affirmations","affrmations":"affirmations","horrifes":"horrifies","fintier":"flintier","flament":"filament","flch":"filch","grufly":"gruffly","gruffy":"gruffly","grufy":"gruffly","fnds":"finds","frefight":"firefight","firefght":"firefight","stufest":"stuffiest","stuffest":"stuffiest","stufiest":"stuffiest","frs":"firs","fretraps":"firetraps","purifcation":"purification","reafirm":"reaffirm","reafrm":"reaffirm","reaffrm":"reaffirm","confdent":"confident","fnalizes":"finalizes","clif":"cliff","faunt":"flaunt","crossfres":"crossfires","butterfy":"butterfly","caulifower":"cauliflower","sacrifcial":"sacrificial","qualifed":"qualified","cuttlefsh":"cuttlefish","spitfres":"spitfires","afords":"affords","refects":"reflects","ofbeat":"offbeat","misfring":"misfiring","fush":"flush","flmstrip":"filmstrip","flthy":"filthy","undignifed":"undignified","fendish":"fiendish","chaufeuring":"chauffeuring","afcionados":"aficionados","ify":"iffy","fintiest":"flintiest","stifs":"stiffs","edifed":"edified","ruf":"ruff","surfng":"surfing","frstly":"firstly","afected":"affected","afidavits":"affidavits","affdavits":"affidavits","afdavits":"affidavits","ragamufn":"ragamuffin","ragamufin":"ragamuffin","ragamuffn":"ragamuffin","fout":"flout","dwarfsh":"dwarfish","unafected":"unaffected","mastifs":"mastiffs","pufiness":"puffiness","pufness":"puffiness","puffness":"puffiness","firefghts":"firefights","frefights":"firefights","crawfsh":"crawfish","profteer":"profiteer","fowerpots":"flowerpots","surefre":"surefire","leafeting":"leafleting","falsifable":"falsifiable","stuffng":"stuffing","stufng":"stuffing","stufing":"stuffing","chifon":"chiffon","fatirons":"flatirons","afliating":"affiliating","affliating":"affiliating","afiliating":"affiliating","efort":"effort","festas":"fiestas","verifed":"verified","efectuated":"effectuated","fllies":"fillies","backfeld":"backfield","difdence":"diffidence","diffdence":"diffidence","difidence":"diffidence","mayfies":"mayflies","magnifer":"magnifier","scufling":"scuffling","suferance":"sufferance","fukier":"flukier","petrifes":"petrifies","tifs":"tiffs","quaffng":"quaffing","quafng":"quaffing","quafing":"quaffing","fow":"flow","fddles":"fiddles","fuorescent":"fluorescent","frefighter":"firefighter","firefghter":"firefighter","afectionate":"affectionate","scuf":"scuff","aforested":"afforested","efeminacy":"effeminacy","mufe":"muffle","muffe":"muffle","mufle":"muffle","fzzles":"fizzles","logofs":"logoffs","fecks":"flecks","fowering":"flowering","confdants":"confidants","ossifed":"ossified","defle":"defile","coifured":"coiffured","bufaloed":"buffaloed","unscientifc":"unscientific","fltrating":"filtrating","terrifcally":"terrifically","fushing":"flushing","afrays":"affrays","firts":"flirts","unofcially":"unofficially","unoffcially":"unofficially","unoficially":"unofficially","falsifed":"falsified","dogfghts":"dogfights","oficial":"official","offcial":"official","ofcial":"official","discomfting":"discomfiting","campfres":"campfires","cornfakes":"cornflakes","outfanking":"outflanking","workfow":"workflow","scufs":"scuffs","fngerboards":"fingerboards","snuf":"snuff","stufings":"stuffings","stuffngs":"stuffings","stufngs":"stuffings","counterofer":"counteroffer","battlefelds":"battlefields","eface":"efface","fannelet":"flannelet","fshbowls":"fishbowls","feecy":"fleecy","takeof":"takeoff","prefx":"prefix","shuffer":"shuffler","shufler":"shuffler","shufer":"shuffler","crucifx":"crucifix","identifers":"identifiers","dragonfies":"dragonflies","infammatory":"inflammatory","stifened":"stiffened","fnders":"finders","foral":"floral","fxedly":"fixedly","beatifed":"beatified","genufects":"genuflects","dwarfsm":"dwarfism","goldfsh":"goldfish","ofered":"offered","ratifcation":"ratification","fashguns":"flashguns","discomfture":"discomfiture","flth":"filth","underfow":"underflow","confdantes":"confidantes","flm":"film","fatterers":"flatterers","gadfies":"gadflies","fagellum":"flagellum","freworks":"fireworks","fddlers":"fiddlers","plaintif":"plaintiff","ofset":"offset","fscals":"fiscals","fzzle":"fizzle","refexes":"reflexes","gratifes":"gratifies","bullfghters":"bullfighters","spitfre":"spitfire","benefcial":"beneficial","fzzed":"fizzed","ossifes":"ossifies","fexing":"flexing","fnises":"finises","fedgeling":"fledgeling","fabbergast":"flabbergast","unifed":"unified","reflled":"refilled","hufs":"huffs","fxatives":"fixatives","fotilla":"flotilla","diversifed":"diversified","fashiness":"flashiness","forists":"florists","flmiest":"filmiest","spiffer":"spiffier","spifer":"spiffier","spifier":"spiffier","flmmaker":"filmmaker","firted":"flirted","difuse":"diffuse","fuoroscope":"fluoroscope","foodstuf":"foodstuff","spacefight":"spaceflight","profting":"profiting","notifcation":"notification","calcifes":"calcifies","confdes":"confides","ramifcation":"ramification","shuffed":"shuffled","shufled":"shuffled","shufed":"shuffled","foats":"floats","snufbox":"snuffbox","fatterer":"flatterer","simplifes":"simplifies","bufaloing":"buffaloing","liquifed":"liquified","fned":"fined","frmest":"firmest","fercer":"fiercer","faming":"flaming","prefgured":"prefigured","fatted":"flatted","disqualifed":"disqualified","unselfshly":"unselfishly","selfshly":"selfishly","fllets":"fillets","crayfshes":"crayfishes","fotillas":"flotillas","ofices":"offices","offces":"offices","ofces":"offices","fulfllment":"fulfillment","refexives":"reflexives","afair":"affair","reclassifed":"reclassified","stupefed":"stupefied","foating":"floating","forins":"florins","fuoroscopes":"fluoroscopes","goldfnches":"goldfinches","fts":"fits","distafs":"distaffs","fexes":"flexes","futist":"flutist","fllip":"fillip","stifen":"stiffen","efervescent":"effervescent","fligreed":"filigreed","frstborn":"firstborn","backfre":"backfire","selfes":"selfies","crawfshes":"crawfishes","golfng":"golfing","outftters":"outfitters","goofer":"goofier","fatcars":"flatcars","magnifes":"magnifies","confscation":"confiscation","transfgure":"transfigure","efectuate":"effectuate","feshy":"fleshy","sufocates":"suffocates","mufns":"muffins","mufins":"muffins","muffns":"muffins","fecked":"flecked","dehumidifes":"dehumidifies","infltrators":"infiltrators","dafodils":"daffodils","blufs":"bluffs","beefng":"beefing","crayfsh":"crayfish","overstufed":"overstuffed","frebombs":"firebombs","doffng":"doffing","dofing":"doffing","dofng":"doffing","specifcs":"specifics","scufe":"scuffle","scuffe":"scuffle","scufle":"scuffle","tifng":"tiffing","tiffng":"tiffing","tifing":"tiffing","snowfake":"snowflake","housefies":"houseflies","affliates":"affiliates","afliates":"affiliates","afiliates":"affiliates","waffe":"waffle","wafe":"waffle","wafle":"waffle","vilifes":"vilifies","trifers":"triflers","firefghters":"firefighters","frefighters":"firefighters","fnishes":"finishes","unidentifed":"unidentified","bufering":"buffering","guf":"guff","fzzing":"fizzing","landflls":"landfills","buf":"buff","fnickier":"finickier","fngerboard":"fingerboard","ineficient":"inefficient","ineffcient":"inefficient","inefcient":"inefficient","efcacy":"efficacy","eficacy":"efficacy","effcacy":"efficacy","fgurehead":"figurehead","codfsh":"codfish","sufered":"suffered","fttingly":"fittingly","fltrate":"filtrate","ratifes":"ratifies","fnd":"find","refnance":"refinance","ferceness":"fierceness","ofers":"offers","feetest":"fleetest","rarefed":"rarefied","fextime":"flextime","scufng":"scuffing","scuffng":"scuffing","famings":"flamings","foors":"floors","fickering":"flickering","fedged":"fledged","fbrous":"fibrous","cornfower":"cornflower","fouted":"flouted","infnity":"infinity","oilfeld":"oilfield","infatable":"inflatable","mollifed":"mollified","fftieth":"fiftieth","fshers":"fishers","weakfsh":"weakfish","infuence":"influence","dehumidifed":"dehumidified","afable":"affable","fred":"fired","fappers":"flappers","efcient":"efficient","effcient":"efficient","eficient":"efficient","fshhook":"fishhook","whiffng":"whiffing","whifng":"whiffing","whifing":"whiffing","fctitious":"fictitious","ftly":"fitly","fouting":"flouting","quafed":"quaffed","forae":"florae","foatations":"floatations","flimfam":"flimflam","fimflam":"flimflam","stife":"stifle","wafled":"waffled","waffed":"waffled","wafed":"waffled","rufs":"ruffs","fuently":"fluently","benefts":"benefits","fercest":"fiercest","fuctuates":"fluctuates","fnessed":"finessed","benefted":"benefited","ofs":"offs","pufy":"puffy","profering":"proffering","afuently":"affluently","affuently":"affluently","afluently":"affluently","reefng":"reefing","indemnifed":"indemnified","felds":"fields","afoat":"afloat","fippers":"flippers","superfuous":"superfluous","fnancial":"financial","difraction":"diffraction","reaffrming":"reaffirming","reafrming":"reaffirming","reafirming":"reaffirming","battlefeld":"battlefield","sacrifced":"sacrificed","spinofs":"spinoffs","workfows":"workflows","disfgures":"disfigures","backfring":"backfiring","pufs":"puffs","cafeine":"caffeine","fulflls":"fulfills","skinfints":"skinflints","kingfsher":"kingfisher","dif":"diff","feshier":"fleshier","flagstafs":"flagstaffs","fagstaffs":"flagstaffs","munifcence":"munificence","fnals":"finals","fammables":"flammables","fxating":"fixating","liquifes":"liquifies","prefgures":"prefigures","sufragettes":"suffragettes","fxings":"fixings","girafe":"giraffe","snif":"sniff","discomfted":"discomfited","afutter":"aflutter","fuctuations":"fluctuations","bafing":"baffling","baffing":"baffling","bafling":"baffling","vouchsafng":"vouchsafing","fnely":"finely","scruf":"scruff","electrifes":"electrifies","dafodil":"daffodil","ffteenths":"fifteenths","flmstrips":"filmstrips","mufling":"muffling","infnite":"infinite","fayed":"flayed","beneftted":"benefitted","coifuring":"coiffuring","fuctuate":"fluctuate","ripof":"ripoff","gufaws":"guffaws","fnales":"finales","pontifcate":"pontificate","fuidity":"fluidity","detoxifed":"detoxified","fnking":"finking","fxes":"fixes","fashiest":"flashiest","ramifes":"ramifies","offce":"office","ofice":"office","ofce":"office","fligree":"filigree","fne":"fine","feets":"fleets","fxations":"fixations","fligreeing":"filigreeing","fagstone":"flagstone","bufoonery":"buffoonery","suffx":"suffix","sufx":"suffix","sufix":"suffix","ofspring":"offspring","terrifed":"terrified","retrofts":"retrofits","parafin":"paraffin","parafn":"paraffin","paraffn":"paraffin","refectors":"reflectors","kingfshers":"kingfishers","foored":"floored","scoffng":"scoffing","scofing":"scoffing","scofng":"scoffing","efacement":"effacement","dafiest":"daffiest","daffest":"daffiest","dafest":"daffiest","detoxifes":"detoxifies","fgureheads":"figureheads","jify":"jiffy","fyweights":"flyweights","ofended":"offended","fouts":"flouts","scarifes":"scarifies","infelder":"infielder","rifeman":"rifleman","fuoride":"fluoride","rifemen":"riflemen","fagons":"flagons","fatiron":"flatiron"};
+
+function repairLigatures(text) {
+  let count = 0;
+  const fixed = text.replace(/[A-Za-zÀ-ÖØ-öø-ÿ]+/g, (word) => {
+    const lower = word.toLowerCase();
+    const correction = LIGATURE_FIX_MAP[lower];
+    if (!correction) return word;
+    count++;
+    if (word[0] !== word[0].toLowerCase()) {
+      return correction[0].toUpperCase() + correction.slice(1);
+    }
+    return correction;
+  });
+  return { text: fixed, count };
+}
+
+// ---------- PDF : détection de structure, texte et images ----------
+
+// Seuil de densité de texte (caractères par point² de page) en-deçà duquel une
+// page est considérée comme probablement scannée/à dominante image plutôt que
+// texte natif. Calibré très prudemment (page de texte normale ≈ 0.004-0.006) :
+// mieux vaut rasteriser une page texte pauvre en contenu par erreur que
+// produire une page blanche pour un vrai scan.
+const PDF_IMAGE_PAGE_DENSITY_THRESHOLD = 0.001;
+
+async function renderPdfPageToBlob(page, scale) {
+  const viewport = page.getViewport({ scale: scale || 1.5 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(viewport.width));
+  canvas.height = Math.max(1, Math.round(viewport.height));
+  const ctx = canvas.getContext("2d");
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85));
+}
+
+// Récupère les signets/plan du PDF (s'ils existent) et les résout en numéros
+// de page, pour donner de vrais titres de chapitres plutôt que "Section N".
+async function getPdfChapterBoundaries(pdf) {
+  try {
+    const outline = await pdf.getOutline();
+    if (!outline || outline.length === 0) return null;
+    const flat = [];
+    (function walk(items, depth) {
+      if (depth > 1) return; // on ne descend pas au-delà des sous-sections de niveau 1
+      for (const it of items) {
+        flat.push(it);
+        if (it.items && it.items.length) walk(it.items, depth + 1);
+      }
+    })(outline, 0);
+
+    const boundaries = [];
+    for (const it of flat) {
+      try {
+        let dest = it.dest;
+        if (typeof dest === "string") dest = await pdf.getDestination(dest);
+        if (!dest || dest[0] === undefined) continue;
+        const pageIndex = await pdf.getPageIndex(dest[0]);
+        const t = (it.title || "").trim();
+        if (t) boundaries.push({ title: t, pageIndex });
+      } catch (e) { /* signet illisible ou destination interne non résolue, ignoré */ }
+    }
+    boundaries.sort((a, b) => a.pageIndex - b.pageIndex);
+    const dedup = [];
+    for (const b of boundaries) {
+      if (!dedup.length || dedup[dedup.length - 1].pageIndex !== b.pageIndex) dedup.push(b);
+    }
+    return dedup.length > 0 ? dedup : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// PDF : extrait le texte page par page, détecte les pages à dominante image
+// (illustrations ou scan) pour les rasteriser et les intégrer dans l'EPUB, puis
+// regroupe en chapitres réels si des signets sont présents (sinon en sections).
 async function parseAndTranslatePdf(file, registre, srcLang, onProgress) {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let rawPages = [];
+
+  const boundaries = await getPdfChapterBoundaries(pdf);
+  if (boundaries) log(`Plan du PDF détecté : ${boundaries.length} section(s)/chapitre(s) réels utilisés comme titres.`, "ok");
+  else log("Aucun plan/signet exploitable dans ce PDF — regroupement par sections de taille fixe.");
+
+  const rawPages = [];
+  const pageImages = []; // { name, blob, pageIndex }
+  let imageHeavyCount = 0;
+  let ligatureFixCount = 0;
+
   for (let p = 1; p <= pdf.numPages; p++) {
+    onProgress(p - 1, pdf.numPages, `Analyse page ${p}/${pdf.numPages}…`);
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    const text = content.items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+    const rawText = content.items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+    const { text, count: pageFixCount } = repairLigatures(rawText);
+    ligatureFixCount += pageFixCount;
+
+    const view = page.view || [0, 0, 612, 792];
+    const area = Math.max(1, (view[2] - view[0]) * (view[3] - view[1]));
+    const density = text.length / area;
+
+    if (density < PDF_IMAGE_PAGE_DENSITY_THRESHOLD) {
+      imageHeavyCount++;
+      try {
+        const blob = await renderPdfPageToBlob(page, 1.5);
+        if (blob) pageImages.push({ name: `images/page_${p}.jpg`, blob, pageIndex: p - 1 });
+      } catch (e) {
+        log(`Page ${p} : rendu image impossible (${e.message}), page ignorée.`, "err");
+      }
+    }
     rawPages.push(text);
   }
-  log(`PDF analysé : ${pdf.numPages} page(s).`);
 
-  // group pages into segments under budget, keep page boundaries roughly
-  const segments = [];
-  let cur = "";
-  rawPages.forEach((pText) => {
-    if ((cur + " " + pText).length > 1800 && cur) {
-      segments.push(cur.trim());
-      cur = pText;
-    } else {
-      cur = cur ? cur + " " + pText : pText;
+  if (ligatureFixCount > 0) {
+    log(`${ligatureFixCount} mot(s) corrigé(s) automatiquement (ligatures typographiques "fi"/"fl"/"ff" mal extraites du PDF, ex. "difcult" → "difficult") avant traduction.`, "ok");
+  }
+
+  const scanRatio = imageHeavyCount / pdf.numPages;
+  log(`PDF analysé : ${pdf.numPages} page(s), ${imageHeavyCount} page(s) à dominante image conservée(s) telle(s) quelle(s).`);
+  if (scanRatio > 0.5) {
+    log(`Plus de la moitié des pages semblent être des images/scans plutôt que du texte natif — si ce PDF est en réalité une bande dessinée ou un livre entièrement scanné, le mode "Bande dessinée / Manga" (OCR) donnera probablement un meilleur résultat que ce mode texte.`, "err");
+  }
+
+  // Regroupement en chapitres : par signets si disponibles, sinon par blocs de
+  // pages à budget de caractères fixe (comportement historique, renommé
+  // "Section N" faute de titres réels disponibles).
+  const chapterDefs = []; // { title, pageStart, pageEnd } (inclusif, 0-indexé)
+  if (boundaries) {
+    for (let i = 0; i < boundaries.length; i++) {
+      const start = boundaries[i].pageIndex;
+      const end = i + 1 < boundaries.length ? boundaries[i + 1].pageIndex - 1 : pdf.numPages - 1;
+      if (start > 0 && i === 0) {
+        chapterDefs.push({ title: "Avant-propos", pageStart: 0, pageEnd: start - 1 });
+      }
+      chapterDefs.push({ title: boundaries[i].title, pageStart: start, pageEnd: Math.max(start, end) });
     }
-  });
-  if (cur.trim()) segments.push(cur.trim());
+  } else {
+    const PAGES_PER_SECTION_BUDGET = 1800;
+    let curStart = 0, curLen = 0;
+    for (let i = 0; i < rawPages.length; i++) {
+      curLen += rawPages[i].length;
+      if (curLen > PAGES_PER_SECTION_BUDGET) {
+        chapterDefs.push({ title: `Section ${chapterDefs.length + 1}`, pageStart: curStart, pageEnd: i });
+        curStart = i + 1;
+        curLen = 0;
+      }
+    }
+    if (curStart <= rawPages.length - 1) {
+      chapterDefs.push({ title: `Section ${chapterDefs.length + 1}`, pageStart: curStart, pageEnd: rawPages.length - 1 });
+    }
+  }
 
-  const translated = await translateBatch(segments, registre, srcLang, onProgress);
+  // Segments à traduire, à plat sur tout le livre (pour profiter du traitement
+  // en parallèle de translateBatch), avec la trace du chapitre d'origine de
+  // chaque segment pour pouvoir tout réassembler ensuite.
+  const segments = [];
+  const segmentChapter = [];
+  chapterDefs.forEach((chDef, chIdx) => {
+    const chapterText = rawPages.slice(chDef.pageStart, chDef.pageEnd + 1).join(" ").replace(/\s+/g, " ").trim();
+    if (!chapterText) return;
+    let cur = "";
+    const CHUNK_BUDGET = 1800;
+    chapterText.split(/(?<=[.!?])\s+/).forEach((sentence) => {
+      if ((cur + " " + sentence).length > CHUNK_BUDGET && cur) {
+        segments.push(cur.trim());
+        segmentChapter.push(chIdx);
+        cur = sentence;
+      } else {
+        cur = cur ? cur + " " + sentence : sentence;
+      }
+    });
+    if (cur.trim()) { segments.push(cur.trim()); segmentChapter.push(chIdx); }
+  });
+
+  const translated = await translateBatch(segments, registre, srcLang, (d, t) =>
+    onProgress(d, t, `Traduction du texte (${d}/${t} segment(s))…`));
+
+  const chapterTextParts = chapterDefs.map(() => []);
+  translated.forEach((t, i) => chapterTextParts[segmentChapter[i]].push(t));
+
   const title = file.name.replace(/\.pdf$/i, "");
-  const chapters = translated.map((t, i) => ({
-    title: `Section ${i + 1}`,
-    htmlBody: t.split(/\n{2,}/).map((p) => `<p>${escapeXml(p).replace(/\n/g, "<br/>")}</p>`).join("\n"),
-  }));
-  const blob = await buildEpub(title + " (français)", "", chapters);
+  const chapters = chapterDefs.map((chDef, i) => {
+    const paragraphsHtml = chapterTextParts[i].length === 0 ? "" : chapterTextParts[i]
+      .join("\n\n")
+      .split(/\n{2,}/)
+      .filter((p) => p.trim().length > 0)
+      .map((p) => `<p>${escapeXml(p).replace(/\n/g, "<br/>")}</p>`)
+      .join("\n");
+    const imagesInChapter = pageImages.filter((img) => img.pageIndex >= chDef.pageStart && img.pageIndex <= chDef.pageEnd);
+    const imagesHtml = imagesInChapter
+      .map((img) => `<div class="pdf-page-image"><img src="${escapeXml(img.name)}" alt="Page ${img.pageIndex + 1} du document original"/><p class="caption">Page ${img.pageIndex + 1} du document original (reproduite telle quelle : contenu majoritairement visuel, non traduisible en texte).</p></div>`)
+      .join("\n");
+    return { title: chDef.title, htmlBody: paragraphsHtml + imagesHtml };
+  }).filter((ch) => ch.htmlBody.trim().length > 0);
+
+  const blob = await buildEpub(title + " (français)", "", chapters, {
+    images: pageImages.map(({ name, blob }) => ({ name, blob })),
+    sourceTitle: title,
+  });
   return { blob, filename: title + "_fr.epub" };
 }
 
@@ -927,11 +1431,49 @@ async function parseAndTranslatePdf(file, registre, srcLang, onProgress) {
 async function parseAndTranslateText(file, registre, srcLang, onProgress) {
   const raw = await file.text();
   const isHtml = /\.html?$/i.test(file.name);
-  let plain = raw;
+  const title = file.name.replace(/\.(txt|html?|htm)$/i, "");
+
   if (isHtml) {
+    // On préserve la structure par blocs et les images du HTML source, au lieu
+    // de ne garder que le texte brut (doc.body.textContent) comme auparavant —
+    // ce qui faisait disparaître toute image d'un fichier HTML en entrée.
     const doc = new DOMParser().parseFromString(raw, "text/html");
-    plain = doc.body ? doc.body.textContent : raw;
+    const BLOCK_SELECTOR = "p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dt, dd, figcaption, caption";
+    const blockNodes = [...doc.querySelectorAll(BLOCK_SELECTOR)].filter(
+      (n) => n.textContent.trim().length > 0 && !n.querySelector(BLOCK_SELECTOR)
+    );
+    if (blockNodes.length === 0) {
+      log("Aucun bloc de texte structuré détecté dans ce HTML — repli sur extraction de texte brut.", "err");
+    } else {
+      const segments = blockNodes.map((n) => n.innerHTML.trim());
+      log(`HTML analysé : ${segments.length} bloc(s) de texte.`);
+      const translated = await translateBatch(segments, registre, srcLang, onProgress);
+      blockNodes.forEach((n, i) => {
+        const scratch = document.createElement("div");
+        scratch.innerHTML = translated[i];
+        n.innerHTML = scratch.innerHTML;
+      });
+
+      // Images : conservées si elles sont déjà embarquées en data: URI ; les
+      // images référencées par une URL externe restent des liens externes tels
+      // quels (elles ne peuvent pas être récupérées de façon fiable depuis un
+      // fichier HTML isolé hors de son site d'origine).
+      const externalImages = [...doc.querySelectorAll("img[src]")].filter(
+        (img) => !/^data:/i.test(img.getAttribute("src") || "")
+      );
+      if (externalImages.length > 0) {
+        log(`${externalImages.length} image(s) référencée(s) par URL externe conservée(s) en lien tel quel (non embarquées dans l'EPUB).`, "err");
+      }
+
+      const rawHtmlBody = (doc.body || doc.documentElement).innerHTML;
+      const htmlBody = sanitizeHtmlToXhtmlFragment(rawHtmlBody);
+      const chapters = [{ title, htmlBody }];
+      const blob = await buildEpub(title + " (français)", "", chapters, { sourceTitle: title });
+      return { blob, filename: title + "_fr.epub" };
+    }
   }
+
+  const plain = isHtml ? (new DOMParser().parseFromString(raw, "text/html").body || {}).textContent || raw : raw;
   const paragraphs = plain.split(/\n{2,}|\r\n\r\n/).map((p) => p.trim()).filter(Boolean);
   const segments = [];
   let cur = "";
@@ -947,12 +1489,11 @@ async function parseAndTranslateText(file, registre, srcLang, onProgress) {
 
   log(`Texte analysé : ${paragraphs.length} paragraphe(s), regroupés en ${segments.length} segment(s).`);
   const translated = await translateBatch(segments, registre, srcLang, onProgress);
-  const title = file.name.replace(/\.(txt|html?|htm)$/i, "");
   const chapters = translated.map((t, i) => ({
     title: `Section ${i + 1}`,
     htmlBody: t.split(/\n{2,}/).map((p) => `<p>${escapeXml(p).replace(/\n/g, "<br/>")}</p>`).join("\n"),
   }));
-  const blob = await buildEpub(title + " (français)", "", chapters);
+  const blob = await buildEpub(title + " (français)", "", chapters, { sourceTitle: title });
   return { blob, filename: title + "_fr.epub" };
 }
 
@@ -1251,6 +1792,380 @@ async function buildCbzFromContext(ctx) {
 }
 
 
+// ---------- Convertisseur EPUB -> PDF (fonctionnalité optionnelle) ----------
+// Conversion 100% locale, sans appel à l'API Claude : reconstruction d'un PDF
+// paginé simple à partir du texte et des images d'un EPUB existant (traduit ou
+// non). Réutilisable à la fois pour l'export automatique après traduction et
+// pour le convertisseur autonome en bas de page.
+
+function resolveRelativeZipPath(baseDir, relPath) {
+  const parts = (baseDir + relPath).split("/");
+  const out = [];
+  for (const p of parts) {
+    if (p === "." || p === "") continue;
+    if (p === "..") out.pop();
+    else out.push(p);
+  }
+  return out.join("/");
+}
+
+async function findEpubContentFiles(zip) {
+  const paths = [];
+  try {
+    const containerXml = await zip.file("META-INF/container.xml")?.async("string");
+    if (containerXml) {
+      const rootMatch = containerXml.match(/full-path="([^"]+)"/);
+      if (rootMatch) {
+        const opfPath = rootMatch[1];
+        const opfDir = opfPath.includes("/") ? opfPath.substring(0, opfPath.lastIndexOf("/") + 1) : "";
+        const opfContent = await zip.file(opfPath)?.async("string");
+        if (opfContent) {
+          const manifest = {};
+          const re1 = /<item\s[^>]*?id="([^"]*)"[^>]*?href="([^"]*)"[^>]*?media-type="([^"]*)"[^>]*?\/?>/g;
+          const re2 = /<item\s[^>]*?href="([^"]*)"[^>]*?id="([^"]*)"[^>]*?media-type="([^"]*)"[^>]*?\/?>/g;
+          let m;
+          while ((m = re1.exec(opfContent)) !== null) manifest[m[1]] = { href: m[2], mt: m[3] };
+          while ((m = re2.exec(opfContent)) !== null) manifest[m[2]] = { href: m[1], mt: m[3] };
+
+          const spineMatch = opfContent.match(/<spine[^>]*>([\s\S]*?)<\/spine>/);
+          if (spineMatch) {
+            const iref = /idref="([^"]*)"/g;
+            while ((m = iref.exec(spineMatch[1])) !== null) {
+              const item = manifest[m[1]];
+              if (item && (item.mt.includes("html") || item.mt.includes("xml"))) {
+                const fp = opfDir + item.href;
+                if (zip.file(fp) || zip.file(decodeURIComponent(fp))) paths.push(fp);
+              }
+            }
+          }
+          if (paths.length === 0) {
+            for (const item of Object.values(manifest)) {
+              if (item.mt.includes("html") || item.mt.includes("xml")) {
+                const fp = opfDir + item.href;
+                if (zip.file(fp)) paths.push(fp);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (e) { /* on retombe sur le repli ci-dessous */ }
+
+  if (paths.length === 0) {
+    zip.forEach((rp, f) => {
+      if (!f.dir && /\.(x?html?|xml)$/i.test(rp) && !rp.includes("META-INF") &&
+        !rp.toLowerCase().includes("toc") && !rp.toLowerCase().includes("nav")) paths.push(rp);
+    });
+    paths.sort();
+  }
+  return paths;
+}
+
+function getImageDataUrlSize(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth || 800, h: img.naturalHeight || 600 });
+    img.onerror = () => resolve({ w: 800, h: 600 });
+    img.src = dataUrl;
+  });
+}
+
+// Extrait le contenu d'un fichier (x)html du livre sous forme de blocs
+// ordonnés {type:'text', content} | {type:'image', dataUrl, format}, pour
+// pouvoir ensuite les paginer dans l'ordre d'origine, images comprises.
+async function extractBlocksFromContentFile(zip, filePath, htmlRaw) {
+  const html = htmlRaw
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script, style, link, meta").forEach((el) => el.remove());
+
+  const dir = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/") + 1) : "";
+  const blocks = [];
+  let textBuf = "";
+  const blockTags = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "tr", "section", "article"]);
+
+  function flushText() {
+    const t = textBuf.replace(/[ \t]+/g, " ").trim();
+    if (t) blocks.push({ type: "text", content: t });
+    textBuf = "";
+  }
+
+  async function walk(node) {
+    if (node.nodeType === 3) { textBuf += node.textContent; return; }
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName ? node.tagName.toLowerCase() : "";
+    if (tag === "img") {
+      const src = node.getAttribute("src");
+      if (src && !/^https?:\/\//i.test(src)) {
+        flushText();
+        try {
+          let dataUrl, format;
+          if (/^data:/i.test(src)) {
+            dataUrl = src;
+            format = /png/i.test(src) ? "PNG" : "JPEG";
+          } else {
+            const resolvedPath = resolveRelativeZipPath(dir, decodeURIComponent(src));
+            const zf = zip.file(resolvedPath) || zip.file(src);
+            if (zf) {
+              const base64 = await zf.async("base64");
+              const ext = (resolvedPath.split(".").pop() || "jpg").toLowerCase();
+              const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+              format = ext === "png" ? "PNG" : "JPEG";
+              dataUrl = `data:${mime};base64,${base64}`;
+            }
+          }
+          if (dataUrl) blocks.push({ type: "image", dataUrl, format });
+        } catch (e) { /* image illisible, ignorée sans bloquer le reste */ }
+      }
+      return;
+    }
+    if (blockTags.has(tag)) textBuf += "\n\n";
+    for (const c of node.childNodes) await walk(c);
+    if (blockTags.has(tag)) textBuf += "\n";
+  }
+
+  await walk(doc.body || doc.documentElement);
+  flushText();
+  return blocks;
+}
+
+// Construit un PDF paginé à partir d'un zip EPUB déjà chargé. progressCb(pct)
+// optionnel pour une barre de progression par fichier.
+async function convertEpubZipToPdf(zip, titleForPdf, progressCb) {
+  const setProg = (pct) => { if (progressCb) progressCb(Math.max(0, Math.min(100, pct))); };
+  setProg(5);
+
+  const contentPaths = await findEpubContentFiles(zip);
+  if (contentPaths.length === 0) throw new Error("Aucun contenu HTML trouvé dans l'EPUB.");
+
+  setProg(15);
+  let allBlocks = [];
+  for (let i = 0; i < contentPaths.length; i++) {
+    const content = await zip.file(contentPaths[i])?.async("string");
+    if (content) {
+      const blocks = await extractBlocksFromContentFile(zip, contentPaths[i], content);
+      allBlocks = allBlocks.concat(blocks);
+    }
+    setProg(15 + Math.round((i / contentPaths.length) * 35));
+  }
+
+  const totalTextLen = allBlocks.filter((b) => b.type === "text").reduce((a, b) => a + b.content.length, 0);
+  if (totalTextLen < 50 && !allBlocks.some((b) => b.type === "image")) {
+    throw new Error("Contenu insuffisant pour générer un PDF (EPUB protégé par DRM, ou vide).");
+  }
+
+  setProg(55);
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) throw new Error("Librairie jsPDF non chargée — vérifiez votre connexion et rechargez la page.");
+
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
+  const m = 20;
+  const mw = pw - m * 2;
+  const lh = 6;
+  let y = m;
+  let totalPages = 1;
+
+  function addFooterPageNumber() {
+    pdf.setFont("helvetica", "italic"); pdf.setFontSize(8); pdf.setTextColor(150);
+    pdf.text(`${totalPages}`, pw / 2, ph - 10, { align: "center" });
+    pdf.setTextColor(0);
+  }
+  function newPage() {
+    addFooterPageNumber();
+    pdf.addPage(); totalPages++; y = m;
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.text(titleForPdf, m, y);
+  y += 12;
+  pdf.setDrawColor(143, 175, 177);
+  pdf.setLineWidth(0.5);
+  pdf.line(m, y, pw - m, y);
+  y += 10;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+
+  for (let bi = 0; bi < allBlocks.length; bi++) {
+    const block = allBlocks[bi];
+
+    if (block.type === "image") {
+      try {
+        const { w: nw, h: nh } = await getImageDataUrlSize(block.dataUrl);
+        let dispW = mw;
+        let dispH = dispW * (nh / nw);
+        const maxH = ph - m * 2;
+        if (dispH > maxH) { dispH = maxH; dispW = dispH * (nw / nh); }
+        if (y + dispH > ph - m) newPage();
+        const x = m + (mw - dispW) / 2;
+        pdf.addImage(block.dataUrl, block.format, x, y, dispW, dispH);
+        y += dispH + 6;
+      } catch (e) { /* image illisible pour jsPDF, simplement ignorée */ }
+      continue;
+    }
+
+    const para = block.content;
+    const isH = para.length < 80 && (
+      para === para.toUpperCase() ||
+      /^(Chapitre|CHAPITRE|Chapter|PART|PARTIE|Section)\b/i.test(para) ||
+      /^\d+[.)]\s/.test(para)
+    );
+    if (isH) { y += 6; pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); }
+    else { pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); }
+
+    const lines = pdf.splitTextToSize(para, mw);
+    for (const line of lines) {
+      if (y + lh > ph - m) {
+        newPage();
+        pdf.setFont("helvetica", isH ? "bold" : "normal");
+        pdf.setFontSize(isH ? 12 : 10);
+      }
+      pdf.text(line, m, y);
+      y += lh;
+    }
+    y += 3;
+
+    if (bi % 60 === 0) setProg(55 + Math.round((bi / allBlocks.length) * 40));
+  }
+
+  addFooterPageNumber();
+  setProg(100);
+  return { blob: pdf.output("blob"), pages: totalPages };
+}
+
+async function convertEpubBlobToPdf(epubBlob, titleForPdf, progressCb) {
+  const zip = await JSZip.loadAsync(epubBlob);
+  return convertEpubZipToPdf(zip, titleForPdf, progressCb);
+}
+
+// ---------- Bonus : convertisseur EPUB -> PDF autonome (batch, multi-fichiers) ----------
+
+let pdfConvFiles = []; // { id, file, status, pdfBlob, pdfName, pages, error }
+let pdfConvIsRunning = false;
+
+const pdfDropEl = document.getElementById("pdfDrop");
+const pdfFileInputEl = document.getElementById("pdfFileInput");
+const pdfFileListEl = document.getElementById("pdfFileList");
+const pdfBatchControlsEl = document.getElementById("pdfBatchControls");
+const pdfConvertBtnEl = document.getElementById("pdfConvertBtn");
+const pdfDownloadAllBtnEl = document.getElementById("pdfDownloadAllBtn");
+const pdfClearBtnEl = document.getElementById("pdfClearBtn");
+
+if (pdfDropEl) {
+  pdfDropEl.addEventListener("click", () => pdfFileInputEl.click());
+  pdfDropEl.addEventListener("dragover", (e) => { e.preventDefault(); pdfDropEl.classList.add("drag"); });
+  pdfDropEl.addEventListener("dragleave", () => pdfDropEl.classList.remove("drag"));
+  pdfDropEl.addEventListener("drop", (e) => {
+    e.preventDefault();
+    pdfDropEl.classList.remove("drag");
+    addPdfConvFiles(Array.from(e.dataTransfer.files));
+  });
+  pdfFileInputEl.addEventListener("change", () => {
+    addPdfConvFiles(Array.from(pdfFileInputEl.files));
+    pdfFileInputEl.value = "";
+  });
+  pdfConvertBtnEl.addEventListener("click", startPdfConvBatch);
+  pdfDownloadAllBtnEl.addEventListener("click", downloadAllPdfConv);
+  pdfClearBtnEl.addEventListener("click", clearPdfConv);
+}
+
+function addPdfConvFiles(newFiles) {
+  const epubs = newFiles.filter((f) => f.name.toLowerCase().endsWith(".epub"));
+  if (epubs.length === 0) { alert("Seuls les fichiers .epub sont acceptés ici."); return; }
+  for (const f of epubs) {
+    if (pdfConvFiles.find((x) => x.file.name === f.name && x.file.size === f.size)) continue;
+    pdfConvFiles.push({
+      id: "pf-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+      file: f, status: "pending", pdfBlob: null,
+      pdfName: f.name.replace(/\.epub$/i, ".pdf"), pages: 0, error: null,
+    });
+  }
+  renderPdfConvList();
+  pdfBatchControlsEl.style.display = pdfConvFiles.length ? "flex" : "none";
+}
+
+function renderPdfConvList() {
+  pdfFileListEl.innerHTML = pdfConvFiles.map((f) => {
+    let statusText = "";
+    if (f.status === "pending") statusText = `${(f.file.size / 1024 / 1024).toFixed(2)} Mo — en attente`;
+    else if (f.status === "converting") statusText = "Conversion en cours…";
+    else if (f.status === "done") statusText = `✓ ${f.pages} page(s)`;
+    else if (f.status === "error") statusText = `✗ ${f.error}`;
+    const action = f.status === "done"
+      ? `<button class="filepill" style="border:none; cursor:pointer;" onclick="downloadOnePdfConv('${f.id}')">Télécharger le PDF</button>`
+      : "";
+    return `<div class="filepill" style="display:flex; justify-content:space-between; width:100%; margin-top:8px; box-sizing:border-box;">
+      <span>${f.file.name} — ${statusText}</span>${action}
+    </div>`;
+  }).join("");
+}
+
+async function startPdfConvBatch() {
+  if (pdfConvIsRunning || pdfConvFiles.length === 0) return;
+  pdfConvIsRunning = true;
+  pdfConvertBtnEl.disabled = true;
+  pdfConvertBtnEl.textContent = "Conversion en cours…";
+
+  const pending = pdfConvFiles.filter((f) => f.status === "pending" || f.status === "error");
+  for (const f of pending) {
+    f.status = "converting";
+    renderPdfConvList();
+    try {
+      const title = f.file.name.replace(/\.epub$/i, "");
+      const result = await convertEpubBlobToPdf(f.file, title);
+      f.pdfBlob = result.blob;
+      f.pages = result.pages;
+      f.status = "done";
+    } catch (err) {
+      f.status = "error";
+      f.error = err.message || "Erreur inconnue";
+    }
+    renderPdfConvList();
+  }
+
+  const doneCount = pdfConvFiles.filter((f) => f.status === "done").length;
+  pdfDownloadAllBtnEl.style.display = doneCount > 1 ? "inline-block" : "none";
+  pdfConvertBtnEl.textContent = "Convertir tout en PDF";
+  pdfConvertBtnEl.disabled = false;
+  pdfConvIsRunning = false;
+}
+
+function downloadOnePdfConv(id) {
+  const f = pdfConvFiles.find((x) => x.id === id);
+  if (!f || !f.pdfBlob) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(f.pdfBlob);
+  a.download = f.pdfName;
+  a.click();
+}
+
+async function downloadAllPdfConv() {
+  const done = pdfConvFiles.filter((f) => f.status === "done" && f.pdfBlob);
+  if (done.length === 0) return;
+  if (done.length === 1) { downloadOnePdfConv(done[0].id); return; }
+  const zip = new JSZip();
+  done.forEach((f) => zip.file(f.pdfName, f.pdfBlob));
+  const blob = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "epub-vers-pdf.zip";
+  a.click();
+}
+
+function clearPdfConv() {
+  pdfConvFiles = [];
+  pdfFileListEl.innerHTML = "";
+  pdfBatchControlsEl.style.display = "none";
+  pdfDownloadAllBtnEl.style.display = "none";
+}
+
 async function runTranslation() {
   if (!state.file) return;
   startBtn.disabled = true;
@@ -1289,6 +2204,7 @@ async function runTranslation() {
 
     downloadLink.href = URL.createObjectURL(out.blob);
     downloadLink.download = out.filename;
+    pdfDownloadWrap.style.display = "none";
 
     const outExt = out.filename.split(".").pop().toUpperCase();
     if (out.allDone) {
@@ -1298,10 +2214,25 @@ async function runTranslation() {
       downloadLink.textContent = `Télécharger le ${outExt}`;
       startBtn.textContent = "Traduire un autre fichier";
       partialBtn.style.display = "none";
+
+      const alsoExportPdf = document.getElementById("alsoExportPdf");
+      if (alsoExportPdf && alsoExportPdf.checked && outExt === "EPUB") {
+        try {
+          log("Génération de la version PDF complémentaire…");
+          const pdfTitle = out.filename.replace(/_fr\.epub$/i, "");
+          const { blob: pdfBlob } = await convertEpubBlobToPdf(out.blob, pdfTitle, null);
+          pdfDownloadLink.href = URL.createObjectURL(pdfBlob);
+          pdfDownloadLink.download = out.filename.replace(/\.epub$/i, ".pdf");
+          pdfDownloadWrap.style.display = "block";
+          log("PDF complémentaire généré.", "ok");
+        } catch (err) {
+          log(`Génération du PDF complémentaire impossible : ${err.message}`, "err");
+        }
+      }
     } else {
-      log(`Lot terminé : ${out.doneCount}/${out.totalCount} ${state.docType === "comic" ? "pages" : "chapitres"} traduit(e)s. Reclique sur "Lancer" pour continuer.`, "ok");
+      log(`Lot terminé : ${out.doneCount}/${out.totalCount} ${state.docType === "comic" ? "pages" : "chapitres"} traduit(e)s. Recliquez sur "Lancer" pour continuer.`, "ok");
       resultTitle.textContent = `${out.doneCount}/${out.totalCount} ${state.docType === "comic" ? "pages" : "chapitres"} traduit(e)s`;
-      resultDesc.textContent = "Ce n'est pas fini — tu peux télécharger cette version partielle, ou recliquer sur \"Lancer\" pour continuer sur la suite (dans ce même onglet).";
+      resultDesc.textContent = "Ce n'est pas fini — vous pouvez télécharger cette version partielle, ou recliquer sur \"Lancer\" pour continuer sur la suite (dans ce même onglet).";
       downloadLink.textContent = `Télécharger la version partielle (${outExt})`;
       startBtn.textContent = "Continuer la traduction";
     }
