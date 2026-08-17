@@ -31,9 +31,18 @@ test('D101F envies sélectionnées restent visibles hors du thème courant', () 
 test('D101F applique la divulgation progressive sur équipement et limitations', () => {
   assert.match(html, /id="gearDisclosure"/);
   assert.match(html, /id="limitationsDisclosure"/);
-  assert.match(html, /id="painDetailWrap" hidden/);
   assert.match(app, /syncPainDetailVisibility/);
   assert.match(app, /updateDisclosureSummaries/);
+});
+
+// D102E2 (17/08/2026) — corrige un test réel : le champ texte libre était
+// inatteignable tant que le curseur douleur restait à 0, alors qu'une
+// gêne chronique ou intermittente peut se décrire même sans douleur
+// déclarée aujourd'hui. Il n'est donc plus masqué par défaut ; seuls
+// l'équipement et les limitations gardent la divulgation progressive.
+test("D102E2 le champ texte libre 'Où et quand survient la gêne ?' reste accessible même à douleur 0", () => {
+  assert.match(html, /id="painDetailWrap"(?! hidden)/);
+  assert.doesNotMatch(html, /id="painDetailWrap" hidden/);
 });
 
 test('D101F place le calcul avant les options secondaires', () => {
