@@ -906,6 +906,69 @@
     }
   }
 
+  // D102D — Raccordement aux contraintes existantes. Deux mécanismes
+  // complémentaires, jamais un second moteur parallèle :
+  // 1) Pré-remplissage visible du VRAI formulaire structuré (#limitationTrigger,
+  //    #limitationSide, la puce "limits" correspondante) au clic sur
+  //    "Prendre en compte" — buildRequest() les lit ensuite exactement comme
+  //    une saisie manuelle, aucun code dupliqué.
+  // 2) applyFreeTextInterpretation(), filet de sécurité au niveau données
+  //    (mergeConfirmedInterpretationIntoRequest) appliqué au même endroit que
+  //    le mécanisme D-024 existant, pour le cas où le pré-remplissage visuel
+  //    aurait été contourné. Dans les deux cas, la contrainte ne devient
+  //    active que si l'utilisateur choisit une conséquence et coche
+  //    "Je confirme cette limite" lui-même — jamais automatiquement.
+  const TRIGGER_TO_LIMITS_CHIP = Object.freeze({
+    "Descente": "Descente difficile",
+    "Montée": "Montée difficile",
+    "Terrain irrégulier": "Terrain irrégulier",
+    "Station debout": "Station debout",
+  });
+
+  function applyFreeTextInterpretation(request) {
+    const core = globalThis.JMMJSFreeTextInterpretationCore;
+    if (!core) return request;
+    return core.mergeConfirmedInterpretationIntoRequest(request, {
+      status: painInterpretationConfirmed ? "confirmed" : "idle",
+      confirmedInterpretation: lastPainCandidate,
+    });
+  }
+
+  function prefillLimitationFromInterpretation(candidate) {
+    if (!candidate) return;
+    const trigger = (candidate.triggers || []).find(
+      (t) => TRIGGER_TO_LIMITS_CHIP[t.trigger],
+    )?.trigger;
+    if (trigger) {
+      const chipLabel = TRIGGER_TO_LIMITS_CHIP[trigger];
+      const chip = $$('[data-group="limits"] .chip').find(
+        (item) => item.textContent.trim() === chipLabel,
+      );
+      if (chip && !chip.classList.contains("active"))
+        chip.classList.add("active");
+      const triggerSelect = $("#limitationTrigger");
+      if (triggerSelect && !triggerSelect.value) triggerSelect.value = trigger;
+    }
+    const sideSelect = $("#limitationSide");
+    if (
+      sideSelect &&
+      (!sideSelect.value || sideSelect.value === "Non précisé") &&
+      ["Gauche", "Droit", "Bilatéral"].includes(candidate.side)
+    ) {
+      sideSelect.value = candidate.side;
+    }
+    const hasPauseNeed = (candidate.needs || []).some((n) => n.type === "pause-assise");
+    const durations =
+      candidate.temporal && Array.isArray(candidate.temporal.durations)
+        ? candidate.temporal.durations
+        : [];
+    const maxWithoutPause = $("#maxWithoutPause");
+    if (hasPauseNeed && durations.length && maxWithoutPause && !maxWithoutPause.value) {
+      maxWithoutPause.value = durations[0].approxMinutes;
+    }
+    updateLimitationStructureVisibility();
+  }
+
   $("#painInterpretationConfirm")?.addEventListener("click", () => {
     painInterpretationConfirmed = true;
     const confirmButton = $("#painInterpretationConfirm");
@@ -913,6 +976,7 @@
       confirmButton.setAttribute("aria-pressed", "true");
       confirmButton.textContent = "Pris en compte";
     }
+    prefillLimitationFromInterpretation(lastPainCandidate);
   });
   $("#painInterpretationModify")?.addEventListener("click", () => {
     resetPainInterpretationConfirmation();
@@ -1291,7 +1355,7 @@
   function currentRequestSignature() {
     try {
       return requestSignature(
-        mergeStructuredLimitationIntoRequest(buildRequest()),
+        mergeStructuredLimitationIntoRequest(applyFreeTextInterpretation(buildRequest())),
       );
     } catch {
       return null;
@@ -1594,7 +1658,7 @@
     const host = $("#constraintSummary");
     if (!host) return;
     const rawRequest = buildRequest();
-    const request = mergeStructuredLimitationIntoRequest(rawRequest);
+    const request = mergeStructuredLimitationIntoRequest(applyFreeTextInterpretation(rawRequest));
     const compiled = compileConstraints(request);
     const model = constraintSummaryModel(request, compiled);
     const valueOr = (value, fallback = "Non renseigné") => {
@@ -5095,7 +5159,7 @@
       return say(departureValidation.message);
     requestGovernor.beginSearch();
     S.requestCounts = { ors: 0, geo: 0, mapillary: 0, weather: 0, geocode: 0 };
-    S.request = mergeStructuredLimitationIntoRequest(buildRequest());
+    S.request = mergeStructuredLimitationIntoRequest(applyFreeTextInterpretation(buildRequest()));
     S.compiled = compileConstraints(S.request);
     const miss = [];
     if (!S.request.start.label && !Number.isFinite(S.request.start.latitude))
