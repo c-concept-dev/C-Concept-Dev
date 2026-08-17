@@ -384,13 +384,85 @@
 
   // Squelette de détection de cohérence. La forme du retour est fixée dès
   // D102A pour que D102C (affichage) et D102E (règles réelles) s'accordent
-  // sur un même contrat, mais aucune règle n'est implémentée ici : ce
-  // module ne doit jamais inventer un problème de cohérence à partir de
-  // rien. Tant qu'aucune règle n'existe, le retour est toujours vide.
+  // sur un même contrat. D102E remplit maintenant de vraies règles —
+  // prudentes et bidirectionnelles, jamais de décision silencieuse.
+  //
+  // Vocabulaire de correspondance déclencheur → puce "limits" du
+  // formulaire manuel (définition parallèle et volontairement indépendante
+  // de TRIGGER_TO_LIMITS_CHIP dans app.js : ce module ne dépend jamais de
+  // l'UI, seulement du même vocabulaire de labels).
+  const TRIGGER_LIMITS_CHIP_LABEL = Object.freeze({
+    "Descente": "Descente difficile",
+    "Montée": "Montée difficile",
+    "Terrain irrégulier": "Terrain irrégulier",
+    "Station debout": "Station debout",
+  });
+
   function detectCoherenceIssues(candidateInterpretation = {}, structuredFields = {}) {
-    void candidateInterpretation;
-    void structuredFields;
-    return [];
+    const issues = [];
+    const triggers = Array.isArray(candidateInterpretation.triggers)
+      ? candidateInterpretation.triggers
+      : [];
+    const negations = Array.isArray(candidateInterpretation.negations)
+      ? candidateInterpretation.negations
+      : [];
+    const limits = Array.isArray(structuredFields.limits) ? structuredFields.limits : [];
+    const painIntensity = Number.isFinite(structuredFields.painIntensity)
+      ? structuredFields.painIntensity
+      : null;
+
+    // Douleur : contradiction avec le curseur painIntensity, dans les deux
+    // sens. La polarité "reduced" (douleur atténuée, ex. "presque pas mal")
+    // n'est jamais confrontée : elle reste compatible avec n'importe quelle
+    // douleur légère non nulle, la signaler produirait trop de faux
+    // positifs pour un signal peu fiable.
+    for (const t of triggers) {
+      if (t.trigger !== "pain-qualifier") continue;
+      if (t.polarity === "present" && painIntensity === 0) {
+        issues.push({
+          type: "contradiction",
+          field: "painIntensity",
+          message: "Votre texte semble indiquer une douleur alors que le curseur de douleur est à 0/10.",
+        });
+      }
+      if (t.polarity === "absent" && painIntensity !== null && painIntensity > 0) {
+        issues.push({
+          type: "contradiction",
+          field: "painIntensity",
+          message: `Votre texte indique une absence de douleur alors que le curseur de douleur est à ${painIntensity}/10.`,
+        });
+      }
+    }
+
+    // Déclencheurs terrain : une négation explicite du texte contre une
+    // limite déjà déclarée manuellement = contradiction réelle (deux
+    // signaux explicites qui se contredisent). Un déclencheur confirmé
+    // positivement dont la puce est déjà active = doublon à signaler
+    // sobrement, jamais une alerte. Un déclencheur positif dont la puce
+    // n'est PAS active n'est volontairement pas traité ici : ce n'est pas
+    // une incohérence, c'est une information nouvelle déjà gérée par le
+    // pré-remplissage D102D.
+    for (const n of negations) {
+      const chipLabel = TRIGGER_LIMITS_CHIP_LABEL[n.trigger];
+      if (chipLabel && limits.includes(chipLabel)) {
+        issues.push({
+          type: "contradiction",
+          field: "limits",
+          message: `Votre texte indique l'absence de gêne (${n.trigger.toLowerCase()}) alors que vous aviez déclaré « ${chipLabel} ».`,
+        });
+      }
+    }
+    for (const t of triggers) {
+      const chipLabel = TRIGGER_LIMITS_CHIP_LABEL[t.trigger];
+      if (chipLabel && limits.includes(chipLabel)) {
+        issues.push({
+          type: "duplicate",
+          field: "limits",
+          message: `« ${chipLabel} » est déjà pris en compte.`,
+        });
+      }
+    }
+    return issues;
   }
 
   // Vocabulaire partagé avec le formulaire manuel (limitations-core.js /
