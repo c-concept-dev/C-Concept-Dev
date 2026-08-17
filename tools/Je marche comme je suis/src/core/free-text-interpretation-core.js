@@ -303,7 +303,11 @@
     },
     {
       polarity: "absent",
-      re: /\b(aucune douleur|pas mal|aucun souci)\b|ça va\b/i,
+      // D102G1 : ne considérer comme absence de douleur que des formulations
+      // explicitement liées à la douleur. « aucun souci » / « ça va » sont
+      // trop généraux (ex. « sur le plat aucun souci ») et créeraient de faux
+      // conflits avec le curseur pain alors que la phrase décrit le terrain.
+      re: /\b(aucune douleur|pas de douleur|sans douleur)\b|\bje n['’]ai pas mal\b/i,
     },
   ]);
 
