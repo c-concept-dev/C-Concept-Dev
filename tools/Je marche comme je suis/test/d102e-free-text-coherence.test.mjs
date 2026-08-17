@@ -114,3 +114,15 @@ test("D102E la détection de cohérence ne mute jamais #pain, ni ne coche #limit
   assert.doesNotMatch(fn, /limitationConfirmed/);
   assert.doesNotMatch(fn, /limitationConsequence/);
 });
+
+test("D102G1 une formule générale comme « sur le plat aucun souci » ne devient jamais une absence globale de douleur", () => {
+  const core = loadModule("../src/core/free-text-interpretation-core.js");
+  const candidate = core.interpretFreeText(
+    "Sur le plat aucun souci, par contre quand ça descend je commence à avoir mal.",
+  );
+  const painSignals = candidate.triggers.filter((t) => t.trigger === "pain-qualifier");
+  assert.equal(painSignals.some((t) => t.polarity === "absent"), false);
+  assert.equal(painSignals.some((t) => t.polarity === "present"), true);
+  const issues = core.detectCoherenceIssues(candidate, { painIntensity: 4, limits: [] });
+  assert.equal(issues.filter((i) => i.field === "painIntensity").length, 0);
+});
