@@ -791,15 +791,11 @@
     if (disclosure && limits.length) disclosure.open = true;
   }
 
-  // D102E2 — le champ reste accessible quelle que soit la valeur du
-  // curseur douleur : une gêne chronique, intermittente ou habituelle
-  // peut se décrire même à pain = 0 (cas réel constaté en test direct :
-  // impossible de saisir le texte tant que le curseur n'était pas
-  // d'abord monté au-dessus de 0). Le champ n'est plus masqué.
   function syncPainDetailVisibility() {
     const wrap = $("#painDetailWrap");
     if (!wrap) return;
-    wrap.hidden = false;
+    const show = Number(val("#pain") || 0) > 0 || Boolean(val("#painDetail").trim());
+    wrap.hidden = !show;
   }
 
   // D102C — UX "Voici ce que j'ai compris". Lit le texte libre, l'interprète
@@ -815,22 +811,14 @@
   function painInterpretationItems(candidate) {
     const items = [];
     if (candidate.bodyAreas.length) {
-      const areaSides = Array.isArray(candidate.areaSides) ? candidate.areaSides : [];
       candidate.bodyAreas.forEach((area, index) => {
-        const pairedSide = areaSides.find((p) => p.area === area)?.side || null;
-        const effectiveSide = pairedSide || candidate.side;
         const sideLabel =
-          effectiveSide === "Bilatéral"
+          candidate.side === "Bilatéral"
             ? "des deux côtés"
-            : effectiveSide
-              ? effectiveSide.toLowerCase()
+            : candidate.side
+              ? candidate.side.toLowerCase()
               : "";
-        const baseLabel = sideLabel ? `${area} ${sideLabel}` : area;
-        const pairedBaseline = areaSides.find((p) => p.area === area)?.baseline || null;
-        const label =
-          pairedBaseline === "usual"
-            ? `${baseLabel} · habituel, non aggravé aujourd’hui`
-            : baseLabel;
+        const label = sideLabel ? `${area} ${sideLabel}` : area;
         items.push({ id: `area-${index}`, label });
       });
     }
@@ -1034,7 +1022,6 @@
   });
   syncTimeIncludesSwitch();
   $("#pain")?.addEventListener("input", syncPainDetailVisibility);
-  $("#pain")?.addEventListener("input", syncPainInterpretation);
   $("#painDetail")?.addEventListener("input", syncPainDetailVisibility);
   $("#painDetail")?.addEventListener("input", () => {
     painInterpretationRemoved.clear();
