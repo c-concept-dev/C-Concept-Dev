@@ -97,7 +97,7 @@
   // "Sur le plat aucun souci, par contre quand ça descend..." ne doit pas
   // faire hériter "descend" de la négation de "aucun souci".
   const CLAUSE_BOUNDARY_RE =
-    /[.;!?]+|,?\s*\b(?:mais|par contre|cependant|toutefois|en revanche)\b/gi;
+    /[.;!?]+|,\s*|\s+\b(?:mais|par contre|cependant|toutefois|en revanche)\b\s*|\s+\b(?:c['’]est seulement)\b\s*/gi;
 
   function splitClauses(text) {
     return text
@@ -142,22 +142,124 @@
     { area: "Chevilles", re: /\bchevilles?\b/i },
     { area: "Pieds", re: /\bpieds?\b/i },
     { area: "Dos", re: /\bdos\b/i },
+    { area: "Cou", re: /\b(cou|cervical(?:e|es|es)?|cervicaux)\b/i },
+    { area: "Épaules", re: /(?:^|[\s’'(-])(?:épaule|epaule)s?(?=$|[\s.,;:!?)-])/i },
   ]);
+
+  const BODY_NEGATION_RE =
+    /\b(?:n['’]?(?:ai|a|ont|est|suis|sommes|êtes)?\s*)?(?:ne\s+)?(?:me\s+|m['’])?(?:fait|font|gêne|gênent|gênait|gênait|gêné)?\s*(?:pas|plus|aucunement)\b|\b(?:pas|aucune?|sans)\s+(?:de\s+)?(?:douleur|gêne|mal)\b/i;
+  const BODY_TOLERATED_RE = /\b(?:va|vont)\s+(?:très\s+)?bien\b|\baucun souci\b/i;
+  const CURRENT_NEGATION_RE =
+    /\baujourd['’]hui\b[\s\S]{0,45}\b(?:ne|n['’])?[\s\S]{0,25}\b(?:pas|plus|aucunement)\b/i;
+  const HISTORICAL_ONLY_RE =
+    /(?:op[ée]r[ée]|op[ée]ration|fracture|accident|arthrod[èe]se)[\s\S]{0,80}(?:il y a|l['’]an dernier|en \d{4})/i;
+  const CURRENT_SYMPTOM_RE =
+    /\b(?:douleur|gêne|mal|tire|tirer|douloureux|douloureuse|douloureuses|fatigue)\b/i;
+
+  function localSide(segment) {
+    const bilateral = SIDE_PATTERNS[0].re.test(segment);
+    if (bilateral) return "Bilatéral";
+    const left = SIDE_PATTERNS[1].re.test(segment);
+    const right = SIDE_PATTERNS[2].re.test(segment);
+    if (left && !right) return "Gauche";
+    if (right && !left) return "Droit";
+    return null;
+  }
+
+  function splitAreaSegments(clause) {
+    // La coordination « et » sépare les groupes corporels seulement si les
+    // deux côtés contiennent chacun une zone. Cela évite de propager
+    // « droite » de « épaule droite » vers « le cou ».
+    const rawParts = clause.split(/\s+et\s+/i);
+    if (rawParts.length < 2) return [clause];
+    const withArea = rawParts.filter((part) => BODY_AREA_PATTERNS.some((e) => e.re.test(part)));
+    return withArea.length >= 2 ? rawParts : [clause];
+  }
+
+  function extractBodyAreaDetails(text) {
+    const details = [];
+    const clauses = splitClauses(text);
+    for (const clause of clauses) {
+      for (const segment of splitAreaSegments(clause)) {
+        const side = localSide(segment);
+        const negated = BODY_NEGATION_RE.test(segment) || BODY_TOLERATED_RE.test(segment);
+        const historicalOnly = HISTORICAL_ONLY_RE.test(segment) && !CURRENT_SYMPTOM_RE.test(segment);
+        for (const entry of BODY_AREA_PATTERNS) {
+          if (!entry.re.test(segment)) continue;
+          details.push({ area: entry.area, side, negated, historicalOnly, raw: segment });
+        }
+      }
+    }
+    // Un antécédent isolé suivi d'une négation actuelle pronominale ne doit
+    // pas devenir une gêne active (« opéré du genou... mais aujourd'hui il
+    // ne me gêne pas »).
+    if (CURRENT_NEGATION_RE.test(text)) {
+      for (const d of details) {
+        if (d.historicalOnly) d.negated = true;
+      }
+    }
+    return details;
+  }
 
   function extractBodyAreas(text) {
     const areas = [];
-    for (const entry of BODY_AREA_PATTERNS) {
-      if (entry.re.test(text) && !areas.includes(entry.area)) areas.push(entry.area);
+    for (const detail of extractBodyAreaDetails(text)) {
+      if (!detail.negated && !detail.historicalOnly && !areas.includes(detail.area)) areas.push(detail.area);
     }
     return areas;
   }
 
+  function extractAreaMetadata(text) {
+    const allDetails = extractBodyAreaDetails(text);
+    const relevant = allDetails.filter((d) => !d.negated);
+    const active = relevant.filter((d) => !d.historicalOnly);
+    const areaSides = {};
+    const sideSets = {};
+    for (const d of active) {
+      if (!d.side) continue;
+      if (!sideSets[d.area]) sideSets[d.area] = new Set();
+      sideSets[d.area].add(d.side);
+    }
+    for (const [area, sides] of Object.entries(sideSets)) {
+      if (sides.size === 1) areaSides[area] = [...sides][0];
+    }
+
+    const areaStatus = {};
+    const clauses = splitClauses(text);
+    let lastAreas = [];
+    for (const clause of clauses) {
+      const clauseAreas = extractBodyAreaDetails(clause)
+        .filter((d) => !d.negated)
+        .map((d) => d.area);
+      if (clauseAreas.length) lastAreas = clauseAreas;
+      const targets = clauseAreas.length ? clauseAreas : lastAreas;
+      if (!targets.length) continue;
+      let status = null;
+      if (/\b(?:pas pire que d['’]habitude|comme d['’]habitude|sans lien avec aujourd['’]hui|tout va bien maintenant|rien de nouveau)\b/i.test(clause))
+        status = "usual";
+      else if (/\b(?:ça va mieux|va mieux|mieux que d['’]habitude|moins (?:fort|forte|mal|gênant|gênante) qu['’]?(?:habituellement|d['’]habitude)|moins qu['’]habituellement)\b/i.test(clause))
+        status = "better";
+      else if (/\b(?:plus fort(?:e)? que d['’]habitude|nettement plus fort(?:e)? que d['’]habitude|bien plus fort(?:e)? qu['’]habituellement|plus qu['’]habituellement|pire que d['’]habitude)\b/i.test(clause))
+        status = "worse";
+      if (status) for (const area of targets) areaStatus[area] = status;
+    }
+    // Un antécédent peut être affiché comme contexte habituel/non aggravé
+    // quand le texte le dit explicitement, sans devenir une limitation
+    // active. On conserve alors son côté uniquement pour l'affichage.
+    for (const area of Object.keys(areaStatus)) {
+      if (areaSides[area]) continue;
+      const sides = new Set(relevant.filter((d) => d.area === area && d.side).map((d) => d.side));
+      if (sides.size === 1) areaSides[area] = [...sides][0];
+    }
+    return { areaSides, areaStatus };
+  }
+
   const TERRAIN_TRIGGER_PATTERNS = Object.freeze([
-    { trigger: "Descente", re: /\b(descend(?:s|re|ent)?|descente)\b/i },
-    { trigger: "Montée", re: /\b(mont(?:e|ée|er|es|ent))\b/i },
+    { trigger: "Descente", re: /\b(descend(?:s|re|ent)?|descentes?)\b/i },
+    { trigger: "Montée", re: /\b(mont(?:e|ée|er|es|ent)|montées?)\b/i },
     {
       trigger: "Terrain irrégulier",
-      re: /\b(terrain irr[ée]gulier|pav[ée]s?|caillouteux|instable)\b/i,
+      re: /\b(terrains? irr[ée]guliers?|chemins?\s+(?:(?:devient|deviennent)\s+)?irr[ée]guliers?|pav[ée]s?|caillouteux|instable)\b/i,
     },
     { trigger: "Station debout", re: /\b(station debout|rest(?:er|e) debout)\b/i },
   ]);
@@ -254,6 +356,9 @@
     if (/demi[- ]heure/i.test(text)) {
       results.push({ approxMinutes: 30, precision: "approximate", raw: "demi-heure" });
     }
+    if (/trois\s+quarts?\s+d['’]heure/i.test(text)) {
+      results.push({ approxMinutes: 45, precision: "approximate", raw: "trois quarts d’heure" });
+    }
     const hourRe = /(\d+|[a-zéûî-]+)\s*heures?\b(?!\s*et\s*demi)/gi;
     while ((match = hourRe.exec(text))) {
       const value = wordOrDigitToNumber(match[1]);
@@ -288,14 +393,9 @@
   }
 
   const PAIN_QUALIFIER_PATTERNS = Object.freeze([
-    // Note : pas de \b en tête devant "ça"/"ç" — le \b de JavaScript ne
-    // traite pas les lettres accentuées comme des caractères de mot, donc
-    // \bça échoue silencieusement en début de chaîne ou après un espace.
-    // Les expressions restent assez spécifiques (plusieurs mots) pour ne
-    // pas produire de faux positifs sans l'ancrage.
     {
       polarity: "present",
-      re: /\b(très mal|vraiment mal)\b|ça fait mal|ça tire|\b(j['’]ai mal|douleur)\b|\bavoir mal\b/i,
+      re: /\b(très mal|vraiment mal)\b|\b(?:me|lui|nous)\s+fait mal\b|ça fait mal|ça tire|\b(j['’]ai mal|douleurs?)\b|\bavoir mal\b|\bdouloureux|douloureuse|douloureuses\b/i,
     },
     {
       polarity: "reduced",
@@ -303,7 +403,10 @@
     },
     {
       polarity: "absent",
-      re: /\b(aucune douleur|pas mal|aucun souci)\b|ça va\b/i,
+      // « aucun souci » et « ça va » ne sont volontairement PAS des
+      // absences globales : « sur le plat aucun souci, ... en descente j'ai
+      // mal » a démontré le risque de faux négatif en D102G1/G2.
+      re: /\b(aucune douleur|pas mal aujourd['’]hui|je n['’]ai pas vraiment mal|je n['’]ai pas mal|ne me fait pas mal|sans douleur particulière)\b/i,
     },
   ]);
 
@@ -317,9 +420,13 @@
     const clauses = splitClauses(text);
     const results = [];
     for (const clause of clauses) {
+      // D102G3 : une douleur explicitement située dans le passé ne doit pas
+      // être confrontée au curseur de douleur du jour.
+      if (/\b(?:hier|avant-hier|l['’]an dernier|il y a)\b|\ben \d{4}\b/i.test(clause)) continue;
       const absent = clause.match(PAIN_QUALIFIER_PATTERNS[2].re);
       if (absent) {
-        results.push({ polarity: "absent", raw: absent[0] });
+        const localizedToBodyArea = BODY_AREA_PATTERNS.some((entry) => entry.re.test(clause));
+        if (!localizedToBodyArea) results.push({ polarity: "absent", raw: absent[0] });
         continue;
       }
       const reduced = clause.match(PAIN_QUALIFIER_PATTERNS[1].re);
@@ -342,13 +449,25 @@
     if (!normalized.clean) return emptyCandidateInterpretation();
 
     const laterality = extractLaterality(normalized.clean);
-    const bodyAreas = extractBodyAreas(normalized.clean);
+    const allBodyAreaDetails = extractBodyAreaDetails(normalized.clean);
+    const areaMetadata = extractAreaMetadata(normalized.clean);
+    const bodyAreas = [
+      ...new Set([
+        ...extractBodyAreas(normalized.clean),
+        ...Object.keys(areaMetadata.areaStatus),
+      ]),
+    ];
     const terrain = extractTerrainTriggers(normalized.clean);
     const durationInfo = extractDurations(normalized.clean);
     const pauseNeeds = extractPauseNeeds(normalized.clean);
     const painQualifiers = extractPainQualifiers(normalized.clean);
 
-    const uncertain = [...laterality.uncertain, ...durationInfo.uncertain];
+    const localSidesResolveAmbiguity =
+      bodyAreas.length > 0 && bodyAreas.every((area) => Boolean(areaMetadata.areaSides[area]));
+    const uncertain = [
+      ...(localSidesResolveAmbiguity ? [] : laterality.uncertain),
+      ...durationInfo.uncertain,
+    ];
     if (terrain.conflicting.length)
       uncertain.push(
         `mentions contradictoires pour : ${terrain.conflicting.join(", ")}`,
@@ -365,7 +484,12 @@
 
     return normalizeCandidateInterpretation({
       bodyAreas,
-      side: laterality.side,
+      side:
+        bodyAreas.length === 1
+          ? (areaMetadata.areaSides[bodyAreas[0]] || laterality.side)
+          : bodyAreas.length === 0
+            ? (allBodyAreaDetails.length ? null : laterality.side)
+            : null,
       triggers,
       temporal: durationInfo.durations.length
         ? { durations: durationInfo.durations }
@@ -373,7 +497,10 @@
       needs: pauseNeeds,
       negations: terrain.negations,
       uncertain,
-      confidence: {},
+      confidence: {
+        areaSides: areaMetadata.areaSides,
+        areaStatus: areaMetadata.areaStatus,
+      },
       coherenceIssues: [],
     });
   }
@@ -544,6 +671,8 @@
     splitClauses,
     extractLaterality,
     extractBodyAreas,
+    extractBodyAreaDetails,
+    extractAreaMetadata,
     extractTerrainTriggers,
     extractNegations,
     extractDurations,
