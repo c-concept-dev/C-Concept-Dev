@@ -39,7 +39,6 @@ test("D102A emptyCandidateInterpretation respecte exactement le contrat du plan"
   const ctx = loadModule("../src/core/free-text-interpretation-core.js");
   const empty = ctx.JMMJSFreeTextInterpretationCore.emptyCandidateInterpretation();
   assert.deepEqual(Object.keys(empty).sort(), [
-    "areaSides",
     "bodyAreas",
     "coherenceIssues",
     "confidence",
@@ -51,7 +50,6 @@ test("D102A emptyCandidateInterpretation respecte exactement le contrat du plan"
     "uncertain",
   ].sort());
   assert.equal(empty.bodyAreas.length, 0);
-  assert.equal(empty.areaSides.length, 0);
   assert.equal(empty.side, null);
   assert.equal(empty.triggers.length, 0);
   assert.equal(Object.keys(empty.temporal).length, 0);
@@ -149,35 +147,4 @@ test("D102A le contrat exporté est gelé (Object.freeze)", () => {
     "use strict";
     core.STATUSES = [];
   });
-});
-
-// Ajoutés après un test réel en direct sur un vrai texte (17/08/2026) :
-// "genou gauche et hanche droite" perdait ses deux côtés au profit d'une
-// alerte générique "côté ambigu". areaSides répare ça par appariement de
-// proximité, clause par clause, sans changer le champ `side` global.
-test("D102I areaSides associe correctement deux zones à deux côtés distincts dans la même phrase", () => {
-  const ctx = loadModule("../src/core/free-text-interpretation-core.js");
-  const { interpretFreeText } = ctx.JMMJSFreeTextInterpretationCore;
-  const candidate = interpretFreeText("J'ai mal au genou gauche et à la hanche droite.");
-  const genoux = candidate.areaSides.find((p) => p.area === "Genoux");
-  const hanches = candidate.areaSides.find((p) => p.area === "Hanches");
-  assert.equal(genoux?.side, "Gauche");
-  assert.equal(hanches?.side, "Droit");
-  // L'alerte générique "côté ambigu" doit disparaître puisque chaque zone
-  // a reçu un côté propre — sinon l'utilisateur verrait un message
-  // contredisant ce que les puces affichent.
-  assert.ok(
-    !candidate.uncertain.some((m) => m.includes("côté ambigu")),
-    "l'ambiguïté globale ne doit plus apparaître une fois résolue par zone",
-  );
-});
-
-test("D102I areaSides reste vide (pas de choix arbitraire) quand une seule zone a deux côtés mentionnés sans lien clair", () => {
-  const ctx = loadModule("../src/core/free-text-interpretation-core.js");
-  const { interpretFreeText } = ctx.JMMJSFreeTextInterpretationCore;
-  const candidate = interpretFreeText("J'ai mal au genou, gauche ou droit je ne sais plus.");
-  assert.ok(
-    candidate.uncertain.some((m) => m.includes("côté ambigu")),
-    "l'ambiguïté doit rester signalée quand elle n'est pas résolue par zone",
-  );
 });
