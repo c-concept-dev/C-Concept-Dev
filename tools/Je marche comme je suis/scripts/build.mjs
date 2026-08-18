@@ -43,6 +43,7 @@ const bundles = {
     "src/core/service-observability-core.js",
     "src/core/limitations-core.js",
     "src/core/free-text-interpretation-core.js",
+    "src/core/activity-progression-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
     "src/peripherals/ors-provider.js",
