@@ -11,8 +11,7 @@
     "e2e:critical": "playwright test --grep @critical",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
-    "p0.1:verify": "npm run check && npm run e2e:critical",
-    "benchmark:d102g1": "node scripts/d102g1-benchmark.mjs"
+    "p0.1:verify": "npm run check && npm run e2e:critical"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.0"
