@@ -794,8 +794,10 @@
   function syncPainDetailVisibility() {
     const wrap = $("#painDetailWrap");
     if (!wrap) return;
-    const show = Number(val("#pain") || 0) > 0 || Boolean(val("#painDetail").trim());
-    wrap.hidden = !show;
+    // D102E2/G3 — le texte libre reste toujours accessible, même avec un
+    // curseur douleur à 0. Le curseur ne doit jamais masquer la possibilité
+    // de décrire une gêne fonctionnelle ou une incohérence à vérifier.
+    wrap.hidden = false;
   }
 
   // D102C — UX "Voici ce que j'ai compris". Lit le texte libre, l'interprète
@@ -811,15 +813,26 @@
   function painInterpretationItems(candidate) {
     const items = [];
     if (candidate.bodyAreas.length) {
+      const areaSides = candidate.confidence?.areaSides || {};
+      const areaStatus = candidate.confidence?.areaStatus || {};
       candidate.bodyAreas.forEach((area, index) => {
+        const localSide = areaSides[area] || (candidate.bodyAreas.length === 1 ? candidate.side : null);
         const sideLabel =
-          candidate.side === "Bilatéral"
+          localSide === "Bilatéral"
             ? "des deux côtés"
-            : candidate.side
-              ? candidate.side.toLowerCase()
+            : localSide
+              ? localSide.toLowerCase()
               : "";
-        const label = sideLabel ? `${area} ${sideLabel}` : area;
-        items.push({ id: `area-${index}`, label });
+        const baseLabel = sideLabel ? `${area} ${sideLabel}` : area;
+        const statusLabel =
+          areaStatus[area] === "usual"
+            ? " · habituel, non aggravé aujourd'hui"
+            : areaStatus[area] === "better"
+              ? " · mieux qu'habituellement aujourd'hui"
+              : areaStatus[area] === "worse"
+                ? " · plus gênant qu'habituellement aujourd'hui"
+                : "";
+        items.push({ id: `area-${index}`, label: `${baseLabel}${statusLabel}` });
       });
     }
     candidate.triggers.forEach((trigger, index) => {
@@ -1021,7 +1034,12 @@
     });
   });
   syncTimeIncludesSwitch();
-  $("#pain")?.addEventListener("input", syncPainDetailVisibility);
+  $("#pain")?.addEventListener("input", () => {
+    syncPainDetailVisibility();
+    // D102G3 — la cohérence texte ↔ curseur doit être recalculée dans les
+    // deux sens dès que la valeur du curseur change.
+    syncPainInterpretation();
+  });
   $("#painDetail")?.addEventListener("input", syncPainDetailVisibility);
   $("#painDetail")?.addEventListener("input", () => {
     painInterpretationRemoved.clear();
