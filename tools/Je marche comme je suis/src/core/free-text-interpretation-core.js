@@ -44,7 +44,6 @@
     return {
       bodyAreas: [],
       side: null,
-      areaSides: [],
       triggers: [],
       temporal: {},
       needs: [],
@@ -62,7 +61,6 @@
     return {
       bodyAreas: arr(value.bodyAreas),
       side: typeof value.side === "string" ? value.side : null,
-      areaSides: arr(value.areaSides),
       triggers: arr(value.triggers),
       temporal: obj(value.temporal),
       needs: arr(value.needs),
@@ -144,8 +142,6 @@
     { area: "Chevilles", re: /\bchevilles?\b/i },
     { area: "Pieds", re: /\bpieds?\b/i },
     { area: "Dos", re: /\bdos\b/i },
-    { area: "Cou", re: /\b(cou|cervical(?:e|es)?|cervicaux)\b/i },
-    { area: "Épaules", re: /[ée]paules?/i },
   ]);
 
   function extractBodyAreas(text) {
@@ -154,65 +150,6 @@
       if (entry.re.test(text) && !areas.includes(entry.area)) areas.push(entry.area);
     }
     return areas;
-  }
-
-  // D102G2 — état habituel vs gêne active du jour. Ce signal ne cherche
-  // pas à reconstruire un historique médical : il répond uniquement au gap
-  // observé en test réel, où une gêne chronique explicitement non aggravée
-  // était présentée comme une contrainte du jour. Les formulations restent
-  // déclaratives et prudentes ; aucune valeur de douleur n'est déduite.
-  const BASELINE_USUAL_RE =
-    /\b(pas pire que d['’]habitude|comme d['’]habitude|sans lien avec aujourd['’]hui|tout va bien maintenant|rien de nouveau)\b/i;
-
-  function extractBaselineContext(text, bodyAreas = []) {
-    const match = text.match(BASELINE_USUAL_RE);
-    if (!match || !bodyAreas.length) return [];
-    return bodyAreas.map((area) => ({
-      area,
-      baseline: "usual",
-      raw: match[0],
-    }));
-  }
-
-  // Appariement zone ↔ côté, clause par clause, par proximité — complète
-  // (sans le remplacer) le côté global `side` de D102A, qui reste correct
-  // pour une phrase à une seule zone mais efface les côtés distincts d'une
-  // phrase à plusieurs zones ("genou gauche et hanche droite" → deux zones,
-  // un seul côté global perdu). Pour chaque occurrence de zone dans une
-  // clause, on retient le mot de côté le plus proche EN CARACTÈRES dans
-  // cette même clause. Si aucun côté n'est trouvé dans la clause, ou si
-  // plusieurs zones se disputent le même mot de côté le plus proche à
-  // égalité, le côté de cette zone reste `null` — jamais de choix arbitraire
-  // silencieux.
-  function pairBodyAreasWithSides(text) {
-    const clauses = splitClauses(text);
-    const pairs = [];
-    for (const clause of clauses) {
-      const sideMatches = [];
-      for (const entry of SIDE_PATTERNS) {
-        if (entry.side === "Bilatéral") continue; // traité par le côté global
-        const re = new RegExp(entry.re.source, "gi");
-        let m;
-        while ((m = re.exec(clause))) sideMatches.push({ side: entry.side, index: m.index });
-      }
-      for (const entry of BODY_AREA_PATTERNS) {
-        const re = new RegExp(entry.re.source, "gi");
-        let m;
-        while ((m = re.exec(clause))) {
-          if (!sideMatches.length) {
-            pairs.push({ area: entry.area, side: null });
-            continue;
-          }
-          const nearest = sideMatches.reduce((best, candidate) => {
-            const dist = Math.abs(candidate.index - m.index);
-            const bestDist = Math.abs(best.index - m.index);
-            return dist < bestDist ? candidate : best;
-          }, sideMatches[0]);
-          pairs.push({ area: entry.area, side: nearest.side });
-        }
-      }
-    }
-    return pairs;
   }
 
   const TERRAIN_TRIGGER_PATTERNS = Object.freeze([
@@ -366,11 +303,7 @@
     },
     {
       polarity: "absent",
-      // D102G1/G2 : uniquement des formulations explicitement liées à la
-      // douleur. On couvre aussi « je n'ai pas vraiment mal », qui ne doit
-      // surtout pas être capté par le sous-motif positif « vraiment mal ».
-      // « aucun souci » / « ça va » restent exclus car trop généraux.
-      re: /\b(aucune douleur|pas de douleur|sans douleur)\b|\bje n['’]ai pas (?:vraiment )?mal\b/i,
+      re: /\b(aucune douleur|pas mal|aucun souci)\b|ça va\b/i,
     },
   ]);
 
@@ -384,17 +317,6 @@
     const clauses = splitClauses(text);
     const results = [];
     for (const clause of clauses) {
-      // « Pas mal » est lexicalement ambigu en français (peut signifier
-      // « plutôt beaucoup »). On ne le classe comme absence que lorsque le
-      // contexte de la même clause le désambiguïse explicitement vers un bon
-      // état du jour — cas réel : « Pas mal aujourd'hui, ça va plutôt bien ».
-      const contextualAbsent =
-        /\bpas mal aujourd['’]hui\b/i.test(clause) &&
-        /(?:ça|ca) va (?:plut[oô]t )?bien/i.test(clause);
-      if (contextualAbsent) {
-        results.push({ polarity: "absent", raw: "pas mal aujourd’hui" });
-        continue;
-      }
       const absent = clause.match(PAIN_QUALIFIER_PATTERNS[2].re);
       if (absent) {
         results.push({ polarity: "absent", raw: absent[0] });
@@ -421,31 +343,12 @@
 
     const laterality = extractLaterality(normalized.clean);
     const bodyAreas = extractBodyAreas(normalized.clean);
-    const baselineContexts = extractBaselineContext(normalized.clean, bodyAreas);
-    const areaSides = pairBodyAreasWithSides(normalized.clean).map((pair) => ({
-      ...pair,
-      baseline:
-        baselineContexts.find((item) => item.area === pair.area)?.baseline || null,
-    }));
     const terrain = extractTerrainTriggers(normalized.clean);
     const durationInfo = extractDurations(normalized.clean);
     const pauseNeeds = extractPauseNeeds(normalized.clean);
     const painQualifiers = extractPainQualifiers(normalized.clean);
 
-    // Le message d'ambiguïté globale de laterality.uncertain reste utile
-    // quand une zone n'a reçu aucun côté distinct (ex. une seule zone,
-    // deux côtés mentionnés sans lien clair). Il devient trompeur quand
-    // l'appariement par clause a résolu un côté propre à chaque zone
-    // ("genou gauche et hanche droite") : dans ce cas précis, on le
-    // retire plutôt que de signaler une ambiguïté déjà levée.
-    const areaSidesFullyResolved =
-      areaSides.length > 0 && areaSides.every((p) => p.side !== null);
-    const lateralityUncertain =
-      areaSidesFullyResolved && bodyAreas.length > 1
-        ? laterality.uncertain.filter((m) => !m.includes("côté ambigu"))
-        : laterality.uncertain;
-
-    const uncertain = [...lateralityUncertain, ...durationInfo.uncertain];
+    const uncertain = [...laterality.uncertain, ...durationInfo.uncertain];
     if (terrain.conflicting.length)
       uncertain.push(
         `mentions contradictoires pour : ${terrain.conflicting.join(", ")}`,
@@ -460,18 +363,9 @@
       ...painQualifiers.map((p) => ({ trigger: "pain-qualifier", ...p })),
     ];
 
-    const allAreasBaselineUsual =
-      bodyAreas.length > 0 &&
-      baselineContexts.length === bodyAreas.length &&
-      baselineContexts.every((item) => item.baseline === "usual");
-
     return normalizeCandidateInterpretation({
       bodyAreas,
-      // Une zone explicitement « habituelle / non aggravée aujourd'hui » ne
-      // doit pas préremplir une latéralité dans la limitation fonctionnelle.
-      // Le côté reste disponible sur areaSides pour l'affichage sémantique.
-      side: allAreasBaselineUsual ? null : laterality.side,
-      areaSides,
+      side: laterality.side,
       triggers,
       temporal: durationInfo.durations.length
         ? { durations: durationInfo.durations }
@@ -650,7 +544,6 @@
     splitClauses,
     extractLaterality,
     extractBodyAreas,
-    extractBaselineContext,
     extractTerrainTriggers,
     extractNegations,
     extractDurations,
