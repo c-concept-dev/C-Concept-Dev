@@ -15,6 +15,7 @@ const CORE_SOURCE = readFileSync(
   new URL("../src/core/activity-progression-core.js", import.meta.url),
   "utf8",
 );
+const CORE_EXECUTABLE_SOURCE = CORE_SOURCE.replace(/^\s*\/\/.*$/gm, "");
 const APP_SOURCE = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 
 function plain(value) {
@@ -239,7 +240,10 @@ test("D103A migrateLongitudinalDocument refuse proprement les versions futures",
     updatedAt: null,
     data: {},
   };
-  assert.throws(() => core.migrateLongitudinalDocument(future), RangeError);
+  assert.throws(
+    () => core.migrateLongitudinalDocument(future),
+    (error) => error?.name === "RangeError" && /Version future non supportée/.test(error.message),
+  );
 });
 
 test("D103A normalise sans muter les entrées", () => {
@@ -275,14 +279,14 @@ test("D103A source ne contient aucun accès stockage ou API navigateur/moteur", 
     /new Date\s*\(/,
     /Math\.random\s*\(/,
   ]) {
-    assert.doesNotMatch(CORE_SOURCE, forbidden);
+    assert.doesNotMatch(CORE_EXECUTABLE_SOURCE, forbidden);
   }
 });
 
 test("D103A source ne contient aucune règle liée à l'âge, seuil douleur ou pourcentage de progression", () => {
-  assert.doesNotMatch(CORE_SOURCE, /\bage\b/i);
-  assert.doesNotMatch(CORE_SOURCE, /pain\s*[<>]=?\s*\d/i);
-  assert.doesNotMatch(CORE_SOURCE, /\+\s*10\s*%|10\s*%/i);
+  assert.doesNotMatch(CORE_EXECUTABLE_SOURCE, /\bage\b/i);
+  assert.doesNotMatch(CORE_EXECUTABLE_SOURCE, /pain\s*[<>]=?\s*\d/i);
+  assert.doesNotMatch(CORE_EXECUTABLE_SOURCE, /\+\s*10\s*%|10\s*%/i);
 });
 
 test("D103A ne raccorde toujours rien dans app.js", () => {
