@@ -1,10 +1,10 @@
 /* JMMJS_ACTIVITY_PROGRESSION_CORE_START */
-const JMMJSActivityProgressionCore = (() => {
+(() => {
   "use strict";
 
   // D103A — coeur longitudinal pur, déterministe et inerte.
   // Ce module définit uniquement des contrats et fonctions de domaine.
-  // Le chargement ne modifie ni l'espace global objet, ni le stockage, ni le navigateur.
+  // Ce module reste sans effet de bord métier ni dépendance navigateur.
 
   const SCHEMA = "jmmjs.activity-progression";
   const SCHEMA_VERSION = 1;
@@ -124,9 +124,7 @@ const JMMJSActivityProgressionCore = (() => {
       "completion",
     ];
     const out = {};
-    for (const field of fields) {
-      out[field] = createObservedValue(input[field]);
-    }
+    for (const field of fields) out[field] = createObservedValue(input[field]);
     return out;
   }
 
@@ -182,9 +180,7 @@ const JMMJSActivityProgressionCore = (() => {
       dimension: typeof input.dimension === "string" ? input.dimension : null,
       reason: input.reason,
       observationsUsed: Array.isArray(input.observationsUsed) ? clone(input.observationsUsed) : [],
-      missingObservations: Array.isArray(input.missingObservations)
-        ? clone(input.missingObservations)
-        : [],
+      missingObservations: Array.isArray(input.missingObservations) ? clone(input.missingObservations) : [],
       contradictions: Array.isArray(input.contradictions) ? clone(input.contradictions) : [],
       createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
     };
@@ -206,9 +202,7 @@ const JMMJSActivityProgressionCore = (() => {
       duringReaction: input.duringReaction ? createReaction(input.duringReaction) : null,
       postActivityReaction: input.postActivityReaction ? createReaction(input.postActivityReaction) : null,
       laterReaction: input.laterReaction ? createReaction(input.laterReaction) : null,
-      progressionDecision: input.progressionDecision
-        ? createProgressionDecision(input.progressionDecision)
-        : null,
+      progressionDecision: input.progressionDecision ? createProgressionDecision(input.progressionDecision) : null,
       dataQuality: nullable(input.dataQuality),
     };
   }
@@ -219,9 +213,7 @@ const JMMJSActivityProgressionCore = (() => {
 
   function shouldIncludeSession(record = {}) {
     const normalized = createSessionRecord(record);
-    if (normalized.activityIntent === "leisure") {
-      return normalized.includedInHistory === true;
-    }
+    if (normalized.activityIntent === "leisure") return normalized.includedInHistory === true;
     return ACTIVITY_INTENTS.includes(normalized.activityIntent);
   }
 
@@ -239,14 +231,10 @@ const JMMJSActivityProgressionCore = (() => {
     ];
     const out = {};
     for (const dimension of dimensions) {
-      const source = input[dimension] && typeof input[dimension] === "object"
-        ? input[dimension]
-        : {};
+      const source = input[dimension] && typeof input[dimension] === "object" ? input[dimension] : {};
       out[dimension] = {
         observations: Array.isArray(source.observations) ? clone(source.observations) : [],
-        currentReference: source.currentReference === undefined
-          ? null
-          : clone(source.currentReference),
+        currentReference: source.currentReference === undefined ? null : clone(source.currentReference),
       };
     }
     return out;
@@ -295,12 +283,8 @@ const JMMJSActivityProgressionCore = (() => {
         baselineState: data.baselineState ? createBaselineState(data.baselineState) : null,
         functionalGoal: data.functionalGoal ? createFunctionalGoal(data.functionalGoal) : null,
         currentActivityIntent: knownEnum(data.currentActivityIntent, ACTIVITY_INTENTS, null),
-        sessionRecords: Array.isArray(data.sessionRecords)
-          ? data.sessionRecords.map((entry) => createSessionRecord(entry))
-          : [],
-        observedToleranceProfile: data.observedToleranceProfile
-          ? createObservedToleranceProfile(data.observedToleranceProfile)
-          : createObservedToleranceProfile(),
+        sessionRecords: Array.isArray(data.sessionRecords) ? data.sessionRecords.map((entry) => createSessionRecord(entry)) : [],
+        observedToleranceProfile: data.observedToleranceProfile ? createObservedToleranceProfile(data.observedToleranceProfile) : createObservedToleranceProfile(),
         pendingFollowUp: nullable(data.pendingFollowUp),
         longitudinalSettings: nullable(data.longitudinalSettings),
       },
@@ -309,47 +293,31 @@ const JMMJSActivityProgressionCore = (() => {
 
   function validateLongitudinalDocument(value) {
     const errors = [];
-    if (!value || typeof value !== "object") {
-      return { valid: false, errors: ["document must be an object"] };
-    }
+    if (!value || typeof value !== "object") return { valid: false, errors: ["document must be an object"] };
     if (value.schema !== SCHEMA) errors.push("schema mismatch");
     if (value.schemaVersion !== SCHEMA_VERSION) errors.push("schemaVersion mismatch");
     if (!value.data || typeof value.data !== "object") errors.push("data must be an object");
 
     const records = value.data && value.data.sessionRecords;
-    if (records !== undefined && !Array.isArray(records)) {
-      errors.push("sessionRecords must be an array");
-    }
+    if (records !== undefined && !Array.isArray(records)) errors.push("sessionRecords must be an array");
     if (Array.isArray(records)) {
       records.forEach((record, index) => {
-        if (!ACTIVITY_INTENTS.includes(record && record.activityIntent)) {
-          errors.push(`sessionRecords[${index}].activityIntent invalid`);
-        }
+        if (!ACTIVITY_INTENTS.includes(record && record.activityIntent)) errors.push(`sessionRecords[${index}].activityIntent invalid`);
       });
     }
     return { valid: errors.length === 0, errors };
   }
 
   function migrateLongitudinalDocument(value) {
-    if (!value || typeof value !== "object") {
-      throw new TypeError("longitudinal document must be an object");
-    }
-    if (value.schema !== SCHEMA) {
-      throw new TypeError("unsupported longitudinal document schema");
-    }
-    if (typeof value.schemaVersion !== "number") {
-      throw new TypeError("missing schemaVersion");
-    }
-    if (value.schemaVersion > SCHEMA_VERSION) {
-      throw new RangeError("future schemaVersion is not supported");
-    }
-    if (value.schemaVersion < SCHEMA_VERSION) {
-      throw new RangeError("no migration path is defined for this schemaVersion");
-    }
+    if (!value || typeof value !== "object") throw new TypeError("longitudinal document must be an object");
+    if (value.schema !== SCHEMA) throw new TypeError("unsupported longitudinal document schema");
+    if (typeof value.schemaVersion !== "number") throw new TypeError("missing schemaVersion");
+    if (value.schemaVersion > SCHEMA_VERSION) throw new RangeError("future schemaVersion is not supported");
+    if (value.schemaVersion < SCHEMA_VERSION) throw new RangeError("no migration path is defined for this schemaVersion");
     return createLongitudinalDocument(value);
   }
 
-  return Object.freeze({
+  globalThis.JMMJSActivityProgressionCore = Object.freeze({
     SCHEMA,
     SCHEMA_VERSION,
     ACTIVITY_INTENTS,
