@@ -1153,13 +1153,74 @@
     return "Ressenti enregistré";
   }
 
+
+  const baselineDefaults = Object.freeze({
+    energy: "medium",
+    walkingEase: "rather_easy",
+    preferredDuration: "1_to_2h",
+    pauseNeed: "sometimes",
+  });
+  let baselineSelections = { ...baselineDefaults };
+
+  function renderD103Baseline() {
+    $$(".d103-baseline-choice").forEach((button) => {
+      const group = button.dataset.baselineGroup;
+      const value = button.dataset.value;
+      button.setAttribute("aria-pressed", String(baselineSelections[group] === value));
+    });
+  }
+
+  function showD103Baseline() {
+    const home = $("#d103Home");
+    const baseline = $("#d103Baseline");
+    if (home) home.hidden = true;
+    if (baseline) baseline.hidden = false;
+    renderD103Baseline();
+    window.scrollTo(0, 0);
+  }
+
+  function showD103HomeScreen() {
+    const home = $("#d103Home");
+    const baseline = $("#d103Baseline");
+    if (baseline) baseline.hidden = true;
+    if (home) home.hidden = false;
+    renderD103Home();
+    window.scrollTo(0, 0);
+  }
+
+  function applyBaselineSelectionsToPreparation() {
+    const paceMap = {
+      difficult: "3.2",
+      sometimes_difficult: "3.8",
+      rather_easy: "4.2",
+      very_easy: "5",
+    };
+    const durationMap = {
+      up_to_1h: 60,
+      "1_to_2h": 90,
+      "2_to_3h": 150,
+      more_than_3h: 210,
+    };
+    const pace = $("#pace");
+    const duration = $("#duration");
+    const margin = $("#margin");
+    if (pace && paceMap[baselineSelections.walkingEase]) pace.value = paceMap[baselineSelections.walkingEase];
+    if (duration && Number.isFinite(durationMap[baselineSelections.preferredDuration])) duration.value = String(durationMap[baselineSelections.preferredDuration]);
+    if (margin) {
+      const pauseMarginMap = { often: "20", sometimes: "15", rarely: "10", none: "5" };
+      const mapped = pauseMarginMap[baselineSelections.pauseNeed];
+      if (mapped) margin.value = mapped;
+    }
+    const durationLabel = $("#durationLabel");
+    if (duration && durationLabel) durationLabel.textContent = `${duration.value} minutes`;
+    updateLiveSummary();
+  }
+
   function renderD103Home() {
     const host = $("#d103Home");
     if (!host || !activityIntentHomeCore) return;
     const home = activityIntentHomeCore.deriveHomeState(longitudinalDocumentOrNull());
     host.dataset.homeState = home.state;
-    const exactVisual = $("#d103ExactVisual");
-    if (exactVisual) exactVisual.dataset.homeState = home.state;
     const returning = $("#d103Returning");
     if (returning) returning.hidden = !home.historyAvailable;
     if (home.lastSession) {
@@ -1205,22 +1266,34 @@
     if (intent === "leisure") {
       // D103B : le mode leisure conserve strictement l'entrée dans le parcours stable D102G3.
       mode("api");
+    } else {
+      showD103Baseline();
     }
   }
 
   $$(".d103-intent-card").forEach((card) => {
     card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent);
   });
-  $$(".d103-exact-hit.hit-intent").forEach((card) => {
-    card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent);
-  });
-  if ($("#d103ExactChoose")) $("#d103ExactChoose").onclick = () => $("#d103ExactVisual .hit-leisure")?.focus();
-  if ($("#d103ExactSupport")) $("#d103ExactSupport").onclick = () => $("#d103ExactVisual .hit-gentle")?.focus();
-  if ($("#d103ExactHelp")) $("#d103ExactHelp").onclick = () => $("#helpBtn")?.click();
-  if ($("#d103ExactReturn")) $("#d103ExactReturn").onclick = () => $("#d103PrepareReturning")?.click();
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $(".d103-principles")?.scrollIntoView({ behavior: "smooth", block: "center" });
   if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
+
+  $$(".d103-baseline-choice").forEach((button) => {
+    button.onclick = () => {
+      const group = button.dataset.baselineGroup;
+      const value = button.dataset.value;
+      if (!group || !value) return;
+      baselineSelections[group] = value;
+      renderD103Baseline();
+    };
+  });
+  if ($("#d103BaselineContinue")) $("#d103BaselineContinue").onclick = () => {
+    applyBaselineSelectionsToPreparation();
+    const baseline = $("#d103Baseline");
+    if (baseline) baseline.hidden = true;
+    mode("api");
+  };
+
   if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => {
     $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
     const statusNode = $("#d103IntentStatus");
@@ -1357,7 +1430,7 @@
     $("#backToLanding").onclick = () => {
       document.body.classList.remove("journey-started");
       $("#workspace").hidden = true;
-      window.scrollTo(0, 0);
+      showD103HomeScreen();
     };
   $$("[data-test]").forEach(
     (b) => (b.onclick = () => testService(b.dataset.test)),
