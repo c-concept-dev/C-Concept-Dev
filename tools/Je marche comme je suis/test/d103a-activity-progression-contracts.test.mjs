@@ -3,12 +3,18 @@ import test from "node:test";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
-function loadModule(relativePath) {
+function loadModuleWithContext(relativePath) {
   const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
-  const context = { globalThis: null, structuredClone };
-  context.globalThis = context;
-  vm.runInNewContext(source, context);
-  return context.JMMJSActivityProgressionCore;
+  const context = vm.createContext({ structuredClone });
+  const globalKeysBefore = Reflect.ownKeys(context).sort();
+  vm.runInContext(source, context);
+  const core = vm.runInContext("JMMJSActivityProgressionCore", context);
+  const globalKeysAfter = Reflect.ownKeys(context).sort();
+  return { core, context, globalKeysBefore, globalKeysAfter };
+}
+
+function loadModule(relativePath) {
+  return loadModuleWithContext(relativePath).core;
 }
 
 const CORE_SOURCE = readFileSync(
@@ -138,7 +144,7 @@ test("D103A observedToleranceProfile est un profil d'observations, jamais une ca
   assert.equal(profile.duration.observations[0].value, 42);
   assert.equal(profile.distance.observations.length, 0);
   const text = JSON.stringify(profile);
-  assert.doesNotMatch(text, /maxCapacity|fitnessScore|recoveryScore|overallLevel/);
+  assert.doesNotMatch(text, /maxCapacity|fitnessScore|recoveryScore|painToleranceScore|overallLevel/);
 });
 
 test("D103A dérivation ignore les valeurs actual dont la provenance est unknown", () => {
@@ -169,6 +175,18 @@ test("D103A document longitudinal est versionné et validable", () => {
   assert.equal(validation.errors.length, 0);
 });
 
+test("D103A validation rejette proprement un document incomplet ou incohérent", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  assert.equal(core.validateLongitudinalDocument(null).valid, false);
+  const invalid = core.validateLongitudinalDocument({
+    schema: core.SCHEMA,
+    schemaVersion: core.SCHEMA_VERSION,
+    data: { sessionRecords: "not-an-array" },
+  });
+  assert.equal(invalid.valid, false);
+  assert.match(invalid.errors.join(" "), /sessionRecords/);
+});
+
 test("D103A migration est déterministe sur la version courante et rejette une version future", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
   const current = core.createLongitudinalDocument({
@@ -197,12 +215,79 @@ test("D103A fonctions de normalisation ne mutent jamais leurs entrées", () => {
   assert.deepEqual(input, before);
 });
 
+test("D103A mêmes entrées produisent les mêmes sorties", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const baselineInput = {
+    habitualFatigue: "usual",
+    declaredAt: "2026-08-20T00:00:00Z",
+  };
+  assert.deepEqual(core.createBaselineState(baselineInput), core.createBaselineState(baselineInput));
+
+  const exposureInput = {
+    distance: { value: 3.4, unit: "km", source: "measured", quality: "confirmed" },
+  };
+  assert.deepEqual(core.createActivityExposure(exposureInput), core.createActivityExposure(exposureInput));
+
+  const sessionInput = {
+    id: "deterministic-session",
+    activityIntent: "maintain",
+    startedAt: "2026-08-20T00:00:00Z",
+    actualExposure: exposureInput,
+  };
+  assert.deepEqual(core.createSessionRecord(sessionInput), core.createSessionRecord(sessionInput));
+});
+
+test("D103A âge seul n'a aucun effet sur les contrats", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const shared = {
+    habitualFatigue: "stable",
+    habitualWalkingDuration: { value: 45, unit: "min" },
+    declaredAt: "2026-08-20T00:00:00Z",
+  };
+  assert.deepEqual(
+    core.createBaselineState({ ...shared, age: 25 }),
+    core.createBaselineState({ ...shared, age: 85 }),
+  );
+});
+
+test("D103A diagnostic seul n'a aucun effet sur les contrats", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const shared = {
+    habitualWalkingDuration: { value: 30, unit: "min" },
+    habitualPauseNeed: "sometimes",
+    declaredAt: "2026-08-20T00:00:00Z",
+  };
+  assert.deepEqual(
+    core.createBaselineState({ ...shared, diagnosis: "diagnostic-a" }),
+    core.createBaselineState({ ...shared, diagnosis: "diagnostic-b" }),
+  );
+});
+
+test("D103A ne transforme jamais automatiquement gentle_return en progress", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const session = core.createSessionRecord({
+    id: "gentle-return-session",
+    activityIntent: "gentle_return",
+  });
+  assert.equal(session.activityIntent, "gentle_return");
+  assert.equal(session.progressionDecision, null);
+});
+
+test("D103A chargement ne modifie pas l'objet global du contexte", () => {
+  const { context, globalKeysBefore, globalKeysAfter } = loadModuleWithContext(
+    "../src/core/activity-progression-core.js",
+  );
+  assert.deepEqual(globalKeysAfter, globalKeysBefore);
+  assert.equal(Object.prototype.hasOwnProperty.call(context, "JMMJSActivityProgressionCore"), false);
+});
+
 test("D103A source ne contient aucun effet de bord ou dépendance interdite", () => {
   for (const forbidden of [
     /localStorage/,
     /sessionStorage/,
     /\.getItem\s*\(/,
     /\.setItem\s*\(/,
+    /globalThis\.JMMJSActivityProgressionCore\s*=/,
     /\bDOM\b/,
     /\bbuildRequest\b/,
     /\bORS\b/,
@@ -217,7 +302,10 @@ test("D103A source ne contient aucun effet de bord ou dépendance interdite", ()
 });
 
 test("D103A n'embarque aucune règle numérique universelle ou score composite", () => {
-  assert.doesNotMatch(CORE_SOURCE, /\b10\s*%|\+\s*5\s*min|decondition|recoveryScore|loadScore|toleranceScore|confidenceScore/i);
+  assert.doesNotMatch(
+    CORE_SOURCE,
+    /\b10\s*%|\+\s*5\s*min|decondition|recoveryScore|loadScore|toleranceScore|confidenceScore|fitnessScore|riskScore|painToleranceScore/i,
+  );
 });
 
 test("D103A ne raccorde rien dans app.js", () => {
