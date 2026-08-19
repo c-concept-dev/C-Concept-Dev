@@ -1738,43 +1738,59 @@ html,body{max-width:100%;overflow-x:hidden}
 }
 </style>
 
-<style id="d103b-hotspot-clean-focus">
+
+
+
+<style id="d103b-remove-hotspot-halos">
+/* D103B — suppression définitive des halos décoratifs des hotspots.
+   Les zones restent cliquables, mais aucun pseudo-élément ne peut être rendu. */
+.landing-create::before,
+.landing-create::after,
+#landingExactCreate::before,
+#landingExactCreate::after,
+.mobile-create-hit::before,
+.mobile-create-hit::after,
+#landingMobileCreate::before,
+#landingMobileCreate::after{
+  content:none!important;
+  display:none!important;
+  opacity:0!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:none!important;
+  animation:none!important;
+}
+.landing-create,
 #landingExactCreate,
-#landingExactSupport,
-#landingExactResume,
-#landingExactHelp,
-.landing-hotspot,
-.landing-exact button,
-.landing-mobile-exact button{
+.mobile-create-hit,
+#landingMobileCreate{
   outline:none!important;
   box-shadow:none!important;
   background:transparent!important;
+  border-color:transparent!important;
   -webkit-tap-highlight-color:transparent!important;
 }
+.landing-create:hover,
+.landing-create:focus,
+.landing-create:focus-visible,
+.landing-create:active,
+#landingExactCreate:hover,
 #landingExactCreate:focus,
 #landingExactCreate:focus-visible,
 #landingExactCreate:active,
-#landingExactSupport:focus,
-#landingExactSupport:focus-visible,
-#landingExactSupport:active,
-#landingExactResume:focus,
-#landingExactResume:focus-visible,
-#landingExactResume:active,
-#landingExactHelp:focus,
-#landingExactHelp:focus-visible,
-#landingExactHelp:active,
-.landing-hotspot:focus,
-.landing-hotspot:focus-visible,
-.landing-hotspot:active,
-.landing-exact button:focus,
-.landing-exact button:focus-visible,
-.landing-exact button:active,
-.landing-mobile-exact button:focus,
-.landing-mobile-exact button:focus-visible,
-.landing-mobile-exact button:active{
+.mobile-create-hit:hover,
+.mobile-create-hit:focus,
+.mobile-create-hit:focus-visible,
+.mobile-create-hit:active,
+#landingMobileCreate:hover,
+#landingMobileCreate:focus,
+#landingMobileCreate:focus-visible,
+#landingMobileCreate:active{
   outline:none!important;
   box-shadow:none!important;
   background:transparent!important;
+  border-color:transparent!important;
 }
 </style>
 
