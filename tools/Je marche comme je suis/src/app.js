@@ -1110,6 +1110,117 @@
   formElement?.addEventListener("change", updateLiveSummary);
   updateLiveSummary();
 
+  const activityIntentHomeCore = globalThis.JMMJSActivityIntentHomeCore;
+  let selectedActivityIntent = null;
+
+  function longitudinalDocumentOrNull() {
+    const loaded = activityProgressionPersistence.loadDocument();
+    return loaded?.loaded ? loaded.document : null;
+  }
+
+  function formatD103Date(value) {
+    if (typeof value !== "string" || value.trim() === "") return "Date non renseignée";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Date non renseignée";
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function knownExposureText(observed, suffix) {
+    if (!observed || observed.source === "unknown" || observed.value === null || observed.value === undefined) return null;
+    const value = Number(observed.value);
+    if (!Number.isFinite(value)) return null;
+    return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(value)} ${suffix}`;
+  }
+
+  function summarizeD103LastWalk(session) {
+    if (!session) return "Aucune balade enregistrée";
+    const parts = [formatD103Date(session.endedAt || session.startedAt)];
+    const duration = knownExposureText(session.actualExposure?.duration, session.actualExposure?.duration?.unit || "min");
+    const distance = knownExposureText(session.actualExposure?.distance, session.actualExposure?.distance?.unit || "km");
+    if (duration || distance) parts.push([duration, distance].filter(Boolean).join(" · "));
+    return parts.join(" · ");
+  }
+
+  function summarizeD103Reaction(session) {
+    const reaction = session?.laterReaction || session?.postActivityReaction || session?.duringReaction;
+    if (!reaction) return "Ressenti non renseigné";
+    if (typeof reaction.freeText === "string" && reaction.freeText.trim()) return reaction.freeText.trim();
+    if (Array.isArray(reaction.signals) && reaction.signals.length) return "Un ressenti a été enregistré";
+    return "Ressenti enregistré";
+  }
+
+  function renderD103Home() {
+    const host = $("#d103Home");
+    if (!host || !activityIntentHomeCore) return;
+    const home = activityIntentHomeCore.deriveHomeState(longitudinalDocumentOrNull());
+    host.dataset.homeState = home.state;
+    const returning = $("#d103Returning");
+    if (returning) returning.hidden = !home.historyAvailable;
+    if (home.lastSession) {
+      if ($("#d103LastWalk")) $("#d103LastWalk").textContent = summarizeD103LastWalk(home.lastSession);
+      if ($("#d103LastReaction")) $("#d103LastReaction").textContent = summarizeD103Reaction(home.lastSession);
+      if ($("#d103LastIntent")) {
+        $("#d103LastIntent").textContent = activityIntentHomeCore.intentLabel(home.lastSession.activityIntent) || "Non renseignée";
+      }
+    }
+    // Une intention passée n'est jamais présélectionnée automatiquement.
+    selectedActivityIntent = null;
+    $$(".d103-intent-card").forEach((card) => card.setAttribute("aria-pressed", "false"));
+  }
+
+  function saveD103ActivityIntent(intent) {
+    if (!activityIntentHomeCore?.isActivityIntent(intent)) return { persisted: false, reason: "invalid-intent" };
+    const now = new Date().toISOString();
+    const nextDocument = activityIntentHomeCore.chooseActivityIntent(
+      longitudinalDocumentOrNull(),
+      intent,
+      { now },
+    );
+    return activityProgressionPersistence.saveDocument(nextDocument);
+  }
+
+  function chooseD103ActivityIntent(intent) {
+    if (!activityIntentHomeCore?.isActivityIntent(intent)) return;
+    const result = saveD103ActivityIntent(intent);
+    if (!result?.persisted) {
+      say("Impossible d’enregistrer ce choix sur cet appareil. Vous pouvez tout de même continuer avec une balade simple.");
+      if (intent === "leisure") mode("api");
+      return;
+    }
+    selectedActivityIntent = intent;
+    $$(".d103-intent-card").forEach((card) => {
+      card.setAttribute("aria-pressed", String(card.dataset.activityIntent === intent));
+    });
+    const statusNode = $("#d103IntentStatus");
+    if (statusNode) {
+      statusNode.hidden = false;
+      statusNode.textContent = `Intention choisie : ${activityIntentHomeCore.intentLabel(intent)}. Vous pourrez changer à tout moment.`;
+    }
+    if (intent === "leisure") {
+      // D103B : le mode leisure conserve strictement l'entrée dans le parcours stable D102G3.
+      mode("api");
+    }
+  }
+
+  $$(".d103-intent-card").forEach((card) => {
+    card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent);
+  });
+  if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $(".d103-principles")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
+  if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => {
+    $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const statusNode = $("#d103IntentStatus");
+    if (statusNode) {
+      statusNode.hidden = false;
+      statusNode.textContent = "Choisissez ce qui vous convient aujourd’hui. Votre dernière intention n’est pas présélectionnée.";
+    }
+  };
+
   function mode(m, reveal = true) {
     S.mode = m;
     if (reveal) $("#workspace").hidden = false;
@@ -5431,6 +5542,7 @@
   };
   mode("api", false);
   $("#duration").dispatchEvent(new Event("input"));
+  renderD103Home();
   if (restoreHabitualProfile())
     say("Profil habituel retrouvé — vérifiez et ajustez si besoin.");
   updateLimitationStructureVisibility();
