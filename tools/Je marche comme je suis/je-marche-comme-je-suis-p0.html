@@ -7864,7 +7864,7 @@ html,body{max-width:100%;overflow-x:hidden}
   // "Sur le plat aucun souci, par contre quand ça descend..." ne doit pas
   // faire hériter "descend" de la négation de "aucun souci".
   const CLAUSE_BOUNDARY_RE =
-    /[.;!?]+|,\s*|\s+\b(?:mais|par contre|cependant|toutefois|en revanche)\b\s*|\s+\b(?:c['’]est seulement)\b\s*/gi;
+    /[.;!?]+|,?\s*\b(?:mais|par contre|cependant|toutefois|en revanche)\b/gi;
 
   function splitClauses(text) {
     return text
@@ -7909,124 +7909,22 @@ html,body{max-width:100%;overflow-x:hidden}
     { area: "Chevilles", re: /\bchevilles?\b/i },
     { area: "Pieds", re: /\bpieds?\b/i },
     { area: "Dos", re: /\bdos\b/i },
-    { area: "Cou", re: /\b(cou|cervical(?:e|es|es)?|cervicaux)\b/i },
-    { area: "Épaules", re: /(?:^|[\s’'(-])(?:épaule|epaule)s?(?=$|[\s.,;:!?)-])/i },
   ]);
-
-  const BODY_NEGATION_RE =
-    /\b(?:n['’]?(?:ai|a|ont|est|suis|sommes|êtes)?\s*)?(?:ne\s+)?(?:me\s+|m['’])?(?:fait|font|gêne|gênent|gênait|gênait|gêné)?\s*(?:pas|plus|aucunement)\b|\b(?:pas|aucune?|sans)\s+(?:de\s+)?(?:douleur|gêne|mal)\b/i;
-  const BODY_TOLERATED_RE = /\b(?:va|vont)\s+(?:très\s+)?bien\b|\baucun souci\b/i;
-  const CURRENT_NEGATION_RE =
-    /\baujourd['’]hui\b[\s\S]{0,45}\b(?:ne|n['’])?[\s\S]{0,25}\b(?:pas|plus|aucunement)\b/i;
-  const HISTORICAL_ONLY_RE =
-    /(?:op[ée]r[ée]|op[ée]ration|fracture|accident|arthrod[èe]se)[\s\S]{0,80}(?:il y a|l['’]an dernier|en \d{4})/i;
-  const CURRENT_SYMPTOM_RE =
-    /\b(?:douleur|gêne|mal|tire|tirer|douloureux|douloureuse|douloureuses|fatigue)\b/i;
-
-  function localSide(segment) {
-    const bilateral = SIDE_PATTERNS[0].re.test(segment);
-    if (bilateral) return "Bilatéral";
-    const left = SIDE_PATTERNS[1].re.test(segment);
-    const right = SIDE_PATTERNS[2].re.test(segment);
-    if (left && !right) return "Gauche";
-    if (right && !left) return "Droit";
-    return null;
-  }
-
-  function splitAreaSegments(clause) {
-    // La coordination « et » sépare les groupes corporels seulement si les
-    // deux côtés contiennent chacun une zone. Cela évite de propager
-    // « droite » de « épaule droite » vers « le cou ».
-    const rawParts = clause.split(/\s+et\s+/i);
-    if (rawParts.length < 2) return [clause];
-    const withArea = rawParts.filter((part) => BODY_AREA_PATTERNS.some((e) => e.re.test(part)));
-    return withArea.length >= 2 ? rawParts : [clause];
-  }
-
-  function extractBodyAreaDetails(text) {
-    const details = [];
-    const clauses = splitClauses(text);
-    for (const clause of clauses) {
-      for (const segment of splitAreaSegments(clause)) {
-        const side = localSide(segment);
-        const negated = BODY_NEGATION_RE.test(segment) || BODY_TOLERATED_RE.test(segment);
-        const historicalOnly = HISTORICAL_ONLY_RE.test(segment) && !CURRENT_SYMPTOM_RE.test(segment);
-        for (const entry of BODY_AREA_PATTERNS) {
-          if (!entry.re.test(segment)) continue;
-          details.push({ area: entry.area, side, negated, historicalOnly, raw: segment });
-        }
-      }
-    }
-    // Un antécédent isolé suivi d'une négation actuelle pronominale ne doit
-    // pas devenir une gêne active (« opéré du genou... mais aujourd'hui il
-    // ne me gêne pas »).
-    if (CURRENT_NEGATION_RE.test(text)) {
-      for (const d of details) {
-        if (d.historicalOnly) d.negated = true;
-      }
-    }
-    return details;
-  }
 
   function extractBodyAreas(text) {
     const areas = [];
-    for (const detail of extractBodyAreaDetails(text)) {
-      if (!detail.negated && !detail.historicalOnly && !areas.includes(detail.area)) areas.push(detail.area);
+    for (const entry of BODY_AREA_PATTERNS) {
+      if (entry.re.test(text) && !areas.includes(entry.area)) areas.push(entry.area);
     }
     return areas;
   }
 
-  function extractAreaMetadata(text) {
-    const allDetails = extractBodyAreaDetails(text);
-    const relevant = allDetails.filter((d) => !d.negated);
-    const active = relevant.filter((d) => !d.historicalOnly);
-    const areaSides = {};
-    const sideSets = {};
-    for (const d of active) {
-      if (!d.side) continue;
-      if (!sideSets[d.area]) sideSets[d.area] = new Set();
-      sideSets[d.area].add(d.side);
-    }
-    for (const [area, sides] of Object.entries(sideSets)) {
-      if (sides.size === 1) areaSides[area] = [...sides][0];
-    }
-
-    const areaStatus = {};
-    const clauses = splitClauses(text);
-    let lastAreas = [];
-    for (const clause of clauses) {
-      const clauseAreas = extractBodyAreaDetails(clause)
-        .filter((d) => !d.negated)
-        .map((d) => d.area);
-      if (clauseAreas.length) lastAreas = clauseAreas;
-      const targets = clauseAreas.length ? clauseAreas : lastAreas;
-      if (!targets.length) continue;
-      let status = null;
-      if (/\b(?:pas pire que d['’]habitude|comme d['’]habitude|sans lien avec aujourd['’]hui|tout va bien maintenant|rien de nouveau)\b/i.test(clause))
-        status = "usual";
-      else if (/\b(?:ça va mieux|va mieux|mieux que d['’]habitude|moins (?:fort|forte|mal|gênant|gênante) qu['’]?(?:habituellement|d['’]habitude)|moins qu['’]habituellement)\b/i.test(clause))
-        status = "better";
-      else if (/\b(?:plus fort(?:e)? que d['’]habitude|nettement plus fort(?:e)? que d['’]habitude|bien plus fort(?:e)? qu['’]habituellement|plus qu['’]habituellement|pire que d['’]habitude)\b/i.test(clause))
-        status = "worse";
-      if (status) for (const area of targets) areaStatus[area] = status;
-    }
-    // Un antécédent peut être affiché comme contexte habituel/non aggravé
-    // quand le texte le dit explicitement, sans devenir une limitation
-    // active. On conserve alors son côté uniquement pour l'affichage.
-    for (const area of Object.keys(areaStatus)) {
-      if (areaSides[area]) continue;
-      const sides = new Set(relevant.filter((d) => d.area === area && d.side).map((d) => d.side));
-      if (sides.size === 1) areaSides[area] = [...sides][0];
-    }
-    return { areaSides, areaStatus };
-  }
-
   const TERRAIN_TRIGGER_PATTERNS = Object.freeze([
-    { trigger: "Descente", re: /\b(descend(?:s|re|ent)?|descentes?)\b/i },
-    { trigger: "Montée", re: /\b(mont(?:e|ée|er|es|ent)|montées?)\b/i },
+    { trigger: "Descente", re: /\b(descend(?:s|re|ent)?|descente)\b/i },
+    { trigger: "Montée", re: /\b(mont(?:e|ée|er|es|ent))\b/i },
     {
       trigger: "Terrain irrégulier",
-      re: /\b(terrains? irr[ée]guliers?|chemins?\s+(?:(?:devient|deviennent)\s+)?irr[ée]guliers?|pav[ée]s?|caillouteux|instable)\b/i,
+      re: /\b(terrain irr[ée]gulier|pav[ée]s?|caillouteux|instable)\b/i,
     },
     { trigger: "Station debout", re: /\b(station debout|rest(?:er|e) debout)\b/i },
   ]);
@@ -8123,9 +8021,6 @@ html,body{max-width:100%;overflow-x:hidden}
     if (/demi[- ]heure/i.test(text)) {
       results.push({ approxMinutes: 30, precision: "approximate", raw: "demi-heure" });
     }
-    if (/trois\s+quarts?\s+d['’]heure/i.test(text)) {
-      results.push({ approxMinutes: 45, precision: "approximate", raw: "trois quarts d’heure" });
-    }
     const hourRe = /(\d+|[a-zéûî-]+)\s*heures?\b(?!\s*et\s*demi)/gi;
     while ((match = hourRe.exec(text))) {
       const value = wordOrDigitToNumber(match[1]);
@@ -8160,9 +8055,14 @@ html,body{max-width:100%;overflow-x:hidden}
   }
 
   const PAIN_QUALIFIER_PATTERNS = Object.freeze([
+    // Note : pas de \b en tête devant "ça"/"ç" — le \b de JavaScript ne
+    // traite pas les lettres accentuées comme des caractères de mot, donc
+    // \bça échoue silencieusement en début de chaîne ou après un espace.
+    // Les expressions restent assez spécifiques (plusieurs mots) pour ne
+    // pas produire de faux positifs sans l'ancrage.
     {
       polarity: "present",
-      re: /\b(très mal|vraiment mal)\b|\b(?:me|lui|nous)\s+fait mal\b|ça fait mal|ça tire|\b(j['’]ai mal|douleurs?)\b|\bavoir mal\b|\bdouloureux|douloureuse|douloureuses\b/i,
+      re: /\b(très mal|vraiment mal)\b|ça fait mal|ça tire|\b(j['’]ai mal|douleur)\b|\bavoir mal\b/i,
     },
     {
       polarity: "reduced",
@@ -8170,10 +8070,7 @@ html,body{max-width:100%;overflow-x:hidden}
     },
     {
       polarity: "absent",
-      // « aucun souci » et « ça va » ne sont volontairement PAS des
-      // absences globales : « sur le plat aucun souci, ... en descente j'ai
-      // mal » a démontré le risque de faux négatif en D102G1/G2.
-      re: /\b(aucune douleur|pas mal aujourd['’]hui|je n['’]ai pas vraiment mal|je n['’]ai pas mal|ne me fait pas mal|sans douleur particulière)\b/i,
+      re: /\b(aucune douleur|pas mal|aucun souci)\b|ça va\b/i,
     },
   ]);
 
@@ -8187,13 +8084,9 @@ html,body{max-width:100%;overflow-x:hidden}
     const clauses = splitClauses(text);
     const results = [];
     for (const clause of clauses) {
-      // D102G3 : une douleur explicitement située dans le passé ne doit pas
-      // être confrontée au curseur de douleur du jour.
-      if (/\b(?:hier|avant-hier|l['’]an dernier|il y a)\b|\ben \d{4}\b/i.test(clause)) continue;
       const absent = clause.match(PAIN_QUALIFIER_PATTERNS[2].re);
       if (absent) {
-        const localizedToBodyArea = BODY_AREA_PATTERNS.some((entry) => entry.re.test(clause));
-        if (!localizedToBodyArea) results.push({ polarity: "absent", raw: absent[0] });
+        results.push({ polarity: "absent", raw: absent[0] });
         continue;
       }
       const reduced = clause.match(PAIN_QUALIFIER_PATTERNS[1].re);
@@ -8216,25 +8109,13 @@ html,body{max-width:100%;overflow-x:hidden}
     if (!normalized.clean) return emptyCandidateInterpretation();
 
     const laterality = extractLaterality(normalized.clean);
-    const allBodyAreaDetails = extractBodyAreaDetails(normalized.clean);
-    const areaMetadata = extractAreaMetadata(normalized.clean);
-    const bodyAreas = [
-      ...new Set([
-        ...extractBodyAreas(normalized.clean),
-        ...Object.keys(areaMetadata.areaStatus),
-      ]),
-    ];
+    const bodyAreas = extractBodyAreas(normalized.clean);
     const terrain = extractTerrainTriggers(normalized.clean);
     const durationInfo = extractDurations(normalized.clean);
     const pauseNeeds = extractPauseNeeds(normalized.clean);
     const painQualifiers = extractPainQualifiers(normalized.clean);
 
-    const localSidesResolveAmbiguity =
-      bodyAreas.length > 0 && bodyAreas.every((area) => Boolean(areaMetadata.areaSides[area]));
-    const uncertain = [
-      ...(localSidesResolveAmbiguity ? [] : laterality.uncertain),
-      ...durationInfo.uncertain,
-    ];
+    const uncertain = [...laterality.uncertain, ...durationInfo.uncertain];
     if (terrain.conflicting.length)
       uncertain.push(
         `mentions contradictoires pour : ${terrain.conflicting.join(", ")}`,
@@ -8251,12 +8132,7 @@ html,body{max-width:100%;overflow-x:hidden}
 
     return normalizeCandidateInterpretation({
       bodyAreas,
-      side:
-        bodyAreas.length === 1
-          ? (areaMetadata.areaSides[bodyAreas[0]] || laterality.side)
-          : bodyAreas.length === 0
-            ? (allBodyAreaDetails.length ? null : laterality.side)
-            : null,
+      side: laterality.side,
       triggers,
       temporal: durationInfo.durations.length
         ? { durations: durationInfo.durations }
@@ -8264,10 +8140,7 @@ html,body{max-width:100%;overflow-x:hidden}
       needs: pauseNeeds,
       negations: terrain.negations,
       uncertain,
-      confidence: {
-        areaSides: areaMetadata.areaSides,
-        areaStatus: areaMetadata.areaStatus,
-      },
+      confidence: {},
       coherenceIssues: [],
     });
   }
@@ -8438,8 +8311,6 @@ html,body{max-width:100%;overflow-x:hidden}
     splitClauses,
     extractLaterality,
     extractBodyAreas,
-    extractBodyAreaDetails,
-    extractAreaMetadata,
     extractTerrainTriggers,
     extractNegations,
     extractDurations,
@@ -8453,278 +8324,381 @@ html,body{max-width:100%;overflow-x:hidden}
 (() => {
   "use strict";
 
-  // D103A — socle de données pur pour l'évolution "reprise et progression
-  // d'activité" (cahier D103, document directeur du 17 août 2026). Ce
-  // module ne contient aucune UX, aucune logique de décision (D103G),
-  // aucun raccordement au moteur de génération de balade (D103H). Il
-  // fixe uniquement les contrats de données et les fonctions de stockage
-  // local, pour que les lots suivants s'appuient sur une forme stable
-  // plutôt que d'improviser.
-  //
-  // Rappels de gouvernance directement applicables à ce socle :
-  // - aucune règle fondée sur l'âge seul (cahier §6, §16) ;
-  // - aucun coefficient chiffré de progression/réduction inventé
-  //   (cahier §2.3, §12) ;
-  // - mémoire locale à l'appareil uniquement, jamais synchronisée
-  //   (cahier §4.2) ;
-  // - une balade en mode "plaisir" ne rejoint l'historique que sur choix
-  //   explicite de l'utilisateur (cahier §5.1, arbitrage du 17/08/2026).
+  // D103A — coeur longitudinal pur, déterministe et inerte.
+  // Ce module définit uniquement des contrats et fonctions de domaine.
+  // Ce module reste sans effet de bord ni dépendance navigateur.
 
-  const MODES = Object.freeze(["plaisir", "reprise", "maintien", "progression"]);
+  const SCHEMA = "jmmjs.activity-progression";
+  const SCHEMA_VERSION = 1;
 
-  const DECISION_STATES = Object.freeze([
-    "augmenter",
-    "maintenir",
-    "reduire",
-    "preciser",
+  const ACTIVITY_INTENTS = Object.freeze([
+    "leisure",
+    "gentle_return",
+    "maintain",
+    "progress",
   ]);
 
-  const REACTION_MOMENTS = Object.freeze(["pendant", "apres", "lendemain"]);
+  const DECISION_STATES = Object.freeze([
+    "explore",
+    "maintain",
+    "reduce",
+    "clarify",
+  ]);
+
+  const DATA_SOURCES = Object.freeze([
+    "planned",
+    "measured",
+    "user_reported",
+    "inferred",
+    "unknown",
+  ]);
+
+  const DATA_QUALITIES = Object.freeze([
+    "confirmed",
+    "approximate",
+    "incomplete",
+    "unknown",
+  ]);
+
+  const REACTION_MOMENTS = Object.freeze([
+    "during",
+    "post_activity",
+    "later",
+  ]);
+
+  const GOAL_TYPES = Object.freeze(["activity", "participation", "unspecified"]);
 
   function clone(value) {
+    if (value === undefined) return undefined;
     return typeof structuredClone === "function"
       ? structuredClone(value)
       : JSON.parse(JSON.stringify(value));
   }
 
-  // ---------------------------------------------------------------------
-  // Baseline (état habituel) — cahier §7.1. Renseignée une seule fois via
-  // l'onboarding (D103C), jamais redemandée en entier à chaque sortie.
-  // ---------------------------------------------------------------------
+  function freezeCopy(value) {
+    return Object.freeze(clone(value));
+  }
 
-  function emptyBaseline() {
+  function knownEnum(value, values, fallback = null) {
+    return values.includes(value) ? value : fallback;
+  }
+
+  function nullable(value) {
+    return value === undefined ? null : clone(value);
+  }
+
+  function createObservedValue(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
     return {
-      painOrGeneUsuelle: null,
-      fatigueHabituelle: null,
-      dureeHabituelleMinutes: null,
-      frequenceHabituelle: null,
-      besoinHabituelDePauses: null,
-      toleranceMontee: null,
-      toleranceDescente: null,
-      toleranceTerrainIrregulier: null,
-      stationDeboutHabituelle: null,
-      equilibreHabituel: null,
-      aideTechnique: null,
-      niveauHabituelActivite: null,
-      renseigneeLe: null,
+      value: input.value === undefined ? null : clone(input.value),
+      unit: typeof input.unit === "string" ? input.unit : null,
+      source: knownEnum(input.source, DATA_SOURCES, "unknown"),
+      quality: knownEnum(input.quality, DATA_QUALITIES, "unknown"),
     };
   }
 
-  function normalizeBaseline(value = {}) {
-    const base = emptyBaseline();
-    const keys = Object.keys(base);
+  function createBaselineState(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      habitualPainOrDiscomfort: nullable(input.habitualPainOrDiscomfort),
+      habitualFatigue: nullable(input.habitualFatigue),
+      habitualWalkingDuration: nullable(input.habitualWalkingDuration),
+      habitualWalkingFrequency: nullable(input.habitualWalkingFrequency),
+      habitualPauseNeed: nullable(input.habitualPauseNeed),
+      uphillTolerance: nullable(input.uphillTolerance),
+      downhillTolerance: nullable(input.downhillTolerance),
+      unevenTerrainTolerance: nullable(input.unevenTerrainTolerance),
+      standingTolerance: nullable(input.standingTolerance),
+      habitualBalance: nullable(input.habitualBalance),
+      walkingAid: nullable(input.walkingAid),
+      habitualActivityContext: nullable(input.habitualActivityContext),
+      declaredAt: typeof input.declaredAt === "string" ? input.declaredAt : null,
+    };
+  }
+
+  function normalizeBaselineState(value = {}) {
+    return createBaselineState(value);
+  }
+
+  function createFunctionalGoal(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      text: typeof input.text === "string" ? input.text : null,
+      type: knownEnum(input.type, GOAL_TYPES, "unspecified"),
+      userDefined: input.userDefined !== false,
+      status: nullable(input.status),
+      createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
+      updatedAt: typeof input.updatedAt === "string" ? input.updatedAt : null,
+    };
+  }
+
+  function createActivityExposure(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    const fields = [
+      "duration",
+      "distance",
+      "ascent",
+      "descent",
+      "elevation",
+      "terrainRegularity",
+      "pauses",
+      "perceivedEffort",
+      "completion",
+    ];
     const out = {};
-    for (const key of keys) {
-      out[key] = key in value ? value[key] : base[key];
+    for (const field of fields) {
+      out[field] = createObservedValue(input[field]);
     }
     return out;
   }
 
-  function isBaselineKnown(baseline = {}) {
-    const normalized = normalizeBaseline(baseline);
-    return Object.keys(emptyBaseline()).some(
-      (key) => normalized[key] !== null && normalized[key] !== undefined,
-    );
+  function normalizeActivityExposure(value = {}) {
+    return createActivityExposure(value);
   }
 
-  // ---------------------------------------------------------------------
-  // Séance — charge prévue vs réellement effectuée (cahier §10).
-  // ---------------------------------------------------------------------
-
-  function emptySessionRecord() {
+  function createReaction(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
     return {
-      id: null,
-      date: null,
-      mode: null,
-      includeInHistory: false,
-      prevu: {
-        dureeMinutes: null,
-        terrain: null,
-        denivele: null,
-      },
-      reel: {
-        dureeMinutes: null,
-        distanceMetres: null,
-        deniveleMetres: null,
-        expositionMontee: null,
-        expositionDescente: null,
-        surfaceRegularite: null,
-        allurePercue: null,
-        nombrePauses: null,
-        dureePauses: null,
-        motifPauses: null,
-        interrompue: null,
-        difficultePercue: null,
-      },
-      reactions: {
-        pendant: null,
-        apres: null,
-        lendemain: null,
-      },
-      decision: null,
+      moment: knownEnum(input.moment, REACTION_MOMENTS, null),
+      comparedWithUsual: nullable(input.comparedWithUsual),
+      signals: Array.isArray(input.signals) ? clone(input.signals) : [],
+      functionalImpact: nullable(input.functionalImpact),
+      freeText: typeof input.freeText === "string" ? input.freeText : null,
+      reportedAt: typeof input.reportedAt === "string" ? input.reportedAt : null,
+    };
+  }
+
+  function createEnvironmentContext(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      terrainRegularity: nullable(input.terrainRegularity),
+      ascentExposure: nullable(input.ascentExposure),
+      descentExposure: nullable(input.descentExposure),
+      walkingAid: nullable(input.walkingAid),
+      pausePattern: nullable(input.pausePattern),
+      knownWeatherContext: nullable(input.knownWeatherContext),
+      otherRelevantContext: nullable(input.otherRelevantContext),
+    };
+  }
+
+  function createDailyContext(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      unusualPhysicalActivity: nullable(input.unusualPhysicalActivity),
+      unusualFatigue: nullable(input.unusualFatigue),
+      recoveryPerception: nullable(input.recoveryPerception),
+      optionalStressContext: nullable(input.optionalStressContext),
+    };
+  }
+
+  function createProgressionDecision(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    if (!DECISION_STATES.includes(input.state)) {
+      throw new TypeError(`Invalid progressionDecision state: ${String(input.state)}`);
+    }
+    if (typeof input.reason !== "string" || input.reason.trim() === "") {
+      throw new TypeError("progressionDecision.reason is required");
+    }
+    return {
+      state: input.state,
+      dimension: typeof input.dimension === "string" ? input.dimension : null,
+      reason: input.reason,
+      observationsUsed: Array.isArray(input.observationsUsed) ? clone(input.observationsUsed) : [],
+      missingObservations: Array.isArray(input.missingObservations)
+        ? clone(input.missingObservations)
+        : [],
+      contradictions: Array.isArray(input.contradictions) ? clone(input.contradictions) : [],
+      createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
+    };
+  }
+
+  function createSessionRecord(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      id: typeof input.id === "string" ? input.id : null,
+      activityIntent: knownEnum(input.activityIntent, ACTIVITY_INTENTS, null),
+      includedInHistory: input.includedInHistory === true,
+      startedAt: typeof input.startedAt === "string" ? input.startedAt : null,
+      endedAt: typeof input.endedAt === "string" ? input.endedAt : null,
+      plannedExposure: createActivityExposure(input.plannedExposure),
+      actualExposure: createActivityExposure(input.actualExposure),
+      environmentContext: createEnvironmentContext(input.environmentContext),
+      dailyContext: createDailyContext(input.dailyContext),
+      completion: nullable(input.completion),
+      duringReaction: input.duringReaction ? createReaction(input.duringReaction) : null,
+      postActivityReaction: input.postActivityReaction ? createReaction(input.postActivityReaction) : null,
+      laterReaction: input.laterReaction ? createReaction(input.laterReaction) : null,
+      progressionDecision: input.progressionDecision
+        ? createProgressionDecision(input.progressionDecision)
+        : null,
+      dataQuality: nullable(input.dataQuality),
     };
   }
 
   function normalizeSessionRecord(value = {}) {
-    const base = emptySessionRecord();
+    return createSessionRecord(value);
+  }
+
+  function shouldIncludeSession(record = {}) {
+    const normalized = createSessionRecord(record);
+    if (normalized.activityIntent === "leisure") {
+      return normalized.includedInHistory === true;
+    }
+    return ACTIVITY_INTENTS.includes(normalized.activityIntent);
+  }
+
+  function createObservedToleranceProfile(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    const dimensions = [
+      "duration",
+      "distance",
+      "ascent",
+      "descent",
+      "terrainRegularity",
+      "pauses",
+      "perceivedEffort",
+      "completion",
+    ];
+    const out = {};
+    for (const dimension of dimensions) {
+      const source = input[dimension] && typeof input[dimension] === "object"
+        ? input[dimension]
+        : {};
+      out[dimension] = {
+        observations: Array.isArray(source.observations) ? clone(source.observations) : [],
+        currentReference: source.currentReference === undefined
+          ? null
+          : clone(source.currentReference),
+      };
+    }
+    return out;
+  }
+
+  function deriveObservedToleranceProfile(sessions = []) {
+    const profile = createObservedToleranceProfile();
+    if (!Array.isArray(sessions)) return profile;
+
+    const dimensions = Object.keys(profile);
+    for (const rawSession of sessions) {
+      const session = createSessionRecord(rawSession);
+      if (!session.id) continue;
+      for (const dimension of dimensions) {
+        const observed = session.actualExposure[dimension];
+        if (!observed || observed.source === "unknown" || observed.value === null) continue;
+        profile[dimension].observations.push({
+          sessionId: session.id,
+          dimension,
+          value: clone(observed.value),
+          environmentContext: clone(session.environmentContext),
+          activityIntent: session.activityIntent,
+          reactionSummary: {
+            duringReaction: clone(session.duringReaction),
+            postActivityReaction: clone(session.postActivityReaction),
+            laterReaction: clone(session.laterReaction),
+          },
+          source: observed.source,
+          quality: observed.quality,
+          observedAt: session.endedAt || session.startedAt || null,
+        });
+      }
+    }
+    return profile;
+  }
+
+  function createLongitudinalDocument(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    const data = input.data && typeof input.data === "object" ? input.data : {};
     return {
-      id: value.id ?? base.id,
-      date: value.date ?? base.date,
-      mode: MODES.includes(value.mode) ? value.mode : base.mode,
-      includeInHistory: value.includeInHistory === true,
-      prevu: { ...base.prevu, ...(value.prevu || {}) },
-      reel: { ...base.reel, ...(value.reel || {}) },
-      reactions: { ...base.reactions, ...(value.reactions || {}) },
-      decision: value.decision ?? base.decision,
+      schema: SCHEMA,
+      schemaVersion: SCHEMA_VERSION,
+      createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
+      updatedAt: typeof input.updatedAt === "string" ? input.updatedAt : null,
+      data: {
+        baselineState: data.baselineState ? createBaselineState(data.baselineState) : null,
+        functionalGoal: data.functionalGoal ? createFunctionalGoal(data.functionalGoal) : null,
+        currentActivityIntent: knownEnum(data.currentActivityIntent, ACTIVITY_INTENTS, null),
+        sessionRecords: Array.isArray(data.sessionRecords)
+          ? data.sessionRecords.map((entry) => createSessionRecord(entry))
+          : [],
+        observedToleranceProfile: data.observedToleranceProfile
+          ? createObservedToleranceProfile(data.observedToleranceProfile)
+          : createObservedToleranceProfile(),
+        pendingFollowUp: nullable(data.pendingFollowUp),
+        longitudinalSettings: nullable(data.longitudinalSettings),
+      },
     };
   }
 
-  // Une séance en mode "plaisir" ne rejoint l'historique longitudinal
-  // QUE si l'utilisateur l'a explicitement demandé (includeInHistory).
-  // Les trois autres modes rejoignent toujours l'historique : c'est leur
-  // raison d'être (cahier §5.2-§5.4).
-  function shouldRecordSession(record = {}) {
-    const normalized = normalizeSessionRecord(record);
-    if (normalized.mode === "plaisir") return normalized.includeInHistory === true;
-    return MODES.includes(normalized.mode);
-  }
-
-  // ---------------------------------------------------------------------
-  // Réaction — un seul format partagé pour les trois moments (pendant,
-  // après, lendemain), même si les champs pertinents diffèrent selon le
-  // moment (cahier §11). Ce module ne valide pas la pertinence des champs
-  // par moment : c'est à la charge de l'UI (D103E/D103F).
-  // ---------------------------------------------------------------------
-
-  function emptyReaction() {
-    return {
-      moment: null,
-      ecartHabituel: null, // "mieux" | "comme_dhabitude" | "un_peu_moins_bien" | "nettement_moins_bien" | "je_ne_sais_pas"
-      signalements: [],
-      commentaireLibre: null,
-    };
-  }
-
-  function normalizeReaction(value = {}) {
-    const base = emptyReaction();
-    return {
-      moment: REACTION_MOMENTS.includes(value.moment) ? value.moment : base.moment,
-      ecartHabituel: value.ecartHabituel ?? base.ecartHabituel,
-      signalements: Array.isArray(value.signalements) ? value.signalements.slice() : base.signalements,
-      commentaireLibre: value.commentaireLibre ?? base.commentaireLibre,
-    };
-  }
-
-  // ---------------------------------------------------------------------
-  // Décision pour la séance N+1 — cahier §12. Ce module ne calcule
-  // JAMAIS la décision (c'est le périmètre de D103G) : il ne fait que
-  // constituer et valider l'objet, pour que D103G ait un contrat stable
-  // à remplir plutôt qu'une forme à inventer.
-  // ---------------------------------------------------------------------
-
-  function createDecision({ state, reason = null, dimension = null } = {}) {
-    if (!DECISION_STATES.includes(state)) {
-      throw new TypeError(
-        `État de décision invalide : "${state}". Attendu l'un de : ${DECISION_STATES.join(", ")}.`,
-      );
+  function validateLongitudinalDocument(value) {
+    const errors = [];
+    if (!value || typeof value !== "object") {
+      return { valid: false, errors: ["document must be an object"] };
     }
-    return {
-      state,
-      reason: typeof reason === "string" ? reason : null,
-      dimension: typeof dimension === "string" ? dimension : null,
-      // Jamais d'amplitude chiffrée : aucune clé "percent", "amount" ou
-      // équivalente n'existe dans ce contrat, volontairement.
-    };
-  }
+    if (value.schema !== SCHEMA) errors.push("schema mismatch");
+    if (value.schemaVersion !== SCHEMA_VERSION) errors.push("schemaVersion mismatch");
+    if (!value.data || typeof value.data !== "object") errors.push("data must be an object");
 
-  // ---------------------------------------------------------------------
-  // Stockage local (cahier §4.2 : mémoire locale à l'appareil, jamais
-  // synchronisée). Fonctions pures, défensives contre un contenu corrompu
-  // ou absent — ne lèvent jamais d'exception sur une lecture invalide.
-  // ---------------------------------------------------------------------
-
-  const STORAGE_KEYS = Object.freeze({
-    baseline: "jmjs.activityProgression.baseline.v1",
-    history: "jmjs.activityProgression.history.v1",
-  });
-
-  const HISTORY_MAX_ENTRIES = 200;
-
-  function safeParse(raw) {
-    if (typeof raw !== "string" || !raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
+    const records = value.data && value.data.sessionRecords;
+    if (records !== undefined && !Array.isArray(records)) {
+      errors.push("sessionRecords must be an array");
     }
-  }
-
-  function loadBaseline(storage) {
-    if (!storage || typeof storage.getItem !== "function") return emptyBaseline();
-    const parsed = safeParse(storage.getItem(STORAGE_KEYS.baseline));
-    return normalizeBaseline(parsed || {});
-  }
-
-  function saveBaseline(storage, baseline) {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    const normalized = normalizeBaseline(baseline || {});
-    normalized.renseigneeLe = new Date().toISOString();
-    storage.setItem(STORAGE_KEYS.baseline, JSON.stringify(normalized));
-    return true;
-  }
-
-  function loadHistory(storage) {
-    if (!storage || typeof storage.getItem !== "function") return [];
-    const parsed = safeParse(storage.getItem(STORAGE_KEYS.history));
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((entry) => normalizeSessionRecord(entry));
-  }
-
-  // N'ajoute une séance à l'historique que si shouldRecordSession()
-  // l'autorise — jamais d'écriture silencieuse d'une balade plaisir non
-  // demandée. Renvoie l'historique résultant (utile pour les tests et
-  // pour l'UI), plafonné à HISTORY_MAX_ENTRIES (les plus anciennes sont
-  // retirées en premier).
-  function appendSessionRecord(storage, record) {
-    const normalized = normalizeSessionRecord(record);
-    const current = loadHistory(storage);
-    if (!shouldRecordSession(normalized)) return current;
-    const next = [...current, normalized].slice(-HISTORY_MAX_ENTRIES);
-    if (storage && typeof storage.setItem === "function") {
-      storage.setItem(STORAGE_KEYS.history, JSON.stringify(next));
+    if (Array.isArray(records)) {
+      records.forEach((record, index) => {
+        if (!ACTIVITY_INTENTS.includes(record && record.activityIntent)) {
+          errors.push(`sessionRecords[${index}].activityIntent invalid`);
+        }
+      });
     }
-    return next;
+    return { valid: errors.length === 0, errors };
   }
 
-  function previousToleratedSession(storage) {
-    const history = loadHistory(storage);
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      const entry = history[i];
-      const decisionState = entry.decision && entry.decision.state;
-      if (decisionState !== "reduire") return entry;
+  function migrateLongitudinalDocument(value) {
+    if (!value || typeof value !== "object") {
+      throw new TypeError("longitudinal document must be an object");
     }
-    return history.length ? history[history.length - 1] : null;
+    if (value.schema !== SCHEMA) {
+      throw new TypeError("unsupported longitudinal document schema");
+    }
+    if (typeof value.schemaVersion !== "number") {
+      throw new TypeError("missing schemaVersion");
+    }
+    if (value.schemaVersion > SCHEMA_VERSION) {
+      throw new RangeError("future schemaVersion is not supported");
+    }
+    if (value.schemaVersion < SCHEMA_VERSION) {
+      throw new RangeError("no migration path is defined for this schemaVersion");
+    }
+    return createLongitudinalDocument(value);
   }
 
   globalThis.JMMJSActivityProgressionCore = Object.freeze({
-    MODES,
+    SCHEMA,
+    SCHEMA_VERSION,
+    ACTIVITY_INTENTS,
     DECISION_STATES,
+    DATA_SOURCES,
+    DATA_QUALITIES,
     REACTION_MOMENTS,
-    STORAGE_KEYS,
-    emptyBaseline,
-    normalizeBaseline,
-    isBaselineKnown,
-    emptySessionRecord,
+    GOAL_TYPES,
+    createObservedValue,
+    createBaselineState,
+    normalizeBaselineState,
+    createFunctionalGoal,
+    createActivityExposure,
+    normalizeActivityExposure,
+    createReaction,
+    createEnvironmentContext,
+    createDailyContext,
+    createSessionRecord,
     normalizeSessionRecord,
-    shouldRecordSession,
-    emptyReaction,
-    normalizeReaction,
-    createDecision,
-    loadBaseline,
-    saveBaseline,
-    loadHistory,
-    appendSessionRecord,
-    previousToleratedSession,
+    shouldIncludeSession,
+    createObservedToleranceProfile,
+    deriveObservedToleranceProfile,
+    createProgressionDecision,
+    createLongitudinalDocument,
+    validateLongitudinalDocument,
+    migrateLongitudinalDocument,
+    freezeCopy,
   });
 })();
 /* JMMJS_ACTIVITY_PROGRESSION_CORE_END */
@@ -10444,10 +10418,8 @@ html,body{max-width:100%;overflow-x:hidden}
   function syncPainDetailVisibility() {
     const wrap = $("#painDetailWrap");
     if (!wrap) return;
-    // D102E2/G3 — le texte libre reste toujours accessible, même avec un
-    // curseur douleur à 0. Le curseur ne doit jamais masquer la possibilité
-    // de décrire une gêne fonctionnelle ou une incohérence à vérifier.
-    wrap.hidden = false;
+    const show = Number(val("#pain") || 0) > 0 || Boolean(val("#painDetail").trim());
+    wrap.hidden = !show;
   }
 
   // D102C — UX "Voici ce que j'ai compris". Lit le texte libre, l'interprète
@@ -10463,26 +10435,15 @@ html,body{max-width:100%;overflow-x:hidden}
   function painInterpretationItems(candidate) {
     const items = [];
     if (candidate.bodyAreas.length) {
-      const areaSides = candidate.confidence?.areaSides || {};
-      const areaStatus = candidate.confidence?.areaStatus || {};
       candidate.bodyAreas.forEach((area, index) => {
-        const localSide = areaSides[area] || (candidate.bodyAreas.length === 1 ? candidate.side : null);
         const sideLabel =
-          localSide === "Bilatéral"
+          candidate.side === "Bilatéral"
             ? "des deux côtés"
-            : localSide
-              ? localSide.toLowerCase()
+            : candidate.side
+              ? candidate.side.toLowerCase()
               : "";
-        const baseLabel = sideLabel ? `${area} ${sideLabel}` : area;
-        const statusLabel =
-          areaStatus[area] === "usual"
-            ? " · habituel, non aggravé aujourd'hui"
-            : areaStatus[area] === "better"
-              ? " · mieux qu'habituellement aujourd'hui"
-              : areaStatus[area] === "worse"
-                ? " · plus gênant qu'habituellement aujourd'hui"
-                : "";
-        items.push({ id: `area-${index}`, label: `${baseLabel}${statusLabel}` });
+        const label = sideLabel ? `${area} ${sideLabel}` : area;
+        items.push({ id: `area-${index}`, label });
       });
     }
     candidate.triggers.forEach((trigger, index) => {
@@ -10684,12 +10645,7 @@ html,body{max-width:100%;overflow-x:hidden}
     });
   });
   syncTimeIncludesSwitch();
-  $("#pain")?.addEventListener("input", () => {
-    syncPainDetailVisibility();
-    // D102G3 — la cohérence texte ↔ curseur doit être recalculée dans les
-    // deux sens dès que la valeur du curseur change.
-    syncPainInterpretation();
-  });
+  $("#pain")?.addEventListener("input", syncPainDetailVisibility);
   $("#painDetail")?.addEventListener("input", syncPainDetailVisibility);
   $("#painDetail")?.addEventListener("input", () => {
     painInterpretationRemoved.clear();
