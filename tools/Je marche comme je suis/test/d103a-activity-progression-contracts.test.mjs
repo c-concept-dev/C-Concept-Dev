@@ -17,190 +17,216 @@ const CORE_SOURCE = readFileSync(
 );
 const APP_SOURCE = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 
-// Petit faux localStorage/sessionStorage pour tester les fonctions de
-// stockage sans dépendre d'un environnement navigateur.
-function fakeStorage() {
-  const map = new Map();
-  return {
-    getItem: (key) => (map.has(key) ? map.get(key) : null),
-    setItem: (key, value) => map.set(key, String(value)),
-    removeItem: (key) => map.delete(key),
-    _dump: () => Object.fromEntries(map),
-  };
+function clone(value) {
+  return structuredClone(value);
 }
 
-test("D103A les 4 modes et les 4 états de décision du cahier sont exposés, sans plus ni moins", () => {
+test("D103A expose le vocabulaire canonique exact", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  assert.deepEqual([...core.MODES].sort(), ["maintien", "plaisir", "progression", "reprise"].sort());
-  assert.deepEqual(
-    [...core.DECISION_STATES].sort(),
-    ["augmenter", "maintenir", "preciser", "reduire"].sort(),
-  );
+  assert.deepEqual([...core.ACTIVITY_INTENTS], ["leisure", "gentle_return", "maintain", "progress"]);
+  assert.deepEqual([...core.DECISION_STATES], ["explore", "maintain", "reduce", "clarify"]);
+  assert.equal("MODES" in core, false);
 });
 
-test("D103A emptyBaseline() couvre tous les champs du cahier §7.1", () => {
+test("D103A baselineState couvre le contrat canonique et conserve l'inconnu", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  const empty = core.emptyBaseline();
-  const expected = [
-    "painOrGeneUsuelle",
-    "fatigueHabituelle",
-    "dureeHabituelleMinutes",
-    "frequenceHabituelle",
-    "besoinHabituelDePauses",
-    "toleranceMontee",
-    "toleranceDescente",
-    "toleranceTerrainIrregulier",
-    "stationDeboutHabituelle",
-    "equilibreHabituel",
-    "aideTechnique",
-    "niveauHabituelActivite",
-    "renseigneeLe",
-  ];
-  assert.deepEqual(Object.keys(empty).sort(), expected.sort());
-  for (const key of expected) assert.equal(empty[key], null);
+  const baseline = core.createBaselineState();
+  assert.deepEqual(Object.keys(baseline), [
+    "habitualPainOrDiscomfort",
+    "habitualFatigue",
+    "habitualWalkingDuration",
+    "habitualWalkingFrequency",
+    "habitualPauseNeed",
+    "uphillTolerance",
+    "downhillTolerance",
+    "unevenTerrainTolerance",
+    "standingTolerance",
+    "habitualBalance",
+    "walkingAid",
+    "habitualActivityContext",
+    "declaredAt",
+  ]);
+  for (const value of Object.values(baseline)) assert.equal(value, null);
 });
 
-test("D103A isBaselineKnown distingue une baseline vide d'une baseline partiellement renseignée", () => {
+test("D103A functionalGoal reste facultatif et non prescriptif", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  assert.equal(core.isBaselineKnown(core.emptyBaseline()), false);
-  assert.equal(core.isBaselineKnown({ dureeHabituelleMinutes: 40 }), true);
+  const goal = core.createFunctionalGoal({ text: "Refaire le tour du lac", type: "participation" });
+  assert.equal(goal.text, "Refaire le tour du lac");
+  assert.equal(goal.type, "participation");
+  assert.equal(goal.userDefined, true);
+  assert.equal("targetDuration" in goal, false);
 });
 
-test("D103A createDecision() refuse tout état hors des 4 prévus par le cahier", () => {
+test("D103A activityExposure garde chaque dimension indépendante avec provenance et qualité", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  assert.throws(() => core.createDecision({ state: "accelerer" }));
-  assert.throws(() => core.createDecision({ state: "reduire de 10%" }));
-  const valid = core.createDecision({ state: "reduire", reason: "descente mal tolérée", dimension: "descente" });
-  assert.equal(valid.state, "reduire");
+  const exposure = core.createActivityExposure({
+    distance: { value: 3.8, unit: "km", source: "measured", quality: "approximate" },
+  });
+  assert.equal(exposure.distance.value, 3.8);
+  assert.equal(exposure.distance.source, "measured");
+  assert.equal(exposure.distance.quality, "approximate");
+  assert.equal(exposure.ascent.value, null);
+  assert.equal(exposure.ascent.source, "unknown");
+  assert.equal(exposure.ascent.quality, "unknown");
 });
 
-test("D103A createDecision() ne contient jamais de champ d'amplitude chiffrée (aucun +10%, aucun coefficient)", () => {
+test("D103A planned n'est jamais promu vers actual", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  const decision = core.createDecision({ state: "augmenter", reason: "bien toléré" });
-  assert.equal("percent" in decision, false);
-  assert.equal("amount" in decision, false);
-  assert.equal("coefficient" in decision, false);
-  assert.equal("factor" in decision, false);
+  const session = core.createSessionRecord({
+    id: "s1",
+    activityIntent: "maintain",
+    plannedExposure: {
+      distance: { value: 4.2, unit: "km", source: "planned", quality: "confirmed" },
+    },
+  });
+  assert.equal(session.plannedExposure.distance.value, 4.2);
+  assert.equal(session.actualExposure.distance.value, null);
+  assert.equal(session.actualExposure.distance.source, "unknown");
 });
 
-test("D103A une balade en mode plaisir ne rejoint l'historique que sur choix explicite (arbitrage du 17/08)", () => {
+test("D103A createReaction distingue les trois moments sans inventer de donnée", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  const notIncluded = core.emptySessionRecord();
-  notIncluded.mode = "plaisir";
-  notIncluded.includeInHistory = false;
-  assert.equal(core.shouldRecordSession(notIncluded), false);
-
-  const included = core.emptySessionRecord();
-  included.mode = "plaisir";
-  included.includeInHistory = true;
-  assert.equal(core.shouldRecordSession(included), true);
-});
-
-test("D103A les modes reprise/maintien/progression rejoignent toujours l'historique, sans opt-in requis", () => {
-  const core = loadModule("../src/core/activity-progression-core.js");
-  for (const mode of ["reprise", "maintien", "progression"]) {
-    const record = core.emptySessionRecord();
-    record.mode = mode;
-    assert.equal(core.shouldRecordSession(record), true, `${mode} devrait toujours être enregistré`);
+  for (const moment of ["during", "post_activity", "later"]) {
+    const reaction = core.createReaction({ moment });
+    assert.equal(reaction.moment, moment);
+    assert.equal(Array.isArray(reaction.signals), true);
+    assert.equal(reaction.signals.length, 0);
+    assert.equal(reaction.functionalImpact, null);
   }
 });
 
-test("D103A saveBaseline()/loadBaseline() font un aller-retour fidèle via un stockage simulé", () => {
+test("D103A leisure n'entre dans l'historique que sur choix explicite", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  const storage = fakeStorage();
-  core.saveBaseline(storage, { dureeHabituelleMinutes: 35, toleranceDescente: "moyenne" });
-  const loaded = core.loadBaseline(storage);
-  assert.equal(loaded.dureeHabituelleMinutes, 35);
-  assert.equal(loaded.toleranceDescente, "moyenne");
-  assert.ok(loaded.renseigneeLe, "la date de dernière saisie doit être renseignée");
-});
-
-test("D103A loadBaseline() ne lève jamais d'exception sur un contenu corrompu ou absent", () => {
-  const core = loadModule("../src/core/activity-progression-core.js");
-  const storage = fakeStorage();
-  storage.setItem(core.STORAGE_KEYS.baseline, "{ceci n'est pas du JSON");
-  assert.doesNotThrow(() => core.loadBaseline(storage));
-  const result = core.loadBaseline(storage);
-  assert.deepEqual(Object.keys(result).sort(), Object.keys(core.emptyBaseline()).sort());
-
-  assert.doesNotThrow(() => core.loadBaseline(undefined));
-  assert.doesNotThrow(() => core.loadBaseline(null));
-});
-
-test("D103A appendSessionRecord() n'écrit jamais silencieusement une balade plaisir non incluse", () => {
-  const core = loadModule("../src/core/activity-progression-core.js");
-  const storage = fakeStorage();
-  const plaisirNonInclus = core.emptySessionRecord();
-  plaisirNonInclus.mode = "plaisir";
-  plaisirNonInclus.id = "s1";
-  const result = core.appendSessionRecord(storage, plaisirNonInclus);
-  assert.equal(result.length, 0);
-  assert.equal(core.loadHistory(storage).length, 0);
-});
-
-test("D103A appendSessionRecord() enregistre bien une séance de reprise et la retrouve via loadHistory()", () => {
-  const core = loadModule("../src/core/activity-progression-core.js");
-  const storage = fakeStorage();
-  const record = core.emptySessionRecord();
-  record.mode = "reprise";
-  record.id = "s1";
-  record.reel.dureeMinutes = 25;
-  core.appendSessionRecord(storage, record);
-  const history = core.loadHistory(storage);
-  assert.equal(history.length, 1);
-  assert.equal(history[0].id, "s1");
-  assert.equal(history[0].reel.dureeMinutes, 25);
-});
-
-test("D103A l'historique reste plafonné (protection contre une croissance illimitée du stockage local)", () => {
-  const core = loadModule("../src/core/activity-progression-core.js");
-  const storage = fakeStorage();
-  for (let i = 0; i < 210; i += 1) {
-    const record = core.emptySessionRecord();
-    record.mode = "maintien";
-    record.id = `s${i}`;
-    core.appendSessionRecord(storage, record);
+  assert.equal(core.shouldIncludeSession({ activityIntent: "leisure", includedInHistory: false }), false);
+  assert.equal(core.shouldIncludeSession({ activityIntent: "leisure", includedInHistory: true }), true);
+  for (const intent of ["gentle_return", "maintain", "progress"]) {
+    assert.equal(core.shouldIncludeSession({ activityIntent: intent }), true);
   }
-  const history = core.loadHistory(storage);
-  assert.ok(history.length <= 200, "l'historique ne doit jamais dépasser la limite documentée");
-  assert.equal(history[history.length - 1].id, "s209", "les entrées les plus récentes doivent être conservées");
 });
 
-test("D103A previousToleratedSession() ignore les séances dont la décision était 'réduire'", () => {
+test("D103A progressionDecision exige un état canonique et une raison traçable", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  const storage = fakeStorage();
-  const s1 = core.emptySessionRecord();
-  s1.mode = "progression";
-  s1.id = "s1";
-  s1.decision = { state: "maintenir" };
-  core.appendSessionRecord(storage, s1);
-
-  const s2 = core.emptySessionRecord();
-  s2.mode = "progression";
-  s2.id = "s2";
-  s2.decision = { state: "reduire" };
-  core.appendSessionRecord(storage, s2);
-
-  const previous = core.previousToleratedSession(storage);
-  assert.equal(previous.id, "s1");
+  assert.throws(() => core.createProgressionDecision({ state: "increase", reason: "x" }));
+  assert.throws(() => core.createProgressionDecision({ state: "reduce" }));
+  const decision = core.createProgressionDecision({
+    state: "clarify",
+    reason: "Données réelles insuffisantes",
+    missingObservations: ["actualExposure.distance"],
+    createdAt: "2026-08-19T12:00:00Z",
+  });
+  assert.equal(decision.state, "clarify");
+  assert.deepEqual(decision.missingObservations, ["actualExposure.distance"]);
+  for (const forbidden of ["percent", "amount", "coefficient", "factor", "score", "confidence"]) {
+    assert.equal(forbidden in decision, false);
+  }
 });
 
-test("D103A aucune logique fondée sur l'âge n'existe dans ce module (cahier §6, §16)", () => {
-  assert.doesNotMatch(CORE_SOURCE, /\bage\b/i);
+test("D103A observedToleranceProfile est un profil d'observations, jamais une capacité maximale", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const profile = core.deriveObservedToleranceProfile([
+    {
+      id: "s1",
+      activityIntent: "maintain",
+      endedAt: "2026-08-18T09:00:00Z",
+      actualExposure: {
+        duration: { value: 42, unit: "min", source: "measured", quality: "confirmed" },
+      },
+    },
+  ]);
+  assert.equal(profile.duration.observations.length, 1);
+  assert.equal(profile.duration.observations[0].value, 42);
+  assert.equal(profile.distance.observations.length, 0);
+  const text = JSON.stringify(profile);
+  assert.doesNotMatch(text, /maxCapacity|fitnessScore|recoveryScore|overallLevel/);
 });
 
-test("D103A ce module ne référence jamais app.js ni buildRequest — aucun raccordement moteur en D103A", () => {
-  assert.doesNotMatch(CORE_SOURCE, /buildRequest/);
+test("D103A dérivation ignore les valeurs actual dont la provenance est unknown", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const profile = core.deriveObservedToleranceProfile([
+    {
+      id: "s1",
+      activityIntent: "maintain",
+      actualExposure: { duration: { value: 45, unit: "min", source: "unknown", quality: "unknown" } },
+    },
+  ]);
+  assert.equal(profile.duration.observations.length, 0);
 });
 
-test("D103A ce lot ne raccorde encore rien dans app.js — la limite D103A/D103 suivants est respectée", () => {
+test("D103A document longitudinal est versionné et validable", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const document = core.createLongitudinalDocument({
+    createdAt: "2026-08-19T10:00:00Z",
+    updatedAt: "2026-08-19T10:00:00Z",
+    data: { currentActivityIntent: "gentle_return" },
+  });
+  assert.equal(document.schema, "jmmjs.activity-progression");
+  assert.equal(document.schemaVersion, 1);
+  assert.equal(document.data.currentActivityIntent, "gentle_return");
+  const validation = core.validateLongitudinalDocument(document);
+  assert.equal(validation.valid, true);
+  assert.equal(Array.isArray(validation.errors), true);
+  assert.equal(validation.errors.length, 0);
+});
+
+test("D103A migration est déterministe sur la version courante et rejette une version future", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const current = core.createLongitudinalDocument({
+    createdAt: "2026-08-19T10:00:00Z",
+    updatedAt: "2026-08-19T10:00:00Z",
+  });
+  const before = clone(current);
+  const a = core.migrateLongitudinalDocument(current);
+  const b = core.migrateLongitudinalDocument(current);
+  assert.equal(JSON.stringify(a), JSON.stringify(b));
+  assert.equal(JSON.stringify(current), JSON.stringify(before), "la migration ne doit pas muter l'entrée");
+  assert.throws(() => core.migrateLongitudinalDocument({ ...current, schemaVersion: 2 }), /future/);
+});
+
+test("D103A fonctions de normalisation ne mutent jamais leurs entrées", () => {
+  const core = loadModule("../src/core/activity-progression-core.js");
+  const input = {
+    id: "s1",
+    activityIntent: "progress",
+    actualExposure: {
+      distance: { value: 2, unit: "km", source: "measured", quality: "confirmed" },
+    },
+  };
+  const before = clone(input);
+  core.normalizeSessionRecord(input);
+  assert.deepEqual(input, before);
+});
+
+test("D103A source ne contient aucun effet de bord ou dépendance interdite", () => {
+  for (const forbidden of [
+    /localStorage/,
+    /sessionStorage/,
+    /\.getItem\s*\(/,
+    /\.setItem\s*\(/,
+    /\bDOM\b/,
+    /\bbuildRequest\b/,
+    /\bORS\b/,
+    /\bnavigator\b/,
+    /\bserviceWorker\b/,
+    /Date\.now\s*\(/,
+    /new Date\s*\(/,
+    /Math\.random\s*\(/,
+  ]) {
+    assert.doesNotMatch(CORE_SOURCE, forbidden);
+  }
+});
+
+test("D103A n'embarque aucune règle numérique universelle ou score composite", () => {
+  assert.doesNotMatch(CORE_SOURCE, /\b10\s*%|\+\s*5\s*min|decondition|recoveryScore|loadScore|toleranceScore|confidenceScore/i);
+});
+
+test("D103A ne raccorde rien dans app.js", () => {
   assert.doesNotMatch(APP_SOURCE, /JMMJSActivityProgressionCore/);
 });
 
-test("D103A le contrat exporté est gelé (Object.freeze)", () => {
+test("D103A export principal et constantes sont gelés", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
-  assert.throws(() => {
-    "use strict";
-    core.MODES = [];
-  });
+  assert.equal(Object.isFrozen(core), true);
+  assert.equal(Object.isFrozen(core.ACTIVITY_INTENTS), true);
+  assert.equal(Object.isFrozen(core.DECISION_STATES), true);
 });
