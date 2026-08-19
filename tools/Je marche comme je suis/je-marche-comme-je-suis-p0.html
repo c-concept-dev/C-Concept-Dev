@@ -7864,7 +7864,7 @@ html,body{max-width:100%;overflow-x:hidden}
   // "Sur le plat aucun souci, par contre quand ça descend..." ne doit pas
   // faire hériter "descend" de la négation de "aucun souci".
   const CLAUSE_BOUNDARY_RE =
-    /[.;!?]+|,?\s*\b(?:mais|par contre|cependant|toutefois|en revanche)\b/gi;
+    /[.;!?]+|,\s*|\s+\b(?:mais|par contre|cependant|toutefois|en revanche)\b\s*|\s+\b(?:c['’]est seulement)\b\s*/gi;
 
   function splitClauses(text) {
     return text
@@ -7909,22 +7909,124 @@ html,body{max-width:100%;overflow-x:hidden}
     { area: "Chevilles", re: /\bchevilles?\b/i },
     { area: "Pieds", re: /\bpieds?\b/i },
     { area: "Dos", re: /\bdos\b/i },
+    { area: "Cou", re: /\b(cou|cervical(?:e|es|es)?|cervicaux)\b/i },
+    { area: "Épaules", re: /(?:^|[\s’'(-])(?:épaule|epaule)s?(?=$|[\s.,;:!?)-])/i },
   ]);
+
+  const BODY_NEGATION_RE =
+    /\b(?:n['’]?(?:ai|a|ont|est|suis|sommes|êtes)?\s*)?(?:ne\s+)?(?:me\s+|m['’])?(?:fait|font|gêne|gênent|gênait|gênait|gêné)?\s*(?:pas|plus|aucunement)\b|\b(?:pas|aucune?|sans)\s+(?:de\s+)?(?:douleur|gêne|mal)\b/i;
+  const BODY_TOLERATED_RE = /\b(?:va|vont)\s+(?:très\s+)?bien\b|\baucun souci\b/i;
+  const CURRENT_NEGATION_RE =
+    /\baujourd['’]hui\b[\s\S]{0,45}\b(?:ne|n['’])?[\s\S]{0,25}\b(?:pas|plus|aucunement)\b/i;
+  const HISTORICAL_ONLY_RE =
+    /(?:op[ée]r[ée]|op[ée]ration|fracture|accident|arthrod[èe]se)[\s\S]{0,80}(?:il y a|l['’]an dernier|en \d{4})/i;
+  const CURRENT_SYMPTOM_RE =
+    /\b(?:douleur|gêne|mal|tire|tirer|douloureux|douloureuse|douloureuses|fatigue)\b/i;
+
+  function localSide(segment) {
+    const bilateral = SIDE_PATTERNS[0].re.test(segment);
+    if (bilateral) return "Bilatéral";
+    const left = SIDE_PATTERNS[1].re.test(segment);
+    const right = SIDE_PATTERNS[2].re.test(segment);
+    if (left && !right) return "Gauche";
+    if (right && !left) return "Droit";
+    return null;
+  }
+
+  function splitAreaSegments(clause) {
+    // La coordination « et » sépare les groupes corporels seulement si les
+    // deux côtés contiennent chacun une zone. Cela évite de propager
+    // « droite » de « épaule droite » vers « le cou ».
+    const rawParts = clause.split(/\s+et\s+/i);
+    if (rawParts.length < 2) return [clause];
+    const withArea = rawParts.filter((part) => BODY_AREA_PATTERNS.some((e) => e.re.test(part)));
+    return withArea.length >= 2 ? rawParts : [clause];
+  }
+
+  function extractBodyAreaDetails(text) {
+    const details = [];
+    const clauses = splitClauses(text);
+    for (const clause of clauses) {
+      for (const segment of splitAreaSegments(clause)) {
+        const side = localSide(segment);
+        const negated = BODY_NEGATION_RE.test(segment) || BODY_TOLERATED_RE.test(segment);
+        const historicalOnly = HISTORICAL_ONLY_RE.test(segment) && !CURRENT_SYMPTOM_RE.test(segment);
+        for (const entry of BODY_AREA_PATTERNS) {
+          if (!entry.re.test(segment)) continue;
+          details.push({ area: entry.area, side, negated, historicalOnly, raw: segment });
+        }
+      }
+    }
+    // Un antécédent isolé suivi d'une négation actuelle pronominale ne doit
+    // pas devenir une gêne active (« opéré du genou... mais aujourd'hui il
+    // ne me gêne pas »).
+    if (CURRENT_NEGATION_RE.test(text)) {
+      for (const d of details) {
+        if (d.historicalOnly) d.negated = true;
+      }
+    }
+    return details;
+  }
 
   function extractBodyAreas(text) {
     const areas = [];
-    for (const entry of BODY_AREA_PATTERNS) {
-      if (entry.re.test(text) && !areas.includes(entry.area)) areas.push(entry.area);
+    for (const detail of extractBodyAreaDetails(text)) {
+      if (!detail.negated && !detail.historicalOnly && !areas.includes(detail.area)) areas.push(detail.area);
     }
     return areas;
   }
 
+  function extractAreaMetadata(text) {
+    const allDetails = extractBodyAreaDetails(text);
+    const relevant = allDetails.filter((d) => !d.negated);
+    const active = relevant.filter((d) => !d.historicalOnly);
+    const areaSides = {};
+    const sideSets = {};
+    for (const d of active) {
+      if (!d.side) continue;
+      if (!sideSets[d.area]) sideSets[d.area] = new Set();
+      sideSets[d.area].add(d.side);
+    }
+    for (const [area, sides] of Object.entries(sideSets)) {
+      if (sides.size === 1) areaSides[area] = [...sides][0];
+    }
+
+    const areaStatus = {};
+    const clauses = splitClauses(text);
+    let lastAreas = [];
+    for (const clause of clauses) {
+      const clauseAreas = extractBodyAreaDetails(clause)
+        .filter((d) => !d.negated)
+        .map((d) => d.area);
+      if (clauseAreas.length) lastAreas = clauseAreas;
+      const targets = clauseAreas.length ? clauseAreas : lastAreas;
+      if (!targets.length) continue;
+      let status = null;
+      if (/\b(?:pas pire que d['’]habitude|comme d['’]habitude|sans lien avec aujourd['’]hui|tout va bien maintenant|rien de nouveau)\b/i.test(clause))
+        status = "usual";
+      else if (/\b(?:ça va mieux|va mieux|mieux que d['’]habitude|moins (?:fort|forte|mal|gênant|gênante) qu['’]?(?:habituellement|d['’]habitude)|moins qu['’]habituellement)\b/i.test(clause))
+        status = "better";
+      else if (/\b(?:plus fort(?:e)? que d['’]habitude|nettement plus fort(?:e)? que d['’]habitude|bien plus fort(?:e)? qu['’]habituellement|plus qu['’]habituellement|pire que d['’]habitude)\b/i.test(clause))
+        status = "worse";
+      if (status) for (const area of targets) areaStatus[area] = status;
+    }
+    // Un antécédent peut être affiché comme contexte habituel/non aggravé
+    // quand le texte le dit explicitement, sans devenir une limitation
+    // active. On conserve alors son côté uniquement pour l'affichage.
+    for (const area of Object.keys(areaStatus)) {
+      if (areaSides[area]) continue;
+      const sides = new Set(relevant.filter((d) => d.area === area && d.side).map((d) => d.side));
+      if (sides.size === 1) areaSides[area] = [...sides][0];
+    }
+    return { areaSides, areaStatus };
+  }
+
   const TERRAIN_TRIGGER_PATTERNS = Object.freeze([
-    { trigger: "Descente", re: /\b(descend(?:s|re|ent)?|descente)\b/i },
-    { trigger: "Montée", re: /\b(mont(?:e|ée|er|es|ent))\b/i },
+    { trigger: "Descente", re: /\b(descend(?:s|re|ent)?|descentes?)\b/i },
+    { trigger: "Montée", re: /\b(mont(?:e|ée|er|es|ent)|montées?)\b/i },
     {
       trigger: "Terrain irrégulier",
-      re: /\b(terrain irr[ée]gulier|pav[ée]s?|caillouteux|instable)\b/i,
+      re: /\b(terrains? irr[ée]guliers?|chemins?\s+(?:(?:devient|deviennent)\s+)?irr[ée]guliers?|pav[ée]s?|caillouteux|instable)\b/i,
     },
     { trigger: "Station debout", re: /\b(station debout|rest(?:er|e) debout)\b/i },
   ]);
@@ -8021,6 +8123,9 @@ html,body{max-width:100%;overflow-x:hidden}
     if (/demi[- ]heure/i.test(text)) {
       results.push({ approxMinutes: 30, precision: "approximate", raw: "demi-heure" });
     }
+    if (/trois\s+quarts?\s+d['’]heure/i.test(text)) {
+      results.push({ approxMinutes: 45, precision: "approximate", raw: "trois quarts d’heure" });
+    }
     const hourRe = /(\d+|[a-zéûî-]+)\s*heures?\b(?!\s*et\s*demi)/gi;
     while ((match = hourRe.exec(text))) {
       const value = wordOrDigitToNumber(match[1]);
@@ -8055,14 +8160,9 @@ html,body{max-width:100%;overflow-x:hidden}
   }
 
   const PAIN_QUALIFIER_PATTERNS = Object.freeze([
-    // Note : pas de \b en tête devant "ça"/"ç" — le \b de JavaScript ne
-    // traite pas les lettres accentuées comme des caractères de mot, donc
-    // \bça échoue silencieusement en début de chaîne ou après un espace.
-    // Les expressions restent assez spécifiques (plusieurs mots) pour ne
-    // pas produire de faux positifs sans l'ancrage.
     {
       polarity: "present",
-      re: /\b(très mal|vraiment mal)\b|ça fait mal|ça tire|\b(j['’]ai mal|douleur)\b|\bavoir mal\b/i,
+      re: /\b(très mal|vraiment mal)\b|\b(?:me|lui|nous)\s+fait mal\b|ça fait mal|ça tire|\b(j['’]ai mal|douleurs?)\b|\bavoir mal\b|\bdouloureux|douloureuse|douloureuses\b/i,
     },
     {
       polarity: "reduced",
@@ -8070,7 +8170,10 @@ html,body{max-width:100%;overflow-x:hidden}
     },
     {
       polarity: "absent",
-      re: /\b(aucune douleur|pas mal|aucun souci)\b|ça va\b/i,
+      // « aucun souci » et « ça va » ne sont volontairement PAS des
+      // absences globales : « sur le plat aucun souci, ... en descente j'ai
+      // mal » a démontré le risque de faux négatif en D102G1/G2.
+      re: /\b(aucune douleur|pas mal aujourd['’]hui|je n['’]ai pas vraiment mal|je n['’]ai pas mal|ne me fait pas mal|sans douleur particulière)\b/i,
     },
   ]);
 
@@ -8084,9 +8187,13 @@ html,body{max-width:100%;overflow-x:hidden}
     const clauses = splitClauses(text);
     const results = [];
     for (const clause of clauses) {
+      // D102G3 : une douleur explicitement située dans le passé ne doit pas
+      // être confrontée au curseur de douleur du jour.
+      if (/\b(?:hier|avant-hier|l['’]an dernier|il y a)\b|\ben \d{4}\b/i.test(clause)) continue;
       const absent = clause.match(PAIN_QUALIFIER_PATTERNS[2].re);
       if (absent) {
-        results.push({ polarity: "absent", raw: absent[0] });
+        const localizedToBodyArea = BODY_AREA_PATTERNS.some((entry) => entry.re.test(clause));
+        if (!localizedToBodyArea) results.push({ polarity: "absent", raw: absent[0] });
         continue;
       }
       const reduced = clause.match(PAIN_QUALIFIER_PATTERNS[1].re);
@@ -8109,13 +8216,25 @@ html,body{max-width:100%;overflow-x:hidden}
     if (!normalized.clean) return emptyCandidateInterpretation();
 
     const laterality = extractLaterality(normalized.clean);
-    const bodyAreas = extractBodyAreas(normalized.clean);
+    const allBodyAreaDetails = extractBodyAreaDetails(normalized.clean);
+    const areaMetadata = extractAreaMetadata(normalized.clean);
+    const bodyAreas = [
+      ...new Set([
+        ...extractBodyAreas(normalized.clean),
+        ...Object.keys(areaMetadata.areaStatus),
+      ]),
+    ];
     const terrain = extractTerrainTriggers(normalized.clean);
     const durationInfo = extractDurations(normalized.clean);
     const pauseNeeds = extractPauseNeeds(normalized.clean);
     const painQualifiers = extractPainQualifiers(normalized.clean);
 
-    const uncertain = [...laterality.uncertain, ...durationInfo.uncertain];
+    const localSidesResolveAmbiguity =
+      bodyAreas.length > 0 && bodyAreas.every((area) => Boolean(areaMetadata.areaSides[area]));
+    const uncertain = [
+      ...(localSidesResolveAmbiguity ? [] : laterality.uncertain),
+      ...durationInfo.uncertain,
+    ];
     if (terrain.conflicting.length)
       uncertain.push(
         `mentions contradictoires pour : ${terrain.conflicting.join(", ")}`,
@@ -8132,7 +8251,12 @@ html,body{max-width:100%;overflow-x:hidden}
 
     return normalizeCandidateInterpretation({
       bodyAreas,
-      side: laterality.side,
+      side:
+        bodyAreas.length === 1
+          ? (areaMetadata.areaSides[bodyAreas[0]] || laterality.side)
+          : bodyAreas.length === 0
+            ? (allBodyAreaDetails.length ? null : laterality.side)
+            : null,
       triggers,
       temporal: durationInfo.durations.length
         ? { durations: durationInfo.durations }
@@ -8140,7 +8264,10 @@ html,body{max-width:100%;overflow-x:hidden}
       needs: pauseNeeds,
       negations: terrain.negations,
       uncertain,
-      confidence: {},
+      confidence: {
+        areaSides: areaMetadata.areaSides,
+        areaStatus: areaMetadata.areaStatus,
+      },
       coherenceIssues: [],
     });
   }
@@ -8311,6 +8438,8 @@ html,body{max-width:100%;overflow-x:hidden}
     splitClauses,
     extractLaterality,
     extractBodyAreas,
+    extractBodyAreaDetails,
+    extractAreaMetadata,
     extractTerrainTriggers,
     extractNegations,
     extractDurations,
@@ -8702,6 +8831,241 @@ html,body{max-width:100%;overflow-x:hidden}
   });
 })();
 /* JMMJS_ACTIVITY_PROGRESSION_CORE_END */
+/* JMMJS_ACTIVITY_PROGRESSION_PERSISTENCE_START */
+(() => {
+  "use strict";
+
+  // D103A2 — adaptateur de persistance longitudinal.
+  // Les règles métier restent dans JMMJSActivityProgressionCore (D103A).
+  // Cette couche porte uniquement les effets de bord liés au stockage local.
+
+  const STORAGE_PREFIX = "jmmjs-activity-progression-";
+  const STATE_KEY = `${STORAGE_PREFIX}state-v1`;
+  const SESSION_INDEX_KEY = `${STORAGE_PREFIX}session-index-v1`;
+  const SESSION_KEY_PREFIX = `${STORAGE_PREFIX}session-v1:`;
+
+  function safeMessage(error) {
+    return error && typeof error.message === "string" ? error.message : "storage-error";
+  }
+
+  function listKeys(storage) {
+    const keys = [];
+    if (!storage) return keys;
+    if (typeof storage.length === "number" && typeof storage.key === "function") {
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (typeof key === "string") keys.push(key);
+      }
+      return keys;
+    }
+    // Fallback utile pour les adaptateurs de tests qui exposent _keys().
+    if (typeof storage._keys === "function") {
+      return storage._keys().filter((key) => typeof key === "string");
+    }
+    return keys;
+  }
+
+  function createPersistenceController({
+    storage = globalThis.localStorage,
+    core = globalThis.JMMJSActivityProgressionCore,
+  } = {}) {
+    if (!core) throw new TypeError("JMMJSActivityProgressionCore is required");
+
+    let privateMode = false;
+
+    function sessionKey(id) {
+      return `${SESSION_KEY_PREFIX}${encodeURIComponent(String(id))}`;
+    }
+
+    function readJson(key) {
+      try {
+        const raw = storage?.getItem?.(key);
+        if (raw === null || raw === undefined || raw === "") {
+          return { ok: true, present: false, value: null };
+        }
+        return { ok: true, present: true, value: JSON.parse(raw) };
+      } catch (error) {
+        return { ok: false, present: true, reason: "corrupt-or-unreadable", error: safeMessage(error) };
+      }
+    }
+
+    function writeJson(key, value) {
+      try {
+        storage?.setItem?.(key, JSON.stringify(value));
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, reason: "storage-error", error: safeMessage(error) };
+      }
+    }
+
+    function removeKey(key) {
+      try {
+        storage?.removeItem?.(key);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function purge() {
+      let success = true;
+      const keys = new Set([
+        STATE_KEY,
+        SESSION_INDEX_KEY,
+        ...listKeys(storage).filter((key) => key.startsWith(STORAGE_PREFIX)),
+      ]);
+      for (const key of keys) success = removeKey(key) && success;
+      return { purged: success, removedKeys: [...keys] };
+    }
+
+    function setPrivateMode(enabled) {
+      privateMode = Boolean(enabled);
+      if (privateMode) purge();
+      return privateMode;
+    }
+
+    function storageStatus() {
+      const keys = listKeys(storage).filter((key) => key.startsWith(STORAGE_PREFIX));
+      return {
+        privateMode,
+        hasLongitudinalData: keys.length > 0,
+        keys,
+      };
+    }
+
+    function saveDocument(document) {
+      if (privateMode) {
+        purge();
+        return { persisted: false, reason: "private-mode" };
+      }
+
+      let normalized;
+      try {
+        normalized = core.migrateLongitudinalDocument(document);
+      } catch (error) {
+        const reason = error instanceof RangeError ? "incompatible-version" : "invalid-document";
+        return { persisted: false, reason, error: safeMessage(error) };
+      }
+
+      const validation = core.validateLongitudinalDocument(normalized);
+      if (!validation.valid) {
+        return { persisted: false, reason: "invalid-document", errors: [...validation.errors] };
+      }
+
+      const sessions = Array.isArray(normalized.data.sessionRecords)
+        ? normalized.data.sessionRecords
+        : [];
+      const ids = [];
+      const seen = new Set();
+      for (const session of sessions) {
+        const id = session && session.id;
+        if (id === null || id === undefined || String(id) === "") {
+          return { persisted: false, reason: "invalid-session-id" };
+        }
+        const sid = String(id);
+        if (seen.has(sid)) return { persisted: false, reason: "duplicate-session-id", sessionId: sid };
+        seen.add(sid);
+        ids.push(sid);
+      }
+
+      // Le state ne contient pas le tableau de sessions : chaque session a sa propre clé.
+      const stateDocument = core.createLongitudinalDocument(normalized);
+      stateDocument.data.sessionRecords = [];
+
+      const existingIndex = readJson(SESSION_INDEX_KEY);
+      const previousIds = existingIndex.ok && Array.isArray(existingIndex.value)
+        ? existingIndex.value.map(String)
+        : [];
+
+      const stateWrite = writeJson(STATE_KEY, stateDocument);
+      if (!stateWrite.ok) return { persisted: false, reason: stateWrite.reason, error: stateWrite.error };
+
+      for (const session of sessions) {
+        const result = writeJson(sessionKey(session.id), core.normalizeSessionRecord(session));
+        if (!result.ok) return { persisted: false, reason: result.reason, error: result.error };
+      }
+
+      const indexWrite = writeJson(SESSION_INDEX_KEY, ids);
+      if (!indexWrite.ok) return { persisted: false, reason: indexWrite.reason, error: indexWrite.error };
+
+      for (const previousId of previousIds) {
+        if (!seen.has(previousId)) removeKey(sessionKey(previousId));
+      }
+
+      return { persisted: true, reason: "saved", sessionCount: ids.length };
+    }
+
+    function loadDocument() {
+      if (privateMode) {
+        purge();
+        return { loaded: false, reason: "private-mode", document: null };
+      }
+
+      const state = readJson(STATE_KEY);
+      if (!state.ok) return { loaded: false, reason: state.reason, document: null, error: state.error };
+      if (!state.present) return { loaded: false, reason: "absent", document: null };
+
+      const index = readJson(SESSION_INDEX_KEY);
+      if (!index.ok) return { loaded: false, reason: index.reason, document: null, error: index.error };
+      if (index.present && !Array.isArray(index.value)) {
+        return { loaded: false, reason: "corrupt-session-index", document: null };
+      }
+
+      const sessionIds = index.present ? index.value.map(String) : [];
+      const sessions = [];
+      for (const id of sessionIds) {
+        const stored = readJson(sessionKey(id));
+        if (!stored.ok || !stored.present) {
+          return {
+            loaded: false,
+            reason: stored.ok ? "missing-session" : stored.reason,
+            document: null,
+            sessionId: id,
+            error: stored.error,
+          };
+        }
+        sessions.push(stored.value);
+      }
+
+      let candidate;
+      try {
+        candidate = {
+          ...state.value,
+          data: {
+            ...(state.value && state.value.data),
+            sessionRecords: sessions,
+          },
+        };
+        const migrated = core.migrateLongitudinalDocument(candidate);
+        const validation = core.validateLongitudinalDocument(migrated);
+        if (!validation.valid) {
+          return { loaded: false, reason: "invalid-document", document: null, errors: [...validation.errors] };
+        }
+        return { loaded: true, reason: "loaded", document: migrated };
+      } catch (error) {
+        const reason = error instanceof RangeError ? "incompatible-version" : "invalid-document";
+        return { loaded: false, reason, document: null, error: safeMessage(error) };
+      }
+    }
+
+    return Object.freeze({
+      saveDocument,
+      loadDocument,
+      purge,
+      setPrivateMode,
+      storageStatus,
+    });
+  }
+
+  globalThis.JMMJSActivityProgressionPersistence = Object.freeze({
+    STORAGE_PREFIX,
+    STATE_KEY,
+    SESSION_INDEX_KEY,
+    SESSION_KEY_PREFIX,
+    createPersistenceController,
+  });
+})();
+/* JMMJS_ACTIVITY_PROGRESSION_PERSISTENCE_END */
 /* JMMJS_PERIPHERAL_REGISTRY_START */
 (() => {
   "use strict";
@@ -9688,6 +10052,10 @@ html,body{max-width:100%;overflow-x:hidden}
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
     storage: globalThis.localStorage,
   });
+  const activityProgressionPersistence =
+    globalThis.JMMJSActivityProgressionPersistence.createPersistenceController({
+      storage: globalThis.localStorage,
+    });
   const sessionPrivacyController =
     globalThis.JMMJSSessionPrivacyCore.createSessionPrivacyController({
       storage: globalThis.sessionStorage,
@@ -10418,8 +10786,10 @@ html,body{max-width:100%;overflow-x:hidden}
   function syncPainDetailVisibility() {
     const wrap = $("#painDetailWrap");
     if (!wrap) return;
-    const show = Number(val("#pain") || 0) > 0 || Boolean(val("#painDetail").trim());
-    wrap.hidden = !show;
+    // D102E2/G3 — le texte libre reste toujours accessible, même avec un
+    // curseur douleur à 0. Le curseur ne doit jamais masquer la possibilité
+    // de décrire une gêne fonctionnelle ou une incohérence à vérifier.
+    wrap.hidden = false;
   }
 
   // D102C — UX "Voici ce que j'ai compris". Lit le texte libre, l'interprète
@@ -10435,15 +10805,26 @@ html,body{max-width:100%;overflow-x:hidden}
   function painInterpretationItems(candidate) {
     const items = [];
     if (candidate.bodyAreas.length) {
+      const areaSides = candidate.confidence?.areaSides || {};
+      const areaStatus = candidate.confidence?.areaStatus || {};
       candidate.bodyAreas.forEach((area, index) => {
+        const localSide = areaSides[area] || (candidate.bodyAreas.length === 1 ? candidate.side : null);
         const sideLabel =
-          candidate.side === "Bilatéral"
+          localSide === "Bilatéral"
             ? "des deux côtés"
-            : candidate.side
-              ? candidate.side.toLowerCase()
+            : localSide
+              ? localSide.toLowerCase()
               : "";
-        const label = sideLabel ? `${area} ${sideLabel}` : area;
-        items.push({ id: `area-${index}`, label });
+        const baseLabel = sideLabel ? `${area} ${sideLabel}` : area;
+        const statusLabel =
+          areaStatus[area] === "usual"
+            ? " · habituel, non aggravé aujourd'hui"
+            : areaStatus[area] === "better"
+              ? " · mieux qu'habituellement aujourd'hui"
+              : areaStatus[area] === "worse"
+                ? " · plus gênant qu'habituellement aujourd'hui"
+                : "";
+        items.push({ id: `area-${index}`, label: `${baseLabel}${statusLabel}` });
       });
     }
     candidate.triggers.forEach((trigger, index) => {
@@ -10645,7 +11026,12 @@ html,body{max-width:100%;overflow-x:hidden}
     });
   });
   syncTimeIncludesSwitch();
-  $("#pain")?.addEventListener("input", syncPainDetailVisibility);
+  $("#pain")?.addEventListener("input", () => {
+    syncPainDetailVisibility();
+    // D102G3 — la cohérence texte ↔ curseur doit être recalculée dans les
+    // deux sens dès que la valeur du curseur change.
+    syncPainInterpretation();
+  });
   $("#painDetail")?.addEventListener("input", syncPainDetailVisibility);
   $("#painDetail")?.addEventListener("input", () => {
     painInterpretationRemoved.clear();
@@ -15013,6 +15399,7 @@ html,body{max-width:100%;overflow-x:hidden}
     $("#cancelClearData").onclick = () => modal.classList.remove("show");
     $("#confirmClearData").onclick = () => {
       privacyController.purge();
+      activityProgressionPersistence.purge();
       sessionPrivacyController.clearSession();
       serviceObservability.clear();
       clearOfflineSnapshot(globalThis.localStorage);
