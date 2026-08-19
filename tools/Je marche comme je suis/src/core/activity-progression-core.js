@@ -2,278 +2,381 @@
 (() => {
   "use strict";
 
-  // D103A — socle de données pur pour l'évolution "reprise et progression
-  // d'activité" (cahier D103, document directeur du 17 août 2026). Ce
-  // module ne contient aucune UX, aucune logique de décision (D103G),
-  // aucun raccordement au moteur de génération de balade (D103H). Il
-  // fixe uniquement les contrats de données et les fonctions de stockage
-  // local, pour que les lots suivants s'appuient sur une forme stable
-  // plutôt que d'improviser.
-  //
-  // Rappels de gouvernance directement applicables à ce socle :
-  // - aucune règle fondée sur l'âge seul (cahier §6, §16) ;
-  // - aucun coefficient chiffré de progression/réduction inventé
-  //   (cahier §2.3, §12) ;
-  // - mémoire locale à l'appareil uniquement, jamais synchronisée
-  //   (cahier §4.2) ;
-  // - une balade en mode "plaisir" ne rejoint l'historique que sur choix
-  //   explicite de l'utilisateur (cahier §5.1, arbitrage du 17/08/2026).
+  // D103A — coeur longitudinal pur, déterministe et inerte.
+  // Ce module définit uniquement des contrats et fonctions de domaine.
+  // Ce module reste sans effet de bord ni dépendance navigateur.
 
-  const MODES = Object.freeze(["plaisir", "reprise", "maintien", "progression"]);
+  const SCHEMA = "jmmjs.activity-progression";
+  const SCHEMA_VERSION = 1;
 
-  const DECISION_STATES = Object.freeze([
-    "augmenter",
-    "maintenir",
-    "reduire",
-    "preciser",
+  const ACTIVITY_INTENTS = Object.freeze([
+    "leisure",
+    "gentle_return",
+    "maintain",
+    "progress",
   ]);
 
-  const REACTION_MOMENTS = Object.freeze(["pendant", "apres", "lendemain"]);
+  const DECISION_STATES = Object.freeze([
+    "explore",
+    "maintain",
+    "reduce",
+    "clarify",
+  ]);
+
+  const DATA_SOURCES = Object.freeze([
+    "planned",
+    "measured",
+    "user_reported",
+    "inferred",
+    "unknown",
+  ]);
+
+  const DATA_QUALITIES = Object.freeze([
+    "confirmed",
+    "approximate",
+    "incomplete",
+    "unknown",
+  ]);
+
+  const REACTION_MOMENTS = Object.freeze([
+    "during",
+    "post_activity",
+    "later",
+  ]);
+
+  const GOAL_TYPES = Object.freeze(["activity", "participation", "unspecified"]);
 
   function clone(value) {
+    if (value === undefined) return undefined;
     return typeof structuredClone === "function"
       ? structuredClone(value)
       : JSON.parse(JSON.stringify(value));
   }
 
-  // ---------------------------------------------------------------------
-  // Baseline (état habituel) — cahier §7.1. Renseignée une seule fois via
-  // l'onboarding (D103C), jamais redemandée en entier à chaque sortie.
-  // ---------------------------------------------------------------------
+  function freezeCopy(value) {
+    return Object.freeze(clone(value));
+  }
 
-  function emptyBaseline() {
+  function knownEnum(value, values, fallback = null) {
+    return values.includes(value) ? value : fallback;
+  }
+
+  function nullable(value) {
+    return value === undefined ? null : clone(value);
+  }
+
+  function createObservedValue(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
     return {
-      painOrGeneUsuelle: null,
-      fatigueHabituelle: null,
-      dureeHabituelleMinutes: null,
-      frequenceHabituelle: null,
-      besoinHabituelDePauses: null,
-      toleranceMontee: null,
-      toleranceDescente: null,
-      toleranceTerrainIrregulier: null,
-      stationDeboutHabituelle: null,
-      equilibreHabituel: null,
-      aideTechnique: null,
-      niveauHabituelActivite: null,
-      renseigneeLe: null,
+      value: input.value === undefined ? null : clone(input.value),
+      unit: typeof input.unit === "string" ? input.unit : null,
+      source: knownEnum(input.source, DATA_SOURCES, "unknown"),
+      quality: knownEnum(input.quality, DATA_QUALITIES, "unknown"),
     };
   }
 
-  function normalizeBaseline(value = {}) {
-    const base = emptyBaseline();
-    const keys = Object.keys(base);
+  function createBaselineState(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      habitualPainOrDiscomfort: nullable(input.habitualPainOrDiscomfort),
+      habitualFatigue: nullable(input.habitualFatigue),
+      habitualWalkingDuration: nullable(input.habitualWalkingDuration),
+      habitualWalkingFrequency: nullable(input.habitualWalkingFrequency),
+      habitualPauseNeed: nullable(input.habitualPauseNeed),
+      uphillTolerance: nullable(input.uphillTolerance),
+      downhillTolerance: nullable(input.downhillTolerance),
+      unevenTerrainTolerance: nullable(input.unevenTerrainTolerance),
+      standingTolerance: nullable(input.standingTolerance),
+      habitualBalance: nullable(input.habitualBalance),
+      walkingAid: nullable(input.walkingAid),
+      habitualActivityContext: nullable(input.habitualActivityContext),
+      declaredAt: typeof input.declaredAt === "string" ? input.declaredAt : null,
+    };
+  }
+
+  function normalizeBaselineState(value = {}) {
+    return createBaselineState(value);
+  }
+
+  function createFunctionalGoal(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      text: typeof input.text === "string" ? input.text : null,
+      type: knownEnum(input.type, GOAL_TYPES, "unspecified"),
+      userDefined: input.userDefined !== false,
+      status: nullable(input.status),
+      createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
+      updatedAt: typeof input.updatedAt === "string" ? input.updatedAt : null,
+    };
+  }
+
+  function createActivityExposure(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    const fields = [
+      "duration",
+      "distance",
+      "ascent",
+      "descent",
+      "elevation",
+      "terrainRegularity",
+      "pauses",
+      "perceivedEffort",
+      "completion",
+    ];
     const out = {};
-    for (const key of keys) {
-      out[key] = key in value ? value[key] : base[key];
+    for (const field of fields) {
+      out[field] = createObservedValue(input[field]);
     }
     return out;
   }
 
-  function isBaselineKnown(baseline = {}) {
-    const normalized = normalizeBaseline(baseline);
-    return Object.keys(emptyBaseline()).some(
-      (key) => normalized[key] !== null && normalized[key] !== undefined,
-    );
+  function normalizeActivityExposure(value = {}) {
+    return createActivityExposure(value);
   }
 
-  // ---------------------------------------------------------------------
-  // Séance — charge prévue vs réellement effectuée (cahier §10).
-  // ---------------------------------------------------------------------
-
-  function emptySessionRecord() {
+  function createReaction(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
     return {
-      id: null,
-      date: null,
-      mode: null,
-      includeInHistory: false,
-      prevu: {
-        dureeMinutes: null,
-        terrain: null,
-        denivele: null,
-      },
-      reel: {
-        dureeMinutes: null,
-        distanceMetres: null,
-        deniveleMetres: null,
-        expositionMontee: null,
-        expositionDescente: null,
-        surfaceRegularite: null,
-        allurePercue: null,
-        nombrePauses: null,
-        dureePauses: null,
-        motifPauses: null,
-        interrompue: null,
-        difficultePercue: null,
-      },
-      reactions: {
-        pendant: null,
-        apres: null,
-        lendemain: null,
-      },
-      decision: null,
+      moment: knownEnum(input.moment, REACTION_MOMENTS, null),
+      comparedWithUsual: nullable(input.comparedWithUsual),
+      signals: Array.isArray(input.signals) ? clone(input.signals) : [],
+      functionalImpact: nullable(input.functionalImpact),
+      freeText: typeof input.freeText === "string" ? input.freeText : null,
+      reportedAt: typeof input.reportedAt === "string" ? input.reportedAt : null,
+    };
+  }
+
+  function createEnvironmentContext(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      terrainRegularity: nullable(input.terrainRegularity),
+      ascentExposure: nullable(input.ascentExposure),
+      descentExposure: nullable(input.descentExposure),
+      walkingAid: nullable(input.walkingAid),
+      pausePattern: nullable(input.pausePattern),
+      knownWeatherContext: nullable(input.knownWeatherContext),
+      otherRelevantContext: nullable(input.otherRelevantContext),
+    };
+  }
+
+  function createDailyContext(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      unusualPhysicalActivity: nullable(input.unusualPhysicalActivity),
+      unusualFatigue: nullable(input.unusualFatigue),
+      recoveryPerception: nullable(input.recoveryPerception),
+      optionalStressContext: nullable(input.optionalStressContext),
+    };
+  }
+
+  function createProgressionDecision(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    if (!DECISION_STATES.includes(input.state)) {
+      throw new TypeError(`Invalid progressionDecision state: ${String(input.state)}`);
+    }
+    if (typeof input.reason !== "string" || input.reason.trim() === "") {
+      throw new TypeError("progressionDecision.reason is required");
+    }
+    return {
+      state: input.state,
+      dimension: typeof input.dimension === "string" ? input.dimension : null,
+      reason: input.reason,
+      observationsUsed: Array.isArray(input.observationsUsed) ? clone(input.observationsUsed) : [],
+      missingObservations: Array.isArray(input.missingObservations)
+        ? clone(input.missingObservations)
+        : [],
+      contradictions: Array.isArray(input.contradictions) ? clone(input.contradictions) : [],
+      createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
+    };
+  }
+
+  function createSessionRecord(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    return {
+      id: typeof input.id === "string" ? input.id : null,
+      activityIntent: knownEnum(input.activityIntent, ACTIVITY_INTENTS, null),
+      includedInHistory: input.includedInHistory === true,
+      startedAt: typeof input.startedAt === "string" ? input.startedAt : null,
+      endedAt: typeof input.endedAt === "string" ? input.endedAt : null,
+      plannedExposure: createActivityExposure(input.plannedExposure),
+      actualExposure: createActivityExposure(input.actualExposure),
+      environmentContext: createEnvironmentContext(input.environmentContext),
+      dailyContext: createDailyContext(input.dailyContext),
+      completion: nullable(input.completion),
+      duringReaction: input.duringReaction ? createReaction(input.duringReaction) : null,
+      postActivityReaction: input.postActivityReaction ? createReaction(input.postActivityReaction) : null,
+      laterReaction: input.laterReaction ? createReaction(input.laterReaction) : null,
+      progressionDecision: input.progressionDecision
+        ? createProgressionDecision(input.progressionDecision)
+        : null,
+      dataQuality: nullable(input.dataQuality),
     };
   }
 
   function normalizeSessionRecord(value = {}) {
-    const base = emptySessionRecord();
+    return createSessionRecord(value);
+  }
+
+  function shouldIncludeSession(record = {}) {
+    const normalized = createSessionRecord(record);
+    if (normalized.activityIntent === "leisure") {
+      return normalized.includedInHistory === true;
+    }
+    return ACTIVITY_INTENTS.includes(normalized.activityIntent);
+  }
+
+  function createObservedToleranceProfile(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    const dimensions = [
+      "duration",
+      "distance",
+      "ascent",
+      "descent",
+      "terrainRegularity",
+      "pauses",
+      "perceivedEffort",
+      "completion",
+    ];
+    const out = {};
+    for (const dimension of dimensions) {
+      const source = input[dimension] && typeof input[dimension] === "object"
+        ? input[dimension]
+        : {};
+      out[dimension] = {
+        observations: Array.isArray(source.observations) ? clone(source.observations) : [],
+        currentReference: source.currentReference === undefined
+          ? null
+          : clone(source.currentReference),
+      };
+    }
+    return out;
+  }
+
+  function deriveObservedToleranceProfile(sessions = []) {
+    const profile = createObservedToleranceProfile();
+    if (!Array.isArray(sessions)) return profile;
+
+    const dimensions = Object.keys(profile);
+    for (const rawSession of sessions) {
+      const session = createSessionRecord(rawSession);
+      if (!session.id) continue;
+      for (const dimension of dimensions) {
+        const observed = session.actualExposure[dimension];
+        if (!observed || observed.source === "unknown" || observed.value === null) continue;
+        profile[dimension].observations.push({
+          sessionId: session.id,
+          dimension,
+          value: clone(observed.value),
+          environmentContext: clone(session.environmentContext),
+          activityIntent: session.activityIntent,
+          reactionSummary: {
+            duringReaction: clone(session.duringReaction),
+            postActivityReaction: clone(session.postActivityReaction),
+            laterReaction: clone(session.laterReaction),
+          },
+          source: observed.source,
+          quality: observed.quality,
+          observedAt: session.endedAt || session.startedAt || null,
+        });
+      }
+    }
+    return profile;
+  }
+
+  function createLongitudinalDocument(value = {}) {
+    const input = value && typeof value === "object" ? value : {};
+    const data = input.data && typeof input.data === "object" ? input.data : {};
     return {
-      id: value.id ?? base.id,
-      date: value.date ?? base.date,
-      mode: MODES.includes(value.mode) ? value.mode : base.mode,
-      includeInHistory: value.includeInHistory === true,
-      prevu: { ...base.prevu, ...(value.prevu || {}) },
-      reel: { ...base.reel, ...(value.reel || {}) },
-      reactions: { ...base.reactions, ...(value.reactions || {}) },
-      decision: value.decision ?? base.decision,
+      schema: SCHEMA,
+      schemaVersion: SCHEMA_VERSION,
+      createdAt: typeof input.createdAt === "string" ? input.createdAt : null,
+      updatedAt: typeof input.updatedAt === "string" ? input.updatedAt : null,
+      data: {
+        baselineState: data.baselineState ? createBaselineState(data.baselineState) : null,
+        functionalGoal: data.functionalGoal ? createFunctionalGoal(data.functionalGoal) : null,
+        currentActivityIntent: knownEnum(data.currentActivityIntent, ACTIVITY_INTENTS, null),
+        sessionRecords: Array.isArray(data.sessionRecords)
+          ? data.sessionRecords.map((entry) => createSessionRecord(entry))
+          : [],
+        observedToleranceProfile: data.observedToleranceProfile
+          ? createObservedToleranceProfile(data.observedToleranceProfile)
+          : createObservedToleranceProfile(),
+        pendingFollowUp: nullable(data.pendingFollowUp),
+        longitudinalSettings: nullable(data.longitudinalSettings),
+      },
     };
   }
 
-  // Une séance en mode "plaisir" ne rejoint l'historique longitudinal
-  // QUE si l'utilisateur l'a explicitement demandé (includeInHistory).
-  // Les trois autres modes rejoignent toujours l'historique : c'est leur
-  // raison d'être (cahier §5.2-§5.4).
-  function shouldRecordSession(record = {}) {
-    const normalized = normalizeSessionRecord(record);
-    if (normalized.mode === "plaisir") return normalized.includeInHistory === true;
-    return MODES.includes(normalized.mode);
-  }
-
-  // ---------------------------------------------------------------------
-  // Réaction — un seul format partagé pour les trois moments (pendant,
-  // après, lendemain), même si les champs pertinents diffèrent selon le
-  // moment (cahier §11). Ce module ne valide pas la pertinence des champs
-  // par moment : c'est à la charge de l'UI (D103E/D103F).
-  // ---------------------------------------------------------------------
-
-  function emptyReaction() {
-    return {
-      moment: null,
-      ecartHabituel: null, // "mieux" | "comme_dhabitude" | "un_peu_moins_bien" | "nettement_moins_bien" | "je_ne_sais_pas"
-      signalements: [],
-      commentaireLibre: null,
-    };
-  }
-
-  function normalizeReaction(value = {}) {
-    const base = emptyReaction();
-    return {
-      moment: REACTION_MOMENTS.includes(value.moment) ? value.moment : base.moment,
-      ecartHabituel: value.ecartHabituel ?? base.ecartHabituel,
-      signalements: Array.isArray(value.signalements) ? value.signalements.slice() : base.signalements,
-      commentaireLibre: value.commentaireLibre ?? base.commentaireLibre,
-    };
-  }
-
-  // ---------------------------------------------------------------------
-  // Décision pour la séance N+1 — cahier §12. Ce module ne calcule
-  // JAMAIS la décision (c'est le périmètre de D103G) : il ne fait que
-  // constituer et valider l'objet, pour que D103G ait un contrat stable
-  // à remplir plutôt qu'une forme à inventer.
-  // ---------------------------------------------------------------------
-
-  function createDecision({ state, reason = null, dimension = null } = {}) {
-    if (!DECISION_STATES.includes(state)) {
-      throw new TypeError(
-        `État de décision invalide : "${state}". Attendu l'un de : ${DECISION_STATES.join(", ")}.`,
-      );
+  function validateLongitudinalDocument(value) {
+    const errors = [];
+    if (!value || typeof value !== "object") {
+      return { valid: false, errors: ["document must be an object"] };
     }
-    return {
-      state,
-      reason: typeof reason === "string" ? reason : null,
-      dimension: typeof dimension === "string" ? dimension : null,
-      // Jamais d'amplitude chiffrée : aucune clé "percent", "amount" ou
-      // équivalente n'existe dans ce contrat, volontairement.
-    };
-  }
+    if (value.schema !== SCHEMA) errors.push("schema mismatch");
+    if (value.schemaVersion !== SCHEMA_VERSION) errors.push("schemaVersion mismatch");
+    if (!value.data || typeof value.data !== "object") errors.push("data must be an object");
 
-  // ---------------------------------------------------------------------
-  // Stockage local (cahier §4.2 : mémoire locale à l'appareil, jamais
-  // synchronisée). Fonctions pures, défensives contre un contenu corrompu
-  // ou absent — ne lèvent jamais d'exception sur une lecture invalide.
-  // ---------------------------------------------------------------------
-
-  const STORAGE_KEYS = Object.freeze({
-    baseline: "jmjs.activityProgression.baseline.v1",
-    history: "jmjs.activityProgression.history.v1",
-  });
-
-  const HISTORY_MAX_ENTRIES = 200;
-
-  function safeParse(raw) {
-    if (typeof raw !== "string" || !raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
+    const records = value.data && value.data.sessionRecords;
+    if (records !== undefined && !Array.isArray(records)) {
+      errors.push("sessionRecords must be an array");
     }
-  }
-
-  function loadBaseline(storage) {
-    if (!storage || typeof storage.getItem !== "function") return emptyBaseline();
-    const parsed = safeParse(storage.getItem(STORAGE_KEYS.baseline));
-    return normalizeBaseline(parsed || {});
-  }
-
-  function saveBaseline(storage, baseline) {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    const normalized = normalizeBaseline(baseline || {});
-    normalized.renseigneeLe = new Date().toISOString();
-    storage.setItem(STORAGE_KEYS.baseline, JSON.stringify(normalized));
-    return true;
-  }
-
-  function loadHistory(storage) {
-    if (!storage || typeof storage.getItem !== "function") return [];
-    const parsed = safeParse(storage.getItem(STORAGE_KEYS.history));
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((entry) => normalizeSessionRecord(entry));
-  }
-
-  // N'ajoute une séance à l'historique que si shouldRecordSession()
-  // l'autorise — jamais d'écriture silencieuse d'une balade plaisir non
-  // demandée. Renvoie l'historique résultant (utile pour les tests et
-  // pour l'UI), plafonné à HISTORY_MAX_ENTRIES (les plus anciennes sont
-  // retirées en premier).
-  function appendSessionRecord(storage, record) {
-    const normalized = normalizeSessionRecord(record);
-    const current = loadHistory(storage);
-    if (!shouldRecordSession(normalized)) return current;
-    const next = [...current, normalized].slice(-HISTORY_MAX_ENTRIES);
-    if (storage && typeof storage.setItem === "function") {
-      storage.setItem(STORAGE_KEYS.history, JSON.stringify(next));
+    if (Array.isArray(records)) {
+      records.forEach((record, index) => {
+        if (!ACTIVITY_INTENTS.includes(record && record.activityIntent)) {
+          errors.push(`sessionRecords[${index}].activityIntent invalid`);
+        }
+      });
     }
-    return next;
+    return { valid: errors.length === 0, errors };
   }
 
-  function previousToleratedSession(storage) {
-    const history = loadHistory(storage);
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      const entry = history[i];
-      const decisionState = entry.decision && entry.decision.state;
-      if (decisionState !== "reduire") return entry;
+  function migrateLongitudinalDocument(value) {
+    if (!value || typeof value !== "object") {
+      throw new TypeError("longitudinal document must be an object");
     }
-    return history.length ? history[history.length - 1] : null;
+    if (value.schema !== SCHEMA) {
+      throw new TypeError("unsupported longitudinal document schema");
+    }
+    if (typeof value.schemaVersion !== "number") {
+      throw new TypeError("missing schemaVersion");
+    }
+    if (value.schemaVersion > SCHEMA_VERSION) {
+      throw new RangeError("future schemaVersion is not supported");
+    }
+    if (value.schemaVersion < SCHEMA_VERSION) {
+      throw new RangeError("no migration path is defined for this schemaVersion");
+    }
+    return createLongitudinalDocument(value);
   }
 
   globalThis.JMMJSActivityProgressionCore = Object.freeze({
-    MODES,
+    SCHEMA,
+    SCHEMA_VERSION,
+    ACTIVITY_INTENTS,
     DECISION_STATES,
+    DATA_SOURCES,
+    DATA_QUALITIES,
     REACTION_MOMENTS,
-    STORAGE_KEYS,
-    emptyBaseline,
-    normalizeBaseline,
-    isBaselineKnown,
-    emptySessionRecord,
+    GOAL_TYPES,
+    createObservedValue,
+    createBaselineState,
+    normalizeBaselineState,
+    createFunctionalGoal,
+    createActivityExposure,
+    normalizeActivityExposure,
+    createReaction,
+    createEnvironmentContext,
+    createDailyContext,
+    createSessionRecord,
     normalizeSessionRecord,
-    shouldRecordSession,
-    emptyReaction,
-    normalizeReaction,
-    createDecision,
-    loadBaseline,
-    saveBaseline,
-    loadHistory,
-    appendSessionRecord,
-    previousToleratedSession,
+    shouldIncludeSession,
+    createObservedToleranceProfile,
+    deriveObservedToleranceProfile,
+    createProgressionDecision,
+    createLongitudinalDocument,
+    validateLongitudinalDocument,
+    migrateLongitudinalDocument,
+    freezeCopy,
   });
 })();
 /* JMMJS_ACTIVITY_PROGRESSION_CORE_END */
