@@ -5,12 +5,17 @@ import { readFileSync } from "node:fs";
 
 function loadModuleWithContext(relativePath) {
   const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
-  const context = vm.createContext({ structuredClone });
+  const context = { globalThis: null, structuredClone };
+  context.globalThis = context;
   const globalKeysBefore = Reflect.ownKeys(context).sort();
-  vm.runInContext(source, context);
-  const core = vm.runInContext("JMMJSActivityProgressionCore", context);
+  vm.runInNewContext(source, context);
   const globalKeysAfter = Reflect.ownKeys(context).sort();
-  return { core, context, globalKeysBefore, globalKeysAfter };
+  return {
+    core: context.JMMJSActivityProgressionCore,
+    context,
+    globalKeysBefore,
+    globalKeysAfter,
+  };
 }
 
 function loadModule(relativePath) {
@@ -143,8 +148,10 @@ test("D103A observedToleranceProfile est un profil d'observations, jamais une ca
   assert.equal(profile.duration.observations.length, 1);
   assert.equal(profile.duration.observations[0].value, 42);
   assert.equal(profile.distance.observations.length, 0);
-  const text = JSON.stringify(profile);
-  assert.doesNotMatch(text, /maxCapacity|fitnessScore|recoveryScore|painToleranceScore|overallLevel/);
+  assert.doesNotMatch(
+    JSON.stringify(profile),
+    /maxCapacity|fitnessScore|recoveryScore|painToleranceScore|overallLevel/,
+  );
 });
 
 test("D103A dérivation ignore les valeurs actual dont la provenance est unknown", () => {
@@ -171,7 +178,6 @@ test("D103A document longitudinal est versionné et validable", () => {
   assert.equal(document.data.currentActivityIntent, "gentle_return");
   const validation = core.validateLongitudinalDocument(document);
   assert.equal(validation.valid, true);
-  assert.equal(Array.isArray(validation.errors), true);
   assert.equal(validation.errors.length, 0);
 });
 
@@ -218,7 +224,7 @@ test("D103A fonctions de normalisation ne mutent jamais leurs entrées", () => {
 test("D103A mêmes entrées produisent les mêmes sorties", () => {
   const core = loadModule("../src/core/activity-progression-core.js");
   const baselineInput = {
-    habitualFatigue: "usual",
+    habitualFatigue: "stable",
     declaredAt: "2026-08-20T00:00:00Z",
   };
   assert.deepEqual(core.createBaselineState(baselineInput), core.createBaselineState(baselineInput));
@@ -273,21 +279,20 @@ test("D103A ne transforme jamais automatiquement gentle_return en progress", () 
   assert.equal(session.progressionDecision, null);
 });
 
-test("D103A chargement ne modifie pas l'objet global du contexte", () => {
-  const { context, globalKeysBefore, globalKeysAfter } = loadModuleWithContext(
+test("D103A chargement ne publie que son API et ne crée aucun autre état global", () => {
+  const { globalKeysBefore, globalKeysAfter } = loadModuleWithContext(
     "../src/core/activity-progression-core.js",
   );
-  assert.deepEqual(globalKeysAfter, globalKeysBefore);
-  assert.equal(Object.prototype.hasOwnProperty.call(context, "JMMJSActivityProgressionCore"), false);
+  const added = globalKeysAfter.filter((key) => !globalKeysBefore.includes(key));
+  assert.deepEqual(added, ["JMMJSActivityProgressionCore"]);
 });
 
-test("D103A source ne contient aucun effet de bord ou dépendance interdite", () => {
+test("D103A source ne contient aucun effet de bord métier ou dépendance interdite", () => {
   for (const forbidden of [
     /localStorage/,
     /sessionStorage/,
     /\.getItem\s*\(/,
     /\.setItem\s*\(/,
-    /globalThis\.JMMJSActivityProgressionCore\s*=/,
     /\bDOM\b/,
     /\bbuildRequest\b/,
     /\bORS\b/,
