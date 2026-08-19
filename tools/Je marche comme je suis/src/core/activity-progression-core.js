@@ -1,10 +1,10 @@
 /* JMMJS_ACTIVITY_PROGRESSION_CORE_START */
-(() => {
+const JMMJSActivityProgressionCore = (() => {
   "use strict";
 
   // D103A — coeur longitudinal pur, déterministe et inerte.
   // Ce module définit uniquement des contrats et fonctions de domaine.
-  // Ce module reste sans effet de bord ni dépendance navigateur.
+  // Le chargement ne modifie ni l'espace global objet, ni le stockage, ni le navigateur.
 
   const SCHEMA = "jmmjs.activity-progression";
   const SCHEMA_VERSION = 1;
@@ -349,7 +349,7 @@
     return createLongitudinalDocument(value);
   }
 
-  globalThis.JMMJSActivityProgressionCore = Object.freeze({
+  return Object.freeze({
     SCHEMA,
     SCHEMA_VERSION,
     ACTIVITY_INTENTS,
