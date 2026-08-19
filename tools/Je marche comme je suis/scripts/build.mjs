@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -62,6 +62,8 @@ const bundles = {
   APP: ["src/app.js"],
 };
 
+const styleOverrides = ["src/styles/d103b-home-visual-correction.css"];
+
 let html = read("je-marche-comme-je-suis.template.html");
 for (const [name, files] of Object.entries(bundles)) {
   const marker = `<!-- JMMJS_BUNDLE:${name} -->`;
@@ -71,6 +73,16 @@ for (const [name, files] of Object.entries(bundles)) {
   const bundledScript = `<script data-jmmjs-bundle="${name.toLowerCase()}">\n${body}\n</script>`;
   // A replacement callback preserves literal `$`, `$$`, `$&`, etc. in JavaScript.
   html = html.replace(marker, () => bundledScript);
+}
+
+const injectedStyles = styleOverrides
+  .filter((relativePath) => existsSync(resolve(root, relativePath)))
+  .map((relativePath) => `<style data-jmmjs-style="${relativePath}">\n${read(relativePath)}\n</style>`)
+  .join("\n");
+
+if (injectedStyles) {
+  if (!html.includes("</head>")) throw new Error("Balise </head> introuvable pour injection CSS.");
+  html = html.replace("</head>", `${injectedStyles}\n</head>`);
 }
 
 writeFileSync(resolve(root, "je-marche-comme-je-suis-p0.html"), `${html}\n`);
