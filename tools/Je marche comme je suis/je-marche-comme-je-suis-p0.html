@@ -8453,279 +8453,422 @@ html,body{max-width:100%;overflow-x:hidden}
 (() => {
   "use strict";
 
-  // D103A — socle de données pur pour l'évolution "reprise et progression
-  // d'activité" (cahier D103, document directeur du 17 août 2026). Ce
-  // module ne contient aucune UX, aucune logique de décision (D103G),
-  // aucun raccordement au moteur de génération de balade (D103H). Il
-  // fixe uniquement les contrats de données et les fonctions de stockage
-  // local, pour que les lots suivants s'appuient sur une forme stable
-  // plutôt que d'improviser.
+  // D103A — cœur longitudinal PUR, DÉTERMINISTE et INERTE.
   //
-  // Rappels de gouvernance directement applicables à ce socle :
-  // - aucune règle fondée sur l'âge seul (cahier §6, §16) ;
-  // - aucun coefficient chiffré de progression/réduction inventé
-  //   (cahier §2.3, §12) ;
-  // - mémoire locale à l'appareil uniquement, jamais synchronisée
-  //   (cahier §4.2) ;
-  // - une balade en mode "plaisir" ne rejoint l'historique que sur choix
-  //   explicite de l'utilisateur (cahier §5.1, arbitrage du 17/08/2026).
+  // Ce module définit uniquement les contrats de données de D103.
+  // Il ne lit ni n'écrit aucun stockage, ne lit pas le DOM, ne connaît
+  // ni S, ni buildRequest(), ni ORS, ni le GPS, ni l'horloge système.
+  // Toute donnée temporelle doit être fournie par l'appelant.
 
-  const MODES = Object.freeze(["plaisir", "reprise", "maintien", "progression"]);
+  const SCHEMA_NAME = "jmmjs.activity-progression";
+  const SCHEMA_VERSION = 1;
 
-  const DECISION_STATES = Object.freeze([
-    "augmenter",
-    "maintenir",
-    "reduire",
-    "preciser",
+  const ACTIVITY_INTENTS = Object.freeze([
+    "leisure",
+    "gentle_return",
+    "maintain",
+    "progress",
   ]);
 
-  const REACTION_MOMENTS = Object.freeze(["pendant", "apres", "lendemain"]);
+  const DECISION_STATES = Object.freeze([
+    "explore",
+    "maintain",
+    "reduce",
+    "clarify",
+  ]);
 
-  function clone(value) {
-    return typeof structuredClone === "function"
-      ? structuredClone(value)
-      : JSON.parse(JSON.stringify(value));
+  const REACTION_MOMENTS = Object.freeze([
+    "during",
+    "post_activity",
+    "later",
+  ]);
+
+  const DATA_SOURCES = Object.freeze([
+    "planned",
+    "measured",
+    "user_reported",
+    "inferred",
+    "unknown",
+  ]);
+
+  const DATA_QUALITIES = Object.freeze([
+    "confirmed",
+    "approximate",
+    "incomplete",
+    "unknown",
+  ]);
+
+  const FUNCTIONAL_GOAL_TYPES = Object.freeze([
+    "activity",
+    "participation",
+    "unspecified",
+  ]);
+
+  const EXPOSURE_DIMENSIONS = Object.freeze([
+    "duration",
+    "distance",
+    "ascent",
+    "descent",
+    "elevation",
+    "terrainRegularity",
+    "pauses",
+    "perceivedEffort",
+    "completion",
+  ]);
+
+  const TOLERANCE_DIMENSIONS = Object.freeze([
+    "duration",
+    "distance",
+    "ascent",
+    "descent",
+    "terrainRegularity",
+    "pauses",
+    "perceivedEffort",
+    "completion",
+  ]);
+
+  function deepClone(value) {
+    if (value === undefined) return undefined;
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
   }
 
-  // ---------------------------------------------------------------------
-  // Baseline (état habituel) — cahier §7.1. Renseignée une seule fois via
-  // l'onboarding (D103C), jamais redemandée en entier à chaque sortie.
-  // ---------------------------------------------------------------------
+  function asObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
 
-  function emptyBaseline() {
+  function nullableString(value) {
+    return typeof value === "string" && value.trim() ? value : null;
+  }
+
+  function normalizeArray(value) {
+    return Array.isArray(value) ? value.map((item) => deepClone(item)) : [];
+  }
+
+  function normalizeMeasurement(value = {}, defaults = {}) {
+    const input = asObject(value);
+    const source = DATA_SOURCES.includes(input.source)
+      ? input.source
+      : (DATA_SOURCES.includes(defaults.source) ? defaults.source : "unknown");
+    const quality = DATA_QUALITIES.includes(input.quality)
+      ? input.quality
+      : (DATA_QUALITIES.includes(defaults.quality) ? defaults.quality : "unknown");
+
     return {
-      painOrGeneUsuelle: null,
-      fatigueHabituelle: null,
-      dureeHabituelleMinutes: null,
-      frequenceHabituelle: null,
-      besoinHabituelDePauses: null,
-      toleranceMontee: null,
-      toleranceDescente: null,
-      toleranceTerrainIrregulier: null,
-      stationDeboutHabituelle: null,
-      equilibreHabituel: null,
-      aideTechnique: null,
-      niveauHabituelActivite: null,
-      renseigneeLe: null,
+      value: Object.prototype.hasOwnProperty.call(input, "value") ? deepClone(input.value) : null,
+      unit: nullableString(input.unit),
+      source,
+      quality,
     };
   }
 
-  function normalizeBaseline(value = {}) {
-    const base = emptyBaseline();
-    const keys = Object.keys(base);
+  // ------------------------------------------------------------------
+  // Baseline — état habituel, jamais une norme de population.
+  // ------------------------------------------------------------------
+
+  function createBaselineState(value = {}) {
+    const input = asObject(value);
+    return {
+      habitualPainOrDiscomfort: deepClone(input.habitualPainOrDiscomfort ?? null),
+      habitualFatigue: deepClone(input.habitualFatigue ?? null),
+      habitualWalkingDuration: deepClone(input.habitualWalkingDuration ?? null),
+      habitualWalkingFrequency: deepClone(input.habitualWalkingFrequency ?? null),
+      habitualPauseNeed: deepClone(input.habitualPauseNeed ?? null),
+      uphillTolerance: deepClone(input.uphillTolerance ?? null),
+      downhillTolerance: deepClone(input.downhillTolerance ?? null),
+      unevenTerrainTolerance: deepClone(input.unevenTerrainTolerance ?? null),
+      standingTolerance: deepClone(input.standingTolerance ?? null),
+      habitualBalance: deepClone(input.habitualBalance ?? null),
+      walkingAid: deepClone(input.walkingAid ?? null),
+      habitualActivityContext: deepClone(input.habitualActivityContext ?? null),
+      declaredAt: nullableString(input.declaredAt),
+    };
+  }
+
+  function normalizeBaselineState(value = {}) {
+    return createBaselineState(value);
+  }
+
+  function isBaselineKnown(value = {}) {
+    const baseline = createBaselineState(value);
+    return Object.entries(baseline).some(
+      ([key, fieldValue]) => key !== "declaredAt" && fieldValue !== null && fieldValue !== undefined,
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Objectif fonctionnel personnel — facultatif, jamais prescriptif.
+  // ------------------------------------------------------------------
+
+  function createFunctionalGoal(value = {}) {
+    const input = asObject(value);
+    return {
+      text: nullableString(input.text),
+      type: FUNCTIONAL_GOAL_TYPES.includes(input.type) ? input.type : "unspecified",
+      userDefined: input.userDefined !== false,
+      status: nullableString(input.status),
+      createdAt: nullableString(input.createdAt),
+      updatedAt: nullableString(input.updatedAt),
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // Contextes — descriptifs et non scorés.
+  // ------------------------------------------------------------------
+
+  function createEnvironmentContext(value = {}) {
+    const input = asObject(value);
+    return {
+      terrainRegularity: deepClone(input.terrainRegularity ?? null),
+      ascentExposure: deepClone(input.ascentExposure ?? null),
+      descentExposure: deepClone(input.descentExposure ?? null),
+      walkingAid: deepClone(input.walkingAid ?? null),
+      pausePattern: deepClone(input.pausePattern ?? null),
+      knownWeatherContext: deepClone(input.knownWeatherContext ?? null),
+      otherRelevantContext: deepClone(input.otherRelevantContext ?? null),
+    };
+  }
+
+  function createDailyContext(value = {}) {
+    const input = asObject(value);
+    return {
+      unusualPhysicalActivity: deepClone(input.unusualPhysicalActivity ?? null),
+      unusualFatigue: deepClone(input.unusualFatigue ?? null),
+      recoveryPerception: deepClone(input.recoveryPerception ?? null),
+      optionalStressContext: deepClone(input.optionalStressContext ?? null),
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // Exposition — multidimensionnelle, avec provenance explicite.
+  // ------------------------------------------------------------------
+
+  function createActivityExposure(value = {}, defaults = {}) {
+    const input = asObject(value);
+    const defaultValues = asObject(defaults);
     const out = {};
-    for (const key of keys) {
-      out[key] = key in value ? value[key] : base[key];
+
+    for (const dimension of EXPOSURE_DIMENSIONS) {
+      out[dimension] = normalizeMeasurement(input[dimension], defaultValues[dimension]);
     }
     return out;
   }
 
-  function isBaselineKnown(baseline = {}) {
-    const normalized = normalizeBaseline(baseline);
-    return Object.keys(emptyBaseline()).some(
-      (key) => normalized[key] !== null && normalized[key] !== undefined,
-    );
+  function normalizeActivityExposure(value = {}, defaults = {}) {
+    return createActivityExposure(value, defaults);
   }
 
-  // ---------------------------------------------------------------------
-  // Séance — charge prévue vs réellement effectuée (cahier §10).
-  // ---------------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // Réactions — contrat partagé, sans interprétation médicale.
+  // ------------------------------------------------------------------
 
-  function emptySessionRecord() {
+  function createReaction(value = {}) {
+    const input = asObject(value);
     return {
-      id: null,
-      date: null,
-      mode: null,
-      includeInHistory: false,
-      prevu: {
-        dureeMinutes: null,
-        terrain: null,
-        denivele: null,
-      },
-      reel: {
-        dureeMinutes: null,
-        distanceMetres: null,
-        deniveleMetres: null,
-        expositionMontee: null,
-        expositionDescente: null,
-        surfaceRegularite: null,
-        allurePercue: null,
-        nombrePauses: null,
-        dureePauses: null,
-        motifPauses: null,
-        interrompue: null,
-        difficultePercue: null,
-      },
-      reactions: {
-        pendant: null,
-        apres: null,
-        lendemain: null,
-      },
-      decision: null,
+      moment: REACTION_MOMENTS.includes(input.moment) ? input.moment : null,
+      relativeToUsual: deepClone(input.relativeToUsual ?? null),
+      signals: normalizeArray(input.signals),
+      freeText: nullableString(input.freeText),
+      recordedAt: nullableString(input.recordedAt),
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // Décision N+1 — contrat uniquement ; aucun calcul de décision ici.
+  // ------------------------------------------------------------------
+
+  function createProgressionDecision(value = {}) {
+    const input = asObject(value);
+    if (!DECISION_STATES.includes(input.state)) {
+      throw new TypeError(
+        `État de décision invalide : "${String(input.state)}". Attendu : ${DECISION_STATES.join(", ")}.`,
+      );
+    }
+
+    const reason = nullableString(input.reason);
+    if (!reason) {
+      throw new TypeError("Une progressionDecision doit toujours contenir une raison explicite.");
+    }
+
+    return {
+      state: input.state,
+      dimension: nullableString(input.dimension),
+      reason,
+      observationsUsed: normalizeArray(input.observationsUsed),
+      missingObservations: normalizeArray(input.missingObservations),
+      contradictions: normalizeArray(input.contradictions),
+      createdAt: nullableString(input.createdAt),
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // Session — planned et actual restent physiquement distincts.
+  // ------------------------------------------------------------------
+
+  function createSessionRecord(value = {}) {
+    const input = asObject(value);
+    return {
+      id: nullableString(input.id),
+      activityIntent: ACTIVITY_INTENTS.includes(input.activityIntent)
+        ? input.activityIntent
+        : null,
+      includedInHistory: input.includedInHistory === true,
+      startedAt: nullableString(input.startedAt),
+      endedAt: nullableString(input.endedAt),
+      plannedExposure: createActivityExposure(input.plannedExposure, {
+        duration: { source: "planned" },
+        distance: { source: "planned" },
+        ascent: { source: "planned" },
+        descent: { source: "planned" },
+        elevation: { source: "planned" },
+        terrainRegularity: { source: "planned" },
+        pauses: { source: "planned" },
+        perceivedEffort: { source: "planned" },
+        completion: { source: "planned" },
+      }),
+      actualExposure: createActivityExposure(input.actualExposure),
+      environmentContext: createEnvironmentContext(input.environmentContext),
+      dailyContext: createDailyContext(input.dailyContext),
+      completion: deepClone(input.completion ?? null),
+      duringReaction: input.duringReaction ? createReaction({ ...input.duringReaction, moment: "during" }) : null,
+      postActivityReaction: input.postActivityReaction
+        ? createReaction({ ...input.postActivityReaction, moment: "post_activity" })
+        : null,
+      laterReaction: input.laterReaction ? createReaction({ ...input.laterReaction, moment: "later" }) : null,
+      progressionDecision: input.progressionDecision
+        ? createProgressionDecision(input.progressionDecision)
+        : null,
+      dataQuality: DATA_QUALITIES.includes(input.dataQuality) ? input.dataQuality : "unknown",
     };
   }
 
   function normalizeSessionRecord(value = {}) {
-    const base = emptySessionRecord();
+    return createSessionRecord(value);
+  }
+
+  function shouldIncludeSessionInHistory(value = {}) {
+    const session = createSessionRecord(value);
+    if (session.activityIntent === "leisure") return session.includedInHistory === true;
+    return ACTIVITY_INTENTS.includes(session.activityIntent);
+  }
+
+  // ------------------------------------------------------------------
+  // Profil de tolérance OBSERVÉE — agrégation de faits fournis.
+  // Aucun seuil de « bonne tolérance » n'est inventé ici.
+  // ------------------------------------------------------------------
+
+  function createObservedToleranceProfile(value = {}) {
+    const input = asObject(value);
+    const profile = {};
+    for (const dimension of TOLERANCE_DIMENSIONS) {
+      const dimensionInput = asObject(input[dimension]);
+      profile[dimension] = {
+        observations: normalizeArray(dimensionInput.observations),
+        currentReference: Object.prototype.hasOwnProperty.call(dimensionInput, "currentReference")
+          ? deepClone(dimensionInput.currentReference)
+          : null,
+      };
+    }
+    return profile;
+  }
+
+  function deriveObservedToleranceProfile(observations = []) {
+    const profile = createObservedToleranceProfile();
+    if (!Array.isArray(observations)) return profile;
+
+    for (const rawObservation of observations) {
+      const observation = asObject(rawObservation);
+      if (!TOLERANCE_DIMENSIONS.includes(observation.dimension)) continue;
+      profile[observation.dimension].observations.push(deepClone(observation));
+    }
+    return profile;
+  }
+
+  // ------------------------------------------------------------------
+  // Document longitudinal versionné — migration pure et déterministe.
+  // ------------------------------------------------------------------
+
+  function createLongitudinalDocument(data = {}, metadata = {}) {
+    const meta = asObject(metadata);
     return {
-      id: value.id ?? base.id,
-      date: value.date ?? base.date,
-      mode: MODES.includes(value.mode) ? value.mode : base.mode,
-      includeInHistory: value.includeInHistory === true,
-      prevu: { ...base.prevu, ...(value.prevu || {}) },
-      reel: { ...base.reel, ...(value.reel || {}) },
-      reactions: { ...base.reactions, ...(value.reactions || {}) },
-      decision: value.decision ?? base.decision,
+      schema: SCHEMA_NAME,
+      schemaVersion: SCHEMA_VERSION,
+      createdAt: nullableString(meta.createdAt),
+      updatedAt: nullableString(meta.updatedAt),
+      data: deepClone(asObject(data)),
     };
   }
 
-  // Une séance en mode "plaisir" ne rejoint l'historique longitudinal
-  // QUE si l'utilisateur l'a explicitement demandé (includeInHistory).
-  // Les trois autres modes rejoignent toujours l'historique : c'est leur
-  // raison d'être (cahier §5.2-§5.4).
-  function shouldRecordSession(record = {}) {
-    const normalized = normalizeSessionRecord(record);
-    if (normalized.mode === "plaisir") return normalized.includeInHistory === true;
-    return MODES.includes(normalized.mode);
-  }
+  function validateLongitudinalDocument(document) {
+    const input = asObject(document);
+    const errors = [];
 
-  // ---------------------------------------------------------------------
-  // Réaction — un seul format partagé pour les trois moments (pendant,
-  // après, lendemain), même si les champs pertinents diffèrent selon le
-  // moment (cahier §11). Ce module ne valide pas la pertinence des champs
-  // par moment : c'est à la charge de l'UI (D103E/D103F).
-  // ---------------------------------------------------------------------
+    if (input.schema !== SCHEMA_NAME) errors.push("schema");
+    if (!Number.isInteger(input.schemaVersion)) errors.push("schemaVersion");
+    if (input.schemaVersion > SCHEMA_VERSION) errors.push("futureSchemaVersion");
+    if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) errors.push("data");
 
-  function emptyReaction() {
     return {
-      moment: null,
-      ecartHabituel: null, // "mieux" | "comme_dhabitude" | "un_peu_moins_bien" | "nettement_moins_bien" | "je_ne_sais_pas"
-      signalements: [],
-      commentaireLibre: null,
+      valid: errors.length === 0,
+      errors,
+      schemaVersion: Number.isInteger(input.schemaVersion) ? input.schemaVersion : null,
     };
   }
 
-  function normalizeReaction(value = {}) {
-    const base = emptyReaction();
-    return {
-      moment: REACTION_MOMENTS.includes(value.moment) ? value.moment : base.moment,
-      ecartHabituel: value.ecartHabituel ?? base.ecartHabituel,
-      signalements: Array.isArray(value.signalements) ? value.signalements.slice() : base.signalements,
-      commentaireLibre: value.commentaireLibre ?? base.commentaireLibre,
-    };
-  }
+  function migrateLongitudinalDocument(document) {
+    const input = deepClone(asObject(document));
 
-  // ---------------------------------------------------------------------
-  // Décision pour la séance N+1 — cahier §12. Ce module ne calcule
-  // JAMAIS la décision (c'est le périmètre de D103G) : il ne fait que
-  // constituer et valider l'objet, pour que D103G ait un contrat stable
-  // à remplir plutôt qu'une forme à inventer.
-  // ---------------------------------------------------------------------
-
-  function createDecision({ state, reason = null, dimension = null } = {}) {
-    if (!DECISION_STATES.includes(state)) {
-      throw new TypeError(
-        `État de décision invalide : "${state}". Attendu l'un de : ${DECISION_STATES.join(", ")}.`,
+    if (input.schema !== SCHEMA_NAME) {
+      throw new TypeError(`Schéma longitudinal incompatible : "${String(input.schema)}".`);
+    }
+    if (!Number.isInteger(input.schemaVersion)) {
+      throw new TypeError("Version de schéma longitudinale absente ou invalide.");
+    }
+    if (input.schemaVersion > SCHEMA_VERSION) {
+      throw new RangeError(
+        `Version future non supportée : ${input.schemaVersion} > ${SCHEMA_VERSION}.`,
       );
     }
-    return {
-      state,
-      reason: typeof reason === "string" ? reason : null,
-      dimension: typeof dimension === "string" ? dimension : null,
-      // Jamais d'amplitude chiffrée : aucune clé "percent", "amount" ou
-      // équivalente n'existe dans ce contrat, volontairement.
-    };
+
+    // v1 est la première version canonique. Les migrations futures seront
+    // ajoutées ici séquentiellement (v1→v2, v2→v3, ...).
+    if (input.schemaVersion === SCHEMA_VERSION) return input;
+
+    throw new RangeError(`Aucune migration disponible depuis la version ${input.schemaVersion}.`);
   }
 
-  // ---------------------------------------------------------------------
-  // Stockage local (cahier §4.2 : mémoire locale à l'appareil, jamais
-  // synchronisée). Fonctions pures, défensives contre un contenu corrompu
-  // ou absent — ne lèvent jamais d'exception sur une lecture invalide.
-  // ---------------------------------------------------------------------
-
-  const STORAGE_KEYS = Object.freeze({
-    baseline: "jmjs.activityProgression.baseline.v1",
-    history: "jmjs.activityProgression.history.v1",
-  });
-
-  const HISTORY_MAX_ENTRIES = 200;
-
-  function safeParse(raw) {
-    if (typeof raw !== "string" || !raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  }
-
-  function loadBaseline(storage) {
-    if (!storage || typeof storage.getItem !== "function") return emptyBaseline();
-    const parsed = safeParse(storage.getItem(STORAGE_KEYS.baseline));
-    return normalizeBaseline(parsed || {});
-  }
-
-  function saveBaseline(storage, baseline) {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    const normalized = normalizeBaseline(baseline || {});
-    normalized.renseigneeLe = new Date().toISOString();
-    storage.setItem(STORAGE_KEYS.baseline, JSON.stringify(normalized));
-    return true;
-  }
-
-  function loadHistory(storage) {
-    if (!storage || typeof storage.getItem !== "function") return [];
-    const parsed = safeParse(storage.getItem(STORAGE_KEYS.history));
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((entry) => normalizeSessionRecord(entry));
-  }
-
-  // N'ajoute une séance à l'historique que si shouldRecordSession()
-  // l'autorise — jamais d'écriture silencieuse d'une balade plaisir non
-  // demandée. Renvoie l'historique résultant (utile pour les tests et
-  // pour l'UI), plafonné à HISTORY_MAX_ENTRIES (les plus anciennes sont
-  // retirées en premier).
-  function appendSessionRecord(storage, record) {
-    const normalized = normalizeSessionRecord(record);
-    const current = loadHistory(storage);
-    if (!shouldRecordSession(normalized)) return current;
-    const next = [...current, normalized].slice(-HISTORY_MAX_ENTRIES);
-    if (storage && typeof storage.setItem === "function") {
-      storage.setItem(STORAGE_KEYS.history, JSON.stringify(next));
-    }
-    return next;
-  }
-
-  function previousToleratedSession(storage) {
-    const history = loadHistory(storage);
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      const entry = history[i];
-      const decisionState = entry.decision && entry.decision.state;
-      if (decisionState !== "reduire") return entry;
-    }
-    return history.length ? history[history.length - 1] : null;
-  }
-
-  globalThis.JMMJSActivityProgressionCore = Object.freeze({
-    MODES,
+  const API = {
+    SCHEMA_NAME,
+    SCHEMA_VERSION,
+    ACTIVITY_INTENTS,
     DECISION_STATES,
     REACTION_MOMENTS,
-    STORAGE_KEYS,
-    emptyBaseline,
-    normalizeBaseline,
+    DATA_SOURCES,
+    DATA_QUALITIES,
+    FUNCTIONAL_GOAL_TYPES,
+    EXPOSURE_DIMENSIONS,
+    TOLERANCE_DIMENSIONS,
+    createBaselineState,
+    normalizeBaselineState,
     isBaselineKnown,
-    emptySessionRecord,
+    createFunctionalGoal,
+    createEnvironmentContext,
+    createDailyContext,
+    createActivityExposure,
+    normalizeActivityExposure,
+    createReaction,
+    createProgressionDecision,
+    createSessionRecord,
     normalizeSessionRecord,
-    shouldRecordSession,
-    emptyReaction,
-    normalizeReaction,
-    createDecision,
-    loadBaseline,
-    saveBaseline,
-    loadHistory,
-    appendSessionRecord,
-    previousToleratedSession,
-  });
+    shouldIncludeSessionInHistory,
+    createObservedToleranceProfile,
+    deriveObservedToleranceProfile,
+    createLongitudinalDocument,
+    validateLongitudinalDocument,
+    migrateLongitudinalDocument,
+  };
+
+  globalThis.JMMJSActivityProgressionCore = Object.freeze(API);
 })();
 /* JMMJS_ACTIVITY_PROGRESSION_CORE_END */
 /* JMMJS_PERIPHERAL_REGISTRY_START */
