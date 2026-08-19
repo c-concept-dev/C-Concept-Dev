@@ -1783,6 +1783,15 @@ body:not(.journey-started) .topbar{display:flex!important}
 
 <style id="d103-exact-visual-style">
 /* D103B exact visual: uses approved mockups as immutable visual source.
+
+body:not(.journey-started),
+body:not(.journey-started) .shell{
+  min-height:100vh!important;
+  margin:0!important;
+  padding:0!important;
+  background:#F4EFE4!important
+}
+body:not(.journey-started) .d103-exact-visual{min-height:100vh!important}
    Only old logo + terracotta accents differ from the approved image. */
 body:not(.journey-started) .topbar{display:none!important}
 body:not(.journey-started) .d103-home{
@@ -1795,7 +1804,9 @@ body:not(.journey-started) .landing-exact,
 body:not(.journey-started) .landing-mobile-exact,
 body:not(.journey-started) main.hero{display:none!important}
 .d103-exact-visual{
-  position:relative;display:block;width:100%;aspect-ratio:1672/941;
+  position:relative;display:block;width:100%;
+  height:max(100vh,calc(100vw * 941 / 1672));
+  min-height:100vh;
   background-image:url('./icons/d103-home-desktop-first.png');
   background-position:top center;background-size:100% 100%;background-repeat:no-repeat;
   overflow:hidden;margin:0 auto
@@ -1819,7 +1830,8 @@ body:not(.journey-started) main.hero{display:none!important}
 .d103-exact-visual[data-home-state="first_visit"] .hit-return{display:none}
 @media(max-width:767px){
   .d103-exact-visual{
-    aspect-ratio:1024/1536;
+    height:max(100vh,calc(100vw * 1536 / 1024));
+    min-height:100vh;
     background-image:url('./icons/d103-home-mobile-first.png')
   }
   .d103-exact-visual[data-home-state="returning"]{
