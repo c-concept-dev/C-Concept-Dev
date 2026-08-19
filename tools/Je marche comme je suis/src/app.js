@@ -1158,6 +1158,8 @@
     if (!host || !activityIntentHomeCore) return;
     const home = activityIntentHomeCore.deriveHomeState(longitudinalDocumentOrNull());
     host.dataset.homeState = home.state;
+    const exactVisual = $("#d103ExactVisual");
+    if (exactVisual) exactVisual.dataset.homeState = home.state;
     const returning = $("#d103Returning");
     if (returning) returning.hidden = !home.historyAvailable;
     if (home.lastSession) {
@@ -1209,6 +1211,13 @@
   $$(".d103-intent-card").forEach((card) => {
     card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent);
   });
+  $$(".d103-exact-hit.hit-intent").forEach((card) => {
+    card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent);
+  });
+  if ($("#d103ExactChoose")) $("#d103ExactChoose").onclick = () => $("#d103ExactVisual .hit-leisure")?.focus();
+  if ($("#d103ExactSupport")) $("#d103ExactSupport").onclick = () => $("#d103ExactVisual .hit-gentle")?.focus();
+  if ($("#d103ExactHelp")) $("#d103ExactHelp").onclick = () => $("#helpBtn")?.click();
+  if ($("#d103ExactReturn")) $("#d103ExactReturn").onclick = () => $("#d103PrepareReturning")?.click();
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $(".d103-principles")?.scrollIntoView({ behavior: "smooth", block: "center" });
   if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
