@@ -64,6 +64,10 @@
   const privacyController = globalThis.JMMJSPrivacyCore.createPrivacyController({
     storage: globalThis.localStorage,
   });
+  const activityProgressionPersistence =
+    globalThis.JMMJSActivityProgressionPersistence.createPersistenceController({
+      storage: globalThis.localStorage,
+    });
   const sessionPrivacyController =
     globalThis.JMMJSSessionPrivacyCore.createSessionPrivacyController({
       storage: globalThis.sessionStorage,
@@ -5407,6 +5411,7 @@
     $("#cancelClearData").onclick = () => modal.classList.remove("show");
     $("#confirmClearData").onclick = () => {
       privacyController.purge();
+      activityProgressionPersistence.purge();
       sessionPrivacyController.clearSession();
       serviceObservability.clear();
       clearOfflineSnapshot(globalThis.localStorage);
