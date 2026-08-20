@@ -47,6 +47,7 @@ const bundles = {
     "src/core/activity-progression-persistence.js",
     "src/core/activity-intent-home-core.js",
     "src/core/activity-baseline-core.js",
+    "src/core/activity-today-core.js",
     "src/core/peripheral-registry.js",
     "src/peripherals/service-client.js",
     "src/peripherals/ors-provider.js",
