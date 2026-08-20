@@ -1113,6 +1113,7 @@
   const activityIntentHomeCore = globalThis.JMMJSActivityIntentHomeCore;
   const activityBaselineCore = globalThis.JMMJSActivityBaselineCore;
   const activityTodayCore = globalThis.JMMJSActivityTodayCore;
+  const activityAdaptationCore = globalThis.JMMJSActivityAdaptationCore;
   let selectedActivityIntent = null;
   const baselineDefaults = Object.freeze({ energy: "medium", walkingEase: "rather_easy", duration: "1_to_2h", pauses: "sometimes" });
   let baselineSelections = { ...baselineDefaults };
@@ -1296,20 +1297,33 @@
     };
   });
 
+  function deriveD103PreparationAdaptation() {
+    if (!activityAdaptationCore) return null;
+    return activityAdaptationCore.deriveAdaptation({
+      activityIntent: selectedActivityIntent,
+      baseline: baselineSelections,
+      today: todaySelections,
+      functionalGoal: todaySelections.functionalGoal,
+    });
+  }
+
   function applyD103TodayToPreparation() {
-    const durationMap = { under_1h: 50, "1_to_2h": 90, "2_to_3h": 150, over_3h: 210 };
-    const fitnessMap = { lower: 2, same: 3, higher: 4, much_higher: 5 };
-    const painMap = { important: 7, moderate: 4, light: 2, none: 0 };
+    const adaptation = deriveD103PreparationAdaptation();
+    if (!adaptation || adaptation.status !== "ready") return adaptation;
     const duration = $("#duration");
-    const fitness = $("#fitness");
-    const pain = $("#pain");
-    if (duration && durationMap[todaySelections.availableTime]) duration.value = String(durationMap[todaySelections.availableTime]);
-    if (fitness && fitnessMap[todaySelections.energy]) fitness.value = String(fitnessMap[todaySelections.energy]);
-    if (pain && Number.isFinite(painMap[todaySelections.discomfort])) pain.value = String(painMap[todaySelections.discomfort]);
-    if (duration) duration.dispatchEvent(new Event("input", { bubbles: true }));
-    if (fitness) fitness.dispatchEvent(new Event("input", { bubbles: true }));
-    if (pain) pain.dispatchEvent(new Event("input", { bubbles: true }));
+    const margin = $("#margin");
+    if (duration && Number.isFinite(adaptation.preparation.durationMinutes)) {
+      duration.value = String(adaptation.preparation.durationMinutes);
+      duration.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    if (margin && Number.isFinite(adaptation.preparation.safetyMarginMinutes)) {
+      margin.value = String(adaptation.preparation.safetyMarginMinutes);
+      margin.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    // D103D : énergie ≠ forme/fatigue et gêne ≠ douleur. Ces champs ne sont jamais déduits.
+    S.d103Adaptation = adaptation;
     updateLiveSummary();
+    return adaptation;
   }
 
   if ($("#d103TodayContinue")) $("#d103TodayContinue").onclick = () => {
