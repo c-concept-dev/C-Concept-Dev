@@ -1162,6 +1162,7 @@
     if (!host || !activityIntentHomeCore) return;
     const home = activityIntentHomeCore.deriveHomeState(longitudinalDocumentOrNull());
     host.dataset.homeState = home.state;
+    host.dataset.lastIntent = home.lastSession?.activityIntent || "";
     const returning = $("#d103Returning");
     if (returning) returning.hidden = !home.historyAvailable;
     if (home.lastSession) {
@@ -1169,9 +1170,12 @@
       if ($("#d103LastReaction")) $("#d103LastReaction").textContent = summarizeD103Reaction(home.lastSession);
       if ($("#d103LastIntent")) $("#d103LastIntent").textContent = activityIntentHomeCore.intentLabel(home.lastSession.activityIntent) || "Non renseignée";
     }
-    // Une intention passée n'est jamais présélectionnée automatiquement.
     selectedActivityIntent = null;
-    $$(".d103-intent-card").forEach((card) => card.setAttribute("aria-pressed", "false"));
+    const statusNode = $("#d103NeedStatus");
+    if (statusNode) {
+      statusNode.hidden = true;
+      statusNode.textContent = "";
+    }
   }
 
   function loadD103BaselineSelections() {
@@ -1240,37 +1244,81 @@
     return activityProgressionPersistence.saveDocument(nextDocument);
   }
 
-  function chooseD103ActivityIntent(intent) {
-    if (!activityIntentHomeCore?.isActivityIntent(intent)) return;
-    const result = saveD103ActivityIntent(intent);
+  function deriveD103HealthIntent(homeState) {
+    const lastIntent = homeState?.lastSession?.activityIntent;
+    if (activityIntentHomeCore?.isActivityIntent(lastIntent) && lastIntent !== "leisure") return lastIntent;
+    return homeState?.historyAvailable ? "maintain" : "gentle_return";
+  }
+
+  function setD103NeedStatus(message) {
+    const statusNode = $("#d103NeedStatus");
+    if (!statusNode) return;
+    if (!message) {
+      statusNode.hidden = true;
+      statusNode.textContent = "";
+      return;
+    }
+    statusNode.hidden = false;
+    statusNode.textContent = message;
+  }
+
+  function openD103WalkPath() {
+    const result = saveD103ActivityIntent("leisure");
     if (!result?.persisted) {
       say("Impossible d’enregistrer ce choix sur cet appareil. Vous pouvez tout de même continuer avec une balade simple.");
-      if (intent === "leisure") mode("api");
+    }
+    selectedActivityIntent = "leisure";
+    setD103NeedStatus("Balade sur mesure choisie. Nous préparons une sortie adaptée à votre état du jour.");
+    mode("api");
+  }
+
+  function openD103HealthPath(preferredIntent = null) {
+    const homeState = activityIntentHomeCore?.deriveHomeState(longitudinalDocumentOrNull()) || { historyAvailable: false, lastSession: null };
+    const intent = activityIntentHomeCore?.isActivityIntent(preferredIntent) ? preferredIntent : deriveD103HealthIntent(homeState);
+    const result = saveD103ActivityIntent(intent);
+    if (!result?.persisted) {
+      say("Impossible d’enregistrer ce choix sur cet appareil.");
       return;
     }
     selectedActivityIntent = intent;
-    $$(".d103-intent-card").forEach((card) => card.setAttribute("aria-pressed", String(card.dataset.activityIntent === intent)));
-    const statusNode = $("#d103IntentStatus");
-    if (statusNode) {
-      statusNode.hidden = false;
-      statusNode.textContent = `Intention choisie : ${activityIntentHomeCore.intentLabel(intent)}. Vous pourrez changer à tout moment.`;
-    }
-    if (intent === "leisure") {
-      // D103B : le mode leisure conserve strictement l'entrée dans le parcours stable D102G3.
-      mode("api");
-    } else {
-      let baselineComplete = false;
-      try { baselineComplete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch { baselineComplete = false; }
-      if (baselineComplete) showD103Today();
-      else showD103Baseline();
-    }
+    setD103NeedStatus(`Élan santé choisi : ${activityIntentHomeCore.intentLabel(intent)}. Vous pourrez ajuster la suite à tout moment.`);
+    let baselineComplete = false;
+    try { baselineComplete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch { baselineComplete = false; }
+    if (baselineComplete) showD103Today();
+    else showD103Baseline();
   }
 
-  $$(".d103-intent-card").forEach((card) => { card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent); });
-  if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $(".d103-principles")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  function chooseD103ActivityIntent(intent) {
+    if (!activityIntentHomeCore?.isActivityIntent(intent)) return;
+    if (intent === "leisure") {
+      openD103WalkPath();
+      return;
+    }
+    openD103HealthPath(intent);
+  }
+
+  if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103NeedChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $("#d103HomeBenefits")?.scrollIntoView({ behavior: "smooth", block: "center" });
   if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
-  if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => { selectedActivityIntent = "maintain"; let complete = false; try { complete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch {} if (complete) showD103Today(); else showD103Baseline(); };
+  if ($("#d103ChooseWalkPath")) $("#d103ChooseWalkPath").onclick = openD103WalkPath;
+  if ($("#d103ChooseHealthPath")) $("#d103ChooseHealthPath").onclick = () => openD103HealthPath();
+  $$("[data-scroll-target]").forEach((button) => {
+    button.onclick = () => {
+      const id = button.dataset.scrollTarget;
+      if (!id) return;
+      const node = $("#" + id);
+      node?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+  if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => {
+    const homeState = activityIntentHomeCore?.deriveHomeState(longitudinalDocumentOrNull()) || { historyAvailable: false, lastSession: null };
+    const lastIntent = homeState?.lastSession?.activityIntent;
+    if (lastIntent === "leisure") {
+      openD103WalkPath();
+      return;
+    }
+    openD103HealthPath(lastIntent);
+  };
 
   $$(".d103-baseline-choice").forEach((button) => {
     button.onclick = () => {
