@@ -205,6 +205,7 @@ body.screen-baseline .baseline-screen{display:block}
 .baseline-mobile{display:none;width:min(100%,382px);aspect-ratio:382/981;background-image:url("icons/d103c-baseline-approved.png");background-size:419.371728% 100%;background-position:right top}
 .baseline-hotspot{position:absolute;display:block;border:0;background:transparent;padding:0;margin:0;appearance:none;-webkit-appearance:none;cursor:pointer;color:transparent}
 .baseline-hotspot:focus-visible{outline:2px solid rgba(23,63,40,.6);outline-offset:2px;border-radius:8px}
+.baseline-hotspot[data-group].is-selected{border:2px solid #6F7E48!important;border-radius:9px!important;background:rgba(138,154,91,.10)!important;box-shadow:0 0 0 2px rgba(255,253,250,.72) inset!important}
 .baseline-desktop [data-role="home"]{left:1.4%;top:1.1%;width:18%;height:8.2%}
 .baseline-desktop [data-role="help"]{left:91.2%;top:1.1%;width:7.4%;height:5.7%}
 .baseline-desktop .r1.c1{left:29.6%;top:39.7%;width:14.4%;height:8.9%}
@@ -269,7 +270,7 @@ body.screen-baseline .baseline-screen{display:block}
       <div class="pill">Avancez à votre rythme, en confiance.</div>
       <p>Choisissez ce qui vous ressemble le plus aujourd’hui.<br>Vous pourrez changer à tout moment.</p>
       <div class="ctas">
-        <a class="btn primary" href="balade.html" target="_blank" rel="noopener">♟&nbsp; Choisir ma balade</a>
+        <a class="btn primary" href="scripts/je-marche-comme-je-suis-p0.html">♟&nbsp; Choisir ma balade</a>
         <a class="btn secondary" href="accompagnement.html" target="_blank" rel="noopener">🍃&nbsp; Découvrir l’accompagnement</a>
       </div>
     </div>
@@ -279,7 +280,7 @@ body.screen-baseline .baseline-screen{display:block}
     <h2 class="section-title">Qu’avez-vous envie de faire aujourd’hui&nbsp;?</h2>
 
     <section class="cards" aria-label="Choix du parcours">
-      <a class="card" href="balade.html" target="_blank" rel="noopener">
+      <a class="card" href="scripts/je-marche-comme-je-suis-p0.html">
         <img src="icons/d103-accueil-me-balader.webp" alt="Promeneur sur un sentier boisé">
         <div class="card-body"><h3>Me balader</h3><p>Une balade simple, adaptée à votre envie du moment.</p></div>
         <span class="arrow">›</span>
@@ -418,12 +419,23 @@ body.screen-baseline .baseline-screen{display:block}
     try { localStorage.setItem(baselineKey, JSON.stringify({ ...state, savedAt: new Date().toISOString() })); } catch(e) {}
   }
 
+  function renderState(){
+    choiceButtons.forEach((btn)=>{
+      const group = btn.getAttribute('data-group');
+      const value = btn.getAttribute('data-value');
+      const selected = Boolean(group && value && state[group] === value);
+      btn.classList.toggle('is-selected', selected);
+      btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+  }
+
   function openBaseline(intent){
     if (intent) {
       try { localStorage.setItem(intentKey, intent); } catch(e) {}
     }
     body.classList.add('screen-baseline');
     baselineScreen.hidden = false;
+    renderState();
     window.scrollTo(0,0);
   }
 
@@ -453,14 +465,17 @@ body.screen-baseline .baseline-screen{display:block}
       if (!group || !value) return;
       state[group] = value;
       saveState();
+      renderState();
       if (status) status.textContent = 'Sélection enregistrée.';
     });
   });
 
+  renderState();
+
   continueButtons.forEach((btn)=>{
     btn.addEventListener('click', ()=>{
       saveState();
-      window.location.href = 'balade.html';
+      window.location.href = 'scripts/je-marche-comme-je-suis-p0.html';
     });
   });
 })();
