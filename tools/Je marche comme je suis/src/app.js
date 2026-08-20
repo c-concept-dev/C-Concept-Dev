@@ -1114,6 +1114,7 @@
   const activityBaselineCore = globalThis.JMMJSActivityBaselineCore;
   const activityTodayCore = globalThis.JMMJSActivityTodayCore;
   const activityAdaptationCore = globalThis.JMMJSActivityAdaptationCore;
+  const activityAdaptationPresenterCore = globalThis.JMMJSActivityAdaptationPresenterCore;
   let selectedActivityIntent = null;
   const baselineDefaults = Object.freeze({ energy: "medium", walkingEase: "rather_easy", duration: "1_to_2h", pauses: "sometimes" });
   let baselineSelections = { ...baselineDefaults };
@@ -1926,6 +1927,26 @@
       "</section>"
     );
   }
+
+  function renderD103AdaptationExplanation(adaptation) {
+    if (!activityAdaptationPresenterCore) return "";
+    const model = activityAdaptationPresenterCore.present(adaptation);
+    if (!model?.visible) return "";
+    const items = (model.items || []).map((item) =>
+      '<article class="d103e-adjustment-item"><span>' + esc(item.label) + '</span><strong>' + esc(item.value) + '</strong><small>' + esc(item.detail) + '</small></article>'
+    ).join("");
+    const progression = model.progressionText
+      ? '<p class="d103e-progression">' + esc(model.progressionText) + '</p>'
+      : "";
+    return '<section class="d103e-adaptation d103e-tone-' + esc(model.tone || "standard") + '" aria-labelledby="d103eAdaptationTitle">' +
+      '<div class="d103e-head"><div><span class="d103e-kicker">Adaptation du jour</span><h4 id="d103eAdaptationTitle">' + esc(model.title) + '</h4><p>' + esc(model.subtitle) + '</p></div><button type="button" class="d103e-edit" data-go="0">Modifier</button></div>' +
+      '<div class="d103e-message"><strong>' + esc(model.messageTitle) + '</strong><span>' + esc(model.messageText) + '</span></div>' +
+      '<div class="d103e-adjustment-grid">' + items + '</div>' +
+      progression +
+      '<p class="d103e-disclosure">' + esc(model.disclosure) + '</p>' +
+      '</section>';
+  }
+
   function renderConstraintSummary() {
     const host = $("#constraintSummary");
     if (!host) return;
@@ -1972,6 +1993,7 @@
     host.className = "review-card review-card-compact";
     host.innerHTML =
       '<div class="review-head review-head-compact"><div><h3>Vérifier avant de calculer</h3><p>Un dernier coup d’œil suffit. Les détails restent disponibles si vous souhaitez les relire.</p></div><span class="review-status">Prêt</span></div>' +
+      renderD103AdaptationExplanation(S.d103Adaptation) +
       '<div class="review-grid review-grid-compact">' +
       reviewBlock("Départ", departureText, 0) +
       reviewBlock("Temps", durationText, 0) +
