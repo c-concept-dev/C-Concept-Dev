@@ -1111,197 +1111,97 @@
   updateLiveSummary();
 
   const activityIntentHomeCore = globalThis.JMMJSActivityIntentHomeCore;
+  const activityBaselineCore = globalThis.JMMJSActivityBaselineCore;
   let selectedActivityIntent = null;
+  let baselineSelections = activityBaselineCore?.loadBaseline(globalThis.localStorage) || {};
+  if (!activityBaselineCore?.isComplete(baselineSelections)) baselineSelections = { energy:"medium", walkingEase:"rather_easy", duration:"1_to_2h", pauses:"sometimes" };
 
   function longitudinalDocumentOrNull() {
     const loaded = activityProgressionPersistence.loadDocument();
     return loaded?.loaded ? loaded.document : null;
   }
-
   function formatD103Date(value) {
     if (typeof value !== "string" || value.trim() === "") return "Date non renseignée";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "Date non renseignée";
-    return new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(date);
+    const date = new Date(value); if (Number.isNaN(date.getTime())) return "Date non renseignée";
+    return new Intl.DateTimeFormat("fr-FR", {day:"numeric",month:"short",year:"numeric"}).format(date);
   }
-
   function knownExposureText(observed, suffix) {
     if (!observed || observed.source === "unknown" || observed.value === null || observed.value === undefined) return null;
-    const value = Number(observed.value);
-    if (!Number.isFinite(value)) return null;
-    return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(value)} ${suffix}`;
+    const value = Number(observed.value); if (!Number.isFinite(value)) return null;
+    return `${new Intl.NumberFormat("fr-FR",{maximumFractionDigits:1}).format(value)} ${suffix}`;
   }
-
   function summarizeD103LastWalk(session) {
     if (!session) return "Aucune balade enregistrée";
-    const parts = [formatD103Date(session.endedAt || session.startedAt)];
-    const duration = knownExposureText(session.actualExposure?.duration, session.actualExposure?.duration?.unit || "min");
-    const distance = knownExposureText(session.actualExposure?.distance, session.actualExposure?.distance?.unit || "km");
-    if (duration || distance) parts.push([duration, distance].filter(Boolean).join(" · "));
-    return parts.join(" · ");
+    const parts=[formatD103Date(session.endedAt||session.startedAt)];
+    const duration=knownExposureText(session.actualExposure?.duration,session.actualExposure?.duration?.unit||"min");
+    const distance=knownExposureText(session.actualExposure?.distance,session.actualExposure?.distance?.unit||"km");
+    if(duration||distance) parts.push([duration,distance].filter(Boolean).join(" · ")); return parts.join(" · ");
   }
-
   function summarizeD103Reaction(session) {
-    const reaction = session?.laterReaction || session?.postActivityReaction || session?.duringReaction;
-    if (!reaction) return "Ressenti non renseigné";
-    if (typeof reaction.freeText === "string" && reaction.freeText.trim()) return reaction.freeText.trim();
-    if (Array.isArray(reaction.signals) && reaction.signals.length) return "Un ressenti a été enregistré";
-    return "Ressenti enregistré";
+    const reaction=session?.laterReaction||session?.postActivityReaction||session?.duringReaction;
+    if(!reaction) return "Ressenti non renseigné";
+    if(typeof reaction.freeText==="string"&&reaction.freeText.trim()) return reaction.freeText.trim();
+    if(Array.isArray(reaction.signals)&&reaction.signals.length) return "Un ressenti a été enregistré"; return "Ressenti enregistré";
   }
-
-
-  const baselineDefaults = Object.freeze({
-    energy: "medium",
-    walkingEase: "rather_easy",
-    preferredDuration: "1_to_2h",
-    pauseNeed: "sometimes",
-  });
-  let baselineSelections = { ...baselineDefaults };
-
-  function renderD103Baseline() {
-    $$(".d103-baseline-choice").forEach((button) => {
-      const group = button.dataset.baselineGroup;
-      const value = button.dataset.value;
-      button.setAttribute("aria-pressed", String(baselineSelections[group] === value));
-    });
+  function renderD103Baseline(){
+    $$(".d103-baseline-choice").forEach((button)=>button.setAttribute("aria-pressed",String(baselineSelections[button.dataset.baselineGroup]===button.dataset.value)));
   }
-
-  function showD103Baseline() {
-    const home = $("#d103Home");
-    const baseline = $("#d103Baseline");
-    if (home) home.hidden = true;
-    if (baseline) baseline.hidden = false;
-    renderD103Baseline();
-    window.scrollTo(0, 0);
+  function showD103Baseline(){
+    if($("#d103Home")) $("#d103Home").hidden=true;
+    if($("#d103Baseline")) $("#d103Baseline").hidden=false;
+    renderD103Baseline(); window.scrollTo(0,0);
   }
-
-  function showD103HomeScreen() {
-    const home = $("#d103Home");
-    const baseline = $("#d103Baseline");
-    if (baseline) baseline.hidden = true;
-    if (home) home.hidden = false;
-    renderD103Home();
-    window.scrollTo(0, 0);
+  function showD103HomeScreen(){
+    document.body.classList.remove("journey-started");
+    if($("#workspace")) $("#workspace").hidden=true;
+    if($("#d103Baseline")) $("#d103Baseline").hidden=true;
+    if($("#d103Home")) $("#d103Home").hidden=false;
+    renderD103Home(); window.scrollTo(0,0);
   }
-
-  function applyBaselineSelectionsToPreparation() {
-    const paceMap = {
-      difficult: "3.2",
-      sometimes_difficult: "3.8",
-      rather_easy: "4.2",
-      very_easy: "5",
-    };
-    const durationMap = {
-      up_to_1h: 60,
-      "1_to_2h": 90,
-      "2_to_3h": 150,
-      more_than_3h: 210,
-    };
-    const pace = $("#pace");
-    const duration = $("#duration");
-    const margin = $("#margin");
-    if (pace && paceMap[baselineSelections.walkingEase]) pace.value = paceMap[baselineSelections.walkingEase];
-    if (duration && Number.isFinite(durationMap[baselineSelections.preferredDuration])) duration.value = String(durationMap[baselineSelections.preferredDuration]);
-    if (margin) {
-      const pauseMarginMap = { often: "20", sometimes: "15", rarely: "10", none: "5" };
-      const mapped = pauseMarginMap[baselineSelections.pauseNeed];
-      if (mapped) margin.value = mapped;
-    }
-    const durationLabel = $("#durationLabel");
-    if (duration && durationLabel) durationLabel.textContent = `${duration.value} minutes`;
+  function applyBaselineSelectionsToPreparation(){
+    const paceMap={difficult:"3.2",sometimes_difficult:"3.8",rather_easy:"4.2",very_easy:"5"};
+    const durationMap={up_to_1h:60,"1_to_2h":90,"2_to_3h":150,more_than_3h:210};
+    const pauseMarginMap={often:"20",sometimes:"15",rarely:"10",no_need:"5"};
+    const pace=$("#pace"),duration=$("#duration"),margin=$("#margin");
+    if(pace) pace.value=paceMap[baselineSelections.walkingEase]||pace.value;
+    if(duration) duration.value=String(durationMap[baselineSelections.duration]||duration.value);
+    if(margin) margin.value=pauseMarginMap[baselineSelections.pauses]||margin.value;
+    if(duration&&$("#durationLabel")){const n=Number(duration.value);$("#durationLabel").textContent=n>=60?`${Math.floor(n/60)} h${n%60?` ${n%60} min`:""}`:`${n} minutes`;}
     updateLiveSummary();
   }
-
-  function renderD103Home() {
-    const host = $("#d103Home");
-    if (!host || !activityIntentHomeCore) return;
-    const home = activityIntentHomeCore.deriveHomeState(longitudinalDocumentOrNull());
-    host.dataset.homeState = home.state;
-    const returning = $("#d103Returning");
-    if (returning) returning.hidden = !home.historyAvailable;
-    if (home.lastSession) {
-      if ($("#d103LastWalk")) $("#d103LastWalk").textContent = summarizeD103LastWalk(home.lastSession);
-      if ($("#d103LastReaction")) $("#d103LastReaction").textContent = summarizeD103Reaction(home.lastSession);
-      if ($("#d103LastIntent")) {
-        $("#d103LastIntent").textContent = activityIntentHomeCore.intentLabel(home.lastSession.activityIntent) || "Non renseignée";
-      }
-    }
+  function renderD103Home(){
+    const host=$("#d103Home"); if(!host||!activityIntentHomeCore) return;
+    const home=activityIntentHomeCore.deriveHomeState(longitudinalDocumentOrNull()); host.dataset.homeState=home.state;
+    const returning=$("#d103Returning"); if(returning) returning.hidden=!home.historyAvailable;
+    if(home.lastSession){if($("#d103LastWalk")) $("#d103LastWalk").textContent=summarizeD103LastWalk(home.lastSession);if($("#d103LastReaction")) $("#d103LastReaction").textContent=summarizeD103Reaction(home.lastSession);if($("#d103LastIntent")) $("#d103LastIntent").textContent=activityIntentHomeCore.intentLabel(home.lastSession.activityIntent)||"Non renseignée";}
     // Une intention passée n'est jamais présélectionnée automatiquement.
     selectedActivityIntent = null;
-    $$(".d103-intent-card").forEach((card) => card.setAttribute("aria-pressed", "false"));
+    $$(".d103-intent-card").forEach((card)=>card.setAttribute("aria-pressed", "false"));
   }
-
-  function saveD103ActivityIntent(intent) {
-    if (!activityIntentHomeCore?.isActivityIntent(intent)) return { persisted: false, reason: "invalid-intent" };
-    const now = new Date().toISOString();
-    const nextDocument = activityIntentHomeCore.chooseActivityIntent(
-      longitudinalDocumentOrNull(),
-      intent,
-      { now },
-    );
-    return activityProgressionPersistence.saveDocument(nextDocument);
+  function saveD103ActivityIntent(intent){
+    if(!activityIntentHomeCore?.isActivityIntent(intent)) return {persisted:false,reason:"invalid-intent"};
+    const now=new Date().toISOString(); const nextDocument=activityIntentHomeCore.chooseActivityIntent(longitudinalDocumentOrNull(),intent,{now});
+    activityBaselineCore?.saveIntent(globalThis.localStorage,intent); return activityProgressionPersistence.saveDocument(nextDocument);
   }
-
-  function chooseD103ActivityIntent(intent) {
-    if (!activityIntentHomeCore?.isActivityIntent(intent)) return;
-    const result = saveD103ActivityIntent(intent);
-    if (!result?.persisted) {
-      say("Impossible d’enregistrer ce choix sur cet appareil. Vous pouvez tout de même continuer avec une balade simple.");
-      if (intent === "leisure") mode("api");
-      return;
-    }
-    selectedActivityIntent = intent;
-    $$(".d103-intent-card").forEach((card) => {
-      card.setAttribute("aria-pressed", String(card.dataset.activityIntent === intent));
-    });
-    const statusNode = $("#d103IntentStatus");
-    if (statusNode) {
-      statusNode.hidden = false;
-      statusNode.textContent = `Intention choisie : ${activityIntentHomeCore.intentLabel(intent)}. Vous pourrez changer à tout moment.`;
-    }
-    if (intent === "leisure") {
-      // D103B : le mode leisure conserve strictement l'entrée dans le parcours stable D102G3.
-      mode("api");
-    } else {
-      showD103Baseline();
-    }
+  function chooseD103ActivityIntent(intent){
+    if(!activityIntentHomeCore?.isActivityIntent(intent)) return;
+    saveD103ActivityIntent(intent); selectedActivityIntent=intent;
+    $$(".d103-intent-card").forEach((card)=>card.setAttribute("aria-pressed",String(card.dataset.activityIntent===intent)));
+    const statusNode=$("#d103IntentStatus"); if(statusNode){statusNode.hidden=false;statusNode.textContent=`Intention choisie : ${activityIntentHomeCore.intentLabel(intent)}. Vous pourrez changer à tout moment.`;}
+    if (intent === "leisure") mode("api"); else showD103Baseline();
   }
-
-  $$(".d103-intent-card").forEach((card) => {
-    card.onclick = () => chooseD103ActivityIntent(card.dataset.activityIntent);
-  });
-  if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $(".d103-principles")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
-
-  $$(".d103-baseline-choice").forEach((button) => {
-    button.onclick = () => {
-      const group = button.dataset.baselineGroup;
-      const value = button.dataset.value;
-      if (!group || !value) return;
-      baselineSelections[group] = value;
-      renderD103Baseline();
-    };
-  });
-  if ($("#d103BaselineContinue")) $("#d103BaselineContinue").onclick = () => {
-    applyBaselineSelectionsToPreparation();
-    const baseline = $("#d103Baseline");
-    if (baseline) baseline.hidden = true;
-    mode("api");
+  $$(".d103-intent-card").forEach((card)=>{card.onclick=()=>chooseD103ActivityIntent(card.dataset.activityIntent);});
+  if($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick=()=>$("#d103IntentChoices")?.scrollIntoView({behavior:"smooth",block:"start"});
+  if($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick=()=>$(".d103-principles")?.scrollIntoView({behavior:"smooth",block:"center"});
+  if($("#d103Gpx")) $("#d103Gpx").onclick=()=>mode("gpx");
+  if($("#d103BaselineHome")) $("#d103BaselineHome").onclick=showD103HomeScreen;
+  if($("#d103BaselineHelp")) $("#d103BaselineHelp").onclick=()=>$("#helpBtn")?.click();
+  $$(".d103-baseline-choice").forEach((button)=>{button.onclick=()=>{const group=button.dataset.baselineGroup,value=button.dataset.value;if(!activityBaselineCore?.ALLOWED?.[group]?.includes(value)) return;baselineSelections={...baselineSelections,[group]:value};renderD103Baseline();};});
+  if($("#d103BaselineContinue")) $("#d103BaselineContinue").onclick=()=>{
+    if(!activityBaselineCore?.isComplete(baselineSelections)){say("Choisissez un repère dans chacune des quatre lignes pour continuer.");return;}
+    activityBaselineCore.saveBaseline(globalThis.localStorage,baselineSelections);applyBaselineSelectionsToPreparation();if($("#d103Baseline")) $("#d103Baseline").hidden=true;mode("api");
   };
-
-  if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => {
-    $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const statusNode = $("#d103IntentStatus");
-    if (statusNode) {
-      statusNode.hidden = false;
-      statusNode.textContent = "Choisissez ce qui vous convient aujourd’hui. Votre dernière intention n’est pas présélectionnée.";
-    }
-  };
+  if($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick=()=>{const intent=activityBaselineCore?.loadIntent(globalThis.localStorage);if(activityBaselineCore?.intentNeedsBaseline(intent)) showD103Baseline();else $("#d103IntentChoices")?.scrollIntoView({behavior:"smooth",block:"start"});};
 
   function mode(m, reveal = true) {
     S.mode = m;
