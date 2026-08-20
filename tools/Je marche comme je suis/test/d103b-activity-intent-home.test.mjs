@@ -89,13 +89,13 @@ test("D103B n'invente ni intention invalide ni horodatage", () => {
   assert.throws(() => home.chooseActivityIntent(null, "leisure", { core: domain }), /now is required/);
 });
 
-test("D103B l'accueil première visite possède un DOM unique desktop/mobile et quatre cartes parallèles", () => {
+test("D103B l'accueil première visite possède un DOM unique desktop/mobile et deux portes d’entrée claires", () => {
   const html = read("je-marche-comme-je-suis.template.html");
-  const cards = [...html.matchAll(/class="d103-intent-card"[^>]*data-activity-intent="([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(cards, ["leisure", "gentle_return", "maintain", "progress"]);
   assert.equal((html.match(/id="d103Home"/g) || []).length, 1);
-  assert.match(html, /Qu’avez-vous envie de faire aujourd’hui \?/);
-  assert.match(html, /Je viens comme je suis,<br>je marche comme j’en ai envie\./);
+  assert.match(html, /De quoi avez-vous besoin aujourd’hui/);
+  assert.match(html, /Je viens comme je suis,<br>et l’accompagnement s’adapte à moi\./);
+  assert.match(html, /Ma balade sur mesure/);
+  assert.match(html, /Mon élan santé/);
   assert.match(html, /Vos données restent ici/);
   assert.match(html, /Ce service ne remplace pas un avis médical/);
 });
@@ -113,18 +113,19 @@ test("D103B conserve un accès explicite au GPX et au parcours leisure stable", 
   const app = read("src/app.js");
   assert.match(html, /id="d103Gpx"[^>]*>J’ai déjà une trace GPX/);
   assert.match(app, /#d103Gpx[\s\S]{0,120}mode\("gpx"\)/);
-  assert.match(app, /if \(intent === "leisure"\)[\s\S]{0,180}mode\("api"\)/);
+  assert.match(app, /function openD103WalkPath\(\)/);
+  assert.match(app, /mode\("api"\)/);
 });
 
 test("D103B ne présélectionne pas la dernière intention au chargement", () => {
   const app = read("src/app.js");
-  assert.match(app, /Une intention passée n'est jamais présélectionnée automatiquement/);
   assert.match(app, /selectedActivityIntent = null/);
-  assert.match(app, /setAttribute\("aria-pressed", "false"\)/);
+  assert.match(app, /statusNode\.hidden = true/);
+  assert.match(app, /statusNode\.textContent = ""/);
 });
 
-test("D103B affiche Votre prochaine balade sur le même DOM responsive et desktop", () => {
+test("D103B affiche un bloc de continuité unique sur le même DOM responsive et desktop", () => {
   const html = read("je-marche-comme-je-suis.template.html");
-  assert.equal((html.match(/Votre prochaine balade/g) || []).length, 2); // aria-label + titre visible, un seul bloc
+  assert.match(html, /Votre prochaine proposition se prépare à partir de vous/);
   assert.equal((html.match(/class="d103-next-walk"/g) || []).length, 1);
 });
