@@ -193,55 +193,59 @@ main{padding:0 clamp(22px,15vw,255px) 30px}
   .medical{padding-right:55px}
 }
 
-/* D103C — écran approuvé. Le PNG source n'est jamais modifié. */
-.baseline-screen[hidden],.page[hidden]{display:none!important}
-.baseline-screen{width:100%;min-height:100vh;background:#fffdf8;overflow-x:hidden}
-.baseline-frame{position:relative;width:min(1228px,100vw);margin:0 auto;aspect-ratio:1228/981;overflow:hidden;background:#fffdf8}
-.baseline-image{position:absolute;left:0;top:0;width:130.456%;height:auto;max-width:none;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
-.baseline-hit{position:absolute;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:transparent;font-size:0;cursor:pointer}
-.baseline-hit:focus-visible{outline:3px solid #8A9A5B;outline-offset:2px;background:rgba(138,154,91,.06)}
-.baseline-hit[aria-pressed="true"]{box-shadow:inset 0 0 0 2px rgba(111,126,72,.55)}
-/* Desktop : cadrage exact de la maquette gauche (1228 × 981). */
-.baseline-hit[data-group="energy"][data-value="low"]{left:29.72%;top:41.69%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="energy"][data-value="medium"]{left:44.54%;top:41.69%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="energy"][data-value="good"]{left:59.45%;top:41.69%;width:14.90%;height:7.34%}
-.baseline-hit[data-group="energy"][data-value="very_good"]{left:75.65%;top:41.69%;width:14.74%;height:7.34%}
-.baseline-hit[data-group="walkingEase"][data-value="difficult"]{left:29.72%;top:52.60%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="walkingEase"][data-value="sometimes_difficult"]{left:44.54%;top:52.60%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="walkingEase"][data-value="rather_easy"]{left:59.45%;top:52.60%;width:14.90%;height:7.34%}
-.baseline-hit[data-group="walkingEase"][data-value="very_easy"]{left:75.65%;top:52.60%;width:14.74%;height:7.34%}
-.baseline-hit[data-group="duration"][data-value="up_to_1h"]{left:29.72%;top:63.30%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="duration"][data-value="1_to_2h"]{left:44.54%;top:63.30%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="duration"][data-value="2_to_3h"]{left:59.45%;top:63.30%;width:14.90%;height:7.34%}
-.baseline-hit[data-group="duration"][data-value="more_than_3h"]{left:75.65%;top:63.30%;width:14.74%;height:7.34%}
-.baseline-hit[data-group="pauses"][data-value="often"]{left:29.72%;top:74.72%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="pauses"][data-value="sometimes"]{left:44.54%;top:74.72%;width:13.60%;height:7.34%}
-.baseline-hit[data-group="pauses"][data-value="rarely"]{left:59.45%;top:74.72%;width:14.90%;height:7.34%}
-.baseline-hit[data-group="pauses"][data-value="none"]{left:75.65%;top:74.72%;width:14.74%;height:7.34%}
-.baseline-continue{left:35.50%;top:85.93%;width:25.10%;height:6.10%}
-.baseline-help{left:90.35%;top:1.80%;width:7.30%;height:5.50%}
-@media(max-width:767px){
-  .baseline-frame{width:100vw;aspect-ratio:374/981}
-  .baseline-image{left:auto;right:0;width:428.342%;height:auto}
-  /* Mobile : cadrage exact de la maquette droite (374 × 981). */
-  .baseline-hit[data-group="energy"][data-value="low"]{left:4%;top:35.37%;width:19%;height:6.52%}
-  .baseline-hit[data-group="energy"][data-value="medium"]{left:25.5%;top:35.37%;width:19%;height:6.52%}
-  .baseline-hit[data-group="energy"][data-value="good"]{left:47%;top:35.37%;width:19%;height:6.52%}
-  .baseline-hit[data-group="energy"][data-value="very_good"]{left:68.5%;top:35.37%;width:19%;height:6.52%}
-  .baseline-hit[data-group="walkingEase"][data-value="difficult"]{left:4%;top:48.52%;width:19%;height:6.52%}
-  .baseline-hit[data-group="walkingEase"][data-value="sometimes_difficult"]{left:25.5%;top:48.52%;width:19%;height:6.52%}
-  .baseline-hit[data-group="walkingEase"][data-value="rather_easy"]{left:47%;top:48.52%;width:19%;height:6.52%}
-  .baseline-hit[data-group="walkingEase"][data-value="very_easy"]{left:68.5%;top:48.52%;width:19%;height:6.52%}
-  .baseline-hit[data-group="duration"][data-value="up_to_1h"]{left:4%;top:61.47%;width:19%;height:6.52%}
-  .baseline-hit[data-group="duration"][data-value="1_to_2h"]{left:25.5%;top:61.47%;width:19%;height:6.52%}
-  .baseline-hit[data-group="duration"][data-value="2_to_3h"]{left:47%;top:61.47%;width:19%;height:6.52%}
-  .baseline-hit[data-group="duration"][data-value="more_than_3h"]{left:68.5%;top:61.47%;width:19%;height:6.52%}
-  .baseline-hit[data-group="pauses"][data-value="often"]{left:4%;top:74.72%;width:19%;height:6.52%}
-  .baseline-hit[data-group="pauses"][data-value="sometimes"]{left:25.5%;top:74.72%;width:19%;height:6.52%}
-  .baseline-hit[data-group="pauses"][data-value="rarely"]{left:47%;top:74.72%;width:19%;height:6.52%}
-  .baseline-hit[data-group="pauses"][data-value="none"]{left:68.5%;top:74.72%;width:19%;height:6.52%}
-  .baseline-continue{left:8%;top:85.93%;width:84%;height:6.10%}
-  .baseline-help{left:78%;top:1.5%;width:18%;height:6%}
+
+/* D103C baseline exact-image integration */
+body.screen-baseline .page > .hero,
+body.screen-baseline .page > main{display:none}
+.baseline-screen{display:none;padding:0 0 24px;background:#fffdfa}
+body.screen-baseline .baseline-screen{display:block}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.baseline-desktop,.baseline-mobile{position:relative;margin:0 auto;background-repeat:no-repeat;background-color:#fffdfa}
+.baseline-desktop{display:block;width:min(100%,1220px);aspect-ratio:1220/981;background-image:url("icons/d103c-baseline-approved.png");background-size:131.311475% 100%;background-position:left top}
+.baseline-mobile{display:none;width:min(100%,382px);aspect-ratio:382/981;background-image:url("icons/d103c-baseline-approved.png");background-size:419.371728% 100%;background-position:right top}
+.baseline-hotspot{position:absolute;display:block;border:0;background:transparent;padding:0;margin:0;appearance:none;-webkit-appearance:none;cursor:pointer;color:transparent}
+.baseline-hotspot:focus-visible{outline:2px solid rgba(23,63,40,.6);outline-offset:2px;border-radius:8px}
+.baseline-desktop [data-role="home"]{left:1.4%;top:1.1%;width:18%;height:8.2%}
+.baseline-desktop [data-role="help"]{left:91.2%;top:1.1%;width:7.4%;height:5.7%}
+.baseline-desktop .r1.c1{left:29.6%;top:39.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r1.c2{left:44.6%;top:39.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r1.c3{left:59.7%;top:39.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r1.c4{left:74.8%;top:39.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r2.c1{left:29.6%;top:50.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r2.c2{left:44.6%;top:50.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r2.c3{left:59.7%;top:50.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r2.c4{left:74.8%;top:50.7%;width:14.4%;height:8.9%}
+.baseline-desktop .r3.c1{left:29.6%;top:61.8%;width:14.4%;height:8.9%}
+.baseline-desktop .r3.c2{left:44.6%;top:61.8%;width:14.4%;height:8.9%}
+.baseline-desktop .r3.c3{left:59.7%;top:61.8%;width:14.4%;height:8.9%}
+.baseline-desktop .r3.c4{left:74.8%;top:61.8%;width:14.4%;height:8.9%}
+.baseline-desktop .r4.c1{left:29.6%;top:73.0%;width:14.4%;height:8.9%}
+.baseline-desktop .r4.c2{left:44.6%;top:73.0%;width:14.4%;height:8.9%}
+.baseline-desktop .r4.c3{left:59.7%;top:73.0%;width:14.4%;height:8.9%}
+.baseline-desktop .r4.c4{left:74.8%;top:73.0%;width:14.4%;height:8.9%}
+.baseline-desktop [data-role="continue"]{left:35.1%;top:85.7%;width:27.8%;height:6.3%}
+.baseline-mobile [data-role="home"]{left:3%;top:1.1%;width:39%;height:8.4%}
+.baseline-mobile [data-role="help"]{left:84%;top:1.2%;width:14%;height:5.4%}
+.baseline-mobile .r1.c1{left:4.9%;top:35.5%;width:19.2%;height:6.1%}
+.baseline-mobile .r1.c2{left:26.2%;top:35.5%;width:19.2%;height:6.1%}
+.baseline-mobile .r1.c3{left:47.8%;top:35.5%;width:19.2%;height:6.1%}
+.baseline-mobile .r1.c4{left:69.2%;top:35.5%;width:19.2%;height:6.1%}
+.baseline-mobile .r2.c1{left:4.9%;top:49.8%;width:19.2%;height:6.1%}
+.baseline-mobile .r2.c2{left:26.2%;top:49.8%;width:19.2%;height:6.1%}
+.baseline-mobile .r2.c3{left:47.8%;top:49.8%;width:19.2%;height:6.1%}
+.baseline-mobile .r2.c4{left:69.2%;top:49.8%;width:19.2%;height:6.1%}
+.baseline-mobile .r3.c1{left:4.9%;top:64.2%;width:19.2%;height:6.1%}
+.baseline-mobile .r3.c2{left:26.2%;top:64.2%;width:19.2%;height:6.1%}
+.baseline-mobile .r3.c3{left:47.8%;top:64.2%;width:19.2%;height:6.1%}
+.baseline-mobile .r3.c4{left:69.2%;top:64.2%;width:19.2%;height:6.1%}
+.baseline-mobile .r4.c1{left:4.9%;top:78.6%;width:19.2%;height:6.1%}
+.baseline-mobile .r4.c2{left:26.2%;top:78.6%;width:19.2%;height:6.1%}
+.baseline-mobile .r4.c3{left:47.8%;top:78.6%;width:19.2%;height:6.1%}
+.baseline-mobile .r4.c4{left:69.2%;top:78.6%;width:19.2%;height:6.1%}
+.baseline-mobile [data-role="continue"]{left:6.6%;top:89.0%;width:79.5%;height:6.2%}
+@media (max-width: 900px){
+  .baseline-desktop{display:none}
+  .baseline-mobile{display:block}
 }
 
 </style>
@@ -280,17 +284,17 @@ main{padding:0 clamp(22px,15vw,255px) 30px}
         <div class="card-body"><h3>Me balader</h3><p>Une balade simple, adaptée à votre envie du moment.</p></div>
         <span class="arrow">›</span>
       </a>
-      <a class="card" href="#baseline" data-open-baseline>
+      <a class="card" href="#baseline" data-open-baseline data-intent="gentle_return">
         <img src="icons/d103-accueil-reprendre-doucement.webp" alt="Promeneuse sur un sentier boisé">
         <div class="card-body"><h3 class="terra">Reprendre doucement</h3><p>Retrouver progressivement une activité qui vous convient.</p></div>
         <span class="arrow terra">›</span>
       </a>
-      <a class="card" href="#baseline" data-open-baseline>
+      <a class="card" href="#baseline" data-open-baseline data-intent="maintain">
         <img src="icons/d103-accueil-maintenir-rythme.webp" alt="Promeneur en forêt">
         <div class="card-body"><h3>Maintenir mon rythme</h3><p>Continuer à votre rythme, sans chercher à augmenter.</p></div>
         <span class="arrow">›</span>
       </a>
-      <a class="card" href="#baseline" data-open-baseline>
+      <a class="card" href="#baseline" data-open-baseline data-intent="progress">
         <img src="icons/d103-accueil-progresser.webp" alt="Promeneuse sur un chemin avec vue sur les collines">
         <div class="card-body"><h3 class="terra">Progresser</h3><p>Faire évoluer progressivement une dimension qui compte pour vous.</p></div>
         <span class="arrow terra">›</span>
@@ -303,7 +307,7 @@ main{padding:0 clamp(22px,15vw,255px) 30px}
       <div class="stat"><div class="ico heart">♡</div><div><strong>Réaction utile</strong><span>Bonne énergie,<br>parcours agréable</span></div></div>
       <div class="stat"><div class="ico" style="border-color:#d8a12e;color:#d8a12e">☀</div><div><strong>Aujourd’hui</strong><span>Comment vous<br>vous sentez&nbsp;?</span></div></div>
       <div class="stat"><div class="ico">◎</div><div><strong>Dernière intention</strong><span>Maintenir<br>mon rythme</span></div></div>
-      <a class="btn primary" href="#baseline" data-open-baseline>Préparer ma balade</a>
+      <a class="btn primary" href="#baseline" data-open-baseline data-intent="maintain">Préparer ma balade</a>
     </section>
 
     <section class="next">
@@ -319,48 +323,145 @@ main{padding:0 clamp(22px,15vw,255px) 30px}
 
     <section class="medical"><span class="shield">⬟</span><span>Ce service ne remplace pas un avis médical.<br>En cas de doute, demandez conseil à un professionnel de santé.</span></section>
   </main>
+
+  <section class="baseline-screen" id="baselineScreen" aria-labelledby="baselineTitle" hidden>
+    <h2 id="baselineTitle" class="sr-only">Comment êtes-vous habituellement ?</h2>
+    <p id="baselineStatus" class="sr-only" aria-live="polite">Repères habituels prêts.</p>
+
+    <div class="baseline-desktop" aria-hidden="false">
+      <button class="baseline-hotspot" data-role="home" type="button" aria-label="Retour à l’accueil"></button>
+      <a class="baseline-hotspot" data-role="help" href="aide.html" target="_blank" rel="noopener" aria-label="Aide"></a>
+
+      <button class="baseline-hotspot r1 c1" data-group="energy" data-value="low" type="button" aria-label="Énergie habituelle : plutôt basse"></button>
+      <button class="baseline-hotspot r1 c2" data-group="energy" data-value="medium" type="button" aria-label="Énergie habituelle : moyenne"></button>
+      <button class="baseline-hotspot r1 c3" data-group="energy" data-value="good" type="button" aria-label="Énergie habituelle : plutôt bonne"></button>
+      <button class="baseline-hotspot r1 c4" data-group="energy" data-value="very_good" type="button" aria-label="Énergie habituelle : très bonne"></button>
+
+      <button class="baseline-hotspot r2 c1" data-group="walkingEase" data-value="difficult" type="button" aria-label="Facilité à marcher : plutôt difficile"></button>
+      <button class="baseline-hotspot r2 c2" data-group="walkingEase" data-value="sometimes_difficult" type="button" aria-label="Facilité à marcher : parfois difficile"></button>
+      <button class="baseline-hotspot r2 c3" data-group="walkingEase" data-value="rather_easy" type="button" aria-label="Facilité à marcher : plutôt facile"></button>
+      <button class="baseline-hotspot r2 c4" data-group="walkingEase" data-value="very_easy" type="button" aria-label="Facilité à marcher : très facile"></button>
+
+      <button class="baseline-hotspot r3 c1" data-group="duration" data-value="up_to_1h" type="button" aria-label="Durée qui vous convient : jusqu’à 1 heure"></button>
+      <button class="baseline-hotspot r3 c2" data-group="duration" data-value="1_to_2h" type="button" aria-label="Durée qui vous convient : 1 à 2 heures"></button>
+      <button class="baseline-hotspot r3 c3" data-group="duration" data-value="2_to_3h" type="button" aria-label="Durée qui vous convient : 2 à 3 heures"></button>
+      <button class="baseline-hotspot r3 c4" data-group="duration" data-value="more_than_3h" type="button" aria-label="Durée qui vous convient : plus de 3 heures"></button>
+
+      <button class="baseline-hotspot r4 c1" data-group="pauses" data-value="often" type="button" aria-label="Besoin habituel de pauses : oui, souvent"></button>
+      <button class="baseline-hotspot r4 c2" data-group="pauses" data-value="sometimes" type="button" aria-label="Besoin habituel de pauses : parfois"></button>
+      <button class="baseline-hotspot r4 c3" data-group="pauses" data-value="rarely" type="button" aria-label="Besoin habituel de pauses : rarement"></button>
+      <button class="baseline-hotspot r4 c4" data-group="pauses" data-value="no_need" type="button" aria-label="Besoin habituel de pauses : non, pas besoin"></button>
+
+      <button class="baseline-hotspot" data-role="continue" type="button" aria-label="Continuer"></button>
+    </div>
+
+    <div class="baseline-mobile" aria-hidden="false">
+      <button class="baseline-hotspot" data-role="home" type="button" aria-label="Retour à l’accueil"></button>
+      <a class="baseline-hotspot" data-role="help" href="aide.html" target="_blank" rel="noopener" aria-label="Aide"></a>
+
+      <button class="baseline-hotspot r1 c1" data-group="energy" data-value="low" type="button" aria-label="Énergie habituelle : basse"></button>
+      <button class="baseline-hotspot r1 c2" data-group="energy" data-value="medium" type="button" aria-label="Énergie habituelle : moyenne"></button>
+      <button class="baseline-hotspot r1 c3" data-group="energy" data-value="good" type="button" aria-label="Énergie habituelle : bonne"></button>
+      <button class="baseline-hotspot r1 c4" data-group="energy" data-value="very_good" type="button" aria-label="Énergie habituelle : très bonne"></button>
+
+      <button class="baseline-hotspot r2 c1" data-group="walkingEase" data-value="difficult" type="button" aria-label="Facilité à marcher : difficile"></button>
+      <button class="baseline-hotspot r2 c2" data-group="walkingEase" data-value="sometimes_difficult" type="button" aria-label="Facilité à marcher : parfois difficile"></button>
+      <button class="baseline-hotspot r2 c3" data-group="walkingEase" data-value="rather_easy" type="button" aria-label="Facilité à marcher : plutôt facile"></button>
+      <button class="baseline-hotspot r2 c4" data-group="walkingEase" data-value="very_easy" type="button" aria-label="Facilité à marcher : très facile"></button>
+
+      <button class="baseline-hotspot r3 c1" data-group="duration" data-value="up_to_1h" type="button" aria-label="Durée : jusqu’à 1 heure"></button>
+      <button class="baseline-hotspot r3 c2" data-group="duration" data-value="1_to_2h" type="button" aria-label="Durée : 1 à 2 heures"></button>
+      <button class="baseline-hotspot r3 c3" data-group="duration" data-value="2_to_3h" type="button" aria-label="Durée : 2 à 3 heures"></button>
+      <button class="baseline-hotspot r3 c4" data-group="duration" data-value="more_than_3h" type="button" aria-label="Durée : plus de 3 heures"></button>
+
+      <button class="baseline-hotspot r4 c1" data-group="pauses" data-value="often" type="button" aria-label="Pauses : souvent"></button>
+      <button class="baseline-hotspot r4 c2" data-group="pauses" data-value="sometimes" type="button" aria-label="Pauses : parfois"></button>
+      <button class="baseline-hotspot r4 c3" data-group="pauses" data-value="rarely" type="button" aria-label="Pauses : rarement"></button>
+      <button class="baseline-hotspot r4 c4" data-group="pauses" data-value="no_need" type="button" aria-label="Pauses : pas besoin"></button>
+
+      <button class="baseline-hotspot" data-role="continue" type="button" aria-label="Continuer"></button>
+    </div>
+  </section>
+
 </div>
 
-<section class="baseline-screen" id="d103Baseline" hidden aria-label="Comment êtes-vous habituellement ?">
-  <div class="baseline-frame">
-    <img class="baseline-image" src="icons/d103c-baseline-approved.png" alt="" aria-hidden="true">
-    <button class="baseline-hit baseline-help" type="button" id="baselineHelp" aria-label="Aide"></button>
-    <button class="baseline-hit" type="button" data-group="energy" data-value="low" aria-label="Énergie habituelle : plutôt basse" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="energy" data-value="medium" aria-label="Énergie habituelle : moyenne" aria-pressed="true"></button>
-    <button class="baseline-hit" type="button" data-group="energy" data-value="good" aria-label="Énergie habituelle : plutôt bonne" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="energy" data-value="very_good" aria-label="Énergie habituelle : très bonne" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="walkingEase" data-value="difficult" aria-label="Facilité à marcher : plutôt difficile" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="walkingEase" data-value="sometimes_difficult" aria-label="Facilité à marcher : parfois difficile" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="walkingEase" data-value="rather_easy" aria-label="Facilité à marcher : plutôt facile" aria-pressed="true"></button>
-    <button class="baseline-hit" type="button" data-group="walkingEase" data-value="very_easy" aria-label="Facilité à marcher : très facile" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="duration" data-value="up_to_1h" aria-label="Durée : jusqu'à 1 heure" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="duration" data-value="1_to_2h" aria-label="Durée : 1 à 2 heures" aria-pressed="true"></button>
-    <button class="baseline-hit" type="button" data-group="duration" data-value="2_to_3h" aria-label="Durée : 2 à 3 heures" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="duration" data-value="more_than_3h" aria-label="Durée : plus de 3 heures" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="pauses" data-value="often" aria-label="Pauses : oui souvent" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="pauses" data-value="sometimes" aria-label="Pauses : parfois" aria-pressed="true"></button>
-    <button class="baseline-hit" type="button" data-group="pauses" data-value="rarely" aria-label="Pauses : rarement" aria-pressed="false"></button>
-    <button class="baseline-hit" type="button" data-group="pauses" data-value="none" aria-label="Pauses : non, pas besoin" aria-pressed="false"></button>
-    <button class="baseline-hit baseline-continue" type="button" id="baselineContinue" aria-label="Continuer"></button>
-  </div>
-</section>
-
 <script>
-(() => {
-  const page = document.querySelector('.page');
-  const baseline = document.getElementById('d103Baseline');
-  const selections = {energy:'medium',walkingEase:'rather_easy',duration:'1_to_2h',pauses:'sometimes'};
-  const open = () => { if(page) page.hidden=true; if(baseline) baseline.hidden=false; window.scrollTo(0,0); };
-  document.querySelectorAll('[data-open-baseline]').forEach(el => el.addEventListener('click', event => { event.preventDefault(); open(); }));
-  document.querySelectorAll('.baseline-hit[data-group]').forEach(btn => btn.addEventListener('click', () => {
-    const group=btn.dataset.group, value=btn.dataset.value;
-    selections[group]=value;
-    document.querySelectorAll(`.baseline-hit[data-group="${group}"]`).forEach(other => other.setAttribute('aria-pressed', String(other===btn)));
-  }));
-  document.getElementById('baselineHelp')?.addEventListener('click', () => window.open('aide.html','_blank','noopener'));
-  document.getElementById('baselineContinue')?.addEventListener('click', () => {
-    try { localStorage.setItem('jmmjs-d103-baseline-ui', JSON.stringify(selections)); } catch (_) {}
-    window.location.href='balade.html';
+(function(){
+  const body = document.body;
+  const main = document.querySelector('.page > main');
+  const hero = document.querySelector('.page > .hero');
+  const baselineScreen = document.getElementById('baselineScreen');
+  const status = document.getElementById('baselineStatus');
+  const homeTriggers = document.querySelectorAll('[data-open-baseline]');
+  const homeButtons = document.querySelectorAll('.baseline-hotspot[data-role="home"]');
+  const choiceButtons = document.querySelectorAll('.baseline-hotspot[data-group]');
+  const continueButtons = document.querySelectorAll('.baseline-hotspot[data-role="continue"]');
+  const baselineKey = 'jmmjs-d103c-baseline-v1';
+  const intentKey = 'jmmjs-d103c-activity-intent-v1';
+  const defaultState = {
+    energy: 'medium',
+    walkingEase: 'rather_easy',
+    duration: '1_to_2h',
+    pauses: 'sometimes'
+  };
+  let state = { ...defaultState };
+
+  try {
+    const raw = localStorage.getItem(baselineKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') state = { ...state, ...parsed };
+    }
+  } catch(e) {}
+
+  function saveState(){
+    try { localStorage.setItem(baselineKey, JSON.stringify({ ...state, savedAt: new Date().toISOString() })); } catch(e) {}
+  }
+
+  function openBaseline(intent){
+    if (intent) {
+      try { localStorage.setItem(intentKey, intent); } catch(e) {}
+    }
+    body.classList.add('screen-baseline');
+    baselineScreen.hidden = false;
+    window.scrollTo(0,0);
+  }
+
+  function closeBaseline(){
+    body.classList.remove('screen-baseline');
+    baselineScreen.hidden = true;
+    window.scrollTo(0,0);
+  }
+
+  homeTriggers.forEach((el)=>{
+    el.addEventListener('click', (ev)=>{
+      ev.preventDefault();
+      openBaseline(el.getAttribute('data-intent') || 'maintain');
+    });
+  });
+  homeButtons.forEach((el)=>{
+    el.addEventListener('click', (ev)=>{
+      ev.preventDefault();
+      closeBaseline();
+    });
+  });
+
+  choiceButtons.forEach((btn)=>{
+    btn.addEventListener('click', ()=>{
+      const group = btn.getAttribute('data-group');
+      const value = btn.getAttribute('data-value');
+      if (!group || !value) return;
+      state[group] = value;
+      saveState();
+      if (status) status.textContent = 'Sélection enregistrée.';
+    });
+  });
+
+  continueButtons.forEach((btn)=>{
+    btn.addEventListener('click', ()=>{
+      saveState();
+      window.location.href = 'balade.html';
+    });
   });
 })();
 </script>
