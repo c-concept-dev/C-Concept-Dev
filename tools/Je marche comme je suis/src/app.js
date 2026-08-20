@@ -1112,9 +1112,12 @@
 
   const activityIntentHomeCore = globalThis.JMMJSActivityIntentHomeCore;
   const activityBaselineCore = globalThis.JMMJSActivityBaselineCore;
+  const activityTodayCore = globalThis.JMMJSActivityTodayCore;
   let selectedActivityIntent = null;
   const baselineDefaults = Object.freeze({ energy: "medium", walkingEase: "rather_easy", duration: "1_to_2h", pauses: "sometimes" });
   let baselineSelections = { ...baselineDefaults };
+  const todayDefaults = Object.freeze({ energy: "same", walkingEase: "easy", discomfort: "moderate", availableTime: "1_to_2h", functionalGoal: null });
+  let todaySelections = { ...todayDefaults };
 
   function longitudinalDocumentOrNull() {
     const loaded = activityProgressionPersistence.loadDocument();
@@ -1185,9 +1188,36 @@
     });
   }
 
+  function loadD103TodaySelections() {
+    if (!activityTodayCore) return { ...todayDefaults, functionalGoal: null };
+    try {
+      const loaded = activityTodayCore.loadToday(sessionStorage);
+      const base = activityTodayCore.isComplete(loaded) ? loaded : { ...todayDefaults };
+      return { ...base, functionalGoal: loaded.functionalGoal || activityTodayCore.suggestedGoal(selectedActivityIntent) };
+    } catch { return { ...todayDefaults, functionalGoal: activityTodayCore?.suggestedGoal(selectedActivityIntent) || null }; }
+  }
+
+  function renderD103Today() {
+    $$("[data-today-group]").forEach((button) => {
+      const group = button.dataset.todayGroup;
+      const value = button.dataset.value;
+      button.setAttribute("aria-pressed", String(todaySelections[group] === value));
+    });
+  }
+
+  function showD103Today() {
+    todaySelections = loadD103TodaySelections();
+    if ($("#d103Home")) $("#d103Home").hidden = true;
+    if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
+    if ($("#d103Today")) $("#d103Today").hidden = false;
+    renderD103Today();
+    window.scrollTo(0, 0);
+  }
+
   function showD103Baseline() {
     baselineSelections = loadD103BaselineSelections();
     if ($("#d103Home")) $("#d103Home").hidden = true;
+    if ($("#d103Today")) $("#d103Today").hidden = true;
     if ($("#d103Baseline")) $("#d103Baseline").hidden = false;
     renderD103Baseline();
     window.scrollTo(0, 0);
@@ -1195,6 +1225,7 @@
 
   function showD103HomeScreen() {
     if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
+    if ($("#d103Today")) $("#d103Today").hidden = true;
     if ($("#d103Home")) $("#d103Home").hidden = false;
     renderD103Home();
     window.scrollTo(0, 0);
@@ -1226,7 +1257,10 @@
       // D103B : le mode leisure conserve strictement l'entrée dans le parcours stable D102G3.
       mode("api");
     } else {
-      showD103Baseline();
+      let baselineComplete = false;
+      try { baselineComplete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch { baselineComplete = false; }
+      if (baselineComplete) showD103Today();
+      else showD103Baseline();
     }
   }
 
@@ -1234,7 +1268,7 @@
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103IntentChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $(".d103-principles")?.scrollIntoView({ behavior: "smooth", block: "center" });
   if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
-  if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => { selectedActivityIntent = "maintain"; showD103Baseline(); };
+  if ($("#d103PrepareReturning")) $("#d103PrepareReturning").onclick = () => { selectedActivityIntent = "maintain"; let complete = false; try { complete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch {} if (complete) showD103Today(); else showD103Baseline(); };
 
   $$(".d103-baseline-choice").forEach((button) => {
     button.onclick = () => {
@@ -1249,13 +1283,49 @@
     let saved = false;
     try { saved = activityBaselineCore?.saveBaseline(localStorage, baselineSelections) === true; } catch { saved = false; }
     if (!saved) { say("Impossible d’enregistrer ces repères sur cet appareil."); return; }
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
+    showD103Today();
+  };
+
+  $$("[data-today-group]").forEach((button) => {
+    button.onclick = () => {
+      const group = button.dataset.todayGroup;
+      const value = button.dataset.value;
+      if (!group || !value) return;
+      todaySelections[group] = todaySelections[group] === value && group === "functionalGoal" ? null : value;
+      renderD103Today();
+    };
+  });
+
+  function applyD103TodayToPreparation() {
+    const durationMap = { under_1h: 50, "1_to_2h": 90, "2_to_3h": 150, over_3h: 210 };
+    const fitnessMap = { lower: 2, same: 3, higher: 4, much_higher: 5 };
+    const painMap = { important: 7, moderate: 4, light: 2, none: 0 };
+    const duration = $("#duration");
+    const fitness = $("#fitness");
+    const pain = $("#pain");
+    if (duration && durationMap[todaySelections.availableTime]) duration.value = String(durationMap[todaySelections.availableTime]);
+    if (fitness && fitnessMap[todaySelections.energy]) fitness.value = String(fitnessMap[todaySelections.energy]);
+    if (pain && Number.isFinite(painMap[todaySelections.discomfort])) pain.value = String(painMap[todaySelections.discomfort]);
+    if (duration) duration.dispatchEvent(new Event("input", { bubbles: true }));
+    if (fitness) fitness.dispatchEvent(new Event("input", { bubbles: true }));
+    if (pain) pain.dispatchEvent(new Event("input", { bubbles: true }));
+    updateLiveSummary();
+  }
+
+  if ($("#d103TodayContinue")) $("#d103TodayContinue").onclick = () => {
+    let saved = false;
+    try { saved = activityTodayCore?.saveToday(sessionStorage, todaySelections) === true; } catch { saved = false; }
+    if (!saved) { say("Impossible d’enregistrer l’état du jour sur cet appareil."); return; }
+    applyD103TodayToPreparation();
+    if ($("#d103Today")) $("#d103Today").hidden = true;
     mode("api");
   };
   if ($("#d103BaselineHome")) $("#d103BaselineHome").onclick = showD103HomeScreen;
+  if ($("#d103TodayHome")) $("#d103TodayHome").onclick = showD103HomeScreen;
   if ($("#d103HomeBrand")) $("#d103HomeBrand").onclick = () => window.scrollTo(0, 0);
   if ($("#d103Help")) $("#d103Help").onclick = () => $("#helpBtn")?.click();
   if ($("#d103BaselineHelp")) $("#d103BaselineHelp").onclick = () => $("#helpBtn")?.click();
+  if ($("#d103TodayHelp")) $("#d103TodayHelp").onclick = () => $("#helpBtn")?.click();
 
   function mode(m, reveal = true) {
     S.mode = m;
