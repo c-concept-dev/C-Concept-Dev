@@ -96,6 +96,10 @@ test("D103B l'accueil première visite possède un DOM unique desktop/mobile et 
   assert.match(html, /Je viens comme je suis,<br>et l’accompagnement s’adapte à moi\./);
   assert.match(html, /Ma balade sur mesure/);
   assert.match(html, /Mon élan santé/);
+  assert.match(html, /icons\/d103-brand-mark\.png/);
+  assert.match(html, /icons\/d103-home-walk-card\.png/);
+  assert.match(html, /icons\/d103-home-health-card\.png/);
+  assert.match(html, /id="d103MobileMenu"/);
   assert.match(html, /Vos données restent ici/);
   assert.match(html, /Ce service ne remplace pas un avis médical/);
 });
