@@ -841,17 +841,9 @@ body.journey-started .landing-exact{display:none!important}
 .d103-principle-icon{background:transparent!important;width:64px!important;height:64px!important;overflow:visible!important}
 .d103-principle:nth-child(2) .d103-principle-icon{background:transparent!important}
 .d103-principle-icon img{width:64px!important;height:64px!important;object-fit:contain!important;margin:0!important;display:block!important}
-.d103-baseline-info-icon{background:transparent!important;overflow:visible!important}
-.d103-baseline-info-icon img{width:62px!important;height:62px!important;object-fit:contain!important;display:block!important}
-.d103-baseline-choice img{width:27px!important;height:27px!important;object-fit:contain!important;display:block!important;flex:none!important}
-@media(max-width:560px){.d103-principle-icon,.d103-principle-icon img{width:56px!important;height:56px!important}.d103-baseline-info-icon img{width:48px!important;height:48px!important}.d103-baseline-choice img{width:22px!important;height:22px!important}}
+@media(max-width:560px){.d103-principle-icon,.d103-principle-icon img{width:56px!important;height:56px!important}}
 
 /* D103C2 — état du jour validé */
-.d103-today[hidden]{display:none!important}.d103-today{min-height:100vh;font-family:"IBM Plex Sans",sans-serif;color:var(--d103-ink);background:var(--d103-paper)}
-body.journey-started .d103-today{display:none!important}
-.d103-today-header{position:absolute;z-index:20;left:0;right:0;top:0;display:flex;align-items:flex-start;justify-content:space-between;padding:18px 28px 0}.d103-today-hero{position:relative;min-height:365px;overflow:hidden;background:url('./icons/d103-accueil-hero.webp') 70% center/cover no-repeat}.d103-today-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,253,250,.99) 0%,rgba(255,253,250,.96) 31%,rgba(255,253,250,.58) 53%,rgba(255,253,250,.04) 76%)}.d103-today-copy{position:relative;z-index:2;width:min(1180px,calc(100% - 64px));margin:0 auto;padding-top:105px}.d103-today-step{display:inline-flex;align-items:center;min-height:34px;padding:0 14px;border-radius:999px;background:var(--d103-cream);color:var(--d103-ochre);font-size:13px;font-weight:600}.d103-today h2{margin:13px 0 8px;color:var(--d103-green);font:600 clamp(38px,4vw,58px)/1 "IBM Plex Sans",sans-serif}.d103-today h2 .script{display:block;margin-top:7px;color:var(--d103-terra);font:400 clamp(34px,3.6vw,52px)/1 "Kalam",cursive}.d103-today-copy p{max-width:490px;margin:12px 0 0;font-size:16px;line-height:1.55}.d103-today-panel{position:relative;z-index:3;width:min(1180px,calc(100% - 64px));margin:-12px auto 0;padding:12px 18px 18px;border:1px solid var(--d103-line);border-radius:16px;background:#fffdfa;box-shadow:0 8px 24px rgba(0,0,0,.04)}.d103-today-row{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:center;padding:13px 0;border-bottom:1px solid #eee7db}.d103-today-info{display:flex;align-items:flex-start;gap:14px}.d103-today-info-icon{width:62px;height:62px;display:grid;place-items:center;flex:none}.d103-today-info-icon img{width:62px;height:62px;object-fit:contain;display:block}.d103-today-info strong{display:block;color:var(--d103-green);font-size:17px;margin:4px 0 5px}.d103-today-info span{display:block;font-size:14px;line-height:1.4}.d103-today-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.d103-today-choice{min-height:80px;border:1px solid var(--d103-line);border-radius:8px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;color:var(--d103-ink);font:500 14px/1.2 "IBM Plex Sans",sans-serif;cursor:pointer}.d103-today-choice img{width:30px;height:30px;object-fit:contain;display:block}.d103-today-choice[aria-pressed="true"]{border-color:#718351;background:linear-gradient(135deg,#f8f6ed,#edf0df);box-shadow:0 0 0 1px rgba(113,131,81,.16) inset}.d103-goal-row{grid-template-columns:360px minmax(0,1fr);border-bottom:0;padding-top:16px}.d103-goal-copy strong{display:block;color:var(--d103-green);font-size:17px;margin-bottom:5px}.d103-goal-copy span{font-size:14px}.d103-goal-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.d103-goal-choice{min-height:82px;border:1px solid var(--d103-line);border-radius:8px;background:#fff;display:grid;grid-template-columns:40px 1fr;align-items:center;gap:10px;padding:10px 14px;text-align:left;font:500 13px/1.25 "IBM Plex Sans",sans-serif;cursor:pointer}.d103-goal-choice img{width:34px;height:34px;object-fit:contain}.d103-goal-choice small{display:block;margin-top:4px;color:var(--d103-muted);font-size:11px}.d103-goal-choice[data-value="recover"] b{color:var(--d103-terra)}.d103-goal-choice[data-value="preserve"] b{color:#718351}.d103-goal-choice[data-value="evolve"] b{color:#d96d16}.d103-goal-choice[aria-pressed="true"]{border-color:#718351;background:#f8f6ed}.d103-today-actions{display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:16px}.d103-today-continue{width:min(330px,100%);min-height:52px;border:0;border-radius:10px;background:var(--d103-green);color:#fff;font:600 17px/1 "IBM Plex Sans",sans-serif;cursor:pointer}.d103-today-note{margin:0;color:var(--d103-muted);font-size:13px}
-@media(max-width:900px){.d103-today-header{padding:14px 18px 0}.d103-today-copy{width:calc(100% - 42px)}.d103-today-row,.d103-goal-row{grid-template-columns:1fr}.d103-today-panel{width:calc(100% - 28px)}}
-@media(max-width:560px){.d103-today-header{padding:12px 14px 0}.d103-today-hero{min-height:300px;background-position:72% center}.d103-today-hero:after{background:linear-gradient(180deg,rgba(255,253,250,.86),rgba(255,253,250,.96) 62%,rgba(255,253,250,.99))}.d103-today-copy{width:calc(100% - 28px);padding-top:82px}.d103-today h2{font-size:31px}.d103-today h2 .script{font-size:28px}.d103-today-copy p{font-size:14px}.d103-today-panel{margin-top:10px;padding:10px 12px 16px}.d103-today-info-icon,.d103-today-info-icon img{width:48px;height:48px}.d103-today-info strong{font-size:15px}.d103-today-info span{font-size:12px}.d103-today-options{gap:7px}.d103-today-choice{min-height:70px;font-size:11px;padding:6px 3px}.d103-today-choice img{width:22px;height:22px}.d103-goal-options{gap:7px}.d103-goal-choice{grid-template-columns:1fr;justify-items:center;text-align:center;padding:8px 4px;font-size:10px;min-height:92px}.d103-goal-choice img{width:28px;height:28px}.d103-goal-choice small{font-size:9px}}
 
 </style>
     <style>
@@ -1395,11 +1387,6 @@ footer,.footer{color:var(--footer)}
 .review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.review-grid-compact{grid-template-columns:repeat(2,minmax(0,1fr))}.review-block{position:relative;border:1px solid #e7e0d6;border-radius:9px;background:#faf9f6;padding:9px 66px 9px 10px;min-height:54px}.review-block>span{display:block;color:var(--muted);font-size:7.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}.review-block>strong{display:block;margin-top:3px;font-size:9px;line-height:1.32}.review-edit{position:absolute;top:50%;right:8px;transform:translateY(-50%);border:1px solid var(--beige);background:#fff;border-radius:7px;padding:5px 7px;font-size:7.5px;font-weight:800;color:var(--ink)}.review-edit:hover,.review-edit:focus-visible{border-color:var(--sage);outline:2px solid rgba(138,154,91,.18);outline-offset:1px}
 .review-attention{margin-top:9px;border:1px solid #ded6c7;border-radius:9px;background:#fffaf3;padding:9px}.review-attention-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.review-attention-head>div{display:flex;gap:7px;align-items:flex-start}.review-attention-icon{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#f4e8d9;color:#8a5b2d;font-weight:900;font-size:10px}.review-attention-head h4{margin:0;font-size:9px;color:var(--ink)}.review-attention-head p{margin:2px 0 0;color:var(--muted);font-size:7.5px;line-height:1.35}.review-attention .summary-edit{background:#fff;color:var(--ink);border-color:#d9d3c9}.review-attention .constraint-summary-group{margin-top:6px}.review-attention .constraint-summary-group h4{font-size:8px!important;margin-bottom:4px!important}.review-attention .constraint-summary-item{padding:7px 66px 7px 8px;min-height:0;background:#fff;border-color:#e5ded4;border-left:0}.review-attention .constraint-summary-item strong{font-size:8.5px}.review-attention .constraint-summary-item span{font-size:8px}.review-attention .constraint-summary-item small{font-size:7px;color:#716b60}.review-ok{margin-top:9px;border:1px solid #dce4c8;background:var(--sage-tint);border-radius:9px;padding:8px 10px;display:flex;gap:7px;align-items:center;color:var(--sage-hover);font-size:8.5px}.review-ok span{font-weight:900}.review-ok strong{font-size:8.5px}
 .review-details{margin-top:9px;border-top:1px solid #e7e0d6;padding-top:8px}.review-details>summary{cursor:pointer;font-size:8.5px;font-weight:800;color:var(--sage-hover)}.review-details-inner{padding-top:7px}.review-details-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:7px}
-.d103e-adaptation{margin-top:10px;border:1px solid #dce4c8;border-radius:12px;background:linear-gradient(135deg,#fbfcf6,#f1f3e6);padding:12px 13px;color:var(--ink)}
-.d103e-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.d103e-kicker{display:inline-block;margin-bottom:3px;color:var(--sage-hover);font-size:7.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.d103e-head h4{margin:0;font-size:11px;color:var(--ink)}.d103e-head p{margin:3px 0 0;color:var(--muted);font-size:8px}.d103e-edit{border:1px solid #d7ddc4;background:#fff;border-radius:8px;padding:6px 8px;font-size:7.5px;font-weight:800;color:var(--sage-hover)}
-.d103e-message{margin-top:9px;border-radius:9px;background:#fff;padding:9px 10px;border-left:3px solid #718351}.d103e-message strong,.d103e-message span{display:block}.d103e-message strong{font-size:9px}.d103e-message span{margin-top:2px;color:var(--muted);font-size:7.7px;line-height:1.35}.d103e-tone-attention .d103e-message{border-left-color:#b5502e;background:#fff9f5}.d103e-tone-gentle .d103e-message{border-left-color:#c9a15a;background:#fffcf5}
-.d103e-adjustment-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}.d103e-adjustment-item{border:1px solid #e3e6d8;border-radius:9px;background:#fff;padding:8px 9px}.d103e-adjustment-item span,.d103e-adjustment-item strong,.d103e-adjustment-item small{display:block}.d103e-adjustment-item span{color:var(--muted);font-size:7px;font-weight:800}.d103e-adjustment-item strong{margin-top:2px;font-size:9px;line-height:1.3}.d103e-adjustment-item small{margin-top:3px;color:#6f746e;font-size:6.8px;line-height:1.3}.d103e-progression{margin:8px 0 0;padding:7px 9px;border-radius:8px;background:#fff;color:var(--ink);font-size:7.7px;line-height:1.35}.d103e-disclosure{margin:8px 0 0;color:var(--muted);font-size:7px;line-height:1.35}
-@media(max-width:767px){.d103e-adjustment-grid{grid-template-columns:1fr}.d103e-head h4{font-size:10px}.d103e-head p{font-size:7.5px}.d103e-message strong{font-size:8.5px}.d103e-message span{font-size:7.3px}}
 @media(max-width:767px){.review-grid,.review-grid-compact,.review-details-extra{grid-template-columns:1fr}.review-block{padding-right:68px}.review-head{display:flex}.review-head p{max-width:230px}.review-attention-head{gap:6px}}
 @media(prefers-reduced-motion:reduce){.step.active,.wizard-path-progress button.done .wizard-node:after{animation:none!important}.step,.review-card,.review-block,.review-edit{transition:none!important;scroll-behavior:auto!important}}
 
@@ -1737,13 +1724,13 @@ html,body{max-width:100%;overflow-x:hidden}
 body:not(.journey-started){background:var(--d103-paper)!important}
 body:not(.journey-started) .shell{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:var(--d103-paper)!important}
 body:not(.journey-started) main.hero,body:not(.journey-started) .topbar,body:not(.journey-started) #helpBtn,body:not(.journey-started) #clearBtn{display:none!important}
-body.journey-started .d103-home,body.journey-started .d103-baseline{display:none!important}
-.d103-home[hidden],.d103-baseline[hidden]{display:none!important}
-.d103-home,.d103-baseline{font-family:"IBM Plex Sans",sans-serif;color:var(--d103-ink);background:var(--d103-paper)}
+body.journey-started .d103-home,body.journey-started .d103-health-pending{display:none!important}
+.d103-home[hidden],.d103-health-pending[hidden]{display:none!important}
+.d103-home,.d103-health-pending{font-family:"IBM Plex Sans",sans-serif;color:var(--d103-ink);background:var(--d103-paper)}
 
 /* Header */
-.d103-home-header,.d103-baseline-header,.d103-today-header{position:absolute;z-index:30;top:0;left:50%;width:min(100%,1440px);transform:translateX(-50%);box-sizing:border-box;display:grid;grid-template-columns:250px 1fr 250px;align-items:start;padding:18px 32px 0;pointer-events:none}
-.d103-home-header>* ,.d103-baseline-header>* ,.d103-today-header>*{pointer-events:auto}
+.d103-home-header,.d103-health-pending-header{position:absolute;z-index:30;top:0;left:50%;width:min(100%,1440px);transform:translateX(-50%);box-sizing:border-box;display:grid;grid-template-columns:250px 1fr 250px;align-items:start;padding:18px 32px 0;pointer-events:none}
+.d103-home-header>* ,.d103-health-pending-header>*{pointer-events:auto}
 .d103-brand-button{justify-self:start;border:0;background:transparent;padding:0;cursor:pointer;line-height:0}
 .d103-brand-button picture,.d103-brand-button img{display:block}
 .d103-brand-button img{width:218px;height:76px;object-fit:contain;object-position:left top}
@@ -1817,24 +1804,26 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
 .d103-caution{position:relative;display:flex;align-items:center;gap:12px;margin-top:7px;padding:10px 18px;border:1px solid #e3e8d8;border-radius:12px;background:linear-gradient(90deg,#f7f8ef,#f1f1e8);color:#3b3a33;font-size:11px;line-height:1.5;overflow:hidden}
 .d103-caution img{width:34px;height:34px;object-fit:contain;flex:0 0 34px}
 
-/* Baseline — inchangé fonctionnellement, seulement conservé dans la couche unique. */
-.d103-baseline-hero{position:relative;min-height:355px;overflow:hidden;background:url('./icons/d103-accueil-hero.webp') center/cover no-repeat}
-.d103-baseline-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,253,250,.98) 0%,rgba(255,253,250,.94) 35%,rgba(255,253,250,.48) 60%,rgba(255,253,250,.03) 100%)}
-.d103-baseline-copy{position:relative;z-index:2;width:min(1180px,calc(100% - 64px));margin:0 auto;padding-top:120px}
-.d103-baseline h2{margin:0;font:600 clamp(34px,3.2vw,49px)/1.05 "IBM Plex Sans",sans-serif;color:var(--d103-green)}
-.d103-baseline h2 .script{display:block;margin-top:8px;font:400 clamp(30px,2.9vw,43px)/1 "Kalam",cursive;color:var(--d103-terra)}
-.d103-baseline-copy p{max-width:560px;margin:18px 0 0;font-size:17px;line-height:1.56;color:#21301f}
-.d103-baseline-panel{width:min(1180px,calc(100% - 64px));margin:-18px auto 24px;position:relative;z-index:3;padding:16px 18px 22px;border:1px solid var(--d103-line);border-radius:18px;background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.05)}
-.d103-baseline-row{display:grid;grid-template-columns:280px minmax(0,1fr);align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid #ece5da}
-.d103-baseline-row:last-of-type{border-bottom:0}.d103-baseline-info{display:flex;align-items:center;gap:16px}
-.d103-baseline-info-icon{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;background:#F6F2E7;flex:0 0 60px}.d103-baseline-info-icon img{width:34px;height:34px;object-fit:contain}
-.d103-baseline-info strong{display:block;font-size:18px;color:var(--d103-green)}.d103-baseline-info span{display:block;font-size:14px;line-height:1.4;color:#4a453d;margin-top:4px}
-.d103-baseline-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.d103-baseline-choice{min-height:84px;border:1px solid var(--d103-line);border-radius:12px;background:#fff;padding:10px 8px;font:500 14px/1.3 "IBM Plex Sans",sans-serif;color:#2d2a24;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;cursor:pointer}.d103-baseline-choice[aria-pressed="true"]{border-color:#8A9A5B;background:#F7F8ED;box-shadow:0 0 0 2px rgba(138,154,91,.18) inset}.d103-baseline-choice img{width:24px;height:24px;object-fit:contain}
-.d103-baseline-actions{text-align:center;padding-top:18px}.d103-baseline-continue{min-width:310px;min-height:54px;border:0;border-radius:14px;background:linear-gradient(135deg,#6d8d4f,#315d31);color:#fff;font:600 18px/1 "IBM Plex Sans",sans-serif;cursor:pointer}.d103-baseline-note{margin:16px 0 0;color:#58674d;font-size:14px}
+
+.d103-health-pending{min-height:100vh;background:linear-gradient(180deg,#fffdfa 0%,#f4efe4 100%)}
+.d103-health-pending-header{position:absolute;z-index:30;top:0;left:50%;width:min(100%,1440px);transform:translateX(-50%);box-sizing:border-box;display:grid;grid-template-columns:250px 1fr 250px;align-items:start;padding:18px 32px 0;pointer-events:none}
+.d103-health-pending-header>*{pointer-events:auto}.d103-health-pending-header .d103-help-button{grid-column:3;justify-self:end}
+.d103-health-pending-shell{min-height:100vh;display:grid;place-items:center;padding:110px 24px 48px;box-sizing:border-box;background:radial-gradient(circle at 82% 22%,rgba(138,154,91,.13),transparent 30%),radial-gradient(circle at 18% 78%,rgba(201,161,90,.12),transparent 28%)}
+.d103-health-pending-card{width:min(720px,100%);padding:44px 48px;border:1px solid var(--d103-line);border-radius:18px;background:rgba(255,255,255,.92);box-shadow:0 12px 34px rgba(58,54,40,.08);text-align:center}
+.d103-health-pending-kicker{display:inline-flex;align-items:center;min-height:32px;padding:0 13px;border-radius:999px;background:#edf0e7;color:var(--d103-green);font-size:13px;font-weight:700}
+.d103-health-pending-card h2{margin:18px auto 0;max-width:620px;color:var(--d103-ink);font:700 clamp(30px,3.2vw,44px)/1.08 "IBM Plex Sans",sans-serif;letter-spacing:-.025em}
+.d103-health-pending-card p{max-width:590px;margin:18px auto 0;color:#4b473f;font-size:16px;line-height:1.6}.d103-health-pending-card .d103-health-pending-note{font-size:13px;color:var(--d103-muted)}
+#d103HealthPendingBack{margin-top:26px;min-height:44px;padding:0 24px;border:1px solid #496a35;border-radius:999px;background:linear-gradient(135deg,#73934f,#315d31);color:#fff;font:600 14px/1 "IBM Plex Sans",sans-serif;cursor:pointer}
 
 @media (max-width:900px){
+  .d103-health-pending-header{grid-template-columns:1fr auto;padding:14px 16px 0;align-items:start}
+  .d103-health-pending-header .d103-help-button{grid-column:2}
+  .d103-health-pending-shell{padding:92px 14px 28px}
+  .d103-health-pending-card{padding:30px 20px;border-radius:14px}
+  .d103-health-pending-card h2{font-size:28px}
+  .d103-health-pending-card p{font-size:14px}
   .d103-home-hero:after{background:linear-gradient(90deg,rgba(255,253,250,.95) 0%,rgba(255,253,250,.90) 52%,rgba(255,253,250,.35) 78%,rgba(255,253,250,.04) 100%)}
-  .d103-home-header,.d103-baseline-header,.d103-today-header{grid-template-columns:1fr auto;padding:14px 16px 0;align-items:start}
+  .d103-home-header,.d103-health-pending-header{grid-template-columns:1fr auto;padding:14px 16px 0;align-items:start}
   .d103-brand-button img{width:58px;height:50px;object-fit:contain;object-position:left top}
   .d103-home-nav{display:none;position:absolute;top:64px;right:14px;left:auto;width:210px;padding:7px;flex-direction:column;align-items:stretch;border-radius:14px;background:#fffdfa;box-shadow:0 12px 34px rgba(0,0,0,.16)}
   .d103-home-nav.is-open{display:flex}
@@ -1868,7 +1857,6 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
   .d103-principles{grid-template-columns:1fr;gap:10px;margin-top:12px}.d103-principle{grid-template-columns:58px 1fr;border:1px solid var(--d103-line);border-radius:13px;padding:12px 14px;box-shadow:0 3px 12px rgba(0,0,0,.04)}.d103-principle-icon img{width:54px;height:54px}.d103-principle strong{font-size:16px}.d103-principle span span{font-size:12px}
   .d103-caution{margin-top:10px;padding:10px 12px;font-size:11px}
 
-  .d103-baseline-copy,.d103-baseline-panel{width:calc(100% - 24px)}.d103-baseline-row{grid-template-columns:1fr}.d103-baseline-options{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media (max-width:430px){
@@ -1881,7 +1869,6 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
   .d103-choice-section h2{font-size:21px;max-width:300px}
   .d103-path-photo{aspect-ratio:456/165}
   .d103-path-copy strong{font-size:16px}.d103-path-copy small{font-size:11.5px}
-  .d103-baseline-options{grid-template-columns:1fr}
 }
 </style>
 
@@ -1989,19 +1976,27 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
   </section>
 </div>
 </section>
-<section class="d103-baseline" id="d103Baseline" hidden aria-labelledby="d103BaselineTitle"><header class="d103-baseline-header"><button type="button" class="d103-brand-button" id="d103BaselineHome" aria-label="Je marche comme je suis"><picture>
-  <source media="(max-width:900px)" srcset="./icons/d103-brand-mark.png">
-  <img src="./icons/d103-home-brand-desktop.png" alt="Je marche comme je suis">
-</picture></button><button type="button" class="d103-help-button" id="d103BaselineHelp"><b>?</b><span class="label">Aide</span></button></header><section class="d103-baseline-hero"><div class="d103-baseline-copy"><span class="d103-baseline-step">ÉTAPE 1/2</span><h2 id="d103BaselineTitle">Comment êtes-vous<span class="script">habituellement ?</span></h2><p>Ces repères nous aident à comprendre votre fonctionnement habituel pour comparer simplement votre état d’aujourd’hui.</p><p>Vous pourrez modifier ces repères plus tard.</p></div></section><section class="d103-baseline-panel"><div class="d103-baseline-row"><div class="d103-baseline-info"><span class="d103-baseline-info-icon"><img src="./icons/d103-exact/baseline-energy-info.png" alt="" aria-hidden="true"></span><div><strong>Énergie habituelle</strong><span>Comment décririez-vous votre niveau d’énergie la plupart du temps ?</span></div></div><div class="d103-baseline-options"><button type="button" class="d103-baseline-choice" data-baseline-group="energy" data-value="low" aria-pressed="false"><img src="./icons/d103-exact/baseline-energy-1.png" alt="" aria-hidden="true"><span>Plutôt basse</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="energy" data-value="medium" aria-pressed="false"><img src="./icons/d103-exact/baseline-energy-2.png" alt="" aria-hidden="true"><span>Moyenne</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="energy" data-value="good" aria-pressed="false"><img src="./icons/d103-exact/baseline-energy-3.png" alt="" aria-hidden="true"><span>Plutôt bonne</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="energy" data-value="very_good" aria-pressed="false"><img src="./icons/d103-exact/baseline-energy-4.png" alt="" aria-hidden="true"><span>Très bonne</span></button></div></div><div class="d103-baseline-row"><div class="d103-baseline-info"><span class="d103-baseline-info-icon"><img src="./icons/d103-exact/baseline-walk-info.png" alt="" aria-hidden="true"></span><div><strong>Facilité à marcher</strong><span>Dans votre quotidien, comment se passe la marche pour vous ?</span></div></div><div class="d103-baseline-options"><button type="button" class="d103-baseline-choice" data-baseline-group="walkingEase" data-value="difficult" aria-pressed="false"><img src="./icons/d103-exact/baseline-walk-1.png" alt="" aria-hidden="true"><span>Plutôt difficile</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="walkingEase" data-value="sometimes_difficult" aria-pressed="false"><img src="./icons/d103-exact/baseline-walk-2.png" alt="" aria-hidden="true"><span>Parfois difficile</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="walkingEase" data-value="rather_easy" aria-pressed="false"><img src="./icons/d103-exact/baseline-walk-3.png" alt="" aria-hidden="true"><span>Plutôt facile</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="walkingEase" data-value="very_easy" aria-pressed="false"><img src="./icons/d103-exact/baseline-walk-4.png" alt="" aria-hidden="true"><span>Très facile</span></button></div></div><div class="d103-baseline-row"><div class="d103-baseline-info"><span class="d103-baseline-info-icon"><img src="./icons/d103-exact/baseline-duration-info.png" alt="" aria-hidden="true"></span><div><strong>Durée qui vous convient</strong><span>Quelle durée de marche vous convient le mieux en général ?</span></div></div><div class="d103-baseline-options"><button type="button" class="d103-baseline-choice" data-baseline-group="duration" data-value="up_to_1h" aria-pressed="false"><img src="./icons/d103-exact/baseline-duration-1.png" alt="" aria-hidden="true"><span>Jusqu’à 1 h</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="duration" data-value="1_to_2h" aria-pressed="false"><img src="./icons/d103-exact/baseline-duration-2.png" alt="" aria-hidden="true"><span>1 à 2 h</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="duration" data-value="2_to_3h" aria-pressed="false"><img src="./icons/d103-exact/baseline-duration-3.png" alt="" aria-hidden="true"><span>2 à 3 h</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="duration" data-value="more_than_3h" aria-pressed="false"><img src="./icons/d103-exact/baseline-duration-4.png" alt="" aria-hidden="true"><span>Plus de 3 h</span></button></div></div><div class="d103-baseline-row"><div class="d103-baseline-info"><span class="d103-baseline-info-icon"><img src="./icons/d103-exact/baseline-pause-info.png" alt="" aria-hidden="true"></span><div><strong>Besoin habituel de pauses</strong><span>De pauses régulières pendant votre marche ?</span></div></div><div class="d103-baseline-options"><button type="button" class="d103-baseline-choice" data-baseline-group="pauses" data-value="often" aria-pressed="false"><img src="./icons/d103-exact/baseline-pause-1.png" alt="" aria-hidden="true"><span>Oui, souvent</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="pauses" data-value="sometimes" aria-pressed="false"><img src="./icons/d103-exact/baseline-pause-2.png" alt="" aria-hidden="true"><span>Parfois</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="pauses" data-value="rarely" aria-pressed="false"><img src="./icons/d103-exact/baseline-pause-3.png" alt="" aria-hidden="true"><span>Rarement</span></button><button type="button" class="d103-baseline-choice" data-baseline-group="pauses" data-value="no_need" aria-pressed="false"><img src="./icons/d103-exact/baseline-pause-4.png" alt="" aria-hidden="true"><span>Non, pas besoin</span></button></div></div><div class="d103-baseline-actions"><button class="d103-baseline-continue" id="d103BaselineContinue" type="button">Continuer &nbsp;›</button><p class="d103-baseline-note">❧ &nbsp;Vous pourrez modifier ces repères plus tard.</p></div></section></section><section class="d103-today" id="d103Today" hidden aria-labelledby="d103TodayTitle"><header class="d103-today-header"><button type="button" class="d103-brand-button" id="d103TodayHome" aria-label="Je marche comme je suis"><picture>
-  <source media="(max-width:900px)" srcset="./icons/d103-brand-mark.png">
-  <img src="./icons/d103-home-brand-desktop.png" alt="Je marche comme je suis">
-</picture></button><button type="button" class="d103-help-button" id="d103TodayHelp"><b>?</b><span class="label">Aide</span></button></header><section class="d103-today-hero"><div class="d103-today-copy"><span class="d103-today-step">ÉTAPE 2/2</span><h2 id="d103TodayTitle">Comment êtes-vous<span class="script">aujourd’hui ?</span></h2><p>Ces repères nous aident à adapter les propositions à votre état et à vos envies du moment.</p><p>Vous pourrez les modifier à tout moment.</p></div></section><section class="d103-today-panel">
-<div class="d103-today-row"><div class="d103-today-info"><span class="d103-today-info-icon"><img src="./icons/d103-exact/today-energy-info.png" alt="" aria-hidden="true"></span><div><strong>Énergie aujourd’hui</strong><span>Quel est votre niveau d’énergie par rapport à d’habitude ?</span></div></div><div class="d103-today-options"><button class="d103-today-choice" type="button" data-today-group="energy" data-value="lower" aria-pressed="false"><img src="./icons/d103-exact/today-energy-1.png" alt=""><span>Plus basse</span></button><button class="d103-today-choice" type="button" data-today-group="energy" data-value="same" aria-pressed="false"><img src="./icons/d103-exact/today-energy-2.png" alt=""><span>Pareille</span></button><button class="d103-today-choice" type="button" data-today-group="energy" data-value="higher" aria-pressed="false"><img src="./icons/d103-exact/today-energy-3.png" alt=""><span>Plus haute</span></button><button class="d103-today-choice" type="button" data-today-group="energy" data-value="much_higher" aria-pressed="false"><img src="./icons/d103-exact/today-energy-4.png" alt=""><span>Très haute</span></button></div></div>
-<div class="d103-today-row"><div class="d103-today-info"><span class="d103-today-info-icon"><img src="./icons/d103-exact/today-walk-info.png" alt="" aria-hidden="true"></span><div><strong>Facilité à marcher aujourd’hui</strong><span>Comment se passe la marche pour vous aujourd’hui ?</span></div></div><div class="d103-today-options"><button class="d103-today-choice" type="button" data-today-group="walkingEase" data-value="harder" aria-pressed="false"><img src="./icons/d103-exact/today-walk-1.png" alt=""><span>Plus difficile</span></button><button class="d103-today-choice" type="button" data-today-group="walkingEase" data-value="slightly_harder" aria-pressed="false"><img src="./icons/d103-exact/today-walk-2.png" alt=""><span>Un peu difficile</span></button><button class="d103-today-choice" type="button" data-today-group="walkingEase" data-value="easy" aria-pressed="false"><img src="./icons/d103-exact/today-walk-3.png" alt=""><span>Facile</span></button><button class="d103-today-choice" type="button" data-today-group="walkingEase" data-value="very_easy" aria-pressed="false"><img src="./icons/d103-exact/today-walk-4.png" alt=""><span>Très facile</span></button></div></div>
-<div class="d103-today-row"><div class="d103-today-info"><span class="d103-today-info-icon"><img src="./icons/d103-exact/today-discomfort-info.png" alt="" aria-hidden="true"></span><div><strong>Gêne / inconfort aujourd’hui</strong><span>Ressentez-vous une gêne ou un inconfort particulier ?</span></div></div><div class="d103-today-options"><button class="d103-today-choice" type="button" data-today-group="discomfort" data-value="important" aria-pressed="false"><img src="./icons/d103-exact/today-discomfort-1.png" alt=""><span>Importante</span></button><button class="d103-today-choice" type="button" data-today-group="discomfort" data-value="moderate" aria-pressed="false"><img src="./icons/d103-exact/today-discomfort-2.png" alt=""><span>Modérée</span></button><button class="d103-today-choice" type="button" data-today-group="discomfort" data-value="light" aria-pressed="false"><img src="./icons/d103-exact/today-discomfort-3.png" alt=""><span>Légère</span></button><button class="d103-today-choice" type="button" data-today-group="discomfort" data-value="none" aria-pressed="false"><img src="./icons/d103-exact/today-discomfort-4.png" alt=""><span>Aucune</span></button></div></div>
-<div class="d103-today-row"><div class="d103-today-info"><span class="d103-today-info-icon"><img src="./icons/d103-exact/today-time-info.png" alt="" aria-hidden="true"></span><div><strong>Temps disponible aujourd’hui</strong><span>Combien de temps pouvez-vous consacrer à votre balade ?</span></div></div><div class="d103-today-options"><button class="d103-today-choice" type="button" data-today-group="availableTime" data-value="under_1h" aria-pressed="false"><img src="./icons/d103-exact/today-time-1.png" alt=""><span>Moins de 1 h</span></button><button class="d103-today-choice" type="button" data-today-group="availableTime" data-value="1_to_2h" aria-pressed="false"><img src="./icons/d103-exact/today-time-2.png" alt=""><span>1 à 2 h</span></button><button class="d103-today-choice" type="button" data-today-group="availableTime" data-value="2_to_3h" aria-pressed="false"><img src="./icons/d103-exact/today-time-3.png" alt=""><span>2 à 3 h</span></button><button class="d103-today-choice" type="button" data-today-group="availableTime" data-value="over_3h" aria-pressed="false"><img src="./icons/d103-exact/today-time-4.png" alt=""><span>Plus de 3 h</span></button></div></div>
-<div class="d103-today-row d103-goal-row"><div class="d103-goal-copy"><strong>Ce que vous souhaitez aujourd’hui</strong><span>Ce choix guide la proposition du jour, sans vous enfermer dans un niveau.</span></div><div class="d103-goal-options"><button class="d103-goal-choice" type="button" data-today-group="functionalGoal" data-value="recover" aria-pressed="false"><img src="./icons/d103-exact/today-goal-recover.png" alt=""><span><b>Ce que je veux retrouver doucement</b></span></button><button class="d103-goal-choice" type="button" data-today-group="functionalGoal" data-value="preserve" aria-pressed="false"><img src="./icons/d103-exact/today-goal-preserve.png" alt=""><span><b>Ce que je veux préserver</b></span></button><button class="d103-goal-choice" type="button" data-today-group="functionalGoal" data-value="evolve" aria-pressed="false"><img src="./icons/d103-exact/today-goal-evolve.png" alt=""><span><b>Ce que je veux faire évoluer</b></span></button></div></div>
-<div class="d103-today-actions"><button class="d103-today-continue" id="d103TodayContinue" type="button">Continuer &nbsp;›</button><p class="d103-today-note">❧ &nbsp;Vous pourrez modifier ces repères plus tard.</p></div></section></section><div class="landing-exact" id="landingExact" aria-label="Accueil Je marche comme je suis">
+<section class="d103-health-pending" id="d103HealthPending" hidden aria-labelledby="d103HealthPendingTitle">
+<header class="d103-health-pending-header">
+  <button type="button" class="d103-brand-button" id="d103HealthPendingHome" aria-label="Je marche comme je suis">
+    <picture>
+      <source media="(max-width:900px)" srcset="./icons/d103-brand-mark.png">
+      <img src="./icons/d103-home-brand-desktop.png" alt="Je marche comme je suis">
+    </picture>
+  </button>
+  <button type="button" class="d103-help-button" id="d103HealthPendingHelp"><b>?</b><span class="label">Aide</span></button>
+</header>
+<div class="d103-health-pending-shell">
+  <div class="d103-health-pending-card">
+    <span class="d103-health-pending-kicker">Mon élan santé</span>
+    <h2 id="d103HealthPendingTitle">Cette partie de l’accompagnement est en préparation.</h2>
+    <p>Nous construisons actuellement la manière de vous proposer une activité adaptée à votre situation et à ce que vous souhaitez aujourd’hui.</p>
+    <p class="d103-health-pending-note">Aucune donnée supplémentaire n’est demandée ici et aucune proposition d’activité n’est générée à ce stade.</p>
+    <button type="button" id="d103HealthPendingBack">Retour à l’accueil</button>
+  </div>
+</div>
+</section>
+<div class="landing-exact" id="landingExact" aria-label="Accueil Je marche comme je suis">
 <button class="landing-hotspot landing-clear" id="landingExactClear" type="button" aria-label="Effacer mes données"></button>
 <button class="landing-hotspot landing-help" id="landingExactHelp" type="button" aria-label="Aide"></button>
 <button class="landing-hotspot landing-privacy" id="landingExactPrivacy" type="button" aria-label="Voir les données transmises"></button>
@@ -9426,573 +9421,6 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
   });
 })();
 /* JMMJS_ACTIVITY_INTENT_HOME_CORE_END */
-/* JMMJS_ACTIVITY_BASELINE_CORE_START */
-(() => {
-  "use strict";
-
-  const LONGITUDINAL_INTENTS = Object.freeze([
-    "gentle_return",
-    "maintain",
-    "progress",
-  ]);
-
-  const STORAGE_KEYS = Object.freeze({
-    baseline: "jmmjs-d103c-baseline-v1",
-    intent: "jmmjs-d103c-activity-intent-v1",
-  });
-
-  const ALLOWED = Object.freeze({
-    energy: Object.freeze(["low", "medium", "good", "very_good"]),
-    walkingEase: Object.freeze(["difficult", "sometimes_difficult", "rather_easy", "very_easy"]),
-    duration: Object.freeze(["up_to_1h", "1_to_2h", "2_to_3h", "more_than_3h"]),
-    pauses: Object.freeze(["often", "sometimes", "rarely", "no_need"]),
-  });
-
-  function emptyBaseline() {
-    return {
-      version: 1,
-      energy: null,
-      walkingEase: null,
-      duration: null,
-      pauses: null,
-      savedAt: null,
-    };
-  }
-
-  function normalizeBaseline(value = {}) {
-    const out = emptyBaseline();
-    for (const key of Object.keys(ALLOWED)) {
-      const candidate = value?.[key];
-      out[key] = ALLOWED[key].includes(candidate) ? candidate : null;
-    }
-    out.savedAt = typeof value?.savedAt === "string" ? value.savedAt : null;
-    return out;
-  }
-
-  function isComplete(value = {}) {
-    const baseline = normalizeBaseline(value);
-    return Object.keys(ALLOWED).every((key) => baseline[key] !== null);
-  }
-
-  function intentNeedsBaseline(intent) {
-    return LONGITUDINAL_INTENTS.includes(intent);
-  }
-
-  function safeParse(raw) {
-    if (typeof raw !== "string" || !raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-
-  function loadBaseline(storage) {
-    if (!storage || typeof storage.getItem !== "function") return emptyBaseline();
-    return normalizeBaseline(safeParse(storage.getItem(STORAGE_KEYS.baseline)) || {});
-  }
-
-  function saveBaseline(storage, value) {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    const normalized = normalizeBaseline(value);
-    if (!isComplete(normalized)) return false;
-    normalized.savedAt = new Date().toISOString();
-    storage.setItem(STORAGE_KEYS.baseline, JSON.stringify(normalized));
-    return true;
-  }
-
-  function saveIntent(storage, intent) {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    if (!["leisure", ...LONGITUDINAL_INTENTS].includes(intent)) return false;
-    storage.setItem(STORAGE_KEYS.intent, intent);
-    return true;
-  }
-
-  function loadIntent(storage) {
-    if (!storage || typeof storage.getItem !== "function") return null;
-    const value = storage.getItem(STORAGE_KEYS.intent);
-    return ["leisure", ...LONGITUDINAL_INTENTS].includes(value) ? value : null;
-  }
-
-  globalThis.JMMJSActivityBaselineCore = Object.freeze({
-    LONGITUDINAL_INTENTS,
-    STORAGE_KEYS,
-    ALLOWED,
-    emptyBaseline,
-    normalizeBaseline,
-    isComplete,
-    intentNeedsBaseline,
-    loadBaseline,
-    saveBaseline,
-    saveIntent,
-    loadIntent,
-  });
-})();
-/* JMMJS_ACTIVITY_BASELINE_CORE_END */
-/* JMMJS_ACTIVITY_TODAY_CORE_START */
-(() => {
-  "use strict";
-
-  const STORAGE_KEY = "jmmjs-d103c-today-v1";
-  const ALLOWED = Object.freeze({
-    energy: Object.freeze(["lower", "same", "higher", "much_higher"]),
-    walkingEase: Object.freeze(["harder", "slightly_harder", "easy", "very_easy"]),
-    discomfort: Object.freeze(["important", "moderate", "light", "none"]),
-    availableTime: Object.freeze(["under_1h", "1_to_2h", "2_to_3h", "over_3h"]),
-    functionalGoal: Object.freeze(["recover", "preserve", "evolve"]),
-  });
-
-  const GOAL_FOR_INTENT = Object.freeze({
-    gentle_return: "recover",
-    maintain: "preserve",
-    progress: "evolve",
-  });
-
-  function emptyToday() {
-    return { version: 1, energy: null, walkingEase: null, discomfort: null, availableTime: null, functionalGoal: null, savedAt: null };
-  }
-
-  function normalizeToday(value = {}) {
-    const out = emptyToday();
-    for (const key of ["energy", "walkingEase", "discomfort", "availableTime"]) {
-      out[key] = ALLOWED[key].includes(value?.[key]) ? value[key] : null;
-    }
-    out.functionalGoal = ALLOWED.functionalGoal.includes(value?.functionalGoal) ? value.functionalGoal : null;
-    out.savedAt = typeof value?.savedAt === "string" ? value.savedAt : null;
-    return out;
-  }
-
-  function isComplete(value = {}) {
-    const v = normalizeToday(value);
-    return ["energy", "walkingEase", "discomfort", "availableTime"].every((key) => v[key] !== null);
-  }
-
-  function suggestedGoal(intent) { return GOAL_FOR_INTENT[intent] || null; }
-
-  function safeParse(raw) {
-    if (typeof raw !== "string" || !raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-
-  function loadToday(storage) {
-    if (!storage || typeof storage.getItem !== "function") return emptyToday();
-    return normalizeToday(safeParse(storage.getItem(STORAGE_KEY)) || {});
-  }
-
-  function saveToday(storage, value) {
-    if (!storage || typeof storage.setItem !== "function") return false;
-    const normalized = normalizeToday(value);
-    if (!isComplete(normalized)) return false;
-    normalized.savedAt = new Date().toISOString();
-    storage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    return true;
-  }
-
-  globalThis.JMMJSActivityTodayCore = Object.freeze({ STORAGE_KEY, ALLOWED, GOAL_FOR_INTENT, emptyToday, normalizeToday, isComplete, suggestedGoal, loadToday, saveToday });
-})();
-/* JMMJS_ACTIVITY_TODAY_CORE_END */
-/* JMMJS_ACTIVITY_ADAPTATION_CORE_START */
-(() => {
-  "use strict";
-
-  // D103D — traduction pure et explicable du longitudinal vers la préparation.
-  // Ce module ne diagnostique rien, ne déduit ni douleur, ni fatigue, ni forme générale.
-  // Il fournit uniquement des paramètres directement justifiés par les réponses D103C.
-
-  const LONGITUDINAL_INTENTS = Object.freeze(["gentle_return", "maintain", "progress"]);
-  const BASELINE_DURATION_MAX = Object.freeze({
-    up_to_1h: 60,
-    "1_to_2h": 120,
-    "2_to_3h": 180,
-    more_than_3h: 240,
-  });
-  const TODAY_TIME_MAX = Object.freeze({
-    under_1h: 60,
-    "1_to_2h": 120,
-    "2_to_3h": 180,
-    over_3h: 240,
-  });
-  const BASELINE_WALKING_RANK = Object.freeze({
-    difficult: 1,
-    sometimes_difficult: 2,
-    rather_easy: 3,
-    very_easy: 4,
-  });
-  const TODAY_WALKING_RANK = Object.freeze({
-    harder: 1,
-    slightly_harder: 2,
-    easy: 3,
-    very_easy: 4,
-  });
-  const ENERGY_DELTA = Object.freeze({ lower: -1, same: 0, higher: 1, much_higher: 2 });
-  const DISCOMFORT_RANK = Object.freeze({ none: 0, light: 1, moderate: 2, important: 3 });
-
-  function known(value) {
-    return value !== null && value !== undefined && value !== "";
-  }
-
-  function clampToStep(value, min, max, step) {
-    const n = Math.max(min, Math.min(max, Number(value)));
-    return Math.round(n / step) * step;
-  }
-
-  function normalizeInput(input = {}) {
-    return {
-      activityIntent: LONGITUDINAL_INTENTS.includes(input.activityIntent) ? input.activityIntent : input.activityIntent === "leisure" ? "leisure" : null,
-      baseline: input.baseline && typeof input.baseline === "object" ? input.baseline : {},
-      today: input.today && typeof input.today === "object" ? input.today : {},
-      functionalGoal: ["recover", "preserve", "evolve"].includes(input.functionalGoal)
-        ? input.functionalGoal
-        : ["recover", "preserve", "evolve"].includes(input.today?.functionalGoal)
-          ? input.today.functionalGoal
-          : null,
-    };
-  }
-
-  function missingFields(normalized) {
-    const missing = [];
-    if (!normalized.activityIntent) missing.push("activityIntent");
-    if (normalized.activityIntent === "leisure") return missing;
-    for (const key of ["energy", "walkingEase", "duration", "pauses"]) {
-      if (!known(normalized.baseline[key])) missing.push(`baseline.${key}`);
-    }
-    for (const key of ["energy", "walkingEase", "discomfort", "availableTime"]) {
-      if (!known(normalized.today[key])) missing.push(`today.${key}`);
-    }
-    return missing;
-  }
-
-  function deriveCaution(normalized) {
-    const reasons = [];
-    let score = 0;
-
-    const energyDelta = ENERGY_DELTA[normalized.today.energy];
-    if (energyDelta === -1) {
-      score += 1;
-      reasons.push("Énergie plus basse qu’habituellement.");
-    }
-
-    const baselineWalking = BASELINE_WALKING_RANK[normalized.baseline.walkingEase];
-    const todayWalking = TODAY_WALKING_RANK[normalized.today.walkingEase];
-    const walkingDelta = Number.isFinite(baselineWalking) && Number.isFinite(todayWalking)
-      ? todayWalking - baselineWalking
-      : null;
-    if (walkingDelta !== null && walkingDelta <= -2) {
-      score += 2;
-      reasons.push("Marche nettement plus difficile que le repère habituel.");
-    } else if (walkingDelta !== null && walkingDelta === -1) {
-      score += 1;
-      reasons.push("Marche plus difficile que le repère habituel.");
-    }
-
-    const discomfort = DISCOMFORT_RANK[normalized.today.discomfort];
-    if (discomfort === 3) {
-      score += 2;
-      reasons.push("Gêne ou inconfort important déclaré aujourd’hui.");
-    } else if (discomfort === 2) {
-      score += 1;
-      reasons.push("Gêne ou inconfort modéré déclaré aujourd’hui.");
-    }
-
-    if (score >= 3) return { level: "high", score, reasons, safetyMarginMinutes: 20 };
-    if (score >= 1) return { level: "moderate", score, reasons, safetyMarginMinutes: 15 };
-    return { level: "standard", score: 0, reasons, safetyMarginMinutes: 10 };
-  }
-
-  function deriveDuration(normalized) {
-    const baselineMax = BASELINE_DURATION_MAX[normalized.baseline.duration] ?? null;
-    const todayMax = TODAY_TIME_MAX[normalized.today.availableTime] ?? null;
-    if (!Number.isFinite(todayMax)) return { targetMinutes: null, capMinutes: null, reason: "Temps disponible non renseigné." };
-
-    const cap = todayMax;
-    if (!Number.isFinite(baselineMax)) {
-      return { targetMinutes: cap, capMinutes: cap, reason: "Le temps disponible aujourd’hui fixe la limite." };
-    }
-
-    if (normalized.activityIntent === "gentle_return") {
-      const gentle = clampToStep(Math.min(cap, baselineMax) * 0.75, 20, cap, 5);
-      return {
-        targetMinutes: gentle,
-        capMinutes: cap,
-        reason: "Reprise douce : départ sous le repère habituel, sans dépasser le temps disponible aujourd’hui.",
-      };
-    }
-
-    const target = Math.min(cap, baselineMax);
-    if (normalized.activityIntent === "maintain") {
-      return {
-        targetMinutes: target,
-        capMinutes: cap,
-        reason: "Maintien : le repère habituel est conservé dans la limite du temps disponible aujourd’hui.",
-      };
-    }
-
-    // Progression : D103D ne pousse jamais automatiquement au-delà du repère habituel.
-    // Il déclare seulement si une progression peut être discutée plus loin par le moteur.
-    return {
-      targetMinutes: target,
-      capMinutes: cap,
-      reason: "Progression : aucune augmentation automatique de durée ; le repère habituel reste le point de départ.",
-    };
-  }
-
-  function deriveProgressionEligibility(normalized, caution) {
-    if (normalized.activityIntent !== "progress") return false;
-    if (normalized.functionalGoal !== "evolve") return false;
-    if (caution.level !== "standard") return false;
-    const energy = ENERGY_DELTA[normalized.today.energy];
-    const discomfort = DISCOMFORT_RANK[normalized.today.discomfort];
-    const baselineWalking = BASELINE_WALKING_RANK[normalized.baseline.walkingEase];
-    const todayWalking = TODAY_WALKING_RANK[normalized.today.walkingEase];
-    const walkingDelta = Number.isFinite(baselineWalking) && Number.isFinite(todayWalking)
-      ? todayWalking - baselineWalking
-      : null;
-    return energy >= 0 && discomfort <= 1 && (walkingDelta === null || walkingDelta >= 0);
-  }
-
-  function derivePausePolicy(normalized, caution) {
-    const habitual = normalized.baseline.pauses || null;
-    const reviewNeeded = caution.level !== "standard";
-    return {
-      habitual,
-      reviewNeeded,
-      reason: reviewNeeded
-        ? "L’état du jour justifie de revalider le besoin de pauses ; aucune fréquence supplémentaire n’est inventée."
-        : "Le besoin habituel de pauses est conservé comme repère.",
-    };
-  }
-
-  function derivePacePolicy(normalized, caution) {
-    if (normalized.activityIntent === "gentle_return") {
-      return { policy: "not_above_usual", reason: "Reprise douce : ne pas démarrer au-dessus du rythme habituel." };
-    }
-    if (caution.level !== "standard") {
-      return { policy: "not_above_usual", reason: "État du jour plus contraignant : ne pas augmenter le rythme." };
-    }
-    if (normalized.activityIntent === "progress") {
-      return { policy: "usual_first", reason: "Progression : partir du rythme habituel ; toute hausse doit rester explicite et validée plus loin." };
-    }
-    return { policy: "usual", reason: "Maintien : conserver le rythme habituel." };
-  }
-
-  function deriveAdaptation(input = {}) {
-    const normalized = normalizeInput(input);
-    if (normalized.activityIntent === "leisure") {
-      return Object.freeze({
-        schemaVersion: 1,
-        status: "inactive",
-        activityIntent: "leisure",
-        reason: "Le mode Me balader n’utilise pas l’adaptation longitudinale.",
-      });
-    }
-
-    const missing = missingFields(normalized);
-    if (missing.length) {
-      return Object.freeze({
-        schemaVersion: 1,
-        status: "needs_data",
-        activityIntent: normalized.activityIntent,
-        missing: Object.freeze(missing),
-      });
-    }
-
-    const caution = deriveCaution(normalized);
-    const duration = deriveDuration(normalized);
-    const pausePolicy = derivePausePolicy(normalized, caution);
-    const pacePolicy = derivePacePolicy(normalized, caution);
-    const progressionEligible = deriveProgressionEligibility(normalized, caution);
-
-    return Object.freeze({
-      schemaVersion: 1,
-      status: "ready",
-      activityIntent: normalized.activityIntent,
-      functionalGoal: normalized.functionalGoal,
-      preparation: Object.freeze({
-        durationMinutes: duration.targetMinutes,
-        availableTimeCapMinutes: duration.capMinutes,
-        safetyMarginMinutes: caution.safetyMarginMinutes,
-        pacePolicy: pacePolicy.policy,
-        pausePolicy: pausePolicy.habitual,
-        pauseReviewNeeded: pausePolicy.reviewNeeded,
-        progressionEligible,
-        // Champs volontairement non dérivés : sémantiquement distincts des réponses D103C.
-        fitness: null,
-        fatigue: null,
-        painIntensity: null,
-      }),
-      comparison: Object.freeze({
-        energyDelta: ENERGY_DELTA[normalized.today.energy] ?? null,
-        walkingDelta: (() => {
-          const b = BASELINE_WALKING_RANK[normalized.baseline.walkingEase];
-          const t = TODAY_WALKING_RANK[normalized.today.walkingEase];
-          return Number.isFinite(b) && Number.isFinite(t) ? t - b : null;
-        })(),
-        discomfortLevel: DISCOMFORT_RANK[normalized.today.discomfort] ?? null,
-      }),
-      caution: Object.freeze(caution),
-      explanations: Object.freeze([
-        duration.reason,
-        pacePolicy.reason,
-        pausePolicy.reason,
-        progressionEligible
-          ? "Les réponses du jour permettent d’envisager une progression, sans augmentation automatique."
-          : normalized.activityIntent === "progress"
-            ? "Aucune progression automatique n’est engagée avec les réponses actuelles."
-            : "Aucune progression n’est recherchée pour cette intention.",
-      ]),
-    });
-  }
-
-  globalThis.JMMJSActivityAdaptationCore = Object.freeze({
-    LONGITUDINAL_INTENTS,
-    BASELINE_DURATION_MAX,
-    TODAY_TIME_MAX,
-    deriveAdaptation,
-  });
-})();
-/* JMMJS_ACTIVITY_ADAPTATION_CORE_END */
-/* JMMJS_ACTIVITY_ADAPTATION_PRESENTER_CORE_START */
-(() => {
-  "use strict";
-
-  const INTENT_LABELS = Object.freeze({
-    gentle_return: "Reprendre doucement",
-    maintain: "Maintenir mon rythme",
-    progress: "Progresser",
-  });
-
-  const GOAL_LABELS = Object.freeze({
-    recover: "retrouver doucement",
-    preserve: "préserver",
-    evolve: "faire évoluer",
-  });
-
-  const PAUSE_LABELS = Object.freeze({
-    often: "pauses fréquentes",
-    sometimes: "pauses selon le besoin",
-    rarely: "pauses occasionnelles",
-    no_need: "pas de pause habituelle",
-  });
-
-  const PACE_LABELS = Object.freeze({
-    usual: "Votre rythme habituel est conservé.",
-    usual_first: "On part de votre rythme habituel avant toute évolution.",
-    not_above_usual: "Le départ reste au plus à votre rythme habituel.",
-  });
-
-  function minutesLabel(value) {
-    const minutes = Number(value);
-    if (!Number.isFinite(minutes) || minutes <= 0) return null;
-    if (minutes < 60) return `${Math.round(minutes)} min`;
-    const h = Math.floor(minutes / 60);
-    const m = Math.round(minutes % 60);
-    return m ? `${h} h ${m} min` : `${h} h`;
-  }
-
-  function cautionMessage(adaptation) {
-    const level = adaptation?.caution?.level;
-    if (level === "high") {
-      return {
-        tone: "attention",
-        title: "Aujourd’hui appelle davantage de prudence",
-        text: "La préparation reste volontairement plus conservatrice. Aucun objectif n’est augmenté automatiquement.",
-      };
-    }
-    if (level === "moderate") {
-      return {
-        tone: "gentle",
-        title: "Aujourd’hui, on garde un peu plus de marge",
-        text: "La préparation tient compte des différences déclarées par rapport à votre repère habituel.",
-      };
-    }
-    return {
-      tone: "standard",
-      title: "Vos repères du jour sont cohérents avec votre préparation",
-      text: "Aucune réduction supplémentaire n’est appliquée au-delà de votre intention et du temps disponible.",
-    };
-  }
-
-  function buildItems(adaptation) {
-    const preparation = adaptation?.preparation || {};
-    const items = [];
-    const duration = minutesLabel(preparation.durationMinutes);
-    const cap = minutesLabel(preparation.availableTimeCapMinutes);
-    const margin = minutesLabel(preparation.safetyMarginMinutes);
-
-    if (duration) {
-      items.push(Object.freeze({
-        key: "duration",
-        label: "Durée proposée",
-        value: duration,
-        detail: cap && cap !== duration
-          ? `Dans votre disponibilité du jour : ${cap} maximum.`
-          : "Dans la limite du temps disponible aujourd’hui.",
-      }));
-    }
-
-    if (PACE_LABELS[preparation.pacePolicy]) {
-      items.push(Object.freeze({
-        key: "pace",
-        label: "Rythme de départ",
-        value: PACE_LABELS[preparation.pacePolicy],
-        detail: "Aucune hausse de rythme n’est décidée silencieusement.",
-      }));
-    }
-
-    if (margin) {
-      items.push(Object.freeze({
-        key: "margin",
-        label: "Marge de sécurité",
-        value: margin,
-        detail: "Elle est intégrée au temps de préparation.",
-      }));
-    }
-
-    if (preparation.pausePolicy && PAUSE_LABELS[preparation.pausePolicy]) {
-      items.push(Object.freeze({
-        key: "pauses",
-        label: "Pauses",
-        value: PAUSE_LABELS[preparation.pausePolicy],
-        detail: preparation.pauseReviewNeeded
-          ? "Votre état du jour invite à revalider ce besoin avant le départ."
-          : "Votre repère habituel est conservé.",
-      }));
-    }
-
-    return Object.freeze(items);
-  }
-
-  function present(adaptation = null) {
-    if (!adaptation || adaptation.status !== "ready") {
-      return Object.freeze({ visible: false, reason: "adaptation-unavailable" });
-    }
-    if (!INTENT_LABELS[adaptation.activityIntent]) {
-      return Object.freeze({ visible: false, reason: "not-longitudinal" });
-    }
-
-    const caution = cautionMessage(adaptation);
-    const functionalGoal = GOAL_LABELS[adaptation.functionalGoal] || null;
-    const progressionText = adaptation.activityIntent === "progress"
-      ? adaptation.preparation?.progressionEligible
-        ? "Une évolution peut être envisagée, mais elle ne sera jamais appliquée automatiquement."
-        : "Aucune progression supplémentaire n’est appliquée aujourd’hui."
-      : null;
-
-    return Object.freeze({
-      visible: true,
-      title: "Ce que nous avons ajusté pour aujourd’hui",
-      subtitle: `${INTENT_LABELS[adaptation.activityIntent]}${functionalGoal ? ` · objectif : ${functionalGoal}` : ""}`,
-      tone: caution.tone,
-      messageTitle: caution.title,
-      messageText: caution.text,
-      progressionText,
-      items: buildItems(adaptation),
-      disclosure: "Ces réglages viennent uniquement de vos réponses. Vous pouvez encore les modifier avant le calcul.",
-    });
-  }
-
-  globalThis.JMMJSActivityAdaptationPresenterCore = Object.freeze({
-    present,
-    minutesLabel,
-  });
-})();
-/* JMMJS_ACTIVITY_ADAPTATION_PRESENTER_CORE_END */
 /* JMMJS_PERIPHERAL_REGISTRY_START */
 (() => {
   "use strict";
@@ -12026,15 +11454,6 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
   updateLiveSummary();
 
   const activityIntentHomeCore = globalThis.JMMJSActivityIntentHomeCore;
-  const activityBaselineCore = globalThis.JMMJSActivityBaselineCore;
-  const activityTodayCore = globalThis.JMMJSActivityTodayCore;
-  const activityAdaptationCore = globalThis.JMMJSActivityAdaptationCore;
-  const activityAdaptationPresenterCore = globalThis.JMMJSActivityAdaptationPresenterCore;
-  let selectedActivityIntent = null;
-  const baselineDefaults = Object.freeze({ energy: "medium", walkingEase: "rather_easy", duration: "1_to_2h", pauses: "sometimes" });
-  let baselineSelections = { ...baselineDefaults };
-  const todayDefaults = Object.freeze({ energy: "same", walkingEase: "easy", discomfort: "moderate", availableTime: "1_to_2h", functionalGoal: null });
-  let todaySelections = { ...todayDefaults };
 
   function longitudinalDocumentOrNull() {
     const loaded = activityProgressionPersistence.loadDocument();
@@ -12085,7 +11504,6 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
       if ($("#d103LastReaction")) $("#d103LastReaction").textContent = summarizeD103Reaction(home.lastSession);
       if ($("#d103LastIntent")) $("#d103LastIntent").textContent = activityIntentHomeCore.intentLabel(home.lastSession.activityIntent) || "Non renseignée";
     }
-    selectedActivityIntent = null;
     const statusNode = $("#d103NeedStatus");
     if (statusNode) {
       statusNode.hidden = true;
@@ -12093,60 +11511,14 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
     }
   }
 
-  function loadD103BaselineSelections() {
-    if (!activityBaselineCore) return { ...baselineDefaults };
-    try {
-      const loaded = activityBaselineCore.loadBaseline(localStorage);
-      return activityBaselineCore.isComplete(loaded) ? loaded : { ...baselineDefaults };
-    } catch { return { ...baselineDefaults }; }
-  }
-
-  function renderD103Baseline() {
-    $$(".d103-baseline-choice").forEach((button) => {
-      const group = button.dataset.baselineGroup;
-      const value = button.dataset.value;
-      button.setAttribute("aria-pressed", String(baselineSelections[group] === value));
-    });
-  }
-
-  function loadD103TodaySelections() {
-    if (!activityTodayCore) return { ...todayDefaults, functionalGoal: null };
-    try {
-      const loaded = activityTodayCore.loadToday(sessionStorage);
-      const base = activityTodayCore.isComplete(loaded) ? loaded : { ...todayDefaults };
-      return { ...base, functionalGoal: loaded.functionalGoal || null };
-    } catch { return { ...todayDefaults, functionalGoal: null }; }
-  }
-
-  function renderD103Today() {
-    $$("[data-today-group]").forEach((button) => {
-      const group = button.dataset.todayGroup;
-      const value = button.dataset.value;
-      button.setAttribute("aria-pressed", String(todaySelections[group] === value));
-    });
-  }
-
-  function showD103Today() {
-    todaySelections = loadD103TodaySelections();
+  function showD103HealthPending() {
     if ($("#d103Home")) $("#d103Home").hidden = true;
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
-    if ($("#d103Today")) $("#d103Today").hidden = false;
-    renderD103Today();
-    window.scrollTo(0, 0);
-  }
-
-  function showD103Baseline() {
-    baselineSelections = loadD103BaselineSelections();
-    if ($("#d103Home")) $("#d103Home").hidden = true;
-    if ($("#d103Today")) $("#d103Today").hidden = true;
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = false;
-    renderD103Baseline();
+    if ($("#d103HealthPending")) $("#d103HealthPending").hidden = false;
     window.scrollTo(0, 0);
   }
 
   function showD103HomeScreen() {
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
-    if ($("#d103Today")) $("#d103Today").hidden = true;
+    if ($("#d103HealthPending")) $("#d103HealthPending").hidden = true;
     if ($("#d103Home")) $("#d103Home").hidden = false;
     renderD103Home();
     window.scrollTo(0, 0);
@@ -12176,21 +11548,16 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
     if (!result?.persisted) {
       say("Impossible d’enregistrer ce choix sur cet appareil. Vous pouvez tout de même continuer avec une balade simple.");
     }
-    selectedActivityIntent = "leisure";
     setD103NeedStatus("Balade sur mesure choisie. Nous préparons une sortie adaptée à votre état du jour.");
     mode("api");
   }
 
   function openD103HealthPath() {
-    // D103B2 — la porte « Mon élan santé » ne choisit plus silencieusement
-    // Reprendre / Maintenir / Progresser. L'intention est dérivée uniquement
-    // du choix explicite « Ce que vous souhaitez aujourd'hui ».
-    selectedActivityIntent = null;
-    setD103NeedStatus("Élan santé choisi. Nous allons préciser ce que vous souhaitez aujourd’hui.");
-    let baselineComplete = false;
-    try { baselineComplete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch { baselineComplete = false; }
-    if (baselineComplete) showD103Today();
-    else showD103Baseline();
+    // D103P0-00N — branche Activité volontairement neutre jusqu’aux
+    // retours D103C3 / D103P0 : aucune collecte, aucune adaptation,
+    // aucun activityIntent fabriqué et aucun raccord au moteur Balade.
+    setD103NeedStatus("Élan santé choisi. Cette partie de l’accompagnement est en préparation.");
+    showD103HealthPending();
   }
 
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103NeedChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -12224,93 +11591,11 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
     openD103HealthPath();
   };
 
-  $$(".d103-baseline-choice").forEach((button) => {
-    button.onclick = () => {
-      const group = button.dataset.baselineGroup;
-      const value = button.dataset.value;
-      if (!group || !value) return;
-      baselineSelections[group] = value;
-      renderD103Baseline();
-    };
-  });
-  if ($("#d103BaselineContinue")) $("#d103BaselineContinue").onclick = () => {
-    let saved = false;
-    try { saved = activityBaselineCore?.saveBaseline(localStorage, baselineSelections) === true; } catch { saved = false; }
-    if (!saved) { say("Impossible d’enregistrer ces repères sur cet appareil."); return; }
-    showD103Today();
-  };
-
-  $$("[data-today-group]").forEach((button) => {
-    button.onclick = () => {
-      const group = button.dataset.todayGroup;
-      const value = button.dataset.value;
-      if (!group || !value) return;
-      todaySelections[group] = todaySelections[group] === value && group === "functionalGoal" ? null : value;
-      renderD103Today();
-    };
-  });
-
-  function activityIntentForD103Goal(goal) {
-    if (goal === "recover") return "gentle_return";
-    if (goal === "preserve") return "maintain";
-    if (goal === "evolve") return "progress";
-    return null;
-  }
-
-  function deriveD103PreparationAdaptation() {
-    if (!activityAdaptationCore) return null;
-    return activityAdaptationCore.deriveAdaptation({
-      activityIntent: selectedActivityIntent,
-      baseline: baselineSelections,
-      today: todaySelections,
-      functionalGoal: todaySelections.functionalGoal,
-    });
-  }
-
-  function applyD103TodayToPreparation() {
-    const adaptation = deriveD103PreparationAdaptation();
-    if (!adaptation || adaptation.status !== "ready") return adaptation;
-    const duration = $("#duration");
-    const margin = $("#margin");
-    if (duration && Number.isFinite(adaptation.preparation.durationMinutes)) {
-      duration.value = String(adaptation.preparation.durationMinutes);
-      duration.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    if (margin && Number.isFinite(adaptation.preparation.safetyMarginMinutes)) {
-      margin.value = String(adaptation.preparation.safetyMarginMinutes);
-      margin.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    // D103D : énergie ≠ forme/fatigue et gêne ≠ douleur. Ces champs ne sont jamais déduits.
-    S.d103Adaptation = adaptation;
-    updateLiveSummary();
-    return adaptation;
-  }
-
-  if ($("#d103TodayContinue")) $("#d103TodayContinue").onclick = () => {
-    const intent = activityIntentForD103Goal(todaySelections.functionalGoal);
-    if (!intent) {
-      say("Choisissez ce que vous souhaitez aujourd’hui avant de continuer.");
-      return;
-    }
-    const intentResult = saveD103ActivityIntent(intent);
-    if (!intentResult?.persisted) {
-      say("Impossible d’enregistrer ce choix sur cet appareil.");
-      return;
-    }
-    selectedActivityIntent = intent;
-    let saved = false;
-    try { saved = activityTodayCore?.saveToday(sessionStorage, todaySelections) === true; } catch { saved = false; }
-    if (!saved) { say("Impossible d’enregistrer l’état du jour sur cet appareil."); return; }
-    applyD103TodayToPreparation();
-    if ($("#d103Today")) $("#d103Today").hidden = true;
-    mode("api");
-  };
-  if ($("#d103BaselineHome")) $("#d103BaselineHome").onclick = showD103HomeScreen;
-  if ($("#d103TodayHome")) $("#d103TodayHome").onclick = showD103HomeScreen;
+  if ($("#d103HealthPendingHome")) $("#d103HealthPendingHome").onclick = showD103HomeScreen;
+  if ($("#d103HealthPendingBack")) $("#d103HealthPendingBack").onclick = showD103HomeScreen;
+  if ($("#d103HealthPendingHelp")) $("#d103HealthPendingHelp").onclick = () => $("#helpBtn")?.click();
   if ($("#d103HomeBrand")) $("#d103HomeBrand").onclick = () => window.scrollTo(0, 0);
   if ($("#d103Help")) $("#d103Help").onclick = () => $("#helpBtn")?.click();
-  if ($("#d103BaselineHelp")) $("#d103BaselineHelp").onclick = () => $("#helpBtn")?.click();
-  if ($("#d103TodayHelp")) $("#d103TodayHelp").onclick = () => $("#helpBtn")?.click();
 
   function mode(m, reveal = true) {
     S.mode = m;
@@ -12898,24 +12183,7 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
     );
   }
 
-  function renderD103AdaptationExplanation(adaptation) {
-    if (!activityAdaptationPresenterCore) return "";
-    const model = activityAdaptationPresenterCore.present(adaptation);
-    if (!model?.visible) return "";
-    const items = (model.items || []).map((item) =>
-      '<article class="d103e-adjustment-item"><span>' + esc(item.label) + '</span><strong>' + esc(item.value) + '</strong><small>' + esc(item.detail) + '</small></article>'
-    ).join("");
-    const progression = model.progressionText
-      ? '<p class="d103e-progression">' + esc(model.progressionText) + '</p>'
-      : "";
-    return '<section class="d103e-adaptation d103e-tone-' + esc(model.tone || "standard") + '" aria-labelledby="d103eAdaptationTitle">' +
-      '<div class="d103e-head"><div><span class="d103e-kicker">Adaptation du jour</span><h4 id="d103eAdaptationTitle">' + esc(model.title) + '</h4><p>' + esc(model.subtitle) + '</p></div><button type="button" class="d103e-edit" data-go="0">Modifier</button></div>' +
-      '<div class="d103e-message"><strong>' + esc(model.messageTitle) + '</strong><span>' + esc(model.messageText) + '</span></div>' +
-      '<div class="d103e-adjustment-grid">' + items + '</div>' +
-      progression +
-      '<p class="d103e-disclosure">' + esc(model.disclosure) + '</p>' +
-      '</section>';
-  }
+
 
   function renderConstraintSummary() {
     const host = $("#constraintSummary");
@@ -12963,7 +12231,6 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
     host.className = "review-card review-card-compact";
     host.innerHTML =
       '<div class="review-head review-head-compact"><div><h3>Vérifier avant de calculer</h3><p>Un dernier coup d’œil suffit. Les détails restent disponibles si vous souhaitez les relire.</p></div><span class="review-status">Prêt</span></div>' +
-      renderD103AdaptationExplanation(S.d103Adaptation) +
       '<div class="review-grid review-grid-compact">' +
       reviewBlock("Départ", departureText, 0) +
       reviewBlock("Temps", durationText, 0) +

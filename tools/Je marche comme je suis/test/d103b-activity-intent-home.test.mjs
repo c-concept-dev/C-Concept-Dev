@@ -114,9 +114,8 @@ test("D103B3 uniformise les logos visibles avec l’identité validée", () => {
   assert.doesNotMatch(html, /class="brandmark"/);
   assert.doesNotMatch(html, /d103-brand-lines/);
   assert.match(html, /<header class="topbar">[\s\S]{0,700}d103-home-brand-desktop\.png/);
-  assert.match(html, /id="d103BaselineHome"[\s\S]{0,500}d103-home-brand-desktop\.png/);
-  assert.match(html, /id="d103TodayHome"[\s\S]{0,500}d103-home-brand-desktop\.png/);
-  assert.ok((html.match(/d103-brand-mark\.png/g) || []).length >= 4);
+  assert.match(html, /id="d103HealthPendingHome"[\s\S]{0,500}d103-home-brand-desktop\.png/);
+  assert.ok((html.match(/d103-brand-mark\.png/g) || []).length >= 3);
 });
 
 test("D103B aucun faux historique n'est visible par défaut", () => {
@@ -136,9 +135,9 @@ test("D103B conserve un accès explicite au GPX et au parcours leisure stable", 
   assert.match(app, /mode\("api"\)/);
 });
 
-test("D103B ne présélectionne pas la dernière intention au chargement", () => {
+test("D103B ne présélectionne aucune intention Activité au chargement", () => {
   const app = read("src/app.js");
-  assert.match(app, /selectedActivityIntent = null/);
+  assert.doesNotMatch(app, /selectedActivityIntent/);
   assert.match(app, /statusNode\.hidden = true/);
   assert.match(app, /statusNode\.textContent = ""/);
 });
@@ -153,25 +152,31 @@ test("D103B utilise une seule structure responsive et les assets graphiques exac
 });
 
 
-test("D103B2 Mon élan santé ne choisit plus silencieusement une intention interne", () => {
+test("D103B2/P0-00N Mon élan santé ne choisit aucune intention et ouvre un état neutre", () => {
   const app = read("src/app.js");
+  assert.match(app, /function openD103HealthPath\(\)[\s\S]{0,500}showD103HealthPending\(\)/);
   assert.doesNotMatch(app, /function deriveD103HealthIntent/);
-  assert.match(app, /function openD103HealthPath\(\)[\s\S]{0,500}selectedActivityIntent = null/);
+  assert.doesNotMatch(app, /activityIntentForD103Goal/);
   assert.doesNotMatch(app, /openD103HealthPath\(["'](?:gentle_return|maintain|progress)["']\)/);
 });
 
-test("D103B2 le choix explicite du jour mappe vers les trois intentions longitudinales", () => {
-  const app = read("src/app.js");
-  assert.match(app, /goal === "recover"\) return "gentle_return"/);
-  assert.match(app, /goal === "preserve"\) return "maintain"/);
-  assert.match(app, /goal === "evolve"\) return "progress"/);
-  assert.match(app, /Choisissez ce que vous souhaitez aujourd’hui avant de continuer/);
+test("D103P0-00N l’écran transitoire santé ne collecte ni baseline ni état du jour", () => {
+  const html = read("je-marche-comme-je-suis.template.html");
+  assert.match(html, /id="d103HealthPending" hidden/);
+  assert.match(html, /Cette partie de l’accompagnement est en préparation/);
+  assert.doesNotMatch(html, /id="d103Baseline"/);
+  assert.doesNotMatch(html, /id="d103Today"/);
+  assert.doesNotMatch(html, /data-today-group/);
+  assert.doesNotMatch(html, /data-baseline-group/);
 });
 
-test("D103B2 l’écran du jour n’expose plus les anciens libellés comme trois modes", () => {
-  const html = read("je-marche-comme-je-suis.template.html");
-  assert.match(html, /Ce que vous souhaitez aujourd’hui<\/strong>/);
-  assert.doesNotMatch(html, /\(Reprendre doucement\)/);
-  assert.doesNotMatch(html, /\(Maintenir mon rythme\)/);
-  assert.doesNotMatch(html, /\(Progresser\)/);
+test("D103P0-00N la branche santé transitoire ne lance jamais le moteur Balade", () => {
+  const app = read("src/app.js");
+  const start = app.indexOf("function openD103HealthPath()");
+  const end = app.indexOf('if ($("#d103ChooseWalk"))', start);
+  const healthBlock = app.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.doesNotMatch(healthBlock, /mode\("api"\)/);
+  assert.doesNotMatch(healthBlock, /saveD103ActivityIntent/);
+  assert.doesNotMatch(healthBlock, /gentle_return|maintain|progress/);
 });

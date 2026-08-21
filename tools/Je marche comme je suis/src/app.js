@@ -1111,15 +1111,6 @@
   updateLiveSummary();
 
   const activityIntentHomeCore = globalThis.JMMJSActivityIntentHomeCore;
-  const activityBaselineCore = globalThis.JMMJSActivityBaselineCore;
-  const activityTodayCore = globalThis.JMMJSActivityTodayCore;
-  const activityAdaptationCore = globalThis.JMMJSActivityAdaptationCore;
-  const activityAdaptationPresenterCore = globalThis.JMMJSActivityAdaptationPresenterCore;
-  let selectedActivityIntent = null;
-  const baselineDefaults = Object.freeze({ energy: "medium", walkingEase: "rather_easy", duration: "1_to_2h", pauses: "sometimes" });
-  let baselineSelections = { ...baselineDefaults };
-  const todayDefaults = Object.freeze({ energy: "same", walkingEase: "easy", discomfort: "moderate", availableTime: "1_to_2h", functionalGoal: null });
-  let todaySelections = { ...todayDefaults };
 
   function longitudinalDocumentOrNull() {
     const loaded = activityProgressionPersistence.loadDocument();
@@ -1170,7 +1161,6 @@
       if ($("#d103LastReaction")) $("#d103LastReaction").textContent = summarizeD103Reaction(home.lastSession);
       if ($("#d103LastIntent")) $("#d103LastIntent").textContent = activityIntentHomeCore.intentLabel(home.lastSession.activityIntent) || "Non renseignée";
     }
-    selectedActivityIntent = null;
     const statusNode = $("#d103NeedStatus");
     if (statusNode) {
       statusNode.hidden = true;
@@ -1178,60 +1168,14 @@
     }
   }
 
-  function loadD103BaselineSelections() {
-    if (!activityBaselineCore) return { ...baselineDefaults };
-    try {
-      const loaded = activityBaselineCore.loadBaseline(localStorage);
-      return activityBaselineCore.isComplete(loaded) ? loaded : { ...baselineDefaults };
-    } catch { return { ...baselineDefaults }; }
-  }
-
-  function renderD103Baseline() {
-    $$(".d103-baseline-choice").forEach((button) => {
-      const group = button.dataset.baselineGroup;
-      const value = button.dataset.value;
-      button.setAttribute("aria-pressed", String(baselineSelections[group] === value));
-    });
-  }
-
-  function loadD103TodaySelections() {
-    if (!activityTodayCore) return { ...todayDefaults, functionalGoal: null };
-    try {
-      const loaded = activityTodayCore.loadToday(sessionStorage);
-      const base = activityTodayCore.isComplete(loaded) ? loaded : { ...todayDefaults };
-      return { ...base, functionalGoal: loaded.functionalGoal || null };
-    } catch { return { ...todayDefaults, functionalGoal: null }; }
-  }
-
-  function renderD103Today() {
-    $$("[data-today-group]").forEach((button) => {
-      const group = button.dataset.todayGroup;
-      const value = button.dataset.value;
-      button.setAttribute("aria-pressed", String(todaySelections[group] === value));
-    });
-  }
-
-  function showD103Today() {
-    todaySelections = loadD103TodaySelections();
+  function showD103HealthPending() {
     if ($("#d103Home")) $("#d103Home").hidden = true;
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
-    if ($("#d103Today")) $("#d103Today").hidden = false;
-    renderD103Today();
-    window.scrollTo(0, 0);
-  }
-
-  function showD103Baseline() {
-    baselineSelections = loadD103BaselineSelections();
-    if ($("#d103Home")) $("#d103Home").hidden = true;
-    if ($("#d103Today")) $("#d103Today").hidden = true;
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = false;
-    renderD103Baseline();
+    if ($("#d103HealthPending")) $("#d103HealthPending").hidden = false;
     window.scrollTo(0, 0);
   }
 
   function showD103HomeScreen() {
-    if ($("#d103Baseline")) $("#d103Baseline").hidden = true;
-    if ($("#d103Today")) $("#d103Today").hidden = true;
+    if ($("#d103HealthPending")) $("#d103HealthPending").hidden = true;
     if ($("#d103Home")) $("#d103Home").hidden = false;
     renderD103Home();
     window.scrollTo(0, 0);
@@ -1261,21 +1205,16 @@
     if (!result?.persisted) {
       say("Impossible d’enregistrer ce choix sur cet appareil. Vous pouvez tout de même continuer avec une balade simple.");
     }
-    selectedActivityIntent = "leisure";
     setD103NeedStatus("Balade sur mesure choisie. Nous préparons une sortie adaptée à votre état du jour.");
     mode("api");
   }
 
   function openD103HealthPath() {
-    // D103B2 — la porte « Mon élan santé » ne choisit plus silencieusement
-    // Reprendre / Maintenir / Progresser. L'intention est dérivée uniquement
-    // du choix explicite « Ce que vous souhaitez aujourd'hui ».
-    selectedActivityIntent = null;
-    setD103NeedStatus("Élan santé choisi. Nous allons préciser ce que vous souhaitez aujourd’hui.");
-    let baselineComplete = false;
-    try { baselineComplete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch { baselineComplete = false; }
-    if (baselineComplete) showD103Today();
-    else showD103Baseline();
+    // D103P0-00N — branche Activité volontairement neutre jusqu’aux
+    // retours D103C3 / D103P0 : aucune collecte, aucune adaptation,
+    // aucun activityIntent fabriqué et aucun raccord au moteur Balade.
+    setD103NeedStatus("Élan santé choisi. Cette partie de l’accompagnement est en préparation.");
+    showD103HealthPending();
   }
 
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103NeedChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1309,93 +1248,11 @@
     openD103HealthPath();
   };
 
-  $$(".d103-baseline-choice").forEach((button) => {
-    button.onclick = () => {
-      const group = button.dataset.baselineGroup;
-      const value = button.dataset.value;
-      if (!group || !value) return;
-      baselineSelections[group] = value;
-      renderD103Baseline();
-    };
-  });
-  if ($("#d103BaselineContinue")) $("#d103BaselineContinue").onclick = () => {
-    let saved = false;
-    try { saved = activityBaselineCore?.saveBaseline(localStorage, baselineSelections) === true; } catch { saved = false; }
-    if (!saved) { say("Impossible d’enregistrer ces repères sur cet appareil."); return; }
-    showD103Today();
-  };
-
-  $$("[data-today-group]").forEach((button) => {
-    button.onclick = () => {
-      const group = button.dataset.todayGroup;
-      const value = button.dataset.value;
-      if (!group || !value) return;
-      todaySelections[group] = todaySelections[group] === value && group === "functionalGoal" ? null : value;
-      renderD103Today();
-    };
-  });
-
-  function activityIntentForD103Goal(goal) {
-    if (goal === "recover") return "gentle_return";
-    if (goal === "preserve") return "maintain";
-    if (goal === "evolve") return "progress";
-    return null;
-  }
-
-  function deriveD103PreparationAdaptation() {
-    if (!activityAdaptationCore) return null;
-    return activityAdaptationCore.deriveAdaptation({
-      activityIntent: selectedActivityIntent,
-      baseline: baselineSelections,
-      today: todaySelections,
-      functionalGoal: todaySelections.functionalGoal,
-    });
-  }
-
-  function applyD103TodayToPreparation() {
-    const adaptation = deriveD103PreparationAdaptation();
-    if (!adaptation || adaptation.status !== "ready") return adaptation;
-    const duration = $("#duration");
-    const margin = $("#margin");
-    if (duration && Number.isFinite(adaptation.preparation.durationMinutes)) {
-      duration.value = String(adaptation.preparation.durationMinutes);
-      duration.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    if (margin && Number.isFinite(adaptation.preparation.safetyMarginMinutes)) {
-      margin.value = String(adaptation.preparation.safetyMarginMinutes);
-      margin.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    // D103D : énergie ≠ forme/fatigue et gêne ≠ douleur. Ces champs ne sont jamais déduits.
-    S.d103Adaptation = adaptation;
-    updateLiveSummary();
-    return adaptation;
-  }
-
-  if ($("#d103TodayContinue")) $("#d103TodayContinue").onclick = () => {
-    const intent = activityIntentForD103Goal(todaySelections.functionalGoal);
-    if (!intent) {
-      say("Choisissez ce que vous souhaitez aujourd’hui avant de continuer.");
-      return;
-    }
-    const intentResult = saveD103ActivityIntent(intent);
-    if (!intentResult?.persisted) {
-      say("Impossible d’enregistrer ce choix sur cet appareil.");
-      return;
-    }
-    selectedActivityIntent = intent;
-    let saved = false;
-    try { saved = activityTodayCore?.saveToday(sessionStorage, todaySelections) === true; } catch { saved = false; }
-    if (!saved) { say("Impossible d’enregistrer l’état du jour sur cet appareil."); return; }
-    applyD103TodayToPreparation();
-    if ($("#d103Today")) $("#d103Today").hidden = true;
-    mode("api");
-  };
-  if ($("#d103BaselineHome")) $("#d103BaselineHome").onclick = showD103HomeScreen;
-  if ($("#d103TodayHome")) $("#d103TodayHome").onclick = showD103HomeScreen;
+  if ($("#d103HealthPendingHome")) $("#d103HealthPendingHome").onclick = showD103HomeScreen;
+  if ($("#d103HealthPendingBack")) $("#d103HealthPendingBack").onclick = showD103HomeScreen;
+  if ($("#d103HealthPendingHelp")) $("#d103HealthPendingHelp").onclick = () => $("#helpBtn")?.click();
   if ($("#d103HomeBrand")) $("#d103HomeBrand").onclick = () => window.scrollTo(0, 0);
   if ($("#d103Help")) $("#d103Help").onclick = () => $("#helpBtn")?.click();
-  if ($("#d103BaselineHelp")) $("#d103BaselineHelp").onclick = () => $("#helpBtn")?.click();
-  if ($("#d103TodayHelp")) $("#d103TodayHelp").onclick = () => $("#helpBtn")?.click();
 
   function mode(m, reveal = true) {
     S.mode = m;
@@ -1983,24 +1840,7 @@
     );
   }
 
-  function renderD103AdaptationExplanation(adaptation) {
-    if (!activityAdaptationPresenterCore) return "";
-    const model = activityAdaptationPresenterCore.present(adaptation);
-    if (!model?.visible) return "";
-    const items = (model.items || []).map((item) =>
-      '<article class="d103e-adjustment-item"><span>' + esc(item.label) + '</span><strong>' + esc(item.value) + '</strong><small>' + esc(item.detail) + '</small></article>'
-    ).join("");
-    const progression = model.progressionText
-      ? '<p class="d103e-progression">' + esc(model.progressionText) + '</p>'
-      : "";
-    return '<section class="d103e-adaptation d103e-tone-' + esc(model.tone || "standard") + '" aria-labelledby="d103eAdaptationTitle">' +
-      '<div class="d103e-head"><div><span class="d103e-kicker">Adaptation du jour</span><h4 id="d103eAdaptationTitle">' + esc(model.title) + '</h4><p>' + esc(model.subtitle) + '</p></div><button type="button" class="d103e-edit" data-go="0">Modifier</button></div>' +
-      '<div class="d103e-message"><strong>' + esc(model.messageTitle) + '</strong><span>' + esc(model.messageText) + '</span></div>' +
-      '<div class="d103e-adjustment-grid">' + items + '</div>' +
-      progression +
-      '<p class="d103e-disclosure">' + esc(model.disclosure) + '</p>' +
-      '</section>';
-  }
+
 
   function renderConstraintSummary() {
     const host = $("#constraintSummary");
@@ -2048,7 +1888,6 @@
     host.className = "review-card review-card-compact";
     host.innerHTML =
       '<div class="review-head review-head-compact"><div><h3>Vérifier avant de calculer</h3><p>Un dernier coup d’œil suffit. Les détails restent disponibles si vous souhaitez les relire.</p></div><span class="review-status">Prêt</span></div>' +
-      renderD103AdaptationExplanation(S.d103Adaptation) +
       '<div class="review-grid review-grid-compact">' +
       reviewBlock("Départ", departureText, 0) +
       reviewBlock("Temps", durationText, 0) +
