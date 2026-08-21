@@ -1300,6 +1300,12 @@
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103NeedChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
   if ($("#d103DiscoverSupport")) $("#d103DiscoverSupport").onclick = () => $("#d103HomeBenefits")?.scrollIntoView({ behavior: "smooth", block: "center" });
   if ($("#d103Gpx")) $("#d103Gpx").onclick = () => mode("gpx");
+  if ($("#d103MobileMenu")) $("#d103MobileMenu").onclick = () => {
+    const nav = $(".d103-home-nav");
+    if (!nav) return;
+    const open = nav.classList.toggle("is-open");
+    $("#d103MobileMenu").setAttribute("aria-expanded", String(open));
+  };
   if ($("#d103ChooseWalkPath")) $("#d103ChooseWalkPath").onclick = openD103WalkPath;
   if ($("#d103ChooseHealthPath")) $("#d103ChooseHealthPath").onclick = () => openD103HealthPath();
   $$("[data-scroll-target]").forEach((button) => {
@@ -1307,6 +1313,8 @@
       const id = button.dataset.scrollTarget;
       if (!id) return;
       const node = $("#" + id);
+      $(".d103-home-nav")?.classList.remove("is-open");
+      $("#d103MobileMenu")?.setAttribute("aria-expanded", "false");
       node?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
