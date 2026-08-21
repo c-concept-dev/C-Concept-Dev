@@ -108,6 +108,17 @@ test("D103B l'accueil première visite possède un DOM unique desktop/mobile et 
   assert.match(html, /Ce service ne remplace pas un avis médical/);
 });
 
+test("D103B3 uniformise les logos visibles avec l’identité validée", () => {
+  const html = read("je-marche-comme-je-suis.template.html");
+  assert.doesNotMatch(html, /icons\/jmmjs-icon\.svg/);
+  assert.doesNotMatch(html, /class="brandmark"/);
+  assert.doesNotMatch(html, /d103-brand-lines/);
+  assert.match(html, /<header class="topbar">[\s\S]{0,700}d103-home-brand-desktop\.png/);
+  assert.match(html, /id="d103BaselineHome"[\s\S]{0,500}d103-home-brand-desktop\.png/);
+  assert.match(html, /id="d103TodayHome"[\s\S]{0,500}d103-home-brand-desktop\.png/);
+  assert.ok((html.match(/d103-brand-mark\.png/g) || []).length >= 4);
+});
+
 test("D103B aucun faux historique n'est visible par défaut", () => {
   const html = read("je-marche-comme-je-suis.template.html");
   assert.match(html, /id="d103Returning" hidden/);
