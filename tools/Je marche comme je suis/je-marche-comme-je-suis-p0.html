@@ -1839,6 +1839,18 @@ body.journey-started .d103-home,body.journey-started .d103-baseline{display:none
 </style>
 <style id="d103-home-responsive-v2">
 /* V2 responsive/desktop correction validated against the supplied reference mockup. */
+/* Desktop-only precision pass: keep mobile validated, fix header/help overlap and health-photo crop. */
+body:not(.journey-started) .topbar,
+body:not(.journey-started) #helpBtn,
+body:not(.journey-started) #clearBtn{display:none!important;visibility:hidden!important;pointer-events:none!important}
+@media (min-width:761px){
+  .d103-home-header{left:50%!important;right:auto!important;width:min(100%,1440px)!important;transform:translateX(-50%)!important;box-sizing:border-box!important;padding:18px 30px 0!important}
+  .d103-header-actions{flex:0 0 auto!important;margin-left:auto!important;padding-right:2px!important;overflow:visible!important}
+  .d103-help-button{width:82px!important;min-width:82px!important;max-width:82px!important;justify-content:center!important;white-space:nowrap!important;overflow:hidden!important;box-sizing:border-box!important}
+  .d103-mobile-menu-button{display:none!important}
+  .d103-path-health .d103-path-photo img{object-position:center bottom!important}
+}
+
 .d103-brand-button{min-width:80px!important}
 .d103-brand-button img{width:78px!important;height:66px!important;object-fit:contain!important;filter:none!important}
 .d103-header-actions{display:flex;align-items:center;gap:9px}
