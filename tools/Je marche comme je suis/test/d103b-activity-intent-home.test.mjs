@@ -93,10 +93,14 @@ test("D103B l'accueil première visite possède un DOM unique desktop/mobile et 
   const html = read("je-marche-comme-je-suis.template.html");
   assert.equal((html.match(/id="d103Home"/g) || []).length, 1);
   assert.match(html, /De quoi avez-vous besoin aujourd’hui/);
-  assert.match(html, /Je viens comme je suis,<br>et l’accompagnement s’adapte à moi\./);
+  assert.match(html, /Je viens comme je suis,/);
+  assert.match(html, /alt="et l’accompagnement s’adapte à moi\."/);
   assert.match(html, /Ma balade sur mesure/);
   assert.match(html, /Mon élan santé/);
   assert.match(html, /icons\/d103-brand-mark\.png/);
+  assert.match(html, /icons\/d103-home-brand-desktop\.png/);
+  assert.match(html, /icons\/d103-hero-script-desktop\.png/);
+  assert.match(html, /icons\/d103-hero-script-mobile\.png/);
   assert.match(html, /icons\/d103-home-walk-card\.png/);
   assert.match(html, /icons\/d103-home-health-card\.png/);
   assert.match(html, /id="d103MobileMenu"/);
@@ -128,8 +132,11 @@ test("D103B ne présélectionne pas la dernière intention au chargement", () =>
   assert.match(app, /statusNode\.textContent = ""/);
 });
 
-test("D103B affiche un bloc de continuité unique sur le même DOM responsive et desktop", () => {
+test("D103B utilise une seule structure responsive et les assets graphiques exacts", () => {
   const html = read("je-marche-comme-je-suis.template.html");
-  assert.match(html, /Votre prochaine proposition se prépare à partir de vous/);
-  assert.equal((html.match(/class="d103-next-walk"/g) || []).length, 1);
+  assert.equal((html.match(/id="d103Home"/g) || []).length, 1);
+  assert.doesNotMatch(html, /id="d103-home-responsive-v2"/);
+  assert.doesNotMatch(html, /class="script"[^>]*>et l’accompagnement/);
+  assert.match(html, /d103-returning-title-desktop\.png/);
+  assert.match(html, /d103-exact\/feature-balades\.png/);
 });
