@@ -1199,8 +1199,8 @@
     try {
       const loaded = activityTodayCore.loadToday(sessionStorage);
       const base = activityTodayCore.isComplete(loaded) ? loaded : { ...todayDefaults };
-      return { ...base, functionalGoal: loaded.functionalGoal || activityTodayCore.suggestedGoal(selectedActivityIntent) };
-    } catch { return { ...todayDefaults, functionalGoal: activityTodayCore?.suggestedGoal(selectedActivityIntent) || null }; }
+      return { ...base, functionalGoal: loaded.functionalGoal || null };
+    } catch { return { ...todayDefaults, functionalGoal: null }; }
   }
 
   function renderD103Today() {
@@ -1244,12 +1244,6 @@
     return activityProgressionPersistence.saveDocument(nextDocument);
   }
 
-  function deriveD103HealthIntent(homeState) {
-    const lastIntent = homeState?.lastSession?.activityIntent;
-    if (activityIntentHomeCore?.isActivityIntent(lastIntent) && lastIntent !== "leisure") return lastIntent;
-    return homeState?.historyAvailable ? "maintain" : "gentle_return";
-  }
-
   function setD103NeedStatus(message) {
     const statusNode = $("#d103NeedStatus");
     if (!statusNode) return;
@@ -1272,29 +1266,16 @@
     mode("api");
   }
 
-  function openD103HealthPath(preferredIntent = null) {
-    const homeState = activityIntentHomeCore?.deriveHomeState(longitudinalDocumentOrNull()) || { historyAvailable: false, lastSession: null };
-    const intent = activityIntentHomeCore?.isActivityIntent(preferredIntent) ? preferredIntent : deriveD103HealthIntent(homeState);
-    const result = saveD103ActivityIntent(intent);
-    if (!result?.persisted) {
-      say("Impossible d’enregistrer ce choix sur cet appareil.");
-      return;
-    }
-    selectedActivityIntent = intent;
-    setD103NeedStatus(`Élan santé choisi : ${activityIntentHomeCore.intentLabel(intent)}. Vous pourrez ajuster la suite à tout moment.`);
+  function openD103HealthPath() {
+    // D103B2 — la porte « Mon élan santé » ne choisit plus silencieusement
+    // Reprendre / Maintenir / Progresser. L'intention est dérivée uniquement
+    // du choix explicite « Ce que vous souhaitez aujourd'hui ».
+    selectedActivityIntent = null;
+    setD103NeedStatus("Élan santé choisi. Nous allons préciser ce que vous souhaitez aujourd’hui.");
     let baselineComplete = false;
     try { baselineComplete = activityBaselineCore?.isComplete(activityBaselineCore.loadBaseline(localStorage)) === true; } catch { baselineComplete = false; }
     if (baselineComplete) showD103Today();
     else showD103Baseline();
-  }
-
-  function chooseD103ActivityIntent(intent) {
-    if (!activityIntentHomeCore?.isActivityIntent(intent)) return;
-    if (intent === "leisure") {
-      openD103WalkPath();
-      return;
-    }
-    openD103HealthPath(intent);
   }
 
   if ($("#d103ChooseWalk")) $("#d103ChooseWalk").onclick = () => $("#d103NeedChoices")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1325,7 +1306,7 @@
       openD103WalkPath();
       return;
     }
-    openD103HealthPath(lastIntent);
+    openD103HealthPath();
   };
 
   $$(".d103-baseline-choice").forEach((button) => {
@@ -1353,6 +1334,13 @@
       renderD103Today();
     };
   });
+
+  function activityIntentForD103Goal(goal) {
+    if (goal === "recover") return "gentle_return";
+    if (goal === "preserve") return "maintain";
+    if (goal === "evolve") return "progress";
+    return null;
+  }
 
   function deriveD103PreparationAdaptation() {
     if (!activityAdaptationCore) return null;
@@ -1384,6 +1372,17 @@
   }
 
   if ($("#d103TodayContinue")) $("#d103TodayContinue").onclick = () => {
+    const intent = activityIntentForD103Goal(todaySelections.functionalGoal);
+    if (!intent) {
+      say("Choisissez ce que vous souhaitez aujourd’hui avant de continuer.");
+      return;
+    }
+    const intentResult = saveD103ActivityIntent(intent);
+    if (!intentResult?.persisted) {
+      say("Impossible d’enregistrer ce choix sur cet appareil.");
+      return;
+    }
+    selectedActivityIntent = intent;
     let saved = false;
     try { saved = activityTodayCore?.saveToday(sessionStorage, todaySelections) === true; } catch { saved = false; }
     if (!saved) { say("Impossible d’enregistrer l’état du jour sur cet appareil."); return; }
