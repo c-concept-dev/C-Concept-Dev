@@ -140,3 +140,27 @@ test("D103B utilise une seule structure responsive et les assets graphiques exac
   assert.match(html, /d103-returning-title-desktop\.png/);
   assert.match(html, /d103-exact\/feature-balades\.png/);
 });
+
+
+test("D103B2 Mon élan santé ne choisit plus silencieusement une intention interne", () => {
+  const app = read("src/app.js");
+  assert.doesNotMatch(app, /function deriveD103HealthIntent/);
+  assert.match(app, /function openD103HealthPath\(\)[\s\S]{0,500}selectedActivityIntent = null/);
+  assert.doesNotMatch(app, /openD103HealthPath\(["'](?:gentle_return|maintain|progress)["']\)/);
+});
+
+test("D103B2 le choix explicite du jour mappe vers les trois intentions longitudinales", () => {
+  const app = read("src/app.js");
+  assert.match(app, /goal === "recover"\) return "gentle_return"/);
+  assert.match(app, /goal === "preserve"\) return "maintain"/);
+  assert.match(app, /goal === "evolve"\) return "progress"/);
+  assert.match(app, /Choisissez ce que vous souhaitez aujourd’hui avant de continuer/);
+});
+
+test("D103B2 l’écran du jour n’expose plus les anciens libellés comme trois modes", () => {
+  const html = read("je-marche-comme-je-suis.template.html");
+  assert.match(html, /Ce que vous souhaitez aujourd’hui<\/strong>/);
+  assert.doesNotMatch(html, /\(Reprendre doucement\)/);
+  assert.doesNotMatch(html, /\(Maintenir mon rythme\)/);
+  assert.doesNotMatch(html, /\(Progresser\)/);
+});
