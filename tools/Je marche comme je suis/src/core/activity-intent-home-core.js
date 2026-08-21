@@ -7,19 +7,19 @@
 
   const INTENT_COPY = Object.freeze({
     leisure: Object.freeze({
-      label: "Me balader",
+      label: "Ma balade sur mesure",
       description: "Une balade simple, adaptée à votre envie du moment.",
     }),
     gentle_return: Object.freeze({
-      label: "Reprendre doucement",
+      label: "Retrouver doucement",
       description: "Retrouver progressivement une activité qui vous convient.",
     }),
     maintain: Object.freeze({
-      label: "Maintenir mon rythme",
+      label: "Préserver mon rythme",
       description: "Continuer à votre rythme, sans chercher à augmenter.",
     }),
     progress: Object.freeze({
-      label: "Progresser",
+      label: "Faire évoluer",
       description: "Faire évoluer progressivement une dimension qui compte pour vous.",
     }),
   });
