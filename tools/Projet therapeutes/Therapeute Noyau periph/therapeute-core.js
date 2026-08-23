@@ -37637,10 +37637,13 @@ RÈGLES ABSOLUES :
     let ctx = '\n\n═══ OPENALEX — LITTÉRATURE ACADÉMIQUE (NON VÉRIFIÉE) ═══\n';
     ctx += 'Catalogue académique ouvert (openalex.org), non sélectionné ni validé par le thérapeute.\n';
     ctx += 'À TOUJOURS distinguer explicitement de la BIBLIOTHÈQUE DOCUMENTAIRE ci-dessus — ne jamais présenter ';
-    ctx += 'une référence OpenAlex comme si elle venait de la bibliothèque validée, et inversement.\n\n';
+    ctx += 'une référence OpenAlex comme si elle venait de la bibliothèque validée, et inversement.\n';
+    ctx += 'CITATION : si l\'une de ces références est vraiment pertinente pour ta réponse, cite-la avec [OA:n] ';
+    ctx += '(jamais [REF:n], qui est réservé à la bibliothèque). N\'en cite AUCUNE si aucune n\'apporte réellement ';
+    ctx += 'quelque chose — ces résultats ne sont pas garantis pertinents, ignore ceux qui sont hors sujet.\n\n';
     results.forEach((r, i) => {
       const authors = (r.authors || []).slice(0, 3).join(', ') + ((r.authors || []).length > 3 ? ' et al.' : '');
-      ctx += `[OA${i + 1}] ${r.title}${r.year ? ' (' + r.year + ')' : ''}${authors ? ' — ' + authors : ''}`;
+      ctx += `[OA:${i + 1}] ${r.title}${r.year ? ' (' + r.year + ')' : ''}${authors ? ' — ' + authors : ''}`;
       ctx += r._corroborated ? ' [corroboré par un auteur de la bibliothèque]' : '';
       ctx += r.doi ? `\n${r.doi}` : '';
       ctx += '\n\n';
@@ -37735,7 +37738,7 @@ RÈGLES ABSOLUES :
         + "INTERDIT : backticks ```html ou ```excel, \"Je vais generer\", tout preambule ou commentaire.\n"
         + "OBLIGATOIRE : premiere ligne = <!DOCTYPE html> — rien avant. Derniere ligne = </html>.\n"
         + "Le fichier vivra SEUL dans un navigateur. Consequences :\n"
-        + "-> [REF:n] illisible hors app. Remplace par <sup title=\"Auteur, p.XX\">n</sup>.\n"
+        + "-> [REF:n] et [OA:n] illisibles hors app. Remplace par <sup title=\"Auteur, p.XX\">n</sup>.\n"
         + "-> Charte C Concept&Dev OBLIGATOIRE : Montserrat + :root { --mer:#8FAFB1; --deep:#3A5658;\n"
         + "   --vert-sauge:#C8D0C3; --beige:#D8CDBB; --sable:#E6D7C3; --surf:#F4F0EA;\n"
         + "   --text:#2C3830; --muted:#7A8A82; --blanc:#FFFFFF }\n"
@@ -37750,8 +37753,10 @@ RÈGLES ABSOLUES :
         + "Si ce script est absent ou mal forme, le fichier ne sera PAS cree. Zero tolerance."
       : "\nTu produis du texte rendu par l'application hote.\n"
         + "L'app transforme [REF:n] en citations cliquables, Markdown en HTML.\n"
-        + "-> Citations : [REF:n] apres l'affirmation. Max 8. Pas dans les titres.\n"
+        + "-> Citations bibliotheque : [REF:n] apres l'affirmation. Max 8. Pas dans les titres.\n"
         + "-> Exemples : l'hypervigilance [REF:3]. Young pose 18 schemas [REF:7][REF:12].\n"
+        + "-> Citations OpenAlex (bloc OPENALEX ci-dessus, si present) : [OA:n], JAMAIS [REF:n] pour ces references-la.\n"
+        + "   Cite-les seulement si vraiment pertinentes pour la question posee. Ignore-les sans hesiter si elles sont hors sujet.\n"
         + "-> Reponds directement. Pas de meta-commentaire. Pas de \"Je vais\" ni preambule.";
 
     const _fmtSpecific = fmt === 'xlsx'
@@ -39266,8 +39271,15 @@ ${commonBase}`
     const avatar = role === 'assistant' ? '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : '👤';
     // P3-1 : snapshots la refMap au moment de l'affichage (Haiku rerank peut changer adocLastRefMap)
     const msgRefMap = JSON.parse(JSON.stringify(adocLastRefMap || {}));
+    // OpenAlex — sa propre refMap, snapshotée pareil, JAMAIS mélangée à msgRefMap
+    const oaRefMap = {};
+    (openAlexResults || []).forEach((r, i) => { oaRefMap[i + 1] = r; });
+    // Snapshot unique par message (une seule fois, pas par citation) — consulté au clic sur
+    // [REF:n]/[OA:n] au lieu d'être ré-embarqué en JSON dans chaque attribut onclick.
+    window._adocRefSnapshots = window._adocRefSnapshots || {};
+    window._adocRefSnapshots[msgId] = { lib: msgRefMap, oa: oaRefMap };
     const body   = role === 'assistant'
-      ? adocRenderCiteInline(adocFormatMd(content), msgRefMap)
+      ? adocRenderOACiteInline(adocRenderCiteInline(adocFormatMd(content), msgRefMap, msgId), oaRefMap, msgId)
       : adocEsc(content).replace(/\n/g,'<br>');
 
     let citeHtml = '';
@@ -39300,13 +39312,28 @@ ${commonBase}`
     return msgId;
   }
 
-  function adocRenderCiteInline(html, refMap) {
+  function adocRenderCiteInline(html, refMap, msgId) {
     const map = refMap || adocLastRefMap;
     return html.replace(/\[REF:(\d+)\]/g, (match, n) => {
       const ref = map[parseInt(n)];
       if (!ref) return '';
       const tip = `${ref.book_title}${ref.author ? ' — ' + ref.author : ''}${ref.page_number ? ', p.' + ref.page_number : ''}`;
-      return `<sup class="adoc-ref" data-ref="${n}" title="${tip.replace(/"/g,"'")}" onclick="adocShowRefPanel(${n},${JSON.stringify(map).replace(/"/g,"'")})">${n}</sup>`;
+      // Ne plus embarquer le refMap entier (JSON) dans l'attribut onclick de CHAQUE citation —
+      // ça le dupliquait autant de fois qu'il y a de [REF:n], visible dans le HTML source.
+      // À la place : msgId + n, adocShowRefPanel va chercher la donnée dans le snapshot du message.
+      return `<sup class="adoc-ref" data-ref="${n}" title="${tip.replace(/"/g,"'")}" onclick="adocShowRefPanel('${msgId||''}',${n})">${n}</sup>`;
+    });
+  }
+
+  // ── OpenAlex — même mécanisme que adocRenderCiteInline, marqueur [OA:n] distinct ──
+  function adocRenderOACiteInline(html, oaMap, msgId) {
+    const map = oaMap || {};
+    return html.replace(/\[OA:(\d+)\]/g, (match, n) => {
+      const ref = map[parseInt(n)];
+      if (!ref) return '';
+      const authors = (ref.authors || []).slice(0, 2).join(', ') + ((ref.authors || []).length > 2 ? ' et al.' : '');
+      const tip = `${ref.title}${authors ? ' — ' + authors : ''}${ref.year ? ' (' + ref.year + ')' : ''} — OpenAlex, non vérifié`;
+      return `<sup class="adoc-ref adoc-ref-oa" data-oa="${n}" title="${tip.replace(/"/g,"'")}" onclick="adocShowOARefPanel('${msgId||''}',${n})">🎓${n}</sup>`;
     });
   }
 
@@ -40795,10 +40822,11 @@ ${recent}`;
 
   // ── P3-2 : Sync-check D1 ↔ Vectorize ────────────────────────────────────────
   // P3-1 : Panel de référence bibliographique au clic sur [REF:n]
-  window.adocShowRefPanel = function(n, refMapStr) {
-    let map = {};
-    try { map = typeof refMapStr === 'object' ? refMapStr : JSON.parse(refMapStr.replace(/'/g, '"')); } catch {}
-    const ref = map[n] || adocLastRefMap[n];
+  // FIX-REF-JSON-LEAK : ne reçoit plus le refMap en JSON (ça le dupliquait dans chaque
+  // attribut onclick, visible en clair dans le HTML source de CHAQUE citation) — lit le
+  // snapshot pris une seule fois par message dans window._adocRefSnapshots.
+  window.adocShowRefPanel = function(msgId, n) {
+    const ref = window._adocRefSnapshots?.[msgId]?.lib?.[n] || adocLastRefMap[n];
     if (!ref) return;
     // Enlever ancien panel
     const old = document.getElementById('adoc-ref-panel');
@@ -40818,6 +40846,31 @@ ${recent}`;
     `;
     document.body.appendChild(panel);
     // Auto-fermeture 6s
+    setTimeout(() => panel.remove(), 6000);
+  };
+
+  // ── OpenAlex — même panel, même mécanisme de snapshot, jamais mélangé au panel bibliothèque ──
+  window.adocShowOARefPanel = function(msgId, n) {
+    const ref = window._adocRefSnapshots?.[msgId]?.oa?.[n];
+    if (!ref) return;
+    const old = document.getElementById('adoc-ref-panel');
+    if (old) old.remove();
+    const panel = document.createElement('div');
+    panel.id = 'adoc-ref-panel';
+    panel.style.cssText = 'position:fixed;bottom:80px;right:20px;background:#fff;border:1px solid #8FAFB1;border-radius:10px;padding:14px 18px;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;font-size:12px;line-height:1.5';
+    const authors = (ref.authors || []).join(', ');
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span style="font-weight:700;color:#3A5658">🎓 OpenAlex — non vérifié [${n}]</span>
+        <span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;color:#999;font-size:16px;margin-left:12px">×</span>
+      </div>
+      <div style="color:#2C3E50;font-weight:600">${ref.title}</div>
+      ${authors ? `<div style="color:#7A8A82">${authors}</div>` : ''}
+      ${ref.year ? `<div style="color:#8FAFB1">${ref.year}</div>` : ''}
+      ${ref.doi ? `<div style="margin-top:4px;"><a href="${ref.doi}" target="_blank" rel="noopener" style="color:#5B4A8A">${ref.doi}</a></div>` : ''}
+      ${ref._corroborated ? `<div style="margin-top:4px;background:#C8D0C3;padding:2px 8px;border-radius:20px;display:inline-block;font-size:10px;color:#2C3830">✓ Corroboré par la bibliothèque</div>` : ''}
+    `;
+    document.body.appendChild(panel);
     setTimeout(() => panel.remove(), 6000);
   };
 
@@ -41008,8 +41061,12 @@ ${recent}`;
 
     planBadge.textContent = '\u2705 Document complet — ' + chapters.length + ' chapitres';
     // FIX-LONGDOC-REF : résoudre les [REF:n] en citations cliquables avant rendu final
+    if (typeof adocRenderCiteInline === 'function') {
+      window._adocRefSnapshots = window._adocRefSnapshots || {};
+      window._adocRefSnapshots[streamMsgId] = { lib: adocLastRefMap, oa: {} };
+    }
     const fullDocRendered = (typeof adocRenderCiteInline === 'function')
-      ? adocRenderCiteInline(fullDoc.trim(), adocLastRefMap)
+      ? adocRenderCiteInline(fullDoc.trim(), adocLastRefMap, streamMsgId)
       : fullDoc.trim();
     adocUpdateStreamMsg(streamMsgId, fullDocRendered);
     return fullDocRendered;
