@@ -36866,54 +36866,6 @@ function openCoupleOutilTool(toolId) {
     }
   }
 
-  // ── OpenAlex — source académique complémentaire, TOUJOURS séparée ──
-  // Interroge openalex-proxy en parallèle de la bibliothèque D1. Jamais fusionnée
-  // dans finalChunks/scoring — reste un bloc à part, étiqueté, jusqu'au rendu final.
-  const ADOC_OPENALEX_URL = 'https://openalex-proxy.11drumboy11.workers.dev';
-  async function adocOpenAlexSearch(query, topK) {
-    if (!query || query.trim().length < 3) return [];
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 5000);
-    try {
-      const url = ADOC_OPENALEX_URL + '/works'
-        + '?search=' + encodeURIComponent(query.trim().substring(0, 200))
-        + '&per_page=' + (topK || 5);
-      const r = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(tid);
-      if (!r.ok) { console.warn('[OpenAlex] HTTP', r.status); return []; }
-      const d = await r.json();
-      return (d.results || []).map(w => ({
-        title: w.display_name || w.title || 'Sans titre',
-        authors: (w.authorships || []).map(a => a.author?.display_name).filter(Boolean),
-        year: w.publication_year || null,
-        doi: w.doi || null,
-        url: w.doi || w.id || null,
-        isOA: !!w.open_access?.is_oa,
-        citedByCount: (typeof w.cited_by_count === 'number') ? w.cited_by_count : null,
-      }));
-    } catch (e) {
-      clearTimeout(tid);
-      if (e.name === 'AbortError') console.warn('[OpenAlex] timeout (>5s) — ignoré');
-      else console.warn('[OpenAlex]', e.message);
-      return [];
-    }
-  }
-
-  // Comparaison approximative auteur — normalise accents/casse, compare le nom de famille
-  function adocNormalizeAuthorName(s) {
-    return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-  }
-  function adocMatchesLibraryAuthor(oaAuthors, libraryAuthors) {
-    const libSurnames = (libraryAuthors || [])
-      .map(a => adocNormalizeAuthorName(a).split(/\s+/).pop())
-      .filter(Boolean);
-    if (!libSurnames.length) return false;
-    return (oaAuthors || []).some(a => {
-      const surname = adocNormalizeAuthorName(a).split(/\s+/).pop();
-      return surname && libSurnames.includes(surname);
-    });
-  }
-
   // ── Passe 1 : Planning agentique ──
 
   // FIX-MULTI-PLAN : Split + plan par question + merge chunks
@@ -37626,23 +37578,6 @@ RÈGLES ABSOLUES :
     return ctx;
   }
 
-  // ── OpenAlex — bloc de contexte SÉPARÉ, jamais fusionné dans BIBLIOTHÈQUE DOCUMENTAIRE ──
-  function adocBuildOpenAlexCtx(results) {
-    if (!results?.length) return '';
-    let ctx = '\n\n═══ OPENALEX — LITTÉRATURE ACADÉMIQUE (NON VÉRIFIÉE) ═══\n';
-    ctx += 'Catalogue académique ouvert (openalex.org), non sélectionné ni validé par le thérapeute.\n';
-    ctx += 'À TOUJOURS distinguer explicitement de la BIBLIOTHÈQUE DOCUMENTAIRE ci-dessus — ne jamais présenter ';
-    ctx += 'une référence OpenAlex comme si elle venait de la bibliothèque validée, et inversement.\n\n';
-    results.forEach((r, i) => {
-      const authors = (r.authors || []).slice(0, 3).join(', ') + ((r.authors || []).length > 3 ? ' et al.' : '');
-      ctx += `[OA${i + 1}] ${r.title}${r.year ? ' (' + r.year + ')' : ''}${authors ? ' — ' + authors : ''}`;
-      ctx += r._corroborated ? ' [corroboré par un auteur de la bibliothèque]' : '';
-      ctx += r.doi ? `\n${r.doi}` : '';
-      ctx += '\n\n';
-    });
-    return ctx;
-  }
-
   // ── System prompt unifié ──
   function adocBuildSystemPrompt(ragCtx, docCtx, plan) {
     const ctxSession = adocSessionContext
@@ -37894,9 +37829,6 @@ ${commonBase}`
 
   // ── Passe 1 : Planning (modèle rapide) ──
       adocUpdateTypingLabel(typingId, '🔍 Analyse de la demande…');
-      // OpenAlex — lancé EN PARALLÈLE du planning/RAG bibliothèque, mêmes termes bruts.
-      // Source totalement indépendante : jamais attendue avant, jamais fusionnée après.
-      const openAlexPromise = adocOpenAlexSearch(text, 5);
       // FIX-MULTI-PLAN : orchestre split + plan par Q + merge
       let _multiResult = null;
       try { _multiResult = await adocMultiPlan(text); } catch(_me) { console.warn('[FIX-MULTI-PLAN] err', _me); }
@@ -38013,30 +37945,13 @@ ${commonBase}`
       const ragCtx = adocBuildRAGCtx(ragResult);
       console.log('[Pipeline] ragCtx length:', ragCtx?.length || 0);
 
-      // ── OpenAlex — récupération du résultat parallèle + corroboration approximative ──
-      // Source séparée : un échec ici n'affecte jamais ragResult/ragCtx ci-dessus.
-      let openAlexResults = [];
-      try {
-        openAlexResults = await openAlexPromise;
-        const libAuthors = (ragResult.chunks || []).map(c => c.author).filter(Boolean);
-        openAlexResults = openAlexResults.map(r => ({
-          ...r,
-          _corroborated: adocMatchesLibraryAuthor(r.authors, libAuthors)
-        }));
-      } catch (_oaErr) {
-        console.warn('[OpenAlex] échec récupération:', _oaErr.message);
-        openAlexResults = [];
-      }
-      const openAlexCtx = adocBuildOpenAlexCtx(openAlexResults);
-      console.log('[Pipeline] openAlexResults:', openAlexResults.length);
-
       let docCtx = '';
       if (adocActiveDoc !== null) {
         const doc = adocDocs[adocActiveDoc];
         docCtx = `\n\n═══ DOCUMENT JOINT ═══\nFichier : ${doc.name}\n\n${doc.content.substring(0, 8000)}\n`;
       }
 
-      const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan) + openAlexCtx;
+      const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan);
 
       // Auto-résumé si session longue (async, non bloquant)
       adocAutoSummarize().catch(() => {});
@@ -38244,7 +38159,7 @@ ${commonBase}`
       // ── Fin M2 ───────────────────────────────────────────────────────────────────
 
       // ── Pipeline artifact unifié ──
-      await adocHandleReply(reply, plan, ragResult?.chunks || [], openAlexResults);
+      await adocHandleReply(reply, plan, ragResult?.chunks || []);
       // P2-3 : afficher coût estimé sous la réponse
       if (adocLastUsage) adocShowCost(streamMsgId, adocLastUsage);
       adocConversations.push({ role: 'assistant', content: reply });
@@ -38363,7 +38278,7 @@ ${commonBase}`
     // ── 4. Aucune transformation nécessaire ───────────────────────────
     return t;
   }
-  async function adocHandleReply(reply, plan, citations, openAlexResults) {
+  async function adocHandleReply(reply, plan, citations) {
     // FIX-HANDLE-REPLY-FMT : intent override + normalisation format composite
     const _fmtRaw = plan?.output_format || 'chat';
     const _FMT_PRIORITY = ['xlsx','pptx','docx','pdf','zip','html-visual','html','txt','chat'];
@@ -38403,7 +38318,7 @@ ${commonBase}`
         _a.click();
         document.body.removeChild(_a);
         setTimeout(() => URL.revokeObjectURL(_url), 5000);
-        adocAddMsg('assistant', '✅ Fichier `' + _a.download + '` généré directement par le modèle et téléchargé.', citations, false, openAlexResults);
+        adocAddMsg('assistant', '✅ Fichier `' + _a.download + '` généré directement par le modèle et téléchargé.', citations);
         return;
       } catch(_e) { console.warn('[adocHandleReply] data URI decode failed:', _e); }
     }
@@ -38484,7 +38399,7 @@ ${commonBase}`
         // Retirer aussi le bloc xlsx/docx/pptx principal (celui extrait par adocExtractPayload)
         _textOnly = _textOnly.replace(/<!DOCTYPE\s+html>[\s\S]*?<\/html\s*>/gi, '').trim();
         if (_textOnly.length > 100) {
-          adocAddMsg('assistant', _textOnly, citations, false, openAlexResults);
+          adocAddMsg('assistant', _textOnly, citations);
         }
       }
       return;
@@ -38507,7 +38422,7 @@ ${commonBase}`
     }
 
     // ── Chat / texte Markdown (inclut HTML partiel résolu) ──
-    adocAddMsg('assistant', resolvedTrimmed, citations, false, openAlexResults);
+    adocAddMsg('assistant', resolvedTrimmed, citations);
   }
 
   // ── Convertit un HTML en Markdown simplifié (pour extraire les tables/listes) ──
@@ -39247,7 +39162,7 @@ ${commonBase}`
     if (area) area.scrollTop = area.scrollHeight;
   }
 
-  function adocAddMsg(role, content, citations, streaming = false, openAlexResults = []) {
+  function adocAddMsg(role, content, citations, streaming = false) {
     const area   = document.getElementById('adoc-messages');
     const div    = document.createElement('div');
     div.className = `adoc-msg ${role}`;
@@ -39262,29 +39177,17 @@ ${commonBase}`
 
     let citeHtml = '';
     if (role === 'assistant' && citations?.length) {
-      citeHtml = '<div class="adoc-citations"><div class="adoc-cite-source-label">📚 Bibliothèque validée</div>' +
+      citeHtml = '<div class="adoc-citations">' +
         citations.slice(0, 5).map(c =>
           `<div class="adoc-cite"><span>📚</span><span><span class="adoc-cite-book">${adocEsc(c.book_title||'Référence')}</span> — ${adocEsc(c.author||'')}</span><span class="adoc-cite-score">${c.score?Math.round(c.score*100)+'%':''}</span></div>`
         ).join('') + '</div>';
-    }
-
-    // ── OpenAlex — bloc SÉPARÉ, jamais mélangé aux citations bibliothèque ci-dessus ──
-    let oaHtml = '';
-    if (role === 'assistant' && openAlexResults?.length) {
-      oaHtml = '<div class="adoc-citations"><div class="adoc-cite-source-label">🌐 OpenAlex — non vérifié</div>' +
-        openAlexResults.slice(0, 5).map(r => {
-          const authors = (r.authors || []).slice(0, 2).join(', ') + ((r.authors || []).length > 2 ? ' et al.' : '');
-          const link = r.url ? `<a href="${adocEsc(r.url)}" target="_blank" rel="noopener" style="margin-left:4px;">↗</a>` : '';
-          const corrob = r._corroborated ? '<div class="adoc-cite-corrob">✓ Corroboré par la bibliothèque</div>' : '';
-          return `<div class="adoc-cite adoc-cite-oa"><span>🌐</span><span><span class="adoc-cite-book">${adocEsc(r.title)}</span> — ${adocEsc(authors)}${r.year ? ' (' + r.year + ')' : ''}${link}${corrob}</span></div>`;
-        }).join('') + '</div>';
     }
 
     // Badge icône sur la réponse assistant
     const modeBadge  = role === 'assistant'
       ? `<span style="font-size:9px;opacity:0.5;margin-left:6px;">🔬</span>` : '';
 
-    div.innerHTML = `<div class="adoc-avatar">${avatar}</div><div><div class="adoc-bubble">${body}</div>${citeHtml}${oaHtml}</div>${modeBadge}`;
+    div.innerHTML = `<div class="adoc-avatar">${avatar}</div><div><div class="adoc-bubble">${body}</div>${citeHtml}</div>${modeBadge}`;
     area.appendChild(div);
     area.scrollTop = area.scrollHeight;
     return msgId;
