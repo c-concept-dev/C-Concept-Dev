@@ -37000,8 +37000,12 @@ function openCoupleOutilTool(toolId) {
     const allSql = [...new Set(plans.flatMap(p => p.sql_queries||[]))].slice(0,12);
     const allVec = [...new Set(plans.flatMap(p => p.vector_angles||[]))].slice(0,8);
     const allApp = [...new Set(plans.map(p => p.approach_filter).filter(Boolean))];
+    // openalex_query : un seul terme de recherche (pas une liste comme vector_angles) —
+    // on prend celui du plan dominant, sinon le premier plan qui en a produit un.
+    // Absent (planner en échec / champ manquant) → null, adocOpenAlexSearch repliera sur le texte brut.
+    const openalexQuery = dominant.openalex_query || plans.find(p => p.openalex_query)?.openalex_query || null;
     const mergedPlan = { ...dominant,
-      sql_queries: allSql, vector_angles: allVec,
+      sql_queries: allSql, vector_angles: allVec, openalex_query: openalexQuery,
       approach_filter: allApp.length === 1 ? allApp[0] : null,
       needs_rag: true,
       max_tokens: Math.max(...plans.map(p => p.max_tokens||4000), 8000),
@@ -37065,6 +37069,7 @@ TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markd
   "needs_rag": true/false,
   "sql_queries": ["SELECT book_title, author, chapter, page_number, content, approach FROM chunks WHERE ... LIMIT 10"],
   "vector_angles": ["formulation sémantique 1", "formulation sémantique 2"],
+  "openalex_query": "terme de recherche académique concis, de préférence en anglais (la majorité des publications indexées par OpenAlex sont anglophones), ciblé sur LE CONCEPT clinique/théorique de la question plutôt que sur sa formulation littérale — ex. 'Gottman four horsemen criticism contempt marital conflict' plutôt que la question du thérapeute mot pour mot",
   "approach_filter": "valeur exacte issue de la bibliothèque ci-dessus, ou null",
   "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche",
   "clinical_intent": "supervision|analyse_cas|intervention|conceptualisation|bibliographie|production|chat",
@@ -37894,9 +37899,6 @@ ${commonBase}`
 
   // ── Passe 1 : Planning (modèle rapide) ──
       adocUpdateTypingLabel(typingId, '🔍 Analyse de la demande…');
-      // OpenAlex — lancé EN PARALLÈLE du planning/RAG bibliothèque, mêmes termes bruts.
-      // Source totalement indépendante : jamais attendue avant, jamais fusionnée après.
-      const openAlexPromise = adocOpenAlexSearch(text, 5);
       // FIX-MULTI-PLAN : orchestre split + plan par Q + merge
       let _multiResult = null;
       try { _multiResult = await adocMultiPlan(text); } catch(_me) { console.warn('[FIX-MULTI-PLAN] err', _me); }
@@ -37920,6 +37922,13 @@ ${commonBase}`
           max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production') };
         console.warn('[FIX-MULTI-PLAN] fallback plan:', _iT, _fT);
       }
+
+      // ── OpenAlex — même logique que vector_angles : requête reformulée par le planner ──
+      // Lancé maintenant que plan.openalex_query est connu, EN PARALLÈLE de la Passe 2
+      // (adocExecutePlan + adocEnrichSql) ci-dessous. Repli sur le texte brut si le
+      // planner n'a pas produit ce champ (échec Haiku, JSON tronqué, etc.) — jamais bloquant.
+      console.log('[OpenAlex] planner openalex_query:', plan?.openalex_query || '(absent — repli texte brut)');
+      const openAlexPromise = adocOpenAlexSearch(plan?.openalex_query || text, 5);
 
       // ── M1 : Enrichissement SQL parallèle — Unlimited Token System ──
       // Second Haiku génère 3 SQL supplémentaires (angles différents)
@@ -37988,20 +37997,21 @@ ${commonBase}`
       }
 
       // ── Passe 3 : Architecture Mixte Permanente ──────────────────────────────
-      // CC = meilleur des trois mondes, toujours simultanément :
+      // CC = meilleur des quatre mondes, toujours simultanément :
       //   • Bibliothèque D1   → contexte documentaire injecté dans le system
+      //   • OpenAlex          → catalogue académique, branche parallèle systématique
       //   • web_search        → toujours disponible, CC décide s'il l'utilise
       //   • Raisonnement LLM  → ses propres connaissances, jamais bridées
       // Il n'y a plus de "fallback" — tout est mixte par défaut.
       // ─────────────────────────────────────────────────────────────────────────
-      // FIX-PIPELINE-BADGE : les 3 sources sont toujours actives — l'afficher clairement
+      // FIX-PIPELINE-BADGE : les 4 sources sont toujours actives — l'afficher clairement
       const d1Coverage = ragResult.chunks.length;
       if (d1Coverage < 5) {
-        adocUpdateTypingLabel(typingId, '🧠 IA + 🌐 Web + 📚 Bibliothèque…');
+        adocUpdateTypingLabel(typingId, '🧠 IA + 🌐 Web + 📚 Bibliothèque + 🎓 OpenAlex…');
       } else if (d1Coverage < 15) {
-        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 IA + 🌐 Web…');
+        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🎓 OpenAlex + 🧠 IA + 🌐 Web…');
       } else {
-        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 IA + 🌐 Web…');
+        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🎓 OpenAlex + 🧠 IA + 🌐 Web…');
       }
 
       // FIX-DEBUG-PIPELINE : guard overflow chunks
@@ -39271,12 +39281,12 @@ ${commonBase}`
     // ── OpenAlex — bloc SÉPARÉ, jamais mélangé aux citations bibliothèque ci-dessus ──
     let oaHtml = '';
     if (role === 'assistant' && openAlexResults?.length) {
-      oaHtml = '<div class="adoc-citations"><div class="adoc-cite-source-label">🌐 OpenAlex — non vérifié</div>' +
+      oaHtml = '<div class="adoc-citations"><div class="adoc-cite-source-label">🎓 OpenAlex — non vérifié</div>' +
         openAlexResults.slice(0, 5).map(r => {
           const authors = (r.authors || []).slice(0, 2).join(', ') + ((r.authors || []).length > 2 ? ' et al.' : '');
           const link = r.url ? `<a href="${adocEsc(r.url)}" target="_blank" rel="noopener" style="margin-left:4px;">↗</a>` : '';
           const corrob = r._corroborated ? '<div class="adoc-cite-corrob">✓ Corroboré par la bibliothèque</div>' : '';
-          return `<div class="adoc-cite adoc-cite-oa"><span>🌐</span><span><span class="adoc-cite-book">${adocEsc(r.title)}</span> — ${adocEsc(authors)}${r.year ? ' (' + r.year + ')' : ''}${link}${corrob}</span></div>`;
+          return `<div class="adoc-cite adoc-cite-oa"><span>🎓</span><span><span class="adoc-cite-book">${adocEsc(r.title)}</span> — ${adocEsc(authors)}${r.year ? ' (' + r.year + ')' : ''}${link}${corrob}</span></div>`;
         }).join('') + '</div>';
     }
 
