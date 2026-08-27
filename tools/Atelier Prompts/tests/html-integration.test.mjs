@@ -12,10 +12,11 @@ test('l’application expose l’abstraction extérieure askDecisionProvider',()
   assert.match(html,/window\.askDecisionProvider=askDecisionProvider/);
 });
 
-test('Workers AI précède Groq et le fallback local reste prudent',()=>{
+test('Workers AI est le seul provider officiel et le fallback local reste prudent',()=>{
   const primary=html.indexOf("['workers-ai'");
-  const fallback=html.indexOf("['groq'",primary);
-  assert.ok(primary>0&&fallback>primary);
+  assert.ok(primary>0);
+  const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
+  assert.doesNotMatch(section,/\['groq'/);
   assert.match(html,/route:'architecte',confiance:'faible'/);
 });
 
@@ -30,4 +31,12 @@ test('Rapide utilise son moteur historique et Architecte reçoit le relais',()=>
   assert.match(html,/const r=assemblerRapideAdaptatif\(\)/);
   assert.match(html,/v11SwitchToArchitecteFromRapid\(orientation\.decision\)/);
   assert.match(html,/beginExchange\(\);return false/);
+});
+
+test('le middleware miroir refuse les contradictions génériques et canonise les raisons',()=>{
+  const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
+  assert.match(section,/ADP_REASONS/);
+  assert.match(section,/La raison contredit la route rapide/);
+  assert.match(section,/La raison contredit la question indispensable/);
+  assert.match(section,/raison:canonique/);
 });
