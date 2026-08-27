@@ -63,6 +63,7 @@ test('le prompt impose exploitabilité, question unique et traitements universel
   assert.match(DECISION_MODEL_PROMPT,/réduit le plus l’incertitude utile/);
   assert.match(DECISION_MODEL_PROMPT,/artefact unique et borné/);
   assert.match(DECISION_MODEL_PROMPT,/La seule présence d’une liste, d’un tableau/);
+  assert.match(DECISION_MODEL_PROMPT,/ne demandez pas de préférences de contenu/);
   assert.match(DECISION_MODEL_PROMPT,/N’utilisez aucune règle propre à un domaine/);
   assert.match(DECISION_MODEL_PROMPT,/ne choisissez jamais Atelier/i);
 });
