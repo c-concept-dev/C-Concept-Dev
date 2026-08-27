@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import workersAIWorker, { decideWithWorkersAI, PRIMARY_MODEL } from '../workers/workers-ai/src/index.js';
-import { decideWithGroq } from '../workers/groq/src/index.js';
+import groqWorker, { decideWithGroq } from '../workers/groq/src/index.js';
 import { DECISION_MODEL_PROMPT, DECISION_REASONS, validateDecision, validateDecisionInput } from '../workers/shared/decision-core.js';
 
 const cases=[
@@ -86,4 +86,10 @@ test('le fallback Groq utilise exclusivement le secret serveur et son modèle fi
   assert.equal(captured.body.messages[0].role,'system');
   assert.equal(captured.body.messages[1].content,JSON.stringify({demande:'Organise mes idées en plan',materiau_present:true,mode_demande:'rapide'}));
   assert.equal('x-api-key' in captured.options.headers,false);
+});
+
+test('le Worker Groq refuse une requête sans Origin',async()=>{
+  const response=await groqWorker.fetch(new Request('https://worker.example/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({demande:'x',materiau_present:false,mode_demande:'rapide'})}),{});
+  assert.equal(response.status,403);
+  assert.deepEqual(await response.json(),{error:'origin_not_allowed'});
 });
