@@ -13,6 +13,7 @@ const endpoint = args.endpoint || "http://127.0.0.1:8791/evaluate";
 const provider = args.provider || "workers-ai";
 const origin = args.origin || "https://c-concept-dev.github.io";
 const repetitions = Math.max(1, Math.min(5, Number(args.repetitions || 3)));
+const delayMs = Math.max(0, Number(args["delay-ms"] || 0));
 const defaultModels = provider === "groq" ? "groq/llama-3.1-8b-instant" : "@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.3-70b-instruct-fp8-fast,@cf/deepseek-ai/deepseek-r1-distill-qwen-32b";
 const models = String(args.models || defaultModels).split(",").filter(Boolean);
 const corpusPath = path.resolve(root, args.corpus || "evaluation/corpus-lot10g2a.json");
@@ -102,6 +103,7 @@ const results = [];
 for (const model of models) {
   for (const item of corpus.cases) {
     for (let run = 1; run <= repetitions; run += 1) {
+      if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
       const row = await evaluateOne(model, item, run);
       results.push(row);
       process.stdout.write(`${model}\t${item.id}\t${run}\t${row.valid ? decisionLabel(row.decision) : "INVALIDE"}\t${row.latency_ms ?? row.elapsed_ms} ms\n`);
@@ -114,6 +116,7 @@ const report = {
   endpoint,
   provider,
   repetitions,
+  delay_ms: delayMs,
   corpus_cases: corpus.cases.length,
   corpus_sha256: crypto.createHash("sha256").update(corpusRaw).digest("hex"),
   prompt_sha256: crypto.createHash("sha256").update(DECISION_MODEL_PROMPT).digest("hex"),
