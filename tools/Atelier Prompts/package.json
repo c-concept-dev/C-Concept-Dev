@@ -6,6 +6,8 @@
     "test": "node --test tests/*.test.mjs",
     "guard": "node tools/frozen-guard.mjs",
     "check": "npm run test && npm run guard",
+    "evaluate:workers-ai": "node evaluation/run-evaluation.mjs",
+    "evaluate:groq": "node evaluation/run-evaluation.mjs --provider=groq",
     "dry-run:workers-ai": "wrangler deploy --dry-run --config workers/workers-ai/wrangler.jsonc",
     "dry-run:groq": "wrangler deploy --dry-run --config workers/groq/wrangler.jsonc"
   },
