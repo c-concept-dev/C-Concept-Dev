@@ -50,6 +50,7 @@ test('les états, routes et questions incompatibles sont refusés',()=>{
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),confiance:'faible'}),/confiance invalide/);
   assert.equal(validateDecision(decision('clarification_necessaire',null,'Quand souhaitez-vous commencer et quelle échéance faut-il respecter ?')).question,'Quand souhaitez-vous commencer ?');
   assert.equal(validateDecision(decision('clarification_necessaire',null,'À qui écrivez-vous (équipe, clients, partenaires) ?')).question,'À qui écrivez-vous ?');
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'Quel est votre itinéraire prévu (villes ou régions) et la durée de votre séjour ?')).question,'Quel est votre itinéraire prévu ?');
   assert.equal(validateDecision(decision('clarification_necessaire',null,'Combien de temps avez-vous, avec quel budget travaillez-vous ?')).question,'Combien de temps avez-vous ?');
   assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous obtenir ?')),/vocabulaire interne/);
   assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel est votre besoin métier ?')),/vocabulaire interne/);
