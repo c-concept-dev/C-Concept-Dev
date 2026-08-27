@@ -136,7 +136,7 @@ function questionsAreTooSimilar(left, right) {
   if (!a.size || !b.size) return normalizedQuestionText(left) === normalizedQuestionText(right);
   let common = 0;
   for (const word of a) if (b.has(word)) common += 1;
-  return common / Math.min(a.size, b.size) >= 0.8;
+  return common / Math.min(a.size, b.size) >= 0.7;
 }
 
 function previousQuestions(demand) {
