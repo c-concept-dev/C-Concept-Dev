@@ -6,10 +6,16 @@ import {
   parseDecisionCandidate
 } from "../../shared/decision-core.js";
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
+export const PRIMARY_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const EVALUATION_MODELS = Object.freeze([
+  "@cf/meta/llama-3.1-8b-instruct-fast",
+  "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+]);
 
-export async function decideWithWorkersAI(input, env) {
-  const result = await env.AI.run(MODEL, {
+export async function decideWithWorkersAIModel(input, env, model) {
+  if (!EVALUATION_MODELS.includes(model)) throw new Error("Modèle Workers AI non autorisé.");
+  const result = await env.AI.run(model, {
     messages: [
       { role: "system", content: DECISION_MODEL_PROMPT },
       { role: "user", content: makeDecisionUserMessage(input) }
@@ -22,6 +28,10 @@ export async function decideWithWorkersAI(input, env) {
     temperature: 0
   });
   return parseDecisionCandidate(result?.response ?? result);
+}
+
+export function decideWithWorkersAI(input, env) {
+  return decideWithWorkersAIModel(input, env, PRIMARY_MODEL);
 }
 
 export default {
