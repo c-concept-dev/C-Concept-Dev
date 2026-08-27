@@ -9840,6 +9840,7 @@ function adpDecisionValide(value){
   if(!['exploitable','clarification_necessaire'].includes(value.etat_demande)||!['haute','moyenne'].includes(value.confiance))throw new Error('État ou confiance invalide.');
   if(typeof value.raison_interne!=='string'||value.raison_interne.length>240)throw new Error('Raison interne invalide.');
   if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>240))throw new Error('Question invalide.');
+  if(value.question!==null&&(((value.question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(value.question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))))throw new Error('La clarification contient plusieurs demandes.');
   if(value.etat_demande==='clarification_necessaire'){
     if(value.route!==null||value.question===null)throw new Error('Clarification incohérente.');
   }else if(!['rapide','architecte'].includes(value.route)||value.question!==null)throw new Error('Décision exploitable incohérente.');
