@@ -1460,8 +1460,8 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
 }
 </style>
 
-  <meta name="atelier-decision-workers-ai" content="https://REMPLACER-WORKERS-AI.workers.dev/decision">
-  <meta name="atelier-decision-groq" content="https://REMPLACER-GROQ.workers.dev/decision">
+  <meta name="atelier-decision-workers-ai" content="https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision">
+  <meta name="atelier-decision-groq" content="https://atelier-decision-groq.11drumboy11.workers.dev/decision">
 </head>
 
 
@@ -9787,7 +9787,7 @@ function answerQuestion(answer){
   if(adpState&&adpState.pendingQuestion){
     adpState.pendingQuestion=false;
     syncLegacy();
-    adpContinueArchitecte();
+    adpResumeAfterClarification();
     return;
   }
   syncLegacy();beginExchange();
@@ -9813,7 +9813,7 @@ function v11RequireDemand(){
  * Aucun moteur Rapide / Architecte / Atelier n'est réécrit ici.
  * ---------------------------------------------------------------------- */
 const ADP10G=Object.freeze({
-  version:'10G.2',
+  version:'10G.3A',
   endpoints:Object.freeze({
     workersAI:(document.querySelector('meta[name="atelier-decision-workers-ai"]')||{}).content||'',
     groq:(document.querySelector('meta[name="atelier-decision-groq"]')||{}).content||''
@@ -9858,7 +9858,10 @@ function adpFallbackLocal(){
 async function askDecisionProvider(input){
   const minimal={demande:String(input&&input.demande||'').trim(),materiau_present:!!(input&&input.materiau_present),mode_demande:input&&input.mode_demande==='architecte'?'architecte':'rapide'};
   if(!minimal.demande)return Object.assign(adpFallbackLocal(),{raison:'La demande est vide.'});
-  const providers=[['workers-ai',adpEndpointValide(ADP10G.endpoints.workersAI)]];
+  const providers=[
+    ['workers-ai',adpEndpointValide(ADP10G.endpoints.workersAI)],
+    ['groq',adpEndpointValide(ADP10G.endpoints.groq)]
+  ];
   for(const [source,endpoint] of providers){
     if(!endpoint)continue;
     try{return {decision:await adpAskEndpoint(endpoint,minimal),source}}catch(error){console.warn('Decision Provider '+source+' indisponible.',error)}
@@ -9897,13 +9900,41 @@ function adpContinueArchitecte(){
 }
 async function adpDecideRapide(demande,materiau){
   adpShowThinking();
-  const result=await askDecisionProvider({demande,materiau_present:!!String(materiau||'').trim(),mode_demande:'rapide'});
+  const result=await askDecisionProvider({demande,materiau_present:state.docs.length>0||!!String(materiau||'').trim(),mode_demande:'rapide'});
   const sem=result.decision;adpState.last=sem;
   if(sem.route==='rapide'){
     const decision={state:sem.confiance==='haute'?'ready':'improvable',title:sem.confiance==='haute'?'Prêt en Rapide':'Rapide possible',text:sem.raison};
     return {source:result.source,route:'rapide',decision,semantic:sem};
   }
   return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Architecte recommandé',text:sem.raison},semantic:sem};
+}
+function adpRunRapide(demande,materiau,orientation){
+  v11ShowRapidGate(orientation.decision);
+  const rd=$('#rapide-demande'),rt=$('#rapide-texte');
+  if(rd){rd.value=demande;rd.dispatchEvent(new Event('input',{bubbles:true}))}
+  if(rt){rt.value=materiau;rt.dispatchEvent(new Event('input',{bubbles:true}))}
+  if(typeof assemblerRapideAdaptatif!=='function')throw new Error('Le moteur Rapide n’est pas disponible.');
+  const r=assemblerRapideAdaptatif();if(!r)return false;
+  const out=$('#ui-rapid-output'),box=$('#ui-rapid-result'),tok=$('#ui-rapid-tokens');
+  if(out)out.textContent=r.prompt;
+  if(tok&&typeof fourchetteTokens==='function'){const f=fourchetteTokens(r.prompt);tok.textContent=f.bas.toLocaleString('fr-FR')+'–'+f.haut.toLocaleString('fr-FR')+' tokens estimés';}
+  if(box){box.hidden=false;box.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  return true;
+}
+async function adpResumeAfterClarification(){
+  if(adpState.running)return false;adpState.running=true;
+  try{
+    const demande=compositeDemand(),materiau=materialText();
+    const orientation=await adpDecideRapide(demande,materiau);
+    if(orientation.route==='rapide')return adpRunRapide(demande,materiau,orientation);
+    if(orientation.semantic.question_indispensable&&adpState.clarifications<3){
+      adpState.clarifications+=1;
+      adpShowQuestion(orientation.semantic);
+      return false;
+    }
+    v11SwitchToArchitecteFromRapid(orientation.decision);
+    return adpContinueArchitecte();
+  }finally{adpState.running=false}
 }
 async function v11StartRapide(){
   const d=v11RequireDemand();if(!d)return false;
@@ -9912,21 +9943,11 @@ async function v11StartRapide(){
   try{
     const orientation=await adpDecideRapide(d,mat);
     if(orientation.route==='architecte'){
-      v11SwitchToArchitecteFromRapid(orientation.decision);
       if(orientation.semantic.question_indispensable){adpState.clarifications=1;adpShowQuestion(orientation.semantic);return false}
+      v11SwitchToArchitecteFromRapid(orientation.decision);
       beginExchange();return false;
     }
-    v11ShowRapidGate(orientation.decision);
-    const rd=$('#rapide-demande'),rt=$('#rapide-texte');
-    if(rd){rd.value=d;rd.dispatchEvent(new Event('input',{bubbles:true}))}
-    if(rt){rt.value=mat;rt.dispatchEvent(new Event('input',{bubbles:true}))}
-    if(typeof assemblerRapideAdaptatif!=='function')throw new Error('Le moteur Rapide n’est pas disponible.');
-    const r=assemblerRapideAdaptatif();if(!r)return false;
-    const out=$('#ui-rapid-output'),box=$('#ui-rapid-result'),tok=$('#ui-rapid-tokens');
-    if(out)out.textContent=r.prompt;
-    if(tok&&typeof fourchetteTokens==='function'){const f=fourchetteTokens(r.prompt);tok.textContent=f.bas.toLocaleString('fr-FR')+'–'+f.haut.toLocaleString('fr-FR')+' tokens estimés';}
-    if(box){box.hidden=false;box.scrollIntoView({behavior:'smooth',block:'nearest'});}
-    return true;
+    return adpRunRapide(d,mat,orientation);
   }finally{adpState.running=false}
 }
 function v11StartArchitecte(){
