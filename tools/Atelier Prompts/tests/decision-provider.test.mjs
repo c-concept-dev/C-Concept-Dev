@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import workersAIWorker, { decideWithWorkersAI } from '../workers/workers-ai/src/index.js';
+import workersAIWorker, { decideWithWorkersAI, PRIMARY_MODEL } from '../workers/workers-ai/src/index.js';
 import { decideWithGroq } from '../workers/groq/src/index.js';
-import { validateDecision, validateDecisionInput } from '../workers/shared/decision-core.js';
+import { DECISION_MODEL_PROMPT, DECISION_REASONS, validateDecision, validateDecisionInput } from '../workers/shared/decision-core.js';
 
 const cases=[
   ['Fais-moi une checklist de 20 points pour préparer un voyage en Italie',false,'rapide',null],
-  ['Je veux préparer mon voyage en Italie',false,'rapide',null],
+  ['Je veux préparer mon voyage en Italie',false,'architecte',null],
   ['Résume ce texte',true,'rapide',null],
   ['Résume ce texte',false,'architecte','Pouvez-vous fournir le texte à résumer ?'],
   ['Rédige un courrier de résiliation pour mon assurance',false,'rapide',null],
@@ -15,6 +15,7 @@ const cases=[
 ];
 
 test('les cas obligatoires et hors domaine sont orientés par la réponse sémantique',async()=>{
+  assert.equal(PRIMARY_MODEL,'@cf/meta/llama-3.3-70b-instruct-fp8-fast');
   for(const [demande,materiau_present,route,question] of cases){
     let captured;
     const env={AI:{async run(model,options){
@@ -24,7 +25,7 @@ test('les cas obligatoires et hors domaine sont orientés par la réponse séman
     const decision=await decideWithWorkersAI({demande,materiau_present,mode_demande:'rapide'},env);
     assert.equal(decision.route,route,demande);
     assert.equal(decision.question_indispensable,question,demande);
-    assert.equal(captured.model,'@cf/meta/llama-3.1-8b-instruct-fast');
+    assert.equal(captured.model,PRIMARY_MODEL);
     assert.deepEqual(JSON.parse(captured.options.messages[1].content),{demande,materiau_present,mode_demande:'rapide'});
   }
 });
@@ -38,6 +39,25 @@ test('le navigateur ne peut injecter ni modèle, ni messages, ni prompt système
 test('une question n’est valide qu’en Architecte avec confiance haute',()=>{
   assert.throws(()=>validateDecision({route:'rapide',confiance:'haute',raison:'x',question_indispensable:'Question ?'}),/exige/);
   assert.throws(()=>validateDecision({route:'architecte',confiance:'moyenne',raison:'x',question_indispensable:'Question ?'}),/exige/);
+});
+
+test('les invariants refusent les contradictions génériques entre route, raison et question',()=>{
+  assert.throws(()=>validateDecision({route:'rapide',confiance:'haute',raison:'L’intention n’est pas suffisamment identifiable.',question_indispensable:null}),/contredit la route rapide/);
+  assert.throws(()=>validateDecision({route:'architecte',confiance:'haute',raison:'Aucune clarification n’est nécessaire.',question_indispensable:'Quel résultat attendez-vous ?'}),/contredit la question/);
+  assert.throws(()=>validateDecision({route:'architecte',confiance:'haute',raison:DECISION_REASONS.rapide,question_indispensable:null}),/contredit la route architecte|canonique/);
+});
+
+test('une raison compatible est normalisée vers la phrase canonique de sa branche',()=>{
+  const rapide=validateDecision({route:'rapide',confiance:'moyenne',raison:'La demande permet de produire le résultat.',question_indispensable:null});
+  assert.equal(rapide.raison,DECISION_REASONS.rapide);
+  const architecte=validateDecision({route:'architecte',confiance:'haute',raison:'Plusieurs formes de résultat restent possibles.',question_indispensable:null});
+  assert.equal(architecte.raison,DECISION_REASONS.architecte);
+});
+
+test('le prompt impose une procédure ordonnée et conserve tous les traitements universels',()=>{
+  for(const action of ['DECIDEE','ESTIMEE','RECHERCHEE','SCENARISEE','CONDITIONNEE','QUESTIONNER','IGNOREE']) assert.match(DECISION_MODEL_PROMPT,new RegExp(action));
+  assert.match(DECISION_MODEL_PROMPT,/PROCÉDURE OBLIGATOIRE, DANS CET ORDRE/);
+  assert.match(DECISION_MODEL_PROMPT,/confiance mesure votre certitude sur la ROUTE/);
 });
 
 test('le Worker refuse une origine non autorisée et les champs supplémentaires',async()=>{
@@ -59,7 +79,7 @@ test('le fallback Groq utilise exclusivement le secret serveur et son modèle fi
   const decision=await decideWithGroq({demande:'Organise mes idées en plan',materiau_present:true,mode_demande:'rapide'},{GROQ_API_KEY:'server-only'});
   assert.equal(decision.route,'rapide');
   assert.equal(captured.options.headers.Authorization,'Bearer server-only');
-  assert.equal(captured.body.model,'llama-3.1-8b-instant');
+  assert.equal(captured.body.model,'openai/gpt-oss-20b');
   assert.equal(captured.body.max_completion_tokens,160);
   assert.equal(captured.body.messages[0].role,'system');
   assert.equal(captured.body.messages[1].content,JSON.stringify({demande:'Organise mes idées en plan',materiau_present:true,mode_demande:'rapide'}));
