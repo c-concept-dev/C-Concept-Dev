@@ -95,8 +95,9 @@ function expectedReason(decision) {
 
 function normalizeSingleQuestion(question) {
   let text = String(question || "").trim();
-  text = text.replace(/\s*\([^)]*[,;][^)]*\)\s*/g, " ");
+  text = text.replace(/\s*\([^)]*\)\s*/g, " ");
   text = text.replace(/\b(?:et|ainsi que)\s+(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i, " ?");
+  text = text.replace(/\b(?:et|ainsi que)\s+(?=(?:la|le|les|l[’']|votre|vos|un|une|des)\b)[^?]*\?$/i, " ?");
   text = text.replace(/:\s*[^?]*[,;][^?]*\?$/g, " ?");
   text = text.replace(/[,;]\s*(?:et\s+|avec\s+)?(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i, " ?");
   const firstQuestion = text.indexOf("?");
@@ -108,7 +109,8 @@ function questionHasMultipleRequests(question) {
   const text = String(question || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   return (text.match(/\?/g) || []).length > 1
     || /\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|ou|comment|combien|pourquoi)\b/.test(text)
-    || /\([^)]*[,;][^)]*\)/.test(text)
+    || /\b(?:et|ainsi que)\s+(?:la|le|les|l |votre|vos|un|une|des)\b/.test(text)
+    || /\([^)]*\)/.test(text)
     || /:\s*[^?]*[,;][^?]*\?/.test(text)
     || /[,;]\s*(?:et\s+|avec\s+)?(?:quel(?:le)?s?|qui|quand|ou|comment|combien|pourquoi)\b/.test(text);
 }
