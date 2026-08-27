@@ -48,7 +48,8 @@ test('les états, routes et questions incompatibles sont refusés',()=>{
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),question:'Précisez ?'}),/question=null/);
   assert.throws(()=>validateDecision({...decision('exploitable','architecte'),route:null}),/exige une route/);
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),confiance:'faible'}),/confiance invalide/);
-  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel résultat souhaitez-vous et quelles contraintes faut-il suivre ?')),/une seule demande/);
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'Quel résultat souhaitez-vous et quelles contraintes faut-il suivre ?')).question,'Quel résultat souhaitez-vous ?');
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'Que souhaitez-vous préciser (forme, public, longueur) ?')).question,'Que souhaitez-vous préciser ?');
 });
 
 test('la raison interne doit correspondre exactement à la branche',()=>{
