@@ -9834,7 +9834,7 @@ function adpDecisionValide(value){
   if(value.question_indispensable!==null&&(typeof value.question_indispensable!=='string'||!value.question_indispensable.trim()||value.question_indispensable.length>240))throw new Error('Question invalide.');
   if(value.question_indispensable!==null&&(value.route!=='architecte'||value.confiance!=='haute'))throw new Error('Question incohérente.');
   const reason=String(value.raison).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,' ').replace(/\s+/g,' ').trim();
-  const insuffisant=/\b(?:intention|livrable|resultat|sortie)\b[^.!?]{0,80}\b(?:ambigu|indetermin|flou|trop ouvert|non identifiable|pas identifiable|pas suffisamment identifi|insuffisamment identifi|pas determin|non determin)\w*/.test(reason);
+  const insuffisant=/\b(?:intention|livrable|resultat|sortie)\b[^.!?]{0,80}\b(?:ambigu|indetermin|flou|trop ouvert|non identifiable|pas identifiable|pas suffisamment identifi|insuffisamment identifi|pas determin|non determin)\w*/.test(reason)||/\b(?:intention|livrable|resultat|sortie)\b[^?]{0,80}\b(?:identifi|determin)\w*\s*\?\s*non\b/.test(reason);
   const sansClarification=/\b(?:aucune clarification (?:n est )?(?:necessaire|indispensable)|clarification n est pas (?:necessaire|indispensable)|pas besoin (?:d une|de) (?:clarification|precision|question)|aucune question (?:n est )?(?:necessaire|indispensable))\b/.test(reason);
   const suffisant=/\bintention\b[^.!?]{0,60}\blivrable\b[^.!?]{0,60}\b(?:suffisamment|clairement)\b[^.!?]{0,30}\b(?:identifi|determin)\w*/.test(reason);
   if(value.route==='rapide'&&insuffisant)throw new Error('La raison contredit la route rapide.');
