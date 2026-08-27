@@ -13,13 +13,13 @@ function decision(etat_demande,route,question=null,confiance='haute'){
 
 const referenceCases=[
   ['Fais-moi une checklist de 20 points pour préparer un voyage en Italie',false,decision('exploitable','rapide')],
-  ['Je veux préparer mon voyage en Italie',false,decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous préparer en priorité pour ce voyage ?')],
-  ['Aide-moi à mieux gérer mon travail',false,decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous obtenir pour mieux gérer votre travail ?')],
+  ['Je veux préparer mon voyage en Italie',false,decision('clarification_necessaire',null,'Combien de jours prévoyez-vous de partir en Italie ?')],
+  ['Aide-moi à mieux gérer mon travail',false,decision('clarification_necessaire',null,'Qu’est-ce qui vous prend le plus de temps dans votre travail ?')],
   ['Résume le rapport que je viens de t’envoyer en 10 points',false,decision('clarification_necessaire',null,'Pouvez-vous joindre le rapport à résumer ?')],
   ['Résume le rapport que je viens de t’envoyer en 10 points',true,decision('exploitable','rapide')],
   ['Corrige ce code et explique l’erreur',false,decision('clarification_necessaire',null,'Pouvez-vous fournir le code à corriger ?')],
   ['Compare le télétravail et le travail au bureau sous forme de tableau sur 6 critères',false,decision('exploitable','rapide')],
-  ['Je veux écrire un livre',false,decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous préparer pour avancer sur ce livre ?')],
+  ['Je veux écrire un livre',false,decision('clarification_necessaire',null,'Quel type de livre souhaitez-vous écrire ?')],
   ['Élabore une stratégie de fusion de deux équipes de 20 personnes sur trois mois, avec scénarios, risques, critères de décision et plan de transition',false,decision('exploitable','architecte')],
   ['Traduis en anglais : Bonjour à tous',false,decision('exploitable','rapide')]
 ];
@@ -43,30 +43,39 @@ test('le navigateur ne peut injecter ni modèle, ni messages, ni prompt système
 });
 
 test('les états, routes et questions incompatibles sont refusés',()=>{
-  assert.throws(()=>validateDecision({...decision('clarification_necessaire',null,'Quel résultat ?'),route:'architecte'}),/route=null/);
-  assert.throws(()=>validateDecision({...decision('clarification_necessaire',null,'Quel résultat ?'),question:null}),/route=null/);
+  assert.throws(()=>validateDecision({...decision('clarification_necessaire',null,'Quand souhaitez-vous commencer ?'),route:'architecte'}),/route=null/);
+  assert.throws(()=>validateDecision({...decision('clarification_necessaire',null,'Quand souhaitez-vous commencer ?'),question:null}),/route=null/);
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),question:'Précisez ?'}),/question=null/);
   assert.throws(()=>validateDecision({...decision('exploitable','architecte'),route:null}),/exige une route/);
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),confiance:'faible'}),/confiance invalide/);
-  assert.equal(validateDecision(decision('clarification_necessaire',null,'Quel résultat souhaitez-vous et quelles contraintes faut-il suivre ?')).question,'Quel résultat souhaitez-vous ?');
-  assert.equal(validateDecision(decision('clarification_necessaire',null,'Que souhaitez-vous préciser (forme, public, longueur) ?')).question,'Que souhaitez-vous préciser ?');
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'Quand souhaitez-vous commencer et quelle échéance faut-il respecter ?')).question,'Quand souhaitez-vous commencer ?');
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'À qui écrivez-vous (équipe, clients, partenaires) ?')).question,'À qui écrivez-vous ?');
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'Combien de temps avez-vous, avec quel budget travaillez-vous ?')).question,'Combien de temps avez-vous ?');
+  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous obtenir ?')),/vocabulaire interne/);
+  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel est votre besoin métier ?')),/vocabulaire interne/);
+  const enriched='Demande\n\nPrécisions apportées pendant le dialogue :\n- Quand souhaitez-vous commencer ? — Réponse : Demain';
+  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quand voulez-vous commencer ?'),enriched),/répète/);
 });
 
 test('la raison interne doit correspondre exactement à la branche',()=>{
   assert.throws(()=>validateDecision({...decision('exploitable','architecte'),raison_interne:DECISION_REASONS.rapide}),/ne correspond pas/);
-  assert.throws(()=>validateDecision({...decision('clarification_necessaire',null,'Quel résultat ?'),raison_interne:DECISION_REASONS.architecte}),/ne correspond pas/);
+  assert.throws(()=>validateDecision({...decision('clarification_necessaire',null,'Quand souhaitez-vous commencer ?'),raison_interne:DECISION_REASONS.architecte}),/ne correspond pas/);
   assert.deepEqual(validateDecision(decision('exploitable','rapide',null,'moyenne')),decision('exploitable','rapide',null,'moyenne'));
 });
 
 test('le prompt impose exploitabilité, question unique et traitements universels',()=>{
   for(const action of ['DECIDER','ESTIMER','RECHERCHER','SCENARISER','CONDITIONNER','IGNORER']) assert.match(DECISION_MODEL_PROMPT,new RegExp(action));
   assert.match(DECISION_MODEL_PROMPT,/UNE SEULE question/);
-  assert.match(DECISION_MODEL_PROMPT,/réduit le plus l’incertitude utile/);
+  assert.match(DECISION_MODEL_PROMPT,/réduira le plus l’incertitude utile/);
+  assert.match(DECISION_MODEL_PROMPT,/courte, concrète, contextualisée et immédiatement répondable/);
+  assert.match(DECISION_MODEL_PROMPT,/mots ordinaires de la situation/);
+  assert.match(DECISION_MODEL_PROMPT,/Les notions d’analyse restent internes/);
   assert.match(DECISION_MODEL_PROMPT,/artefact unique et borné/);
   assert.match(DECISION_MODEL_PROMPT,/La seule présence d’une liste, d’un tableau/);
   assert.match(DECISION_MODEL_PROMPT,/ne demandez pas de préférences de contenu/);
   assert.match(DECISION_MODEL_PROMPT,/N’utilisez aucune règle propre à un domaine/);
   assert.match(DECISION_MODEL_PROMPT,/ne choisissez jamais Atelier/i);
+  assert.doesNotMatch(DECISION_MODEL_PROMPT,/voyage|ordinateur|anniversaire|\bcv\b|recette|\bcode\b/i);
 });
 
 test('le Worker refuse une origine absente ou non autorisée et les champs supplémentaires',async()=>{
