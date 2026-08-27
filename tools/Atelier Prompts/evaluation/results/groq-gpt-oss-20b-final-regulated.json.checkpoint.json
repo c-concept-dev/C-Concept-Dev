@@ -1,0 +1,438 @@
+{
+  "corpus_sha256": "bd1329970dc5ed2b50cf1cf839ba2b3ad662d1a9b1cad80ac56b35b7e4e85894",
+  "prompt_sha256": "9eac0c81a38c73643331852907b8a1611889f748d89dd8462ad19da7f88b5b41",
+  "results": [
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R01",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 643,
+      "latency_ms": 643,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R01",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 360,
+      "latency_ms": 360,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R01",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 563,
+      "latency_ms": 563,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R02",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 578,
+      "latency_ms": 578,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R02",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 607,
+      "latency_ms": 607,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R02",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 400,
+      "latency_ms": 400,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R03",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 334,
+      "latency_ms": 334,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R03",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 509,
+      "latency_ms": 509,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R03",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 350,
+      "latency_ms": 350,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R04",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 579,
+      "latency_ms": 579,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R04",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 546,
+      "latency_ms": 546,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R04",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 547,
+      "latency_ms": 547,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R05",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 462,
+      "latency_ms": 462,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R05",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 641,
+      "latency_ms": 641,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R05",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 559,
+      "latency_ms": 559,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R06",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 604,
+      "latency_ms": 604,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R06",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 706,
+      "latency_ms": 706,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R06",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 309,
+      "latency_ms": 309,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R07",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 492,
+      "latency_ms": 492,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R07",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 477,
+      "latency_ms": 477,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R07",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 529,
+      "latency_ms": 529,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R08",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 706,
+      "latency_ms": 706,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R08",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 515,
+      "latency_ms": 515,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R08",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 426,
+      "latency_ms": 426,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R09",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 563,
+      "latency_ms": 563,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R09",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 471,
+      "latency_ms": 471,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R09",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 518,
+      "latency_ms": 518,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    }
+  ]
+}
