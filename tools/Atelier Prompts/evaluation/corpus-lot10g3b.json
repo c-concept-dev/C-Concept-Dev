@@ -4,13 +4,13 @@
   "cases": [
     {"id":"R01","domain":"voyage","demande":"Fais-moi une checklist de 20 points pour préparer un voyage en Italie","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
     {"id":"Q01","domain":"voyage","demande":"Je veux préparer mon voyage en Italie","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
-    {"id":"Q02","domain":"analyse","demande":"Résume le rapport que je viens de t’envoyer en 10 points","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
-    {"id":"R02","domain":"analyse","demande":"Résume le rapport joint en 10 points","materiau_present":true,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
-    {"id":"A01","domain":"organisation","demande":"Définis une stratégie de réorganisation avec scénarios, risques et plan de transition","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"architecte"}},
-    {"id":"R03","domain":"rédaction","demande":"Rédige un message bref pour confirmer notre rendez-vous demain à 9 h","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
-    {"id":"A02","domain":"comparaison","demande":"Compare trois solutions et construis une recommandation argumentée selon coût, risque et délai","materiau_present":true,"oracle":{"etat_demande":"exploitable","route":"architecte"}},
-    {"id":"Q03","domain":"données","demande":"Analyse ce fichier CSV et calcule les tendances mensuelles","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
-    {"id":"A03","domain":"enseignement","demande":"Conçois un parcours pédagogique progressif avec objectifs, évaluations et adaptations","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"architecte"}},
-    {"id":"R04","domain":"code","demande":"Corrige le code joint sans changer son comportement public","materiau_present":true,"oracle":{"etat_demande":"exploitable","route":"rapide"}}
+    {"id":"Q02","domain":"organisation","demande":"Aide-moi à mieux gérer mon travail","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"Q03","domain":"analyse","demande":"Résume le rapport que je viens de t’envoyer en 10 points","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"R02","domain":"analyse","demande":"Résume le rapport que je viens de t’envoyer en 10 points","materiau_present":true,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
+    {"id":"Q04","domain":"code","demande":"Corrige ce code et explique l’erreur","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"R03","domain":"comparaison","demande":"Compare le télétravail et le travail au bureau sous forme de tableau sur 6 critères","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
+    {"id":"Q05","domain":"création","demande":"Je veux écrire un livre","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"A01","domain":"organisation","demande":"Élabore une stratégie de fusion de deux équipes de 20 personnes sur trois mois, avec scénarios, risques, critères de décision et plan de transition","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"architecte"}},
+    {"id":"R04","domain":"traduction","demande":"Traduis en anglais : Bonjour à tous","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}}
   ]
 }
