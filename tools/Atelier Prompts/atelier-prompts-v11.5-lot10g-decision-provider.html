@@ -849,6 +849,12 @@ body[data-espace="debutant"] .avance-seulement{display:none}
 
 .ui-rapid-gate[data-state="thinking"]{background:#F6EBDD;border-color:#C89A5A;color:#7A5A32}
 .ui-rapid-gate .adp-meta{font-size:.78rem;opacity:.82;margin-top:2px}
+.v11-clarification-modal{position:fixed;inset:0;z-index:10000;margin:0;padding:24px;display:grid;place-items:center;background:rgba(45,42,39,.52);backdrop-filter:blur(3px)}
+.v11-clarification-modal[hidden]{display:none!important}
+.v11-clarification-panel{width:min(100%,620px);max-height:calc(100vh - 48px);overflow:auto;margin:0;padding:26px;border:1px solid var(--ds-border);border-radius:18px;background:var(--ds-surface-strong);box-shadow:0 24px 70px rgba(45,42,39,.25)}
+.v11-clarification-intro{margin:-4px 0 18px;color:var(--ds-text-muted);font-size:.94rem;line-height:1.55}
+.v11-clarification-doc{display:inline-flex;align-items:center;justify-content:center}
+@media(max-width:700px){.v11-clarification-modal{padding:12px;align-items:end}.v11-clarification-panel{width:100%;max-height:calc(100vh - 24px);padding:20px;border-radius:16px}.v11-clarification-panel .v11-actions>*{width:100%}}
 
 </style>
 <style id="v11-style">
@@ -1639,22 +1645,24 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
       </div>
     </div>
 
-    <div class="v11-stage" id="v11-dialogue" hidden>
-      <div class="v11-card ui-stage-card">
+    <div class="v11-stage v11-clarification-modal" id="v11-dialogue" hidden>
+      <div class="v11-card ui-stage-card v11-clarification-panel" role="dialog" aria-modal="true" aria-labelledby="v11-dialogue-title" aria-describedby="v11-dialogue-intro">
         <div class="ui-dialogue-head">
           <div class="ui-stage-icon thumb-atelier" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,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" alt="" loading="lazy" decoding="async"></div>
           <div>
-            <div class="v11-eyebrow ui-eyebrow">Une précision m’aiderait</div>
+            <div class="v11-eyebrow ui-eyebrow" id="v11-dialogue-title">Une précision est nécessaire</div>
             <div class="v11-question ui-question" id="v11-question"></div>
           </div>
         </div>
+        <p class="v11-clarification-intro" id="v11-dialogue-intro">Pour bien préparer votre demande, j’ai besoin d’un détail.</p>
         <textarea class="v11-answer ui-answer" id="v11-answer" placeholder="Répondez simplement avec vos mots…"></textarea>
         <div class="v11-chiprow ui-chiprow" id="v11-chips"></div>
         <div class="v11-actions ui-stage-actions">
           <button type="button" class="v11-primary ui-stage-primary" id="v11-answer-continue">Continuer</button>
-          <button type="button" class="v11-secondary ui-stage-secondary" id="v11-dont-know">Je ne sais pas</button>
+          <button type="button" class="v11-secondary ui-stage-secondary v11-clarification-doc" id="v11-add-clarification-document">Ajouter un document</button>
+          <button type="button" class="v11-secondary ui-stage-secondary" id="v11-cancel-clarification">Annuler</button>
         </div>
-        <details class="ui-paste-panel"><summary>Pourquoi cette question ?</summary><p class="v11-muted" id="v11-why"></p></details>
+        <p class="v11-muted" id="v11-why">Votre réponse sera ajoutée à la demande avant une nouvelle analyse.</p>
       </div>
     </div>
 
@@ -9796,7 +9804,7 @@ function answerQuestion(answer){
 }
 function resetAll(){
   state.docs=[];state.answers=[];state.lastRequest=null;state.analysis=null;state.exchangeId=null;
-  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.last=null;adpState.running=false;}
+  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.last=null;adpState.running=false;adpState.returnFocus=null;}
   state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';$('#v11-demande').value='';renderFiles();$('#v11-final').value='';show(null);
   if(window.__ARCHITECTE_V10__&&window.__ARCHITECTE_V10__.nouvelleDemande)try{window.__ARCHITECTE_V10__.nouvelleDemande()}catch(e){}
 }
@@ -9813,36 +9821,31 @@ function v11RequireDemand(){
  * Aucun moteur Rapide / Architecte / Atelier n'est réécrit ici.
  * ---------------------------------------------------------------------- */
 const ADP10G=Object.freeze({
-  version:'10G.3A',
+  version:'10G.3B',
   endpoints:Object.freeze({
     workersAI:(document.querySelector('meta[name="atelier-decision-workers-ai"]')||{}).content||'',
     groq:(document.querySelector('meta[name="atelier-decision-groq"]')||{}).content||''
   })
 });
-const ADP_REASONS=Object.freeze({rapide:'Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.',architecte:'Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.',question:'Une information non substituable empêche de déterminer le livrable.'});
-const adpState={pendingQuestion:false,clarifications:0,last:null,running:false};
+const ADP_REASONS=Object.freeze({clarification:'La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.',rapide:'La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.',architecte:'La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.'});
+const adpState={pendingQuestion:false,clarifications:0,last:null,running:false,returnFocus:null};
 function adpEndpointValide(value){
   const url=String(value||'').trim();
   return /^https:\/\//i.test(url)&&!url.includes('REMPLACER')?url:'';
 }
 function adpDecisionValide(value){
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Décision absente.');
-  const keys=Object.keys(value).sort(),expected=['confiance','question_indispensable','raison','route'];
+  const keys=Object.keys(value).sort(),expected=['confiance','etat_demande','question','raison_interne','route'];
   if(keys.length!==expected.length||keys.some((key,index)=>key!==expected[index]))throw new Error('Format de décision invalide.');
-  if(!['rapide','architecte'].includes(value.route)||!['haute','moyenne','faible'].includes(value.confiance))throw new Error('Orientation invalide.');
-  if(typeof value.raison!=='string'||!value.raison.trim()||value.raison.length>240)throw new Error('Raison invalide.');
-  if(value.question_indispensable!==null&&(typeof value.question_indispensable!=='string'||!value.question_indispensable.trim()||value.question_indispensable.length>240))throw new Error('Question invalide.');
-  if(value.question_indispensable!==null&&(value.route!=='architecte'||value.confiance!=='haute'))throw new Error('Question incohérente.');
-  const reason=String(value.raison).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,' ').replace(/\s+/g,' ').trim();
-  const insuffisant=/\b(?:intention|livrable|resultat|sortie)\b[^.!?]{0,80}\b(?:ambigu|indetermin|flou|trop ouvert|non identifiable|pas identifiable|pas suffisamment identifi|insuffisamment identifi|pas determin|non determin)\w*/.test(reason)||/\b(?:intention|livrable|resultat|sortie)\b[^?]{0,80}\b(?:identifi|determin)\w*\s*\?\s*non\b/.test(reason);
-  const sansClarification=/\b(?:aucune clarification (?:n est )?(?:necessaire|indispensable)|clarification n est pas (?:necessaire|indispensable)|pas besoin (?:d une|de) (?:clarification|precision|question)|aucune question (?:n est )?(?:necessaire|indispensable))\b/.test(reason);
-  const suffisant=/\bintention\b[^.!?]{0,60}\blivrable\b[^.!?]{0,60}\b(?:suffisamment|clairement)\b[^.!?]{0,30}\b(?:identifi|determin)\w*/.test(reason);
-  if(value.route==='rapide'&&insuffisant)throw new Error('La raison contredit la route rapide.');
-  if(value.route==='architecte'&&value.question_indispensable!==null&&sansClarification)throw new Error('La raison contredit la question indispensable.');
-  if(value.route==='architecte'&&suffisant)throw new Error('La raison contredit la route architecte.');
-  const canonique=value.question_indispensable!==null?ADP_REASONS.question:value.route==='rapide'?ADP_REASONS.rapide:ADP_REASONS.architecte;
-  if(Object.values(ADP_REASONS).includes(value.raison)&&value.raison!==canonique)throw new Error('La raison canonique ne correspond pas à la décision.');
-  return {route:value.route,confiance:value.confiance,raison:canonique,question_indispensable:value.question_indispensable===null?null:value.question_indispensable.trim()};
+  if(!['exploitable','clarification_necessaire'].includes(value.etat_demande)||!['haute','moyenne'].includes(value.confiance))throw new Error('État ou confiance invalide.');
+  if(typeof value.raison_interne!=='string'||value.raison_interne.length>240)throw new Error('Raison interne invalide.');
+  if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>240))throw new Error('Question invalide.');
+  if(value.etat_demande==='clarification_necessaire'){
+    if(value.route!==null||value.question===null)throw new Error('Clarification incohérente.');
+  }else if(!['rapide','architecte'].includes(value.route)||value.question!==null)throw new Error('Décision exploitable incohérente.');
+  const canonique=value.etat_demande==='clarification_necessaire'?ADP_REASONS.clarification:value.route==='rapide'?ADP_REASONS.rapide:ADP_REASONS.architecte;
+  if(value.raison_interne!==canonique)throw new Error('La raison interne ne correspond pas à la décision.');
+  return {etat_demande:value.etat_demande,route:value.route,confiance:value.confiance,raison_interne:canonique,question:value.question===null?null:value.question.trim()};
 }
 async function adpAskEndpoint(endpoint,input){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
@@ -9853,11 +9856,11 @@ async function adpAskEndpoint(endpoint,input){
   }finally{clearTimeout(timer)}
 }
 function adpFallbackLocal(){
-  return {route:'architecte',confiance:'faible',raison:'Aucun fournisseur sémantique n’est disponible ; le parcours prudent est utilisé.',question_indispensable:null};
+  return {etat_demande:'exploitable',route:'architecte',confiance:'moyenne',raison_interne:ADP_REASONS.architecte,question:null};
 }
 async function askDecisionProvider(input){
   const minimal={demande:String(input&&input.demande||'').trim(),materiau_present:!!(input&&input.materiau_present),mode_demande:input&&input.mode_demande==='architecte'?'architecte':'rapide'};
-  if(!minimal.demande)return Object.assign(adpFallbackLocal(),{raison:'La demande est vide.'});
+  if(!minimal.demande)return {decision:adpFallbackLocal(),source:'local-prudent'};
   const providers=[
     ['workers-ai',adpEndpointValide(ADP10G.endpoints.workersAI)],
     ['groq',adpEndpointValide(ADP10G.endpoints.groq)]
@@ -9877,7 +9880,7 @@ function v11ShowRapidGate(decision){
   if(title)title.textContent=decision.title||'';
   if(txt)txt.textContent=decision.text||'';
 }
-function adpShowThinking(){v11ShowRapidGate({state:'thinking',title:'Analyse adaptative de la demande…',text:'Je vérifie seulement si une précision est réellement indispensable avant de choisir le parcours.'})}
+function adpShowThinking(){v11ShowRapidGate({state:'thinking',title:'Analyse de votre demande…',text:'Je vérifie si elle est suffisamment définie pour être préparée utilement.'})}
 function v11SwitchToArchitecteFromRapid(decision){
   const select=$('#ui-mode-select');
   if(select){select.value='architecte';select.dispatchEvent(new Event('change',{bubbles:true}));}
@@ -9886,13 +9889,18 @@ function v11SwitchToArchitecteFromRapid(decision){
   return false;
 }
 function adpShowQuestion(decision){
-  adpState.pendingQuestion=true;adpState.last=decision;
-  $('#v11-question').textContent=decision.question_indispensable;
+  adpState.pendingQuestion=true;adpState.last=decision;adpState.returnFocus=document.activeElement;
+  $('#v11-question').textContent=decision.question;
   $('#v11-answer').value='';
-  $('#v11-why').textContent=decision.raison||'Cette précision peut changer substantiellement le résultat.';
+  $('#v11-why').textContent='Votre réponse sera ajoutée à la demande avant une nouvelle analyse.';
   const chips=$('#v11-chips');chips.innerHTML='';
   ['Je ne sais pas','À vous de choisir'].forEach(t=>{const b=document.createElement('button');b.type='button';b.className='v11-chip';b.textContent=t;b.addEventListener('click',()=>{$('#v11-answer').value=t});chips.appendChild(b)});
   show('#v11-dialogue','#v11-answer');
+}
+function adpCancelClarification(){
+  const wasAdaptive=adpState.pendingQuestion;adpState.pendingQuestion=false;
+  if(wasAdaptive){v11SwitchToArchitecteFromRapid({state:'architecte',title:'Préparation approfondie',text:'Votre demande va être structurée avec les éléments déjà fournis.'});return adpContinueArchitecte()}
+  show(null);if(adpState.returnFocus&&typeof adpState.returnFocus.focus==='function')adpState.returnFocus.focus();return false;
 }
 function adpContinueArchitecte(){
   adpState.pendingQuestion=false;
@@ -9902,11 +9910,12 @@ async function adpDecideRapide(demande,materiau){
   adpShowThinking();
   const result=await askDecisionProvider({demande,materiau_present:state.docs.length>0||!!String(materiau||'').trim(),mode_demande:'rapide'});
   const sem=result.decision;adpState.last=sem;
+  if(sem.etat_demande==='clarification_necessaire')return {source:result.source,route:null,decision:null,semantic:sem};
   if(sem.route==='rapide'){
-    const decision={state:sem.confiance==='haute'?'ready':'improvable',title:sem.confiance==='haute'?'Prêt en Rapide':'Rapide possible',text:sem.raison};
+    const decision={state:'ready',title:'Demande prête',text:'Votre demande est suffisamment définie pour être préparée directement.'};
     return {source:result.source,route:'rapide',decision,semantic:sem};
   }
-  return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Architecte recommandé',text:sem.raison},semantic:sem};
+  return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Préparation approfondie',text:'Votre demande est suffisamment définie et gagnera à être structurée.'},semantic:sem};
 }
 function adpRunRapide(demande,materiau,orientation){
   v11ShowRapidGate(orientation.decision);
@@ -9927,12 +9936,12 @@ async function adpResumeAfterClarification(){
     const demande=compositeDemand(),materiau=materialText();
     const orientation=await adpDecideRapide(demande,materiau);
     if(orientation.route==='rapide')return adpRunRapide(demande,materiau,orientation);
-    if(orientation.semantic.question_indispensable&&adpState.clarifications<3){
+    if(orientation.semantic.etat_demande==='clarification_necessaire'&&adpState.clarifications<3){
       adpState.clarifications+=1;
       adpShowQuestion(orientation.semantic);
       return false;
     }
-    v11SwitchToArchitecteFromRapid(orientation.decision);
+    v11SwitchToArchitecteFromRapid(orientation.decision||{state:'architecte',title:'Préparation approfondie',text:'Les éléments déjà fournis vont maintenant être structurés.'});
     return adpContinueArchitecte();
   }finally{adpState.running=false}
 }
@@ -9942,8 +9951,10 @@ async function v11StartRapide(){
   if(adpState.running)return false;adpState.running=true;
   try{
     const orientation=await adpDecideRapide(d,mat);
+    if(orientation.semantic.etat_demande==='clarification_necessaire'){
+      adpState.clarifications=1;adpShowQuestion(orientation.semantic);return false;
+    }
     if(orientation.route==='architecte'){
-      if(orientation.semantic.question_indispensable){adpState.clarifications=1;adpShowQuestion(orientation.semantic);return false}
       v11SwitchToArchitecteFromRapid(orientation.decision);
       beginExchange();return false;
     }
@@ -9993,7 +10004,7 @@ function init(){
   $('#v11-api-show').addEventListener('click',()=>{const k=$('#v11-api-key'),show=k.type==='password';k.type=show?'text':'password';$('#v11-api-show').textContent=show?'Masquer':'Afficher'});
   $('#v11-expert').addEventListener('click',()=>{if(typeof appliquerEspace==='function')appliquerEspace('avance');if(typeof ecrire==='function')ecrire('atelier10.espace','avance');setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});
   const back=document.createElement('button');back.type='button';back.id='v11-back-normal';back.className='lot4-back';back.textContent='← Retour à l’accueil';back.addEventListener('click',()=>setNormal(true));const railReturn=document.querySelector('#lot4-rail-retour');if(railReturn)railReturn.append(back);else{const railFoot=document.querySelector('.rail-pied');if(railFoot)railFoot.prepend(back);}
-  $('#v11-files').addEventListener('change',async e=>{await processIncomingFiles([...e.target.files]);e.target.value=''});
+  $('#v11-files').addEventListener('change',async e=>{const added=[...e.target.files];await processIncomingFiles(added);if(added.length&&adpState.pendingQuestion)$('#v11-answer').value='Le document demandé est joint.';e.target.value=''});
   const dz=$('#v11-dropzone');
   dz.addEventListener('click',()=>$('#v11-files').click());
   dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#v11-files').click()}});
@@ -10014,7 +10025,9 @@ function init(){
   $('#v11-response-file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(!filenameMatchesCurrentExchange(f.name))throw new Error(wrongExchangeError(f.name));const obj=extractCandidate(await f.text());if(looksLikeOutgoingEnvelope(obj))throw new Error('Vous avez choisi le fichier à envoyer à votre IA. Ici, sélectionnez '+state.responseName+' reçu en retour.');useAnalysis(obj)}catch(err){humanError(err.message);show('#v11-exchange','#v11-return-dropzone')}e.target.value=''});
   $('#v11-use-paste').addEventListener('click',()=>{try{useAnalysis(extractCandidate($('#v11-paste-response').value))}catch(err){humanError(err.message);show('#v11-exchange')}});
   $('#v11-answer-continue').addEventListener('click',()=>answerQuestion($('#v11-answer').value));
-  $('#v11-dont-know').addEventListener('click',()=>answerQuestion('Je ne sais pas'));
+  $('#v11-add-clarification-document').addEventListener('click',()=>$('#v11-files').click());
+  $('#v11-cancel-clarification').addEventListener('click',adpCancelClarification);
+  $('#v11-dialogue').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();adpCancelClarification()}});
   $('#v11-copy-final').addEventListener('click',()=>copyText($('#v11-final').value));
   $('#v11-restart').addEventListener('click',resetAll);
   $('#v11-details').addEventListener('click',()=>{setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});
