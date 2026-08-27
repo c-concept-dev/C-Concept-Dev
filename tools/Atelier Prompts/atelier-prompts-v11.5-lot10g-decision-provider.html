@@ -9835,8 +9835,9 @@ function adpEndpointValide(value){
 }
 function adpNormaliserQuestion(value){
   let text=String(value||'').trim();
-  text=text.replace(/\s*\([^)]*[,;][^)]*\)\s*/g,' ');
+  text=text.replace(/\s*\([^)]*\)\s*/g,' ');
   text=text.replace(/\b(?:et|ainsi que)\s+(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
+  text=text.replace(/\b(?:et|ainsi que)\s+(?=(?:la|le|les|l[’']|votre|vos|un|une|des)\b)[^?]*\?$/i,' ?');
   text=text.replace(/:\s*[^?]*[,;][^?]*\?$/g,' ?');
   text=text.replace(/[,;]\s*(?:et\s+|avec\s+)?(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
   const first=text.indexOf('?');if(first>=0)text=text.slice(0,first+1);
@@ -9860,7 +9861,7 @@ function adpDecisionValide(value,demande=''){
   if(typeof value.raison_interne!=='string'||value.raison_interne.length>240)throw new Error('Raison interne invalide.');
   if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>180))throw new Error('Question invalide.');
   const question=value.question===null?null:adpNormaliserQuestion(value.question);
-  if(question!==null&&(!question||question.length>180||((question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))||/\([^)]*[,;][^)]*\)/.test(question)||/:\s*[^?]*[,;][^?]*\?/.test(question)||/[,;]\s*(?:et\s+|avec\s+)?(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question)))throw new Error('La clarification contient plusieurs demandes.');
+  if(question!==null&&(!question||question.length>180||((question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))||/\b(?:et|ainsi que)\s+(?:la|le|les|l[’']|votre|vos|un|une|des)\b/i.test(question)||/\([^)]*\)/.test(question)||/:\s*[^?]*[,;][^?]*\?/.test(question)||/[,;]\s*(?:et\s+|avec\s+)?(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question)))throw new Error('La clarification contient plusieurs demandes.');
   if(question!==null&&/\b(?:resultat concret|avancement utile|livrable|objectif operationnel|information structurante|element determinant|critere de reussite|niveau d exigence|perimetre fonctionnel|besoin metier)\b/.test(adpTexteQuestion(question)))throw new Error('La question expose le vocabulaire interne du pipeline.');
   if(question!==null&&adpQuestionsPrecedentes(demande).some(previous=>adpQuestionsSimilaires(previous,question)))throw new Error('La question répète une clarification déjà posée.');
   if(value.etat_demande==='clarification_necessaire'){
