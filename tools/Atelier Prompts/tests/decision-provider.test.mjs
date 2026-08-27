@@ -70,6 +70,9 @@ test('le prompt impose exploitabilité, question unique et traitements universel
   assert.match(DECISION_MODEL_PROMPT,/réduira le plus l’incertitude utile/);
   assert.match(DECISION_MODEL_PROMPT,/courte, concrète, contextualisée et immédiatement répondable/);
   assert.match(DECISION_MODEL_PROMPT,/mots ordinaires de la situation/);
+  assert.match(DECISION_MODEL_PROMPT,/Les réponses incorporées sont des faits acquis/);
+  assert.match(DECISION_MODEL_PROMPT,/arrêtez immédiatement de questionner/);
+  assert.match(DECISION_MODEL_PROMPT,/N’inventez jamais un matériau à fournir/);
   assert.match(DECISION_MODEL_PROMPT,/Les notions d’analyse restent internes/);
   assert.match(DECISION_MODEL_PROMPT,/artefact unique et borné/);
   assert.match(DECISION_MODEL_PROMPT,/La seule présence d’une liste, d’un tableau/);
