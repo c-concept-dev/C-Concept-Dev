@@ -70,6 +70,9 @@ export async function decideWithGroq(input, env) {
 
 export default {
   fetch(request, env) {
+    if (!request.headers.get("Origin")) {
+      return Response.json({ error: "origin_not_allowed" }, { status: 403 });
+    }
     return handleDecisionRequest(request, env, decideWithGroq);
   }
 };
