@@ -65,7 +65,7 @@ export async function decideWithGroq(input, env) {
     throw new Error(`Groq a répondu ${response.status}.`);
   }
   const envelope = JSON.parse(raw);
-  return parseDecisionCandidate(envelope?.choices?.[0]?.message?.content);
+  return parseDecisionCandidate(envelope?.choices?.[0]?.message?.content, input.demande);
 }
 
 export default {
