@@ -9919,6 +9919,7 @@ async function adpDecideRapide(demande,materiau){
   return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Préparation approfondie',text:'Votre demande est suffisamment définie et gagnera à être structurée.'},semantic:sem};
 }
 function adpRunRapide(demande,materiau,orientation){
+  adpState.pendingQuestion=false;show(null);
   v11ShowRapidGate(orientation.decision);
   const rd=$('#rapide-demande'),rt=$('#rapide-texte');
   if(rd){rd.value=demande;rd.dispatchEvent(new Event('input',{bubbles:true}))}
