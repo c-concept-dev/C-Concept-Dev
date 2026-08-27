@@ -9850,7 +9850,7 @@ function adpMotsQuestion(value){
 }
 function adpQuestionsSimilaires(left,right){
   const a=adpMotsQuestion(left),b=adpMotsQuestion(right);if(!a.size||!b.size)return adpTexteQuestion(left)===adpTexteQuestion(right);
-  let common=0;a.forEach(word=>{if(b.has(word))common+=1});return common/Math.min(a.size,b.size)>=.8;
+  let common=0;a.forEach(word=>{if(b.has(word))common+=1});return common/Math.min(a.size,b.size)>=.7;
 }
 function adpQuestionsPrecedentes(demande){return [...String(demande||'').matchAll(/^-\s*(.+?)\s+—\s+Réponse\s*:/gmi)].map(match=>match[1].trim())}
 function adpDecisionValide(value,demande=''){
