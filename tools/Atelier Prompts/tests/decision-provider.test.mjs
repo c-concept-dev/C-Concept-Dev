@@ -65,7 +65,8 @@ test('la raison interne doit correspondre exactement à la branche',()=>{
 
 test('le prompt impose exploitabilité, question unique et traitements universels',()=>{
   for(const action of ['DECIDER','ESTIMER','RECHERCHER','SCENARISER','CONDITIONNER','IGNORER']) assert.match(DECISION_MODEL_PROMPT,new RegExp(action));
-  assert.match(DECISION_MODEL_PROMPT,/UNE SEULE question/);
+  assert.match(DECISION_MODEL_PROMPT,/retenez UNE information/);
+  assert.match(DECISION_MODEL_PROMPT,/Une question égale une seule décision utilisateur/);
   assert.match(DECISION_MODEL_PROMPT,/réduira le plus l’incertitude utile/);
   assert.match(DECISION_MODEL_PROMPT,/courte, concrète, contextualisée et immédiatement répondable/);
   assert.match(DECISION_MODEL_PROMPT,/mots ordinaires de la situation/);
