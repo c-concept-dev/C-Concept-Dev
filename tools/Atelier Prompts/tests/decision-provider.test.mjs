@@ -14,14 +14,14 @@ function decision(etat_demande,route,question=null,confiance='haute'){
 const referenceCases=[
   ['Fais-moi une checklist de 20 points pour préparer un voyage en Italie',false,decision('exploitable','rapide')],
   ['Je veux préparer mon voyage en Italie',false,decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous préparer en priorité pour ce voyage ?')],
+  ['Aide-moi à mieux gérer mon travail',false,decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous obtenir pour mieux gérer votre travail ?')],
   ['Résume le rapport que je viens de t’envoyer en 10 points',false,decision('clarification_necessaire',null,'Pouvez-vous joindre le rapport à résumer ?')],
-  ['Résume le rapport joint en 10 points',true,decision('exploitable','rapide')],
-  ['Définis une stratégie de réorganisation avec scénarios, risques et plan de transition',false,decision('exploitable','architecte')],
-  ['Rédige un message bref pour confirmer notre rendez-vous demain à 9 h',false,decision('exploitable','rapide')],
-  ['Compare trois solutions et construis une recommandation argumentée selon coût, risque et délai',true,decision('exploitable','architecte')],
-  ['Analyse ce fichier CSV et calcule les tendances mensuelles',false,decision('clarification_necessaire',null,'Pouvez-vous joindre le fichier CSV à analyser ?')],
-  ['Conçois un parcours pédagogique progressif avec objectifs, évaluations et adaptations',false,decision('exploitable','architecte')],
-  ['Corrige le code joint sans changer son comportement public',true,decision('exploitable','rapide')]
+  ['Résume le rapport que je viens de t’envoyer en 10 points',true,decision('exploitable','rapide')],
+  ['Corrige ce code et explique l’erreur',false,decision('clarification_necessaire',null,'Pouvez-vous fournir le code à corriger ?')],
+  ['Compare le télétravail et le travail au bureau sous forme de tableau sur 6 critères',false,decision('exploitable','rapide')],
+  ['Je veux écrire un livre',false,decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous préparer pour avancer sur ce livre ?')],
+  ['Élabore une stratégie de fusion de deux équipes de 20 personnes sur trois mois, avec scénarios, risques, critères de décision et plan de transition',false,decision('exploitable','architecte')],
+  ['Traduis en anglais : Bonjour à tous',false,decision('exploitable','rapide')]
 ];
 
 test('les dix cas de référence utilisent le contrat universel figé',async()=>{
@@ -48,6 +48,7 @@ test('les états, routes et questions incompatibles sont refusés',()=>{
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),question:'Précisez ?'}),/question=null/);
   assert.throws(()=>validateDecision({...decision('exploitable','architecte'),route:null}),/exige une route/);
   assert.throws(()=>validateDecision({...decision('exploitable','rapide'),confiance:'faible'}),/confiance invalide/);
+  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel résultat souhaitez-vous et quelles contraintes faut-il suivre ?')),/une seule demande/);
 });
 
 test('la raison interne doit correspondre exactement à la branche',()=>{
@@ -60,6 +61,8 @@ test('le prompt impose exploitabilité, question unique et traitements universel
   for(const action of ['DECIDER','ESTIMER','RECHERCHER','SCENARISER','CONDITIONNER','IGNORER']) assert.match(DECISION_MODEL_PROMPT,new RegExp(action));
   assert.match(DECISION_MODEL_PROMPT,/UNE SEULE question/);
   assert.match(DECISION_MODEL_PROMPT,/réduit le plus l’incertitude utile/);
+  assert.match(DECISION_MODEL_PROMPT,/artefact unique et borné/);
+  assert.match(DECISION_MODEL_PROMPT,/La seule présence d’une liste, d’un tableau/);
   assert.match(DECISION_MODEL_PROMPT,/N’utilisez aucune règle propre à un domaine/);
   assert.match(DECISION_MODEL_PROMPT,/ne choisissez jamais Atelier/i);
 });
