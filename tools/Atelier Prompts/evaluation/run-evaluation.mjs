@@ -11,6 +11,7 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
 }));
 const endpoint = args.endpoint || "http://127.0.0.1:8791/evaluate";
 const provider = args.provider || "workers-ai";
+const origin = args.origin || "https://c-concept-dev.github.io";
 const repetitions = Math.max(1, Math.min(5, Number(args.repetitions || 3)));
 const defaultModels = provider === "groq" ? "groq/llama-3.1-8b-instant" : "@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.3-70b-instruct-fp8-fast,@cf/deepseek-ai/deepseek-r1-distill-qwen-32b";
 const models = String(args.models || defaultModels).split(",").filter(Boolean);
@@ -41,7 +42,10 @@ async function evaluateOne(model, item, run) {
     const input = { demande: item.demande, materiau_present: item.materiau_present, mode_demande: "rapide" };
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(provider === "groq" ? { Origin: origin } : {})
+      },
       body: JSON.stringify(provider === "groq" ? input : { model, input }),
       signal: controller.signal
     });
