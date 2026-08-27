@@ -1,0 +1,958 @@
+{
+  "version": "10G.2A",
+  "generated_at": "2026-08-27T14:21:27.025Z",
+  "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+  "provider": "groq",
+  "repetitions": 3,
+  "corpus_cases": 30,
+  "corpus_sha256": "bd1329970dc5ed2b50cf1cf839ba2b3ad662d1a9b1cad80ac56b35b7e4e85894",
+  "prompt_sha256": "9eac0c81a38c73643331852907b8a1611889f748d89dd8462ad19da7f88b5b41",
+  "models": [
+    "groq/openai-gpt-oss-20b"
+  ],
+  "scores": [
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "calls": 90,
+      "accuracy_pct": 5.6,
+      "valid_output_pct": 5.6,
+      "invalid_pct": 94.4,
+      "route_stability_pct": 100,
+      "fully_stable_cases_pct": 100,
+      "stability_case_coverage_pct": 10,
+      "low_confidence_pct": 0,
+      "excessive_question_pct": 0,
+      "missed_required_question_pct": 0,
+      "latency_mean_ms": 110,
+      "latency_p50_ms": 62,
+      "latency_p95_ms": 535
+    }
+  ],
+  "results": [
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R01",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 684,
+      "latency_ms": 684,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R01",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 535,
+      "latency_ms": 535,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R01",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 561,
+      "latency_ms": 561,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R02",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 489,
+      "latency_ms": 489,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R02",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 64,
+      "latency_ms": 64,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R02",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 150,
+      "latency_ms": 150,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R03",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 73,
+      "latency_ms": 73,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R03",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R03",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 64,
+      "latency_ms": 64,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R04",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 156,
+      "latency_ms": 156,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R04",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R04",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 66,
+      "latency_ms": 66,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R05",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R05",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 62,
+      "latency_ms": 62,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R05",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 56,
+      "latency_ms": 56,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R06",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 156,
+      "latency_ms": 156,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R06",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 85,
+      "latency_ms": 85,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R06",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 74,
+      "latency_ms": 74,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R07",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 58,
+      "latency_ms": 58,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R07",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 916,
+      "latency_ms": 916,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R07",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 62,
+      "latency_ms": 62,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R08",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R08",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 74,
+      "latency_ms": 74,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R08",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R09",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R09",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 120,
+      "latency_ms": 120,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R09",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 67,
+      "latency_ms": 67,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R10",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 62,
+      "latency_ms": 62,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R10",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 58,
+      "latency_ms": 58,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R10",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R11",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R11",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R11",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 56,
+      "latency_ms": 56,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R12",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 108,
+      "latency_ms": 108,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R12",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 83,
+      "latency_ms": 83,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R12",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 70,
+      "latency_ms": 70,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R13",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 57,
+      "latency_ms": 57,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R13",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R13",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R14",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R14",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 127,
+      "latency_ms": 127,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R14",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 66,
+      "latency_ms": 66,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A01",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A01",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A01",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 692,
+      "latency_ms": 692,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A02",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 64,
+      "latency_ms": 64,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A02",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 104,
+      "latency_ms": 104,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A02",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 62,
+      "latency_ms": 62,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A03",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A03",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A03",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A04",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 65,
+      "latency_ms": 65,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A04",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 62,
+      "latency_ms": 62,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A04",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 155,
+      "latency_ms": 155,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A05",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A05",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 56,
+      "latency_ms": 56,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A05",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A06",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A06",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 66,
+      "latency_ms": 66,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A06",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A07",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A07",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 102,
+      "latency_ms": 102,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A07",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A08",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 57,
+      "latency_ms": 57,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A08",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "A08",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 58,
+      "latency_ms": 58,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q01",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q01",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 67,
+      "latency_ms": 67,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q01",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q02",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 98,
+      "latency_ms": 98,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q02",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 65,
+      "latency_ms": 65,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q02",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q03",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 58,
+      "latency_ms": 58,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q03",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q03",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 62,
+      "latency_ms": 62,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q04",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 68,
+      "latency_ms": 68,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q04",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 147,
+      "latency_ms": 147,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q04",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q05",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 66,
+      "latency_ms": 66,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q05",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 58,
+      "latency_ms": 58,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q05",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 61,
+      "latency_ms": 61,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q06",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 57,
+      "latency_ms": 57,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q06",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q06",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q07",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 105,
+      "latency_ms": 105,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q07",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 63,
+      "latency_ms": 63,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q07",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 60,
+      "latency_ms": 60,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q08",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 58,
+      "latency_ms": 58,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q08",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "Q08",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 59,
+      "latency_ms": 59,
+      "valid": false,
+      "error": "Le fournisseur de décision n’est pas disponible."
+    }
+  ]
+}
