@@ -449,6 +449,22 @@
         "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
         "question_indispensable": null
       }
+    },
+    {
+      "model": "groq/openai-gpt-oss-20b",
+      "case_id": "R10",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 716,
+      "latency_ms": 716,
+      "http_status": 200,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      }
     }
   ]
 }
