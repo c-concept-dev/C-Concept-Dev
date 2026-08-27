@@ -8,7 +8,7 @@
     "required": ["GROQ_API_KEY"]
   },
   "vars": {
-    "ALLOWED_ORIGINS": "https://atelier.example.com"
+    "ALLOWED_ORIGINS": "https://c-concept-dev.github.io"
   },
   "observability": {
     "enabled": true,
