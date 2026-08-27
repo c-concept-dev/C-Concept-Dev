@@ -80,7 +80,9 @@ test('le fallback Groq utilise exclusivement le secret serveur et son modèle fi
   assert.equal(decision.route,'rapide');
   assert.equal(captured.options.headers.Authorization,'Bearer server-only');
   assert.equal(captured.body.model,'openai/gpt-oss-20b');
-  assert.equal(captured.body.max_completion_tokens,160);
+  assert.equal(captured.body.reasoning_format,'hidden');
+  assert.equal(captured.body.reasoning_effort,'low');
+  assert.equal(captured.body.max_completion_tokens,512);
   assert.equal(captured.body.messages[0].role,'system');
   assert.equal(captured.body.messages[1].content,JSON.stringify({demande:'Organise mes idées en plan',materiau_present:true,mode_demande:'rapide'}));
   assert.equal('x-api-key' in captured.options.headers,false);
