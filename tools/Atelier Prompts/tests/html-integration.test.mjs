@@ -105,6 +105,7 @@ test('la clarification conserve demande, réponses et documents et s’arrête �
   assert.match(section,/materiau_present:state\.docs\.length>0\|\|/);
   assert.match(html,/Le document demandé est joint/);
   assert.match(section,/orientation\.semantic\.etat_demande==='clarification_necessaire'/);
+  assert.match(section,/function adpRunRapide\([^)]*\)\{\s*adpState\.pendingQuestion=false;show\(null\)/);
 });
 
 test('après exploitabilité, seules les routes Rapide et Architecte sont automatiques',()=>{
