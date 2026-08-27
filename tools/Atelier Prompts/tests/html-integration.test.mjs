@@ -14,10 +14,10 @@ const reasons={
 };
 const rapide={etat_demande:'exploitable',route:'rapide',confiance:'haute',raison_interne:reasons.rapide,question:null};
 const architecte={etat_demande:'exploitable',route:'architecte',confiance:'haute',raison_interne:reasons.architecte,question:null};
-const clarification={etat_demande:'clarification_necessaire',route:null,confiance:'haute',raison_interne:reasons.clarification,question:'Quel résultat concret souhaitez-vous obtenir ?'};
+const clarification={etat_demande:'clarification_necessaire',route:null,confiance:'haute',raison_interne:reasons.clarification,question:'Quand souhaitez-vous commencer ?'};
 
-test('l’application expose la couche 10G.3B extérieure aux moteurs',()=>{
-  assert.match(html,/version:'10G\.3B'/);
+test('l’application expose la couche 10G.3B.1 extérieure aux moteurs',()=>{
+  assert.match(html,/version:'10G\.3B\.1'/);
   assert.match(html,/async function askDecisionProvider\(input\)/);
   assert.match(html,/window\.askDecisionProvider=askDecisionProvider/);
   assert.match(html,/const r=assemblerRapideAdaptatif\(\)/);
@@ -120,4 +120,11 @@ test('le Decision Provider ne reçoit que l’entrée minimale',()=>{
   assert.match(section,/const minimal=\{demande:/);
   assert.match(section,/body:JSON\.stringify\(input\)/);
   assert.doesNotMatch(section,/appelFournisseur|api-cle|v11-api-key|maxTokens|systeme:|schema:/);
+});
+
+test('la logique adaptative ne contient aucun hardcoding des domaines de recette',()=>{
+  const section=html.slice(html.indexOf('const ADP10G='),html.indexOf('window.__V11_ROUTER__'));
+  assert.doesNotMatch(section,/voyage|ordinateur|anniversaire|\bcv\b|recette/i);
+  assert.match(section,/adpQuestionsPrecedentes/);
+  assert.match(section,/vocabulaire interne du pipeline/);
 });
