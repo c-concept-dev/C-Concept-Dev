@@ -1,0 +1,1383 @@
+{
+  "version": "10G.2A",
+  "generated_at": "2026-08-27T13:21:11.026Z",
+  "endpoint": "http://127.0.0.1:8791/evaluate",
+  "provider": "workers-ai",
+  "repetitions": 3,
+  "corpus_cases": 30,
+  "corpus_sha256": "bd1329970dc5ed2b50cf1cf839ba2b3ad662d1a9b1cad80ac56b35b7e4e85894",
+  "prompt_sha256": "9eac0c81a38c73643331852907b8a1611889f748d89dd8462ad19da7f88b5b41",
+  "models": [
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+  ],
+  "scores": [
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "calls": 90,
+      "accuracy_pct": 93.3,
+      "valid_output_pct": 100,
+      "invalid_pct": 0,
+      "route_stability_pct": 100,
+      "fully_stable_cases_pct": 100,
+      "stability_case_coverage_pct": 100,
+      "low_confidence_pct": 0,
+      "excessive_question_pct": 4.5,
+      "missed_required_question_pct": 12.5,
+      "latency_mean_ms": 1923,
+      "latency_p50_ms": 1839,
+      "latency_p95_ms": 2908
+    }
+  ],
+  "results": [
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R01",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2942,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2908
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R01",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 3455,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 3450
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R01",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 2060,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2053
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R02",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2370,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2365
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R02",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1960,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1954
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R02",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1785,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1778
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R03",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2133,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2125
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R03",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 2366,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2360
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R03",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 2998,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2993
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R04",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2054,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2048
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R04",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1752,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1749
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R04",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1808,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1805
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R05",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2006,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2002
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R05",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1871,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1866
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R05",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 2304,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2297
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R06",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1995,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1989
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R06",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1561,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1555
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R06",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1969,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1964
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R07",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2359,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le matériau ou les informations spécifiques sur le train et la voiture que vous souhaitez comparer pour ce trajet de 300 km ?"
+      },
+      "latency_ms": 2354
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R07",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 2653,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le matériau ou les informations spécifiques sur le train et la voiture que vous souhaitez comparer pour ce trajet de 300 km ?"
+      },
+      "latency_ms": 2648
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R07",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 2806,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le matériau ou les informations spécifiques sur le train et la voiture que vous souhaitez comparer pour ce trajet de 300 km ?"
+      },
+      "latency_ms": 2803
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R08",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1866,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1861
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R08",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 2159,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2154
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R08",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1701,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1698
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R09",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1898,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1894
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R09",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 3000,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2997
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R09",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1747,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1745
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R10",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1758,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1752
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R10",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1898,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1893
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R10",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1678,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1673
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R11",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1779,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1775
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R11",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1543,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1540
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R11",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1842,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1839
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R12",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1562,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1558
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R12",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1443,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1438
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R12",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 2576,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2572
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R13",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1491,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1487
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R13",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 2219,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2218
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R13",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1688,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1684
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R14",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 2444,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2438
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R14",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1525,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1520
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "R14",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1872,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1867
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A01",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1552,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1547
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A01",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1538,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1535
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A01",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1754,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1749
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A02",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1776,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1772
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A02",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1729,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1724
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A02",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1526,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1520
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A03",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1669,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1665
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A03",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 3046,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 3043
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A03",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1648,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1645
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A04",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1669,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1665
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A04",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1987,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1984
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A04",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 2130,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2125
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A05",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 2095,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2091
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A05",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1484,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1480
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A05",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1604,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1599
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A06",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1656,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1650
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A06",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1455,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1450
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A06",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1633,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1629
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A07",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1653,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1649
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A07",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1541,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1536
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A07",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1861,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1854
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A08",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1747,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1743
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A08",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 2049,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 2045
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "A08",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 1871,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Intention ou livrable trop ouvert pour Rapide ; aucune question unique n’est indispensable.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1867
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q01",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1854,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le texte à résumer ?"
+      },
+      "latency_ms": 1849
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q01",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1543,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le texte à résumer ?"
+      },
+      "latency_ms": 1538
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q01",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1635,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le texte à résumer ?"
+      },
+      "latency_ms": 1629
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q02",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 2082,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quels sont les deux documents à comparer ?"
+      },
+      "latency_ms": 2076
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q02",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1542,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quels sont les deux documents à comparer ?"
+      },
+      "latency_ms": 1535
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q02",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1846,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quels sont les deux documents à comparer ?"
+      },
+      "latency_ms": 1842
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q03",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1854,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Pouvez-vous fournir le fichier CSV à analyser ?"
+      },
+      "latency_ms": 1847
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q03",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 2073,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Pouvez-vous fournir le fichier CSV à analyser ?"
+      },
+      "latency_ms": 2069
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q03",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1855,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Pouvez-vous fournir le fichier CSV à analyser ?"
+      },
+      "latency_ms": 1851
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q04",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1674,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le code à corriger ?"
+      },
+      "latency_ms": 1669
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q04",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1728,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le code à corriger ?"
+      },
+      "latency_ms": 1725
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q04",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1755,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le code à corriger ?"
+      },
+      "latency_ms": 1748
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q05",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1654,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le passage à traduire ?"
+      },
+      "latency_ms": 1650
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q05",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1775,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le passage à traduire ?"
+      },
+      "latency_ms": 1769
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q05",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1754,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quel est le passage à traduire ?"
+      },
+      "latency_ms": 1748
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q06",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1911,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quels sont les chiffres à utiliser pour créer le graphique ?"
+      },
+      "latency_ms": 1907
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q06",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1872,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quels sont les chiffres à utiliser pour créer le graphique ?"
+      },
+      "latency_ms": 1867
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q06",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1851,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Quels sont les chiffres à utiliser pour créer le graphique ?"
+      },
+      "latency_ms": 1848
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q07",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1863,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1857
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q07",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1648,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1643
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q07",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1753,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 1747
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q08",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 2367,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Qu'est-ce que vous souhaitez que je prépare pour demain ?"
+      },
+      "latency_ms": 2359
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q08",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 2357,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Qu'est-ce que vous souhaitez que je prépare pour demain ?"
+      },
+      "latency_ms": 2353
+    },
+    {
+      "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "case_id": "Q08",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1690,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Qu'est-ce que vous souhaitez que je prépare pour demain ?"
+      },
+      "latency_ms": 1686
+    }
+  ]
+}
