@@ -1,0 +1,10 @@
+{
+  "version": "10G.2A",
+  "status": "disqualified_after_probe",
+  "model": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+  "calls_attempted": 1,
+  "valid_calls": 0,
+  "latency_ms": 68309,
+  "error": "The Workers runtime canceled this request because it detected that the Worker code had hung and would never generate a response.",
+  "decision": "Écarté du benchmark complet : latence incompatible avec un middleware interactif."
+}
