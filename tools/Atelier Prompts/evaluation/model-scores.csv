@@ -1,5 +1,5 @@
-provider,model,scope,calls,accuracy_pct,valid_output_pct,invalid_pct,route_stability_pct,stability_case_coverage_pct,low_confidence_pct,excessive_question_pct,missed_required_question_pct,latency_mean_ms,latency_p50_ms,latency_p95_ms,status
-Workers AI,@cf/meta/llama-3.3-70b-instruct-fp8-fast,30 cases x 3,90,93.3,100,0,100,100,0,4.5,12.5,1923,1839,2908,recommande primaire
-Workers AI,@cf/meta/llama-3.1-8b-instruct-fast,30 cases x 3,90,20.0,25.6,74.4,100,26.7,0,10.0,100,736,711,1226,ecarte
-Workers AI,@cf/deepseek-ai/deepseek-r1-distill-qwen-32b,sonde,1,0,0,100,NA,NA,NA,NA,NA,68309,NA,NA,ecarte apres sonde
-Groq,llama-3.1-8b-instant,non execute,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,bloque endpoint et secret absents
+provider,model,scope,calls,accuracy_pct,accuracy_rapide_pct,accuracy_architecte_pct,accuracy_architecte_question_pct,valid_output_pct,invalid_pct,route_stability_pct,fully_stable_cases_pct,low_confidence_pct,excessive_question_pct,missed_required_question_pct,latency_mean_ms,latency_p50_ms,latency_p90_ms,latency_p95_ms,latency_max_ms,http_429_count,provider_error_count,status
+Workers AI,@cf/meta/llama-3.3-70b-instruct-fp8-fast,30 cases x 3,90,93.3,92.9,100,87.5,100,0,100,100,0,4.5,12.5,1923,1839,2365,2908,3450,0,0,primaire recommande
+Groq,openai/gpt-oss-20b,30 cases x 3 regule,90,91.1,95.2,100,75.0,100,0,98.9,96.7,0,3.0,25.0,648,578,885,1022,3263,0,0,fallback recommande sous condition de quota
+Workers AI,@cf/meta/llama-3.1-8b-instruct-fast,30 cases x 3,90,20.0,NA,NA,NA,25.6,74.4,100,NA,0,10.0,100,736,711,NA,1226,NA,0,67,ecarte
+Workers AI,@cf/deepseek-ai/deepseek-r1-distill-qwen-32b,sonde,1,0,NA,NA,NA,0,100,NA,NA,NA,NA,NA,68309,NA,NA,NA,68309,0,1,ecarte apres sonde
