@@ -21,7 +21,7 @@ PROCÉDURE OBLIGATOIRE, DANS CET ORDRE
 4. Recensez les autres inconnues déterminantes : finalité, périmètre, destinataire, critères de réussite, contraintes ou dépendances, seulement lorsqu’elles changent réellement la nature du travail. La structure interne d’un résultat déjà nommé, sa décomposition et les hypothèses d’exécution que le moteur peut raisonnablement choisir ne sont pas des informations manquantes.
 5. Pour chaque inconnue, tentez dans cet ordre : DECIDER, ESTIMER, RECHERCHER, SCENARISER, CONDITIONNER, IGNORER. Si ces opérations préservent l’intention et l’utilité du résultat, l’inconnue est substituable et ne justifie pas une question. Architecte peut précisément prendre en charge la structure, la stratégie et les arbitrages qui ne changent pas l’objectif demandé.
    Une fois qu’un livrable concret est défini et suffisamment borné, ne demandez pas de préférences de contenu, de variantes ou de personnalisation que le moteur peut décider, rechercher, scénariser ou conditionner. Leur absence n’annule pas l’exploitabilité.
-6. S’il reste une incertitude déterminante, choisissez et posez UNE SEULE question : celle dont la réponse réduit le plus l’incertitude utile à ce tour. Elle doit être courte, concrète, porter sur un seul enjeu, ne contenir aucune seconde demande coordonnée et ne pas répéter une information déjà donnée. Si l’utilisateur exprime seulement un objectif large sans résultat attendu, demandez uniquement quel résultat concret ou quel avancement utile il souhaite obtenir ; n’ajoutez pas de contraintes de domaine à cette question. Retournez etat_demande="clarification_necessaire", route=null et cette question.
+6. S’il reste une incertitude déterminante, choisissez et posez UNE SEULE question : celle dont la réponse réduit le plus l’incertitude utile à ce tour. Elle doit être courte, concrète, porter sur un seul enjeu, ne contenir aucune seconde demande coordonnée et ne pas répéter une information déjà donnée. N’ajoutez jamais entre parenthèses, après deux-points ou sous forme de liste plusieurs dimensions à renseigner. Si l’utilisateur exprime seulement un objectif large sans résultat attendu, demandez uniquement quel résultat concret ou quel avancement utile il souhaite obtenir ; n’ajoutez pas de contraintes de domaine à cette question. Retournez etat_demande="clarification_necessaire", route=null et cette question.
 7. Si la demande est exploitable, retournez etat_demande="exploitable" et question=null. Choisissez ensuite :
    - rapide : un artefact unique et borné peut être produit directement. Un format, un nombre d’éléments, des dimensions de comparaison ou une organisation interne explicitement demandés font partie de l’exécution directe et ne justifient pas Architecte ;
    - architecte : avant de produire le résultat, il faut réellement concevoir une stratégie, coordonner plusieurs composants ou étapes dépendantes, résoudre des contraintes en tension, construire des scénarios liés ou effectuer des arbitrages structurants. La seule présence d’une liste, d’un tableau, de plusieurs sections ou de plusieurs critères ne suffit pas.
@@ -76,9 +76,22 @@ function expectedReason(decision) {
   return decision.route === "rapide" ? DECISION_REASONS.rapide : DECISION_REASONS.architecte;
 }
 
+function normalizeSingleQuestion(question) {
+  let text = String(question || "").trim();
+  text = text.replace(/\s*\([^)]*[,;][^)]*\)\s*/g, " ");
+  text = text.replace(/\b(?:et|ainsi que)\s+(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i, " ?");
+  text = text.replace(/:\s*[^?]*[,;][^?]*\?$/g, " ?");
+  const firstQuestion = text.indexOf("?");
+  if (firstQuestion >= 0) text = text.slice(0, firstQuestion + 1);
+  return text.replace(/\s+/g, " ").trim();
+}
+
 function questionHasMultipleRequests(question) {
   const text = String(question || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return (text.match(/\?/g) || []).length > 1 || /\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|ou|comment|combien|pourquoi)\b/.test(text);
+  return (text.match(/\?/g) || []).length > 1
+    || /\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|ou|comment|combien|pourquoi)\b/.test(text)
+    || /\([^)]*[,;][^)]*\)/.test(text)
+    || /:\s*[^?]*[,;][^?]*\?/.test(text);
 }
 
 export function validateDecisionInput(value) {
@@ -114,9 +127,10 @@ export function validateDecision(value) {
   if (!DEMAND_STATES.has(value.etat_demande) || !CONFIDENCES.has(value.confiance)) throw new Error("État ou confiance invalide.");
   if (typeof value.raison_interne !== "string" || value.raison_interne.length > 240) throw new Error("Raison interne invalide.");
   if (value.question !== null && (typeof value.question !== "string" || !value.question.trim() || value.question.length > 240)) throw new Error("Question invalide.");
-  if (value.question !== null && questionHasMultipleRequests(value.question)) throw new Error("Une clarification doit contenir une seule demande.");
+  const question = value.question === null ? null : normalizeSingleQuestion(value.question);
+  if (question !== null && (!question || question.length > 240 || questionHasMultipleRequests(question))) throw new Error("Une clarification doit contenir une seule demande.");
   if (value.etat_demande === "clarification_necessaire") {
-    if (value.route !== null || value.question === null) throw new Error("Une clarification exige route=null et une question.");
+    if (value.route !== null || question === null) throw new Error("Une clarification exige route=null et une question.");
   } else if (!ROUTES.has(value.route) || value.question !== null) {
     throw new Error("Une demande exploitable exige une route et question=null.");
   }
@@ -127,7 +141,7 @@ export function validateDecision(value) {
     route: value.route,
     confiance: value.confiance,
     raison_interne: canonical,
-    question: value.question === null ? null : value.question.trim()
+    question
   };
 }
 
