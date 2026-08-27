@@ -51,12 +51,13 @@ test('une décision valide du primaire ne déclenche jamais Groq',async()=>{
 });
 
 test('Groq prend le relais sur erreur technique ou réponse primaire invalide',async()=>{
-  for(const primaryFailure of ['network','invalid']){
+  for(const primaryFailure of ['network','invalid','contradiction']){
     const calls=[];
     const provider=loadProvider(async(url)=>{
       calls.push(url);
       if(calls.length===1){
         if(primaryFailure==='network')throw new TypeError('network');
+        if(primaryFailure==='contradiction')return Response.json({...rapide,raison:"L'intention est-elle suffisamment identifiable ? non"});
         return Response.json({route:'inconnue'});
       }
       return Response.json(rapide);
