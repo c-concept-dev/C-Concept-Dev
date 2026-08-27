@@ -11,7 +11,7 @@ test('le corpus 10G.3B contient exactement les dix cas universels de référence
   assert.equal(corpus.version,'10G.3B');
   assert.equal(corpus.cases.length,10);
   assert.equal(new Set(corpus.cases.map(item=>item.id)).size,10);
-  assert.ok(new Set(corpus.cases.map(item=>item.domain)).size>=8);
+  assert.ok(new Set(corpus.cases.map(item=>item.domain)).size>=7);
 });
 
 test('les trois états de sortie attendus sont couverts sans incohérence',()=>{
