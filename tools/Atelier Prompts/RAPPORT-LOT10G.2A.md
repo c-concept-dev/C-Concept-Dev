@@ -1,106 +1,117 @@
-# LOT 10G.2A — qualification du Decision Provider
+# LOT 10G.2A — qualification finale du Decision Provider
 
 Date : 27 août 2026  
-Statut : qualification terminée pour Workers AI ; comparaison Groq préparée mais non exécutable dans l'environnement disponible. Aucun déploiement de production n'a été effectué.
+Statut : **PASS CONDITIONNEL**
 
-## Recommandation
+## Décision
 
-- Provider primaire recommandé : `@cf/meta/llama-3.3-70b-instruct-fp8-fast` via Workers AI.
-- Fallback officiel actuel : décision locale prudente vers Architecte.
-- Candidat fallback ultérieur : Groq `llama-3.1-8b-instant`, uniquement après passage du même corpus avec le même protocole.
+- Provider primaire recommandé : Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast`.
+- Fallback recommandé : Groq `openai/gpt-oss-20b`, sous réserve de disposer d'un quota adapté aux rafales réelles ou d'appliquer une régulation opérationnelle.
 
-Le 70B est retenu selon l'ordre de priorité demandé : cohérence, stabilité, précision, faible sur-questionnement, latence, puis coût. Il atteint 93,3 % d'exactitude, 100 % de sorties valides et 100 % de stabilité sur 90 appels. Le 8B est plus rapide mais ne respecte pas assez sûrement les invariants.
+Le 70B reste premier selon l'ordre de priorité fixé : il est plus cohérent, parfaitement stable sur ce corpus et plus exact, notamment quand une question indispensable est requise. Groq constitue un bon fallback grâce à 100 % de sorties valides, une latence médiane de 578 ms et un coût unitaire inférieur, mais son sous-questionnement est deux fois plus élevé et le compte testé a atteint sa limite de jetons par minute lors d'un envoi en rafale.
 
-Le coût n'a pas été simulé : il dépend du volume réel de jetons. Le 70B est plus cher que le 8B, mais le coût arrive après les critères de fiabilité demandés et ne justifie pas une sortie invalide dans 74,4 % des appels. Références officielles : [modèle Llama 3.3 70B](https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/), [tarification Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/) et [limites du JSON Mode](https://developers.cloudflare.com/workers-ai/features/json-mode/).
+## État initial de reprise
 
-## Audit du prompt initial
+- Worker Groq fonctionnel en production : `https://atelier-decision-groq.11drumboy11.workers.dev/decision`.
+- Modèle : `openai/gpt-oss-20b`.
+- Protections déjà validées : origine autorisée 200, origine absente 403, origine interdite 403, JSON invalide 400.
+- Une précédente campagne régulée avait été interrompue après 15 appels. Son ancien banc ne persistait pas les payloads complets ; ces observations n'étaient donc pas un checkpoint métrique fiable.
+- La campagne finale a été relancée intégralement depuis `R01`, sans compter deux fois une évaluation.
+- Trois échecs locaux `fetch failed` ont précédé la campagne, dus à l'absence initiale d'autorisation réseau dans l'environnement Codex. Ils n'ont produit aucune réponse HTTP et sont documentés comme incidents de préflight, hors score fournisseur.
 
-Le prompt initial exposait de bons principes, mais laissait au modèle trop de décisions implicites :
+## Protocole figé
 
-1. Il ne séparait pas assez nettement objectif, intention, livrable et matériau.
-2. Les seuils « assez précis » ou « ambigu » étaient subjectifs pour un petit modèle.
-3. Il ne disait pas dans quel ordre appliquer les opérations de substitution.
-4. Il permettait au modèle de confondre une préférence utile avec une information indispensable.
-5. La raison était libre, donc pouvait contredire la route sans être détectée.
-6. Le schéma JSON contrôlait la forme, pas la cohérence logique.
+- 30 cas : 14 `rapide`, 8 `architecte`, 8 `architecte + question indispensable`.
+- 3 répétitions par cas, soit 90 évaluations par modèle.
+- Même corpus, mêmes oracles, même prompt et mêmes invariants pour les deux providers.
+- Délai Groq : 12,5 secondes entre appels afin de respecter le quota ; ce délai est exclu de la latence HTTP.
+- Empreinte corpus : `bd1329970dc5ed2b50cf1cf839ba2b3ad662d1a9b1cad80ac56b35b7e4e85894`.
+- Empreinte prompt : `9eac0c81a38c73643331852907b8a1611889f748d89dd8462ad19da7f88b5b41`.
+- Checkpoint : écriture automatique après chaque appel, avec refus de reprise si l'empreinte du corpus ou du prompt diffère.
 
-Le prompt retenu impose désormais une procédure ordonnée et conserve les principes universels `DECIDER`, `ESTIMER`, `RECHERCHER`, `SCENARISER`, `CONDITIONNER`, `QUESTIONNER`, `IGNORER`. `QUESTIONNER` n'est autorisé que lorsqu'un livrable est connu et qu'un intrant précis, explicitement requis et non substituable manque. L'absence générale de livrable relève d'Architecte sans question préalable.
+## Résultats comparatifs
 
-## Invariants ajoutés
+| Mesure | Workers AI 70B | Groq GPT-OSS 20B |
+|---|---:|---:|
+| Évaluations | 90 | 90 |
+| Exactitude globale | **93,3 %** | 91,1 % |
+| Exactitude `rapide` | 92,9 % | **95,2 %** |
+| Exactitude `architecte` | 100 % | 100 % |
+| Exactitude `architecte + question` | **87,5 %** | 75,0 % |
+| Sorties valides | 100 % | 100 % |
+| Réponses invalides | 0 % | 0 % |
+| Stabilité de route | **100 %** | 98,9 % |
+| Cas totalement stables | **100 %** | 96,7 % |
+| Confiance faible | 0 % | 0 % |
+| Sur-questionnement | 4,5 % | **3,0 %** |
+| Sous-questionnement | **12,5 %** | 25,0 % |
+| Latence moyenne | 1 923 ms | **648 ms** |
+| Latence médiane | 1 839 ms | **578 ms** |
+| Latence p90 | 2 365 ms | **885 ms** |
+| Latence p95 | 2 908 ms | **1 022 ms** |
+| Latence maximale | 3 450 ms | **3 263 ms** |
+| HTTP 429, campagne finale | 0 | 0 |
+| Autres erreurs fournisseur, campagne finale | 0 | 0 |
 
-Les contrôles sont génériques, sans règle propre à un domaine :
+Temps réel de la campagne Groq : **1 183 559 ms**, soit environ **19 min 44 s**. Somme des latences HTTP : **58 329 ms**. Le reste correspond principalement aux délais volontaires de régulation.
 
-- `rapide` implique `question_indispensable=null` ;
-- une question implique `architecte` et `confiance=haute` ;
-- une raison déclarant l'intention ou le livrable indéterminé contredit `rapide` ;
-- une raison déclarant qu'aucune clarification n'est nécessaire contredit une question non nulle ;
-- une raison déclarant intention et livrable suffisamment déterminés contredit `architecte` ;
-- une raison canonique incompatible avec la branche est refusée ;
-- une raison libre compatible est normalisée vers l'une des trois raisons canoniques.
+## Analyse des erreurs Groq
 
-Ces contrôles sont appliqués dans le Worker et reproduits dans le middleware 10G pour ne jamais accepter silencieusement une décision incohérente.
+Huit évaluations sur 90 diffèrent de l'oracle, réparties sur trois cas :
 
-## Corpus et protocole
+- `R14`, répétitions 1 et 2 : sur-questionnement. Le modèle exige des caractéristiques du service alors que la demande autorise des scénarios conditionnels. La troisième répétition est correcte, ce qui explique l'unique instabilité inter-répétitions.
+- `Q07`, trois répétitions : sous-questionnement. « Adapte ce contenu pour le public visé » est envoyé vers Rapide alors que le public est un intrant non substituable absent.
+- `Q08`, trois répétitions : sous-questionnement. « Prépare ça pour demain » est envoyé vers Architecte sans demander quel contenu doit être préparé.
 
-- 30 cas indépendants du provider : 14 `rapide`, 8 `architecte`, 8 `architecte + question indispensable`.
-- Domaines : voyage, rédaction, enseignement, code, organisation, création, comparaison, analyse, science, données, traduction, décision, communication, RH, visualisation et adaptation.
-- Matériaux présents et absents couverts explicitement.
-- Trois répétitions par cas et par modèle complet, soit 90 appels par modèle.
-- Mesures : exactitude de l'oracle complet, validité, stabilité, confiance faible, questionnement excessif, question manquée et latence.
-- Empreinte du corpus : `bd1329970dc5ed2b50cf1cf839ba2b3ad662d1a9b1cad80ac56b35b7e4e85894`.
-- Empreinte du prompt retenu : `9eac0c81a38c73643331852907b8a1611889f748d89dd8462ad19da7f88b5b41`.
+Les erreurs sont conservées intégralement dans le score. Aucun oracle, prompt ou invariant n'a été modifié après observation.
 
-Les deux cas imposés sont conformes sur le 70B, trois fois sur trois :
+Le 70B conserve six erreurs sur 90, concentrées sur `R07` (sur-questionnement) et `Q07` (sous-questionnement), tout en restant stable sur ses répétitions.
 
-- « Fais-moi une checklist de 20 points pour préparer un voyage en Italie » → Rapide.
-- « Je veux préparer mon voyage en Italie » → Architecte sans question indispensable.
+## Fiabilité, quota et coût
 
-## Scores avec le prompt retenu
+Une première rafale Groq non régulée avait produit 85 erreurs sur 90, toutes liées à des HTTP 429 amont. Le compte testé exposait alors une limite effective de 8 000 jetons par minute. La campagne finale régulée n'a produit aucun 429 ni aucune autre erreur fournisseur. Cela qualifie le modèle, mais pas une exploitation en rafale sur ce quota.
 
-| Provider / modèle | Appels | Exactitude | Sorties valides | Stabilité route | Couverture stabilité | Confiance faible | Questions excessives | Questions requises manquées | Latence moy. | p95 | Décision |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Workers AI — Llama 3.3 70B FP8 fast | 90 | 93,3 % | 100 % | 100 % | 100 % | 0 % | 4,5 % | 12,5 % | 1 923 ms | 2 908 ms | Primaire recommandé |
-| Workers AI — Llama 3.1 8B fast | 90 | 20,0 % | 25,6 % | 100 %* | 26,7 % | 0 %* | 10,0 %* | 100 %* | 736 ms | 1 226 ms | Écarté |
-| Workers AI — DeepSeek R1 Distill Qwen 32B | 1 sonde | 0 % | 0 % | N/E | N/E | N/E | N/E | N/E | 68 309 ms | N/E | Écarté après sonde |
-| Groq — Llama 3.1 8B Instant | 0 | N/E | N/E | N/E | N/E | N/E | N/E | N/E | N/E | N/E | Bloqué |
+Tarifs officiels consultés le 27 août 2026 :
 
-\* Mesure calculée seulement sur la faible part de réponses 8B ayant franchi la validation ; elle n'est donc pas directement comparable au 70B. Le taux de sorties invalides du 8B est de 74,4 %.
+- Groq GPT-OSS 20B : **0,075 USD/M jetons d'entrée** et **0,30 USD/M jetons de sortie** ; entrée en cache 0,037 USD/M. Source : [Groq — GPT-OSS 20B](https://console.groq.com/docs/model/openai/gpt-oss-20b).
+- Workers AI Llama 3.3 70B FP8 fast : **0,293 USD/M jetons d'entrée** et **2,253 USD/M jetons de sortie**. Source : [Cloudflare — tarification Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/).
 
-## Effet du prompt renforcé
+À volume de jetons identique, Groq est environ 3,9 fois moins cher en entrée et 7,5 fois moins cher en sortie. Le coût exact de cette campagne n'est pas calculable depuis les réponses du Worker, car elles n'exposent pas les compteurs de jetons.
 
-Sur une première version du prompt, le 70B obtenait 70,0 % d'exactitude et ne produisait aucune des questions indispensables attendues. Avec le prompt retenu, il atteint 93,3 % et pose 7 des 8 questions attendues. Le 8B, lui, échoue davantage aux invariants renforcés : ce résultat confirme que sa rapidité ne compense pas son incapacité à suivre de façon fiable la procédure et le contrat logique.
+## Changements techniques de benchmark
 
-## Échecs résiduels du 70B
+- ajout d'une origine autorisée aux appels Groq du banc ;
+- ajout d'un délai paramétrable, exclu de la latence HTTP ;
+- ajout d'un checkpoint/reprise après chaque évaluation ;
+- ajout des métriques par classe, p90, maximum, statuts HTTP, erreurs fournisseur et durée totale ;
+- mise à jour du libellé par défaut vers `groq/openai-gpt-oss-20b`.
 
-Deux cas seulement échouent de façon stable, trois fois chacun :
-
-- `R07` : comparaison train/voiture déjà cadrée, sur-questionnée au lieu d'être scénarisée ;
-- `Q07` : adaptation à un « public visé » non fourni, traitée à tort en Rapide.
-
-Ces erreurs sont conservées dans les résultats, sans ajout de hardcoding au provider. Elles constituent les deux premiers cas de suivi pour une qualification ultérieure.
-
-## Comparaison Groq
-
-Le harnais Groq est prêt et utilise exactement le même corpus, les mêmes oracles et les mêmes métriques. L'exécution réelle n'a pas pu être menée : le Worker `atelier-decision-groq` n'existe pas sur le compte Cloudflare connecté et aucun `GROQ_API_KEY` n'est disponible localement. Aucun score Groq n'est inventé et Groq a été retiré de la chaîne de fallback officielle du middleware en attendant sa qualification.
-
-## Changements réalisés
-
-- prompt système renforcé et raisons canoniques ;
-- validation et normalisation d'invariants génériques ;
-- modèle primaire Workers AI réglé sur le 70B retenu ;
-- Worker local d'évaluation avec allowlist de modèles ;
-- corpus de 30 cas, harnais reproductible et résultats bruts ;
-- tests des invariants, du corpus, des deux oracles Italie et du middleware ;
-- Groq maintenu comme candidat comparatif, pas comme fallback officiel.
-
-Les moteurs Rapide, Architecte et Atelier ainsi que `FORMATS`, `VERROUS`, `ARCH_SYSTEM` et `ARCH_SCHEMA` n'ont pas été modifiés. Le contrôle final `npm run guard` fait foi pour leurs empreintes.
+Ces changements ne modifient aucune logique sémantique d'évaluation.
 
 ## Validation finale
 
-- `npm test` : PASS, 17 tests sur 17.
-- `npm run guard` : PASS (`status: OK`) ; les sept empreintes gelées sont inchangées.
-- dry-run Workers AI : PASS ; liaison AI présente et `ALLOWED_ORIGINS=https://c-concept-dev.github.io`.
-- dry-run Groq : PASS ; `ALLOWED_ORIGINS=https://c-concept-dev.github.io` (avertissement non bloquant sur le champ expérimental `secrets`).
-- dry-run Worker d'évaluation : PASS.
-- vérification syntaxique et `git diff --check` : PASS.
-- déploiements réels : aucun.
+- `npm test` : **PASS — 18/18**.
+- `npm run guard` : **PASS — status OK**.
+- `git diff --check` : **PASS**.
+- Les empreintes de Rapide, Architecte, Atelier, FORMATS, VERROUS, ARCH_SYSTEM et ARCH_SCHEMA sont inchangées.
+- Aucun secret n'a été exposé.
+- Aucun changement n'a été appliqué au prompt, au corpus, aux oracles ou aux moteurs pendant la reprise.
+
+## Conclusion
+
+**LOT 10G.2A = PASS CONDITIONNEL**
+
+La qualification comparative est complète et Workers AI 70B est validé comme provider primaire. Groq GPT-OSS 20B est techniquement fonctionnel et qualifié comme fallback recommandé, mais son activation comme fallback officiel doit être conditionnée à un quota capable d'absorber la charge attendue ou à une stratégie de régulation qui ne bloque pas le middleware interactif.
+
+## Git final
+
+`git status --short` :
+
+```text
+ M RAPPORT-LOT10G.2A.md
+ M evaluation/model-scores.csv
+ D evaluation/results/groq-gpt-oss-20b-final-regulated.json.checkpoint.json
+?? evaluation/results/groq-gpt-oss-20b-final-regulated.json
+```
+
+Le diff final remplace le rapport provisoire et le tableau de scores, supprime le checkpoint devenu inutile après achèvement, et ajoute le résultat brut complet de 90 évaluations. Aucun fichier moteur, prompt, corpus ou oracle ne figure dans le diff.
