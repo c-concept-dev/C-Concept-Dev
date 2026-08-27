@@ -28,10 +28,18 @@ export async function decideWithGroq(input, env) {
           { role: "system", content: DECISION_MODEL_PROMPT },
           { role: "user", content: makeDecisionUserMessage(input) }
         ],
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "decision_provider",
+            strict: true,
+            schema: DECISION_JSON_SCHEMA
+          }
+        },
         reasoning_format: "hidden",
+        reasoning_effort: "low",
         temperature: 0,
-        max_completion_tokens: 160,
+        max_completion_tokens: 512,
         stream: false
       }),
       signal: controller.signal
