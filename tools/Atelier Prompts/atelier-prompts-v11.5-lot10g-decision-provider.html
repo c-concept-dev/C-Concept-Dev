@@ -9833,6 +9833,14 @@ function adpEndpointValide(value){
   const url=String(value||'').trim();
   return /^https:\/\//i.test(url)&&!url.includes('REMPLACER')?url:'';
 }
+function adpNormaliserQuestion(value){
+  let text=String(value||'').trim();
+  text=text.replace(/\s*\([^)]*[,;][^)]*\)\s*/g,' ');
+  text=text.replace(/\b(?:et|ainsi que)\s+(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
+  text=text.replace(/:\s*[^?]*[,;][^?]*\?$/g,' ?');
+  const first=text.indexOf('?');if(first>=0)text=text.slice(0,first+1);
+  return text.replace(/\s+/g,' ').trim();
+}
 function adpDecisionValide(value){
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Décision absente.');
   const keys=Object.keys(value).sort(),expected=['confiance','etat_demande','question','raison_interne','route'];
@@ -9840,13 +9848,14 @@ function adpDecisionValide(value){
   if(!['exploitable','clarification_necessaire'].includes(value.etat_demande)||!['haute','moyenne'].includes(value.confiance))throw new Error('État ou confiance invalide.');
   if(typeof value.raison_interne!=='string'||value.raison_interne.length>240)throw new Error('Raison interne invalide.');
   if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>240))throw new Error('Question invalide.');
-  if(value.question!==null&&(((value.question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(value.question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))))throw new Error('La clarification contient plusieurs demandes.');
+  const question=value.question===null?null:adpNormaliserQuestion(value.question);
+  if(question!==null&&(!question||question.length>240||((question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))||/\([^)]*[,;][^)]*\)/.test(question)||/:\s*[^?]*[,;][^?]*\?/.test(question)))throw new Error('La clarification contient plusieurs demandes.');
   if(value.etat_demande==='clarification_necessaire'){
-    if(value.route!==null||value.question===null)throw new Error('Clarification incohérente.');
+    if(value.route!==null||question===null)throw new Error('Clarification incohérente.');
   }else if(!['rapide','architecte'].includes(value.route)||value.question!==null)throw new Error('Décision exploitable incohérente.');
   const canonique=value.etat_demande==='clarification_necessaire'?ADP_REASONS.clarification:value.route==='rapide'?ADP_REASONS.rapide:ADP_REASONS.architecte;
   if(value.raison_interne!==canonique)throw new Error('La raison interne ne correspond pas à la décision.');
-  return {etat_demande:value.etat_demande,route:value.route,confiance:value.confiance,raison_interne:canonique,question:value.question===null?null:value.question.trim()};
+  return {etat_demande:value.etat_demande,route:value.route,confiance:value.confiance,raison_interne:canonique,question};
 }
 async function adpAskEndpoint(endpoint,input){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
