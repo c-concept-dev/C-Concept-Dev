@@ -9821,7 +9821,7 @@ function v11RequireDemand(){
  * Aucun moteur Rapide / Architecte / Atelier n'est réécrit ici.
  * ---------------------------------------------------------------------- */
 const ADP10G=Object.freeze({
-  version:'10G.3B',
+  version:'10G.3B.1',
   endpoints:Object.freeze({
     workersAI:(document.querySelector('meta[name="atelier-decision-workers-ai"]')||{}).content||'',
     groq:(document.querySelector('meta[name="atelier-decision-groq"]')||{}).content||''
@@ -9838,18 +9838,31 @@ function adpNormaliserQuestion(value){
   text=text.replace(/\s*\([^)]*[,;][^)]*\)\s*/g,' ');
   text=text.replace(/\b(?:et|ainsi que)\s+(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
   text=text.replace(/:\s*[^?]*[,;][^?]*\?$/g,' ?');
+  text=text.replace(/[,;]\s*(?:et\s+|avec\s+)?(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
   const first=text.indexOf('?');if(first>=0)text=text.slice(0,first+1);
   return text.replace(/\s+/g,' ').trim();
 }
-function adpDecisionValide(value){
+function adpTexteQuestion(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,' ').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()}
+function adpMotsQuestion(value){
+  const stop=new Set(['avec','avez','cette','dans','de','des','du','elle','est','etes','le','les','pour','que','quel','quelle','quelles','quels','qui','souhaitez','sur','une','vous','votre','vos']);
+  return new Set(adpTexteQuestion(value).split(' ').filter(word=>word.length>2&&!stop.has(word)));
+}
+function adpQuestionsSimilaires(left,right){
+  const a=adpMotsQuestion(left),b=adpMotsQuestion(right);if(!a.size||!b.size)return adpTexteQuestion(left)===adpTexteQuestion(right);
+  let common=0;a.forEach(word=>{if(b.has(word))common+=1});return common/Math.min(a.size,b.size)>=.8;
+}
+function adpQuestionsPrecedentes(demande){return [...String(demande||'').matchAll(/^-\s*(.+?)\s+—\s+Réponse\s*:/gmi)].map(match=>match[1].trim())}
+function adpDecisionValide(value,demande=''){
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Décision absente.');
   const keys=Object.keys(value).sort(),expected=['confiance','etat_demande','question','raison_interne','route'];
   if(keys.length!==expected.length||keys.some((key,index)=>key!==expected[index]))throw new Error('Format de décision invalide.');
   if(!['exploitable','clarification_necessaire'].includes(value.etat_demande)||!['haute','moyenne'].includes(value.confiance))throw new Error('État ou confiance invalide.');
   if(typeof value.raison_interne!=='string'||value.raison_interne.length>240)throw new Error('Raison interne invalide.');
-  if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>240))throw new Error('Question invalide.');
+  if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>180))throw new Error('Question invalide.');
   const question=value.question===null?null:adpNormaliserQuestion(value.question);
-  if(question!==null&&(!question||question.length>240||((question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))||/\([^)]*[,;][^)]*\)/.test(question)||/:\s*[^?]*[,;][^?]*\?/.test(question)))throw new Error('La clarification contient plusieurs demandes.');
+  if(question!==null&&(!question||question.length>180||((question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))||/\([^)]*[,;][^)]*\)/.test(question)||/:\s*[^?]*[,;][^?]*\?/.test(question)||/[,;]\s*(?:et\s+|avec\s+)?(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question)))throw new Error('La clarification contient plusieurs demandes.');
+  if(question!==null&&/\b(?:resultat concret|avancement utile|livrable|objectif operationnel|information structurante|element determinant|critere de reussite|niveau d exigence|perimetre fonctionnel|besoin metier)\b/.test(adpTexteQuestion(question)))throw new Error('La question expose le vocabulaire interne du pipeline.');
+  if(question!==null&&adpQuestionsPrecedentes(demande).some(previous=>adpQuestionsSimilaires(previous,question)))throw new Error('La question répète une clarification déjà posée.');
   if(value.etat_demande==='clarification_necessaire'){
     if(value.route!==null||question===null)throw new Error('Clarification incohérente.');
   }else if(!['rapide','architecte'].includes(value.route)||value.question!==null)throw new Error('Décision exploitable incohérente.');
@@ -9862,7 +9875,7 @@ async function adpAskEndpoint(endpoint,input){
   try{
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:controller.signal,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
     if(!response.ok)throw new Error('Decision Provider indisponible ('+response.status+').');
-    return adpDecisionValide(await response.json());
+    return adpDecisionValide(await response.json(),input.demande);
   }finally{clearTimeout(timer)}
 }
 function adpFallbackLocal(){
