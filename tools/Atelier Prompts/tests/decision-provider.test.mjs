@@ -56,6 +56,8 @@ test('les états, routes et questions incompatibles sont refusés',()=>{
   assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel est votre besoin métier ?')),/vocabulaire interne/);
   const enriched='Demande\n\nPrécisions apportées pendant le dialogue :\n- Quand souhaitez-vous commencer ? — Réponse : Demain';
   assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quand voulez-vous commencer ?'),enriched),/répète/);
+  const enrichedTravel='Demande\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : 12 jours';
+  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel est votre principal objectif pour ce voyage de 12 jours en Italie ?'),enrichedTravel),/répète/);
 });
 
 test('la raison interne doit correspondre exactement à la branche',()=>{
