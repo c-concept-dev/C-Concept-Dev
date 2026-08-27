@@ -27,7 +27,7 @@ export async function decideWithWorkersAIModel(input, env, model) {
     max_tokens: 160,
     temperature: 0
   });
-  return parseDecisionCandidate(result?.response ?? result);
+  return parseDecisionCandidate(result?.response ?? result, input.demande);
 }
 
 export function decideWithWorkersAI(input, env) {
