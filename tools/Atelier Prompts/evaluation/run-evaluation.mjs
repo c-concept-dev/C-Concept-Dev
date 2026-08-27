@@ -29,7 +29,12 @@ function oracleLabel(item) {
 }
 
 function decisionLabel(decision) {
-  return decision.question_indispensable !== null ? "architecte_question" : decision.route;
+  if (decision.etat_demande === "clarification_necessaire") return "architecte_question";
+  return decision.question_indispensable !== undefined && decision.question_indispensable !== null ? "architecte_question" : decision.route;
+}
+
+function hasQuestion(decision) {
+  return decision.etat_demande === "clarification_necessaire" || decision.question_indispensable !== undefined && decision.question_indispensable !== null;
 }
 
 function percentile(values, ratio) {
@@ -75,8 +80,8 @@ function scoreModel(model, results) {
   const low = valid.filter((row) => row.decision.confiance === "faible").length;
   const excessiveEligible = valid.filter((row) => row.oracle !== "architecte_question");
   const missingEligible = valid.filter((row) => row.oracle === "architecte_question");
-  const excessive = excessiveEligible.filter((row) => row.decision.question_indispensable !== null).length;
-  const missing = missingEligible.filter((row) => row.decision.question_indispensable === null).length;
+  const excessive = excessiveEligible.filter((row) => hasQuestion(row.decision)).length;
+  const missing = missingEligible.filter((row) => !hasQuestion(row.decision)).length;
   const latencies = rows.map((row) => row.latency_ms ?? row.elapsed_ms).filter(Number.isFinite);
   const classes = ["rapide", "architecte", "architecte_question"];
   const accuracyByClass = Object.fromEntries(classes.map((label) => {
@@ -87,7 +92,7 @@ function scoreModel(model, results) {
   const byCase = new Map();
   for (const row of valid) {
     if (!byCase.has(row.case_id)) byCase.set(row.case_id, []);
-    byCase.get(row.case_id).push(row.decision.route);
+    byCase.get(row.case_id).push(decisionLabel(row.decision));
   }
   const agreements = [...byCase.values()].map((routes) => Math.max(...[...new Set(routes)].map((route) => routes.filter((item) => item === route).length)) / routes.length);
   return {
