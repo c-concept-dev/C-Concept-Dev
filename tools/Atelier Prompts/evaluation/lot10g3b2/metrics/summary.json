@@ -1,10 +1,26 @@
 {
-  "generated_at": "2026-08-28T08:00:22.079Z",
+  "generated_at": "2026-08-28T08:02:00.905Z",
   "definitions": {
     "percentile": "méthode nearest-rank",
     "friction_brute_auto": "tours supplémentaires + questions considérées inutiles par l'oracle de complétude; indicateur interne, verdict humain requis",
     "cost": "coût GPT-5.6 Sol estimé à partir de l'usage API; coût Workers AI/Groq N/A",
     "success": "sortie finale non vide et aucune erreur enregistrée"
+  },
+  "providers": {
+    "workers-ai": {
+      "502": 41
+    },
+    "groq": {
+      "200": 29,
+      "502": 12
+    }
+  },
+  "returned_models": {
+    "calls_checked": 82,
+    "values": [
+      "gpt-5.6-sol"
+    ],
+    "all_match_requested": true
   },
   "overall": {
     "cases": 30,
