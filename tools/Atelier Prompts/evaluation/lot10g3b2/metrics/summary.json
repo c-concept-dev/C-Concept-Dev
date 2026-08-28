@@ -1,0 +1,223 @@
+{
+  "generated_at": "2026-08-28T08:00:22.079Z",
+  "definitions": {
+    "percentile": "méthode nearest-rank",
+    "friction_brute_auto": "tours supplémentaires + questions considérées inutiles par l'oracle de complétude; indicateur interne, verdict humain requis",
+    "cost": "coût GPT-5.6 Sol estimé à partir de l'usage API; coût Workers AI/Groq N/A",
+    "success": "sortie finale non vide et aucune erreur enregistrée"
+  },
+  "overall": {
+    "cases": 30,
+    "atelier_success_rate": 0.8667,
+    "pure_success_rate": 1,
+    "route_accuracy": 0.9,
+    "atelier_latency_ms": {
+      "mean": 64738.236,
+      "median": 43475.976,
+      "p90": 130148.793
+    },
+    "pure_latency_ms": {
+      "mean": 21744.578,
+      "median": 22239.728,
+      "p90": 38119.366
+    },
+    "latency_overhead_ms": {
+      "mean": 42993.659,
+      "median": 21890.274,
+      "p90": 95091.557
+    },
+    "atelier_calls_mean": 4.1,
+    "pure_calls_mean": 1.367,
+    "calls_overhead_mean": 2.733,
+    "atelier_clarifications_mean": 0.367,
+    "pure_clarifications_mean": 0.367,
+    "atelier_friction_brute_auto_mean": 0.367,
+    "pure_friction_brute_auto_mean": 0.8,
+    "atelier_tokens_mean": 10709.567,
+    "pure_tokens_mean": 1573.3,
+    "token_overhead_mean": 9136.267,
+    "atelier_cost_usd_mean": 0.120537,
+    "pure_cost_usd_mean": 0.028761,
+    "cost_overhead_usd_mean": 0.091776,
+    "fallback_rate": 1,
+    "local_prudent_rate": 0.4,
+    "atelier_error_rate": 0.1333,
+    "pure_error_rate": 0,
+    "provider_429_total": 0,
+    "provider_502_total": 53,
+    "atelier_incomplete_calls": 13,
+    "pure_incomplete_calls": 11,
+    "gpt56_model_verified": true,
+    "human_quality": {
+      "atelier_superieur_percent": null,
+      "equivalent_percent": null,
+      "atelier_inferieur_percent": null,
+      "gain_moyen": null,
+      "degradation_moyenne": null,
+      "taux_intervention_utile": null,
+      "taux_degradation": null,
+      "status": "à valider humainement"
+    }
+  },
+  "categories": {
+    "floue": {
+      "cases": 10,
+      "atelier_success_rate": 1,
+      "pure_success_rate": 1,
+      "route_accuracy": 1,
+      "atelier_latency_ms": {
+        "mean": 46703.808,
+        "median": 28544.972,
+        "p90": 124285.3
+      },
+      "pure_latency_ms": {
+        "mean": 22034.571,
+        "median": 22239.728,
+        "p90": 39261.518
+      },
+      "latency_overhead_ms": {
+        "mean": 24669.237,
+        "median": 4482.7,
+        "p90": 95091.557
+      },
+      "atelier_calls_mean": 5.4,
+      "pure_calls_mean": 1.7,
+      "calls_overhead_mean": 3.7,
+      "atelier_clarifications_mean": 1.1,
+      "pure_clarifications_mean": 0.7,
+      "atelier_friction_brute_auto_mean": 1.1,
+      "pure_friction_brute_auto_mean": 0.7,
+      "atelier_tokens_mean": 5777,
+      "pure_tokens_mean": 1573.9,
+      "token_overhead_mean": 4203.1,
+      "atelier_cost_usd_mean": 0.071409,
+      "pure_cost_usd_mean": 0.02804,
+      "cost_overhead_usd_mean": 0.043369,
+      "fallback_rate": 1,
+      "local_prudent_rate": 0.1,
+      "atelier_error_rate": 0,
+      "pure_error_rate": 0,
+      "provider_429_total": 0,
+      "provider_502_total": 22,
+      "atelier_incomplete_calls": 3,
+      "pure_incomplete_calls": 1,
+      "gpt56_model_verified": true,
+      "human_quality": {
+        "atelier_superieur_percent": null,
+        "equivalent_percent": null,
+        "atelier_inferieur_percent": null,
+        "gain_moyen": null,
+        "degradation_moyenne": null,
+        "taux_intervention_utile": null,
+        "taux_degradation": null,
+        "status": "à valider humainement"
+      }
+    },
+    "simple": {
+      "cases": 10,
+      "atelier_success_rate": 1,
+      "pure_success_rate": 1,
+      "route_accuracy": 0.7,
+      "atelier_latency_ms": {
+        "mean": 28896.992,
+        "median": 12022.842,
+        "p90": 70710.783
+      },
+      "pure_latency_ms": {
+        "mean": 6533.779,
+        "median": 3975.145,
+        "p90": 11214.706
+      },
+      "latency_overhead_ms": {
+        "mean": 22363.213,
+        "median": 3226.901,
+        "p90": 66735.638
+      },
+      "atelier_calls_mean": 3.3,
+      "pure_calls_mean": 1.4,
+      "calls_overhead_mean": 1.9,
+      "atelier_clarifications_mean": 0,
+      "pure_clarifications_mean": 0.4,
+      "atelier_friction_brute_auto_mean": 0,
+      "pure_friction_brute_auto_mean": 1.7,
+      "atelier_tokens_mean": 5765.7,
+      "pure_tokens_mean": 575.7,
+      "token_overhead_mean": 5190,
+      "atelier_cost_usd_mean": 0.058565,
+      "pure_cost_usd_mean": 0.007962,
+      "cost_overhead_usd_mean": 0.050603,
+      "fallback_rate": 1,
+      "local_prudent_rate": 0.3,
+      "atelier_error_rate": 0,
+      "pure_error_rate": 0,
+      "provider_429_total": 0,
+      "provider_502_total": 13,
+      "atelier_incomplete_calls": 0,
+      "pure_incomplete_calls": 0,
+      "gpt56_model_verified": true,
+      "human_quality": {
+        "atelier_superieur_percent": null,
+        "equivalent_percent": null,
+        "atelier_inferieur_percent": null,
+        "gain_moyen": null,
+        "degradation_moyenne": null,
+        "taux_intervention_utile": null,
+        "taux_degradation": null,
+        "status": "à valider humainement"
+      }
+    },
+    "complexe": {
+      "cases": 10,
+      "atelier_success_rate": 0.6,
+      "pure_success_rate": 1,
+      "route_accuracy": 1,
+      "atelier_latency_ms": {
+        "mean": 118613.909,
+        "median": 121305.17,
+        "p90": 132930.707
+      },
+      "pure_latency_ms": {
+        "mean": 36665.382,
+        "median": 35945.832,
+        "p90": 38119.366
+      },
+      "latency_overhead_ms": {
+        "mean": 81948.526,
+        "median": 84966.04,
+        "p90": 99668.135
+      },
+      "atelier_calls_mean": 3.6,
+      "pure_calls_mean": 1,
+      "calls_overhead_mean": 2.6,
+      "atelier_clarifications_mean": 0,
+      "pure_clarifications_mean": 0,
+      "atelier_friction_brute_auto_mean": 0,
+      "pure_friction_brute_auto_mean": 0,
+      "atelier_tokens_mean": 20586,
+      "pure_tokens_mean": 2570.3,
+      "token_overhead_mean": 18015.7,
+      "atelier_cost_usd_mean": 0.231637,
+      "pure_cost_usd_mean": 0.050281,
+      "cost_overhead_usd_mean": 0.181356,
+      "fallback_rate": 1,
+      "local_prudent_rate": 0.8,
+      "atelier_error_rate": 0.4,
+      "pure_error_rate": 0,
+      "provider_429_total": 0,
+      "provider_502_total": 18,
+      "atelier_incomplete_calls": 10,
+      "pure_incomplete_calls": 10,
+      "gpt56_model_verified": true,
+      "human_quality": {
+        "atelier_superieur_percent": null,
+        "equivalent_percent": null,
+        "atelier_inferieur_percent": null,
+        "gain_moyen": null,
+        "degradation_moyenne": null,
+        "taux_intervention_utile": null,
+        "taux_degradation": null,
+        "status": "à valider humainement"
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+id,category,decision_source,fallback,local_prudent,provider_429,provider_502,atelier_error_stage,atelier_error
+F01,floue,groq,true,false,0,2,,
+F02,floue,groq,true,false,0,2,,
+F03,floue,groq,true,false,0,2,,
+F04,floue,groq,true,false,0,2,,
+F05,floue,groq,true,false,0,2,,
+F06,floue,groq,true,false,0,2,,
+F07,floue,groq,true,false,0,2,,
+F08,floue,groq,true,false,0,2,,
+F09,floue,groq,true,false,0,2,,
+F10,floue,local-prudent,true,true,0,4,,
+S01,simple,groq,true,false,0,1,,
+S02,simple,groq,true,false,0,1,,
+S03,simple,groq,true,false,0,1,,
+S04,simple,groq,true,false,0,1,,
+S05,simple,groq,true,false,0,1,,
+S06,simple,groq,true,false,0,1,,
+S07,simple,local-prudent,true,true,0,2,,
+S08,simple,local-prudent,true,true,0,2,,
+S09,simple,local-prudent,true,true,0,2,,
+S10,simple,groq,true,false,0,1,,
+C01,complexe,local-prudent,true,true,0,2,,
+C02,complexe,groq,true,false,0,1,,
+C03,complexe,local-prudent,true,true,0,2,architecte_analyse,Analyse Architecte non exploitable: 5 objet(s) JSON valide(s) trouvé(s)
+C04,complexe,local-prudent,true,true,0,2,,
+C05,complexe,local-prudent,true,true,0,2,architecte_analyse,Analyse Architecte non exploitable: 8 objet(s) JSON valide(s) trouvé(s)
+C06,complexe,local-prudent,true,true,0,2,,
+C07,complexe,local-prudent,true,true,0,2,,
+C08,complexe,local-prudent,true,true,0,2,,
+C09,complexe,local-prudent,true,true,0,2,architecte_analyse,Analyse Architecte non exploitable: 8 objet(s) JSON valide(s) trouvé(s)
+C10,complexe,groq,true,false,0,1,architecte_analyse,Analyse Architecte non exploitable: 5 objet(s) JSON valide(s) trouvé(s)
