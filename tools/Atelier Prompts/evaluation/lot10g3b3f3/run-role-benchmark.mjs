@@ -14,43 +14,75 @@
 // Un provider dont les identifiants sont absents est marqué "not_executed" dans le rapport, jamais
 // simulé ni compté comme un échec de qualité : panne/absence d'accès n'est jamais une note.
 //
+// Parité avec le runtime (3F.3.4) : les prompts, schémas, constructeurs de message et parseurs sont
+// importés directement depuis workers/shared/operational-request-core.js (même ROLE_DEFINITIONS
+// que workers/workers-ai/src/index.js et workers/groq/src/index.js — aucune redéfinition locale).
+// Les modèles par défaut sont importés des deux workers (PRIMARY_MODEL, MODEL), jamais retapés en
+// dur, pour qu'un futur changement de modèle runtime ne puisse pas faire dériver silencieusement le
+// benchmark. Les paramètres d'inférence Groq (reasoning_format, reasoning_effort, temperature,
+// stream) et le nom de schéma (oprie_<rôle>) répliquent exactement callGroqChatCompletion.
+// Différence structurelle assumée et non corrigible depuis Node : Workers AI est interrogé ici par
+// l'API REST Cloudflare (`/accounts/{id}/ai/run/{model}`), alors que le runtime utilise le binding
+// `env.AI.run()` disponible uniquement à l'intérieur d'un Worker. Cloudflare documente les deux
+// comme équivalents pour un modèle donné, mais ce n'est pas vérifié ici — à garder en tête en
+// lisant les résultats.
+//
 // Usage :
-//   node evaluation/lot10g3b3f3/run-role-benchmark.mjs [--repetitions=3] [--output=chemin.json]
+//   node evaluation/lot10g3b3f3/run-role-benchmark.mjs [--repetitions=3] [--provider=all|workers-ai|groq] [--output=chemin.json]
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   ANALYST_SYSTEM_PROMPT, ANALYST_JSON_SCHEMA, makeAnalystUserMessage, parseAnalystOutput,
   CRITIC_SYSTEM_PROMPT, CRITIC_JSON_SCHEMA, makeCriticUserMessage, parseCriticOutput,
   ARBITER_SYSTEM_PROMPT, ARBITER_JSON_SCHEMA, makeArbiterUserMessage, parseArbiterOutput
 } from "../../workers/shared/operational-request-core.js";
 import { scoreAnalystOutput, scoreCriticOutput, scoreArbiterOutput, assessStability } from "./score-role-outputs.mjs";
+import { PRIMARY_MODEL as RUNTIME_WORKERS_AI_MODEL } from "../../workers/workers-ai/src/index.js";
+import { MODEL as RUNTIME_GROQ_MODEL } from "../../workers/groq/src/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
   const [key, ...value] = arg.replace(/^--/, "").split("=");
   return [key, value.join("=")];
 }));
+
+export const SUPPORTED_PROVIDER_FILTERS = Object.freeze(["all", "workers-ai", "groq"]);
+
+export function resolveProviders(filterValue) {
+  const value = filterValue === undefined ? "all" : filterValue;
+  if (!SUPPORTED_PROVIDER_FILTERS.includes(value)) {
+    throw new Error(`--provider invalide : "${value}". Valeurs acceptées : ${SUPPORTED_PROVIDER_FILTERS.join(", ")}.`);
+  }
+  return value === "all" ? ["workers-ai", "groq"] : [value];
+}
+
 const repetitions = Math.max(1, Math.min(5, Number(args.repetitions || 3)));
 const corpusPath = path.resolve(root, args.corpus || "evaluation/lot10g3b3f3/corpus.json");
 const outputPath = path.resolve(root, args.output || `evaluation/lot10g3b3f3/results/benchmark-${Date.now()}.json`);
 const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
 
-const PROVIDERS = ["workers-ai", "groq"];
+let PROVIDERS;
+try {
+  PROVIDERS = resolveProviders(args.provider);
+} catch (error) {
+  process.stderr.write(`${error.message}\n`);
+  process.exit(1);
+}
 const ROLES = ["analyst", "critic", "arbiter"];
 
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || "";
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
-const WORKERS_AI_MODEL = args["workers-ai-model"] || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-const GROQ_MODEL = args["groq-model"] || "openai/gpt-oss-20b";
+export const WORKERS_AI_MODEL = args["workers-ai-model"] || RUNTIME_WORKERS_AI_MODEL;
+export const GROQ_MODEL = args["groq-model"] || RUNTIME_GROQ_MODEL;
 
 function providerAvailable(provider) {
   return provider === "workers-ai" ? Boolean(CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_API_TOKEN) : Boolean(GROQ_API_KEY);
 }
 
-async function callWorkersAI(systemPrompt, userMessage, schema) {
+export async function callWorkersAI(systemPrompt, userMessage, schema) {
   const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${WORKERS_AI_MODEL}`;
   const started = performance.now();
   const response = await fetch(url, {
@@ -72,7 +104,7 @@ async function callWorkersAI(systemPrompt, userMessage, schema) {
   return { content, elapsed, usage: payload.result?.usage || null };
 }
 
-async function callGroq(systemPrompt, userMessage, schema) {
+export async function callGroq(role, systemPrompt, userMessage, schema) {
   const started = performance.now();
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -80,7 +112,9 @@ async function callGroq(systemPrompt, userMessage, schema) {
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-      response_format: { type: "json_schema", json_schema: { name: "role_output", strict: true, schema } },
+      // Mêmes clés, mêmes valeurs, même nom de schéma que callGroqChatCompletion (workers/groq/src/index.js).
+      response_format: { type: "json_schema", json_schema: { name: `oprie_${role}`, strict: true, schema } },
+      reasoning_format: "hidden",
       reasoning_effort: "low",
       temperature: 0,
       max_completion_tokens: 2048,
@@ -93,13 +127,13 @@ async function callGroq(systemPrompt, userMessage, schema) {
   return { content: payload.choices?.[0]?.message?.content, elapsed, usage: payload.usage || null };
 }
 
-async function callProvider(provider, systemPrompt, userMessage, schema) {
-  return provider === "workers-ai" ? callWorkersAI(systemPrompt, userMessage, schema) : callGroq(systemPrompt, userMessage, schema);
+async function callProvider(role, provider, systemPrompt, userMessage, schema) {
+  return provider === "workers-ai" ? callWorkersAI(systemPrompt, userMessage, schema) : callGroq(role, systemPrompt, userMessage, schema);
 }
 
 async function runRole(role, provider, systemPrompt, userMessage, schema, parseFn) {
   try {
-    const { content, elapsed, usage } = await callProvider(provider, systemPrompt, userMessage, schema);
+    const { content, elapsed, usage } = await callProvider(role, provider, systemPrompt, userMessage, schema);
     try {
       return { valid_json: true, output: parseFn(content), elapsed_ms: elapsed, usage };
     } catch (parseError) {
@@ -239,7 +273,14 @@ async function main() {
   process.stdout.write(JSON.stringify({ status: notExecuted.length === PROVIDERS.length ? "NOT_EXECUTED" : "OK", providers_not_executed: notExecuted, output: outputPath }, null, 2) + "\n");
 }
 
-main().catch((error) => {
-  process.stderr.write(`Échec du benchmark : ${error.stack || error.message}\n`);
-  process.exitCode = 1;
-});
+// Ne s'exécute que lorsque ce fichier est lancé directement (node run-role-benchmark.mjs), jamais
+// lorsqu'il est importé (les tests importent resolveProviders/SUPPORTED_PROVIDER_FILTERS sans
+// déclencher d'appel réseau réel). pathToFileURL est indispensable ici : une comparaison par simple
+// concaténation de chaîne ("file://" + process.argv[1]) échoue silencieusement dès que le chemin
+// contient un espace ou un caractère spécial — ce qui est le cas de ce dépôt ("Atelier Prompts").
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    process.stderr.write(`Échec du benchmark : ${error.stack || error.message}\n`);
+    process.exitCode = 1;
+  });
+}

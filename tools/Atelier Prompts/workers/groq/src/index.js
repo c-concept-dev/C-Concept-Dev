@@ -9,7 +9,7 @@ import {
 import { ROLE_DEFINITIONS, OPRIE_ROLES, handleRoleRequest } from "../../shared/operational-request-core.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "openai/gpt-oss-20b";
+export const MODEL = "openai/gpt-oss-20b";
 
 /**
  * Appel Groq de bas niveau, partagé entre le Decision Provider legacy et les 3 rôles OPRIE.
