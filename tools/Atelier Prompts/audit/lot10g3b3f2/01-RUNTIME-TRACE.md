@@ -47,3 +47,13 @@ Le primaire étant exploitable au moment du diagnostic, Groq n'est pas appelé.
 - le bloc `EXECUTION READINESS GATE`.
 
 Cette preuve confirme que l'historique n'est pas perdu. Elle confirme aussi que le Readiness Gate est seulement envoyé à Architecte : il n'a pas encore rendu de décision au moment où l'UI quitte la boucle provider.
+
+## Recette publiée après correction
+
+Après déploiement des versions Workers AI `d9825f13-32ed-4581-8176-0611e8f4ff60` et Groq `ea1198fe-1467-4d2a-bb46-7ca703629d78` :
+
+- Rapide, même demande Italie : question villes/régions, réponse `Rome et Florence`, puis question durée, réponse `7 jours`, puis préparation approfondie ;
+- Architecte, même demande Italie : question dates, réponse `Du 10 au 17 septembre`, puis question villes/régions ;
+- aucune erreur dans les deux consoles navigateur.
+
+La réanalyse après chaque réponse et le comportement multi-tour commun aux deux entrées sont donc confirmés sur la version publiée.

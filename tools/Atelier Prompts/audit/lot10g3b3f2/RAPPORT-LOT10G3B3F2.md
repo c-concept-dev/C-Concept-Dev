@@ -2,7 +2,7 @@
 
 ## Statut
 
-**Implémentation et validation locale : PASS. Validation produit publiée : EN ATTENTE.**
+**Implémentation, déploiement et validation produit publiée : PASS.**
 
 ## Cause racine
 
@@ -42,7 +42,12 @@ provider ou Readiness
 - Garde PASS.
 - Diff-check PASS.
 - Deux dry-runs Cloudflare PASS.
+- Workers AI déployé : `d9825f13-32ed-4581-8176-0611e8f4ff60`.
+- Groq déployé : `ea1198fe-1467-4d2a-bb46-7ca703629d78`.
 - Recette publiée avant correction : FAIL reproduit et expliqué.
-- Recette publiée après correction : à exécuter après déploiement/synchronisation.
+- Recette publiée après correction : PASS.
+- Parcours Rapide Italie : deux clarifications successives avant préparation approfondie.
+- Parcours Architecte Italie : deuxième clarification affichée avant création de l'échange.
+- Consoles navigateur : aucune erreur.
 
-Le lot ne doit être déclaré totalement clos qu'après vérification navigateur du cas Italie et d'un parcours Architecte multi-tour sur la version publiée.
+Le lot est techniquement clos. Les fichiers d'audit mis à jour doivent encore être commités et poussés si `git status` les signale.

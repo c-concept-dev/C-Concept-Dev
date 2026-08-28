@@ -7,6 +7,9 @@
 - `git diff --check` : **PASS**.
 - dry-run Workers AI : **PASS**, origine autorisée correcte.
 - dry-run Groq : **PASS**, origine autorisée correcte.
+- déploiement Workers AI : **PASS**, version `d9825f13-32ed-4581-8176-0611e8f4ff60`.
+- déploiement Groq : **PASS**, version `ea1198fe-1467-4d2a-bb46-7ca703629d78`.
+- recette navigateur publiée Rapide et Architecte : **PASS**, aucune erreur console.
 
 ## Zones gelées
 
