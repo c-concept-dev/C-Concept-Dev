@@ -18,3 +18,4 @@ export {
   createAdaptiveLockAuditView
 } from "./adaptive-lock-selector.js";
 export * from "./routing-engine.js";
+export * from './engine-adapters.js';

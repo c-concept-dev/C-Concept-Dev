@@ -9673,7 +9673,9 @@ function makeEnvelope(){
   const schema=JSON.parse(JSON.stringify(api.schema));
   schema.properties=Object.assign({},schema.properties,{id_echange:{type:'string',const:state.exchangeId}});
   schema.required=Array.from(new Set([...(schema.required||[]),'id_echange']));
-  const request=api.systeme+'\n\n## IDENTIFIANT D’ÉCHANGE\nL’objet JSON de sortie doit contenir en racine exactement : \"id_echange\": \"'+state.exchangeId+'\". Cet identifiant sert uniquement à relier la réponse à la bonne demande et ne doit jamais être modifié.\n\n## ENTRÉE À ANALYSER\n'+JSON.stringify(api.contexte(),null,2)+'\n\n## SCHÉMA JSON DE SORTIE\n'+JSON.stringify(schema,null,2)+'\n\n## LIVRAISON OBLIGATOIRE\nCréez réellement un fichier JSON téléchargeable nommé exactement \"'+state.responseName+'\". Le contenu de ce fichier doit être uniquement l’objet JSON conforme au schéma ci-dessus, sans balise Markdown, sans commentaire et sans texte supplémentaire. Joignez ce fichier à votre réponse. Ne collez pas le JSON dans le corps de la réponse comme résultat principal. Si, et seulement si, votre environnement ne permet techniquement pas de créer ou joindre un fichier, affichez alors l’objet JSON brut comme solution de repli.';
+  const adnContract=adnCompactContractForArchitecte();
+  const adnBlock=adnContract?'\n\n## CONTRAT D’EXÉCUTION ADN — CADRAGE À PRÉSERVER\nCe contrat est une donnée de cadrage pour le livrable final. À cette étape Architecte, produisez uniquement l’analyse JSON demandée par le système ; ne produisez pas encore le livrable final. Préservez toutes les obligations, hypothèses, quantités, verrous et limites jusqu’à la compilation finale.\n'+JSON.stringify(adnContract,null,2):'';
+  const request=api.systeme+'\n\n## IDENTIFIANT D’ÉCHANGE\nL’objet JSON de sortie doit contenir en racine exactement : "id_echange": "'+state.exchangeId+'". Cet identifiant sert uniquement à relier la réponse à la bonne demande et ne doit jamais être modifié.'+adnBlock+'\n\n## ENTRÉE À ANALYSER\n'+JSON.stringify(api.contexte(),null,2)+'\n\n## SCHÉMA JSON DE SORTIE\n'+JSON.stringify(schema,null,2)+'\n\n## LIVRAISON OBLIGATOIRE\nCréez réellement un fichier JSON téléchargeable nommé exactement "'+state.responseName+'". Le contenu de ce fichier doit être uniquement l’objet JSON conforme au schéma ci-dessus, sans balise Markdown, sans commentaire et sans texte supplémentaire. Joignez ce fichier à votre réponse. Ne collez pas le JSON dans le corps de la réponse comme résultat principal. Si, et seulement si, votre environnement ne permet techniquement pas de créer ou joindre un fichier, affichez alors l’objet JSON brut comme solution de repli.';
   const external=state.docs.filter(d=>d.external).map(d=>({nom:d.name,type:d.type||null,taille:d.size}));
   const envelope={
     version_echange:'11.1',
@@ -9804,7 +9806,7 @@ function answerQuestion(answer){
 }
 function resetAll(){
   state.docs=[];state.answers=[];state.lastRequest=null;state.analysis=null;state.exchangeId=null;
-  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.last=null;adpState.running=false;adpState.returnFocus=null;}
+  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.last=null;adpState.lastEnvelope=null;adpState.lastProjection=null;adpState.running=false;adpState.returnFocus=null;}
   state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';$('#v11-demande').value='';renderFiles();$('#v11-final').value='';show(null);
   if(window.__ARCHITECTE_V10__&&window.__ARCHITECTE_V10__.nouvelleDemande)try{window.__ARCHITECTE_V10__.nouvelleDemande()}catch(e){}
 }
@@ -9815,6 +9817,1298 @@ function v11RequireDemand(){
   $('#v11-demande').focus();
   return '';
 }
+/* GENERATED — LOT 10G.3B.3F
+ * source-sha256: c724fa2c69a9c154f7667ed7e7c6373035a9b500ba8f37f90229662de3fba908
+ * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
+ */
+(function(global){
+'use strict';
+const ADN=(()=>{
+const ADN_STATE_VERSION = "1.0";
+
+const ADN_PROPERTY_IDS = Object.freeze([
+  "intentionality",
+  "executability",
+  "discipline",
+  "completeness",
+  "compliance"
+]);
+
+const ADN_TECHNIQUE_IDS = Object.freeze([
+  "prior_contract",
+  "evasion_blocking",
+  "no_unnecessary_questions",
+  "strict_format",
+  "forced_start",
+  "explicit_forbidden",
+  "absolute_obligations",
+  "quantified_rules",
+  "final_injunction"
+]);
+
+const ADN_ETHIC_IDS = Object.freeze([
+  "user_autonomy_preserved",
+  "factual_integrity_required",
+  "critical_invention_forbidden",
+  "proportionality_required",
+  "functional_transparency_required",
+  "safety_overrides_execution",
+  "material_rights_respected",
+  "reversibility_preserved",
+  "human_efficiency_required"
+]);
+
+const STATES = new Set(["exploitable", "clarification_necessaire"]);
+const ROUTES = new Set(["rapide", "architecte", null]);
+const CONFIDENCE = Object.freeze({ haute: "high", moyenne: "medium", high: "high", medium: "medium" });
+
+function clone(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function list(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function bool(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function uniqueStrings(items) {
+  const seen = new Set();
+  const result = [];
+  for (const item of list(items)) {
+    const value = text(typeof item === "string" ? item : item?.text || item?.contenu || item?.information);
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
+}
+
+function numbered(prefix, index) {
+  return `${prefix}-${String(index + 1).padStart(3, "0")}`;
+}
+
+function simpleHash(input) {
+  let hash = 2166136261;
+  const value = String(input || "");
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function normalizeConstraints(items) {
+  return uniqueStrings(items).map((value, index) => ({
+    id: numbered("REQ", index),
+    text: value,
+    source: "user"
+  }));
+}
+
+function normalizeEvidenceItem(item, index, source, status) {
+  const value = typeof item === "string" ? { text: item } : item || {};
+  return {
+    id: text(value.id) || numbered(source === "material" ? "MAT" : source === "deduction" ? "DED" : "FACT", index),
+    text: text(value.text || value.contenu),
+    source,
+    status
+  };
+}
+
+function normalizeEvidence(input = {}) {
+  return {
+    user_facts: list(input.user_facts).map((item, index) => normalizeEvidenceItem(item, index, "user", "fact")).filter((item) => item.text),
+    material_facts: list(input.material_facts).map((item, index) => normalizeEvidenceItem(item, index, "material", "fact")).filter((item) => item.text),
+    deductions: list(input.deductions).map((item, index) => normalizeEvidenceItem(item, index, "deduction", "deduction")).filter((item) => item.text),
+    external_knowledge_needed: input.external_knowledge_needed === true,
+    freshness_needed: input.freshness_needed === true
+  };
+}
+
+function normalizeMissing(items, prefix, status) {
+  return uniqueStrings(items).map((value, index) => ({ id: numbered(prefix, index), text: value, status }));
+}
+
+function normalizeAssumptions(items) {
+  return uniqueStrings(items).map((value, index) => ({
+    id: numbered("ASM", index),
+    text: value,
+    source: "deduction",
+    status: "assumption"
+  }));
+}
+
+function normalizeObligations(items, constraints) {
+  const candidates = [
+    ...constraints.map((constraint) => ({ text: constraint.text, source: "user", mandatory: true, verifiable: true, constraint_id: constraint.id })),
+    ...list(items)
+  ];
+  const seen = new Set();
+  const result = [];
+  for (const item of candidates) {
+    const value = typeof item === "string" ? { text: item } : item || {};
+    const body = text(value.text || value.contenu);
+    const source = ["user", "material", "system"].includes(value.source) ? value.source : "user";
+    const key = `${source}|${body}`;
+    if (!body || seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      id: numbered("OBL", result.length),
+      text: body,
+      source,
+      mandatory: value.mandatory !== false,
+      verifiable: value.verifiable !== false,
+      constraint_id: text(value.constraint_id) || constraints.find((constraint) => constraint.text === body)?.id || null
+    });
+  }
+  return result;
+}
+
+function resolveObligationIds(ids, obligations) {
+  const result = [];
+  for (const id of list(ids)) {
+    const found = obligations.find((item) => item.id === id || item.constraint_id === id);
+    if (found && !result.includes(found.id)) result.push(found.id);
+  }
+  return result;
+}
+
+function normalizeQuantities(items, obligations) {
+  return list(items).map((item, index) => {
+    const value = item || {};
+    const exact = Number.isInteger(value.exact) ? value.exact : null;
+    const min = exact === null && Number.isInteger(value.min) ? value.min : null;
+    const max = exact === null && Number.isInteger(value.max) ? value.max : null;
+    return {
+      id: text(value.id) || numbered("Q", index),
+      target: text(value.target) || null,
+      unit: text(value.unit || value.unite) || null,
+      exact,
+      min,
+      max,
+      obligation_ids: resolveObligationIds(value.obligation_ids, obligations)
+    };
+  });
+}
+
+function normalizeOutput(input = {}) {
+  return {
+    format: text(input.format) || null,
+    structure: uniqueStrings(input.structure),
+    opening: text(input.opening || input.amorce) || null,
+    closing: text(input.closing || input.cloture) || null,
+    length_policy: text(input.length_policy || input.longueur) || null
+  };
+}
+
+function normalizeChecks(items, obligations) {
+  return list(items).map((item, index) => {
+    const value = typeof item === "string" ? { rule: item } : item || {};
+    return {
+      id: text(value.id) || numbered("CHK", index),
+      type: ["deterministic", "heuristic", "semantic", "manual"].includes(value.type) ? value.type : "manual",
+      target: text(value.target) || "deliverable",
+      rule: text(value.rule || value.text || value.nom),
+      blocking: value.blocking === true,
+      obligation_ids: resolveObligationIds(value.obligation_ids, obligations)
+    };
+  }).filter((item) => item.rule);
+}
+
+function determineIntentStatus({ originalRequest, objective, deliverable, constraints }) {
+  if (!originalRequest) return "invalid";
+  if (objective && deliverable) return "resolved";
+  if (objective || deliverable || constraints.length) return "preserved_partial";
+  return "preserved_raw";
+}
+
+function derivePropertyStates(state) {
+  const exploitable = state.executability.state === "exploitable";
+  const intentionality = state.intent.status === "invalid" ? "fail" : "pass";
+  const executability = state.executability.state === "clarification_necessaire" ? "blocked" : "pass";
+  const discipline = exploitable
+    && state.discipline.execute_now
+    && state.discipline.comfort_questions_forbidden
+    && state.discipline.final_injunction_active ? "pass" : (exploitable ? "fail" : "not_applicable");
+  const completeness = state.completeness.obligations.every((item) => item.mandatory !== true || Boolean(item.text)) ? "pass" : "fail";
+  const compliance = state.compliance.controls_ready ? "pass" : "partial";
+  return { intentionality, executability, discipline, completeness, compliance };
+}
+
+function deriveTechniques(state) {
+  const exploitable = state.executability.state === "exploitable";
+  const hasFormatContract = Boolean(state.compliance.output.format || state.compliance.output.structure.length || state.compliance.output.opening || state.compliance.output.closing);
+  const hasForbidden = state.discipline.forbidden_behaviors.length > 0;
+  const hasQuantities = state.completeness.quantities.length > 0;
+  return {
+    prior_contract: exploitable,
+    evasion_blocking: exploitable && state.discipline.evasion_blocked,
+    no_unnecessary_questions: exploitable ? state.discipline.comfort_questions_forbidden : true,
+    strict_format: hasFormatContract,
+    forced_start: Boolean(state.compliance.output.opening),
+    explicit_forbidden: hasForbidden,
+    absolute_obligations: state.completeness.obligations.some((item) => item.mandatory === true),
+    quantified_rules: hasQuantities,
+    final_injunction: exploitable && state.discipline.final_injunction_active && state.discipline.execute_now
+  };
+}
+
+function validateDecision(decision = {}) {
+  const state = decision.etat_demande;
+  const route = decision.route ?? null;
+  if (!STATES.has(state)) throw new TypeError("État d’exécutabilité ADN invalide.");
+  if (!ROUTES.has(route)) throw new TypeError("Route ADN invalide.");
+  if (state === "clarification_necessaire" && route !== null) throw new TypeError("Une clarification ADN exige route=null.");
+  if (state === "exploitable" && !["rapide", "architecte"].includes(route)) throw new TypeError("Une demande exploitable exige une route.");
+  return {
+    etat_demande: state,
+    route,
+    confiance: CONFIDENCE[decision.confiance] || "medium",
+    raison_interne: text(decision.raison_interne),
+    question: decision.question === null ? null : text(decision.question) || null
+  };
+}
+
+function buildAdnState(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("Une entrée ADN runtime est requise.");
+  const originalRequest = text(input.original_request || input.demande);
+  if (!originalRequest) throw new TypeError("La demande originale est obligatoire.");
+
+  const decision = validateDecision(input.decision || {});
+  const constraints = normalizeConstraints(input.intent?.explicit_constraints || input.constraints);
+  const objective = text(input.intent?.objective);
+  const deliverable = text(input.intent?.deliverable) || null;
+  const recipient = text(input.intent?.recipient) || null;
+  const obligations = normalizeObligations(input.obligations, constraints);
+  const quantities = normalizeQuantities(input.quantities, obligations);
+  const evidence = normalizeEvidence(input.evidence);
+  const criticalMissingSource = list(input.executability?.critical_missing).length
+    ? input.executability.critical_missing
+    : (decision.etat_demande === "clarification_necessaire" && decision.question ? [decision.question] : []);
+  const criticalMissing = normalizeMissing(criticalMissingSource, "MISS", "missing");
+  const substitutableMissing = normalizeMissing(input.executability?.substitutable_missing, "SUB", "substitutable");
+  const assumptions = normalizeAssumptions(input.assumptions);
+  const output = normalizeOutput(input.output);
+  const checks = normalizeChecks(input.checks, obligations);
+  const exploitable = decision.etat_demande === "exploitable";
+  const forbiddenBehaviors = uniqueStrings(input.discipline?.forbidden_behaviors || [
+    ...(exploitable ? ["preambule_parasite", "promesse_sans_execution", "question_de_confort", "report_evitable"] : [])
+  ]);
+
+  const state = {
+    version: ADN_STATE_VERSION,
+    request_id: text(input.request_id) || `adn-${simpleHash(originalRequest)}`,
+    original_request: originalRequest,
+    intent: {
+      objective: objective || originalRequest,
+      deliverable,
+      recipient,
+      explicit_constraints: constraints,
+      status: determineIntentStatus({ originalRequest, objective, deliverable, constraints }),
+      preserved: true
+    },
+    evidence,
+    executability: {
+      state: decision.etat_demande,
+      confidence: decision.confiance,
+      critical_missing: criticalMissing,
+      substitutable_missing: substitutableMissing,
+      clarification_question: decision.etat_demande === "clarification_necessaire" ? decision.question : null
+    },
+    assumptions,
+    discipline: {
+      execute_now: exploitable,
+      comfort_questions_forbidden: exploitable,
+      meta_discussion_forbidden: exploitable,
+      complete_delivery_required: exploitable,
+      evasion_blocked: exploitable,
+      final_injunction_active: exploitable,
+      forbidden_behaviors: forbiddenBehaviors
+    },
+    completeness: {
+      obligations,
+      quantities,
+      coverage_target: obligations.length ? "100%" : null
+    },
+    compliance: {
+      output,
+      checks,
+      controls_ready: checks.length > 0 || Boolean(output.format || output.structure.length || output.opening || output.closing)
+    },
+    routing: {
+      engine: decision.route,
+      reason: decision.raison_interne,
+      confidence: decision.confiance
+    },
+    ethics: Object.fromEntries(ADN_ETHIC_IDS.map((id) => [id, true])),
+    properties: null,
+    techniques: null
+  };
+
+  state.properties = derivePropertyStates(state);
+  state.techniques = deriveTechniques(state);
+  validateAdnState(state);
+  return clone(state);
+}
+
+function assert(condition, message) {
+  if (!condition) throw new TypeError(message);
+}
+
+function exactKeys(value, keys, path) {
+  assert(value && typeof value === "object" && !Array.isArray(value), `${path} doit être un objet.`);
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  assert(actual.length === expected.length && actual.every((key, index) => key === expected[index]), `${path} contient des champs inattendus ou manquants.`);
+}
+
+function validateAdnState(state) {
+  exactKeys(state, ["version","request_id","original_request","intent","evidence","executability","assumptions","discipline","completeness","compliance","routing","ethics","properties","techniques"], "ADNState");
+  assert(state.version === ADN_STATE_VERSION, "Version ADNState incompatible.");
+  assert(text(state.request_id), "request_id ADN obligatoire.");
+  assert(text(state.original_request), "La demande originale doit être conservée.");
+  assert(state.intent.preserved === true, "L’intention originale doit être préservée.");
+  assert(STATES.has(state.executability.state), "État d’exécutabilité invalide.");
+  assert(["high", "medium"].includes(state.executability.confidence), "Confiance d’exécutabilité invalide.");
+  const exploitable = state.executability.state === "exploitable";
+  assert(exploitable === state.discipline.execute_now, "execute_now doit suivre exactement l’exploitabilité.");
+  assert(exploitable === state.discipline.final_injunction_active, "La technique 9 doit suivre exactement l’exploitabilité.");
+  assert(exploitable === state.discipline.comfort_questions_forbidden, "L’interdiction de question de confort doit suivre l’exploitabilité.");
+  assert(exploitable ? ["rapide", "architecte"].includes(state.routing.engine) : state.routing.engine === null, "Route incohérente avec l’exploitabilité.");
+  for (const item of state.evidence.user_facts) assert(item.status === "fact" && item.source === "user", "Fait utilisateur mal classé.");
+  for (const item of state.evidence.material_facts) assert(item.status === "fact" && item.source === "material", "Fait matériau mal classé.");
+  for (const item of state.evidence.deductions) assert(item.status === "deduction", "Une déduction doit rester étiquetée.");
+  for (const item of state.assumptions) assert(item.status === "assumption", "Une hypothèse doit rester étiquetée.");
+  for (const item of state.executability.critical_missing) assert(item.status === "missing", "Un manque critique doit rester absent.");
+  for (const quantity of state.completeness.quantities) {
+    assert(quantity.unit || quantity.target, "Une quantité doit avoir une unité ou une cible.");
+    assert(quantity.exact !== null || quantity.min !== null || quantity.max !== null, "Une quantité doit porter une borne.");
+  }
+  for (const key of ADN_ETHIC_IDS) assert(state.ethics[key] === true, `Invariant éthique ${key} non désactivable.`);
+  assert(JSON.stringify(state.properties) === JSON.stringify(derivePropertyStates(state)), "Les cinq propriétés doivent être purement dérivées.");
+  assert(JSON.stringify(state.techniques) === JSON.stringify(deriveTechniques(state)), "Les neuf techniques doivent être purement dérivées.");
+  return clone(state);
+}
+
+function adnStateToExecutionContractSnapshot(state, extras = {}) {
+  validateAdnState(state);
+  const snapshot = {
+    request_id: state.request_id,
+    original_request: state.original_request,
+    intent: {
+      objective: state.intent.objective,
+      deliverable: state.intent.deliverable,
+      recipient: state.intent.recipient,
+      explicit_constraints: state.intent.explicit_constraints.map((item) => item.text)
+    },
+    evidence: clone(state.evidence),
+    executability: {
+      state: state.executability.state,
+      confidence: state.executability.confidence,
+      critical_missing: state.executability.critical_missing.map((item) => item.text),
+      substitutable_missing: state.executability.substitutable_missing.map((item) => item.text)
+    },
+    assumptions: state.assumptions.map((item) => item.text),
+    obligations: state.completeness.obligations.map((item) => ({
+      text: item.text,
+      source: item.source,
+      mandatory: item.mandatory,
+      verifiable: item.verifiable,
+      constraint_id: item.constraint_id
+    })),
+    quantities: clone(state.completeness.quantities),
+    output: clone(state.compliance.output),
+    checks: clone(state.compliance.checks),
+    decision: {
+      etat_demande: state.executability.state,
+      route: state.routing.engine,
+      confiance: state.executability.confidence === "high" ? "haute" : "moyenne",
+      raison_interne: state.routing.reason,
+      question: state.executability.state === "clarification_necessaire" ? state.executability.clarification_question : null
+    },
+    ...clone(extras)
+  };
+  return snapshot;
+}
+
+function createAdnAuditView(state) {
+  validateAdnState(state);
+  return {
+    version: state.version,
+    request_id: state.request_id,
+    properties: clone(state.properties),
+    techniques: clone(state.techniques),
+    executability: {
+      state: state.executability.state,
+      confidence: state.executability.confidence,
+      critical_missing_count: state.executability.critical_missing.length,
+      substitutable_missing_count: state.executability.substitutable_missing.length
+    },
+    discipline: {
+      execute_now: state.discipline.execute_now,
+      final_injunction_active: state.discipline.final_injunction_active
+    },
+    completeness: {
+      obligations_count: state.completeness.obligations.length,
+      quantities_count: state.completeness.quantities.length
+    },
+    compliance: {
+      checks_count: state.compliance.checks.length,
+      controls_ready: state.compliance.controls_ready
+    },
+    routing: clone(state.routing),
+    ethics: clone(state.ethics)
+  };
+}
+
+return {ADN_STATE_VERSION,ADN_PROPERTY_IDS,ADN_TECHNIQUE_IDS,ADN_ETHIC_IDS,buildAdnState,validateAdnState,adnStateToExecutionContractSnapshot,createAdnAuditView};
+})();
+const LOCKS=(()=>{
+const ADAPTIVE_LOCK_SELECTOR_VERSION = "1.0";
+
+const ADAPTIVE_LOCK_IDS = Object.freeze([
+  "role",
+  "recipient",
+  "data",
+  "provenance",
+  "scope",
+  "plan",
+  "format",
+  "volume",
+  "opening_closing",
+  "forbidden",
+  "assumptions",
+  "length",
+  "final_check"
+]);
+
+const LOCK_SET = new Set(ADAPTIVE_LOCK_IDS);
+const PRIORITIES = new Set(["mandatory", "useful"]);
+const SOURCES = new Set(["user", "material", "system", "runtime"]);
+
+function clone(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function list(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function uniqueStrings(items) {
+  return [...new Set(list(items).filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim()))];
+}
+
+function normalizeSignal(signal) {
+  if (!signal || typeof signal !== "object" || Array.isArray(signal)) {
+    throw new TypeError("Un signal de verrou doit être un objet.");
+  }
+  const id = text(signal.id || signal.lock_id);
+  if (!LOCK_SET.has(id)) throw new TypeError(`Verrou adaptatif inconnu : ${id || "(vide)"}.`);
+  return {
+    id,
+    needed: signal.needed !== false,
+    reason: text(signal.reason),
+    priority: PRIORITIES.has(signal.priority) ? signal.priority : "useful",
+    source: SOURCES.has(signal.source) ? signal.source : "runtime",
+    source_ids: uniqueStrings(signal.source_ids),
+    associated_checks: uniqueStrings(signal.associated_checks)
+  };
+}
+
+function assertAdnStateShape(state) {
+  if (!state || typeof state !== "object" || Array.isArray(state)) throw new TypeError("ADN State requis pour sélectionner les verrous.");
+  if (!state.intent || !state.executability || !state.discipline || !state.completeness || !state.compliance || !state.evidence) {
+    throw new TypeError("ADN State incomplet pour la sélection adaptative.");
+  }
+}
+
+function ids(items) {
+  return uniqueStrings(list(items).map((item) => item?.id));
+}
+
+function quantitySourceIds(state) {
+  const result = [];
+  for (const quantity of list(state.completeness?.quantities)) {
+    if (quantity?.id) result.push(quantity.id);
+    result.push(...list(quantity?.obligation_ids));
+  }
+  return uniqueStrings(result);
+}
+
+function checksForObligations(state, obligationIds) {
+  const wanted = new Set(obligationIds);
+  return uniqueStrings(list(state.compliance?.checks)
+    .filter((check) => list(check?.obligation_ids).some((id) => wanted.has(id)))
+    .map((check) => check?.id));
+}
+
+function deterministicCandidates(state) {
+  const candidates = [];
+  const exploitable = state.executability.state === "exploitable";
+  const output = state.compliance.output || {};
+
+  // Le rôle reste proportionné : il devient utile seulement lorsqu'un livrable explicite existe.
+  if (text(state.intent.deliverable)) {
+    candidates.push({
+      id: "role",
+      reason: "Un livrable explicite est identifié ; un cadrage fonctionnel aide à orienter la production vers ce livrable.",
+      priority: "useful",
+      source: "runtime",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  if (text(state.intent.recipient)) {
+    candidates.push({
+      id: "recipient",
+      reason: "Le destinataire est explicitement connu et peut matériellement influencer le registre ou la technicité.",
+      priority: "mandatory",
+      source: "user",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  const materialIds = ids(state.evidence.material_facts);
+  if (materialIds.length) {
+    candidates.push({
+      id: "data",
+      reason: "Du matériau fourni doit rester distingué des instructions.",
+      priority: "mandatory",
+      source: "material",
+      source_ids: materialIds,
+      associated_checks: []
+    });
+  }
+
+  const provenanceIds = uniqueStrings([
+    ...materialIds,
+    ...ids(state.evidence.deductions),
+    ...ids(state.evidence.user_facts)
+  ]);
+  if (materialIds.length || state.evidence.external_knowledge_needed === true || state.evidence.freshness_needed === true || ids(state.evidence.deductions).length) {
+    candidates.push({
+      id: "provenance",
+      reason: "Le statut ou l'origine des informations influence la fiabilité ou la conduite de l'exécution.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: provenanceIds,
+      associated_checks: []
+    });
+  }
+
+  if (list(output.structure).length) {
+    candidates.push({
+      id: "plan",
+      reason: "Une structure de sortie explicite doit être préservée.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  if (text(output.format)) {
+    candidates.push({
+      id: "format",
+      reason: "Un format de sortie explicite constitue une contrainte opposable.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  const quantityIds = quantitySourceIds(state);
+  if (list(state.completeness.quantities).length) {
+    candidates.push({
+      id: "volume",
+      reason: "Une ou plusieurs contraintes quantitatives doivent être rendues vérifiables.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: quantityIds,
+      associated_checks: checksForObligations(state, quantityIds)
+    });
+  }
+
+  if (text(output.opening) || text(output.closing)) {
+    candidates.push({
+      id: "opening_closing",
+      reason: "Une amorce ou une clôture explicite borne le livrable.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  if (exploitable && list(state.discipline.forbidden_behaviors).length) {
+    candidates.push({
+      id: "forbidden",
+      reason: "Des comportements parasites sont explicitement interdits pendant l'exécution.",
+      priority: "mandatory",
+      source: "system",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  const assumptionIds = uniqueStrings([
+    ...ids(state.assumptions),
+    ...ids(state.executability.substitutable_missing)
+  ]);
+  if (assumptionIds.length) {
+    candidates.push({
+      id: "assumptions",
+      reason: "Des hypothèses ou informations substituables doivent rester explicites sans devenir des faits.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: assumptionIds,
+      associated_checks: []
+    });
+  }
+
+  if (text(output.length_policy)) {
+    candidates.push({
+      id: "length",
+      reason: "Une politique de longueur ou de reprise est explicitement définie.",
+      priority: "mandatory",
+      source: "runtime",
+      source_ids: [],
+      associated_checks: []
+    });
+  }
+
+  if (exploitable) {
+    candidates.push({
+      id: "final_check",
+      reason: "Tout livrable exécutable doit être contrôlé avant livraison conformément à l'ADN Atelier.",
+      priority: "mandatory",
+      source: "system",
+      source_ids: [],
+      associated_checks: ids(state.compliance.checks)
+    });
+  }
+
+  return candidates;
+}
+
+function mergeCandidate(map, candidate, origin) {
+  const previous = map.get(candidate.id);
+  const normalized = {
+    id: candidate.id,
+    reason: text(candidate.reason) || "Risque structurel identifié par le sélecteur adaptatif.",
+    priority: PRIORITIES.has(candidate.priority) ? candidate.priority : "useful",
+    source: SOURCES.has(candidate.source) ? candidate.source : "runtime",
+    source_ids: uniqueStrings(candidate.source_ids),
+    associated_checks: uniqueStrings(candidate.associated_checks),
+    active: true,
+    origins: [origin]
+  };
+  if (!previous) {
+    map.set(candidate.id, normalized);
+    return;
+  }
+  previous.reason = previous.reason === normalized.reason ? previous.reason : `${previous.reason} ${normalized.reason}`.trim();
+  previous.priority = previous.priority === "mandatory" || normalized.priority === "mandatory" ? "mandatory" : "useful";
+  previous.source = previous.source === normalized.source ? previous.source : "runtime";
+  previous.source_ids = uniqueStrings([...previous.source_ids, ...normalized.source_ids]);
+  previous.associated_checks = uniqueStrings([...previous.associated_checks, ...normalized.associated_checks]);
+  previous.origins = uniqueStrings([...previous.origins, origin]);
+}
+
+/**
+ * Sélectionne les verrous à partir des propriétés structurelles de l'ADN State.
+ * `semantic_signals` est une interface générique optionnelle pour les besoins
+ * non déductibles de façon déterministe (ex. scope). Aucun domaine métier n'est requis.
+ */
+function selectAdaptiveLocks(state, { semantic_signals = [] } = {}) {
+  assertAdnStateShape(state);
+  const selected = new Map();
+
+  for (const candidate of deterministicCandidates(state)) {
+    mergeCandidate(selected, candidate, "deterministic");
+  }
+
+  const normalizedSignals = list(semantic_signals).map(normalizeSignal);
+  for (const signal of normalizedSignals) {
+    if (!signal.needed) continue;
+    mergeCandidate(selected, signal, "semantic_signal");
+  }
+
+  const locks = ADAPTIVE_LOCK_IDS.filter((id) => selected.has(id)).map((id) => selected.get(id));
+  const selectedSet = new Set(locks.map((lock) => lock.id));
+  const decisions = ADAPTIVE_LOCK_IDS.map((id) => ({
+    id,
+    selected: selectedSet.has(id),
+    origins: selected.get(id)?.origins || [],
+    reason: selected.get(id)?.reason || "Aucun besoin structurel ou signal sémantique n'impose ce verrou dans l'état courant."
+  }));
+
+  return clone({
+    version: ADAPTIVE_LOCK_SELECTOR_VERSION,
+    request_id: text(state.request_id) || null,
+    locks,
+    decisions,
+    metrics: {
+      selected_count: locks.length,
+      available_count: ADAPTIVE_LOCK_IDS.length,
+      proportionality_ratio: Number((locks.length / ADAPTIVE_LOCK_IDS.length).toFixed(4))
+    }
+  });
+}
+
+function validateAdaptiveLockSelection(selection) {
+  if (!selection || typeof selection !== "object" || Array.isArray(selection)) throw new TypeError("Sélection adaptative requise.");
+  if (selection.version !== ADAPTIVE_LOCK_SELECTOR_VERSION) throw new TypeError("Version Adaptive Lock Selector incompatible.");
+  const locks = list(selection.locks);
+  const seen = new Set();
+  for (const lock of locks) {
+    if (!LOCK_SET.has(lock?.id)) throw new TypeError(`Verrou adaptatif inconnu : ${lock?.id}.`);
+    if (seen.has(lock.id)) throw new TypeError(`Verrou dupliqué : ${lock.id}.`);
+    seen.add(lock.id);
+    if (!text(lock.reason)) throw new TypeError(`Le verrou ${lock.id} doit être justifié.`);
+    if (!PRIORITIES.has(lock.priority)) throw new TypeError(`Priorité invalide pour ${lock.id}.`);
+    if (!SOURCES.has(lock.source)) throw new TypeError(`Source invalide pour ${lock.id}.`);
+    if (lock.active !== true) throw new TypeError(`Un verrou sélectionné doit être actif : ${lock.id}.`);
+  }
+  if (list(selection.decisions).length !== ADAPTIVE_LOCK_IDS.length) throw new TypeError("Les 13 décisions de verrou doivent être auditables.");
+  return clone(selection);
+}
+
+function applyAdaptiveLocksToExecutionSnapshot(state, selectorOptions = {}, snapshotExtras = {}) {
+  const selection = selectAdaptiveLocks(state, selectorOptions);
+  validateAdaptiveLockSelection(selection);
+  return {
+    ...clone(snapshotExtras),
+    locks: selection.locks.map(({ origins, ...lock }) => clone(lock)),
+    lock_selection_audit: clone(selection)
+  };
+}
+
+function createAdaptiveLockAuditView(selection) {
+  validateAdaptiveLockSelection(selection);
+  return {
+    version: selection.version,
+    request_id: selection.request_id,
+    selected_ids: selection.locks.map((lock) => lock.id),
+    selected_count: selection.metrics.selected_count,
+    proportionality_ratio: selection.metrics.proportionality_ratio,
+    decisions: selection.decisions.map(({ id, selected, origins }) => ({ id, selected, origins: clone(origins) }))
+  };
+}
+
+return {ADAPTIVE_LOCK_SELECTOR_VERSION,ADAPTIVE_LOCK_IDS,selectAdaptiveLocks,validateAdaptiveLockSelection,applyAdaptiveLocksToExecutionSnapshot,createAdaptiveLockAuditView};
+})();
+const ROUTING=(()=>{
+const ROUTING_ENGINE_VERSION = "1.0";
+
+const ROUTING_ENGINES = Object.freeze(["rapide", "architecte"]);
+
+const PREPARATION_SIGNAL_IDS = Object.freeze([
+  "strategy_design",
+  "dependent_components",
+  "constraint_arbitration",
+  "linked_scenarios",
+  "architecture_coordination",
+  "research_planning"
+]);
+
+const PREPARATION_SIGNAL_SET = new Set(PREPARATION_SIGNAL_IDS);
+const ROUTE_SET = new Set(ROUTING_ENGINES);
+const PROVIDER_SOURCES = new Set(["workers-ai", "groq", "local-prudent", "none", null]);
+const CONFIDENCE = new Set(["high", "medium"]);
+
+function clone(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function list(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function uniqueStrings(items) {
+  return [...new Set(list(items).filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim()))];
+}
+
+function assertAdnState(state) {
+  if (!state || typeof state !== "object" || Array.isArray(state)) {
+    throw new TypeError("ADN State requis pour le Routing Engine.");
+  }
+  if (!state.executability || !state.intent || !state.completeness || !state.compliance || !state.discipline) {
+    throw new TypeError("ADN State incomplet pour le Routing Engine.");
+  }
+  if (!["exploitable", "clarification_necessaire"].includes(state.executability.state)) {
+    throw new TypeError("État d'exécutabilité invalide pour le Routing Engine.");
+  }
+}
+
+function normalizePreparationSignal(signal) {
+  if (!signal || typeof signal !== "object" || Array.isArray(signal)) {
+    throw new TypeError("Un signal de préparation doit être un objet.");
+  }
+  const id = text(signal.id);
+  if (!PREPARATION_SIGNAL_SET.has(id)) {
+    throw new TypeError(`Signal de préparation inconnu : ${id || "(vide)"}.`);
+  }
+  return {
+    id,
+    needed: signal.needed !== false,
+    reason: text(signal.reason) || "Besoin de préparation identifié.",
+    source: text(signal.source) || "runtime",
+    source_ids: uniqueStrings(signal.source_ids)
+  };
+}
+
+function normalizeProviderDecision(providerDecision) {
+  if (!providerDecision) return null;
+  if (typeof providerDecision !== "object" || Array.isArray(providerDecision)) {
+    throw new TypeError("Décision provider invalide.");
+  }
+  const state = providerDecision.etat_demande;
+  const route = providerDecision.route ?? null;
+  const confidence = providerDecision.confiance === "haute" || providerDecision.confiance === "high" ? "high" : "medium";
+  if (!["exploitable", "clarification_necessaire"].includes(state)) {
+    throw new TypeError("État provider invalide.");
+  }
+  if (state === "clarification_necessaire" && route !== null) {
+    throw new TypeError("Une clarification provider exige route=null.");
+  }
+  if (state === "exploitable" && !ROUTE_SET.has(route)) {
+    throw new TypeError("Une décision provider exploitable exige une route.");
+  }
+  return {
+    etat_demande: state,
+    route,
+    confidence,
+    reason: text(providerDecision.raison_interne)
+  };
+}
+
+function preparationEvidence(signals) {
+  return signals.filter((signal) => signal.needed).map((signal) => ({
+    id: signal.id,
+    reason: signal.reason,
+    source: signal.source,
+    source_ids: clone(signal.source_ids)
+  }));
+}
+
+function routeReason(route, mode) {
+  if (route === "architecte") {
+    return mode === "provider"
+      ? "Le provider a identifié un besoin réel de préparation avant exécution."
+      : "La demande exploitable requiert une préparation préalable substantielle : stratégie, dépendances, arbitrages, scénarios liés, architecture ou planification de recherche.";
+  }
+  return mode === "provider"
+    ? "Le provider a identifié une exécution directe sans préparation structurelle préalable."
+    : "Aucun besoin de préparation substantielle n'est établi ; l'exécution directe est proportionnée.";
+}
+
+/**
+ * Routing Engine universel.
+ *
+ * Principes :
+ * - clarification => aucune route ;
+ * - un succès provider valide est conservé comme signal sémantique autoritaire du runtime actuel ;
+ * - une indisponibilité provider n'est JAMAIS interprétée comme de la complexité ;
+ * - en fallback, Architecte n'est choisi que si un besoin de préparation est positivement établi ;
+ * - longueur, domaine, nombre de sections, quantité ou nombre de verrous ne suffisent jamais à eux seuls.
+ */
+function routeExecution(state, {
+  provider_decision = null,
+  provider_source = null,
+  provider_available = provider_decision !== null,
+  preparation_signals = []
+} = {}) {
+  assertAdnState(state);
+
+  const source = provider_source ?? null;
+  if (!PROVIDER_SOURCES.has(source)) {
+    throw new TypeError(`Source provider inconnue : ${source}.`);
+  }
+
+  const provider = normalizeProviderDecision(provider_decision);
+  const signals = list(preparation_signals).map(normalizePreparationSignal);
+  const activePreparation = preparationEvidence(signals);
+
+  if (state.executability.state === "clarification_necessaire") {
+    return clone({
+      version: ROUTING_ENGINE_VERSION,
+      request_id: text(state.request_id) || null,
+      route: null,
+      confidence: state.executability.confidence === "high" ? "high" : "medium",
+      mode: "clarification",
+      reason: "La demande n'est pas encore exploitable ; aucune route d'exécution ne doit être choisie.",
+      provider: {
+        source,
+        available: provider_available === true,
+        decision_used: false
+      },
+      preparation: {
+        required: false,
+        signals: activePreparation
+      },
+      invariants: {
+        provider_failure_is_not_complexity: true,
+        length_is_not_complexity: true,
+        domain_is_not_route: true,
+        lock_count_is_not_route: true
+      }
+    });
+  }
+
+  // Un provider ayant effectivement rendu une décision exploitable reste la source
+  // sémantique du runtime courant. 3E ne réécrit pas encore le provider.
+  if (provider_available === true && provider && provider.etat_demande === "exploitable") {
+    return clone({
+      version: ROUTING_ENGINE_VERSION,
+      request_id: text(state.request_id) || null,
+      route: provider.route,
+      confidence: provider.confidence,
+      mode: "provider",
+      reason: routeReason(provider.route, "provider"),
+      provider: {
+        source,
+        available: true,
+        decision_used: true
+      },
+      preparation: {
+        required: provider.route === "architecte",
+        signals: activePreparation
+      },
+      invariants: {
+        provider_failure_is_not_complexity: true,
+        length_is_not_complexity: true,
+        domain_is_not_route: true,
+        lock_count_is_not_route: true
+      }
+    });
+  }
+
+  // Fallback proportionné : l'échec technique du classifieur ne vaut pas preuve de
+  // complexité. Architecte exige un signal positif de préparation.
+  const needsPreparation = activePreparation.length > 0;
+  const route = needsPreparation ? "architecte" : "rapide";
+
+  return clone({
+    version: ROUTING_ENGINE_VERSION,
+    request_id: text(state.request_id) || null,
+    route,
+    confidence: needsPreparation ? "medium" : "medium",
+    mode: "structural-fallback",
+    reason: routeReason(route, "structural-fallback"),
+    provider: {
+      source,
+      available: false,
+      decision_used: false
+    },
+    preparation: {
+      required: needsPreparation,
+      signals: activePreparation
+    },
+    invariants: {
+      provider_failure_is_not_complexity: true,
+      length_is_not_complexity: true,
+      domain_is_not_route: true,
+      lock_count_is_not_route: true
+    }
+  });
+}
+
+function validateRoutingDecision(decision) {
+  if (!decision || typeof decision !== "object" || Array.isArray(decision)) {
+    throw new TypeError("Décision de routage requise.");
+  }
+  if (decision.version !== ROUTING_ENGINE_VERSION) throw new TypeError("Version Routing Engine incompatible.");
+  if (decision.route !== null && !ROUTE_SET.has(decision.route)) throw new TypeError("Route universelle invalide.");
+  if (!CONFIDENCE.has(decision.confidence)) throw new TypeError("Confiance de routage invalide.");
+  if (!["clarification", "provider", "structural-fallback"].includes(decision.mode)) throw new TypeError("Mode de routage invalide.");
+  if (decision.mode === "clarification" && decision.route !== null) throw new TypeError("Une clarification ne doit pas router.");
+  if (decision.mode === "structural-fallback" && decision.provider.available !== false) throw new TypeError("Le fallback structurel exige un provider indisponible.");
+  if (decision.route === "architecte" && decision.mode === "structural-fallback" && decision.preparation.signals.length === 0) {
+    throw new TypeError("Architecte en fallback exige une preuve positive de préparation.");
+  }
+  if (decision.invariants.provider_failure_is_not_complexity !== true
+      || decision.invariants.domain_is_not_route !== true
+      || decision.invariants.length_is_not_complexity !== true
+      || decision.invariants.lock_count_is_not_route !== true) {
+    throw new TypeError("Les invariants universels de routage doivent rester actifs.");
+  }
+  return clone(decision);
+}
+
+function createRoutingAuditView(decision) {
+  validateRoutingDecision(decision);
+  return {
+    version: decision.version,
+    request_id: decision.request_id,
+    route: decision.route,
+    confidence: decision.confidence,
+    mode: decision.mode,
+    provider: clone(decision.provider),
+    preparation_required: decision.preparation.required,
+    preparation_signal_ids: decision.preparation.signals.map((signal) => signal.id),
+    invariants: clone(decision.invariants)
+  };
+}
+
+return {ROUTING_ENGINE_VERSION,ROUTING_ENGINES,PREPARATION_SIGNAL_IDS,routeExecution,validateRoutingDecision,createRoutingAuditView};
+})();
+const ADAPTERS=((deps)=>{
+const {buildAdnState,adnStateToExecutionContractSnapshot,selectAdaptiveLocks,validateAdaptiveLockSelection,routeExecution,validateRoutingDecision}=deps;
+
+
+
+const ENGINE_ADAPTERS_VERSION = '1.0';
+
+const LEGACY_LOCK_MAP = Object.freeze({
+  role: 'role',
+  recipient: 'destinataire',
+  data: 'donnees',
+  provenance: 'provenance',
+  scope: 'perimetre',
+  plan: 'gabarit',
+  format: 'format',
+  volume: 'volume',
+  opening_closing: 'amorce',
+  forbidden: 'interdits',
+  assumptions: 'hypotheses',
+  length: 'longueur',
+  final_check: 'controle'
+});
+
+function clone(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function text(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function list(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function uniqueStrings(items) {
+  return [...new Set(list(items).filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()))];
+}
+
+function normalizeProvider(providerResult) {
+  if (!providerResult || typeof providerResult !== 'object') {
+    return { available: false, source: null, decision: null };
+  }
+  const source = text(providerResult.source) || null;
+  const available = source !== 'local-prudent' && providerResult.decision && typeof providerResult.decision === 'object';
+  return { available, source, decision: available ? clone(providerResult.decision) : null };
+}
+
+function fallbackDecision(providerResult) {
+  const raw = providerResult?.decision;
+  if (raw?.etat_demande === 'clarification_necessaire') return clone(raw);
+  return {
+    etat_demande: 'exploitable',
+    route: 'rapide',
+    confiance: 'moyenne',
+    raison_interne: 'Fallback structurel : aucune preuve de préparation substantielle n’est disponible.',
+    question: null
+  };
+}
+
+function buildExecutionEnvelope({
+  request,
+  material = '',
+  provider_result = null,
+  intent = {},
+  evidence = {},
+  executability = {},
+  assumptions = [],
+  obligations = [],
+  quantities = [],
+  output = {},
+  checks = [],
+  discipline = {},
+  semantic_lock_signals = [],
+  preparation_signals = []
+} = {}) {
+  const originalRequest = text(request);
+  if (!originalRequest) throw new TypeError('Une demande est requise pour construire l’enveloppe d’exécution.');
+
+  const provider = normalizeProvider(provider_result);
+  const decisionForState = provider.available ? provider.decision : fallbackDecision(provider_result);
+
+  const state = buildAdnState({
+    demande: originalRequest,
+    decision: decisionForState,
+    intent,
+    evidence: {
+      ...clone(evidence),
+      material_facts: list(evidence.material_facts).length
+        ? clone(evidence.material_facts)
+        : (text(material) ? [{ text: 'Matériau utilisateur présent.' }] : [])
+    },
+    executability,
+    assumptions,
+    obligations,
+    quantities,
+    output,
+    checks,
+    discipline
+  });
+
+  const locks = selectAdaptiveLocks(state, { semantic_signals: semantic_lock_signals });
+  validateAdaptiveLockSelection(locks);
+
+  const routing = routeExecution(state, {
+    provider_decision: provider.decision,
+    provider_source: provider.source,
+    provider_available: provider.available,
+    preparation_signals
+  });
+  validateRoutingDecision(routing);
+
+  const contract = adnStateToExecutionContractSnapshot(state, {
+    version: '1.0',
+    locks: locks.locks.map((lock) => ({
+      id: lock.id,
+      reason: lock.reason,
+      priority: lock.priority,
+      source: lock.source,
+      source_ids: clone(lock.source_ids),
+      associated_checks: clone(lock.associated_checks)
+    })),
+    execution_policy: {
+      execute_now: state.discipline.execute_now,
+      comfort_questions_forbidden: state.discipline.comfort_questions_forbidden,
+      meta_discussion_forbidden: state.discipline.meta_discussion_forbidden,
+      complete_delivery_required: state.discipline.complete_delivery_required,
+      final_injunction_active: state.discipline.final_injunction_active
+    },
+    routing: {
+      engine: routing.route,
+      reason: routing.reason,
+      confidence: routing.confidence,
+      mode: routing.mode
+    },
+    ethics: clone(state.ethics),
+    adn_summary: {
+      properties: clone(state.properties),
+      techniques: clone(state.techniques)
+    }
+  });
+
+  return clone({
+    version: ENGINE_ADAPTERS_VERSION,
+    state,
+    locks,
+    routing,
+    contract
+  });
+}
+
+function baseProjection(envelope) {
+  if (!envelope || typeof envelope !== 'object' || envelope.version !== ENGINE_ADAPTERS_VERSION) {
+    throw new TypeError('Enveloppe d’exécution ADN invalide.');
+  }
+  return {
+    request_id: envelope.state.request_id,
+    request: envelope.state.original_request,
+    route: envelope.routing.route,
+    execution_policy: clone(envelope.contract.execution_policy),
+    legacy_lock_ids: envelope.locks.locks.map((lock) => LEGACY_LOCK_MAP[lock.id]).filter(Boolean),
+    lock_ids: envelope.locks.locks.map((lock) => lock.id),
+    contract: clone(envelope.contract)
+  };
+}
+
+function projectToRapide(envelope, { material = '', format = null, level = null } = {}) {
+  const base = baseProjection(envelope);
+  if (base.route !== 'rapide') throw new TypeError('La projection Rapide exige route=rapide.');
+  return clone({
+    ...base,
+    engine: 'rapide',
+    material: text(material),
+    format: text(format) || envelope.state.compliance.output.format || null,
+    level: text(level) || null
+  });
+}
+
+function projectToArchitecte(envelope, { material = '', preferences = '' } = {}) {
+  const base = baseProjection(envelope);
+  if (base.route !== 'architecte') throw new TypeError('La projection Architecte exige route=architecte.');
+  return clone({
+    ...base,
+    engine: 'architecte',
+    material: text(material),
+    preferences: text(preferences),
+    contract_context: {
+      obligations: clone(envelope.contract.obligations),
+      assumptions: clone(envelope.contract.assumptions),
+      quantities: clone(envelope.contract.quantities),
+      output: clone(envelope.contract.output),
+      locks: clone(envelope.contract.locks)
+    }
+  });
+}
+
+function projectToAtelier(envelope, { material = '' } = {}) {
+  const base = baseProjection(envelope);
+  return clone({
+    ...base,
+    engine: 'atelier',
+    material: text(material),
+    user_controlled: true
+  });
+}
+
+function validateLegacyLockMapping() {
+  const expected = [
+    'role','destinataire','donnees','provenance','perimetre','gabarit','format',
+    'volume','amorce','interdits','hypotheses','longueur','controle'
+  ];
+  const actual = Object.values(LEGACY_LOCK_MAP);
+  if (expected.length !== actual.length || expected.some((id) => !actual.includes(id))) {
+    throw new TypeError('Le mapping des 13 verrous vers le runtime historique est incomplet.');
+  }
+  return clone(LEGACY_LOCK_MAP);
+}
+
+function createAdapterAuditView(envelope) {
+  const base = baseProjection(envelope);
+  return {
+    version: envelope.version,
+    request_id: base.request_id,
+    route: base.route,
+    lock_ids: clone(base.lock_ids),
+    legacy_lock_ids: clone(base.legacy_lock_ids),
+    execution_policy: clone(base.execution_policy),
+    properties: clone(envelope.state.properties),
+    techniques: clone(envelope.state.techniques)
+  };
+}
+
+return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
+})({...ADN,...LOCKS,...ROUTING});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...ADAPTERS,source_sha256:'c724fa2c69a9c154f7667ed7e7c6373035a9b500ba8f37f90229662de3fba908'});
+})(window);
+
+
 /* ---------------------------------------------------------------------- *
  * V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE
  * Middleware d'orchestration EXTERNE aux trois moteurs.
@@ -9828,7 +11122,71 @@ const ADP10G=Object.freeze({
   })
 });
 const ADP_REASONS=Object.freeze({clarification:'La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.',rapide:'La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.',architecte:'La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.'});
-const adpState={pendingQuestion:false,clarifications:0,last:null,running:false,returnFocus:null};
+const adpState={pendingQuestion:false,clarifications:0,last:null,lastEnvelope:null,lastProjection:null,running:false,returnFocus:null};
+const ADP_ADN_RUNTIME_VERSION='10G.3B.3F';
+function adnRuntime(){
+  const runtime=window.__ATELIER_ADN_RUNTIME__;
+  if(!runtime||typeof runtime.buildExecutionEnvelope!=='function')throw new Error('Le runtime ADN n’est pas disponible.');
+  return runtime;
+}
+function adnBuildEnvelope(demande,materiau,providerResult,extras={}){
+  const runtime=adnRuntime();
+  return runtime.buildExecutionEnvelope({
+    request:String(demande||'').trim(),
+    material:String(materiau||''),
+    provider_result:providerResult||null,
+    intent:extras.intent||{},
+    evidence:extras.evidence||{},
+    executability:extras.executability||{},
+    assumptions:extras.assumptions||[],
+    obligations:extras.obligations||[],
+    quantities:extras.quantities||[],
+    output:extras.output||{},
+    checks:extras.checks||[],
+    discipline:extras.discipline||{},
+    semantic_lock_signals:extras.semantic_lock_signals||[],
+    preparation_signals:extras.preparation_signals||[]
+  });
+}
+function adnManualEnvelope(demande,materiau,route){
+  return adnBuildEnvelope(demande,materiau,{source:'none',decision:{etat_demande:'exploitable',route:route,confiance:'haute',raison_interne:'Choix explicite de l’utilisateur.',question:null}});
+}
+function adnQuantitiesFromRapid(ctx){
+  if(!ctx||!ctx.quantiteExplicite||!ctx.quantite)return [];
+  const q=ctx.quantite;
+  return [{target:ctx.fmt&&ctx.fmt.unite?ctx.fmt.unite:'éléments',unit:ctx.fmt&&ctx.fmt.unite?ctx.fmt.unite:'éléments',exact:Number.isInteger(q.exact)?q.exact:null,min:Number.isInteger(q.min)?q.min:null,max:Number.isInteger(q.max)?q.max:null}];
+}
+function adnRefineRapidEnvelope(r,orientation,materiau){
+  if(!r||!r.ctx)return orientation&&orientation.envelope||null;
+  const ctx=r.ctx,legacy=typeof contratDuPrompt==='function'?contratDuPrompt(ctx,r.actifs||[]):null;
+  const providerResult=orientation&&orientation.providerResult||null;
+  return adnBuildEnvelope(ctx.demande,materiau,providerResult,{
+    intent:{deliverable:'Livrable au format '+String(ctx.format||'texte'),recipient:ctx.destinataire||null},
+    quantities:adnQuantitiesFromRapid(ctx),
+    output:{format:ctx.format||null,structure:ctx.gabarit?String(ctx.gabarit).split(/\n+/).map(x=>x.trim()).filter(Boolean):[],opening:ctx.fmt&&ctx.fmt.debut||null,closing:ctx.fmt&&ctx.fmt.fin||null,length_policy:ctx.mots?'Cible indicative : '+ctx.mots+' mots':null},
+    checks:legacy?[{id:'CHK-LEGACY-CONTRACT',type:'manual',target:'deliverable',rule:'Vérifier le livrable contre le contrat historique figé.',blocking:false}]:[]
+  });
+}
+function adnMergeLegacyLocks(existing,projection){
+  const merged=[];
+  [...(Array.isArray(existing)?existing:[]),...(projection&&Array.isArray(projection.legacy_lock_ids)?projection.legacy_lock_ids:[])].forEach(id=>{if(id&&!merged.includes(id))merged.push(id)});
+  return merged;
+}
+function adnCompactContractForArchitecte(){
+  const env=adpState.lastEnvelope;
+  if(!env||!env.contract)return null;
+  return {
+    version:env.contract.version||'1.0',
+    request_id:env.contract.request_id,
+    obligations:(env.contract.obligations||[]).map(x=>({text:x.text,source:x.source,mandatory:x.mandatory})),
+    quantities:env.contract.quantities||[],
+    assumptions:env.contract.assumptions||[],
+    output:env.contract.output||{},
+    locks:(env.contract.locks||[]).map(x=>({id:x.id,priority:x.priority,reason:x.reason})),
+    execution_policy:env.contract.execution_policy||{},
+    ethics:env.contract.ethics||{}
+  };
+}
 function adpEndpointValide(value){
   const url=String(value||'').trim();
   return /^https:\/\//i.test(url)&&!url.includes('REMPLACER')?url:'';
@@ -9934,12 +11292,17 @@ async function adpDecideRapide(demande,materiau){
   adpShowThinking();
   const result=await askDecisionProvider({demande,materiau_present:state.docs.length>0||!!String(materiau||'').trim(),mode_demande:'rapide'});
   const sem=result.decision;adpState.last=sem;
-  if(sem.etat_demande==='clarification_necessaire')return {source:result.source,route:null,decision:null,semantic:sem};
-  if(sem.route==='rapide'){
+  let envelope;
+  try{envelope=adnBuildEnvelope(demande,materiau,result)}catch(error){console.warn('Runtime ADN indisponible, décision historique conservée.',error);envelope=null}
+  if(envelope)adpState.lastEnvelope=envelope;
+  if(sem.etat_demande==='clarification_necessaire')return {source:result.source,route:null,decision:null,semantic:sem,envelope,providerResult:result};
+  let route=envelope&&envelope.routing?envelope.routing.route:sem.route;
+  if(sem.route==='rapide'){if(!envelope)route='rapide'} /* compatibilité : si le bundle ADN est indisponible, la décision provider reste autoritaire */
+  if(route==='rapide'){
     const decision={state:'ready',title:'Demande prête',text:'Votre demande est suffisamment définie pour être préparée directement.'};
-    return {source:result.source,route:'rapide',decision,semantic:sem};
+    return {source:result.source,route:'rapide',decision,semantic:sem,envelope,providerResult:result};
   }
-  return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Préparation approfondie',text:'Votre demande est suffisamment définie et gagnera à être structurée.'},semantic:sem};
+  return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Préparation approfondie',text:'Votre demande est suffisamment définie et nécessite une préparation structurée.'},semantic:sem,envelope,providerResult:result};
 }
 function adpRunRapide(demande,materiau,orientation){
   adpState.pendingQuestion=false;show(null);
@@ -9949,6 +11312,16 @@ function adpRunRapide(demande,materiau,orientation){
   if(rt){rt.value=materiau;rt.dispatchEvent(new Event('input',{bubbles:true}))}
   if(typeof assemblerRapideAdaptatif!=='function')throw new Error('Le moteur Rapide n’est pas disponible.');
   const r=assemblerRapideAdaptatif();if(!r)return false;
+  try{
+    const refined=adnRefineRapidEnvelope(r,orientation,materiau);
+    if(refined){
+      const projection=adnRuntime().projectToRapide(refined,{material:materiau,format:r.ctx.format,level:r.niveau});
+      const actifs=adnMergeLegacyLocks(r.actifs,projection);
+      if(typeof assembler==='function'&&JSON.stringify(actifs)!==JSON.stringify(r.actifs)){r.actifs=actifs;r.prompt=assembler(r.ctx,actifs)}
+      adpState.lastEnvelope=refined;adpState.lastProjection=projection;
+    }
+  }catch(error){console.warn('Adapter Rapide ADN non appliqué ; moteur historique conservé.',error)}
+  if(typeof contratDuPrompt==='function')etat.contrat=contratDuPrompt(r.ctx,r.actifs);
   const out=$('#ui-rapid-output'),box=$('#ui-rapid-result'),tok=$('#ui-rapid-tokens');
   if(out)out.textContent=r.prompt;
   if(tok&&typeof fourchetteTokens==='function'){const f=fourchetteTokens(r.prompt);tok.textContent=f.bas.toLocaleString('fr-FR')+'–'+f.haut.toLocaleString('fr-FR')+' tokens estimés';}
@@ -9987,13 +11360,15 @@ async function v11StartRapide(){
   }finally{adpState.running=false}
 }
 function v11StartArchitecte(){
-  if(!v11RequireDemand())return false;
+  const d=v11RequireDemand();if(!d)return false;
+  try{adpState.lastEnvelope=adnManualEnvelope(d,materialText(),'architecte');adpState.lastProjection=adnRuntime().projectToArchitecte(adpState.lastEnvelope,{material:materialText()})}catch(error){console.warn('Adapter Architecte ADN non appliqué ; parcours historique conservé.',error)}
   beginExchange();
   return true;
 }
 function v11StartAtelier(){
   const d=v11RequireDemand();if(!d)return false;
   const mat=materialText();
+  try{const env=adnManualEnvelope(d,mat,'rapide');adpState.lastEnvelope=env;adpState.lastProjection=adnRuntime().projectToAtelier(env,{material:mat})}catch(error){console.warn('Adapter Atelier ADN non appliqué ; parcours historique conservé.',error)}
   const ad=$('#demande'),am=$('#materiau');
   if(ad){ad.value=d;ad.dispatchEvent(new Event('input',{bubbles:true}))}
   if(am){am.value=mat;am.dispatchEvent(new Event('input',{bubbles:true}))}
@@ -10008,6 +11383,7 @@ function v11StartAtelier(){
 window.askDecisionProvider=askDecisionProvider;
 window.__ADAPTIVE_DECISION_PIPELINE_10G__=Object.freeze({
   version:ADP10G.version,
+  adnRuntimeVersion:ADP_ADN_RUNTIME_VERSION,
   askDecisionProvider,
   decide:adpDecideRapide,
   get lastDecision(){return adpState.last}
