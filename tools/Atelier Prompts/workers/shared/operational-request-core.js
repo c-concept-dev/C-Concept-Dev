@@ -5,15 +5,20 @@ import {
   ISSUE_TYPES,
   CONFLICT_KINDS,
   PROVENANCE_VALUES,
+  OPERATIONAL_REQUEST_STATE_VERSION,
   normalizeCandidate,
   normalizeIssues,
-  normalizeProvenanceRecords
+  normalizeProvenanceRecords,
+  validateOriginalRequestRecord
 } from "../../core/adn/operational-request-state.js";
+import { DecisionHttpError, corsHeaders, jsonResponse, readJsonBody } from "./decision-core.js";
 
-// Prompts, schémas et validation locale des 3 rôles de l'OPRIE (CDC V1.1 §16-20).
-// Provider-agnostique par construction : aucun de ces exports ne référence Workers AI ni Groq.
-// Aucun appel réseau, aucun endpoint HTTP — cf. workers/workers-ai/, workers/groq/ pour le câblage
-// provider, qui n'est PAS livré dans ce sous-lot (3F.3.4).
+// Prompts, schémas, validation locale et câblage HTTP additif des 3 rôles de l'OPRIE (CDC V1.1
+// §16-20). Provider-agnostique par construction : aucun prompt, schéma ou validateur ci-dessous ne
+// référence Workers AI ni Groq — seuls workers/workers-ai/src/index.js et workers/groq/src/index.js
+// (3F.3.4) fournissent l'exécuteur concret par provider. corsHeaders/jsonResponse/readJsonBody/
+// DecisionHttpError sont réutilisés tels quels depuis decision-core.js (utilitaires HTTP génériques,
+// non spécifiques au Decision Provider legacy) : ce fichier ne le modifie jamais.
 
 export const OPERATIONAL_REQUEST_CORE_VERSION = "1.0";
 
@@ -538,3 +543,131 @@ export const ARBITER_JSON_SCHEMA = Object.freeze({
     reason: { type: "string" }
   }
 });
+
+// ---------------------------------------------------------------------------
+// Contrat de transport HTTP (3F.3.4) — commun aux 3 rôles, payload métier propre à chacun.
+// ---------------------------------------------------------------------------
+//
+// Chaque provider (workers-ai, groq) expose POST /analyst, POST /critic, POST /arbiter en plus de
+// sa route /decision historique, inchangée. handleRoleRequest ne dépend d'aucun provider : il
+// reçoit un exécuteur (execute) fourni par le worker appelant. Une panne technique (provider
+// indisponible, réponse non conforme au schéma) produit toujours une erreur HTTP explicite
+// ({error, message, role}) — jamais une valeur qui ressemblerait à un verdict sémantique
+// (operational_request_ready / clarification_required / blocked / degraded_state). degraded_state
+// n'est jamais produit ici : c'est à la couche d'orchestration appelante, pas à cet endpoint, de le
+// construire (createDegradedRoleResult) si elle choisit de basculer sur l'autre provider et que
+// celui-ci échoue aussi.
+
+function requireExactKeys(value, keys, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new DecisionHttpError(400, "invalid_input", `${label} doit être un objet.`);
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new DecisionHttpError(400, "invalid_input", `${label} contient des champs inattendus ou manquants.`);
+  }
+}
+
+function validateOriginalRequestAndHistory(value) {
+  try {
+    const record = validateOriginalRequestRecord({
+      version: OPERATIONAL_REQUEST_STATE_VERSION,
+      original_request: value.original_request,
+      clarification_history: value.clarification_history
+    });
+    return { original_request: record.original_request, clarification_history: record.clarification_history };
+  } catch (error) {
+    throw new DecisionHttpError(400, "invalid_input", error instanceof Error ? error.message : "original_request / clarification_history invalides.");
+  }
+}
+
+export function validateAnalystInput(value) {
+  requireExactKeys(value, ["original_request", "clarification_history"], "AnalystInput");
+  return validateOriginalRequestAndHistory(value);
+}
+
+export function validateCriticInput(value) {
+  requireExactKeys(value, ["original_request", "clarification_history", "analyst_output", "previous_vetoes"], "CriticInput");
+  const base = validateOriginalRequestAndHistory(value);
+  let analyst_output;
+  try {
+    analyst_output = validateAnalystOutput(value.analyst_output);
+  } catch (error) {
+    throw new DecisionHttpError(400, "invalid_input", `analyst_output invalide : ${error instanceof Error ? error.message : error}`);
+  }
+  if (!Array.isArray(value.previous_vetoes)) throw new DecisionHttpError(400, "invalid_input", "previous_vetoes doit être un tableau.");
+  return { ...base, analyst_output, previous_vetoes: value.previous_vetoes };
+}
+
+export function validateArbiterInput(value) {
+  requireExactKeys(value, ["original_request", "clarification_history", "analyst_output", "critic_output"], "ArbiterInput");
+  const base = validateOriginalRequestAndHistory(value);
+  let analyst_output;
+  let critic_output;
+  try {
+    analyst_output = validateAnalystOutput(value.analyst_output);
+  } catch (error) {
+    throw new DecisionHttpError(400, "invalid_input", `analyst_output invalide : ${error instanceof Error ? error.message : error}`);
+  }
+  try {
+    critic_output = validateCriticOutput(value.critic_output);
+  } catch (error) {
+    throw new DecisionHttpError(400, "invalid_input", `critic_output invalide : ${error instanceof Error ? error.message : error}`);
+  }
+  return { ...base, analyst_output, critic_output };
+}
+
+/**
+ * Registre des 3 rôles : un seul point qui associe rôle → prompt/schéma/message/parseur/validateur
+ * d'entrée. Un provider consomme ce registre pour exécuter n'importe quel rôle avec exactement le
+ * même prompt et le même schéma que les autres providers (CDC §16.1 : RÔLE ≠ PROVIDER).
+ */
+export const ROLE_DEFINITIONS = Object.freeze({
+  analyst: Object.freeze({
+    systemPrompt: ANALYST_SYSTEM_PROMPT,
+    schema: ANALYST_JSON_SCHEMA,
+    buildUserMessage: makeAnalystUserMessage,
+    parseOutput: parseAnalystOutput,
+    validateInput: validateAnalystInput
+  }),
+  critic: Object.freeze({
+    systemPrompt: CRITIC_SYSTEM_PROMPT,
+    schema: CRITIC_JSON_SCHEMA,
+    buildUserMessage: makeCriticUserMessage,
+    parseOutput: parseCriticOutput,
+    validateInput: validateCriticInput
+  }),
+  arbiter: Object.freeze({
+    systemPrompt: ARBITER_SYSTEM_PROMPT,
+    schema: ARBITER_JSON_SCHEMA,
+    buildUserMessage: makeArbiterUserMessage,
+    parseOutput: parseArbiterOutput,
+    validateInput: validateArbiterInput
+  })
+});
+
+/**
+ * Gestionnaire HTTP générique et provider-agnostique pour un rôle. `execute(input, env)` est fourni
+ * par le worker appelant (un exécuteur par provider) et doit retourner une sortie de rôle déjà
+ * validée (via parseOutput). Toute exception — validation d'entrée, panne provider, sortie non
+ * conforme — devient une réponse d'erreur technique explicite, jamais un pseudo-verdict.
+ */
+export async function handleRoleRequest(request, env, { role, execute }) {
+  if (!OPRIE_ROLES.includes(role)) throw new TypeError(`Rôle OPRIE inconnu : ${role}.`);
+  const url = new URL(request.url);
+  const cors = corsHeaders(request, env);
+  if (request.method === "OPTIONS") {
+    return cors ? new Response(null, { status: 204, headers: cors }) : jsonResponse({ error: "origin_not_allowed" }, 403, null);
+  }
+  if (url.pathname !== `/${role}`) return jsonResponse({ error: "not_found" }, 404, cors);
+  if (request.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, cors);
+  if (!cors) return jsonResponse({ error: "origin_not_allowed" }, 403, null);
+  try {
+    const input = ROLE_DEFINITIONS[role].validateInput(await readJsonBody(request));
+    const output = await execute(input, env);
+    return jsonResponse(output, 200, cors);
+  } catch (error) {
+    if (error instanceof DecisionHttpError) return jsonResponse({ error: error.code, message: error.message, role }, error.status, cors);
+    console.error(JSON.stringify({ event: "oprie_role_error", role, message: error instanceof Error ? error.message : "unknown" }));
+    return jsonResponse({ error: "role_provider_failure", message: "Le fournisseur de ce rôle n'est pas disponible.", role }, 502, cors);
+  }
+}
