@@ -23,8 +23,9 @@ Sur l'ensemble des 30 cas : succès Atelier 86.7 %, succès pur 100.0 %, exactit
 
 ## B. Résultats techniques
 
-- Workers AI primaire a renvoyé HTTP 502 sur toutes ses tentatives observées ; il n'a servi aucun cas.
-- Groq a servi les autres décisions quand il était disponible ; 12/30 cas ont fini sur le repli local prudent.
+- Workers AI primaire a renvoyé HTTP 502 sur ses 41 tentatives observées ; il n'a servi aucun cas.
+- Groq a répondu 200 à 29 tentatives et 502 à 12 ; 12/30 cas ont fini sur le repli local prudent.
+- Les 82 réponses API inspectées ont toutes retourné exactement `gpt-5.6-sol`.
 - Aucun HTTP 429 n'a été observé.
 - Quatre analyses Architecte (C03, C05, C09, C10) ont atteint `max_output_tokens` et n'ont pas produit un objet unique exploitable. Elles comptent comme erreurs Atelier, sans retry.
 - Trois demandes simples (S07, S08, S09) ont été routées vers Architecte au lieu de Rapide.
