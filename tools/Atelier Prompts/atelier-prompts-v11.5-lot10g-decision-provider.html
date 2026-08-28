@@ -9614,12 +9614,13 @@ async function beginApiAnalysis(){
   if(erreurs&&erreurs.length)throw new Error('L’analyse API ne respecte pas le contrat attendu : '+erreurs.join(' · '));
   const ok=api.importer(parsed);if(!ok)throw new Error('L’analyse API a été reçue mais n’a pas pu être importée.');
   const obj=api.analyse||parsed;state.analysis=obj;
-  const readiness=adnAssessArchitecteReadiness(obj);
-  if(readiness.state==='clarification_required'&&readiness.question){
-    showQuestion(readiness.question,obj.comprehension&&obj.comprehension.informations_manquantes||[]);return;
+  const readiness=adnAssessArchitecteReadiness(obj),action=adnNextConversationAction({readiness,requestedMode:'architecte'});
+  adpRecordConversationAction(action);
+  if(action.state==='clarification_required'&&action.question){
+    showQuestion(action.question,obj.comprehension&&obj.comprehension.informations_manquantes||[]);return;
   }
-  if(readiness.state!=='execution_ready'){
-    throw new Error('La demande n’est pas encore assez complète pour une exécution fiable, mais aucune nouvelle clarification exploitable n’a été produite. Relancez l’analyse ou précisez la demande.');
+  if(action.state!=='execution_ready'){
+    throw new Error(action.reason||'La demande n’est pas encore assez complète pour une exécution fiable, mais aucune nouvelle clarification exploitable n’a été produite.');
   }
   const prompt=api.compiler();if(!prompt)throw new Error('La demande a été comprise, mais le prompt final n’a pas pu être préparé.');
   $('#v11-final').value=adnAppendFinalExecutionDirective(prompt);show('#v11-ready','#v11-copy-final');
@@ -9817,12 +9818,13 @@ function useAnalysis(obj){
     throw new Error('Le fichier est reconnu, mais l’Atelier n’a pas réussi à poursuivre. Recommencez l’import ; si le problème persiste, ouvrez les détails de diagnostic.');
   }
   state.analysis=legacyObj;
-  const readiness=adnAssessArchitecteReadiness(legacyObj);
-  if(readiness.state==='clarification_required'&&readiness.question){
-    showQuestion(readiness.question,legacyObj.comprehension&&legacyObj.comprehension.informations_manquantes||[]);return;
+  const readiness=adnAssessArchitecteReadiness(legacyObj),action=adnNextConversationAction({readiness,requestedMode:'architecte'});
+  adpRecordConversationAction(action);
+  if(action.state==='clarification_required'&&action.question){
+    showQuestion(action.question,legacyObj.comprehension&&legacyObj.comprehension.informations_manquantes||[]);return;
   }
-  if(readiness.state!=='execution_ready'){
-    throw new Error('La demande n’est pas encore assez complète pour une exécution fiable, mais aucune nouvelle clarification exploitable n’a été produite. Relancez l’analyse ou précisez la demande.');
+  if(action.state!=='execution_ready'){
+    throw new Error(action.reason||'La demande n’est pas encore assez complète pour une exécution fiable, mais aucune nouvelle clarification exploitable n’a été produite.');
   }
   const prompt=api.compiler();if(!prompt)throw new Error('La demande a été comprise, mais le résultat final n’a pas pu être préparé.');
   $('#v11-final').value=adnAppendFinalExecutionDirective(prompt);show('#v11-ready','#v11-copy-final');
@@ -9839,6 +9841,8 @@ function showQuestion(q,missing){
 function answerQuestion(answer){
   answer=String(answer||'').trim();if(!answer){toast('Répondez avec vos mots, ou choisissez « Je ne sais pas ».');return}
   state.answers.push({question:$('#v11-question').textContent,answer});
+  adpState.lastAnswerReceived=true;
+  adpState.lastProgressDetected=adpTexteQuestion(answer)!=='je ne sais pas';
   if(adpState&&adpState.pendingQuestion){
     adpState.pendingQuestion=false;
     syncLegacy();
@@ -9851,7 +9855,7 @@ function answerQuestion(answer){
 }
 function resetAll(){
   state.docs=[];state.answers=[];state.lastRequest=null;state.analysis=null;state.exchangeId=null;
-  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.last=null;adpState.lastEnvelope=null;adpState.lastProjection=null;adpState.running=false;adpState.returnFocus=null;}
+  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.last=null;adpState.lastEnvelope=null;adpState.lastProjection=null;adpState.lastAction=null;adpState.audit=[];adpState.requestedMode='rapide';adpState.lastAnswerReceived=false;adpState.lastProgressDetected=false;adpState.running=false;adpState.returnFocus=null;}
   state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';$('#v11-demande').value='';renderFiles();$('#v11-final').value='';show(null);
   if(window.__ARCHITECTE_V10__&&window.__ARCHITECTE_V10__.nouvelleDemande)try{window.__ARCHITECTE_V10__.nouvelleDemande()}catch(e){}
 }
