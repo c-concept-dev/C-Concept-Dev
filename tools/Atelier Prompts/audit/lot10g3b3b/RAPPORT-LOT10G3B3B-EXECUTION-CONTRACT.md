@@ -11,20 +11,21 @@
 - Validations d'invariants au-delà du schéma.
 - Sérialisation, parsing, canonicalisation et hash SHA-256.
 - Mapping des cinq propriétés, neuf techniques et treize verrous.
-- Chaîne de traçabilité `REQ → obligation → quantité → verrou → contrôle`.
+- Chaîne de traçabilité `REQ → OBL → quantité → verrou → contrôle`.
 - Représentabilité de 50/50 cas sur les trois corpus décisionnels versionnés.
-- Cinq suites de tests dédiées, sans dépendance ni réseau.
+- Preuve explicite ADN **27/27** : cinq propriétés, neuf techniques et treize verrous.
+- Six suites de tests dédiées, sans dépendance ni réseau.
 
 ## Freeze
 
 - Branche : `main`
-- HEAD initial : `e53ad6a92bbb30a7ced742f6a75a3c1a463284a6`
+- HEAD initial : `96373bd18e56ac9c33ab802e37d2c7e8008c4cfa`
 - État initial : propre, synchronisé avec `origin/main`
 - Tests initiaux : 25/25 PASS
 - Garde initiale : PASS
 - Diff-check initial : PASS
 
-Le HEAD final observé est `e0aa735` (`origin/main`). Entre le freeze et la validation, deux commits isolés ont ajouté successivement `02-EXECUTION-CONTRACT-SCHEMA.json` et `execution-contract.js`; aucun fichier produit historique n'est concerné.
+Les changements de cette passe restent confinés à `evaluation/lot10g3b3b`, `audit/lot10g3b3b` et aux tests dédiés ; aucun fichier produit historique n'est concerné.
 
 ## Décisions de conception
 
@@ -32,12 +33,14 @@ Le HEAD final observé est `e0aa735` (`origin/main`). Entre le freeze et la vali
 
 Le schéma minimal a été enrichi seulement pour rendre les exigences auditables :
 
-1. IDs de contraintes `REQ-*` et références aval.
+1. IDs de contraintes `REQ-*`, obligations `OBL-*` distinctes et références aval.
 2. Statuts incompatibles pour fait, déduction, hypothèse et manque.
 3. Types de contrôle explicites.
 4. Politique d'exécution avec blocage des échappatoires et injonction finale.
 5. Neuf invariants éthiques non désactivables.
-6. Vue `adn_summary` des cinq propriétés.
+6. Vue `adn_summary` des cinq propriétés, calculée uniquement depuis le contrat.
+7. Verrous auditables avec raison, priorité, source, contrôles associés et état actif/inactif.
+8. Vue d'observabilité minimale excluant demande originale, preuves, hypothèses et texte des obligations.
 
 Aucun champ ajouté n'est métier.
 
@@ -60,7 +63,9 @@ Le builder reçoit une photographie d'états existants. Il ne lit aucun champ UI
 - Manque critique ne devient jamais `known`.
 - Quantité avec borne et unité/cible.
 - Verrou connu, unique et justifié.
+- Verrou sourcé, associé à des contrôles existants et explicitement actif ou inactif.
 - Obligation sourcée.
+- Traçabilité explicite `REQ → OBL → quantité → verrou → contrôle`.
 - Exploitable ⇔ `execute_now=true` ⇔ technique 9 active.
 - Clarification ⇒ exécution fausse et route nulle.
 - Autonomie, sécurité et sept autres valeurs éthiques toujours vraies.
@@ -68,6 +73,8 @@ Le builder reçoit une photographie d'états existants. Il ne lit aucun champ UI
 ## Représentabilité
 
 Les 30 cas 10G.2A et les 20 cas des corpus 10G.3B/3B.1 sont tous sérialisables dans la langue v1 en conservant demande, état et route autorisée. Les tests mutationnels changent noms, destinataires et contexte sans modifier la topologie du contrat.
+
+La matrice `12-ADN-NON-REGRESSION-PROOF.md` démontre séparément les 27 éléments attendus : **27 représentés, 0 perte, 0 comportement produit modifié**.
 
 ## Limites volontaires
 
@@ -84,7 +91,7 @@ Le prochain branchement devra rester en shadow comparatif : produire le contrat 
 
 ## Validation finale
 
-- Tests complets : **40/40 PASS**.
+- Tests complets : **44/44 PASS**.
 - Garde anti-régression : **PASS**.
 - `git diff --check` : **PASS**.
 - Hashes gelés : **inchangés**.

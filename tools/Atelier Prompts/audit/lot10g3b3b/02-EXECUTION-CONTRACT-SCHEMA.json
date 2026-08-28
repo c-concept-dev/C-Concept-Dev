@@ -95,7 +95,7 @@
         "type": "object", "additionalProperties": false,
         "required": ["id", "text", "source", "mandatory", "verifiable", "constraint_id"],
         "properties": {
-          "id": {"type": "string", "pattern": "^(REQ|MAT|SYS)-[0-9]{3,}$"},
+          "id": {"type": "string", "pattern": "^OBL-[0-9]{3,}$"},
           "text": {"type": "string", "minLength": 1},
           "source": {"enum": ["user", "material", "system"]},
           "mandatory": {"type": "boolean"},
@@ -139,12 +139,15 @@
       "type": "array", "uniqueItems": true,
       "items": {
         "type": "object", "additionalProperties": false,
-        "required": ["id", "reason", "priority", "source_ids"],
+        "required": ["id", "reason", "priority", "source", "source_ids", "associated_checks", "active"],
         "properties": {
           "id": {"enum": ["role", "recipient", "data", "provenance", "scope", "plan", "format", "volume", "opening_closing", "forbidden", "assumptions", "length", "final_check"]},
           "reason": {"type": "string", "minLength": 1},
           "priority": {"enum": ["mandatory", "useful"]},
-          "source_ids": {"type": "array", "items": {"type": "string"}}
+          "source": {"enum": ["user", "material", "system", "runtime"]},
+          "source_ids": {"type": "array", "items": {"type": "string"}},
+          "associated_checks": {"type": "array", "items": {"type": "string", "pattern": "^CHK-[0-9]{3,}$"}},
+          "active": {"type": "boolean"}
         }
       }
     },

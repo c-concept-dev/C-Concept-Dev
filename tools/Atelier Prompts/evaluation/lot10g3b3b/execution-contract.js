@@ -86,6 +86,10 @@ function normalizeAssumptions(items) {
   }).filter((item) => item.text);
 }
 
+function resolveObligationIds(ids, obligations) {
+  return uniqueBy(list(ids).map((id) => obligations.find((obligation) => obligation.id === id || obligation.constraint_id === id)?.id).filter(Boolean), (id) => id);
+}
+
 function normalizeQuantities(items, architect, obligations) {
   const raw = [...list(items)];
   const aq = architect?.livrable?.quantites;
@@ -102,7 +106,7 @@ function normalizeQuantities(items, architect, obligations) {
       exact,
       min: exact === null ? min : null,
       max: exact === null ? max : null,
-      obligation_ids: list(value.obligation_ids).filter((id) => obligations.some((obligation) => obligation.id === id))
+      obligation_ids: resolveObligationIds(value.obligation_ids, obligations)
     };
   });
 }
@@ -113,11 +117,14 @@ function normalizeLock(item, index) {
     id: value.id,
     reason: text(value.reason) || "Verrou actif dans l’état runtime projeté.",
     priority: value.priority === "useful" ? "useful" : "mandatory",
-    source_ids: list(value.source_ids).filter((id) => typeof id === "string")
+    source: ["user", "material", "system", "runtime"].includes(value.source) ? value.source : "runtime",
+    source_ids: list(value.source_ids).filter((id) => typeof id === "string"),
+    associated_checks: list(value.associated_checks).filter((id) => typeof id === "string"),
+    active: value.active !== false
   };
 }
 
-function normalizeCheck(item, index) {
+function normalizeCheck(item, index, obligations) {
   const value = typeof item === "string" ? { rule: item } : item || {};
   const type = ["deterministic", "heuristic", "semantic", "manual"].includes(value.type) ? value.type : "manual";
   return {
@@ -126,7 +133,7 @@ function normalizeCheck(item, index) {
     target: text(value.target) || "deliverable",
     rule: text(value.rule || value.text || value.nom),
     blocking: value.blocking === true,
-    obligation_ids: list(value.obligation_ids).filter((id) => typeof id === "string")
+    obligation_ids: resolveObligationIds(value.obligation_ids, obligations)
   };
 }
 
@@ -170,7 +177,7 @@ export function buildExecutionContractShadow(snapshot) {
     ...list(snapshot.obligations).map((item) => ({ ...item }))
   ];
   const obligations = uniqueBy(obligationCandidates.map((item, index) => ({
-    id: text(item.id) || numbered(item.source === "material" ? "MAT" : item.source === "system" ? "SYS" : "REQ", index),
+    id: numbered("OBL", index),
     text: text(item.text || item.contenu),
     source: ["user", "material", "system"].includes(item.source) ? item.source : "user",
     mandatory: item.mandatory !== false,
@@ -204,7 +211,7 @@ export function buildExecutionContractShadow(snapshot) {
   const rapid = snapshot.rapid || {};
   const quantities = normalizeQuantities(snapshot.quantities || promptContract.quantities, architect, obligations);
   const locks = runtimeLocks(snapshot).map(normalizeLock);
-  const checks = runtimeChecks(snapshot, architect).map(normalizeCheck).filter((item) => item.rule);
+  const checks = runtimeChecks(snapshot, architect).map((item, index) => normalizeCheck(item, index, obligations)).filter((item) => item.rule);
 
   const contract = {
     version: EXECUTION_CONTRACT_VERSION,
@@ -255,14 +262,10 @@ export function buildExecutionContractShadow(snapshot) {
       confidence
     },
     ethics: Object.fromEntries(ETHICS_KEYS.map((key) => [key, true])),
-    adn_summary: {
-      intentionality: "represented",
-      executability: "represented",
-      discipline: "represented",
-      completeness: "represented",
-      compliance: "represented"
-    }
+    adn_summary: null
   };
+
+  contract.adn_summary = deriveAdnSummary(contract);
 
   validateExecutionContract(contract);
   return clone(contract);
@@ -309,8 +312,11 @@ export function validateExecutionContract(contract) {
   for (const missing of contract.executability.critical_missing) assert(missing.status === "missing", "Une donnée critique absente ne peut pas devenir connue.");
   for (const assumption of contract.assumptions) assert(assumption.status === "assumption", "Une hypothèse doit rester étiquetée comme hypothèse.");
 
-  assertIds(contract.obligations, /^(REQ|MAT|SYS)-\d{3,}$/, "obligations");
-  for (const obligation of contract.obligations) assert(["user","material","system"].includes(obligation.source), "Toute obligation doit avoir une source.");
+  assertIds(contract.obligations, /^OBL-\d{3,}$/, "obligations");
+  for (const obligation of contract.obligations) {
+    assertExactKeys(obligation, ["id","text","source","mandatory","verifiable","constraint_id"], `obligation ${obligation.id}`);
+    assert(["user","material","system"].includes(obligation.source), "Toute obligation doit avoir une source.");
+  }
   for (const constraint of contract.intent.explicit_constraints) {
     assert(contract.obligations.some((obligation) => obligation.constraint_id === constraint.id && obligation.text === constraint.text && obligation.source === "user"), `La contrainte ${constraint.id} a disparu de la chaîne d’obligations.`);
   }
@@ -323,8 +329,13 @@ export function validateExecutionContract(contract) {
 
   const lockIds = new Set();
   for (const lock of contract.locks) {
+    assertExactKeys(lock, ["id","reason","priority","source","source_ids","associated_checks","active"], `lock ${lock.id}`);
     assert(LOCK_IDS.has(lock.id), `Verrou inconnu : ${lock.id}.`);
     assert(text(lock.reason), `Le verrou ${lock.id} doit avoir une raison.`);
+    assert(["user", "material", "system", "runtime"].includes(lock.source), `Le verrou ${lock.id} doit avoir une source.`);
+    assert(Array.isArray(lock.associated_checks), `Le verrou ${lock.id} doit exposer associated_checks.`);
+    assert(lock.associated_checks.every((id) => contract.checks.some((check) => check.id === id)), `Le verrou ${lock.id} référence un contrôle absent.`);
+    assert(typeof lock.active === "boolean", `Le verrou ${lock.id} doit exposer son état actif/inactif.`);
     assert(!lockIds.has(lock.id), `Verrou dupliqué : ${lock.id}.`);
     lockIds.add(lock.id);
   }
@@ -340,8 +351,35 @@ export function validateExecutionContract(contract) {
   assertExactKeys(contract.ethics, ETHICS_KEYS, "ethics");
   for (const key of ETHICS_KEYS) assert(contract.ethics[key] === true, `L’invariant éthique ${key} ne peut pas être désactivé.`);
   assertExactKeys(contract.adn_summary, ["intentionality","executability","discipline","completeness","compliance"], "adn_summary");
+  assert(JSON.stringify(contract.adn_summary) === JSON.stringify(deriveAdnSummary(contract)), "adn_summary doit être purement dérivé du contrat.");
   for (const value of Object.values(contract.adn_summary)) assert(value === "represented", "Les cinq propriétés doivent être représentées.");
   return contract;
+}
+
+export function deriveAdnSummary(contract) {
+  const represented = (condition) => condition ? "represented" : "missing";
+  return {
+    intentionality: represented(!!text(contract?.original_request) && !!text(contract?.intent?.objective) && Array.isArray(contract?.intent?.explicit_constraints)),
+    executability: represented(STATES.has(contract?.executability?.state) && ["high", "medium"].includes(contract?.executability?.confidence)),
+    discipline: represented(typeof contract?.execution_policy?.execute_now === "boolean" && typeof contract?.execution_policy?.final_injunction_active === "boolean"),
+    completeness: represented(Array.isArray(contract?.obligations) && Array.isArray(contract?.quantities)),
+    compliance: represented(!!contract?.output && Array.isArray(contract?.checks))
+  };
+}
+
+export function buildExecutionContractAuditView(contract) {
+  validateExecutionContract(contract);
+  return {
+    request_id: contract.request_id,
+    contract_version: contract.version,
+    executability: clone(contract.executability),
+    routing: clone(contract.routing),
+    obligations: contract.obligations.map(({ id, source, constraint_id, mandatory, verifiable }) => ({ id, source, constraint_id, mandatory, verifiable })),
+    locks: contract.locks.map(({ id, reason, priority, source, source_ids, associated_checks, active }) => ({ id, reason, priority, source, source_ids: clone(source_ids), associated_checks: clone(associated_checks), active })),
+    checks: contract.checks.map(({ id, type, target, blocking, obligation_ids }) => ({ id, type, target, blocking, obligation_ids: clone(obligation_ids) })),
+    adn_summary: clone(contract.adn_summary),
+    ethics: clone(contract.ethics)
+  };
 }
 
 export function serializeExecutionContract(contract) {

@@ -2,7 +2,7 @@
 
 ## Freeze initial
 
-- Branche `main`, HEAD `e53ad6a92bbb30a7ced742f6a75a3c1a463284a6`.
+- Branche `main`, HEAD `96373bd18e56ac9c33ab802e37d2c7e8008c4cfa`.
 - Dépôt propre.
 - Tests historiques : 25/25 PASS.
 - Garde : PASS.
@@ -17,16 +17,17 @@
 | `execution-contract-mapping.test.mjs` | 50 cas, projections Rapide/Architecte, quantités |
 | `execution-contract-no-hardcoding.test.mjs` | scan et mutations structurelles |
 | `execution-contract-roundtrip.test.mjs` | sérialisation, parsing, canonicalisation, SHA-256 |
+| `execution-contract-adn-27.test.mjs` | preuve explicite 5 + 9 + 13, vue ADN dérivée, vue d'audit expurgée |
 
-Résultat ciblé avant validation finale : **15/15 PASS**.
+Résultat ciblé avant validation finale : **19/19 PASS**.
 
 ## Validation finale
 
-- `npm test` : **40/40 PASS** (25 historiques + 15 dédiés).
+- `npm test` : **44/44 PASS** (25 historiques + 19 dédiés).
 - `npm run guard` : **PASS**.
 - `git diff --check` : **PASS**.
 - Hashes Rapide, Architecte, Atelier, FORMATS, VERROUS, ARCH_SYSTEM et ARCH_SCHEMA : **inchangés**.
 - Aucun fichier produit historique modifié.
 - Aucun appel réseau et aucun déploiement.
 
-Le HEAD final observé est `e0aa735` (`origin/main`) : les deux commits intermédiaires contiennent exclusivement le schéma v1 puis le builder shadow isolé. Les validations finales ont été exécutées sur ce HEAD.
+Les validations finales ont été exécutées dans l'arbre de travail issu du freeze ci-dessus. Les changements restent confinés à l'évaluation, l'audit et les tests du lot.

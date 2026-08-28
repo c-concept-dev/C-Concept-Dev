@@ -2,7 +2,7 @@
 
 ## Contrôles exécutés
 
-- Scan du module et du schéma pour les champs interdits : `travel_budget`, `cv_job`, `medical_context`, `computer_type`.
+- Scan du module et du schéma pour les champs interdits : `travel_budget`, `cv_job`, `medical_context`, `computer_type`, `restaurant_type`, `legal_case`.
 - Scan de plusieurs domaines des corpus.
 - Mutation de demande, destinataire, noms et cible en conservant la même structure logique.
 - Vérification de l'enum des verrous : uniquement 13 primitives universelles.
@@ -22,4 +22,3 @@
 ## Protection architecturale
 
 Le builder ne reçoit aucune fonction de classification et n'importe ni `FORMATS`, ni corpus, ni moteur. Les corpus sont utilisés par les tests seulement.
-

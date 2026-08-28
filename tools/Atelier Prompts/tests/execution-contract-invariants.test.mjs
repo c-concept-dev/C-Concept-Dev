@@ -14,14 +14,15 @@ function exploitable(overrides = {}) {
   });
 }
 
-test("la traçabilité REQ → quantité → verrou → contrôle est conservée", () => {
+test("la traçabilité REQ → OBL → quantité → verrou → contrôle est conservée", () => {
   const contract = exploitable();
   assert.equal(contract.original_request, "Produis exactement 20 éléments.");
   assert.deepEqual(contract.intent.explicit_constraints[0], { id: "REQ-001", text: "exactement 20 éléments", source: "user" });
+  assert.equal(contract.obligations[0].id, "OBL-001");
   assert.equal(contract.obligations[0].constraint_id, "REQ-001");
-  assert.deepEqual(contract.quantities[0].obligation_ids, ["REQ-001"]);
+  assert.deepEqual(contract.quantities[0].obligation_ids, ["OBL-001"]);
   assert.deepEqual(contract.locks[0].source_ids, ["REQ-001"]);
-  assert.deepEqual(contract.checks[0].obligation_ids, ["REQ-001"]);
+  assert.deepEqual(contract.checks[0].obligation_ids, ["OBL-001"]);
 });
 
 test("les faits, déductions, hypothèses et manques restent disjoints", () => {
@@ -62,4 +63,3 @@ test("sécurité, autonomie, unités et raisons de verrou sont strictes", () => 
   noReason.locks[0].reason = "";
   assert.throws(() => validateExecutionContract(noReason), /doit avoir une raison/i);
 });
-

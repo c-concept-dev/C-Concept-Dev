@@ -18,5 +18,4 @@ Enum stable :
 | longueur | `length` |
 | contrôle final | `final_check` |
 
-Chaque verrou porte `reason`, `priority` et `source_ids`. L'enum ne contient aucun domaine, format métier, profil ou moteur. Le builder projette uniquement les verrous déjà actifs ; il ne les sélectionne pas.
-
+Chaque verrou porte `reason`, `priority`, `source`, `source_ids`, `associated_checks` et `active`. L'enum ne contient aucun domaine, format métier, profil ou moteur. Le builder projette uniquement les états reçus ; il ne sélectionne ni n'active lui-même aucun verrou.

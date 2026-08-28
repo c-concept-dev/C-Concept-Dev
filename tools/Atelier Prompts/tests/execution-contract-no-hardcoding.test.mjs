@@ -7,7 +7,7 @@ const source = fs.readFileSync(new URL("../evaluation/lot10g3b3b/execution-contr
 const schema = fs.readFileSync(new URL("../audit/lot10g3b3b/02-EXECUTION-CONTRACT-SCHEMA.json", import.meta.url), "utf8");
 
 test("le cœur et le schéma ne contiennent aucun champ ou domaine métier", () => {
-  const forbiddenFields = ["travel_budget", "cv_job", "medical_context", "computer_type"];
+  const forbiddenFields = ["travel_budget", "cv_job", "medical_context", "computer_type", "restaurant_type", "legal_case"];
   const forbiddenDomains = ["voyage", "italie", "boulangerie", "photosynthèse", "newsletter", "python", "médical"];
   for (const term of [...forbiddenFields, ...forbiddenDomains]) {
     assert.doesNotMatch(source, new RegExp(term, "i"));
@@ -33,4 +33,3 @@ test("une mutation complète des noms et du contexte conserve la même structure
   assert.equal(a.quantities[0].exact, b.quantities[0].exact);
   assert.equal(a.routing.engine, b.routing.engine);
 });
-

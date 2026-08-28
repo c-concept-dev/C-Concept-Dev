@@ -23,7 +23,7 @@
 | `obligations` | exigences sourcées et traçables |
 | `quantities` | bornes, unité/cible et obligations liées |
 | `output` | format, structure, ouverture, clôture, longueur |
-| `locks` | enum universelle des 13 verrous, raison et priorité |
+| `locks` | enum universelle des 13 verrous, raison, priorité, source, contrôles associés et état |
 | `execution_policy` | discipline et technique 9 |
 | `checks` | contrôles typés et obligations liées |
 | `routing` | projection exacte de la décision actuelle |
@@ -32,12 +32,13 @@
 
 ## Améliorations justifiées par rapport à la structure minimale
 
-1. Les contraintes deviennent des objets `REQ-*`, afin de prouver leur chaîne vers obligation, quantité, verrou et contrôle.
+1. Les contraintes deviennent des objets `REQ-*`, puis des obligations `OBL-*`, afin de prouver leur chaîne vers quantité, verrou et contrôle.
 2. Faits, déductions, hypothèses et manques portent des statuts incompatibles par construction.
 3. `execution_policy` ajoute `evasion_blocked` et `final_injunction_active`, pour représenter explicitement les techniques 2 et 9.
 4. `ethics` couvre les neuf invariants du référentiel, pas seulement trois exemples minimaux.
 5. `checks` distingue déterministe, heuristique, sémantique et manuel.
-6. `adn_summary` rend les cinq propriétés directement inspectables sans redéduire leur emplacement.
+6. `adn_summary`, calculé par `deriveAdnSummary()`, rend les cinq propriétés directement inspectables sans devenir une seconde autorité.
+7. `buildExecutionContractAuditView()` expose uniquement les métadonnées nécessaires à l'audit, sans demande ni texte des obligations.
 
 ## Invariants stricts
 
@@ -49,6 +50,7 @@
 - Un manque critique garde le statut `missing`.
 - Toute quantité possède une borne et une unité ou cible.
 - Tout verrou appartient à l'enum universelle, possède une raison et n'est pas dupliqué.
+- Tout verrou expose sa source, son état et ses contrôles associés.
 - `execute_now` et `final_injunction_active` valent vrai si et seulement si l'état est `exploitable`.
 - Une clarification impose `routing.engine=null`.
 - Une demande exploitable conserve la route historique Rapide ou Architecte.
@@ -63,7 +65,8 @@ serializeExecutionContract(contract)
 parseExecutionContract(json)
 canonicalizeExecutionContract(contract)
 hashExecutionContract(contract)
+deriveAdnSummary(contract)
+buildExecutionContractAuditView(contract)
 ```
 
 Le module est isolé dans `evaluation/lot10g3b3b/execution-contract.js` et n'est importé par aucun fichier produit.
-

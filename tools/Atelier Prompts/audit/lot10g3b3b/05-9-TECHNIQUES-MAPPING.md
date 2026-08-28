@@ -3,7 +3,7 @@
 | # | Technique | Représentation v1 |
 |---:|---|---|
 | 1 | Contrat préalable | contrat versionné + intention + obligations + contrôles |
-| 2 | Blocage échappatoires | `execution_policy.evasion_blocked` |
+| 2 | Blocage échappatoires | `execution_policy.evasion_blocked`, sans proposition de plan ou d'étape de substitution |
 | 3 | Questions inutiles interdites | `comfort_questions_forbidden`, état et manques |
 | 4 | Format strict | `output` + checks de format |
 | 5 | Démarrage forcé | `output.opening` + `execute_now` |
@@ -23,4 +23,3 @@ executability.state == exploitable
 ```
 
 En clarification, ces deux drapeaux sont obligatoirement faux et la route est nulle. Cette représentation ne modifie encore aucun prompt.
-

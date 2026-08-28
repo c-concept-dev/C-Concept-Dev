@@ -11,6 +11,8 @@ test("ExecutionContract v1 possède un schéma fermé et versionné", () => {
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.properties.version.const, EXECUTION_CONTRACT_VERSION);
   assert.deepEqual(schema.properties.locks.items.properties.id.enum, EXECUTION_LOCK_IDS);
+  assert.deepEqual(schema.properties.locks.items.required, ["id", "reason", "priority", "source", "source_ids", "associated_checks", "active"]);
+  assert.equal(schema.properties.obligations.items.properties.id.pattern, "^OBL-[0-9]{3,}$");
   assert.equal(schema.properties.ethics.additionalProperties, false);
 });
 
@@ -20,4 +22,3 @@ test("le schéma représente les cinq propriétés et la technique 9", () => {
   assert.equal(schema.properties.execution_policy.properties.final_injunction_active.type, "boolean");
   assert.ok(schema.allOf.some((rule) => JSON.stringify(rule).includes("clarification_necessaire") || JSON.stringify(rule).includes("execute_now")));
 });
-

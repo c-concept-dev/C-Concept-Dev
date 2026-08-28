@@ -8,5 +8,4 @@
 | Complétude | `obligations`, `quantities` | exigences, sources, bornes et traçabilité | obligations + quantités |
 | Conformité | `output`, `checks` | format attendu et contrôles opposables | output + checks |
 
-`adn_summary` expose les cinq clés avec la valeur `represented`. Cela signifie que la langue du contrat sait les porter ; cela ne prétend pas que le runtime historique les satisfait déjà.
-
+`deriveAdnSummary()` calcule purement `adn_summary` depuis les blocs du contrat. Le validateur refuse une vue modifiée ou divergente. La valeur `represented` signifie que la langue du contrat sait porter la propriété ; elle ne prétend pas que le runtime historique la satisfait déjà.
