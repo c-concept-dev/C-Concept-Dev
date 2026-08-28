@@ -74,12 +74,14 @@ test('le prompt impose exploitabilité, question unique et traitements universel
   assert.match(DECISION_MODEL_PROMPT,/courte, concrète, contextualisée et immédiatement répondable/);
   assert.match(DECISION_MODEL_PROMPT,/mots ordinaires de la situation/);
   assert.match(DECISION_MODEL_PROMPT,/Les réponses incorporées sont des faits acquis/);
-  assert.match(DECISION_MODEL_PROMPT,/arrêtez immédiatement de questionner/);
+  assert.match(DECISION_MODEL_PROMPT,/Arrêtez de questionner uniquement lorsque le contrat est EXECUTION_READY/);
+  assert.match(DECISION_MODEL_PROMPT,/aucun nombre cible, minimum ou maximum de tours/);
+  assert.match(DECISION_MODEL_PROMPT,/Pouvoir commencer une analyse ou produire une réponse générale ne suffit pas/);
   assert.match(DECISION_MODEL_PROMPT,/N’inventez jamais un matériau à fournir/);
   assert.match(DECISION_MODEL_PROMPT,/Les notions d’analyse restent internes/);
   assert.match(DECISION_MODEL_PROMPT,/artefact unique et borné/);
   assert.match(DECISION_MODEL_PROMPT,/La seule présence d’une liste, d’un tableau/);
-  assert.match(DECISION_MODEL_PROMPT,/ne demandez pas de préférences de contenu/);
+  assert.match(DECISION_MODEL_PROMPT,/Une préférence de contenu.*reste substituable/);
   assert.match(DECISION_MODEL_PROMPT,/N’utilisez aucune règle propre à un domaine/);
   assert.match(DECISION_MODEL_PROMPT,/ne choisissez jamais Atelier/i);
   assert.doesNotMatch(DECISION_MODEL_PROMPT,/voyage|ordinateur|anniversaire|\bcv\b|recette|\bcode\b/i);

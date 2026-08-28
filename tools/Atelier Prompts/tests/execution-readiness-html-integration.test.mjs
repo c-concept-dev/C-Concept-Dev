@@ -47,8 +47,10 @@ test("les deux chemins Architecte refusent de compiler avant execution_ready", (
     html.indexOf("function useAnalysis"),
     html.indexOf("function showQuestion")
   );
-  assert.match(api, /readiness\.state!=='execution_ready'/);
-  assert.match(imported, /readiness\.state!=='execution_ready'/);
+  assert.match(api, /action\.state!=='execution_ready'/);
+  assert.match(imported, /action\.state!=='execution_ready'/);
+  assert.match(api, /adnNextConversationAction/);
+  assert.match(imported, /adnNextConversationAction/);
 });
 
 test("le dialogue adaptatif n'a plus de plafond numérique de clarifications", () => {

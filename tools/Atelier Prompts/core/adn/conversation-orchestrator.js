@@ -38,7 +38,7 @@ export function conversationQuestionsSimilar(left, right) {
   if (!a.size || !b.size) return text(left).toLowerCase() === text(right).toLowerCase();
   let common = 0;
   for (const item of a) if (b.has(item)) common += 1;
-  return common / Math.min(a.size, b.size) >= 0.7;
+  return common / Math.min(a.size, b.size) >= 0.6;
 }
 
 function isRepeated(question, previousQuestions) {

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "A-simple-complete",
+    "domain": "redaction",
+    "request": "Rédige un message de remerciement de trois phrases à mon équipe après la réunion.",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "questions": 0, "route": "rapide" }
+  },
+  {
+    "id": "B-required-material",
+    "domain": "analyse",
+    "request": "Résume le document que je mentionne en dix points.",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "questions_min": 1, "route": "rapide" }
+  },
+  {
+    "id": "C-successive-choices",
+    "domain": "organisation",
+    "request": "Aide-moi à organiser un projet personnel encore peu défini.",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "questions_min": 2, "route": "architecte" }
+  },
+  {
+    "id": "D-complex-complete",
+    "domain": "enseignement",
+    "request": "Conçois une séquence de quatre séances pour des adultes débutants, avec objectifs, activités et évaluation finale.",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "questions": 0, "route": "architecte" }
+  },
+  {
+    "id": "E-complex-incomplete",
+    "domain": "strategie",
+    "request": "Prépare une stratégie coordonnée dont plusieurs décisions personnelles restent à préciser.",
+    "material_present": false,
+    "requested_mode": "architecte",
+    "oracle": { "questions_min": 2, "route": "architecte" }
+  },
+  {
+    "id": "F-delegation",
+    "domain": "creation",
+    "request": "Crée une identité éditoriale et décide des préférences que je vous délègue.",
+    "material_present": false,
+    "requested_mode": "architecte",
+    "oracle": { "same_question_repeated": false, "route": "architecte" }
+  },
+  {
+    "id": "G-unknown-answer",
+    "domain": "donnees",
+    "request": "Prépare une analyse à partir d'un contexte que je ne connais pas entièrement.",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "same_question_repeated": false, "route": "architecte" }
+  },
+  {
+    "id": "H-provider-unavailable",
+    "domain": "code",
+    "request": "Explique cette fonction autonome et propose une amélioration bornée.",
+    "material_present": true,
+    "requested_mode": "rapide",
+    "oracle": { "provider_failure_is_not_complexity": true, "route": "rapide" }
+  },
+  {
+    "id": "I-reformulated-repeat",
+    "domain": "comparaison",
+    "request": "Aide-moi à choisir entre deux possibilités.",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "state": "blocked", "question_repeated": true }
+  },
+  {
+    "id": "J-material-present",
+    "domain": "synthese",
+    "request": "Résume le rapport joint en dix points.",
+    "material_present": true,
+    "requested_mode": "rapide",
+    "oracle": { "questions": 0, "route": "rapide" }
+  },
+  {
+    "id": "ITALIE-multiturn",
+    "domain": "voyage-test-only",
+    "request": "je veux préparer mon voyage en Italie",
+    "material_present": false,
+    "requested_mode": "rapide",
+    "oracle": { "reanalyze_after_answer": true, "fixed_question_list": false }
+  }
+]

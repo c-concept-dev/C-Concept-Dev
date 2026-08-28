@@ -19,6 +19,7 @@ test('le bundle ADN navigateur est autonome et exécutable',()=>{
   assert.equal(typeof runtime.selectAdaptiveLocks,'function');
   assert.equal(typeof runtime.routeExecution,'function');
   assert.equal(typeof runtime.projectToRapide,'function');
+  assert.equal(typeof runtime.nextConversationAction,'function');
 });
 
 test('le HTML autonome embarque exactement le runtime ADN généré',()=>{
@@ -32,7 +33,8 @@ test('le HTML autonome embarque exactement le runtime ADN généré',()=>{
 test('le routage produit utilise l’enveloppe ADN quand elle est disponible',()=>{
   const section=html.slice(html.indexOf('async function adpDecideRapide'),html.indexOf('function adpRunRapide'));
   assert.match(section,/adnBuildEnvelope\(demande,materiau,result\)/);
-  assert.match(section,/envelope&&envelope\.routing\?envelope\.routing\.route:sem\.route/);
+  assert.match(section,/adnNextConversationAction\(\{providerResult:result,requestedMode\}\)/);
+  assert.match(section,/action\.route==='architecte'/);
 });
 
 test('Rapide conserve ses verrous historiques et peut recevoir les verrous ADN manquants',()=>{

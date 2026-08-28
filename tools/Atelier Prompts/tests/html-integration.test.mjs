@@ -104,14 +104,14 @@ test('la clarification conserve demande, réponses et documents sans plafond arb
   assert.match(section,/adpState\.clarifications\+=1/);
   assert.match(section,/materiau_present:state\.docs\.length>0\|\|/);
   assert.match(html,/Le document demandé est joint/);
-  assert.match(section,/orientation\.semantic\.etat_demande==='clarification_necessaire'/);
+  assert.match(section,/orientation\.action\.state==='clarification_required'/);
   assert.match(section,/function adpRunRapide\([^)]*\)\{\s*adpState\.pendingQuestion=false;show\(null\)/);
 });
 
 test('après exploitabilité, seules les routes Rapide et Architecte sont automatiques',()=>{
   const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
-  assert.match(section,/if\(sem\.route==='rapide'\)/);
-  assert.match(section,/route:'architecte'/);
+  assert.match(section,/if\(action\.route==='rapide'\)/);
+  assert.match(section,/action\.route==='architecte'/);
   assert.doesNotMatch(section,/route:'atelier'|sem\.route==='atelier'/);
 });
 

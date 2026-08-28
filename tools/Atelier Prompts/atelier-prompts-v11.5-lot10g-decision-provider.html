@@ -9866,8 +9866,8 @@ function v11RequireDemand(){
   $('#v11-demande').focus();
   return '';
 }
-/* GENERATED — LOT 10G.3B.3F.1
- * source-sha256: 0420937495c3db4ad8b44c2b9f8f10b6c27f7d235937e7617c876e8fbe563b2b
+/* GENERATED — LOT 10G.3B.3F.2
+ * source-sha256: 47d701f5ed95fd279b2950706084c42f493d57ac02dc36b6dd2ffc2d2fb5849a
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -11110,6 +11110,213 @@ function createReadinessAuditView(readiness) {
 
 return {EXECUTION_READINESS_VERSION,EXECUTION_READINESS_STATES,contractForContractualization,assessAnalysisReadiness,buildExecutionReadinessInstruction,buildFinalExecutionDirective,createReadinessAuditView};
 })();
+const CONVERSATION=(()=>{
+const CONVERSATION_ORCHESTRATOR_VERSION = "1.0";
+
+const CONVERSATION_STATES = Object.freeze([
+  "clarification_required",
+  "execution_ready",
+  "blocked"
+]);
+
+function clone(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function list(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function words(value) {
+  const stop = new Set([
+    "avec", "avez", "cette", "dans", "des", "elle", "est", "etes", "les",
+    "pour", "que", "quel", "quelle", "quelles", "quels", "qui", "souhaitez",
+    "une", "vous", "votre", "vos"
+  ]);
+  return new Set(
+    text(value)
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().replace(/[’']/g, " ").replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/).filter((item) => item.length > 2 && !stop.has(item))
+  );
+}
+
+function conversationQuestionsSimilar(left, right) {
+  const a = words(left);
+  const b = words(right);
+  if (!a.size || !b.size) return text(left).toLowerCase() === text(right).toLowerCase();
+  let common = 0;
+  for (const item of a) if (b.has(item)) common += 1;
+  return common / Math.min(a.size, b.size) >= 0.6;
+}
+
+function isRepeated(question, previousQuestions) {
+  return list(previousQuestions).some((previous) => conversationQuestionsSimilar(previous, question));
+}
+
+function requestedRoute(requestedMode, semanticRoute) {
+  if (requestedMode === "architecte") return "architecte";
+  return semanticRoute === "architecte" ? "architecte" : "rapide";
+}
+
+/**
+ * Autorité conversationnelle unique. Elle ne comprend pas la demande elle-même :
+ * elle arbitre uniquement les primitives universelles déjà produites par le
+ * Decision Provider ou l'Execution Readiness Gate.
+ */
+function nextConversationAction({
+  provider_result = null,
+  readiness = null,
+  previous_questions = [],
+  requested_mode = "rapide",
+  provider_available = true
+} = {}) {
+  const previous = list(previous_questions).map(text).filter(Boolean);
+  const decision = provider_result?.decision || provider_result || null;
+
+  if (readiness) {
+    const question = text(readiness.question) || null;
+    const repeated = Boolean(question && isRepeated(question, previous));
+    if (readiness.state === "clarification_required" && question && !repeated) {
+      return clone({
+        version: CONVERSATION_ORCHESTRATOR_VERSION,
+        state: "clarification_required",
+        question,
+        route: null,
+        reason: text(readiness.reason) || "Une information non substituable reste nécessaire.",
+        missing_count: Math.max(1, Number(readiness.blocking_missing_count || 0)),
+        question_repeated: false,
+        source: "readiness"
+      });
+    }
+    if (readiness.state === "execution_ready") {
+      return clone({
+        version: CONVERSATION_ORCHESTRATOR_VERSION,
+        state: "execution_ready",
+        question: null,
+        route: requestedRoute(requested_mode, "architecte"),
+        reason: text(readiness.reason) || "Le contrat est prêt pour l'exécution.",
+        missing_count: 0,
+        question_repeated: false,
+        source: "readiness"
+      });
+    }
+    return clone({
+      version: CONVERSATION_ORCHESTRATOR_VERSION,
+      state: "blocked",
+      question: null,
+      route: null,
+      reason: repeated
+        ? "La clarification proposée répète une question déjà traitée ; aucune progression n'est démontrée."
+        : (text(readiness.reason) || "Aucune progression fiable n'est possible sans nouvelle information exploitable."),
+      missing_count: Math.max(0, Number(readiness.blocking_missing_count || 0)),
+      question_repeated: repeated,
+      source: "readiness"
+    });
+  }
+
+  if (provider_available !== false && decision?.etat_demande === "clarification_necessaire") {
+    const question = text(decision.question);
+    const repeated = Boolean(question && isRepeated(question, previous));
+    if (question && !repeated) {
+      return clone({
+        version: CONVERSATION_ORCHESTRATOR_VERSION,
+        state: "clarification_required",
+        question,
+        route: null,
+        reason: text(decision.raison_interne) || "Une information non substituable reste nécessaire.",
+        missing_count: 1,
+        question_repeated: false,
+        source: "provider"
+      });
+    }
+    return clone({
+      version: CONVERSATION_ORCHESTRATOR_VERSION,
+      state: "blocked",
+      question: null,
+      route: null,
+      reason: "La clarification proposée répète une question déjà traitée ; aucune progression n'est démontrée.",
+      missing_count: 1,
+      question_repeated: repeated,
+      source: "provider"
+    });
+  }
+
+  if (provider_available !== false && decision?.etat_demande === "exploitable") {
+    return clone({
+      version: CONVERSATION_ORCHESTRATOR_VERSION,
+      state: "execution_ready",
+      question: null,
+      route: requestedRoute(requested_mode, decision.route),
+      reason: text(decision.raison_interne) || "Le contrat est prêt pour l'exécution.",
+      missing_count: 0,
+      question_repeated: false,
+      source: "provider"
+    });
+  }
+
+  // Une panne technique n'est ni une clarification ni une preuve de complexité.
+  // Le fallback reste utilisable et proportionné ; le choix explicite Architecte
+  // est toutefois conservé.
+  return clone({
+    version: CONVERSATION_ORCHESTRATOR_VERSION,
+    state: "execution_ready",
+    question: null,
+    route: requested_mode === "architecte" ? "architecte" : "rapide",
+    reason: "Le fournisseur sémantique est indisponible ; le parcours local proportionné reste utilisable.",
+    missing_count: 0,
+    question_repeated: false,
+    source: "local-prudent"
+  });
+}
+
+function createConversationAuditEvent(action, {
+  turn,
+  readiness_before = "contractualization",
+  answer_received = false,
+  progress_detected = false
+} = {}) {
+  if (!action || !CONVERSATION_STATES.includes(action.state)) {
+    throw new TypeError("Action conversationnelle invalide.");
+  }
+  return {
+    turn: Math.max(1, Number(turn || 1)),
+    readiness_before: text(readiness_before) || "contractualization",
+    missing_count: Math.max(0, Number(action.missing_count || 0)),
+    treatment: action.state,
+    question_generated: Boolean(action.question),
+    question_repeated: action.question_repeated === true,
+    answer_received: answer_received === true,
+    progress_detected: progress_detected === true,
+    readiness_after: action.state,
+    route: action.route || null
+  };
+}
+
+function validateConversationAuditEvent(event) {
+  const keys = [
+    "turn", "readiness_before", "missing_count", "treatment",
+    "question_generated", "question_repeated", "answer_received",
+    "progress_detected", "readiness_after", "route"
+  ];
+  if (!event || Object.keys(event).length !== keys.length || keys.some((key) => !(key in event))) {
+    throw new TypeError("Trace conversationnelle incomplète.");
+  }
+  if (!CONVERSATION_STATES.includes(event.treatment) || !CONVERSATION_STATES.includes(event.readiness_after)) {
+    throw new TypeError("État conversationnel invalide dans l'audit.");
+  }
+  if (event.route !== null && !["rapide", "architecte"].includes(event.route)) {
+    throw new TypeError("Route conversationnelle invalide dans l'audit.");
+  }
+  return clone(event);
+}
+
+return {CONVERSATION_ORCHESTRATOR_VERSION,CONVERSATION_STATES,conversationQuestionsSimilar,nextConversationAction,createConversationAuditEvent,validateConversationAuditEvent};
+})();
 const ADAPTERS=((deps)=>{
 const {buildAdnState,adnStateToExecutionContractSnapshot,selectAdaptiveLocks,validateAdaptiveLockSelection,routeExecution,validateRoutingDecision,contractForContractualization}=deps;
 
@@ -11350,7 +11557,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...ADAPTERS,source_sha256:'0420937495c3db4ad8b44c2b9f8f10b6c27f7d235937e7617c876e8fbe563b2b'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...ADAPTERS,source_sha256:'47d701f5ed95fd279b2950706084c42f493d57ac02dc36b6dd2ffc2d2fb5849a'});
 })(window);
 
 
@@ -11367,7 +11574,7 @@ const ADP10G=Object.freeze({
   })
 });
 const ADP_REASONS=Object.freeze({clarification:'La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.',rapide:'La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.',architecte:'La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.'});
-const adpState={pendingQuestion:false,clarifications:0,last:null,lastEnvelope:null,lastProjection:null,running:false,returnFocus:null};
+const adpState={pendingQuestion:false,clarifications:0,last:null,lastEnvelope:null,lastProjection:null,lastAction:null,audit:[],requestedMode:'rapide',lastAnswerReceived:false,lastProgressDetected:false,running:false,returnFocus:null};
 const ADP_ADN_RUNTIME_VERSION='10G.3B.3F';
 function adnRuntime(){
   const runtime=window.__ATELIER_ADN_RUNTIME__;
@@ -11447,6 +11654,30 @@ function adnAssessArchitecteReadiness(analysis){
   return ev.livrable_complet_possible===true&&ev.action_recommandee==='continuer'
     ?{state:'execution_ready',execution_ready:true,question:null}
     :{state:'blocked',execution_ready:false,question:null};
+}
+function adnNextConversationAction({providerResult=null,readiness=null,requestedMode=adpState.requestedMode}={}){
+  const runtime=adnRuntime();
+  if(!runtime||typeof runtime.nextConversationAction!=='function')throw new Error('Le pilote conversationnel ADN n’est pas disponible.');
+  return runtime.nextConversationAction({
+    provider_result:providerResult,
+    readiness,
+    previous_questions:state.answers.map(x=>x.question),
+    requested_mode:requestedMode,
+    provider_available:providerResult?providerResult.source!=='local-prudent':true
+  });
+}
+function adpRecordConversationAction(action){
+  const runtime=adnRuntime();
+  const before=adpState.lastAction?adpState.lastAction.state:'contractualization';
+  const event=runtime.createConversationAuditEvent(action,{
+    turn:adpState.audit.length+1,
+    readiness_before:before,
+    answer_received:adpState.lastAnswerReceived,
+    progress_detected:adpState.lastProgressDetected
+  });
+  runtime.validateConversationAuditEvent(event);
+  adpState.audit.push(event);adpState.lastAction=action;adpState.lastAnswerReceived=false;adpState.lastProgressDetected=false;
+  return action;
 }
 function adnReadinessInstruction(){
   try{const runtime=adnRuntime();return runtime&&typeof runtime.buildExecutionReadinessInstruction==='function'?runtime.buildExecutionReadinessInstruction():''}catch(error){return ''}
@@ -11539,7 +11770,7 @@ function v11SwitchToArchitecteFromRapid(decision){
   return false;
 }
 function adpShowQuestion(decision){
-  adpState.pendingQuestion=true;adpState.last=decision;adpState.returnFocus=document.activeElement;
+  adpState.pendingQuestion=true;adpState.lastAction=decision;adpState.returnFocus=document.activeElement;
   $('#v11-question').textContent=decision.question;
   $('#v11-answer').value='';
   $('#v11-why').textContent='Votre réponse sera ajoutée à la demande avant une nouvelle analyse.';
@@ -11548,29 +11779,46 @@ function adpShowQuestion(decision){
   show('#v11-dialogue','#v11-answer');
 }
 function adpCancelClarification(){
-  const wasAdaptive=adpState.pendingQuestion;adpState.pendingQuestion=false;
-  if(wasAdaptive){v11SwitchToArchitecteFromRapid({state:'architecte',title:'Préparation approfondie',text:'Votre demande va être structurée avec les éléments déjà fournis.'});return adpContinueArchitecte()}
+  adpState.pendingQuestion=false;
   show(null);if(adpState.returnFocus&&typeof adpState.returnFocus.focus==='function')adpState.returnFocus.focus();return false;
 }
 function adpContinueArchitecte(){
   adpState.pendingQuestion=false;
   return beginExchange();
 }
-async function adpDecideRapide(demande,materiau){
+function adpShowBlocked(action){
+  adpState.pendingQuestion=false;show(null);
+  v11ShowRapidGate({state:'blocked',title:'Le dialogue ne peut pas progresser',text:action.reason||'Une nouvelle information exploitable est nécessaire avant de poursuivre.'});
+  return false;
+}
+function adpEnterArchitecte(demande,materiau,orientation){
+  try{
+    let envelope=orientation&&orientation.envelope;
+    if(!envelope||!envelope.routing||envelope.routing.route!=='architecte')envelope=adnManualEnvelope(demande,materiau,'architecte');
+    adpState.lastEnvelope=envelope;
+    adpState.lastProjection=adnRuntime().projectToArchitecte(envelope,{material:materiau});
+  }catch(error){console.warn('Adapter Architecte ADN non appliqué ; parcours historique conservé.',error)}
+  v11SwitchToArchitecteFromRapid(orientation&&orientation.decision||{state:'architecte',title:'Préparation approfondie',text:'Les éléments fournis vont maintenant être structurés.'});
+  return adpContinueArchitecte();
+}
+async function adpDecideRapide(demande,materiau,requestedMode='rapide'){
   adpShowThinking();
-  const result=await askDecisionProvider({demande,materiau_present:state.docs.length>0||!!String(materiau||'').trim(),mode_demande:'rapide'});
+  const result=await askDecisionProvider({demande,materiau_present:state.docs.length>0||!!String(materiau||'').trim(),mode_demande:requestedMode});
   const sem=result.decision;adpState.last=sem;
   let envelope;
   try{envelope=adnBuildEnvelope(demande,materiau,result)}catch(error){console.warn('Runtime ADN indisponible, décision historique conservée.',error);envelope=null}
-  if(envelope)adpState.lastEnvelope=envelope;
-  if(sem.etat_demande==='clarification_necessaire')return {source:result.source,route:null,decision:null,semantic:sem,envelope,providerResult:result};
-  let route=envelope&&envelope.routing?envelope.routing.route:sem.route;
-  if(sem.route==='rapide'){if(!envelope)route='rapide'} /* compatibilité : si le bundle ADN est indisponible, la décision provider reste autoritaire */
-  if(route==='rapide'){
-    const decision={state:'ready',title:'Demande prête',text:'Votre demande est suffisamment définie pour être préparée directement.'};
-    return {source:result.source,route:'rapide',decision,semantic:sem,envelope,providerResult:result};
+  const action=adnNextConversationAction({providerResult:result,requestedMode});
+  adpRecordConversationAction(action);
+  if(action.state==='execution_ready'&&action.route==='architecte'&&(!envelope||!envelope.routing||envelope.routing.route!=='architecte')){
+    try{envelope=adnManualEnvelope(demande,materiau,'architecte')}catch(error){console.warn('Enveloppe Architecte explicite indisponible.',error)}
   }
-  return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Préparation approfondie',text:'Votre demande est suffisamment définie et nécessite une préparation structurée.'},semantic:sem,envelope,providerResult:result};
+  if(envelope)adpState.lastEnvelope=envelope;
+  if(action.state!=='execution_ready')return {source:result.source,route:null,decision:null,semantic:sem,envelope,providerResult:result,action};
+  if(action.route==='rapide'){
+    const decision={state:'ready',title:'Demande prête',text:'Votre demande est suffisamment définie pour être préparée directement.'};
+    return {source:result.source,route:'rapide',decision,semantic:sem,envelope,providerResult:result,action};
+  }
+  return {source:result.source,route:'architecte',decision:{state:'architecte',title:'Préparation approfondie',text:'Votre demande est suffisamment définie et nécessite une préparation structurée.'},semantic:sem,envelope,providerResult:result,action};
 }
 function adpRunRapide(demande,materiau,orientation){
   adpState.pendingQuestion=false;show(null);
@@ -11600,15 +11848,13 @@ async function adpResumeAfterClarification(){
   if(adpState.running)return false;adpState.running=true;
   try{
     const demande=compositeDemand(),materiau=materialText();
-    const orientation=await adpDecideRapide(demande,materiau);
-    if(orientation.route==='rapide')return adpRunRapide(demande,materiau,orientation);
-    if(orientation.semantic.etat_demande==='clarification_necessaire'){
-      adpState.clarifications+=1;
-      adpShowQuestion(orientation.semantic);
-      return false;
+    const orientation=await adpDecideRapide(demande,materiau,adpState.requestedMode);
+    if(orientation.action.state==='clarification_required'){
+      adpState.clarifications+=1;adpShowQuestion(orientation.action);return false;
     }
-    v11SwitchToArchitecteFromRapid(orientation.decision||{state:'architecte',title:'Préparation approfondie',text:'Les éléments déjà fournis vont maintenant être structurés.'});
-    return adpContinueArchitecte();
+    if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
+    if(orientation.route==='rapide')return adpRunRapide(demande,materiau,orientation);
+    return adpEnterArchitecte(demande,materiau,orientation);
   }finally{adpState.running=false}
 }
 async function v11StartRapide(){
@@ -11616,22 +11862,24 @@ async function v11StartRapide(){
   const mat=materialText();
   if(adpState.running)return false;adpState.running=true;
   try{
-    const orientation=await adpDecideRapide(d,mat);
-    if(orientation.semantic.etat_demande==='clarification_necessaire'){
-      adpState.clarifications=1;adpShowQuestion(orientation.semantic);return false;
-    }
-    if(orientation.route==='architecte'){
-      v11SwitchToArchitecteFromRapid(orientation.decision);
-      beginExchange();return false;
-    }
+    adpState.requestedMode='rapide';
+    const orientation=await adpDecideRapide(d,mat,'rapide');
+    if(orientation.action.state==='clarification_required'){adpState.clarifications=1;adpShowQuestion(orientation.action);return false;}
+    if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
+    if(orientation.route==='architecte')return adpEnterArchitecte(d,mat,orientation);
     return adpRunRapide(d,mat,orientation);
   }finally{adpState.running=false}
 }
-function v11StartArchitecte(){
+async function v11StartArchitecte(){
   const d=v11RequireDemand();if(!d)return false;
-  try{adpState.lastEnvelope=adnManualEnvelope(d,materialText(),'architecte');adpState.lastProjection=adnRuntime().projectToArchitecte(adpState.lastEnvelope,{material:materialText()})}catch(error){console.warn('Adapter Architecte ADN non appliqué ; parcours historique conservé.',error)}
-  beginExchange();
-  return true;
+  const mat=materialText();if(adpState.running)return false;adpState.running=true;
+  try{
+    adpState.requestedMode='architecte';
+    const orientation=await adpDecideRapide(compositeDemand(),mat,'architecte');
+    if(orientation.action.state==='clarification_required'){adpState.clarifications=1;adpShowQuestion(orientation.action);return false;}
+    if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
+    return adpEnterArchitecte(compositeDemand(),mat,orientation);
+  }finally{adpState.running=false}
 }
 function v11StartAtelier(){
   const d=v11RequireDemand();if(!d)return false;
@@ -11654,7 +11902,9 @@ window.__ADAPTIVE_DECISION_PIPELINE_10G__=Object.freeze({
   adnRuntimeVersion:ADP_ADN_RUNTIME_VERSION,
   askDecisionProvider,
   decide:adpDecideRapide,
-  get lastDecision(){return adpState.last}
+  get lastDecision(){return adpState.last},
+  get lastAction(){return adpState.lastAction},
+  getAudit(){return JSON.parse(JSON.stringify(adpState.audit))}
 });
 
 window.__V11_ROUTER__=Object.freeze({
