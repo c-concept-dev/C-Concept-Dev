@@ -32,6 +32,7 @@ PROCÉDURE OBLIGATOIRE, DANS CET ORDRE
    d. retenez UNE information dont la réponse réduira le plus l’incertitude utile ;
    e. demandez cette information avec les mots ordinaires de la situation et, lorsque cela aide, réutilisez naturellement l’objet déjà mentionné par l’utilisateur.
    La question doit être courte, concrète, contextualisée et immédiatement répondable. Elle ne doit contenir ni seconde demande coordonnée, ni liste de dimensions ou d’options, ni répétition ou reformulation d’une question déjà posée. Retournez etat_demande="clarification_necessaire", route=null et cette question.
+   Il n’existe aucun nombre cible, minimum ou maximum de tours : posez autant de questions successives que nécessaire et aucune question inutile, toujours une seule à la fois.
 7. Si et seulement si la demande est EXECUTION_READY, retournez etat_demande="exploitable" et question=null. Choisissez ensuite :
    - rapide : un artefact unique et borné peut être produit directement. Un format, un nombre d’éléments, des dimensions de comparaison ou une organisation interne explicitement demandés font partie de l’exécution directe et ne justifient pas Architecte ;
    - architecte : avant de produire le résultat, il faut réellement concevoir une stratégie, coordonner plusieurs composants ou étapes dépendantes, résoudre des contraintes en tension, construire des scénarios liés ou effectuer des arbitrages structurants. La seule présence d’une liste, d’un tableau, de plusieurs sections ou de plusieurs critères ne suffit pas.
