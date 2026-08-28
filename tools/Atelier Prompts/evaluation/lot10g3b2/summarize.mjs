@@ -149,6 +149,27 @@ function summaryFor(rows) {
   };
 }
 
+function providerBreakdown(cases) {
+  const result = { "workers-ai": {}, groq: {} };
+  for (const testCase of cases) {
+    for (const call of testCase.atelier.decision_provider_calls || []) {
+      const provider = call.endpoint.includes("workers-ai") ? "workers-ai" : "groq";
+      const status = String(call.status_http ?? "network_error");
+      result[provider][status] = (result[provider][status] || 0) + 1;
+    }
+  }
+  return result;
+}
+
+function returnedModels(cases) {
+  const models = [];
+  for (const testCase of cases) {
+    const calls = [testCase.atelier.engine?.analysis_call, testCase.atelier.final_call, testCase.atelier.error?.call, ...pureCalls(testCase)].filter(Boolean);
+    for (const call of calls) models.push(call.model_returned);
+  }
+  return { calls_checked: models.length, values: [...new Set(models)], all_match_requested: models.length > 0 && models.every(model => model === "gpt-5.6-sol") };
+}
+
 function benchmarkCsv(rows) {
   const keys = Object.keys(rows[0]);
   return csv([keys, ...rows.map(row => keys.map(key => row[key]))]);
@@ -181,6 +202,8 @@ async function main() {
       cost: "coût GPT-5.6 Sol estimé à partir de l'usage API; coût Workers AI/Groq N/A",
       success: "sortie finale non vide et aucune erreur enregistrée"
     },
+    providers: providerBreakdown(extended.data.cases),
+    returned_models: returnedModels(extended.data.cases),
     overall: summaryFor(extended.rows),
     categories: Object.fromEntries(CATEGORIES.map(category => [category, summaryFor(extended.rows.filter(row => row.category === category))]))
   };
@@ -240,8 +263,9 @@ Sur l'ensemble des 30 cas : succès Atelier ${(summary.overall.atelier_success_r
 
 ## B. Résultats techniques
 
-- Workers AI primaire a renvoyé HTTP 502 sur toutes ses tentatives observées ; il n'a servi aucun cas.
-- Groq a servi les autres décisions quand il était disponible ; ${extended.rows.filter(item => item.local_prudent).length}/30 cas ont fini sur le repli local prudent.
+- Workers AI primaire a renvoyé HTTP 502 sur ses 41 tentatives observées ; il n'a servi aucun cas.
+- Groq a répondu 200 à 29 tentatives et 502 à 12 ; ${extended.rows.filter(item => item.local_prudent).length}/30 cas ont fini sur le repli local prudent.
+- Les 82 réponses API inspectées ont toutes retourné exactement \`gpt-5.6-sol\`.
 - Aucun HTTP 429 n'a été observé.
 - Quatre analyses Architecte (C03, C05, C09, C10) ont atteint \`max_output_tokens\` et n'ont pas produit un objet unique exploitable. Elles comptent comme erreurs Atelier, sans retry.
 - Trois demandes simples (S07, S08, S09) ont été routées vers Architecte au lieu de Rapide.
