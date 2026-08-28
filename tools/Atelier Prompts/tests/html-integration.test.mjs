@@ -95,12 +95,12 @@ test('la fenêtre de clarification est modale, responsive et non technique',()=>
   assert.doesNotMatch(modal,/Workers AI|Groq|70B|GPT-OSS|confiance|raison_interne|route/);
 });
 
-test('la clarification conserve demande, réponses et documents et s’arrête à trois tours',()=>{
+test('la clarification conserve demande, réponses et documents sans plafond arbitraire',()=>{
   const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
   assert.match(html,/state\.answers\.push\(\{question:\$\('#v11-question'\)\.textContent,answer\}\)/);
   assert.match(html,/syncLegacy\(\);\s*adpResumeAfterClarification\(\)/);
   assert.match(section,/const demande=compositeDemand\(\),materiau=materialText\(\)/);
-  assert.match(section,/adpState\.clarifications<3/);
+  assert.doesNotMatch(section,/adpState\.clarifications\s*<\s*\d+/);
   assert.match(section,/adpState\.clarifications\+=1/);
   assert.match(section,/materiau_present:state\.docs\.length>0\|\|/);
   assert.match(html,/Le document demandé est joint/);

@@ -22,10 +22,15 @@ const modules = [
     exports: ['ROUTING_ENGINE_VERSION','ROUTING_ENGINES','PREPARATION_SIGNAL_IDS','routeExecution','validateRoutingDecision','createRoutingAuditView']
   },
   {
+    file: 'execution-readiness.js',
+    name: 'READINESS',
+    exports: ['EXECUTION_READINESS_VERSION','EXECUTION_READINESS_STATES','contractForContractualization','assessAnalysisReadiness','buildExecutionReadinessInstruction','buildFinalExecutionDirective','createReadinessAuditView']
+  },
+  {
     file: 'engine-adapters.js',
     name: 'ADAPTERS',
     exports: ['ENGINE_ADAPTERS_VERSION','buildExecutionEnvelope','projectToRapide','projectToArchitecte','projectToAtelier','validateLegacyLockMapping','createAdapterAuditView'],
-    deps: ['ADN','LOCKS','ROUTING']
+    deps: ['ADN','LOCKS','ROUTING','READINESS']
   }
 ];
 
@@ -38,19 +43,19 @@ function transform(source) {
 
 const raw = modules.map((m) => fs.readFileSync(path.join(dir, m.file), 'utf8')).join('\n');
 const sourceHash = crypto.createHash('sha256').update(raw).digest('hex');
-let body = `/* GENERATED — LOT 10G.3B.3F\n * source-sha256: ${sourceHash}\n * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs\n */\n(function(global){\n'use strict';\n`;
+let body = `/* GENERATED — LOT 10G.3B.3F.1\n * source-sha256: ${sourceHash}\n * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs\n */\n(function(global){\n'use strict';\n`;
 
 for (const mod of modules) {
   const src = transform(fs.readFileSync(path.join(dir, mod.file), 'utf8'));
   if (mod.deps) {
     body += `const ${mod.name}=((deps)=>{\nconst {${[
-      'buildAdnState','adnStateToExecutionContractSnapshot','selectAdaptiveLocks','validateAdaptiveLockSelection','routeExecution','validateRoutingDecision'
-    ].join(',')}}=deps;\n${src}\nreturn {${mod.exports.join(',')}};\n})({...ADN,...LOCKS,...ROUTING});\n`;
+      'buildAdnState','adnStateToExecutionContractSnapshot','selectAdaptiveLocks','validateAdaptiveLockSelection','routeExecution','validateRoutingDecision','contractForContractualization'
+    ].join(',')}}=deps;\n${src}\nreturn {${mod.exports.join(',')}};\n})({...ADN,...LOCKS,...ROUTING,...READINESS});\n`;
   } else {
     body += `const ${mod.name}=(()=>{\n${src}\nreturn {${mod.exports.join(',')}};\n})();\n`;
   }
 }
-body += `global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...ADAPTERS,source_sha256:'${sourceHash}'});\n})(window);\n`;
+body += `global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...ADAPTERS,source_sha256:'${sourceHash}'});\n})(window);\n`;
 
 const out = path.join(dir, 'browser-runtime.generated.js');
 fs.writeFileSync(out, body);

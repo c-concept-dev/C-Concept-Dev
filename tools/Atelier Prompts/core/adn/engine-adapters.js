@@ -1,6 +1,7 @@
 import { buildAdnState, adnStateToExecutionContractSnapshot } from './adn-state.js';
 import { selectAdaptiveLocks, validateAdaptiveLockSelection } from './adaptive-lock-selector.js';
 import { routeExecution, validateRoutingDecision } from './routing-engine.js';
+import { contractForContractualization } from './execution-readiness.js';
 
 export const ENGINE_ADAPTERS_VERSION = '1.0';
 
@@ -183,13 +184,18 @@ export function projectToArchitecte(envelope, { material = '', preferences = '' 
     engine: 'architecte',
     material: text(material),
     preferences: text(preferences),
-    contract_context: {
-      obligations: clone(envelope.contract.obligations),
-      assumptions: clone(envelope.contract.assumptions),
-      quantities: clone(envelope.contract.quantities),
-      output: clone(envelope.contract.output),
-      locks: clone(envelope.contract.locks)
-    }
+    contract_context: (() => {
+      const contractualization = contractForContractualization(envelope.contract);
+      return {
+        obligations: clone(contractualization.obligations),
+        assumptions: clone(contractualization.assumptions),
+        quantities: clone(contractualization.quantities),
+        output: clone(contractualization.output),
+        locks: clone(contractualization.locks),
+        execution_policy: clone(contractualization.execution_policy),
+        readiness: clone(contractualization.readiness)
+      };
+    })()
   });
 }
 
