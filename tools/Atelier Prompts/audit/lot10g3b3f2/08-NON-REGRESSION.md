@@ -1,0 +1,23 @@
+# Non-régression
+
+## Validation locale
+
+- `npm test` : **125/125 PASS**.
+- `npm run guard` : **PASS**.
+- `git diff --check` : **PASS**.
+- dry-run Workers AI : **PASS**, origine autorisée correcte.
+- dry-run Groq : **PASS**, origine autorisée correcte.
+
+## Zones gelées
+
+Hashes inchangés :
+
+- Rapide : `7825950d5d6d880bae3e176dc2946d7266b2b3219d8c1cf3c4f7496d1a83e0bb`
+- Architecte : `1e36eaef49fe3517448cb2c9565ab1cca42ce3d75089b0a27a43f214a2ac7433`
+- Atelier : `8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802`
+- FORMATS : `f4c9f1da5a14ecbe28d3cd0853871aa621909360ab6475bebeb76bc2191e141b`
+- VERROUS : `0019d7e26efab37164b435667d89494135cc4ae7f9f8206e95472435d1dd63ff`
+- ARCH_SYSTEM : `7fc7b736f6b80049c42a39d74a0fae76eee26d9e2af8249c7761de1ec3236317`
+- ARCH_SCHEMA : `a976687cf6412be80f74eac88762f8c4a4115fe30697bdefd0ea5e6e318fd84b`
+
+Les cinq propriétés, neuf techniques, treize verrous, ExecutionContract, ADN State, Lock Selector, Routing Engine, adapters et Readiness Gate restent couverts par les tests historiques.
