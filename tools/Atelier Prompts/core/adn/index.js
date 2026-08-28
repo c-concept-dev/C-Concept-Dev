@@ -20,3 +20,5 @@ export {
 export * from "./routing-engine.js";
 export * from './engine-adapters.js';
 export * from "./execution-readiness.js";
+export * from "./operational-request-state.js";
+export * from "./intent-preservation.js";
