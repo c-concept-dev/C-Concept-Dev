@@ -1,6 +1,7 @@
 # Grille d’évaluation humaine — LOT 10G.3B.2
 
-Évaluer les réponses anonymisées, sans connaître leur branche, sur 10 pour chaque dimension :
+Évaluer les réponses à l’aveugle depuis `blind/answers/`, sans ouvrir
+`blind/MAPPING-A-NE-PAS-OUVRIR-AVANT-EVALUATION.json`, sur 10 pour chaque dimension :
 
 1. compréhension de l’intention ;
 2. pertinence ;
@@ -22,5 +23,8 @@ Pour chaque cas, attribuer ensuite un score comparatif :
 - `-1` : légère dégradation Atelier ;
 - `-2` : LLM pur préférable ;
 - `-3` : Atelier nettement inférieur.
+
+Reporter les notes dans `GRILLE-EVALUATION-HUMAINE.csv`. Une fois toutes les notes figées,
+ouvrir le fichier de correspondance pour attribuer le score comparatif.
 
 Le score reste **à valider humainement** tant qu’aucun évaluateur n’a rempli la grille. Une pré-évaluation automatisée ne remplace jamais ce verdict.
