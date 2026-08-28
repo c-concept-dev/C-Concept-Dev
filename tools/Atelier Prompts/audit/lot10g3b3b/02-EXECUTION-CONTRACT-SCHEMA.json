@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c-concept-dev.github.io/schemas/execution-contract-v1.schema.json",
+  "title": "ExecutionContract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "request_id", "original_request", "intent", "evidence", "executability", "assumptions", "obligations", "quantities", "output", "locks", "execution_policy", "checks", "routing", "ethics", "adn_summary"],
+  "$defs": {
+    "idText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "text": {"type": "string", "minLength": 1}}
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "source", "status"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "text": {"type": "string", "minLength": 1},
+        "source": {"enum": ["user", "material", "deduction"]},
+        "status": {"enum": ["fact", "deduction"]}
+      }
+    },
+    "missing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "status"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^(MISS|SUB)-[0-9]{3,}$"},
+        "text": {"type": "string", "minLength": 1},
+        "status": {"enum": ["missing", "substitutable"]}
+      }
+    }
+  },
+  "properties": {
+    "version": {"const": "1.0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "original_request": {"type": "string", "minLength": 1},
+    "intent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["objective", "deliverable", "recipient", "explicit_constraints"],
+      "properties": {
+        "objective": {"type": "string", "minLength": 1},
+        "deliverable": {"type": ["string", "null"]},
+        "recipient": {"type": ["string", "null"]},
+        "explicit_constraints": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "text", "source"],
+            "properties": {"id": {"type": "string", "pattern": "^REQ-[0-9]{3,}$"}, "text": {"type": "string", "minLength": 1}, "source": {"const": "user"}}
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["user_facts", "material_facts", "deductions", "external_knowledge_needed", "freshness_needed"],
+      "properties": {
+        "user_facts": {"type": "array", "items": {"$ref": "#/$defs/fact"}},
+        "material_facts": {"type": "array", "items": {"$ref": "#/$defs/fact"}},
+        "deductions": {"type": "array", "items": {"$ref": "#/$defs/fact"}},
+        "external_knowledge_needed": {"type": "boolean"},
+        "freshness_needed": {"type": "boolean"}
+      }
+    },
+    "executability": {
+      "type": "object", "additionalProperties": false,
+      "required": ["state", "confidence", "critical_missing", "substitutable_missing"],
+      "properties": {
+        "state": {"enum": ["exploitable", "clarification_necessaire"]},
+        "confidence": {"enum": ["high", "medium"]},
+        "critical_missing": {"type": "array", "items": {"$ref": "#/$defs/missing"}},
+        "substitutable_missing": {"type": "array", "items": {"$ref": "#/$defs/missing"}}
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "text", "source", "status"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^ASM-[0-9]{3,}$"},
+          "text": {"type": "string", "minLength": 1},
+          "source": {"enum": ["user", "material", "deduction"]},
+          "status": {"const": "assumption"}
+        }
+      }
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "text", "source", "mandatory", "verifiable", "constraint_id"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^(REQ|MAT|SYS)-[0-9]{3,}$"},
+          "text": {"type": "string", "minLength": 1},
+          "source": {"enum": ["user", "material", "system"]},
+          "mandatory": {"type": "boolean"},
+          "verifiable": {"type": "boolean"},
+          "constraint_id": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "quantities": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "target", "unit", "exact", "min", "max", "obligation_ids"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^Q-[0-9]{3,}$"},
+          "target": {"type": ["string", "null"]},
+          "unit": {"type": ["string", "null"]},
+          "exact": {"type": ["integer", "null"], "minimum": 0},
+          "min": {"type": ["integer", "null"], "minimum": 0},
+          "max": {"type": ["integer", "null"], "minimum": 0},
+          "obligation_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "allOf": [
+          {"anyOf": [{"required": ["target"], "properties": {"target": {"type": "string", "minLength": 1}}}, {"required": ["unit"], "properties": {"unit": {"type": "string", "minLength": 1}}}]},
+          {"anyOf": [{"required": ["exact"], "properties": {"exact": {"type": "integer"}}}, {"required": ["min"], "properties": {"min": {"type": "integer"}}}, {"required": ["max"], "properties": {"max": {"type": "integer"}}}]}
+        ]
+      }
+    },
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "required": ["format", "structure", "opening", "closing", "length_policy"],
+      "properties": {
+        "format": {"type": ["string", "null"]},
+        "structure": {"type": "array", "items": {"type": "string"}},
+        "opening": {"type": ["string", "null"]},
+        "closing": {"type": ["string", "null"]},
+        "length_policy": {"type": ["string", "null"]}
+      }
+    },
+    "locks": {
+      "type": "array", "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "reason", "priority", "source_ids"],
+        "properties": {
+          "id": {"enum": ["role", "recipient", "data", "provenance", "scope", "plan", "format", "volume", "opening_closing", "forbidden", "assumptions", "length", "final_check"]},
+          "reason": {"type": "string", "minLength": 1},
+          "priority": {"enum": ["mandatory", "useful"]},
+          "source_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "execution_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["execute_now", "comfort_questions_forbidden", "meta_discussion_forbidden", "complete_delivery_required", "evasion_blocked", "final_injunction_active"],
+      "properties": {
+        "execute_now": {"type": "boolean"},
+        "comfort_questions_forbidden": {"type": "boolean"},
+        "meta_discussion_forbidden": {"type": "boolean"},
+        "complete_delivery_required": {"type": "boolean"},
+        "evasion_blocked": {"type": "boolean"},
+        "final_injunction_active": {"type": "boolean"}
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "target", "rule", "blocking", "obligation_ids"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^CHK-[0-9]{3,}$"},
+          "type": {"enum": ["deterministic", "heuristic", "semantic", "manual"]},
+          "target": {"type": "string", "minLength": 1},
+          "rule": {"type": "string", "minLength": 1},
+          "blocking": {"type": "boolean"},
+          "obligation_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "routing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["engine", "reason", "confidence"],
+      "properties": {
+        "engine": {"enum": ["rapide", "architecte", null]},
+        "reason": {"type": "string", "minLength": 1},
+        "confidence": {"enum": ["high", "medium"]}
+      }
+    },
+    "ethics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["user_autonomy_preserved", "factual_integrity_required", "critical_invention_forbidden", "proportionality_required", "functional_transparency_required", "safety_overrides_execution", "material_rights_respected", "reversibility_preserved", "human_efficiency_required"],
+      "properties": {
+        "user_autonomy_preserved": {"const": true},
+        "factual_integrity_required": {"const": true},
+        "critical_invention_forbidden": {"const": true},
+        "proportionality_required": {"const": true},
+        "functional_transparency_required": {"const": true},
+        "safety_overrides_execution": {"const": true},
+        "material_rights_respected": {"const": true},
+        "reversibility_preserved": {"const": true},
+        "human_efficiency_required": {"const": true}
+      }
+    },
+    "adn_summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["intentionality", "executability", "discipline", "completeness", "compliance"],
+      "properties": {
+        "intentionality": {"const": "represented"},
+        "executability": {"const": "represented"},
+        "discipline": {"const": "represented"},
+        "completeness": {"const": "represented"},
+        "compliance": {"const": "represented"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"executability": {"properties": {"state": {"const": "exploitable"}}}}},
+      "then": {"properties": {"execution_policy": {"properties": {"execute_now": {"const": true}, "final_injunction_active": {"const": true}}}, "routing": {"properties": {"engine": {"enum": ["rapide", "architecte"]}}}}},
+      "else": {"properties": {"execution_policy": {"properties": {"execute_now": {"const": false}, "final_injunction_active": {"const": false}}}, "routing": {"properties": {"engine": {"const": null}}}}}
+    }
+  ]
+}
