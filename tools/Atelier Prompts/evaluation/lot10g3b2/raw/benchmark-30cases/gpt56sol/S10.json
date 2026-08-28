@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:30:15.573Z",
+  "completed_at": "2026-08-28T07:30:17.499Z",
+  "latency_total_ms": 1926.126,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:30:17.499Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 1896.424,
+      "response_id": "resp_0f16c7f82cd37f3f006a913907c10087d2abc5f459bfd66bd1",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 75,
+        "output_tokens": 75,
+        "total_tokens": 150,
+        "reasoning_tokens": 0
+      },
+      "estimated_cost_usd": 0.0018,
+      "incomplete_details": null,
+      "error": null,
+      "output": "- L’association compte **85 adhérents**.\n- Les inscriptions ont augmenté de **18 % cette année**.\n- Les ateliers du **samedi sont complets**.\n- Ceux du **mercredi ne sont remplis qu’à moitié**, tandis que le budget communication reste stable.\n- Le conseil souhaite tester **deux nouveaux horaires en soirée**."
+    }
+  ],
+  "turns": [],
+  "output": "- L’association compte **85 adhérents**.\n- Les inscriptions ont augmenté de **18 % cette année**.\n- Les ateliers du **samedi sont complets**.\n- Ceux du **mercredi ne sont remplis qu’à moitié**, tandis que le budget communication reste stable.\n- Le conseil souhaite tester **deux nouveaux horaires en soirée**.",
+  "error": null,
+  "initial_request_exact": "Résume en 5 puces ce texte : « Notre association compte 85 adhérents. Les inscriptions ont augmenté de 18 % cette année. Les ateliers du samedi sont complets, mais ceux du mercredi ne remplissent que la moitié des places. Le budget communication est stable. Le conseil propose de tester deux nouveaux horaires en soirée. »",
+  "clarification_detection": "heuristique documentée"
+}

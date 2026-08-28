@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:25:27.849Z",
+  "completed_at": "2026-08-28T07:25:34.506Z",
+  "latency_total_ms": 6656.212,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:25:34.505Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 6602.831,
+      "response_id": "resp_01c97e81d20b2c01006a9137e81b5887d2b654a114a45f527f",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 34,
+        "output_tokens": 326,
+        "total_tokens": 360,
+        "reasoning_tokens": 41
+      },
+      "estimated_cost_usd": 0.006656,
+      "incomplete_details": null,
+      "error": null,
+      "output": "| Critère | Télétravail complet | Travail hybride |\n|---|---|---|\n| Flexibilité | Maximale, avec liberté géographique et moins de déplacements | Élevée, mais encadrée par des jours de présence |\n| Collaboration | Repose fortement sur les outils numériques et une communication structurée | Facilite les échanges à distance tout en conservant des interactions en personne |\n| Cohésion d’équipe | Plus difficile à entretenir, avec un risque d’isolement | Généralement renforcée par les rencontres régulières |\n| Productivité | Favorable au travail individuel, sous réserve d’un environnement adapté | Combine concentration à domicile et coordination au bureau |\n| Coûts et temps | Réduit fortement les trajets et peut diminuer les besoins immobiliers | Génère encore des déplacements et nécessite des espaces de travail |\n| Management | Exige autonomie, confiance et suivi par objectifs | Offre davantage de visibilité directe, mais demande une coordination plus complexe |\n\nLe télétravail complet maximise la flexibilité et réduit les coûts, mais peut fragiliser la cohésion et les échanges informels.  \nLe travail hybride préserve davantage le lien social et la collaboration, au prix de déplacements et d’une organisation plus complexe.  \nLe meilleur choix dépend donc du niveau d’autonomie des salariés, de la nature des tâches et de l’importance accordée aux interactions en personne."
+    }
+  ],
+  "turns": [],
+  "output": "| Critère | Télétravail complet | Travail hybride |\n|---|---|---|\n| Flexibilité | Maximale, avec liberté géographique et moins de déplacements | Élevée, mais encadrée par des jours de présence |\n| Collaboration | Repose fortement sur les outils numériques et une communication structurée | Facilite les échanges à distance tout en conservant des interactions en personne |\n| Cohésion d’équipe | Plus difficile à entretenir, avec un risque d’isolement | Généralement renforcée par les rencontres régulières |\n| Productivité | Favorable au travail individuel, sous réserve d’un environnement adapté | Combine concentration à domicile et coordination au bureau |\n| Coûts et temps | Réduit fortement les trajets et peut diminuer les besoins immobiliers | Génère encore des déplacements et nécessite des espaces de travail |\n| Management | Exige autonomie, confiance et suivi par objectifs | Offre davantage de visibilité directe, mais demande une coordination plus complexe |\n\nLe télétravail complet maximise la flexibilité et réduit les coûts, mais peut fragiliser la cohésion et les échanges informels.  \nLe travail hybride préserve davantage le lien social et la collaboration, au prix de déplacements et d’une organisation plus complexe.  \nLe meilleur choix dépend donc du niveau d’autonomie des salariés, de la nature des tâches et de l’importance accordée aux interactions en personne.",
+  "error": null,
+  "initial_request_exact": "Compare le télétravail complet et le travail hybride dans un tableau de 6 critères, puis résume les principaux compromis en trois phrases.",
+  "clarification_detection": "heuristique documentée"
+}

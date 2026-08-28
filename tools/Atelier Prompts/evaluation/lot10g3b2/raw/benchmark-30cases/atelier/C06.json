@@ -1,0 +1,468 @@
+{
+  "started_at": "2026-08-28T07:43:05.693Z",
+  "completed_at": "2026-08-28T07:45:14.448Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 128754.889,
+  "time_to_first_useful_result_ms": 128754.896,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:43:06.184Z",
+      "latency_ms": 523.816,
+      "status_http": 502,
+      "request": {
+        "demande": "Élabore une stratégie de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants. Compare lancement public immédiat, bêta fermée et déploiement par cohortes ; analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:43:06.708Z",
+      "latency_ms": 274.642,
+      "status_http": 502,
+      "request": {
+        "demande": "Élabore une stratégie de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants. Compare lancement public immédiat, bêta fermée et déploiement par cohortes ; analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 798.458,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 91934.737,
+    "context": {
+      "demande": "Élabore une stratégie de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants. Compare lancement public immédiat, bêta fermée et déploiement par cohortes ; analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Produire une stratégie opérationnelle de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants.",
+        "intentions_secondaires": [
+          "Comparer trois modes de lancement et leurs compromis.",
+          "Planifier l'acquisition, le support et la mesure de l'activation.",
+          "Définir les risques, les critères de passage et une recommandation finale."
+        ],
+        "declarations": [
+          {
+            "contenu": "Le produit est une application mobile de gestion du temps destinée aux indépendants.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "application mobile de gestion du temps destinée aux indépendants",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "La stratégie doit couvrir douze semaines.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "sur douze semaines",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "La comparaison doit porter sur le lancement public immédiat, la bêta fermée et le déploiement par cohortes.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Compare lancement public immédiat, bêta fermée et déploiement par cohortes",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le livrable doit traiter l'acquisition, le support, l'activation, les risques, les critères de passage et la recommandation finale.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [
+          "Le stade actuel du produit et son niveau de stabilité ne sont pas précisés.",
+          "Le segment exact d'indépendants, la zone géographique et le modèle économique ne sont pas définis.",
+          "Les ressources disponibles pour l'acquisition, l'analyse produit et le support sont inconnues."
+        ],
+        "informations_manquantes": [
+          {
+            "information": "État de préparation du produit, instrumentation existante et défauts critiques connus.",
+            "bloquant": false,
+            "justification": "Ces éléments modifieraient le rythme d'ouverture, mais une stratégie complète peut être proposée avec des étapes de validation conditionnelles."
+          },
+          {
+            "information": "Budget d'acquisition, taille de l'équipe et capacité hebdomadaire de support.",
+            "bloquant": false,
+            "justification": "Ils détermineraient les volumes et canaux précis ; à défaut, le plan peut utiliser des tests plafonnés et des critères relatifs à la capacité réelle."
+          },
+          {
+            "information": "Segment prioritaire, audience déjà accessible et données de référence du parcours utilisateur.",
+            "bloquant": false,
+            "justification": "Ils permettraient d'affiner les messages, canaux et seuils d'activation, sans empêcher une stratégie générale explicitement conditionnelle."
+          }
+        ]
+      },
+      "evaluation": {
+        "niveau_risque": "modere",
+        "justification_risque": "La recommandation peut influencer des dépenses, la réputation du produit et la charge de support, mais les décisions restent progressives et réversibles si les critères de passage sont bien définis.",
+        "connaissance_externe_necessaire": true,
+        "actualite_requise": false,
+        "justification_connaissance": "La construction du livrable mobilise des méthodes de lancement produit, d'acquisition, de support et d'analyse d'activation qui ne figurent pas dans la demande. Aucun fait de marché actuel n'est indispensable si les éventuels benchmarks ne sont pas présentés comme vérifiés.",
+        "calcul_requis": true,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": [
+          "Comparaison structurée des trois modes de lancement.",
+          "Feuille de route couvrant les douze semaines.",
+          "Cadre d'acquisition, de support et de mesure de l'activation.",
+          "Registre des risques, critères de passage et recommandation conditionnelle."
+        ]
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Stratégie de lancement de produit mobile",
+          "Acquisition et expérimentation de canaux",
+          "Analyse de parcours et métriques d'activation",
+          "Planification opérationnelle sur douze semaines",
+          "Gestion des risques et de la capacité de support",
+          "Arbitrage comparatif entre options"
+        ],
+        "hypotheses_autorisees": [
+          "Traiter la recommandation comme un choix stratégique conditionnel aux informations disponibles.",
+          "Définir un événement d'activation provisoire centré sur l'obtention d'une première valeur utilisateur, puis prévoir sa validation au début du plan.",
+          "Utiliser des seuils relatifs, des tendances par cohorte ou des objectifs provisoires lorsque les données de référence manquent.",
+          "Supposer qu'une version testable existe ou peut être rendue testable au début de la période, tout en prévoyant un report conditionnel si ce n'est pas le cas."
+        ],
+        "hypotheses_interdites": [
+          "Inventer un budget, une taille d'audience, une capacité de support ou des performances historiques.",
+          "Présenter des taux de conversion, coûts d'acquisition ou seuils d'activation comme des benchmarks vérifiés sans base identifiable.",
+          "Supposer qu'un mode de lancement est universellement optimal.",
+          "Affirmer des performances futures précises pour un canal d'acquisition."
+        ],
+        "role_adaptatif": {
+          "intitule": "Stratège de lancement produit mobile orienté expérimentation",
+          "mission": "Comparer les options de lancement et construire un plan de douze semaines qui maximise l'apprentissage utile tout en maîtrisant l'acquisition, le support et les risques.",
+          "competences": [
+            "Product-led growth",
+            "Analyse de cohortes",
+            "Conception d'expériences",
+            "Opérations de lancement",
+            "Mesure de l'activation"
+          ],
+          "limites": [
+            "Aucun accès aux métriques réelles du produit.",
+            "Aucune connaissance confirmée du budget ou des effectifs.",
+            "Les seuils proposés doivent rester provisoires tant qu'ils ne sont pas étalonnés."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "Le réglage manuel minimal est prioritaire ; cinq composants ciblés suffisent à couvrir la comparaison, le calendrier, les opérations, la mesure et la décision sans supprimer les précautions nécessaires.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Choisir les critères de comparaison selon l'objectif principal de lancement et d'apprentissage.",
+            "Répartir les activités sur douze semaines avec des points de décision intermédiaires.",
+            "Privilégier comme choix de travail un déploiement progressif par cohortes, précédé d'une validation restreinte, sauf élément contextuel contraire.",
+            "Proposer une définition provisoire de l'activation à valider pendant les premières semaines."
+          ],
+          "estimations_a_etiqueter": [
+            "Toute projection de volume d'acquisition, de conversion, de coût ou de charge de support.",
+            "Tout seuil numérique proposé pour autoriser un élargissement.",
+            "Toute anticipation du délai nécessaire pour stabiliser le produit."
+          ],
+          "inconnues_non_devineables": [
+            "Budget disponible et coût réel des canaux.",
+            "Capacité effective de l'équipe et du support.",
+            "Niveau actuel de stabilité du produit.",
+            "Taux d'activation et de rétention de référence.",
+            "Taille et composition de l'audience accessible."
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Stratégie de lancement comparative et feuille de route décisionnelle sur douze semaines",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 12,
+          "max": 12,
+          "unite": "semaines"
+        },
+        "ton": "Décisionnel, pragmatique, synthétique et explicite sur les hypothèses",
+        "longueur_indicative": "Environ 1 600 à 2 200 mots, avec un tableau comparatif et une feuille de route couvrant les douze semaines."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "instruction",
+            "titre": "Comparaison décisionnelle des trois modes",
+            "contenu": "Présente un tableau comparant le lancement public immédiat, la bêta fermée et le déploiement par cohortes. Évalue chaque option selon la vitesse d'accès au marché, la qualité de l'apprentissage, le contrôle de l'expérience, la charge de support, le risque réputationnel, la représentativité des retours, la réversibilité et la capacité de montée en charge. Pour chaque option, indique avantages, limites, conditions de pertinence et signaux qui doivent l'écarter. Ne désigne pas de vainqueur universel.",
+            "justification": "La comparaison doit rendre visibles les compromis qui fondent la recommandation plutôt que juxtaposer trois descriptions.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "Compare lancement public immédiat, bêta fermée et déploiement par cohortes",
+                "usage": "Établit les trois options à comparer."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Les critères transversaux rendent les options comparables sur un même périmètre."
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "titre": "Feuille de route des douze semaines",
+            "contenu": "Construis une feuille de route couvrant explicitement les semaines 1 à 12. Pour chaque semaine ou bloc de semaines, précise l'objectif, les actions produit, acquisition, instrumentation et support, le livrable attendu ainsi que la décision rendue possible. Organise la progression autour de la préparation, d'un test contrôlé, de l'élargissement et de la consolidation. N'invente pas de titulaires nommés ni d'effectifs ; indique plutôt la fonction responsable et la capacité requise.",
+            "justification": "Le calendrier doit traduire l'analyse en séquence exécutable et montrer comment les apprentissages conditionnent l'étape suivante.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "Élabore une stratégie de lancement sur douze semaines",
+                "usage": "Fixe l'horizon et la nature planifiée du livrable."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Des résultats et décisions associés aux étapes rendent le calendrier opérationnel."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Acquisition et dispositif de support",
+            "contenu": "Pour chaque phase, précise l'objectif d'acquisition, les catégories de canaux à tester, le message à valider, le volume à limiter selon la capacité et la méthode d'évaluation. Relie l'ouverture des canaux à la capacité de support. Définis un dispositif de support proportionné comprenant collecte des retours, triage, traitement des incidents critiques, documentation et boucle de retour vers le produit. Toute attente de performance ou de coût doit être étiquetée comme estimation ou laissée à mesurer.",
+            "justification": "L'acquisition ne peut pas être planifiée indépendamment de la capacité à accompagner les utilisateurs et à traiter leurs retours.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "analyse acquisition, support",
+                "usage": "Impose le traitement conjoint de ces deux dimensions."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Le couplage des volumes acquis et de la capacité de support limite le risque de surcharge."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Définition et mesure de l'activation",
+            "contenu": "Propose une définition provisoire de l'activation fondée sur un comportement observable représentant une première valeur obtenue dans l'application, puis indique comment la valider qualitativement. Fournis une métrique principale, sa formule, sa fenêtre temporelle et son dénominateur, ainsi que quelques métriques diagnostiques du parcours. Prévois une lecture par cohorte et canal. En l'absence de données historiques, privilégie tendance, stabilité et progression ; présente tout seuil numérique comme cible provisoire à étalonner.",
+            "justification": "Une définition mesurable et non circulaire de l'activation est nécessaire pour décider si l'élargissement produit une valeur réelle.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "mesure de l'activation",
+                "usage": "Établit la métrique centrale à concevoir."
+              },
+              {
+                "nature": "connaissance_externe_non_verifiee",
+                "citation": null,
+                "usage": "La mesure par événement, fenêtre et cohorte relève des méthodes générales d'analyse produit."
+              }
+            ]
+          },
+          {
+            "type": "critere",
+            "titre": "Risques, passages et recommandation",
+            "contenu": "Dresse un registre concis des risques couvrant au minimum stabilité du produit, faible qualité des retours, biais d'échantillon, surcharge du support, dépenses d'acquisition prématurées, atteinte à la réputation et défaut d'instrumentation. Pour chaque risque, indique signal précoce, prévention et réponse. Définis des critères de passage, maintien, recul ou arrêt fondés sur l'activation, les incidents critiques, la capacité de support, la qualité des retours et la fiabilité des données. Termine par une recommandation unique et argumentée, ses conditions de validité, le compromis accepté et une solution de repli. Distingue clairement décision stratégique, hypothèse et fait établi.",
+            "justification": "La recommandation doit découler de critères explicites et rester réversible si les signaux observés contredisent les hypothèses.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "risques, critères de passage entre étapes et recommandation finale",
+                "usage": "Établit les trois résultats décisionnels requis."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Les conditions de recul et d'arrêt évitent qu'un critère de passage ne fonctionne que dans un sens."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "Les trois modes de lancement sont comparés sur un périmètre commun.",
+          "Les douze semaines sont toutes couvertes par la feuille de route.",
+          "L'acquisition, le support, l'activation, les risques et les critères de passage sont explicitement traités.",
+          "Une recommandation finale unique découle de la comparaison et des critères.",
+          "Aucun budget, benchmark, taux de conversion ou niveau de performance n'est inventé."
+        ],
+        "criteres_qualitatifs": [
+          "Chaque phase produit un apprentissage ou une décision identifiable.",
+          "Les volumes d'acquisition restent cohérents avec la capacité de support.",
+          "La métrique d'activation possède un événement, une fenêtre et un dénominateur clairs.",
+          "Les critères prévoient passage, maintien, recul et arrêt.",
+          "Les hypothèses et estimations susceptibles de changer la recommandation sont visibles sans alourdir le livrable.",
+          "La recommandation privilégie l'objectif principal plutôt qu'un avantage secondaire isolé."
+        ],
+        "elements_non_verifiables": [
+          "Réaction réelle des indépendants aux messages et canaux proposés.",
+          "Coûts, volumes et conversions futurs des actions d'acquisition.",
+          "Capacité effective du support et stabilité actuelle du produit.",
+          "Valeurs de référence des métriques d'activation et de rétention.",
+          "Supériorité contextuelle de la recommandation sans données opérationnelles propres au produit."
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "Le produit est une application mobile de gestion du temps destinée aux indépendants.",
+            "statut": "soutenue",
+            "justification": "Cette caractérisation est explicitement donnée dans la demande."
+          },
+          {
+            "affirmation": "Le déploiement par cohortes constitue le choix de travail recommandé.",
+            "statut": "hypothese",
+            "justification": "Il s'agit d'une décision stratégique provisoire à justifier, non d'un fait établi par la demande."
+          },
+          {
+            "affirmation": "Un seuil numérique précis d'activation autorise l'élargissement.",
+            "statut": "information_manquante",
+            "justification": "Aucune donnée historique ne permet d'établir un seuil empirique propre au produit."
+          },
+          {
+            "affirmation": "Un déploiement progressif facilite généralement le contrôle du support et l'apprentissage.",
+            "statut": "connaissance_externe_non_verifiee",
+            "justification": "C'est un principe général de lancement produit qui ne provient pas de la demande et doit rester contextualisé."
+          },
+          {
+            "affirmation": "Les canaux proposés atteindront un coût ou un taux de conversion déterminé.",
+            "statut": "information_manquante",
+            "justification": "Les performances des canaux dépendent du marché, du message, du budget et des données réelles absentes."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:44:38.877Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 91665.938,
+      "response_id": "resp_0e12780dd8e4264b006a913c0b262887d2b26f2bb9590faac6",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9673,
+        "output_tokens": 7869,
+        "total_tokens": 17542,
+        "reasoning_tokens": 3840
+      },
+      "estimated_cost_usd": 0.196072,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Produire une stratégie opérationnelle de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants.\",\n    \"intentions_secondaires\": [\n      \"Comparer trois modes de lancement et leurs compromis.\",\n      \"Planifier l'acquisition, le support et la mesure de l'activation.\",\n      \"Définir les risques, les critères de passage et une recommandation finale.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"Le produit est une application mobile de gestion du temps destinée aux indépendants.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"application mobile de gestion du temps destinée aux indépendants\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"La stratégie doit couvrir douze semaines.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"sur douze semaines\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La comparaison doit porter sur le lancement public immédiat, la bêta fermée et le déploiement par cohortes.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Compare lancement public immédiat, bêta fermée et déploiement par cohortes\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le livrable doit traiter l'acquisition, le support, l'activation, les risques, les critères de passage et la recommandation finale.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"Le stade actuel du produit et son niveau de stabilité ne sont pas précisés.\",\n      \"Le segment exact d'indépendants, la zone géographique et le modèle économique ne sont pas définis.\",\n      \"Les ressources disponibles pour l'acquisition, l'analyse produit et le support sont inconnues.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"État de préparation du produit, instrumentation existante et défauts critiques connus.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments modifieraient le rythme d'ouverture, mais une stratégie complète peut être proposée avec des étapes de validation conditionnelles.\"\n      },\n      {\n        \"information\": \"Budget d'acquisition, taille de l'équipe et capacité hebdomadaire de support.\",\n        \"bloquant\": false,\n        \"justification\": \"Ils détermineraient les volumes et canaux précis ; à défaut, le plan peut utiliser des tests plafonnés et des critères relatifs à la capacité réelle.\"\n      },\n      {\n        \"information\": \"Segment prioritaire, audience déjà accessible et données de référence du parcours utilisateur.\",\n        \"bloquant\": false,\n        \"justification\": \"Ils permettraient d'affiner les messages, canaux et seuils d'activation, sans empêcher une stratégie générale explicitement conditionnelle.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"modere\",\n    \"justification_risque\": \"La recommandation peut influencer des dépenses, la réputation du produit et la charge de support, mais les décisions restent progressives et réversibles si les critères de passage sont bien définis.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La construction du livrable mobilise des méthodes de lancement produit, d'acquisition, de support et d'analyse d'activation qui ne figurent pas dans la demande. Aucun fait de marché actuel n'est indispensable si les éventuels benchmarks ne sont pas présentés comme vérifiés.\",\n    \"calcul_requis\": true,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": [\n      \"Comparaison structurée des trois modes de lancement.\",\n      \"Feuille de route couvrant les douze semaines.\",\n      \"Cadre d'acquisition, de support et de mesure de l'activation.\",\n      \"Registre des risques, critères de passage et recommandation conditionnelle.\"\n    ]\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Stratégie de lancement de produit mobile\",\n      \"Acquisition et expérimentation de canaux\",\n      \"Analyse de parcours et métriques d'activation\",\n      \"Planification opérationnelle sur douze semaines\",\n      \"Gestion des risques et de la capacité de support\",\n      \"Arbitrage comparatif entre options\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Traiter la recommandation comme un choix stratégique conditionnel aux informations disponibles.\",\n      \"Définir un événement d'activation provisoire centré sur l'obtention d'une première valeur utilisateur, puis prévoir sa validation au début du plan.\",\n      \"Utiliser des seuils relatifs, des tendances par cohorte ou des objectifs provisoires lorsque les données de référence manquent.\",\n      \"Supposer qu'une version testable existe ou peut être rendue testable au début de la période, tout en prévoyant un report conditionnel si ce n'est pas le cas.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer un budget, une taille d'audience, une capacité de support ou des performances historiques.\",\n      \"Présenter des taux de conversion, coûts d'acquisition ou seuils d'activation comme des benchmarks vérifiés sans base identifiable.\",\n      \"Supposer qu'un mode de lancement est universellement optimal.\",\n      \"Affirmer des performances futures précises pour un canal d'acquisition.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Stratège de lancement produit mobile orienté expérimentation\",\n      \"mission\": \"Comparer les options de lancement et construire un plan de douze semaines qui maximise l'apprentissage utile tout en maîtrisant l'acquisition, le support et les risques.\",\n      \"competences\": [\n        \"Product-led growth\",\n        \"Analyse de cohortes\",\n        \"Conception d'expériences\",\n        \"Opérations de lancement\",\n        \"Mesure de l'activation\"\n      ],\n      \"limites\": [\n        \"Aucun accès aux métriques réelles du produit.\",\n        \"Aucune connaissance confirmée du budget ou des effectifs.\",\n        \"Les seuils proposés doivent rester provisoires tant qu'ils ne sont pas étalonnés.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel minimal est prioritaire ; cinq composants ciblés suffisent à couvrir la comparaison, le calendrier, les opérations, la mesure et la décision sans supprimer les précautions nécessaires.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Choisir les critères de comparaison selon l'objectif principal de lancement et d'apprentissage.\",\n        \"Répartir les activités sur douze semaines avec des points de décision intermédiaires.\",\n        \"Privilégier comme choix de travail un déploiement progressif par cohortes, précédé d'une validation restreinte, sauf élément contextuel contraire.\",\n        \"Proposer une définition provisoire de l'activation à valider pendant les premières semaines.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Toute projection de volume d'acquisition, de conversion, de coût ou de charge de support.\",\n        \"Tout seuil numérique proposé pour autoriser un élargissement.\",\n        \"Toute anticipation du délai nécessaire pour stabiliser le produit.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Budget disponible et coût réel des canaux.\",\n        \"Capacité effective de l'équipe et du support.\",\n        \"Niveau actuel de stabilité du produit.\",\n        \"Taux d'activation et de rétention de référence.\",\n        \"Taille et composition de l'audience accessible.\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Stratégie de lancement comparative et feuille de route décisionnelle sur douze semaines\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 12,\n      \"max\": 12,\n      \"unite\": \"semaines\"\n    },\n    \"ton\": \"Décisionnel, pragmatique, synthétique et explicite sur les hypothèses\",\n    \"longueur_indicative\": \"Environ 1 600 à 2 200 mots, avec un tableau comparatif et une feuille de route couvrant les douze semaines.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Comparaison décisionnelle des trois modes\",\n        \"contenu\": \"Présente un tableau comparant le lancement public immédiat, la bêta fermée et le déploiement par cohortes. Évalue chaque option selon la vitesse d'accès au marché, la qualité de l'apprentissage, le contrôle de l'expérience, la charge de support, le risque réputationnel, la représentativité des retours, la réversibilité et la capacité de montée en charge. Pour chaque option, indique avantages, limites, conditions de pertinence et signaux qui doivent l'écarter. Ne désigne pas de vainqueur universel.\",\n        \"justification\": \"La comparaison doit rendre visibles les compromis qui fondent la recommandation plutôt que juxtaposer trois descriptions.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Compare lancement public immédiat, bêta fermée et déploiement par cohortes\",\n            \"usage\": \"Établit les trois options à comparer.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Les critères transversaux rendent les options comparables sur un même périmètre.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Feuille de route des douze semaines\",\n        \"contenu\": \"Construis une feuille de route couvrant explicitement les semaines 1 à 12. Pour chaque semaine ou bloc de semaines, précise l'objectif, les actions produit, acquisition, instrumentation et support, le livrable attendu ainsi que la décision rendue possible. Organise la progression autour de la préparation, d'un test contrôlé, de l'élargissement et de la consolidation. N'invente pas de titulaires nommés ni d'effectifs ; indique plutôt la fonction responsable et la capacité requise.\",\n        \"justification\": \"Le calendrier doit traduire l'analyse en séquence exécutable et montrer comment les apprentissages conditionnent l'étape suivante.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Élabore une stratégie de lancement sur douze semaines\",\n            \"usage\": \"Fixe l'horizon et la nature planifiée du livrable.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Des résultats et décisions associés aux étapes rendent le calendrier opérationnel.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Acquisition et dispositif de support\",\n        \"contenu\": \"Pour chaque phase, précise l'objectif d'acquisition, les catégories de canaux à tester, le message à valider, le volume à limiter selon la capacité et la méthode d'évaluation. Relie l'ouverture des canaux à la capacité de support. Définis un dispositif de support proportionné comprenant collecte des retours, triage, traitement des incidents critiques, documentation et boucle de retour vers le produit. Toute attente de performance ou de coût doit être étiquetée comme estimation ou laissée à mesurer.\",\n        \"justification\": \"L'acquisition ne peut pas être planifiée indépendamment de la capacité à accompagner les utilisateurs et à traiter leurs retours.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"analyse acquisition, support\",\n            \"usage\": \"Impose le traitement conjoint de ces deux dimensions.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Le couplage des volumes acquis et de la capacité de support limite le risque de surcharge.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Définition et mesure de l'activation\",\n        \"contenu\": \"Propose une définition provisoire de l'activation fondée sur un comportement observable représentant une première valeur obtenue dans l'application, puis indique comment la valider qualitativement. Fournis une métrique principale, sa formule, sa fenêtre temporelle et son dénominateur, ainsi que quelques métriques diagnostiques du parcours. Prévois une lecture par cohorte et canal. En l'absence de données historiques, privilégie tendance, stabilité et progression ; présente tout seuil numérique comme cible provisoire à étalonner.\",\n        \"justification\": \"Une définition mesurable et non circulaire de l'activation est nécessaire pour décider si l'élargissement produit une valeur réelle.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"mesure de l'activation\",\n            \"usage\": \"Établit la métrique centrale à concevoir.\"\n          },\n          {\n            \"nature\": \"connaissance_externe_non_verifiee\",\n            \"citation\": null,\n            \"usage\": \"La mesure par événement, fenêtre et cohorte relève des méthodes générales d'analyse produit.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"critere\",\n        \"titre\": \"Risques, passages et recommandation\",\n        \"contenu\": \"Dresse un registre concis des risques couvrant au minimum stabilité du produit, faible qualité des retours, biais d'échantillon, surcharge du support, dépenses d'acquisition prématurées, atteinte à la réputation et défaut d'instrumentation. Pour chaque risque, indique signal précoce, prévention et réponse. Définis des critères de passage, maintien, recul ou arrêt fondés sur l'activation, les incidents critiques, la capacité de support, la qualité des retours et la fiabilité des données. Termine par une recommandation unique et argumentée, ses conditions de validité, le compromis accepté et une solution de repli. Distingue clairement décision stratégique, hypothèse et fait établi.\",\n        \"justification\": \"La recommandation doit découler de critères explicites et rester réversible si les signaux observés contredisent les hypothèses.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"risques, critères de passage entre étapes et recommandation finale\",\n            \"usage\": \"Établit les trois résultats décisionnels requis.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Les conditions de recul et d'arrêt évitent qu'un critère de passage ne fonctionne que dans un sens.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Les trois modes de lancement sont comparés sur un périmètre commun.\",\n      \"Les douze semaines sont toutes couvertes par la feuille de route.\",\n      \"L'acquisition, le support, l'activation, les risques et les critères de passage sont explicitement traités.\",\n      \"Une recommandation finale unique découle de la comparaison et des critères.\",\n      \"Aucun budget, benchmark, taux de conversion ou niveau de performance n'est inventé.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Chaque phase produit un apprentissage ou une décision identifiable.\",\n      \"Les volumes d'acquisition restent cohérents avec la capacité de support.\",\n      \"La métrique d'activation possède un événement, une fenêtre et un dénominateur clairs.\",\n      \"Les critères prévoient passage, maintien, recul et arrêt.\",\n      \"Les hypothèses et estimations susceptibles de changer la recommandation sont visibles sans alourdir le livrable.\",\n      \"La recommandation privilégie l'objectif principal plutôt qu'un avantage secondaire isolé.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"Réaction réelle des indépendants aux messages et canaux proposés.\",\n      \"Coûts, volumes et conversions futurs des actions d'acquisition.\",\n      \"Capacité effective du support et stabilité actuelle du produit.\",\n      \"Valeurs de référence des métriques d'activation et de rétention.\",\n      \"Supériorité contextuelle de la recommandation sans données opérationnelles propres au produit.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"Le produit est une application mobile de gestion du temps destinée aux indépendants.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Cette caractérisation est explicitement donnée dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Le déploiement par cohortes constitue le choix de travail recommandé.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Il s'agit d'une décision stratégique provisoire à justifier, non d'un fait établi par la demande.\"\n      },\n      {\n        \"affirmation\": \"Un seuil numérique précis d'activation autorise l'élargissement.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Aucune donnée historique ne permet d'établir un seuil empirique propre au produit.\"\n      },\n      {\n        \"affirmation\": \"Un déploiement progressif facilite généralement le contrôle du support et l'apprentissage.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"C'est un principe général de lancement produit qui ne provient pas de la demande et doit rester contextualisé.\"\n      },\n      {\n        \"affirmation\": \"Les canaux proposés atteindront un coût ou un taux de conversion déterminé.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Les performances des canaux dépendent du marché, du message, du budget et des données réelles absentes.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Stratège de lancement produit mobile orienté expérimentation.\nComparer les options de lancement et construire un plan de douze semaines qui maximise l'apprentissage utile tout en maîtrisant l'acquisition, le support et les risques.\nCompétences à mobiliser : Product-led growth ; Analyse de cohortes ; Conception d'expériences ; Opérations de lancement ; Mesure de l'activation.\nLimites à respecter : Aucun accès aux métriques réelles du produit ; Aucune connaissance confirmée du budget ou des effectifs ; Les seuils proposés doivent rester provisoires tant qu'ils ne sont pas étalonnés.\n\n## OBJECTIF\nProduire une stratégie opérationnelle de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants.\n\n## DEMANDE ORIGINALE\nÉlabore une stratégie de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants. Compare lancement public immédiat, bêta fermée et déploiement par cohortes ; analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale.\n\n## FORMAT DE SORTIE\n- Livrable : Stratégie de lancement comparative et feuille de route décisionnelle sur douze semaines\n- Format technique : markdown\n- Ton : Décisionnel, pragmatique, synthétique et explicite sur les hypothèses\n- Longueur indicative : Environ 1 600 à 2 200 mots, avec un tableau comparatif et une feuille de route couvrant les douze semaines.\n- Quantité : minimum 12 ; maximum 12 semaines\n- Structure : plan imposé (12 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Choisir les critères de comparaison selon l'objectif principal de lancement et d'apprentissage.\n- Répartir les activités sur douze semaines avec des points de décision intermédiaires.\n- Privilégier comme choix de travail un déploiement progressif par cohortes, précédé d'une validation restreinte, sauf élément contextuel contraire.\n- Proposer une définition provisoire de l'activation à valider pendant les premières semaines.\n\nEstimations autorisées, à étiqueter clairement :\n- Toute projection de volume d'acquisition, de conversion, de coût ou de charge de support.\n- Tout seuil numérique proposé pour autoriser un élargissement.\n- Toute anticipation du délai nécessaire pour stabiliser le produit.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Budget disponible et coût réel des canaux.\n- Capacité effective de l'équipe et du support.\n- Niveau actuel de stabilité du produit.\n- Taux d'activation et de rétention de référence.\n- Taille et composition de l'audience accessible.\n\n## INFORMATIONS MANQUANTES ET PILOTAGE\n- Non bloquante : État de préparation du produit, instrumentation existante et défauts critiques connus. — Ces éléments modifieraient le rythme d'ouverture, mais une stratégie complète peut être proposée avec des étapes de validation conditionnelles.\n- Non bloquante : Budget d'acquisition, taille de l'équipe et capacité hebdomadaire de support. — Ils détermineraient les volumes et canaux précis ; à défaut, le plan peut utiliser des tests plafonnés et des critères relatifs à la capacité réelle.\n- Non bloquante : Segment prioritaire, audience déjà accessible et données de référence du parcours utilisateur. — Ils permettraient d'affiner les messages, canaux et seuils d'activation, sans empêcher une stratégie générale explicitement conditionnelle.\n\nNe présentez jamais une information inconnue comme confirmée. Mais ne bloquez pas une réponse utile pour une donnée que vous pouvez décider, estimer, rechercher ou laisser explicitement à confirmer.\n\n## RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES\nUne connaissance extérieure à la demande est nécessaire. Citez les sources directement consultées et leur date de consultation. Sans recherche réelle, distinguez explicitement ce qui est établi dans la demande de ce qui reste non vérifié. Pour chaque affirmation importante, choisissez la source selon son autorité sur cette affirmation, sa proximité avec la donnée, sa spécificité et sa fraîcheur ; ne suivez pas une hiérarchie rigide indépendante du contexte. En cas de contradiction, cherchez une preuve plus directement compétente et tranchez seulement si elle résout réellement le conflit. Recherchez également les changements futurs déjà établis lorsqu’ils se situent dans l’horizon pertinent et peuvent modifier la décision.\n\n## HYPOTHÈSES AUTORISÉES\n- Traiter la recommandation comme un choix stratégique conditionnel aux informations disponibles.\n- Définir un événement d'activation provisoire centré sur l'obtention d'une première valeur utilisateur, puis prévoir sa validation au début du plan.\n- Utiliser des seuils relatifs, des tendances par cohorte ou des objectifs provisoires lorsque les données de référence manquent.\n- Supposer qu'une version testable existe ou peut être rendue testable au début de la période, tout en prévoyant un report conditionnel si ce n'est pas le cas.\n\n## HYPOTHÈSES INTERDITES\n- Inventer un budget, une taille d'audience, une capacité de support ou des performances historiques.\n- Présenter des taux de conversion, coûts d'acquisition ou seuils d'activation comme des benchmarks vérifiés sans base identifiable.\n- Supposer qu'un mode de lancement est universellement optimal.\n- Affirmer des performances futures précises pour un canal d'acquisition.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Comparaison décisionnelle des trois modes\nPrésente un tableau comparant le lancement public immédiat, la bêta fermée et le déploiement par cohortes. Évalue chaque option selon la vitesse d'accès au marché, la qualité de l'apprentissage, le contrôle de l'expérience, la charge de support, le risque réputationnel, la représentativité des retours, la réversibilité et la capacité de montée en charge. Pour chaque option, indique avantages, limites, conditions de pertinence et signaux qui doivent l'écarter. Ne désigne pas de vainqueur universel.\n\n## Feuille de route des douze semaines\nConstruis une feuille de route couvrant explicitement les semaines 1 à 12. Pour chaque semaine ou bloc de semaines, précise l'objectif, les actions produit, acquisition, instrumentation et support, le livrable attendu ainsi que la décision rendue possible. Organise la progression autour de la préparation, d'un test contrôlé, de l'élargissement et de la consolidation. N'invente pas de titulaires nommés ni d'effectifs ; indique plutôt la fonction responsable et la capacité requise.\n\n## Acquisition et dispositif de support\nPour chaque phase, précise l'objectif d'acquisition, les catégories de canaux à tester, le message à valider, le volume à limiter selon la capacité et la méthode d'évaluation. Relie l'ouverture des canaux à la capacité de support. Définis un dispositif de support proportionné comprenant collecte des retours, triage, traitement des incidents critiques, documentation et boucle de retour vers le produit. Toute attente de performance ou de coût doit être étiquetée comme estimation ou laissée à mesurer.\n\n## Définition et mesure de l'activation\nPropose une définition provisoire de l'activation fondée sur un comportement observable représentant une première valeur obtenue dans l'application, puis indique comment la valider qualitativement. Fournis une métrique principale, sa formule, sa fenêtre temporelle et son dénominateur, ainsi que quelques métriques diagnostiques du parcours. Prévois une lecture par cohorte et canal. En l'absence de données historiques, privilégie tendance, stabilité et progression ; présente tout seuil numérique comme cible provisoire à étalonner.\n\n## Risques, passages et recommandation\nDresse un registre concis des risques couvrant au minimum stabilité du produit, faible qualité des retours, biais d'échantillon, surcharge du support, dépenses d'acquisition prématurées, atteinte à la réputation et défaut d'instrumentation. Pour chaque risque, indique signal précoce, prévention et réponse. Définis des critères de passage, maintien, recul ou arrêt fondés sur l'activation, les incidents critiques, la capacité de support, la qualité des retours et la fiabilité des données. Termine par une recommandation unique et argumentée, ses conditions de validité, le compromis accepté et une solution de repli. Distingue clairement décision stratégique, hypothèse et fait établi.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Les trois modes de lancement sont comparés sur un périmètre commun.\n- Les douze semaines sont toutes couvertes par la feuille de route.\n- L'acquisition, le support, l'activation, les risques et les critères de passage sont explicitement traités.\n- Une recommandation finale unique découle de la comparaison et des critères.\n- Aucun budget, benchmark, taux de conversion ou niveau de performance n'est inventé.\n- Chaque phase produit un apprentissage ou une décision identifiable.\n- Les volumes d'acquisition restent cohérents avec la capacité de support.\n- La métrique d'activation possède un événement, une fenêtre et un dénominateur clairs.\n- Les critères prévoient passage, maintien, recul et arrêt.\n- Les hypothèses et estimations susceptibles de changer la recommandation sont visibles sans alourdir le livrable.\n- La recommandation privilégie l'objectif principal plutôt qu'un avantage secondaire isolé.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:45:14.440Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 35403.595,
+    "response_id": "resp_09bf4b0c9501c3e1006a913c67122887d29e0540b28241933e",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 2645,
+      "output_tokens": 2500,
+      "total_tokens": 5145,
+      "reasoning_tokens": 1107
+    },
+    "estimated_cost_usd": 0.06058,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "# Stratégie de lancement comparative et feuille de route décisionnelle sur douze semaines\n\n## 1. Cadre de décision, hypothèses et inconnues\n\n**Objectif prioritaire retenu — décision stratégique :** maximiser l’apprentissage utile sur la première valeur délivrée aux indépendants, sans exposer prématurément la réputation du produit ni dépasser la capacité de support.\n\n**Hypothèses de travail :**\n\n- une version testable existe ou peut être rendue testable en semaine 1 ;\n- la proposition de valeur est centrée sur la planification, l’exécution et la compréhension du temps de travail ;\n- le lancement peut être segmenté techniquement ou opérationnellement ;\n- les utilisateurs peuvent être regroupés par semaine d’entrée et par canal.\n\n**Inconnues à confirmer :** stabilité actuelle, instrumentation, budget, capacité de support, audience accessible, segment prioritaire, activation et rétention de référence. Elles influencent la vitesse et le volume d’ouverture, mais ne bloquent pas le plan.\n\n**Règle de capacité :** aucune cohorte ne doit être plus grande que le volume pouvant être accompagné, diagnostiqué et, si nécessaire, suspendu. Les volumes proposés restent donc des **ordres de grandeur provisoires**, et non des objectifs garantis.\n\n---\n\n## 2. Critères prioritaires de comparaison\n\nLes trois modes sont comparés sur un même périmètre : même produit mobile, même horizon de douze semaines, même population générale d’indépendants et mêmes familles de canaux.\n\nOrdre de priorité retenu :\n\n1. **Qualité de l’apprentissage :** relier un segment, un message, un comportement et une valeur perçue.\n2. **Contrôle des risques :** stabilité, confidentialité, réputation et réversibilité.\n3. **Mesure fiable de l’activation.**\n4. **Compatibilité avec la capacité de support.**\n5. **Représentativité des utilisateurs et montée en charge.**\n6. **Vitesse d’accès au marché.**\n\nCet ordre est un **choix stratégique**, pas une vérité universelle : une fenêtre commerciale courte pourrait justifier davantage de vitesse, tandis qu’un produit manipulant des données sensibles justifierait encore plus de contrôle.\n\n---\n\n## 3. Comparaison décisionnelle des trois modes\n\n| Critère | Lancement public immédiat | Bêta fermée | Déploiement progressif par cohortes |\n|---|---|---|---|\n| Vitesse d’accès | Très élevée en apparence | Faible à moyenne | Moyenne, puis accélérable |\n| Qualité d’apprentissage | Souvent faible : canaux et profils se mélangent | Élevée qualitativement | Élevée si cohortes et variables sont isolées |\n| Contrôle de l’expérience | Faible | Très élevé | Élevé, avec exposition croissante |\n| Charge de support | Potentiellement brutale et imprévisible | Faible mais concentrée | Plafonnable par cohorte |\n| Risque réputationnel | Élevé si défauts visibles publiquement | Faible | Modéré et maîtrisable |\n| Représentativité | Potentiellement élevée, mais bruit important | Souvent faible ou biaisée | Croissante à chaque élargissement |\n| Réversibilité | Faible : difficile de « délancer » | Très forte | Forte si arrêt des admissions et retour de version possibles |\n| Montée en charge | Rapide mais peu contrôlée | Peu testée | Testée progressivement |\n| Avantages | Visibilité, collecte rapide de signaux, simplicité du message public | Diagnostic précis, entretiens faciles, correction avant exposition | Compromis entre apprentissage, diversité et maîtrise opérationnelle |\n| Limites | Attribution difficile, avis négatifs durables, dépenses prématurées | Participants indulgents, faible validité externe, recrutement lent | Coordination plus exigeante, résultats moins immédiats |\n| Pertinent si… | Produit déjà stable, instrumentation validée, support dimensionné, fenêtre de marché courte | Produit immature, parcours encore incertain ou risque élevé | Produit testable, mais références et capacité encore inconnues |\n| À écarter si… | Incidents critiques ouverts, données non fiables, support sans marge | Besoin immédiat de représentativité ou absence d’accès à des testeurs | Impossibilité de segmenter les admissions, versions ou analyses |\n\n**Conclusion comparative :** aucun mode n’est universellement supérieur. Dans le contexte fourni, le lancement public immédiat optimise surtout la vitesse, alors que l’objectif demandé privilégie l’apprentissage maîtrisé. Une bêta fermée seule ne fournirait pas assez de représentativité. Le déploiement par cohortes, précédé d’une validation restreinte, répond donc le mieux au critère prioritaire.\n\n---\n\n## 4. Architecture de lancement recommandée\n\n**Décision de travail :** suivre quatre phases conditionnelles :\n\n1. **Semaines 1–2 — préparation et validation instrumentale ;**\n2. **Semaines 3–4 — bêta fermée restreinte ;**\n3. **Semaines 5–9 — cohortes élargies et tests d’acquisition ;**\n4. **Semaines 10–12 — ouverture contrôlée et consolidation.**\n\nLe passage du temps ne provoque pas automatiquement l’ouverture. Chaque phase est un **maximum d’exposition autorisé**, soumis aux critères de passage de la section 11.\n\nOrdres de grandeur possibles, **à confirmer selon le support** :\n\n- bêta restreinte : dizaines de participants ;\n- premières cohortes : dizaines à faible centaine ;\n- élargissement : multiplication progressive, par exemple jusqu’à environ deux fois la cohorte précédente, seulement si les garde-fous restent respectés.\n\n---\n\n## 5. Définition et mesure de l’activation\n\n### Définition provisoire\n\nUn nouvel utilisateur est activé s’il :\n\n1. crée ou sélectionne une activité à réaliser ;\n2. lance et termine une première session chronométrée associée ;\n3. consulte son récapitulatif de temps ;\n4. réalise cette séquence dans les **72 heures suivant la fin de l’inscription**.\n\nCette définition représente une boucle de première valeur : **prévoir → exécuter → comprendre son temps**. Elle reste une hypothèse à valider, car terminer une session ne prouve pas à lui seul que l’utilisateur perçoit une amélioration.\n\n### Métrique principale\n\n\\[\nTaux\\ d’activation_{72h} =\n\\frac{\\text{nouveaux utilisateurs ayant terminé la séquence dans les 72 h}}\n{\\text{nouveaux utilisateurs éligibles ayant terminé l’inscription}}\n\\]\n\nLe dénominateur exclut les comptes internes,"
+  },
+  "output": "# Stratégie de lancement comparative et feuille de route décisionnelle sur douze semaines\n\n## 1. Cadre de décision, hypothèses et inconnues\n\n**Objectif prioritaire retenu — décision stratégique :** maximiser l’apprentissage utile sur la première valeur délivrée aux indépendants, sans exposer prématurément la réputation du produit ni dépasser la capacité de support.\n\n**Hypothèses de travail :**\n\n- une version testable existe ou peut être rendue testable en semaine 1 ;\n- la proposition de valeur est centrée sur la planification, l’exécution et la compréhension du temps de travail ;\n- le lancement peut être segmenté techniquement ou opérationnellement ;\n- les utilisateurs peuvent être regroupés par semaine d’entrée et par canal.\n\n**Inconnues à confirmer :** stabilité actuelle, instrumentation, budget, capacité de support, audience accessible, segment prioritaire, activation et rétention de référence. Elles influencent la vitesse et le volume d’ouverture, mais ne bloquent pas le plan.\n\n**Règle de capacité :** aucune cohorte ne doit être plus grande que le volume pouvant être accompagné, diagnostiqué et, si nécessaire, suspendu. Les volumes proposés restent donc des **ordres de grandeur provisoires**, et non des objectifs garantis.\n\n---\n\n## 2. Critères prioritaires de comparaison\n\nLes trois modes sont comparés sur un même périmètre : même produit mobile, même horizon de douze semaines, même population générale d’indépendants et mêmes familles de canaux.\n\nOrdre de priorité retenu :\n\n1. **Qualité de l’apprentissage :** relier un segment, un message, un comportement et une valeur perçue.\n2. **Contrôle des risques :** stabilité, confidentialité, réputation et réversibilité.\n3. **Mesure fiable de l’activation.**\n4. **Compatibilité avec la capacité de support.**\n5. **Représentativité des utilisateurs et montée en charge.**\n6. **Vitesse d’accès au marché.**\n\nCet ordre est un **choix stratégique**, pas une vérité universelle : une fenêtre commerciale courte pourrait justifier davantage de vitesse, tandis qu’un produit manipulant des données sensibles justifierait encore plus de contrôle.\n\n---\n\n## 3. Comparaison décisionnelle des trois modes\n\n| Critère | Lancement public immédiat | Bêta fermée | Déploiement progressif par cohortes |\n|---|---|---|---|\n| Vitesse d’accès | Très élevée en apparence | Faible à moyenne | Moyenne, puis accélérable |\n| Qualité d’apprentissage | Souvent faible : canaux et profils se mélangent | Élevée qualitativement | Élevée si cohortes et variables sont isolées |\n| Contrôle de l’expérience | Faible | Très élevé | Élevé, avec exposition croissante |\n| Charge de support | Potentiellement brutale et imprévisible | Faible mais concentrée | Plafonnable par cohorte |\n| Risque réputationnel | Élevé si défauts visibles publiquement | Faible | Modéré et maîtrisable |\n| Représentativité | Potentiellement élevée, mais bruit important | Souvent faible ou biaisée | Croissante à chaque élargissement |\n| Réversibilité | Faible : difficile de « délancer » | Très forte | Forte si arrêt des admissions et retour de version possibles |\n| Montée en charge | Rapide mais peu contrôlée | Peu testée | Testée progressivement |\n| Avantages | Visibilité, collecte rapide de signaux, simplicité du message public | Diagnostic précis, entretiens faciles, correction avant exposition | Compromis entre apprentissage, diversité et maîtrise opérationnelle |\n| Limites | Attribution difficile, avis négatifs durables, dépenses prématurées | Participants indulgents, faible validité externe, recrutement lent | Coordination plus exigeante, résultats moins immédiats |\n| Pertinent si… | Produit déjà stable, instrumentation validée, support dimensionné, fenêtre de marché courte | Produit immature, parcours encore incertain ou risque élevé | Produit testable, mais références et capacité encore inconnues |\n| À écarter si… | Incidents critiques ouverts, données non fiables, support sans marge | Besoin immédiat de représentativité ou absence d’accès à des testeurs | Impossibilité de segmenter les admissions, versions ou analyses |\n\n**Conclusion comparative :** aucun mode n’est universellement supérieur. Dans le contexte fourni, le lancement public immédiat optimise surtout la vitesse, alors que l’objectif demandé privilégie l’apprentissage maîtrisé. Une bêta fermée seule ne fournirait pas assez de représentativité. Le déploiement par cohortes, précédé d’une validation restreinte, répond donc le mieux au critère prioritaire.\n\n---\n\n## 4. Architecture de lancement recommandée\n\n**Décision de travail :** suivre quatre phases conditionnelles :\n\n1. **Semaines 1–2 — préparation et validation instrumentale ;**\n2. **Semaines 3–4 — bêta fermée restreinte ;**\n3. **Semaines 5–9 — cohortes élargies et tests d’acquisition ;**\n4. **Semaines 10–12 — ouverture contrôlée et consolidation.**\n\nLe passage du temps ne provoque pas automatiquement l’ouverture. Chaque phase est un **maximum d’exposition autorisé**, soumis aux critères de passage de la section 11.\n\nOrdres de grandeur possibles, **à confirmer selon le support** :\n\n- bêta restreinte : dizaines de participants ;\n- premières cohortes : dizaines à faible centaine ;\n- élargissement : multiplication progressive, par exemple jusqu’à environ deux fois la cohorte précédente, seulement si les garde-fous restent respectés.\n\n---\n\n## 5. Définition et mesure de l’activation\n\n### Définition provisoire\n\nUn nouvel utilisateur est activé s’il :\n\n1. crée ou sélectionne une activité à réaliser ;\n2. lance et termine une première session chronométrée associée ;\n3. consulte son récapitulatif de temps ;\n4. réalise cette séquence dans les **72 heures suivant la fin de l’inscription**.\n\nCette définition représente une boucle de première valeur : **prévoir → exécuter → comprendre son temps**. Elle reste une hypothèse à valider, car terminer une session ne prouve pas à lui seul que l’utilisateur perçoit une amélioration.\n\n### Métrique principale\n\n\\[\nTaux\\ d’activation_{72h} =\n\\frac{\\text{nouveaux utilisateurs ayant terminé la séquence dans les 72 h}}\n{\\text{nouveaux utilisateurs éligibles ayant terminé l’inscription}}\n\\]\n\nLe dénominateur exclut les comptes internes,",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 12318,
+    "output_tokens": 10369,
+    "total_tokens": 22687,
+    "estimated_cost_usd": 0.256652
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

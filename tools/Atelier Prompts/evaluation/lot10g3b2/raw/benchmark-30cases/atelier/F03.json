@@ -1,0 +1,141 @@
+{
+  "started_at": "2026-08-28T07:14:59.411Z",
+  "completed_at": "2026-08-28T07:15:37.080Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 37668.327,
+  "time_to_first_useful_result_ms": 37668.337,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:14:59.981Z",
+      "latency_ms": 201.258,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux apprendre l'espagnol.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:15:00.182Z",
+      "latency_ms": 897.304,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux apprendre l'espagnol.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel est votre objectif précis pour apprendre l’espagnol ?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:15:01.081Z",
+      "latency_ms": 74.625,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux apprendre l'espagnol.\n\nPrécisions apportées pendant le dialogue :\n- Quel est votre objectif précis pour apprendre l’espagnol ? — Réponse : Je débute et je veux un programme de huit semaines, 30 minutes par jour, pour tenir une conversation simple en voyage.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:15:01.156Z",
+      "latency_ms": 998.77,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux apprendre l'espagnol.\n\nPrécisions apportées pendant le dialogue :\n- Quel est votre objectif précis pour apprendre l’espagnol ? — Réponse : Je débute et je veux un programme de huit semaines, 30 minutes par jour, pour tenir une conversation simple en voyage.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 2171.957,
+  "clarifications": [
+    {
+      "question": "Quel est votre objectif précis pour apprendre l’espagnol ?",
+      "answer": "Je débute et je veux un programme de huit semaines, 30 minutes par jour, pour tenir une conversation simple en voyage."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 19.473,
+    "format": "reponse_simple",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nJe veux apprendre l'espagnol.\n\nPrécisions apportées pendant le dialogue :\n- Quel est votre objectif précis pour apprendre l’espagnol ? — Réponse : Je débute et je veux un programme de huit semaines, 30 minutes par jour, pour tenir une conversation simple en voyage.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:15:37.065Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 34844.058,
+    "response_id": "resp_02386204cbedf5b0006a9135765e9087d29af7aafe6813491e",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 231,
+      "output_tokens": 2500,
+      "total_tokens": 2731,
+      "reasoning_tokens": 218
+    },
+    "estimated_cost_usd": 0.050924,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "# Programme d’espagnol sur huit semaines\n\n## Routine quotidienne de 30 minutes\n\n- **5 min — Révision active** : réciter le vocabulaire et les phrases de la veille sans regarder les notes.\n- **8 min — Compréhension orale** : écouter un dialogue espagnol pour débutants, d’abord sans transcription, puis avec.\n- **7 min — Nouveau contenu** : apprendre 5 à 8 mots et une structure grammaticale.\n- **7 min — Expression orale** : répéter à voix haute, répondre aux questions du dialogue et jouer les deux rôles.\n- **3 min — Trace écrite** : écrire trois phrases utiles et noter les erreurs à revoir.\n\nPrononcez chaque nouvelle phrase au moins cinq fois. Enregistrez-vous deux fois par semaine afin de comparer votre prononciation au modèle audio.\n\n---\n\n## Semaine 1 — Saluer, se présenter et comprendre les bases\n\n**Objectif :** tenir un échange d’une minute pour donner son nom, son origine et demander des informations simples.\n\n### Jour 1 — Prononciation\n- Apprendre les sons des voyelles **a, e, i, o, u**.\n- Travailler **j**, **ñ**, **r**, **rr**, **ll**, **qu**.\n- Répéter : *hola, viaje, España, mañana, perro, calle, quiero*.\n- S’enregistrer en lisant dix mots simples.\n\n### Jour 2 — Salutations\n- Apprendre : *Hola, Buenos días, Buenas tardes, Buenas noches, Adiós, Hasta luego*.\n- Demander : *¿Qué tal? ¿Cómo estás?*\n- Répondre : *Muy bien, bien, regular, cansado/cansada*.\n- Jouer trois mini-dialogues de salutation.\n\n### Jour 3 — Se présenter\n- Apprendre : *Me llamo Ana. Soy francés/francesa. Vivo en París.*\n- Demander : *¿Cómo te llamas? ¿De dónde eres? ¿Dónde vives?*\n- Étudier les pronoms : *yo, tú, usted*.\n- Faire une présentation orale de 30 secondes.\n\n### Jour 4 — Être et avoir\n- Présent de **ser** : *soy, eres, es*.\n- Présent de **tener** : *tengo, tienes, tiene*.\n- Produire : *Soy turista. Tengo una reserva. Tengo treinta años.*\n- Poser cinq questions avec *ser* et *tener*.\n\n### Jour 5 — Nombres et coordonnées\n- Apprendre les nombres de 0 à 30.\n- Donner un numéro de téléphone chiffre par chiffre.\n- Demander : *¿Cuál es tu número de teléfono?*\n- Dire son âge : *Tengo veinticinco años.*\n\n### Jour 6 — Politesse et compréhension\n- Apprendre : *por favor, gracias, de nada, perdón, disculpe*.\n- Dire : *No entiendo. ¿Puede repetir? Más despacio, por favor.*\n- Demander : *¿Habla francés o inglés?*\n- Simuler une situation où l’interlocuteur parle trop vite.\n\n### Jour 7 — Révision et test\n- Réviser 35 à 45 mots.\n- Se présenter pendant une minute sans notes.\n- Jouer un dialogue : saluer, donner son nom, son pays, son âge et prendre congé.\n- Réécouter l’enregistrement du jour 1 et corriger trois sons.\n\n---\n\n## Semaine 2 — Se repérer et demander son chemin\n\n**Objectif :** demander où se trouve un lieu et comprendre des indications courtes.\n\n### Jour 8 — Lieux essentiels\n- Apprendre : *el hotel, la estación, el aeropuerto, el baño, el centro, el banco, la farmacia*.\n- Utiliser : *Hay un banco aquí.*\n- Demander : *¿Hay una farmacia cerca?*\n- Décrire cinq lieux présents autour de soi.\n\n### Jour 9 — Localiser\n- Apprendre : *aquí, allí, cerca, lejos, delante, detrás, al lado*.\n- Utiliser **estar** : *El hotel está cerca.*\n- Demander : *¿Dónde está la estación?*\n- Produire dix phrases de localisation.\n\n### Jour 10 — Directions\n- Apprendre : *a la derecha, a la izquierda, todo recto*.\n- Comprendre : *Gire, siga, cruce*.\n- Répéter : *Siga todo recto y gire a la derecha.*\n- Dessiner un petit plan et expliquer un trajet.\n\n### Jour 11 — Articles et genre\n- Étudier : *el, la, los, las, un, una*.\n- Classer quinze noms par genre.\n- Former des groupes nominaux : *la estación, un hotel, los baños*.\n- Dire où se trouvent six lieux.\n\n### Jour 12 — Transports urbains\n- Apprendre : *el autobús, el metro, el tren, el taxi, la parada, el billete*.\n- Demander : *¿Qué autobús va al centro?*\n- Dire : *Quiero un billete, por favor.*\n- Jouer un échange à un guichet.\n\n### Jour 13 — Heure et horaires\n- Apprendre les heures pleines et les demi-heures.\n- Demander : *¿Qué hora es? ¿A qué hora sale?*\n- Répondre : *Sale a las nueve y media.*\n- Lire à voix haute six horaires.\n\n### Jour 14 — Révision et test\n- Expliquer deux trajets à partir d’un plan.\n- Demander un billet et l’heure de départ.\n- Écouter un dialogue d’orientation et noter les mots de direction.\n- Tenir un échange de deux minutes sans lire.\n\n---\n\n## Semaine 3 — Hôtel et hébergement\n\n**Objectif :** effectuer une arrivée à l’hôtel et résoudre un problème simple.\n\n### Jour 15 — Réserver une chambre\n- Apprendre : *una habitación, una noche, dos personas, individual, doble*.\n- Dire : *Quiero reservar una habitación.*\n- Demander : *¿Tiene una habitación libre?*\n- Jouer un appel de réservation.\n\n### Jour 16 — Arrivée à l’hôtel\n- Apprendre : *Tengo una reserva a nombre de Martin.*\n- Comprendre : *pasaporte, documento, firma, llave, tarjeta*.\n- Demander : *¿A qué hora es el desayuno?*\n- Jouer la réception et le client.\n\n### Jour 17 — Dates\n- Apprendre les jours de la semaine et les mois utiles au voyage.\n- Dire : *del cinco al ocho de mayo*.\n- Demander : *¿Para qué fecha?*\n- Donner quatre dates de séjour.\n\n### Jour 18 — Équipements\n- Apprendre : *wifi, ascensor, aire acondicionado, ducha, toalla, caja fuerte*.\n- Demander : *¿Hay wifi en la habitación?*\n- Dire : *Necesito otra toalla.*\n- Décrire la chambre souhaitée.\n\n### Jour 19 — Signaler un problème\n- Apprendre : *No funciona. Está roto. Está sucio. No hay agua caliente.*\n- Demander : *¿Puede ayudarme?*\n- Utiliser : *Necesito cambiar de habitación.*\n- Jouer trois réclamations courtes.\n\n### Jour 20 — Verbes utiles\n- Présent de **querer** : *quiero, quieres, quiere*.\n- Présent de **poder** : *puedo, puedes, puede*.\n- Formuler dix demandes avec *quiero* et *¿puede?*\n- Comparer la demande directe et la demande polie.\n\n### Jour 21 — Révision et test\n- Simuler une arrivée complète : réservation, identité, petit-déjeuner, wifi et clé.\n- Signaler deux problèmes dans la chambre.\n- Parler pendant trois minutes avec seulement une liste de mots-clés.\n- Réviser les verbes *ser, estar, tener, querer, poder*.\n\n---\n\n## Semaine 4 — Restaurant, café et achats alimentaires\n\n**Objectif :** commander un repas, exprimer ses préférences et demander l’addition.\n\n### Jour 22 — Nourriture et boissons\n- Apprendre : *agua, café, té, pan, carne, pescado, arroz, verduras*.\n- Dire : *Quiero agua sin gas.*\n- Demander : *¿Qué es esto?*\n- Nommer dix aliments à voix haute.\n\n### Jour 23 — Commander\n- Apprendre : *Quisiera una mesa para dos.*\n- Dire : *Para mí, la sopa.*\n- Demander : *¿Me trae un café, por favor?*\n- Jouer une commande complète.\n\n### Jour 24 — Menu et préférences\n- Apprendre : *entrante, plato principal, postre, bebida*.\n- Dire : *Me gusta. No me gusta. Prefiero el pescado.*\n- Demander : *¿Qué recomienda?*\n- Choisir un menu et expliquer ses choix.\n\n### Jour 25 — Restrictions alimentaires\n- Apprendre : *Soy vegetariano/vegetariana. Soy alérgico/alérgica a los frutos secos.*\n- Dire : *Sin carne, sin leche, sin gluten, por favor.*\n- Demander : *¿Lleva huevo?*\n- Jouer un échange sur une allergie.\n\n### Jour 26 — Quantités\n- Apprendre : *un poco, mucho, más, menos, una botella, una taza*.\n- Dire : *Un poco más de agua, por favor.*\n- Demander : *¿Tiene una botella pequeña?*\n- Créer huit commandes avec des quantités.\n\n### Jour 27 — Addition et paiement\n- Demander : *La cuenta, por favor.*\n- Dire : *¿Puedo pagar con tarjeta?*\n- Comprendre : *en efectivo, propina, cambio, recibo*.\n- Jouer le paiement d’un repas.\n\n### Jour 28 — Révision et test\n- Simuler une visite au restaurant de l’entrée au paiement.\n- Commander un repas avec une préférence et une restriction.\n- Écouter une commande réelle ou pédagogique et relever les plats, les boissons et le prix.\n- Tenir un dialogue de quatre minutes.\n\n---\n\n## Semaine 5 — Shopping, prix et besoins quotidiens\n\n**Objectif :** acheter un article, demander un prix, une taille ou une quantité.\n\n### Jour 29 — Magasins et objets\n- Apprendre : *tienda, mercado, ropa, recuerdo, camiseta, zapatos, bolsa*.\n- Demander : *¿Dónde puedo comprar recuerdos?*\n- Dire : *Busco una camiseta.*\n- Nommer dix objets utiles en voyage.\n\n### Jour 30 — Prix\n- Réviser les nombres jusqu’à 100.\n- Apprendre"
+  },
+  "output": "# Programme d’espagnol sur huit semaines\n\n## Routine quotidienne de 30 minutes\n\n- **5 min — Révision active** : réciter le vocabulaire et les phrases de la veille sans regarder les notes.\n- **8 min — Compréhension orale** : écouter un dialogue espagnol pour débutants, d’abord sans transcription, puis avec.\n- **7 min — Nouveau contenu** : apprendre 5 à 8 mots et une structure grammaticale.\n- **7 min — Expression orale** : répéter à voix haute, répondre aux questions du dialogue et jouer les deux rôles.\n- **3 min — Trace écrite** : écrire trois phrases utiles et noter les erreurs à revoir.\n\nPrononcez chaque nouvelle phrase au moins cinq fois. Enregistrez-vous deux fois par semaine afin de comparer votre prononciation au modèle audio.\n\n---\n\n## Semaine 1 — Saluer, se présenter et comprendre les bases\n\n**Objectif :** tenir un échange d’une minute pour donner son nom, son origine et demander des informations simples.\n\n### Jour 1 — Prononciation\n- Apprendre les sons des voyelles **a, e, i, o, u**.\n- Travailler **j**, **ñ**, **r**, **rr**, **ll**, **qu**.\n- Répéter : *hola, viaje, España, mañana, perro, calle, quiero*.\n- S’enregistrer en lisant dix mots simples.\n\n### Jour 2 — Salutations\n- Apprendre : *Hola, Buenos días, Buenas tardes, Buenas noches, Adiós, Hasta luego*.\n- Demander : *¿Qué tal? ¿Cómo estás?*\n- Répondre : *Muy bien, bien, regular, cansado/cansada*.\n- Jouer trois mini-dialogues de salutation.\n\n### Jour 3 — Se présenter\n- Apprendre : *Me llamo Ana. Soy francés/francesa. Vivo en París.*\n- Demander : *¿Cómo te llamas? ¿De dónde eres? ¿Dónde vives?*\n- Étudier les pronoms : *yo, tú, usted*.\n- Faire une présentation orale de 30 secondes.\n\n### Jour 4 — Être et avoir\n- Présent de **ser** : *soy, eres, es*.\n- Présent de **tener** : *tengo, tienes, tiene*.\n- Produire : *Soy turista. Tengo una reserva. Tengo treinta años.*\n- Poser cinq questions avec *ser* et *tener*.\n\n### Jour 5 — Nombres et coordonnées\n- Apprendre les nombres de 0 à 30.\n- Donner un numéro de téléphone chiffre par chiffre.\n- Demander : *¿Cuál es tu número de teléfono?*\n- Dire son âge : *Tengo veinticinco años.*\n\n### Jour 6 — Politesse et compréhension\n- Apprendre : *por favor, gracias, de nada, perdón, disculpe*.\n- Dire : *No entiendo. ¿Puede repetir? Más despacio, por favor.*\n- Demander : *¿Habla francés o inglés?*\n- Simuler une situation où l’interlocuteur parle trop vite.\n\n### Jour 7 — Révision et test\n- Réviser 35 à 45 mots.\n- Se présenter pendant une minute sans notes.\n- Jouer un dialogue : saluer, donner son nom, son pays, son âge et prendre congé.\n- Réécouter l’enregistrement du jour 1 et corriger trois sons.\n\n---\n\n## Semaine 2 — Se repérer et demander son chemin\n\n**Objectif :** demander où se trouve un lieu et comprendre des indications courtes.\n\n### Jour 8 — Lieux essentiels\n- Apprendre : *el hotel, la estación, el aeropuerto, el baño, el centro, el banco, la farmacia*.\n- Utiliser : *Hay un banco aquí.*\n- Demander : *¿Hay una farmacia cerca?*\n- Décrire cinq lieux présents autour de soi.\n\n### Jour 9 — Localiser\n- Apprendre : *aquí, allí, cerca, lejos, delante, detrás, al lado*.\n- Utiliser **estar** : *El hotel está cerca.*\n- Demander : *¿Dónde está la estación?*\n- Produire dix phrases de localisation.\n\n### Jour 10 — Directions\n- Apprendre : *a la derecha, a la izquierda, todo recto*.\n- Comprendre : *Gire, siga, cruce*.\n- Répéter : *Siga todo recto y gire a la derecha.*\n- Dessiner un petit plan et expliquer un trajet.\n\n### Jour 11 — Articles et genre\n- Étudier : *el, la, los, las, un, una*.\n- Classer quinze noms par genre.\n- Former des groupes nominaux : *la estación, un hotel, los baños*.\n- Dire où se trouvent six lieux.\n\n### Jour 12 — Transports urbains\n- Apprendre : *el autobús, el metro, el tren, el taxi, la parada, el billete*.\n- Demander : *¿Qué autobús va al centro?*\n- Dire : *Quiero un billete, por favor.*\n- Jouer un échange à un guichet.\n\n### Jour 13 — Heure et horaires\n- Apprendre les heures pleines et les demi-heures.\n- Demander : *¿Qué hora es? ¿A qué hora sale?*\n- Répondre : *Sale a las nueve y media.*\n- Lire à voix haute six horaires.\n\n### Jour 14 — Révision et test\n- Expliquer deux trajets à partir d’un plan.\n- Demander un billet et l’heure de départ.\n- Écouter un dialogue d’orientation et noter les mots de direction.\n- Tenir un échange de deux minutes sans lire.\n\n---\n\n## Semaine 3 — Hôtel et hébergement\n\n**Objectif :** effectuer une arrivée à l’hôtel et résoudre un problème simple.\n\n### Jour 15 — Réserver une chambre\n- Apprendre : *una habitación, una noche, dos personas, individual, doble*.\n- Dire : *Quiero reservar una habitación.*\n- Demander : *¿Tiene una habitación libre?*\n- Jouer un appel de réservation.\n\n### Jour 16 — Arrivée à l’hôtel\n- Apprendre : *Tengo una reserva a nombre de Martin.*\n- Comprendre : *pasaporte, documento, firma, llave, tarjeta*.\n- Demander : *¿A qué hora es el desayuno?*\n- Jouer la réception et le client.\n\n### Jour 17 — Dates\n- Apprendre les jours de la semaine et les mois utiles au voyage.\n- Dire : *del cinco al ocho de mayo*.\n- Demander : *¿Para qué fecha?*\n- Donner quatre dates de séjour.\n\n### Jour 18 — Équipements\n- Apprendre : *wifi, ascensor, aire acondicionado, ducha, toalla, caja fuerte*.\n- Demander : *¿Hay wifi en la habitación?*\n- Dire : *Necesito otra toalla.*\n- Décrire la chambre souhaitée.\n\n### Jour 19 — Signaler un problème\n- Apprendre : *No funciona. Está roto. Está sucio. No hay agua caliente.*\n- Demander : *¿Puede ayudarme?*\n- Utiliser : *Necesito cambiar de habitación.*\n- Jouer trois réclamations courtes.\n\n### Jour 20 — Verbes utiles\n- Présent de **querer** : *quiero, quieres, quiere*.\n- Présent de **poder** : *puedo, puedes, puede*.\n- Formuler dix demandes avec *quiero* et *¿puede?*\n- Comparer la demande directe et la demande polie.\n\n### Jour 21 — Révision et test\n- Simuler une arrivée complète : réservation, identité, petit-déjeuner, wifi et clé.\n- Signaler deux problèmes dans la chambre.\n- Parler pendant trois minutes avec seulement une liste de mots-clés.\n- Réviser les verbes *ser, estar, tener, querer, poder*.\n\n---\n\n## Semaine 4 — Restaurant, café et achats alimentaires\n\n**Objectif :** commander un repas, exprimer ses préférences et demander l’addition.\n\n### Jour 22 — Nourriture et boissons\n- Apprendre : *agua, café, té, pan, carne, pescado, arroz, verduras*.\n- Dire : *Quiero agua sin gas.*\n- Demander : *¿Qué es esto?*\n- Nommer dix aliments à voix haute.\n\n### Jour 23 — Commander\n- Apprendre : *Quisiera una mesa para dos.*\n- Dire : *Para mí, la sopa.*\n- Demander : *¿Me trae un café, por favor?*\n- Jouer une commande complète.\n\n### Jour 24 — Menu et préférences\n- Apprendre : *entrante, plato principal, postre, bebida*.\n- Dire : *Me gusta. No me gusta. Prefiero el pescado.*\n- Demander : *¿Qué recomienda?*\n- Choisir un menu et expliquer ses choix.\n\n### Jour 25 — Restrictions alimentaires\n- Apprendre : *Soy vegetariano/vegetariana. Soy alérgico/alérgica a los frutos secos.*\n- Dire : *Sin carne, sin leche, sin gluten, por favor.*\n- Demander : *¿Lleva huevo?*\n- Jouer un échange sur une allergie.\n\n### Jour 26 — Quantités\n- Apprendre : *un poco, mucho, más, menos, una botella, una taza*.\n- Dire : *Un poco más de agua, por favor.*\n- Demander : *¿Tiene una botella pequeña?*\n- Créer huit commandes avec des quantités.\n\n### Jour 27 — Addition et paiement\n- Demander : *La cuenta, por favor.*\n- Dire : *¿Puedo pagar con tarjeta?*\n- Comprendre : *en efectivo, propina, cambio, recibo*.\n- Jouer le paiement d’un repas.\n\n### Jour 28 — Révision et test\n- Simuler une visite au restaurant de l’entrée au paiement.\n- Commander un repas avec une préférence et une restriction.\n- Écouter une commande réelle ou pédagogique et relever les plats, les boissons et le prix.\n- Tenir un dialogue de quatre minutes.\n\n---\n\n## Semaine 5 — Shopping, prix et besoins quotidiens\n\n**Objectif :** acheter un article, demander un prix, une taille ou une quantité.\n\n### Jour 29 — Magasins et objets\n- Apprendre : *tienda, mercado, ropa, recuerdo, camiseta, zapatos, bolsa*.\n- Demander : *¿Dónde puedo comprar recuerdos?*\n- Dire : *Busco una camiseta.*\n- Nommer dix objets utiles en voyage.\n\n### Jour 30 — Prix\n- Réviser les nombres jusqu’à 100.\n- Apprendre",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 231,
+    "output_tokens": 2500,
+    "total_tokens": 2731,
+    "estimated_cost_usd": 0.050924
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

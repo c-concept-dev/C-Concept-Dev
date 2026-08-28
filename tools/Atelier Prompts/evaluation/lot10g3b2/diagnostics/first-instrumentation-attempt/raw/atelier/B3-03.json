@@ -1,0 +1,93 @@
+{
+  "started_at": "2026-08-28T07:02:41.229Z",
+  "completed_at": "2026-08-28T07:02:42.101Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 872.31,
+  "time_to_first_useful_result_ms": null,
+  "route_finale": "architecte",
+  "moteur_final": null,
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:02:41.772Z",
+      "latency_ms": 0.176,
+      "status_http": null,
+      "request": {
+        "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": null,
+      "error": {
+        "name": "TypeError",
+        "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+      }
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:02:41.772Z",
+      "latency_ms": 0.051,
+      "status_http": null,
+      "request": {
+        "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": null,
+      "error": {
+        "name": "TypeError",
+        "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+      }
+    }
+  ],
+  "decision_provider_latency_ms": 0.227,
+  "clarifications": [],
+  "nombre_reanalyses": 1,
+  "final_call": null,
+  "output": "",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "total_tokens": null,
+    "estimated_cost_usd": null
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": {
+    "name": "Error",
+    "message": "Proxy OpenAI HTTP 400: Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+    "stage": "architecte_analyse",
+    "call": {
+      "timestamp": "2026-08-28T07:02:42.096Z",
+      "endpoint": "/v1/responses",
+      "status_http": 400,
+      "latency_ms": 315.664,
+      "response_id": null,
+      "response_status": null,
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": null,
+      "usage": null,
+      "estimated_cost_usd": null,
+      "incomplete_details": null,
+      "error": {
+        "message": "Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+        "type": "invalid_request_error",
+        "param": "text.format.schema",
+        "code": "invalid_json_schema"
+      },
+      "output": ""
+    },
+    "validation": null
+  }
+}

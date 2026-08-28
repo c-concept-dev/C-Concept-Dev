@@ -1,0 +1,139 @@
+{
+  "started_at": "2026-08-28T07:12:55.648Z",
+  "completed_at": "2026-08-28T07:13:24.195Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 28544.972,
+  "time_to_first_useful_result_ms": 28544.989,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:12:56.251Z",
+      "latency_ms": 514.64,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:12:56.766Z",
+      "latency_ms": 832.622,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel est le but principal de votre voyage en Italie ?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:12:57.600Z",
+      "latency_ms": 74.976,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux un itinéraire jour par jour pour 12 jours, avec un rythme équilibré entre visites culturelles et temps libre.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:12:57.675Z",
+      "latency_ms": 588.92,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux un itinéraire jour par jour pour 12 jours, avec un rythme équilibré entre visites culturelles et temps libre.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 2011.158,
+  "clarifications": [
+    {
+      "question": "Quel est le but principal de votre voyage en Italie ?",
+      "answer": "Je veux un itinéraire jour par jour pour 12 jours, avec un rythme équilibré entre visites culturelles et temps libre."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 26.224,
+    "format": "reponse_simple",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nJe veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux un itinéraire jour par jour pour 12 jours, avec un rythme équilibré entre visites culturelles et temps libre.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:13:24.183Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 25843.543,
+    "response_id": "resp_06f51787ccf5debc006a9134fa8cf487d2b03e97c28d50bf46",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 230,
+      "output_tokens": 1210,
+      "total_tokens": 1440,
+      "reasoning_tokens": 78
+    },
+    "estimated_cost_usd": 0.02512,
+    "incomplete_details": null,
+    "error": null,
+    "output": "### Jour 1 — Rome : arrivée et première promenade\n- Installation dans un hébergement du centre, idéalement près de Monti, du Panthéon ou de Campo de’ Fiori.\n- Après-midi libre pour récupérer du voyage.\n- En fin de journée : Piazza Navona, Panthéon, fontaine de Trevi et place d’Espagne à pied.\n- Dîner dans le quartier de Monti ou près du Campo de’ Fiori.\n- Nuit à Rome.\n\n### Jour 2 — Rome antique\n- Matin : visite du Colisée, du Forum romain et du mont Palatin. Réserver un billet avec horaire d’entrée.\n- Déjeuner dans le quartier de Monti.\n- Après-midi libre : repos, shopping via del Corso ou promenade dans le parc de la Villa Borghèse.\n- Soirée à Trastevere, avec dîner dans une trattoria.\n- Nuit à Rome.\n\n### Jour 3 — Vatican et centre historique\n- Matin : musées du Vatican et chapelle Sixtine, avec réservation pour le premier créneau disponible.\n- Déjeuner près du quartier de Prati.\n- Après-midi : basilique Saint-Pierre puis temps libre le long du Tibre ou autour du château Saint-Ange.\n- Soirée libre.\n- Nuit à Rome.\n\n### Jour 4 — Rome hors des grands circuits\n- Matin : marché du Campo de’ Fiori, quartier juif, théâtre de Marcellus et colline de l’Aventin.\n- Déjeuner dans le quartier du Testaccio.\n- Après-midi libre : terrasse, visite facultative de la galerie Borghèse sur réservation ou retour à l’hébergement.\n- Coucher de soleil depuis le Jardin des Orangers.\n- Nuit à Rome.\n\n### Jour 5 — Rome → Florence\n- Matin : train à grande vitesse vers Florence, environ 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n- Déjeuner puis découverte à pied : cathédrale Santa Maria del Fiore, baptistère, Piazza della Signoria et Ponte Vecchio.\n- Fin d’après-midi libre sur les rives de l’Arno.\n- Nuit à Florence.\n\n### Jour 6 — Chefs-d’œuvre de Florence\n- Matin : galerie des Offices, à réserver avec un horaire précis.\n- Déjeuner dans le quartier de Santa Croce.\n- Après-midi libre pour flâner dans les rues commerçantes, visiter un atelier artisanal ou prendre un café sur une place.\n- En début de soirée : montée à la Piazzale Michelangelo pour admirer la vue.\n- Nuit à Florence.\n\n### Jour 7 — Florence et Oltrarno\n- Matin : galerie de l’Académie pour voir le David, puis marché central de San Lorenzo.\n- Déjeuner au marché ou dans une trattoria voisine.\n- Après-midi : quartier de l’Oltrarno, palais Pitti et jardins de Boboli. Il est possible de ne visiter que les jardins pour conserver un rythme léger.\n- Soirée libre autour de Santo Spirito.\n- Nuit à Florence.\n\n### Jour 8 — Excursion en Toscane\n- Journée à Sienne, accessible en bus direct depuis Florence en environ 1 h 15.\n- Matin : Piazza del Campo, cathédrale de Sienne et ruelles du centre médiéval.\n- Déjeuner sur place.\n- Après-midi libre pour se promener, prendre un verre en terrasse ou visiter le musée civique.\n- Retour à Florence en fin de journée.\n- Nuit à Florence.\n\n### Jour 9 — Florence → Venise\n- Matin : train à grande vitesse vers Venise Santa Lucia, environ 2 heures.\n- Installation dans les quartiers de Cannaregio, San Polo ou Dorsoduro.\n- Après-midi : découverte sans programme chargé, entre le Grand Canal, le pont du Rialto et les ruelles de San Polo.\n- Promenade en soirée, lorsque les visiteurs à la journée quittent la ville.\n- Nuit à Venise.\n\n### Jour 10 — Venise monumentale\n- Matin : place Saint-Marc, basilique Saint-Marc et palais des Doges. Réserver les entrées à l’avance.\n- Déjeuner à Castello, à distance des restaurants les plus touristiques de la place.\n- Après-midi libre : café historique, balade en vaporetto sur le Grand Canal ou repos.\n- En soirée : promenade dans Dorsoduro et dîner près du Campo Santa Margherita.\n- Nuit à Venise.\n\n### Jour 11 — Îles de la lagune\n- Matin : vaporetto vers Murano, avec visite d’un atelier de verre.\n- Déjeuner puis continuation vers Burano, connue pour ses maisons colorées et sa dentelle.\n- Retour à Venise en milieu ou fin d’après-midi.\n- Soirée libre pour une promenade en gondole, un concert de musique baroque ou un dîner de cicchetti.\n- Nuit à Venise.\n\n### Jour 12 — Venise paisible et départ\n- Matin : promenade dans Cannaregio, ancien ghetto juif et quais tranquilles.\n- Selon l’horaire de départ : visite de la collection Peggy Guggenheim ou temps libre pour les derniers achats.\n- Trajet vers l’aéroport Marco-Polo en bateau Alilaguna ou en bus depuis Piazzale Roma."
+  },
+  "output": "### Jour 1 — Rome : arrivée et première promenade\n- Installation dans un hébergement du centre, idéalement près de Monti, du Panthéon ou de Campo de’ Fiori.\n- Après-midi libre pour récupérer du voyage.\n- En fin de journée : Piazza Navona, Panthéon, fontaine de Trevi et place d’Espagne à pied.\n- Dîner dans le quartier de Monti ou près du Campo de’ Fiori.\n- Nuit à Rome.\n\n### Jour 2 — Rome antique\n- Matin : visite du Colisée, du Forum romain et du mont Palatin. Réserver un billet avec horaire d’entrée.\n- Déjeuner dans le quartier de Monti.\n- Après-midi libre : repos, shopping via del Corso ou promenade dans le parc de la Villa Borghèse.\n- Soirée à Trastevere, avec dîner dans une trattoria.\n- Nuit à Rome.\n\n### Jour 3 — Vatican et centre historique\n- Matin : musées du Vatican et chapelle Sixtine, avec réservation pour le premier créneau disponible.\n- Déjeuner près du quartier de Prati.\n- Après-midi : basilique Saint-Pierre puis temps libre le long du Tibre ou autour du château Saint-Ange.\n- Soirée libre.\n- Nuit à Rome.\n\n### Jour 4 — Rome hors des grands circuits\n- Matin : marché du Campo de’ Fiori, quartier juif, théâtre de Marcellus et colline de l’Aventin.\n- Déjeuner dans le quartier du Testaccio.\n- Après-midi libre : terrasse, visite facultative de la galerie Borghèse sur réservation ou retour à l’hébergement.\n- Coucher de soleil depuis le Jardin des Orangers.\n- Nuit à Rome.\n\n### Jour 5 — Rome → Florence\n- Matin : train à grande vitesse vers Florence, environ 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n- Déjeuner puis découverte à pied : cathédrale Santa Maria del Fiore, baptistère, Piazza della Signoria et Ponte Vecchio.\n- Fin d’après-midi libre sur les rives de l’Arno.\n- Nuit à Florence.\n\n### Jour 6 — Chefs-d’œuvre de Florence\n- Matin : galerie des Offices, à réserver avec un horaire précis.\n- Déjeuner dans le quartier de Santa Croce.\n- Après-midi libre pour flâner dans les rues commerçantes, visiter un atelier artisanal ou prendre un café sur une place.\n- En début de soirée : montée à la Piazzale Michelangelo pour admirer la vue.\n- Nuit à Florence.\n\n### Jour 7 — Florence et Oltrarno\n- Matin : galerie de l’Académie pour voir le David, puis marché central de San Lorenzo.\n- Déjeuner au marché ou dans une trattoria voisine.\n- Après-midi : quartier de l’Oltrarno, palais Pitti et jardins de Boboli. Il est possible de ne visiter que les jardins pour conserver un rythme léger.\n- Soirée libre autour de Santo Spirito.\n- Nuit à Florence.\n\n### Jour 8 — Excursion en Toscane\n- Journée à Sienne, accessible en bus direct depuis Florence en environ 1 h 15.\n- Matin : Piazza del Campo, cathédrale de Sienne et ruelles du centre médiéval.\n- Déjeuner sur place.\n- Après-midi libre pour se promener, prendre un verre en terrasse ou visiter le musée civique.\n- Retour à Florence en fin de journée.\n- Nuit à Florence.\n\n### Jour 9 — Florence → Venise\n- Matin : train à grande vitesse vers Venise Santa Lucia, environ 2 heures.\n- Installation dans les quartiers de Cannaregio, San Polo ou Dorsoduro.\n- Après-midi : découverte sans programme chargé, entre le Grand Canal, le pont du Rialto et les ruelles de San Polo.\n- Promenade en soirée, lorsque les visiteurs à la journée quittent la ville.\n- Nuit à Venise.\n\n### Jour 10 — Venise monumentale\n- Matin : place Saint-Marc, basilique Saint-Marc et palais des Doges. Réserver les entrées à l’avance.\n- Déjeuner à Castello, à distance des restaurants les plus touristiques de la place.\n- Après-midi libre : café historique, balade en vaporetto sur le Grand Canal ou repos.\n- En soirée : promenade dans Dorsoduro et dîner près du Campo Santa Margherita.\n- Nuit à Venise.\n\n### Jour 11 — Îles de la lagune\n- Matin : vaporetto vers Murano, avec visite d’un atelier de verre.\n- Déjeuner puis continuation vers Burano, connue pour ses maisons colorées et sa dentelle.\n- Retour à Venise en milieu ou fin d’après-midi.\n- Soirée libre pour une promenade en gondole, un concert de musique baroque ou un dîner de cicchetti.\n- Nuit à Venise.\n\n### Jour 12 — Venise paisible et départ\n- Matin : promenade dans Cannaregio, ancien ghetto juif et quais tranquilles.\n- Selon l’horaire de départ : visite de la collection Peggy Guggenheim ou temps libre pour les derniers achats.\n- Trajet vers l’aéroport Marco-Polo en bateau Alilaguna ou en bus depuis Piazzale Roma.",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 230,
+    "output_tokens": 1210,
+    "total_tokens": 1440,
+    "estimated_cost_usd": 0.02512
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

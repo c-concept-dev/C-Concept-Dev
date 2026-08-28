@@ -1,0 +1,451 @@
+{
+  "protocol": {
+    "lot": "10G.3B.2",
+    "corpus": "corpus-3cases.json",
+    "corpus_sha256": "f0b30b894d16a8d1126e9a8fc3827db0d934651ed33c95e000ceca66ad06e96f",
+    "corpus_frozen_at": "2026-08-28T00:00:00+02:00",
+    "started_at": "2026-08-28T07:02:19.275Z",
+    "completed_at": "2026-08-28T07:03:22.169Z",
+    "product_html": "atelier-prompts-v11.5-lot10g-decision-provider.html",
+    "product_html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+    "openai_proxy": "https://openai-proxy.11drumboy11.workers.dev/",
+    "openai_endpoint": "/v1/responses",
+    "model": "gpt-5.6-sol",
+    "model_pricing_usd_per_million_tokens": {
+      "input": 4,
+      "output": 20,
+      "as_of": "2026-08-28"
+    },
+    "initial_request_rule": "La demande initiale brute est strictement identique dans les deux branches.",
+    "retries": "Aucun retry sémantique.",
+    "pure_branch_prompting": "Aucune instruction spéciale; input initial égal à demande.",
+    "product_changes": "Aucune; instrumentation externe additive."
+  },
+  "cases": [
+    {
+      "id": "B3-01",
+      "category": "floue",
+      "domain": "voyage",
+      "demande": "Je veux préparer mon voyage en Italie.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "clarification_necessaire",
+        "final_route": [
+          "rapide",
+          "architecte"
+        ]
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:02:19.278Z",
+        "completed_at": "2026-08-28T07:02:21.379Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 2100.835,
+        "time_to_first_useful_result_ms": null,
+        "route_finale": "architecte",
+        "moteur_final": null,
+        "decision_source": "local-prudent",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "architecte",
+          "confiance": "moyenne",
+          "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:02:19.871Z",
+            "latency_ms": 8.5,
+            "status_http": null,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": null,
+            "error": {
+              "name": "TypeError",
+              "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+            }
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:02:19.880Z",
+            "latency_ms": 0.072,
+            "status_http": null,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": null,
+            "error": {
+              "name": "TypeError",
+              "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+            }
+          }
+        ],
+        "decision_provider_latency_ms": 8.572,
+        "clarifications": [],
+        "nombre_reanalyses": 1,
+        "final_call": null,
+        "output": "",
+        "total_llm_calls": 3,
+        "gpt_usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "estimated_cost_usd": null
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": {
+          "name": "Error",
+          "message": "Proxy OpenAI HTTP 400: Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+          "stage": "architecte_analyse",
+          "call": {
+            "timestamp": "2026-08-28T07:02:21.368Z",
+            "endpoint": "/v1/responses",
+            "status_http": 400,
+            "latency_ms": 1477.347,
+            "response_id": null,
+            "response_status": null,
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": null,
+            "usage": null,
+            "estimated_cost_usd": null,
+            "incomplete_details": null,
+            "error": {
+              "message": "Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+              "type": "invalid_request_error",
+              "param": "text.format.schema",
+              "code": "invalid_json_schema"
+            },
+            "output": ""
+          },
+          "validation": null
+        }
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:02:21.381Z",
+        "completed_at": "2026-08-28T07:02:27.001Z",
+        "latency_total_ms": 5619.667,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:02:27.001Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 5616.511,
+            "response_id": "resp_06dfaeba5f7df796006a91327d804887d2ad45b28688736f99",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 14,
+              "output_tokens": 219,
+              "total_tokens": 233,
+              "reasoning_tokens": 0
+            },
+            "estimated_cost_usd": 0.004436,
+            "incomplete_details": null,
+            "error": null,
+            "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée** du séjour  \n- **Ville de départ** et moyen de transport envisagé  \n- **Nombre de voyageurs** et présence éventuelle d’enfants  \n- **Budget approximatif**  \n- Vos envies : **art et histoire, gastronomie, plages, nature, randonnée, vie nocturne…**  \n- Votre rythme préféré : **tranquille** ou **plusieurs étapes**  \n- Les régions ou villes qui vous attirent déjà : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles, etc.\n\nÀ titre indicatif, pour un premier voyage de **7 à 10 jours**, un excellent itinéraire est :  \n**Rome (3 jours) → Florence (2 à 3 jours) → Venise (2 jours)**, avec des trajets en train.\n\nDonnez-moi ces informations et je pourrai vous proposer un itinéraire jour par jour, un budget estimatif et des conseils pratiques."
+          }
+        ],
+        "turns": [],
+        "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée** du séjour  \n- **Ville de départ** et moyen de transport envisagé  \n- **Nombre de voyageurs** et présence éventuelle d’enfants  \n- **Budget approximatif**  \n- Vos envies : **art et histoire, gastronomie, plages, nature, randonnée, vie nocturne…**  \n- Votre rythme préféré : **tranquille** ou **plusieurs étapes**  \n- Les régions ou villes qui vous attirent déjà : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles, etc.\n\nÀ titre indicatif, pour un premier voyage de **7 à 10 jours**, un excellent itinéraire est :  \n**Rome (3 jours) → Florence (2 à 3 jours) → Venise (2 jours)**, avec des trajets en train.\n\nDonnez-moi ces informations et je pourrai vous proposer un itinéraire jour par jour, un budget estimatif et des conseils pratiques.",
+        "error": null,
+        "initial_request_exact": "Je veux préparer mon voyage en Italie.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    },
+    {
+      "id": "B3-02",
+      "category": "simple",
+      "domain": "voyage",
+      "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "exploitable",
+        "final_route": "rapide"
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:02:27.004Z",
+        "completed_at": "2026-08-28T07:02:28.029Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 1025.242,
+        "time_to_first_useful_result_ms": null,
+        "route_finale": "architecte",
+        "moteur_final": null,
+        "decision_source": "local-prudent",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "architecte",
+          "confiance": "moyenne",
+          "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:02:27.514Z",
+            "latency_ms": 0.176,
+            "status_http": null,
+            "request": {
+              "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": null,
+            "error": {
+              "name": "TypeError",
+              "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+            }
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:02:27.514Z",
+            "latency_ms": 0.06,
+            "status_http": null,
+            "request": {
+              "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": null,
+            "error": {
+              "name": "TypeError",
+              "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+            }
+          }
+        ],
+        "decision_provider_latency_ms": 0.236,
+        "clarifications": [],
+        "nombre_reanalyses": 1,
+        "final_call": null,
+        "output": "",
+        "total_llm_calls": 3,
+        "gpt_usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "estimated_cost_usd": null
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": {
+          "name": "Error",
+          "message": "Proxy OpenAI HTTP 400: Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+          "stage": "architecte_analyse",
+          "call": {
+            "timestamp": "2026-08-28T07:02:28.018Z",
+            "endpoint": "/v1/responses",
+            "status_http": 400,
+            "latency_ms": 490.61,
+            "response_id": null,
+            "response_status": null,
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": null,
+            "usage": null,
+            "estimated_cost_usd": null,
+            "incomplete_details": null,
+            "error": {
+              "message": "Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+              "type": "invalid_request_error",
+              "param": "text.format.schema",
+              "code": "invalid_json_schema"
+            },
+            "output": ""
+          },
+          "validation": null
+        }
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:02:28.031Z",
+        "completed_at": "2026-08-28T07:02:41.227Z",
+        "latency_total_ms": 13196.088,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:02:41.227Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 13194.951,
+            "response_id": "resp_04229085752f8724006a913284bbc087d2847c0b2b295e6b18",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 45,
+              "output_tokens": 686,
+              "total_tokens": 731,
+              "reasoning_tokens": 69
+            },
+            "estimated_cost_usd": 0.0139,
+            "incomplete_details": null,
+            "error": null,
+            "output": "## Checklist pour un voyage de 12 jours en Italie\n\n### Deux mois avant le départ\n1. ☐ **Vérifier les documents d’identité** : carte d’identité ou passeport valide pendant toute la durée du séjour.  \n2. ☐ **Définir l’itinéraire** : villes visitées, nombre de nuits par étape et temps de trajet réalistes.  \n3. ☐ **Réserver les vols ou transports internationaux** et vérifier les conditions relatives aux bagages.  \n4. ☐ **Réserver les hébergements**, idéalement avec annulation gratuite.  \n5. ☐ **Souscrire une assurance voyage** ou contrôler les garanties de votre carte bancaire.\n\n### Six à quatre semaines avant\n6. ☐ **Réserver les trains, bus ou une voiture de location** pour les déplacements en Italie.  \n7. ☐ **Commander la carte européenne d’assurance maladie** si vous résidez dans l’UE.  \n8. ☐ **Établir un budget** : transport, hébergement, repas, visites, taxe de séjour et imprévus.  \n9. ☐ **Réserver les sites très demandés** : Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.  \n10. ☐ **Vérifier les règles de circulation** si vous conduisez : zones ZTL, péages, stationnement et permis requis.\n\n### Trois à deux semaines avant\n11. ☐ **Préparer les moyens de paiement** : prévenir la banque si nécessaire, vérifier les frais et prévoir deux cartes séparées.  \n12. ☐ **Organiser la connexion mobile** : vérifier l’itinérance européenne ou choisir une SIM/eSIM.  \n13. ☐ **Planifier les activités principales** sans surcharger les journées, en gardant du temps libre.  \n14. ☐ **Contrôler les réservations** et enregistrer les confirmations dans un dossier accessible hors ligne.  \n15. ☐ **Préparer une liste de bagages** adaptée à la saison, aux visites religieuses et aux longues marches.\n\n### Une semaine avant\n16. ☐ **Consulter la météo** et ajuster vêtements, chaussures, protection solaire ou imperméable.  \n17. ☐ **Préparer une petite trousse de santé** : médicaments habituels, ordonnances, pansements et antalgiques.  \n18. ☐ **Télécharger les outils utiles** : cartes hors ligne, applications ferroviaires, traducteur et billets numériques.\n\n### La veille et le jour du départ\n19. ☐ **La veille : finaliser les bagages et le domicile** : chargeurs, adaptateur si nécessaire, copies des documents, poubelles, fenêtres et appareils électriques.  \n20. ☐ **Le jour du départ : effectuer les derniers contrôles** : enregistrement, horaires, terminal ou quai, identité, portefeuille, téléphone, médicaments et clés."
+          }
+        ],
+        "turns": [],
+        "output": "## Checklist pour un voyage de 12 jours en Italie\n\n### Deux mois avant le départ\n1. ☐ **Vérifier les documents d’identité** : carte d’identité ou passeport valide pendant toute la durée du séjour.  \n2. ☐ **Définir l’itinéraire** : villes visitées, nombre de nuits par étape et temps de trajet réalistes.  \n3. ☐ **Réserver les vols ou transports internationaux** et vérifier les conditions relatives aux bagages.  \n4. ☐ **Réserver les hébergements**, idéalement avec annulation gratuite.  \n5. ☐ **Souscrire une assurance voyage** ou contrôler les garanties de votre carte bancaire.\n\n### Six à quatre semaines avant\n6. ☐ **Réserver les trains, bus ou une voiture de location** pour les déplacements en Italie.  \n7. ☐ **Commander la carte européenne d’assurance maladie** si vous résidez dans l’UE.  \n8. ☐ **Établir un budget** : transport, hébergement, repas, visites, taxe de séjour et imprévus.  \n9. ☐ **Réserver les sites très demandés** : Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.  \n10. ☐ **Vérifier les règles de circulation** si vous conduisez : zones ZTL, péages, stationnement et permis requis.\n\n### Trois à deux semaines avant\n11. ☐ **Préparer les moyens de paiement** : prévenir la banque si nécessaire, vérifier les frais et prévoir deux cartes séparées.  \n12. ☐ **Organiser la connexion mobile** : vérifier l’itinérance européenne ou choisir une SIM/eSIM.  \n13. ☐ **Planifier les activités principales** sans surcharger les journées, en gardant du temps libre.  \n14. ☐ **Contrôler les réservations** et enregistrer les confirmations dans un dossier accessible hors ligne.  \n15. ☐ **Préparer une liste de bagages** adaptée à la saison, aux visites religieuses et aux longues marches.\n\n### Une semaine avant\n16. ☐ **Consulter la météo** et ajuster vêtements, chaussures, protection solaire ou imperméable.  \n17. ☐ **Préparer une petite trousse de santé** : médicaments habituels, ordonnances, pansements et antalgiques.  \n18. ☐ **Télécharger les outils utiles** : cartes hors ligne, applications ferroviaires, traducteur et billets numériques.\n\n### La veille et le jour du départ\n19. ☐ **La veille : finaliser les bagages et le domicile** : chargeurs, adaptateur si nécessaire, copies des documents, poubelles, fenêtres et appareils électriques.  \n20. ☐ **Le jour du départ : effectuer les derniers contrôles** : enregistrement, horaires, terminal ou quai, identité, portefeuille, téléphone, médicaments et clés.",
+        "error": null,
+        "initial_request_exact": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    },
+    {
+      "id": "B3-03",
+      "category": "complexe",
+      "domain": "décision d’entreprise",
+      "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "exploitable",
+        "final_route": "architecte"
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:02:41.229Z",
+        "completed_at": "2026-08-28T07:02:42.101Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 872.31,
+        "time_to_first_useful_result_ms": null,
+        "route_finale": "architecte",
+        "moteur_final": null,
+        "decision_source": "local-prudent",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "architecte",
+          "confiance": "moyenne",
+          "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:02:41.772Z",
+            "latency_ms": 0.176,
+            "status_http": null,
+            "request": {
+              "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": null,
+            "error": {
+              "name": "TypeError",
+              "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+            }
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:02:41.772Z",
+            "latency_ms": 0.051,
+            "status_http": null,
+            "request": {
+              "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": null,
+            "error": {
+              "name": "TypeError",
+              "message": "RequestInit: Expected signal (\"AbortSignal {}\") to be an instance of AbortSignal."
+            }
+          }
+        ],
+        "decision_provider_latency_ms": 0.227,
+        "clarifications": [],
+        "nombre_reanalyses": 1,
+        "final_call": null,
+        "output": "",
+        "total_llm_calls": 3,
+        "gpt_usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "total_tokens": null,
+          "estimated_cost_usd": null
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": {
+          "name": "Error",
+          "message": "Proxy OpenAI HTTP 400: Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+          "stage": "architecte_analyse",
+          "call": {
+            "timestamp": "2026-08-28T07:02:42.096Z",
+            "endpoint": "/v1/responses",
+            "status_http": 400,
+            "latency_ms": 315.664,
+            "response_id": null,
+            "response_status": null,
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": null,
+            "usage": null,
+            "estimated_cost_usd": null,
+            "incomplete_details": null,
+            "error": {
+              "message": "Invalid schema for response_format 'architecte_analyse': In context=(), 'allOf' is not permitted.",
+              "type": "invalid_request_error",
+              "param": "text.format.schema",
+              "code": "invalid_json_schema"
+            },
+            "output": ""
+          },
+          "validation": null
+        }
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:02:42.103Z",
+        "completed_at": "2026-08-28T07:03:22.167Z",
+        "latency_total_ms": 40064.223,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:03:22.167Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 39980.734,
+            "response_id": "resp_0bb361615dd38dd5006a913294eac487d28ec82e003cacf057",
+            "response_status": "incomplete",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 84,
+              "output_tokens": 2500,
+              "total_tokens": 2584,
+              "reasoning_tokens": 1010
+            },
+            "estimated_cost_usd": 0.050336,
+            "incomplete_details": {
+              "reason": "max_output_tokens"
+            },
+            "error": null,
+            "output": "## Synthèse\n\nPour une entreprise de 12 personnes, **une solution SaaS standard est généralement le meilleur compromis** entre coût, rapidité, richesse fonctionnelle et risque opérationnel.\n\n- **Conserver l’outil actuel** est pertinent s’il couvre encore l’essentiel des besoins et reste maintenu, sécurisé et peu coûteux.\n- **Migrer vers un SaaS** est préférable si les limites actuelles entraînent des pertes de temps, un manque de visibilité ou des contournements manuels.\n- **Développer en interne** ne se justifie que si la gestion de projet constitue un véritable avantage concurrentiel ou si des contraintes réglementaires et fonctionnelles ne peuvent être couvertes par le marché.\n\nLes montants ci-dessous sont indicatifs, hors taxes, pour 12 utilisateurs.\n\n---\n\n# 1. Conserver l’outil actuel\n\n## Avantages\n\n- Aucun projet de migration à financer immédiatement.\n- Pas ou peu d’interruption d’activité.\n- Utilisateurs déjà formés.\n- Processus, modèles et historique déjà disponibles.\n- Absence de risque lié à une mauvaise reprise des données.\n- Coût apparent souvent faible si les licences sont déjà amorties.\n\n## Risques\n\n- Maintien de problèmes qui ont précisément motivé la réflexion :\n  - doubles saisies ;\n  - manque de visibilité ;\n  - reporting manuel ;\n  - difficultés de collaboration ;\n  - absence d’intégrations ;\n  - faible usage par les équipes.\n- Dette technique croissante si l’outil est ancien ou peu maintenu.\n- Vulnérabilités de sécurité ou incompatibilités futures.\n- Dépendance à quelques personnes maîtrisant les contournements.\n- Coût caché de la perte de productivité.\n\nÀ titre d’exemple, **15 minutes perdues par jour et par collaborateur** représentent environ 660 heures par an pour 12 personnes. Selon le coût chargé des salariés, cela peut représenter plusieurs dizaines de milliers d’euros par an.\n\n## Coûts\n\n- Licences et maintenance existantes.\n- Éventuels développements correctifs ou connecteurs.\n- Support interne.\n- Surtout, coût caché des tâches manuelles et des erreurs.\n\nLe coût direct peut être faible, mais le **coût total de possession** peut être élevé si l’outil ralentit l’activité.\n\n## Conséquences organisationnelles\n\n- Très faible effort de changement.\n- Pas de nouvelle formation importante.\n- Risque de démotivation si les problèmes signalés par les équipes ne sont pas traités.\n- Pérennisation de méthodes de travail parfois hétérogènes ou inefficaces.\n\n## Cette stratégie est adaptée si…\n\n- L’outil couvre au moins 80 à 90 % des besoins importants.\n- Il est encore maintenu et sécurisé.\n- Les équipes l’utilisent réellement.\n- Les données sont exportables.\n- Les irritants peuvent être corrigés à coût raisonnable.\n- Le problème vient davantage des processus que du logiciel.\n\n---\n\n# 2. Migrer vers une solution SaaS standard\n\n## Avantages\n\n- Déploiement rapide, généralement en quelques semaines.\n- Investissement initial limité.\n- Fonctionnalités éprouvées :\n  - planification ;\n  - gestion des tâches ;\n  - vues Kanban, calendrier ou Gantt ;\n  - gestion de charge ;\n  - collaboration ;\n  - automatisations ;\n  - tableaux de bord ;\n  - intégrations avec la messagerie, le stockage documentaire ou la comptabilité.\n- Mises à jour, sauvegardes et infrastructure prises en charge par l’éditeur.\n- Accès à distance et sur mobile.\n- Facilité d’augmentation ou de réduction du nombre d’utilisateurs.\n- Meilleure prévisibilité budgétaire.\n\n## Risques\n\n- Dépendance à l’éditeur :\n  - évolution des tarifs ;\n  - modification des fonctionnalités ;\n  - arrêt du service.\n- Risque de choisir un outil trop riche ou mal adapté.\n- Migration imparfaite de l’historique.\n- Adoption insuffisante si les équipes ne sont pas associées au choix.\n- Personnalisation plus limitée qu’avec un logiciel interne.\n- Enjeux de confidentialité, de localisation et de réversibilité des données.\n- Multiplication possible des abonnements ou options payantes.\n\n## Coûts indicatifs\n\n### Coûts récurrents\n\nPour 12 utilisateurs :\n\n- environ **1 500 à 6 000 € par an** pour une solution standard ;\n- davantage pour des fonctions avancées de portefeuille, de gestion de ressources, de sécurité ou de conformité.\n\n### Coûts ponctuels\n\n- Analyse et sélection : 1 000 à 5 000 € si elle est accompagnée.\n- Paramétrage et migration : 2 000 à 10 000 €.\n- Formation et accompagnement : 1 000 à 5 000 €.\n- Intégrations spécifiques éventuelles : coût variable.\n\nUn ordre de grandeur raisonnable du coût sur trois ans serait de **10 000 à 35 000 €**, hors intégrations complexes. Le coût peut être inférieur si le paramétrage et la migration sont réalisés en interne.\n\n## Conséquences organisationnelles\n\nLa migration est moins un projet informatique qu’un projet de transformation des pratiques.\n\nIl faudra notamment :\n\n- nommer un responsable interne de l’outil ;\n- harmoniser les statuts, modèles et règles de gestion ;\n- décider quelles données migrer et lesquelles archiver ;\n- former les utilisateurs ;\n- définir les tableaux de bord communs ;\n- supprimer progressivement les fichiers parallèles ;\n- suivre l’adoption pendant les premiers mois.\n\nLa charge reste raisonnable pour 12 personnes, mais elle ne doit pas être sous-estimée.\n\n## Cette stratégie est adaptée si…\n\n- Les besoins sont globalement standards.\n- L’entreprise veut déployer rapidement.\n- Elle ne dispose pas d’une équipe de développement dédiée.\n- Elle accepte d’adapter légèrement ses processus aux bonnes pratiques du marché.\n- Elle souhaite maîtriser l’investissement initial.\n- Les gains de productivité attendus dépassent nettement le coût de l’abonnement.\n\n---\n\n# 3. Développer une solution interne\n\n## Avantages\n\n- Adaptation précise aux processus de l’entreprise.\n- Contrôle de la feuille de route fonctionnelle.\n- Intégrations sur mesure avec le système d’information.\n- Possibilité de maîtriser l’hébergement et les données.\n- Absence de dépendance fonctionnelle directe à un éditeur.\n- Potentiel avantage concurrentiel si l’outil matérialise un savoir-faire spécifique.\n\n## Risques\n\n- Sous-estimation fréquente du périmètre.\n- Délais plus longs que prévu.\n- Besoins qui évoluent pendant le développement.\n- Dépendance aux développeurs ou prestataires qui connaissent le code.\n- Nécessité de financer durablement :\n  - corrections ;\n  - évolutions ;\n  - sécurité ;\n  - sauvegardes ;\n  - documentation ;\n  - tests ;\n  - assistance aux utilisateurs.\n- Qualité d’expérience généralement inférieure à celle d’un produit SaaS mature, au moins au début.\n- Risque de consacrer des ressources à un outil support plutôt qu’au cœur de métier.\n- Coût unitaire très élevé pour seulement"
+          }
+        ],
+        "turns": [],
+        "output": "## Synthèse\n\nPour une entreprise de 12 personnes, **une solution SaaS standard est généralement le meilleur compromis** entre coût, rapidité, richesse fonctionnelle et risque opérationnel.\n\n- **Conserver l’outil actuel** est pertinent s’il couvre encore l’essentiel des besoins et reste maintenu, sécurisé et peu coûteux.\n- **Migrer vers un SaaS** est préférable si les limites actuelles entraînent des pertes de temps, un manque de visibilité ou des contournements manuels.\n- **Développer en interne** ne se justifie que si la gestion de projet constitue un véritable avantage concurrentiel ou si des contraintes réglementaires et fonctionnelles ne peuvent être couvertes par le marché.\n\nLes montants ci-dessous sont indicatifs, hors taxes, pour 12 utilisateurs.\n\n---\n\n# 1. Conserver l’outil actuel\n\n## Avantages\n\n- Aucun projet de migration à financer immédiatement.\n- Pas ou peu d’interruption d’activité.\n- Utilisateurs déjà formés.\n- Processus, modèles et historique déjà disponibles.\n- Absence de risque lié à une mauvaise reprise des données.\n- Coût apparent souvent faible si les licences sont déjà amorties.\n\n## Risques\n\n- Maintien de problèmes qui ont précisément motivé la réflexion :\n  - doubles saisies ;\n  - manque de visibilité ;\n  - reporting manuel ;\n  - difficultés de collaboration ;\n  - absence d’intégrations ;\n  - faible usage par les équipes.\n- Dette technique croissante si l’outil est ancien ou peu maintenu.\n- Vulnérabilités de sécurité ou incompatibilités futures.\n- Dépendance à quelques personnes maîtrisant les contournements.\n- Coût caché de la perte de productivité.\n\nÀ titre d’exemple, **15 minutes perdues par jour et par collaborateur** représentent environ 660 heures par an pour 12 personnes. Selon le coût chargé des salariés, cela peut représenter plusieurs dizaines de milliers d’euros par an.\n\n## Coûts\n\n- Licences et maintenance existantes.\n- Éventuels développements correctifs ou connecteurs.\n- Support interne.\n- Surtout, coût caché des tâches manuelles et des erreurs.\n\nLe coût direct peut être faible, mais le **coût total de possession** peut être élevé si l’outil ralentit l’activité.\n\n## Conséquences organisationnelles\n\n- Très faible effort de changement.\n- Pas de nouvelle formation importante.\n- Risque de démotivation si les problèmes signalés par les équipes ne sont pas traités.\n- Pérennisation de méthodes de travail parfois hétérogènes ou inefficaces.\n\n## Cette stratégie est adaptée si…\n\n- L’outil couvre au moins 80 à 90 % des besoins importants.\n- Il est encore maintenu et sécurisé.\n- Les équipes l’utilisent réellement.\n- Les données sont exportables.\n- Les irritants peuvent être corrigés à coût raisonnable.\n- Le problème vient davantage des processus que du logiciel.\n\n---\n\n# 2. Migrer vers une solution SaaS standard\n\n## Avantages\n\n- Déploiement rapide, généralement en quelques semaines.\n- Investissement initial limité.\n- Fonctionnalités éprouvées :\n  - planification ;\n  - gestion des tâches ;\n  - vues Kanban, calendrier ou Gantt ;\n  - gestion de charge ;\n  - collaboration ;\n  - automatisations ;\n  - tableaux de bord ;\n  - intégrations avec la messagerie, le stockage documentaire ou la comptabilité.\n- Mises à jour, sauvegardes et infrastructure prises en charge par l’éditeur.\n- Accès à distance et sur mobile.\n- Facilité d’augmentation ou de réduction du nombre d’utilisateurs.\n- Meilleure prévisibilité budgétaire.\n\n## Risques\n\n- Dépendance à l’éditeur :\n  - évolution des tarifs ;\n  - modification des fonctionnalités ;\n  - arrêt du service.\n- Risque de choisir un outil trop riche ou mal adapté.\n- Migration imparfaite de l’historique.\n- Adoption insuffisante si les équipes ne sont pas associées au choix.\n- Personnalisation plus limitée qu’avec un logiciel interne.\n- Enjeux de confidentialité, de localisation et de réversibilité des données.\n- Multiplication possible des abonnements ou options payantes.\n\n## Coûts indicatifs\n\n### Coûts récurrents\n\nPour 12 utilisateurs :\n\n- environ **1 500 à 6 000 € par an** pour une solution standard ;\n- davantage pour des fonctions avancées de portefeuille, de gestion de ressources, de sécurité ou de conformité.\n\n### Coûts ponctuels\n\n- Analyse et sélection : 1 000 à 5 000 € si elle est accompagnée.\n- Paramétrage et migration : 2 000 à 10 000 €.\n- Formation et accompagnement : 1 000 à 5 000 €.\n- Intégrations spécifiques éventuelles : coût variable.\n\nUn ordre de grandeur raisonnable du coût sur trois ans serait de **10 000 à 35 000 €**, hors intégrations complexes. Le coût peut être inférieur si le paramétrage et la migration sont réalisés en interne.\n\n## Conséquences organisationnelles\n\nLa migration est moins un projet informatique qu’un projet de transformation des pratiques.\n\nIl faudra notamment :\n\n- nommer un responsable interne de l’outil ;\n- harmoniser les statuts, modèles et règles de gestion ;\n- décider quelles données migrer et lesquelles archiver ;\n- former les utilisateurs ;\n- définir les tableaux de bord communs ;\n- supprimer progressivement les fichiers parallèles ;\n- suivre l’adoption pendant les premiers mois.\n\nLa charge reste raisonnable pour 12 personnes, mais elle ne doit pas être sous-estimée.\n\n## Cette stratégie est adaptée si…\n\n- Les besoins sont globalement standards.\n- L’entreprise veut déployer rapidement.\n- Elle ne dispose pas d’une équipe de développement dédiée.\n- Elle accepte d’adapter légèrement ses processus aux bonnes pratiques du marché.\n- Elle souhaite maîtriser l’investissement initial.\n- Les gains de productivité attendus dépassent nettement le coût de l’abonnement.\n\n---\n\n# 3. Développer une solution interne\n\n## Avantages\n\n- Adaptation précise aux processus de l’entreprise.\n- Contrôle de la feuille de route fonctionnelle.\n- Intégrations sur mesure avec le système d’information.\n- Possibilité de maîtriser l’hébergement et les données.\n- Absence de dépendance fonctionnelle directe à un éditeur.\n- Potentiel avantage concurrentiel si l’outil matérialise un savoir-faire spécifique.\n\n## Risques\n\n- Sous-estimation fréquente du périmètre.\n- Délais plus longs que prévu.\n- Besoins qui évoluent pendant le développement.\n- Dépendance aux développeurs ou prestataires qui connaissent le code.\n- Nécessité de financer durablement :\n  - corrections ;\n  - évolutions ;\n  - sécurité ;\n  - sauvegardes ;\n  - documentation ;\n  - tests ;\n  - assistance aux utilisateurs.\n- Qualité d’expérience généralement inférieure à celle d’un produit SaaS mature, au moins au début.\n- Risque de consacrer des ressources à un outil support plutôt qu’au cœur de métier.\n- Coût unitaire très élevé pour seulement",
+        "error": null,
+        "initial_request_exact": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    }
+  ]
+}

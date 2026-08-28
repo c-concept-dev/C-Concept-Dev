@@ -1,0 +1,141 @@
+{
+  "started_at": "2026-08-28T07:13:30.855Z",
+  "completed_at": "2026-08-28T07:14:14.331Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 43475.976,
+  "time_to_first_useful_result_ms": 43475.982,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:13:31.440Z",
+      "latency_ms": 232.044,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux organiser mon déménagement.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:13:31.673Z",
+      "latency_ms": 405.978,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux organiser mon déménagement.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel est le lieu de destination de votre déménagement ?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:13:32.080Z",
+      "latency_ms": 115.431,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux organiser mon déménagement.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le lieu de destination de votre déménagement ? — Réponse : Je veux une checklist chronologique pour déménager un appartement de 60 m² dans la même ville pendant un week-end, dans six semaines.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:13:32.195Z",
+      "latency_ms": 614.812,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux organiser mon déménagement.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le lieu de destination de votre déménagement ? — Réponse : Je veux une checklist chronologique pour déménager un appartement de 60 m² dans la même ville pendant un week-end, dans six semaines.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1368.265,
+  "clarifications": [
+    {
+      "question": "Quel est le lieu de destination de votre déménagement ?",
+      "answer": "Je veux une checklist chronologique pour déménager un appartement de 60 m² dans la même ville pendant un week-end, dans six semaines."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 9.999,
+    "format": "list",
+    "niveau": "minimal",
+    "prompt": "## RÔLE\nVous produisez un livrable de type : liste ou checklist.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nJe veux organiser mon déménagement.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le lieu de destination de votre déménagement ? — Réponse : Je veux une checklist chronologique pour déménager un appartement de 60 m² dans la même ville pendant un week-end, dans six semaines.\n\n## FORMAT DE SORTIE\n- Livrable : liste ou checklist\n- Validité : Un élément par ligne, aucune ligne d’introduction.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : - ou 1.\n- Dernier élément de votre réponse : le dernier élément de liste\n- Rien avant, rien après.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par - ou 1. ?\n2. Le nombre de éléments est-il au moins 3 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Un élément par ligne, aucune ligne d’introduction.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:14:14.319Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 41443.289,
+    "response_id": "resp_0c88558f4897c4ee006a91351d02f087d2903f76ece1c8d434",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 437,
+      "output_tokens": 2500,
+      "total_tokens": 2937,
+      "reasoning_tokens": 126
+    },
+    "estimated_cost_usd": 0.051748,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "- [ ] J-42 : fixer la date et les horaires précis du déménagement pendant le week-end.\n- [ ] J-42 : vérifier les modalités de préavis, d’état des lieux et de remise des clés de l’ancien logement.\n- [ ] J-42 : confirmer la date de disponibilité, la remise des clés et l’assurance du nouveau logement.\n- [ ] J-42 : établir un budget incluant transport, matériel, stationnement, aide, ménage et éventuels frais de garde-meuble.\n- [ ] J-41 : choisir entre déménageurs professionnels, location d’un utilitaire ou transport avec des proches.\n- [ ] J-41 : demander plusieurs devis en indiquant 60 m², les deux adresses, les étages, les ascenseurs et les difficultés d’accès.\n- [ ] J-40 : réserver le déménageur ou un utilitaire adapté au volume estimé.\n- [ ] J-40 : vérifier le permis requis, le kilométrage inclus, la caution, l’assurance et les conditions de retour de l’utilitaire.\n- [ ] J-39 : solliciter les proches nécessaires et leur confirmer les horaires, les adresses et les tâches prévues.\n- [ ] J-38 : réserver une place de stationnement ou demander une autorisation d’occupation temporaire devant chaque logement.\n- [ ] J-38 : prévenir les gardiens ou syndics et réserver les ascenseurs si la copropriété l’exige.\n- [ ] J-37 : mesurer les portes, couloirs, escaliers, ascenseurs et meubles volumineux.\n- [ ] J-37 : vérifier que les meubles volumineux pourront entrer dans le nouveau logement.\n- [ ] J-36 : dresser l’inventaire des biens et repérer les objets fragiles, lourds, précieux ou à démonter.\n- [ ] J-35 : trier les affaires pièce par pièce en catégories à garder, vendre, donner, recycler ou jeter.\n- [ ] J-34 : publier les annonces de vente et organiser rapidement les dons ou dépôts en déchèterie.\n- [ ] J-33 : commander ou récupérer des cartons solides, du ruban adhésif, du papier de protection, du film étirable, des housses et des marqueurs.\n- [ ] J-32 : prévoir des cartons spécifiques pour les livres, la vaisselle, les vêtements suspendus, les tableaux et les bouteilles.\n- [ ] J-31 : créer un système d’étiquetage indiquant la pièce de destination, le contenu, la fragilité et la priorité d’ouverture.\n- [ ] J-30 : photographier les branchements des appareils électroniques avant leur déconnexion.\n- [ ] J-29 : sauvegarder les fichiers importants sur un support distinct ou un service sécurisé.\n- [ ] J-28 : commencer à emballer les livres, décorations, archives, vêtements hors saison et objets rarement utilisés.\n- [ ] J-27 : ne pas surcharger les cartons et répartir les livres dans de petits contenants.\n- [ ] J-26 : constituer un dossier avec contrats, inventaire, devis, assurances, autorisations, états des lieux et coordonnées utiles.\n- [ ] J-25 : déclarer le changement d’adresse aux organismes publics via le service officiel en ligne.\n- [ ] J-24 : informer l’employeur, la banque, les assurances, les abonnements, les établissements scolaires et les professionnels de santé concernés.\n- [ ] J-23 : organiser le transfert ou la résiliation d’Internet et confirmer la date d’activation dans le nouveau logement.\n- [ ] J-22 : programmer la clôture et l’ouverture des contrats d’électricité et de gaz aux dates appropriées.\n- [ ] J-21 : organiser le transfert, l’ouverture ou la fermeture du contrat d’eau selon les règles des logements.\n- [ ] J-20 : souscrire l’assurance habitation du nouveau logement pour qu’elle soit active dès la remise des clés.\n- [ ] J-19 : demander la réexpédition du courrier et transmettre directement la nouvelle adresse aux expéditeurs importants.\n- [ ] J-18 : utiliser progressivement les aliments du congélateur, du réfrigérateur et des placards.\n- [ ] J-17 : poursuivre l’emballage pièce par pièce en laissant accessibles uniquement les affaires nécessaires jusqu’au départ.\n- [ ] J-16 : photographier les objets de valeur et relever les numéros de série des appareils importants.\n- [ ] J-15 : vérifier les exclusions d’assurance concernant les bijoux, documents, espèces, plantes et objets très fragiles.\n- [ ] J-14 : prévoir le transport personnel des papiers, médicaments, clés, appareils électroniques sensibles et objets de valeur.\n- [ ] J-13 : confirmer par écrit la réservation du véhicule ou des déménageurs, les horaires et les conditions d’accès.\n- [ ] J-12 : confirmer la présence des proches et répartir les rôles entre chargement, transport, nettoyage et réception.\n- [ ] J-11 : établir un plan sommaire du nouveau logement avec l’emplacement des principaux meubles.\n- [ ] J-10 : démonter les meubles non indispensables et placer vis, chevilles et notices dans des sachets étiquetés.\n- [ ] J-9 : protéger les angles, plateaux, portes, tiroirs et éléments mobiles des meubles démontés.\n- [ ] J-8 : préparer les réparations locatives et le nettoyage requis avant l’état des lieux de sortie.\n- [ ] J-7 : confirmer les autorisations de stationnement et vérifier l’absence de marché, travaux ou événement bloquant les accès.\n- [ ] J-7 : préparer un itinéraire principal et un itinéraire de secours entre les deux logements.\n- [ ] J-6 : emballer la majorité de la cuisine en conservant un service minimal pour les derniers repas.\n- [ ] J-5 : vider, dégivrer, nettoyer et sécher le congélateur selon le délai recommandé par le fabricant.\n- [ ] J-4 : laver et sécher le linge restant, puis emballer les vêtements et textiles non nécessaires.\n- [ ] J-3 : regrouper les produits ménagers autorisés au transport et éliminer correctement les produits dangereux ou ouverts.\n- [ ] J-3 : préparer une caisse d’outils avec tournevis, clés, cutter, ruban adhésif, gants, visserie et sacs-poubelle.\n- [ ] J-2 : préparer un sac pour le week-end avec vêtements, trousse de toilette, médicaments, chargeurs, papiers et linge de lit.\n- [ ] J-2 : préparer un carton prioritaire avec café, eau, collations, vaisselle minimale, papier toilette, savon, serviettes et produits de nettoyage.\n- [ ] J-2 : charger complètement les téléphones et batteries externes.\n- [ ] J-1 : terminer les cartons, fermer chacun d’eux et vérifier leur étiquetage.\n- [ ] J-1 : démonter les derniers meubles en conservant un couchage utilisable pour la nuit.\n- [ ] J-1 : débrancher, vider, nettoyer et sécuriser les appareils électroménagers.\n- [ ] J-1 : bloquer les tambours des appareils concernés avec leurs dispositifs de transport.\n- [ ] J-1 : protéger les sols, murs, portes et parties communes des deux logements si nécessaire.\n- [ ] J-1 : réserver un emplacement sécurisé pour les enfants ou animaux pendant les opérations.\n- [ ] Jour J : prendre un petit-déjeuner, porter des vêtements adaptés et garder clés, téléphone et documents sur soi.\n- [ ] Jour J : effectuer un état des lieux photographique des meubles et cartons avant le chargement.\n- [ ] Jour J : vérifier l’état, le carburant, le kilométrage et les dommages existants de l’utilitaire avant le départ.\n- [ ] Jour J : dégager les accès et installer la signalisation ou les autorisations de stationnement.\n- [ ] Jour J : charger d’abord les meubles et cartons lourds, puis les objets légers et fragiles.\n- [ ] Jour J : répartir le poids, sangler le chargement et empêcher tout déplacement dans le véhicule.\n- [ ] Jour J : ne pas charger les objets de valeur, documents, médicaments et clés dans une zone inaccessible.\n- [ ] Jour J : contrôler chaque pièce, placard, cave, balcon, garage et boîte aux lettres de l’ancien logement.\n- [ ] Jour J : relever et photographier les compteurs d’eau, d’électricité et de gaz de l’ancien logement.\n- [ ] Jour J : nettoyer l’ancien logement et évacuer les derniers déchets.\n- [ ] Jour J : fermer les fenêtres, couper les équipements requis et verrouiller tous les accès de l’ancien logement.\n- [ ] Jour J : réaliser l’état des lieux de sortie, faire noter les réserves et récupérer un exemplaire signé.\n- [ ] Jour J : remettre toutes les clés, badges, télécommandes et justificatifs convenus.\n- [ ] Jour J : vérifier l’état du nouveau logement et photographier toute anomalie avant de décharger.\n- [ ] Jour J : relever et photographier les compteurs du nouveau logement.\n- [ ] Jour J : tester l’eau, l’électricité, le gaz, le chauffage, les prises, les détecteurs de fumée et les serrures.\n- [ ] Jour J : signaler immédiatement par écrit les anomalies constatées dans le nouveau logement.\n- [ ] Jour J : diriger chaque carton vers la pièce indiquée sur son étiquette.\n- [ ] Jour J : installer en priorité le couchage, les luminaires, les rideaux nécessaires et les produits d’hygiène.\n- [ ] Jour J : remonter les meubles essentiels conformément au plan d’implantation.\n- [ ] Jour J : vérifier le véhicule et les parties communes afin de ne laisser aucun objet ni déchet.\n- [ ] Jour J : restituer l’utilitaire à l’heure avec le niveau de carburant prévu et conserver le justificatif.\n- [ ] J+1 : déballer la cuisine, la salle de bains, les vêtements courants et le matériel de travail prioritaire.\n- [ ] J+1 : vérifier que tous les cartons et meubles figurant à l’inventaire sont présents.\n- [ ] J+1 : photographier les dommages éventuels et les déclarer au transporteur ou à l’assurance dans le délai contractuel.\n- [ ] J+1 : vérifier le fonctionnement d’Internet et des principaux équipements.\n- [ ] J+1 : installer correctement les appareils électroménagers et respecter leur temps de repos avant remise en service.\n- [ ] J+2 : déballer progressivement par pièce sans bloquer les circulations ni les issues.\n- [ ] J+2 : monter les meubles restants et fixer au mur ceux présentant un risque de basculement.\n- [ ] J+2 : plier, donner ou recycler les cartons et matériaux de protection devenus inutiles.\n- [ ] J+3 : confirmer aux fournisseurs les relevés de compteurs et vérifier les dates d’ouverture et de clôture des contrats.\n- [ ] J+3 : contrôler que le nom apparaît sur la boîte aux lettres, l’interphone et la porte selon les règles de l’immeuble.\n- [ ] J+4 : mettre à jour l’adresse sur la"
+  },
+  "output": "- [ ] J-42 : fixer la date et les horaires précis du déménagement pendant le week-end.\n- [ ] J-42 : vérifier les modalités de préavis, d’état des lieux et de remise des clés de l’ancien logement.\n- [ ] J-42 : confirmer la date de disponibilité, la remise des clés et l’assurance du nouveau logement.\n- [ ] J-42 : établir un budget incluant transport, matériel, stationnement, aide, ménage et éventuels frais de garde-meuble.\n- [ ] J-41 : choisir entre déménageurs professionnels, location d’un utilitaire ou transport avec des proches.\n- [ ] J-41 : demander plusieurs devis en indiquant 60 m², les deux adresses, les étages, les ascenseurs et les difficultés d’accès.\n- [ ] J-40 : réserver le déménageur ou un utilitaire adapté au volume estimé.\n- [ ] J-40 : vérifier le permis requis, le kilométrage inclus, la caution, l’assurance et les conditions de retour de l’utilitaire.\n- [ ] J-39 : solliciter les proches nécessaires et leur confirmer les horaires, les adresses et les tâches prévues.\n- [ ] J-38 : réserver une place de stationnement ou demander une autorisation d’occupation temporaire devant chaque logement.\n- [ ] J-38 : prévenir les gardiens ou syndics et réserver les ascenseurs si la copropriété l’exige.\n- [ ] J-37 : mesurer les portes, couloirs, escaliers, ascenseurs et meubles volumineux.\n- [ ] J-37 : vérifier que les meubles volumineux pourront entrer dans le nouveau logement.\n- [ ] J-36 : dresser l’inventaire des biens et repérer les objets fragiles, lourds, précieux ou à démonter.\n- [ ] J-35 : trier les affaires pièce par pièce en catégories à garder, vendre, donner, recycler ou jeter.\n- [ ] J-34 : publier les annonces de vente et organiser rapidement les dons ou dépôts en déchèterie.\n- [ ] J-33 : commander ou récupérer des cartons solides, du ruban adhésif, du papier de protection, du film étirable, des housses et des marqueurs.\n- [ ] J-32 : prévoir des cartons spécifiques pour les livres, la vaisselle, les vêtements suspendus, les tableaux et les bouteilles.\n- [ ] J-31 : créer un système d’étiquetage indiquant la pièce de destination, le contenu, la fragilité et la priorité d’ouverture.\n- [ ] J-30 : photographier les branchements des appareils électroniques avant leur déconnexion.\n- [ ] J-29 : sauvegarder les fichiers importants sur un support distinct ou un service sécurisé.\n- [ ] J-28 : commencer à emballer les livres, décorations, archives, vêtements hors saison et objets rarement utilisés.\n- [ ] J-27 : ne pas surcharger les cartons et répartir les livres dans de petits contenants.\n- [ ] J-26 : constituer un dossier avec contrats, inventaire, devis, assurances, autorisations, états des lieux et coordonnées utiles.\n- [ ] J-25 : déclarer le changement d’adresse aux organismes publics via le service officiel en ligne.\n- [ ] J-24 : informer l’employeur, la banque, les assurances, les abonnements, les établissements scolaires et les professionnels de santé concernés.\n- [ ] J-23 : organiser le transfert ou la résiliation d’Internet et confirmer la date d’activation dans le nouveau logement.\n- [ ] J-22 : programmer la clôture et l’ouverture des contrats d’électricité et de gaz aux dates appropriées.\n- [ ] J-21 : organiser le transfert, l’ouverture ou la fermeture du contrat d’eau selon les règles des logements.\n- [ ] J-20 : souscrire l’assurance habitation du nouveau logement pour qu’elle soit active dès la remise des clés.\n- [ ] J-19 : demander la réexpédition du courrier et transmettre directement la nouvelle adresse aux expéditeurs importants.\n- [ ] J-18 : utiliser progressivement les aliments du congélateur, du réfrigérateur et des placards.\n- [ ] J-17 : poursuivre l’emballage pièce par pièce en laissant accessibles uniquement les affaires nécessaires jusqu’au départ.\n- [ ] J-16 : photographier les objets de valeur et relever les numéros de série des appareils importants.\n- [ ] J-15 : vérifier les exclusions d’assurance concernant les bijoux, documents, espèces, plantes et objets très fragiles.\n- [ ] J-14 : prévoir le transport personnel des papiers, médicaments, clés, appareils électroniques sensibles et objets de valeur.\n- [ ] J-13 : confirmer par écrit la réservation du véhicule ou des déménageurs, les horaires et les conditions d’accès.\n- [ ] J-12 : confirmer la présence des proches et répartir les rôles entre chargement, transport, nettoyage et réception.\n- [ ] J-11 : établir un plan sommaire du nouveau logement avec l’emplacement des principaux meubles.\n- [ ] J-10 : démonter les meubles non indispensables et placer vis, chevilles et notices dans des sachets étiquetés.\n- [ ] J-9 : protéger les angles, plateaux, portes, tiroirs et éléments mobiles des meubles démontés.\n- [ ] J-8 : préparer les réparations locatives et le nettoyage requis avant l’état des lieux de sortie.\n- [ ] J-7 : confirmer les autorisations de stationnement et vérifier l’absence de marché, travaux ou événement bloquant les accès.\n- [ ] J-7 : préparer un itinéraire principal et un itinéraire de secours entre les deux logements.\n- [ ] J-6 : emballer la majorité de la cuisine en conservant un service minimal pour les derniers repas.\n- [ ] J-5 : vider, dégivrer, nettoyer et sécher le congélateur selon le délai recommandé par le fabricant.\n- [ ] J-4 : laver et sécher le linge restant, puis emballer les vêtements et textiles non nécessaires.\n- [ ] J-3 : regrouper les produits ménagers autorisés au transport et éliminer correctement les produits dangereux ou ouverts.\n- [ ] J-3 : préparer une caisse d’outils avec tournevis, clés, cutter, ruban adhésif, gants, visserie et sacs-poubelle.\n- [ ] J-2 : préparer un sac pour le week-end avec vêtements, trousse de toilette, médicaments, chargeurs, papiers et linge de lit.\n- [ ] J-2 : préparer un carton prioritaire avec café, eau, collations, vaisselle minimale, papier toilette, savon, serviettes et produits de nettoyage.\n- [ ] J-2 : charger complètement les téléphones et batteries externes.\n- [ ] J-1 : terminer les cartons, fermer chacun d’eux et vérifier leur étiquetage.\n- [ ] J-1 : démonter les derniers meubles en conservant un couchage utilisable pour la nuit.\n- [ ] J-1 : débrancher, vider, nettoyer et sécuriser les appareils électroménagers.\n- [ ] J-1 : bloquer les tambours des appareils concernés avec leurs dispositifs de transport.\n- [ ] J-1 : protéger les sols, murs, portes et parties communes des deux logements si nécessaire.\n- [ ] J-1 : réserver un emplacement sécurisé pour les enfants ou animaux pendant les opérations.\n- [ ] Jour J : prendre un petit-déjeuner, porter des vêtements adaptés et garder clés, téléphone et documents sur soi.\n- [ ] Jour J : effectuer un état des lieux photographique des meubles et cartons avant le chargement.\n- [ ] Jour J : vérifier l’état, le carburant, le kilométrage et les dommages existants de l’utilitaire avant le départ.\n- [ ] Jour J : dégager les accès et installer la signalisation ou les autorisations de stationnement.\n- [ ] Jour J : charger d’abord les meubles et cartons lourds, puis les objets légers et fragiles.\n- [ ] Jour J : répartir le poids, sangler le chargement et empêcher tout déplacement dans le véhicule.\n- [ ] Jour J : ne pas charger les objets de valeur, documents, médicaments et clés dans une zone inaccessible.\n- [ ] Jour J : contrôler chaque pièce, placard, cave, balcon, garage et boîte aux lettres de l’ancien logement.\n- [ ] Jour J : relever et photographier les compteurs d’eau, d’électricité et de gaz de l’ancien logement.\n- [ ] Jour J : nettoyer l’ancien logement et évacuer les derniers déchets.\n- [ ] Jour J : fermer les fenêtres, couper les équipements requis et verrouiller tous les accès de l’ancien logement.\n- [ ] Jour J : réaliser l’état des lieux de sortie, faire noter les réserves et récupérer un exemplaire signé.\n- [ ] Jour J : remettre toutes les clés, badges, télécommandes et justificatifs convenus.\n- [ ] Jour J : vérifier l’état du nouveau logement et photographier toute anomalie avant de décharger.\n- [ ] Jour J : relever et photographier les compteurs du nouveau logement.\n- [ ] Jour J : tester l’eau, l’électricité, le gaz, le chauffage, les prises, les détecteurs de fumée et les serrures.\n- [ ] Jour J : signaler immédiatement par écrit les anomalies constatées dans le nouveau logement.\n- [ ] Jour J : diriger chaque carton vers la pièce indiquée sur son étiquette.\n- [ ] Jour J : installer en priorité le couchage, les luminaires, les rideaux nécessaires et les produits d’hygiène.\n- [ ] Jour J : remonter les meubles essentiels conformément au plan d’implantation.\n- [ ] Jour J : vérifier le véhicule et les parties communes afin de ne laisser aucun objet ni déchet.\n- [ ] Jour J : restituer l’utilitaire à l’heure avec le niveau de carburant prévu et conserver le justificatif.\n- [ ] J+1 : déballer la cuisine, la salle de bains, les vêtements courants et le matériel de travail prioritaire.\n- [ ] J+1 : vérifier que tous les cartons et meubles figurant à l’inventaire sont présents.\n- [ ] J+1 : photographier les dommages éventuels et les déclarer au transporteur ou à l’assurance dans le délai contractuel.\n- [ ] J+1 : vérifier le fonctionnement d’Internet et des principaux équipements.\n- [ ] J+1 : installer correctement les appareils électroménagers et respecter leur temps de repos avant remise en service.\n- [ ] J+2 : déballer progressivement par pièce sans bloquer les circulations ni les issues.\n- [ ] J+2 : monter les meubles restants et fixer au mur ceux présentant un risque de basculement.\n- [ ] J+2 : plier, donner ou recycler les cartons et matériaux de protection devenus inutiles.\n- [ ] J+3 : confirmer aux fournisseurs les relevés de compteurs et vérifier les dates d’ouverture et de clôture des contrats.\n- [ ] J+3 : contrôler que le nom apparaît sur la boîte aux lettres, l’interphone et la porte selon les règles de l’immeuble.\n- [ ] J+4 : mettre à jour l’adresse sur la",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 437,
+    "output_tokens": 2500,
+    "total_tokens": 2937,
+    "estimated_cost_usd": 0.051748
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

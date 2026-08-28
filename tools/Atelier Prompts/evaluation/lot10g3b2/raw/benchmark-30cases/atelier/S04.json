@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:25:12.728Z",
+  "completed_at": "2026-08-28T07:25:27.848Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 15120.16,
+  "time_to_first_useful_result_ms": 15120.165,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:25:13.215Z",
+      "latency_ms": 111.284,
+      "status_http": 502,
+      "request": {
+        "demande": "Compare le télétravail complet et le travail hybride dans un tableau de 6 critères, puis résume les principaux compromis en trois phrases.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:25:13.327Z",
+      "latency_ms": 524.275,
+      "status_http": 200,
+      "request": {
+        "demande": "Compare le télétravail complet et le travail hybride dans un tableau de 6 critères, puis résume les principaux compromis en trois phrases.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 635.559,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 15.999,
+    "format": "tableau_comparatif",
+    "niveau": "minimal",
+    "prompt": "## TÂCHE\nCompare le télétravail complet et le travail hybride dans un tableau de 6 critères, puis résume les principaux compromis en trois phrases.\n\n## FORMAT DE SORTIE\n- Livrable : tableau comparatif en Markdown\n- Validité : En-tête et séparateur présents, même nombre de colonnes sur chaque ligne.\n- Aucun contenu en dehors du livrable.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 3 lignes, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:25:27.844Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 13975.356,
+    "response_id": "resp_0eb0d5f7c06b3ef3006a9137d9fbcc87d29b2ff3bf1db4d63c",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 262,
+      "output_tokens": 776,
+      "total_tokens": 1038,
+      "reasoning_tokens": 202
+    },
+    "estimated_cost_usd": 0.016568,
+    "incomplete_details": null,
+    "error": null,
+    "output": "| Critère | Télétravail complet | Travail hybride |\n|---|---|---|\n| Flexibilité et autonomie | Offre une grande liberté géographique et facilite l’organisation individuelle des horaires, sous réserve des contraintes de disponibilité. Élimine les trajets quotidiens. | Conserve une partie de cette flexibilité, mais impose des jours de présence et davantage de coordination. Réduit les déplacements sans les supprimer. |\n| Collaboration et communication | Repose fortement sur les outils numériques, la documentation et les échanges asynchrones. Les interactions informelles et la résolution spontanée de problèmes sont plus difficiles. | Facilite les ateliers, les discussions rapides et les rencontres informelles au bureau, tout en maintenant la collaboration à distance certains jours. |\n| Productivité et concentration | Favorise le travail concentré lorsque le domicile est adapté, mais peut entraîner distractions, isolement ou difficulté à séparer vie professionnelle et vie privée. | Permet d’alterner concentration à domicile et activités collectives sur site. Les transitions, réunions et différences d’environnement peuvent toutefois fragmenter le travail. |\n| Management et équité | Exige des objectifs explicites, une communication structurée et une évaluation fondée sur les résultats. Le suivi informel est limité. | Donne davantage de visibilité aux responsables, mais peut créer un biais de proximité favorisant les salariés plus souvent présents au bureau. |\n| Coûts et infrastructure | Réduit les besoins immobiliers et les frais de transport, mais transfère certains coûts vers l’équipement, l’énergie, la cybersécurité et l’aménagement du domicile. | Maintient des coûts de bureaux et d’équipement à distance. Il permet néanmoins d’optimiser les surfaces grâce aux postes partagés. |\n| Culture, bien-être et carrière | Élargit le recrutement géographique et convient aux personnes recherchant l’autonomie. L’appartenance, le réseau interne, l’intégration et la visibilité professionnelle demandent des efforts dédiés. | Soutient mieux la socialisation, l’intégration et le mentorat, mais les déplacements et les règles de présence peuvent réduire le bien-être ou compliquer l’organisation personnelle. |\n| Synthèse en trois phrases | Le télétravail complet maximise la flexibilité, supprime les trajets et élargit le recrutement, mais exige une forte discipline numérique et une attention particulière à l’isolement, à l’intégration et à la visibilité. | Le travail hybride équilibre concentration individuelle et interactions en personne, au prix d’une coordination plus complexe, de coûts immobiliers persistants et d’un risque d’inégalité entre salariés. Le meilleur choix dépend donc des tâches, de la qualité du management, des besoins sociaux, de l’environnement domestique et de la capacité de l’organisation à établir des règles équitables. |"
+  },
+  "output": "| Critère | Télétravail complet | Travail hybride |\n|---|---|---|\n| Flexibilité et autonomie | Offre une grande liberté géographique et facilite l’organisation individuelle des horaires, sous réserve des contraintes de disponibilité. Élimine les trajets quotidiens. | Conserve une partie de cette flexibilité, mais impose des jours de présence et davantage de coordination. Réduit les déplacements sans les supprimer. |\n| Collaboration et communication | Repose fortement sur les outils numériques, la documentation et les échanges asynchrones. Les interactions informelles et la résolution spontanée de problèmes sont plus difficiles. | Facilite les ateliers, les discussions rapides et les rencontres informelles au bureau, tout en maintenant la collaboration à distance certains jours. |\n| Productivité et concentration | Favorise le travail concentré lorsque le domicile est adapté, mais peut entraîner distractions, isolement ou difficulté à séparer vie professionnelle et vie privée. | Permet d’alterner concentration à domicile et activités collectives sur site. Les transitions, réunions et différences d’environnement peuvent toutefois fragmenter le travail. |\n| Management et équité | Exige des objectifs explicites, une communication structurée et une évaluation fondée sur les résultats. Le suivi informel est limité. | Donne davantage de visibilité aux responsables, mais peut créer un biais de proximité favorisant les salariés plus souvent présents au bureau. |\n| Coûts et infrastructure | Réduit les besoins immobiliers et les frais de transport, mais transfère certains coûts vers l’équipement, l’énergie, la cybersécurité et l’aménagement du domicile. | Maintient des coûts de bureaux et d’équipement à distance. Il permet néanmoins d’optimiser les surfaces grâce aux postes partagés. |\n| Culture, bien-être et carrière | Élargit le recrutement géographique et convient aux personnes recherchant l’autonomie. L’appartenance, le réseau interne, l’intégration et la visibilité professionnelle demandent des efforts dédiés. | Soutient mieux la socialisation, l’intégration et le mentorat, mais les déplacements et les règles de présence peuvent réduire le bien-être ou compliquer l’organisation personnelle. |\n| Synthèse en trois phrases | Le télétravail complet maximise la flexibilité, supprime les trajets et élargit le recrutement, mais exige une forte discipline numérique et une attention particulière à l’isolement, à l’intégration et à la visibilité. | Le travail hybride équilibre concentration individuelle et interactions en personne, au prix d’une coordination plus complexe, de coûts immobiliers persistants et d’un risque d’inégalité entre salariés. Le meilleur choix dépend donc des tâches, de la qualité du management, des besoins sociaux, de l’environnement domestique et de la capacité de l’organisation à établir des règles équitables. |",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 262,
+    "output_tokens": 776,
+    "total_tokens": 1038,
+    "estimated_cost_usd": 0.016568
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

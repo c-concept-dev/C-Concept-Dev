@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:13:24.197Z",
+  "completed_at": "2026-08-28T07:13:30.852Z",
+  "latency_total_ms": 6654.698,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:13:30.852Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 6612.916,
+      "response_id": "resp_0a4d9b66564814c9006a9135144fb087d29b46ce6a63700389",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 14,
+        "output_tokens": 256,
+        "total_tokens": 270,
+        "reasoning_tokens": 46
+      },
+      "estimated_cost_usd": 0.005176,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Avec plaisir 🇮🇹 Pour vous préparer un itinéraire adapté, dites-moi simplement :\n\n1. **Vos dates** et la durée du séjour  \n2. **Votre ville/pays de départ**  \n3. **Le nombre de voyageurs**  \n4. **Votre budget approximatif**  \n5. Vos envies : **art et histoire, gastronomie, plages, nature, villages, vie nocturne…**  \n6. Votre préférence de transport : **train, voiture ou avion intérieur**\n\nQuelques idées selon la durée :\n\n- **5 jours** : Rome  \n- **7 jours** : Rome + Florence  \n- **10 jours** : Rome + Florence + Venise  \n- **14 jours** : ces trois villes + Naples/Pompéi ou la Toscane  \n- **Séjour balnéaire** : Pouilles, Sicile, Sardaigne ou côte amalfitaine  \n\nJe peux ensuite vous proposer un programme **jour par jour**, avec transports, quartiers où dormir, visites et estimation du budget."
+    }
+  ],
+  "turns": [],
+  "output": "Avec plaisir 🇮🇹 Pour vous préparer un itinéraire adapté, dites-moi simplement :\n\n1. **Vos dates** et la durée du séjour  \n2. **Votre ville/pays de départ**  \n3. **Le nombre de voyageurs**  \n4. **Votre budget approximatif**  \n5. Vos envies : **art et histoire, gastronomie, plages, nature, villages, vie nocturne…**  \n6. Votre préférence de transport : **train, voiture ou avion intérieur**\n\nQuelques idées selon la durée :\n\n- **5 jours** : Rome  \n- **7 jours** : Rome + Florence  \n- **10 jours** : Rome + Florence + Venise  \n- **14 jours** : ces trois villes + Naples/Pompéi ou la Toscane  \n- **Séjour balnéaire** : Pouilles, Sicile, Sardaigne ou côte amalfitaine  \n\nJe peux ensuite vous proposer un programme **jour par jour**, avec transports, quartiers où dormir, visites et estimation du budget.",
+  "error": null,
+  "initial_request_exact": "Je veux préparer mon voyage en Italie.",
+  "clarification_detection": "heuristique documentée"
+}

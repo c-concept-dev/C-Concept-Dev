@@ -1,0 +1,883 @@
+{
+  "protocol": {
+    "lot": "10G.3B.2",
+    "corpus": "corpus-3cases.json",
+    "corpus_sha256": "f0b30b894d16a8d1126e9a8fc3827db0d934651ed33c95e000ceca66ad06e96f",
+    "corpus_frozen_at": "2026-08-28T00:00:00+02:00",
+    "started_at": "2026-08-28T07:08:19.263Z",
+    "completed_at": "2026-08-28T07:12:15.809Z",
+    "product_html": "atelier-prompts-v11.5-lot10g-decision-provider.html",
+    "product_html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+    "openai_proxy": "https://openai-proxy.11drumboy11.workers.dev/",
+    "openai_endpoint": "/v1/responses",
+    "model": "gpt-5.6-sol",
+    "model_pricing_usd_per_million_tokens": {
+      "input": 4,
+      "output": 20,
+      "as_of": "2026-08-28"
+    },
+    "initial_request_rule": "La demande initiale brute est strictement identique dans les deux branches.",
+    "retries": "Aucun retry sémantique.",
+    "pure_branch_prompting": "Aucune instruction spéciale; input initial égal à demande.",
+    "product_changes": "Aucune; instrumentation externe additive."
+  },
+  "cases": [
+    {
+      "id": "B3-01",
+      "category": "floue",
+      "domain": "voyage",
+      "demande": "Je veux préparer mon voyage en Italie.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "clarification_necessaire",
+        "final_route": [
+          "rapide",
+          "architecte"
+        ]
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:08:19.266Z",
+        "completed_at": "2026-08-28T07:08:48.100Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 28833.757,
+        "time_to_first_useful_result_ms": 28833.778,
+        "route_finale": "rapide",
+        "moteur_final": "rapide",
+        "decision_source": "groq",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "rapide",
+          "confiance": "haute",
+          "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:08:19.849Z",
+            "latency_ms": 493.289,
+            "status_http": 502,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:08:20.343Z",
+            "latency_ms": 439.671,
+            "status_http": 200,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "clarification_necessaire",
+              "route": null,
+              "confiance": "moyenne",
+              "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+              "question": "Quel est le but principal de votre voyage en Italie ?"
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:08:20.784Z",
+            "latency_ms": 68.311,
+            "status_http": 502,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:08:20.853Z",
+            "latency_ms": 300.772,
+            "status_http": 200,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "exploitable",
+              "route": "rapide",
+              "confiance": "haute",
+              "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+              "question": null
+            },
+            "error": null
+          }
+        ],
+        "decision_provider_latency_ms": 1302.043,
+        "clarifications": [
+          {
+            "question": "Quel est le but principal de votre voyage en Italie ?",
+            "answer": "Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre."
+          }
+        ],
+        "nombre_reanalyses": 1,
+        "engine": {
+          "engine": "rapide",
+          "latency_ms": 25.19,
+          "format": "reponse_simple",
+          "niveau": "eclair",
+          "prompt": "## TÂCHE\nJe veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+        },
+        "final_call": {
+          "timestamp": "2026-08-28T07:08:48.084Z",
+          "endpoint": "/v1/responses",
+          "status_http": 200,
+          "latency_ms": 26859.35,
+          "response_id": "resp_0f1a57f77b8345c5006a9133e5812487d2be6484c68cf3bbdf",
+          "response_status": "completed",
+          "model_requested": "gpt-5.6-sol",
+          "model_returned": "gpt-5.6-sol",
+          "usage": {
+            "input_tokens": 232,
+            "output_tokens": 1690,
+            "total_tokens": 1922,
+            "reasoning_tokens": 210
+          },
+          "estimated_cost_usd": 0.034728,
+          "incomplete_details": null,
+          "error": null,
+          "output": "### Jour 1 — Arrivée à Rome\n- Installation dans un quartier central : Monti, Panthéon, Prati ou Trastevere.\n- Fin d’après-midi libre pour récupérer du voyage.\n- Promenade douce : Piazza Navona, Panthéon, fontaine de Trevi.\n- Dîner dans le centre historique.\n- **Nuit à Rome.**\n\n### Jour 2 — Rome antique\n- **Matin :** visite du Colisée, du Forum romain et du mont Palatin. Réserver un créneau matinal.\n- **Déjeuner :** quartier Monti.\n- **Après-midi :** temps libre, puis montée au Capitole et découverte de la place conçue par Michel-Ange.\n- **Soirée :** promenade autour du ghetto juif et dîner à Trastevere.\n- **Nuit à Rome.**\n\n### Jour 3 — Vatican et Prati\n- **Matin :** musées du Vatican et chapelle Sixtine, avec réservation préalable.\n- **Déjeuner :** quartier Prati.\n- **Après-midi :** basilique Saint-Pierre, place Saint-Pierre, puis promenade jusqu’au château Saint-Ange.\n- **Soirée libre :** dîner ou repos près de l’hébergement.\n- **Nuit à Rome.**\n\n### Jour 4 — Places, jardins et quartiers romains\n- **Matin :** place d’Espagne, Via del Babuino et Piazza del Popolo.\n- **Fin de matinée :** promenade dans les jardins de la Villa Borghèse.\n- **Après-midi libre :** galerie Borghèse sur réservation, shopping, café en terrasse ou retour à l’hôtel.\n- **Soirée :** aperitivo dans le quartier de Campo de’ Fiori ou de Trastevere.\n- **Nuit à Rome.**\n\n### Jour 5 — Rome → Florence\n- **Matin :** train à grande vitesse vers Florence, environ 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n- **Après-midi :** première découverte à pied : cathédrale Santa Maria del Fiore, baptistère, Piazza della Signoria et Ponte Vecchio.\n- **Soirée libre :** dîner toscan et promenade le long de l’Arno.\n- **Nuit à Florence.**\n\n### Jour 6 — Chefs-d’œuvre de Florence\n- **Matin :** galerie des Offices, à réserver pour l’ouverture.\n- **Déjeuner :** autour de Santa Croce ou Sant’Ambrogio.\n- **Après-midi :** basilique Santa Croce, puis temps libre dans le centre.\n- **Fin de journée :** montée à Piazzale Michelangelo pour le coucher du soleil.\n- **Nuit à Florence.**\n\n### Jour 7 — Duomo et Oltrarno\n- **Matin :** complexe du Duomo : cathédrale, baptistère et musée de l’Œuvre. Choisir soit la coupole de Brunelleschi, soit le campanile de Giotto pour limiter la fatigue.\n- **Après-midi :** traversée vers l’Oltrarno, visite de Santo Spirito et découverte des ateliers d’artisans.\n- **Temps libre :** jardins de Boboli, shopping ou pause en terrasse.\n- **Soirée :** dîner dans l’Oltrarno.\n- **Nuit à Florence.**\n\n### Jour 8 — Excursion en Toscane\n- **Option équilibrée : Sienne**\n  - Train ou bus matinal, trajet d’environ 1 h 15 à 1 h 30.\n  - Piazza del Campo, cathédrale de Sienne et ruelles du centre historique.\n  - Déjeuner tranquille, puis deux heures libres avant le retour.\n- Retour à Florence en fin d’après-midi.\n- **Soirée libre et légère.**\n- **Nuit à Florence.**\n\n### Jour 9 — Florence → Venise\n- **Matin :** train à grande vitesse vers Venise Santa Lucia, environ 2 heures.\n- Installation dans les quartiers de Cannaregio, San Polo ou Dorsoduro, plus calmes que les abords immédiats de la place Saint-Marc.\n- **Après-midi :** découverte sans programme chargé : Grand Canal, pont du Rialto, ruelles de San Polo.\n- **Soirée :** cicchetti dans un bacaro de Cannaregio ou San Polo.\n- **Nuit à Venise.**\n\n### Jour 10 — Venise monumentale\n- **Matin :** place Saint-Marc, basilique Saint-Marc et palais des Doges, avec réservation.\n- **Déjeuner :** s’éloigner de la place vers Castello.\n- **Après-midi :** promenade dans Castello, visite de l’église San Zaccaria ou de l’Arsenal depuis l’extérieur.\n- **Fin de journée libre :** vaporetto sur le Grand Canal ou pause au bord de la lagune.\n- **Nuit à Venise.**\n\n### Jour 11 — Lagune et Dorsoduro\n- **Matin :** excursion à Murano et Burano. Privilégier un départ tôt et limiter Murano à une verrerie ou au musée du Verre.\n- **Retour en milieu d’après-midi.**\n- **Fin de journée :** promenade à Dorsoduro, Zattere, basilique Santa Maria della Salute et pointe de la Douane.\n- **Soirée libre :** dernier dîner vénitien.\n- **Nuit à Venise.**\n\n### Jour 12 — Départ\n- Petit-déjeuner et courte promenade selon l’horaire du vol ou du train.\n- Transfert vers l’aéroport :\n  - **Marco-Polo :** vaporetto Alilaguna ou bus depuis Piazzale Roma.\n  - **Trévise :** navette routière depuis Piazzale Roma ou Mestre.\n- Prévoir une marge importante, les déplacements avec bagages étant plus lents à Venise.\n\n### Répartition des hébergements\n- **Rome : 4 nuits**\n- **Florence : 4 nuits**\n- **Venise : 3 nuits**\n\n### Réservations prioritaires\n- Colisée et Forum romain.\n- Musées du Vatican.\n- Galerie Borghèse si retenue.\n- Galerie des Offices.\n- Coupole de Brunelleschi ou campanile de Giotto.\n- Basilique Saint-Marc et palais des Doges.\n- Trains Rome–Florence et Florence–Venise.\n\n### Organisation des transports\n- Arrivée à **Rome** et départ de **Venise** pour éviter un trajet retour inutile.\n- Utiliser les trains à grande vitesse Frecciarossa ou Italo entre les grandes villes.\n- Dans Rome et Florence, privilégier la marche et les transports urbains ponctuels.\n- À Venise, prévoir un pass vaporetto de 48 ou 72 heures si l’excursion dans la lagune est maintenue."
+        },
+        "output": "### Jour 1 — Arrivée à Rome\n- Installation dans un quartier central : Monti, Panthéon, Prati ou Trastevere.\n- Fin d’après-midi libre pour récupérer du voyage.\n- Promenade douce : Piazza Navona, Panthéon, fontaine de Trevi.\n- Dîner dans le centre historique.\n- **Nuit à Rome.**\n\n### Jour 2 — Rome antique\n- **Matin :** visite du Colisée, du Forum romain et du mont Palatin. Réserver un créneau matinal.\n- **Déjeuner :** quartier Monti.\n- **Après-midi :** temps libre, puis montée au Capitole et découverte de la place conçue par Michel-Ange.\n- **Soirée :** promenade autour du ghetto juif et dîner à Trastevere.\n- **Nuit à Rome.**\n\n### Jour 3 — Vatican et Prati\n- **Matin :** musées du Vatican et chapelle Sixtine, avec réservation préalable.\n- **Déjeuner :** quartier Prati.\n- **Après-midi :** basilique Saint-Pierre, place Saint-Pierre, puis promenade jusqu’au château Saint-Ange.\n- **Soirée libre :** dîner ou repos près de l’hébergement.\n- **Nuit à Rome.**\n\n### Jour 4 — Places, jardins et quartiers romains\n- **Matin :** place d’Espagne, Via del Babuino et Piazza del Popolo.\n- **Fin de matinée :** promenade dans les jardins de la Villa Borghèse.\n- **Après-midi libre :** galerie Borghèse sur réservation, shopping, café en terrasse ou retour à l’hôtel.\n- **Soirée :** aperitivo dans le quartier de Campo de’ Fiori ou de Trastevere.\n- **Nuit à Rome.**\n\n### Jour 5 — Rome → Florence\n- **Matin :** train à grande vitesse vers Florence, environ 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n- **Après-midi :** première découverte à pied : cathédrale Santa Maria del Fiore, baptistère, Piazza della Signoria et Ponte Vecchio.\n- **Soirée libre :** dîner toscan et promenade le long de l’Arno.\n- **Nuit à Florence.**\n\n### Jour 6 — Chefs-d’œuvre de Florence\n- **Matin :** galerie des Offices, à réserver pour l’ouverture.\n- **Déjeuner :** autour de Santa Croce ou Sant’Ambrogio.\n- **Après-midi :** basilique Santa Croce, puis temps libre dans le centre.\n- **Fin de journée :** montée à Piazzale Michelangelo pour le coucher du soleil.\n- **Nuit à Florence.**\n\n### Jour 7 — Duomo et Oltrarno\n- **Matin :** complexe du Duomo : cathédrale, baptistère et musée de l’Œuvre. Choisir soit la coupole de Brunelleschi, soit le campanile de Giotto pour limiter la fatigue.\n- **Après-midi :** traversée vers l’Oltrarno, visite de Santo Spirito et découverte des ateliers d’artisans.\n- **Temps libre :** jardins de Boboli, shopping ou pause en terrasse.\n- **Soirée :** dîner dans l’Oltrarno.\n- **Nuit à Florence.**\n\n### Jour 8 — Excursion en Toscane\n- **Option équilibrée : Sienne**\n  - Train ou bus matinal, trajet d’environ 1 h 15 à 1 h 30.\n  - Piazza del Campo, cathédrale de Sienne et ruelles du centre historique.\n  - Déjeuner tranquille, puis deux heures libres avant le retour.\n- Retour à Florence en fin d’après-midi.\n- **Soirée libre et légère.**\n- **Nuit à Florence.**\n\n### Jour 9 — Florence → Venise\n- **Matin :** train à grande vitesse vers Venise Santa Lucia, environ 2 heures.\n- Installation dans les quartiers de Cannaregio, San Polo ou Dorsoduro, plus calmes que les abords immédiats de la place Saint-Marc.\n- **Après-midi :** découverte sans programme chargé : Grand Canal, pont du Rialto, ruelles de San Polo.\n- **Soirée :** cicchetti dans un bacaro de Cannaregio ou San Polo.\n- **Nuit à Venise.**\n\n### Jour 10 — Venise monumentale\n- **Matin :** place Saint-Marc, basilique Saint-Marc et palais des Doges, avec réservation.\n- **Déjeuner :** s’éloigner de la place vers Castello.\n- **Après-midi :** promenade dans Castello, visite de l’église San Zaccaria ou de l’Arsenal depuis l’extérieur.\n- **Fin de journée libre :** vaporetto sur le Grand Canal ou pause au bord de la lagune.\n- **Nuit à Venise.**\n\n### Jour 11 — Lagune et Dorsoduro\n- **Matin :** excursion à Murano et Burano. Privilégier un départ tôt et limiter Murano à une verrerie ou au musée du Verre.\n- **Retour en milieu d’après-midi.**\n- **Fin de journée :** promenade à Dorsoduro, Zattere, basilique Santa Maria della Salute et pointe de la Douane.\n- **Soirée libre :** dernier dîner vénitien.\n- **Nuit à Venise.**\n\n### Jour 12 — Départ\n- Petit-déjeuner et courte promenade selon l’horaire du vol ou du train.\n- Transfert vers l’aéroport :\n  - **Marco-Polo :** vaporetto Alilaguna ou bus depuis Piazzale Roma.\n  - **Trévise :** navette routière depuis Piazzale Roma ou Mestre.\n- Prévoir une marge importante, les déplacements avec bagages étant plus lents à Venise.\n\n### Répartition des hébergements\n- **Rome : 4 nuits**\n- **Florence : 4 nuits**\n- **Venise : 3 nuits**\n\n### Réservations prioritaires\n- Colisée et Forum romain.\n- Musées du Vatican.\n- Galerie Borghèse si retenue.\n- Galerie des Offices.\n- Coupole de Brunelleschi ou campanile de Giotto.\n- Basilique Saint-Marc et palais des Doges.\n- Trains Rome–Florence et Florence–Venise.\n\n### Organisation des transports\n- Arrivée à **Rome** et départ de **Venise** pour éviter un trajet retour inutile.\n- Utiliser les trains à grande vitesse Frecciarossa ou Italo entre les grandes villes.\n- Dans Rome et Florence, privilégier la marche et les transports urbains ponctuels.\n- À Venise, prévoir un pass vaporetto de 48 ou 72 heures si l’excursion dans la lagune est maintenue.",
+        "total_llm_calls": 5,
+        "gpt_usage": {
+          "input_tokens": 232,
+          "output_tokens": 1690,
+          "total_tokens": 1922,
+          "estimated_cost_usd": 0.034728
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": null
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:08:48.102Z",
+        "completed_at": "2026-08-28T07:08:52.968Z",
+        "latency_total_ms": 4865.927,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:08:52.968Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 4837.648,
+            "response_id": "resp_0f6b6b4a00a20bfd006a9134003e6887d2b4c7fb1c636b3e08",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 14,
+              "output_tokens": 164,
+              "total_tokens": 178,
+              "reasoning_tokens": 22
+            },
+            "estimated_cost_usd": 0.003336,
+            "incomplete_details": null,
+            "error": null,
+            "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée**\n- **Ville ou région d’arrivée**\n- **Lieux envisagés** : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles…\n- **Budget approximatif**\n- **Style de voyage** : culture, gastronomie, plages, nature, détente\n- **Moyen de transport préféré** : train, voiture, avion\n- **Nombre de voyageurs**\n\nAvec ces informations, je peux vous proposer un **itinéraire jour par jour**, un budget, des conseils de transport et des recommandations d’hébergement."
+          }
+        ],
+        "turns": [],
+        "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée**\n- **Ville ou région d’arrivée**\n- **Lieux envisagés** : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles…\n- **Budget approximatif**\n- **Style de voyage** : culture, gastronomie, plages, nature, détente\n- **Moyen de transport préféré** : train, voiture, avion\n- **Nombre de voyageurs**\n\nAvec ces informations, je peux vous proposer un **itinéraire jour par jour**, un budget, des conseils de transport et des recommandations d’hébergement.",
+        "error": null,
+        "initial_request_exact": "Je veux préparer mon voyage en Italie.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    },
+    {
+      "id": "B3-02",
+      "category": "simple",
+      "domain": "voyage",
+      "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "exploitable",
+        "final_route": "rapide"
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:08:52.972Z",
+        "completed_at": "2026-08-28T07:09:07.131Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 14159.07,
+        "time_to_first_useful_result_ms": 14159.077,
+        "route_finale": "rapide",
+        "moteur_final": "rapide",
+        "decision_source": "groq",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "rapide",
+          "confiance": "haute",
+          "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:08:53.519Z",
+            "latency_ms": 132.861,
+            "status_http": 502,
+            "request": {
+              "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:08:53.652Z",
+            "latency_ms": 525.141,
+            "status_http": 200,
+            "request": {
+              "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "exploitable",
+              "route": "rapide",
+              "confiance": "haute",
+              "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+              "question": null
+            },
+            "error": null
+          }
+        ],
+        "decision_provider_latency_ms": 658.002,
+        "clarifications": [],
+        "nombre_reanalyses": 0,
+        "engine": {
+          "engine": "rapide",
+          "latency_ms": 23.012,
+          "format": "list",
+          "niveau": "minimal",
+          "prompt": "## RÔLE\nVous produisez un livrable de type : liste ou checklist.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nFais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.\n\n## FORMAT DE SORTIE\n- Livrable : liste ou checklist\n- Validité : Un élément par ligne, aucune ligne d’introduction.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : - ou 1.\n- Dernier élément de votre réponse : le dernier élément de liste\n- Rien avant, rien après.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 20 éléments, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par - ou 1. ?\n2. Le nombre de éléments est-il au moins 20 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Un élément par ligne, aucune ligne d’introduction.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+        },
+        "final_call": {
+          "timestamp": "2026-08-28T07:09:07.125Z",
+          "endpoint": "/v1/responses",
+          "status_http": 200,
+          "latency_ms": 12884.314,
+          "response_id": "resp_0a39202fbd9b52ea006a913406529c87d2bd9c0015a1e7ca88",
+          "response_status": "completed",
+          "model_requested": "gpt-5.6-sol",
+          "model_returned": "gpt-5.6-sol",
+          "usage": {
+            "input_tokens": 475,
+            "output_tokens": 592,
+            "total_tokens": 1067,
+            "reasoning_tokens": 135
+          },
+          "estimated_cost_usd": 0.01374,
+          "incomplete_details": null,
+          "error": null,
+          "output": "- Deux mois avant : vérifier la validité des passeports ou cartes d’identité de tous les voyageurs.\n- Deux mois avant : définir l’itinéraire des 12 jours, les villes visitées et la durée des étapes.\n- Deux mois avant : établir un budget couvrant transports, hébergements, repas, visites, achats et imprévus.\n- Sept semaines avant : réserver les vols ou trains internationaux et vérifier les conditions des bagages.\n- Sept semaines avant : réserver les hébergements, en privilégiant des emplacements proches des transports publics.\n- Six semaines avant : réserver les trains italiens, voitures de location ou transferts entre chaque étape.\n- Six semaines avant : contrôler les restrictions de circulation, péages, stationnement et zones ZTL prévues.\n- Cinq semaines avant : réserver les visites très demandées, notamment musées, monuments et sites archéologiques.\n- Un mois avant : souscrire une assurance voyage couvrant annulation, soins médicaux, assistance et rapatriement.\n- Un mois avant : demander la carte européenne d’assurance maladie et vérifier les recommandations sanitaires.\n- Trois semaines avant : contrôler les moyens de paiement, plafonds bancaires et éventuels frais appliqués en Italie.\n- Trois semaines avant : organiser l’accès à Internet avec itinérance, forfait européen ou carte SIM locale.\n- Deux semaines avant : préparer une liste de vêtements adaptée aux régions, activités et prévisions saisonnières.\n- Deux semaines avant : acheter les adaptateurs, médicaments personnels, protections solaires et accessoires manquants.\n- Dix jours avant : télécharger cartes hors ligne, applications ferroviaires, traducteur et billets numériques.\n- Une semaine avant : confirmer vols, hébergements, transports, horaires d’arrivée et modalités d’enregistrement.\n- Cinq jours avant : transmettre l’itinéraire à un proche et sécuriser des copies numériques des documents.\n- Trois jours avant : vérifier la météo, ajuster les bagages et préparer une petite trousse médicale.\n- La veille : enregistrer les voyageurs, charger les appareils et préparer documents, billets et moyens de paiement.\n- Jour du départ : fermer le domicile, vérifier les bagages et partir suffisamment tôt vers l’aéroport ou la gare."
+        },
+        "output": "- Deux mois avant : vérifier la validité des passeports ou cartes d’identité de tous les voyageurs.\n- Deux mois avant : définir l’itinéraire des 12 jours, les villes visitées et la durée des étapes.\n- Deux mois avant : établir un budget couvrant transports, hébergements, repas, visites, achats et imprévus.\n- Sept semaines avant : réserver les vols ou trains internationaux et vérifier les conditions des bagages.\n- Sept semaines avant : réserver les hébergements, en privilégiant des emplacements proches des transports publics.\n- Six semaines avant : réserver les trains italiens, voitures de location ou transferts entre chaque étape.\n- Six semaines avant : contrôler les restrictions de circulation, péages, stationnement et zones ZTL prévues.\n- Cinq semaines avant : réserver les visites très demandées, notamment musées, monuments et sites archéologiques.\n- Un mois avant : souscrire une assurance voyage couvrant annulation, soins médicaux, assistance et rapatriement.\n- Un mois avant : demander la carte européenne d’assurance maladie et vérifier les recommandations sanitaires.\n- Trois semaines avant : contrôler les moyens de paiement, plafonds bancaires et éventuels frais appliqués en Italie.\n- Trois semaines avant : organiser l’accès à Internet avec itinérance, forfait européen ou carte SIM locale.\n- Deux semaines avant : préparer une liste de vêtements adaptée aux régions, activités et prévisions saisonnières.\n- Deux semaines avant : acheter les adaptateurs, médicaments personnels, protections solaires et accessoires manquants.\n- Dix jours avant : télécharger cartes hors ligne, applications ferroviaires, traducteur et billets numériques.\n- Une semaine avant : confirmer vols, hébergements, transports, horaires d’arrivée et modalités d’enregistrement.\n- Cinq jours avant : transmettre l’itinéraire à un proche et sécuriser des copies numériques des documents.\n- Trois jours avant : vérifier la météo, ajuster les bagages et préparer une petite trousse médicale.\n- La veille : enregistrer les voyageurs, charger les appareils et préparer documents, billets et moyens de paiement.\n- Jour du départ : fermer le domicile, vérifier les bagages et partir suffisamment tôt vers l’aéroport ou la gare.",
+        "total_llm_calls": 3,
+        "gpt_usage": {
+          "input_tokens": 475,
+          "output_tokens": 592,
+          "total_tokens": 1067,
+          "estimated_cost_usd": 0.01374
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": null
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:09:07.133Z",
+        "completed_at": "2026-08-28T07:09:22.151Z",
+        "latency_total_ms": 15018.047,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:09:22.151Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 14991.904,
+            "response_id": "resp_0e0ecbc5da9512df006a9134147b2487d29da3dbdc15dfdb52",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 45,
+              "output_tokens": 687,
+              "total_tokens": 732,
+              "reasoning_tokens": 77
+            },
+            "estimated_cost_usd": 0.01392,
+            "incomplete_details": null,
+            "error": null,
+            "output": "## Checklist chronologique — 12 jours en Italie 🇮🇹\n\n### Deux mois avant le départ\n1. **Vérifier les documents d’identité** : carte nationale d’identité ou passeport valide, selon votre nationalité.  \n2. **Définir l’itinéraire** : villes visitées, nombre de nuits et temps de trajet entre chaque étape.  \n3. **Fixer le budget global** : transports, hébergements, repas, visites, achats et marge pour les imprévus.  \n4. **Réserver les vols ou trains internationaux**, ainsi que les principaux trajets intérieurs.  \n5. **Réserver les hébergements** en vérifiant leur emplacement, les horaires d’arrivée et les conditions d’annulation.\n\n### Six à quatre semaines avant\n6. **Souscrire ou vérifier l’assurance voyage** : annulation, assistance, frais médicaux, bagages et responsabilité civile.  \n7. **Demander la carte européenne d’assurance maladie** si vous êtes assuré dans un pays de l’UE/EEE ou en Suisse.  \n8. **Réserver les visites très demandées** : Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.  \n9. **Organiser les déplacements locaux** : trains à grande vitesse, location de voiture, transferts et transports urbains.  \n10. **Vérifier les règles de circulation** si vous conduisez : ZTL, péages, stationnement et permis requis.\n\n### Trois à deux semaines avant\n11. **Établir un programme quotidien souple**, avec les horaires d’ouverture et les jours de fermeture des sites.  \n12. **Contrôler les moyens de paiement** : plafonds bancaires, frais à l’étranger et disponibilité d’une seconde carte.  \n13. **Préparer le téléphone** : forfait utilisable en Italie, eSIM éventuelle et applications utiles.  \n14. **Télécharger les documents et cartes hors ligne** : billets, réservations, itinéraires et coordonnées des hébergements.  \n15. **Vérifier les besoins de santé** : ordonnances, médicaments en quantité suffisante et petite trousse de secours.\n\n### Une semaine avant\n16. **Consulter la météo** des différentes étapes et adapter les vêtements et chaussures.  \n17. **Préparer les bagages** : tenues confortables, tenue couvrante pour les lieux religieux, adaptateur si nécessaire et sac léger pour la journée.  \n18. **Faire des copies des documents importants** et les conserver séparément, avec une version numérique sécurisée.\n\n### La veille\n19. **Effectuer l’enregistrement**, confirmer les horaires et éventuels changements, charger les appareils et préparer les dernières affaires.\n\n### Jour du départ\n20. **Faire le contrôle final** : identité, billets, portefeuille, téléphone, médicaments, clés et fermeture du domicile ; partir avec une marge suffisante."
+          }
+        ],
+        "turns": [],
+        "output": "## Checklist chronologique — 12 jours en Italie 🇮🇹\n\n### Deux mois avant le départ\n1. **Vérifier les documents d’identité** : carte nationale d’identité ou passeport valide, selon votre nationalité.  \n2. **Définir l’itinéraire** : villes visitées, nombre de nuits et temps de trajet entre chaque étape.  \n3. **Fixer le budget global** : transports, hébergements, repas, visites, achats et marge pour les imprévus.  \n4. **Réserver les vols ou trains internationaux**, ainsi que les principaux trajets intérieurs.  \n5. **Réserver les hébergements** en vérifiant leur emplacement, les horaires d’arrivée et les conditions d’annulation.\n\n### Six à quatre semaines avant\n6. **Souscrire ou vérifier l’assurance voyage** : annulation, assistance, frais médicaux, bagages et responsabilité civile.  \n7. **Demander la carte européenne d’assurance maladie** si vous êtes assuré dans un pays de l’UE/EEE ou en Suisse.  \n8. **Réserver les visites très demandées** : Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.  \n9. **Organiser les déplacements locaux** : trains à grande vitesse, location de voiture, transferts et transports urbains.  \n10. **Vérifier les règles de circulation** si vous conduisez : ZTL, péages, stationnement et permis requis.\n\n### Trois à deux semaines avant\n11. **Établir un programme quotidien souple**, avec les horaires d’ouverture et les jours de fermeture des sites.  \n12. **Contrôler les moyens de paiement** : plafonds bancaires, frais à l’étranger et disponibilité d’une seconde carte.  \n13. **Préparer le téléphone** : forfait utilisable en Italie, eSIM éventuelle et applications utiles.  \n14. **Télécharger les documents et cartes hors ligne** : billets, réservations, itinéraires et coordonnées des hébergements.  \n15. **Vérifier les besoins de santé** : ordonnances, médicaments en quantité suffisante et petite trousse de secours.\n\n### Une semaine avant\n16. **Consulter la météo** des différentes étapes et adapter les vêtements et chaussures.  \n17. **Préparer les bagages** : tenues confortables, tenue couvrante pour les lieux religieux, adaptateur si nécessaire et sac léger pour la journée.  \n18. **Faire des copies des documents importants** et les conserver séparément, avec une version numérique sécurisée.\n\n### La veille\n19. **Effectuer l’enregistrement**, confirmer les horaires et éventuels changements, charger les appareils et préparer les dernières affaires.\n\n### Jour du départ\n20. **Faire le contrôle final** : identité, billets, portefeuille, téléphone, médicaments, clés et fermeture du domicile ; partir avec une marge suffisante.",
+        "error": null,
+        "initial_request_exact": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    },
+    {
+      "id": "B3-03",
+      "category": "complexe",
+      "domain": "décision d’entreprise",
+      "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "exploitable",
+        "final_route": "architecte"
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:09:22.152Z",
+        "completed_at": "2026-08-28T07:11:37.712Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 135559.089,
+        "time_to_first_useful_result_ms": 135559.105,
+        "route_finale": "architecte",
+        "moteur_final": "architecte",
+        "decision_source": "groq",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "architecte",
+          "confiance": "moyenne",
+          "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:09:22.680Z",
+            "latency_ms": 125.897,
+            "status_http": 502,
+            "request": {
+              "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:09:22.806Z",
+            "latency_ms": 756.521,
+            "status_http": 200,
+            "request": {
+              "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "exploitable",
+              "route": "architecte",
+              "confiance": "moyenne",
+              "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+              "question": null
+            },
+            "error": null
+          }
+        ],
+        "decision_provider_latency_ms": 882.418,
+        "clarifications": [],
+        "nombre_reanalyses": 0,
+        "engine": {
+          "engine": "architecte",
+          "latency_ms": 89046.209,
+          "context": {
+            "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+            "materiau": null,
+            "preferences_confirmees": [],
+            "reglages_manuels": {
+              "destinataire": null,
+              "profondeur": "auto",
+              "structure": "auto",
+              "volume": null
+            },
+            "proportion": {
+              "version": 1,
+              "profondeur_analyse": {
+                "valeur": "minimal",
+                "source": "manuel"
+              },
+              "densite_prompt": {
+                "valeur": "equilibree",
+                "source": "automatique"
+              },
+              "longueur_livrable": {
+                "valeur": "automatique",
+                "source": "automatique"
+              },
+              "plafond_technique": {
+                "valeur": 4000,
+                "source": "manuel"
+              },
+              "structure": {
+                "mode": "libre",
+                "nombre": null,
+                "source": "automatique",
+                "source_mode": "automatique",
+                "source_nombre": "automatique"
+              }
+            }
+          },
+          "analysis": {
+            "version": "3.4",
+            "comprehension": {
+              "intention_principale": "Comparer trois stratégies de remplacement ou de maintien d'un logiciel de gestion de projet afin d'aboutir à une recommandation décisionnelle adaptée à une entreprise de 12 personnes.",
+              "intentions_secondaires": [
+                "Évaluer les avantages et les risques de chaque stratégie.",
+                "Comparer leurs coûts complets et leurs conséquences organisationnelles.",
+                "Expliciter les critères susceptibles de faire basculer la décision."
+              ],
+              "declarations": [
+                {
+                  "contenu": "L'utilisateur dirige une petite entreprise de 12 personnes.",
+                  "statut": "declaration_utilisateur",
+                  "source": "demande",
+                  "preuve": {
+                    "citation": "Je dirige une petite entreprise de 12 personnes.",
+                    "contexte_avant": null,
+                    "contexte_apres": null
+                  }
+                },
+                {
+                  "contenu": "L'entreprise doit remplacer son logiciel de gestion de projet.",
+                  "statut": "declaration_utilisateur",
+                  "source": "demande",
+                  "preuve": {
+                    "citation": "Nous devons remplacer notre logiciel de gestion de projet.",
+                    "contexte_avant": null,
+                    "contexte_apres": null
+                  }
+                }
+              ],
+              "contraintes": [
+                {
+                  "contenu": "La comparaison doit couvrir exactement trois stratégies : conserver l'outil actuel, adopter une solution SaaS standard ou développer une solution interne.",
+                  "statut": "declaration_utilisateur",
+                  "source": "demande",
+                  "preuve": {
+                    "citation": "Compare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.",
+                    "contexte_avant": null,
+                    "contexte_apres": null
+                  }
+                },
+                {
+                  "contenu": "L'analyse doit traiter les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et fournir une recommandation finale argumentée.",
+                  "statut": "declaration_utilisateur",
+                  "source": "demande",
+                  "preuve": {
+                    "citation": "Je veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+                    "contexte_avant": null,
+                    "contexte_apres": null
+                  }
+                }
+              ],
+              "ambiguites": [
+                "La nécessité déclarée de remplacer le logiciel semble entrer en tension avec l'option consistant à conserver l'outil actuel ; cette option peut être interprétée comme scénario de référence, report de la migration ou maintien avec adaptations.",
+                "Le terme « coûts » peut désigner une comparaison qualitative des postes de coût ou une estimation chiffrée, mais aucune donnée financière n'est fournie."
+              ],
+              "informations_manquantes": [
+                {
+                  "information": "Les problèmes précis de l'outil actuel et les exigences fonctionnelles impératives.",
+                  "bloquant": false,
+                  "justification": "Ces éléments pourraient modifier la recommandation, mais une analyse fiable peut avancer par scénarios et rendre explicites les conditions qui feraient préférer chaque option."
+                },
+                {
+                  "information": "Les coûts actuels, le budget cible, les intégrations nécessaires et les contraintes de migration des données.",
+                  "bloquant": false,
+                  "justification": "Ils sont nécessaires à un chiffrage propre à l'entreprise, mais pas à une comparaison structurée des postes de coût et des ordres de préférence."
+                },
+                {
+                  "information": "Les compétences de développement disponibles en interne et la capacité durable à maintenir un logiciel métier.",
+                  "bloquant": false,
+                  "justification": "Cette capacité est déterminante pour juger l'option interne, mais elle peut rester une condition explicite plutôt qu'être devinée."
+                }
+              ]
+            },
+            "evaluation": {
+              "niveau_risque": "modere",
+              "justification_risque": "La décision peut engager des dépenses, perturber le travail des 12 personnes et créer une dépendance technologique durable, sans relever toutefois d'un domaine à risque vital ou réglementaire élevé en l'état des informations.",
+              "connaissance_externe_necessaire": true,
+              "actualite_requise": true,
+              "justification_connaissance": "Les caractéristiques générales des modèles SaaS, du développement interne et du coût total de possession dépassent le texte fourni. Les prix de marché, coûts de développement et pratiques des fournisseurs peuvent évoluer ; toute donnée actuelle ou chiffrée doit donc être recherchée ou clairement présentée comme estimation.",
+              "calcul_requis": false,
+              "livrable_complet_possible": true,
+              "reponse_partielle_possible": true,
+              "action_recommandee": "continuer",
+              "questions_a_poser": [],
+              "parties_realisables_immediatement": []
+            },
+            "strategie": {
+              "capacites_necessaires": [
+                "Analyse comparative multicritère",
+                "Évaluation du coût total de possession",
+                "Analyse des risques de migration, d'adoption et de dépendance",
+                "Formulation d'une recommandation conditionnelle",
+                "Distinction entre faits, estimations et décisions de travail"
+              ],
+              "hypotheses_autorisees": [
+                "Traiter la conservation de l'outil actuel comme scénario de référence ou solution transitoire, compte tenu de la nécessité déclarée de le remplacer.",
+                "Utiliser l'absence de besoin spécifique établi comme base d'un scénario provisoire favorable à une solution standard, sans en faire un fait sur l'entreprise.",
+                "Formuler une recommandation conditionnelle qui pourra être révisée après collecte des coûts et exigences propres à l'entreprise."
+              ],
+              "hypotheses_interdites": [
+                "Inventer le budget, les exigences fonctionnelles, les intégrations ou les contraintes réglementaires de l'entreprise.",
+                "Supposer l'existence d'une équipe interne capable de développer et maintenir la solution.",
+                "Présenter des prix, délais ou économies précis sans base identifiable.",
+                "Qualifier une stratégie d'optimale sans comparaison suffisante et sans conditions explicites."
+              ],
+              "role_adaptatif": {
+                "intitule": "Conseiller en choix de logiciel pour petite entreprise",
+                "mission": "Comparer les trois stratégies sur un périmètre cohérent et transformer les incertitudes en critères de décision et en recommandation conditionnelle exploitable.",
+                "competences": [
+                  "Stratégie d'acquisition logicielle",
+                  "Coût total de possession",
+                  "Conduite du changement",
+                  "Analyse des risques numériques"
+                ],
+                "limites": [
+                  "Ne connaît pas les besoins détaillés ni le budget de l'entreprise.",
+                  "Ne peut pas attribuer de coûts précis sans données internes ou sources actuelles.",
+                  "La recommandation doit rester conditionnelle aux capacités techniques et aux exigences non communiquées."
+                ]
+              },
+              "niveau_architecture": "minimal",
+              "justification_niveau": "Le réglage manuel impose une profondeur minimale ; cinq composants ciblés suffisent néanmoins à structurer cette décision modérément engageante sans supprimer les précautions nécessaires.",
+              "pilotage_incertitude": {
+                "decisions_autonomes": [
+                  "Employer un cadre multicritère commun aux trois stratégies.",
+                  "Traiter le SaaS standard comme recommandation de référence conditionnelle si aucun besoin fortement différenciant ni capacité interne durable n'est établi.",
+                  "Présenter la conservation de l'outil actuel comme scénario de référence ou option transitoire plutôt que résoudre silencieusement la contradiction apparente."
+                ],
+                "estimations_a_etiqueter": [
+                  "Tout ordre de grandeur relatif au coût, au délai de migration ou à la charge de formation.",
+                  "L'effort organisationnel et le temps interne associés à chaque stratégie."
+                ],
+                "inconnues_non_devineables": [
+                  "Budget et coût actuel",
+                  "Besoins fonctionnels impératifs",
+                  "État technique et contractuel de l'outil actuel",
+                  "Intégrations et volume de données à migrer",
+                  "Capacité réelle de développement et de maintenance en interne",
+                  "Contraintes de sécurité, de localisation des données ou de conformité"
+                ]
+              }
+            },
+            "livrable": {
+              "nature": "Analyse comparative décisionnelle avec recommandation conditionnelle",
+              "format_technique": "markdown",
+              "quantites": {
+                "min": 3,
+                "max": 3,
+                "unite": "stratégies comparées"
+              },
+              "ton": "Professionnel, synthétique, pragmatique et transparent sur les incertitudes",
+              "longueur_indicative": "Environ 900 à 1 300 mots, avec un tableau comparatif suivi d'une recommandation concise."
+            },
+            "compilation": {
+              "composants_retenus": [
+                {
+                  "type": "critere",
+                  "titre": "Cadre comparable et hiérarchie de décision",
+                  "contenu": "Évalue les trois stratégies sur un même horizon et un même périmètre. Hiérarchise explicitement les critères suivants : adéquation aux besoins, coût total de possession, risque de mise en œuvre, charge organisationnelle, sécurité et maîtrise des données, intégrations, évolutivité, dépendance, réversibilité et continuité d'activité. Ne laisse pas un avantage secondaire dominer silencieusement les besoins opérationnels essentiels.",
+                  "justification": "Une comparaison cohérente exige des périmètres identiques et une hiérarchie visible des critères.",
+                  "fondements": [
+                    {
+                      "nature": "utilisateur",
+                      "citation": "Compare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.",
+                      "usage": "Établit la nécessité d'une comparaison entre trois options."
+                    },
+                    {
+                      "nature": "deduction",
+                      "citation": null,
+                      "usage": "Un cadre commun évite une comparaison biaisée entre coûts, risques et bénéfices de natures différentes."
+                    }
+                  ]
+                },
+                {
+                  "type": "instruction",
+                  "titre": "Analyse symétrique des trois stratégies",
+                  "contenu": "Pour chacune des trois stratégies, présente de manière symétrique : les avantages, les risques, les coûts initiaux, récurrents et indirects, les conséquences organisationnelles, les conditions de réussite et les situations dans lesquelles l'option devient pertinente. Fais apparaître les compromis plutôt que de dresser une simple liste générique.",
+                  "justification": "Cette structure couvre directement toutes les dimensions explicitement demandées et facilite la comparaison.",
+                  "fondements": [
+                    {
+                      "nature": "utilisateur",
+                      "citation": "Je veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+                      "usage": "Définit les dimensions obligatoires de l'analyse."
+                    }
+                  ]
+                },
+                {
+                  "type": "critere",
+                  "titre": "Coût total de possession",
+                  "contenu": "Compare les coûts sur un périmètre complet : licences ou abonnements, paramétrage, développement, migration des données, intégrations, formation, temps interne, hébergement, maintenance, assistance, sécurité, dette technique, dépendance à des personnes clés et coût de sortie. Pour l'outil actuel, ajoute les coûts d'opportunité et les risques non résolus. N'effectue pas de calcul précis lorsque les données de base manquent ; utilise alors des niveaux relatifs ou des scénarios explicitement étiquetés.",
+                  "justification": "Le prix apparent ne suffit pas à comparer équitablement maintien, abonnement SaaS et développement interne.",
+                  "fondements": [
+                    {
+                      "nature": "utilisateur",
+                      "citation": "les coûts",
+                      "usage": "Établit que la dimension économique doit être analysée."
+                    },
+                    {
+                      "nature": "connaissance_externe_non_verifiee",
+                      "citation": null,
+                      "usage": "Les catégories de coût total de possession proviennent de pratiques générales d'analyse des investissements logiciels."
+                    }
+                  ]
+                },
+                {
+                  "type": "instruction",
+                  "titre": "Conséquences organisationnelles et sensibilité",
+                  "contenu": "Analyse l'effet de chaque option sur les 12 personnes : interruption potentielle, apprentissage, adoption, changement des processus, responsabilités d'administration, support quotidien et dépendance à des compétences rares. Signale ensuite les inconnues qui peuvent changer le classement, notamment les besoins spécifiques, les intégrations, le budget et la capacité de maintenance interne.",
+                  "justification": "Dans une petite structure, la charge interne et l'adoption peuvent peser autant que le coût financier affiché.",
+                  "fondements": [
+                    {
+                      "nature": "utilisateur",
+                      "citation": "Je dirige une petite entreprise de 12 personnes.",
+                      "usage": "Fixe l'échelle organisationnelle à prendre en compte."
+                    },
+                    {
+                      "nature": "utilisateur",
+                      "citation": "les conséquences organisationnelles",
+                      "usage": "Exige l'analyse des effets humains et opérationnels."
+                    },
+                    {
+                      "nature": "deduction",
+                      "citation": null,
+                      "usage": "La taille réduite justifie d'examiner particulièrement la charge supportée par chaque personne."
+                    }
+                  ]
+                },
+                {
+                  "type": "instruction",
+                  "titre": "Recommandation conditionnelle et critères de bascule",
+                  "contenu": "Termine par une recommandation unique, clairement présentée comme décision de travail conditionnelle. En l'absence d'un besoin fortement différenciant ou d'une capacité interne durable déjà établie, examine le SaaS standard comme choix de référence pour une entreprise de 12 personnes. Argumente ce choix face aux deux autres stratégies, puis indique les conditions concrètes qui feraient préférer le maintien de l'outil actuel ou le développement interne. N'emploie pas de formulation d'optimalité absolue.",
+                  "justification": "L'utilisateur attend une conclusion exploitable, mais les informations absentes imposent de rendre visibles les conditions susceptibles de l'inverser.",
+                  "fondements": [
+                    {
+                      "nature": "utilisateur",
+                      "citation": "une recommandation finale argumentée",
+                      "usage": "Établit l'obligation de conclure et de justifier la décision."
+                    },
+                    {
+                      "nature": "deduction",
+                      "citation": null,
+                      "usage": "Une solution standard constitue un choix de référence raisonnable à tester lorsque ni besoin très spécifique ni capacité interne durable ne sont établis."
+                    },
+                    {
+                      "nature": "hypothese",
+                      "citation": null,
+                      "usage": "La préférence provisoire pour le SaaS doit rester conditionnelle aux informations encore inconnues."
+                    }
+                  ]
+                }
+              ],
+              "composants_ecartes": [
+                {
+                  "type": "section",
+                  "titre": "Comparaison de produits SaaS nommés",
+                  "raison": "Aucun produit, besoin fonctionnel détaillé ni marché géographique n'est précisé, et la demande porte sur des stratégies plutôt que sur une sélection de fournisseurs."
+                },
+                {
+                  "type": "section",
+                  "titre": "Plan détaillé de migration",
+                  "raison": "Un plan d'exécution dépendrait de la stratégie retenue et dépasse la comparaison décisionnelle demandée."
+                }
+              ]
+            },
+            "verification": {
+              "criteres_bloquants": [
+                "Les trois stratégies demandées doivent toutes être évaluées sur les mêmes dimensions.",
+                "La réponse doit inclure une recommandation finale argumentée et ses conditions de validité.",
+                "Aucun prix, délai, budget ou niveau de capacité interne ne doit être inventé.",
+                "Toute affirmation actuelle ou chiffrée issue du marché doit reposer sur une recherche réelle avec des sources directement consultables et leur date de consultation ; sans recherche, elle doit rester une estimation ou une information non vérifiée."
+              ],
+              "criteres_qualitatifs": [
+                "Distinguer coûts initiaux, récurrents, indirects et coûts de sortie.",
+                "Relier la recommandation à la taille de l'entreprise sans déduire automatiquement ses moyens techniques.",
+                "Faire apparaître les critères qui pourraient inverser la recommandation.",
+                "Distinguer clairement faits fournis, hypothèses, estimations et choix de travail.",
+                "Résoudre explicitement la tension entre l'obligation de remplacer l'outil et l'option de le conserver."
+              ],
+              "elements_non_verifiables": [
+                "Les insuffisances réelles de l'outil actuel.",
+                "Le budget et les coûts propres à l'entreprise.",
+                "La capacité interne à développer et maintenir une solution.",
+                "Les exigences fonctionnelles, techniques, contractuelles et réglementaires.",
+                "Les prix et délais actuels sans consultation de sources externes."
+              ],
+              "controle_provenance": [
+                {
+                  "affirmation": "L'entreprise compte 12 personnes.",
+                  "statut": "soutenue",
+                  "justification": "Cette information est explicitement déclarée dans la demande."
+                },
+                {
+                  "affirmation": "Une solution SaaS standard devrait servir de recommandation de référence.",
+                  "statut": "hypothese",
+                  "justification": "Il s'agit d'un choix de travail conditionnel, non d'un fait établi sur l'entreprise."
+                },
+                {
+                  "affirmation": "L'entreprise dispose ou non des compétences nécessaires au développement interne.",
+                  "statut": "information_manquante",
+                  "justification": "Aucune capacité technique interne n'est décrite dans la demande."
+                },
+                {
+                  "affirmation": "Les postes généraux du coût total de possession et les risques typiques des trois modèles.",
+                  "statut": "connaissance_externe_non_verifiee",
+                  "justification": "Ils reposent sur des pratiques générales externes au texte et doivent être distingués des faits propres à l'entreprise."
+                },
+                {
+                  "affirmation": "Les prix, délais et niveaux de service actuellement pratiqués sur le marché.",
+                  "statut": "connaissance_externe_non_verifiee",
+                  "justification": "Ces données sont changeantes et exigent une recherche actuelle avant d'être présentées comme établies."
+                }
+              ]
+            },
+            "apprentissage": {
+              "preferences_applicables": [],
+              "preference_proposable": null
+            }
+          },
+          "analysis_call": {
+            "timestamp": "2026-08-28T07:10:52.565Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 88968.459,
+            "response_id": "resp_0c1e98533e34c359006a913423d0dc87d2a07ec613c420e415",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 9690,
+              "output_tokens": 7078,
+              "total_tokens": 16768,
+              "reasoning_tokens": 3106
+            },
+            "estimated_cost_usd": 0.18032,
+            "incomplete_details": null,
+            "error": null,
+            "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Comparer trois stratégies de remplacement ou de maintien d'un logiciel de gestion de projet afin d'aboutir à une recommandation décisionnelle adaptée à une entreprise de 12 personnes.\",\n    \"intentions_secondaires\": [\n      \"Évaluer les avantages et les risques de chaque stratégie.\",\n      \"Comparer leurs coûts complets et leurs conséquences organisationnelles.\",\n      \"Expliciter les critères susceptibles de faire basculer la décision.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"L'utilisateur dirige une petite entreprise de 12 personnes.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Je dirige une petite entreprise de 12 personnes.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"L'entreprise doit remplacer son logiciel de gestion de projet.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Nous devons remplacer notre logiciel de gestion de projet.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"La comparaison doit couvrir exactement trois stratégies : conserver l'outil actuel, adopter une solution SaaS standard ou développer une solution interne.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Compare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"L'analyse doit traiter les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et fournir une recommandation finale argumentée.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Je veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"La nécessité déclarée de remplacer le logiciel semble entrer en tension avec l'option consistant à conserver l'outil actuel ; cette option peut être interprétée comme scénario de référence, report de la migration ou maintien avec adaptations.\",\n      \"Le terme « coûts » peut désigner une comparaison qualitative des postes de coût ou une estimation chiffrée, mais aucune donnée financière n'est fournie.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Les problèmes précis de l'outil actuel et les exigences fonctionnelles impératives.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments pourraient modifier la recommandation, mais une analyse fiable peut avancer par scénarios et rendre explicites les conditions qui feraient préférer chaque option.\"\n      },\n      {\n        \"information\": \"Les coûts actuels, le budget cible, les intégrations nécessaires et les contraintes de migration des données.\",\n        \"bloquant\": false,\n        \"justification\": \"Ils sont nécessaires à un chiffrage propre à l'entreprise, mais pas à une comparaison structurée des postes de coût et des ordres de préférence.\"\n      },\n      {\n        \"information\": \"Les compétences de développement disponibles en interne et la capacité durable à maintenir un logiciel métier.\",\n        \"bloquant\": false,\n        \"justification\": \"Cette capacité est déterminante pour juger l'option interne, mais elle peut rester une condition explicite plutôt qu'être devinée.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"modere\",\n    \"justification_risque\": \"La décision peut engager des dépenses, perturber le travail des 12 personnes et créer une dépendance technologique durable, sans relever toutefois d'un domaine à risque vital ou réglementaire élevé en l'état des informations.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": true,\n    \"justification_connaissance\": \"Les caractéristiques générales des modèles SaaS, du développement interne et du coût total de possession dépassent le texte fourni. Les prix de marché, coûts de développement et pratiques des fournisseurs peuvent évoluer ; toute donnée actuelle ou chiffrée doit donc être recherchée ou clairement présentée comme estimation.\",\n    \"calcul_requis\": false,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Analyse comparative multicritère\",\n      \"Évaluation du coût total de possession\",\n      \"Analyse des risques de migration, d'adoption et de dépendance\",\n      \"Formulation d'une recommandation conditionnelle\",\n      \"Distinction entre faits, estimations et décisions de travail\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Traiter la conservation de l'outil actuel comme scénario de référence ou solution transitoire, compte tenu de la nécessité déclarée de le remplacer.\",\n      \"Utiliser l'absence de besoin spécifique établi comme base d'un scénario provisoire favorable à une solution standard, sans en faire un fait sur l'entreprise.\",\n      \"Formuler une recommandation conditionnelle qui pourra être révisée après collecte des coûts et exigences propres à l'entreprise.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer le budget, les exigences fonctionnelles, les intégrations ou les contraintes réglementaires de l'entreprise.\",\n      \"Supposer l'existence d'une équipe interne capable de développer et maintenir la solution.\",\n      \"Présenter des prix, délais ou économies précis sans base identifiable.\",\n      \"Qualifier une stratégie d'optimale sans comparaison suffisante et sans conditions explicites.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Conseiller en choix de logiciel pour petite entreprise\",\n      \"mission\": \"Comparer les trois stratégies sur un périmètre cohérent et transformer les incertitudes en critères de décision et en recommandation conditionnelle exploitable.\",\n      \"competences\": [\n        \"Stratégie d'acquisition logicielle\",\n        \"Coût total de possession\",\n        \"Conduite du changement\",\n        \"Analyse des risques numériques\"\n      ],\n      \"limites\": [\n        \"Ne connaît pas les besoins détaillés ni le budget de l'entreprise.\",\n        \"Ne peut pas attribuer de coûts précis sans données internes ou sources actuelles.\",\n        \"La recommandation doit rester conditionnelle aux capacités techniques et aux exigences non communiquées.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel impose une profondeur minimale ; cinq composants ciblés suffisent néanmoins à structurer cette décision modérément engageante sans supprimer les précautions nécessaires.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Employer un cadre multicritère commun aux trois stratégies.\",\n        \"Traiter le SaaS standard comme recommandation de référence conditionnelle si aucun besoin fortement différenciant ni capacité interne durable n'est établi.\",\n        \"Présenter la conservation de l'outil actuel comme scénario de référence ou option transitoire plutôt que résoudre silencieusement la contradiction apparente.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Tout ordre de grandeur relatif au coût, au délai de migration ou à la charge de formation.\",\n        \"L'effort organisationnel et le temps interne associés à chaque stratégie.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Budget et coût actuel\",\n        \"Besoins fonctionnels impératifs\",\n        \"État technique et contractuel de l'outil actuel\",\n        \"Intégrations et volume de données à migrer\",\n        \"Capacité réelle de développement et de maintenance en interne\",\n        \"Contraintes de sécurité, de localisation des données ou de conformité\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Analyse comparative décisionnelle avec recommandation conditionnelle\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 3,\n      \"max\": 3,\n      \"unite\": \"stratégies comparées\"\n    },\n    \"ton\": \"Professionnel, synthétique, pragmatique et transparent sur les incertitudes\",\n    \"longueur_indicative\": \"Environ 900 à 1 300 mots, avec un tableau comparatif suivi d'une recommandation concise.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"critere\",\n        \"titre\": \"Cadre comparable et hiérarchie de décision\",\n        \"contenu\": \"Évalue les trois stratégies sur un même horizon et un même périmètre. Hiérarchise explicitement les critères suivants : adéquation aux besoins, coût total de possession, risque de mise en œuvre, charge organisationnelle, sécurité et maîtrise des données, intégrations, évolutivité, dépendance, réversibilité et continuité d'activité. Ne laisse pas un avantage secondaire dominer silencieusement les besoins opérationnels essentiels.\",\n        \"justification\": \"Une comparaison cohérente exige des périmètres identiques et une hiérarchie visible des critères.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Compare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\",\n            \"usage\": \"Établit la nécessité d'une comparaison entre trois options.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Un cadre commun évite une comparaison biaisée entre coûts, risques et bénéfices de natures différentes.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Analyse symétrique des trois stratégies\",\n        \"contenu\": \"Pour chacune des trois stratégies, présente de manière symétrique : les avantages, les risques, les coûts initiaux, récurrents et indirects, les conséquences organisationnelles, les conditions de réussite et les situations dans lesquelles l'option devient pertinente. Fais apparaître les compromis plutôt que de dresser une simple liste générique.\",\n        \"justification\": \"Cette structure couvre directement toutes les dimensions explicitement demandées et facilite la comparaison.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Je veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.\",\n            \"usage\": \"Définit les dimensions obligatoires de l'analyse.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"critere\",\n        \"titre\": \"Coût total de possession\",\n        \"contenu\": \"Compare les coûts sur un périmètre complet : licences ou abonnements, paramétrage, développement, migration des données, intégrations, formation, temps interne, hébergement, maintenance, assistance, sécurité, dette technique, dépendance à des personnes clés et coût de sortie. Pour l'outil actuel, ajoute les coûts d'opportunité et les risques non résolus. N'effectue pas de calcul précis lorsque les données de base manquent ; utilise alors des niveaux relatifs ou des scénarios explicitement étiquetés.\",\n        \"justification\": \"Le prix apparent ne suffit pas à comparer équitablement maintien, abonnement SaaS et développement interne.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"les coûts\",\n            \"usage\": \"Établit que la dimension économique doit être analysée.\"\n          },\n          {\n            \"nature\": \"connaissance_externe_non_verifiee\",\n            \"citation\": null,\n            \"usage\": \"Les catégories de coût total de possession proviennent de pratiques générales d'analyse des investissements logiciels.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Conséquences organisationnelles et sensibilité\",\n        \"contenu\": \"Analyse l'effet de chaque option sur les 12 personnes : interruption potentielle, apprentissage, adoption, changement des processus, responsabilités d'administration, support quotidien et dépendance à des compétences rares. Signale ensuite les inconnues qui peuvent changer le classement, notamment les besoins spécifiques, les intégrations, le budget et la capacité de maintenance interne.\",\n        \"justification\": \"Dans une petite structure, la charge interne et l'adoption peuvent peser autant que le coût financier affiché.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Je dirige une petite entreprise de 12 personnes.\",\n            \"usage\": \"Fixe l'échelle organisationnelle à prendre en compte.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"les conséquences organisationnelles\",\n            \"usage\": \"Exige l'analyse des effets humains et opérationnels.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"La taille réduite justifie d'examiner particulièrement la charge supportée par chaque personne.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Recommandation conditionnelle et critères de bascule\",\n        \"contenu\": \"Termine par une recommandation unique, clairement présentée comme décision de travail conditionnelle. En l'absence d'un besoin fortement différenciant ou d'une capacité interne durable déjà établie, examine le SaaS standard comme choix de référence pour une entreprise de 12 personnes. Argumente ce choix face aux deux autres stratégies, puis indique les conditions concrètes qui feraient préférer le maintien de l'outil actuel ou le développement interne. N'emploie pas de formulation d'optimalité absolue.\",\n        \"justification\": \"L'utilisateur attend une conclusion exploitable, mais les informations absentes imposent de rendre visibles les conditions susceptibles de l'inverser.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"une recommandation finale argumentée\",\n            \"usage\": \"Établit l'obligation de conclure et de justifier la décision.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Une solution standard constitue un choix de référence raisonnable à tester lorsque ni besoin très spécifique ni capacité interne durable ne sont établis.\"\n          },\n          {\n            \"nature\": \"hypothese\",\n            \"citation\": null,\n            \"usage\": \"La préférence provisoire pour le SaaS doit rester conditionnelle aux informations encore inconnues.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": [\n      {\n        \"type\": \"section\",\n        \"titre\": \"Comparaison de produits SaaS nommés\",\n        \"raison\": \"Aucun produit, besoin fonctionnel détaillé ni marché géographique n'est précisé, et la demande porte sur des stratégies plutôt que sur une sélection de fournisseurs.\"\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Plan détaillé de migration\",\n        \"raison\": \"Un plan d'exécution dépendrait de la stratégie retenue et dépasse la comparaison décisionnelle demandée.\"\n      }\n    ]\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Les trois stratégies demandées doivent toutes être évaluées sur les mêmes dimensions.\",\n      \"La réponse doit inclure une recommandation finale argumentée et ses conditions de validité.\",\n      \"Aucun prix, délai, budget ou niveau de capacité interne ne doit être inventé.\",\n      \"Toute affirmation actuelle ou chiffrée issue du marché doit reposer sur une recherche réelle avec des sources directement consultables et leur date de consultation ; sans recherche, elle doit rester une estimation ou une information non vérifiée.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Distinguer coûts initiaux, récurrents, indirects et coûts de sortie.\",\n      \"Relier la recommandation à la taille de l'entreprise sans déduire automatiquement ses moyens techniques.\",\n      \"Faire apparaître les critères qui pourraient inverser la recommandation.\",\n      \"Distinguer clairement faits fournis, hypothèses, estimations et choix de travail.\",\n      \"Résoudre explicitement la tension entre l'obligation de remplacer l'outil et l'option de le conserver.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"Les insuffisances réelles de l'outil actuel.\",\n      \"Le budget et les coûts propres à l'entreprise.\",\n      \"La capacité interne à développer et maintenir une solution.\",\n      \"Les exigences fonctionnelles, techniques, contractuelles et réglementaires.\",\n      \"Les prix et délais actuels sans consultation de sources externes.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"L'entreprise compte 12 personnes.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Cette information est explicitement déclarée dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Une solution SaaS standard devrait servir de recommandation de référence.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Il s'agit d'un choix de travail conditionnel, non d'un fait établi sur l'entreprise.\"\n      },\n      {\n        \"affirmation\": \"L'entreprise dispose ou non des compétences nécessaires au développement interne.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Aucune capacité technique interne n'est décrite dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Les postes généraux du coût total de possession et les risques typiques des trois modèles.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"Ils reposent sur des pratiques générales externes au texte et doivent être distingués des faits propres à l'entreprise.\"\n      },\n      {\n        \"affirmation\": \"Les prix, délais et niveaux de service actuellement pratiqués sur le marché.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"Ces données sont changeantes et exigent une recherche actuelle avant d'être présentées comme établies.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+          },
+          "validation": [],
+          "prompt": "## RÔLE\nVous intervenez comme Conseiller en choix de logiciel pour petite entreprise.\nComparer les trois stratégies sur un périmètre cohérent et transformer les incertitudes en critères de décision et en recommandation conditionnelle exploitable.\nCompétences à mobiliser : Stratégie d'acquisition logicielle ; Coût total de possession ; Conduite du changement ; Analyse des risques numériques.\nLimites à respecter : Ne connaît pas les besoins détaillés ni le budget de l'entreprise ; Ne peut pas attribuer de coûts précis sans données internes ou sources actuelles ; La recommandation doit rester conditionnelle aux capacités techniques et aux exigences non communiquées.\n\n## OBJECTIF\nComparer trois stratégies de remplacement ou de maintien d'un logiciel de gestion de projet afin d'aboutir à une recommandation décisionnelle adaptée à une entreprise de 12 personnes.\n\n## DEMANDE ORIGINALE\nJe dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.\n\n## FORMAT DE SORTIE\n- Livrable : Analyse comparative décisionnelle avec recommandation conditionnelle\n- Format technique : markdown\n- Ton : Professionnel, synthétique, pragmatique et transparent sur les incertitudes\n- Longueur indicative : Environ 900 à 1 300 mots, avec un tableau comparatif suivi d'une recommandation concise.\n- Quantité : minimum 3 ; maximum 3 stratégies comparées\n- Structure : plan imposé (3 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Employer un cadre multicritère commun aux trois stratégies.\n- Traiter le SaaS standard comme recommandation de référence conditionnelle si aucun besoin fortement différenciant ni capacité interne durable n'est établi.\n- Présenter la conservation de l'outil actuel comme scénario de référence ou option transitoire plutôt que résoudre silencieusement la contradiction apparente.\n\nEstimations autorisées, à étiqueter clairement :\n- Tout ordre de grandeur relatif au coût, au délai de migration ou à la charge de formation.\n- L'effort organisationnel et le temps interne associés à chaque stratégie.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Budget et coût actuel\n- Besoins fonctionnels impératifs\n- État technique et contractuel de l'outil actuel\n- Intégrations et volume de données à migrer\n- Capacité réelle de développement et de maintenance en interne\n- Contraintes de sécurité, de localisation des données ou de conformité\n\n## INFORMATIONS MANQUANTES ET PILOTAGE\n- Non bloquante : Les problèmes précis de l'outil actuel et les exigences fonctionnelles impératives. — Ces éléments pourraient modifier la recommandation, mais une analyse fiable peut avancer par scénarios et rendre explicites les conditions qui feraient préférer chaque option.\n- Non bloquante : Les coûts actuels, le budget cible, les intégrations nécessaires et les contraintes de migration des données. — Ils sont nécessaires à un chiffrage propre à l'entreprise, mais pas à une comparaison structurée des postes de coût et des ordres de préférence.\n- Non bloquante : Les compétences de développement disponibles en interne et la capacité durable à maintenir un logiciel métier. — Cette capacité est déterminante pour juger l'option interne, mais elle peut rester une condition explicite plutôt qu'être devinée.\n\nNe présentez jamais une information inconnue comme confirmée. Mais ne bloquez pas une réponse utile pour une donnée que vous pouvez décider, estimer, rechercher ou laisser explicitement à confirmer.\n\n## RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES\nUne connaissance extérieure à la demande est nécessaire. Elle peut avoir changé : utilisez une recherche actuelle si elle est disponible. Citez les sources directement consultées et leur date de consultation. Sans recherche réelle, distinguez explicitement ce qui est établi dans la demande de ce qui reste non vérifié. Pour chaque affirmation importante, choisissez la source selon son autorité sur cette affirmation, sa proximité avec la donnée, sa spécificité et sa fraîcheur ; ne suivez pas une hiérarchie rigide indépendante du contexte. En cas de contradiction, cherchez une preuve plus directement compétente et tranchez seulement si elle résout réellement le conflit. Recherchez également les changements futurs déjà établis lorsqu’ils se situent dans l’horizon pertinent et peuvent modifier la décision.\n\n## HYPOTHÈSES AUTORISÉES\n- Traiter la conservation de l'outil actuel comme scénario de référence ou solution transitoire, compte tenu de la nécessité déclarée de le remplacer.\n- Utiliser l'absence de besoin spécifique établi comme base d'un scénario provisoire favorable à une solution standard, sans en faire un fait sur l'entreprise.\n- Formuler une recommandation conditionnelle qui pourra être révisée après collecte des coûts et exigences propres à l'entreprise.\n\n## HYPOTHÈSES INTERDITES\n- Inventer le budget, les exigences fonctionnelles, les intégrations ou les contraintes réglementaires de l'entreprise.\n- Supposer l'existence d'une équipe interne capable de développer et maintenir la solution.\n- Présenter des prix, délais ou économies précis sans base identifiable.\n- Qualifier une stratégie d'optimale sans comparaison suffisante et sans conditions explicites.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Cadre comparable et hiérarchie de décision\nÉvalue les trois stratégies sur un même horizon et un même périmètre. Hiérarchise explicitement les critères suivants : adéquation aux besoins, coût total de possession, risque de mise en œuvre, charge organisationnelle, sécurité et maîtrise des données, intégrations, évolutivité, dépendance, réversibilité et continuité d'activité. Ne laisse pas un avantage secondaire dominer silencieusement les besoins opérationnels essentiels.\n\n## Analyse symétrique des trois stratégies\nPour chacune des trois stratégies, présente de manière symétrique : les avantages, les risques, les coûts initiaux, récurrents et indirects, les conséquences organisationnelles, les conditions de réussite et les situations dans lesquelles l'option devient pertinente. Fais apparaître les compromis plutôt que de dresser une simple liste générique.\n\n## Coût total de possession\nCompare les coûts sur un périmètre complet : licences ou abonnements, paramétrage, développement, migration des données, intégrations, formation, temps interne, hébergement, maintenance, assistance, sécurité, dette technique, dépendance à des personnes clés et coût de sortie. Pour l'outil actuel, ajoute les coûts d'opportunité et les risques non résolus. N'effectue pas de calcul précis lorsque les données de base manquent ; utilise alors des niveaux relatifs ou des scénarios explicitement étiquetés.\n\n## Conséquences organisationnelles et sensibilité\nAnalyse l'effet de chaque option sur les 12 personnes : interruption potentielle, apprentissage, adoption, changement des processus, responsabilités d'administration, support quotidien et dépendance à des compétences rares. Signale ensuite les inconnues qui peuvent changer le classement, notamment les besoins spécifiques, les intégrations, le budget et la capacité de maintenance interne.\n\n## Recommandation conditionnelle et critères de bascule\nTermine par une recommandation unique, clairement présentée comme décision de travail conditionnelle. En l'absence d'un besoin fortement différenciant ou d'une capacité interne durable déjà établie, examine le SaaS standard comme choix de référence pour une entreprise de 12 personnes. Argumente ce choix face aux deux autres stratégies, puis indique les conditions concrètes qui feraient préférer le maintien de l'outil actuel ou le développement interne. N'emploie pas de formulation d'optimalité absolue.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Les trois stratégies demandées doivent toutes être évaluées sur les mêmes dimensions.\n- La réponse doit inclure une recommandation finale argumentée et ses conditions de validité.\n- Aucun prix, délai, budget ou niveau de capacité interne ne doit être inventé.\n- Toute affirmation actuelle ou chiffrée issue du marché doit reposer sur une recherche réelle avec des sources directement consultables et leur date de consultation ; sans recherche, elle doit rester une estimation ou une information non vérifiée.\n- Distinguer coûts initiaux, récurrents, indirects et coûts de sortie.\n- Relier la recommandation à la taille de l'entreprise sans déduire automatiquement ses moyens techniques.\n- Faire apparaître les critères qui pourraient inverser la recommandation.\n- Distinguer clairement faits fournis, hypothèses, estimations et choix de travail.\n- Résoudre explicitement la tension entre l'obligation de remplacer l'outil et l'option de le conserver.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+        },
+        "final_call": {
+          "timestamp": "2026-08-28T07:11:37.696Z",
+          "endpoint": "/v1/responses",
+          "status_http": 200,
+          "latency_ms": 44992.598,
+          "response_id": "resp_0694553ee71bc08c006a91347d217087d281a32bfae8b4f3f2",
+          "response_status": "incomplete",
+          "model_requested": "gpt-5.6-sol",
+          "model_returned": "gpt-5.6-sol",
+          "usage": {
+            "input_tokens": 2504,
+            "output_tokens": 2500,
+            "total_tokens": 5004,
+            "reasoning_tokens": 254
+          },
+          "estimated_cost_usd": 0.060016,
+          "incomplete_details": {
+            "reason": "max_output_tokens"
+          },
+          "error": null,
+          "output": "# 1. Cadre de comparaison et synthèse décisionnelle\n\n**Faits établis par la demande :** l’entreprise compte 12 personnes et prévoit de remplacer son logiciel de gestion de projet. Le budget, les exigences impératives, les intégrations, le volume de données, les contraintes réglementaires et les capacités techniques internes ne sont pas connus.\n\n**Choix de méthode :** comparer les trois stratégies sur un **horizon de travail de trois ans**, à confirmer selon les pratiques budgétaires de l’entreprise. Le périmètre commun comprend : acquisition ou abonnement, paramétrage ou développement, migration, intégrations, formation, temps interne, hébergement, maintenance, support, sécurité, continuité, dette technique et coût de sortie.\n\nLa conservation de l’outil actuel est traitée comme **référence ou solution transitoire**, et non comme résolution implicite du besoin de remplacement.\n\n### Hiérarchie proposée des critères\n\n1. **Adéquation aux besoins impératifs et continuité d’activité**  \n2. **Coût total de possession — TCO**, y compris le temps des salariés  \n3. **Risque de mise en œuvre et charge organisationnelle**  \n4. **Sécurité, conformité et maîtrise des données**  \n5. **Intégrations et reprise des données**  \n6. **Évolutivité et qualité du support**  \n7. **Dépendance, réversibilité et coût de sortie**\n\nCette hiérarchie est un **choix de travail** : un besoin réglementaire ou métier critique pourrait faire passer la sécurité, la localisation des données ou une intégration au premier rang.\n\n| Dimension commune | Conserver l’outil actuel | Migrer vers un SaaS standard | Développer en interne |\n|---|---|---|---|\n| **Adéquation fonctionnelle** | Connue, mais insuffisante si le remplacement est déjà jugé nécessaire | Bonne si les besoins sont courants et configurables | Potentiellement très forte, sous réserve d’une spécification fiable |\n| **Coûts initiaux — estimation relative** | Faibles à moyens : remise à niveau, audit, éventuelle migration technique | Moyens : sélection, paramétrage, migration, intégrations, formation | Très élevés : conception, développement, tests, sécurité, documentation |\n| **Coûts récurrents — estimation relative** | Variables : licences, support, maintenance et inefficacités | Prévisibles mais dépendants du nombre d’utilisateurs, des options et des hausses tarifaires | Élevés et souvent sous-estimés : maintenance, hébergement, sécurité, support et évolutions |\n| **Coûts indirects** | Contournements, double saisie, perte de productivité, risque non résolu | Temps de sélection, adaptation des processus, administration et conduite du changement | Forte mobilisation des utilisateurs clés et dépendance aux développeurs |\n| **Délai et risque de mise en œuvre — estimation** | Faible à court terme, mais report du risque | Intermédiaire ; généralement plus maîtrisable avec un pilote | Élevé : dérive du périmètre, retard, défauts et maintien parallèle |\n| **Effet sur les 12 personnes** | Peu de perturbation immédiate ; frustrations possibles maintenues | Apprentissage réel mais limité si l’ergonomie et le paramétrage sont adaptés | Changement continu pendant la conception puis lors de chaque évolution |\n| **Sécurité et données** | Dépend de l’état technique, contractuel et du support actuel — inconnu | Capacités du fournisseur à vérifier contractuellement et techniquement | Maîtrise théorique forte, mais responsabilité complète de l’entreprise |\n| **Intégrations** | Déjà présentes, mais possiblement fragiles ou obsolètes | Connecteurs disponibles à confirmer ; personnalisations parfois limitées | Sur mesure, avec coût permanent de maintien des interfaces |\n| **Évolutivité** | Limitée si l’outil est ancien ou abandonné | Généralement favorable, sous réserve de la feuille de route du fournisseur | Contrôlable, mais uniquement si des ressources durables sont disponibles |\n| **Dépendance** | À l’éditeur, à une version ancienne ou à des pratiques historiques | Au fournisseur, à ses tarifs, API et règles d’export | À des personnes clés, au code et aux technologies retenues |\n| **Réversibilité** | Reporte la sortie sans nécessairement la simplifier | À vérifier : export complet, formats, pièces jointes, API et délai de restitution | Possible en théorie, mais documentation et portabilité doivent être financées |\n| **Pertinence principale** | Transition courte ou outil encore viable après audit | Besoins standards et absence de capacité interne durable démontrée | Besoin réellement différenciant, critique et non couvert par le marché |\n\nLes niveaux « faible, moyen ou élevé » sont des **estimations relatives**, pas des coûts mesurés. Aucune recherche web ni consultation tarifaire actuelle n’a été réalisée pour cette analyse ; les caractéristiques, prix et engagements de fournisseurs restent donc **non vérifiés et à confirmer**.\n\n# 2. Analyse symétrique des trois stratégies\n\n### Stratégie 1 — Conserver temporairement l’outil actuel\n\n**Avantages.** Cette option limite l’interruption, évite une migration immédiate et conserve des usages maîtrisés. Elle peut dégager le temps nécessaire pour formaliser les besoins, nettoyer les données et comparer les solutions sans urgence excessive.\n\n**Risques et compromis.** Puisque le remplacement est annoncé comme nécessaire, le maintien risque surtout de différer le problème. Une technologie obsolète, un contrat défavorable, des failles, un support insuffisant ou des contournements manuels pourraient augmenter le coût réel. L’absence de changement visible peut également démobiliser les utilisateurs.\n\n**TCO.** Les coûts initiaux couvrent un éventuel audit, une remise à niveau ou une prolongation contractuelle. Les coûts récurrents comprennent licences, hébergement, assistance et maintenance. Les coûts indirects incluent les doubles saisies, processus inefficaces, incidents et occasions perdues. Le **coût de sortie peut croître** si les données s’accumulent dans un format difficile à exporter.\n\n**Conséquences organisationnelles.** La charge immédiate est faible, mais il faut nommer un responsable de la transition, stabiliser les pratiques et éviter de développer de nouvelles dépendances.\n\n**Conditions de réussite et pertinence.** Option pertinente si un audit confirme que l’outil demeure sécurisé, supporté et contractuellement viable, et si les problèmes peuvent être corrigés à coût raisonnable. Elle doit alors comporter des critères de sortie et une échéance de réévaluation, plutôt qu’un maintien indéfini.\n\n### Stratégie 2 — Migrer vers un SaaS standard\n\n**Avantages.** Le SaaS mutualise le développement, l’hébergement, les mises à jour et une partie du support. Pour 12 personnes, il évite en principe de constituer une fonction technique dédiée. Il permet souvent de piloter la solution avant généralisation et de bénéficier de pratiques standardisées.\n\n**Risques et compromis.** L’entreprise doit parfois adapter ses processus au produit. Les risques portent sur la dépendance au fournisseur, l’évolution des tarifs ou fonctionnalités, la disponibilité du service, la confidentialité, la localisation des données et la qualité réelle des exports. Des personnalisations excessives peuvent annuler la simplicité recherchée.\n\n**TCO.** Les coûts initiaux comprennent sélection, paramétrage, nettoyage et migration des données, intégrations, tests et formation. Les coûts récurrents couvrent abonnements, options, stockage, assistance et administration. Les coûts indirects concernent le temps d’adoption et l’adaptation des processus. Le coût de sortie dépend fortement de la qualité des exports et des API.\n\n**Conséquences organisationnelles.** Il faut désigner un propriétaire fonctionnel, harmoniser les règles de gestion de projet, préparer les utilisateurs et organiser un support de proximité. La charge de formation est une **estimation à confirmer** selon l’écart entre les anciennes et nouvelles pratiques ; elle sera généralement plus forte au démarrage puis décroissante.\n\n**Conditions de réussite et pertinence.** Cette option devient préférable si les besoins impératifs sont couverts sans développement lourd, si les données peuvent être reprises, si les intégrations sont disponibles et si les engagements de sécurité, disponibilité, assistance et réversibilité sont acceptables.\n\n### Stratégie 3 — Développer une solution interne\n\n**Avantages.** Le développement interne permet d’aligner précisément le logiciel sur des processus différenciants, d’en contrôler la feuille de route et de construire des intégrations spécifiques. Il peut être justifié lorsque le fonctionnement de l’entreprise constitue un avantage concurrentiel impossible à reproduire avec un produit standard.\n\n**Risques et compromis.** L’entreprise devient éditeur de son propre outil : cadrage, architecture, tests, cybersécurité, sauvegardes, conformité, documentation, support et continuité lui incombent. Pour une équipe de 12 personnes, le risque de dépendance à une personne clé est particulièrement important, sans que cela permette de conclure sur les compétences effectivement disponibles.\n\n**TCO.** Les coûts initiaux comprennent conception, développement, tests, migration, intégrations et déploiement. Les coûts récurrents couvrent hébergement, surveillance, corrections, mises à jour de sécurité, assistance et évolutions. Les coûts indirects incluent le temps des experts métier et la dette technique. Le coût de sortie comprend la reprise du code, la documentation, le changement de technologie ou une migration ultérieure.\n\n**Conséquences organisationnelles.** Des responsables produit et techniques durables sont nécessaires, avec une procédure de support et de relève. L’effort est une **estimation relative élevée**, tant au lancement que pendant toute la durée de vie.\n\n**Conditions de réussite et pertinence.** Cette stratégie n’est crédible que si un besoin fortement différenciant est démontré, si aucune solution standard ne le couvre raisonnablement et si l’entreprise dispose durablement des compétences, du financement et de la gouvernance nécessaires.\n\n# 3. Recommandation conditionnelle et critères de bascule\n\n## Décision de travail recommandée : sélectionner en priorité un SaaS standard\n\nEn l’absence de besoin fortement différenciant ou de capacité interne durable établie, le **SaaS standard constitue la référence conditionnelle**. Il offre le compromis le plus vraisemblable entre couverture fonctionnelle, rapidité de mise en œuvre, TCO maîtrisable et charge compatible avec une entreprise de 12 personnes. Cette conclusion n’implique ni que tout SaaS convienne, ni que ses coûts soient nécessairement inférieurs : cela doit être validé par une consultation et un pilote.\n\nLa démarche recommandée est de formaliser"
+        },
+        "output": "# 1. Cadre de comparaison et synthèse décisionnelle\n\n**Faits établis par la demande :** l’entreprise compte 12 personnes et prévoit de remplacer son logiciel de gestion de projet. Le budget, les exigences impératives, les intégrations, le volume de données, les contraintes réglementaires et les capacités techniques internes ne sont pas connus.\n\n**Choix de méthode :** comparer les trois stratégies sur un **horizon de travail de trois ans**, à confirmer selon les pratiques budgétaires de l’entreprise. Le périmètre commun comprend : acquisition ou abonnement, paramétrage ou développement, migration, intégrations, formation, temps interne, hébergement, maintenance, support, sécurité, continuité, dette technique et coût de sortie.\n\nLa conservation de l’outil actuel est traitée comme **référence ou solution transitoire**, et non comme résolution implicite du besoin de remplacement.\n\n### Hiérarchie proposée des critères\n\n1. **Adéquation aux besoins impératifs et continuité d’activité**  \n2. **Coût total de possession — TCO**, y compris le temps des salariés  \n3. **Risque de mise en œuvre et charge organisationnelle**  \n4. **Sécurité, conformité et maîtrise des données**  \n5. **Intégrations et reprise des données**  \n6. **Évolutivité et qualité du support**  \n7. **Dépendance, réversibilité et coût de sortie**\n\nCette hiérarchie est un **choix de travail** : un besoin réglementaire ou métier critique pourrait faire passer la sécurité, la localisation des données ou une intégration au premier rang.\n\n| Dimension commune | Conserver l’outil actuel | Migrer vers un SaaS standard | Développer en interne |\n|---|---|---|---|\n| **Adéquation fonctionnelle** | Connue, mais insuffisante si le remplacement est déjà jugé nécessaire | Bonne si les besoins sont courants et configurables | Potentiellement très forte, sous réserve d’une spécification fiable |\n| **Coûts initiaux — estimation relative** | Faibles à moyens : remise à niveau, audit, éventuelle migration technique | Moyens : sélection, paramétrage, migration, intégrations, formation | Très élevés : conception, développement, tests, sécurité, documentation |\n| **Coûts récurrents — estimation relative** | Variables : licences, support, maintenance et inefficacités | Prévisibles mais dépendants du nombre d’utilisateurs, des options et des hausses tarifaires | Élevés et souvent sous-estimés : maintenance, hébergement, sécurité, support et évolutions |\n| **Coûts indirects** | Contournements, double saisie, perte de productivité, risque non résolu | Temps de sélection, adaptation des processus, administration et conduite du changement | Forte mobilisation des utilisateurs clés et dépendance aux développeurs |\n| **Délai et risque de mise en œuvre — estimation** | Faible à court terme, mais report du risque | Intermédiaire ; généralement plus maîtrisable avec un pilote | Élevé : dérive du périmètre, retard, défauts et maintien parallèle |\n| **Effet sur les 12 personnes** | Peu de perturbation immédiate ; frustrations possibles maintenues | Apprentissage réel mais limité si l’ergonomie et le paramétrage sont adaptés | Changement continu pendant la conception puis lors de chaque évolution |\n| **Sécurité et données** | Dépend de l’état technique, contractuel et du support actuel — inconnu | Capacités du fournisseur à vérifier contractuellement et techniquement | Maîtrise théorique forte, mais responsabilité complète de l’entreprise |\n| **Intégrations** | Déjà présentes, mais possiblement fragiles ou obsolètes | Connecteurs disponibles à confirmer ; personnalisations parfois limitées | Sur mesure, avec coût permanent de maintien des interfaces |\n| **Évolutivité** | Limitée si l’outil est ancien ou abandonné | Généralement favorable, sous réserve de la feuille de route du fournisseur | Contrôlable, mais uniquement si des ressources durables sont disponibles |\n| **Dépendance** | À l’éditeur, à une version ancienne ou à des pratiques historiques | Au fournisseur, à ses tarifs, API et règles d’export | À des personnes clés, au code et aux technologies retenues |\n| **Réversibilité** | Reporte la sortie sans nécessairement la simplifier | À vérifier : export complet, formats, pièces jointes, API et délai de restitution | Possible en théorie, mais documentation et portabilité doivent être financées |\n| **Pertinence principale** | Transition courte ou outil encore viable après audit | Besoins standards et absence de capacité interne durable démontrée | Besoin réellement différenciant, critique et non couvert par le marché |\n\nLes niveaux « faible, moyen ou élevé » sont des **estimations relatives**, pas des coûts mesurés. Aucune recherche web ni consultation tarifaire actuelle n’a été réalisée pour cette analyse ; les caractéristiques, prix et engagements de fournisseurs restent donc **non vérifiés et à confirmer**.\n\n# 2. Analyse symétrique des trois stratégies\n\n### Stratégie 1 — Conserver temporairement l’outil actuel\n\n**Avantages.** Cette option limite l’interruption, évite une migration immédiate et conserve des usages maîtrisés. Elle peut dégager le temps nécessaire pour formaliser les besoins, nettoyer les données et comparer les solutions sans urgence excessive.\n\n**Risques et compromis.** Puisque le remplacement est annoncé comme nécessaire, le maintien risque surtout de différer le problème. Une technologie obsolète, un contrat défavorable, des failles, un support insuffisant ou des contournements manuels pourraient augmenter le coût réel. L’absence de changement visible peut également démobiliser les utilisateurs.\n\n**TCO.** Les coûts initiaux couvrent un éventuel audit, une remise à niveau ou une prolongation contractuelle. Les coûts récurrents comprennent licences, hébergement, assistance et maintenance. Les coûts indirects incluent les doubles saisies, processus inefficaces, incidents et occasions perdues. Le **coût de sortie peut croître** si les données s’accumulent dans un format difficile à exporter.\n\n**Conséquences organisationnelles.** La charge immédiate est faible, mais il faut nommer un responsable de la transition, stabiliser les pratiques et éviter de développer de nouvelles dépendances.\n\n**Conditions de réussite et pertinence.** Option pertinente si un audit confirme que l’outil demeure sécurisé, supporté et contractuellement viable, et si les problèmes peuvent être corrigés à coût raisonnable. Elle doit alors comporter des critères de sortie et une échéance de réévaluation, plutôt qu’un maintien indéfini.\n\n### Stratégie 2 — Migrer vers un SaaS standard\n\n**Avantages.** Le SaaS mutualise le développement, l’hébergement, les mises à jour et une partie du support. Pour 12 personnes, il évite en principe de constituer une fonction technique dédiée. Il permet souvent de piloter la solution avant généralisation et de bénéficier de pratiques standardisées.\n\n**Risques et compromis.** L’entreprise doit parfois adapter ses processus au produit. Les risques portent sur la dépendance au fournisseur, l’évolution des tarifs ou fonctionnalités, la disponibilité du service, la confidentialité, la localisation des données et la qualité réelle des exports. Des personnalisations excessives peuvent annuler la simplicité recherchée.\n\n**TCO.** Les coûts initiaux comprennent sélection, paramétrage, nettoyage et migration des données, intégrations, tests et formation. Les coûts récurrents couvrent abonnements, options, stockage, assistance et administration. Les coûts indirects concernent le temps d’adoption et l’adaptation des processus. Le coût de sortie dépend fortement de la qualité des exports et des API.\n\n**Conséquences organisationnelles.** Il faut désigner un propriétaire fonctionnel, harmoniser les règles de gestion de projet, préparer les utilisateurs et organiser un support de proximité. La charge de formation est une **estimation à confirmer** selon l’écart entre les anciennes et nouvelles pratiques ; elle sera généralement plus forte au démarrage puis décroissante.\n\n**Conditions de réussite et pertinence.** Cette option devient préférable si les besoins impératifs sont couverts sans développement lourd, si les données peuvent être reprises, si les intégrations sont disponibles et si les engagements de sécurité, disponibilité, assistance et réversibilité sont acceptables.\n\n### Stratégie 3 — Développer une solution interne\n\n**Avantages.** Le développement interne permet d’aligner précisément le logiciel sur des processus différenciants, d’en contrôler la feuille de route et de construire des intégrations spécifiques. Il peut être justifié lorsque le fonctionnement de l’entreprise constitue un avantage concurrentiel impossible à reproduire avec un produit standard.\n\n**Risques et compromis.** L’entreprise devient éditeur de son propre outil : cadrage, architecture, tests, cybersécurité, sauvegardes, conformité, documentation, support et continuité lui incombent. Pour une équipe de 12 personnes, le risque de dépendance à une personne clé est particulièrement important, sans que cela permette de conclure sur les compétences effectivement disponibles.\n\n**TCO.** Les coûts initiaux comprennent conception, développement, tests, migration, intégrations et déploiement. Les coûts récurrents couvrent hébergement, surveillance, corrections, mises à jour de sécurité, assistance et évolutions. Les coûts indirects incluent le temps des experts métier et la dette technique. Le coût de sortie comprend la reprise du code, la documentation, le changement de technologie ou une migration ultérieure.\n\n**Conséquences organisationnelles.** Des responsables produit et techniques durables sont nécessaires, avec une procédure de support et de relève. L’effort est une **estimation relative élevée**, tant au lancement que pendant toute la durée de vie.\n\n**Conditions de réussite et pertinence.** Cette stratégie n’est crédible que si un besoin fortement différenciant est démontré, si aucune solution standard ne le couvre raisonnablement et si l’entreprise dispose durablement des compétences, du financement et de la gouvernance nécessaires.\n\n# 3. Recommandation conditionnelle et critères de bascule\n\n## Décision de travail recommandée : sélectionner en priorité un SaaS standard\n\nEn l’absence de besoin fortement différenciant ou de capacité interne durable établie, le **SaaS standard constitue la référence conditionnelle**. Il offre le compromis le plus vraisemblable entre couverture fonctionnelle, rapidité de mise en œuvre, TCO maîtrisable et charge compatible avec une entreprise de 12 personnes. Cette conclusion n’implique ni que tout SaaS convienne, ni que ses coûts soient nécessairement inférieurs : cela doit être validé par une consultation et un pilote.\n\nLa démarche recommandée est de formaliser",
+        "total_llm_calls": 4,
+        "gpt_usage": {
+          "input_tokens": 12194,
+          "output_tokens": 9578,
+          "total_tokens": 21772,
+          "estimated_cost_usd": 0.240336
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": null
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:11:37.717Z",
+        "completed_at": "2026-08-28T07:12:15.804Z",
+        "latency_total_ms": 38086.742,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:12:15.804Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 38085.291,
+            "response_id": "resp_0e44c81a6a22c1ef006a9134a9d98887d281d5a6998a024430",
+            "response_status": "incomplete",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 84,
+              "output_tokens": 2500,
+              "total_tokens": 2584,
+              "reasoning_tokens": 97
+            },
+            "estimated_cost_usd": 0.050336,
+            "incomplete_details": {
+              "reason": "max_output_tokens"
+            },
+            "error": null,
+            "output": "## Synthèse\n\nPour une entreprise de 12 personnes, **migrer vers une solution SaaS standard** est généralement le meilleur compromis entre coût, rapidité, fiabilité et capacité d’évolution.  \n\n- **Conserver l’outil actuel** peut être pertinent à court terme si les problèmes sont limités et corrigibles.\n- **Développer une solution interne** ne se justifie que si la gestion de projet constitue un avantage concurrentiel majeur ou si vos contraintes sont réellement incompatibles avec les outils du marché.\n\nL’analyse ci-dessous repose sur un horizon de trois ans. Les montants sont indicatifs et doivent être adaptés à votre outil, à vos salaires et à la complexité de vos processus.\n\n---\n\n# 1. Comparaison synthétique\n\n| Critère | Conserver l’outil actuel | SaaS standard | Solution interne |\n|---|---:|---:|---:|\n| Investissement initial | Faible | Faible à modéré | Très élevé |\n| Coût total sur 3 ans | Faible à modéré, mais parfois caché | Prévisible et modéré | Élevé et difficile à prévoir |\n| Délai de mise en œuvre | Immédiat | 1 à 3 mois | 6 à 18 mois |\n| Adaptation aux besoins | Limitée | Bonne si processus standardisables | Théoriquement excellente |\n| Maintenance | Dépend de l’existant | Assurée par l’éditeur | Entièrement à votre charge |\n| Sécurité et continuité | Variable | Généralement solides, à vérifier | Responsabilité interne |\n| Risque opérationnel | Croissant si outil vieillissant | Modéré | Élevé |\n| Dépendance externe | Dépendance à l’outil actuel | Dépendance à l’éditeur | Dépendance aux développeurs clés |\n| Évolutivité | Souvent limitée | Bonne | Coûteuse |\n| Pertinence pour 12 personnes | Temporaire | Forte | Faible, sauf cas exceptionnel |\n\n---\n\n# 2. Stratégie 1 — Conserver l’outil actuel\n\n## Avantages\n\n- Aucun projet de migration immédiat.\n- Pas ou peu de formation supplémentaire.\n- Continuité des habitudes et des processus.\n- Conservation de l’historique sans opération de reprise.\n- Investissement initial minimal.\n- Pas de baisse temporaire de productivité liée au changement.\n\n## Risques\n\n- Les problèmes qui motivent le remplacement restent présents.\n- Accumulation de tâches manuelles, doubles saisies, fichiers parallèles et contournements.\n- Risque de sécurité ou d’indisponibilité si l’outil est ancien ou mal maintenu.\n- Difficultés d’intégration avec la messagerie, la facturation, le CRM ou les outils documentaires.\n- Faible capacité à accompagner la croissance.\n- Dépendance à un fournisseur qui pourrait augmenter ses prix ou arrêter le produit.\n- Coût caché de la non-qualité : retards, erreurs, informations introuvables, réunions de coordination supplémentaires.\n\n## Coûts\n\nLes coûts directs peuvent sembler faibles, mais il faut intégrer :\n\n- licences et maintenance ;\n- support technique ;\n- temps passé à corriger ou contourner les limites ;\n- tâches manuelles ;\n- perte de productivité ;\n- éventuels incidents ou pertes de données ;\n- coût d’une migration future, potentiellement plus difficile.\n\n### Ordre de grandeur sur trois ans\n\n- Coûts directs : **3 000 à 15 000 €**\n- Coûts indirects : potentiellement **10 000 à 40 000 €**, selon le temps perdu.\n\nÀ titre d’exemple, une perte moyenne de seulement 30 minutes par semaine et par personne représente environ **936 heures sur trois ans** pour 12 salariés.\n\n## Conséquences organisationnelles\n\n- Faible perturbation immédiate.\n- Maintien des habitudes, y compris les mauvaises pratiques.\n- Risque de frustration croissante des utilisateurs.\n- Difficulté à standardiser les méthodes de travail si chacun compense les lacunes à sa façon.\n- Report de l’effort de changement plutôt que suppression de cet effort.\n\n## Quand cette stratégie est-elle pertinente ?\n\n- Les difficultés sont mineures.\n- L’outil reste maintenu, sécurisé et compatible avec vos autres systèmes.\n- Le principal problème vient des processus ou de l’usage, non du logiciel.\n- Une configuration, une formation ou quelques automatisations peuvent résoudre l’essentiel.\n- L’entreprise traverse une période où une migration serait trop perturbante.\n\nCette option peut être retenue comme **solution transitoire de six à douze mois**, avec des critères précis de réévaluation.\n\n---\n\n# 3. Stratégie 2 — Migrer vers une solution SaaS standard\n\nIl peut s’agir d’un outil de gestion de tâches et de projets généraliste, éventuellement complété par des fonctions de suivi du temps, de charge, de budget ou de reporting.\n\n## Avantages\n\n- Mise en œuvre rapide.\n- Investissement initial limité.\n- Mises à jour, hébergement, sauvegardes et maintenance assurés par l’éditeur.\n- Accès distant et collaboration simplifiée.\n- Fonctions éprouvées : tâches, dépendances, tableaux, calendriers, commentaires, notifications et rapports.\n- Intégrations disponibles avec la messagerie, les calendriers, le stockage documentaire ou le CRM.\n- Capacité à ajouter ou retirer des utilisateurs facilement.\n- Niveau de disponibilité et de sécurité souvent supérieur à ce qu’une petite entreprise peut maintenir seule.\n\n## Risques\n\n- Dépendance à l’éditeur et à sa politique tarifaire.\n- Fonctionnement imposé en partie par le produit.\n- Surabondance de fonctions pouvant rendre l’outil complexe.\n- Risque de migration incomplète ou de mauvaise qualité des données.\n- Données hébergées chez un tiers.\n- Difficultés de sortie si les fonctions d’export sont insuffisantes.\n- Multiplication possible des abonnements ou modules complémentaires.\n- Personnalisation limitée par rapport à un développement spécifique.\n\n## Coûts\n\n### Coûts initiaux\n\n- sélection de l’outil ;\n- paramétrage ;\n- nettoyage et migration des données ;\n- intégrations ;\n- formation ;\n- accompagnement au changement.\n\n### Coûts récurrents\n\nPour 12 personnes, une fourchette courante serait :\n\n- licences : **1 500 à 6 000 € par an** ;\n- administration et accompagnement : **1 000 à 3 000 € par an** ;\n- migration et déploiement initial : **3 000 à 12 000 €**.\n\n### Ordre de grandeur sur trois ans\n\n**10 000 à 35 000 €**, selon le niveau de gamme, les intégrations et l’accompagnement.\n\nCe coût peut être compensé par quelques heures gagnées chaque mois sur le reporting, la coordination et la recherche d’informations.\n\n## Conséquences organisationnelles\n\n- Nécessité de clarifier et de standardiser les méthodes de gestion de projet.\n- Phase temporaire de formation et de baisse de productivité.\n- Désignation souhaitable d’un référent interne.\n- Réduction des fichiers parallèles si les règles d’utilisation sont claires.\n- Plus grande transparence sur les responsabilités, les échéances et la charge.\n- Possibles résistances si l’outil est perçu comme un dispositif de contrôle plutôt que de coordination.\n\nPour une entreprise de 12 personnes, l’administration ne devrait pas devenir un poste dédié. Un référent peut généralement assurer ce rôle à raison de quelques heures par mois après le déploiement.\n\n## Points contractuels et techniques à vérifier\n\n- conformité au RGPD et localisation des données ;\n- chiffrement, sauvegardes et authentification multifacteur ;\n- disponibilité garantie et historique des incidents ;\n- gestion des droits d’accès ;\n- export complet dans un format exploitable ;\n- suppression et restitution des données en fin de contrat ;\n- politique d’augmentation des tarifs ;\n- réversibilité ;\n- qualité du support ;\n- intégrations réellement nécessaires ;\n- conditions applicables aux sous-traitants et aux fonctions d’intelligence artificielle.\n\n## Quand cette stratégie est-elle pertinente ?\n\n- Vos processus sont relativement standards.\n- Vous voulez être opérationnel rapidement.\n- Vous ne souhaitez pas entretenir une équipe de développement.\n- La gestion de projet est importante, mais le logiciel lui-même n’est pas votre produit.\n- Vous acceptez d’adapter une partie de vos méthodes aux bonnes pratiques de l’outil.\n\n---\n\n# 4. Stratégie 3 — Développer une solution interne\n\n## Avantages\n\n- Adaptation précise aux processus de l’entreprise.\n- Maîtrise de la feuille de route fonctionnelle.\n- Possibilité d’intégrer profondément vos outils existants.\n- Contrôle renforcé sur l’hébergement et les données, sous réserve de disposer des compétences nécessaires.\n- Absence de dépendance fonctionnelle à un éditeur SaaS.\n- Possibilité de créer un avantage concurrentiel si vos méthodes de gestion sont réellement spécifiques.\n\n## Risques\n\n- Sous-estimation fréquente du coût et du délai.\n- Besoins qui évoluent pendant le développement.\n- Difficulté à atteindre la maturité fonctionnelle d’un produit SaaS.\n- Bugs, indisponibilités et dette technique.\n- Dépendance à une ou deux personnes connaissant le code.\n- Maintenance permanente : sécurité, navigateurs, API, sauvegardes, performances et conformité.\n- Coût d’opportunité : les ressources consacrées à cet outil ne travaillent pas sur les activités génératrices de revenus.\n- Risque de produire un outil très spécifique mais moins ergonomique qu’une solution du marché.\n- Absence de véritable fin de projet : le logiciel doit être maintenu aussi longtemps qu’il est utilisé.\n\n## Coûts\n\nMême une application relativement simple implique :\n\n- recueil et formalisation des besoins ;\n- conception fonctionnelle et technique ;\n- développement ;\n- tests ;\n- hébergement ;\n- documentation ;\n- sécurité ;\n- assistance aux utilisateurs ;\n- maintenance corrective et évolutive.\n\n### Ordre de grandeur sur trois ans\n\n- version initiale simple : **40 000 à 100 000 €** ;\n- produit plus complet et intégré : **100 000 à 250 000 € ou davantage** ;\n- maintenance annuelle : généralement **15 à 25 % du coût initial**, parfois plus.\n\nUn développement réalisé “en interne” n’est pas gratuit : il faut valoriser le temps des salariés, le recrutement éventuel et l’indisponibilité de ces ressources pour d’autres projets.\n\n## Conséquences organisationnelles\n\n- Création d’une responsabilité durable de propriétaire du produit.\n- Nécessité de prioriser les demandes et de gérer une feuille de route.\n- Mise en place de support, documentation, tests et procédures de déploiement.\n- Arbitrages réguliers entre besoins opérationnels et coûts techniques.\n- Dépendance aux compétences de développement et d’exploitation.\n- Risque de conflits internes sur les fonctionnalités prioritaires.\n\n## Quand cette stratégie est-elle pertinente ?\n\nElle ne devrait être envisagée que si plusieurs conditions sont réunies :\n\n1. vos processus sont véritablement uniques et essentiels à votre avantage concurrentiel ;\n2. les solutions SaaS couvrent moins de 60 à 70 % des besoins critiques ;\n3. les contraintes réglementaires ou d’intégration ne peuvent pas être satisfaites autrement ;\n4. vous disposez d’un budget durable, pas seulement d’un budget de lancement ;\n5. une personne est clairement responsable du produit ;\n6. la valeur économique attendue dépasse nettement le coût total.\n\nUne approche hybride peut être préférable : **Saa"
+          }
+        ],
+        "turns": [],
+        "output": "## Synthèse\n\nPour une entreprise de 12 personnes, **migrer vers une solution SaaS standard** est généralement le meilleur compromis entre coût, rapidité, fiabilité et capacité d’évolution.  \n\n- **Conserver l’outil actuel** peut être pertinent à court terme si les problèmes sont limités et corrigibles.\n- **Développer une solution interne** ne se justifie que si la gestion de projet constitue un avantage concurrentiel majeur ou si vos contraintes sont réellement incompatibles avec les outils du marché.\n\nL’analyse ci-dessous repose sur un horizon de trois ans. Les montants sont indicatifs et doivent être adaptés à votre outil, à vos salaires et à la complexité de vos processus.\n\n---\n\n# 1. Comparaison synthétique\n\n| Critère | Conserver l’outil actuel | SaaS standard | Solution interne |\n|---|---:|---:|---:|\n| Investissement initial | Faible | Faible à modéré | Très élevé |\n| Coût total sur 3 ans | Faible à modéré, mais parfois caché | Prévisible et modéré | Élevé et difficile à prévoir |\n| Délai de mise en œuvre | Immédiat | 1 à 3 mois | 6 à 18 mois |\n| Adaptation aux besoins | Limitée | Bonne si processus standardisables | Théoriquement excellente |\n| Maintenance | Dépend de l’existant | Assurée par l’éditeur | Entièrement à votre charge |\n| Sécurité et continuité | Variable | Généralement solides, à vérifier | Responsabilité interne |\n| Risque opérationnel | Croissant si outil vieillissant | Modéré | Élevé |\n| Dépendance externe | Dépendance à l’outil actuel | Dépendance à l’éditeur | Dépendance aux développeurs clés |\n| Évolutivité | Souvent limitée | Bonne | Coûteuse |\n| Pertinence pour 12 personnes | Temporaire | Forte | Faible, sauf cas exceptionnel |\n\n---\n\n# 2. Stratégie 1 — Conserver l’outil actuel\n\n## Avantages\n\n- Aucun projet de migration immédiat.\n- Pas ou peu de formation supplémentaire.\n- Continuité des habitudes et des processus.\n- Conservation de l’historique sans opération de reprise.\n- Investissement initial minimal.\n- Pas de baisse temporaire de productivité liée au changement.\n\n## Risques\n\n- Les problèmes qui motivent le remplacement restent présents.\n- Accumulation de tâches manuelles, doubles saisies, fichiers parallèles et contournements.\n- Risque de sécurité ou d’indisponibilité si l’outil est ancien ou mal maintenu.\n- Difficultés d’intégration avec la messagerie, la facturation, le CRM ou les outils documentaires.\n- Faible capacité à accompagner la croissance.\n- Dépendance à un fournisseur qui pourrait augmenter ses prix ou arrêter le produit.\n- Coût caché de la non-qualité : retards, erreurs, informations introuvables, réunions de coordination supplémentaires.\n\n## Coûts\n\nLes coûts directs peuvent sembler faibles, mais il faut intégrer :\n\n- licences et maintenance ;\n- support technique ;\n- temps passé à corriger ou contourner les limites ;\n- tâches manuelles ;\n- perte de productivité ;\n- éventuels incidents ou pertes de données ;\n- coût d’une migration future, potentiellement plus difficile.\n\n### Ordre de grandeur sur trois ans\n\n- Coûts directs : **3 000 à 15 000 €**\n- Coûts indirects : potentiellement **10 000 à 40 000 €**, selon le temps perdu.\n\nÀ titre d’exemple, une perte moyenne de seulement 30 minutes par semaine et par personne représente environ **936 heures sur trois ans** pour 12 salariés.\n\n## Conséquences organisationnelles\n\n- Faible perturbation immédiate.\n- Maintien des habitudes, y compris les mauvaises pratiques.\n- Risque de frustration croissante des utilisateurs.\n- Difficulté à standardiser les méthodes de travail si chacun compense les lacunes à sa façon.\n- Report de l’effort de changement plutôt que suppression de cet effort.\n\n## Quand cette stratégie est-elle pertinente ?\n\n- Les difficultés sont mineures.\n- L’outil reste maintenu, sécurisé et compatible avec vos autres systèmes.\n- Le principal problème vient des processus ou de l’usage, non du logiciel.\n- Une configuration, une formation ou quelques automatisations peuvent résoudre l’essentiel.\n- L’entreprise traverse une période où une migration serait trop perturbante.\n\nCette option peut être retenue comme **solution transitoire de six à douze mois**, avec des critères précis de réévaluation.\n\n---\n\n# 3. Stratégie 2 — Migrer vers une solution SaaS standard\n\nIl peut s’agir d’un outil de gestion de tâches et de projets généraliste, éventuellement complété par des fonctions de suivi du temps, de charge, de budget ou de reporting.\n\n## Avantages\n\n- Mise en œuvre rapide.\n- Investissement initial limité.\n- Mises à jour, hébergement, sauvegardes et maintenance assurés par l’éditeur.\n- Accès distant et collaboration simplifiée.\n- Fonctions éprouvées : tâches, dépendances, tableaux, calendriers, commentaires, notifications et rapports.\n- Intégrations disponibles avec la messagerie, les calendriers, le stockage documentaire ou le CRM.\n- Capacité à ajouter ou retirer des utilisateurs facilement.\n- Niveau de disponibilité et de sécurité souvent supérieur à ce qu’une petite entreprise peut maintenir seule.\n\n## Risques\n\n- Dépendance à l’éditeur et à sa politique tarifaire.\n- Fonctionnement imposé en partie par le produit.\n- Surabondance de fonctions pouvant rendre l’outil complexe.\n- Risque de migration incomplète ou de mauvaise qualité des données.\n- Données hébergées chez un tiers.\n- Difficultés de sortie si les fonctions d’export sont insuffisantes.\n- Multiplication possible des abonnements ou modules complémentaires.\n- Personnalisation limitée par rapport à un développement spécifique.\n\n## Coûts\n\n### Coûts initiaux\n\n- sélection de l’outil ;\n- paramétrage ;\n- nettoyage et migration des données ;\n- intégrations ;\n- formation ;\n- accompagnement au changement.\n\n### Coûts récurrents\n\nPour 12 personnes, une fourchette courante serait :\n\n- licences : **1 500 à 6 000 € par an** ;\n- administration et accompagnement : **1 000 à 3 000 € par an** ;\n- migration et déploiement initial : **3 000 à 12 000 €**.\n\n### Ordre de grandeur sur trois ans\n\n**10 000 à 35 000 €**, selon le niveau de gamme, les intégrations et l’accompagnement.\n\nCe coût peut être compensé par quelques heures gagnées chaque mois sur le reporting, la coordination et la recherche d’informations.\n\n## Conséquences organisationnelles\n\n- Nécessité de clarifier et de standardiser les méthodes de gestion de projet.\n- Phase temporaire de formation et de baisse de productivité.\n- Désignation souhaitable d’un référent interne.\n- Réduction des fichiers parallèles si les règles d’utilisation sont claires.\n- Plus grande transparence sur les responsabilités, les échéances et la charge.\n- Possibles résistances si l’outil est perçu comme un dispositif de contrôle plutôt que de coordination.\n\nPour une entreprise de 12 personnes, l’administration ne devrait pas devenir un poste dédié. Un référent peut généralement assurer ce rôle à raison de quelques heures par mois après le déploiement.\n\n## Points contractuels et techniques à vérifier\n\n- conformité au RGPD et localisation des données ;\n- chiffrement, sauvegardes et authentification multifacteur ;\n- disponibilité garantie et historique des incidents ;\n- gestion des droits d’accès ;\n- export complet dans un format exploitable ;\n- suppression et restitution des données en fin de contrat ;\n- politique d’augmentation des tarifs ;\n- réversibilité ;\n- qualité du support ;\n- intégrations réellement nécessaires ;\n- conditions applicables aux sous-traitants et aux fonctions d’intelligence artificielle.\n\n## Quand cette stratégie est-elle pertinente ?\n\n- Vos processus sont relativement standards.\n- Vous voulez être opérationnel rapidement.\n- Vous ne souhaitez pas entretenir une équipe de développement.\n- La gestion de projet est importante, mais le logiciel lui-même n’est pas votre produit.\n- Vous acceptez d’adapter une partie de vos méthodes aux bonnes pratiques de l’outil.\n\n---\n\n# 4. Stratégie 3 — Développer une solution interne\n\n## Avantages\n\n- Adaptation précise aux processus de l’entreprise.\n- Maîtrise de la feuille de route fonctionnelle.\n- Possibilité d’intégrer profondément vos outils existants.\n- Contrôle renforcé sur l’hébergement et les données, sous réserve de disposer des compétences nécessaires.\n- Absence de dépendance fonctionnelle à un éditeur SaaS.\n- Possibilité de créer un avantage concurrentiel si vos méthodes de gestion sont réellement spécifiques.\n\n## Risques\n\n- Sous-estimation fréquente du coût et du délai.\n- Besoins qui évoluent pendant le développement.\n- Difficulté à atteindre la maturité fonctionnelle d’un produit SaaS.\n- Bugs, indisponibilités et dette technique.\n- Dépendance à une ou deux personnes connaissant le code.\n- Maintenance permanente : sécurité, navigateurs, API, sauvegardes, performances et conformité.\n- Coût d’opportunité : les ressources consacrées à cet outil ne travaillent pas sur les activités génératrices de revenus.\n- Risque de produire un outil très spécifique mais moins ergonomique qu’une solution du marché.\n- Absence de véritable fin de projet : le logiciel doit être maintenu aussi longtemps qu’il est utilisé.\n\n## Coûts\n\nMême une application relativement simple implique :\n\n- recueil et formalisation des besoins ;\n- conception fonctionnelle et technique ;\n- développement ;\n- tests ;\n- hébergement ;\n- documentation ;\n- sécurité ;\n- assistance aux utilisateurs ;\n- maintenance corrective et évolutive.\n\n### Ordre de grandeur sur trois ans\n\n- version initiale simple : **40 000 à 100 000 €** ;\n- produit plus complet et intégré : **100 000 à 250 000 € ou davantage** ;\n- maintenance annuelle : généralement **15 à 25 % du coût initial**, parfois plus.\n\nUn développement réalisé “en interne” n’est pas gratuit : il faut valoriser le temps des salariés, le recrutement éventuel et l’indisponibilité de ces ressources pour d’autres projets.\n\n## Conséquences organisationnelles\n\n- Création d’une responsabilité durable de propriétaire du produit.\n- Nécessité de prioriser les demandes et de gérer une feuille de route.\n- Mise en place de support, documentation, tests et procédures de déploiement.\n- Arbitrages réguliers entre besoins opérationnels et coûts techniques.\n- Dépendance aux compétences de développement et d’exploitation.\n- Risque de conflits internes sur les fonctionnalités prioritaires.\n\n## Quand cette stratégie est-elle pertinente ?\n\nElle ne devrait être envisagée que si plusieurs conditions sont réunies :\n\n1. vos processus sont véritablement uniques et essentiels à votre avantage concurrentiel ;\n2. les solutions SaaS couvrent moins de 60 à 70 % des besoins critiques ;\n3. les contraintes réglementaires ou d’intégration ne peuvent pas être satisfaites autrement ;\n4. vous disposez d’un budget durable, pas seulement d’un budget de lancement ;\n5. une personne est clairement responsable du produit ;\n6. la valeur économique attendue dépasse nettement le coût total.\n\nUne approche hybride peut être préférable : **Saa",
+        "error": null,
+        "initial_request_exact": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    }
+  ]
+}

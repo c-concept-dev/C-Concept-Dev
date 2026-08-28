@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:21:00.547Z",
+  "completed_at": "2026-08-28T07:21:03.480Z",
+  "latency_total_ms": 2932.992,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:21:03.480Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 2927.085,
+      "response_id": "resp_0e63d128b67eb38e006a9136dcb1ec87d2a0099116534d83fd",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 116,
+        "total_tokens": 128,
+        "reasoning_tokens": 0
+      },
+      "estimated_cost_usd": 0.002368,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Bien sûr. Pour vous aider à préparer votre cours, indiquez-moi :\n\n- **Le sujet**\n- **Le niveau des élèves**\n- **La durée du cours**\n- **Les objectifs pédagogiques**\n- Le **format souhaité** : plan, fiche complète, diaporama, activités, exercices, évaluation…\n- Les éventuelles **contraintes ou ressources** à utiliser\n\nExemple : « Cours de 55 minutes sur la Révolution française pour une classe de 4ᵉ, avec activité en groupe et quiz final. »"
+    }
+  ],
+  "turns": [],
+  "output": "Bien sûr. Pour vous aider à préparer votre cours, indiquez-moi :\n\n- **Le sujet**\n- **Le niveau des élèves**\n- **La durée du cours**\n- **Les objectifs pédagogiques**\n- Le **format souhaité** : plan, fiche complète, diaporama, activités, exercices, évaluation…\n- Les éventuelles **contraintes ou ressources** à utiliser\n\nExemple : « Cours de 55 minutes sur la Révolution française pour une classe de 4ᵉ, avec activité en groupe et quiz final. »",
+  "error": null,
+  "initial_request_exact": "Je veux préparer un cours.",
+  "clarification_detection": "heuristique documentée"
+}

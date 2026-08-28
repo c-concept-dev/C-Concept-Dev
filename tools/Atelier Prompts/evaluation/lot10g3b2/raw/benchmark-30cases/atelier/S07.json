@@ -1,0 +1,349 @@
+{
+  "started_at": "2026-08-28T07:26:13.869Z",
+  "completed_at": "2026-08-28T07:27:12.322Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 58452.544,
+  "time_to_first_useful_result_ms": 58452.556,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:26:14.388Z",
+      "latency_ms": 498.561,
+      "status_http": 502,
+      "request": {
+        "demande": "Écris une fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant, avec trois exemples d'utilisation.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:26:14.887Z",
+      "latency_ms": 188.789,
+      "status_http": 502,
+      "request": {
+        "demande": "Écris une fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant, avec trois exemples d'utilisation.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 687.35,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 55242.455,
+    "context": {
+      "demande": "Écris une fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant, avec trois exemples d'utilisation.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Produire une fonction JavaScript qui déduplique un ensemble de nombres et les retourne triés par ordre croissant.",
+        "intentions_secondaires": [
+          "Illustrer le fonctionnement avec exactement trois exemples d'utilisation."
+        ],
+        "declarations": [
+          {
+            "contenu": "La fonction demandée est une fonction JavaScript nommée uniqueSorted(numbers).",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "fonction JavaScript `uniqueSorted(numbers)`",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "La fonction doit retourner les nombres uniques triés par ordre croissant.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "retourne les nombres uniques triés par ordre croissant",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "Le livrable doit comporter exactement trois exemples d'utilisation.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "avec trois exemples d'utilisation",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [],
+        "informations_manquantes": []
+      },
+      "evaluation": {
+        "niveau_risque": "faible",
+        "justification_risque": "Il s'agit d'une tâche de programmation courte, standard et réversible, sans enjeu sensible.",
+        "connaissance_externe_necessaire": false,
+        "actualite_requise": false,
+        "justification_connaissance": "La fonction peut être produite avec des constructions JavaScript courantes, sans fait actuel ni documentation externe indispensable.",
+        "calcul_requis": false,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": []
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Écriture de JavaScript valide",
+          "Déduplication de valeurs numériques",
+          "Tri numérique croissant",
+          "Conception d'exemples exécutables"
+        ],
+        "hypotheses_autorisees": [
+          "Traiter numbers comme un tableau JavaScript de nombres usuels, sans validation avancée des entrées."
+        ],
+        "hypotheses_interdites": [
+          "Inventer un comportement particulier pour les entrées non numériques ou mal formées.",
+          "Présenter une gestion de NaN ou d'Infinity comme explicitement demandée."
+        ],
+        "role_adaptatif": {
+          "intitule": "Développeur JavaScript concis",
+          "mission": "Fournir une implémentation simple, correcte et directement exécutable de la fonction demandée.",
+          "competences": [
+            "Syntaxe JavaScript",
+            "Collections et tableaux",
+            "Tri numérique",
+            "Exemples de code"
+          ],
+          "limites": [
+            "Ne pas étendre le contrat aux cas d'entrée non spécifiés.",
+            "Ne pas ajouter de dépendance ou de complexité inutile."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "La demande comporte une seule intention technique, un faible risque et un réglage manuel imposant une analyse minimale.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Choisir une déduplication idiomatique et un comparateur de tri numérique explicite.",
+            "Sélectionner trois exemples courts couvrant des entrées complémentaires."
+          ],
+          "estimations_a_etiqueter": [],
+          "inconnues_non_devineables": []
+        }
+      },
+      "livrable": {
+        "nature": "Fonction JavaScript accompagnée de trois exemples d'utilisation",
+        "format_technique": "code",
+        "quantites": {
+          "min": 3,
+          "max": 3,
+          "unite": "exemples d'utilisation"
+        },
+        "ton": "Concis, direct et pédagogique",
+        "longueur_indicative": "Environ 5 à 10 lignes de JavaScript, sans développement annexe."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "instruction",
+            "titre": "Déduplication et tri numérique",
+            "contenu": "Implémente la fonction avec une déduplication idiomatique, par exemple au moyen de `Set`, puis applique un tri numérique croissant avec un comparateur explicite. Retourne le nouveau tableau obtenu.",
+            "justification": "Cette approche produit simplement le comportement demandé et évite le tri lexicographique par défaut.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant",
+                "usage": "Établit le langage, la signature et le comportement attendu."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Choisit une méthode JavaScript concise adaptée à la déduplication et au tri numérique."
+              }
+            ]
+          },
+          {
+            "type": "contrainte",
+            "titre": "Périmètre de l'implémentation",
+            "contenu": "Conserve une implémentation autonome et simple : n'ajoute aucune dépendance externe ni validation complexe non demandée, et évite de modifier le tableau d'entrée lorsqu'un nouveau tableau peut être retourné.",
+            "justification": "Cette contrainte limite la complexité et préserve un comportement prévisible sans inventer de contrat supplémentaire.",
+            "fondements": [
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Définit un choix de conception proportionné à cette courte fonction utilitaire."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Trois exemples complémentaires",
+            "contenu": "Ajoute exactement trois exemples d'appel avec leurs résultats observables. Utilise des cas complémentaires comprenant des doublons et un ordre initial non trié ; l'un des cas peut inclure des nombres négatifs ou un tableau vide.",
+            "justification": "Le nombre d'exemples est imposé, tandis que leur diversité facilite la vérification du comportement.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "avec trois exemples d'utilisation",
+                "usage": "Impose exactement trois exemples."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Sélectionne des cas variés pour rendre les exemples plus démonstratifs."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "Le code définit une fonction JavaScript nommée uniqueSorted avec un paramètre numbers.",
+          "Le résultat ne contient qu'une occurrence de chaque valeur numérique d'entrée.",
+          "Le résultat est trié numériquement par ordre croissant.",
+          "Le livrable contient exactement trois exemples d'utilisation.",
+          "Le code est syntaxiquement valide et directement exécutable."
+        ],
+        "criteres_qualitatifs": [
+          "L'implémentation est concise et sans dépendance externe.",
+          "Le tri ne repose pas sur l'ordre lexicographique par défaut.",
+          "Les exemples couvrent au moins des doublons et une entrée initialement non triée.",
+          "Le tableau d'entrée n'est pas modifié inutilement."
+        ],
+        "elements_non_verifiables": [],
+        "controle_provenance": [
+          {
+            "affirmation": "La fonction doit s'appeler uniqueSorted(numbers) et retourner les nombres uniques en ordre croissant.",
+            "statut": "soutenue",
+            "justification": "Cette exigence figure explicitement dans la demande."
+          },
+          {
+            "affirmation": "Le livrable doit contenir exactement trois exemples d'utilisation.",
+            "statut": "soutenue",
+            "justification": "Le nombre d'exemples est explicitement indiqué par l'utilisateur."
+          },
+          {
+            "affirmation": "Le recours à Set et à un comparateur numérique constitue un choix d'implémentation.",
+            "statut": "hypothese",
+            "justification": "La méthode précise n'est pas imposée par l'utilisateur et reste un choix technique."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:27:10.275Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 55078.891,
+      "response_id": "resp_02c321d7fa3caa53006a913817357c87d29772e9ac0d541f83",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9637,
+        "output_tokens": 5023,
+        "total_tokens": 14660,
+        "reasoning_tokens": 3062
+      },
+      "estimated_cost_usd": 0.139008,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Produire une fonction JavaScript qui déduplique un ensemble de nombres et les retourne triés par ordre croissant.\",\n    \"intentions_secondaires\": [\n      \"Illustrer le fonctionnement avec exactement trois exemples d'utilisation.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"La fonction demandée est une fonction JavaScript nommée uniqueSorted(numbers).\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"fonction JavaScript `uniqueSorted(numbers)`\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La fonction doit retourner les nombres uniques triés par ordre croissant.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"retourne les nombres uniques triés par ordre croissant\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"Le livrable doit comporter exactement trois exemples d'utilisation.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"avec trois exemples d'utilisation\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [],\n    \"informations_manquantes\": []\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"faible\",\n    \"justification_risque\": \"Il s'agit d'une tâche de programmation courte, standard et réversible, sans enjeu sensible.\",\n    \"connaissance_externe_necessaire\": false,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La fonction peut être produite avec des constructions JavaScript courantes, sans fait actuel ni documentation externe indispensable.\",\n    \"calcul_requis\": false,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Écriture de JavaScript valide\",\n      \"Déduplication de valeurs numériques\",\n      \"Tri numérique croissant\",\n      \"Conception d'exemples exécutables\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Traiter numbers comme un tableau JavaScript de nombres usuels, sans validation avancée des entrées.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer un comportement particulier pour les entrées non numériques ou mal formées.\",\n      \"Présenter une gestion de NaN ou d'Infinity comme explicitement demandée.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Développeur JavaScript concis\",\n      \"mission\": \"Fournir une implémentation simple, correcte et directement exécutable de la fonction demandée.\",\n      \"competences\": [\n        \"Syntaxe JavaScript\",\n        \"Collections et tableaux\",\n        \"Tri numérique\",\n        \"Exemples de code\"\n      ],\n      \"limites\": [\n        \"Ne pas étendre le contrat aux cas d'entrée non spécifiés.\",\n        \"Ne pas ajouter de dépendance ou de complexité inutile.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"La demande comporte une seule intention technique, un faible risque et un réglage manuel imposant une analyse minimale.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Choisir une déduplication idiomatique et un comparateur de tri numérique explicite.\",\n        \"Sélectionner trois exemples courts couvrant des entrées complémentaires.\"\n      ],\n      \"estimations_a_etiqueter\": [],\n      \"inconnues_non_devineables\": []\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Fonction JavaScript accompagnée de trois exemples d'utilisation\",\n    \"format_technique\": \"code\",\n    \"quantites\": {\n      \"min\": 3,\n      \"max\": 3,\n      \"unite\": \"exemples d'utilisation\"\n    },\n    \"ton\": \"Concis, direct et pédagogique\",\n    \"longueur_indicative\": \"Environ 5 à 10 lignes de JavaScript, sans développement annexe.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Déduplication et tri numérique\",\n        \"contenu\": \"Implémente la fonction avec une déduplication idiomatique, par exemple au moyen de `Set`, puis applique un tri numérique croissant avec un comparateur explicite. Retourne le nouveau tableau obtenu.\",\n        \"justification\": \"Cette approche produit simplement le comportement demandé et évite le tri lexicographique par défaut.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant\",\n            \"usage\": \"Établit le langage, la signature et le comportement attendu.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Choisit une méthode JavaScript concise adaptée à la déduplication et au tri numérique.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"contrainte\",\n        \"titre\": \"Périmètre de l'implémentation\",\n        \"contenu\": \"Conserve une implémentation autonome et simple : n'ajoute aucune dépendance externe ni validation complexe non demandée, et évite de modifier le tableau d'entrée lorsqu'un nouveau tableau peut être retourné.\",\n        \"justification\": \"Cette contrainte limite la complexité et préserve un comportement prévisible sans inventer de contrat supplémentaire.\",\n        \"fondements\": [\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Définit un choix de conception proportionné à cette courte fonction utilitaire.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Trois exemples complémentaires\",\n        \"contenu\": \"Ajoute exactement trois exemples d'appel avec leurs résultats observables. Utilise des cas complémentaires comprenant des doublons et un ordre initial non trié ; l'un des cas peut inclure des nombres négatifs ou un tableau vide.\",\n        \"justification\": \"Le nombre d'exemples est imposé, tandis que leur diversité facilite la vérification du comportement.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"avec trois exemples d'utilisation\",\n            \"usage\": \"Impose exactement trois exemples.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Sélectionne des cas variés pour rendre les exemples plus démonstratifs.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Le code définit une fonction JavaScript nommée uniqueSorted avec un paramètre numbers.\",\n      \"Le résultat ne contient qu'une occurrence de chaque valeur numérique d'entrée.\",\n      \"Le résultat est trié numériquement par ordre croissant.\",\n      \"Le livrable contient exactement trois exemples d'utilisation.\",\n      \"Le code est syntaxiquement valide et directement exécutable.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"L'implémentation est concise et sans dépendance externe.\",\n      \"Le tri ne repose pas sur l'ordre lexicographique par défaut.\",\n      \"Les exemples couvrent au moins des doublons et une entrée initialement non triée.\",\n      \"Le tableau d'entrée n'est pas modifié inutilement.\"\n    ],\n    \"elements_non_verifiables\": [],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"La fonction doit s'appeler uniqueSorted(numbers) et retourner les nombres uniques en ordre croissant.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Cette exigence figure explicitement dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Le livrable doit contenir exactement trois exemples d'utilisation.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Le nombre d'exemples est explicitement indiqué par l'utilisateur.\"\n      },\n      {\n        \"affirmation\": \"Le recours à Set et à un comparateur numérique constitue un choix d'implémentation.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"La méthode précise n'est pas imposée par l'utilisateur et reste un choix technique.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Développeur JavaScript concis.\nFournir une implémentation simple, correcte et directement exécutable de la fonction demandée.\nCompétences à mobiliser : Syntaxe JavaScript ; Collections et tableaux ; Tri numérique ; Exemples de code.\nLimites à respecter : Ne pas étendre le contrat aux cas d'entrée non spécifiés ; Ne pas ajouter de dépendance ou de complexité inutile.\n\n## OBJECTIF\nProduire une fonction JavaScript qui déduplique un ensemble de nombres et les retourne triés par ordre croissant.\n\n## DEMANDE ORIGINALE\nÉcris une fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant, avec trois exemples d'utilisation.\n\n## FORMAT DE SORTIE\n- Livrable : Fonction JavaScript accompagnée de trois exemples d'utilisation\n- Format technique : code\n- Ton : Concis, direct et pédagogique\n- Longueur indicative : Environ 5 à 10 lignes de JavaScript, sans développement annexe.\n- Quantité : minimum 3 ; maximum 3 exemples d'utilisation\n- Structure : plan imposé (3 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Choisir une déduplication idiomatique et un comparateur de tri numérique explicite.\n- Sélectionner trois exemples courts couvrant des entrées complémentaires.\n\n## HYPOTHÈSES AUTORISÉES\n- Traiter numbers comme un tableau JavaScript de nombres usuels, sans validation avancée des entrées.\n\n## HYPOTHÈSES INTERDITES\n- Inventer un comportement particulier pour les entrées non numériques ou mal formées.\n- Présenter une gestion de NaN ou d'Infinity comme explicitement demandée.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Déduplication et tri numérique\nImplémente la fonction avec une déduplication idiomatique, par exemple au moyen de `Set`, puis applique un tri numérique croissant avec un comparateur explicite. Retourne le nouveau tableau obtenu.\n\n## Périmètre de l'implémentation\nConserve une implémentation autonome et simple : n'ajoute aucune dépendance externe ni validation complexe non demandée, et évite de modifier le tableau d'entrée lorsqu'un nouveau tableau peut être retourné.\n\n## Trois exemples complémentaires\nAjoute exactement trois exemples d'appel avec leurs résultats observables. Utilise des cas complémentaires comprenant des doublons et un ordre initial non trié ; l'un des cas peut inclure des nombres négatifs ou un tableau vide.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Le code définit une fonction JavaScript nommée uniqueSorted avec un paramètre numbers.\n- Le résultat ne contient qu'une occurrence de chaque valeur numérique d'entrée.\n- Le résultat est trié numériquement par ordre croissant.\n- Le livrable contient exactement trois exemples d'utilisation.\n- Le code est syntaxiquement valide et directement exécutable.\n- L'implémentation est concise et sans dépendance externe.\n- Le tri ne repose pas sur l'ordre lexicographique par défaut.\n- Les exemples couvrent au moins des doublons et une entrée initialement non triée.\n- Le tableau d'entrée n'est pas modifié inutilement.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:27:12.310Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 1950.339,
+    "response_id": "resp_027908ab752d7a21006a91384e6e8087d2a6cbdf397b2cb655",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 1300,
+      "output_tokens": 103,
+      "total_tokens": 1403,
+      "reasoning_tokens": 0
+    },
+    "estimated_cost_usd": 0.00726,
+    "incomplete_details": null,
+    "error": null,
+    "output": "```javascript\nfunction uniqueSorted(numbers) {\n  return [...new Set(numbers)].sort((a, b) => a - b);\n}\n\nconsole.log(uniqueSorted([3, 1, 2, 3, 1]));  // [1, 2, 3]\nconsole.log(uniqueSorted([0, -2, 4, -2, 0])); // [-2, 0, 4]\nconsole.log(uniqueSorted([]));                 // []\n```"
+  },
+  "output": "```javascript\nfunction uniqueSorted(numbers) {\n  return [...new Set(numbers)].sort((a, b) => a - b);\n}\n\nconsole.log(uniqueSorted([3, 1, 2, 3, 1]));  // [1, 2, 3]\nconsole.log(uniqueSorted([0, -2, 4, -2, 0])); // [-2, 0, 4]\nconsole.log(uniqueSorted([]));                 // []\n```",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 10937,
+    "output_tokens": 5126,
+    "total_tokens": 16063,
+    "estimated_cost_usd": 0.146268
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

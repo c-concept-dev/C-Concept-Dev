@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:16:31.618Z",
+  "completed_at": "2026-08-28T07:16:34.123Z",
+  "latency_total_ms": 2505.119,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:16:34.123Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 2500.242,
+      "response_id": "resp_0537aaf861d2a0f0006a9135cfb95c87d292648fde5f54f30e",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 101,
+        "total_tokens": 113,
+        "reasoning_tokens": 0
+      },
+      "estimated_cost_usd": 0.002068,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Avec plaisir. Pour vous aider, dites-moi :\n\n- **L’occasion** : mariage, anniversaire, cérémonie, départ, présentation professionnelle…\n- **Le public**\n- **Le ton souhaité** : émouvant, humoristique, solennel, inspirant…\n- **La durée approximative**\n- **Les idées, anecdotes ou personnes à mentionner**\n\nVous pouvez aussi m’envoyer un brouillon : je le corrigerai et le rendrai plus fluide."
+    }
+  ],
+  "turns": [],
+  "output": "Avec plaisir. Pour vous aider, dites-moi :\n\n- **L’occasion** : mariage, anniversaire, cérémonie, départ, présentation professionnelle…\n- **Le public**\n- **Le ton souhaité** : émouvant, humoristique, solennel, inspirant…\n- **La durée approximative**\n- **Les idées, anecdotes ou personnes à mentionner**\n\nVous pouvez aussi m’envoyer un brouillon : je le corrigerai et le rendrai plus fluide.",
+  "error": null,
+  "initial_request_exact": "Je veux écrire un discours.",
+  "clarification_detection": "heuristique documentée"
+}

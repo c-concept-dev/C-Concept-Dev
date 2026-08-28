@@ -1,0 +1,424 @@
+{
+  "started_at": "2026-08-28T07:28:30.370Z",
+  "completed_at": "2026-08-28T07:29:59.572Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 89201.396,
+  "time_to_first_useful_result_ms": 89201.404,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:28:30.877Z",
+      "latency_ms": 144.416,
+      "status_http": 502,
+      "request": {
+        "demande": "Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:28:31.022Z",
+      "latency_ms": 108.754,
+      "status_http": 502,
+      "request": {
+        "demande": "Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 253.17,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 69249.808,
+    "context": {
+      "demande": "Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Obtenir un menu végétarien simple et complet pour quatre personnes.",
+        "intentions_secondaires": [
+          "Disposer d'une liste de courses consolidée et organisée."
+        ],
+        "declarations": [
+          {
+            "contenu": "L'utilisateur souhaite une proposition de menu.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "Le menu doit être végétarien et simple.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "menu végétarien simple",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Les quantités doivent convenir à quatre personnes.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "pour quatre personnes",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le menu doit comporter une entrée, un plat et un dessert.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "comprenant une entrée, un plat et un dessert",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Une liste de courses regroupée doit accompagner le menu.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "avec une liste de courses regroupée",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [
+          "Le terme « simple » ne fixe pas de durée maximale ni de nombre maximal d'étapes.",
+          "La demande ne précise pas si le végétarisme doit être lacto-ovo-végétarien ou entièrement végétal."
+        ],
+        "informations_manquantes": []
+      },
+      "evaluation": {
+        "niveau_risque": "faible",
+        "justification_risque": "Il s'agit d'une tâche culinaire courante, créative et facilement révisable.",
+        "connaissance_externe_necessaire": false,
+        "actualite_requise": false,
+        "justification_connaissance": "Aucune donnée actuelle ou factuelle à vérifier n'est nécessaire : le menu, les recettes et leurs quantités peuvent être conçus comme des choix culinaires opérationnels.",
+        "calcul_requis": true,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": []
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Conception d'un menu végétarien cohérent",
+          "Dimensionnement des ingrédients pour quatre personnes",
+          "Agrégation des quantités dans une liste de courses",
+          "Contrôle de cohérence entre recettes et courses"
+        ],
+        "hypotheses_autorisees": [
+          "Interpréter le végétarisme comme lacto-ovo-végétarien à défaut de précision contraire.",
+          "Choisir autonomement des plats accessibles et peu techniques."
+        ],
+        "hypotheses_interdites": [
+          "Supposer que les convives n'ont aucune allergie ou intolérance.",
+          "Supposer que des ingrédients de base sont déjà présents sans les signaler.",
+          "Présenter des prix ou des disponibilités commerciales comme établis."
+        ],
+        "role_adaptatif": {
+          "intitule": "Concepteur de menu familial végétarien",
+          "mission": "Composer un repas simple, cohérent et directement réalisable pour quatre personnes, puis consolider les ingrédients nécessaires.",
+          "competences": [
+            "Cuisine végétarienne courante",
+            "Estimation de portions",
+            "Organisation pratique des courses"
+          ],
+          "limites": [
+            "Ne connaît pas les allergies ou intolérances des convives.",
+            "Ne connaît pas les ingrédients ni le matériel déjà disponibles.",
+            "Ne vérifie pas les prix ou la disponibilité locale des produits."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "La demande possède une seule intention principale, un risque faible et une structure explicite ; le réglage manuel impose en outre une analyse minimale.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Choisir les trois préparations du menu.",
+            "Définir des quantités culinaires adaptées à quatre convives.",
+            "Classer la liste de courses par catégories pratiques."
+          ],
+          "estimations_a_etiqueter": [
+            "Les éventuels temps de préparation doivent être indiqués comme approximatifs."
+          ],
+          "inconnues_non_devineables": [
+            "Les allergies, intolérances et préférences particulières des convives.",
+            "Les ingrédients et ustensiles déjà disponibles."
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Menu végétarien complet avec préparations concises et liste de courses regroupée",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 1,
+          "max": 1,
+          "unite": "menu complet"
+        },
+        "ton": "Pratique, clair et concis",
+        "longueur_indicative": "Environ 300 à 500 mots, avec trois plats clairement séparés puis une liste de courses par catégories."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "hypothese",
+            "titre": "Convention végétarienne",
+            "contenu": "À défaut d'autre précision, interprète « végétarien » comme lacto-ovo-végétarien. Si le menu contient des œufs ou des produits laitiers, rends cette convention brièvement visible. Exclue viande, poisson, fruits de mer, gélatine animale et bouillons carnés.",
+            "justification": "Cette convention résout l'ambiguïté sans imposer une question préalable pour une demande simple.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "menu végétarien simple",
+                "usage": "Établit l'exigence végétarienne."
+              },
+              {
+                "nature": "hypothese",
+                "citation": null,
+                "usage": "Définit explicitement le périmètre retenu en l'absence de précision."
+              }
+            ]
+          },
+          {
+            "type": "critere",
+            "titre": "Simplicité opérationnelle",
+            "contenu": "Choisis des plats utilisant des ingrédients courants, des techniques de base et peu d'étapes. Pour chaque partie du menu, indique le nom du plat, les ingrédients quantifiés et une préparation très concise.",
+            "justification": "La simplicité doit se traduire concrètement dans le choix des plats et leur exécution.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "simple",
+                "usage": "Impose une conception facile à réaliser."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Une préparation concise rend le menu proposé directement exploitable."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Dimensionnement des portions",
+            "contenu": "Dimensionne tous les ingrédients pour quatre convives. Utilise des unités domestiques claires et une précision proportionnée à une recette familiale, sans chiffres artificiellement détaillés.",
+            "justification": "Les quantités doivent être immédiatement utilisables pour le nombre de personnes demandé.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "pour quatre personnes",
+                "usage": "Fixe le nombre de portions à préparer."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Consolidation des courses",
+            "contenu": "Après le menu, fournis une liste de courses unique, classée par catégories pratiques telles que fruits et légumes, épicerie, produits frais et assaisonnements. Additionne les quantités des ingrédients employés dans plusieurs préparations et évite les doublons.",
+            "justification": "Une consolidation par catégories rend la liste réellement pratique pour les achats.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "avec une liste de courses regroupée",
+                "usage": "Établit l'obligation de regrouper les achats."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "L'addition des doublons est nécessaire à une liste consolidée."
+              }
+            ]
+          },
+          {
+            "type": "verification",
+            "titre": "Contrôle final du menu",
+            "contenu": "Avant livraison, vérifie silencieusement que le menu contient exactement une entrée, un plat et un dessert, que chaque préparation est végétarienne, que les quantités correspondent à quatre personnes et que chaque ingrédient nécessaire apparaît dans la liste de courses avec une quantité cohérente.",
+            "justification": "Ce contrôle prévient les omissions, les incohérences de quantité et les ingrédients incompatibles avec la demande.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "comprenant une entrée, un plat et un dessert",
+                "usage": "Fixe la composition obligatoire du menu."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "pour quatre personnes",
+                "usage": "Fixe le dimensionnement à contrôler."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "avec une liste de courses regroupée",
+                "usage": "Impose la présence et la cohérence de la liste de courses."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "Le menu comporte une entrée, un plat et un dessert.",
+          "Aucun ingrédient incompatible avec un régime végétarien n'est utilisé.",
+          "Les quantités sont dimensionnées pour quatre personnes.",
+          "Une liste de courses regroupée accompagne le menu.",
+          "Tous les ingrédients nécessaires figurent dans la liste de courses."
+        ],
+        "criteres_qualitatifs": [
+          "Les préparations restent simples et concises.",
+          "Les trois plats forment un ensemble cohérent.",
+          "Les ingrédients répétés sont consolidés sans doublons.",
+          "Les catégories de courses sont faciles à parcourir."
+        ],
+        "elements_non_verifiables": [
+          "La compatibilité du menu avec d'éventuelles allergies ou intolérances non précisées.",
+          "La disponibilité des ingrédients dans les commerces accessibles à l'utilisateur."
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "Le menu est destiné à quatre personnes.",
+            "statut": "soutenue",
+            "justification": "Le nombre de convives est explicitement indiqué dans la demande."
+          },
+          {
+            "affirmation": "Le végétarisme est interprété comme lacto-ovo-végétarien.",
+            "statut": "hypothese",
+            "justification": "La demande ne précise pas si les œufs et produits laitiers sont autorisés."
+          },
+          {
+            "affirmation": "Les quantités proposées constituent un dimensionnement culinaire adapté à quatre convives.",
+            "statut": "hypothese",
+            "justification": "Elles résultent de la conception de la recette et non de données empiriques fournies."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:29:40.337Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 68944.437,
+      "response_id": "resp_0b6504440443ae35006a91389f456087d29f8b360b798be1c3",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9637,
+        "output_tokens": 6144,
+        "total_tokens": 15781,
+        "reasoning_tokens": 3438
+      },
+      "estimated_cost_usd": 0.161428,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Obtenir un menu végétarien simple et complet pour quatre personnes.\",\n    \"intentions_secondaires\": [\n      \"Disposer d'une liste de courses consolidée et organisée.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"L'utilisateur souhaite une proposition de menu.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"Le menu doit être végétarien et simple.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"menu végétarien simple\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Les quantités doivent convenir à quatre personnes.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"pour quatre personnes\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le menu doit comporter une entrée, un plat et un dessert.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"comprenant une entrée, un plat et un dessert\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Une liste de courses regroupée doit accompagner le menu.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"avec une liste de courses regroupée\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"Le terme « simple » ne fixe pas de durée maximale ni de nombre maximal d'étapes.\",\n      \"La demande ne précise pas si le végétarisme doit être lacto-ovo-végétarien ou entièrement végétal.\"\n    ],\n    \"informations_manquantes\": []\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"faible\",\n    \"justification_risque\": \"Il s'agit d'une tâche culinaire courante, créative et facilement révisable.\",\n    \"connaissance_externe_necessaire\": false,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"Aucune donnée actuelle ou factuelle à vérifier n'est nécessaire : le menu, les recettes et leurs quantités peuvent être conçus comme des choix culinaires opérationnels.\",\n    \"calcul_requis\": true,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Conception d'un menu végétarien cohérent\",\n      \"Dimensionnement des ingrédients pour quatre personnes\",\n      \"Agrégation des quantités dans une liste de courses\",\n      \"Contrôle de cohérence entre recettes et courses\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Interpréter le végétarisme comme lacto-ovo-végétarien à défaut de précision contraire.\",\n      \"Choisir autonomement des plats accessibles et peu techniques.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Supposer que les convives n'ont aucune allergie ou intolérance.\",\n      \"Supposer que des ingrédients de base sont déjà présents sans les signaler.\",\n      \"Présenter des prix ou des disponibilités commerciales comme établis.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Concepteur de menu familial végétarien\",\n      \"mission\": \"Composer un repas simple, cohérent et directement réalisable pour quatre personnes, puis consolider les ingrédients nécessaires.\",\n      \"competences\": [\n        \"Cuisine végétarienne courante\",\n        \"Estimation de portions\",\n        \"Organisation pratique des courses\"\n      ],\n      \"limites\": [\n        \"Ne connaît pas les allergies ou intolérances des convives.\",\n        \"Ne connaît pas les ingrédients ni le matériel déjà disponibles.\",\n        \"Ne vérifie pas les prix ou la disponibilité locale des produits.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"La demande possède une seule intention principale, un risque faible et une structure explicite ; le réglage manuel impose en outre une analyse minimale.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Choisir les trois préparations du menu.\",\n        \"Définir des quantités culinaires adaptées à quatre convives.\",\n        \"Classer la liste de courses par catégories pratiques.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Les éventuels temps de préparation doivent être indiqués comme approximatifs.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Les allergies, intolérances et préférences particulières des convives.\",\n        \"Les ingrédients et ustensiles déjà disponibles.\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Menu végétarien complet avec préparations concises et liste de courses regroupée\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 1,\n      \"max\": 1,\n      \"unite\": \"menu complet\"\n    },\n    \"ton\": \"Pratique, clair et concis\",\n    \"longueur_indicative\": \"Environ 300 à 500 mots, avec trois plats clairement séparés puis une liste de courses par catégories.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"hypothese\",\n        \"titre\": \"Convention végétarienne\",\n        \"contenu\": \"À défaut d'autre précision, interprète « végétarien » comme lacto-ovo-végétarien. Si le menu contient des œufs ou des produits laitiers, rends cette convention brièvement visible. Exclue viande, poisson, fruits de mer, gélatine animale et bouillons carnés.\",\n        \"justification\": \"Cette convention résout l'ambiguïté sans imposer une question préalable pour une demande simple.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"menu végétarien simple\",\n            \"usage\": \"Établit l'exigence végétarienne.\"\n          },\n          {\n            \"nature\": \"hypothese\",\n            \"citation\": null,\n            \"usage\": \"Définit explicitement le périmètre retenu en l'absence de précision.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"critere\",\n        \"titre\": \"Simplicité opérationnelle\",\n        \"contenu\": \"Choisis des plats utilisant des ingrédients courants, des techniques de base et peu d'étapes. Pour chaque partie du menu, indique le nom du plat, les ingrédients quantifiés et une préparation très concise.\",\n        \"justification\": \"La simplicité doit se traduire concrètement dans le choix des plats et leur exécution.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"simple\",\n            \"usage\": \"Impose une conception facile à réaliser.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Une préparation concise rend le menu proposé directement exploitable.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Dimensionnement des portions\",\n        \"contenu\": \"Dimensionne tous les ingrédients pour quatre convives. Utilise des unités domestiques claires et une précision proportionnée à une recette familiale, sans chiffres artificiellement détaillés.\",\n        \"justification\": \"Les quantités doivent être immédiatement utilisables pour le nombre de personnes demandé.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"pour quatre personnes\",\n            \"usage\": \"Fixe le nombre de portions à préparer.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Consolidation des courses\",\n        \"contenu\": \"Après le menu, fournis une liste de courses unique, classée par catégories pratiques telles que fruits et légumes, épicerie, produits frais et assaisonnements. Additionne les quantités des ingrédients employés dans plusieurs préparations et évite les doublons.\",\n        \"justification\": \"Une consolidation par catégories rend la liste réellement pratique pour les achats.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"avec une liste de courses regroupée\",\n            \"usage\": \"Établit l'obligation de regrouper les achats.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"L'addition des doublons est nécessaire à une liste consolidée.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"verification\",\n        \"titre\": \"Contrôle final du menu\",\n        \"contenu\": \"Avant livraison, vérifie silencieusement que le menu contient exactement une entrée, un plat et un dessert, que chaque préparation est végétarienne, que les quantités correspondent à quatre personnes et que chaque ingrédient nécessaire apparaît dans la liste de courses avec une quantité cohérente.\",\n        \"justification\": \"Ce contrôle prévient les omissions, les incohérences de quantité et les ingrédients incompatibles avec la demande.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"comprenant une entrée, un plat et un dessert\",\n            \"usage\": \"Fixe la composition obligatoire du menu.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"pour quatre personnes\",\n            \"usage\": \"Fixe le dimensionnement à contrôler.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"avec une liste de courses regroupée\",\n            \"usage\": \"Impose la présence et la cohérence de la liste de courses.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Le menu comporte une entrée, un plat et un dessert.\",\n      \"Aucun ingrédient incompatible avec un régime végétarien n'est utilisé.\",\n      \"Les quantités sont dimensionnées pour quatre personnes.\",\n      \"Une liste de courses regroupée accompagne le menu.\",\n      \"Tous les ingrédients nécessaires figurent dans la liste de courses.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Les préparations restent simples et concises.\",\n      \"Les trois plats forment un ensemble cohérent.\",\n      \"Les ingrédients répétés sont consolidés sans doublons.\",\n      \"Les catégories de courses sont faciles à parcourir.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"La compatibilité du menu avec d'éventuelles allergies ou intolérances non précisées.\",\n      \"La disponibilité des ingrédients dans les commerces accessibles à l'utilisateur.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"Le menu est destiné à quatre personnes.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Le nombre de convives est explicitement indiqué dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Le végétarisme est interprété comme lacto-ovo-végétarien.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"La demande ne précise pas si les œufs et produits laitiers sont autorisés.\"\n      },\n      {\n        \"affirmation\": \"Les quantités proposées constituent un dimensionnement culinaire adapté à quatre convives.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Elles résultent de la conception de la recette et non de données empiriques fournies.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Concepteur de menu familial végétarien.\nComposer un repas simple, cohérent et directement réalisable pour quatre personnes, puis consolider les ingrédients nécessaires.\nCompétences à mobiliser : Cuisine végétarienne courante ; Estimation de portions ; Organisation pratique des courses.\nLimites à respecter : Ne connaît pas les allergies ou intolérances des convives ; Ne connaît pas les ingrédients ni le matériel déjà disponibles ; Ne vérifie pas les prix ou la disponibilité locale des produits.\n\n## OBJECTIF\nObtenir un menu végétarien simple et complet pour quatre personnes.\n\n## DEMANDE ORIGINALE\nPropose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.\n\n## FORMAT DE SORTIE\n- Livrable : Menu végétarien complet avec préparations concises et liste de courses regroupée\n- Format technique : markdown\n- Ton : Pratique, clair et concis\n- Longueur indicative : Environ 300 à 500 mots, avec trois plats clairement séparés puis une liste de courses par catégories.\n- Quantité : minimum 1 ; maximum 1 menu complet\n- Structure : plan imposé (1 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Choisir les trois préparations du menu.\n- Définir des quantités culinaires adaptées à quatre convives.\n- Classer la liste de courses par catégories pratiques.\n\nEstimations autorisées, à étiqueter clairement :\n- Les éventuels temps de préparation doivent être indiqués comme approximatifs.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Les allergies, intolérances et préférences particulières des convives.\n- Les ingrédients et ustensiles déjà disponibles.\n\n## HYPOTHÈSES AUTORISÉES\n- Interpréter le végétarisme comme lacto-ovo-végétarien à défaut de précision contraire.\n- Choisir autonomement des plats accessibles et peu techniques.\n\n## HYPOTHÈSES INTERDITES\n- Supposer que les convives n'ont aucune allergie ou intolérance.\n- Supposer que des ingrédients de base sont déjà présents sans les signaler.\n- Présenter des prix ou des disponibilités commerciales comme établis.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Convention végétarienne\nÀ défaut d'autre précision, interprète « végétarien » comme lacto-ovo-végétarien. Si le menu contient des œufs ou des produits laitiers, rends cette convention brièvement visible. Exclue viande, poisson, fruits de mer, gélatine animale et bouillons carnés.\n\n## Simplicité opérationnelle\nChoisis des plats utilisant des ingrédients courants, des techniques de base et peu d'étapes. Pour chaque partie du menu, indique le nom du plat, les ingrédients quantifiés et une préparation très concise.\n\n## Dimensionnement des portions\nDimensionne tous les ingrédients pour quatre convives. Utilise des unités domestiques claires et une précision proportionnée à une recette familiale, sans chiffres artificiellement détaillés.\n\n## Consolidation des courses\nAprès le menu, fournis une liste de courses unique, classée par catégories pratiques telles que fruits et légumes, épicerie, produits frais et assaisonnements. Additionne les quantités des ingrédients employés dans plusieurs préparations et évite les doublons.\n\n## Contrôle final du menu\nAvant livraison, vérifie silencieusement que le menu contient exactement une entrée, un plat et un dessert, que chaque préparation est végétarienne, que les quantités correspondent à quatre personnes et que chaque ingrédient nécessaire apparaît dans la liste de courses avec une quantité cohérente.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Le menu comporte une entrée, un plat et un dessert.\n- Aucun ingrédient incompatible avec un régime végétarien n'est utilisé.\n- Les quantités sont dimensionnées pour quatre personnes.\n- Une liste de courses regroupée accompagne le menu.\n- Tous les ingrédients nécessaires figurent dans la liste de courses.\n- Les préparations restent simples et concises.\n- Les trois plats forment un ensemble cohérent.\n- Les ingrédients répétés sont consolidés sans doublons.\n- Les catégories de courses sont faciles à parcourir.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:29:59.561Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 19140.215,
+    "response_id": "resp_05a809fd63aa77d2006a9138e47dac87d29b101834a341de58",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 1556,
+      "output_tokens": 1307,
+      "total_tokens": 2863,
+      "reasoning_tokens": 456
+    },
+    "estimated_cost_usd": 0.032364,
+    "incomplete_details": null,
+    "error": null,
+    "output": "# Menu végétarien simple pour 4 personnes\n\n**Choix du menu :** des préparations courantes, peu techniques et partageant plusieurs assaisonnements. Le menu suit la convention **lacto-ovo-végétarienne** et contient un produit laitier. Les temps indiqués sont des **estimations**. Allergies, intolérances et préférences restent **à confirmer**, notamment pour le lait, les amandes et la noix de coco.\n\n## Entrée — Salade de carottes à l’orange et au cumin\n\n**Ingrédients**\n- 500 g de carottes\n- 2 oranges\n- 1 c. à soupe d’huile d’olive\n- ½ c. à café de cumin moulu\n- Sel et poivre\n\n**Préparation — environ 10 minutes**  \nRâper les carottes. Peler une orange et couper ses quartiers en morceaux. Presser la seconde. Mélanger le jus avec l’huile, le cumin, du sel et du poivre, puis ajouter les carottes et les morceaux d’orange.\n\n## Plat — Curry de lentilles corail et épinards, riz basmati\n\n**Ingrédients**\n- 300 g de lentilles corail\n- 250 g de riz basmati\n- 300 g d’épinards frais\n- 400 g de tomates concassées\n- 400 ml de lait de coco\n- 1 oignon\n- 2 gousses d’ail\n- 1 c. à soupe d’huile d’olive\n- 2 c. à café de curry en poudre\n- Environ 1,25 l d’eau au total\n- Sel et poivre\n\n**Préparation — environ 30 minutes**  \nFaire cuire le riz dans environ 500 ml d’eau salée, selon les indications du paquet. Émincer l’oignon et l’ail, puis les faire revenir dans l’huile pendant quelques minutes. Ajouter le curry, les lentilles rincées, les tomates, le lait de coco et environ 750 ml d’eau. Laisser mijoter environ 20 minutes, en remuant. Ajouter les épinards en fin de cuisson, saler et poivrer. Servir avec le riz.\n\n## Dessert — Pommes poêlées, yaourt et amandes\n\n**Ingrédients**\n- 4 pommes\n- 400 g de yaourt nature\n- 40 g d’amandes effilées\n- 20 g de beurre\n- 1 c. à soupe de miel\n- ½ c. à café de cannelle\n\n**Préparation — environ 15 minutes**  \nCouper les pommes en dés. Les faire revenir dans le beurre avec le miel et la cannelle pendant environ 8 à 10 minutes. Répartir le yaourt dans quatre bols, puis ajouter les pommes tièdes et les amandes.\n\n# Liste de courses regroupée\n\n### Fruits et légumes\n- 500 g de carottes\n- 2 oranges\n- 4 pommes\n- 300 g d’épinards frais\n- 1 oignon\n- 2 gousses d’ail\n\n### Épicerie\n- 300 g de lentilles corail\n- 250 g de riz basmati\n- 1 boîte de tomates concassées de 400 g\n- 1 boîte de lait de coco de 400 ml\n- 40 g d’amandes effilées\n- 1 c. à soupe de miel\n\n### Produits frais\n- 400 g de yaourt nature\n- 20 g de beurre\n\n### Huiles et assaisonnements\n- 2 c. à soupe d’huile d’olive\n- 2 c. à café de curry\n- ½ c. à café de cumin\n- ½ c. à café de cannelle\n- Sel et poivre\n\nPrévoir également **environ 1,25 l d’eau**. Vérifier avant les courses les ingrédients et ustensiles déjà disponibles."
+  },
+  "output": "# Menu végétarien simple pour 4 personnes\n\n**Choix du menu :** des préparations courantes, peu techniques et partageant plusieurs assaisonnements. Le menu suit la convention **lacto-ovo-végétarienne** et contient un produit laitier. Les temps indiqués sont des **estimations**. Allergies, intolérances et préférences restent **à confirmer**, notamment pour le lait, les amandes et la noix de coco.\n\n## Entrée — Salade de carottes à l’orange et au cumin\n\n**Ingrédients**\n- 500 g de carottes\n- 2 oranges\n- 1 c. à soupe d’huile d’olive\n- ½ c. à café de cumin moulu\n- Sel et poivre\n\n**Préparation — environ 10 minutes**  \nRâper les carottes. Peler une orange et couper ses quartiers en morceaux. Presser la seconde. Mélanger le jus avec l’huile, le cumin, du sel et du poivre, puis ajouter les carottes et les morceaux d’orange.\n\n## Plat — Curry de lentilles corail et épinards, riz basmati\n\n**Ingrédients**\n- 300 g de lentilles corail\n- 250 g de riz basmati\n- 300 g d’épinards frais\n- 400 g de tomates concassées\n- 400 ml de lait de coco\n- 1 oignon\n- 2 gousses d’ail\n- 1 c. à soupe d’huile d’olive\n- 2 c. à café de curry en poudre\n- Environ 1,25 l d’eau au total\n- Sel et poivre\n\n**Préparation — environ 30 minutes**  \nFaire cuire le riz dans environ 500 ml d’eau salée, selon les indications du paquet. Émincer l’oignon et l’ail, puis les faire revenir dans l’huile pendant quelques minutes. Ajouter le curry, les lentilles rincées, les tomates, le lait de coco et environ 750 ml d’eau. Laisser mijoter environ 20 minutes, en remuant. Ajouter les épinards en fin de cuisson, saler et poivrer. Servir avec le riz.\n\n## Dessert — Pommes poêlées, yaourt et amandes\n\n**Ingrédients**\n- 4 pommes\n- 400 g de yaourt nature\n- 40 g d’amandes effilées\n- 20 g de beurre\n- 1 c. à soupe de miel\n- ½ c. à café de cannelle\n\n**Préparation — environ 15 minutes**  \nCouper les pommes en dés. Les faire revenir dans le beurre avec le miel et la cannelle pendant environ 8 à 10 minutes. Répartir le yaourt dans quatre bols, puis ajouter les pommes tièdes et les amandes.\n\n# Liste de courses regroupée\n\n### Fruits et légumes\n- 500 g de carottes\n- 2 oranges\n- 4 pommes\n- 300 g d’épinards frais\n- 1 oignon\n- 2 gousses d’ail\n\n### Épicerie\n- 300 g de lentilles corail\n- 250 g de riz basmati\n- 1 boîte de tomates concassées de 400 g\n- 1 boîte de lait de coco de 400 ml\n- 40 g d’amandes effilées\n- 1 c. à soupe de miel\n\n### Produits frais\n- 400 g de yaourt nature\n- 20 g de beurre\n\n### Huiles et assaisonnements\n- 2 c. à soupe d’huile d’olive\n- 2 c. à café de curry\n- ½ c. à café de cumin\n- ½ c. à café de cannelle\n- Sel et poivre\n\nPrévoir également **environ 1,25 l d’eau**. Vérifier avant les courses les ingrédients et ustensiles déjà disponibles.",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 11193,
+    "output_tokens": 7451,
+    "total_tokens": 18644,
+    "estimated_cost_usd": 0.193792
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}
