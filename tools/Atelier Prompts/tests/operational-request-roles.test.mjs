@@ -58,12 +58,16 @@ function minimalCriticOutput(overrides = {}) {
   };
 }
 
+function emptyQuestionCandidate() {
+  return { text: null, targets_issue_id: null, expected_progress: null };
+}
+
 function readyArbiterOutput(overrides = {}) {
   return {
     state: "operational_request_ready",
     operational_request_candidate: createEmptyCandidate(),
     issues: [],
-    next_question: null,
+    next_question: emptyQuestionCandidate(),
     confirmation_reason: null,
     blocked_reason: null,
     intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
@@ -203,8 +207,8 @@ test("validateArbiterOutput accepte operational_request_ready seulement avec un 
 });
 
 test("validateArbiterOutput exige next_question uniquement pour clarification_required", () => {
-  const missingQuestion = readyArbiterOutput({ state: "clarification_required", next_question: null, reason: "x" });
-  assert.throws(() => validateArbiterOutput(missingQuestion), TypeError);
+  const missingQuestion = readyArbiterOutput({ state: "clarification_required", next_question: emptyQuestionCandidate(), reason: "x" });
+  assert.throws(() => validateArbiterOutput(missingQuestion), TypeError, "clarification_required exige un next_question réellement rempli, pas seulement l'objet vide.");
 
   const withQuestion = readyArbiterOutput({
     state: "clarification_required",

@@ -62,7 +62,7 @@ function validArbiterOutput() {
     state: "operational_request_ready",
     operational_request_candidate: createEmptyCandidate(),
     issues: [],
-    next_question: null,
+    next_question: { text: null, targets_issue_id: null, expected_progress: null },
     confirmation_reason: null,
     blocked_reason: null,
     intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },

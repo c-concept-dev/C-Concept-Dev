@@ -256,7 +256,7 @@ test("scoreArbiterOutput : une résolution qui entérine l'ajout non tracé éch
   const rubberStamped = validateArbiterOutput({
     state: "operational_request_ready",
     operational_request_candidate: { ...createEmptyCandidate(), confirmed_constraints: ["Le compte rendu doit être envoyé à toute la direction générale."] },
-    issues: [], next_question: null, confirmation_reason: null, blocked_reason: null,
+    issues: [], next_question: { text: null, targets_issue_id: null, expected_progress: null }, confirmation_reason: null, blocked_reason: null,
     intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
     reason: "Tout est prêt."
   });

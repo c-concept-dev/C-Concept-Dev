@@ -122,7 +122,7 @@ MISSION
 1. Reconstruisez entièrement operational_request_candidate à partir de original_request et de la totalité de clarification_history — jamais comme un correctif du tour précédent. Chaque champ est adaptatif : un champ vide est parfaitement valide, ne remplissez jamais une catégorie parce qu'elle existe dans le schéma.
 2. Pour chaque élément matériel placé dans operational_request_candidate, ajoutez un enregistrement dans provenance_records reliant exactement ce champ et cette valeur à l'une des sources autorisées : explicit_user_statement, clarification_answer, confirmed_preference, safe_deduction, delegated_decision, external_fact_to_research, labeled_estimate, conditional_scenario. Toute affirmation sans provenance ne doit pas apparaître dans le candidat.
 3. Identifiez uniquement les issues qui changent réellement le résultat. Une information, une ambiguïté, un conflit, un livrable flou, une dépendance, une autorité de décision indéterminée ou une surcharge informationnelle n'est matérielle que si des valeurs ou interprétations raisonnablement différentes modifieraient significativement l'objectif, le périmètre, une contrainte importante, la structure du livrable, son contenu décisionnel, ses recommandations, son format, son utilité ou un arbitrage important demandé à l'IA. Matériel ne veut pas dire intéressant, utile à connaître, confortable ou habituel.
-4. Pour toute contradiction, tension de contraintes ou conflit de priorités, utilisez exclusivement la primitive unifiée : {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"}.
+4. Pour toute contradiction, tension de contraintes ou conflit de priorités, utilisez exclusivement la primitive unifiée : {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"}. Le champ kind est toujours présent dans chaque issue : mettez-le à null pour tout type autre que conflict — ne l'omettez jamais et n'y inventez jamais une valeur.
 5. Pour chaque inconnue, choisissez une seule stratégie parmi, dans cet ordre de préférence : rechercher (fait externe vérifiable), décider (délégué ou choix équivalent), estimer (approximation étiquetée), scénariser (plusieurs valeurs traitables proprement), conditionner (condition explicite), laisser inconnue localement (n'empêche pas le livrable), et seulement en dernier recours questionner. Une inconnue ne justifie une question que si elle change matériellement le résultat, appartient à l'utilisateur ou à son contexte, n'est pas déjà connue ni déjà résolue, n'est pas recherchable, ne peut pas être décidée par délégation, ne peut pas être estimée honnêtement, ne peut pas être scénarisée ou conditionnée sans perte matérielle, et apporte une progression réelle.
 6. Ne posez jamais de question dans le seul but de renseigner un champ du schéma. N'imposez aucun nombre de questions : proposez autant de question_candidates que d'issues le justifient réellement, y compris aucune.
 7. Renseignez honnêtement confirmation_signals (multiple_ambiguities_resolved, complex_conflict_arbitrated, strong_restructuring, multiple_objectives_hierarchized, significant_delegation) en reflétant ce que vous venez réellement de faire à ce tour, jamais une estimation de risque abstraite.
@@ -166,7 +166,7 @@ original_request, clarification_history complet, la sortie de l'Analyste (candid
 
 MISSION
 1. Vérifiez que chaque élément matériel du candidat de l'Analyste est réellement ancré dans original_request ou clarification_history via son enregistrement de provenance déclaré. Listez dans unsupported_additions_found tout élément dont la provenance déclarée ne correspond à rien de réel dans les données fournies.
-2. Recherchez les issues matérielles que l'Analyste a manquées. Listez-les dans missed_material_issues.
+2. Recherchez les issues matérielles que l'Analyste a manquées. Listez-les dans missed_material_issues, chacune avec kind renseigné uniquement si son type est conflict, et null dans tous les autres cas — jamais omis, jamais inventé.
 3. Évaluez la fidélité sémantique : le candidat conserve-t-il l'intention, la relation entre objectifs, le niveau d'obligation, le périmètre, les arbitrages et le sens global de la demande originale enrichie de l'historique ? N'utilisez jamais un critère de ressemblance de mots ou de formulation pour cette évaluation : une reformulation très différente dans ses mots peut être parfaitement fidèle, une reformulation très proche dans ses mots peut trahir le sens. Raisonnez uniquement sur le sens. Renseignez semantic_drift_detected et, si vrai, semantic_drift_notes expliquant précisément quoi et pourquoi.
 4. Si, et seulement si, vous identifiez un problème matériel réel, soulevez un veto qualifié : {issue_id, new_information_trigger (ce qui, dans les données reçues à ce tour, justifie de soulever ce point maintenant), why_material, why_not_substitutable}. Un veto qui répète, sans élément nouveau, un point déjà présent dans previous_vetoes est redondant et ne doit pas être soulevé à nouveau.
 5. Si aucune objection matérielle réelle n'existe, concluez explicitement agreement="agree", avec vetoes vide et semantic_drift_detected=false. C'est une conclusion pleinement légitime et attendue chaque fois que le travail de l'Analyste est effectivement solide : vous n'êtes jamais incité à trouver un problème pour justifier votre rôle. Une demande simple et déjà claire doit pouvoir être validée sans aucune objection.
@@ -277,11 +277,11 @@ MISSION
 1. Examinez chaque point soulevé par le Critique. Un veto qualifié doit être explicitement traité : expliquez pourquoi il est fondé et intégré, ou pourquoi le point est en réalité substituable ou déjà couvert — vous n'avez jamais le droit de l'ignorer silencieusement.
 2. Décidez state parmi exactement quatre valeurs :
    - operational_request_ready : le livrable réellement attendu peut être produit sans ambiguïté matérielle non résolue, sans contradiction non arbitrée, sans information non substituable manquante, sans arbitrage silencieux, sans glissement sémantique, sans suppression ni ajout non traçable. Le simple fait qu'une réponse générale soit possible n'est jamais un critère suffisant.
-   - clarification_required : une inconnue matérielle non substituable subsiste réellement. Fournissez alors exactement une next_question, choisie pour son impact, sa non-substituabilité, le nombre de dépendances qu'elle débloque et la progression réelle qu'elle apporte — jamais une question déjà posée en substance, même reformulée différemment : comparez le sens, jamais les mots. N'imposez aucun nombre cible de questions.
+   - clarification_required : une inconnue matérielle non substituable subsiste réellement. next_question est toujours un objet à trois champs (text, targets_issue_id, expected_progress) ; renseignez les trois pour cet état, choisis pour leur impact, leur non-substituabilité, le nombre de dépendances débloquées et la progression réelle apportée — jamais une question déjà posée en substance, même reformulée différemment : comparez le sens, jamais les mots. N'imposez aucun nombre cible de questions. Pour tout autre état, les trois champs de next_question valent null (l'objet reste présent, jamais omis).
    - confirmation_required : le candidat est structurellement prêt, sans problème matériel non résolu, mais le risque de glissement est significatif parce que vous avez dû résoudre plusieurs ambiguïtés importantes, arbitrer un conflit complexe, restructurer fortement une demande désordonnée, hiérarchiser plusieurs objectifs, intégrer une délégation importante, ou parce que la demande a des conséquences sensibles. Expliquez précisément lequel de ces déclencheurs s'applique dans confirmation_reason. N'utilisez jamais cet état comme échappatoire à un problème matériel non résolu : un problème matériel réel appelle clarification_required, pas confirmation_required.
    - blocked : aucune nouvelle question utile ni aucune stratégie substitutive honnête (rechercher, décider, estimer, scénariser, conditionner) ne permet de progresser. Justifiez précisément dans blocked_reason pourquoi les options sont épuisées — un simple désaccord entre Analyste et Critique n'est jamais, à lui seul, une preuve d'épuisement.
    Vous ne produisez jamais l'état degraded_state : il n'est déclaré que par le système en cas de panne technique, jamais par un jugement de votre part.
-3. Produisez operational_request_candidate final (reconstruit, jamais patché) et issues final. Toute contradiction, tension de contraintes ou conflit de priorités que vous conservez utilise exclusivement la primitive unifiée {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"}, jamais une taxonomie ad hoc.
+3. Produisez operational_request_candidate final (reconstruit, jamais patché) et issues final. Toute contradiction, tension de contraintes ou conflit de priorités que vous conservez utilise exclusivement la primitive unifiée {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"}, jamais une taxonomie ad hoc. Comme pour l'Analyste et le Critique, kind est toujours présent dans chaque issue et vaut null pour tout type autre que conflict.
 4. Produisez intent_preservation : objective_preserved, priorities_preserved, semantic_equivalence — jugés uniquement sur le sens, jamais sur la ressemblance de formulation — et concerns listant toute réserve restante. operational_request_ready exige que les trois soient vrais et concerns vide.
 
 INTERDICTIONS
@@ -309,6 +309,23 @@ export function makeArbiterUserMessage({ original_request, clarification_history
   });
 }
 
+/**
+ * next_question arrive toujours comme un objet (jamais JSON null au premier niveau, cf. schéma
+ * ci-dessus). Ses 3 champs sont soit tous null (aucune question), soit tous renseignés — jamais un
+ * état partiel. La représentation interne OPRIE reste inchangée : null pour "aucune question",
+ * l'objet validé sinon — seul le contrat de transport a changé, pas le sens.
+ */
+function validateNullableQuestionCandidate(value) {
+  exactKeys(value, ["text", "targets_issue_id", "expected_progress"], "QuestionCandidate");
+  const allNull = value.text === null && value.targets_issue_id === null && value.expected_progress === null;
+  if (allNull) return null;
+  assert(
+    value.text !== null && value.targets_issue_id !== null && value.expected_progress !== null,
+    "QuestionCandidate doit être entièrement rempli ou entièrement vide (text/targets_issue_id/expected_progress)."
+  );
+  return validateQuestionCandidate(value);
+}
+
 function validateIntentPreservationSemantic(value) {
   exactKeys(value, ["objective_preserved", "priorities_preserved", "semantic_equivalence", "concerns"], "IntentPreservationSemantic");
   assert(typeof value.objective_preserved === "boolean", "objective_preserved doit être un booléen.");
@@ -329,7 +346,7 @@ export function validateArbiterOutput(value) {
 
   const operational_request_candidate = normalizeCandidate(value.operational_request_candidate);
   const issues = normalizeRoleIssues(value.issues);
-  const next_question = value.next_question === null ? null : validateQuestionCandidate(value.next_question);
+  const next_question = validateNullableQuestionCandidate(value.next_question);
   const confirmation_reason = value.confirmation_reason === null ? null : (text(value.confirmation_reason) || null);
   const blocked_reason = value.blocked_reason === null ? null : (text(value.blocked_reason) || null);
   const intent_preservation = validateIntentPreservationSemantic(value.intent_preservation);
@@ -430,14 +447,20 @@ const CANDIDATE_JSON_SCHEMA = Object.freeze({
   ]))
 });
 
+// Groq (mode strict, compatible OpenAI Structured Outputs) exige que "required" couvre exactement
+// toutes les clés de "properties" — aucune propriété ne peut rester structurellement optionnelle.
+// kind n'est sémantiquement pertinent que pour type="conflict" ; il reste donc structurellement
+// requis mais nullable ([`string`,`null`], null inclus dans l'enum) plutôt que simplement omis, afin
+// de ne jamais forcer une valeur métier inventée sur les issues non-conflict (cf.
+// core/adn/operational-request-state.js#validateIssue, seule source de vérité sémantique).
 const ISSUE_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["id", "type", "description", "impact", "substitutable", "recommended_treatment"],
+  required: ["id", "type", "description", "impact", "substitutable", "recommended_treatment", "kind"],
   properties: {
     id: { type: "string" },
     type: { type: "string", enum: [...ISSUE_TYPES] },
-    kind: { type: "string", enum: [...CONFLICT_KINDS] },
+    kind: { type: ["string", "null"], enum: [...CONFLICT_KINDS, null] },
     description: { type: "string" },
     impact: { type: "string", enum: ["material", "non_material"] },
     substitutable: { type: "boolean" },
@@ -526,7 +549,20 @@ export const ARBITER_JSON_SCHEMA = Object.freeze({
     state: { type: "string", enum: [...ARBITER_STATES] },
     operational_request_candidate: CANDIDATE_JSON_SCHEMA,
     issues: { type: "array", items: ISSUE_JSON_SCHEMA },
-    next_question: { type: ["object", "null"], additionalProperties: false, properties: QUESTION_CANDIDATE_JSON_SCHEMA.properties },
+    // next_question est toujours un objet structurellement présent (jamais null au premier niveau,
+    // pour la même raison que kind ci-dessus : un objet nullable imbriqué est un cas moins éprouvé
+    // en mode strict que des propriétés scalaires nullables). L'absence de question se traduit par
+    // ses trois champs à null, jamais par l'omission de l'objet entier — cf. validateArbiterOutput.
+    next_question: {
+      type: "object",
+      additionalProperties: false,
+      required: ["text", "targets_issue_id", "expected_progress"],
+      properties: {
+        text: { type: ["string", "null"] },
+        targets_issue_id: { type: ["string", "null"] },
+        expected_progress: { type: ["string", "null"] }
+      }
+    },
     confirmation_reason: { type: ["string", "null"] },
     blocked_reason: { type: ["string", "null"] },
     intent_preservation: {

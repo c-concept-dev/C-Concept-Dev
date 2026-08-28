@@ -196,18 +196,27 @@ export function validateProvenanceValue(value) {
  * Valide une issue. Le champ kind (primitive conflict unifiée, CDC §7.3) est obligatoire
  * uniquement pour type="conflict" et interdit pour tout autre type.
  */
+/**
+ * kind est structurellement toujours présent (jamais omis) : requis par les schémas JSON stricts
+ * (Groq exige que "required" couvre exactement toutes les clés de "properties" — cf.
+ * workers/shared/operational-request-core.js). Sa valeur reste null hors conflict : ce n'est jamais
+ * une information métier inventée, seulement une case techniquement remplie pour rester compatible
+ * avec le mode strict, sans jamais transformer "non applicable" en une valeur qui aurait un sens.
+ */
 export function validateIssue(issue) {
   const isConflict = issue && issue.type === "conflict";
-  const expectedKeys = ["id", "type", "description", "impact", "substitutable", "recommended_treatment"]
-    .concat(isConflict ? ["kind"] : []);
-  exactKeys(issue, expectedKeys, "Issue");
+  exactKeys(issue, ["id", "type", "description", "impact", "substitutable", "recommended_treatment", "kind"], "Issue");
   assert(text(issue.id), "issue.id est obligatoire.");
   assert(ISSUE_TYPES.includes(issue.type), "issue.type invalide.");
   assert(text(issue.description), "issue.description est obligatoire.");
   assert(ISSUE_IMPACTS.includes(issue.impact), "issue.impact invalide.");
   assert(typeof issue.substitutable === "boolean", "issue.substitutable doit être un booléen.");
   assert(text(issue.recommended_treatment), "issue.recommended_treatment est obligatoire.");
-  if (isConflict) assert(CONFLICT_KINDS.includes(issue.kind), "issue.kind invalide pour un conflict.");
+  if (isConflict) {
+    assert(CONFLICT_KINDS.includes(issue.kind), "issue.kind invalide pour un conflict.");
+  } else {
+    assert(issue.kind === null, "issue.kind doit être null en dehors d'un conflict (jamais omis, jamais inventé).");
+  }
   return clone(issue);
 }
 
@@ -220,7 +229,7 @@ export function normalizeIssues(issues) {
     impact: issue?.impact,
     substitutable: issue?.substitutable === true,
     recommended_treatment: text(issue?.recommended_treatment),
-    ...(issue?.type === "conflict" ? { kind: issue?.kind } : {})
+    kind: issue?.type === "conflict" ? (issue?.kind ?? null) : null
   }));
 }
 
