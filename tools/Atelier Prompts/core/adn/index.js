@@ -17,3 +17,4 @@ export {
   applyAdaptiveLocksToExecutionSnapshot,
   createAdaptiveLockAuditView
 } from "./adaptive-lock-selector.js";
+export * from "./routing-engine.js";
