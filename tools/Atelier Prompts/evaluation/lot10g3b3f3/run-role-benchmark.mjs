@@ -305,7 +305,9 @@ async function benchmarkAnalystAndCritic(testCase, provider, results) {
   }
   for (const { run, analystRun, criticRun } of runs) {
     const analystScore = analystRun.valid_json ? scoreAnalystOutput(analystRun.output, testCase.oracle.analyst || {}) : null;
-    const criticScore = criticRun?.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}) : null;
+    // 3F.3.3-C8, B-01B : analyst_output.issues fournit le seul contexte nécessaire pour vérifier
+    // structurellement issue_id -> analyst_output.issues[].id dans illegitimate_question_found.
+    const criticScore = criticRun?.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}, { analyst_output: analystRun.output }) : null;
     results.push(toResultRow(testCase.id, "analyst", provider, run, analystRun, analystScore));
     if (criticRun) results.push(toResultRow(testCase.id, "critic", provider, run, criticRun, criticScore));
   }
@@ -325,7 +327,7 @@ export async function benchmarkCriticIsolation(testCase, provider, results) {
   for (let run = 1; run <= repetitions; run += 1) {
     const criticMessage = makeCriticUserMessage({ original_request, clarification_history, analyst_output: testCase.fixture_analyst_output, previous_vetoes: [] });
     const criticRun = await runRole("critic", provider, CRITIC_SYSTEM_PROMPT, criticMessage, CRITIC_JSON_SCHEMA, parseCriticOutput);
-    const criticScore = criticRun.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}) : null;
+    const criticScore = criticRun.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}, { analyst_output: testCase.fixture_analyst_output }) : null;
     results.push(toResultRow(testCase.id, "critic", provider, run, criticRun, criticScore));
 
     if (testCase.oracle.arbiter && criticRun.valid_json) {

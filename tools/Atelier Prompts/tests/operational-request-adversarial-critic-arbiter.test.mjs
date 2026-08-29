@@ -53,7 +53,8 @@ test("D5 : un agree légitime — candidat entièrement tracé, aucune addition,
   const criticOutput = validateCriticOutput({
     agreement: "agree",
     operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
-    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(criticOutput.agreement, "agree");
 });
@@ -70,7 +71,8 @@ test("D5 : une addition non tracée mais non matérielle reste consignée sans p
       unsupported_removals_found: [],
       missed_material_issues: []
     },
-    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(criticOutput.agreement, "agree");
   assert.equal(criticOutput.operational_request_candidate_review.unsupported_additions_found.length, 1);
@@ -96,7 +98,8 @@ test("D5 : une addition non tracée et matérielle doit être escaladée en veto
       why_material: "Le destinataire change fondamentalement le ton, le contenu et la diffusion attendue du compte rendu.",
       why_not_substitutable: "C'est une décision qui appartient exclusivement à l'utilisateur, non déductible du contexte."
     }],
-    semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(escalated.agreement, "disagree");
   assert.equal(escalated.vetoes.length, 1);
@@ -126,7 +129,8 @@ test("D5 : une dérive sémantique matérielle (préférence reclassée en contr
     vetoes: [],
     semantic_drift_detected: true,
     semantic_drift_notes: ["La demande exprimait une préférence souple ('si possible en français'), reclassée à tort en contrainte impérative par l'Analyste."],
-    significant_stakes: false, significant_stakes_reason: ""
+    significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(criticOutput.semantic_drift_detected, true);
   assert.equal(criticOutput.semantic_drift_notes.length, 1);

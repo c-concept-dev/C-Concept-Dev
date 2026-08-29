@@ -12,6 +12,7 @@ import {
   validateAnalystOutput,
   validateCriticOutput,
   validateArbiterOutput,
+  validateArbiterInput,
   filterQualifiedVetoes,
   isConfirmationRecommended,
   createDegradedRoleResult,
@@ -54,6 +55,7 @@ function minimalCriticOutput(overrides = {}) {
     semantic_drift_notes: [],
     significant_stakes: false,
     significant_stakes_reason: "",
+    illegitimate_question_found: [],
     ...overrides
   };
 }
@@ -226,6 +228,51 @@ test("validateCriticOutput n'impose jamais disagree pour un simple ajout non tra
   assert.equal(result.operational_request_candidate_review.unsupported_additions_found.length, 1, "l'ajout non tracé reste consigné, sans forcer un désaccord.");
 });
 
+// --- 3F.3.3-C8, B-01B : illegitimate_question_found ---------------------------------
+
+function illegitimateQuestionFinding(overrides = {}) {
+  return { issue_id: "ISSUE-1", available_alternative: "research", why_available: "Un fait externe vérifiable aurait pu être recherché avant de questionner l'utilisateur.", ...overrides };
+}
+
+test("validateCriticOutput rejette 'question' comme available_alternative (jamais une alternative à elle-même)", () => {
+  const output = minimalCriticOutput({
+    agreement: "disagree",
+    illegitimate_question_found: [illegitimateQuestionFinding({ available_alternative: "question" })]
+  });
+  assert.throws(() => validateCriticOutput(output), TypeError);
+});
+
+test("validateCriticOutput rejette toute autre valeur hors de la ladder pour available_alternative", () => {
+  const output = minimalCriticOutput({
+    agreement: "disagree",
+    illegitimate_question_found: [illegitimateQuestionFinding({ available_alternative: "not_a_real_treatment" })]
+  });
+  assert.throws(() => validateCriticOutput(output), TypeError);
+});
+
+test("validateCriticOutput rejette issue_id ou why_available vide dans illegitimate_question_found", () => {
+  assert.throws(() => validateCriticOutput(minimalCriticOutput({ agreement: "disagree", illegitimate_question_found: [illegitimateQuestionFinding({ issue_id: "" })] })), TypeError);
+  assert.throws(() => validateCriticOutput(minimalCriticOutput({ agreement: "disagree", illegitimate_question_found: [illegitimateQuestionFinding({ why_available: "" })] })), TypeError);
+});
+
+test("validateCriticOutput rejette agreement=agree accompagné d'un illegitimate_question_found non vide", () => {
+  const output = minimalCriticOutput({
+    agreement: "agree",
+    illegitimate_question_found: [illegitimateQuestionFinding()]
+  });
+  assert.throws(() => validateCriticOutput(output), TypeError);
+});
+
+test("validateCriticOutput accepte disagree fondé uniquement sur illegitimate_question_found, sans veto ni dérive", () => {
+  const output = minimalCriticOutput({
+    agreement: "disagree",
+    illegitimate_question_found: [illegitimateQuestionFinding()]
+  });
+  const result = validateCriticOutput(output);
+  assert.equal(result.agreement, "disagree");
+  assert.equal(result.illegitimate_question_found.length, 1);
+});
+
 test("filterQualifiedVetoes distingue un veto réellement nouveau d'un veto redondant", () => {
   const previous = [{ issue_id: "ISSUE-001", new_information_trigger: "Contrainte révélée au tour 2." }];
   const { qualified, redundant } = filterQualifiedVetoes([
@@ -238,6 +285,33 @@ test("filterQualifiedVetoes distingue un veto réellement nouveau d'un veto redo
 });
 
 // --- Arbitre (conditionnel) ------------------------------------------------------
+
+// 3F.3.3-C8, item 17 : preuve que le pipeline d'entrée réel de l'Arbitre (validateArbiterInput,
+// utilisé tel quel par l'endpoint HTTP /arbiter via handleRoleRequest) consomme déjà un désaccord
+// Critic fondé sur illegitimate_question_found, SANS aucune modification de ARBITER_SYSTEM_PROMPT,
+// ARBITER_JSON_SCHEMA, validateArbiterOutput ni scoreArbiterOutput (B-02, strictement inchangé).
+// Ce test ne simule aucun mécanisme d'invocation automatique inexistant dans ce dépôt : il vérifie
+// le seul mécanisme réel et déjà exécutable — la validation d'entrée que l'Arbitre reçoit dès qu'un
+// appelant (aujourd'hui externe à ce lot) le sollicite après un désaccord Critic.
+test("validateArbiterInput consomme un désaccord Critic fondé sur illegitimate_question_found sans aucune modification du contrat Arbiter", () => {
+  const analystOutput = minimalAnalystOutput({
+    issues: [{ id: "ISSUE-1", type: "missing_information", description: "Durée du projet non précisée.", impact: "material", substitutable: false, recommended_treatment: "question", kind: null }],
+    question_candidates: [{ text: "Quelle est la durée prévue du projet ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }]
+  });
+  const criticOutput = minimalCriticOutput({
+    agreement: "disagree",
+    illegitimate_question_found: [{ issue_id: "ISSUE-1", available_alternative: "estimate", why_available: "Une durée standard aurait pu être estimée et signalée comme telle plutôt que d'être demandée à l'utilisateur." }]
+  });
+  const input = validateArbiterInput({
+    original_request: "Prépare un plan de projet.",
+    clarification_history: [],
+    analyst_output: analystOutput,
+    critic_output: criticOutput
+  });
+  assert.equal(input.critic_output.agreement, "disagree");
+  assert.equal(input.critic_output.illegitimate_question_found.length, 1);
+  assert.equal(input.critic_output.illegitimate_question_found[0].issue_id, "ISSUE-1");
+});
 
 test("validateArbiterOutput accepte operational_request_ready seulement avec un intent_preservation entièrement positif", () => {
   assert.equal(validateArbiterOutput(readyArbiterOutput()).state, "operational_request_ready");

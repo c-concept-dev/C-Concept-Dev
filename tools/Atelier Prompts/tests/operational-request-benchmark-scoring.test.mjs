@@ -422,7 +422,8 @@ test("scoreCriticOutput : agree sans veto valide le cas 'accepte sans veto'", ()
   const agree = validateCriticOutput({
     agreement: "agree",
     operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
-    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(scoreCriticOutput(agree, testCase.oracle.critic).pass, true);
 });
@@ -437,7 +438,8 @@ test("scoreCriticOutput : n'inflate plus jamais le score avec un critère tautol
   const agree = validateCriticOutput({
     agreement: "agree",
     operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
-    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   const scoreWithNoOracleExpectation = scoreCriticOutput(agree, {});
   assert.equal(scoreWithNoOracleExpectation.criteria.find((c) => c.criterion === "agree_without_inventing_problem"), undefined);
@@ -450,7 +452,8 @@ test("scoreCriticOutput : un veto qualifié substantiel valide le cas 'veto qual
     agreement: "disagree",
     operational_request_candidate_review: { unsupported_additions_found: ["confirmed_constraints: destinataire direction générale"], unsupported_removals_found: [], missed_material_issues: [] },
     vetoes: [{ issue_id: "ADDED-001", new_information_trigger: "Le candidat de l'Analyste ajoute un destinataire jamais mentionné.", why_material: "Le destinataire change le ton et le contenu attendu du compte rendu.", why_not_substitutable: "C'est un fait appartenant à l'utilisateur, non déductible." }],
-    semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   const qualifiedScore = scoreCriticOutput(qualified, testCase.oracle.critic);
   assert.equal(qualifiedScore.pass, true);
@@ -461,7 +464,8 @@ test("scoreCriticOutput : un veto qualifié substantiel valide le cas 'veto qual
     agreement: "disagree",
     operational_request_candidate_review: { unsupported_additions_found: ["x"], unsupported_removals_found: [], missed_material_issues: [] },
     vetoes: [{ issue_id: "ADDED-001", new_information_trigger: "x", why_material: "x", why_not_substitutable: "x" }],
-    semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   const hollowScore = scoreCriticOutput(hollow, testCase.oracle.critic);
   assert.equal(hollowScore.criteria.find((c) => c.criterion === "qualified_veto_substance").pass, false);
@@ -472,16 +476,124 @@ test("scoreCriticOutput : détecte la dérive sémantique attendue (préférence
   const detects = validateCriticOutput({
     agreement: "disagree",
     operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
-    vetoes: [], semantic_drift_detected: true, semantic_drift_notes: ["Une préférence souple a été reclassée en contrainte impérative."], significant_stakes: false, significant_stakes_reason: ""
+    vetoes: [], semantic_drift_detected: true, semantic_drift_notes: ["Une préférence souple a été reclassée en contrainte impérative."], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(scoreCriticOutput(detects, testCase.oracle.critic).pass, true);
 
   const misses = validateCriticOutput({
     agreement: "agree",
     operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
-    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
   });
   assert.equal(scoreCriticOutput(misses, testCase.oracle.critic).pass, false);
+});
+
+// --- 3F.3.3-C8, B-01B : scoreCriticOutput / illegitimate_question_found (context.analyst_output) --
+// Le scorer ne juge jamais si l'alternative proposée par le Critic est réellement pertinente — ce
+// jugement sémantique appartient exclusivement au LLM Critic. Il vérifie uniquement la cohérence
+// structurelle du signal avec analyst_output : référence d'issue valide, traitement effectivement
+// "question", alternative membre de la ladder, justification présente.
+
+function analystOutputWithIssue(issueOverrides = {}, questionOverrides = {}) {
+  return validateAnalystOutput({
+    operational_request_candidate: createEmptyCandidate(),
+    provenance_records: [],
+    issues: [{ id: "ISSUE-1", type: "missing_information", description: "Un aspect du projet reste non précisé.", impact: "material", substitutable: false, recommended_treatment: "question", ...issueOverrides }],
+    question_candidates: [{ text: "Quel est cet aspect ?", targets_issue_id: "ISSUE-1", expected_progress: "x", ...questionOverrides }],
+    confirmation_signals: confirmationSignals()
+  });
+}
+
+function criticWithIllegitimateFinding(findingOverrides = {}) {
+  return validateCriticOutput({
+    agreement: "disagree",
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
+    vetoes: [],
+    semantic_drift_detected: false,
+    semantic_drift_notes: [],
+    significant_stakes: false,
+    significant_stakes_reason: "",
+    illegitimate_question_found: [{ issue_id: "ISSUE-1", available_alternative: "estimate", why_available: "Une valeur par défaut raisonnable aurait pu être estimée et signalée comme telle.", ...findingOverrides }]
+  });
+}
+
+// 10. Reproduction générique de la pathologie historique (une issue réellement questionnée alors
+// qu'une alternative de ladder était disponible) — sans aucun hardcoding de cas ou de domaine.
+test("scoreCriticOutput : illegitimate_question_found bien formé et correctement lié à l'Analyst => PASS structurel (preuve de régression générique)", () => {
+  const analystOutput = analystOutputWithIssue();
+  const criticOutput = criticWithIllegitimateFinding();
+  const score = scoreCriticOutput(criticOutput, {}, { analyst_output: analystOutput });
+  assert.equal(score.pass, true);
+  assert.equal(score.criteria.find((c) => c.criterion === "illegitimate_question_issue_reference_valid").pass, true);
+  assert.equal(score.criteria.find((c) => c.criterion === "illegitimate_question_targets_question_treatment").pass, true);
+});
+
+// 11. Cas légitime multi-question : plusieurs issues réellement traitées par question, aucune
+// alternative identifiée par le Critic => illegitimate_question_found vide, jamais de FAIL, quel
+// que soit le nombre de questions.
+test("scoreCriticOutput : plusieurs issues question sans aucune alternative identifiée => aucun FAIL B-01B", () => {
+  const analystOutput = validateAnalystOutput({
+    operational_request_candidate: createEmptyCandidate(),
+    provenance_records: [],
+    issues: [
+      { id: "ISSUE-1", type: "missing_information", description: "Premier point.", impact: "material", substitutable: false, recommended_treatment: "question" },
+      { id: "ISSUE-2", type: "missing_information", description: "Deuxième point.", impact: "material", substitutable: false, recommended_treatment: "question" },
+      { id: "ISSUE-3", type: "missing_information", description: "Troisième point.", impact: "material", substitutable: false, recommended_treatment: "question" }
+    ],
+    question_candidates: [
+      { text: "Premier point ?", targets_issue_id: "ISSUE-1", expected_progress: "x" },
+      { text: "Deuxième point ?", targets_issue_id: "ISSUE-2", expected_progress: "x" },
+      { text: "Troisième point ?", targets_issue_id: "ISSUE-3", expected_progress: "x" }
+    ],
+    confirmation_signals: confirmationSignals()
+  });
+  const criticOutput = validateCriticOutput({
+    agreement: "agree",
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+    illegitimate_question_found: []
+  });
+  const score = scoreCriticOutput(criticOutput, {}, { analyst_output: analystOutput });
+  assert.equal(score.pass, true);
+  assert.equal(score.criteria.length, 0, "aucun critère B-01B ne doit apparaître quand illegitimate_question_found est vide, quel que soit le nombre de questions.");
+});
+
+// 12. issue_id référençant une issue inexistante dans analyst_output.issues => FAIL structurel.
+test("scoreCriticOutput : illegitimate_question_found référençant un issue_id inexistant échoue", () => {
+  const analystOutput = analystOutputWithIssue();
+  const criticOutput = criticWithIllegitimateFinding({ issue_id: "ISSUE-DOES-NOT-EXIST" });
+  const score = scoreCriticOutput(criticOutput, {}, { analyst_output: analystOutput });
+  assert.equal(score.pass, false);
+  assert.equal(score.criteria.find((c) => c.criterion === "illegitimate_question_issue_reference_valid").pass, false);
+});
+
+// 13. issue_id référençant une issue dont le traitement déclaré par l'Analyst n'est PAS "question"
+// (ex. "research") => FAIL structurel : le signal B-01B ne concerne que les issues effectivement
+// traitées par question.
+test("scoreCriticOutput : illegitimate_question_found référençant une issue non traitée par question échoue", () => {
+  const analystOutput = analystOutputWithIssue({ recommended_treatment: "research" }, {});
+  const criticOutput = criticWithIllegitimateFinding();
+  const score = scoreCriticOutput(criticOutput, {}, { analyst_output: analystOutput });
+  assert.equal(score.pass, false);
+  assert.equal(score.criteria.find((c) => c.criterion === "illegitimate_question_targets_question_treatment").pass, false);
+});
+
+// 16. Indépendance textuelle totale : structure identique (mêmes id, même alternative), libellés
+// entièrement différents des deux côtés — le verdict structurel doit rester identique.
+test("scoreCriticOutput : le verdict B-01B ne dépend que de la structure, jamais des libellés", () => {
+  const analystA = analystOutputWithIssue({ description: "Premier libellé totalement arbitraire, sans rapport avec le second." });
+  const criticA = criticWithIllegitimateFinding({ why_available: "Justification A, formulée d'une façon complètement différente de la justification B." });
+  const scoreA = scoreCriticOutput(criticA, {}, { analyst_output: analystA });
+
+  const analystB = analystOutputWithIssue({ description: "Second libellé, vocabulaire et structure de phrase entièrement différents du premier." });
+  const criticB = criticWithIllegitimateFinding({ why_available: "Justification B, autre vocabulaire, autre longueur, aucun mot en commun avec A." });
+  const scoreB = scoreCriticOutput(criticB, {}, { analyst_output: analystB });
+
+  assert.equal(scoreA.pass, true);
+  assert.equal(scoreB.pass, true);
+  assert.equal(scoreA.pass, scoreB.pass, "des libellés totalement différents ne doivent jamais changer le verdict structurel.");
 });
 
 // --- Arbitre --------------------------------------------------------------------------------------

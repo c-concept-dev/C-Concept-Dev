@@ -49,7 +49,8 @@ function validCriticOutput() {
     semantic_drift_detected: false,
     semantic_drift_notes: [],
     significant_stakes: false,
-    significant_stakes_reason: ""
+    significant_stakes_reason: "",
+    illegitimate_question_found: []
   };
 }
 
