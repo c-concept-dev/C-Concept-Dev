@@ -156,51 +156,52 @@ export function scoreAnalystOutput(output, oracle = {}) {
     compoundQuestions.length ? `question(s) coordonnant plusieurs demandes : ${JSON.stringify(compoundQuestions.map((q) => q.text))}` : null
   ));
 
-  // 3F.3.3-C3, B-01 (nouvelle correction) : Phase 1 (inspection du contrat réel, core/adn/
-  // operational-request-state.js) confirme qu'AUCUNE relation structurelle ne relie une issue à une
-  // entrée de remaining_unknowns : CANDIDATE_LIST_FIELDS traite remaining_unknowns comme un tableau
-  // de chaînes plates, exactement au même titre que confirmed_constraints, assumptions_allowed, etc.
-  // — aucun identifiant, aucune référence. La seule relation structurelle qui existe réellement et de
-  // façon fiable dans tout le contrat est question_candidate.targets_issue_id -> issue.id (posée et
-  // vérifiée par validateAnalystOutput). Toute tentative de relier une issue à une entrée de
-  // remaining_unknowns ne peut donc reposer QUE sur une comparaison de texte — exactement ce que
-  // l'audit C3 a démontré non fiable en pratique ("La durée du voyage n'est pas précisée." vs "durée
-  // du voyage" désignent la même inconnue sans être identiques ni normalisables trivialement l'une
-  // vers l'autre) et ce que ce lot interdit explicitement (aucun fuzzy matching, aucune similarité
-  // sémantique, aucun stemming). Ajouter un identifiant à remaining_unknowns changerait la forme
-  // uniforme de TOUS les champs CANDIDATE_LIST_FIELDS (validation exactKeys, schéma JSON strict Groq,
-  // appariement de provenance par valeur exacte) pour un bénéfice limité à un seul critère de
-  // benchmark : ce n'est pas la plus petite modification contractuelle possible, et rien ici n'en
-  // démontre la nécessité. remaining_unknowns n'est donc jamais comparé par texte à une issue, ni
-  // dans un sens (3F.3.3-C1 : sa simple non-vacuité ne prouve plus un traitement) ni dans l'autre
-  // (3F.3.3-C2 : sa duplication textuelle ne prouve plus une inflation) — les deux étaient des
-  // simulations artificielles d'une comparaison sémantique que ce lot interdit de simuler.
+  // 3F.3.3-C5 (réouverture post-smoke Groq réel) : les lots C1-C4 ont bâti "no_question_inflation_
+  // without_ladder_evidence" sur une hypothèse sémantique jamais vérifiée empiriquement — que
+  // remaining_unknowns représenterait spécifiquement les inconnues traitées par "leave_unknown". Le
+  // premier smoke Groq réel post-C4 invalide cette hypothèse : sur les 15 cas, remaining_unknowns
+  // contient systématiquement les MÊMES inconnues que celles portant recommended_treatment="question"
+  // (case-02, 03, 07, 09, 12, 14) ET AUSSI celles portant recommended_treatment="research" (case-06 :
+  // 4 issues "research", 0 leave_unknown, 0 question_candidate, et pourtant remaining_unknowns liste
+  // les 4 mêmes inconnues) — et case-14 montre même une seule issue mappée à 3 entrées
+  // remaining_unknowns (granularité différente, donc aucune relation de cardinalité 1:1 ou N:1 ne
+  // peut exister). Aucune trace, ni dans le prompt Analyste ni dans CANDIDATE_JSON_SCHEMA (simple
+  // {type:"array", items:{type:"string"}}, sans description), ne restreint remaining_unknowns à
+  // "leave_unknown" : le champ n'est décrit NULLE PART dans le contrat (une seule occurrence dans
+  // tout le dépôt production : le nom de champ dans CANDIDATE_LIST_FIELDS). remaining_unknowns
+  // signifie donc, empiriquement et contractuellement, "toute inconnue encore ouverte à ce stade",
+  // quel que soit son traitement — jamais un proxy exclusif de "leave_unknown". Il est par conséquent
+  // définitivement retiré de ce critère : ni comme preuve d'existence (C3), ni comme cardinalité (C4).
   //
-  // Signal retenu, entièrement structurel, sans comparaison de texte : recommended_treatment est un
-  // champ de premier ordre porté par l'issue elle-même (jamais déduit d'un autre champ), et
-  // "leave_unknown" est, par construction du contrat (cf. le prompt Analyste, stratégie "laisser
-  // inconnue localement"), la SEULE stratégie dont l'artefact naturel est une entrée dans
-  // remaining_unknowns. Une issue représente une unité d'arbitrage/traitement (CDC §7) : chaque issue
-  // "leave_unknown" ne peut structurellement justifier qu'UNE seule capacité d'inconnue laissée
-  // ouverte, jamais un nombre arbitraire.
-  //
-  // 3F.3.3-C4 : la seule vérification d'EXISTENCE (« au moins une issue leave_unknown ») laissait un
-  // contournement résiduel — une unique issue leave_unknown justifiant à tort un nombre quelconque
-  // d'entrées remaining_unknowns (ex. 10 remaining_unknowns pour 1 seule issue leave_unknown parmi 10
-  // issues par ailleurs questionnées). La vérification devient donc une relation de CARDINALITÉ entre
-  // deux collections du contrat, jamais un seuil numérique métier ni un ratio arbitraire : le nombre
-  // d'entrées remaining_unknowns ne peut jamais excéder le nombre d'issues déclarant
-  // recommended_treatment="leave_unknown" — une capacité structurelle par issue, ni plus, ni moins.
-  // Aucune comparaison de texte n'intervient : seuls les deux comptages sont comparés.
-  const leaveUnknownIssueCount = output.issues.filter((issue) => issue.recommended_treatment === "leave_unknown").length;
-  const remainingUnknownsCount = candidateFieldValues(candidate, "remaining_unknowns").length;
-  const unjustifiedRemainingUnknowns = remainingUnknownsCount > leaveUnknownIssueCount;
+  // Signal retenu, recentré sur ce que B-01 a toujours cherché à empêcher (cf. CDC : "empêcher une
+  // inflation de questions lorsqu'une inconnue dispose déjà d'un traitement substitutif légitime") et
+  // sur la SEULE relation structurelle fiable et vérifiée du contrat : question_candidate.
+  // targets_issue_id -> issue.id (posée et imposée par validateAnalystOutput). Deux contradictions
+  // purement structurelles, sans aucune comparaison de texte :
+  //   (a) une question_candidate cible une issue dont recommended_treatment n'est PAS "question" —
+  //       l'Analyste a lui-même déclaré un traitement substitutif pour cette issue, puis l'a quand
+  //       même transformée en question : contradiction interne, jamais un traitement alternatif.
+  //   (b) plusieurs question_candidates distincts ciblent le MÊME issue.id — la même issue,
+  //       identifiée une seule fois, redemandée plusieurs fois : duplication structurelle réelle,
+  //       établie par égalité d'identifiant, jamais par ressemblance de texte.
+  // Plusieurs issues matérielles, toutes légitimement "question", chacune ciblée UNE seule fois par
+  // un question_candidate distinct, ne déclenchent jamais ce critère — quel que soit leur nombre.
+  const questionsByTargetIssue = new Map();
+  for (const q of output.question_candidates) {
+    questionsByTargetIssue.set(q.targets_issue_id, (questionsByTargetIssue.get(q.targets_issue_id) || 0) + 1);
+  }
+  const issueById = new Map(output.issues.map((issue) => [issue.id, issue]));
+  const questionedDespiteRealTreatment = [...questionsByTargetIssue.keys()].filter((issueId) => issueById.get(issueId)?.recommended_treatment !== "question");
+  const sameIssueQuestionedTwice = [...questionsByTargetIssue.entries()].filter(([, count]) => count > 1).map(([issueId]) => issueId);
+  const structuralInflation = questionedDespiteRealTreatment.length > 0 || sameIssueQuestionedTwice.length > 0;
+  const inflationNotes = [
+    questionedDespiteRealTreatment.length ? `issue(s) questionnée(s) malgré un traitement substitutif déjà déclaré : ${JSON.stringify(questionedDespiteRealTreatment)}` : null,
+    sameIssueQuestionedTwice.length ? `issue(s) ciblée(s) par plusieurs question_candidates distincts : ${JSON.stringify(sameIssueQuestionedTwice)}` : null
+  ].filter(Boolean);
   criteria.push(verdict(
     "no_question_inflation_without_ladder_evidence",
-    !unjustifiedRemainingUnknowns,
-    unjustifiedRemainingUnknowns
-      ? `remaining_unknowns contient ${remainingUnknownsCount} entrée(s) pour seulement ${leaveUnknownIssueCount} issue(s) déclarant recommended_treatment="leave_unknown" — capacité structurelle dépassée, jamais accepté comme preuve de traitement alternatif.`
-      : null
+    !structuralInflation,
+    inflationNotes.length ? inflationNotes.join(" ; ") : null
   ));
 
   return { criteria, pass: criteria.every((c) => c.pass) };
