@@ -376,6 +376,101 @@ test("scoreAnalystOutput : la seule non-vacuité de remaining_unknowns ne suffit
   assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "sans la vérification structurelle (issue leave_unknown), l'ancien défaut aurait accepté ce champ non vide comme preuve de traitement à tort.");
 });
 
+// --- 3F.3.3-C4 : cardinalité remaining_unknowns <= nombre d'issues leave_unknown -----------------
+// L'existence d'AU MOINS UNE issue leave_unknown (3F.3.3-C3) laissait un contournement résiduel :
+// une seule issue leave_unknown pouvait justifier arbitrairement N entrées remaining_unknowns. Une
+// issue représente une unité d'arbitrage/traitement (CDC §7) : chaque issue leave_unknown ne peut
+// structurellement justifier qu'UNE seule capacité d'inconnue laissée ouverte. La vérification
+// compare deux comptages de collections déjà présentes dans le contrat — ce n'est ni un seuil
+// numérique métier, ni un ratio arbitraire, ni un plafond de questions.
+
+function leaveUnknownIssue(id, overrides = {}) {
+  return { id, type: "missing_information", description: `Issue ${id} laissée inconnue.`, impact: "material", substitutable: true, recommended_treatment: "leave_unknown", ...overrides };
+}
+
+// 2. Contournement découvert : 10 remaining_unknowns, une seule issue leave_unknown, plusieurs
+// autres issues questionnées => la capacité structurelle (1) est dépassée par le volume déclaré (10).
+test("scoreAnalystOutput : 10 remaining_unknowns pour une seule issue leave_unknown échoue (contournement de cardinalité)", () => {
+  const remaining_unknowns = Array.from({ length: 10 }, (_, i) => `capacité déclarée numéro ${i + 1}`);
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns },
+    provenance_records: remaining_unknowns.map((v) => ({ field: "remaining_unknowns", value: v, provenance: "safe_deduction" })),
+    issues: [
+      leaveUnknownIssue("ISSUE-LU"),
+      ...Array.from({ length: 9 }, (_, i) => materialIssue(`ISSUE-Q-${i + 1}`))
+    ],
+    question_candidates: Array.from({ length: 9 }, (_, i) => ({ text: `Que décidez-vous pour le point ${i + 1} ?`, targets_issue_id: `ISSUE-Q-${i + 1}`, expected_progress: "x" })),
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "une seule issue leave_unknown ne peut structurellement justifier que 1 remaining_unknown, jamais 10.");
+});
+
+// 3. Cohérence structurelle : autant d'issues leave_unknown que d'entrées remaining_unknowns => la
+// capacité structurelle est exactement respectée, aucun échec sur ce critère de cardinalité.
+test("scoreAnalystOutput : 3 remaining_unknowns pour 3 issues leave_unknown respecte la cardinalité (PASS)", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["point A", "point B", "point C"] },
+    provenance_records: ["point A", "point B", "point C"].map((v) => ({ field: "remaining_unknowns", value: v, provenance: "safe_deduction" })),
+    issues: [leaveUnknownIssue("ISSUE-1"), leaveUnknownIssue("ISSUE-2"), leaveUnknownIssue("ISSUE-3")],
+    question_candidates: [],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "3 issues leave_unknown fournissent exactement la capacité structurelle nécessaire pour 3 remaining_unknowns.");
+});
+
+// 5. Capacité excédentaire : plus d'issues leave_unknown que d'entrées remaining_unknowns réellement
+// utilisées => jamais un échec (la capacité est un plafond, pas un minimum requis).
+test("scoreAnalystOutput : 2 remaining_unknowns pour 3 issues leave_unknown reste PASS (capacité excédentaire tolérée)", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["point A", "point B"] },
+    provenance_records: ["point A", "point B"].map((v) => ({ field: "remaining_unknowns", value: v, provenance: "safe_deduction" })),
+    issues: [leaveUnknownIssue("ISSUE-1"), leaveUnknownIssue("ISSUE-2"), leaveUnknownIssue("ISSUE-3")],
+    question_candidates: [],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "une capacité structurelle excédentaire n'est jamais un défaut : ce critère borne un maximum, pas un minimum.");
+});
+
+// 6. Aucun biais textuel : les libellés d'issues et de remaining_unknowns sont volontairement sans
+// aucun rapport les uns avec les autres. Le résultat (FAIL) ne dépend que du comptage 4 > 1.
+test("scoreAnalystOutput : la cardinalité fonctionne indépendamment de tout rapport textuel entre issues et remaining_unknowns", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: {
+      ...createEmptyCandidate(),
+      remaining_unknowns: ["xyz-alpha", "xyz-beta", "xyz-gamma", "xyz-delta"]
+    },
+    provenance_records: ["xyz-alpha", "xyz-beta", "xyz-gamma", "xyz-delta"].map((v) => ({ field: "remaining_unknowns", value: v, provenance: "safe_deduction" })),
+    issues: [leaveUnknownIssue("ISSUE-LU", { description: "Un aspect totalement sans rapport lexical avec les entrées ci-dessus." })],
+    question_candidates: [],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "4 remaining_unknowns pour 1 seule issue leave_unknown échoue, quels que soient les libellés utilisés de part et d'autre.");
+});
+
+// 7. Test de régression : si la vérification de cardinalité est retirée et remplacée par la seule
+// vérification d'existence (3F.3.3-C3, « au moins une issue leave_unknown »), le scénario du
+// contournement 10/1 repasserait à tort en PASS. Preuve directe, indépendante de l'implémentation.
+test("scoreAnalystOutput : preuve que la vérification d'existence seule (sans cardinalité) accepterait à tort le contournement 10/1", () => {
+  const remaining_unknowns = Array.from({ length: 10 }, (_, i) => `capacité déclarée numéro ${i + 1}`);
+  const issues = [leaveUnknownIssue("ISSUE-LU"), ...Array.from({ length: 9 }, (_, i) => materialIssue(`ISSUE-Q-${i + 1}`))];
+  const existenceOnlyWouldPass = issues.some((issue) => issue.recommended_treatment === "leave_unknown");
+  assert.equal(existenceOnlyWouldPass, true, "la seule vérification d'existence (3F.3.3-C3) est satisfaite ici : c'est précisément le contournement.");
+
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns },
+    provenance_records: remaining_unknowns.map((v) => ({ field: "remaining_unknowns", value: v, provenance: "safe_deduction" })),
+    issues,
+    question_candidates: Array.from({ length: 9 }, (_, i) => ({ text: `Que décidez-vous pour le point ${i + 1} ?`, targets_issue_id: `ISSUE-Q-${i + 1}`, expected_progress: "x" })),
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "la vérification de cardinalité (3F.3.3-C4) doit faire échouer ce cas que la vérification d'existence seule aurait laissé passer.");
+});
+
 // --- Critique -----------------------------------------------------------------------------------
 
 test("scoreCriticOutput : agree sans veto valide le cas 'accepte sans veto'", () => {

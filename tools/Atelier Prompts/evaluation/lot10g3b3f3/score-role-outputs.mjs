@@ -180,20 +180,26 @@ export function scoreAnalystOutput(output, oracle = {}) {
   // champ de premier ordre porté par l'issue elle-même (jamais déduit d'un autre champ), et
   // "leave_unknown" est, par construction du contrat (cf. le prompt Analyste, stratégie "laisser
   // inconnue localement"), la SEULE stratégie dont l'artefact naturel est une entrée dans
-  // remaining_unknowns. Un remaining_unknowns non vide alors qu'AUCUNE issue déclarée — matérielle ou
-  // non — n'a recommended_treatment="leave_unknown" est donc une incohérence structurelle : son
-  // contenu n'a aucune origine justifiée parmi les issues traitées, signe qu'il a été rempli pour
-  // simuler un traitement alternatif plutôt que d'en représenter un réel. C'est une vérification
-  // d'existence (« au moins une »), jamais un comptage, un ratio ou un plafond : aucun nombre
-  // d'issues, de questions ou d'entrées n'intervient dans ce critère.
-  const anyIssueLeftUnknown = output.issues.some((issue) => issue.recommended_treatment === "leave_unknown");
+  // remaining_unknowns. Une issue représente une unité d'arbitrage/traitement (CDC §7) : chaque issue
+  // "leave_unknown" ne peut structurellement justifier qu'UNE seule capacité d'inconnue laissée
+  // ouverte, jamais un nombre arbitraire.
+  //
+  // 3F.3.3-C4 : la seule vérification d'EXISTENCE (« au moins une issue leave_unknown ») laissait un
+  // contournement résiduel — une unique issue leave_unknown justifiant à tort un nombre quelconque
+  // d'entrées remaining_unknowns (ex. 10 remaining_unknowns pour 1 seule issue leave_unknown parmi 10
+  // issues par ailleurs questionnées). La vérification devient donc une relation de CARDINALITÉ entre
+  // deux collections du contrat, jamais un seuil numérique métier ni un ratio arbitraire : le nombre
+  // d'entrées remaining_unknowns ne peut jamais excéder le nombre d'issues déclarant
+  // recommended_treatment="leave_unknown" — une capacité structurelle par issue, ni plus, ni moins.
+  // Aucune comparaison de texte n'intervient : seuls les deux comptages sont comparés.
+  const leaveUnknownIssueCount = output.issues.filter((issue) => issue.recommended_treatment === "leave_unknown").length;
   const remainingUnknownsCount = candidateFieldValues(candidate, "remaining_unknowns").length;
-  const unjustifiedRemainingUnknowns = remainingUnknownsCount > 0 && !anyIssueLeftUnknown;
+  const unjustifiedRemainingUnknowns = remainingUnknownsCount > leaveUnknownIssueCount;
   criteria.push(verdict(
     "no_question_inflation_without_ladder_evidence",
     !unjustifiedRemainingUnknowns,
     unjustifiedRemainingUnknowns
-      ? `remaining_unknowns contient ${remainingUnknownsCount} entrée(s) alors qu'aucune issue déclarée n'a recommended_treatment="leave_unknown" — contenu sans origine structurelle justifiée, jamais accepté comme preuve de traitement alternatif.`
+      ? `remaining_unknowns contient ${remainingUnknownsCount} entrée(s) pour seulement ${leaveUnknownIssueCount} issue(s) déclarant recommended_treatment="leave_unknown" — capacité structurelle dépassée, jamais accepté comme preuve de traitement alternatif.`
       : null
   ));
 
