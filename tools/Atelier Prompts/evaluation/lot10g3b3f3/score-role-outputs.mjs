@@ -156,39 +156,44 @@ export function scoreAnalystOutput(output, oracle = {}) {
     compoundQuestions.length ? `question(s) coordonnant plusieurs demandes : ${JSON.stringify(compoundQuestions.map((q) => q.text))}` : null
   ));
 
-  // 3F.3.3-C2, B-01 (correction) : la version précédente jugeait "aucune preuve de traitement
-  // substitutif nulle part dans la sortie" comme un signal suffisant d'inflation — ce qui produisait
-  // à la fois un FAUX NÉGATIF (un champ remaining_unknowns simplement rempli des mêmes intitulés que
-  // les issues questionnées suffisait à "prouver" à tort un traitement alternatif) et un FAUX POSITIF
-  // (plusieurs issues réellement non substituables, toutes légitimement questionnées, sans qu'aucun
-  // autre champ ne puisse s'appliquer, étaient à tort signalées comme une inflation). La seule
-  // non-vacuité d'un champ n'est pas et n'a jamais été une preuve de traitement : ce n'est pas parce
-  // qu'un champ contient du texte que ce texte représente une stratégie substitutive réellement
-  // distincte de la question posée sur la même inconnue.
+  // 3F.3.3-C3, B-01 (nouvelle correction) : Phase 1 (inspection du contrat réel, core/adn/
+  // operational-request-state.js) confirme qu'AUCUNE relation structurelle ne relie une issue à une
+  // entrée de remaining_unknowns : CANDIDATE_LIST_FIELDS traite remaining_unknowns comme un tableau
+  // de chaînes plates, exactement au même titre que confirmed_constraints, assumptions_allowed, etc.
+  // — aucun identifiant, aucune référence. La seule relation structurelle qui existe réellement et de
+  // façon fiable dans tout le contrat est question_candidate.targets_issue_id -> issue.id (posée et
+  // vérifiée par validateAnalystOutput). Toute tentative de relier une issue à une entrée de
+  // remaining_unknowns ne peut donc reposer QUE sur une comparaison de texte — exactement ce que
+  // l'audit C3 a démontré non fiable en pratique ("La durée du voyage n'est pas précisée." vs "durée
+  // du voyage" désignent la même inconnue sans être identiques ni normalisables trivialement l'une
+  // vers l'autre) et ce que ce lot interdit explicitement (aucun fuzzy matching, aucune similarité
+  // sémantique, aucun stemming). Ajouter un identifiant à remaining_unknowns changerait la forme
+  // uniforme de TOUS les champs CANDIDATE_LIST_FIELDS (validation exactKeys, schéma JSON strict Groq,
+  // appariement de provenance par valeur exacte) pour un bénéfice limité à un seul critère de
+  // benchmark : ce n'est pas la plus petite modification contractuelle possible, et rien ici n'en
+  // démontre la nécessité. remaining_unknowns n'est donc jamais comparé par texte à une issue, ni
+  // dans un sens (3F.3.3-C1 : sa simple non-vacuité ne prouve plus un traitement) ni dans l'autre
+  // (3F.3.3-C2 : sa duplication textuelle ne prouve plus une inflation) — les deux étaient des
+  // simulations artificielles d'une comparaison sémantique que ce lot interdit de simuler.
   //
-  // Nouveau principe, relationnel plutôt que basé sur la simple présence : une inconnue ne peut pas
-  // être à la fois (a) laissée de côté (remaining_unknowns, qui signifie par construction "ne bloque
-  // pas le livrable, n'a pas besoin d'être posée") et (b) transformée en question_candidate pour la
-  // même issue matérielle. Si son intitulé (normalisé de façon triviale : espaces, casse, ponctuation
-  // terminale — jamais de rapprochement approximatif de mots-clés) réapparaît à l'identique dans
-  // remaining_unknowns, ce n'est pas un traitement alternatif : c'est la même inconnue dupliquée sous
-  // deux étiquettes contradictoires pour masquer artificiellement un sur-questionnement. À l'inverse,
-  // plusieurs issues matérielles toutes traitées par "question", sans aucune duplication de ce type,
-  // restent un comportement légitime et ne doivent jamais échouer ce critère au seul motif de leur
-  // nombre — aucun plafond numérique de questions n'est introduit ici.
-  function normalizedForTrivialComparison(value) {
-    return normalize(value).trim().replace(/[.!?,;:]+$/u, "");
-  }
-  const remainingUnknownsNormalized = candidateFieldValues(candidate, "remaining_unknowns").map(normalizedForTrivialComparison);
-  const duplicatedAsLeftUnknown = materialIssues.filter((issue) =>
-    issue.recommended_treatment === "question"
-    && remainingUnknownsNormalized.includes(normalizedForTrivialComparison(issue.description))
-  );
+  // Signal retenu, entièrement structurel, sans comparaison de texte : recommended_treatment est un
+  // champ de premier ordre porté par l'issue elle-même (jamais déduit d'un autre champ), et
+  // "leave_unknown" est, par construction du contrat (cf. le prompt Analyste, stratégie "laisser
+  // inconnue localement"), la SEULE stratégie dont l'artefact naturel est une entrée dans
+  // remaining_unknowns. Un remaining_unknowns non vide alors qu'AUCUNE issue déclarée — matérielle ou
+  // non — n'a recommended_treatment="leave_unknown" est donc une incohérence structurelle : son
+  // contenu n'a aucune origine justifiée parmi les issues traitées, signe qu'il a été rempli pour
+  // simuler un traitement alternatif plutôt que d'en représenter un réel. C'est une vérification
+  // d'existence (« au moins une »), jamais un comptage, un ratio ou un plafond : aucun nombre
+  // d'issues, de questions ou d'entrées n'intervient dans ce critère.
+  const anyIssueLeftUnknown = output.issues.some((issue) => issue.recommended_treatment === "leave_unknown");
+  const remainingUnknownsCount = candidateFieldValues(candidate, "remaining_unknowns").length;
+  const unjustifiedRemainingUnknowns = remainingUnknownsCount > 0 && !anyIssueLeftUnknown;
   criteria.push(verdict(
     "no_question_inflation_without_ladder_evidence",
-    duplicatedAsLeftUnknown.length === 0,
-    duplicatedAsLeftUnknown.length
-      ? `issue(s) matérielle(s) à la fois questionnée(s) et dupliquée(s) dans remaining_unknowns (contradiction, pas un traitement alternatif) : ${JSON.stringify(duplicatedAsLeftUnknown.map((issue) => issue.id))}`
+    !unjustifiedRemainingUnknowns,
+    unjustifiedRemainingUnknowns
+      ? `remaining_unknowns contient ${remainingUnknownsCount} entrée(s) alors qu'aucune issue déclarée n'a recommended_treatment="leave_unknown" — contenu sans origine structurelle justifiée, jamais accepté comme preuve de traitement alternatif.`
       : null
   ));
 

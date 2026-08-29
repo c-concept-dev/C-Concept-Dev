@@ -233,64 +233,79 @@ test("scoreAnalystOutput : détecte le multi_objective_disorder attendu", () => 
   assert.equal(scoreAnalystOutput(withDisorder, testCase.oracle.analyst).pass, true);
 });
 
-// --- 3F.3.3-C2, B-01 (correction) : duplication d'une inconnue vs. traitement réellement distinct --
-// Le critère ne repose sur aucun case_id, aucun mot-clé métier, aucun plafond numérique de questions,
-// aucun ratio global fixe. Il détecte une seule chose, relationnelle et structurelle : une issue
-// matérielle traitée par "question" dont l'intitulé (normalisé trivialement : espaces, casse,
-// ponctuation terminale) réapparaît aussi dans remaining_unknowns — une contradiction interne, jamais
-// une preuve de traitement alternatif.
+// --- 3F.3.3-C3, B-01 (nouvelle correction) : cohérence structurelle recommended_treatment <->
+// remaining_unknowns, sans AUCUNE comparaison de texte entre une issue et une entrée de
+// remaining_unknowns. Phase 1 a confirmé qu'aucune relation structurelle (id ou autre) ne relie ces
+// deux éléments dans le contrat actuel — toute tentative de les rapprocher par le texte serait soit
+// un rapprochement approximatif de mots-clés, soit une similarité sémantique déguisée, les deux
+// interdits ici. Le seul fait structurel disponible est recommended_treatment, porté par l'issue
+// elle-même : "leave_unknown" est, par construction du contrat, la seule stratégie dont l'artefact
+// naturel est une entrée de remaining_unknowns. Le critère vérifie donc une simple existence — au
+// moins une issue "leave_unknown" justifie un remaining_unknowns non vide — jamais un comptage, un
+// ratio, ou une comparaison de libellés.
 
 function materialIssue(id, overrides = {}) {
   return { id, type: "missing_information", description: `Issue ${id} non résolue.`, impact: "material", substitutable: false, recommended_treatment: "question", ...overrides };
 }
 
-// A. Régression historique exacte : plusieurs issues matérielles, toutes substitutable:false, toutes
-// questionnées, ET les mêmes intitulés dupliqués dans remaining_unknowns (avec une variation triviale
-// de casse/ponctuation sur l'un d'eux, pour exercer la normalisation). Sans la nouvelle logique
-// relationnelle (E), la seule non-vacuité de remaining_unknowns aurait fait passer ce cas à tort.
-test("scoreAnalystOutput : régression historique — issues questionnées dupliquées dans remaining_unknowns échoue (faux négatif corrigé)", () => {
-  const descriptions = Array.from({ length: 10 }, (_, i) => `Point non résolu numéro ${i + 1}.`);
+// A. Reproduction exacte du bug réel : la forme structurelle rapportée par l'audit ("La durée du
+// voyage n'est pas précisée." vs "durée du voyage" — même inconnue, aucune similarité textuelle
+// fiable) ET une variante avec un intitulé totalement différent. Le critère doit échouer dans les
+// deux cas SANS jamais comparer les deux textes entre eux : aucune issue ne déclare "leave_unknown",
+// donc remaining_unknowns non vide est structurellement injustifié, quel que soit son libellé.
+test("scoreAnalystOutput : reproduction exacte du bug historique — remaining_unknowns non vide sans aucune issue leave_unknown échoue, quel que soit le texte", () => {
+  const outputVerbatimCase = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["durée du voyage"] },
+    provenance_records: [{ field: "remaining_unknowns", value: "durée du voyage", provenance: "safe_deduction" }],
+    issues: [materialIssue("ISSUE-1", { description: "La durée du voyage n'est pas précisée." })],
+    question_candidates: [{ text: "Combien de temps doit durer le voyage ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }],
+    confirmation_signals: confirmationSignals()
+  });
+  const criterionVerbatim = scoreAnalystOutput(outputVerbatimCase, {}).criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
+  assert.equal(criterionVerbatim.pass, false, "même sans aucune ressemblance textuelle exploitable, l'absence de toute issue leave_unknown rend remaining_unknowns structurellement injustifié.");
+
+  const outputUnrelatedWording = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["point en suspens côté logistique"] },
+    provenance_records: [{ field: "remaining_unknowns", value: "point en suspens côté logistique", provenance: "safe_deduction" }],
+    issues: [materialIssue("ISSUE-1", { description: "La durée du voyage n'est pas précisée." })],
+    question_candidates: [{ text: "Combien de temps doit durer le voyage ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }],
+    confirmation_signals: confirmationSignals()
+  });
+  const criterionUnrelated = scoreAnalystOutput(outputUnrelatedWording, {}).criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
+  assert.equal(criterionUnrelated.pass, false, "un libellé totalement différent produit exactement le même verdict : le texte n'intervient jamais dans ce critère.");
+});
+
+// B. Variation textuelle forte sur PLUSIEURS issues à la fois (le cas historique complet : plusieurs
+// issues matérielles, toutes substitutable:false, toutes questionnées, remaining_unknowns rempli de
+// libellés qui ne correspondent, mot pour mot, à AUCUNE des descriptions d'issues). La détection doit
+// fonctionner identiquement, portée uniquement par recommended_treatment.
+test("scoreAnalystOutput : plusieurs issues avec libellés remaining_unknowns totalement différents — toujours détecté sans comparaison de texte", () => {
   const output = validateAnalystOutput({
     operational_request_candidate: {
       ...createEmptyCandidate(),
-      remaining_unknowns: descriptions.map((d, i) => (i === 0 ? d.toUpperCase().replace(/\.$/, "") : d))
+      remaining_unknowns: ["aspect non tranché A", "aspect non tranché B", "aspect non tranché C"]
     },
-    provenance_records: descriptions.map((d, i) => ({ field: "remaining_unknowns", value: i === 0 ? d.toUpperCase().replace(/\.$/, "") : d, provenance: "safe_deduction" })),
-    issues: descriptions.map((d, i) => materialIssue(`ISSUE-${i + 1}`, { description: d })),
-    question_candidates: descriptions.map((d, i) => ({ text: `Que faut-il faire concernant : ${d} ?`, targets_issue_id: `ISSUE-${i + 1}`, expected_progress: "x" })),
-    confirmation_signals: confirmationSignals()
-  });
-  const score = scoreAnalystOutput(output, {});
-  const criterion = score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
-  assert.equal(criterion.pass, false, "les 10 issues sont simultanément questionnées ET dupliquées dans remaining_unknowns : ce n'est pas un traitement alternatif, c'est une contradiction.");
-  assert.equal(score.pass, false);
-});
-
-// B. Duplication partielle : certaines issues sont dupliquées dans remaining_unknowns (fausse
-// alternative), d'autres reçoivent un vrai traitement distinct (recommended_treatment != "question").
-// Le score doit distinguer les deux : échec à cause des seules issues dupliquées.
-test("scoreAnalystOutput : duplication partielle — seules les issues réellement dupliquées font échouer le critère", () => {
-  const output = validateAnalystOutput({
-    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Point non résolu numéro 1."] },
-    provenance_records: [{ field: "remaining_unknowns", value: "Point non résolu numéro 1.", provenance: "safe_deduction" }],
+    provenance_records: ["aspect non tranché A", "aspect non tranché B", "aspect non tranché C"].map((v) => ({ field: "remaining_unknowns", value: v, provenance: "safe_deduction" })),
     issues: [
-      materialIssue("ISSUE-1", { description: "Point non résolu numéro 1." }),
-      materialIssue("ISSUE-2", { description: "Point non résolu numéro 2.", recommended_treatment: "estimate", substitutable: true })
+      materialIssue("ISSUE-1", { description: "Premier point non résolu, formulation complètement différente." }),
+      materialIssue("ISSUE-2", { description: "Deuxième point non résolu, autre formulation." }),
+      materialIssue("ISSUE-3", { description: "Troisième point non résolu, encore une autre formulation." })
     ],
-    question_candidates: [{ text: "Que faut-il faire concernant : Point non résolu numéro 1. ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }],
+    question_candidates: [
+      { text: "Que décidez-vous pour le premier point ?", targets_issue_id: "ISSUE-1", expected_progress: "x" },
+      { text: "Que décidez-vous pour le deuxième point ?", targets_issue_id: "ISSUE-2", expected_progress: "x" },
+      { text: "Que décidez-vous pour le troisième point ?", targets_issue_id: "ISSUE-3", expected_progress: "x" }
+    ],
     confirmation_signals: confirmationSignals()
   });
   const score = scoreAnalystOutput(output, {});
-  const criterion = score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
-  assert.equal(criterion.pass, false);
-  assert.match(criterion.note, /ISSUE-1/);
-  assert.doesNotMatch(criterion.note, /ISSUE-2/, "ISSUE-2 a reçu un traitement réellement distinct (estimate) : elle ne doit jamais apparaître comme duplication.");
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "aucune des 3 issues ne déclare leave_unknown : remaining_unknowns reste injustifié quels que soient les libellés utilisés.");
 });
 
 // C. Cas légitime non substituable : plusieurs issues matérielles réellement non substituables,
-// toutes questionnées, sans aucun autre champ rempli et donc aucune duplication possible. Ce cas ne
-// doit JAMAIS échouer au seul motif du nombre d'issues ou de questions (c'était le faux positif).
-test("scoreAnalystOutput : plusieurs issues réellement non substituables, toutes questionnées, sans duplication — reste PASS", () => {
+// toutes questionnées, remaining_unknowns VIDE (rien à justifier). Ne doit jamais échouer au seul
+// motif du nombre d'issues ou de questions — c'était le faux positif de 3F.3.3-C1.
+test("scoreAnalystOutput : plusieurs issues réellement non substituables, toutes questionnées, remaining_unknowns vide — reste PASS", () => {
   const output = validateAnalystOutput({
     operational_request_candidate: createEmptyCandidate(),
     provenance_records: [],
@@ -303,47 +318,62 @@ test("scoreAnalystOutput : plusieurs issues réellement non substituables, toute
     confirmation_signals: confirmationSignals()
   });
   const score = scoreAnalystOutput(output, {});
-  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "plusieurs issues + plusieurs questions + aucun autre champ disponible n'est jamais, à lui seul, une inflation.");
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "plusieurs issues + plusieurs questions + remaining_unknowns vide n'est jamais, à lui seul, une inflation.");
 });
 
-// D. Cas sain avec stratégie alternative réelle (aucune duplication, traitements distincts) => PASS.
-test("scoreAnalystOutput : traitements variés et réellement distincts (aucune duplication) — PASS", () => {
+// D. Traitement alternatif réel, trois issues distinctes : A -> question, B -> traitement
+// substitutif réel (decide), C -> laissée localement inconnue (leave_unknown, justifiant
+// remaining_unknowns). Le scoring doit reconnaître ce cas comme sain dans son ensemble.
+test("scoreAnalystOutput : issue questionnée + issue décidée + issue laissée inconnue — distingue correctement les trois et reste PASS", () => {
   const output = validateAnalystOutput({
-    operational_request_candidate: { ...createEmptyCandidate(), assumptions_allowed: ["Hypothèse par défaut retenue faute d'information contraire."] },
-    provenance_records: [{ field: "assumptions_allowed", value: "Hypothèse par défaut retenue faute d'information contraire.", provenance: "labeled_estimate" }],
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Un point mineur reste ouvert sans bloquer le livrable."] },
+    provenance_records: [{ field: "remaining_unknowns", value: "Un point mineur reste ouvert sans bloquer le livrable.", provenance: "safe_deduction" }],
     issues: [
-      materialIssue("ISSUE-1"),
-      materialIssue("ISSUE-2", { recommended_treatment: "estimate", substitutable: true }),
-      materialIssue("ISSUE-3", { recommended_treatment: "decide", substitutable: true })
+      materialIssue("ISSUE-A"),
+      materialIssue("ISSUE-B", { recommended_treatment: "decide", substitutable: true }),
+      materialIssue("ISSUE-C", { recommended_treatment: "leave_unknown", substitutable: true, description: "Un point mineur reste ouvert sans bloquer le livrable." })
     ],
+    question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-A", expected_progress: "x" }],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "ISSUE-C (leave_unknown) justifie structurellement remaining_unknowns : aucune incohérence.");
+});
+
+// E. Aucun lien structurel inventé : un texte de remaining_unknowns qui ressemble fortement (voire
+// à l'identique) à la description d'une issue ne doit jamais, à lui seul, valoir comme justification
+// si cette issue n'a pas recommended_treatment="leave_unknown". La ressemblance textuelle — même
+// parfaite — n'est jamais un substitut au fait structurel.
+test("scoreAnalystOutput : une ressemblance textuelle parfaite entre remaining_unknowns et une issue questionnée ne justifie jamais l'absence de leave_unknown", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Issue ISSUE-1 non résolue."] },
+    provenance_records: [{ field: "remaining_unknowns", value: "Issue ISSUE-1 non résolue.", provenance: "safe_deduction" }],
+    issues: [materialIssue("ISSUE-1")],
     question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }],
     confirmation_signals: confirmationSignals()
   });
   const score = scoreAnalystOutput(output, {});
-  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true);
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "le texte de remaining_unknowns est identique mot pour mot à la description de l'issue, mais celle-ci reste recommended_treatment=\"question\" : aucun lien structurel (leave_unknown) n'existe, donc aucune justification, quelle que soit la ressemblance textuelle.");
 });
 
-// E. Preuve que la logique de distinction est bien exercée par le test A : une comparaison naïve
-// qui se contenterait de vérifier "remaining_unknowns non vide" (l'ancien défaut) qualifierait à
-// tort ce même cas de traitement alternatif valide. Vérifié directement ici, indépendamment de
-// l'implémentation interne, pour garantir que le test A ne pourrait pas passer par accident.
-test("scoreAnalystOutput : la seule non-vacuité de remaining_unknowns ne suffit jamais à elle seule (preuve négative)", () => {
+// F. Régression : si la vérification structurelle (au moins une issue leave_unknown) est retirée et
+// remplacée par "remaining_unknowns non vide => traitement prouvé" (l'ancien défaut 3F.3.3-C1), ce
+// même cas passerait à tort. Preuve directe, indépendante de l'implémentation interne.
+test("scoreAnalystOutput : la seule non-vacuité de remaining_unknowns ne suffit jamais, à elle seule, sans issue leave_unknown (preuve de régression)", () => {
   const output = validateAnalystOutput({
-    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Point non résolu numéro 1.", "Point non résolu numéro 2."] },
-    provenance_records: [
-      { field: "remaining_unknowns", value: "Point non résolu numéro 1.", provenance: "safe_deduction" },
-      { field: "remaining_unknowns", value: "Point non résolu numéro 2.", provenance: "safe_deduction" }
-    ],
-    issues: [materialIssue("ISSUE-1", { description: "Point non résolu numéro 1." }), materialIssue("ISSUE-2", { description: "Point non résolu numéro 2." })],
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Un aspect quelconque reste non traité."] },
+    provenance_records: [{ field: "remaining_unknowns", value: "Un aspect quelconque reste non traité.", provenance: "safe_deduction" }],
+    issues: [materialIssue("ISSUE-1"), materialIssue("ISSUE-2")],
     question_candidates: [
-      { text: "Que faut-il faire concernant : Point non résolu numéro 1. ?", targets_issue_id: "ISSUE-1", expected_progress: "x" },
-      { text: "Que faut-il faire concernant : Point non résolu numéro 2. ?", targets_issue_id: "ISSUE-2", expected_progress: "x" }
+      { text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-1", expected_progress: "x" },
+      { text: "Quel format attendez-vous ?", targets_issue_id: "ISSUE-2", expected_progress: "x" }
     ],
     confirmation_signals: confirmationSignals()
   });
   assert.ok(output.operational_request_candidate.remaining_unknowns.length > 0, "remaining_unknowns est bien non vide ici — et pourtant :");
+  assert.equal(output.issues.some((issue) => issue.recommended_treatment === "leave_unknown"), false, "aucune issue ne déclare leave_unknown ici.");
   const score = scoreAnalystOutput(output, {});
-  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "un champ non vide seul ne doit jamais suffire à valider un traitement alternatif.");
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "sans la vérification structurelle (issue leave_unknown), l'ancien défaut aurait accepté ce champ non vide comme preuve de traitement à tort.");
 });
 
 // --- Critique -----------------------------------------------------------------------------------
