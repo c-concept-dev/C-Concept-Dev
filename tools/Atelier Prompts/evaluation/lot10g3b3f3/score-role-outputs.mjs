@@ -1,4 +1,5 @@
 import { assessProvenance, assessIntentPreservationDeterministic } from "../../core/adn/index.js";
+import { TREATMENT_VALUES } from "../../workers/shared/operational-request-core.js";
 
 // Scoring pur, déterministe, sans appel réseau. Prend une sortie déjà parsée et validée par
 // workers/shared/operational-request-core.js (validateAnalystOutput / validateCriticOutput /
@@ -210,7 +211,7 @@ export function scoreAnalystOutput(output, oracle = {}) {
 // 3F.3.3-C (mission de suivi), B3 : chaque critère Critic porte désormais une dimension explicite
 // (detection / escalade / verdict / drift / veto) pour permettre un diagnostic séparé sans refondre
 // la structure plate existante (criteria[]) ni les consommateurs qui ne lisent que criterion/pass.
-export function scoreCriticOutput(output, oracle = {}) {
+export function scoreCriticOutput(output, oracle = {}, context = {}) {
   const criteria = [];
   if (oracle.expect_agreement) criteria.push(verdict("agreement_matches_oracle", output.agreement === oracle.expect_agreement, `attendu=${oracle.expect_agreement} obtenu=${output.agreement}`, "verdict"));
   if (typeof oracle.expect_vetoes === "boolean") criteria.push(verdict("veto_presence_matches_oracle", (output.vetoes.length > 0) === oracle.expect_vetoes, null, "veto"));
@@ -229,6 +230,47 @@ export function scoreCriticOutput(output, oracle = {}) {
   // (B1) impose déjà vetoes=[] et semantic_drift_detected=false pour tout agreement="agree" ; sur
   // une sortie déjà validée, une telle condition est mathématiquement impossible à échouer et ne
   // ferait que gonfler artificiellement le taux de réussite sans rien mesurer de réel.
+
+  // 3F.3.3-C8, B-01B : vérification purement structurelle de illegitimate_question_found — jamais
+  // un jugement sur la pertinence de l'alternative proposée (cela appartient exclusivement au LLM
+  // Critic). N'ajoute aucun critère quand le tableau est vide : un agree légitime sans rien à
+  // signaler ne doit jamais gagner de critères tautologiques (même principe que ci-dessus).
+  if (output.illegitimate_question_found.length > 0) {
+    if (context.analyst_output) {
+      const analystIssueById = new Map(context.analyst_output.issues.map((issue) => [issue.id, issue]));
+      const unknownIssueIds = output.illegitimate_question_found.filter((finding) => !analystIssueById.has(finding.issue_id));
+      criteria.push(verdict(
+        "illegitimate_question_issue_reference_valid",
+        unknownIssueIds.length === 0,
+        unknownIssueIds.length ? `issue_id sans correspondance dans analyst_output.issues : ${JSON.stringify(unknownIssueIds.map((f) => f.issue_id))}` : null,
+        "detection"
+      ));
+      const wrongTreatment = output.illegitimate_question_found.filter((finding) => {
+        const issue = analystIssueById.get(finding.issue_id);
+        return issue && issue.recommended_treatment !== "question";
+      });
+      criteria.push(verdict(
+        "illegitimate_question_targets_question_treatment",
+        wrongTreatment.length === 0,
+        wrongTreatment.length ? `issue(s) référencée(s) sans recommended_treatment="question" : ${JSON.stringify(wrongTreatment.map((f) => f.issue_id))}` : null,
+        "detection"
+      ));
+    }
+    const invalidAlternative = output.illegitimate_question_found.filter((finding) => finding.available_alternative === "question" || !TREATMENT_VALUES.includes(finding.available_alternative));
+    criteria.push(verdict(
+      "illegitimate_question_alternative_valid",
+      invalidAlternative.length === 0,
+      invalidAlternative.length ? `available_alternative invalide : ${JSON.stringify(invalidAlternative.map((f) => f.available_alternative))}` : null,
+      "detection"
+    ));
+    const missingJustification = output.illegitimate_question_found.filter((finding) => !finding.why_available);
+    criteria.push(verdict(
+      "illegitimate_question_justification_present",
+      missingJustification.length === 0,
+      missingJustification.length ? `why_available manquant pour : ${JSON.stringify(missingJustification.map((f) => f.issue_id))}` : null,
+      "detection"
+    ));
+  }
   return { criteria, pass: criteria.every((c) => c.pass) };
 }
 

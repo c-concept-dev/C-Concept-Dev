@@ -25,7 +25,8 @@ function groqChatResponse(content, usage = { prompt_tokens: 10, completion_token
 const criticOutputStub = {
   agreement: "agree",
   operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
-  vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+  vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
+  illegitimate_question_found: []
 };
 
 const fixtureAnalystOutput = {

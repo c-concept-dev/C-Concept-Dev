@@ -194,7 +194,8 @@ MISSION
 4. Si, et seulement si, vous identifiez un problème matériel réel, soulevez un veto qualifié : {issue_id, new_information_trigger (ce qui, dans les données reçues à ce tour, justifie de soulever ce point maintenant), why_material, why_not_substitutable}. Un veto qui répète, sans élément nouveau, un point déjà présent dans previous_vetoes est redondant et ne doit pas être soulevé à nouveau.
 5. Si aucune objection matérielle réelle n'existe, concluez explicitement agreement="agree", avec vetoes vide et semantic_drift_detected=false. C'est une conclusion pleinement légitime et attendue chaque fois que le travail de l'Analyste est effectivement solide : vous n'êtes jamais incité à trouver un problème pour justifier votre rôle. Une demande simple et déjà claire doit pouvoir être validée sans aucune objection.
 6. Évaluez significant_stakes : les conséquences d'une erreur de préparation sont-elles significatives par leur portée, leur réversibilité ou leur impact — indépendamment de tout domaine particulier ? Justifiez dans significant_stakes_reason si vrai.
-7. La cohérence entre votre détection et votre verdict est absolue : dès que semantic_drift_detected=true, ou que missed_material_issues n'est pas vide, ou que vous soulevez un veto qualifié, agreement doit être "disagree". Inversement, agreement="agree" exige semantic_drift_detected=false, missed_material_issues=[] et vetoes=[]. Ni rubber-stamping (approuver malgré une détection réelle) ni invention de problème (refuser sans détection réelle) ne sont acceptables. Une review réellement vide — rien trouvé, aucune dérive, aucun ajout matériellement non tracé — doit produire agree sans que cela constitue une faiblesse de votre part.
+7. La cohérence entre votre détection et votre verdict est absolue : dès que semantic_drift_detected=true, ou que missed_material_issues n'est pas vide, ou que vous soulevez un veto qualifié, ou que illegitimate_question_found n'est pas vide, agreement doit être "disagree". Inversement, agreement="agree" exige semantic_drift_detected=false, missed_material_issues=[], vetoes=[] et illegitimate_question_found=[]. Ni rubber-stamping (approuver malgré une détection réelle) ni invention de problème (refuser sans détection réelle) ne sont acceptables. Une review réellement vide — rien trouvé, aucune dérive, aucun ajout matériellement non tracé — doit produire agree sans que cela constitue une faiblesse de votre part.
+8. Pour chaque issue matérielle que l'Analyste a déclarée recommended_treatment="question", évaluez si une stratégie substitutive de la ladder (rechercher, décider, estimer, scénariser, conditionner, laisser inconnue) était raisonnablement disponible compte tenu de original_request et de clarification_history. N'examinez que les issues déjà identifiées par l'Analyste : ne reconstruisez jamais son candidat, ni sa liste complète d'issues, ni une ladder complète de votre côté — vous n'êtes jamais un second Analyste. Si le recours à question était injustifié pour une issue, ajoutez une entrée dans illegitimate_question_found : {issue_id (celui de l'issue de l'Analyste concernée), available_alternative (une valeur de la ladder autre que "question"), why_available (justification courte)}. Si aucun recours n'est injustifié, illegitimate_question_found reste vide — plusieurs issues réellement non substituables, chacune légitimement traitée par question, ne constituent jamais en elles-mêmes un problème.
 
 ${ISSUE_TAXONOMY_GUIDE}
 
@@ -203,6 +204,8 @@ INTERDICTIONS
 - Aucun vocabulaire, champ ou heuristique propre à un domaine.
 - Aucun veto non qualifié : les 4 champs sont obligatoires dès qu'un veto est soulevé.
 - N'utilisez jamais "une réponse générale est possible" comme argument, ni pour valider ni pour invalider quoi que ce soit.
+- N'utilisez jamais le nombre de questions comme critère à lui seul : ni pour juger un recours à question légitime, ni pour juger un recours illégitime.
+- Ne reconstruisez jamais le candidat ni la liste des issues de l'Analyste pour évaluer illegitimate_question_found : vous n'examinez que les issues qu'il a déjà déclarées.
 
 Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
 
@@ -213,8 +216,14 @@ export const CRITIC_OUTPUT_FIELDS = Object.freeze([
   "semantic_drift_detected",
   "semantic_drift_notes",
   "significant_stakes",
-  "significant_stakes_reason"
+  "significant_stakes_reason",
+  "illegitimate_question_found"
 ]);
+
+// 3F.3.3-C8, B-01B : valeurs légales pour available_alternative — la ladder existante
+// (TREATMENT_VALUES), à l'exclusion explicite de "question" : un recours illégitime à question ne
+// peut jamais avoir "question" elle-même comme alternative proposée.
+const LADDER_ALTERNATIVE_VALUES = Object.freeze(TREATMENT_VALUES.filter((value) => value !== "question"));
 
 export function makeCriticUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [] } = {}) {
   return JSON.stringify({
@@ -240,6 +249,25 @@ function validateVeto(veto) {
   return value;
 }
 
+/**
+ * 3F.3.3-C8, B-01B : validation purement structurelle, aucun jugement sémantique ici. Le jugement
+ * ("cette alternative était-elle vraiment disponible ?") appartient exclusivement au LLM Critic ;
+ * ce validateur ne vérifie que la forme — issue_id et justification non vides, alternative membre
+ * de la ladder et jamais "question" elle-même.
+ */
+function validateIllegitimateQuestionFinding(finding) {
+  exactKeys(finding, ["issue_id", "available_alternative", "why_available"], "IllegitimateQuestionFinding");
+  const value = {
+    issue_id: text(finding.issue_id),
+    available_alternative: text(finding.available_alternative),
+    why_available: text(finding.why_available)
+  };
+  assert(value.issue_id, "IllegitimateQuestionFinding.issue_id est obligatoire.");
+  assert(LADDER_ALTERNATIVE_VALUES.includes(value.available_alternative), `IllegitimateQuestionFinding.available_alternative invalide (jamais "question") : ${value.available_alternative}.`);
+  assert(value.why_available, "IllegitimateQuestionFinding.why_available est obligatoire.");
+  return value;
+}
+
 export function validateCriticOutput(value) {
   exactKeys(value, CRITIC_OUTPUT_FIELDS, "CriticOutput");
   assert(["agree", "disagree"].includes(value.agreement), "CriticOutput.agreement invalide.");
@@ -254,21 +282,26 @@ export function validateCriticOutput(value) {
   const significant_stakes_reason = text(value.significant_stakes_reason);
   if (value.significant_stakes) assert(significant_stakes_reason, "significant_stakes_reason est obligatoire quand significant_stakes=true.");
   if (value.semantic_drift_detected) assert(semantic_drift_notes.length > 0, "semantic_drift_detected=true exige au moins une note explicative.");
+  // 3F.3.3-C8, B-01B : illegitimate_question_found — signal structuré minimal (id + alternative de
+  // la ladder + justification), jamais une comparaison de texte. Le validateur ne juge jamais si
+  // l'alternative proposée est réellement pertinente : c'est le jugement sémantique du LLM Critic.
+  const illegitimate_question_found = list(value.illegitimate_question_found).map(validateIllegitimateQuestionFinding);
 
-  // Cohérence détection -> verdict (3F.3.3-C, B1) : un problème matériel détecté ne peut jamais
-  // coexister avec agreement="agree" ; à l'inverse, "disagree" doit toujours reposer sur au moins
-  // une détection réelle, jamais un désaccord sans fondement. unsupported_additions_found n'entre
-  // volontairement dans aucune de ces deux règles : un ajout non tracé peut être non matériel, son
-  // escalade éventuelle (veto ou missed_material_issues) reste un jugement du Critique, pas une
-  // contrainte structurelle aveugle.
+  // Cohérence détection -> verdict (3F.3.3-C, B1 ; étendue en 3F.3.3-C8 à illegitimate_question_found) :
+  // un problème matériel détecté ne peut jamais coexister avec agreement="agree" ; à l'inverse,
+  // "disagree" doit toujours reposer sur au moins une détection réelle, jamais un désaccord sans
+  // fondement. unsupported_additions_found n'entre volontairement dans aucune de ces deux règles : un
+  // ajout non tracé peut être non matériel, son escalade éventuelle (veto ou missed_material_issues)
+  // reste un jugement du Critique, pas une contrainte structurelle aveugle.
   if (value.agreement === "agree") {
     assert(vetoes.length === 0, "agreement=agree exige une liste de vetoes vide.");
     assert(value.semantic_drift_detected === false, "agreement=agree exige semantic_drift_detected=false.");
     assert(missed_material_issues.length === 0, "agreement=agree exige missed_material_issues vide : une issue matérielle manquée détectée ne peut pas coexister avec un accord.");
+    assert(illegitimate_question_found.length === 0, "agreement=agree exige illegitimate_question_found vide : un recours illégitime à question détecté ne peut pas coexister avec un accord.");
   } else {
     assert(
-      vetoes.length > 0 || value.semantic_drift_detected === true || missed_material_issues.length > 0,
-      "agreement=disagree exige au moins un veto qualifié, une dérive sémantique détectée, ou une issue matérielle manquée — jamais un désaccord sans fondement."
+      vetoes.length > 0 || value.semantic_drift_detected === true || missed_material_issues.length > 0 || illegitimate_question_found.length > 0,
+      "agreement=disagree exige au moins un veto qualifié, une dérive sémantique détectée, une issue matérielle manquée, ou un recours illégitime à question — jamais un désaccord sans fondement."
     );
   }
 
@@ -276,6 +309,7 @@ export function validateCriticOutput(value) {
     agreement: value.agreement,
     operational_request_candidate_review: { unsupported_additions_found, unsupported_removals_found, missed_material_issues },
     vetoes,
+    illegitimate_question_found,
     semantic_drift_detected: value.semantic_drift_detected,
     semantic_drift_notes,
     significant_stakes: value.significant_stakes,
@@ -576,7 +610,22 @@ export const CRITIC_JSON_SCHEMA = Object.freeze({
     semantic_drift_detected: { type: "boolean" },
     semantic_drift_notes: { type: "array", items: { type: "string" } },
     significant_stakes: { type: "boolean" },
-    significant_stakes_reason: { type: "string" }
+    significant_stakes_reason: { type: "string" },
+    // 3F.3.3-C8, B-01B : signal minimal référençant issue.id, jamais une comparaison de texte.
+    // available_alternative est restreint à la ladder existante (TREATMENT_VALUES) hors "question".
+    illegitimate_question_found: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["issue_id", "available_alternative", "why_available"],
+        properties: {
+          issue_id: { type: "string" },
+          available_alternative: { type: "string", enum: [...LADDER_ALTERNATIVE_VALUES] },
+          why_available: { type: "string" }
+        }
+      }
+    }
   }
 });
 
