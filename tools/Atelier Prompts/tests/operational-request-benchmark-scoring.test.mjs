@@ -233,78 +233,117 @@ test("scoreAnalystOutput : détecte le multi_objective_disorder attendu", () => 
   assert.equal(scoreAnalystOutput(withDisorder, testCase.oracle.analyst).pass, true);
 });
 
-// --- 3F.3.3-C1, B-01 : sur-questionnement sans confiance dans l'auto-déclaration substitutable ---
-// Le critère ne repose sur aucun case_id, aucun mot-clé métier, aucun plafond numérique global de
-// questions : il compare uniquement recommended_treatment (le choix réellement fait) au fait qu'une
-// stratégie substitutive ait été employée QUELQUE PART dans la sortie, matériel ou non.
+// --- 3F.3.3-C2, B-01 (correction) : duplication d'une inconnue vs. traitement réellement distinct --
+// Le critère ne repose sur aucun case_id, aucun mot-clé métier, aucun plafond numérique de questions,
+// aucun ratio global fixe. Il détecte une seule chose, relationnelle et structurelle : une issue
+// matérielle traitée par "question" dont l'intitulé (normalisé trivialement : espaces, casse,
+// ponctuation terminale) réapparaît aussi dans remaining_unknowns — une contradiction interne, jamais
+// une preuve de traitement alternatif.
 
 function materialIssue(id, overrides = {}) {
   return { id, type: "missing_information", description: `Issue ${id} non résolue.`, impact: "material", substitutable: false, recommended_treatment: "question", ...overrides };
 }
 
-test("scoreAnalystOutput : plusieurs issues avec des traitements variés ne déclenchent jamais l'inflation de questions (cas sain)", () => {
+// A. Régression historique exacte : plusieurs issues matérielles, toutes substitutable:false, toutes
+// questionnées, ET les mêmes intitulés dupliqués dans remaining_unknowns (avec une variation triviale
+// de casse/ponctuation sur l'un d'eux, pour exercer la normalisation). Sans la nouvelle logique
+// relationnelle (E), la seule non-vacuité de remaining_unknowns aurait fait passer ce cas à tort.
+test("scoreAnalystOutput : régression historique — issues questionnées dupliquées dans remaining_unknowns échoue (faux négatif corrigé)", () => {
+  const descriptions = Array.from({ length: 10 }, (_, i) => `Point non résolu numéro ${i + 1}.`);
   const output = validateAnalystOutput({
-    operational_request_candidate: { ...createEmptyCandidate(), assumptions_allowed: ["Hypothèse par défaut retenue faute d'information contraire."] },
-    provenance_records: [{ field: "assumptions_allowed", value: "Hypothèse par défaut retenue faute d'information contraire.", provenance: "labeled_estimate" }],
-    issues: [
-      materialIssue("ISSUE-001"),
-      materialIssue("ISSUE-002", { recommended_treatment: "estimate", substitutable: true }),
-      materialIssue("ISSUE-003", { recommended_treatment: "decide", substitutable: true })
-    ],
-    question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" }],
+    operational_request_candidate: {
+      ...createEmptyCandidate(),
+      remaining_unknowns: descriptions.map((d, i) => (i === 0 ? d.toUpperCase().replace(/\.$/, "") : d))
+    },
+    provenance_records: descriptions.map((d, i) => ({ field: "remaining_unknowns", value: i === 0 ? d.toUpperCase().replace(/\.$/, "") : d, provenance: "safe_deduction" })),
+    issues: descriptions.map((d, i) => materialIssue(`ISSUE-${i + 1}`, { description: d })),
+    question_candidates: descriptions.map((d, i) => ({ text: `Que faut-il faire concernant : ${d} ?`, targets_issue_id: `ISSUE-${i + 1}`, expected_progress: "x" })),
     confirmation_signals: confirmationSignals()
   });
   const score = scoreAnalystOutput(output, {});
-  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true);
+  const criterion = score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
+  assert.equal(criterion.pass, false, "les 10 issues sont simultanément questionnées ET dupliquées dans remaining_unknowns : ce n'est pas un traitement alternatif, c'est une contradiction.");
+  assert.equal(score.pass, false);
 });
 
-test("scoreAnalystOutput : toutes les issues matérielles déclarées non-substituables puis transformées en questions échoue, même sans aucun issue.substitutable=true (cas pathologique)", () => {
+// B. Duplication partielle : certaines issues sont dupliquées dans remaining_unknowns (fausse
+// alternative), d'autres reçoivent un vrai traitement distinct (recommended_treatment != "question").
+// Le score doit distinguer les deux : échec à cause des seules issues dupliquées.
+test("scoreAnalystOutput : duplication partielle — seules les issues réellement dupliquées font échouer le critère", () => {
   const output = validateAnalystOutput({
-    operational_request_candidate: createEmptyCandidate(),
-    provenance_records: [],
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Point non résolu numéro 1."] },
+    provenance_records: [{ field: "remaining_unknowns", value: "Point non résolu numéro 1.", provenance: "safe_deduction" }],
     issues: [
-      materialIssue("ISSUE-001"),
-      materialIssue("ISSUE-002"),
-      materialIssue("ISSUE-003")
+      materialIssue("ISSUE-1", { description: "Point non résolu numéro 1." }),
+      materialIssue("ISSUE-2", { description: "Point non résolu numéro 2.", recommended_treatment: "estimate", substitutable: true })
     ],
-    question_candidates: [
-      { text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" },
-      { text: "Quel format attendez-vous ?", targets_issue_id: "ISSUE-002", expected_progress: "x" },
-      { text: "Quelle priorité retenir ?", targets_issue_id: "ISSUE-003", expected_progress: "x" }
-    ],
+    question_candidates: [{ text: "Que faut-il faire concernant : Point non résolu numéro 1. ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }],
     confirmation_signals: confirmationSignals()
   });
   const score = scoreAnalystOutput(output, {});
   const criterion = score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
   assert.equal(criterion.pass, false);
-  assert.equal(score.pass, false, "l'ancien critère basé sur substitutable=true seul ne suffisait pas à détecter ce cas historique ; celui-ci doit le faire échouer.");
+  assert.match(criterion.note, /ISSUE-1/);
+  assert.doesNotMatch(criterion.note, /ISSUE-2/, "ISSUE-2 a reçu un traitement réellement distinct (estimate) : elle ne doit jamais apparaître comme duplication.");
 });
 
-test("scoreAnalystOutput : une seule question légitimement nécessaire ne déclenche jamais l'inflation (une seule issue matérielle)", () => {
+// C. Cas légitime non substituable : plusieurs issues matérielles réellement non substituables,
+// toutes questionnées, sans aucun autre champ rempli et donc aucune duplication possible. Ce cas ne
+// doit JAMAIS échouer au seul motif du nombre d'issues ou de questions (c'était le faux positif).
+test("scoreAnalystOutput : plusieurs issues réellement non substituables, toutes questionnées, sans duplication — reste PASS", () => {
   const output = validateAnalystOutput({
     operational_request_candidate: createEmptyCandidate(),
     provenance_records: [],
-    issues: [materialIssue("ISSUE-001")],
-    question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" }],
+    issues: [materialIssue("ISSUE-1"), materialIssue("ISSUE-2"), materialIssue("ISSUE-3")],
+    question_candidates: [
+      { text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-1", expected_progress: "x" },
+      { text: "Quel format attendez-vous ?", targets_issue_id: "ISSUE-2", expected_progress: "x" },
+      { text: "Quelle priorité retenir ?", targets_issue_id: "ISSUE-3", expected_progress: "x" }
+    ],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "plusieurs issues + plusieurs questions + aucun autre champ disponible n'est jamais, à lui seul, une inflation.");
+});
+
+// D. Cas sain avec stratégie alternative réelle (aucune duplication, traitements distincts) => PASS.
+test("scoreAnalystOutput : traitements variés et réellement distincts (aucune duplication) — PASS", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), assumptions_allowed: ["Hypothèse par défaut retenue faute d'information contraire."] },
+    provenance_records: [{ field: "assumptions_allowed", value: "Hypothèse par défaut retenue faute d'information contraire.", provenance: "labeled_estimate" }],
+    issues: [
+      materialIssue("ISSUE-1"),
+      materialIssue("ISSUE-2", { recommended_treatment: "estimate", substitutable: true }),
+      materialIssue("ISSUE-3", { recommended_treatment: "decide", substitutable: true })
+    ],
+    question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-1", expected_progress: "x" }],
     confirmation_signals: confirmationSignals()
   });
   const score = scoreAnalystOutput(output, {});
   assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true);
 });
 
-test("scoreAnalystOutput : aucune issue substituable mais une preuve de tentative de substitution ailleurs évite le faux positif d'inflation", () => {
+// E. Preuve que la logique de distinction est bien exercée par le test A : une comparaison naïve
+// qui se contenterait de vérifier "remaining_unknowns non vide" (l'ancien défaut) qualifierait à
+// tort ce même cas de traitement alternatif valide. Vérifié directement ici, indépendamment de
+// l'implémentation interne, pour garantir que le test A ne pourrait pas passer par accident.
+test("scoreAnalystOutput : la seule non-vacuité de remaining_unknowns ne suffit jamais à elle seule (preuve négative)", () => {
   const output = validateAnalystOutput({
-    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Un point secondaire reste ouvert sans bloquer le livrable."] },
-    provenance_records: [{ field: "remaining_unknowns", value: "Un point secondaire reste ouvert sans bloquer le livrable.", provenance: "safe_deduction" }],
-    issues: [materialIssue("ISSUE-001"), materialIssue("ISSUE-002")],
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Point non résolu numéro 1.", "Point non résolu numéro 2."] },
+    provenance_records: [
+      { field: "remaining_unknowns", value: "Point non résolu numéro 1.", provenance: "safe_deduction" },
+      { field: "remaining_unknowns", value: "Point non résolu numéro 2.", provenance: "safe_deduction" }
+    ],
+    issues: [materialIssue("ISSUE-1", { description: "Point non résolu numéro 1." }), materialIssue("ISSUE-2", { description: "Point non résolu numéro 2." })],
     question_candidates: [
-      { text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" },
-      { text: "Quel format attendez-vous ?", targets_issue_id: "ISSUE-002", expected_progress: "x" }
+      { text: "Que faut-il faire concernant : Point non résolu numéro 1. ?", targets_issue_id: "ISSUE-1", expected_progress: "x" },
+      { text: "Que faut-il faire concernant : Point non résolu numéro 2. ?", targets_issue_id: "ISSUE-2", expected_progress: "x" }
     ],
     confirmation_signals: confirmationSignals()
   });
+  assert.ok(output.operational_request_candidate.remaining_unknowns.length > 0, "remaining_unknowns est bien non vide ici — et pourtant :");
   const score = scoreAnalystOutput(output, {});
-  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "remaining_unknowns non vide prouve qu'une stratégie substitutive (laisser inconnue) a bien été tentée ailleurs dans la sortie.");
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, false, "un champ non vide seul ne doit jamais suffire à valider un traitement alternatif.");
 });
 
 // --- Critique -----------------------------------------------------------------------------------

@@ -156,36 +156,39 @@ export function scoreAnalystOutput(output, oracle = {}) {
     compoundQuestions.length ? `question(s) coordonnant plusieurs demandes : ${JSON.stringify(compoundQuestions.map((q) => q.text))}` : null
   ));
 
-  // 3F.3.3-C1, B-01 : "no_mechanical_question_per_substitutable_issue" ci-dessus dépend entièrement
-  // de l'auto-déclaration issue.substitutable — un modèle qui déclare systématiquement
-  // substitutable=false sur chaque issue avant de la questionner échappe totalement à ce critère.
-  // Ce second critère ne fait confiance à aucune auto-déclaration : il regarde uniquement des faits
-  // structurels indépendants — le TRAITEMENT réellement choisi (recommended_treatment) pour chaque
-  // issue matérielle, et l'existence d'AU MOINS UNE trace, où que ce soit dans la sortie, qu'une
-  // stratégie substitutive (rechercher/décider/estimer/scénariser/conditionner/laisser inconnue) a
-  // été réellement tentée. Aucun plafond numérique de questions n'est imposé : ce n'est jamais le
-  // nombre de questions seul qui fait échouer ce critère, mais la conjonction de (a) plusieurs
-  // issues matérielles, (b) presque toutes ou toutes traitées par "question", (c) une absence totale
-  // de toute preuve de tentative de substitution ailleurs dans la sortie, et (d) plusieurs questions
-  // exposées simultanément à l'utilisateur — la définition comportementale même du sur-questionnement
-  // mécanique, généralisable à tout domaine.
-  const SUBSTITUTIVE_TREATMENTS = new Set(["research", "decide", "estimate", "scenario", "condition", "leave_unknown"]);
-  const SUBSTITUTIVE_EVIDENCE_FIELDS = ["assumptions_allowed", "delegated_decisions", "external_facts_to_research", "remaining_unknowns"];
-  const anySubstitutiveTreatmentUsed = output.issues.some((issue) => SUBSTITUTIVE_TREATMENTS.has(issue.recommended_treatment));
-  const anySubstitutiveFieldEvidence = SUBSTITUTIVE_EVIDENCE_FIELDS.some((field) => candidateFieldValues(candidate, field).length > 0);
-  const ladderEverAttempted = anySubstitutiveTreatmentUsed || anySubstitutiveFieldEvidence;
-  const materialQuestionRate = materialIssues.length
-    ? materialIssues.filter((issue) => issue.recommended_treatment === "question").length / materialIssues.length
-    : 0;
-  const questionInflationWithoutLadderEvidence = materialIssues.length >= 2
-    && materialQuestionRate >= 0.8
-    && !ladderEverAttempted
-    && output.question_candidates.length >= 2;
+  // 3F.3.3-C2, B-01 (correction) : la version précédente jugeait "aucune preuve de traitement
+  // substitutif nulle part dans la sortie" comme un signal suffisant d'inflation — ce qui produisait
+  // à la fois un FAUX NÉGATIF (un champ remaining_unknowns simplement rempli des mêmes intitulés que
+  // les issues questionnées suffisait à "prouver" à tort un traitement alternatif) et un FAUX POSITIF
+  // (plusieurs issues réellement non substituables, toutes légitimement questionnées, sans qu'aucun
+  // autre champ ne puisse s'appliquer, étaient à tort signalées comme une inflation). La seule
+  // non-vacuité d'un champ n'est pas et n'a jamais été une preuve de traitement : ce n'est pas parce
+  // qu'un champ contient du texte que ce texte représente une stratégie substitutive réellement
+  // distincte de la question posée sur la même inconnue.
+  //
+  // Nouveau principe, relationnel plutôt que basé sur la simple présence : une inconnue ne peut pas
+  // être à la fois (a) laissée de côté (remaining_unknowns, qui signifie par construction "ne bloque
+  // pas le livrable, n'a pas besoin d'être posée") et (b) transformée en question_candidate pour la
+  // même issue matérielle. Si son intitulé (normalisé de façon triviale : espaces, casse, ponctuation
+  // terminale — jamais de rapprochement approximatif de mots-clés) réapparaît à l'identique dans
+  // remaining_unknowns, ce n'est pas un traitement alternatif : c'est la même inconnue dupliquée sous
+  // deux étiquettes contradictoires pour masquer artificiellement un sur-questionnement. À l'inverse,
+  // plusieurs issues matérielles toutes traitées par "question", sans aucune duplication de ce type,
+  // restent un comportement légitime et ne doivent jamais échouer ce critère au seul motif de leur
+  // nombre — aucun plafond numérique de questions n'est introduit ici.
+  function normalizedForTrivialComparison(value) {
+    return normalize(value).trim().replace(/[.!?,;:]+$/u, "");
+  }
+  const remainingUnknownsNormalized = candidateFieldValues(candidate, "remaining_unknowns").map(normalizedForTrivialComparison);
+  const duplicatedAsLeftUnknown = materialIssues.filter((issue) =>
+    issue.recommended_treatment === "question"
+    && remainingUnknownsNormalized.includes(normalizedForTrivialComparison(issue.description))
+  );
   criteria.push(verdict(
     "no_question_inflation_without_ladder_evidence",
-    !questionInflationWithoutLadderEvidence,
-    questionInflationWithoutLadderEvidence
-      ? `${materialIssues.length} issue(s) matérielle(s), ${Math.round(materialQuestionRate * 100)}% traitées par "question", aucune preuve de tentative de substitution ailleurs dans la sortie, ${output.question_candidates.length} questions exposées simultanément.`
+    duplicatedAsLeftUnknown.length === 0,
+    duplicatedAsLeftUnknown.length
+      ? `issue(s) matérielle(s) à la fois questionnée(s) et dupliquée(s) dans remaining_unknowns (contradiction, pas un traitement alternatif) : ${JSON.stringify(duplicatedAsLeftUnknown.map((issue) => issue.id))}`
       : null
   ));
 
