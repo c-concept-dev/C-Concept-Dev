@@ -27,8 +27,26 @@
 // comme équivalents pour un modèle donné, mais ce n'est pas vérifié ici — à garder en tête en
 // lisant les résultats.
 //
+// Gestion des HTTP 429 Groq (durcissement post-3F.3.3-B) : un TPM de 8000 avec des appels
+// consommant couramment 3500-3900 tokens ne laisse guère plus d'un appel toutes les 25-30s avant
+// que Groq ne réponde 429 avec un délai de reprise indiqué. Ce n'est ni un défaut OPRIE, ni un
+// défaut de schéma : c'est une limite de débit du provider, gérée ici exclusivement dans le
+// harnais — le runtime de production (workers/groq/src/index.js) n'est pas modifié.
+//   - Le même appel est retenté après avoir attendu le délai indiqué par Groq (en-tête
+//     Retry-After, sinon une extraction prudente depuis le corps de l'erreur si un nombre de
+//     secondes y apparaît sans ambiguïté, sinon un repli fixe), plus une marge de sécurité.
+//   - Un nombre maximal de tentatives borne l'attente totale (jamais de boucle infinie).
+//   - Un 429 qui finit par réussir n'est jamais compté comme un échec, sémantique ou technique :
+//     la ligne de résultat est strictement identique à un succès direct. Seuls des champs
+//     d'observabilité (retries, rate_limited_wait_ms) témoignent qu'une reprise a eu lieu.
+//   - Un 429 dont les tentatives sont épuisées reste une erreur technique (provider_error),
+//     jamais requalifiée en échec sémantique (jamais un schéma invalide, jamais un pseudo-verdict).
+//   - --pacing-ms ajoute une attente fixe, optionnelle, avant chaque appel (tous providers), pour
+//     réduire la probabilité de déclencher la limite plutôt que de systématiquement la subir.
+//
 // Usage :
 //   node evaluation/lot10g3b3f3/run-role-benchmark.mjs [--repetitions=3] [--provider=all|workers-ai|groq] [--output=chemin.json]
+//     [--pacing-ms=0] [--groq-max-retries=5] [--groq-retry-margin-ms=750] [--groq-default-backoff-ms=30000]
 
 import fs from "node:fs";
 import path from "node:path";
@@ -77,9 +95,75 @@ const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 export const WORKERS_AI_MODEL = args["workers-ai-model"] || RUNTIME_WORKERS_AI_MODEL;
 export const GROQ_MODEL = args["groq-model"] || RUNTIME_GROQ_MODEL;
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
+export const PACING_MS = Math.max(0, Number(args["pacing-ms"] || 0));
+export const GROQ_RETRY_DEFAULTS = Object.freeze({
+  maxRetries: Math.max(0, Number(args["groq-max-retries"] ?? 5)),
+  safetyMarginMs: Math.max(0, Number(args["groq-retry-margin-ms"] ?? 750)),
+  defaultBackoffMs: Math.max(0, Number(args["groq-default-backoff-ms"] ?? 30000))
+});
 
 function providerAvailable(provider) {
   return provider === "workers-ai" ? Boolean(CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_API_TOKEN) : Boolean(GROQ_API_KEY);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** En-tête Retry-After standard : soit un nombre de secondes, soit une date HTTP. */
+export function parseRetryAfterMs(response) {
+  const header = typeof response?.headers?.get === "function" ? response.headers.get("retry-after") : null;
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1000);
+  const dateMs = Date.parse(header);
+  return Number.isFinite(dateMs) ? Math.max(0, dateMs - Date.now()) : null;
+}
+
+/**
+ * Extraction prudente d'un délai de reprise depuis le corps d'une erreur Groq, uniquement quand un
+ * nombre de secondes y apparaît sans ambiguïté ("try again in 25.7s", ou un champ retry_after
+ * explicite). Ne tente jamais d'interpréter une phrase libre au-delà de ce motif étroit ; retourne
+ * null dans tout autre cas pour laisser le repli fixe (defaultBackoffMs) prendre le relais.
+ */
+export function parseRetryDelayFromBody(raw) {
+  if (typeof raw !== "string" || !raw) return null;
+  const match = /try again in\s+([\d.]+)\s*s\b/i.exec(raw) || /"retry_after"\s*:\s*"?([\d.]+)"?/i.exec(raw);
+  if (!match) return null;
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : null;
+}
+
+/**
+ * Exécute fetch(url, requestInit) avec reprise automatique sur HTTP 429 : même appel, même corps,
+ * après avoir attendu le délai indiqué par le provider (+ marge de sécurité) ou un repli fixe si
+ * aucun délai n'est exploitable. Borné par maxRetries pour exclure toute boucle infinie. N'importe
+ * quelle autre réponse (succès ou autre erreur) est retournée telle quelle, sans retry — un 429
+ * réessayé avec succès est indiscernable, pour l'appelant, d'un succès du premier coup, hormis les
+ * compteurs retries/rate_limited_wait_ms retournés à titre d'observabilité.
+ */
+export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
+  const { maxRetries, safetyMarginMs, defaultBackoffMs, sleepFn = sleep } = { ...GROQ_RETRY_DEFAULTS, ...overrides };
+  let attempt = 0;
+  let rateLimitedWaitMs = 0;
+  while (true) {
+    const response = await fetch(url, requestInit);
+    if (response.status !== 429) return { response, retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs };
+    if (attempt >= maxRetries) {
+      throw Object.assign(
+        new Error(`Groq HTTP 429 : limite de débit atteinte après ${maxRetries} tentative(s) de reprise.`),
+        { rateLimited: true, exhausted: true, retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs }
+      );
+    }
+    const raw = await response.clone().text().catch(() => "");
+    const retryAfterMs = parseRetryAfterMs(response) ?? parseRetryDelayFromBody(raw) ?? defaultBackoffMs;
+    const waitMs = retryAfterMs + safetyMarginMs;
+    rateLimitedWaitMs += waitMs;
+    attempt += 1;
+    await sleepFn(waitMs);
+  }
 }
 
 export async function callWorkersAI(systemPrompt, userMessage, schema) {
@@ -104,43 +188,71 @@ export async function callWorkersAI(systemPrompt, userMessage, schema) {
   return { content, elapsed, usage: payload.result?.usage || null };
 }
 
-export async function callGroq(role, systemPrompt, userMessage, schema) {
+/**
+ * retryOverrides est un 5e paramètre optionnel, jamais utilisé par le runtime de production ni par
+ * callProvider (qui appelle callGroq avec les 4 premiers arguments seulement, donc les réglages
+ * CLI/GROQ_RETRY_DEFAULTS habituels). Il existe uniquement pour permettre aux tests d'injecter un
+ * sleepFn instantané et des délais courts, sans jamais attendre réellement plusieurs dizaines de
+ * secondes ni modifier le comportement réel du harnais en usage normal.
+ */
+export async function callGroq(role, systemPrompt, userMessage, schema, retryOverrides = {}) {
   const started = performance.now();
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-      // Mêmes clés, mêmes valeurs, même nom de schéma que callGroqChatCompletion (workers/groq/src/index.js).
-      response_format: { type: "json_schema", json_schema: { name: `oprie_${role}`, strict: true, schema } },
-      reasoning_format: "hidden",
-      reasoning_effort: "low",
-      temperature: 0,
-      max_completion_tokens: 2048,
-      stream: false
-    })
-  });
-  const elapsed = Math.round(performance.now() - started);
+  let response;
+  let retries = 0;
+  let rate_limited_wait_ms = 0;
+  try {
+    ({ response, retries, rate_limited_wait_ms } = await fetchGroqWithRetry(GROQ_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+        // Mêmes clés, mêmes valeurs, même nom de schéma que callGroqChatCompletion (workers/groq/src/index.js).
+        response_format: { type: "json_schema", json_schema: { name: `oprie_${role}`, strict: true, schema } },
+        reasoning_format: "hidden",
+        reasoning_effort: "low",
+        temperature: 0,
+        max_completion_tokens: 2048,
+        stream: false
+      })
+    }, retryOverrides));
+  } catch (retryExhaustedError) {
+    // 429 épuisé après maxRetries : erreur technique, jamais requalifiée en échec sémantique.
+    throw Object.assign(retryExhaustedError, { elapsed: Math.round(performance.now() - started) });
+  }
+  // Le temps passé à attendre le débit n'est pas une latence du modèle : il est exclu de "elapsed"
+  // pour que latency_median_ms/p90 restent comparables entre exécutions, avec ou sans reprise.
+  const elapsed = Math.max(0, Math.round(performance.now() - started) - rate_limited_wait_ms);
   const payload = await response.json();
   if (!response.ok) throw Object.assign(new Error(`Groq HTTP ${response.status}: ${JSON.stringify(payload.error || payload)}`), { elapsed });
-  return { content: payload.choices?.[0]?.message?.content, elapsed, usage: payload.usage || null };
+  return { content: payload.choices?.[0]?.message?.content, elapsed, usage: payload.usage || null, retries, rate_limited_wait_ms };
 }
 
 async function callProvider(role, provider, systemPrompt, userMessage, schema) {
+  if (PACING_MS > 0) await sleep(PACING_MS);
   return provider === "workers-ai" ? callWorkersAI(systemPrompt, userMessage, schema) : callGroq(role, systemPrompt, userMessage, schema);
 }
 
 async function runRole(role, provider, systemPrompt, userMessage, schema, parseFn) {
   try {
-    const { content, elapsed, usage } = await callProvider(role, provider, systemPrompt, userMessage, schema);
+    const { content, elapsed, usage, retries = 0, rate_limited_wait_ms = 0 } = await callProvider(role, provider, systemPrompt, userMessage, schema);
+    // Un 429 réessayé avec succès produit exactement la même forme de résultat qu'un succès direct
+    // (valid_json déterminé uniquement par la conformité du JSON, jamais par le fait qu'une reprise
+    // ait eu lieu) ; retries/rate_limited_wait_ms ne sont que des champs d'observabilité additifs.
     try {
-      return { valid_json: true, output: parseFn(content), elapsed_ms: elapsed, usage };
+      return { valid_json: true, output: parseFn(content), elapsed_ms: elapsed, usage, retries, rate_limited_wait_ms };
     } catch (parseError) {
-      return { valid_json: false, error: parseError.message, elapsed_ms: elapsed, usage };
+      return { valid_json: false, error: parseError.message, elapsed_ms: elapsed, usage, retries, rate_limited_wait_ms };
     }
   } catch (callError) {
-    return { valid_json: false, provider_error: callError.message, elapsed_ms: callError.elapsed ?? null };
+    return {
+      valid_json: false,
+      provider_error: callError.message,
+      elapsed_ms: callError.elapsed ?? null,
+      rate_limited_exhausted: callError.exhausted === true,
+      retries: callError.retries ?? 0,
+      rate_limited_wait_ms: callError.rate_limited_wait_ms ?? 0
+    };
   }
 }
 
@@ -161,6 +273,24 @@ function estimateCostUsd(provider, usage) {
   return Number((inputTokens * rates.input + outputTokens * rates.output).toFixed(6));
 }
 
+function toResultRow(caseId, role, provider, run, roleRun, score) {
+  return {
+    case_id: caseId,
+    role,
+    provider,
+    run,
+    valid_json: roleRun.valid_json,
+    elapsed_ms: roleRun.elapsed_ms,
+    error: roleRun.error || roleRun.provider_error || null,
+    rate_limited_exhausted: roleRun.rate_limited_exhausted === true,
+    retries: roleRun.retries || 0,
+    rate_limited_wait_ms: roleRun.rate_limited_wait_ms || 0,
+    score,
+    cost_usd: estimateCostUsd(provider, roleRun.usage),
+    __output: roleRun.valid_json ? roleRun.output : null
+  };
+}
+
 async function benchmarkAnalystAndCritic(testCase, provider, results) {
   const runs = [];
   for (let run = 1; run <= repetitions; run += 1) {
@@ -176,8 +306,8 @@ async function benchmarkAnalystAndCritic(testCase, provider, results) {
   for (const { run, analystRun, criticRun } of runs) {
     const analystScore = analystRun.valid_json ? scoreAnalystOutput(analystRun.output, testCase.oracle.analyst || {}) : null;
     const criticScore = criticRun?.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}) : null;
-    results.push({ case_id: testCase.id, role: "analyst", provider, run, valid_json: analystRun.valid_json, elapsed_ms: analystRun.elapsed_ms, error: analystRun.error || analystRun.provider_error || null, score: analystScore, cost_usd: estimateCostUsd(provider, analystRun.usage), __output: analystRun.valid_json ? analystRun.output : null });
-    if (criticRun) results.push({ case_id: testCase.id, role: "critic", provider, run, valid_json: criticRun.valid_json, elapsed_ms: criticRun.elapsed_ms, error: criticRun.error || criticRun.provider_error || null, score: criticScore, cost_usd: estimateCostUsd(provider, criticRun.usage), __output: criticRun.valid_json ? criticRun.output : null });
+    results.push(toResultRow(testCase.id, "analyst", provider, run, analystRun, analystScore));
+    if (criticRun) results.push(toResultRow(testCase.id, "critic", provider, run, criticRun, criticScore));
   }
   return runs.filter((r) => r.analystRun.valid_json).map((r) => r.analystRun.output);
 }
@@ -188,13 +318,13 @@ async function benchmarkCriticIsolation(testCase, provider, results) {
     const criticMessage = makeCriticUserMessage({ original_request: "", analyst_output: testCase.fixture_analyst_output, previous_vetoes: [] });
     const criticRun = await runRole("critic", provider, CRITIC_SYSTEM_PROMPT, criticMessage, CRITIC_JSON_SCHEMA, parseCriticOutput);
     const criticScore = criticRun.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}) : null;
-    results.push({ case_id: testCase.id, role: "critic", provider, run, valid_json: criticRun.valid_json, elapsed_ms: criticRun.elapsed_ms, error: criticRun.error || criticRun.provider_error || null, score: criticScore, cost_usd: estimateCostUsd(provider, criticRun.usage), __output: criticRun.valid_json ? criticRun.output : null });
+    results.push(toResultRow(testCase.id, "critic", provider, run, criticRun, criticScore));
 
     if (testCase.oracle.arbiter && criticRun.valid_json) {
       const arbiterMessage = makeArbiterUserMessage({ original_request: "", analyst_output: testCase.fixture_analyst_output, critic_output: criticRun.output });
       const arbiterRun = await runRole("arbiter", provider, ARBITER_SYSTEM_PROMPT, arbiterMessage, ARBITER_JSON_SCHEMA, parseArbiterOutput);
       const arbiterScore = arbiterRun.valid_json ? scoreArbiterOutput(arbiterRun.output, testCase.oracle.arbiter) : null;
-      results.push({ case_id: testCase.id, role: "arbiter", provider, run, valid_json: arbiterRun.valid_json, elapsed_ms: arbiterRun.elapsed_ms, error: arbiterRun.error || arbiterRun.provider_error || null, score: arbiterScore, cost_usd: estimateCostUsd(provider, arbiterRun.usage), __output: arbiterRun.valid_json ? arbiterRun.output : null });
+      results.push(toResultRow(testCase.id, "arbiter", provider, run, arbiterRun, arbiterScore));
     }
     criticRuns.push(criticRun);
   }
