@@ -331,7 +331,12 @@ export async function benchmarkCriticIsolation(testCase, provider, results) {
     if (testCase.oracle.arbiter && criticRun.valid_json) {
       const arbiterMessage = makeArbiterUserMessage({ original_request, clarification_history, analyst_output: testCase.fixture_analyst_output, critic_output: criticRun.output });
       const arbiterRun = await runRole("arbiter", provider, ARBITER_SYSTEM_PROMPT, arbiterMessage, ARBITER_JSON_SCHEMA, parseArbiterOutput);
-      const arbiterScore = arbiterRun.valid_json ? scoreArbiterOutput(arbiterRun.output, testCase.oracle.arbiter) : null;
+      // 3F.3.3-C1, B-02 : le gate déterministe est réellement branché ici, avec la provenance de
+      // l'Analyste fixture comme seule source de vérité disponible pour ce chemin (Critic/Arbiter
+      // n'émettent pas leur propre provenance_records dans ce contrat).
+      const arbiterScore = arbiterRun.valid_json
+        ? scoreArbiterOutput(arbiterRun.output, testCase.oracle.arbiter, { provenance_records: testCase.fixture_analyst_output.provenance_records })
+        : null;
       results.push(toResultRow(testCase.id, "arbiter", provider, run, arbiterRun, arbiterScore));
     }
     criticRuns.push(criticRun);

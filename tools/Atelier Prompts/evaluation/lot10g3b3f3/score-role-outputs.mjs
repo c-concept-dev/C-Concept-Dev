@@ -1,4 +1,4 @@
-import { assessProvenance } from "../../core/adn/index.js";
+import { assessProvenance, assessIntentPreservationDeterministic } from "../../core/adn/index.js";
 
 // Scoring pur, déterministe, sans appel réseau. Prend une sortie déjà parsée et validée par
 // workers/shared/operational-request-core.js (validateAnalystOutput / validateCriticOutput /
@@ -156,6 +156,39 @@ export function scoreAnalystOutput(output, oracle = {}) {
     compoundQuestions.length ? `question(s) coordonnant plusieurs demandes : ${JSON.stringify(compoundQuestions.map((q) => q.text))}` : null
   ));
 
+  // 3F.3.3-C1, B-01 : "no_mechanical_question_per_substitutable_issue" ci-dessus dépend entièrement
+  // de l'auto-déclaration issue.substitutable — un modèle qui déclare systématiquement
+  // substitutable=false sur chaque issue avant de la questionner échappe totalement à ce critère.
+  // Ce second critère ne fait confiance à aucune auto-déclaration : il regarde uniquement des faits
+  // structurels indépendants — le TRAITEMENT réellement choisi (recommended_treatment) pour chaque
+  // issue matérielle, et l'existence d'AU MOINS UNE trace, où que ce soit dans la sortie, qu'une
+  // stratégie substitutive (rechercher/décider/estimer/scénariser/conditionner/laisser inconnue) a
+  // été réellement tentée. Aucun plafond numérique de questions n'est imposé : ce n'est jamais le
+  // nombre de questions seul qui fait échouer ce critère, mais la conjonction de (a) plusieurs
+  // issues matérielles, (b) presque toutes ou toutes traitées par "question", (c) une absence totale
+  // de toute preuve de tentative de substitution ailleurs dans la sortie, et (d) plusieurs questions
+  // exposées simultanément à l'utilisateur — la définition comportementale même du sur-questionnement
+  // mécanique, généralisable à tout domaine.
+  const SUBSTITUTIVE_TREATMENTS = new Set(["research", "decide", "estimate", "scenario", "condition", "leave_unknown"]);
+  const SUBSTITUTIVE_EVIDENCE_FIELDS = ["assumptions_allowed", "delegated_decisions", "external_facts_to_research", "remaining_unknowns"];
+  const anySubstitutiveTreatmentUsed = output.issues.some((issue) => SUBSTITUTIVE_TREATMENTS.has(issue.recommended_treatment));
+  const anySubstitutiveFieldEvidence = SUBSTITUTIVE_EVIDENCE_FIELDS.some((field) => candidateFieldValues(candidate, field).length > 0);
+  const ladderEverAttempted = anySubstitutiveTreatmentUsed || anySubstitutiveFieldEvidence;
+  const materialQuestionRate = materialIssues.length
+    ? materialIssues.filter((issue) => issue.recommended_treatment === "question").length / materialIssues.length
+    : 0;
+  const questionInflationWithoutLadderEvidence = materialIssues.length >= 2
+    && materialQuestionRate >= 0.8
+    && !ladderEverAttempted
+    && output.question_candidates.length >= 2;
+  criteria.push(verdict(
+    "no_question_inflation_without_ladder_evidence",
+    !questionInflationWithoutLadderEvidence,
+    questionInflationWithoutLadderEvidence
+      ? `${materialIssues.length} issue(s) matérielle(s), ${Math.round(materialQuestionRate * 100)}% traitées par "question", aucune preuve de tentative de substitution ailleurs dans la sortie, ${output.question_candidates.length} questions exposées simultanément.`
+      : null
+  ));
+
   return { criteria, pass: criteria.every((c) => c.pass) };
 }
 
@@ -184,12 +217,44 @@ export function scoreCriticOutput(output, oracle = {}) {
   return { criteria, pass: criteria.every((c) => c.pass) };
 }
 
-export function scoreArbiterOutput(output, oracle = {}) {
+/**
+ * 3F.3.3-C1, B-02 : le gate déterministe (CDC §14.1, assessIntentPreservationDeterministic) était
+ * correctement testé en isolation (tests/intent-preservation.test.mjs) mais jamais réellement
+ * branché sur le scoring Arbiter — un candidat final invalide au sens du gate (invention de champ,
+ * suppression importante non tracée, provenance insuffisante) pouvait donc obtenir un score Arbiter
+ * "pass" sans que ce défaut structurel soit jamais signalé. `context` est optionnel et rétrocompatible :
+ * sans `context.provenance_records`, ce critère est simplement absent (comportement inchangé pour
+ * tout appelant existant) — jamais un appel dupliqué de la logique du gate, uniquement une
+ * réutilisation directe de la fonction existante.
+ */
+export function scoreArbiterOutput(output, oracle = {}, context = {}) {
   const criteria = [];
   if (oracle.forbidden_state) criteria.push(verdict("does_not_rubber_stamp_ready", output.state !== oracle.forbidden_state, `état interdit=${oracle.forbidden_state} obtenu=${output.state}`));
   if (Array.isArray(oracle.forbidden_candidate_field_substrings)) {
     const offenders = oracle.forbidden_candidate_field_substrings.filter(({ field, substring }) => candidateFieldValues(output.operational_request_candidate, field).some((value) => containsSubstring(value, substring)));
     criteria.push(verdict("resolves_without_new_drift", offenders.length === 0, offenders.length ? JSON.stringify(offenders) : null));
+  }
+  if (context.provenance_records) {
+    const gate = assessIntentPreservationDeterministic({
+      candidate_previous: context.candidate_previous ?? null,
+      candidate_next: output.operational_request_candidate,
+      provenance_records: context.provenance_records,
+      status_changes: context.status_changes || [],
+      issues_previous: context.issues_previous || [],
+      issues_next: output.issues,
+      resolutions: context.resolutions || []
+    });
+    criteria.push(verdict(
+      "deterministic_intent_preservation_gate",
+      gate.pass,
+      gate.pass ? null : JSON.stringify({
+        structurally_valid: gate.structurally_valid,
+        unsupported_additions: gate.unsupported_additions,
+        unsupported_removals: gate.unsupported_removals,
+        silent_arbitrations: gate.silent_arbitrations
+      }),
+      "gate"
+    ));
   }
   return { criteria, pass: criteria.every((c) => c.pass) };
 }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { createEmptyCandidate } from "../core/adn/index.js";
+import { createEmptyCandidate, assessIntentPreservationDeterministic } from "../core/adn/index.js";
 import { validateAnalystOutput, validateCriticOutput, validateArbiterOutput } from "../workers/shared/operational-request-core.js";
 import { scoreAnalystOutput, scoreCriticOutput, scoreArbiterOutput, assessStability } from "../evaluation/lot10g3b3f3/score-role-outputs.mjs";
 
@@ -233,6 +233,80 @@ test("scoreAnalystOutput : détecte le multi_objective_disorder attendu", () => 
   assert.equal(scoreAnalystOutput(withDisorder, testCase.oracle.analyst).pass, true);
 });
 
+// --- 3F.3.3-C1, B-01 : sur-questionnement sans confiance dans l'auto-déclaration substitutable ---
+// Le critère ne repose sur aucun case_id, aucun mot-clé métier, aucun plafond numérique global de
+// questions : il compare uniquement recommended_treatment (le choix réellement fait) au fait qu'une
+// stratégie substitutive ait été employée QUELQUE PART dans la sortie, matériel ou non.
+
+function materialIssue(id, overrides = {}) {
+  return { id, type: "missing_information", description: `Issue ${id} non résolue.`, impact: "material", substitutable: false, recommended_treatment: "question", ...overrides };
+}
+
+test("scoreAnalystOutput : plusieurs issues avec des traitements variés ne déclenchent jamais l'inflation de questions (cas sain)", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), assumptions_allowed: ["Hypothèse par défaut retenue faute d'information contraire."] },
+    provenance_records: [{ field: "assumptions_allowed", value: "Hypothèse par défaut retenue faute d'information contraire.", provenance: "labeled_estimate" }],
+    issues: [
+      materialIssue("ISSUE-001"),
+      materialIssue("ISSUE-002", { recommended_treatment: "estimate", substitutable: true }),
+      materialIssue("ISSUE-003", { recommended_treatment: "decide", substitutable: true })
+    ],
+    question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" }],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true);
+});
+
+test("scoreAnalystOutput : toutes les issues matérielles déclarées non-substituables puis transformées en questions échoue, même sans aucun issue.substitutable=true (cas pathologique)", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: createEmptyCandidate(),
+    provenance_records: [],
+    issues: [
+      materialIssue("ISSUE-001"),
+      materialIssue("ISSUE-002"),
+      materialIssue("ISSUE-003")
+    ],
+    question_candidates: [
+      { text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" },
+      { text: "Quel format attendez-vous ?", targets_issue_id: "ISSUE-002", expected_progress: "x" },
+      { text: "Quelle priorité retenir ?", targets_issue_id: "ISSUE-003", expected_progress: "x" }
+    ],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  const criterion = score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence");
+  assert.equal(criterion.pass, false);
+  assert.equal(score.pass, false, "l'ancien critère basé sur substitutable=true seul ne suffisait pas à détecter ce cas historique ; celui-ci doit le faire échouer.");
+});
+
+test("scoreAnalystOutput : une seule question légitimement nécessaire ne déclenche jamais l'inflation (une seule issue matérielle)", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: createEmptyCandidate(),
+    provenance_records: [],
+    issues: [materialIssue("ISSUE-001")],
+    question_candidates: [{ text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" }],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true);
+});
+
+test("scoreAnalystOutput : aucune issue substituable mais une preuve de tentative de substitution ailleurs évite le faux positif d'inflation", () => {
+  const output = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), remaining_unknowns: ["Un point secondaire reste ouvert sans bloquer le livrable."] },
+    provenance_records: [{ field: "remaining_unknowns", value: "Un point secondaire reste ouvert sans bloquer le livrable.", provenance: "safe_deduction" }],
+    issues: [materialIssue("ISSUE-001"), materialIssue("ISSUE-002")],
+    question_candidates: [
+      { text: "Quelle échéance visez-vous ?", targets_issue_id: "ISSUE-001", expected_progress: "x" },
+      { text: "Quel format attendez-vous ?", targets_issue_id: "ISSUE-002", expected_progress: "x" }
+    ],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(output, {});
+  assert.equal(score.criteria.find((c) => c.criterion === "no_question_inflation_without_ladder_evidence").pass, true, "remaining_unknowns non vide prouve qu'une stratégie substitutive (laisser inconnue) a bien été tentée ailleurs dans la sortie.");
+});
+
 // --- Critique -----------------------------------------------------------------------------------
 
 test("scoreCriticOutput : agree sans veto valide le cas 'accepte sans veto'", () => {
@@ -327,6 +401,96 @@ test("scoreArbiterOutput : une résolution qui entérine l'ajout non tracé éch
     reason: "Le veto du Critique est fondé : le destinataire n'était pas dans la demande originale."
   });
   assert.equal(scoreArbiterOutput(properlyResolved, testCase.oracle.arbiter).pass, true);
+});
+
+// --- 3F.3.3-C1, B-02 : le gate déterministe (assessIntentPreservationDeterministic) réellement
+// branché sur scoreArbiterOutput via `context.provenance_records` — réutilisation directe de la
+// fonction existante, jamais une duplication de sa logique. Aucun des textes utilisés ci-dessous
+// n'appartient au corpus des 15 cas.
+
+test("scoreArbiterOutput : le gate déterministe passe quand tout le candidat final est réellement tracé (READY légitime)", () => {
+  const provenance_records = [
+    { field: "objective", value: "Produire une synthèse hebdomadaire des indicateurs qualité.", provenance: "explicit_user_statement" },
+    { field: "expected_deliverable", value: "Document d'une page avec les trois indicateurs clés.", provenance: "explicit_user_statement" }
+  ];
+  const output = validateArbiterOutput({
+    state: "operational_request_ready",
+    operational_request_candidate: {
+      ...createEmptyCandidate(),
+      objective: "Produire une synthèse hebdomadaire des indicateurs qualité.",
+      expected_deliverable: "Document d'une page avec les trois indicateurs clés."
+    },
+    issues: [], next_question: { text: null, targets_issue_id: null, expected_progress: null }, confirmation_reason: null, blocked_reason: null,
+    intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
+    reason: "Chaque champ du candidat est tracé, aucun problème matériel ne subsiste."
+  });
+  const score = scoreArbiterOutput(output, {}, { provenance_records });
+  const gate = score.criteria.find((c) => c.criterion === "deterministic_intent_preservation_gate");
+  assert.ok(gate, "le critère de gate doit être présent dès qu'un contexte de provenance est fourni.");
+  assert.equal(gate.pass, true);
+  assert.equal(score.pass, true);
+});
+
+test("scoreArbiterOutput : le gate déterministe échoue sur un champ inventé sans provenance (ajout non tracé)", () => {
+  const provenance_records = [
+    { field: "objective", value: "Produire une synthèse hebdomadaire des indicateurs qualité.", provenance: "explicit_user_statement" }
+  ];
+  const output = validateArbiterOutput({
+    state: "operational_request_ready",
+    operational_request_candidate: {
+      ...createEmptyCandidate(),
+      objective: "Produire une synthèse hebdomadaire des indicateurs qualité.",
+      confirmed_constraints: ["Doit être envoyée en copie à un tiers jamais mentionné par l'utilisateur."]
+    },
+    issues: [], next_question: { text: null, targets_issue_id: null, expected_progress: null }, confirmation_reason: null, blocked_reason: null,
+    intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
+    reason: "L'Arbitre affirme que tout est prêt."
+  });
+  const gate = assessIntentPreservationDeterministic({
+    candidate_previous: null,
+    candidate_next: output.operational_request_candidate,
+    provenance_records,
+    status_changes: [], issues_previous: [], issues_next: [], resolutions: []
+  });
+  assert.equal(gate.pass, false, "vérification directe : la fonction réutilisée détecte bien l'ajout non tracé.");
+  assert.equal(gate.unsupported_additions.length, 1);
+});
+
+test("scoreArbiterOutput : détecte lui-même l'échec du gate déterministe (aucune dépendance à un substring du corpus)", () => {
+  const provenance_records = [
+    { field: "objective", value: "Produire une synthèse hebdomadaire des indicateurs qualité.", provenance: "explicit_user_statement" }
+  ];
+  const output = validateArbiterOutput({
+    state: "operational_request_ready",
+    operational_request_candidate: {
+      ...createEmptyCandidate(),
+      objective: "Produire une synthèse hebdomadaire des indicateurs qualité.",
+      confirmed_constraints: ["Doit être envoyée en copie à un tiers jamais mentionné par l'utilisateur."]
+    },
+    issues: [], next_question: { text: null, targets_issue_id: null, expected_progress: null }, confirmation_reason: null, blocked_reason: null,
+    intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
+    reason: "L'Arbitre affirme que tout est prêt."
+  });
+  const score = scoreArbiterOutput(output, {}, { provenance_records });
+  const gate = score.criteria.find((c) => c.criterion === "deterministic_intent_preservation_gate");
+  assert.equal(gate.pass, false, "READY affirmé par l'Arbitre ne doit jamais suffire à faire passer le gate sans provenance suffisante.");
+  assert.equal(score.pass, false, "un échec de gate doit se répercuter sur le verdict global scoreArbiterOutput, pas seulement rester un critère isolé.");
+});
+
+test("scoreArbiterOutput : sans context.provenance_records, le comportement reste strictement inchangé (rétrocompatibilité)", () => {
+  const testCase = caseById("case-11-critique-veto-qualifie");
+  const output = validateArbiterOutput({
+    state: "clarification_required",
+    operational_request_candidate: createEmptyCandidate(),
+    issues: [{ id: "ISSUE-001", type: "decision_authority_unclear", description: "Destinataire non confirmé.", impact: "material", substitutable: false, recommended_treatment: "question" }],
+    next_question: { text: "À qui ce compte rendu doit-il être envoyé ?", targets_issue_id: "ISSUE-001", expected_progress: "Confirme le destinataire réel." },
+    confirmation_reason: null, blocked_reason: null,
+    intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: false, concerns: ["Destinataire ajouté sans provenance."] },
+    reason: "Le veto du Critique est fondé."
+  });
+  const score = scoreArbiterOutput(output, testCase.oracle.arbiter);
+  assert.equal(score.criteria.find((c) => c.criterion === "deterministic_intent_preservation_gate"), undefined, "sans contexte, aucun critère de gate ne doit apparaître : comportement identique à avant B-02.");
+  assert.equal(score.pass, true);
 });
 
 // --- Stabilité ------------------------------------------------------------------------------------
