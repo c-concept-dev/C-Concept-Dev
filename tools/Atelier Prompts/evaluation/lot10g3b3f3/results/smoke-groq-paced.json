@@ -1,0 +1,2392 @@
+{
+  "version": "1.0",
+  "lot": "10G.3B.3F.3.3",
+  "generated_at": "2026-08-29T06:29:56.626Z",
+  "repetitions": 1,
+  "corpus_cases": 15,
+  "providers_not_executed": [],
+  "summary": [
+    {
+      "role": "analyst",
+      "provider": "groq",
+      "cases": 12,
+      "valid_json_pct": 100,
+      "pass_pct": 16.7,
+      "failed_criteria_counts": {
+        "material_issue_detection": 4,
+        "no_under_questioning": 1,
+        "provenance_completeness": 4,
+        "conflict_kind_detection": 1,
+        "delegation_respected": 1,
+        "no_mechanical_repetition_after_dont_know": 1,
+        "substitutive_strategy_after_dont_know": 1,
+        "treatment_strategy_quality": 1
+      },
+      "latency_median_ms": 1204,
+      "latency_p90_ms": 1696,
+      "cost_usd_total_estimate": 0.011355,
+      "stability_by_case": [
+        {
+          "case_id": "case-01-simple-complete",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[],\"questionCount\":0}"
+          ]
+        },
+        {
+          "case_id": "case-02-simple-incomplete",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[],\"questionCount\":0}"
+          ]
+        },
+        {
+          "case_id": "case-03-longue-desordonnee",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"ambiguity\"],\"questionCount\":2}"
+          ]
+        },
+        {
+          "case_id": "case-04-contradictoire",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"conflict\",\"deliverable_unclear\"],\"questionCount\":0}"
+          ]
+        },
+        {
+          "case_id": "case-05-multi-objectifs",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"missing_information\"],\"questionCount\":1}"
+          ]
+        },
+        {
+          "case_id": "case-06-delegation",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"ambiguity\",\"missing_information\"],\"questionCount\":0}"
+          ]
+        },
+        {
+          "case_id": "case-07-je-ne-sais-pas",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"missing_information\"],\"questionCount\":1}"
+          ]
+        },
+        {
+          "case_id": "case-08-info-recherchable",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[],\"questionCount\":0}"
+          ]
+        },
+        {
+          "case_id": "case-09-preference-vs-contrainte",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"missing_information\"],\"questionCount\":1}"
+          ]
+        },
+        {
+          "case_id": "case-12-italie",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"missing_information\"],\"questionCount\":10}"
+          ]
+        },
+        {
+          "case_id": "case-13-confuse-execution-simple",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[],\"questionCount\":0}"
+          ]
+        },
+        {
+          "case_id": "case-14-courte-execution-complexe",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"materialTypes\":[\"missing_information\"],\"questionCount\":2}"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "critic",
+      "provider": "groq",
+      "cases": 15,
+      "valid_json_pct": 100,
+      "pass_pct": 86.7,
+      "failed_criteria_counts": {
+        "agreement_matches_oracle": 2,
+        "veto_presence_matches_oracle": 1,
+        "semantic_drift_detection": 1
+      },
+      "latency_median_ms": 627,
+      "latency_p90_ms": 820,
+      "cost_usd_total_estimate": 0.007162,
+      "stability_by_case": [
+        {
+          "case_id": "case-01-simple-complete",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-02-simple-incomplete",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-03-longue-desordonnee",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-04-contradictoire",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-05-multi-objectifs",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-06-delegation",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-07-je-ne-sais-pas",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-08-info-recherchable",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-09-preference-vs-contrainte",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-10-critique-accepte-sans-veto",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-11-critique-veto-qualifie",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-12-italie",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-13-confuse-execution-simple",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-14-courte-execution-complexe",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        },
+        {
+          "case_id": "case-15-glissement-semantique",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"agreement\":\"agree\",\"vetoCount\":0,\"drift\":false}"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "arbiter",
+      "provider": "groq",
+      "cases": 2,
+      "valid_json_pct": 100,
+      "pass_pct": 0,
+      "failed_criteria_counts": {
+        "does_not_rubber_stamp_ready": 2,
+        "resolves_without_new_drift": 1
+      },
+      "latency_median_ms": 740,
+      "latency_p90_ms": 922,
+      "cost_usd_total_estimate": 0.001185,
+      "stability_by_case": [
+        {
+          "case_id": "case-11-critique-veto-qualifie",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"state\":\"operational_request_ready\"}"
+          ]
+        },
+        {
+          "case_id": "case-15-glissement-semantique",
+          "stable": true,
+          "agreement_ratio": 1,
+          "signatures": [
+            "{\"state\":\"operational_request_ready\"}"
+          ]
+        }
+      ]
+    }
+  ],
+  "raw_results": [
+    {
+      "case_id": "case-01-simple-complete",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 978,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": true,
+            "note": "attendu=[] (all) obtenu=[]"
+          },
+          {
+            "criterion": "no_over_questioning",
+            "pass": true,
+            "note": "max=0 obtenu=0"
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000677,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Rédiger une liste de 10 conseils génériques pour bien dormir",
+          "expected_deliverable": "Liste de 10 conseils génériques pour bien dormir",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Rédiger une liste de 10 conseils génériques pour bien dormir",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "Liste de 10 conseils génériques pour bien dormir",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-01-simple-complete",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 658,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000406,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-02-simple-incomplete",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 976,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": false,
+            "note": "attendu=[\"missing_information\"] (all) obtenu=[]"
+          },
+          {
+            "criterion": "no_under_questioning",
+            "pass": false,
+            "note": "min=1 obtenu=0"
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000705,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Écris une lettre de motivation.",
+          "expected_deliverable": "lettre de motivation",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Écris une lettre de motivation.",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "lettre de motivation",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-02-simple-incomplete",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 668,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.0004,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-03-longue-desordonnee",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1741,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": false,
+            "note": "attendu=[\"information_overload\"] (all) obtenu=[\"ambiguity\"]"
+          },
+          {
+            "criterion": "no_invention",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": false,
+            "note": "[{\"field\":\"objective\",\"value\":\"Plan and execute the reorganization and moving tasks within the next two months, incorporating assistance from a potential brother helper and creating a weekly schedule that accommodates a work routine with limited evening availability.\"},{\"field\":\"expected_deliverable\",\"value\":\"A detailed weekly plan outlining tasks, timelines, and resource allocation, including a schedule for sorting boxes, coordinating brother’s help, and managing evening work constraints.\"}]"
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.001253,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Plan and execute the reorganization and moving tasks within the next two months, incorporating assistance from a potential brother helper and creating a weekly schedule that accommodates a work routine with limited evening availability.",
+          "expected_deliverable": "A detailed weekly plan outlining tasks, timelines, and resource allocation, including a schedule for sorting boxes, coordinating brother’s help, and managing evening work constraints.",
+          "secondary_objectives": [
+            "Optimize use of limited evening time for moving-related tasks",
+            "Ensure smooth transition to new apartment within the two-month deadline"
+          ],
+          "confirmed_constraints": [
+            "Moving scheduled in two months",
+            "Brother may help on at least one day",
+            "Work schedule limits evening availability"
+          ],
+          "confirmed_priorities": [
+            "Prioritize tasks that fit evening time",
+            "Leverage brother’s assistance to reduce workload"
+          ],
+          "confirmed_preferences": [
+            "Prefer to use brother’s help when available"
+          ],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [
+            "Brother will be available to help on at least one day within the two-month period"
+          ],
+          "remaining_unknowns": [
+            "Exact availability of brother for assistance",
+            "Exact work schedule and evening time blocks"
+          ]
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Plan and execute the reorganization and moving tasks within the next two months, incorporating assistance from a potential brother helper and creating a weekly schedule that accommodates a work routine with limited evening availability",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "A detailed weekly plan outlining tasks, timelines, and resource allocation, including a schedule for sorting boxes, coordinating brother’s help, and managing evening work constraints",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "secondary_objectives",
+            "value": "Optimize use of limited evening time for moving-related tasks",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "secondary_objectives",
+            "value": "Ensure smooth transition to new apartment within the two-month deadline",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_constraints",
+            "value": "Moving scheduled in two months",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_constraints",
+            "value": "Brother may help on at least one day",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_constraints",
+            "value": "Work schedule limits evening availability",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_priorities",
+            "value": "Prioritize tasks that fit evening time",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_priorities",
+            "value": "Leverage brother’s assistance to reduce workload",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_preferences",
+            "value": "Prefer to use brother’s help when available",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "assumptions_allowed",
+            "value": "Brother will be available to help on at least one day within the two-month period",
+            "provenance": "safe_deduction"
+          },
+          {
+            "field": "remaining_unknowns",
+            "value": "Exact availability of brother for assistance",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "remaining_unknowns",
+            "value": "Exact work schedule and evening time blocks",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [
+          {
+            "id": "issue1",
+            "type": "ambiguity",
+            "description": "Brother’s exact availability for assistance is unknown.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue2",
+            "type": "ambiguity",
+            "description": "Exact work schedule and evening time blocks are unknown.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [
+          {
+            "text": "What days and times is your brother available to help with the moving tasks?",
+            "targets_issue_id": "issue1",
+            "expected_progress": "Obtain brother’s availability to schedule assistance days"
+          },
+          {
+            "text": "What are your typical work hours and how much free time do you have in the evenings?",
+            "targets_issue_id": "issue2",
+            "expected_progress": "Obtain work schedule to plan evening tasks"
+          }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-03-longue-desordonnee",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 613,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000647,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-04-contradictoire",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1021,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": true,
+            "note": "attendu=[\"conflict\"] (all) obtenu=[\"conflict\",\"deliverable_unclear\"]"
+          },
+          {
+            "criterion": "conflict_kind_detection",
+            "pass": false,
+            "note": "attendu=logical_contradiction"
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000729,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Provide a report that is both ultra detailed and concise",
+          "expected_deliverable": "Report",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Provide a report that is both ultra detailed and concise",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "Report",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [
+          {
+            "id": "issue1",
+            "type": "conflict",
+            "description": "The request requires a report that is both ultra detailed (≈50 pages) and fits on a single page, which is logically contradictory.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "scenario",
+            "kind": "constraint_tension"
+          },
+          {
+            "id": "issue2",
+            "type": "deliverable_unclear",
+            "description": "The user did not specify the format, medium, or specific content of the report.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-04-contradictoire",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 662,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000537,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": true,
+        "significant_stakes_reason": "The user’s request contains a logical contradiction that makes the deliverable impossible to produce. Failing to address this contradiction could lead to a non‑compliant or unusable report, which is a significant risk."
+      }
+    },
+    {
+      "case_id": "case-05-multi-objectifs",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1696,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": false,
+            "note": "attendu=[\"multi_objective_disorder\"] (all) obtenu=[\"missing_information\"]"
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.001334,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Organiser la préparation de la présentation client et la refonte du CV",
+          "expected_deliverable": "Un plan détaillé d’organisation incluant un calendrier, les étapes clés et les ressources nécessaires pour les deux tâches",
+          "secondary_objectives": [
+            "Déterminer les échéances précises pour chaque tâche",
+            "Évaluer le temps disponible et les contraintes de disponibilité",
+            "Prioriser les actions en fonction des délais"
+          ],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": [
+            "deadline_presentation",
+            "deadline_cv"
+          ]
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Organiser la préparation de la présentation client et la refonte du CV",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "Un plan détaillé d’organisation incluant un calendrier, les étapes clés et les ressources nécessaires pour les deux tâches",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "secondary_objectives",
+            "value": "Déterminer les échéances précises pour chaque tâche",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "secondary_objectives",
+            "value": "Évaluer le temps disponible et les contraintes de disponibilité",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "secondary_objectives",
+            "value": "Prioriser les actions en fonction des délais",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "remaining_unknowns",
+            "value": "deadline_presentation",
+            "provenance": "safe_deduction"
+          },
+          {
+            "field": "remaining_unknowns",
+            "value": "deadline_cv",
+            "provenance": "safe_deduction"
+          }
+        ],
+        "issues": [
+          {
+            "id": "issue1",
+            "type": "missing_information",
+            "description": "L’utilisateur n’a pas précisé les dates limites pour la présentation client et la mise à jour du CV.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [
+          {
+            "text": "Quelles sont les dates limites pour la présentation client et la mise à jour de votre CV ?",
+            "targets_issue_id": "issue1",
+            "expected_progress": "clarify deadlines"
+          }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-05-multi-objectifs",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 711,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000486,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-06-delegation",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1331,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "no_repeated_delegated_question",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "delegation_respected",
+            "pass": false,
+            "note": "attendu une décision déléguée contenant \"budget\""
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": false,
+            "note": "[{\"field\":\"remaining_unknowns\",\"value\":\"budget\"},{\"field\":\"remaining_unknowns\",\"value\":\"date\"},{\"field\":\"remaining_unknowns\",\"value\":\"location\"},{\"field\":\"remaining_unknowns\",\"value\":\"activities\"},{\"field\":\"remaining_unknowns\",\"value\":\"attendees\"}]"
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000964,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Prépare-moi un plan pour organiser un petit événement d'équipe.",
+          "expected_deliverable": "Plan détaillé d'organisation d'un petit événement d'équipe.",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": [
+            "budget",
+            "date",
+            "location",
+            "activities",
+            "attendees"
+          ]
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Prépare-moi un plan pour organiser un petit événement d'équipe.",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "Plan détaillé d'organisation d'un petit événement d'équipe.",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [
+          {
+            "id": "1",
+            "type": "ambiguity",
+            "description": "Le budget n'est pas précisé par l'utilisateur.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "research",
+            "kind": null
+          },
+          {
+            "id": "2",
+            "type": "missing_information",
+            "description": "La date de l'événement n'est pas connue.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "research",
+            "kind": null
+          },
+          {
+            "id": "3",
+            "type": "missing_information",
+            "description": "Le lieu de l'événement n'est pas défini.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "research",
+            "kind": null
+          },
+          {
+            "id": "4",
+            "type": "missing_information",
+            "description": "Les activités prévues pour l'événement ne sont pas spécifiées.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "research",
+            "kind": null
+          },
+          {
+            "id": "5",
+            "type": "missing_information",
+            "description": "Le nombre d'invités attendus n'est pas indiqué.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "research",
+            "kind": null
+          }
+        ],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-06-delegation",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 586,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000492,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-07-je-ne-sais-pas",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1259,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "no_mechanical_repetition_after_dont_know",
+            "pass": false,
+            "note": "[\"À quel public cible s'adresse cet article ?\"]"
+          },
+          {
+            "criterion": "substitutive_strategy_after_dont_know",
+            "pass": false,
+            "note": null
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000937,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Rédiger un article de blog sur les bienfaits du sommeil.",
+          "expected_deliverable": "article de blog",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [
+            "sleep benefits scientific studies"
+          ],
+          "assumptions_allowed": [],
+          "remaining_unknowns": [
+            "target audience"
+          ]
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Rédiger un article de blog sur les bienfaits du sommeil.",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "article de blog",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "external_facts_to_research",
+            "value": "sleep benefits scientific studies",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "remaining_unknowns",
+            "value": "target audience",
+            "provenance": "clarification_answer"
+          }
+        ],
+        "issues": [
+          {
+            "id": "Q1",
+            "type": "missing_information",
+            "description": "Target audience for the blog article is unknown.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [
+          {
+            "text": "À quel public cible s'adresse cet article ?",
+            "targets_issue_id": "Q1",
+            "expected_progress": "Obtain target audience to refine article."
+          }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-07-je-ne-sais-pas",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1024,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.00043,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-08-info-recherchable",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1024,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "no_over_questioning",
+            "pass": true,
+            "note": "max=0 obtenu=0"
+          },
+          {
+            "criterion": "treatment_strategy_quality",
+            "pass": false,
+            "note": "attendu=research"
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000912,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Provide weather forecast for Paris tomorrow",
+          "expected_deliverable": "Weather forecast",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [
+            "Weather forecast for Paris tomorrow"
+          ],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Provide weather forecast for Paris tomorrow",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "Weather forecast",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "external_facts_to_research",
+            "value": "Weather forecast for Paris tomorrow",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-08-info-recherchable",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 613,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000402,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-09-preference-vs-contrainte",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1627,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "no_preference_to_constraint_drift",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": false,
+            "note": "[{\"field\":\"remaining_unknowns\",\"value\":\"message_content\"}]"
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.001071,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Generate a formal tone message",
+          "expected_deliverable": "formal_message",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [
+            "formal_tone"
+          ],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": [
+            "message_content"
+          ]
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Generate a formal tone message",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "formal_message",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_preferences",
+            "value": "formal_tone",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [
+          {
+            "id": "missing_message_content",
+            "type": "missing_information",
+            "description": "Content of the message to be formalized is missing.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [
+          {
+            "text": "Could you provide the content of the message you want to be formalized?",
+            "targets_issue_id": "missing_message_content",
+            "expected_progress": "Obtain message content to proceed."
+          }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-09-preference-vs-contrainte",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 627,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000419,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-10-critique-accepte-sans-veto",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 820,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000519,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [
+            "secondary_objectives",
+            "confirmed_priorities",
+            "confirmed_preferences",
+            "delegated_decisions",
+            "external_facts_to_research",
+            "assumptions_allowed",
+            "remaining_unknowns"
+          ],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-11-critique-veto-qualifie",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 612,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": false,
+            "note": "attendu=disagree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": false,
+            "note": null
+          },
+          {
+            "criterion": "unsupported_addition_detected",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000472,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [
+            "confirmed_constraints"
+          ],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-11-critique-veto-qualifie",
+      "role": "arbiter",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 922,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "does_not_rubber_stamp_ready",
+            "pass": false,
+            "note": "état interdit=operational_request_ready obtenu=operational_request_ready"
+          },
+          {
+            "criterion": "resolves_without_new_drift",
+            "pass": false,
+            "note": "[{\"field\":\"confirmed_constraints\",\"substring\":\"direction générale\"}]"
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000649,
+      "__output": {
+        "state": "operational_request_ready",
+        "operational_request_candidate": {
+          "objective": "Produire un compte rendu de la réunion hebdomadaire.",
+          "expected_deliverable": "Compte rendu structuré.",
+          "secondary_objectives": [],
+          "confirmed_constraints": [
+            "Le compte rendu doit être envoyé à toute la direction générale."
+          ],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "issues": [],
+        "next_question": null,
+        "confirmation_reason": null,
+        "blocked_reason": null,
+        "intent_preservation": {
+          "objective_preserved": true,
+          "priorities_preserved": true,
+          "semantic_equivalence": true,
+          "concerns": []
+        },
+        "reason": "The analyst’s inclusion of a confirmed constraint specifying that the report must be sent to all general management aligns with the user’s implicit requirement that the report reach the entire leadership. The critic’s flag of an unsupported addition is unfounded because the constraint is directly supported by the user’s intent. No material ambiguities, conflicts, or missing information remain. Therefore the request is ready for execution."
+      }
+    },
+    {
+      "case_id": "case-12-italie",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1640,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": true,
+            "note": "attendu=[\"deliverable_unclear\",\"missing_information\"] (any) obtenu=[\"missing_information\"]"
+          },
+          {
+            "criterion": "no_under_questioning",
+            "pass": true,
+            "note": "min=1 obtenu=10"
+          },
+          {
+            "criterion": "no_invention",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": false,
+            "note": "[{\"field\":\"expected_deliverable\",\"value\":\"Itinéraire détaillé, budget estimé, liste de vérifications et recommandations\"},{\"field\":\"remaining_unknowns\",\"value\":\"durée du voyage\"},{\"field\":\"remaining_unknowns\",\"value\":\"budget total\"},{\"field\":\"remaining_unknowns\",\"value\":\"dates exactes\"},{\"field\":\"remaining_unknowns\",\"value\":\"préférences de transport\"},{\"field\":\"remaining_unknowns\",\"value\":\"préférences d'hébergement\"},{\"field\":\"remaining_unknowns\",\"value\":\"intérêts touristiques spécifiques\"},{\"field\":\"remaining_unknowns\",\"value\":\"restrictions alimentaires\"},{\"field\":\"remaining_unknowns\",\"value\":\"langue de communication\"},{\"field\":\"remaining_unknowns\",\"value\":\"niveau de confort souhaité\"},{\"field\":\"remaining_unknowns\",\"value\":\"niveau de risque acceptable\"}]"
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.001245,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Préparer un voyage en Italie",
+          "expected_deliverable": "Itinéraire détaillé, budget estimé, liste de vérifications et recommandations",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": [
+            "durée du voyage",
+            "budget total",
+            "dates exactes",
+            "préférences de transport",
+            "préférences d'hébergement",
+            "intérêts touristiques spécifiques",
+            "restrictions alimentaires",
+            "langue de communication",
+            "niveau de confort souhaité",
+            "niveau de risque acceptable"
+          ]
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Préparer un voyage en Italie",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [
+          {
+            "id": "issue1",
+            "type": "missing_information",
+            "description": "La durée du voyage n'est pas précisée.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue2",
+            "type": "missing_information",
+            "description": "Le budget total n'est pas précisé.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue3",
+            "type": "missing_information",
+            "description": "Les dates exactes du voyage ne sont pas précisées.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue4",
+            "type": "missing_information",
+            "description": "Les préférences de transport ne sont pas précisées.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue5",
+            "type": "missing_information",
+            "description": "Les préférences d'hébergement ne sont pas précisées.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue6",
+            "type": "missing_information",
+            "description": "Les intérêts touristiques spécifiques ne sont pas précisés.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue7",
+            "type": "missing_information",
+            "description": "Les restrictions alimentaires ne sont pas précisées.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue8",
+            "type": "missing_information",
+            "description": "La langue de communication préférée n'est pas précisée.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue9",
+            "type": "missing_information",
+            "description": "Le niveau de confort souhaité n'est pas précisé.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue10",
+            "type": "missing_information",
+            "description": "Le niveau de risque acceptable n'est pas précisé.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [
+          {
+            "text": "Quelle est la durée prévue de votre voyage en Italie ?",
+            "targets_issue_id": "issue1",
+            "expected_progress": "Obtenir la durée du voyage"
+          },
+          {
+            "text": "Quel est votre budget total pour ce voyage ?",
+            "targets_issue_id": "issue2",
+            "expected_progress": "Obtenir le budget total"
+          },
+          {
+            "text": "Quelles sont les dates exactes ou la période de votre voyage ?",
+            "targets_issue_id": "issue3",
+            "expected_progress": "Obtenir les dates du voyage"
+          },
+          {
+            "text": "Préférez-vous voyager en avion, train, voiture ou autre ?",
+            "targets_issue_id": "issue4",
+            "expected_progress": "Obtenir les préférences de transport"
+          },
+          {
+            "text": "Quel type d'hébergement préférez-vous (hôtel, Airbnb, auberge, etc.) ?",
+            "targets_issue_id": "issue5",
+            "expected_progress": "Obtenir les préférences d'hébergement"
+          },
+          {
+            "text": "Quelles attractions ou activités vous intéressent particulièrement en Italie ?",
+            "targets_issue_id": "issue6",
+            "expected_progress": "Obtenir les intérêts touristiques spécifiques"
+          },
+          {
+            "text": "Avez-vous des restrictions alimentaires ou des préférences culinaires à prendre en compte ?",
+            "targets_issue_id": "issue7",
+            "expected_progress": "Obtenir les restrictions alimentaires"
+          },
+          {
+            "text": "Quelle langue utilisez-vous ou souhaitez-vous utiliser pendant votre voyage ?",
+            "targets_issue_id": "issue8",
+            "expected_progress": "Obtenir la langue de communication"
+          },
+          {
+            "text": "Quel niveau de confort recherchez-vous pour votre hébergement et vos transports ?",
+            "targets_issue_id": "issue9",
+            "expected_progress": "Obtenir le niveau de confort souhaité"
+          },
+          {
+            "text": "Quel niveau de risque (sécurité, santé, etc.) êtes-vous prêt à accepter pendant votre voyage ?",
+            "targets_issue_id": "issue10",
+            "expected_progress": "Obtenir le niveau de risque acceptable"
+          }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-12-italie",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 714,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000579,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-13-confuse-execution-simple",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 715,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "no_over_questioning",
+            "pass": true,
+            "note": "max=0 obtenu=0"
+          },
+          {
+            "criterion": "no_preference_to_constraint_drift",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000623,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Generate 5 title ideas for an article",
+          "expected_deliverable": "list of 5 title ideas",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Generate 5 title ideas for an article",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "list of 5 title ideas",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-13-confuse-execution-simple",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 613,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.000419,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-14-courte-execution-complexe",
+      "role": "analyst",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 1204,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "material_issue_detection",
+            "pass": false,
+            "note": "attendu=[\"dependency\"] (all) obtenu=[\"missing_information\"]"
+          },
+          {
+            "criterion": "provenance_completeness",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000905,
+      "__output": {
+        "operational_request_candidate": {
+          "objective": "Prepare a migration plan for the database to the new system",
+          "expected_deliverable": "Migration plan",
+          "secondary_objectives": [
+            "Ensure two teams remain synchronized throughout the operation"
+          ],
+          "confirmed_constraints": [
+            "Two teams must stay synchronized during the entire migration"
+          ],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          {
+            "field": "objective",
+            "value": "Prepare a migration plan for the database to the new system",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "expected_deliverable",
+            "value": "Migration plan",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "secondary_objectives",
+            "value": "Ensure two teams remain synchronized throughout the operation",
+            "provenance": "explicit_user_statement"
+          },
+          {
+            "field": "confirmed_constraints",
+            "value": "Two teams must stay synchronized during the entire migration",
+            "provenance": "explicit_user_statement"
+          }
+        ],
+        "issues": [
+          {
+            "id": "issue1",
+            "type": "missing_information",
+            "description": "The format and contents of the expected migration plan are not specified.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          },
+          {
+            "id": "issue2",
+            "type": "missing_information",
+            "description": "Specific synchronization mechanisms or requirements for the two teams are not detailed.",
+            "impact": "material",
+            "substitutable": false,
+            "recommended_treatment": "question",
+            "kind": null
+          }
+        ],
+        "question_candidates": [
+          {
+            "text": "What format and level of detail are required for the migration plan deliverable?",
+            "targets_issue_id": "issue1",
+            "expected_progress": "clarify deliverable format"
+          },
+          {
+            "text": "What specific synchronization requirements or mechanisms must be maintained between the two teams during the migration?",
+            "targets_issue_id": "issue2",
+            "expected_progress": "clarify synchronization details"
+          }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      }
+    },
+    {
+      "case_id": "case-14-courte-execution-complexe",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 585,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": true,
+            "note": "attendu=agree obtenu=agree"
+          },
+          {
+            "criterion": "veto_presence_matches_oracle",
+            "pass": true,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": true
+      },
+      "cost_usd": 0.00054,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": true,
+        "significant_stakes_reason": "A migration plan for a database is a critical deliverable; errors or omissions could lead to data loss, downtime, or operational disruption, making the stakes significant."
+      }
+    },
+    {
+      "case_id": "case-15-glissement-semantique",
+      "role": "critic",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 547,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "agreement_matches_oracle",
+            "pass": false,
+            "note": "attendu=disagree obtenu=agree"
+          },
+          {
+            "criterion": "semantic_drift_detection",
+            "pass": false,
+            "note": null
+          },
+          {
+            "criterion": "agree_without_inventing_problem",
+            "pass": true,
+            "note": null
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000414,
+      "__output": {
+        "agreement": "agree",
+        "operational_request_candidate_review": {
+          "unsupported_additions_found": [],
+          "unsupported_removals_found": [],
+          "missed_material_issues": []
+        },
+        "vetoes": [],
+        "semantic_drift_detected": false,
+        "semantic_drift_notes": [],
+        "significant_stakes": false,
+        "significant_stakes_reason": ""
+      }
+    },
+    {
+      "case_id": "case-15-glissement-semantique",
+      "role": "arbiter",
+      "provider": "groq",
+      "run": 1,
+      "valid_json": true,
+      "elapsed_ms": 740,
+      "error": null,
+      "rate_limited_exhausted": false,
+      "retries": 0,
+      "rate_limited_wait_ms": 0,
+      "score": {
+        "criteria": [
+          {
+            "criterion": "does_not_rubber_stamp_ready",
+            "pass": false,
+            "note": "état interdit=operational_request_ready obtenu=operational_request_ready"
+          }
+        ],
+        "pass": false
+      },
+      "cost_usd": 0.000536,
+      "__output": {
+        "state": "operational_request_ready",
+        "operational_request_candidate": {
+          "objective": "Rédiger un message de suivi client.",
+          "expected_deliverable": "Un message court de suivi client.",
+          "secondary_objectives": [],
+          "confirmed_constraints": [
+            "Le message doit impérativement être rédigé en français."
+          ],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "issues": [],
+        "next_question": null,
+        "confirmation_reason": null,
+        "blocked_reason": null,
+        "intent_preservation": {
+          "objective_preserved": true,
+          "priorities_preserved": true,
+          "semantic_equivalence": true,
+          "concerns": []
+        },
+        "reason": "No material issues, no ambiguities, no conflicts. The request is fully specified and ready for execution."
+      }
+    }
+  ]
+}
