@@ -183,6 +183,49 @@ test("validateCriticOutput exige une note explicative dès que semantic_drift_de
   assert.equal(validateCriticOutput(withNote).semantic_drift_notes.length, 1);
 });
 
+// --- 3F.3.3-C, B1 : cohérence détection -> verdict --------------------------------
+
+function materialMissedIssue(overrides = {}) {
+  return {
+    id: "ISSUE-M1",
+    type: "missing_information",
+    description: "Le destinataire réel du compte rendu n'a jamais été confirmé.",
+    impact: "material",
+    substitutable: false,
+    recommended_treatment: "question",
+    ...overrides
+  };
+}
+
+test("validateCriticOutput rejette agree accompagné d'un missed_material_issues non vide (incohérence)", () => {
+  const output = minimalCriticOutput({
+    agreement: "agree",
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [materialMissedIssue()] }
+  });
+  assert.throws(() => validateCriticOutput(output), TypeError);
+});
+
+test("validateCriticOutput accepte disagree fondé uniquement sur une missed_material_issue, sans veto ni dérive (le fondement peut être n'importe lequel des trois signaux)", () => {
+  const output = minimalCriticOutput({
+    agreement: "disagree",
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [materialMissedIssue()] },
+    vetoes: [],
+    semantic_drift_detected: false
+  });
+  const result = validateCriticOutput(output);
+  assert.equal(result.operational_request_candidate_review.missed_material_issues.length, 1);
+});
+
+test("validateCriticOutput n'impose jamais disagree pour un simple ajout non tracé non matériel (pas de biais anti-agree)", () => {
+  const output = minimalCriticOutput({
+    agreement: "agree",
+    operational_request_candidate_review: { unsupported_additions_found: ["expected_deliverable: reformulation mineure sans impact"], unsupported_removals_found: [], missed_material_issues: [] }
+  });
+  const result = validateCriticOutput(output);
+  assert.equal(result.agreement, "agree");
+  assert.equal(result.operational_request_candidate_review.unsupported_additions_found.length, 1, "l'ajout non tracé reste consigné, sans forcer un désaccord.");
+});
+
 test("filterQualifiedVetoes distingue un veto réellement nouveau d'un veto redondant", () => {
   const previous = [{ issue_id: "ISSUE-001", new_information_trigger: "Contrainte révélée au tour 2." }];
   const { qualified, redundant } = filterQualifiedVetoes([

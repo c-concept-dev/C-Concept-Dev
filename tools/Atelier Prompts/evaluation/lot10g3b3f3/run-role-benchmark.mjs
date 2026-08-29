@@ -312,16 +312,24 @@ async function benchmarkAnalystAndCritic(testCase, provider, results) {
   return runs.filter((r) => r.analystRun.valid_json).map((r) => r.analystRun.output);
 }
 
-async function benchmarkCriticIsolation(testCase, provider, results) {
+// 3F.3.3-C, A1 : original_request doit toujours provenir du cas de corpus réel (testCase.input),
+// jamais d'une chaîne vide — un appel Critique/Arbitre isolé sans la demande originale ne respecte
+// pas le contrat runtime (makeCriticUserMessage/makeArbiterUserMessage attendent original_request
+// pour la comparaison sémantique) et invaliderait silencieusement tout jugement de dérive.
+export async function benchmarkCriticIsolation(testCase, provider, results) {
+  if (!testCase.input || !testCase.input.original_request) {
+    throw new Error(`Cas ${testCase.id} : role_under_test="critic_isolation" exige input.original_request (contrat runtime), aucune chaîne vide ne peut être substituée.`);
+  }
+  const { original_request, clarification_history = [] } = testCase.input;
   const criticRuns = [];
   for (let run = 1; run <= repetitions; run += 1) {
-    const criticMessage = makeCriticUserMessage({ original_request: "", analyst_output: testCase.fixture_analyst_output, previous_vetoes: [] });
+    const criticMessage = makeCriticUserMessage({ original_request, clarification_history, analyst_output: testCase.fixture_analyst_output, previous_vetoes: [] });
     const criticRun = await runRole("critic", provider, CRITIC_SYSTEM_PROMPT, criticMessage, CRITIC_JSON_SCHEMA, parseCriticOutput);
     const criticScore = criticRun.valid_json ? scoreCriticOutput(criticRun.output, testCase.oracle.critic || {}) : null;
     results.push(toResultRow(testCase.id, "critic", provider, run, criticRun, criticScore));
 
     if (testCase.oracle.arbiter && criticRun.valid_json) {
-      const arbiterMessage = makeArbiterUserMessage({ original_request: "", analyst_output: testCase.fixture_analyst_output, critic_output: criticRun.output });
+      const arbiterMessage = makeArbiterUserMessage({ original_request, clarification_history, analyst_output: testCase.fixture_analyst_output, critic_output: criticRun.output });
       const arbiterRun = await runRole("arbiter", provider, ARBITER_SYSTEM_PROMPT, arbiterMessage, ARBITER_JSON_SCHEMA, parseArbiterOutput);
       const arbiterScore = arbiterRun.valid_json ? scoreArbiterOutput(arbiterRun.output, testCase.oracle.arbiter) : null;
       results.push(toResultRow(testCase.id, "arbiter", provider, run, arbiterRun, arbiterScore));

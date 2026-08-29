@@ -49,6 +49,44 @@ test("assessProvenance n'exige rien sur un champ vide (règle anti-questionnaire
   assert.equal(result.unsupported_additions.length, 0);
 });
 
+// --- 3F.3.3-C, A4 : normalisation déterministe minimale (positif) ------------------------------
+// Espaces périphériques, casse non significative, ponctuation terminale simple : aucun de ces
+// écarts de pure représentation ne doit produire un faux positif d'ajout non tracé.
+
+test("assessProvenance : espaces périphériques n'entraînent pas de faux positif", () => {
+  const c = candidate({ objective: "Préparer un voyage en Italie." });
+  const result = assessProvenance(c, [{ field: "objective", value: "  Préparer un voyage en Italie.  ", provenance: "explicit_user_statement" }]);
+  assert.equal(result.unsupported_additions.length, 0);
+});
+
+test("assessProvenance : casse non significative n'entraîne pas de faux positif", () => {
+  const c = candidate({ objective: "Préparer un voyage en Italie." });
+  const result = assessProvenance(c, [{ field: "objective", value: "PRÉPARER UN VOYAGE EN ITALIE.", provenance: "explicit_user_statement" }]);
+  assert.equal(result.unsupported_additions.length, 0);
+});
+
+test("assessProvenance : ponctuation terminale simple différente n'entraîne pas de faux positif", () => {
+  const c = candidate({ objective: "Préparer un voyage en Italie" });
+  const result = assessProvenance(c, [{ field: "objective", value: "Préparer un voyage en Italie.", provenance: "explicit_user_statement" }]);
+  assert.equal(result.unsupported_additions.length, 0);
+});
+
+// --- 3F.3.3-C, A4 : la normalisation reste strictement déterministe (négatif) -------------------
+// Deux valeurs dont le contenu diffère réellement (pas seulement la représentation) restent
+// distinctes : la normalisation ne doit jamais glisser vers un jugement de similarité sémantique.
+
+test("assessProvenance : une valeur réellement différente reste un ajout non tracé malgré la normalisation", () => {
+  const c = candidate({ objective: "Préparer un voyage en Espagne." });
+  const result = assessProvenance(c, [{ field: "objective", value: "Préparer un voyage en Italie.", provenance: "explicit_user_statement" }]);
+  assert.equal(result.unsupported_additions.length, 1);
+});
+
+test("assessProvenance : un mot ajouté ou retiré au milieu de la valeur reste détecté (pas de rapprochement approximatif)", () => {
+  const c = candidate({ objective: "Préparer un court voyage en Italie." });
+  const result = assessProvenance(c, [{ field: "objective", value: "Préparer un voyage en Italie.", provenance: "explicit_user_statement" }]);
+  assert.equal(result.unsupported_additions.length, 1);
+});
+
 test("diffCandidates signale une suppression non tracée et laisse passer une suppression justifiée", () => {
   const previous = candidate({ confirmed_constraints: ["Budget maximum 1200€", "Départ le 3 juin"] });
   const nextUntracked = candidate({ confirmed_constraints: ["Départ le 3 juin"] });

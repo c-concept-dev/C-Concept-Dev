@@ -39,8 +39,20 @@ function questionsRoughlyEqual(a, b) {
   return common / Math.min(wa.size, wb.size) >= 0.6;
 }
 
-function verdict(criterion, pass, note) {
-  return { criterion, pass, note: note || null };
+function verdict(criterion, pass, note, dimension) {
+  return { criterion, pass, note: note || null, dimension: dimension || null };
+}
+
+/**
+ * Détection structurelle (jamais sémantique) d'une question composée : plus d'un point
+ * d'interrogation, ou une conjonction de coordination reliant deux fragments interrogatifs.
+ * Généralisable à tout domaine — ne cite aucun mot-clé métier.
+ */
+function isCompoundQuestion(text) {
+  const value = String(text || "");
+  if ((value.match(/\?/g) || []).length > 1) return true;
+  const normalized = normalize(value);
+  return /\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|ou|comment|combien|pourquoi)\b/.test(normalized);
 }
 
 export function scoreAnalystOutput(output, oracle = {}) {
@@ -59,8 +71,13 @@ export function scoreAnalystOutput(output, oracle = {}) {
   }
 
   if (oracle.expect_conflict_kind) {
-    const pass = output.issues.some((issue) => issue.type === "conflict" && issue.kind === oracle.expect_conflict_kind);
-    criteria.push(verdict("conflict_kind_detection", pass, `attendu=${oracle.expect_conflict_kind}`));
+    // Accepte soit une valeur unique, soit un tableau de valeurs sémantiquement acceptables : la
+    // frontière conflict/logical_contradiction vs conflict/constraint_tension peut être fine sur un
+    // cas réel (3F.3.3-C, D2) — le test ne doit pas pénaliser une classification alternative
+    // également défendable selon la taxonomie partagée des 3 rôles.
+    const acceptedKinds = Array.isArray(oracle.expect_conflict_kind) ? oracle.expect_conflict_kind : [oracle.expect_conflict_kind];
+    const pass = output.issues.some((issue) => issue.type === "conflict" && acceptedKinds.includes(issue.kind));
+    criteria.push(verdict("conflict_kind_detection", pass, `attendu l'un de ${JSON.stringify(acceptedKinds)}`));
   }
 
   if (Number.isInteger(oracle.max_material_questions)) {
@@ -99,6 +116,13 @@ export function scoreAnalystOutput(output, oracle = {}) {
     criteria.push(verdict("delegation_respected", pass, `attendu une décision déléguée contenant "${oracle.expect_delegated_decision_containing}"`));
   }
 
+  if (oracle.forbidden_research_containing) {
+    // D4 : une décision déléguée ne doit pas non plus redevenir une recherche externe (elle
+    // appartient à l'utilisateur, elle n'est pas un fait vérifiable dans le monde).
+    const pass = !candidateFieldValues(candidate, "external_facts_to_research").some((value) => containsSubstring(value, oracle.forbidden_research_containing));
+    criteria.push(verdict("delegation_not_turned_into_research", pass, pass ? null : `"${oracle.forbidden_research_containing}" trouvé dans external_facts_to_research.`));
+  }
+
   if (oracle.forbidden_question_targets_semantically_equal_to) {
     const offenders = output.question_candidates.filter((q) => questionsRoughlyEqual(q.text, oracle.forbidden_question_targets_semantically_equal_to));
     criteria.push(verdict("no_mechanical_repetition_after_dont_know", offenders.length === 0, offenders.length ? JSON.stringify(offenders.map((q) => q.text)) : null));
@@ -112,27 +136,51 @@ export function scoreAnalystOutput(output, oracle = {}) {
   const provenanceCheck = assessProvenance(candidate, output.provenance_records);
   criteria.push(verdict("provenance_completeness", provenanceCheck.unsupported_additions.length === 0, provenanceCheck.unsupported_additions.length ? JSON.stringify(provenanceCheck.unsupported_additions) : null));
 
+  // Critères toujours actifs (3F.3.3-C, D1) : reflètent l'ADN du moteur (inflation mécanique de
+  // questions, questions composées) de façon générale, jamais l'apprentissage d'un cas particulier du
+  // corpus — appliqués à tous les cas, sans aucun plafond numérique de questions.
+  const mechanicallyQuestioned = output.question_candidates.filter((q) => {
+    const issue = output.issues.find((candidateIssue) => candidateIssue.id === q.targets_issue_id);
+    return issue?.substitutable === true;
+  });
+  criteria.push(verdict(
+    "no_mechanical_question_per_substitutable_issue",
+    mechanicallyQuestioned.length === 0,
+    mechanicallyQuestioned.length ? `issue(s) marquée(s) substitutable=true mais tout de même transformée(s) en question : ${JSON.stringify(mechanicallyQuestioned.map((q) => q.targets_issue_id))}` : null
+  ));
+
+  const compoundQuestions = output.question_candidates.filter((q) => isCompoundQuestion(q.text));
+  criteria.push(verdict(
+    "no_compound_question",
+    compoundQuestions.length === 0,
+    compoundQuestions.length ? `question(s) coordonnant plusieurs demandes : ${JSON.stringify(compoundQuestions.map((q) => q.text))}` : null
+  ));
+
   return { criteria, pass: criteria.every((c) => c.pass) };
 }
 
+// 3F.3.3-C (mission de suivi), B3 : chaque critère Critic porte désormais une dimension explicite
+// (detection / escalade / verdict / drift / veto) pour permettre un diagnostic séparé sans refondre
+// la structure plate existante (criteria[]) ni les consommateurs qui ne lisent que criterion/pass.
 export function scoreCriticOutput(output, oracle = {}) {
   const criteria = [];
-  if (oracle.expect_agreement) criteria.push(verdict("agreement_matches_oracle", output.agreement === oracle.expect_agreement, `attendu=${oracle.expect_agreement} obtenu=${output.agreement}`));
-  if (typeof oracle.expect_vetoes === "boolean") criteria.push(verdict("veto_presence_matches_oracle", (output.vetoes.length > 0) === oracle.expect_vetoes));
+  if (oracle.expect_agreement) criteria.push(verdict("agreement_matches_oracle", output.agreement === oracle.expect_agreement, `attendu=${oracle.expect_agreement} obtenu=${output.agreement}`, "verdict"));
+  if (typeof oracle.expect_vetoes === "boolean") criteria.push(verdict("veto_presence_matches_oracle", (output.vetoes.length > 0) === oracle.expect_vetoes, null, "veto"));
   if (typeof oracle.expect_unsupported_addition_detected === "boolean") {
     const detected = output.operational_request_candidate_review.unsupported_additions_found.length > 0;
-    criteria.push(verdict("unsupported_addition_detected", detected === oracle.expect_unsupported_addition_detected));
+    criteria.push(verdict("unsupported_addition_detected", detected === oracle.expect_unsupported_addition_detected, null, "detection"));
   }
   if (typeof oracle.expect_semantic_drift_detected === "boolean") {
-    criteria.push(verdict("semantic_drift_detection", output.semantic_drift_detected === oracle.expect_semantic_drift_detected));
+    criteria.push(verdict("semantic_drift_detection", output.semantic_drift_detected === oracle.expect_semantic_drift_detected, null, "drift"));
   }
   if (output.agreement === "disagree") {
     const substantive = output.vetoes.every((veto) => veto.why_material.length > 15 && veto.why_not_substitutable.length > 15);
-    criteria.push(verdict("qualified_veto_substance", output.vetoes.length === 0 || substantive, "heuristique structurelle : longueur minimale des justifications — une revue humaine reste recommandée."));
+    criteria.push(verdict("qualified_veto_substance", output.vetoes.length === 0 || substantive, "heuristique structurelle : longueur minimale des justifications — une revue humaine reste recommandée.", "escalade"));
   }
-  if (output.agreement === "agree") {
-    criteria.push(verdict("agree_without_inventing_problem", output.vetoes.length === 0 && output.semantic_drift_detected === false));
-  }
+  // 3F.3.3-C, A3 : pas de critère "agree_without_inventing_problem" ici — validateCriticOutput
+  // (B1) impose déjà vetoes=[] et semantic_drift_detected=false pour tout agreement="agree" ; sur
+  // une sortie déjà validée, une telle condition est mathématiquement impossible à échouer et ne
+  // ferait que gonfler artificiellement le taux de réussite sans rien mesurer de réel.
   return { criteria, pass: criteria.every((c) => c.pass) };
 }
 
@@ -150,9 +198,13 @@ export function scoreArbiterOutput(output, oracle = {}) {
  * Stabilité (critère 13) : compare la signature structurelle de plusieurs exécutions du même
  * (cas, rôle, provider). Ne compare jamais le texte mot à mot — uniquement les décisions
  * structurelles (types d'issues matérielles, nombre de questions, agreement, state).
+ *
+ * 3F.3.3-C, A2 : la stabilité n'est évaluable qu'à partir de 2 échantillons. Avec 0 ou 1 sortie,
+ * la question même de la stabilité n'a pas de sens — ce n'est ni stable, ni instable, c'est non
+ * évaluable. evaluable:false / stable:null le signale explicitement, plutôt que d'afficher
+ * mécaniquement stable:true (agreement_ratio 1/1) sur un unique échantillon, ce qui ne prouve rien.
  */
 export function assessStability(role, parsedOutputs) {
-  if (!parsedOutputs.length) return { stable: false, agreement_ratio: 0, signatures: [] };
   const signatureOf = (output) => {
     if (role === "analyst") {
       const materialTypes = [...new Set(output.issues.filter((i) => i.impact === "material").map((i) => i.type))].sort();
@@ -162,8 +214,11 @@ export function assessStability(role, parsedOutputs) {
     return JSON.stringify({ state: output.state });
   };
   const signatures = parsedOutputs.map(signatureOf);
+  if (signatures.length < 2) {
+    return { evaluable: false, stable: null, agreement_ratio: null, signatures };
+  }
   const counts = new Map();
   for (const signature of signatures) counts.set(signature, (counts.get(signature) || 0) + 1);
   const majority = Math.max(...counts.values());
-  return { stable: majority === signatures.length, agreement_ratio: majority / signatures.length, signatures };
+  return { evaluable: true, stable: majority === signatures.length, agreement_ratio: majority / signatures.length, signatures };
 }

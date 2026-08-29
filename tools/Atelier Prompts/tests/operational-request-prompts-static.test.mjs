@@ -93,3 +93,41 @@ test("le prompt Arbitre énonce sa nature conditionnelle, jamais systématique",
   assert.match(ARBITER_SYSTEM_PROMPT, /n'êtes appelé que lorsque/);
   assert.match(ARBITER_SYSTEM_PROMPT, /ne produisez jamais l'état degraded_state/i);
 });
+
+// --- 3F.3.3-C, C1-C7 : durcissements de prompt ---------------------------------------------------
+
+test("C4 : la même taxonomie des issues (générale, sans exemple du corpus) est partagée par les 3 prompts", () => {
+  for (const [role, prompt] of Object.entries(PROMPTS)) {
+    assert.match(prompt, /TAXONOMIE DES ISSUES/, `${role} doit inclure la taxonomie partagée des issues.`);
+  }
+  const corpusSpecificTerms = ["italie", "voyage", "compte rendu", "reunion", "lettre de motivation", "sommeil", "cv"];
+  const taxonomySection = ANALYST_SYSTEM_PROMPT.slice(ANALYST_SYSTEM_PROMPT.indexOf("TAXONOMIE DES ISSUES"));
+  const normalizedTaxonomy = normalize(taxonomySection);
+  for (const term of corpusSpecificTerms) {
+    assert.equal(normalizedTaxonomy.includes(term), false, `La taxonomie ne doit citer aucun exemple métier du corpus ("${term}").`);
+  }
+});
+
+test("C1 : le prompt Analyste restreint explicitement RECHERCHER aux faits externes vérifiables (jamais une arbitration utilisateur)", () => {
+  assert.match(ANALYST_SYSTEM_PROMPT, /RECHERCHER s'applique exclusivement à un fait externe vérifiable/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /n'est jamais "recherchable" au seul motif qu'elle manque/);
+});
+
+test("C2 : le prompt Analyste interdit de reposer mécaniquement la même question après délégation ou 'je ne sais pas'", () => {
+  assert.match(ANALYST_SYSTEM_PROMPT, /il est interdit de reposer mécaniquement la même question/);
+});
+
+test("C3 : le prompt Analyste distingue les candidats internes de la sélection d'UNE seule prochaine question, sans plafond global", () => {
+  assert.match(ANALYST_SYSTEM_PROMPT, /ne retient toujours qu'UNE seule prochaine question effectivement posée à l'utilisateur/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /ce n'est pas un maximum global de questions/);
+});
+
+test("C6 : le prompt Critique lie explicitement détection matérielle et cohérence du verdict", () => {
+  assert.match(CRITIC_SYSTEM_PROMPT, /agreement doit être "disagree"/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /Ni rubber-stamping/);
+});
+
+test("C7 : le prompt Arbitre interdit toute justification par intention implicite et l'invention pour atteindre READY", () => {
+  assert.match(ARBITER_SYSTEM_PROMPT, /intention implicite/);
+  assert.match(ARBITER_SYSTEM_PROMPT, /n'inventez jamais pour atteindre operational_request_ready/);
+});

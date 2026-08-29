@@ -53,7 +53,7 @@
         "clarification_history": []
       },
       "oracle": {
-        "analyst": { "expect_material_issue_types": ["conflict"], "expect_conflict_kind": "logical_contradiction" },
+        "analyst": { "expect_material_issue_types": ["conflict"], "expect_conflict_kind": ["logical_contradiction", "constraint_tension"] },
         "critic": { "expect_agreement": "agree", "expect_vetoes": false }
       }
     },
@@ -83,7 +83,8 @@
       "oracle": {
         "analyst": {
           "forbidden_question_targets_containing": ["budget"],
-          "expect_delegated_decision_containing": "budget"
+          "expect_delegated_decision_containing": "budget",
+          "forbidden_research_containing": "budget"
         },
         "critic": { "expect_agreement": "agree", "expect_vetoes": false }
       }
@@ -136,6 +137,10 @@
       "id": "case-10-critique-accepte-sans-veto",
       "label": "Le Critique doit accepter sans inventer d'objection",
       "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Fais-moi un compte rendu de la réunion hebdomadaire, avec les décisions, les actions et les points en suspens dans des sections séparées.",
+        "clarification_history": []
+      },
       "fixture_analyst_output": {
         "operational_request_candidate": {
           "objective": "Produire un compte rendu de la réunion hebdomadaire.",
@@ -172,6 +177,10 @@
       "id": "case-11-critique-veto-qualifie",
       "label": "Le Critique doit émettre un veto qualifié sur un ajout non tracé",
       "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Fais-moi un compte rendu de la réunion hebdomadaire.",
+        "clarification_history": []
+      },
       "fixture_analyst_output": {
         "operational_request_candidate": {
           "objective": "Produire un compte rendu de la réunion hebdomadaire.",
@@ -247,7 +256,7 @@
         "clarification_history": []
       },
       "oracle": {
-        "analyst": { "expect_material_issue_types": ["dependency"] },
+        "analyst": { "expect_material_issue_types": ["dependency", "constraint_tension"], "expect_material_issue_types_mode": "any" },
         "critic": { "expect_agreement": "agree", "expect_vetoes": false }
       }
     },
@@ -255,6 +264,10 @@
       "id": "case-15-glissement-semantique",
       "label": "Glissement sémantique volontaire (préférence reclassée en contrainte)",
       "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Rédige un message de suivi client, si possible en français.",
+        "clarification_history": []
+      },
       "fixture_analyst_output": {
         "operational_request_candidate": {
           "objective": "Rédiger un message de suivi client.",

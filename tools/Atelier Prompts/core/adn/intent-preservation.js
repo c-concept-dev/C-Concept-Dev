@@ -19,6 +19,22 @@ function list(value) {
 }
 
 /**
+ * Normalisation minimale et déterministe pour la seule comparaison de valeurs (jamais appliquée aux
+ * valeurs stockées/retournées) : espaces périphériques, casse non significative, ponctuation
+ * terminale simple. Ceci évite uniquement les faux positifs triviaux de représentation (mêmes mots,
+ * mise en forme différente) — ce n'est ni un rapprochement approximatif de mots-clés, ni un
+ * embedding, ni une prétention à juger l'équivalence sémantique. Deux valeurs dont le contenu diffère réellement
+ * restent distinctes après normalisation.
+ */
+function normalizeForComparison(value) {
+  return String(value ?? "").trim().replace(/[.!?,;:]+$/u, "").toLowerCase();
+}
+
+function sameValue(a, b) {
+  return normalizeForComparison(a) === normalizeForComparison(b);
+}
+
+/**
  * Couche déterministe uniquement (CDC §14.1). Elle ne juge jamais le sens : elle vérifie ce qui
  * est mécaniquement vérifiable — provenance, structure, suppressions/ajouts, statuts, traçabilité
  * des contradictions, légalité de la transition d'état. Aucun rapprochement de mots-clés n'intervient
@@ -40,7 +56,7 @@ export function assessProvenance(candidate, provenanceRecords) {
     const values = Array.isArray(normalizedCandidate[field]) ? normalizedCandidate[field] : [normalizedCandidate[field]];
     for (const value of values) {
       if (!value) continue;
-      const hasProvenance = records.some((record) => record.field === field && record.value === value);
+      const hasProvenance = records.some((record) => record.field === field && sameValue(record.value, value));
       if (!hasProvenance) unsupported_additions.push({ field, value });
     }
   }
@@ -62,8 +78,8 @@ export function diffCandidates(candidatePrevious, candidateNext, statusChanges) 
     const previousValues = Array.isArray(previous[field]) ? previous[field] : (previous[field] ? [previous[field]] : []);
     const nextValues = Array.isArray(next[field]) ? next[field] : (next[field] ? [next[field]] : []);
     for (const value of previousValues) {
-      if (nextValues.includes(value)) continue;
-      const tracked = changes.some((change) => change.field === field && change.value === value);
+      if (nextValues.some((candidate) => sameValue(candidate, value))) continue;
+      const tracked = changes.some((change) => change.field === field && sameValue(change.value, value));
       if (!tracked) unsupported_removals.push({ field, value });
     }
   }

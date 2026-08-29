@@ -78,7 +78,7 @@ test("scoreAnalystOutput : détecte correctement une information manquante atten
     operational_request_candidate: createEmptyCandidate(),
     provenance_records: [],
     issues: [{ id: "ISSUE-001", type: "missing_information", description: "Poste et destinataire non précisés.", impact: "material", substitutable: false, recommended_treatment: "question" }],
-    question_candidates: [{ text: "Pour quel poste et quel destinataire ?", targets_issue_id: "ISSUE-001", expected_progress: "Permet de cibler la lettre." }],
+    question_candidates: [{ text: "Pour quel poste rédigez-vous cette lettre ?", targets_issue_id: "ISSUE-001", expected_progress: "Permet de cibler la lettre." }],
     confirmation_signals: confirmationSignals()
   });
   assert.equal(scoreAnalystOutput(withMissing, testCase.oracle.analyst).pass, true);
@@ -156,6 +156,40 @@ test("scoreAnalystOutput : respecte une délégation et ne repose pas la même q
   assert.equal(scoreAnalystOutput(mechanicalRepeat, dontKnowCase.oracle.analyst).pass, false);
 });
 
+// 3F.3.3-C, D4 : une décision explicitement déléguée doit rester une délégation — elle
+// n'appartient pas au monde externe et ne doit jamais redevenir un fait à rechercher.
+
+test("scoreAnalystOutput : une décision déléguée transformée en recherche externe échoue (case-06)", () => {
+  const delegationCase = caseById("case-06-delegation");
+  const turnedIntoResearch = validateAnalystOutput({
+    operational_request_candidate: { ...createEmptyCandidate(), external_facts_to_research: ["Budget habituel pour ce type d'événement d'équipe."] },
+    provenance_records: [{ field: "external_facts_to_research", value: "Budget habituel pour ce type d'événement d'équipe.", provenance: "external_fact_to_research" }],
+    issues: [], question_candidates: [], confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(turnedIntoResearch, delegationCase.oracle.analyst);
+  assert.equal(score.pass, false);
+  assert.equal(score.criteria.find((c) => c.criterion === "delegation_not_turned_into_research").pass, false);
+});
+
+// 3F.3.3-C, D3 : la garde anti-répétition mécanique après « je ne sais pas » doit aussi détecter une
+// reformulation non verbatim de la même question — jamais seulement la répétition mot pour mot.
+// Rappel : cette garde reste une heuristique lexicale déterministe de l'outil de benchmark, jamais
+// l'autorité sémantique de production (portée par le prompt Analyste, cf. C2/C3).
+
+test("scoreAnalystOutput : détecte aussi une reformulation non verbatim de la question déjà répondue par 'je ne sais pas' (case-07)", () => {
+  const dontKnowCase = caseById("case-07-je-ne-sais-pas");
+  const paraphrased = validateAnalystOutput({
+    operational_request_candidate: createEmptyCandidate(),
+    provenance_records: [],
+    issues: [{ id: "ISSUE-001", type: "missing_information", description: "Public non connu.", impact: "material", substitutable: false, recommended_treatment: "question" }],
+    question_candidates: [{ text: "Quel est le public cible de cet article ?", targets_issue_id: "ISSUE-001", expected_progress: "x" }],
+    confirmation_signals: confirmationSignals()
+  });
+  const score = scoreAnalystOutput(paraphrased, dontKnowCase.oracle.analyst);
+  assert.equal(score.criteria.find((c) => c.criterion === "no_mechanical_repetition_after_dont_know").pass, false, "une reformulation non verbatim de la même question doit être détectée, pas seulement la répétition mot pour mot.");
+  assert.equal(score.pass, false);
+});
+
 // --- Analyste : préférence vs contrainte, conflit, multi-objectifs -------------------------------
 
 test("scoreAnalystOutput : une préférence classée à tort en contrainte échoue", () => {
@@ -211,6 +245,23 @@ test("scoreCriticOutput : agree sans veto valide le cas 'accepte sans veto'", ()
   assert.equal(scoreCriticOutput(agree, testCase.oracle.critic).pass, true);
 });
 
+// 3F.3.3-C, A3 : "agree_without_inventing_problem" re-testait une condition déjà imposée par
+// validateCriticOutput (B1) — mathématiquement impossible à échouer sur une sortie déjà validée,
+// donc gonflant artificiellement le taux de réussite. Ce critère ne doit plus jamais apparaître,
+// et un agree légitime sans aucune autre attente d'oracle ne doit produire AUCUN critère (jamais
+// un critère toujours vrai comptabilisé comme un succès).
+
+test("scoreCriticOutput : n'inflate plus jamais le score avec un critère tautologique 'agree_without_inventing_problem'", () => {
+  const agree = validateCriticOutput({
+    agreement: "agree",
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: ""
+  });
+  const scoreWithNoOracleExpectation = scoreCriticOutput(agree, {});
+  assert.equal(scoreWithNoOracleExpectation.criteria.find((c) => c.criterion === "agree_without_inventing_problem"), undefined);
+  assert.equal(scoreWithNoOracleExpectation.criteria.length, 0, "un agree légitime sans attente d'oracle ne doit produire aucun critère, jamais un critère toujours vrai compté comme un succès.");
+});
+
 test("scoreCriticOutput : un veto qualifié substantiel valide le cas 'veto qualifié', un veto creux échoue", () => {
   const testCase = caseById("case-11-critique-veto-qualifie");
   const qualified = validateCriticOutput({
@@ -221,6 +272,8 @@ test("scoreCriticOutput : un veto qualifié substantiel valide le cas 'veto qual
   });
   const qualifiedScore = scoreCriticOutput(qualified, testCase.oracle.critic);
   assert.equal(qualifiedScore.pass, true);
+  assert.equal(qualifiedScore.criteria.find((c) => c.criterion === "qualified_veto_substance").dimension, "escalade", "B3 : chaque critère Critic porte une dimension diagnostique (detection/escalade/verdict/drift/veto).");
+  assert.equal(qualifiedScore.criteria.find((c) => c.criterion === "agreement_matches_oracle").dimension, "verdict");
 
   const hollow = validateCriticOutput({
     agreement: "disagree",
@@ -296,4 +349,33 @@ test("assessStability détecte une signature stable et une signature instable", 
   const unstable = assessStability("critic", unstableOutputs);
   assert.equal(unstable.stable, false);
   assert.ok(unstable.agreement_ratio < 1);
+});
+
+// 3F.3.3-C, A2 : la stabilité n'est évaluable qu'à partir de 2 échantillons — avec 0 ou 1 sortie,
+// ce n'est ni stable ni instable, c'est non évaluable, et cela doit être représenté explicitement
+// plutôt que d'afficher mécaniquement stable:true sur un unique échantillon.
+
+test("assessStability : avec 0 sortie, la stabilité est non évaluable (jamais stable:true par défaut)", () => {
+  const result = assessStability("critic", []);
+  assert.equal(result.evaluable, false);
+  assert.equal(result.stable, null);
+  assert.equal(result.agreement_ratio, null);
+});
+
+test("assessStability : avec 1 seule sortie, la stabilité est non évaluable (jamais stable:true mécanique)", () => {
+  const result = assessStability("critic", [{ agreement: "agree", vetoes: [], semantic_drift_detected: false }]);
+  assert.equal(result.evaluable, false);
+  assert.equal(result.stable, null);
+  assert.equal(result.agreement_ratio, null);
+});
+
+test("assessStability : avec 2 sorties identiques, la stabilité redevient évaluable et vaut true", () => {
+  const outputs = [
+    { agreement: "agree", vetoes: [], semantic_drift_detected: false },
+    { agreement: "agree", vetoes: [], semantic_drift_detected: false }
+  ];
+  const result = assessStability("critic", outputs);
+  assert.equal(result.evaluable, true);
+  assert.equal(result.stable, true);
+  assert.equal(result.agreement_ratio, 1);
 });

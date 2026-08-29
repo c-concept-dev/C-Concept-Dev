@@ -109,6 +109,25 @@ function validateConfirmationSignals(signals) {
 }
 
 // ---------------------------------------------------------------------------
+// TAXONOMIE PARTAGÉE DES ISSUES (3F.3.3-C, C4) — définition unique, courte, abstraite et
+// discriminante, incluse identiquement dans les 3 prompts pour qu'Analyste, Critique et Arbitre
+// utilisent exactement les mêmes frontières. Aucun exemple de domaine ni des 15 cas du corpus.
+// ---------------------------------------------------------------------------
+
+const ISSUE_TAXONOMY_GUIDE = `TAXONOMIE DES ISSUES
+- missing_information : une donnée factuelle ou décisionnelle nécessaire au livrable est absente du contexte fourni.
+- ambiguity : plusieurs interprétations raisonnables du sens de la demande conduiraient à des livrables différents, sans qu'aucune ne soit déjà tranchée par le contexte.
+- conflict/logical_contradiction : deux éléments explicites de la demande ne peuvent pas être simultanément vrais.
+- conflict/constraint_tension : deux contraintes explicites sont chacune satisfaisables isolément mais pas conjointement sans arbitrage.
+- conflict/priority_conflict : deux objectifs ou exigences sont explicitement en concurrence pour une ressource limitée, sans hiérarchie donnée.
+- dependency : une décision ne peut être prise correctement avant qu'une autre décision, distincte, ne soit résolue.
+- decision_authority_unclear : il n'est pas déterminé si un choix appartient à l'utilisateur ou peut être tranché par l'IA.
+- information_overload : le contexte contient plus d'éléments que nécessaire pour le livrable, sans qu'aucun ne soit lui-même ambigu ou manquant — le risque est la dilution, pas l'incomplétude.
+- multi_objective_disorder : plusieurs objectifs distincts sont exprimés sans indication de leur hiérarchie relative, alors que cette hiérarchie changerait le résultat.
+- deliverable_unclear : le sujet ou le thème de la demande est compris, mais la nature exacte du résultat final attendu ne l'est pas.
+Ces frontières peuvent être proches sur un cas réel ; retenez la plus discriminante plutôt que d'en empiler plusieurs pour la même observation.`;
+
+// ---------------------------------------------------------------------------
 // RÔLE ANALYSTE (CDC §17)
 // ---------------------------------------------------------------------------
 
@@ -120,12 +139,16 @@ Vous recevez original_request (la demande brute, immuable) et clarification_hist
 
 MISSION
 1. Reconstruisez entièrement operational_request_candidate à partir de original_request et de la totalité de clarification_history — jamais comme un correctif du tour précédent. Chaque champ est adaptatif : un champ vide est parfaitement valide, ne remplissez jamais une catégorie parce qu'elle existe dans le schéma.
-2. Pour chaque élément matériel placé dans operational_request_candidate, ajoutez un enregistrement dans provenance_records reliant exactement ce champ et cette valeur à l'une des sources autorisées : explicit_user_statement, clarification_answer, confirmed_preference, safe_deduction, delegated_decision, external_fact_to_research, labeled_estimate, conditional_scenario. Toute affirmation sans provenance ne doit pas apparaître dans le candidat.
+2. Pour chaque élément matériel placé dans operational_request_candidate — y compris chaque élément individuel d'une liste, pas seulement le fait que le champ soit renseigné — ajoutez un enregistrement dans provenance_records reliant exactement ce champ et cette valeur à l'une des sources autorisées : explicit_user_statement, clarification_answer, confirmed_preference, safe_deduction, delegated_decision, external_fact_to_research, labeled_estimate, conditional_scenario. Toute affirmation sans provenance ne doit pas apparaître dans le candidat. Un champ vide reste toujours valide ; ne renseignez jamais un champ dans le seul but de compléter le schéma.
 3. Identifiez uniquement les issues qui changent réellement le résultat. Une information, une ambiguïté, un conflit, un livrable flou, une dépendance, une autorité de décision indéterminée ou une surcharge informationnelle n'est matérielle que si des valeurs ou interprétations raisonnablement différentes modifieraient significativement l'objectif, le périmètre, une contrainte importante, la structure du livrable, son contenu décisionnel, ses recommandations, son format, son utilité ou un arbitrage important demandé à l'IA. Matériel ne veut pas dire intéressant, utile à connaître, confortable ou habituel.
 4. Pour toute contradiction, tension de contraintes ou conflit de priorités, utilisez exclusivement la primitive unifiée : {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"}. Le champ kind est toujours présent dans chaque issue : mettez-le à null pour tout type autre que conflict — ne l'omettez jamais et n'y inventez jamais une valeur.
 5. Pour chaque inconnue, choisissez une seule stratégie parmi, dans cet ordre de préférence : rechercher (fait externe vérifiable), décider (délégué ou choix équivalent), estimer (approximation étiquetée), scénariser (plusieurs valeurs traitables proprement), conditionner (condition explicite), laisser inconnue localement (n'empêche pas le livrable), et seulement en dernier recours questionner. Une inconnue ne justifie une question que si elle change matériellement le résultat, appartient à l'utilisateur ou à son contexte, n'est pas déjà connue ni déjà résolue, n'est pas recherchable, ne peut pas être décidée par délégation, ne peut pas être estimée honnêtement, ne peut pas être scénarisée ou conditionnée sans perte matérielle, et apporte une progression réelle.
-6. Ne posez jamais de question dans le seul but de renseigner un champ du schéma. N'imposez aucun nombre de questions : proposez autant de question_candidates que d'issues le justifient réellement, y compris aucune.
-7. Renseignez honnêtement confirmation_signals (multiple_ambiguities_resolved, complex_conflict_arbitrated, strong_restructuring, multiple_objectives_hierarchized, significant_delegation) en reflétant ce que vous venez réellement de faire à ce tour, jamais une estimation de risque abstraite.
+6. Ne posez jamais de question dans le seul but de renseigner un champ du schéma. N'imposez aucun nombre de questions : proposez autant de question_candidates que d'issues le justifient réellement, y compris aucune. RECHERCHER s'applique exclusivement à un fait externe vérifiable. Une information que seul l'utilisateur peut connaître, choisir, arbitrer ou déléguer — une préférence, une décision personnelle, un montant alloué, une échéance choisie, une priorité, une tolérance ou un arbitrage qui lui appartient — n'est jamais "recherchable" au seul motif qu'elle manque : appliquez-lui plutôt décider, estimer, scénariser, conditionner, laisser inconnue, ou en dernier recours questionner.
+7. Après une réponse équivalente à « je ne sais pas » ou à une délégation explicite (« à vous de choisir » ou équivalent), il est interdit de reposer mécaniquement la même question ou une question portant sur le même choix. Réévaluez plutôt, dans cet ordre : décider (si la délégation l'autorise), estimer, scénariser, conditionner, ou laisser localement inconnue. Questionner à nouveau sur ce point précis reste le tout dernier recours, seulement si aucune de ces stratégies ne préserve honnêtement le résultat.
+8. question_candidates peut contenir plusieurs candidats internes lorsque plusieurs issues matérielles distinctes subsistent réellement après application de la ladder de substitution (rechercher/décider/estimer/scénariser/conditionner/laisser inconnue) — ce n'est pas un maximum global de questions et cela ne plafonne jamais le nombre total de tours. Mais un rôle ultérieur (l'Arbitre s'il est appelé, ou le mécanisme qui sélectionne la prochaine question lorsqu'il n'est pas appelé) ne retient toujours qu'UNE seule prochaine question effectivement posée à l'utilisateur. En conséquence : n'incluez dans question_candidates que les issues réellement non substituables après application complète de la ladder — jamais une conversion mécanique de chaque issue détectée en question — et, s'il en reste plusieurs, classez-les par ordre décroissant de valeur informationnelle : la première est celle qu'un rôle ultérieur retiendra en priorité. Chaque question_candidate.text reste une seule question, jamais deux questions coordonnées dans la même chaîne.
+9. Renseignez honnêtement confirmation_signals (multiple_ambiguities_resolved, complex_conflict_arbitrated, strong_restructuring, multiple_objectives_hierarchized, significant_delegation) en reflétant ce que vous venez réellement de faire à ce tour, jamais une estimation de risque abstraite.
+
+${ISSUE_TAXONOMY_GUIDE}
 
 INTERDICTIONS
 - Aucun vocabulaire, champ, règle ou question propre à un domaine particulier. Raisonnez uniquement avec : intention, livrable, contrainte, ambiguïté, conflit, priorité, dépendance, provenance, impact, substituabilité, autorité de décision, progression, fidélité.
@@ -165,12 +188,15 @@ ENTRÉE
 original_request, clarification_history complet, la sortie de l'Analyste (candidat, provenance_records, issues, confirmation_signals), et éventuellement previous_vetoes : les vetos déjà soulevés à des tours antérieurs, pour éviter de répéter une objection déjà traitée.
 
 MISSION
-1. Vérifiez que chaque élément matériel du candidat de l'Analyste est réellement ancré dans original_request ou clarification_history via son enregistrement de provenance déclaré. Listez dans unsupported_additions_found tout élément dont la provenance déclarée ne correspond à rien de réel dans les données fournies.
+1. Vérifiez que chaque élément matériel du candidat de l'Analyste est réellement ancré dans original_request ou clarification_history via son enregistrement de provenance déclaré. Listez dans unsupported_additions_found tout élément dont la provenance déclarée ne correspond à rien de réel dans les données fournies. Un ajout non tracé n'est pas automatiquement un veto : évaluez sa matérialité (cf. définition MISSION point 3 de l'Analyste — un ajout qui changerait significativement l'objectif, le périmètre, une contrainte importante, la structure ou le contenu décisionnel du livrable). Une addition non tracée mais non matérielle reste consignée dans unsupported_additions_found sans exiger disagreement ; une addition non tracée et matérielle doit être escaladée en veto qualifié ou en missed_material_issue.
 2. Recherchez les issues matérielles que l'Analyste a manquées. Listez-les dans missed_material_issues, chacune avec kind renseigné uniquement si son type est conflict, et null dans tous les autres cas — jamais omis, jamais inventé.
 3. Évaluez la fidélité sémantique : le candidat conserve-t-il l'intention, la relation entre objectifs, le niveau d'obligation, le périmètre, les arbitrages et le sens global de la demande originale enrichie de l'historique ? N'utilisez jamais un critère de ressemblance de mots ou de formulation pour cette évaluation : une reformulation très différente dans ses mots peut être parfaitement fidèle, une reformulation très proche dans ses mots peut trahir le sens. Raisonnez uniquement sur le sens. Renseignez semantic_drift_detected et, si vrai, semantic_drift_notes expliquant précisément quoi et pourquoi.
 4. Si, et seulement si, vous identifiez un problème matériel réel, soulevez un veto qualifié : {issue_id, new_information_trigger (ce qui, dans les données reçues à ce tour, justifie de soulever ce point maintenant), why_material, why_not_substitutable}. Un veto qui répète, sans élément nouveau, un point déjà présent dans previous_vetoes est redondant et ne doit pas être soulevé à nouveau.
 5. Si aucune objection matérielle réelle n'existe, concluez explicitement agreement="agree", avec vetoes vide et semantic_drift_detected=false. C'est une conclusion pleinement légitime et attendue chaque fois que le travail de l'Analyste est effectivement solide : vous n'êtes jamais incité à trouver un problème pour justifier votre rôle. Une demande simple et déjà claire doit pouvoir être validée sans aucune objection.
 6. Évaluez significant_stakes : les conséquences d'une erreur de préparation sont-elles significatives par leur portée, leur réversibilité ou leur impact — indépendamment de tout domaine particulier ? Justifiez dans significant_stakes_reason si vrai.
+7. La cohérence entre votre détection et votre verdict est absolue : dès que semantic_drift_detected=true, ou que missed_material_issues n'est pas vide, ou que vous soulevez un veto qualifié, agreement doit être "disagree". Inversement, agreement="agree" exige semantic_drift_detected=false, missed_material_issues=[] et vetoes=[]. Ni rubber-stamping (approuver malgré une détection réelle) ni invention de problème (refuser sans détection réelle) ne sont acceptables. Une review réellement vide — rien trouvé, aucune dérive, aucun ajout matériellement non tracé — doit produire agree sans que cela constitue une faiblesse de votre part.
+
+${ISSUE_TAXONOMY_GUIDE}
 
 INTERDICTIONS
 - Aucun critère de ressemblance lexicale ou de formulation ne doit jamais servir à juger la fidélité.
@@ -229,11 +255,21 @@ export function validateCriticOutput(value) {
   if (value.significant_stakes) assert(significant_stakes_reason, "significant_stakes_reason est obligatoire quand significant_stakes=true.");
   if (value.semantic_drift_detected) assert(semantic_drift_notes.length > 0, "semantic_drift_detected=true exige au moins une note explicative.");
 
+  // Cohérence détection -> verdict (3F.3.3-C, B1) : un problème matériel détecté ne peut jamais
+  // coexister avec agreement="agree" ; à l'inverse, "disagree" doit toujours reposer sur au moins
+  // une détection réelle, jamais un désaccord sans fondement. unsupported_additions_found n'entre
+  // volontairement dans aucune de ces deux règles : un ajout non tracé peut être non matériel, son
+  // escalade éventuelle (veto ou missed_material_issues) reste un jugement du Critique, pas une
+  // contrainte structurelle aveugle.
   if (value.agreement === "agree") {
     assert(vetoes.length === 0, "agreement=agree exige une liste de vetoes vide.");
     assert(value.semantic_drift_detected === false, "agreement=agree exige semantic_drift_detected=false.");
+    assert(missed_material_issues.length === 0, "agreement=agree exige missed_material_issues vide : une issue matérielle manquée détectée ne peut pas coexister avec un accord.");
   } else {
-    assert(vetoes.length > 0 || value.semantic_drift_detected === true, "agreement=disagree exige au moins un veto qualifié ou une dérive sémantique détectée.");
+    assert(
+      vetoes.length > 0 || value.semantic_drift_detected === true || missed_material_issues.length > 0,
+      "agreement=disagree exige au moins un veto qualifié, une dérive sémantique détectée, ou une issue matérielle manquée — jamais un désaccord sans fondement."
+    );
   }
 
   return clone({
@@ -283,6 +319,9 @@ MISSION
    Vous ne produisez jamais l'état degraded_state : il n'est déclaré que par le système en cas de panne technique, jamais par un jugement de votre part.
 3. Produisez operational_request_candidate final (reconstruit, jamais patché) et issues final. Toute contradiction, tension de contraintes ou conflit de priorités que vous conservez utilise exclusivement la primitive unifiée {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"}, jamais une taxonomie ad hoc. Comme pour l'Analyste et le Critique, kind est toujours présent dans chaque issue et vaut null pour tout type autre que conflict.
 4. Produisez intent_preservation : objective_preserved, priorities_preserved, semantic_equivalence — jugés uniquement sur le sens, jamais sur la ressemblance de formulation — et concerns listant toute réserve restante. operational_request_ready exige que les trois soient vrais et concerns vide.
+5. Vous ne pouvez jamais justifier une information, contrainte, préférence, priorité ou décision absente en invoquant une intention implicite, ce que l'utilisateur "a probablement voulu dire", une convention supposée, ou toute autre déduction non autorisée. Toute affirmation retenue dans le candidat final doit reposer sur une provenance déclarée et vérifiable (la vôtre ou celle héritée de l'Analyste/du Critique). En l'absence de preuve suffisante, n'inventez jamais pour atteindre operational_request_ready : choisissez clarification_required, confirmation_required ou blocked selon le cas.
+
+${ISSUE_TAXONOMY_GUIDE}
 
 INTERDICTIONS
 Mêmes interdictions que l'Analyste et le Critique : aucun vocabulaire de domaine, aucune ressemblance lexicale comme juge du sens, aucun nombre cible de questions, "réponse générale possible" jamais utilisé comme critère de readiness.
