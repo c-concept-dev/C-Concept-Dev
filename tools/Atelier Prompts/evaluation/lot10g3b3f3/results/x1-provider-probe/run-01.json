@@ -1,0 +1,150 @@
+{
+  "run": 1,
+  "provider": "groq",
+  "model": "openai/gpt-oss-20b",
+  "provider_ok": true,
+  "valid_json": true,
+  "expected_issue_ids": [
+    "issue1",
+    "issue2",
+    "issue3",
+    "issue4"
+  ],
+  "actual_issue_ids": [
+    "issue1",
+    "issue2",
+    "issue3",
+    "issue4"
+  ],
+  "missing_issue_ids": [],
+  "unexpected_issue_ids": [],
+  "exact_cardinality": true,
+  "output": {
+    "issue1": {
+      "alternatives_reviewed": {
+        "research": {
+          "reasonably_available": false,
+          "reason": "No external data available to infer dates without user input."
+        },
+        "decide": {
+          "reasonably_available": false,
+          "reason": "Cannot decide on dates without user specification."
+        },
+        "estimate": {
+          "reasonably_available": false,
+          "reason": "Cannot estimate duration or schedule without dates."
+        },
+        "scenario": {
+          "reasonably_available": false,
+          "reason": "Scenario planning requires known dates."
+        },
+        "condition": {
+          "reasonably_available": false,
+          "reason": "Condition checks depend on specific dates."
+        },
+        "leave_unknown": {
+          "reasonably_available": false,
+          "reason": "Leaving dates unknown would prevent useful planning."
+        }
+      }
+    },
+    "issue2": {
+      "alternatives_reviewed": {
+        "research": {
+          "reasonably_available": false,
+          "reason": "No external source can determine user's budget."
+        },
+        "decide": {
+          "reasonably_available": false,
+          "reason": "Cannot decide on itinerary without budget."
+        },
+        "estimate": {
+          "reasonably_available": false,
+          "reason": "Cannot estimate costs without budget."
+        },
+        "scenario": {
+          "reasonably_available": false,
+          "reason": "Scenario planning requires budget constraints."
+        },
+        "condition": {
+          "reasonably_available": false,
+          "reason": "Condition checks depend on budget."
+        },
+        "leave_unknown": {
+          "reasonably_available": false,
+          "reason": "Leaving budget unknown prevents useful planning."
+        }
+      }
+    },
+    "issue3": {
+      "alternatives_reviewed": {
+        "research": {
+          "reasonably_available": false,
+          "reason": "No external data can infer stay duration."
+        },
+        "decide": {
+          "reasonably_available": false,
+          "reason": "Cannot decide on itinerary length without duration."
+        },
+        "estimate": {
+          "reasonably_available": false,
+          "reason": "Cannot estimate total cost or time without duration."
+        },
+        "scenario": {
+          "reasonably_available": false,
+          "reason": "Scenario planning requires known duration."
+        },
+        "condition": {
+          "reasonably_available": false,
+          "reason": "Condition checks depend on duration."
+        },
+        "leave_unknown": {
+          "reasonably_available": false,
+          "reason": "Leaving duration unknown prevents useful planning."
+        }
+      }
+    },
+    "issue4": {
+      "alternatives_reviewed": {
+        "research": {
+          "reasonably_available": false,
+          "reason": "No external data can determine travel type."
+        },
+        "decide": {
+          "reasonably_available": false,
+          "reason": "Cannot decide on activities without travel type."
+        },
+        "estimate": {
+          "reasonably_available": false,
+          "reason": "Cannot estimate budget or itinerary without travel type."
+        },
+        "scenario": {
+          "reasonably_available": false,
+          "reason": "Scenario planning requires travel type."
+        },
+        "condition": {
+          "reasonably_available": false,
+          "reason": "Condition checks depend on travel type."
+        },
+        "leave_unknown": {
+          "reasonably_available": false,
+          "reason": "Leaving travel type unknown prevents useful planning."
+        }
+      }
+    }
+  },
+  "error": null,
+  "error_kind": null,
+  "usage": {
+    "queue_time": 0.264275227,
+    "prompt_tokens": 2012,
+    "prompt_time": 0.111605819,
+    "completion_tokens": 534,
+    "completion_time": 0.55514797,
+    "total_tokens": 2546,
+    "total_time": 0.666753789,
+    "completion_tokens_details": {
+      "reasoning_tokens": 30
+    }
+  }
+}
