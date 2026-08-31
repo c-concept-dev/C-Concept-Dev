@@ -141,7 +141,7 @@ exclusifs :
   Gateway MONO-04 pour le vrai run, par mode.
 - **Documentation** : `.env.example`, `MISSION.md`, `README-REAL-SMOKE.md`,
   `CDC-TRACE.md`.
-- **Tests** : `test/test_t08_preflight.js` et suite associée, cas A→I (§10).
+- **Tests** : `test/test_t08_preflight.js` et suite associée, cas A→K (§10).
 
 ---
 
@@ -177,14 +177,31 @@ Explicitement exclus de MONO-08 v0.6 :
 ### 4.1 Variable de configuration
 
 ```text
-LLM_AUTH_MODE ∈ { "direct", "delegated" }
+LLM_AUTH_MODE ∈ { absent, "direct", "delegated" }
 ```
 
-- Absente ou non reconnue → **valeur par défaut `"direct"`**, pour garantir la
-  rétrocompatibilité stricte avec v0.5 (§9). Une valeur explicitement fournie mais
-  invalide (ni `direct` ni `delegated`) doit produire un état de preflight
-  `PRODUCT_CONFIG_ERROR` (exit code 3, cohérent avec la convention déjà en place dans
-  `bin/run-preflight.js`), jamais un `READY` ni un `BLOCKED` silencieux.
+Règle contractuelle exacte, sans ambiguïté possible :
+
+```text
+LLM_AUTH_MODE absent               → direct
+LLM_AUTH_MODE="direct"             → direct
+LLM_AUTH_MODE="delegated"          → delegated
+toute autre valeur explicite       → PRODUCT_CONFIG_ERROR
+                                      exit code 3
+                                      aucun appel provider
+                                      aucune requête réseau
+```
+
+Seule l'**absence** de la variable retombe sur `direct`, par défaut, pour garantir la
+rétrocompatibilité stricte avec v0.5 (§9). **Une valeur explicitement fournie et non
+reconnue n'est jamais silencieusement réinterprétée comme `direct`** : elle doit
+produire `PRODUCT_CONFIG_ERROR` (exit code 3, cohérent avec la convention déjà en place
+dans `bin/run-preflight.js`), et ce avant toute tentative d'appel provider — aucune
+requête réseau, vers quelque provider que ce soit (`openalex`, `crossref`, `pubmed`,
+`llm-worker`), ne doit être émise si `LLM_AUTH_MODE` porte une valeur explicite
+invalide. Ni `READY`, ni `BLOCKED`, ni un repli silencieux vers `direct` ne sont des
+comportements acceptables dans ce cas. Voir le cas de test J (§10) et
+`MONO-08-v0.6-ACCEPTANCE-MATRIX.md`.
 
 ### 4.2 Comportement `direct`
 
@@ -200,16 +217,72 @@ LLM_AUTH_MODE ∈ { "direct", "delegated" }
   (`assertNotLocalOrSynthetic()` continue de s'appliquer : ni localhost, ni 127.0.0.1,
   ni un domaine explicitement marqué synthetic/mock/fixture).
 - Credential requis côté client : **`EVIDENCEFORGE_WORKER_API_KEY`** uniquement.
-- `ANTHROPIC_API_KEY` **interdite/non requise** localement : sa présence ou son absence
-  dans le shell qui exécute EvidenceForge ne doit avoir **aucun effet** sur le résultat
-  du preflight ni du vrai run en mode `delegated`. (Elle peut être présente pour une
-  autre raison — ex. usage direct par ailleurs — sans que MONO-08 la lise ni la log.)
-- Le header envoyé au Worker par le client EvidenceForge est un header dédié au
-  credential Worker (ex. `X-API-Key: <EVIDENCEFORGE_WORKER_API_KEY>`), jamais
-  `x-api-key` avec la valeur d'un secret Anthropic.
 - Un vrai appel upstream Anthropic doit avoir eu lieu côté Worker pour que la réponse
   soit considérée valide (§5, §7) — un simple `HTTP 200` du Worker ne suffit jamais
-  (§5.3).
+  (§5.4, et §5.3 pour la distinction NIVEAU 1/NIVEAU 2).
+
+#### 4.3.1 `ANTHROPIC_API_KEY` en mode delegated — contrat logiciel (A) vs test REAL (B)
+
+Ces deux affirmations sont de nature différente et ne doivent jamais être fusionnées
+ni présentées comme contradictoires :
+
+**A. Contrat logiciel (ce que le code doit garantir, dans tous les cas) :**
+
+```text
+MONO-08 ne doit jamais lire ANTHROPIC_API_KEY en mode delegated.
+MONO-08 ne doit jamais transmettre ANTHROPIC_API_KEY en mode delegated.
+MONO-08 ne doit jamais demander ANTHROPIC_API_KEY à un SecretProvider en mode delegated.
+MONO-08 ne doit jamais construire un header à partir de ANTHROPIC_API_KEY en mode delegated.
+```
+
+Le chemin de code `delegated` est **structurellement indépendant** de
+`ANTHROPIC_API_KEY` : cette variable n'apparaît dans aucune branche de code exécutée en
+mode `delegated`, ni dans `lib/preflight.js` ni dans `lib/real-provider-configs.js`. La
+présence éventuelle de `ANTHROPIC_API_KEY` dans un processus ou un environnement parent,
+pour une tout autre raison, ne doit avoir **aucun effet** sur le résultat du preflight
+ni du vrai run en mode `delegated` — précisément parce que le code ne la lit jamais,
+pas parce qu'elle serait lue puis ignorée.
+
+**B. Condition du test REAL de validation (ce qui doit être vérifié pour prouver A) :**
+
+Le test REAL servant à proposer `GELABLE` (cas G, §10-11) doit être exécuté dans un
+processus où `ANTHROPIC_API_KEY` est **effectivement absente** côté client
+EvidenceForge — pas seulement « présente mais non lue en théorie ». Cette absence
+effective est la condition expérimentale qui permet de démontrer A de façon probante :
+un test REAL mené avec la clé présente ne prouverait rien de plus que la lecture de
+code, alors qu'un test REAL mené avec la clé absente et un résultat `READY` prouve que
+le chemin `delegated` fonctionne réellement sans elle.
+
+Formulation à retenir dans tout le reste de ce document et dans la matrice
+d'acceptation :
+
+```text
+CONTRAT      : ANTHROPIC_API_KEY non consommée / non lue / non transmise en mode delegated.
+TEST REAL     : ANTHROPIC_API_KEY effectivement absente du processus client au moment du test G.
+```
+
+#### 4.3.2 Header du credential Worker
+
+La distinction entre mode `direct` et mode `delegated` porte sur **le secret utilisé**,
+jamais sur la casse ou le nom du header HTTP. `X-API-Key` et `x-api-key` désignent le
+même header HTTP (les noms de header HTTP sont insensibles à la casse) : aucune
+mécanique de header n'est introduite dans le seul but de différencier visuellement les
+deux modes.
+
+```text
+direct     : x-api-key = ANTHROPIC_API_KEY
+delegated  : x-api-key = EVIDENCEFORGE_WORKER_API_KEY
+```
+
+Un nom de header différent de `x-api-key` peut être utilisé en mode `delegated` si cela
+s'avère réellement nécessaire à l'implémentation, à condition cumulativement que :
+
+- MONO-04 ne soit pas modifié (§3, §6) ;
+- le type de secret transporté reste sans ambiguïté distinct entre les deux modes
+  (jamais une valeur Anthropic sous un nom Worker, ni l'inverse) ;
+- aucune ambiguïté d'audit ne soit possible sur la lecture d'un rapport ou d'une trace
+  (le nom du provider/credential utilisé, pas seulement le nom du header, doit être
+  explicite dans le rapport — §5.5).
 
 ---
 
@@ -235,22 +308,86 @@ doit apparaître explicitement dans le rapport JSON produit.
 | Worker host reachable | connexion TCP/TLS + réponse HTTP reçue du Worker configuré dans `LLM_WORKER_BASE_URL` |
 | Worker credential disponible | `EVIDENCEFORGE_WORKER_API_KEY` présente localement (sinon `AUTHENTICATION_BLOCKED`, sans même tenter l'appel authentifié, symétrique à la règle « no-op sans credential » déjà appliquée en v0.5) |
 | Worker auth valide | le Worker accepte le credential Worker envoyé (rejet HTTP attendu et classifié explicitement si le Worker renvoie 401/403 sur le credential Worker — voir §7 pour le contrat exact du Worker) |
-| Opération réelle transmise | le Worker a réellement transmis un appel `POST https://api.anthropic.com/v1/messages` en amont (voir §5.3 sur la preuve exigée) |
-| Réponse Anthropic valide | le corps relayé par le Worker est structurellement conforme à la réponse réelle d'Anthropic (`content` tableau, `HTTP 200` en bout de chaîne) |
+| Opération réelle transmise | le Worker a réellement transmis un appel `POST https://api.anthropic.com/v1/messages` en amont — **NIVEAU 2 requis pour le dossier REAL**, voir §5.3 |
+| Réponse Anthropic valide | le corps relayé par le Worker est structurellement conforme à la réponse réelle d'Anthropic (`content` tableau, `HTTP 200` en bout de chaîne) — **NIVEAU 1**, voir §5.3 |
 
-### 5.3 Règle absolue anti-faux-READY
+### 5.3 Deux niveaux de preuve distincts — validité de réponse ≠ preuve de réalité provider
+
+Un corps JSON structurellement conforme au contrat Messages API **ne suffit jamais, à
+lui seul**, à prouver qu'Anthropic a réellement été appelé. Une réponse structurellement
+valide peut être produite par un Worker mal implémenté, un rejeu, ou un test local
+délibérément simulé (cas F, LOCAL_CONTROLLED). Ces deux niveaux sont donc distincts et
+tous deux exigés, mais pour des usages différents :
+
+**NIVEAU 1 — validité de réponse (nécessaire, jamais suffisant seul)**
+
+```text
+HTTP 200
++ structure Anthropic Messages API valide
++ content = tableau
++ champs attendus présents et valides
+```
+
+Ce niveau seul suffit à valider la logique de classification du preflight (parsing,
+branche `delegated`, absence de faux `INVALID_RESPONSE`) — c'est tout ce que prouve le
+cas F, LOCAL_CONTROLLED (§10). Il ne prouve à lui seul ni un Worker réel, ni un appel
+Anthropic réel.
+
+**NIVEAU 2 — preuve de réalité provider (exigé uniquement pour le dossier REAL, cas G)**
+
+Pour que `READY` en mode `delegated` constitue une preuve REAL recevable (jamais pour
+le cas F, toujours LOCAL_CONTROLLED), le dossier de preuve doit fournir une
+corrélation vérifiable entre :
+
+- le Worker réellement déployé (identité + version/déploiement identifiés) ;
+- la requête EvidenceForge effectivement émise ;
+- un identifiant de corrélation non secret (request-id) présent à la fois côté client
+  et côté trace Worker ;
+- une trace/log Cloudflare minimal correspondant à cette requête ;
+- l'appel upstream Anthropic réel effectué par le Worker pour cette même requête ;
+- la réponse Anthropic réelle relayée jusqu'au client.
+
+Le CDC autorise l'usage de headers de corrélation non sensibles pour cette preuve,
+par exemple :
+
+```text
+X-EvidenceForge-Proxy: evidenceforge-llm-proxy
+X-EvidenceForge-Upstream: anthropic
+X-EvidenceForge-Upstream-Status: <status>
+X-EvidenceForge-Request-Id: <id non secret>
+```
+
+**Ces headers seuls ne constituent PAS une preuve suffisante.** Un Worker pourrait les
+renvoyer sans avoir réellement appelé Anthropic. La preuve REAL recevable est la
+combinaison cumulative de :
+
+```text
+code Worker audité (§11.8)
++ déploiement identifié
++ request-id corrélé
++ trace/log Worker corrélé à ce request-id
++ réponse Anthropic structurellement valide (NIVEAU 1)
+```
+
+Le Worker ne doit jamais logger les prompts complets ni aucun secret pour produire
+cette preuve (§7.9, §7.10) — la corrélation se fait sur métadonnées non sensibles
+(request-id, statut, timestamp, latence), jamais sur le contenu métier.
+
+### 5.4 Règle absolue anti-faux-READY
 
 **Le mode `delegated` ne doit jamais produire `READY` sur simple `HTTP 200` du
-Worker.** Un `HTTP 200` renvoyé par le Worker n'est une preuve valide que si le corps
-de réponse respecte le contrat structurel d'une réponse Anthropic réelle (mêmes règles
-de `validateResponse()` qu'en mode direct : `content` est un tableau, présence des
-champs attendus du contrat Messages API). Un Worker qui renverrait `HTTP 200` avec un
-corps arbitraire, vide, ou ne respectant pas ce contrat doit être classifié
-`INVALID_RESPONSE`, jamais `READY`. C'est la même discipline anti-permissivité que
-celle déjà appliquée en v0.5 pour OpenAlex/Crossref/PubMed (vérification du corps, pas
-seulement du code HTTP).
+Worker.** Un `HTTP 200` renvoyé par le Worker n'est une preuve de NIVEAU 1 valide que
+si le corps de réponse respecte le contrat structurel d'une réponse Anthropic réelle
+(mêmes règles de `validateResponse()` qu'en mode direct : `content` est un tableau,
+présence des champs attendus du contrat Messages API). Un Worker qui renverrait
+`HTTP 200` avec un corps arbitraire, vide, ou ne respectant pas ce contrat doit être
+classifié `INVALID_RESPONSE`, jamais `READY`. Et — au-delà du NIVEAU 1 — un `READY`
+proposé comme preuve `GELABLE` (dossier REAL, cas G) sans le NIVEAU 2 de §5.3 n'est pas
+recevable : c'est la même discipline anti-permissivité que celle déjà appliquée en v0.5
+pour OpenAlex/Crossref/PubMed (vérification du corps, pas seulement du code HTTP),
+étendue ici à une exigence de corrélation provider pour la preuve REAL.
 
-### 5.4 Classifications de sortie
+### 5.5 Classifications de sortie
 
 Les classifications existantes (`NETWORK_BLOCKED`, `AUTHENTICATION_BLOCKED`,
 `RATE_LIMITED`, `INVALID_RESPONSE`, `PROVIDER_UNAVAILABLE`, `READY`) sont réutilisées
@@ -330,14 +467,20 @@ hors v0.6).
 |---|---|
 | `X-API-Key` absent ou invalide | `401` |
 | Payload invalide (JSON malformé ou champs requis absents) | `400` |
+| Rate limit Worker dépassé (§7.11) | `429`, **appel upstream Anthropic non tenté** |
 | Appel upstream Anthropic réussi | code Anthropic relayé tel quel (`200` attendu en cas de succès) |
 | Erreur upstream Anthropic (429, 5xx, etc.) | code Anthropic relayé tel quel, pas absorbé ni transformé en faux succès |
 | Timeout upstream | `504`, jamais un `200` de repli |
 
+Le `429` de rate limit Worker (§7.11) et un éventuel `429` relayé depuis Anthropic sont
+deux causes distinctes qui doivent rester distinguables dans la trace/log Worker (§7.9,
+§5.3 NIVEAU 2) — l'une signifie que l'upstream n'a jamais été appelé, l'autre qu'il l'a
+été et a lui-même limité.
+
 ### 7.6 Propagation des erreurs
 
 Le Worker ne doit jamais transformer une erreur upstream Anthropic en succès apparent.
-Le corps d'erreur relayé doit permettre au preflight MONO-08 (§5.3) de distinguer un
+Le corps d'erreur relayé doit permettre au preflight MONO-08 (§5.4) de distinguer un
 échec d'authentification Worker (§7.5, `401`) d'un échec upstream Anthropic (code et
 corps Anthropic relayés).
 
@@ -368,6 +511,24 @@ corps Anthropic relayés).
 - `WORKER_API_KEY` : jamais renvoyé dans le corps ou les headers de réponse (il n'a de
   sens qu'en entrée).
 
+### 7.11 Rate limiting
+
+Exigence explicite, non optionnelle, pour toute implémentation future du Worker.
+Objectif : réduire l'impact d'une éventuelle compromission de
+`EVIDENCEFORGE_WORKER_API_KEY` et empêcher qu'un Worker authentifié devienne un relais
+Anthropic illimité.
+
+- Rate limiting appliqué côté Cloudflare (pas seulement documenté, réellement mis en
+  œuvre au moment de l'implémentation).
+- Limite configurable (pas de valeur codée en dur non ajustable).
+- Dépassement → rejet explicite `HTTP 429` (§7.5), **avant** tout appel upstream
+  Anthropic — un dépassement de rate limit ne doit jamais consommer de quota Anthropic.
+- Aucune conversion d'un `429` de rate limit en succès apparent, à aucun niveau
+  (ni côté Worker, ni côté preflight MONO-08 qui le reçoit — classification
+  `RATE_LIMITED`, jamais `READY`, §5.5).
+- Une preuve d'un test négatif de rate limit (déclenchement effectif du `429`) est
+  exigée avant `GELABLE` (§10 cas K, §11).
+
 ---
 
 ## 8. Sécurité
@@ -389,10 +550,45 @@ Exigences minimales, non négociables pour toute implémentation future de v0.6 
 - Pas de wildcard de sécurité implicite : ni `X-API-Key: *`, ni CORS `*` par défaut, ni
   contournement de `assertNotLocalOrSynthetic()` pour l'URL du Worker en mode
   `delegated`.
-- Le secret scan déjà en place pour MONO-08 (`lib/secret-scan.js`) reste appliqué
-  **inchangé ou renforcé** : il doit couvrir explicitement `EVIDENCEFORGE_WORKER_API_KEY`
-  en plus de `ANTHROPIC_API_KEY` pour tout run en mode `delegated`, avec le même
-  objectif `0 occurrence brute`.
+- Rate limiting appliqué côté Worker (§7.11), avec rejet `429` explicite avant tout
+  appel upstream en cas de dépassement — jamais converti en succès.
+
+### 8.1 Secret scan — formulation corrigée (distinction obligatoire)
+
+`EVIDENCEFORGE_WORKER_API_KEY` et `ANTHROPIC_API_KEY` ne sont pas dans la même
+situation vis-à-vis d'un scan de secret côté MONO-08, et le secret scan ne doit pas
+prétendre les traiter de façon identique :
+
+**H1 — `EVIDENCEFORGE_WORKER_API_KEY`** : valeur **connue du runtime EvidenceForge**
+en mode `delegated` (c'est le credential qu'il envoie lui-même). Un scan de valeur
+brute est donc possible et **obligatoire** : `0` occurrence brute exigée dans tous les
+artefacts produits par MONO-08 (mêmes catégories qu'en v0.5 : RunState, NodeState,
+ArtifactRecord, traces, reports, logs, stdout/stderr, OperatorApi, DOM, localStorage,
+sessionStorage).
+
+**H2 — `ANTHROPIC_API_KEY`** : valeur **volontairement inconnue du runtime
+EvidenceForge** en mode `delegated` (§4.3.1.A). Un scan de valeur brute est donc
+**structurellement impossible** — on ne peut pas chercher dans des artefacts la valeur
+d'un secret que le processus qui les a produits n'a jamais lu. Le CDC ne doit pas
+prétendre effectuer ce scan de valeur brute pour `ANTHROPIC_API_KEY` en mode
+`delegated` : ce serait afficher ou redemander la clé au client dans le seul but de
+pouvoir la scanner, ce qui contredirait directement le contrat A de §4.3.1. La preuve
+attendue pour H2 est **structurelle**, pas un scan de valeur :
+
+- `ANTHROPIC_API_KEY` absente du processus client au moment du test REAL (§4.3.1.B) ;
+- MONO-08 ne la lit jamais (revue du chemin de code `delegated`) ;
+- MONO-08 ne la demande jamais à un SecretProvider en mode `delegated` ;
+- aucune configuration provider client ne la référence en mode `delegated`
+  (`lib/real-provider-configs.js`, §6) ;
+- aucun header client ne la contient en mode `delegated` (§4.3.2) ;
+- aucun log ni rapport ne contient, en mode `delegated`, un nom de variable
+  (`ANTHROPIC_API_KEY`) associé à une valeur récupérée par MONO-08 — puisqu'aucune
+  valeur n'est jamais récupérée ;
+- le chemin de code `delegated` est vérifiablement indépendant de `ANTHROPIC_API_KEY`
+  (aucune référence à cette variable dans les branches `delegated` de
+  `lib/preflight.js` et `lib/real-provider-configs.js`).
+
+Voir §10 cas H (scindé en H1/H2) et §11.
 
 ---
 
@@ -418,7 +614,7 @@ Exigences minimales, non négociables pour toute implémentation future de v0.6 
 Environnements : `LOCAL_CONTROLLED` = environnement de test avec provider(s) simulés
 de façon contrôlée et déclarée comme telle (pas une preuve REAL) ; `REAL` = environnement
 avec accès réseau réel et Worker Cloudflare réellement déployé. Le détail exécutable de
-ces cas est repris dans `MONO-08-v0.6-ACCEPTANCE-MATRIX.md`.
+ces cas (A→K) est repris dans `MONO-08-v0.6-ACCEPTANCE-MATRIX.md`.
 
 | # | Environnement | Mode | Précondition | Résultat attendu |
 |---|---|---|---|---|
@@ -427,10 +623,33 @@ ces cas est repris dans `MONO-08-v0.6-ACCEPTANCE-MATRIX.md`.
 | C | LOCAL_CONTROLLED | delegated | `EVIDENCEFORGE_WORKER_API_KEY` absente | `AUTHENTICATION_BLOCKED` |
 | D | LOCAL_CONTROLLED | delegated | Worker auth invalide (mauvais `WORKER_API_KEY`) | `AUTHENTICATION_BLOCKED` |
 | E | LOCAL_CONTROLLED | delegated | Worker répond faux `200` / corps invalide | `INVALID_RESPONSE` |
-| F | LOCAL_CONTROLLED | delegated | Worker répond une réponse Anthropic structurellement valide | `READY` |
-| G | REAL | delegated | Worker Cloudflare réellement déployé, vrai upstream Anthropic | `READY`, aucun `ANTHROPIC_API_KEY` local à aucun moment |
-| H | — | — | Après tout run utilisant un credential réel (les deux modes) | secret scan = `0` occurrence brute |
+| F | LOCAL_CONTROLLED | delegated | Worker répond une réponse Anthropic structurellement valide (NIVEAU 1 seul, jamais présenté comme REAL — §5.3) | `READY` |
+| G | REAL | delegated | Worker Cloudflare dédié réellement déployé, `EVIDENCEFORGE_WORKER_API_KEY` réelle acceptée, `ANTHROPIC_API_KEY` effectivement absente du process client (§4.3.1.B), vrai appel upstream Anthropic, preuve NIVEAU 2 corrélée (§5.3) | `READY`, aucun accès client à `ANTHROPIC_API_KEY` à aucun moment |
+| H1 | — | — | Après tout run utilisant `EVIDENCEFORGE_WORKER_API_KEY` réelle (mode delegated) | secret scan brut = `0` occurrence de `EVIDENCEFORGE_WORKER_API_KEY` |
+| H2 | — | — | Test REAL delegated (cas G) | preuve structurelle de non-consommation de `ANTHROPIC_API_KEY` côté client (§8.1 H2) ; variable absente du process au moment du test |
 | I | — | — | Suite `test/test_t08_*.js` historique (v0.5) | inchangée, aucune régression |
+| J | LOCAL_CONTROLLED | — | `LLM_AUTH_MODE="anything-else"` (valeur explicite invalide) | `PRODUCT_CONFIG_ERROR`, exit code `3`, aucun provider appelé, aucune requête réseau |
+| K | LOCAL_CONTROLLED ou Worker de test contrôlé | delegated | Credential Worker valide, seuil de rate limit Worker atteint | `HTTP 429` côté Worker, classification `RATE_LIMITED`, jamais `READY`, upstream Anthropic non appelé |
+
+### Règle sur le cas F
+
+F reste **strictement LOCAL_CONTROLLED**. Un Worker simulé qui renvoie une réponse
+Anthropic structurellement valide permet de tester le parsing, la classification, la
+branche `delegated`, et l'absence de faux `INVALID_RESPONSE` — mais F **ne prouve
+jamais** un provider REAL, un appel Anthropic REAL, un Worker REAL, ni un upstream REAL.
+F doit rester explicitement étiqueté `LOCAL_CONTROLLED` dans tout rapport ou dossier de
+preuve, et ne peut jamais se substituer à G pour la validation `GELABLE`.
+
+### Règle sur le cas G
+
+G — REAL delegated — doit prouver cumulativement, avec preuve archivée pour chaque
+point : Worker Cloudflare dédié réellement déployé ; endpoint réel ; credential Worker
+réel accepté ; `ANTHROPIC_API_KEY` effectivement absente du process client ; aucun
+accès client à `ANTHROPIC_API_KEY` ; appel Anthropic upstream réel ; réponse Anthropic
+réelle ; request-id corrélé (§5.3 NIVEAU 2) ; trace/log Worker corrélé à ce request-id ;
+provider reality log (provider, opération, REAL, timestamp, latency, attempts, HTTP
+status, classification) ; classification `READY` ; aucun faux `READY` ; secret handling
+conforme (§7.10, §8.1).
 
 ---
 
@@ -438,28 +657,39 @@ ces cas est repris dans `MONO-08-v0.6-ACCEPTANCE-MATRIX.md`.
 
 MONO-08 v0.6 pourra être proposée `GELABLE` uniquement si, cumulativement :
 
-1. Les 9 cas d'acceptation (§10, A→I) sont exécutés réellement (pas simulés pour les
+1. Tous les cas d'acceptation A→K (§10) sont exécutés réellement (pas simulés pour les
    cas marqués REAL) et passent tous.
 2. Le mode `direct` est démontré strictement rétrocompatible (cas B, I).
-3. Le mode `delegated` atteint `READY` **uniquement** via un vrai Worker Cloudflare
-   dédié (`evidenceforge-llm-proxy` ou équivalent conforme au contrat §7) relayant un
-   vrai appel upstream Anthropic — jamais via un mock, un stub, ou une réponse
-   simulée présentée comme REAL (cas G).
-4. Aucun `ANTHROPIC_API_KEY` n'apparaît, à aucun moment, côté client EvidenceForge en
-   mode `delegated` — ni en variable d'environnement lue, ni en log, ni en rapport.
-5. Le secret scan (cas H) est à `0` occurrence brute pour les deux credentials
-   (`ANTHROPIC_API_KEY`, `EVIDENCEFORGE_WORKER_API_KEY`) sur l'ensemble des artefacts
-   produits (RunState, NodeState, ArtifactRecord, traces, reports, logs,
-   stdout/stderr, OperatorApi, DOM, localStorage, sessionStorage — même périmètre que
-   v0.5).
-6. Aucun lot MONO-00→07 n'a été modifié ; EF-ORCH et MONO-04 restent inchangés dans
-   leur code (seule leur configuration d'appel change, §6).
-7. Le Worker `evidenceforge-llm-proxy` est audité indépendamment sur le contrat §7
+3. Le mode `delegated` atteint `READY`, comme preuve REAL recevable, **uniquement** via
+   un vrai Worker Cloudflare dédié (`evidenceforge-llm-proxy` ou équivalent conforme au
+   contrat §7) relayant un vrai appel upstream Anthropic, avec preuve NIVEAU 2 corrélée
+   (§5.3) — jamais via un mock, un stub, ou une réponse simulée présentée comme REAL
+   (cas G ; le cas F seul, LOCAL_CONTROLLED, ne peut jamais satisfaire ce critère).
+4. `ANTHROPIC_API_KEY` est effectivement absente du processus EvidenceForge pendant le
+   test REAL delegated (cas G, §4.3.1.B).
+5. MONO-08 en mode `delegated` ne lit, ne demande à un SecretProvider, ni ne transmet
+   jamais `ANTHROPIC_API_KEY`, par construction du code (§4.3.1.A) — vérifié par revue
+   du chemin de code `delegated` dans `lib/preflight.js` et
+   `lib/real-provider-configs.js`.
+6. Le secret scan brut de `EVIDENCEFORGE_WORKER_API_KEY` (cas H1) est à `0` occurrence
+   sur l'ensemble des artefacts produits (RunState, NodeState, ArtifactRecord, traces,
+   reports, logs, stdout/stderr, OperatorApi, DOM, localStorage, sessionStorage — même
+   périmètre que v0.5).
+7. La preuve provider REAL corrélée (NIVEAU 2, §5.3, cas G) est disponible et
+   archivée : request-id, trace/log Worker, déploiement Worker identifié.
+8. Le Worker `evidenceforge-llm-proxy` est audité indépendamment sur le contrat §7
    (validation credential, validation payload, non-exposition du secret upstream,
-   absence de faux succès) avant d'être considéré comme preuve REAL valable.
-8. MONO-09 / JMMJS reste non entamé.
+   absence de faux succès, rate limiting §7.11) avant d'être considéré comme preuve
+   REAL valable.
+9. Le rate limiting Worker est testé et démontré (cas K) : `HTTP 429` explicite,
+   classification `RATE_LIMITED`, aucun appel upstream Anthropic consommé au moment du
+   dépassement.
+10. Aucun lot MONO-00→07 n'a été modifié.
+11. MONO-04 reste inchangé dans son code (seule sa configuration d'appel change, §6).
+12. EF-ORCH reste inchangé.
+13. MONO-09 / JMMJS reste non entamé.
 
-Tant que ces 8 conditions ne sont pas toutes vérifiées avec preuves, MONO-08 v0.6 reste
+Tant que ces 13 conditions ne sont pas toutes vérifiées avec preuves, MONO-08 v0.6 reste
 `NON GELABLE` au sens des verdicts déjà en usage sur ce lot.
 
 ---
@@ -468,10 +698,11 @@ Tant que ces 8 conditions ne sont pas toutes vérifiées avec preuves, MONO-08 v
 
 | Risque | Description | Mitigation prévue par ce CDC |
 |---|---|---|
-| Faux READY | Le mode `delegated` marque `READY` sur un simple `HTTP 200` du Worker sans validation structurelle du corps | §5.3 : validation du corps obligatoire, réutilisation de la discipline `validateResponse()` déjà appliquée aux autres providers |
-| Auth déléguée mal interprétée | Confusion entre credential Worker et credential Anthropic dans le code ou les logs, menant à une classification erronée ou à une fuite | §4.3, §7.10 : deux credentials nommés distinctement, jamais interchangés, `reason` textuelle explicite par mode (§5.4) |
-| Worker public / mal sécurisé | Un `evidenceforge-llm-proxy` déployé sans validation stricte de `WORKER_API_KEY` deviendrait un relais Anthropic ouvert, exposant indirectement le secret upstream à un usage non autorisé | §7.4.1 : rejet fail-closed avant tout appel upstream ; §11.7 : audit indépendant du contrat Worker avant validation GELABLE |
-| Fuite de secret (`ANTHROPIC_API_KEY` ou `EVIDENCEFORGE_WORKER_API_KEY`) | Log accidentel, exposition dans un rapport, un header de réponse, ou un message d'erreur | §7.9, §7.10, §8 : interdictions explicites ; §10 cas H, §11.5 : secret scan renforcé exigé avant GELABLE |
+| Faux READY | Le mode `delegated` marque `READY` sur un simple `HTTP 200` du Worker sans validation structurelle du corps, ou sur un NIVEAU 1 seul sans NIVEAU 2 pour le dossier REAL | §5.3, §5.4 : validation du corps obligatoire (NIVEAU 1) + preuve de corrélation provider obligatoire pour REAL (NIVEAU 2), réutilisation de la discipline `validateResponse()` déjà appliquée aux autres providers |
+| Auth déléguée mal interprétée | Confusion entre credential Worker et credential Anthropic dans le code ou les logs, menant à une classification erronée ou à une fuite | §4.3.1, §4.3.2, §7.10 : deux credentials nommés distinctement, jamais interchangés, `reason` textuelle explicite par mode (§5.5) |
+| Worker public / mal sécurisé | Un `evidenceforge-llm-proxy` déployé sans validation stricte de `WORKER_API_KEY`, ou sans rate limiting, deviendrait un relais Anthropic ouvert ou surexploitable, exposant indirectement le secret upstream à un usage non autorisé | §7.4.1 : rejet fail-closed avant tout appel upstream ; §7.11 : rate limiting obligatoire ; §11.8, §11.9 : audit indépendant du contrat Worker et preuve de rate limiting avant validation GELABLE |
+| Fuite de secret (`EVIDENCEFORGE_WORKER_API_KEY`) | Log accidentel, exposition dans un rapport, un header de réponse, ou un message d'erreur | §7.9, §7.10, §8.1 H1 : interdictions explicites, scan de valeur brute obligatoire ; §10 cas H1, §11.6 : `0` occurrence brute exigée avant GELABLE |
+| Fausse preuve de non-consommation de `ANTHROPIC_API_KEY` | Un audit qui accepterait une simple déclaration d'absence sans vérification structurelle du chemin de code, ou qui demanderait la clé au client pour la scanner | §8.1 H2 : preuve structurelle exigée (revue de code + absence effective au moment du test REAL) plutôt qu'un scan de valeur, jamais de demande de la clé au client ; §11.4, §11.5 |
 | Régression du mode direct | L'introduction de `LLM_AUTH_MODE` casse le comportement v0.5 existant pour les opérateurs qui n'en ont pas besoin | §9, §10 cas B et I : rétrocompatibilité et non-régression comme critères de recevabilité explicites |
 | Dérive de responsabilité vers MONO-04 | La tentation de modifier le Gateway MONO-04 lui-même pour « simplifier » l'intégration delegated | §3, §6 : MONO-04 explicitement hors périmètre, seule la configuration qui lui est fournie change de forme de valeurs, jamais son code ni son interface |
 | Couplage à un Worker tiers existant | Réutilisation opportuniste de `clone-proxy` ou `ocr-universel-proxy` pour aller plus vite, créant une dépendance croisée non désirée entre EvidenceForge et d'autres applications | §3, §7.1 : Worker dédié et découplé explicitement requis ; les Workers existants ne sont autorisés qu'en référence de lecture, jamais en dépendance opérationnelle |
@@ -480,12 +711,15 @@ Tant que ces 8 conditions ne sont pas toutes vérifiées avec preuves, MONO-08 v
 
 ## Verdict
 
-**CDC READY FOR AUDIT**
+**CDC READY FOR RE-AUDIT**
 
-Ce document couvre les 12 sections demandées, s'appuie sur une preuve expérimentale
-déjà obtenue et consignée (aucun nouveau run nécessaire pour le produire), ne modifie
-aucun artefact existant, ne crée aucun Worker, ne relance aucun preflight ni Real
-Smoke, et ne propose aucun code. Il est soumis à audit indépendant avant toute
-implémentation.
+Cette révision intègre les 8 corrections issues du premier audit indépendant
+(ambiguïté `LLM_AUTH_MODE`, distinction contrat/test REAL pour `ANTHROPIC_API_KEY`,
+séparation validité de réponse / preuve de réalité provider, secret scan H1/H2, header
+Worker, rate limiting, matrice A→K, critères GELABLE 1→13). Elle continue de couvrir les
+12 sections demandées, s'appuie sur la preuve expérimentale déjà obtenue et consignée
+(aucun nouveau run nécessaire pour produire cette révision), ne modifie aucun artefact
+existant, ne crée aucun Worker, ne relance aucun preflight ni Real Smoke, et ne propose
+aucun code. Elle est soumise à ré-audit indépendant avant toute implémentation.
 
 **STOP.**
