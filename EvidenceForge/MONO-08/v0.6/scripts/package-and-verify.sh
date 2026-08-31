@@ -160,9 +160,10 @@ else
 fi
 
 echo
-echo "== ÉTAPE 2/9 : tests v0.6 (delegated auth) + tests Worker — échec direct, pas de || true =="
+echo "== ÉTAPE 2/9 : tests v0.6 (delegated auth) + REAL adapter model + tests Worker — échec direct, pas de || true =="
 cd "$V06_ROOT"
 node test/test_t08_v06_delegated_auth.js
+node test/test_t08_v06_real_adapter_model.js
 node worker/evidenceforge-llm-proxy/test/worker.test.js
 
 echo
@@ -181,6 +182,8 @@ echo "== ÉTAPE 4/9 : régénération des rapports finaux LOCAL_CONTROLLED (avan
 cd "$V06_ROOT"
 node test/test_t08_v06_delegated_auth.js > reports/v0.6-local-controlled/test_t08_v06_delegated_auth.out 2>&1
 echo "exit_code=$?" >> reports/v0.6-local-controlled/test_t08_v06_delegated_auth.out
+node test/test_t08_v06_real_adapter_model.js > reports/v0.6-local-controlled/test_t08_v06_real_adapter_model.out 2>&1
+echo "exit_code=$?" >> reports/v0.6-local-controlled/test_t08_v06_real_adapter_model.out
 node worker/evidenceforge-llm-proxy/test/worker.test.js > reports/v0.6-local-controlled/worker.test.out 2>&1
 echo "exit_code=$?" >> reports/v0.6-local-controlled/worker.test.out
 

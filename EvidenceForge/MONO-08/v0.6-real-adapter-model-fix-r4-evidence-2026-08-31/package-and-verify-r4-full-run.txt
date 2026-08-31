@@ -1,0 +1,320 @@
+== ÉTAPE 1/9 : gate de non-régression historique (baseline immutable, pas de || true) ==
+GATE PASS: test_t08_preflight.js (exit=0, sortie identique à /home/user/C-Concept-Dev/EvidenceForge/MONO-08/v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v05-baseline.out, 0 diff)
+GATE PASS: test_t08_eforch.js (exit=2, sortie identique à /home/user/C-Concept-Dev/EvidenceForge/MONO-08/v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v05-baseline.out, 0 diff)
+GATE PASS: test_t08_matrix.js (exit=0, sortie identique à /home/user/C-Concept-Dev/EvidenceForge/MONO-08/v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v05-baseline.out, 0 diff)
+GATE PASS: test_t08_runner_orchestration.js (exit=1, sortie identique à /home/user/C-Concept-Dev/EvidenceForge/MONO-08/v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v05-baseline.out, 0 diff)
+
+== ÉTAPE 1bis/9 : self-test du gate (GATE-NEGATIVE-TEST, zone scratch uniquement) ==
+GATE-NEGATIVE-TEST PASS : le gate détecte bien un écart injecté (return=1, comme attendu).
+
+== ÉTAPE 2/9 : tests v0.6 (delegated auth) + REAL adapter model + tests Worker — échec direct, pas de || true ==
+PASS — A. direct, ANTHROPIC_API_KEY absente -> AUTHENTICATION_BLOCKED
+PASS — B. direct + credential valide (LOCAL_CONTROLLED) -> READY, authMode=direct
+PASS — C-config. provider delegated exige EVIDENCEFORGE_WORKER_API_KEY (jamais ANTHROPIC_API_KEY)
+PASS — C. delegated sans EVIDENCEFORGE_WORKER_API_KEY -> AUTHENTICATION_BLOCKED
+PASS — D. delegated, Worker rejette le credential (401 actif) -> AUTHENTICATION_BLOCKED, jamais NO_CREDENTIAL
+PASS — E. delegated, HTTP 200 corps non conforme -> INVALID_RESPONSE, jamais READY
+PASS — F. delegated, Worker simule NIVEAU 1 valide (LOCAL_CONTROLLED) -> READY
+PASS — J-buildProviders. LLM_AUTH_MODE="anything-else" -> exception avant tout appel provider, aucune requete reseau (https.request jamais invoque)
+PASS — J-runPreflight. runPreflight() rejette LLM_AUTH_MODE invalide, aucune requete reseau — bin/run-preflight.js (inchange) traduit ceci en PRODUCT_CONFIG_ERROR / exit code 3
+PASS — J-defaut. LLM_AUTH_MODE absent -> aucune exception (retombe sur direct)
+PASS — K. delegated, Worker HTTP 429 (rate limit) -> RATE_LIMITED, jamais READY
+PASS — K-note. Un 429 renvoye par checkProvider() a ce niveau simule le Worker bloquant AVANT upstream (CDC 7.11) — la preuve que l'appel upstream Anthropic n'a pas ete tente vit dans le Worker lui-meme (voir worker/evidenceforge-llm-proxy/test)
+PASS — OA1-precondition. corps de test > 4 Ko (ancien seuil destructif)
+PASS — OA1. JSON reel-like > 4 Ko mais < MAX_PREFLIGHT_RESPONSE_BYTES -> parse complet, READY
+PASS — OA2-precondition. corps de test > MAX_PREFLIGHT_RESPONSE_BYTES
+PASS — OA2. JSON > MAX_PREFLIGHT_RESPONSE_BYTES -> INVALID_RESPONSE/RESPONSE_TOO_LARGE, jamais READY, jamais JSON.parse sur corps tronque
+PASS — OA3. JSON reellement malforme (sous la limite) -> INVALID_RESPONSE, comportement inchange par ce correctif
+PASS — LLM1. LLM_PREFLIGHT_MODEL defini -> payload upstream utilise exactement cette valeur (jamais un hardcode)
+PASS — LLM2. LLM_PREFLIGHT_MODEL absent -> fallback = DEFAULT_LLM_PREFLIGHT_MODEL exporte (documente, non devine), jamais l'ancien claude-3-5-haiku-latest
+PASS — LLM3. provider retourne 404 not_found_error (modele indisponible reel) -> INVALID_RESPONSE, jamais transforme en READY
+PASS — H2-extract-preflight. bloc buildLlmWorkerProviderDelegated() extrait pour revue
+PASS — H2-preflight. aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildLlmWorkerProviderDelegated() (lib/preflight.js)
+PASS — H2-extract-real-provider-configs. bloc buildLlmWorkerConfigDelegated() extrait pour revue
+PASS — H2-real-provider-configs. aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildLlmWorkerConfigDelegated() (lib/real-provider-configs.js)
+
+TOUS LES TESTS PASSENT (24)
+PASS — REAL-MODEL-1. LLM_REAL_MODEL absent -> fallback = DEFAULT_REAL_LLM_MODEL exporte
+PASS — REAL-MODEL-2. LLM_REAL_MODEL defini -> valeur utilisee telle que prevue
+PASS — C. LLM_REAL_MODEL='' (vide) -> fallback deterministe = DEFAULT_REAL_LLM_MODEL (coherent avec resolveLlmPreflightModel)
+PASS — REAL-MODEL-4. payload Worker (via gateway.executeRequest) contient exactement le modele configure
+PASS — REAL-MODEL-4bis. LLM_REAL_MODEL absent -> payload Worker utilise DEFAULT_REAL_LLM_MODEL, jamais l'ancien hardcode
+PASS — REAL-MODEL-3-extract. bloc buildRealLlmWorkerCallFn() extrait pour revue
+PASS — REAL-MODEL-3 (Phase 4-D). aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildRealLlmWorkerCallFn() (lib/real-external-adapter.js)
+PASS — E. lib/real-external-adapter.js ne contient aucune branche direct/delegated (routage auth entierement delegue a lib/real-provider-configs.js + MONO-04 Gateway, non touche par ce correctif) -> N/A, non modifie
+PASS — REAL-MODEL-5. aucune reference CODE (hors commentaires) a l'ancien claude-3-5-haiku-latest dans buildRealLlmWorkerCallFn()
+
+TOUS LES TESTS PASSENT (9)
+{"timestamp":"2026-08-31T19:01:37.228Z","requestId":"927013f0-6db9-4423-89db-4c3609e6c7f0","event":"route_rejected","status":404,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.231Z","requestId":"f4763fff-bbc3-44f6-846f-cf7fcb08478c","event":"route_rejected","status":404,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.232Z","requestId":"3c06c856-53af-43d3-b5e9-00b2dfb8d3e7","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.233Z","requestId":"41d4fe04-f065-40bd-b43b-e8db0ff8dc09","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.238Z","requestId":"e8d2a7b2-eaf4-4ee1-9d06-0a22590d8493","event":"rate_limited","status":429,"latencyMs":4,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.243Z","requestId":"8ef33850-1a20-445c-bab6-496a9c779075","event":"invalid_json","status":400,"latencyMs":2,"payloadBytes":9}
+{"timestamp":"2026-08-31T19:01:37.246Z","requestId":"ce12ac8e-3c00-4cf1-afd4-2b67374f478f","event":"invalid_payload","status":400,"latencyMs":2,"payloadBytes":13}
+{"timestamp":"2026-08-31T19:01:37.248Z","requestId":"3dd83bb8-7b5c-4a21-adfc-ba51b68001a1","event":"upstream_relayed","status":200,"latencyMs":2,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.251Z","requestId":"client-supplied-id-123","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.255Z","requestId":"bddc81f9-9adf-4511-b9cd-0beec393fd60","event":"upstream_relayed","status":529,"latencyMs":2,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.256Z","requestId":"4e70b5fc-35d1-42ed-914d-a90bb5374d3e","event":"upstream_timeout","status":504,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.257Z","requestId":"ed40ef69-8b13-41b1-a29b-7a098b4e9ec8","event":"upstream_network_error","status":502,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.258Z","requestId":"41444b9c-8007-4451-befa-b2e85b42188d","event":"upstream_misconfigured","status":500,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.259Z","requestId":"c8e0d9e8-1b66-436f-b06a-3e888bb723c7","event":"upstream_relayed","status":200,"latencyMs":0,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.262Z","requestId":"07cdde55-ec8c-4336-aa95-9fb8cb13116b","event":"auth_rejected","status":401,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.262Z","requestId":"ad67d7b5-2d1e-4e78-bc2d-484929660b35","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.262Z","requestId":"41dac0ba-8467-4f15-abad-9829941ce957","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.263Z","requestId":"8b0f59d3-a2cb-4c6d-bd03-aafc6e9d1049","event":"rate_limiter_unavailable","status":503,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.263Z","requestId":"fbab62b0-cd31-4178-a0c8-29c71380c469","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.264Z","requestId":"ca4688c2-e05a-49b9-9903-4a334213e9d4","event":"rate_limited","status":429,"latencyMs":1,"payloadBytes":null}
+PASS — Worker-1. GET /v1/messages refuse -> 404, aucun appel upstream possible avant ce refus
+PASS — Worker-2. POST /other-route refuse -> 404
+PASS — Worker-D1. Authorization absent -> 401, aucun appel upstream tente
+PASS — Worker-D2 (cas D). credential Worker incorrect -> 401, aucun appel upstream tente
+PASS — Worker-K (cas K). seuil rate limit atteint -> 429, aucun appel upstream tente
+PASS — Worker-K-body. corps 429 non converti en succes
+PASS — Worker-3. JSON malforme -> 400, aucun appel upstream tente
+PASS — Worker-4. payload JSON valide mais non conforme (model/max_tokens/messages absents) -> 400, aucun appel upstream tente
+PASS — Worker-5. credential+payload valides -> appel upstream reellement invoque
+PASS — Worker-6. relai fidele du corps Anthropic (NIVEAU 1)
+PASS — Worker-7. header de correlation X-EvidenceForge-Proxy present
+PASS — Worker-8. header de correlation X-EvidenceForge-Upstream=anthropic present
+PASS — Worker-9. header de correlation X-EvidenceForge-Upstream-Status=200 present
+PASS — Worker-10. header de correlation X-EvidenceForge-Request-Id present (non secret)
+PASS — Worker-11. request-id fourni par le client est propage tel quel (correlation NIVEAU 2)
+PASS — Worker-12. erreur upstream (529) relayee telle quelle, jamais transformee en 200
+PASS — Worker-13. timeout upstream -> 504, jamais 200 de repli
+PASS — Worker-14. panne reseau upstream -> 502, jamais 200 de repli
+PASS — Worker-15. ANTHROPIC_API_KEY absente cote Worker -> 500, aucun appel upstream, jamais un faux succes
+PASS — Worker-16. ANTHROPIC_API_KEY jamais presente dans le corps de reponse
+PASS — Worker-17. ANTHROPIC_API_KEY jamais presente dans un header de reponse
+PASS — Worker-18. WORKER_API_KEY jamais presente dans un corps de reponse d'erreur 401
+PASS — Worker-19. isValidMessagesPayload() accepte un payload conforme
+PASS — Worker-20. isValidMessagesPayload() rejette un payload sans messages
+PASS — Worker-21. extractBearerToken() extrait le token
+PASS — Worker-22. extractBearerToken() retourne null sans header
+PASS — Worker-23. constantTimeEquals() compare correctement
+PASS — Worker-L (cas L). RATE_LIMITER absent -> 503, jamais 200, jamais 429
+PASS — Worker-L-upstream. RATE_LIMITER absent -> aucun appel upstream tente (fail-closed avant upstream)
+PASS — Worker-L-reason. corps 503 porte une cause explicite RATE_LIMITER_UNAVAILABLE
+PASS — Worker-M (cas M). RATE_LIMITER present mais .limit non fonctionnel -> 503, jamais 200
+PASS — Worker-M-upstream. binding invalide -> aucun appel upstream tente
+PASS — Worker-M-reason. corps 503 porte RATE_LIMITER_UNAVAILABLE
+PASS — Worker-M2. .limit() renvoie une forme inattendue (pas de success:boolean) -> 503, jamais 200
+PASS — Worker-N (cas N). .limit() leve une exception -> 503, jamais 200
+PASS — Worker-N-upstream. exception du limiteur -> aucun appel upstream tente
+PASS — Worker-N-reason. corps 503 porte RATE_LIMITER_RUNTIME_ERROR
+PASS — Worker-K-vs-L. binding valide + quota depasse -> 429 (jamais 503) : K et L restent bien distincts
+
+TOUS LES TESTS PASSENT (38)
+
+== ÉTAPE 3/9 : scan de secrets (arbre v0.6 + dossier de preuve) ==
+0 secret réel détecté (motif sk-ant-*).
+
+== ÉTAPE 4/9 : régénération des rapports finaux LOCAL_CONTROLLED (avant manifest) ==
+
+== ÉTAPE 5/9 : plus aucune écriture de contenu mutable après ce point ==
+(règle d'usage du script, pas une commande)
+
+== ÉTAPE 6/9 : génération du manifest EN DERNIER, sur l'arbre figé ==
+manifest régénéré : 56 entrées
+
+== ÉTAPE 6bis/9 : vérification immédiate du manifest fraîchement généré ==
+.env.example: OK
+CDC-TRACE.md: OK
+MISSION.md: OK
+README-REAL-SMOKE.md: OK
+bin/run-preflight.js: OK
+bin/run-real-smoke.js: OK
+fixtures/mission-real-smoke-v1.json: OK
+lib/eforch-artifacts.js: OK
+lib/frozen-zip-integrity.js: OK
+lib/kit-root.js: OK
+lib/preflight.js: OK
+lib/real-e2e-driver.js: OK
+lib/real-external-adapter.js: OK
+lib/real-provider-configs.js: OK
+lib/secret-scan.js: OK
+package.json: OK
+reports/mono-08-evidence-matrix-v1.json: OK
+reports/mono-08-preflight-v1.json: OK
+reports/mono-08-provider-matrix-v1.json: OK
+reports/mono-08-real-smoke-trace-v1.json: OK
+reports/mono-08-test-report-v1.json: OK
+reports/v0.6-local-controlled/AUDIT-MATRIX.md: OK
+reports/v0.6-local-controlled/cli-J-invalid-llm-auth-mode.out: OK
+reports/v0.6-local-controlled/cli-delegated-mode-no-real-worker.out: OK
+reports/v0.6-local-controlled/cli-direct-mode-real-network.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/test_t08_v06_delegated_auth.out: OK
+reports/v0.6-local-controlled/test_t08_v06_real_adapter_model.out: OK
+reports/v0.6-local-controlled/worker.test.out: OK
+scripts/package-and-verify.sh: OK
+test/test_t08_eforch.js: OK
+test/test_t08_matrix.js: OK
+test/test_t08_preflight.js: OK
+test/test_t08_runner_orchestration.js: OK
+test/test_t08_v06_delegated_auth.js: OK
+test/test_t08_v06_real_adapter_model.js: OK
+worker/evidenceforge-llm-proxy/README.md: OK
+worker/evidenceforge-llm-proxy/package.json: OK
+worker/evidenceforge-llm-proxy/src/worker.js: OK
+worker/evidenceforge-llm-proxy/test/worker.test.js: OK
+worker/evidenceforge-llm-proxy/wrangler.jsonc: OK
+
+== ÉTAPE 7/9 : packaging du ZIP ==
+ZIP créé : /home/user/C-Concept-Dev/EvidenceForge/MONO-08/EvidenceForge-MONO-08-v0.6-real-adapter-model-fix-r4.zip
+
+== ÉTAPE 8/9 : vérification d'intégrité du ZIP (unzip -t) ==
+Archive:  EvidenceForge-MONO-08-v0.6-real-adapter-model-fix-r4.zip
+    testing: v0.6/                    OK
+    testing: v0.6/manifest/           OK
+    testing: v0.6/manifest/SHA256SUMS   OK
+    testing: v0.6/fixtures/           OK
+    testing: v0.6/fixtures/mission-real-smoke-v1.json   OK
+    testing: v0.6/worker/             OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/src/   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/src/worker.js   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/README.md   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/wrangler.jsonc   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/test/   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/test/worker.test.js   OK
+    testing: v0.6/worker/evidenceforge-llm-proxy/package.json   OK
+    testing: v0.6/test/               OK
+    testing: v0.6/test/test_t08_eforch.js   OK
+    testing: v0.6/test/test_t08_v06_delegated_auth.js   OK
+    testing: v0.6/test/test_t08_v06_real_adapter_model.js   OK
+    testing: v0.6/test/test_t08_matrix.js   OK
+    testing: v0.6/test/test_t08_runner_orchestration.js   OK
+    testing: v0.6/test/test_t08_preflight.js   OK
+    testing: v0.6/scripts/            OK
+    testing: v0.6/scripts/package-and-verify.sh   OK
+    testing: v0.6/package.json        OK
+    testing: v0.6/MISSION.md          OK
+    testing: v0.6/README-REAL-SMOKE.md   OK
+    testing: v0.6/.env.example        OK
+    testing: v0.6/lib/                OK
+    testing: v0.6/lib/kit-root.js     OK
+    testing: v0.6/lib/frozen-zip-integrity.js   OK
+    testing: v0.6/lib/real-provider-configs.js   OK
+    testing: v0.6/lib/secret-scan.js   OK
+    testing: v0.6/lib/eforch-artifacts.js   OK
+    testing: v0.6/lib/real-e2e-driver.js   OK
+    testing: v0.6/lib/real-external-adapter.js   OK
+    testing: v0.6/lib/preflight.js    OK
+    testing: v0.6/reports/            OK
+    testing: v0.6/reports/v0.6-local-controlled/   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v05-baseline.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.baseline.exit   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v05-baseline.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.baseline.exit   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v06-after-changes.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.baseline.exit   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v06-after-changes.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.diff.txt   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v05-baseline.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.diff.txt   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.baseline.exit   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v06-after-changes.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.diff.txt   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v06-after-changes.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v05-baseline.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.diff.txt   OK
+    testing: v0.6/reports/v0.6-local-controlled/worker.test.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/test_t08_v06_real_adapter_model.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/cli-J-invalid-llm-auth-mode.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/test_t08_v06_delegated_auth.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/AUDIT-MATRIX.md   OK
+    testing: v0.6/reports/v0.6-local-controlled/cli-direct-mode-real-network.out   OK
+    testing: v0.6/reports/v0.6-local-controlled/cli-delegated-mode-no-real-worker.out   OK
+    testing: v0.6/reports/mono-08-test-report-v1.json   OK
+    testing: v0.6/reports/mono-08-real-smoke-trace-v1.json   OK
+    testing: v0.6/reports/mono-08-evidence-matrix-v1.json   OK
+    testing: v0.6/reports/mono-08-provider-matrix-v1.json   OK
+    testing: v0.6/reports/mono-08-preflight-v1.json   OK
+    testing: v0.6/CDC-TRACE.md        OK
+    testing: v0.6/bin/                OK
+    testing: v0.6/bin/run-real-smoke.js   OK
+    testing: v0.6/bin/run-preflight.js   OK
+    testing: v0.6-real-adapter-model-fix-r4-evidence-2026-08-31/   OK
+    testing: v0.6-real-adapter-model-fix-r4-evidence-2026-08-31/test-run-real-adapter-model.out   OK
+    testing: v0.6-real-adapter-model-fix-r4-evidence-2026-08-31/package-and-verify-r4-full-run.txt   OK
+    testing: v0.6-real-adapter-model-fix-r4-evidence-2026-08-31/non-regression-summary.md   OK
+    testing: v0.6-real-adapter-model-fix-r4-evidence-2026-08-31/REAL-ADAPTER-MODEL-AUDIT.md   OK
+    testing: v0.6-real-adapter-model-fix-r4-evidence-2026-08-31/README-FIRST.md   OK
+No errors detected in compressed data of EvidenceForge-MONO-08-v0.6-real-adapter-model-fix-r4.zip.
+
+== ÉTAPE 9/9 : RE-vérification de tous les hashes DEPUIS LE ZIP FINAL ==
+.env.example: OK
+CDC-TRACE.md: OK
+MISSION.md: OK
+README-REAL-SMOKE.md: OK
+bin/run-preflight.js: OK
+bin/run-real-smoke.js: OK
+fixtures/mission-real-smoke-v1.json: OK
+lib/eforch-artifacts.js: OK
+lib/frozen-zip-integrity.js: OK
+lib/kit-root.js: OK
+lib/preflight.js: OK
+lib/real-e2e-driver.js: OK
+lib/real-external-adapter.js: OK
+lib/real-provider-configs.js: OK
+lib/secret-scan.js: OK
+package.json: OK
+reports/mono-08-evidence-matrix-v1.json: OK
+reports/mono-08-preflight-v1.json: OK
+reports/mono-08-provider-matrix-v1.json: OK
+reports/mono-08-real-smoke-trace-v1.json: OK
+reports/mono-08-test-report-v1.json: OK
+reports/v0.6-local-controlled/AUDIT-MATRIX.md: OK
+reports/v0.6-local-controlled/cli-J-invalid-llm-auth-mode.out: OK
+reports/v0.6-local-controlled/cli-delegated-mode-no-real-worker.out: OK
+reports/v0.6-local-controlled/cli-direct-mode-real-network.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_eforch.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_matrix.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_preflight.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.baseline.exit: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.diff.txt: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v05-baseline.out: OK
+reports/v0.6-local-controlled/regression-non-regression/test_t08_runner_orchestration.js.v06-after-changes.out: OK
+reports/v0.6-local-controlled/test_t08_v06_delegated_auth.out: OK
+reports/v0.6-local-controlled/test_t08_v06_real_adapter_model.out: OK
+reports/v0.6-local-controlled/worker.test.out: OK
+scripts/package-and-verify.sh: OK
+test/test_t08_eforch.js: OK
+test/test_t08_matrix.js: OK
+test/test_t08_preflight.js: OK
+test/test_t08_runner_orchestration.js: OK
+test/test_t08_v06_delegated_auth.js: OK
+test/test_t08_v06_real_adapter_model.js: OK
+worker/evidenceforge-llm-proxy/README.md: OK
+worker/evidenceforge-llm-proxy/package.json: OK
+worker/evidenceforge-llm-proxy/src/worker.js: OK
+worker/evidenceforge-llm-proxy/test/worker.test.js: OK
+worker/evidenceforge-llm-proxy/wrangler.jsonc: OK
+
+RÉSULTAT : 0 mismatch — manifest packagé fidèle au contenu réel du ZIP.

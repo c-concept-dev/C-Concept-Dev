@@ -12,7 +12,38 @@
  * mais l'OPERATEUR DOIT VALIDER cette integration contre une vraie
  * reponse avant un run de production - T08-05/06/07 restent NOT_RUN tant
  * que cette validation n'a pas eu lieu.
+ *
+ * MICRO-LOT REAL ADAPTER MODEL FIX (2026-08-31) — le modele Anthropic du
+ * payload REAL etait hardcode en dur ("claude-3-5-haiku-latest"), devenu
+ * indisponible (HTTP 404 not_found_error reel, meme cause racine deja
+ * corrigee cote PREFLIGHT dans lib/preflight.js, correctif r3). Desormais
+ * configurable via LLM_REAL_MODEL (voir .env.example), avec un defaut
+ * documente distinct de celui du preflight (execution differente :
+ * generation reelle de contenu de revue, pas une sonde technique minimale)
+ * — voir resolveRealLlmModel() ci-dessous. Le CDC MONO-08-v0.6 ne fige
+ * aucun identifiant de modele Anthropic precis (verifie par recherche
+ * exhaustive avant ce correctif) : seuls le mode delegated, le Worker, le
+ * provider Anthropic et la structure requete/reponse sont geles — ce
+ * correctif est une maintenance provider, pas un changement de contrat.
  */
+
+// Meme defaut que DEFAULT_LLM_PREFLIGHT_MODEL (lib/preflight.js), choisi
+// pour la meme raison (source de verite documentee dans
+// EvidenceForge/MONO-08/v0.6-preflight-fix-r3-evidence-2026-08-31/LLM-PREFLIGHT-MODEL-SOURCE.md)
+// mais expose ici via une variable D'ENVIRONNEMENT DEDIEE
+// (LLM_REAL_MODEL, distincte de LLM_PREFLIGHT_MODEL) : le chemin REAL
+// (generation reelle de contenu de revue) et le chemin PREFLIGHT (sonde
+// technique minimale) sont deux executions differentes qui peuvent
+// legitimement vouloir des valeurs differentes a l'avenir — aucun
+// couplage cree entre les deux fichiers.
+const DEFAULT_REAL_LLM_MODEL = "claude-haiku-4-5";
+
+function resolveRealLlmModel(env) {
+  env = env || process.env;
+  const raw = env.LLM_REAL_MODEL;
+  if (raw === undefined || raw === null || raw === "") return DEFAULT_REAL_LLM_MODEL;
+  return raw;
+}
 
 /**
  * DECOUVERTE DE CONTRAT (audit independant, jamais un STOP) :
@@ -46,7 +77,7 @@ function buildRealLlmWorkerCallFn(mono04, missionContext) {
       dependencyType: "worker",
       provider: "llm-worker",
       operation: "call",
-      payload: { model: "claude-3-5-haiku-latest", max_tokens: 1024, messages: [{ role: "user", content: prompt }] },
+      payload: { model: resolveRealLlmModel(), max_tokens: 1024, messages: [{ role: "user", content: prompt }] },
       timeoutPolicy: {},
       retryPolicy: { maxAttempts: 2, backoffMs: 2000 },
     });
@@ -160,4 +191,9 @@ function buildRealExternalStageAdapter(mono04, missionContext) {
   return { discoverProfessionals: discoverProfessionals, verifyProfessionals: verifyProfessionals, buildProfessionalCorpus: buildProfessionalCorpus };
 }
 
-module.exports = { buildRealExternalStageAdapter: buildRealExternalStageAdapter, buildRealLlmWorkerCallFn: buildRealLlmWorkerCallFn };
+module.exports = {
+  buildRealExternalStageAdapter: buildRealExternalStageAdapter,
+  buildRealLlmWorkerCallFn: buildRealLlmWorkerCallFn,
+  resolveRealLlmModel: resolveRealLlmModel,
+  DEFAULT_REAL_LLM_MODEL: DEFAULT_REAL_LLM_MODEL,
+};

@@ -1,23 +1,23 @@
-{"timestamp":"2026-08-31T17:33:22.685Z","requestId":"0669faec-912c-4da5-b22d-2c03ee7d6bee","event":"route_rejected","status":404,"latencyMs":2,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.687Z","requestId":"41ff524c-e330-4e62-a80e-74fe57c6005f","event":"route_rejected","status":404,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.687Z","requestId":"062190ce-4caa-4565-b8c2-33918bf1527b","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.688Z","requestId":"d65684ff-3e08-41d6-96e3-c5d9c368ebd4","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.690Z","requestId":"814bcc75-bad9-4bf2-be05-3e6e68527652","event":"rate_limited","status":429,"latencyMs":2,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.693Z","requestId":"dff25517-2aea-4238-be93-8e7e2c48e690","event":"invalid_json","status":400,"latencyMs":1,"payloadBytes":9}
-{"timestamp":"2026-08-31T17:33:22.694Z","requestId":"ff073d55-a7ea-4d1e-bcdc-8ceb0ca49754","event":"invalid_payload","status":400,"latencyMs":0,"payloadBytes":13}
-{"timestamp":"2026-08-31T17:33:22.696Z","requestId":"5d3027e2-5122-46f4-8dbe-0364d9a445e2","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
-{"timestamp":"2026-08-31T17:33:22.698Z","requestId":"client-supplied-id-123","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
-{"timestamp":"2026-08-31T17:33:22.700Z","requestId":"bafee277-679a-4d3a-ba17-9092d7545106","event":"upstream_relayed","status":529,"latencyMs":1,"payloadBytes":95}
-{"timestamp":"2026-08-31T17:33:22.701Z","requestId":"cf961998-9378-4d74-9296-4b3bad172cc9","event":"upstream_timeout","status":504,"latencyMs":1,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.701Z","requestId":"418a846d-f9a1-46d7-8102-372392e31299","event":"upstream_network_error","status":502,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.702Z","requestId":"3b3bc1a8-25e5-45c8-b020-71436ac775e2","event":"upstream_misconfigured","status":500,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.703Z","requestId":"cda54d47-d76e-4efd-a9d6-6f548faf0585","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
-{"timestamp":"2026-08-31T17:33:22.704Z","requestId":"aec1c6e7-3c4b-4e8b-91cd-58512d3c4044","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.704Z","requestId":"b667de40-6c93-4870-bcec-6961c7a635fe","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.705Z","requestId":"08ae48db-0e94-4f8b-afd5-024c3889a575","event":"rate_limiter_unavailable","status":503,"latencyMs":1,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.705Z","requestId":"278a9ad7-c803-4064-a996-20f6b712cefd","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.706Z","requestId":"6b2b8261-5112-456c-b9db-d73f8098c01a","event":"rate_limiter_unavailable","status":503,"latencyMs":1,"payloadBytes":null}
-{"timestamp":"2026-08-31T17:33:22.706Z","requestId":"3b727813-28b2-4e63-8efa-c36a423c44d5","event":"rate_limited","status":429,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.637Z","requestId":"4c4d6cc9-ea74-42f1-b150-432cce96f82e","event":"route_rejected","status":404,"latencyMs":2,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.640Z","requestId":"49c8e56d-ec46-42fb-bfa2-97eda945471a","event":"route_rejected","status":404,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.641Z","requestId":"9b91a33b-41a7-47e8-bcc5-c6a8723d5232","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.642Z","requestId":"00263e01-738e-4c12-8c3b-7d9cace47255","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.646Z","requestId":"b1b522b7-f29e-4efc-9478-f390470ff7a2","event":"rate_limited","status":429,"latencyMs":4,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.652Z","requestId":"62e39192-531e-4314-9cc1-cdc09b63d2ea","event":"invalid_json","status":400,"latencyMs":3,"payloadBytes":9}
+{"timestamp":"2026-08-31T19:01:37.654Z","requestId":"bbf1baae-4bee-4d40-9697-b17f2d41cf4d","event":"invalid_payload","status":400,"latencyMs":1,"payloadBytes":13}
+{"timestamp":"2026-08-31T19:01:37.655Z","requestId":"d7db6343-f00d-4a74-b764-c96d29e379bb","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.658Z","requestId":"client-supplied-id-123","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.662Z","requestId":"f5455cd6-32e5-4210-8f3b-abf73f3e7082","event":"upstream_relayed","status":529,"latencyMs":2,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.663Z","requestId":"7e554ddc-af7b-4afe-be3b-040bfdd23249","event":"upstream_timeout","status":504,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.664Z","requestId":"655bf565-5e58-4f1c-a9b4-c5fd29578b1c","event":"upstream_network_error","status":502,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.665Z","requestId":"7007c87a-37df-4562-81a6-0836aa9622d9","event":"upstream_misconfigured","status":500,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.666Z","requestId":"65f6c18f-9ec3-4aee-858e-7095424db587","event":"upstream_relayed","status":200,"latencyMs":0,"payloadBytes":95}
+{"timestamp":"2026-08-31T19:01:37.668Z","requestId":"0a8dfd65-05a8-4e55-8b1b-ad523d97355d","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.668Z","requestId":"e39f3f21-e62e-4a2f-92e4-f035f2c58d43","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.668Z","requestId":"3a9f2742-0df8-4e12-ac58-508f024dd054","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.669Z","requestId":"d93328f7-f471-429b-a574-dd9310d813dd","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.669Z","requestId":"d6b354c1-2f84-4083-bd50-dec7b526cb86","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T19:01:37.670Z","requestId":"1dba7b3c-12fd-47d2-b21d-57500b2cea2c","event":"rate_limited","status":429,"latencyMs":0,"payloadBytes":null}
 PASS — Worker-1. GET /v1/messages refuse -> 404, aucun appel upstream possible avant ce refus
 PASS — Worker-2. POST /other-route refuse -> 404
 PASS — Worker-D1. Authorization absent -> 401, aucun appel upstream tente
