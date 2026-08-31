@@ -1,0 +1,78 @@
+{
+  "schema": "MONO-08.RealSmokeMission",
+  "version": "v1",
+  "missionId": "mono08-mission-wcag-smoke",
+  "missionQuestion": "Les certifications publiques de conformite WCAG de ces documents gouvernementaux sont-elles corroborees par la litterature academique reelle sur la conformite WCAG des documents publics ?",
+  "dimensions": [
+    {
+      "id": "WCAG_METADATA_COMPLIANCE",
+      "label": "Conformite des metadonnees de documents aux exigences WCAG/PDF-UA"
+    },
+    {
+      "id": "WCAG_STRUCTURAL_COMPLIANCE",
+      "label": "Conformite structurelle aux criteres WCAG 2.1 AA"
+    }
+  ],
+  "professionalCandidates": [
+    {
+      "status": "VERIFIED",
+      "displayName": "Maarten Marx",
+      "affiliation": "Institute for Logic, Language and Computation, University of Amsterdam",
+      "orcid": "0000-0003-3255-3729",
+      "corpusSeed": [
+        {
+          "title": "WCAG Compliance of Open Government Documents",
+          "doi": "10.1007/978-3-032-06136-2_17",
+          "year": 2025
+        }
+      ],
+      "note": "Identifie et verifie via recherche publique. A reconfirmer/completer par l'operateur via une vraie requete OpenAlex/ORCID avant un run de production."
+    },
+    {
+      "status": "VERIFIED",
+      "displayName": "Thomas Fischer",
+      "affiliation": "University of Skovde",
+      "orcid": "0000-0003-0272-7433",
+      "corpusSeed": [
+        {
+          "title": "Coverage of web accessibility guidelines provided by automated checking tools",
+          "doi": "10.1007/s10209-025-01263-x",
+          "year": 2025,
+          "coauthors": [
+            "Bjorn Lundell",
+            "Jonas Gamalielsson"
+          ]
+        }
+      ],
+      "note": "Professionnel reel fourni par la gouvernance, identifie via reference documentaire verifiee (DOI). ORCID a reconfirmer par l'operateur via une vraie requete OpenAlex/ORCID avant un run de production (jamais suppose ici sans acces reseau reel)."
+    }
+  ],
+  "targetDocuments": [
+    {
+      "status": "VERIFIED",
+      "documentId": "target-01",
+      "title": "Governor's Office of Planning and Research - Website Accessibility Certification",
+      "url": "https://climateassessment.ca.gov/accessibility-certificate.html",
+      "note": "Page publique reelle, certification de conformite WCAG 2.0 AA avec exceptions documentees.",
+      "content": "Accessibility / Help Page\nUpdated: July 1, 2023\n\nThe Governor's Office of Planning and Research certifies that its websites comply with Government Code Section 11546.7, as follows:\n\nThe Governor's Office of Planning and Research certifies compliance with Government Code Section 7405.\nThe Governor's Office of Planning and Research certifies compliance with Government Code Section 11135.\n\nConsistent with the Web Content Accessibility Guidelines (WCAG) 2.0, the Governor's Office of Planning and Research issues a statement of partial conformance as third-party documents existing on its main website (opr.ca.gov). This website does not fully conform, but would fully conform to WCAG 2.0 at a Level AA standard if the following non-conforming parts were removed:\n\nDocuments prepared pursuant to the California Environmental Quality Act (CEQA) that are required to be submitted to the State Clearinghouse at the Governor's Office of Planning and Research and made publicly available through an online database known as the CEQAnet Web Portal. (Pub. Resources Code, Section 21159.9, subd. (b).)\n\nThe Governor's Office of Planning and Research does not control the content expressly listed above. With exception to these uncontrolled parts, the Governor's Office of Planning and Research certifies that its websites conform to WCAG 2.0 at a Level AA standard.\n\nIf you have difficulty accessing any material on our website, please contact us at accessibility@opr.ca.gov and we will correct the problem or work to provide the information in an alternative format.",
+      "contentBase64": "QWNjZXNzaWJpbGl0eSAvIEhlbHAgUGFnZQpVcGRhdGVkOiBKdWx5IDEsIDIwMjMKClRoZSBHb3Zlcm5vcidzIE9mZmljZSBvZiBQbGFubmluZyBhbmQgUmVzZWFyY2ggY2VydGlmaWVzIHRoYXQgaXRzIHdlYnNpdGVzIGNvbXBseSB3aXRoIEdvdmVybm1lbnQgQ29kZSBTZWN0aW9uIDExNTQ2LjcsIGFzIGZvbGxvd3M6CgpUaGUgR292ZXJub3IncyBPZmZpY2Ugb2YgUGxhbm5pbmcgYW5kIFJlc2VhcmNoIGNlcnRpZmllcyBjb21wbGlhbmNlIHdpdGggR292ZXJubWVudCBDb2RlIFNlY3Rpb24gNzQwNS4KVGhlIEdvdmVybm9yJ3MgT2ZmaWNlIG9mIFBsYW5uaW5nIGFuZCBSZXNlYXJjaCBjZXJ0aWZpZXMgY29tcGxpYW5jZSB3aXRoIEdvdmVybm1lbnQgQ29kZSBTZWN0aW9uIDExMTM1LgoKQ29uc2lzdGVudCB3aXRoIHRoZSBXZWIgQ29udGVudCBBY2Nlc3NpYmlsaXR5IEd1aWRlbGluZXMgKFdDQUcpIDIuMCwgdGhlIEdvdmVybm9yJ3MgT2ZmaWNlIG9mIFBsYW5uaW5nIGFuZCBSZXNlYXJjaCBpc3N1ZXMgYSBzdGF0ZW1lbnQgb2YgcGFydGlhbCBjb25mb3JtYW5jZSBhcyB0aGlyZC1wYXJ0eSBkb2N1bWVudHMgZXhpc3Rpbmcgb24gaXRzIG1haW4gd2Vic2l0ZSAob3ByLmNhLmdvdikuIFRoaXMgd2Vic2l0ZSBkb2VzIG5vdCBmdWxseSBjb25mb3JtLCBidXQgd291bGQgZnVsbHkgY29uZm9ybSB0byBXQ0FHIDIuMCBhdCBhIExldmVsIEFBIHN0YW5kYXJkIGlmIHRoZSBmb2xsb3dpbmcgbm9uLWNvbmZvcm1pbmcgcGFydHMgd2VyZSByZW1vdmVkOgoKRG9jdW1lbnRzIHByZXBhcmVkIHB1cnN1YW50IHRvIHRoZSBDYWxpZm9ybmlhIEVudmlyb25tZW50YWwgUXVhbGl0eSBBY3QgKENFUUEpIHRoYXQgYXJlIHJlcXVpcmVkIHRvIGJlIHN1Ym1pdHRlZCB0byB0aGUgU3RhdGUgQ2xlYXJpbmdob3VzZSBhdCB0aGUgR292ZXJub3IncyBPZmZpY2Ugb2YgUGxhbm5pbmcgYW5kIFJlc2VhcmNoIGFuZCBtYWRlIHB1YmxpY2x5IGF2YWlsYWJsZSB0aHJvdWdoIGFuIG9ubGluZSBkYXRhYmFzZSBrbm93biBhcyB0aGUgQ0VRQW5ldCBXZWIgUG9ydGFsLiAoUHViLiBSZXNvdXJjZXMgQ29kZSwgU2VjdGlvbiAyMTE1OS45LCBzdWJkLiAoYikuKQoKVGhlIEdvdmVybm9yJ3MgT2ZmaWNlIG9mIFBsYW5uaW5nIGFuZCBSZXNlYXJjaCBkb2VzIG5vdCBjb250cm9sIHRoZSBjb250ZW50IGV4cHJlc3NseSBsaXN0ZWQgYWJvdmUuIFdpdGggZXhjZXB0aW9uIHRvIHRoZXNlIHVuY29udHJvbGxlZCBwYXJ0cywgdGhlIEdvdmVybm9yJ3MgT2ZmaWNlIG9mIFBsYW5uaW5nIGFuZCBSZXNlYXJjaCBjZXJ0aWZpZXMgdGhhdCBpdHMgd2Vic2l0ZXMgY29uZm9ybSB0byBXQ0FHIDIuMCBhdCBhIExldmVsIEFBIHN0YW5kYXJkLgoKSWYgeW91IGhhdmUgZGlmZmljdWx0eSBhY2Nlc3NpbmcgYW55IG1hdGVyaWFsIG9uIG91ciB3ZWJzaXRlLCBwbGVhc2UgY29udGFjdCB1cyBhdCBhY2Nlc3NpYmlsaXR5QG9wci5jYS5nb3YgYW5kIHdlIHdpbGwgY29ycmVjdCB0aGUgcHJvYmxlbSBvciB3b3JrIHRvIHByb3ZpZGUgdGhlIGluZm9ybWF0aW9uIGluIGFuIGFsdGVybmF0aXZlIGZvcm1hdC4=",
+      "contentSource": "Recupere reellement via recherche web (climateassessment.ca.gov/accessibility-certificate.html) - jamais fabrique."
+    },
+    {
+      "status": "VERIFIED",
+      "documentId": "target-02",
+      "title": "Website accessibility certification - Office of the Governor (results.ca.gov)",
+      "url": "https://results.ca.gov/accessibility/",
+      "note": "Page publique reelle, certification de conformite WCAG 2.2 Niveau AA, datee du 6 janvier 2025 (Office of the Governor, State of California).",
+      "content": "Website accessibility certification\n\n2025 Certification\n\nAgency: Office of the Governor\n\nCertification date: January 6, 2025\n\nWebsite: results.ca.gov\n\nContact: doug.hunting@gov.ca.gov\n\nThe undersigned certify that, as of January 6, 2025 the website of the Office of the Governor is designed, developed, and maintained to be accessible. This denotes compliance with the following:\n\n- California Government Code Sections 7405, 11135, and 11546.7\n- Web Content Accessibility Guidelines 2.2 published by the Web Accessibility Initiative of the World Wide Web Consortium\n- At a minimum Level AA success criteria\n\nDoug Hunting\nChief Information Officer\n(Signature on file) January 6, 2025\n\nMiroslava de la O\nDirector\n(Signature on file) January 6, 2025",
+      "contentBase64": "V2Vic2l0ZSBhY2Nlc3NpYmlsaXR5IGNlcnRpZmljYXRpb24KCjIwMjUgQ2VydGlmaWNhdGlvbgoKQWdlbmN5OiBPZmZpY2Ugb2YgdGhlIEdvdmVybm9yCgpDZXJ0aWZpY2F0aW9uIGRhdGU6IEphbnVhcnkgNiwgMjAyNQoKV2Vic2l0ZTogcmVzdWx0cy5jYS5nb3YKCkNvbnRhY3Q6IGRvdWcuaHVudGluZ0Bnb3YuY2EuZ292CgpUaGUgdW5kZXJzaWduZWQgY2VydGlmeSB0aGF0LCBhcyBvZiBKYW51YXJ5IDYsIDIwMjUgdGhlIHdlYnNpdGUgb2YgdGhlIE9mZmljZSBvZiB0aGUgR292ZXJub3IgaXMgZGVzaWduZWQsIGRldmVsb3BlZCwgYW5kIG1haW50YWluZWQgdG8gYmUgYWNjZXNzaWJsZS4gVGhpcyBkZW5vdGVzIGNvbXBsaWFuY2Ugd2l0aCB0aGUgZm9sbG93aW5nOgoKLSBDYWxpZm9ybmlhIEdvdmVybm1lbnQgQ29kZSBTZWN0aW9ucyA3NDA1LCAxMTEzNSwgYW5kIDExNTQ2LjcKLSBXZWIgQ29udGVudCBBY2Nlc3NpYmlsaXR5IEd1aWRlbGluZXMgMi4yIHB1Ymxpc2hlZCBieSB0aGUgV2ViIEFjY2Vzc2liaWxpdHkgSW5pdGlhdGl2ZSBvZiB0aGUgV29ybGQgV2lkZSBXZWIgQ29uc29ydGl1bQotIEF0IGEgbWluaW11bSBMZXZlbCBBQSBzdWNjZXNzIGNyaXRlcmlhCgpEb3VnIEh1bnRpbmcKQ2hpZWYgSW5mb3JtYXRpb24gT2ZmaWNlcgooU2lnbmF0dXJlIG9uIGZpbGUpIEphbnVhcnkgNiwgMjAyNQoKTWlyb3NsYXZhIGRlIGxhIE8KRGlyZWN0b3IKKFNpZ25hdHVyZSBvbiBmaWxlKSBKYW51YXJ5IDYsIDIwMjU=",
+      "contentSha256Utf8": "fc51ea3c82b1bf03d2b017c6652a79b0f049d64a1d847efb5c9ba99bd23b8a4f",
+      "contentSource": "Recupere reellement via web_fetch (results.ca.gov/accessibility/) le 2026-08-31 - jamais fabrique. Hash different de celui d'un audit precedent (formatage de recuperation different) - conserve comme nouveau contenu reel, conformement a la regle de non-reutilisation d'un hash non strictement identique.",
+      "retrievedAt": "2026-08-31T11:35:00.000Z"
+    }
+  ],
+  "readyForExecution": true,
+  "blockedReason": null,
+  "missionExecutionCopyOf": "fixtures/mission-real-smoke-v1.json",
+  "missionExecutionCopyCreatedAt": "2026-08-31T11:40:00.000Z"
+}

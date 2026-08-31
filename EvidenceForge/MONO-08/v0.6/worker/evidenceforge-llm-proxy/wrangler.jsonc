@@ -1,0 +1,48 @@
+{
+  // evidenceforge-llm-proxy — Worker Cloudflare dédié, mode delegated de
+  // MONO-08 v0.6. NON DÉPLOYÉ par ce lot (implémentation + preuves
+  // LOCAL_CONTROLLED uniquement — voir README.md "Statut de déploiement").
+  //
+  // Aucune valeur de secret n'apparaît ni ne doit jamais apparaître dans ce
+  // fichier ou dans le dépôt. WORKER_API_KEY et ANTHROPIC_API_KEY sont des
+  // secrets Cloudflare à définir via `wrangler secret put` au moment du
+  // déploiement réel (hors périmètre de ce lot).
+  "name": "evidenceforge-llm-proxy",
+  "main": "src/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Rate limiting (CDC section 7.11) — binding natif Cloudflare Rate
+  // Limiting API. Seuil documenté ici, à ajuster par l'opérateur au moment
+  // du déploiement réel selon le volume attendu ; jamais codé en dur dans
+  // src/worker.js (le code lit uniquement env.RATE_LIMITER.limit(), voir
+  // src/worker.js::checkRateLimit()).
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "type": "ratelimit",
+        // simple : compteur glissant. period en secondes. limit = nombre
+        // de requêtes autorisées par période et par clé (voir
+        // checkRateLimit() : clé = hash de EVIDENCEFORGE_WORKER_API_KEY).
+        // Valeur de démarrage prudente, à ajuster par l'opérateur avant
+        // tout déploiement réel — jamais laissée "illimitée".
+        "namespace_id": "1",
+        "simple": { "limit": 30, "period": 60 }
+      }
+    ]
+  },
+
+  // Secrets attendus (jamais définis ici — `wrangler secret put <name>`
+  // uniquement, hors dépôt) :
+  //   WORKER_API_KEY      — credential d'entrée, connu du Worker et du
+  //                          runtime EvidenceForge (EVIDENCEFORGE_WORKER_API_KEY
+  //                          côté client).
+  //   ANTHROPIC_API_KEY   — secret upstream, connu du Worker seul.
+  "vars": {}
+
+  // Aucune route publique large (ex. workers.dev par défaut au déploiement,
+  // ou une route personnalisée) n'est fixée ici : à décider par l'opérateur
+  // au moment du déploiement réel, hors périmètre de ce lot (CDC section 7,
+  // "pas de wildcard de sécurité implicite" — CDC section 8).
+}

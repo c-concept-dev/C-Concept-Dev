@@ -1,0 +1,19 @@
+PASS — A. direct, ANTHROPIC_API_KEY absente -> AUTHENTICATION_BLOCKED
+PASS — B. direct + credential valide (LOCAL_CONTROLLED) -> READY, authMode=direct
+PASS — C-config. provider delegated exige EVIDENCEFORGE_WORKER_API_KEY (jamais ANTHROPIC_API_KEY)
+PASS — C. delegated sans EVIDENCEFORGE_WORKER_API_KEY -> AUTHENTICATION_BLOCKED
+PASS — D. delegated, Worker rejette le credential (401 actif) -> AUTHENTICATION_BLOCKED, jamais NO_CREDENTIAL
+PASS — E. delegated, HTTP 200 corps non conforme -> INVALID_RESPONSE, jamais READY
+PASS — F. delegated, Worker simule NIVEAU 1 valide (LOCAL_CONTROLLED) -> READY
+PASS — J-buildProviders. LLM_AUTH_MODE="anything-else" -> exception avant tout appel provider, aucune requete reseau (https.request jamais invoque)
+PASS — J-runPreflight. runPreflight() rejette LLM_AUTH_MODE invalide, aucune requete reseau — bin/run-preflight.js (inchange) traduit ceci en PRODUCT_CONFIG_ERROR / exit code 3
+PASS — J-defaut. LLM_AUTH_MODE absent -> aucune exception (retombe sur direct)
+PASS — K. delegated, Worker HTTP 429 (rate limit) -> RATE_LIMITED, jamais READY
+PASS — K-note. Un 429 renvoye par checkProvider() a ce niveau simule le Worker bloquant AVANT upstream (CDC 7.11) — la preuve que l'appel upstream Anthropic n'a pas ete tente vit dans le Worker lui-meme (voir worker/evidenceforge-llm-proxy/test)
+PASS — H2-extract-preflight. bloc buildLlmWorkerProviderDelegated() extrait pour revue
+PASS — H2-preflight. aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildLlmWorkerProviderDelegated() (lib/preflight.js)
+PASS — H2-extract-real-provider-configs. bloc buildLlmWorkerConfigDelegated() extrait pour revue
+PASS — H2-real-provider-configs. aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildLlmWorkerConfigDelegated() (lib/real-provider-configs.js)
+
+TOUS LES TESTS PASSENT (16)
+exit_code=0

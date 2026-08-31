@@ -1,0 +1,1 @@
+EVIDENCEFORGE_MONO07_LIB_PATH non fourni — necessaire pour reutiliser buildEnv/driveRun de MONO-07 sans dupliquer leur logique.

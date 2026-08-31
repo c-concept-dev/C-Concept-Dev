@@ -1,0 +1,47 @@
+{"timestamp":"2026-08-31T14:42:34.570Z","requestId":"cbfb3142-f88b-469f-b450-be533b598a80","event":"route_rejected","status":404,"latencyMs":2,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.572Z","requestId":"c860b111-f32e-4104-9dd7-2b9b7d4a3aec","event":"route_rejected","status":404,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.572Z","requestId":"5cf412d3-b1d2-4235-8c45-b0a80b41e6cf","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.573Z","requestId":"5bd92d18-9b3c-47d6-95aa-eed598569549","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.576Z","requestId":"275c36d5-77b6-4dcc-8c83-14dfdd1f46da","event":"rate_limited","status":429,"latencyMs":3,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.579Z","requestId":"84ca6278-93f1-466d-af28-01f3793f3fb0","event":"invalid_json","status":400,"latencyMs":1,"payloadBytes":9}
+{"timestamp":"2026-08-31T14:42:34.580Z","requestId":"c3111287-f9f4-4e9c-908f-8f93193b4466","event":"invalid_payload","status":400,"latencyMs":1,"payloadBytes":13}
+{"timestamp":"2026-08-31T14:42:34.581Z","requestId":"9a40ab65-27ca-45e5-9893-68f8e5e4a421","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T14:42:34.582Z","requestId":"client-supplied-id-123","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T14:42:34.583Z","requestId":"7f780ed5-3f1c-4667-a63f-9e14c5c44ae2","event":"upstream_relayed","status":529,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T14:42:34.584Z","requestId":"17668dd8-78b6-4432-9ee6-8626ed5380db","event":"upstream_timeout","status":504,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.584Z","requestId":"b11ec266-e5ad-47f8-96f6-1a30abf72060","event":"upstream_network_error","status":502,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.585Z","requestId":"bf0f1225-7123-40f2-ba1b-82c4cef55b9c","event":"upstream_misconfigured","status":500,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.586Z","requestId":"045727ab-1439-4c51-a14b-7bdbf3b67157","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-08-31T14:42:34.587Z","requestId":"881ec2e1-6b41-48a1-b52d-f534fd5913e8","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-08-31T14:42:34.587Z","requestId":"2e0ea02c-acda-4e9a-828b-013c847c011b","event":"upstream_relayed","status":200,"latencyMs":0,"payloadBytes":95}
+PASS — Worker-1. GET /v1/messages refuse -> 404, aucun appel upstream possible avant ce refus
+PASS — Worker-2. POST /other-route refuse -> 404
+PASS — Worker-D1. Authorization absent -> 401, aucun appel upstream tente
+PASS — Worker-D2 (cas D). credential Worker incorrect -> 401, aucun appel upstream tente
+PASS — Worker-K (cas K). seuil rate limit atteint -> 429, aucun appel upstream tente
+PASS — Worker-K-body. corps 429 non converti en succes
+PASS — Worker-3. JSON malforme -> 400, aucun appel upstream tente
+PASS — Worker-4. payload JSON valide mais non conforme (model/max_tokens/messages absents) -> 400, aucun appel upstream tente
+PASS — Worker-5. credential+payload valides -> appel upstream reellement invoque
+PASS — Worker-6. relai fidele du corps Anthropic (NIVEAU 1)
+PASS — Worker-7. header de correlation X-EvidenceForge-Proxy present
+PASS — Worker-8. header de correlation X-EvidenceForge-Upstream=anthropic present
+PASS — Worker-9. header de correlation X-EvidenceForge-Upstream-Status=200 present
+PASS — Worker-10. header de correlation X-EvidenceForge-Request-Id present (non secret)
+PASS — Worker-11. request-id fourni par le client est propage tel quel (correlation NIVEAU 2)
+PASS — Worker-12. erreur upstream (529) relayee telle quelle, jamais transformee en 200
+PASS — Worker-13. timeout upstream -> 504, jamais 200 de repli
+PASS — Worker-14. panne reseau upstream -> 502, jamais 200 de repli
+PASS — Worker-15. ANTHROPIC_API_KEY absente cote Worker -> 500, aucun appel upstream, jamais un faux succes
+PASS — Worker-16. ANTHROPIC_API_KEY jamais presente dans le corps de reponse
+PASS — Worker-17. ANTHROPIC_API_KEY jamais presente dans un header de reponse
+PASS — Worker-18. WORKER_API_KEY jamais presente dans un corps de reponse d'erreur 401
+PASS — Worker-19. isValidMessagesPayload() accepte un payload conforme
+PASS — Worker-20. isValidMessagesPayload() rejette un payload sans messages
+PASS — Worker-21. extractBearerToken() extrait le token
+PASS — Worker-22. extractBearerToken() retourne null sans header
+PASS — Worker-23. constantTimeEquals() compare correctement
+PASS — Worker-24. sans binding RATE_LIMITER (test), la requete n'est pas bloquee par defaut — cf. README.md : binding obligatoire avant tout deploiement reel
+
+TOUS LES TESTS PASSENT (28)
+exit_code=0

@@ -65,6 +65,11 @@ eggs/
 .eggs/
 lib/
 lib64/
+# The blanket "lib/" rule above targets Python venvs; it also unintentionally
+# hides real JS product source under EvidenceForge/MONO-08/v0.6/lib/ (the
+# MONO-08 v0.6 delegated-auth implementation). Un-ignore that specific tree.
+!EvidenceForge/MONO-08/v0.6/lib/
+!EvidenceForge/MONO-08/v0.6/lib/**
 parts/
 sdist/
 var/
@@ -139,6 +144,11 @@ $RECYCLE.BIN/
 **/*secret*
 **/*token*
 **/*credential*
+# False positive: lib/secret-scan.js is a scanner UTILITY (source code that
+# looks for leaked secret values), not a file containing one. Required by
+# unmodified v0.5 files (bin/run-real-smoke.js, test/test_t08_eforch.js,
+# test/test_t08_matrix.js) via `require("../lib/secret-scan")`.
+!EvidenceForge/MONO-08/v0.6/lib/secret-scan.js
 
 # ═══ NOTES LOCALES ═══
 TODO.md

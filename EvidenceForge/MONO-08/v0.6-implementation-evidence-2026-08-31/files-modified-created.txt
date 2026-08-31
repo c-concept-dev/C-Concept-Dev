@@ -1,0 +1,94 @@
+MONO-08 v0.6 — liste exacte des fichiers créés / modifiés
+Base de comparaison : copie de travail v0.5 source (kit local
+EvidenceForge-Claude-Code-Real-Smoke-Kit, MONO-08-5, jamais modifiée
+elle-même — voir frozen-before/after-implementation.sha256).
+
+=== FICHIERS CRÉÉS (nouveaux, absents de v0.5) ===
+test/test_t08_v06_delegated_auth.js
+worker/evidenceforge-llm-proxy/README.md
+worker/evidenceforge-llm-proxy/package.json
+worker/evidenceforge-llm-proxy/src/worker.js
+worker/evidenceforge-llm-proxy/test/worker.test.js
+worker/evidenceforge-llm-proxy/wrangler.jsonc
+reports/v0.6-local-controlled/AUDIT-MATRIX.md
+reports/v0.6-local-controlled/test_t08_v06_delegated_auth.out
+reports/v0.6-local-controlled/worker.test.out
+reports/v0.6-local-controlled/cli-J-invalid-llm-auth-mode.out
+reports/v0.6-local-controlled/cli-direct-mode-real-network.out
+reports/v0.6-local-controlled/cli-delegated-mode-no-real-worker.out
+reports/v0.6-local-controlled/regression-non-regression/*.out (8 fichiers)
+reports/v0.6-local-controlled/regression-non-regression/*.diff.txt (4 fichiers, tous vides)
+
+=== FICHIERS MODIFIÉS (chemin identique à v0.5, contenu différent) ===
+lib/preflight.js
+  - resolveAuthMode(), buildLlmWorkerProviderDirect() (extraction exacte du
+    code v0.5 existant, comportement inchangé), buildLlmWorkerProviderDelegated()
+    (nouveau), champ authMode additif dans buildProviders()/checkProvider()/
+    runPreflight(). Valeur explicite invalide de LLM_AUTH_MODE -> exception
+    avant tout appel provider.
+
+lib/real-provider-configs.js
+  - resolveAuthMode() (dupliqué depuis preflight.js, petite fonction pure),
+    buildLlmWorkerConfigDirect()/buildLlmWorkerConfigDelegated(). Forme de
+    configuration consommée par MONO-04 strictement inchangée.
+
+.env.example
+  - Ajout LLM_AUTH_MODE, EVIDENCEFORGE_WORKER_API_KEY (documentation, jamais
+    de vraie valeur).
+
+README-REAL-SMOKE.md
+  - Nouvelle section "MONO-08 v0.6 — Delegated LLM Authentication" en tête
+    de fichier ; ajout des 2 nouveaux fichiers de test à la section Tests.
+
+CDC-TRACE.md
+  - Nouvelle section en tête de fichier documentant la Phase 1 (découverte
+    de contrat MONO-04 : header Authorization: Bearer), les fichiers
+    modifiés, la non-régression, ce qui n'a pas été fait.
+
+package.json
+  - version 0.6.0, description mise à jour, scripts test:v06/test:worker
+    ajoutés (additifs, script "test" existant inchangé).
+
+reports/mono-08-preflight-v1.json, reports/mono-08-test-report-v1.json
+  - Régénérés par l'exécution réelle (non manuelle) de bin/run-preflight.js
+    et test/test_t08_matrix.js (comportement normal, déjà prévu par le
+    code v0.5 lui-même — ces fichiers sont réécrits à chaque exécution du
+    CLI, ce n'est pas une édition manuelle).
+
+manifest/SHA256SUMS
+  - Régénéré pour couvrir l'arborescence complète v0.6 (49 fichiers).
+
+=== FICHIERS EXPLICITEMENT NON MODIFIÉS (copiés tels quels depuis v0.5) ===
+bin/run-preflight.js
+bin/run-real-smoke.js
+fixtures/mission-real-smoke-v1.json
+lib/eforch-artifacts.js
+lib/frozen-zip-integrity.js
+lib/kit-root.js
+lib/real-e2e-driver.js
+lib/real-external-adapter.js
+lib/secret-scan.js
+MISSION.md
+test/test_t08_eforch.js
+test/test_t08_matrix.js
+test/test_t08_preflight.js
+test/test_t08_runner_orchestration.js
+reports/mono-08-evidence-matrix-v1.json
+reports/mono-08-provider-matrix-v1.json
+reports/mono-08-real-smoke-trace-v1.json
+
+Preuve de non-modification pour les 4 fichiers de test ci-dessus : sortie
+octet pour octet identique entre v0.5 source et v0.6, voir
+reports/v0.6-local-controlled/regression-non-regression/*.diff.txt (tous
+vides).
+
+=== FICHIERS EXPLICITEMENT NON TOUCHÉS (hors de cette copie de travail) ===
+MONO-00 → MONO-07 (ZIP canoniques du kit local)
+MONO-08 v0.5 (ZIP canonique du kit local, ni la copie autonome ni la copie
+  embarquée dans le handoff)
+MONO-04 (extrait en lecture seule dans une zone de travail temporaire pour
+  inspection uniquement — jamais modifié, jamais recopié dans ce paquet)
+EF-ORCH-SUBSYSTEM
+Tout autre Worker Cloudflare existant (clone-proxy, ocr-universel-proxy,
+  openalex-proxy, openai-proxy, groq-proxy, google-tts-proxy,
+  jmmjs-map-services, worker-mcp)

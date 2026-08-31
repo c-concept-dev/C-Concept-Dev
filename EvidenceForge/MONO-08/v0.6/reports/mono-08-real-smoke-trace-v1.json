@@ -1,0 +1,77 @@
+{
+  "schema": "MONO-08.RealSmokeTrace",
+  "version": "v1",
+  "steps": [
+    {
+      "step": "baseline-gate",
+      "status": "PASS",
+      "detail": "MONO=785/785, historique=1223/1223",
+      "evidenceType": "REAL",
+      "at": "2026-08-31T10:18:53.683Z"
+    },
+    {
+      "step": "frozen-zip-integrity-before",
+      "status": "PASS",
+      "detail": "hash calcule pour 8 ZIP canoniques.",
+      "evidenceType": "REAL",
+      "at": "2026-08-31T10:18:53.687Z"
+    },
+    {
+      "step": "preflight",
+      "status": "BLOCKED",
+      "detail": "BLOCKED",
+      "evidenceType": "REAL",
+      "at": "2026-08-31T10:18:53.867Z"
+    },
+    {
+      "step": "mission-gate",
+      "status": "NOT_RUN_ENVIRONMENT_BLOCKED",
+      "detail": "preflight non READY.",
+      "evidenceType": "NOT_RUN",
+      "at": "2026-08-31T10:18:53.868Z"
+    },
+    {
+      "step": "connectivity",
+      "status": "NOT_RUN_ENVIRONMENT_BLOCKED",
+      "detail": "preflight non READY - aucun appel externe reel tente.",
+      "evidenceType": "NOT_RUN",
+      "at": "2026-08-31T10:18:53.868Z"
+    },
+    {
+      "step": "full-pipeline",
+      "status": "NOT_RUN_ENVIRONMENT_BLOCKED",
+      "detail": "depend de connectivity.",
+      "evidenceType": "NOT_RUN",
+      "at": "2026-08-31T10:18:53.868Z"
+    },
+    {
+      "step": "persistence-restart",
+      "status": "NOT_RUN_ENVIRONMENT_BLOCKED",
+      "detail": "depend du full pipeline.",
+      "evidenceType": "NOT_RUN",
+      "at": "2026-08-31T10:18:53.868Z"
+    },
+    {
+      "step": "ui-smoke",
+      "status": "NOT_RUN_ENVIRONMENT_BLOCKED",
+      "detail": "depend du full pipeline.",
+      "evidenceType": "NOT_RUN",
+      "at": "2026-08-31T10:18:53.868Z"
+    },
+    {
+      "step": "secret-scan",
+      "status": "NOT_RUN_ENVIRONMENT_BLOCKED",
+      "detail": "aucun run reel a scanner.",
+      "evidenceType": "NOT_RUN",
+      "at": "2026-08-31T10:18:53.868Z"
+    },
+    {
+      "step": "frozen-zip-integrity-after",
+      "status": "PASS",
+      "detail": "bit-a-bit identique.",
+      "evidenceType": "REAL",
+      "at": "2026-08-31T10:18:53.871Z"
+    }
+  ],
+  "startedAt": "2026-08-31T10:17:18.266Z"
+}

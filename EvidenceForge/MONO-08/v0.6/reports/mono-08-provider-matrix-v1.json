@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-08-31T08:24:29.638Z",
+  "overallPreflightStatus": "BLOCKED",
+  "providers": [
+    {
+      "providerId": "openalex",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.openalex.org",
+      "operationDescription": "GET /works?per_page=1 (operation reelle de recherche)",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "preflightStatus": "NETWORK_BLOCKED",
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "realSmokeRequired": true,
+      "retryPolicy": "herite de MONO-04/lib/external-execution-gateway.js (retryPolicy fourni par le node-runner appelant)"
+    },
+    {
+      "providerId": "crossref",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.crossref.org",
+      "operationDescription": "GET /works?rows=1 (operation reelle de recherche)",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "preflightStatus": "NETWORK_BLOCKED",
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "realSmokeRequired": true,
+      "retryPolicy": "herite de MONO-04/lib/external-execution-gateway.js (retryPolicy fourni par le node-runner appelant)"
+    },
+    {
+      "providerId": "pubmed",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://eutils.ncbi.nlm.nih.gov",
+      "operationDescription": "GET /entrez/eutils/esearch.fcgi?db=pubmed&term=accessibility&retmax=1&retmode=json",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "preflightStatus": "NETWORK_BLOCKED",
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "realSmokeRequired": false,
+      "retryPolicy": "herite de MONO-04/lib/external-execution-gateway.js (retryPolicy fourni par le node-runner appelant)"
+    },
+    {
+      "providerId": "llm-worker",
+      "dependencyType": "worker",
+      "baseUrl": "https://api.anthropic.com",
+      "operationDescription": "POST /v1/messages (operation reelle du contrat, max_tokens=1 — jamais GET, qui donnerait un faux 405)",
+      "credentialRequired": true,
+      "credentialEnvVar": "ANTHROPIC_API_KEY",
+      "preflightStatus": "AUTHENTICATION_BLOCKED",
+      "stages": {
+        "hostReachable": true,
+        "authValid": false,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "rawClassification": "NO_CREDENTIAL",
+      "realSmokeRequired": true,
+      "retryPolicy": "herite de MONO-04/lib/external-execution-gateway.js (retryPolicy fourni par le node-runner appelant)"
+    }
+  ]
+}

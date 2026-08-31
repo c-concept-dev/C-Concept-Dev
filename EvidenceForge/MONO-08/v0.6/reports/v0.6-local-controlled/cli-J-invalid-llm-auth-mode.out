@@ -1,0 +1,2 @@
+PRODUCT_CONFIG_ERROR: LLM_AUTH_MODE invalide: "anything-else" (valeurs autorisees : absente -> direct, "direct", "delegated") — PRODUCT_CONFIG_ERROR, aucun appel provider, aucune requete reseau.
+exit_code=3
