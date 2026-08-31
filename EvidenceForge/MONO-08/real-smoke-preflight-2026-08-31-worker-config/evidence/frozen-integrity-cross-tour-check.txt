@@ -1,0 +1,16 @@
+Vérification d'intégrité gelée croisée entre les deux tours du 2026-08-31.
+
+Le tour "worker-config" a ré-extrait le kit dans une copie jetable neuve (le script
+01-prepare-workspace.sh supprime et recrée workspace/). Il n'existe donc pas de
+frozen-before.sha256 propre à ce tour à comparer directement en `cmp` binaire (chemins
+absolus différents dans /tmp). À la place, l'ensemble des 9 empreintes SHA-256 canoniques
+(MONO-00 → MONO-07 + MONO-08 v0.5) produites dans ce tour a été comparé, valeur par valeur
+(indépendamment du chemin), à l'ensemble déjà committé dans le tour précédent
+(EvidenceForge/MONO-08/real-smoke-preflight-2026-08-31/evidence/frozen-after.sha256) :
+
+  diff <(awk '{print $1}' .../real-smoke-preflight-2026-08-31/evidence/frozen-after.sha256 | sort) \
+       <(awk '{print $1}' workspace/reports/frozen-after-worker-config.sha256 | sort)
+  → aucune différence : SAME_HASH_SET=YES
+
+Conclusion : les 9 ZIP canoniques sont restés bit-identiques entre le tour précédent et ce
+tour (aucune modification des lots gelés MONO-00→07 ni du checkpoint MONO-08 v0.5).

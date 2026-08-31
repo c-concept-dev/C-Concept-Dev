@@ -1,0 +1,6 @@
+HANDOFF_ROOT=/tmp/claude-0/-home-user-C-Concept-Dev/362792d2-f6e7-5ece-b91a-192c9cb10c3c/scratchpad/ef-kit/EvidenceForge-Claude-Code-Real-Smoke-Kit/workspace/handoff/EvidenceForge-HANDOFF-pre-REAL-SMOKE-2026-08-31
+MONO08_ROOT=/tmp/claude-0/-home-user-C-Concept-Dev/362792d2-f6e7-5ece-b91a-192c9cb10c3c/scratchpad/ef-kit/EvidenceForge-Claude-Code-Real-Smoke-Kit/workspace/mono08/MONO-08-5
+MONO07_ROOT=/tmp/claude-0/-home-user-C-Concept-Dev/362792d2-f6e7-5ece-b91a-192c9cb10c3c/scratchpad/ef-kit/EvidenceForge-Claude-Code-Real-Smoke-Kit/workspace/mono07/MONO-07-4
+MONO08_CANONICAL_ZIP_SHA256=17a9cc14c606e6c775b92db64bcd71085e04990d5b621b8804818752c1e29aec
+MISSION_EXECUTION_SHA256=a5728e435e07d7ea6b538e27e7daea56323073ff5effb2cf69c2219b6a6152bd
+STAGED_MISSION_SHA256=a5728e435e07d7ea6b538e27e7daea56323073ff5effb2cf69c2219b6a6152bd

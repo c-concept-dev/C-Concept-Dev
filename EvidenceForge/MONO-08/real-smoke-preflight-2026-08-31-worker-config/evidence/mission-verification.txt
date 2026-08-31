@@ -1,0 +1,28 @@
+Vérification de la mission stagée (fixtures/mission-real-smoke-v1.json), extraction jetable
+fraîche (workspace/mono08/MONO-08-5), tour "worker-config" du 2026-08-31.
+
+missionId: mono08-mission-wcag-smoke
+readyForExecution: true
+blockedReason: null
+professionalCandidates count: 2
+targetDocuments count: 2
+
+ prof0  ORCID 0000-0003-3255-3729  (Maarten Marx)  — pas d'OPERATOR_INPUT_REQUIRED
+ prof1  ORCID 0000-0003-0272-7433  (Thomas Fischer) — pas d'OPERATOR_INPUT_REQUIRED
+
+ target0  "Governor's Office of Planning and Research - Website Accessibility Certification"
+          contentBase64 len=2080  content len=1559
+ target1  "Website accessibility certification - Office of the Governor (results.ca.gov)"
+          contentBase64 len=996  content len=746
+
+OPERATOR_INPUT_REQUIRED occurrences dans le fichier stagé : 0
+
+Note : les chaînes littérales "RunContract" / "SearchProtocol" ne figurent pas dans la
+fixture mission elle-même (ce sont des contrats validés par le code du kit lors du run,
+pas des champs stockés dans le JSON de mission) ; readyForExecution=true et
+blockedReason=null attestent que la mission déjà validée dans les tours précédents a été
+stagée sans altération.
+
+2 professionnels réels + 2 targets réels + 0 OPERATOR_INPUT_REQUIRED + readyForExecution=true
++ contentBase64 cohérent avec content (aucune valeur vide ni tronquée) : conforme à l'étape 2
+du prompt de reprise.

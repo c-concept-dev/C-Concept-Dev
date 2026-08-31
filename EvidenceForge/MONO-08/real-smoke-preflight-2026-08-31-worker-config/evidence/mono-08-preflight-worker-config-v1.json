@@ -1,0 +1,111 @@
+{
+  "overallStatus": "BLOCKED",
+  "allRequiredReady": false,
+  "results": [
+    {
+      "providerId": "openalex",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://openalex-proxy.11drumboy11.workers.dev",
+      "operationDescription": "GET /works?per_page=1 (operation reelle de recherche)",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 274,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    },
+    {
+      "providerId": "crossref",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.crossref.org",
+      "operationDescription": "GET /works?rows=1 (operation reelle de recherche)",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 25,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    },
+    {
+      "providerId": "pubmed",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://eutils.ncbi.nlm.nih.gov",
+      "operationDescription": "GET /entrez/eutils/esearch.fcgi?db=pubmed&term=accessibility&retmax=1&retmode=json",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 23,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": false
+    },
+    {
+      "providerId": "llm-worker",
+      "dependencyType": "worker",
+      "baseUrl": "https://ocr-universel-proxy.11drumboy11.workers.dev",
+      "operationDescription": "POST /v1/messages (operation reelle du contrat, max_tokens=1 — jamais GET, qui donnerait un faux 405)",
+      "credentialRequired": true,
+      "credentialEnvVar": "ANTHROPIC_API_KEY",
+      "credentialPresent": false,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 219,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    }
+  ],
+  "checkedAt": "2026-08-31T13:07:40.081Z"
+}

@@ -1,0 +1,81 @@
+Tests de connectivité réels — tour "worker-config" 2026-08-31
+Deux couches de blocage indépendantes ont été mesurées séparément. Rien n'a été simulé ;
+chaque ligne ci-dessous est une invocation réelle de curl ou du client HTTPS Node du kit.
+
+=== Couche 1 : classificateur de permission Bash (outil Claude Code, mode auto) ===
+
+Commande : curl -sS -o /dev/null -D - --connect-timeout 8 --max-time 15 \
+  "https://openalex-proxy.11drumboy11.workers.dev/works?per-page=1"
+Résultat : REFUSÉ avant tout envoi réseau.
+  "Permission for this action was denied by the Claude Code auto mode classifier."
+
+Commande : curl -sS -o /dev/null -D - --connect-timeout 8 --max-time 15 \
+  -X POST -H 'content-type: application/json' -d '{}' \
+  "https://ocr-universel-proxy.11drumboy11.workers.dev/v1/messages"
+Résultat : REFUSÉ avant tout envoi réseau (même message).
+
+Interprétation : dans cette session, le classificateur de permission de l'outil Bash (une
+protection au niveau de l'agent Claude Code, distincte de la politique d'egress réseau de
+l'environnement) a bloqué les requêtes shell explicites vers les deux domaines personnels
+"*.11drumboy11.workers.dev" avant même la tentative de connexion réseau. Ce n'est pas un
+contournement à chercher : la consigne du produit interdit tout contournement, et la
+consigne opérationnelle interdit de forcer un refus de permission. Ce blocage est donc
+rapporté tel quel comme fait mesuré, sans nouvelle tentative répétée.
+
+=== Couche 1 bis : mêmes commandes vers les hôtes déjà autorisés par le classificateur ===
+
+Commande : curl -sS -o /dev/null -D - --connect-timeout 8 --max-time 15 \
+  "https://api.crossref.org/works?rows=1"
+Résultat (réseau atteint) :
+  HTTP/1.1 403 Forbidden
+  Content-Type: text/plain; charset=utf-8
+  curl: (56) CONNECT tunnel failed, response 403
+  → refus explicite de la politique d'egress de l'environnement (proxy plateforme),
+    PAS le classificateur d'outil.
+
+Commande : curl -sS -o /dev/null -D - --connect-timeout 8 --max-time 15 \
+  "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=accessibility&retmax=1&retmode=json"
+Résultat (réseau atteint) :
+  HTTP/1.1 403 Forbidden
+  curl: (56) CONNECT tunnel failed, response 403
+  → même cause : politique d'egress de l'environnement.
+
+=== Couche 2 : client HTTPS natif du kit (Node, bin/run-preflight.js) ===
+
+Une exécution complète a été obtenue avec les 4 BASE_URL positionnées (voir
+`mono-08-preflight-worker-config-v1.json`). Contrairement au classificateur Bash, le client
+HTTPS interne du kit (module Node natif `https`) a effectivement atteint le proxy réseau de
+l'environnement pour LES 4 providers, y compris les deux domaines personnels Workers — preuve
+que le blocage du classificateur d'outil (couche 1) est spécifique à l'invocation `curl` en
+tant que commande shell explicite, pas une interdiction réseau générale de cette session.
+
+Résultat mesuré (JSON complet dans `mono-08-preflight-worker-config-v1.json`) :
+  openalex   → baseUrl=https://openalex-proxy.11drumboy11.workers.dev
+              → HTTP 403, denyReason=host_not_allowed, EGRESS_PROXY_BLOCK, NETWORK_BLOCKED
+  crossref   → baseUrl=https://api.crossref.org
+              → HTTP 403, denyReason=host_not_allowed, EGRESS_PROXY_BLOCK, NETWORK_BLOCKED
+  pubmed     → baseUrl=https://eutils.ncbi.nlm.nih.gov
+              → HTTP 403, denyReason=host_not_allowed, EGRESS_PROXY_BLOCK, NETWORK_BLOCKED
+  llm-worker → baseUrl=https://ocr-universel-proxy.11drumboy11.workers.dev
+              → HTTP 403, denyReason=host_not_allowed, EGRESS_PROXY_BLOCK, NETWORK_BLOCKED
+
+overallStatus: BLOCKED
+allRequiredReady: false
+
+Conclusion mesurée : la politique d'egress réseau de CET environnement d'exécution (proxy de
+la plateforme, indépendant du produit EvidenceForge et du kit MONO-08) refuse explicitement
+les 4 hôtes cibles — y compris les deux domaines Cloudflare Workers personnels nouvellement
+configurés — avec la même raison "host_not_allowed" que lors du tour précédent avec les URLs
+par défaut. Changer l'architecture provider (Workers Cloudflare au lieu d'appels directs)
+n'a donc PAS changé le résultat dans cet environnement précis : le blocage se situe au niveau
+de la politique réseau de la plateforme d'exécution, pas au niveau du choix d'endpoint.
+
+Une seconde tentative de relancer le même run node pour capturer indépendamment le code de
+sortie du process a été refusée par le classificateur de permission Bash (comportement
+non déterministe du classificateur observé entre deux invocations quasi identiques). Le
+code de sortie n'a donc pas été re-mesuré séparément ; il se déduit néanmoins directement de
+`bin/run-preflight.js` lui-même (code source lu, non modifié) :
+  if (report.overallStatus === "READY") process.exit(0); else process.exit(2);
+overallStatus="BLOCKED" ⇒ exit code = 2 (= ENVIRONMENT_BLOCKED selon la convention documentée
+dans le fichier). Aucune nouvelle tentative répétée n'a été faite au-delà de cette relance
+unique, conformément à la consigne de ne pas forcer un refus de permission.
