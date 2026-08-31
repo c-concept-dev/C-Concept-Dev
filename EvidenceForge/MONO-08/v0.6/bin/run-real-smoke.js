@@ -110,6 +110,35 @@ function realOpenAlexFetchImpl(timeoutMs) {
   };
 }
 
+/**
+ * REMEDIATION F-01 (observabilite) : avant ce correctif, un noeud non-
+ * SUCCESS n'etait rapporte que par "nodeId:state" (traversal du trace) —
+ * aucun lastError/errorCode n'etait jamais consulte ni conserve, rendant le
+ * diagnostic d'un run reel bloque illisible sans acces manuel a MONO-03.
+ * Interroge operatorApi.getNode() (deja expose par MONO-05, jamais
+ * reimplemente ici) et n'expose QUE les champs reellement retournes —
+ * jamais une valeur devinee pour nativeStatus/currentStage/completedStages/
+ * awaitingStage/gate/lastResult quand MONO-02 ne les propage pas dans
+ * lastError.details pour ce type d'echec.
+ */
+async function describeNodeFailure(operatorApi, runId, nodeId) {
+  const node = await operatorApi.getNode(runId, nodeId);
+  const lastError = node.lastError || null;
+  const details = (lastError && lastError.details) || {};
+  const out = {
+    nodeId: node.nodeId, state: node.state, attemptCount: node.attemptCount,
+    lastError: lastError, errorCode: lastError ? lastError.code : null,
+  };
+  if (typeof details.efOrchNativeStatus !== "undefined") out.nativeStatus = details.efOrchNativeStatus;
+  if (typeof details.stageId !== "undefined") out.currentStage = details.stageId;
+  else if (typeof details.currentStage !== "undefined") out.currentStage = details.currentStage;
+  if (typeof details.completedStages !== "undefined") out.completedStages = details.completedStages;
+  if (typeof details.awaitingStage !== "undefined") out.awaitingStage = details.awaitingStage;
+  if (typeof details.gate !== "undefined") out.gate = details.gate;
+  if (details.lastResult && typeof details.lastResult.kind !== "undefined") out.lastResultKind = details.lastResult.kind;
+  return out;
+}
+
 const trace = { schema: "MONO-08.RealSmokeTrace", version: "v1", steps: [], startedAt: new Date().toISOString() };
 function record(step, status, detail, evidenceType) {
   const entry = { step: step, status: status, detail: detail || null, evidenceType: evidenceType || "REAL", at: new Date().toISOString() };
@@ -260,13 +289,25 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
     nodeTrace = result.trace;
     const graph = await env.operatorApi.getGraph(runId);
     const allSuccess = graph.nodes.every(function (n) { return n.state === "SUCCESS"; });
-    record("full-pipeline", allSuccess ? "PASS" : "FAIL", "traversal: " + nodeTrace.map(function (t) { return t.nodeId + ":" + t.state; }).join(",") + " (14/14 SUCCESS: " + allSuccess + ")");
     if (!allSuccess) {
+      // REMEDIATION F-01 : le premier noeud non-SUCCESS (ordre du graphe,
+      // jamais devine) est interroge via operatorApi.getNode() pour que
+      // lastError/errorCode restent visibles dans le rapport, jamais perdus
+      // derriere un simple "nodeId:state".
+      const firstNonSuccess = graph.nodes.find(function (n) { return n.state !== "SUCCESS"; });
+      let nodeDiagnostic = null;
+      try {
+        nodeDiagnostic = firstNonSuccess ? await describeNodeFailure(env.operatorApi, runId, firstNonSuccess.nodeId) : null;
+      } catch (diagErr) {
+        nodeDiagnostic = { nodeId: firstNonSuccess && firstNonSuccess.nodeId, getNodeError: diagErr.message };
+      }
+      record("full-pipeline", "FAIL", "traversal: " + nodeTrace.map(function (t) { return t.nodeId + ":" + t.state; }).join(",") + " (14/14 SUCCESS: false) - premier noeud non-SUCCESS: " + JSON.stringify(nodeDiagnostic));
       record("persistence-restart", "NOT_RUN", "full-pipeline non SUCCESS - aucune etape downstream consideree valide.");
       record("ui-smoke", "NOT_RUN", "full-pipeline non SUCCESS.");
       record("secret-scan", "NOT_RUN", "full-pipeline non SUCCESS.");
       return;
     }
+    record("full-pipeline", "PASS", "traversal: " + nodeTrace.map(function (t) { return t.nodeId + ":" + t.state; }).join(",") + " (14/14 SUCCESS: true)");
   } catch (e) {
     record("full-pipeline", "FAIL", e.message);
     record("persistence-restart", "NOT_RUN", "full-pipeline a leve une exception - aucune etape downstream consideree valide.");
@@ -348,7 +389,7 @@ function finish(exitCode) {
 // jamais une reimplementation du predicat dans le test) — n'invoque JAMAIS
 // main() sur un simple require() : seule l'execution directe (node bin/
 // run-real-smoke.js) declenche le pipeline reel.
-module.exports = { missionGateStatus: missionGateStatus, extractDocumentPayloads: extractDocumentPayloads, loadRealProvenance: loadRealProvenance };
+module.exports = { missionGateStatus: missionGateStatus, extractDocumentPayloads: extractDocumentPayloads, loadRealProvenance: loadRealProvenance, describeNodeFailure: describeNodeFailure };
 
 if (require.main === module) {
   main().catch(function (e) {
