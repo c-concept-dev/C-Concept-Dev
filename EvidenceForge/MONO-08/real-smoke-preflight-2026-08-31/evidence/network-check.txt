@@ -1,0 +1,48 @@
+== OpenAlex operation ==
+HTTP/1.1 403 Forbidden
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Content-Length: 74
+Connection: close
+
+curl: (56) CONNECT tunnel failed, response 403
+curl_exit=56
+
+== Crossref operation ==
+HTTP/1.1 403 Forbidden
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Content-Length: 74
+Connection: close
+
+curl: (56) CONNECT tunnel failed, response 403
+curl_exit=56
+
+== PubMed operation ==
+HTTP/1.1 403 Forbidden
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Content-Length: 81
+Connection: close
+
+curl: (56) CONNECT tunnel failed, response 403
+curl_exit=56
+
+== Anthropic host/auth boundary ==
+HTTP/2 405 
+date: Mon, 31 Aug 2026 12:36:04 GMT
+content-type: application/json
+content-length: 112
+cache-control: private, max-age=0, no-store, no-cache, must-revalidate, post-check=0, pre-check=0
+expires: Thu, 01 Jan 1970 00:00:01 GMT
+referrer-policy: same-origin
+x-frame-options: SAMEORIGIN
+content-security-policy: default-src 'none'; frame-ancestors 'none'
+x-robots-tag: none
+server: cloudflare
+cf-ray: a33c1429aa5710b6-ORD
+curl_exit=0
+
+ANTHROPIC_API_KEY: ABSENT
+
+This script is diagnostic only. Claude Code must still run the official bin/run-preflight.js.

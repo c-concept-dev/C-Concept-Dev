@@ -21,7 +21,7 @@ Ce tour n'a **pas** rouvert le sujet packaging historique (mismatch SHA externe 
 
 Séquence strictement conforme à `00-START-HERE/CLAUDE-CODE-PROMPT.md` et `README-FIRST.md` du kit fourni :
 
-1. `scripts/00-check-local-host.sh` → PASS (node v22.22.2, npm, unzip, curl, shasum présents). Voir `evidence/host-check.log`.
+1. `scripts/00-check-local-host.sh` → PASS (node v22.22.2, npm, unzip, curl, shasum présents). Voir `evidence/host-check.txt`.
 2. `scripts/01-prepare-workspace.sh` → workspace jetable préparé :
    - vérification `SHA256SUMS` du kit d'aide local : **OK** (tous fichiers).
    - extraction du handoff `EvidenceForge-HANDOFF-pre-REAL-SMOKE-2026-08-31.zip`, vérification `07-VERIFICATION/SHA256SUMS` du handoff canonique : **OK** (toutes entrées, y compris les 9 ZIP canoniques MONO-00→MONO-08 v0.5).
@@ -30,10 +30,10 @@ Séquence strictement conforme à `00-START-HERE/CLAUDE-CODE-PROMPT.md` et `READ
    - extraction de MONO-07 uniquement pour exposer son `lib/` gelé (aucune modification).
    - staging de la mission d'exécution déjà validée (`inputs/mission-real-smoke-execution-v1.json`, SHA-256 `a5728e435e07d7ea6b538e27e7daea56323073ff5effb2cf69c2219b6a6152bd`) dans `fixtures/mission-real-smoke-v1.json` de l'extraction v0.5 jetable, conformément à `MISSION.md`. Vérifié : `readyForExecution: true` dans le JSON staged.
    - aucun ZIP canonique modifié (voir §5, intégrité gelée).
-3. Vérification du credential : `ANTHROPIC_API_KEY` **ABSENT** du shell d'exécution (`test -n` → absent). Valeur jamais demandée, jamais affichée, jamais écrite dans un fichier du kit. Voir `evidence/credential-presence-check.txt`.
-4. `scripts/02-network-check.sh` (diagnostic informatif, non contractuel) → voir `evidence/network-check.log`.
+3. Vérification du credential : `ANTHROPIC_API_KEY` **ABSENT** du shell d'exécution (`test -n` → absent). Valeur jamais demandée, jamais affichée, jamais écrite dans un fichier du kit. Voir `evidence/anthropic-api-key-presence.txt`.
+4. `scripts/02-network-check.sh` (diagnostic informatif, non contractuel) → voir `evidence/network-check.txt`.
 5. Snapshot d'intégrité gelée **avant** preflight : `scripts/04-snapshot-frozen-zips.sh` → `evidence/frozen-before.sha256` (9 ZIP canoniques MONO-00→MONO-08 v0.5).
-6. **Preflight officiel** (étape décisive) : `scripts/03-official-preflight-only.sh`, qui exécute exactement `node bin/run-preflight.js` depuis `$EVIDENCEFORGE_MONO08_WORK_ROOT`, sans modification. Sortie complète : `evidence/preflight-official-run-stdout.log` et `evidence/mono-08-preflight-v1.json` (rapport produit par le kit lui-même dans `reports/mono-08-preflight-v1.json`).
+6. **Preflight officiel** (étape décisive) : `scripts/03-official-preflight-only.sh`, qui exécute exactement `node bin/run-preflight.js` depuis `$EVIDENCEFORGE_MONO08_WORK_ROOT`, sans modification. Sortie complète : `evidence/preflight-official-run-stdout.txt` et `evidence/mono-08-preflight-v1.json` (rapport produit par le kit lui-même dans `reports/mono-08-preflight-v1.json`).
 7. Snapshot d'intégrité gelée **après** preflight : `evidence/frozen-after.sha256`.
 8. Comparaison `cmp frozen-before.sha256 frozen-after.sha256` → **bit-identical : OUI**. Aucun ZIP canonique n'a été altéré par la préparation ni par le preflight.
 
@@ -113,10 +113,10 @@ Ceci est un constat d'environnement, pas une modification du produit, du kit, ou
 
 ```text
 AUDIT-REPORT.md                              — ce rapport
-evidence/host-check.log                      — sortie de scripts/00-check-local-host.sh
-evidence/network-check.log                   — sortie de scripts/02-network-check.sh (diagnostic non contractuel)
-evidence/credential-presence-check.txt       — preuve de présence/absence du credential (jamais la valeur)
-evidence/preflight-official-run-stdout.log   — sortie complète de scripts/03-official-preflight-only.sh (= node bin/run-preflight.js)
+evidence/host-check.txt                      — sortie de scripts/00-check-local-host.sh
+evidence/network-check.txt                   — sortie de scripts/02-network-check.sh (diagnostic non contractuel)
+evidence/anthropic-api-key-presence.txt       — preuve de présence/absence du credential (jamais la valeur)
+evidence/preflight-official-run-stdout.txt   — sortie complète de scripts/03-official-preflight-only.sh (= node bin/run-preflight.js)
 evidence/mono-08-preflight-v1.json           — rapport JSON officiel produit par le kit (reports/mono-08-preflight-v1.json)
 evidence/frozen-before.sha256                — SHA-256 des 9 ZIP canoniques avant preflight
 evidence/frozen-after.sha256                 — SHA-256 des 9 ZIP canoniques après preflight (bit-identical à before)

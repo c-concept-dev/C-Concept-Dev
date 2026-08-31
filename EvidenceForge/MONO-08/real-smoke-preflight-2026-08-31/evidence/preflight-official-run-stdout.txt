@@ -1,0 +1,116 @@
+== Official MONO-08 v0.5 preflight ==
+No Real Smoke will be launched by this helper.
+{
+  "overallStatus": "BLOCKED",
+  "allRequiredReady": false,
+  "results": [
+    {
+      "providerId": "openalex",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.openalex.org",
+      "operationDescription": "GET /works?per_page=1 (operation reelle de recherche)",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 77,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    },
+    {
+      "providerId": "crossref",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.crossref.org",
+      "operationDescription": "GET /works?rows=1 (operation reelle de recherche)",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 22,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    },
+    {
+      "providerId": "pubmed",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://eutils.ncbi.nlm.nih.gov",
+      "operationDescription": "GET /entrez/eutils/esearch.fcgi?db=pubmed&term=accessibility&retmax=1&retmode=json",
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 22,
+        "error": null,
+        "denyReason": "host_not_allowed"
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": false
+    },
+    {
+      "providerId": "llm-worker",
+      "dependencyType": "worker",
+      "baseUrl": "https://api.anthropic.com",
+      "operationDescription": "POST /v1/messages (operation reelle du contrat, max_tokens=1 — jamais GET, qui donnerait un faux 405)",
+      "credentialRequired": true,
+      "credentialEnvVar": "ANTHROPIC_API_KEY",
+      "credentialPresent": false,
+      "stages": {
+        "hostReachable": true,
+        "authValid": false,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 401,
+        "latencyMs": 91,
+        "error": null,
+        "denyReason": null
+      },
+      "rawClassification": "NO_CREDENTIAL",
+      "status": "AUTHENTICATION_BLOCKED",
+      "reason": "Hote reellement atteint, mais aucun identifiant exploitable (ANTHROPIC_API_KEY absent) - aucun appel authentifie couteux tente.",
+      "realSmokeRequired": true
+    }
+  ],
+  "checkedAt": "2026-08-31T12:36:21.051Z"
+}
+official_preflight_exit_code=2
+PREFLIGHT_READY: NO
+STOP REAL SMOKE.

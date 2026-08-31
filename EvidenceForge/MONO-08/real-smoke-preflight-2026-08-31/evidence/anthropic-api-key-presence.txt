@@ -1,0 +1,2 @@
+credential-check: ANTHROPIC_API_KEY absent (verified via test -n, value never printed)
+STATE=absent
