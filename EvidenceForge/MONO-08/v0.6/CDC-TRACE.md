@@ -1,5 +1,19 @@
 # CDC-TRACE — MONO-08 — Real Smoke Execution Kit
 
+## CORRECTIF F-06 (remediation MONO-01-08, post-v0.6) — etat du fixture mission
+
+`fixtures/mission-real-smoke-v1.json` a atteint `readyForExecution=true`
+(les entrees professionnel/document jusque-la `OPERATOR_INPUT_REQUIRED`
+sont passees `VERIFIED`) — un changement reel du fixture, jamais
+documente comme tel dans aucune section ci-dessous (qui restent, chacune,
+un enregistrement honnete de l'etat cru au moment ou elle a ete ecrite —
+non reecrites ici) ni dans `../v0.6-implementation-evidence-2026-08-31/
+files-modified-created.txt` (qui declarait a tort ce fichier "copie tel
+quel depuis v0.5", desormais corrige a l'endroit meme de cette
+declaration). Contenu reel/professionnel/documentaire du fixture
+preserve tel quel — seule la declaration de non-modification etait
+fausse. Detail : AUDIT-REMEDIATION/06-EPISTEMIC-REMEDIATION.md.
+
 ## MONO-08 v0.6 — Delegated LLM Authentication (implementation)
 
 Cette copie de travail (`EvidenceForge/MONO-08/v0.6/`) est une nouvelle

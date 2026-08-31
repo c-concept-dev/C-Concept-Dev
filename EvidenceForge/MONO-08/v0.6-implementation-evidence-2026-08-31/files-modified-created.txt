@@ -58,10 +58,32 @@ reports/mono-08-preflight-v1.json, reports/mono-08-test-report-v1.json
 manifest/SHA256SUMS
   - Régénéré pour couvrir l'arborescence complète v0.6 (49 fichiers).
 
+=== CORRECTIF (remediation MONO-01-08, F-06) — fixtures/mission-real-smoke-v1.json ===
+CORRECTION : ce document classait initialement fixtures/mission-real-
+smoke-v1.json dans "FICHIERS EXPLICITEMENT NON MODIFIÉS" ci-dessous (entrée
+désormais retirée de cette liste et remplacée par la présente correction —
+jamais supprimée en silence : voir git blame de ce fichier pour la
+déclaration d'origine). Cette classification était FAUSSE : ce fichier
+n'a PAS été copié tel quel depuis v0.5 — sa progression
+readyForExecution=false -> readyForExecution=true (professionalCandidates
+et targetDocuments passés de OPERATOR_INPUT_REQUIRED à VERIFIED) a bien eu
+lieu entre v0.5 et v0.6. La déclaration initiale reposait sur une
+comparaison qui ne prouvait PAS l'absence de changement du fixture :
+reports/v0.6-local-
+controlled/regression-non-regression/test_t08_runner_orchestration.js.
+{v05-baseline,v06-after-changes}.out sont identiques, mais les deux
+exécutions lisaient le MÊME fichier sur disque (déjà à l'état v0.6/
+complet au moment de la capture) — cette comparaison prouve la non-
+régression des 4 fichiers de TEST (code), jamais celle du contenu du
+FIXTURE lui-même. Aucun contenu réel/professionnel/documentaire n'a été
+remplacé ou inventé (voir mission de remédiation, section 11) : seule la
+déclaration de non-modification était fausse, jamais le contenu validé du
+fixture. Voir AUDIT-REMEDIATION/06-EPISTEMIC-REMEDIATION.md du paquet de
+remédiation pour le détail complet.
+
 === FICHIERS EXPLICITEMENT NON MODIFIÉS (copiés tels quels depuis v0.5) ===
 bin/run-preflight.js
 bin/run-real-smoke.js
-fixtures/mission-real-smoke-v1.json
 lib/eforch-artifacts.js
 lib/frozen-zip-integrity.js
 lib/kit-root.js
