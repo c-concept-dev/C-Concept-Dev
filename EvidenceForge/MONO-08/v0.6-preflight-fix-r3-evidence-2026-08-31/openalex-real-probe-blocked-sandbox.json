@@ -1,0 +1,28 @@
+{
+  "providerId": "openalex",
+  "dependencyType": "corpus-search",
+  "baseUrl": "https://api.openalex.org",
+  "operationDescription": "GET /works?per_page=1 (operation reelle de recherche)",
+  "authMode": null,
+  "credentialRequired": false,
+  "credentialEnvVar": null,
+  "credentialPresent": null,
+  "stages": {
+    "hostReachable": true,
+    "authValid": null,
+    "operationValid": false,
+    "responseValid": false
+  },
+  "probe": {
+    "reached": true,
+    "statusCode": 403,
+    "latencyMs": 67,
+    "error": null,
+    "denyReason": "host_not_allowed",
+    "requestId": null
+  },
+  "rawClassification": "EGRESS_PROXY_BLOCK",
+  "status": "NETWORK_BLOCKED",
+  "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+  "realSmokeRequired": true
+}

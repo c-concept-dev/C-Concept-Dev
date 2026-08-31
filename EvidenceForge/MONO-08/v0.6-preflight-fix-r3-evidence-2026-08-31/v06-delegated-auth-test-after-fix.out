@@ -24,4 +24,3 @@ PASS — H2-extract-real-provider-configs. bloc buildLlmWorkerConfigDelegated() 
 PASS — H2-real-provider-configs. aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildLlmWorkerConfigDelegated() (lib/real-provider-configs.js)
 
 TOUS LES TESTS PASSENT (24)
-exit_code=0

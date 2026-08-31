@@ -35,6 +35,46 @@ const { URL } = require("url");
 
 const VALID_AUTH_MODES = ["direct", "delegated"];
 
+// MICRO-LOT PRE-REAL (audit reel post-deploiement, 2026-08-31) — Defaut
+// Bloquant 1 : l'ancienne troncature destructive de httpRequest()
+// (`if (body.length > 4000) res.destroy()`) coupait des reponses JSON
+// reelles legitimes (ex. OpenAlex GET /works?per_page=1, couramment
+// > 4 Ko) avant JSON.parse(), provoquant un faux INVALID_RESPONSE sur un
+// provider en realite parfaitement fonctionnel. Remplacee par une limite
+// de securite exprimee en OCTETS (pas en caracteres/longueur de string),
+// largement superieure a la taille reelle des reponses des providers
+// probes ici (quelques dizaines de Ko au plus), qui abandonne PROPREMENT
+// (fail-closed, cf. checkProvider() -> RESPONSE_TOO_LARGE) et ne parse
+// JAMAIS un corps tronque comme s'il s'agissait d'une reponse provider
+// complete.
+const MAX_PREFLIGHT_RESPONSE_BYTES = 1048576; // 1 MiB
+
+// MICRO-LOT PRE-REAL — Defaut Bloquant 2 : le modele Anthropic
+// "claude-3-5-haiku-latest", hardcode en dur dans les deux probes LLM
+// (direct et delegated), est devenu indisponible (HTTP 404 not_found_error
+// reel, constate lors du PREFLIGHT reel post-deploiement du 2026-08-31).
+// Le modele de sonde est desormais configurable via la variable
+// LLM_PREFLIGHT_MODEL (voir .env.example) ; a defaut, le modele documente
+// ci-dessous est utilise.
+//
+// Source de verite pour ce defaut (verifiee au moment de ce correctif,
+// aucun identifiant devine) : skill de reference "claude-api" disponible
+// dans cet environnement Claude, section "Current Models" (table de
+// modeles Anthropic actuels, cache au 2026-06-24). claude-haiku-4-5 y est
+// le modele le plus leger du catalogue courant, non deprecie, adapte a
+// une sonde technique minimale (payload court, max_tokens=1). Voir
+// LLM-PREFLIGHT-MODEL-SOURCE.md (dossier de preuve du micro-lot) pour le
+// detail complet de cette verification, y compris l'anciennete de ce
+// cache documentaire et la recommandation de reverification par
+// l'operateur avant tout usage REAL prolonge.
+const DEFAULT_LLM_PREFLIGHT_MODEL = "claude-haiku-4-5";
+
+function resolveLlmPreflightModel(env) {
+  const raw = env.LLM_PREFLIGHT_MODEL;
+  if (raw === undefined || raw === null || raw === "") return DEFAULT_LLM_PREFLIGHT_MODEL;
+  return raw;
+}
+
 function resolveAuthMode(env) {
   const raw = env.LLM_AUTH_MODE;
   if (raw === undefined || raw === null || raw === "") {
@@ -67,9 +107,38 @@ function httpRequest(urlStr, options) {
         timeout: options.timeoutMs || 8000,
       },
       function (res) {
-        let body = "";
-        res.on("data", function (c) { body += c; if (body.length > 4000) res.destroy(); });
-        function finish() { resolve({ reached: true, statusCode: res.statusCode, headers: res.headers, latencyMs: Date.now() - startedAt, body: body }); }
+        const chunks = [];
+        let totalBytes = 0;
+        let truncated = false;
+        let settled = false;
+        res.on("data", function (c) {
+          if (truncated) return;
+          const chunk = Buffer.isBuffer(c) ? c : Buffer.from(c);
+          totalBytes += chunk.length;
+          if (totalBytes > MAX_PREFLIGHT_RESPONSE_BYTES) {
+            // Limite de securite depassee : abandon PROPRE, jamais de
+            // JSON.parse sur un corps tronque (voir checkProvider() ->
+            // RESPONSE_TOO_LARGE). Le dernier morceau qui fait depasser la
+            // limite n'est pas conserve.
+            truncated = true;
+            res.destroy();
+            return;
+          }
+          chunks.push(chunk);
+        });
+        function finish() {
+          if (settled) return;
+          settled = true;
+          resolve({
+            reached: true,
+            statusCode: res.statusCode,
+            headers: res.headers,
+            latencyMs: Date.now() - startedAt,
+            body: truncated ? null : Buffer.concat(chunks).toString("utf8"),
+            bodyTruncated: truncated,
+            bodyBytes: totalBytes,
+          });
+        }
         res.on("end", finish);
         res.on("close", finish);
       }
@@ -107,7 +176,7 @@ function buildLlmWorkerProviderDirect(llmBase, timeoutMs, env) {
           return probe;
         });
       }
-      const body = JSON.stringify({ model: "claude-3-5-haiku-latest", max_tokens: 1, messages: [{ role: "user", content: "hi" }] });
+      const body = JSON.stringify({ model: resolveLlmPreflightModel(env), max_tokens: 1, messages: [{ role: "user", content: "hi" }] });
       return httpRequest(llmBase + "/v1/messages", {
         method: "POST",
         timeoutMs: timeoutMs,
@@ -154,7 +223,7 @@ function buildLlmWorkerProviderDelegated(llmBase, timeoutMs, env) {
           return probe;
         });
       }
-      const body = JSON.stringify({ model: "claude-3-5-haiku-latest", max_tokens: 1, messages: [{ role: "user", content: "hi" }] });
+      const body = JSON.stringify({ model: resolveLlmPreflightModel(env), max_tokens: 1, messages: [{ role: "user", content: "hi" }] });
       return httpRequest(llmBase + "/v1/messages", {
         method: "POST",
         timeoutMs: timeoutMs,
@@ -281,6 +350,10 @@ async function checkProvider(provider) {
       status = "NETWORK_BLOCKED";
       rawClassification = "EGRESS_PROXY_BLOCK";
       reason = "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: " + probe.headers["x-deny-reason"] + ").";
+    } else if (probe.bodyTruncated) {
+      status = "INVALID_RESPONSE";
+      rawClassification = "RESPONSE_TOO_LARGE";
+      reason = "Corps de reponse reel tronque : depasse la limite de securite MAX_PREFLIGHT_RESPONSE_BYTES (" + MAX_PREFLIGHT_RESPONSE_BYTES + " octets ; " + (probe.bodyBytes || 0) + " octets recus avant abandon) - jamais parse comme JSON tronque, jamais interprete comme READY.";
     } else if (probe.credentialProbeSkipped) {
       status = "AUTHENTICATION_BLOCKED";
       rawClassification = "NO_CREDENTIAL";
@@ -391,4 +464,10 @@ async function runPreflight(opts) {
   };
 }
 
-module.exports = { runPreflight: runPreflight, buildProviders: buildProviders, checkProvider: checkProvider };
+module.exports = {
+  runPreflight: runPreflight,
+  buildProviders: buildProviders,
+  checkProvider: checkProvider,
+  MAX_PREFLIGHT_RESPONSE_BYTES: MAX_PREFLIGHT_RESPONSE_BYTES,
+  DEFAULT_LLM_PREFLIGHT_MODEL: DEFAULT_LLM_PREFLIGHT_MODEL,
+};
