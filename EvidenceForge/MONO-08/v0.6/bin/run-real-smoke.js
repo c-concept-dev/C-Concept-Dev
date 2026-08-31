@@ -48,6 +48,35 @@ function loadMission() {
 }
 
 /**
+ * REMEDIATION F-02/F-03/F-04 : ce binaire execute une mission REELLE — il ne
+ * doit donc JAMAIS laisser lib/eforch-artifacts.js fabriquer un acteur=
+ * "human" ou un provider/model/hash LLM synthetique. La provenance REELLE
+ * (appel LLM EF-01B/EF-01C1 reellement effectue, decision humaine EF-01D
+ * reellement prise par l'operateur) doit etre fournie explicitement par
+ * l'operateur via mission.eForchProvenance dans fixtures/mission-real-
+ * smoke-v1.json ({ resolverRuns:[...], plannerRun:{...}, auditDecisions:{
+ * [sourceId]: {...} } }). Si ce champ est absent (cas de ce depot
+ * aujourd'hui — jamais invente ici), createRealMissionRun leve
+ * OPERATOR_INPUT_REQUIRED : c'est le comportement correct fail-closed, pas
+ * un bug a contourner.
+ */
+function loadRealProvenance(mission) {
+  return mission.eForchProvenance || {};
+}
+
+/**
+ * REMEDIATION F-14 (audit MONO-08, test_t08_runner_orchestration.js
+ * BUG_TEST) : extrait le predicat mission-gate en une fonction pure et
+ * exportee, testable independamment du contenu MUTABLE de fixtures/
+ * mission-real-smoke-v1.json (qui a legitimement atteint readyForExecution
+ * =true en v0.6 — l'ancien test asserait a tort que la mission fournie
+ * resterait TOUJOURS incomplete).
+ */
+function missionGateStatus(mission) {
+  return mission.readyForExecution ? "PASS" : "MISSION_NOT_READY";
+}
+
+/**
  * Construit documentBytesByUrl/documentContentByUrl a partir des champs
  * operateur du fichier mission (contentBase64/content) — jamais un fetch
  * automatique des documents cibles : EF-01A est par conception une
@@ -149,7 +178,7 @@ async function main() {
     record("secret-scan", "NOT_RUN_ENVIRONMENT_BLOCKED", "aucun run reel a scanner.", "NOT_RUN");
   } else {
     const mission = loadMission();
-    if (!mission.readyForExecution) {
+    if (missionGateStatus(mission) === "MISSION_NOT_READY") {
       record("mission-gate", "MISSION_NOT_READY", "readyForExecution=false - au moins une reference reste OPERATOR_INPUT_REQUIRED (voir MISSION.md). Aucun appel externe couteux tente.");
       const hashAfterEarly = hashKit(kitRoot, mono07ZipPath);
       record("frozen-zip-integrity-after", compareHashes(hashBefore, hashAfterEarly).identical ? "PASS" : "FAIL", "verifie malgre l'arret anticipe.");
@@ -168,7 +197,11 @@ async function main() {
   }
 
   const anyFail = trace.steps.some(function (s) { return s.status === "FAIL"; });
-  return finish(anyFail ? 1 : (preflight.overallStatus === "READY" ? 0 : 2));
+  const anyOperatorInputRequired = trace.steps.some(function (s) { return s.status === "OPERATOR_INPUT_REQUIRED"; });
+  // OPERATOR_INPUT_REQUIRED (F-02/F-03/F-04) : jamais confondu avec un PASS
+  // (exit 0) ni avec une panne technique (exit 1) — code dedie, jamais
+  // presente comme un Real Smoke reussi.
+  return finish(anyFail ? 1 : (anyOperatorInputRequired ? 4 : (preflight.overallStatus === "READY" ? 0 : 2)));
 }
 
 async function runFullPipeline(kitRoot, mono07LibPath, mission) {
@@ -210,9 +243,14 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
     await createRealMissionRun(env, adapter, realWorkerCallFn, {
       runId: runId, missionId: missionId, mission: missionInput, missionQuestion: mission.missionQuestion,
       documentBytesByUrl: payloads.documentBytesByUrl, documentContentByUrl: payloads.documentContentByUrl, openAlexFetchImpl: openAlexFetchImpl,
+      mode: "REAL", realProvenance: loadRealProvenance(mission),
     });
   } catch (e) {
-    record("full-pipeline", "FAIL", "construction du run: " + e.message);
+    // OPERATOR_INPUT_REQUIRED (F-02/F-03/F-04) : fail-closed explicite —
+    // aucune provenance LLM/humaine reelle disponible, jamais fabriquee ici.
+    // Statut distinct de FAIL pour ne jamais confondre ce refus honnete avec
+    // une panne technique du pipeline.
+    record("full-pipeline", e.code === "OPERATOR_INPUT_REQUIRED" ? "OPERATOR_INPUT_REQUIRED" : "FAIL", "construction du run: " + e.message);
     return;
   }
 
@@ -269,7 +307,8 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
     await createRealMissionRun(
       { mono01: httpServerBundle.mono01, mono03: httpServerBundle.mono03, mono04: httpServerBundle.mono04, runRegistry: httpServerBundle.runRegistry, cfg: env.cfg },
       uiAdapter, uiWorkerCallFn,
-      { runId: runId, missionId: missionId, mission: missionInput, missionQuestion: mission.missionQuestion, documentBytesByUrl: payloads.documentBytesByUrl, documentContentByUrl: payloads.documentContentByUrl, openAlexFetchImpl: openAlexFetchImpl }
+      { runId: runId, missionId: missionId, mission: missionInput, missionQuestion: mission.missionQuestion, documentBytesByUrl: payloads.documentBytesByUrl, documentContentByUrl: payloads.documentContentByUrl, openAlexFetchImpl: openAlexFetchImpl,
+        mode: "REAL", realProvenance: loadRealProvenance(mission) }
     );
     await driveRun(httpServerBundle.api, runId, { maxIterations: 20 });
 
@@ -305,8 +344,16 @@ function finish(exitCode) {
   process.exit(exitCode);
 }
 
-main().catch(function (e) {
-  console.error("PRODUCT_CONFIG_ERROR:", e.stack);
-  writeReports();
-  process.exit(3);
-});
+// Exporte pour test/test_t08_runner_orchestration.js (fail-closed reel,
+// jamais une reimplementation du predicat dans le test) — n'invoque JAMAIS
+// main() sur un simple require() : seule l'execution directe (node bin/
+// run-real-smoke.js) declenche le pipeline reel.
+module.exports = { missionGateStatus: missionGateStatus, extractDocumentPayloads: extractDocumentPayloads, loadRealProvenance: loadRealProvenance };
+
+if (require.main === module) {
+  main().catch(function (e) {
+    console.error("PRODUCT_CONFIG_ERROR:", e.stack);
+    writeReports();
+    process.exit(3);
+  });
+}

@@ -14,6 +14,7 @@
 const path = require("path");
 const fs = require("fs");
 const { buildRealProviderConfigs } = require("../lib/real-provider-configs");
+const { missionGateStatus, extractDocumentPayloads } = require("../bin/run-real-smoke");
 
 const results = [];
 function check(name, cond, detail) { results.push({ name: name, pass: !!cond, detail: detail || "" }); }
@@ -34,11 +35,43 @@ function check(name, cond, detail) { results.push({ name: name, pass: !!cond, de
   }
 
   {
+    // BUG_TEST corrige (audit MONO-08, F-14 / AUDIT-REMEDIATION/02-FINDINGS-
+    // DISPOSITION.md) : T08-RUNNER-04/05 asseraient auparavant que la
+    // mission FOURNIE resterait TOUJOURS incomplete (readyForExecution=
+    // false, au moins une reference OPERATOR_INPUT_REQUIRED) — vrai quand
+    // ce test a ete ecrit, devenu FAUX en v0.6 des lors que l'operateur a
+    // reellement complete/valide les references restantes (voir git log de
+    // fixtures/mission-real-smoke-v1.json). Ce n'etait jamais un bug du
+    // runner : la mission a legitimement progresse vers readyForExecution=
+    // true. On teste desormais (a) l'invariant de COHERENCE du champ, qui
+    // reste vrai a chaque etape du cycle de vie de la mission, et (b) le
+    // comportement fail-closed REEL du mission-gate (bin/run-real-smoke.js)
+    // sur une mission SYNTHETIQUE construite ici — jamais sur le contenu
+    // mutable du fixture partage.
     const missionPath = path.join(__dirname, "..", "fixtures", "mission-real-smoke-v1.json");
     const mission = JSON.parse(fs.readFileSync(missionPath, "utf8"));
-    check("T08-RUNNER-04. la mission fournie est explicitement marquee incomplete (readyForExecution=false)", mission.readyForExecution === false, JSON.stringify(mission.blockedReason));
     const hasUnresolved = mission.professionalCandidates.some(function (p) { return p.status === "OPERATOR_INPUT_REQUIRED"; }) || mission.targetDocuments.some(function (d) { return d.status === "OPERATOR_INPUT_REQUIRED"; });
-    check("T08-RUNNER-05. au moins une reference reste explicitement OPERATOR_INPUT_REQUIRED", hasUnresolved);
+    check(
+      "T08-RUNNER-04. coherence readyForExecution vs references non resolues (jamais true avec une reference bloquee, jamais false sans motif documente)",
+      mission.readyForExecution === true ? !hasUnresolved : (mission.readyForExecution === false && !!mission.blockedReason),
+      "readyForExecution=" + mission.readyForExecution + ", blockedReason=" + JSON.stringify(mission.blockedReason) + ", hasUnresolved=" + hasUnresolved
+    );
+
+    const syntheticIncomplete = {
+      readyForExecution: false, blockedReason: "T08-RUNNER-05 (mission synthetique) : document cible non verifie.",
+      professionalCandidates: [{ status: "VERIFIED" }],
+      targetDocuments: [{ documentId: "d1", url: "https://example.org/d1", status: "OPERATOR_INPUT_REQUIRED" }],
+    };
+    check("T08-RUNNER-05a. mission-gate (bin/run-real-smoke.js::missionGateStatus) bloque reellement une mission synthetique incomplete", missionGateStatus(syntheticIncomplete) === "MISSION_NOT_READY");
+    check("T08-RUNNER-05b. mission-gate reel accepte une mission synthetique complete", missionGateStatus(Object.assign({}, syntheticIncomplete, { readyForExecution: true })) === "PASS");
+
+    let payloadsThrew = null;
+    try {
+      extractDocumentPayloads({ targetDocuments: [{ documentId: "d1", url: "https://example.org/d1", status: "VERIFIED" /* content manquant */ }] });
+    } catch (e) { payloadsThrew = e; }
+    check("T08-RUNNER-05c. extractDocumentPayloads refuse (fail-closed) un document VERIFIED sans contenu reel fourni, jamais un contenu invente", !!payloadsThrew && /content/i.test(payloadsThrew.message));
+    const skipped = extractDocumentPayloads({ targetDocuments: [{ documentId: "d2", url: "https://example.org/d2", status: "OPERATOR_INPUT_REQUIRED" }] });
+    check("T08-RUNNER-05d. extractDocumentPayloads ignore silencieusement (jamais ne fabrique) un document encore OPERATOR_INPUT_REQUIRED", Object.keys(skipped.documentBytesByUrl).length === 0 && Object.keys(skipped.documentContentByUrl).length === 0);
   }
 
   {

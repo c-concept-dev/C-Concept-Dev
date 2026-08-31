@@ -99,14 +99,21 @@ function buildRealReviewTargetsAndDocuments(cfg, targetDocuments, documentConten
  *
  * openAlexFetchImpl : fonction fetch-shaped (LOCAL_CONTROLLED ou REELLE
  * via le vrai Gateway MONO-04) — jamais un HTTP sauvage a cote de MONO-04.
+ *
+ * provenanceOpts (REMEDIATION F-02/F-03) : { mode: "REAL"|"LOCAL_CONTROLLED",
+ * resolverRuns, plannerRun, auditDecisions } — voir eforch-artifacts.js pour
+ * le detail. Absent ou mode omis => LOCAL_CONTROLLED (comportement fixture
+ * synthetique inchange, seulement etiquete). mode "REAL" sans donnees reelles
+ * completes => echec ferme OPERATOR_INPUT_REQUIRED, jamais une fabrication.
  */
-async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl) {
+async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl, provenanceOpts) {
+  provenanceOpts = provenanceOpts || {};
   const deps = loadEForchDeps(cfg.MONO01_PATH);
   const runContract = await buildConfirmedRunContractForMission(deps, mission, missionQuestion, documentBytesByUrl);
   const missionId = runContract.runContractHash; // meme convention que fixtures-eforch.js / EFOrchExecutionPort (runId par defaut = runContractHash)
-  const resolverTrace = buildResolverTraceForMission(deps, missionId, runContract);
+  const resolverTrace = buildResolverTraceForMission(deps, missionId, runContract, { mode: provenanceOpts.mode, resolverRuns: provenanceOpts.resolverRuns });
   const disciplines = mission.dimensions.map(function (d) { return d.id; });
-  const searchProtocol = await buildSearchProtocolForMission(deps, missionId, runContract.runContractHash.slice(0, 8), disciplines);
+  const searchProtocol = await buildSearchProtocolForMission(deps, missionId, runContract.runContractHash.slice(0, 8), disciplines, { mode: provenanceOpts.mode, plannerRun: provenanceOpts.plannerRun });
 
   // Construit la map hash->octets attendue par l'executeur EF-01A, a partir
   // des memes octets (et donc memes hashs) que ceux utilises pour le RunContract.
@@ -128,7 +135,7 @@ async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytes
   // reellement genere par le connector runner (EF-01C2) — construits une
   // fois le sourceId connu (deterministe ici, cf. genId ci-dessus).
   const sourceId = "source-" + runContract.runContractHash.slice(0, 12);
-  const screeningArtifact = buildScreeningArtifactForMission([sourceId], searchProtocol.protocolHash);
+  const screeningArtifact = buildScreeningArtifactForMission([sourceId], searchProtocol.protocolHash, { mode: provenanceOpts.mode, auditDecisions: provenanceOpts.auditDecisions });
   const qualificationTestArtifact = buildQualificationArtifactForMission(deps, screeningArtifact, searchProtocol);
 
   const efOrchExecutionDependenciesSerializable = {
@@ -160,7 +167,10 @@ async function createRealMissionRun(env, adapter, workerCallFn, opts) {
   const openAlexFetchImpl = opts.openAlexFetchImpl;
   if (typeof openAlexFetchImpl !== "function") throw new Error("createRealMissionRun: opts.openAlexFetchImpl requis (LOCAL_CONTROLLED ou REEL — jamais un HTTP sauvage a cote de MONO-04).");
 
-  const built = await buildEForchArtifacts(cfg, opts.mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl);
+  const realProvenance = opts.realProvenance || {};
+  const built = await buildEForchArtifacts(cfg, opts.mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl, {
+    mode: opts.mode, resolverRuns: realProvenance.resolverRuns, plannerRun: realProvenance.plannerRun, auditDecisions: realProvenance.auditDecisions,
+  });
   const missionId = opts.missionId || built.missionId;
   const reviewMapping = buildRealReviewTargetsAndDocuments(cfg, opts.mission.targetDocuments, documentContentByUrl);
 
