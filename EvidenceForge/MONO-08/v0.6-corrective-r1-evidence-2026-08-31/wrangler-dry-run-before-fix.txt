@@ -1,0 +1,57 @@
+Transcription verbatim de la sortie réelle de `npx --yes wrangler deploy --dry-run`,
+exécutée dans ce même tour, AVANT toute correction de src/worker.js et de
+wrangler.jsonc (donc contre le code exact du commit 4952ce4, package audité
+SHA-256 a1895f58ed7e07a3ab3f246bb3a9ef81895c195aafab0b6ca1266bf1aad845ee).
+
+$ cd EvidenceForge/MONO-08/v0.6/worker/evidenceforge-llm-proxy
+$ npx --yes wrangler deploy --dry-run
+
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+
+ ⛅️ wrangler 4.127.1
+────────────────────
+▲ [WARNING] Processing wrangler.jsonc configuration:
+
+    - "unsafe" fields are experimental and may change or break at any time.
+
+
+
+Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+
+✘ [ERROR] Build failed with 1 error:
+
+  ✘ [ERROR] Unexpected external import of "node:events", "node:perf_hooks", "node:stream", and "node:tty".
+  Your worker has no default export, which means it is assumed to be a Service Worker format Worker.
+  Did you mean to create a ES Module format Worker?
+  If so, try adding `export default { ... }` in your entry-point.
+  See https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/ [plugin hybrid-nodejs_compat]
+
+
+
+🪵  Logs were written to "/root/.config/.wrangler/logs/wrangler-2026-08-31_15-32-20_226.log"
+
+=== Analyse ===
+
+Deux constats indépendants et réels, confirmés par l'outil officiel
+(aucun déploiement effectué — --dry-run) :
+
+1. ERREUR BLOQUANTE (build failed) : `src/worker.js` utilisait
+   `module.exports = { ..., fetch: handleRequest }` (CommonJS), jamais un
+   `export default { fetch(...) }` ES Module. Wrangler refuse de
+   construire le Worker dans ce format et le classe par défaut comme
+   "Service Worker" (format historique différent, incompatible avec
+   `nodejs_compat` + les imports internes générés). Confirme le Défaut/
+   Risque 2 (« Worker entrypoint non prouvé ») : BUG DEPLOYABILITY réel,
+   pas une inquiétude théorique.
+
+2. AVERTISSEMENT (non bloquant mais signalé explicitement par Wrangler) :
+   `"unsafe" fields are experimental and may change or break at any
+   time` — confirme le Défaut/Risque 3 (rate limiting en configuration
+   legacy/unsafe) : la config `unsafe.bindings[].type:"ratelimit"`
+   déclenche bien cet avertissement dans cette version de Wrangler.
+
+Voir wrangler-dry-run-after-fix.txt pour la preuve que les deux
+constats sont résolus après correctif (build réussi, plus aucun
+avertissement "unsafe", binding Rate Limit reconnu nativement).

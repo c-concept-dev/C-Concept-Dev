@@ -1,4 +1,3 @@
-"use strict";
 // test/worker.test.js — evidenceforge-llm-proxy, tests LOCAL_CONTROLLED.
 //
 // Aucun déploiement Cloudflare, aucun binding réel : env.fetchImpl et
@@ -6,8 +5,13 @@
 // du Worker (contrat CDC section 7) sans jamais prétendre a une preuve
 // REAL — voir MONO-08-v0.6-ACCEPTANCE-MATRIX.md pour la distinction avec
 // le cas G (REAL, non exécuté ici).
+//
+// Import ESM natif (correctif d'audit) : ce fichier et src/worker.js sont
+// tous deux de vrais modules ES (package.json déclare "type": "module"),
+// pour que src/worker.js expose un `export default { fetch }` reconnu par
+// Wrangler comme point d'entrée Worker valide (voir README.md).
 
-const { handleRequest, isValidMessagesPayload, extractBearerToken, constantTimeEquals } = require("../src/worker.js");
+import { handleRequest, isValidMessagesPayload, extractBearerToken, constantTimeEquals } from "../src/worker.js";
 
 const results = [];
 function check(name, cond, detail) { results.push({ name: name, pass: !!cond, detail: detail || "" }); }

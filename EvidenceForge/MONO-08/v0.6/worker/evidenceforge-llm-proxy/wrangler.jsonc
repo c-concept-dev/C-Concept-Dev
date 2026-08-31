@@ -13,25 +13,31 @@
   "compatibility_flags": ["nodejs_compat"],
 
   // Rate limiting (CDC section 7.11) — binding natif Cloudflare Rate
-  // Limiting API. Seuil documenté ici, à ajuster par l'opérateur au moment
-  // du déploiement réel selon le volume attendu ; jamais codé en dur dans
-  // src/worker.js (le code lit uniquement env.RATE_LIMITER.limit(), voir
+  // Limiting API, syntaxe STABLE (top-level "ratelimits", schéma
+  // RawConfig/properties/ratelimits de wrangler 4.127.1 — vérifié
+  // localement dans config-schema.json, wrangler deploy --dry-run PASS).
+  // Correctif d'audit : la version précédente utilisait
+  // `unsafe.bindings[].type:"ratelimit"`, marqué expérimental par
+  // Wrangler lui-même ("unsafe fields are experimental and may change or
+  // break at any time") ; la syntaxe ci-dessous est la forme stable
+  // recommandée pour un binding Rate Limiting, sans "unsafe". Seuil
+  // documenté ici, à ajuster par l'opérateur au moment du déploiement réel
+  // selon le volume attendu ; jamais codé en dur dans src/worker.js (le
+  // code lit uniquement env.RATE_LIMITER.limit(), voir
   // src/worker.js::checkRateLimit()).
-  "unsafe": {
-    "bindings": [
-      {
-        "name": "RATE_LIMITER",
-        "type": "ratelimit",
-        // simple : compteur glissant. period en secondes. limit = nombre
-        // de requêtes autorisées par période et par clé (voir
-        // checkRateLimit() : clé = hash de EVIDENCEFORGE_WORKER_API_KEY).
-        // Valeur de démarrage prudente, à ajuster par l'opérateur avant
-        // tout déploiement réel — jamais laissée "illimitée".
-        "namespace_id": "1",
-        "simple": { "limit": 30, "period": 60 }
-      }
-    ]
-  },
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1",
+      // simple : compteur glissant. period en secondes — le schéma stable
+      // n'autorise que 10 ou 60 (pas de valeur arbitraire). limit = nombre
+      // de requêtes autorisées par période et par clé (voir
+      // checkRateLimit() : clé = hash de EVIDENCEFORGE_WORKER_API_KEY).
+      // Valeur de démarrage prudente, à ajuster par l'opérateur avant tout
+      // déploiement réel — jamais laissée "illimitée".
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
 
   // Secrets attendus (jamais définis ici — `wrangler secret put <name>`
   // uniquement, hors dépôt) :

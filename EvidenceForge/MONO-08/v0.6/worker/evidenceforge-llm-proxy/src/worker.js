@@ -1,4 +1,3 @@
-"use strict";
 /**
  * evidenceforge-llm-proxy — Worker Cloudflare dédié, mode delegated de
  * MONO-08 v0.6 (CDC MONO-08-v0.6-DELEGATED-LLM-AUTH-CDC.md, section 7).
@@ -13,9 +12,14 @@
  *
  * Ce fichier exporte `handleRequest(request, env)`, la logique pure et
  * testable sans déploiement Cloudflare réel (voir test/worker.test.js), et
- * un export par défaut `{ fetch: handleRequest }` compatible avec le
- * format Worker ES module standard pour un déploiement réel futur (hors
- * périmètre de ce lot — aucun déploiement n'est effectué ici).
+ * un export par défaut `{ fetch(request, env, ctx) }` au format ES Module
+ * Worker réellement requis par Cloudflare (correctif d'audit : la version
+ * précédente n'exposait qu'un `module.exports` CommonJS, invalide comme
+ * point d'entrée Worker — voir README.md section « Format ES Module »
+ * pour la preuve `wrangler deploy --dry-run`). Fichier ESM natif
+ * (`worker/evidenceforge-llm-proxy/package.json` déclare `"type":
+ * "module"`) ; les tests Node (`test/worker.test.js`) l'importent via
+ * `import`, jamais `require`.
  */
 
 const ROUTE_PATH = "/v1/messages";
@@ -241,11 +245,16 @@ async function handleRequest(request, env) {
   });
 }
 
-module.exports = {
-  handleRequest: handleRequest,
-  isValidMessagesPayload: isValidMessagesPayload,
-  extractBearerToken: extractBearerToken,
-  constantTimeEquals: constantTimeEquals,
-  ROUTE_PATH: ROUTE_PATH,
-  fetch: handleRequest,
+export { handleRequest, isValidMessagesPayload, extractBearerToken, constantTimeEquals, ROUTE_PATH };
+
+// Point d'entrée réel du Worker ES Module (Cloudflare exige littéralement
+// `export default { fetch(request, env, ctx) { ... } }` — voir preuve
+// wrangler dry-run dans README.md). ctx (ExecutionContext) n'est pas
+// utilisé par handleRequest ci-dessus (pas de waitUntil/passThroughOnException
+// nécessaire pour ce relais synchrone), mais reste accepté pour respecter
+// la signature standard `fetch(request, env, ctx)`.
+export default {
+  fetch(request, env, ctx) {
+    return handleRequest(request, env, ctx);
+  },
 };

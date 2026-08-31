@@ -1,10 +1,12 @@
 {
   "name": "evidenceforge-llm-proxy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Worker Cloudflare dedie EvidenceForge MONO-08 v0.6 (mode delegated). Relais minimal client -> Worker -> Anthropic. ANTHROPIC_API_KEY reste exclusivement cote Cloudflare. NON DEPLOYE par ce lot (voir README.md).",
+  "type": "module",
   "main": "src/worker.js",
   "scripts": {
-    "test": "node test/worker.test.js"
+    "test": "node test/worker.test.js",
+    "validate": "wrangler deploy --dry-run"
   }
 }
