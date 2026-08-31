@@ -6,6 +6,10 @@ import {
   parseDecisionCandidate,
   readBoundedText
 } from "../../shared/decision-core.js";
+<<<<<<< Updated upstream
+=======
+import { ROLE_DEFINITIONS, OPRIE_ROLES, handleRoleRequest, resolveRoleSchema } from "../../shared/operational-request-core.js";
+>>>>>>> Stashed changes
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "openai/gpt-oss-20b";
@@ -65,7 +69,47 @@ export async function decideWithGroq(input, env) {
     throw new Error(`Groq a répondu ${response.status}.`);
   }
   const envelope = JSON.parse(raw);
+<<<<<<< Updated upstream
   return parseDecisionCandidate(envelope?.choices?.[0]?.message?.content, input.demande);
+=======
+  return envelope?.choices?.[0]?.message?.content;
+}
+
+export async function decideWithGroq(input, env) {
+  const content = await callGroqChatCompletion({
+    systemPrompt: DECISION_MODEL_PROMPT,
+    userMessage: makeDecisionUserMessage(input),
+    schema: DECISION_JSON_SCHEMA,
+    schemaName: "decision_provider",
+    env,
+    maxCompletionTokens: 512
+  });
+  return parseDecisionCandidate(content, input.demande);
+}
+
+/**
+ * Exécute un rôle OPRIE (analyst | critic | arbiter) sur Groq, avec exactement le même prompt
+ * système et le même schéma JSON que Workers AI — le registre ROLE_DEFINITIONS
+ * (operational-request-core.js) est l'unique source de vérité pour les deux.
+ */
+export async function runRoleWithGroq(role, input, env) {
+  const definition = ROLE_DEFINITIONS[role];
+  if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
+  const content = await callGroqChatCompletion({
+    systemPrompt: definition.systemPrompt,
+    userMessage: definition.buildUserMessage(input),
+    schema: resolveRoleSchema(definition, input),
+    schemaName: `oprie_${role}`,
+    env,
+    maxCompletionTokens: 2048
+  });
+  return definition.parseOutput(content);
+}
+
+function roleFromPathname(pathname) {
+  const role = pathname.replace(/^\//, "");
+  return OPRIE_ROLES.includes(role) ? role : null;
+>>>>>>> Stashed changes
 }
 
 export default {
