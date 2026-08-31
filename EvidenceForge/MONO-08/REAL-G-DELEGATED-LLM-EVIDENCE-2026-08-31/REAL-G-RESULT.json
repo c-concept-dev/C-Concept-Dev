@@ -1,0 +1,54 @@
+{
+  "lot": "MONO-08-v0.6-REAL-G-delegated-llm-only",
+  "generatedAt": "2026-08-31",
+  "verdict": "REAL_G_NOT_COMPLETE",
+  "scope": {
+    "realGDefinition": "delegated LLM authentication REAL test only (CDC MONO-08-v0.6-DELEGATED-LLM-AUTH-CDC.md table 10 + section Regle sur le cas G)",
+    "efOrchPipeline": "OUT_OF_SCOPE",
+    "documentaryTwins": "OUT_OF_SCOPE",
+    "documentaryReviews": "OUT_OF_SCOPE",
+    "realSmokeLineage": "OUT_OF_SCOPE",
+    "realSmokePersistence": "OUT_OF_SCOPE",
+    "realSmokeUI": "OUT_OF_SCOPE",
+    "realSmokeComplete": "NOT_RUN"
+  },
+  "worker": {
+    "name": "evidenceforge-llm-proxy",
+    "url": "https://evidenceforge-llm-proxy.11drumboy11.workers.dev",
+    "versionId": "ce2b8c80-4084-490e-8faa-585881d8e175",
+    "source": "OPERATOR_REPORTED_not_independently_requeried_no_cloudflare_auth_in_this_session",
+    "sourceCodeUnchangedSinceAudit": true
+  },
+  "realRequest": {
+    "source": "OPERATOR_REPORTED",
+    "requestId": "preflight-2786c9915e24759a",
+    "httpStatus": 200,
+    "authValid": true,
+    "operationValid": true,
+    "responseValid": true,
+    "independentlyObservedByClaude": false
+  },
+  "level2CorrelatedEvidence": {
+    "status": "NOT_AVAILABLE_IN_THIS_SESSION",
+    "reason": "no Worker-side trace (wrangler tail / Cloudflare log) correlated to the reported request-id was found anywhere in this repository or session",
+    "searchPerformed": "grep -rl \"preflight-2786c9915e24759a\" . (repo root) -> 0 matches",
+    "operatorActionRequired": "capture wrangler tail output + a fresh minimal real probe with an explicit request-id simultaneously, see LLM-REALITY-LEVEL2.md"
+  },
+  "h1": {
+    "operatorReported": { "status": "PASS", "matches": 0, "exitCode": 0 },
+    "independentlyReDerivedByClaudeOnRealRun": "NOT_AVAILABLE_no_run_artifacts_in_this_session",
+    "evidenceDossierSelfScan": { "status": "PASS", "matches": 0 }
+  },
+  "h2": {
+    "status": "PASS",
+    "independentlyVerifiedByClaude": true,
+    "method": "static code review, ANTHROPIC_API_KEY absent from delegated code paths in lib/preflight.js and lib/real-provider-configs.js, comments stripped before search",
+    "testFile": "EvidenceForge/MONO-08/v0.6/test/test_t08_v06_delegated_auth.js"
+  },
+  "noMock": true,
+  "noFakeProvider": true,
+  "realSmoke": "NOT_RUN",
+  "mono08": "NON_GELE",
+  "mono09Jmmjs": "NON_ENTAME",
+  "finalStatement": "REAL G NOT COMPLETE — Level 2 correlated Worker-side evidence is not available in this session; nothing fabricated to close the gap. See LLM-REALITY-LEVEL2.md for exact operator commands to close it."
+}
