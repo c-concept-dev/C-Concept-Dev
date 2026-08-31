@@ -103,19 +103,48 @@ function isValidMessagesPayload(payload) {
  * Clé de limitation : le credential Worker lui-même (haché, jamais en
  * clair dans les logs) — protège spécifiquement contre l'exploitation
  * d'un EVIDENCEFORGE_WORKER_API_KEY compromis (objectif CDC section 7.11).
+ *
+ * FAIL-CLOSED (correctif d'audit — Défaut Bloquant 1) : le rate limiting
+ * est un contrôle de sécurité obligatoire, jamais un confort optionnel.
+ * Toute situation où ce contrôle ne peut pas être exécuté de façon fiable
+ * (binding absent, binding mal formé, `.limit()` qui lève, résultat de
+ * forme inattendue) doit REFUSER la requête — jamais la laisser continuer
+ * vers l'upstream Anthropic sous prétexte que le limiteur est
+ * indisponible. La version précédente retournait `{limited: false}` dans
+ * ce cas (fail-OPEN), ce qui aurait permis un relais Anthropic illimité si
+ * le binding de production était mal configuré ou absent — violation
+ * directe du contrat CDC section 7.11 (« jamais de relais Anthropic
+ * illimité »). Trois issues possibles, disjointes :
+ *
+ *   - status "OK"          : quota disponible, poursuivre (cas K négatif).
+ *   - status "LIMITED"      : quota réellement dépassé -> 429 (cas K).
+ *   - status "UNAVAILABLE"  : binding absent/mal formé/résultat invalide,
+ *                             ou "RUNTIME_ERROR" si `.limit()` a levé une
+ *                             exception -> 503, AUCUN appel upstream
+ *                             (cas L/M/N).
  */
 async function checkRateLimit(env, workerKey) {
   if (!env.RATE_LIMITER || typeof env.RATE_LIMITER.limit !== "function") {
-    // Aucun binding de rate limiting configuré : ne bloque jamais une
-    // requête faute de binding (ce serait un déni de service involontaire
-    // en environnement de test), mais ce n'est PAS un état de production
-    // valide — voir README.md "Déploiement" : le binding est obligatoire
-    // avant tout déploiement réel (CDC section 7.11, non optionnel).
-    return { limited: false, skippedNoBinding: true };
+    // Binding absent (cas L) ou présent mais interface invalide, ex.
+    // `.limit` n'est pas une fonction (cas M) : fail-closed, jamais un
+    // passage silencieux.
+    return { status: "UNAVAILABLE", reason: "RATE_LIMITER_UNAVAILABLE" };
   }
   const key = "worker-key:" + (await sha256Hex(workerKey || "anonymous"));
-  const result = await env.RATE_LIMITER.limit({ key: key });
-  return { limited: !result || result.success !== true, skippedNoBinding: false };
+  let result;
+  try {
+    result = await env.RATE_LIMITER.limit({ key: key });
+  } catch (e) {
+    // `.limit()` a levé une exception (cas N) : fail-closed.
+    return { status: "UNAVAILABLE", reason: "RATE_LIMITER_RUNTIME_ERROR" };
+  }
+  if (!result || typeof result.success !== "boolean") {
+    // Réponse de forme inattendue (ni succès ni échec exploitable) :
+    // traité comme indisponible, jamais interprété par défaut comme
+    // "autorisé" — fail-closed.
+    return { status: "UNAVAILABLE", reason: "RATE_LIMITER_UNAVAILABLE" };
+  }
+  return result.success ? { status: "OK" } : { status: "LIMITED", reason: "RATE_LIMITED" };
 }
 
 async function sha256Hex(value) {
@@ -170,8 +199,17 @@ async function handleRequest(request, env) {
   }
 
   // 3) Rate limiting (CDC section 7.11) — AVANT tout appel upstream.
+  // FAIL-CLOSED (correctif d'audit) : "UNAVAILABLE" (binding absent/mal
+  // formé/résultat invalide/exception) -> 503, jamais un 429 (429 signifie
+  // que le limiteur fonctionne et que le seuil a réellement été dépassé —
+  // jamais mélanger les deux causes) et jamais un passage silencieux vers
+  // l'upstream.
   const rl = await checkRateLimit(env, token);
-  if (rl.limited) {
+  if (rl.status === "UNAVAILABLE") {
+    logMinimal(env, { requestId: requestId, event: "rate_limiter_unavailable", status: 503, latencyMs: Date.now() - startedAt });
+    return jsonResponse(503, { error: "rate_limiter_unavailable", reason: rl.reason, message: "Rate limiter indisponible ou mal configure — requete refusee (fail-closed), aucun appel upstream tente." }, baseCorrelationHeaders);
+  }
+  if (rl.status === "LIMITED") {
     logMinimal(env, { requestId: requestId, event: "rate_limited", status: 429, latencyMs: Date.now() - startedAt });
     return jsonResponse(429, { error: "rate_limited", message: "Limite de requetes depassee — reessayer plus tard." }, baseCorrelationHeaders);
   }

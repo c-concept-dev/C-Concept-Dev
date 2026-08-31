@@ -70,7 +70,15 @@ Toute autre méthode ou route → `404`.
    (comparaison en temps constant) **avant** tout appel upstream. Absent ou
    invalide → `401`.
 3. Applique le rate limiting (`RATE_LIMITER` binding) **avant** tout appel
-   upstream. Dépassement → `429`, jamais converti en succès.
+   upstream, **fail-closed** (correctif d'audit — voir § « Rate limiting
+   fail-closed » ci-dessous) :
+   - binding valide + quota disponible → poursuit ;
+   - binding valide + quota réellement dépassé → `429`, jamais converti en
+     succès (`reason: "RATE_LIMITED"`) ;
+   - binding absent, mal formé, résultat de forme inattendue, ou `.limit()`
+     qui lève une exception → `503`, **aucun appel upstream**, jamais un
+     passage silencieux (`reason: "RATE_LIMITER_UNAVAILABLE"` ou
+     `"RATE_LIMITER_RUNTIME_ERROR"`).
 4. Valide strictement le payload JSON entrant (`model`, `max_tokens`,
    `messages`) **avant** tout appel upstream. Invalide → `400`.
 5. N'accepte jamais `ANTHROPIC_API_KEY` depuis le client — l'injecte
@@ -94,6 +102,36 @@ Toute autre méthode ou route → `404`.
     hors périmètre v0.6.
 13. Aucune dépendance à un autre Worker applicatif existant.
 
+## Rate limiting fail-closed (correctif d'audit)
+
+Une version antérieure de `checkRateLimit()` retournait `{limited: false}`
+lorsque `env.RATE_LIMITER` était absent ou mal formé — la requête
+continuait alors normalement vers l'upstream Anthropic. Un audit
+indépendant a signalé ceci comme une violation contractuelle de sécurité
+(CDC section 7.11 : rate limiting obligatoire, jamais de relais Anthropic
+illimité) : un déploiement dont le binding `RATE_LIMITER` serait absent ou
+mal configuré aurait laissé passer un volume de requêtes illimité vers
+Anthropic.
+
+**Corrigé : le rate limiting est maintenant fail-closed.** Trois issues
+distinctes, jamais mélangées :
+
+| Situation | HTTP | `reason` | Upstream appelé ? |
+|---|---|---|---|
+| Binding valide, quota disponible | (continue) | — | selon la suite du contrat |
+| Binding valide, quota réellement dépassé | `429` | `RATE_LIMITED` | jamais |
+| Binding absent (cas L) | `503` | `RATE_LIMITER_UNAVAILABLE` | jamais |
+| Binding présent, `.limit` non fonctionnel (cas M) | `503` | `RATE_LIMITER_UNAVAILABLE` | jamais |
+| `.limit()` renvoie une forme inattendue | `503` | `RATE_LIMITER_UNAVAILABLE` | jamais |
+| `.limit()` lève une exception (cas N) | `503` | `RATE_LIMITER_RUNTIME_ERROR` | jamais |
+
+`429` et `503` ne sont **jamais interchangeables** : `429` signifie que le
+limiteur fonctionne réellement et que le seuil a été dépassé ; `503`
+signifie que le limiteur lui-même est indisponible ou en panne — dans les
+deux cas, `checkRateLimit()` s'exécute et retourne avant toute
+construction du payload upstream ou tout appel `fetchImpl` (voir
+`src/worker.js::handleRequest()`, étape 3, toujours avant l'étape 6).
+
 ## Tests
 
 ```bash
@@ -102,13 +140,14 @@ npm test
 node test/worker.test.js
 ```
 
-28 assertions `LOCAL_CONTROLLED` (aucun réseau réel, aucun déploiement
+38 assertions `LOCAL_CONTROLLED` (aucun réseau réel, aucun déploiement
 Cloudflare) : routes/méthodes refusées, credential absent/invalide, rate
-limit, payload invalide, relais de succès et d'erreurs upstream (y compris
-529/timeout/panne réseau), non-exposition des deux secrets dans le corps ou
-les headers de réponse, fonctions utilitaires. Voir le fichier pour le
-détail de chaque cas et sa correspondance avec
-`MONO-08-v0.6-ACCEPTANCE-MATRIX.md` (cas D, K notamment).
+limit (dépassement réel **et** fail-closed sur binding absent/invalide/en
+erreur — cas K, L, M, N), payload invalide, relais de succès et d'erreurs
+upstream (y compris 529/timeout/panne réseau), non-exposition des deux
+secrets dans le corps ou les headers de réponse, fonctions utilitaires.
+Voir le fichier pour le détail de chaque cas et sa correspondance avec
+`MONO-08-v0.6-ACCEPTANCE-MATRIX.md` (cas D, K, L, M, N notamment).
 
 Aucun de ces tests ne constitue une preuve REAL (cas G) — voir la section
 « Statut de déploiement » ci-dessus.

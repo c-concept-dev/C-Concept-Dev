@@ -227,16 +227,87 @@ const VALID_PAYLOAD = { model: "claude-3-5-haiku-latest", max_tokens: 16, messag
     check("Worker-23. constantTimeEquals() compare correctement", constantTimeEquals("same", "same") === true && constantTimeEquals("same", "diff") === false);
   }
 
-  // === pas de rate limiter configure : ne bloque pas la requete, mais ne pretend jamais etre une config de production valide ===
+  // === L. RATE LIMITER BINDING ABSENT -> fail-closed, 503, aucun upstream ===
+  // (correctif d'audit — remplace l'ancien Worker-24, qui affirmait a tort
+  // que l'absence de binding laissait passer la requete : c'etait
+  // precisement le bug fail-open corrige ici)
   {
+    let upstreamCalled = false;
     const env = {
       WORKER_API_KEY: "wk-good",
       ANTHROPIC_API_KEY: "ak-good",
-      fetchImpl: fakeAnthropicFetch({ status: 200, body: { content: [{ type: "text", text: "ok" }] } }),
+      // pas de RATE_LIMITER du tout
+      fetchImpl: async () => { upstreamCalled = true; return new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }] }), { status: 200 }); },
     };
     const req = makeRequest({ headers: { authorization: "Bearer wk-good" }, body: JSON.stringify(VALID_PAYLOAD) });
     const res = await handleRequest(req, env);
-    check("Worker-24. sans binding RATE_LIMITER (test), la requete n'est pas bloquee par defaut — cf. README.md : binding obligatoire avant tout deploiement reel", res.status === 200);
+    const body = await res.json();
+    check("Worker-L (cas L). RATE_LIMITER absent -> 503, jamais 200, jamais 429", res.status === 503, "status=" + res.status);
+    check("Worker-L-upstream. RATE_LIMITER absent -> aucun appel upstream tente (fail-closed avant upstream)", upstreamCalled === false);
+    check("Worker-L-reason. corps 503 porte une cause explicite RATE_LIMITER_UNAVAILABLE", body.reason === "RATE_LIMITER_UNAVAILABLE", JSON.stringify(body));
+  }
+
+  // === M. RATE LIMITER BINDING INVALID (present mais .limit non fonctionnel) -> fail-closed, 503, aucun upstream ===
+  {
+    let upstreamCalled = false;
+    const env = {
+      WORKER_API_KEY: "wk-good",
+      ANTHROPIC_API_KEY: "ak-good",
+      RATE_LIMITER: { limit: "not-a-function" }, // binding present, interface invalide
+      fetchImpl: async () => { upstreamCalled = true; return new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }] }), { status: 200 }); },
+    };
+    const req = makeRequest({ headers: { authorization: "Bearer wk-good" }, body: JSON.stringify(VALID_PAYLOAD) });
+    const res = await handleRequest(req, env);
+    const body = await res.json();
+    check("Worker-M (cas M). RATE_LIMITER present mais .limit non fonctionnel -> 503, jamais 200", res.status === 503, "status=" + res.status);
+    check("Worker-M-upstream. binding invalide -> aucun appel upstream tente", upstreamCalled === false);
+    check("Worker-M-reason. corps 503 porte RATE_LIMITER_UNAVAILABLE", body.reason === "RATE_LIMITER_UNAVAILABLE", JSON.stringify(body));
+  }
+  {
+    // Variante M : .limit() existe mais renvoie une forme inattendue
+    // (ni {success:true} ni {success:false}) -> traite comme indisponible,
+    // jamais interprete par defaut comme "autorise".
+    let upstreamCalled = false;
+    const env = {
+      WORKER_API_KEY: "wk-good",
+      ANTHROPIC_API_KEY: "ak-good",
+      RATE_LIMITER: { limit: async () => ({ someOtherField: 1 }) },
+      fetchImpl: async () => { upstreamCalled = true; return new Response("{}", { status: 200 }); },
+    };
+    const req = makeRequest({ headers: { authorization: "Bearer wk-good" }, body: JSON.stringify(VALID_PAYLOAD) });
+    const res = await handleRequest(req, env);
+    check("Worker-M2. .limit() renvoie une forme inattendue (pas de success:boolean) -> 503, jamais 200", res.status === 503 && !upstreamCalled, "status=" + res.status);
+  }
+
+  // === N. RATE LIMITER RUNTIME ERROR (.limit() leve une exception) -> fail-closed, 503, aucun upstream ===
+  {
+    let upstreamCalled = false;
+    const env = {
+      WORKER_API_KEY: "wk-good",
+      ANTHROPIC_API_KEY: "ak-good",
+      RATE_LIMITER: { limit: async () => { throw new Error("simulated rate limiter outage"); } },
+      fetchImpl: async () => { upstreamCalled = true; return new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }] }), { status: 200 }); },
+    };
+    const req = makeRequest({ headers: { authorization: "Bearer wk-good" }, body: JSON.stringify(VALID_PAYLOAD) });
+    const res = await handleRequest(req, env);
+    const body = await res.json();
+    check("Worker-N (cas N). .limit() leve une exception -> 503, jamais 200", res.status === 503, "status=" + res.status);
+    check("Worker-N-upstream. exception du limiteur -> aucun appel upstream tente", upstreamCalled === false);
+    check("Worker-N-reason. corps 503 porte RATE_LIMITER_RUNTIME_ERROR", body.reason === "RATE_LIMITER_RUNTIME_ERROR", JSON.stringify(body));
+  }
+
+  // === Confirmation croisee : K (quota reellement depasse) reste 429, distinct de L/M/N (503) ===
+  {
+    let upstreamCalled = false;
+    const env = {
+      WORKER_API_KEY: "wk-good",
+      ANTHROPIC_API_KEY: "ak-good",
+      RATE_LIMITER: alwaysBlockRateLimiter(), // binding VALIDE, quota reellement depasse
+      fetchImpl: async () => { upstreamCalled = true; return new Response("{}", { status: 200 }); },
+    };
+    const req = makeRequest({ headers: { authorization: "Bearer wk-good" }, body: JSON.stringify(VALID_PAYLOAD) });
+    const res = await handleRequest(req, env);
+    check("Worker-K-vs-L. binding valide + quota depasse -> 429 (jamais 503) : K et L restent bien distincts", res.status === 429 && !upstreamCalled, "status=" + res.status);
   }
 
   const failed = results.filter(function (r) { return !r.pass; });
