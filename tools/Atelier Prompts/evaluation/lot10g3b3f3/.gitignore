@@ -1,0 +1,11 @@
+# Résultats du benchmark rôle × provider (3F.3.3-B) : générés localement contre des providers
+# réels, jamais ajoutés au dépôt par un "git add -A"/"git add ." sans revue.
+#
+# Ceci n'empêche pas de conserver volontairement un rapport particulier plus tard : il reste
+# committable explicitement, malgré cette règle, avec :
+#   git add -f evaluation/lot10g3b3f3/results/<fichier>.json
+#
+# Pour voir ce qui se trouve ici avant de décider (git status seul ne les affiche pas, par
+# construction d'un fichier ignoré) :
+#   git status --short --ignored -- evaluation/lot10g3b3f3/results
+results/

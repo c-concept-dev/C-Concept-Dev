@@ -92,7 +92,13 @@ const DEMAND_STATES = new Set(["exploitable", "clarification_necessaire"]);
 const ROUTES = new Set(["rapide", "architecte"]);
 const CONFIDENCES = new Set(["haute", "moyenne"]);
 
-function expectedReason(decision) {
+// 3F.3.3-X2-BATCH-R5.1c : EXPORTÉE (comportement strictement inchangé — seule la visibilité change)
+// pour être réutilisée telle quelle par decideWithAnthropic (workers/groq/src/index.js) comme
+// dérivation canonique de raison_interne, plutôt qu'une seconde autorité sémantique confiée au LLM.
+// raison_interne n'est pas un jugement indépendant : c'est une représentation déterministe de
+// etat_demande/route, déjà utilisée ici par validateDecision pour la valider — jamais dupliquée
+// ailleurs.
+export function expectedReason(decision) {
   if (decision.etat_demande === "clarification_necessaire") return DECISION_REASONS.clarification;
   return decision.route === "rapide" ? DECISION_REASONS.rapide : DECISION_REASONS.architecte;
 }
@@ -247,7 +253,59 @@ export function jsonResponse(payload, status, cors) {
   });
 }
 
-export async function readJsonBody(request, maxBytes = 8192) {
+/**
+ * LOT HTTP-8192 (corrigé par LOT HTTP-8192a) : politique de limites transport route-specific +
+ * plafond absolu de sécurité — remplace l'ancien plafond global implicite unique (8192 pour toutes
+ * les routes, hérité de la première implémentation de readJsonBody, jamais dimensionné par route).
+ * Valeurs mesurées sur des payloads synthétiques représentatifs N=4/20/50/100 (Buffer.byteLength
+ * réel, UTF-8) — cf. HTTP-TRANSPORT-LIMITS-MEASUREMENTS.json et HTTP-8192-REPORT.md /
+ * HTTP-8192a-REPORT.md pour le détail des mesures. AUCUNE de ces limites n'est une autorité
+ * sémantique : elles ne décident jamais degraded_state, readiness, ni n'influencent OPRIE, les
+ * prompts, les schémas ou le batching Critic — ce sont exclusivement des bornes de TAILLE DE CORPS
+ * HTTP ENTRANT.
+ *
+ * Le transport accepte les payloads contractuellement représentables jusqu'au dimensionnement
+ * technique retenu. Le plafond absolu protège uniquement les ressources HTTP (taille/mémoire) —
+ * jamais un jugement sur le nombre d'issues, de questions ou sur la légitimité sémantique d'un
+ * payload. Un mécanisme de transport n'est jamais une autorité sur ce qui constitue un usage OPRIE
+ * normal.
+ *
+ * - decision (16384) : couvre le pire cas mesuré (~12063 octets, demande de 4000 caractères en
+ *   script UTF-8 à 3 octets/caractère, validateDecisionInput) avec une marge technique réelle.
+ * - analyst (16384) : /analyst ne transporte jamais analyst_output ni critic_output (entrée limitée
+ *   à original_request + clarification_history, validateAnalystInput) — même ordre de grandeur que
+ *   /decision.
+ * - critic (65536, 64 KiB) : /critic transporte analyst_output complet. Mesuré : N=4 ≈5762 octets,
+ *   N=20 ≈13231, N=50 ≈27270, N=100 ≈50654 (croissance linéaire ≈467 octets/issue). 65536 couvre
+ *   N=100 avec une marge technique réelle (~29 %).
+ * - arbiter (196608, 192 KiB) : /arbiter transporte analyst_output ET critic_output (dont
+ *   question_substitution_review, la structure la plus volumineuse du système : 6 alternatives ×
+ *   {reasonably_available, reason} par issue). Mesuré : N=4 ≈10613, N=20 ≈36120, N=50 ≈83999, N=100
+ *   ≈163785 (croissance linéaire ≈1595 octets/issue). 196608 couvre N=100 avec une marge technique
+ *   réelle (~20 %).
+ * - absolute (262144, 256 KiB) : plafond de sécurité indépendant des routes, jamais dépassable
+ *   quelle que soit la valeur route fournie (cf. Math.min ci-dessous) — dernière ligne de défense de
+ *   taille/mémoire HTTP contre un corps manifestement hors de toute taille de requête raisonnable ou
+ *   une future mauvaise configuration de route.
+ */
+export const TRANSPORT_LIMITS = Object.freeze({
+  decision: 16384,
+  analyst: 16384,
+  critic: 65536,
+  arbiter: 196608,
+  absolute: 262144
+});
+
+/**
+ * routeLimitBytes est TOUJOURS fourni explicitement par l'appelant (une limite par route, cf.
+ * TRANSPORT_LIMITS ci-dessus) — le défaut (TRANSPORT_LIMITS.absolute) ne sert qu'à un appelant qui
+ * ne préciserait aucune route (jamais le cas des 4 routes réelles /decision /analyst /critic
+ * /arbiter, toutes explicites). maxBytes réellement appliqué est TOUJOURS borné par
+ * TRANSPORT_LIMITS.absolute via Math.min, quelle que soit la valeur transmise : une route ne peut
+ * jamais, même mal configurée, dépasser le plafond de sécurité absolu.
+ */
+export async function readJsonBody(request, routeLimitBytes = TRANSPORT_LIMITS.absolute) {
+  const maxBytes = Math.min(routeLimitBytes, TRANSPORT_LIMITS.absolute);
   const length = Number(request.headers.get("Content-Length") || 0);
   if (length > maxBytes) throw new DecisionHttpError(413, "payload_too_large", "Corps de requête trop volumineux.");
   const reader = request.body?.getReader();
@@ -311,7 +369,7 @@ export async function handleDecisionRequest(request, env, decide) {
   if (request.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, cors);
   if (!cors) return jsonResponse({ error: "origin_not_allowed" }, 403, null);
   try {
-    const input = validateDecisionInput(await readJsonBody(request));
+    const input = validateDecisionInput(await readJsonBody(request, TRANSPORT_LIMITS.decision));
     return jsonResponse(validateDecision(await decide(input, env), input.demande), 200, cors);
   } catch (error) {
     if (error instanceof DecisionHttpError) return jsonResponse({ error: error.code, message: error.message }, error.status, cors);

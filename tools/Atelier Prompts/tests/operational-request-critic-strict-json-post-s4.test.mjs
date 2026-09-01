@@ -36,9 +36,10 @@ test("G3-1 : le prompt interdit nommément available_alternative_reason comme cl
 
 // --- Section 26 : exactement les 4 clés de chaque review -------------------------------------------
 
-// 3F.3.3-X2-A : issue_id devient la clé de l'objet — trois clés désormais dans chaque valeur.
+// 3F.3.3-X2-B : issue_id est la clé de l'objet, question_is_last_resort est dérivé — why_available
+// remplace sa place dans les trois clés exactes.
 test("G3-2 : le prompt rappelle explicitement les 3 clés exactes d'une valeur question_substitution_review", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, question_is_last_resort, available_alternative — jamais une quatrième/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, available_alternative, why_available — jamais une quatrième/);
 });
 
 // --- Section 27 : exactement les 6 clés d'alternatives_reviewed -------------------------------------
@@ -55,11 +56,13 @@ test("G3-4 : le prompt rappelle explicitement les 2 clés exactes de chaque alte
 
 // --- Section 29 : routage explicite des justifications -----------------------------------------------
 
+// 3F.3.3-X2-B : illegitimate_question_found n'est plus produit par le LLM (dérivé) — why_available
+// vit désormais directement dans la valeur de question_substitution_review, avec une justification
+// distincte du reason de l'alternative choisie (jamais une simple copie).
 test("G3-5 : le prompt route explicitement chaque justification vers son unique champ dédié, jamais un champ inventé", () => {
   assert.match(CRITIC_SYSTEM_PROMPT, /l'explication de pourquoi une alternative est disponible vit exclusivement dans alternatives_reviewed\.<alternative>\.reason, jamais ailleurs, jamais dupliquée dans un champ séparé/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /le reason déjà présent dans alternatives_reviewed\.<alternative correspondante>\.reason est la seule et unique explication attendue/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /la justification du signal illegitimate_question_found vit exclusivement dans son propre champ why_available/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /ne la recopiez jamais dans question_substitution_review/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /le reason déjà présent dans alternatives_reviewed\.<alternative correspondante>\.reason est la seule et unique explication de la disponibilité de cette alternative/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /why_available porte une justification distincte, propre à la question elle-même/);
 });
 
 // --- Section 17 : rappel JSON strict général --------------------------------------------------------
@@ -86,7 +89,7 @@ test("G3-8 : le schéma dynamique de question_substitution_review reste addition
   const entrySchema = dynamicSchema.properties.issue1;
   assert.equal(entrySchema.type, "object");
   assert.equal(entrySchema.additionalProperties, false);
-  assert.deepEqual([...entrySchema.required].sort(), ["alternatives_reviewed", "available_alternative", "question_is_last_resort"]);
+  assert.deepEqual([...entrySchema.required].sort(), ["alternatives_reviewed", "available_alternative", "why_available"]);
 
   const alternativesSchema = entrySchema.properties.alternatives_reviewed;
   assert.equal(alternativesSchema.type, "object");

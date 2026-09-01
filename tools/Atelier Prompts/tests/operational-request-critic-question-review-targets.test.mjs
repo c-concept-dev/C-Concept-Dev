@@ -70,6 +70,13 @@ function availableReview(issueId, alternative) {
   return { issue_id: issueId, alternatives_reviewed: alternativesReviewed(alternative), question_is_last_resort: false, available_alternative: alternative };
 }
 
+// 3F.3.3-X2-B : forme RÉELLEMENT produite par le LLM (mock de réponse Groq uniquement, jamais pour
+// un appel direct à validateCriticOutput qui, lui, garde le contrat historique à 4 clés inchangé) —
+// why_available remplace question_is_last_resort, consommé par deriveCriticConsequences.
+function availableReviewRawLlm(issueId, alternative) {
+  return { issue_id: issueId, alternatives_reviewed: alternativesReviewed(alternative), available_alternative: alternative, why_available: `Justification structurelle : ${alternative} disponible pour ${issueId}.` };
+}
+
 function illegitimateFinding(issueId, alternative) {
   return { issue_id: issueId, available_alternative: alternative, why_available: `Justification structurelle : ${alternative} disponible pour ${issueId}.` };
 }
@@ -237,7 +244,7 @@ test("S3-12 : un fake Critic conforme (4 reviews, mapping correct, une alternati
     agreement: "disagree",
     vetoes: [{ issue_id: "issue2", new_information_trigger: "Aucune information nouvelle ne permet de déduire le budget.", why_material: "Le budget conditionne fortement la faisabilité.", why_not_substitutable: "Aucune donnée ne permet de le déduire sans le demander." }],
     question_substitution_review: [
-      lastResortReview("issue1"), availableReview("issue2", "estimate"), lastResortReview("issue3"), lastResortReview("issue4")
+      lastResortReview("issue1"), availableReviewRawLlm("issue2", "estimate"), lastResortReview("issue3"), lastResortReview("issue4")
     ],
     illegitimate_question_found: [illegitimateFinding("issue2", "estimate")]
   })));
@@ -280,7 +287,7 @@ test("S3-14 : end-to-end local — 0 appel Analyst, 1 appel Critic, message cont
       agreement: "disagree",
       vetoes: [{ issue_id: "issue2", new_information_trigger: "Aucune information nouvelle ne permet de déduire le budget.", why_material: "Le budget conditionne fortement la faisabilité.", why_not_substitutable: "Aucune donnée ne permet de le déduire sans le demander." }],
       question_substitution_review: [
-        lastResortReview("issue1"), availableReview("issue2", "estimate"), lastResortReview("issue3"), lastResortReview("issue4")
+        lastResortReview("issue1"), availableReviewRawLlm("issue2", "estimate"), lastResortReview("issue3"), lastResortReview("issue4")
       ],
       illegitimate_question_found: [illegitimateFinding("issue2", "estimate")]
     }));

@@ -74,6 +74,15 @@
 //   node evaluation/lot10g3b3f3/run-role-benchmark.mjs [--repetitions=3] [--provider=all|workers-ai|groq] [--output=chemin.json]
 //     [--pacing-ms=0] [--groq-max-retries=5] [--groq-retry-margin-ms=750] [--groq-default-backoff-ms=30000]
 //     [--timeout-ms=60000] [--cases=case-a,case-b] [--roles=analyst,critic,arbiter] [--resume]
+//     [--critic-max-completion-tokens=2048]
+//
+// 3F.3.3-X2-B-RS : --critic-max-completion-tokens permet de faire varier, dans ce HARNESS de mesure
+// uniquement, la valeur max_completion_tokens envoyée à Groq pour le rôle critic (droit de sortie du
+// modèle), afin de mesurer l'effet réel d'un budget plus serré une fois la dérivation D en place.
+// Défaut 2048 : identique bit-à-bit à la valeur de production (workers/groq/src/index.js,
+// runRoleWithGroq) quand l'option est omise, pour tout usage existant. N'affecte jamais analyst ni
+// arbiter (toujours 2048, valeur de production inchangée), jamais le runtime Cloudflare Worker
+// lui-même, jamais le prompt, le schéma, la dérivation D ni le modèle.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -86,7 +95,11 @@ import {
 } from "../../workers/shared/operational-request-core.js";
 import { scoreAnalystOutput, scoreCriticOutput, scoreArbiterOutput, assessStability } from "./score-role-outputs.mjs";
 import { PRIMARY_MODEL as RUNTIME_WORKERS_AI_MODEL } from "../../workers/workers-ai/src/index.js";
-import { MODEL as RUNTIME_GROQ_MODEL } from "../../workers/groq/src/index.js";
+import {
+  MODEL as RUNTIME_GROQ_MODEL,
+  parseRetryAfterMs, parseRetryDelayFromBody, sleep,
+  fetchGroqWithRetry as fetchGroqWithRetryShared
+} from "../../workers/groq/src/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
@@ -163,6 +176,20 @@ export function resolveTimeoutMs(rawValue) {
   return Math.round(value);
 }
 
+// 3F.3.3-X2-B-RS : budget de sortie Critic, configurable dans ce HARNESS seul (jamais le runtime de
+// production). Défaut strictement égal à la valeur de production actuelle (2048), pour que tout appel
+// existant qui ne passe pas --critic-max-completion-tokens reste bit-à-bit identique à avant.
+export const DEFAULT_CRITIC_MAX_COMPLETION_TOKENS = 2048;
+
+export function resolveCriticMaxCompletionTokens(rawValue) {
+  if (rawValue === undefined) return DEFAULT_CRITIC_MAX_COMPLETION_TOKENS;
+  const value = Number(rawValue);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`--critic-max-completion-tokens invalide : "${rawValue}". Attendu un entier >= 1.`);
+  }
+  return value;
+}
+
 let ROLES_FILTER;
 try {
   ROLES_FILTER = resolveRoles(args.roles);
@@ -182,6 +209,15 @@ try {
 export const TIMEOUT_MS = (() => {
   try {
     return resolveTimeoutMs(args["timeout-ms"]);
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exit(1);
+  }
+})();
+
+export const CRITIC_MAX_COMPLETION_TOKENS = (() => {
+  try {
+    return resolveCriticMaxCompletionTokens(args["critic-max-completion-tokens"]);
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
     process.exit(1);
@@ -210,83 +246,23 @@ function providerAvailable(provider) {
   return provider === "workers-ai" ? Boolean(CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_API_TOKEN) : Boolean(GROQ_API_KEY);
 }
 
-// 3F.3.3-H2 : signal optionnel — quand fourni, l'attente est écourtée dès l'abandon (backoff 429
-// coupé par le timeout global du rôle), sans jamais changer le comportement quand aucun signal
-// n'est passé (pacing, tests existants, appels directs).
-function sleep(ms, signal) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(Object.assign(new Error("Attente interrompue (signal déjà abandonné)."), { name: "AbortError" }));
-      return;
-    }
-    const timer = setTimeout(resolve, ms);
-    if (signal) {
-      signal.addEventListener("abort", () => {
-        clearTimeout(timer);
-        reject(Object.assign(new Error("Attente interrompue (signal abandonné)."), { name: "AbortError" }));
-      }, { once: true });
-    }
-  });
-}
-
-/** En-tête Retry-After standard : soit un nombre de secondes, soit une date HTTP. */
-export function parseRetryAfterMs(response) {
-  const header = typeof response?.headers?.get === "function" ? response.headers.get("retry-after") : null;
-  if (!header) return null;
-  const seconds = Number(header);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1000);
-  const dateMs = Date.parse(header);
-  return Number.isFinite(dateMs) ? Math.max(0, dateMs - Date.now()) : null;
-}
+// 3F.3.3-X2-BATCH-R2 : sleep, parseRetryAfterMs, parseRetryDelayFromBody et fetchGroqWithRetry ont
+// été RELOCALISÉS dans workers/groq/src/index.js (le runtime de production en avait besoin lui aussi
+// — avant R2, seul ce harnais honorait Retry-After, jamais le pipeline Critic réel). Importés ci-
+// dessus et réexportés ici tels quels (mêmes noms, même comportement) pour ne rien casser des usages/
+// tests existants de ce fichier — une seule source de vérité, jamais une deuxième copie maintenue en
+// parallèle.
+export { parseRetryAfterMs, parseRetryDelayFromBody };
 
 /**
- * Extraction prudente d'un délai de reprise depuis le corps d'une erreur Groq, uniquement quand un
- * nombre de secondes y apparaît sans ambiguïté ("try again in 25.7s", ou un champ retry_after
- * explicite). Ne tente jamais d'interpréter une phrase libre au-delà de ce motif étroit ; retourne
- * null dans tout autre cas pour laisser le repli fixe (defaultBackoffMs) prendre le relais.
- */
-export function parseRetryDelayFromBody(raw) {
-  if (typeof raw !== "string" || !raw) return null;
-  const match = /try again in\s+([\d.]+)\s*s\b/i.exec(raw) || /"retry_after"\s*:\s*"?([\d.]+)"?/i.exec(raw);
-  if (!match) return null;
-  const seconds = Number(match[1]);
-  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : null;
-}
-
-/**
- * Exécute fetch(url, requestInit) avec reprise automatique sur HTTP 429 : même appel, même corps,
- * après avoir attendu le délai indiqué par le provider (+ marge de sécurité) ou un repli fixe si
- * aucun délai n'est exploitable. Borné par maxRetries pour exclure toute boucle infinie. N'importe
- * quelle autre réponse (succès ou autre erreur) est retournée telle quelle, sans retry — un 429
- * réessayé avec succès est indiscernable, pour l'appelant, d'un succès du premier coup, hormis les
- * compteurs retries/rate_limited_wait_ms retournés à titre d'observabilité.
- *
- * 3F.3.3-H1 : sans signal partagé (appel direct, hors runRole), chaque tentative porte son propre
- * AbortSignal.timeout — un appel individuel ne peut donc jamais rester bloqué au-delà de timeoutMs.
- * 3F.3.3-H2 : quand un signal partagé est fourni (runRole), il est réutilisé tel quel pour chaque
- * tentative ET pour l'attente de backoff, au lieu de recréer un budget plein à chaque retry :
- * timeout-ms redevient ainsi le budget total du rôle, jamais timeout-ms × (1 + nombre de retries).
+ * fetchGroqWithRetry du harnais : même contrat externe qu'avant R2 (signature, retries/
+ * rate_limited_wait_ms), mais délègue désormais l'implémentation réelle à la version partagée
+ * (workers/groq/src/index.js), à laquelle GROQ_RETRY_DEFAULTS (configurable par CLI, propre à ce
+ * harnais) est passé en overrides complets — la version de production sert de repli uniquement
+ * quand cette fonction est absente de tout appelant, jamais utilisée ici.
  */
 export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
-  const { maxRetries, safetyMarginMs, defaultBackoffMs, timeoutMs, sleepFn = sleep, signal } = { ...GROQ_RETRY_DEFAULTS, ...overrides };
-  let attempt = 0;
-  let rateLimitedWaitMs = 0;
-  while (true) {
-    const response = await fetch(url, { ...requestInit, signal: signal ?? AbortSignal.timeout(timeoutMs) });
-    if (response.status !== 429) return { response, retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs };
-    if (attempt >= maxRetries) {
-      throw Object.assign(
-        new Error(`Groq HTTP 429 : limite de débit atteinte après ${maxRetries} tentative(s) de reprise.`),
-        { rateLimited: true, exhausted: true, error_kind: "http_429", retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs }
-      );
-    }
-    const raw = await response.clone().text().catch(() => "");
-    const retryAfterMs = parseRetryAfterMs(response) ?? parseRetryDelayFromBody(raw) ?? defaultBackoffMs;
-    const waitMs = retryAfterMs + safetyMarginMs;
-    rateLimitedWaitMs += waitMs;
-    attempt += 1;
-    await sleepFn(waitMs, signal);
-  }
+  return fetchGroqWithRetryShared(url, requestInit, { ...GROQ_RETRY_DEFAULTS, ...overrides });
 }
 
 // 3F.3.3-H2 : signal optionnel, partagé depuis runRole (budget total du rôle) ; sans signal (appel
@@ -341,7 +317,9 @@ export async function callGroq(role, systemPrompt, userMessage, schema, retryOve
         reasoning_format: "hidden",
         reasoning_effort: "low",
         temperature: 0,
-        max_completion_tokens: 2048,
+        // 3F.3.3-X2-B-RS : seul le rôle critic peut recevoir un budget non-défaut (--critic-max-completion-tokens) ;
+        // analyst et arbiter restent à 2048, valeur de production, inchangée.
+        max_completion_tokens: role === "critic" ? CRITIC_MAX_COMPLETION_TOKENS : 2048,
         stream: false
       })
     }, retryOverrides));

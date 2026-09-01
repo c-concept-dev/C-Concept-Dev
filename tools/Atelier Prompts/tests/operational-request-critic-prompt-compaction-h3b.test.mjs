@@ -94,42 +94,38 @@ test("H3B-3 : les clauses porteuses S4 (définition, resolve/continue, six alter
   assert.match(CRITIC_SYSTEM_PROMPT, /leave_unknown ne signifie jamais que l'inconnue disparaît/);
   assert.match(CRITIC_SYSTEM_PROMPT, /elle est conservée comme inconnue pendant que le reste avance/);
   assert.match(CRITIC_SYSTEM_PROMPT, /jamais toutes vraies par défaut \(aucune des six n'est automatiquement disponible\), jamais toutes fausses par défaut/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /question_is_last_resort=true reste pleinement légitime et attendu chaque fois que les six alternatives sont réellement incapables de permettre une quelconque progression utile/);
+  // 3F.3.3-X2-B : question_is_last_resort n'est plus nommé dans le prompt (dérivé) — la garantie
+  // sémantique équivalente ("une question reste légitime si les six alternatives échouent") demeure.
+  assert.match(CRITIC_SYSTEM_PROMPT, /Une question reste pleinement légitime et attendue chaque fois que les six alternatives sont réellement incapables de permettre une quelconque progression utile/);
 });
 
 // --- Clauses porteuses G3 : exact keys + interdiction available_alternative_reason -------------------
 
 // 3F.3.3-X2-A : issue_id devient la clé de l'objet (plus un champ de la valeur) — la liste "clés
 // exactes" passe de quatre à trois.
-test("H3B-4 : les clauses porteuses G3 (exact keys — désormais trois, issue_id étant la clé —, available_alternative_reason interdit, routage justification) restent représentées", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, question_is_last_resort, available_alternative — jamais une quatrième/);
+test("H3B-4 : les clauses porteuses G3 (exact keys — désormais alternatives_reviewed/available_alternative/why_available —, available_alternative_reason interdit, routage justification) restent représentées", () => {
+  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, available_alternative, why_available — jamais une quatrième/);
   assert.match(CRITIC_SYSTEM_PROMPT, /alternatives_reviewed contient EXACTEMENT ces six clés — research, decide, estimate, scenario, condition, leave_unknown — jamais une septième/);
   assert.match(CRITIC_SYSTEM_PROMPT, /Chaque alternative individuelle \(chacune des six\) contient EXACTEMENT ces deux clés — reasonably_available, reason — jamais une autre/);
   assert.match(CRITIC_SYSTEM_PROMPT, /N'ajoutez JAMAIS available_alternative_reason/);
   assert.match(CRITIC_SYSTEM_PROMPT, /l'explication de pourquoi une alternative est disponible vit exclusivement dans alternatives_reviewed\.<alternative>\.reason, jamais ailleurs, jamais dupliquée dans un champ séparé/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /le reason déjà présent dans alternatives_reviewed\.<alternative correspondante>\.reason est la seule et unique explication attendue/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /la justification du signal illegitimate_question_found vit exclusivement dans son propre champ why_available/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /ne la recopiez jamais dans question_substitution_review/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /le reason déjà présent dans alternatives_reviewed\.<alternative correspondante>\.reason est la seule et unique explication de la disponibilité de cette alternative/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /why_available porte une justification distincte, propre à la question elle-même/);
   assert.match(CRITIC_SYSTEM_PROMPT, /N'ajoutez jamais available_alternative_reason, ni aucune autre clé absente du schéma, à question_substitution_review/);
 });
 
 // --- Clauses porteuses G4 : CAS A/B, cardinalité N->N, signal->disagree, pas de fantôme --------------
 
-test("H3B-5 : les clauses porteuses G4 (CAS A/B, cardinalité, signal->disagree, pas de fantôme) restent représentées", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /CHAÎNE DE COHÉRENCE OBLIGATOIRE/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /cette chaîne ne redéfinit jamais QUAND une alternative est disponible/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /elle impose seulement CE QUI DOIT SUIVRE mécaniquement une fois ce jugement fait/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /illegitimate_question_found contient EXACTEMENT un signal.*pour ce même issue_id/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Une revue à question_is_last_resort=false SANS le signal correspondant dans illegitimate_question_found est une sortie invalide \(OMISSION\)/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /question_is_last_resort=false avec illegitimate_question_found=\[\] pour cette même issue est également une sortie invalide \(CONTRADICTION\)/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Un signal illegitimate_question_found référençant une issue dont la revue conclut question_is_last_resort=true est un SIGNAL FANTÔME/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /chaque signal de illegitimate_question_found désigne exactement le même issue_id qu'une revue à question_is_last_resort=false/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /jamais un signal générique non rattaché à un issue_id précis, jamais un regroupement de plusieurs issues sous un seul signal/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Si N revues de question_substitution_review concluent question_is_last_resort=false, illegitimate_question_found contient exactement N signaux correspondant à ces N issues/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /jamais moins \(omission\), jamais plus \(signal fantôme ou doublon pour la même issue\)/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /si illegitimate_question_found est non vide, agreement doit être "disagree"/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Si, à l'inverse, toutes les revues concluent question_is_last_resort=true, agreement="agree" reste pleinement autorisé/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /cette chaîne n'introduit aucun biais vers "disagree"/);
+// 3F.3.3-X2-B : les clauses porteuses G4 (CAS A/B, cardinalité narrative, signal->disagree, pas de
+// fantôme) sont entièrement supersédées par deriveCriticConsequences — cf.
+// operational-request-critic-substitution-signal-coherence.test.mjs (G4-1..7) pour la preuve
+// comportementale. Ce test vérifie que le texte narratif a disparu et que la sémantique
+// (disponibilité + justification) demeure.
+test("H3B-5 : les clauses G4 (CAS A/B, cardinalité, signal->disagree, pas de fantôme) sont supersédées par la dérivation déterministe X2-B", () => {
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /CHAÎNE DE COHÉRENCE OBLIGATOIRE/);
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /SIGNAL FANTÔME/);
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /Décidez agreement en dernier/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /DISPONIBILITÉ ET JUSTIFICATION/);
 });
 
 // --- Comportement local inchangé (mission §10) : mêmes acceptations/rejets qu'avant H3B --------------

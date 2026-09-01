@@ -1,0 +1,61 @@
+{
+  "_comment": "3F.3.3-S2-E : corpus miniature autonome (jamais evaluation/lot10g3b3f3/corpus.json) contenant un unique cas role_under_test=critic_isolation. Sert (1) de fixture directe pour tests/operational-request-critic-b01b-sentinel-isolation.test.mjs et (2) de --corpus alternatif pour un futur smoke réel autorisé séparément (Critic seul, aucun appel Analyste). fixture_analyst_output reprend fidèlement la sortie Analyst réelle observée sur Groq (checkpoint smoke post-S1, case-12-italie, valid_json=true, score.pass=true), à l'exception de l'invention passeport (assumptions_allowed + son ProvenanceRecord), volontairement retirée : ce défaut sémantique-provenance est hors périmètre S2-E (DEFECT SEPARATE — NOT TOUCHED BY S2-E). Ce fichier ne fait l'objet d'aucune dépendance de production : aucun code métier (workers/shared/operational-request-core.js, evaluation/lot10g3b3f3/score-role-outputs.mjs) ne le lit ni ne le référence.",
+  "cases": [
+    {
+      "id": "sentinel-b01b-substitution",
+      "label": "Sentinelle déterministe B-01B : sortie Analyst figée, 4 issues material+question + 1 non_material+leave_unknown (LOT X2-C : recommended_treatment=\"question\" exige impact=\"material\", cf. normalizeRoleIssues)",
+      "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Aide-moi à préparer un voyage en Italie.",
+        "clarification_history": []
+      },
+      "fixture_analyst_output": {
+        "operational_request_candidate": {
+          "objective": "Préparer un voyage en Italie",
+          "expected_deliverable": "Plan de voyage détaillé (itinéraire, hébergement, transport, budget)",
+          "secondary_objectives": [],
+          "confirmed_constraints": [],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": [
+            "Dates de voyage",
+            "Budget disponible",
+            "Durée du séjour",
+            "Type de voyage (tourisme, affaires, famille, etc.)"
+          ]
+        },
+        "provenance_records": [
+          { "field": "objective", "value": "Préparer un voyage en Italie", "provenance": "explicit_user_statement" },
+          { "field": "expected_deliverable", "value": "Plan de voyage détaillé (itinéraire, hébergement, transport, budget)", "provenance": "explicit_user_statement" },
+          { "field": "remaining_unknowns", "value": "Dates de voyage", "provenance": "explicit_user_statement" },
+          { "field": "remaining_unknowns", "value": "Budget disponible", "provenance": "explicit_user_statement" },
+          { "field": "remaining_unknowns", "value": "Durée du séjour", "provenance": "explicit_user_statement" },
+          { "field": "remaining_unknowns", "value": "Type de voyage (tourisme, affaires, famille, etc.)", "provenance": "explicit_user_statement" }
+        ],
+        "issues": [
+          { "id": "issue1", "type": "missing_information", "description": "Les dates de voyage ne sont pas précisées.", "impact": "material", "substitutable": false, "recommended_treatment": "question", "kind": null },
+          { "id": "issue2", "type": "missing_information", "description": "Le budget disponible pour le voyage n'est pas défini.", "impact": "material", "substitutable": false, "recommended_treatment": "question", "kind": null },
+          { "id": "issue3", "type": "missing_information", "description": "La durée du séjour en Italie est inconnue.", "impact": "material", "substitutable": false, "recommended_treatment": "question", "kind": null },
+          { "id": "issue4", "type": "ambiguity", "description": "Le type de voyage (tourisme, affaires, famille, etc.) n'est pas spécifié.", "impact": "material", "substitutable": false, "recommended_treatment": "question", "kind": null },
+          { "id": "issue5", "type": "deliverable_unclear", "description": "Le format exact du livrable attendu (itinéraire, budget, recommandations) n'est pas défini.", "impact": "non_material", "substitutable": true, "recommended_treatment": "leave_unknown", "kind": null }
+        ],
+        "question_candidates": [
+          { "text": "Quelles sont les dates prévues pour votre voyage en Italie?", "targets_issue_id": "issue1", "expected_progress": "Obtenir les dates de voyage" }
+        ],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      },
+      "oracle": {
+        "critic": {}
+      }
+    }
+  ]
+}

@@ -1,0 +1,306 @@
+{
+  "version": "1.0",
+  "description": "Corpus minimal du benchmark rôle × provider (LOT 10G.3B.3F.3.3). Les oracles décrivent un comportement attendu (types d'issues, présence/absence de provenance, agrément du Critique, etc.), jamais un mot-clé métier : les mêmes prédicats de scoring s'appliquent à n'importe quel autre domaine.",
+  "cases": [
+    {
+      "id": "case-01-simple-complete",
+      "label": "Demande simple et complète",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Rédige une liste de 10 conseils génériques pour bien dormir, sans contexte particulier à respecter.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "expect_material_issue_types": [], "max_material_questions": 0, "forbidden_candidate_substrings": [] },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-02-simple-incomplete",
+      "label": "Demande simple mais incomplète",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Écris une lettre de motivation.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "expect_material_issue_types": ["missing_information"], "min_material_questions": 1 },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-03-longue-desordonnee",
+      "label": "Demande longue et désordonnée",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Je dois réorganiser plein de trucs, il y a le déménagement prévu dans deux mois, mon frère qui viendra peut-être m'aider un des jours, faut trier les cartons de l'ancien appartement, et au fait est-ce que tu peux aussi me faire un planning de la semaine pour tout caser, sachant que je travaille aussi et que j'ai peu de temps le soir.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": {
+          "expect_material_issue_types": ["information_overload"],
+          "forbidden_candidate_substrings": ["frère va aider", "frère aidera"]
+        },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-04-contradictoire",
+      "label": "Demande contradictoire",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Je veux un rapport ultra détaillé d'une cinquantaine de pages, mais il faut aussi qu'il tienne en une seule page.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "expect_material_issue_types": ["conflict"], "expect_conflict_kind": ["logical_contradiction", "constraint_tension"] },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-05-multi-objectifs",
+      "label": "Demande multi-objectifs sans priorité",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Je veux à la fois préparer ma présentation client de la semaine prochaine et refaire entièrement mon CV, dis-moi comment m'organiser pour les deux.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "expect_material_issue_types": ["multi_objective_disorder"] },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-06-delegation",
+      "label": "Délégation « à vous de choisir »",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Prépare-moi un plan pour organiser un petit événement d'équipe.",
+        "clarification_history": [
+          { "turn": 1, "question": "Quel budget prévoir pour cet événement ?", "answer": "À vous de choisir.", "provenance": "user" }
+        ]
+      },
+      "oracle": {
+        "analyst": {
+          "forbidden_question_targets_containing": ["budget"],
+          "expect_delegated_decision_containing": "budget",
+          "forbidden_research_containing": "budget"
+        },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-07-je-ne-sais-pas",
+      "label": "Réponse « je ne sais pas »",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Rédige un article de blog sur les bienfaits du sommeil.",
+        "clarification_history": [
+          { "turn": 1, "question": "À quel public cible s'adresse cet article ?", "answer": "Je ne sais pas.", "provenance": "user" }
+        ]
+      },
+      "oracle": {
+        "analyst": {
+          "forbidden_question_targets_semantically_equal_to": "À quel public cible s'adresse cet article ?",
+          "expect_non_question_treatment_present": true
+        },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-08-info-recherchable",
+      "label": "Information manquante mais recherchable",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Donne-moi la météo prévue à Paris demain pour que j'organise ma sortie.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "expect_treatment_present": "research", "max_material_questions": 0 },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-09-preference-vs-contrainte",
+      "label": "Préférence à ne jamais transformer en contrainte",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "J'aimerais si possible un ton plutôt formel pour ce message, mais fais au mieux si ce n'est pas possible.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "forbidden_candidate_field_substrings": [{ "field": "confirmed_constraints", "substring": "formel" }] },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-10-critique-accepte-sans-veto",
+      "label": "Le Critique doit accepter sans inventer d'objection",
+      "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Fais-moi un compte rendu de la réunion hebdomadaire, avec les décisions, les actions et les points en suspens dans des sections séparées.",
+        "clarification_history": []
+      },
+      "fixture_analyst_output": {
+        "operational_request_candidate": {
+          "objective": "Produire un compte rendu de la réunion hebdomadaire.",
+          "expected_deliverable": "Compte rendu structuré en trois sections : décisions, actions, points en suspens.",
+          "secondary_objectives": [],
+          "confirmed_constraints": ["Format structuré en trois sections nommées."],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          { "field": "objective", "value": "Produire un compte rendu de la réunion hebdomadaire.", "provenance": "explicit_user_statement" },
+          { "field": "expected_deliverable", "value": "Compte rendu structuré en trois sections : décisions, actions, points en suspens.", "provenance": "explicit_user_statement" },
+          { "field": "confirmed_constraints", "value": "Format structuré en trois sections nommées.", "provenance": "explicit_user_statement" }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      },
+      "oracle": {
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-11-critique-veto-qualifie",
+      "label": "Le Critique doit émettre un veto qualifié sur un ajout non tracé",
+      "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Fais-moi un compte rendu de la réunion hebdomadaire.",
+        "clarification_history": []
+      },
+      "fixture_analyst_output": {
+        "operational_request_candidate": {
+          "objective": "Produire un compte rendu de la réunion hebdomadaire.",
+          "expected_deliverable": "Compte rendu structuré.",
+          "secondary_objectives": [],
+          "confirmed_constraints": ["Le compte rendu doit être envoyé à toute la direction générale."],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          { "field": "objective", "value": "Produire un compte rendu de la réunion hebdomadaire.", "provenance": "explicit_user_statement" },
+          { "field": "expected_deliverable", "value": "Compte rendu structuré.", "provenance": "explicit_user_statement" }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      },
+      "oracle": {
+        "critic": { "expect_agreement": "disagree", "expect_vetoes": true, "expect_unsupported_addition_detected": true },
+        "arbiter": {
+          "forbidden_state": "operational_request_ready",
+          "forbidden_candidate_field_substrings": [{ "field": "confirmed_constraints", "substring": "direction générale" }]
+        }
+      }
+    },
+    {
+      "id": "case-12-italie",
+      "label": "Cas Italie historique",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Je veux préparer mon voyage en Italie.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": {
+          "expect_material_issue_types": ["deliverable_unclear", "missing_information"],
+          "expect_material_issue_types_mode": "any",
+          "min_material_questions": 1,
+          "forbidden_candidate_substrings": ["Rome", "Venise", "Florence", "dix jours", "10 jours", "juin"]
+        },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-13-confuse-execution-simple",
+      "label": "Demande très confuse débouchant sur une exécution simple",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Alors voilà, je sais pas trop, j'hésite entre plein d'options, mon collègue m'a dit un truc l'autre jour, bref, en fait ce qu'il me faut vraiment c'est juste une liste de 5 idées de titres pour mon article, rien de plus compliqué que ça.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "max_material_questions": 0, "forbidden_candidate_field_substrings": [{ "field": "confirmed_constraints", "substring": "collègue" }] },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-14-courte-execution-complexe",
+      "label": "Demande courte mais exécution complexe",
+      "role_under_test": "analyst_and_critic",
+      "input": {
+        "original_request": "Prépare le plan de migration de notre base de données vers le nouveau système, en tenant compte du fait que deux équipes doivent rester synchronisées pendant toute l'opération.",
+        "clarification_history": []
+      },
+      "oracle": {
+        "analyst": { "expect_material_issue_types": ["dependency", "constraint_tension"], "expect_material_issue_types_mode": "any" },
+        "critic": { "expect_agreement": "agree", "expect_vetoes": false }
+      }
+    },
+    {
+      "id": "case-15-glissement-semantique",
+      "label": "Glissement sémantique volontaire (préférence reclassée en contrainte)",
+      "role_under_test": "critic_isolation",
+      "input": {
+        "original_request": "Rédige un message de suivi client, si possible en français.",
+        "clarification_history": []
+      },
+      "fixture_analyst_output": {
+        "operational_request_candidate": {
+          "objective": "Rédiger un message de suivi client.",
+          "expected_deliverable": "Un message court de suivi client.",
+          "secondary_objectives": [],
+          "confirmed_constraints": ["Le message doit impérativement être rédigé en français."],
+          "confirmed_priorities": [],
+          "confirmed_preferences": [],
+          "delegated_decisions": [],
+          "external_facts_to_research": [],
+          "assumptions_allowed": [],
+          "remaining_unknowns": []
+        },
+        "provenance_records": [
+          { "field": "objective", "value": "Rédiger un message de suivi client.", "provenance": "explicit_user_statement" },
+          { "field": "expected_deliverable", "value": "Un message court de suivi client.", "provenance": "explicit_user_statement" },
+          { "field": "confirmed_constraints", "value": "Le message doit impérativement être rédigé en français.", "provenance": "explicit_user_statement" }
+        ],
+        "issues": [],
+        "question_candidates": [],
+        "confirmation_signals": {
+          "multiple_ambiguities_resolved": false,
+          "complex_conflict_arbitrated": false,
+          "strong_restructuring": false,
+          "multiple_objectives_hierarchized": false,
+          "significant_delegation": false
+        }
+      },
+      "note_for_reviewer": "La demande originale correspondante dirait par exemple « si possible en français » (préférence souple) — l'Analyste fictif l'a reclassée à tort en contrainte impérative. La provenance déclarée est structurellement valide (le champ pointe bien vers une déclaration utilisateur) : seule une lecture sémantique peut détecter ce glissement, jamais la couche déterministe seule.",
+      "oracle": {
+        "critic": { "expect_agreement": "disagree", "expect_semantic_drift_detected": true },
+        "arbiter": { "forbidden_state": "operational_request_ready" }
+      }
+    }
+  ]
+}

@@ -91,23 +91,23 @@ test("H3-4 : les invariants S4 (progression utile, resolve/continue, six alterna
 // --- Section 22 : invariants G3 préservés ------------------------------------------------------------
 
 // 3F.3.3-X2-A : trois clés désormais (issue_id est la clé de l'objet, plus un champ de la valeur).
-test("H3-5 : les invariants G3 (exact keys — désormais trois —, no extra property, available_alternative_reason interdit) restent présents", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, question_is_last_resort, available_alternative — jamais une quatrième/);
+test("H3-5 : les invariants G3 (exact keys — désormais alternatives_reviewed/available_alternative/why_available —, no extra property, available_alternative_reason interdit) restent présents", () => {
+  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, available_alternative, why_available — jamais une quatrième/);
   assert.match(CRITIC_SYSTEM_PROMPT, /alternatives_reviewed contient EXACTEMENT ces six clés — research, decide, estimate, scenario, condition, leave_unknown — jamais une septième/);
   assert.match(CRITIC_SYSTEM_PROMPT, /Chaque alternative individuelle \(chacune des six\) contient EXACTEMENT ces deux clés — reasonably_available, reason — jamais une autre/);
   assert.match(CRITIC_SYSTEM_PROMPT, /N'ajoutez JAMAIS available_alternative_reason/);
   assert.match(CRITIC_SYSTEM_PROMPT, /N'ajoutez jamais available_alternative_reason, ni aucune autre clé absente du schéma, à question_substitution_review/);
 });
 
-// --- Section 23 : invariants G4 préservés ------------------------------------------------------------
+// --- Section 23 : invariants G4 supersédés par X2-B ----------------------------------------------------
 
-test("H3-6 : les invariants G4 (CAS A/B, cardinalité N->N, signal->disagree, pas de fantôme) restent présents", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /CHAÎNE DE COHÉRENCE OBLIGATOIRE/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /illegitimate_question_found contient EXACTEMENT un signal.*pour ce même issue_id/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Une revue à question_is_last_resort=false SANS le signal correspondant dans illegitimate_question_found est une sortie invalide \(OMISSION\)/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /si illegitimate_question_found est non vide, agreement doit être "disagree"/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Si N revues de question_substitution_review concluent question_is_last_resort=false, illegitimate_question_found contient exactement N signaux correspondant à ces N issues/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Un signal illegitimate_question_found référençant une issue dont la revue conclut question_is_last_resort=true est un SIGNAL FANTÔME/);
+// 3F.3.3-X2-B : les invariants G4 (CAS A/B, cardinalité N->N, signal->disagree, pas de fantôme) sont
+// désormais garantis par deriveCriticConsequences (workers/shared/operational-request-core.js),
+// jamais par un texte de prompt — cf. operational-request-critic-substitution-signal-coherence.test.mjs.
+test("H3-6 : les invariants G4 (CAS A/B, cardinalité N->N, signal->disagree, pas de fantôme) sont supersédés par la dérivation déterministe X2-B", () => {
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /CHAÎNE DE COHÉRENCE OBLIGATOIRE/);
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /SIGNAL FANTÔME/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /DISPONIBILITÉ ET JUSTIFICATION/);
 });
 
 // --- Section 24/25 : contrat local (fixtures génériques, aucun mot métier) --------------------------

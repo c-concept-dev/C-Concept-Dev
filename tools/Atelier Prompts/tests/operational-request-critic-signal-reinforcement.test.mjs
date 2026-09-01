@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { CRITIC_SYSTEM_PROMPT, validateCriticOutput } from "../workers/shared/operational-request-core.js";
+import { CRITIC_SYSTEM_PROMPT, validateCriticOutput, deriveCriticConsequences } from "../workers/shared/operational-request-core.js";
 import { scoreCriticOutput } from "../evaluation/lot10g3b3f3/score-role-outputs.mjs";
 
 // 3F.3.3-H3D : dernière incohérence comportementale observée après H3C — le smoke réel Critic-only
@@ -26,29 +26,52 @@ import { scoreCriticOutput } from "../evaluation/lot10g3b3f3/score-role-outputs.
 // même issue_id — H3D ne touche pas au validator, seulement au prompt ("EXACTEMENT une entrée" y
 // reste une consigne adressée au LLM, jamais une garantie du validateur).
 
-test("H3D-1 : le prompt affirme, immédiatement après le squelette de sortie, qu'une revue non-last-resort exige un signal (pas une simple implication narrative)", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /SIGNAL OBLIGATOIRE/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /pour toute entrée à question_is_last_resort=false, illegitimate_question_found contient EXACTEMENT une entrée au même issue_id/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Une entrée non-last-resort sans ce signal est invalide/);
+// 3F.3.3-X2-B, levier D : SIGNAL OBLIGATOIRE (H3D) reposait sur une discipline de prompt pour éviter
+// l'OMISSION (revue non-last-resort sans signal correspondant). X2-B rend cette discipline
+// structurellement inutile : le LLM ne produit plus illegitimate_question_found du tout —
+// deriveCriticConsequences le reconstruit mécaniquement depuis la même revue qui porte
+// available_alternative/why_available, rendant l'OMISSION structurellement impossible plutôt que
+// simplement interdite par le texte. H3D-1 à H3D-4 vérifient désormais cette garantie directement
+// sur la fonction de dérivation (même esprit que les tests jumeaux dans
+// operational-request-critic-substitution-signal-coherence.test.mjs, ici du point de vue H3D
+// spécifiquement : la conséquence review -> signal ne peut plus jamais être omise).
+
+function rawReviewH3D(issueId, alternative) {
+  return { [issueId]: { alternatives_reviewed: alternativesReviewed(alternative), available_alternative: alternative, why_available: alternative ? `Justification structurelle : ${alternative} permettait une progression utile pour ${issueId}.` : null } };
+}
+
+function rawCriticOutputH3D(overrides = {}) {
+  return {
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
+    vetoes: [],
+    semantic_drift_detected: false,
+    semantic_drift_notes: [],
+    significant_stakes: false,
+    significant_stakes_reason: "",
+    question_substitution_review: {},
+    ...overrides
+  };
+}
+
+test("H3D-1 : une revue non-last-resort produit toujours son signal correspondant — l'OMISSION est structurellement impossible, jamais une simple implication narrative", () => {
+  const derived = deriveCriticConsequences(rawCriticOutputH3D({ question_substitution_review: rawReviewH3D("issue1", "estimate") }));
+  assert.equal(derived.illegitimate_question_found.length, 1);
+  assert.equal(derived.illegitimate_question_found[0].issue_id, "issue1");
 });
 
-test("H3D-2 : le prompt exige explicitement le même issue_id entre le signal et la revue", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /illegitimate_question_found contient EXACTEMENT une entrée au même issue_id/);
+test("H3D-2 : le signal dérivé porte toujours exactement le même issue_id que sa revue source", () => {
+  const derived = deriveCriticConsequences(rawCriticOutputH3D({ question_substitution_review: { ...rawReviewH3D("issue1", "estimate"), ...rawReviewH3D("issue2", "scenario") } }));
+  assert.deepEqual(derived.illegitimate_question_found.map((f) => f.issue_id).sort(), ["issue1", "issue2"]);
 });
 
-test("H3D-3 : le prompt affirme explicitement que le signal implique agreement=\"disagree\"", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /illegitimate_question_found contient EXACTEMENT une entrée au même issue_id, et agreement="disagree"/);
+test("H3D-3 : un signal dérivé implique toujours agreement=\"disagree\"", () => {
+  const derived = deriveCriticConsequences(rawCriticOutputH3D({ question_substitution_review: rawReviewH3D("issue1", "estimate") }));
+  assert.equal(derived.agreement, "disagree");
 });
 
-test("H3D-4 : le renforcement est positionné immédiatement après CARDINALITÉ OBLIGATOIRE (H3C), avant la description d'alternatives_reviewed", () => {
-  const cardinaliteIndex = CRITIC_SYSTEM_PROMPT.indexOf("CARDINALITÉ OBLIGATOIRE");
-  const signalIndex = CRITIC_SYSTEM_PROMPT.indexOf("SIGNAL OBLIGATOIRE");
-  const alternativesReviewedDescIndex = CRITIC_SYSTEM_PROMPT.indexOf("alternatives_reviewed est un OBJET à exactement ces six clés fixes");
-  assert.ok(cardinaliteIndex !== -1 && signalIndex !== -1 && alternativesReviewedDescIndex !== -1);
-  assert.ok(cardinaliteIndex < signalIndex, "SIGNAL OBLIGATOIRE doit suivre CARDINALITÉ OBLIGATOIRE.");
-  assert.ok(signalIndex < alternativesReviewedDescIndex, "SIGNAL OBLIGATOIRE doit précéder la description d'alternatives_reviewed.");
-  const distance = signalIndex - cardinaliteIndex;
-  assert.ok(distance < 400, `SIGNAL OBLIGATOIRE doit rester immédiatement adjacent à CARDINALITÉ OBLIGATOIRE, donc proche du squelette de sortie (distance obtenue : ${distance} caractères).`);
+test("H3D-4 : la garantie structurelle (jamais une position dans le prompt) — SIGNAL OBLIGATOIRE n'existe plus comme texte, la cohérence vient de la dérivation elle-même", () => {
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /SIGNAL OBLIGATOIRE/, "supersédé par X2-B : la cohérence review -> signal est désormais garantie par construction, jamais par une instruction textuelle positionnée.");
+  assert.match(CRITIC_SYSTEM_PROMPT, /CARDINALITÉ OBLIGATOIRE/, "la cardinalité structurelle du schéma (X2-A), elle, reste intacte et non affectée par X2-B.");
 });
 
 // --- Fixtures génériques ------------------------------------------------------------------------------
@@ -180,31 +203,37 @@ test("H3D-11 : la calibration S4 de reasonably_available reste intacte", () => {
 
 // 3F.3.3-X2-A : issue_id n'est plus une clé de la VALEUR (il est désormais la clé de l'objet
 // question_substitution_review lui-même) — la liste "clés exactes" passe donc de quatre à trois.
-test("H3D-12 : le strict JSON G3 reste intact (exact keys — désormais trois, issue_id étant la clé —, available_alternative_reason interdit)", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, question_is_last_resort, available_alternative — jamais une quatrième/);
+// 3F.3.3-X2-B : issue_id n'est plus une clé de la VALEUR — trois clés désormais, question_is_last_resort
+// remplacé par why_available (dérivé, plus demandé au LLM).
+test("H3D-12 : le strict JSON reste intact (exact keys — désormais alternatives_reviewed/available_alternative/why_available —, available_alternative_reason interdit)", () => {
+  assert.match(CRITIC_SYSTEM_PROMPT, /chaque valeur de question_substitution_review contient EXACTEMENT ces trois clés — alternatives_reviewed, available_alternative, why_available — jamais une quatrième/);
   assert.match(CRITIC_SYSTEM_PROMPT, /N'ajoutez JAMAIS available_alternative_reason/);
 });
 
-test("H3D-13 : les règles G4 existantes (CAS A/B, cardinalité, signal->disagree, fantôme) restent intactes — H3D les rend seulement plus saillantes positionnellement", () => {
-  assert.match(CRITIC_SYSTEM_PROMPT, /CHAÎNE DE COHÉRENCE OBLIGATOIRE/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /illegitimate_question_found contient EXACTEMENT un signal.*pour ce même issue_id/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Une revue à question_is_last_resort=false SANS le signal correspondant dans illegitimate_question_found est une sortie invalide \(OMISSION\)/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /Un signal illegitimate_question_found référençant une issue dont la revue conclut question_is_last_resort=true est un SIGNAL FANTÔME/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /si illegitimate_question_found est non vide, agreement doit être "disagree"/);
+// 3F.3.3-X2-B : les règles G4 (CAS A/B, cardinalité narrative, signal->disagree, fantôme) sont
+// supersédées par la dérivation déterministe (deriveCriticConsequences) — cf.
+// operational-request-critic-substitution-signal-coherence.test.mjs (G4-1..7) pour la preuve
+// comportementale équivalente. Ce test vérifie que le texte narratif a bien disparu du prompt.
+test("H3D-13 : les règles G4 (CAS A/B, cardinalité, signal->disagree, fantôme) sont supersédées par la dérivation déterministe X2-B — plus un texte de prompt", () => {
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /CHAÎNE DE COHÉRENCE OBLIGATOIRE/);
+  assert.doesNotMatch(CRITIC_SYSTEM_PROMPT, /SIGNAL FANTÔME/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /DISPONIBILITÉ ET JUSTIFICATION/, "la sémantique (disponibilité + justification) reste, seule la mécanique de cohérence devient déterministe.");
 });
 
 // --- Section 23 : budget prompt -----------------------------------------------------------------------
 
-test("H3D-14 : budget prompt — ajout net mesuré et borné, budget final sous 18500 caractères (borne non relevée)", () => {
-  const H3C_END_STATE_CHARS = 18071;
+// 3F.3.3-X2-B : le retrait du mécanisme narratif (SIGNAL OBLIGATOIRE, CHAÎNE DE COHÉRENCE, décision
+// d'agreement) réduit le prompt net, plutôt que l'agrandir comme H3C/H3D le faisaient — la borne
+// absolue (18500, jamais relevée depuis H3B) reste la garde-fou pertinente.
+test("H3D-14 : budget prompt — X2-B réduit le prompt net (retrait du mécanisme narratif désormais dérivé), toujours sous le budget absolu 18500", () => {
   const BUDGET_MAX_CHARS = 18500;
+  const X2A_END_STATE_CHARS = 18429;
   const chars = CRITIC_SYSTEM_PROMPT.length;
-  const added = chars - H3C_END_STATE_CHARS;
+  const delta = chars - X2A_END_STATE_CHARS;
   // eslint-disable-next-line no-console
-  console.log(`H3D ajout net : ${added} caractères (18071 -> ${chars}).`);
-  assert.ok(added > 0, "H3D doit ajouter du texte (le renforcement lui-même).");
-  assert.ok(added <= 500, `l'ajout net ne doit jamais dépasser 500 caractères (obtenu : ${added}).`);
-  assert.ok(chars <= BUDGET_MAX_CHARS, `le budget final doit rester sous ${BUDGET_MAX_CHARS} caractères, jamais relevé (obtenu : ${chars}).`);
+  console.log(`X2-B delta net : ${delta} caractères (18429 -> ${chars}).`);
+  assert.ok(delta < 0, "X2-B doit réduire le prompt net (retrait du mécanisme narratif désormais dérivé).");
+  assert.ok(chars <= BUDGET_MAX_CHARS, `le budget absolu doit rester respecté (obtenu : ${chars}).`);
 });
 
 test("H3D-15 : aucun mot métier de production n'a été introduit", () => {

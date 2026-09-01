@@ -218,13 +218,19 @@ test("X2A-14 : available_alternative reste inchangé dans ce lot (nullable, vale
   assert.deepEqual([...field.enum].sort(), [...LADDER, null].sort());
 });
 
-test("X2A-15 : question_is_last_resort reste inchangé (booléen simple)", () => {
+// 3F.3.3-X2-B, levier D : question_is_last_resort n'est plus une propriété du schéma LLM (X2-A) —
+// il est dérivé mécaniquement par deriveCriticConsequences (workers/shared/operational-request-core.js).
+// Superseded : cf. tests/operational-request-critic-dynamic-schema-x2b.test.mjs pour la preuve
+// comportementale complète de la dérivation.
+test("X2A-15 : question_is_last_resort n'est plus une clé du schéma LLM (X2-B, dérivé) — why_available la remplace", () => {
   const schema = buildQuestionSubstitutionReviewSchema([{ issue_id: "issue1" }]);
-  assert.deepEqual(schema.properties.issue1.properties.question_is_last_resort, { type: "boolean" });
+  assert.ok(!("question_is_last_resort" in schema.properties.issue1.properties), "superseded par X2-B : dérivé, plus demandé au LLM.");
+  assert.deepEqual(schema.properties.issue1.properties.why_available, { type: ["string", "null"] });
 });
 
-test("X2A-16 : illegitimate_question_found reste structurellement inchangé (schéma, validateur, cohérence croisée)", () => {
-  assert.deepEqual(CRITIC_JSON_SCHEMA.properties.illegitimate_question_found.items.required, ["issue_id", "available_alternative", "why_available"]);
+// 3F.3.3-X2-B : illegitimate_question_found n'est plus dans le schéma LLM (X2-A) — dérivé.
+test("X2A-16 : illegitimate_question_found n'est plus dans le schéma LLM (X2-B, dérivé) ; validateCriticOutput (inchangé) continue de le valider structurellement une fois reconstruit", () => {
+  assert.ok(!("illegitimate_question_found" in CRITIC_JSON_SCHEMA.properties), "superseded par X2-B : dérivé, plus demandé au LLM.");
   const output = minimalCriticOutput({
     agreement: "disagree",
     question_substitution_review: { issue1: reviewValue("estimate") },
@@ -235,8 +241,9 @@ test("X2A-16 : illegitimate_question_found reste structurellement inchangé (sch
   assert.equal(result.illegitimate_question_found[0].issue_id, "issue1");
 });
 
-test("X2A-17 : agreement reste inchangé (enum agree/disagree, cohérence détection->verdict intacte)", () => {
-  assert.deepEqual(CRITIC_JSON_SCHEMA.properties.agreement, { type: "string", enum: ["agree", "disagree"] });
+// 3F.3.3-X2-B : agreement n'est plus dans le schéma LLM (X2-A) — dérivé.
+test("X2A-17 : agreement n'est plus dans le schéma LLM (X2-B, dérivé) ; validateCriticOutput (inchangé) continue de valider l'enum et la cohérence détection->verdict", () => {
+  assert.ok(!("agreement" in CRITIC_JSON_SCHEMA.properties), "superseded par X2-B : dérivé, plus demandé au LLM.");
   assert.throws(() => validateCriticOutput(minimalCriticOutput({ agreement: "invalide" })), TypeError);
 });
 
@@ -254,7 +261,7 @@ test("X2A-18 : la calibration sémantique S4 de reasonably_available reste intac
 
 test("X2A-19 : G3 (interdiction available_alternative_reason, routage justification) reste intact — seule la cardinalité (issue_id -> clé) a changé", () => {
   assert.match(CRITIC_SYSTEM_PROMPT, /N'ajoutez JAMAIS available_alternative_reason/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /le reason déjà présent dans alternatives_reviewed\.<alternative correspondante>\.reason est la seule et unique explication attendue/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /le reason déjà présent dans alternatives_reviewed\.<alternative correspondante>\.reason est la seule et unique explication de la disponibilité de cette alternative/);
   const invalidReview = { ...reviewValue("estimate"), available_alternative_reason: "en trop" };
   const output = minimalCriticOutput({
     agreement: "disagree",
@@ -322,20 +329,20 @@ test("X2A-verif : les 9 champs CRITIC_OUTPUT_FIELDS restent inchangés (aucun ch
   ]);
 });
 
+// 3F.3.3-X2-B : parseCriticOutput reçoit désormais la forme RÉELLEMENT produite par le LLM —
+// why_available vit dans la valeur elle-même (question_is_last_resort/agreement/
+// illegitimate_question_found sont dérivés, jamais lus depuis le raw).
 test("X2A-verif : parseCriticOutput accepte un aller-retour JSON complet de la forme réelle keyed-by-issue_id (4 targets, mixte)", () => {
-  const raw = JSON.stringify(minimalCriticOutput({
-    agreement: "disagree",
+  const raw = JSON.stringify({
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
+    vetoes: [], semantic_drift_detected: false, semantic_drift_notes: [], significant_stakes: false, significant_stakes_reason: "",
     question_substitution_review: {
-      issue1: reviewValue(null),
-      issue2: reviewValue("estimate"),
-      issue3: reviewValue("scenario"),
-      issue4: reviewValue(null)
-    },
-    illegitimate_question_found: [
-      { issue_id: "issue2", available_alternative: "estimate", why_available: "x" },
-      { issue_id: "issue3", available_alternative: "scenario", why_available: "y" }
-    ]
-  }));
+      issue1: { alternatives_reviewed: alternativesReviewed(null), available_alternative: null, why_available: null },
+      issue2: { alternatives_reviewed: alternativesReviewed("estimate"), available_alternative: "estimate", why_available: "x" },
+      issue3: { alternatives_reviewed: alternativesReviewed("scenario"), available_alternative: "scenario", why_available: "y" },
+      issue4: { alternatives_reviewed: alternativesReviewed(null), available_alternative: null, why_available: null }
+    }
+  });
   const result = parseCriticOutput(raw);
   assert.equal(result.question_substitution_review.length, 4);
   assert.deepEqual(result.question_substitution_review.map((r) => r.issue_id).sort(), ["issue1", "issue2", "issue3", "issue4"]);

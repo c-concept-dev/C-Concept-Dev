@@ -70,10 +70,12 @@ function illegitimateFinding(issueId, alternative, overrides = {}) {
 
 // --- Phase 23 : le prompt exige explicitement la nouvelle structure ------------------------------
 
+// 3F.3.3-X2-B : question_is_last_resort n'est plus une clé du prompt (dérivée) — why_available la
+// remplace dans les trois clés nommées littéralement.
 test("S2-1 : le prompt nomme littéralement question_substitution_review et ses trois autres clés", () => {
   assert.match(CRITIC_SYSTEM_PROMPT, /question_substitution_review/);
   assert.match(CRITIC_SYSTEM_PROMPT, /alternatives_reviewed/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /question_is_last_resort/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /why_available/);
   assert.match(CRITIC_SYSTEM_PROMPT, /available_alternative/);
 });
 
@@ -87,7 +89,7 @@ test("S2-2 : le prompt impose la cardinalité exacte, désormais via le mécanis
 });
 
 test("S2-3 : le prompt fournit un squelette JSON montrant alternatives_reviewed comme objet à six clés fixes", () => {
-  const skeletonMatch = CRITIC_SYSTEM_PROMPT.match(/\{\s*"alternatives_reviewed":[\s\S]*?"available_alternative":\s*null\s*\}/);
+  const skeletonMatch = CRITIC_SYSTEM_PROMPT.match(/\{\s*"alternatives_reviewed":[\s\S]*?"why_available":\s*null\s*\}/);
   assert.ok(skeletonMatch, "un squelette JSON doit montrer la forme d'une valeur question_substitution_review.");
   const skeleton = skeletonMatch[0];
   for (const treatment of LADDER) assert.match(skeleton, new RegExp(`"${treatment}"`), `${treatment} doit apparaître dans le squelette.`);
@@ -365,7 +367,7 @@ test("S2-39 : question_substitution_review est un objet keyed-by-issue_id, alter
   assert.deepEqual(schema.required, ["issue1"]);
   const entrySchema = schema.properties.issue1;
   assert.equal(entrySchema.type, "object");
-  assert.deepEqual([...entrySchema.required].sort(), ["alternatives_reviewed", "available_alternative", "question_is_last_resort"]);
+  assert.deepEqual([...entrySchema.required].sort(), ["alternatives_reviewed", "available_alternative", "why_available"]);
   const alternativesSchema = entrySchema.properties.alternatives_reviewed;
   assert.equal(alternativesSchema.type, "object");
   assert.deepEqual([...alternativesSchema.required].sort(), [...LADDER].sort());
@@ -379,15 +381,26 @@ test("S2-39 : question_substitution_review est un objet keyed-by-issue_id, alter
   assert.ok(!("question_substitution_review" in CRITIC_JSON_SCHEMA.properties), "CRITIC_JSON_SCHEMA (N=0) ne porte plus cette propriété — cf. buildCriticJsonSchema.");
 });
 
-test("S2-39b : la forme réaliste d'une sortie Critic complète (plusieurs revues) survit à un aller-retour JSON complet", () => {
-  const output = minimalCriticOutput({
-    agreement: "disagree",
-    question_substitution_review: [lastResortReview("i1"), availableReview("i2", "condition")],
-    illegitimate_question_found: [illegitimateFinding("i2", "condition")]
-  });
-  const roundTripped = parseCriticOutput(JSON.stringify(output));
+// 3F.3.3-X2-B : parseCriticOutput reçoit désormais la forme RÉELLEMENT produite par le LLM (objet
+// keyed-by-issue_id, sans question_is_last_resort/agreement/illegitimate_question_found — dérivés
+// par deriveCriticConsequences) — plus l'ancienne forme tableau à 9 champs complets.
+test("S2-39b : la forme réelle keyed-by-issue_id d'une sortie Critic complète (plusieurs revues) survit à un aller-retour JSON complet", () => {
+  const rawOutput = {
+    operational_request_candidate_review: { unsupported_additions_found: [], unsupported_removals_found: [], missed_material_issues: [] },
+    vetoes: [],
+    semantic_drift_detected: false,
+    semantic_drift_notes: [],
+    significant_stakes: false,
+    significant_stakes_reason: "",
+    question_substitution_review: {
+      i1: { alternatives_reviewed: alternativesReviewed(null), available_alternative: null, why_available: null },
+      i2: { alternatives_reviewed: alternativesReviewed("condition"), available_alternative: "condition", why_available: "Justification structurelle : condition permettait une progression utile pour i2." }
+    }
+  };
+  const roundTripped = parseCriticOutput(JSON.stringify(rawOutput));
   assert.equal(roundTripped.question_substitution_review.length, 2);
   assert.equal(roundTripped.illegitimate_question_found.length, 1);
+  assert.equal(roundTripped.agreement, "disagree");
 });
 
 // --- Phase 40 : obligation structurelle dès qu'une alternative est jugée disponible ---------------

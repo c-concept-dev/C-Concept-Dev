@@ -40,7 +40,7 @@ test("H3C-2 : le prompt affirme explicitement que question_substitution_review e
 });
 
 test("H3C-3 : le renforcement est positionné immédiatement après le squelette JSON de question_substitution_review, avant la description d'alternatives_reviewed", () => {
-  const skeletonEnd = CRITIC_SYSTEM_PROMPT.indexOf('"available_alternative": null\n}');
+  const skeletonEnd = CRITIC_SYSTEM_PROMPT.indexOf('"why_available": null\n}');
   const cardinalityIndex = CRITIC_SYSTEM_PROMPT.indexOf("CARDINALITÉ OBLIGATOIRE");
   const alternativesReviewedDescIndex = CRITIC_SYSTEM_PROMPT.indexOf("alternatives_reviewed est un OBJET à exactement ces six clés fixes");
   assert.ok(skeletonEnd !== -1, "le squelette JSON de question_substitution_review doit exister.");
