@@ -235,11 +235,21 @@ test("HA03-13 : aucun transport ni aucune boucle de reprise dupliqués — un se
   assert.equal((source.match(/while \(true\) \{/g) || []).length, 1, "une seule boucle de reprise dans tout le fichier.");
 });
 
-test("HA03-14 : ORCH-01 n'est pas présent sur cette branche — les deux lots restent isolés", () => {
+// ORCH-01 a été réintégré sur HA-03 : la prémisse d'origine de ce test (« l'orchestrateur ne figure
+// pas sur cette branche ») a donc été volontairement supprimée par cette réintégration. L'invariant
+// ARCHITECTURAL qu'il protégeait réellement est en revanche permanent, et il est vérifié ici sous sa
+// forme durable : la garde de disponibilité appartient à la couche TRANSPORT et à elle seule. La
+// couche d'orchestration ne doit jamais définir, surcharger ni contourner une politique de reprise —
+// sans quoi il existerait deux autorités concurrentes sur le même comportement.
+test("HA03-14 (prémisse mise à jour) : la garde de disponibilité reste l'affaire du transport — la couche d'orchestration ne définit ni ne surcharge aucune politique de reprise", () => {
   const orchestratorPath = fileURLToPath(new URL("../workers/shared/operational-request-orchestrator.js", import.meta.url));
-  assert.equal(fs.existsSync(orchestratorPath), false, "HA-03 part de main : l'orchestrateur ORCH-01 ne doit pas y figurer.");
+  if (!fs.existsSync(orchestratorPath)) return; // HA-03 seul : rien à vérifier.
+  const orchestrator = fs.readFileSync(orchestratorPath, "utf8");
+  for (const forbidden of [/maxRetryWaitMs/, /maxRetries/, /retryOverrides/, /fetchGroqWithRetry/, /GROQ_PRODUCTION_RETRY_DEFAULTS/, /ROLE_GROQ_RETRY_POLICIES/]) {
+    assert.doesNotMatch(orchestrator, forbidden, `l'orchestrateur ne doit jamais toucher à la politique de transport (${forbidden}).`);
+  }
   const source = fs.readFileSync(fileURLToPath(new URL("../workers/groq/src/index.js", import.meta.url)), "utf8");
-  assert.doesNotMatch(source, /operational-request-orchestrator/, "aucune référence à ORCH-01 depuis HA-03.");
+  assert.equal((source.match(/ROLE_GROQ_RETRY_POLICIES = /g) || []).length, 1, "les gardes des rôles restent définies en un seul endroit.");
 });
 
 // --- Preuve directe sur l'adaptateur de rôle ------------------------------------------------------------

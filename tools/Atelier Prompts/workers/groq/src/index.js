@@ -23,6 +23,7 @@ import {
   tagFailure
 } from "../../shared/provider-ha.js";
 export { degradedResultFromProviderChainError } from "../../shared/role-degradation.js";
+import { handleOperationalRequest } from "../../shared/operational-request-orchestrator.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MODEL = "openai/gpt-oss-20b";
@@ -1377,6 +1378,15 @@ export default {
   fetch(request, env) {
     if (!request.headers.get("Origin")) {
       return Response.json({ error: "origin_not_allowed" }, { status: 403 });
+    }
+    // ORCH-01 : porte d'entrée canonique de la demande opérationnelle. Elle ORCHESTRE les trois rôles
+    // (Analyste -> Critique -> Arbitre), chacun sur sa propre chaîne HA. Ajout strictement additif :
+    // /decision, /analyst, /critic et /arbiter conservent leur contrat public à l'octet près, et
+    // restent utilisables tels quels — cette route ne les remplace pas, elle les compose.
+    if (new URL(request.url).pathname === "/operational-request") {
+      return handleOperationalRequest(request, env, {
+        executeRole: (role, roleInput) => runRoleWithHaChain(role, roleInput, env)
+      });
     }
     const role = roleFromPathname(new URL(request.url).pathname);
     if (role) return handleRoleRequest(request, env, { role, execute: executeForRole(role) });
