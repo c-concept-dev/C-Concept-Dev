@@ -71,8 +71,15 @@
       "retrievedAt": "2026-08-31T11:35:00.000Z"
     }
   ],
-  "readyForExecution": true,
-  "blockedReason": null,
+  "readyForExecution": false,
+  "blockedReason": "REMEDIATION R4 (F-01) : professionalCandidates/targetDocuments sont reellement complets et verifies (readyForExecution aurait ete legitimement true sur ce seul critere), mais eForchProvenance (provenance LLM/humaine REELLE requise par le mode REAL du mission-gate depuis R2/B-03) est toujours absente de cette fixture canonique. Une mission ne peut jamais etre livree readyForExecution=true tant que cette provenance n'a pas ete reellement fournie par l'operateur — voir operatorInputRequired ci-dessous pour le detail exact de ce qui manque, et AUDIT-REMEDIATION/20-REAL-SMOKE-OPERATOR-CHECKLIST.md pour la procedure. Aucune valeur n'a ete inventee pour combler ce champ (RÈGLE CARDINALE, F-06/M-02).",
+  "operatorInputRequired": {
+    "eForchProvenance.resolverRuns": "MISSING — un ResolverRun REEL par dimension retenue (WCAG_METADATA_COMPLIANCE, WCAG_STRUCTURAL_COMPLIANCE), avec provider/model/promptVersion/date/inputHash/rawResponseHash/proposalCountRaw/proposalCountStored/technicalProposalLimit/targetContextReport reellement issus d'un appel LLM reel — jamais devine.",
+    "eForchProvenance.plannerRun": "MISSING — metadonnees de provenance (provider/model/promptVersion/date/inputHash/rawResponseHash) de l'appel LLM planificateur REEL.",
+    "eForchProvenance.plannerOutput": "MISSING — contenu CAUSAL reel du planificateur (sources/queries/retrieval/criteresInclusion/criteresExclusion/regleDedoublonnage/methodeQualification) — distinct de plannerRun (metadonnees seules). Voir fixtures/real-provenance-operator-input.example.json (mode=SYNTHETIC_EXAMPLE, jamais charge automatiquement par le chemin REAL) pour le format exact attendu.",
+    "eForchProvenance.humanValidation": "MISSING — validation humaine REELLE du SearchProtocol figé (validatedAt/commentaire), jamais 'Revu (MONO-08).' fabrique.",
+    "eForchProvenance.auditDecisions": "MISSING — decisions de screening humaines REELLES, keyees par les identifiants de source REELLEMENT retrouves par la recuperation EF-01C2 (connus uniquement APRES une premiere execution reelle de cette recuperation — ne peuvent structurellement pas etre fournis a l'avance sans un run reel prealable)."
+  },
   "missionExecutionCopyOf": "fixtures/mission-real-smoke-v1.json",
   "missionExecutionCopyCreatedAt": "2026-08-31T11:40:00.000Z"
 }

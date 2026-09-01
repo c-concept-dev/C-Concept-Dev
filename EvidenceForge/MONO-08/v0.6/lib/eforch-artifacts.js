@@ -305,9 +305,15 @@ function validateRealEForchProvenance(mission) {
   if (!Array.isArray(provenance.resolverRuns) || provenance.resolverRuns.length !== disciplineCount) {
     problems.push("resolverRuns manquant ou de longueur incorrecte (attendu " + disciplineCount + ", disciplines de la mission)");
   } else {
+    const gateDisciplineIds = Array.isArray(mission.dimensions) ? mission.dimensions.map(function (d) { return d.id; }) : [];
     provenance.resolverRuns.forEach(function (run, i) {
       const missing = validateRealResolverRunFields(run);
       if (missing.length) problems.push("resolverRuns[" + i + "] invalide: " + missing.join(","));
+      // REMEDIATION R4 (F-02) : meme coherence discipline-vs-position que le
+      // builder du ResolverTrace — jamais une seconde logique divergente.
+      if (isNonEmptyStr(run && run.discipline) && run.discipline !== gateDisciplineIds[i]) {
+        problems.push("resolverRuns[" + i + "].discipline (\"" + run.discipline + "\") incoherent avec la discipline de la mission a cette position (\"" + gateDisciplineIds[i] + "\")");
+      }
     });
   }
   const plannerMissing = validateRealPlannerRunFields(provenance.plannerRun);
@@ -358,6 +364,21 @@ function buildResolverTraceForMission(deps, missionId, confirmedRunContract, pro
       const missing = validateRealResolverRunFields(run);
       if (missing.length) {
         throw operatorInputRequired("ResolverTrace resolverRuns[" + i + "] (discipline \"" + (disciplines[i] && disciplines[i].discipline) + "\") — champ(s) reel(s) manquant(s) ou invalide(s) : " + missing.join(", ") + ".");
+      }
+      // REMEDIATION R4 (F-02, mandat section 9/16 R4-F02-04) : si l'operateur
+      // fournit explicitement un champ `discipline` sur son resolverRun (pour
+      // s'auto-verifier), il DOIT correspondre exactement a la discipline
+      // reellement retenue par le RunContract confirme a cette position —
+      // jamais silencieusement accepte si incoherent (une attestation pour
+      // une discipline aurait alors ete mal attribuee a une autre). Champ
+      // optionnel : son absence n'est jamais une erreur (compatibilite
+      // ascendante r1/r2/r3 — l'alignement positionnel reste la source de
+      // verite quand `discipline` n'est pas fourni).
+      if (isNonEmptyStr(run.discipline) && run.discipline !== (disciplines[i] && disciplines[i].discipline)) {
+        throw operatorInputRequired(
+          "ResolverTrace resolverRuns[" + i + "].discipline (\"" + run.discipline + "\") ne correspond pas a la discipline reellement retenue par le RunContract a cette position (\"" +
+          (disciplines[i] && disciplines[i].discipline) + "\") — attestation mal attribuee, jamais acceptee silencieusement."
+        );
       }
     });
   }
@@ -497,38 +518,147 @@ async function buildSearchProtocolForMission(deps, missionId, idSuffix, discipli
   return Object.assign({}, protoBase, { protocolHash: protocolHash });
 }
 
+/**
+ * buildOpenAlexConnectorRunner(deps, sourceId, fetchImpl) — REMEDIATION R4
+ * (F-03) :
+ *   1. genId() genere desormais un id UNIQUE par source reellement
+ *      retrouvee ("sourceId-1", "sourceId-2", ...), jamais le meme
+ *      sourceId fixe repete pour chaque resultat (avant R4 : un seul id
+ *      constant, qui aurait rendu plusieurs sources reelles indiscernables
+ *      les unes des autres dans ScreeningArtifact).
+ *   2. Le runner retourne est MEMOISE (Promise mise en cache des le
+ *      premier appel) : MONO-08 execute desormais REELLEMENT la
+ *      recuperation EF-01C2 en amont (voir executeActiveConnectorsRetrieval)
+ *      pour construire un ScreeningArtifact honnetement derive du
+ *      resultat reel — le noeud EF-01C2 du graphe (MONO-02, gele),
+ *      execute plus tard dans le MEME processus avec cette MEME instance
+ *      de connectorRunner, reutilise alors EXACTEMENT ce resultat deja
+ *      obtenu : jamais un second appel reseau reel, jamais un second jeu
+ *      de resultats (et donc d'ids) incoherent avec celui deja utilise
+ *      pour construire ScreeningArtifact. Sur une reprise apres
+ *      redemarrage (nouveau processus), rehydrateRealMissionRun
+ *      reconstruit un connectorRunner FRAIS (jamais celui-ci, jamais
+ *      persiste) — sans impact : un noeud EF-01C2 deja termine ne rappelle
+ *      jamais son runner (idempotence du checkpoint EF-01C2, MONO-01, gele).
+ */
 function buildOpenAlexConnectorRunner(deps, sourceId, fetchImpl) {
   const createOpenAlexRunner = deps.createOpenAlexRunner;
-  return createOpenAlexRunner({ fetchImpl: fetchImpl, genId: function () { return sourceId; }, nowIso: function () { return new Date().toISOString(); } });
+  let counter = 0;
+  const rawRunner = createOpenAlexRunner({
+    fetchImpl: fetchImpl,
+    genId: function () { counter += 1; return sourceId + "-" + counter; },
+    nowIso: function () { return new Date().toISOString(); },
+  });
+  let cachedCall = null;
+  return function memoizedOpenAlexRunner(connector, protocol) {
+    if (!cachedCall) cachedCall = rawRunner(connector, protocol);
+    return cachedCall;
+  };
 }
-function buildScreeningArtifactForMission(sourceIds, protocolHash, provenance) {
+
+/**
+ * executeActiveConnectorsRetrieval(connectorRunners, searchProtocol) —
+ * REMEDIATION R4 (F-03) : execute REELLEMENT la recuperation EF-01C2 pour
+ * chaque connecteur actif du SearchProtocol (meme logique d'agregation
+ * que l'executeur EF-01C2 gele, jamais reimplementee differemment —
+ * MONO-01/dependencies/ef-orch-ef01c2-executor-v0.1.js, Passe 2), AVANT
+ * la construction de ScreeningArtifact. Fail-closed si un connecteur actif
+ * n'a aucun runner disponible : jamais un ScreeningArtifact construit sans
+ * resultat retrieval reel derriere.
+ */
+async function executeActiveConnectorsRetrieval(connectorRunners, searchProtocol) {
+  const activeConnectors = (searchProtocol.sourcesActivees || []).filter(function (c) { return c && c.active !== false; });
+  let allSources = [];
+  const allLogs = [];
+  for (const c of activeConnectors) {
+    const runner = connectorRunners && connectorRunners[c.connectorId];
+    if (typeof runner !== "function") {
+      throw operatorInputRequired("executeActiveConnectorsRetrieval: aucun connectorRunner disponible pour le connecteur actif \"" + c.connectorId + "\" — impossible de construire un ScreeningArtifact honnete sans resultat retrieval reel.");
+    }
+    const result = await runner(c, searchProtocol);
+    const sourcesTrouvees = Array.isArray(result && result.sourcesTrouvees) ? result.sourcesTrouvees : [];
+    allSources = allSources.concat(sourcesTrouvees);
+    if (result && result.log) allLogs.push(result.log);
+  }
+  return { sourcesTrouvees: allSources, executionLog: allLogs };
+}
+
+function classifyRetrievalField(v) {
+  return isNonEmptyStr(v) ? "RETRIEVAL_DERIVED" : "NOT_AVAILABLE";
+}
+
+/**
+ * buildScreeningArtifactForMission(deps, retrievalRecords, protocolHash, provenance)
+ * — REMEDIATION R4 (F-03). `retrievalRecords` = le tableau REEL
+ * `sourcesTrouvees` retourne par executeActiveConnectorsRetrieval (chaque
+ * entree porte exactement la forme produite par le runner EF-01C2 reel :
+ * id/titre/auteurOuOrganisme/date/reference/discipline/theme/provenance/
+ * dateConsultation — jamais une liste de sourceId synthetiques). Chaque
+ * champ documentaire est copie TEL QUEL depuis le retrieval reel s'il est
+ * present, jamais fabrique : absent => `null` + `fieldProvenance` =
+ * "NOT_AVAILABLE" (jamais un placeholder du type "Source "+id). Le contrat
+ * gele EF-01D (assertScreeningArtifactComplete) ne verifie JAMAIS le
+ * contenu de ces champs documentaires (verifie par inspection directe du
+ * contrat) — cette classification est donc une amelioration epistemique
+ * additive, jamais une violation du contrat gele.
+ */
+async function buildScreeningArtifactForMission(deps, retrievalRecords, protocolHash, provenance) {
   const mode = resolveMode(provenance);
-  const realDecisions = provenance && provenance.auditDecisions; // objet { [sourceId]: { acteur:"human", date, decision, justification, ... } }
+  const realDecisions = provenance && provenance.auditDecisions; // objet { [record.id]: { acteur:"human", date, decision, justification, ... } }
+  const retrievalResultHash = (provenance && provenance.retrievalResultHash) || null;
+  const records = Array.isArray(retrievalRecords) ? retrievalRecords : [];
   if (mode === "REAL") {
-    const missing = sourceIds.filter(function (id) { return !realDecisions || !realDecisions[id]; });
+    const missing = records.filter(function (r) { return !realDecisions || !realDecisions[r.id]; }).map(function (r) { return r.id; });
     if (missing.length) {
       throw operatorInputRequired(
-        "ScreeningArtifact (EF-01D) requiert une decision humaine REELLE pour chaque source (manquante(s) : " + missing.join(", ") +
+        "ScreeningArtifact (EF-01D) requiert une decision humaine REELLE pour chaque source RETROUVEE par EF-01C2 (manquante(s) : " + missing.join(", ") +
         ") — jamais d'acteur=\"human\" invente en mode REAL."
       );
     }
-    sourceIds.forEach(function (id) {
-      if (validateRealAuditDecisionFields(realDecisions[id])) {
-        throw operatorInputRequired("ScreeningArtifact: decision reelle fournie pour \"" + id + "\" incomplete ou invalide (acteur=\"human\", justification, date, decision requis).");
+    records.forEach(function (r) {
+      if (validateRealAuditDecisionFields(realDecisions[r.id])) {
+        throw operatorInputRequired("ScreeningArtifact: decision reelle fournie pour \"" + r.id + "\" incomplete ou invalide (acteur=\"human\", justification, date, decision requis).");
       }
     });
   }
-  const sources = sourceIds.map(function (id) {
-    const real = mode === "REAL" ? realDecisions[id] : null;
-    return {
-      id: id, titre: "Source " + id, auteurOuOrganisme: "", date: "", reference: "", discipline: "MONO-08", theme: "",
-      provenance: { connectorId: "openalex", connectorType: "api", retrievalMethod: "automatic", originalReference: null },
-      qualification: null, dependancesConnues: [], extraitUtilise: "", dateConsultation: new Date().toISOString(),
+  const sources = [];
+  for (const rec of records) {
+    const real = mode === "REAL" ? realDecisions[rec.id] : null;
+    const sourceRecordHash = await deps.sha256CanonicalJson(rec);
+    sources.push({
+      id: rec.id,
+      titre: isNonEmptyStr(rec.titre) ? rec.titre : null,
+      auteurOuOrganisme: isNonEmptyStr(rec.auteurOuOrganisme) ? rec.auteurOuOrganisme : null,
+      date: isNonEmptyStr(rec.date) ? rec.date : null,
+      reference: isNonEmptyStr(rec.reference) ? rec.reference : null,
+      discipline: isNonEmptyStr(rec.discipline) ? rec.discipline : null,
+      theme: isNonEmptyStr(rec.theme) ? rec.theme : null,
+      provenance: {
+        connectorId: (rec.provenance && rec.provenance.connectorId) || null,
+        connectorType: (rec.provenance && rec.provenance.connectorType) || null,
+        retrievalMethod: (rec.provenance && rec.provenance.retrievalMethod) || null,
+        originalReference: (rec.provenance && rec.provenance.originalReference) || null,
+      },
+      qualification: null, dependancesConnues: [],
+      extraitUtilise: isNonEmptyStr(rec.extraitUtilise) ? rec.extraitUtilise : "",
+      dateConsultation: rec.dateConsultation || new Date().toISOString(),
       statutScreening: real ? real.decision : "inclus",
       motifExclusion: real && (real.decision === "exclu" || real.decision === "doublon") ? real.justification : "",
-      screeningDecisionRef: "dec-" + id,
-    };
-  });
+      screeningDecisionRef: "dec-" + rec.id,
+      // REMEDIATION R4 (F-03, mandat section 11) : classification EXPLICITE
+      // de la provenance de chaque champ documentaire — jamais un schema
+      // rempli silencieusement par defaut.
+      fieldProvenance: {
+        titre: classifyRetrievalField(rec.titre), auteurOuOrganisme: classifyRetrievalField(rec.auteurOuOrganisme),
+        date: classifyRetrievalField(rec.date), reference: classifyRetrievalField(rec.reference),
+        discipline: classifyRetrievalField(rec.discipline), theme: classifyRetrievalField(rec.theme),
+      },
+      // REMEDIATION R4 (F-03, mandat section 13) : lineage R->S explicite —
+      // de quel resultat retrieval precis (et de quel enregistrement exact
+      // en son sein) provient cette source de screening, sans inference.
+      lineage: { retrievalResultHash: retrievalResultHash, sourceRecordHash: sourceRecordHash },
+    });
+  }
   return {
     evidenceProvenance: mode === "REAL" ? "OPERATOR_ATTESTED_HUMAN_ACTION" : "SYNTHETIC_FIXTURE",
     sourcesScreening: sources,
@@ -581,4 +711,5 @@ module.exports = {
   validateRealHumanValidationFields: validateRealHumanValidationFields,
   validateRealPlannerOutputFields: validateRealPlannerOutputFields,
   buildSearchProtocolFromPlannerOutput: buildSearchProtocolFromPlannerOutput,
+  executeActiveConnectorsRetrieval: executeActiveConnectorsRetrieval,
 };

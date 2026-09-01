@@ -17,7 +17,7 @@
  */
 
 const path = require("path");
-const { loadEForchDeps, buildConfirmedRunContractForMission, buildResolverTraceForMission, buildSearchProtocolForMission, buildOpenAlexConnectorRunner, buildScreeningArtifactForMission, buildQualificationArtifactForMission, buildEF01AInjectedForMission, buildEF01FInjectedForMission } = require("./eforch-artifacts");
+const { loadEForchDeps, buildConfirmedRunContractForMission, buildResolverTraceForMission, buildSearchProtocolForMission, buildOpenAlexConnectorRunner, buildScreeningArtifactForMission, buildQualificationArtifactForMission, buildEF01AInjectedForMission, buildEF01FInjectedForMission, executeActiveConnectorsRetrieval } = require("./eforch-artifacts");
 
 function buildRealNodeDefs(graphPath) {
   return require(graphPath).nodes.map(function (n) { return { nodeId: n.nodeId, resumePolicy: n.resumePolicy, retryPolicy: n.retryPolicy }; });
@@ -130,17 +130,23 @@ async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytes
   const ef01aInjected = buildEF01AInjectedForMission(missionId, documentBytesByHash, mission);
   const ef01fInjected = buildEF01FInjectedForMission(runContract.runContractHash.slice(0, 8));
 
-  function buildConnectorRunners() {
-    const sourceId = "source-" + runContract.runContractHash.slice(0, 12);
-    return { openalex: buildOpenAlexConnectorRunner(deps, sourceId, openAlexFetchImpl) };
-  }
-
-  // ScreeningArtifact et QualificationTestArtifact dependent du sourceId
-  // reellement genere par le connector runner (EF-01C2) — construits une
-  // fois le sourceId connu (deterministe ici, cf. genId ci-dessus).
+  // REMEDIATION R4 (F-03) : connectorRunners construit ICI, UNE SEULE FOIS
+  // (memoise — voir buildOpenAlexConnectorRunner), et REELLEMENT invoque
+  // AVANT la construction de ScreeningArtifact (executeActiveConnectorsRetrieval)
+  // — jamais un placeholder documentaire ("Source "+id) construit sans
+  // resultat retrieval reel derriere. La MEME instance (memoisee) est
+  // retournee a l'appelant pour que le noeud EF-01C2 du graphe (execute
+  // plus tard, MEME processus) reutilise EXACTEMENT ce resultat deja
+  // obtenu, jamais un second appel reseau reel.
   const sourceId = "source-" + runContract.runContractHash.slice(0, 12);
-  const screeningArtifact = buildScreeningArtifactForMission([sourceId], searchProtocol.protocolHash, { mode: provenanceOpts.mode, auditDecisions: provenanceOpts.auditDecisions });
+  const connectorRunners = { openalex: buildOpenAlexConnectorRunner(deps, sourceId, openAlexFetchImpl) };
+  const retrievalResult = await executeActiveConnectorsRetrieval(connectorRunners, searchProtocol);
+  const retrievalResultHash = await deps.sha256CanonicalJson(retrievalResult);
+
+  const screeningArtifact = await buildScreeningArtifactForMission(deps, retrievalResult.sourcesTrouvees, searchProtocol.protocolHash, { mode: provenanceOpts.mode, auditDecisions: provenanceOpts.auditDecisions, retrievalResultHash: retrievalResultHash });
+  const screeningArtifactHash = await deps.sha256CanonicalJson(screeningArtifact);
   const qualificationTestArtifact = buildQualificationArtifactForMission(deps, screeningArtifact, searchProtocol);
+  const qualificationArtifactHash = await deps.sha256CanonicalJson(qualificationTestArtifact);
 
   const efOrchExecutionDependenciesSerializable = {
     ef01aInjected: ef01aInjected,
@@ -151,9 +157,12 @@ async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytes
     ef01fInjected: ef01fInjected,
     protocolHash: searchProtocol.protocolHash,
     auditDecisions: screeningArtifact.auditDecisions,
+    // REMEDIATION R4 (F-03, mandat section 13) : lineage explicite
+    // retrieval -> screening -> qualification, verifiable sans inference.
+    retrievalLineage: { retrievalResultHash: retrievalResultHash, screeningArtifactHash: screeningArtifactHash, qualificationArtifactHash: qualificationArtifactHash },
   };
 
-  return { runContract: runContract, missionId: missionId, efOrchExecutionDependenciesSerializable: efOrchExecutionDependenciesSerializable, buildConnectorRunners: buildConnectorRunners };
+  return { runContract: runContract, missionId: missionId, efOrchExecutionDependenciesSerializable: efOrchExecutionDependenciesSerializable, connectorRunners: connectorRunners };
 }
 
 async function createRealMissionRun(env, adapter, workerCallFn, opts) {
@@ -204,7 +213,11 @@ async function createRealMissionRun(env, adapter, workerCallFn, opts) {
     missionId: missionId,
     missionQuestion: missionQuestion,
     externalInputs: Object.assign({}, externalInputs, {
-      efOrchExecutionDependencies: Object.assign({}, built.efOrchExecutionDependenciesSerializable, { connectorRunners: built.buildConnectorRunners() }),
+      // REMEDIATION R4 (F-03) : reutilise la MEME instance memoisee de
+      // connectorRunners deja invoquee par buildEForchArtifacts pour
+      // construire ScreeningArtifact — jamais une nouvelle instance qui
+      // relancerait un appel reseau reel distinct.
+      efOrchExecutionDependencies: Object.assign({}, built.efOrchExecutionDependenciesSerializable, { connectorRunners: built.connectorRunners }),
     }),
     adapter: adapter,
     dependenciesAvailable: { llm: true },
