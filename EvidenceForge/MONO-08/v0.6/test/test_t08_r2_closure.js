@@ -219,12 +219,30 @@ function extractResultLine(stdout, marker) {
     check("B03-CAS2. readyForExecution=true, eForchProvenance absent => MISSION_NOT_READY, motif eForchProvenance", case2.status === "MISSION_NOT_READY" && /eForchProvenance/.test(case2.reason), JSON.stringify(case2));
 
     // Cas 3 : eForchProvenance present mais incomplet => NOT_READY (plusieurs variantes d'incompletude)
+    //
+    // REMEDIATION R5 (A-01, audit independant round 4 : dependance
+    // cyclique temporelle mission-gate <-> auditDecisions <-> retrieval,
+    // BLOQUANT) : describeMissionGateStatus() (chemin nominal
+    // bin/run-real-smoke.js) delegue desormais a
+    // validatePreRetrievalProvenance() au lieu de
+    // validateRealEForchProvenance() — cette nouvelle fonction ne verifie
+    // JAMAIS auditDecisions (dont les sourceId ne peuvent etre connus
+    // qu'APRES l'execution reelle du retrieval EF-01C2 ; les exiger avant
+    // aurait force soit un blocage structurellement infranchissable, soit
+    // l'invention prealable de decisions sur des sources encore inconnues
+    // — les deux interdits). Les deux variantes historiques "auditDecisions
+    // vide"/"auditDecisions acteur invalide" ci-dessous NE SONT DONC PLUS
+    // des cas d'echec du PRE_RETRIEVAL_GATE : c'est la correction voulue,
+    // pas une regression — voir R5-A01-01/02 dans
+    // test_t08_r5_closure.js. Le controle des auditDecisions est deplace
+    // vers le POST_RETRIEVAL_GATE (validatePostRetrievalAuditDecisions),
+    // execute uniquement apres qu'un RetrievalSnapshot reel existe — voir
+    // AUDIT-DEC-* dans test_t08_r5_closure.js. La couverture n'est donc
+    // jamais perdue, seulement deplacee vers la bonne phase temporelle.
     const incompleteVariants = [
       { name: "resolverRuns manquant", provenance: Object.assign({}, validProvenance, { resolverRuns: undefined }) },
       { name: "resolverRuns longueur incorrecte", provenance: Object.assign({}, validProvenance, { resolverRuns: [] }) },
       { name: "plannerRun incomplet", provenance: Object.assign({}, validProvenance, { plannerRun: { provider: "anthropic" } }) },
-      { name: "auditDecisions vide", provenance: Object.assign({}, validProvenance, { auditDecisions: {} }) },
-      { name: "auditDecisions acteur invalide", provenance: Object.assign({}, validProvenance, { auditDecisions: { s1: { acteur: "system", date: "x", decision: "inclus", justification: "x" } } }) },
       { name: "humanValidation absent", provenance: Object.assign({}, validProvenance, { humanValidation: undefined }) },
       { name: "plannerOutput absent (planner causal output missing)", provenance: Object.assign({}, validProvenance, { plannerOutput: undefined }) },
       { name: "plannerOutput incomplet (criteresInclusion manquant)", provenance: Object.assign({}, validProvenance, { plannerOutput: Object.assign({}, validPlannerOutput, { criteresInclusion: undefined }) }) },
@@ -232,6 +250,18 @@ function extractResultLine(stdout, marker) {
     for (const variant of incompleteVariants) {
       const result = describeMissionGateStatus({ readyForExecution: true, dimensions: baseDims, eForchProvenance: variant.provenance });
       check("B03-CAS3. eForchProvenance incomplet (" + variant.name + ") => MISSION_NOT_READY", result.status === "MISSION_NOT_READY", JSON.stringify(result));
+    }
+
+    // R5-A01 (correction, jamais une regression silencieuse) : ces deux
+    // variantes auditDecisions-only passent desormais le PRE_RETRIEVAL_GATE
+    // (auditDecisions n'est structurellement plus de son ressort).
+    const auditDecisionsOnlyVariants = [
+      { name: "auditDecisions vide", provenance: Object.assign({}, validProvenance, { auditDecisions: {} }) },
+      { name: "auditDecisions acteur invalide", provenance: Object.assign({}, validProvenance, { auditDecisions: { s1: { acteur: "system", date: "x", decision: "inclus", justification: "x" } } }) },
+    ];
+    for (const variant of auditDecisionsOnlyVariants) {
+      const result = describeMissionGateStatus({ readyForExecution: true, dimensions: baseDims, eForchProvenance: variant.provenance });
+      check("B03-CAS3b (R5-A01). eForchProvenance avec (" + variant.name + ") uniquement => PASS desormais (PRE_RETRIEVAL_GATE ne verifie plus auditDecisions, correction du BLOQUANT R4-A01)", result.status === "PASS", JSON.stringify(result));
     }
 
     // Cas 4 : readyForExecution=true ET provenance structurellement valide => PASS

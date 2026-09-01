@@ -158,6 +158,81 @@ function validateRealHumanValidationFields(v) {
   return !v || typeof v.validatedAt !== "string" || !v.validatedAt.trim() || typeof v.commentaire !== "string" || !v.commentaire.trim();
 }
 
+/**
+ * validatePostRetrievalAuditDecisions(snapshot, auditDecisionsInput) —
+ * REMEDIATION R5 (A-01). POST_RETRIEVAL_GATE : la SEULE fonction
+ * habilitee a exiger/valider `auditDecisions`, executee UNIQUEMENT apres
+ * qu'un RetrievalSnapshot reel existe (jamais avant — voir
+ * `validatePreRetrievalProvenance` ci-dessus, correction du defaut
+ * BLOQUANT R4-A01 : la dependance cyclique temporelle mission-gate <->
+ * auditDecisions <-> retrieval).
+ *
+ * `auditDecisionsInput` = {
+ *   snapshotId, snapshotHash, missionId,   // liaison EXPLICITE au snapshot precis vise — jamais implicite
+ *   decisions: [ { sourceId, acteur, date, decision, justification, ... }, ... ]  // TABLEAU, jamais une map (permet la detection de doublon contradictoire)
+ * }
+ *
+ * Retourne { valid, problems, decisionsBySourceId } — `decisionsBySourceId`
+ * (forme `{ [sourceId]: {...} }`, directement consommable par
+ * `buildScreeningArtifactForMission()`) n'est JAMAIS renvoyee sur un echec
+ * (jamais une construction partielle exploitable par erreur).
+ */
+function validatePostRetrievalAuditDecisions(snapshot, auditDecisionsInput) {
+  const problems = [];
+  if (!snapshot || typeof snapshot !== "object") {
+    return { valid: false, problems: ["snapshot absent ou invalide — POST_RETRIEVAL_GATE ne peut jamais s'executer sans un RetrievalSnapshot reel"] };
+  }
+  if (!auditDecisionsInput || typeof auditDecisionsInput !== "object") {
+    return { valid: false, problems: ["auditDecisionsInput absent ou invalide (OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS)"] };
+  }
+  if (auditDecisionsInput.snapshotId !== snapshot.snapshotId) {
+    problems.push("snapshotId incoherent (decisions soumises pour \"" + auditDecisionsInput.snapshotId + "\", snapshot charge est \"" + snapshot.snapshotId + "\") — decision pour un snapshot different, jamais acceptee");
+  }
+  if (auditDecisionsInput.snapshotHash !== snapshot.snapshotHash) {
+    problems.push("snapshotHash incoherent — ces decisions ont ete preparees contre une version differente (potentiellement obsolete/tamperee) du snapshot, jamais acceptees silencieusement");
+  }
+  if (auditDecisionsInput.missionId !== snapshot.missionId) {
+    problems.push("missionId incoherent (decisions=\"" + auditDecisionsInput.missionId + "\", snapshot=\"" + snapshot.missionId + "\")");
+  }
+  const knownSourceIds = (snapshot.sources || []).map(function (s) { return s.sourceId; });
+  const decisions = Array.isArray(auditDecisionsInput.decisions) ? auditDecisionsInput.decisions : null;
+  const seenSourceIds = {};
+  if (!decisions) {
+    problems.push("decisions manquant ou n'est pas un tableau");
+  } else {
+    decisions.forEach(function (d, i) {
+      const sid = d && d.sourceId;
+      if (!isNonEmptyStr(sid)) { problems.push("decisions[" + i + "].sourceId manquant"); return; }
+      if (knownSourceIds.indexOf(sid) === -1) {
+        problems.push("decisions[" + i + "] cible un sourceId inconnu du snapshot (\"" + sid + "\") — jamais accepte");
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(seenSourceIds, sid)) {
+        if (JSON.stringify(seenSourceIds[sid]) !== JSON.stringify(d)) {
+          problems.push("decisions contient un DOUBLON CONTRADICTOIRE pour \"" + sid + "\" (deux decisions differentes pour la meme source) — jamais accepte");
+        }
+        return;
+      }
+      seenSourceIds[sid] = d;
+      if (validateRealAuditDecisionFields(d)) {
+        problems.push("decisions[" + i + "] (source \"" + sid + "\") invalide (acteur=\"human\"/justification/date/decision requis — jamais une decision synthetique en REAL)");
+      }
+    });
+    // Exhaustivite : chaque source du snapshot doit avoir une decision.
+    knownSourceIds.forEach(function (sid) {
+      if (!Object.prototype.hasOwnProperty.call(seenSourceIds, sid)) {
+        problems.push("aucune decision fournie pour la source \"" + sid + "\" du snapshot (decision exhaustive requise, jamais une source ignoree silencieusement)");
+      }
+    });
+  }
+  if (problems.length) {
+    return { valid: false, problems: problems };
+  }
+  const decisionsBySourceId = {};
+  Object.keys(seenSourceIds).forEach(function (sid) { decisionsBySourceId[sid] = seenSourceIds[sid]; });
+  return { valid: true, problems: [], decisionsBySourceId: decisionsBySourceId };
+}
+
 function isNonEmptyStr(v) {
   return typeof v === "string" && v.trim().length > 0;
 }
@@ -286,16 +361,31 @@ function buildSearchProtocolFromPlannerOutput(output, disciplineIds) {
 }
 
 /**
- * validateRealEForchProvenance(mission) — verification STRUCTURELLE
- * (comptage/forme des champs), AVANT toute construction couteuse ou
- * appel provider — jamais l'appariement EXACT par sourceId (celui-ci
- * n'est connu qu'apres calcul du RunContract, effectue par les builders
- * eux-memes qui restent l'autorite finale et fail-closed sur ce point
- * precis). Utilisee par le mission-gate pour refuser une mission REAL
- * sans jamais atteindre un builder/provider si la provenance est
- * absente ou manifestement incomplete.
+ * validatePreRetrievalProvenance(mission) — REMEDIATION R5 (A-01).
+ *
+ * Verification STRUCTURELLE (comptage/forme des champs) des SEULES
+ * preconditions reellement disponibles AVANT tout retrieval EF-01C2 —
+ * jamais `auditDecisions` (voir ci-dessous, raison architecturale).
+ * C'est desormais LA fonction utilisee par le PRE_RETRIEVAL_GATE :
+ * mission-gate historique (bin/run-real-smoke.js::describeMissionGateStatus)
+ * ET prepareRealScreening() (lib/real-screening-workflow.js).
+ *
+ * Pourquoi `auditDecisions` en est exclu (correction du defaut R4-A01,
+ * audit independant round 4) : `auditDecisions` est indexee par les
+ * `sourceId` REELLEMENT retrouves par le retrieval EF-01C2 — des
+ * identifiants qui n'existent structurellement PAS avant que ce
+ * retrieval n'ait reellement eu lieu (generes dynamiquement par le
+ * connecteur, jamais previsibles a l'avance). Exiger `auditDecisions`
+ * ICI, AVANT tout retrieval, creait une dependance cyclique temporelle
+ * impossible a satisfaire honnetement dans un seul chemin nominal sans
+ * inventer a l'avance des decisions sur des sources encore inconnues —
+ * c'est exactement le defaut BLOQUANT identifie par l'audit R4
+ * independant (finding R4-A01). La validation d'`auditDecisions`
+ * appartient desormais exclusivement a
+ * `validatePostRetrievalAuditDecisions()` (lib/real-screening-workflow.js),
+ * executee UNIQUEMENT apres qu'un `RetrievalSnapshot` reel existe.
  */
-function validateRealEForchProvenance(mission) {
+function validatePreRetrievalProvenance(mission) {
   const problems = [];
   const provenance = mission && mission.eForchProvenance;
   if (!provenance || typeof provenance !== "object") {
@@ -319,8 +409,8 @@ function validateRealEForchProvenance(mission) {
   const plannerMissing = validateRealPlannerRunFields(provenance.plannerRun);
   if (plannerMissing.length) problems.push("plannerRun invalide: " + plannerMissing.join(","));
   // REMEDIATION R3 (M-02) : plannerRun (provenance de l'appel) ne suffit
-  // plus a lui seul — le mission-gate echoue desormais AUSSI, avant tout
-  // appel provider, si provenance.plannerOutput (contenu causal reel du
+  // plus a lui seul — le gate echoue desormais AUSSI, avant tout appel
+  // provider, si provenance.plannerOutput (contenu causal reel du
   // planificateur) est absent ou structurellement incomplet. Memes
   // disciplines que celles que buildEForchArtifacts() calculera
   // (mission.dimensions[].id) — jamais une liste divergente entre le
@@ -333,7 +423,26 @@ function validateRealEForchProvenance(mission) {
   if (validateRealHumanValidationFields(provenance.humanValidation)) {
     problems.push("humanValidation invalide ou absent (validatedAt/commentaire requis, jamais invente)");
   }
-  const auditDecisions = provenance.auditDecisions;
+  return { valid: problems.length === 0, problems: problems };
+}
+
+/**
+ * validateRealEForchProvenance(mission) — CONSERVEE pour compatibilite
+ * historique (r1->r4) et pour l'usage documentaire "provenance REELLE
+ * COMPLETE" (pre- ET post-retrieval reunies) : identique a
+ * `validatePreRetrievalProvenance()` PLUS la verification structurelle
+ * d'`auditDecisions` (forme uniquement — jamais l'appariement exact par
+ * sourceId reel, qui reste le role de `validatePostRetrievalAuditDecisions()`
+ * une fois un `RetrievalSnapshot` reel disponible). N'est PLUS utilisee
+ * par le mission-gate depuis R5 (voir `validatePreRetrievalProvenance`
+ * ci-dessus, correction R4-A01) — reste exportee/testee pour eviter toute
+ * regression sur son propre comportement historique.
+ */
+function validateRealEForchProvenance(mission) {
+  const preCheck = validatePreRetrievalProvenance(mission);
+  const problems = preCheck.problems.slice();
+  const provenance = mission && mission.eForchProvenance;
+  const auditDecisions = provenance && provenance.auditDecisions;
   if (!auditDecisions || typeof auditDecisions !== "object" || Object.keys(auditDecisions).length === 0) {
     problems.push("auditDecisions absent ou vide (au moins une decision humaine reelle requise)");
   } else {
@@ -570,6 +679,12 @@ async function executeActiveConnectorsRetrieval(connectorRunners, searchProtocol
   const activeConnectors = (searchProtocol.sourcesActivees || []).filter(function (c) { return c && c.active !== false; });
   let allSources = [];
   const allLogs = [];
+  // REMEDIATION R5 (F-03/RetrievalSnapshot) : conserve AUSSI le resultat
+  // BRUT par connecteur (jamais seulement l'agregat) — necessaire pour
+  // qu'un RetrievalSnapshot persiste puisse etre REJOUE plus tard
+  // (buildReplayConnectorRunners(), lib/real-screening-workflow.js) sans
+  // jamais reconstruire une forme approximee a partir de l'agregat.
+  const byConnector = {};
   for (const c of activeConnectors) {
     const runner = connectorRunners && connectorRunners[c.connectorId];
     if (typeof runner !== "function") {
@@ -577,10 +692,37 @@ async function executeActiveConnectorsRetrieval(connectorRunners, searchProtocol
     }
     const result = await runner(c, searchProtocol);
     const sourcesTrouvees = Array.isArray(result && result.sourcesTrouvees) ? result.sourcesTrouvees : [];
+    const log = (result && result.log) || null;
+    byConnector[c.connectorId] = { sourcesTrouvees: sourcesTrouvees, log: log };
     allSources = allSources.concat(sourcesTrouvees);
-    if (result && result.log) allLogs.push(result.log);
+    if (log) allLogs.push(log);
   }
-  return { sourcesTrouvees: allSources, executionLog: allLogs };
+  return { sourcesTrouvees: allSources, executionLog: allLogs, byConnector: byConnector };
+}
+
+/**
+ * buildReplayConnectorRunners(byConnector) — REMEDIATION R5 (no-refetch
+ * guarantee). Reconstruit un objet `connectorRunners` dont chaque
+ * fonction REJOUE exactement le resultat deja persiste dans un
+ * RetrievalSnapshot (`byConnector`, produit par
+ * executeActiveConnectorsRetrieval ci-dessus) — AUCUN `fetchImpl`
+ * implique, AUCUN appel reseau possible par construction (la fonction
+ * retournee n'accepte/n'utilise meme pas d'implementation fetch). Utilise
+ * par resumeRealScreening() pour que le noeud EF-01C2 du graphe (execute
+ * par le moteur MONO-02 gele lors de la reprise) obtienne le MEME
+ * resultat que celui deja utilise pour construire le ScreeningArtifact
+ * depuis le snapshot — jamais un second retrieval, meme dans un
+ * processus different de celui qui a produit le snapshot.
+ */
+function buildReplayConnectorRunners(byConnector) {
+  const runners = {};
+  Object.keys(byConnector || {}).forEach(function (connectorId) {
+    const recorded = byConnector[connectorId];
+    runners[connectorId] = function replayConnectorRunner() {
+      return Promise.resolve({ sourcesTrouvees: recorded.sourcesTrouvees, log: recorded.log });
+    };
+  });
+  return runners;
 }
 
 function classifyRetrievalField(v) {
@@ -705,11 +847,14 @@ module.exports = {
   buildEF01AInjectedForMission: buildEF01AInjectedForMission,
   buildEF01FInjectedForMission: buildEF01FInjectedForMission,
   validateRealEForchProvenance: validateRealEForchProvenance,
+  validatePreRetrievalProvenance: validatePreRetrievalProvenance,
   validateRealResolverRunFields: validateRealResolverRunFields,
   validateRealPlannerRunFields: validateRealPlannerRunFields,
   validateRealAuditDecisionFields: validateRealAuditDecisionFields,
   validateRealHumanValidationFields: validateRealHumanValidationFields,
+  validatePostRetrievalAuditDecisions: validatePostRetrievalAuditDecisions,
   validateRealPlannerOutputFields: validateRealPlannerOutputFields,
   buildSearchProtocolFromPlannerOutput: buildSearchProtocolFromPlannerOutput,
   executeActiveConnectorsRetrieval: executeActiveConnectorsRetrieval,
+  buildReplayConnectorRunners: buildReplayConnectorRunners,
 };

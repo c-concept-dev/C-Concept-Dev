@@ -110,7 +110,19 @@ function buildRealReviewTargetsAndDocuments(cfg, targetDocuments, documentConten
  * planificateur, distinct de plannerRun qui n'est que sa provenance)
  * => echec ferme OPERATOR_INPUT_REQUIRED, jamais une fabrication.
  */
-async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl, provenanceOpts) {
+/**
+ * buildPreRetrievalArtifacts(...) — REMEDIATION R5 (A-01/A-02). Premiere
+ * moitie de buildEForchArtifacts() : tout ce qui peut etre construit
+ * AVANT retrieval EF-01C2 (RunContract confirme, ResolverTrace,
+ * SearchProtocol, ef01aInjected/ef01fInjected, connectorRunners
+ * memoises) — jamais `auditDecisions`. Extraite en fonction separee pour
+ * etre reutilisee IDENTIQUEMENT par `buildEForchArtifacts()` (chemin
+ * historique r1->r4, single-shot) ET par `prepareRealScreening()`
+ * (lib/real-screening-workflow.js, nouveau workflow deux-phases) —
+ * jamais deux logiques de construction divergentes pour la meme moitie
+ * du pipeline.
+ */
+async function buildPreRetrievalArtifacts(cfg, mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl, provenanceOpts) {
   provenanceOpts = provenanceOpts || {};
   const deps = loadEForchDeps(cfg.MONO01_PATH);
   const runContract = await buildConfirmedRunContractForMission(deps, mission, missionQuestion, documentBytesByUrl);
@@ -131,38 +143,57 @@ async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytes
   const ef01fInjected = buildEF01FInjectedForMission(runContract.runContractHash.slice(0, 8));
 
   // REMEDIATION R4 (F-03) : connectorRunners construit ICI, UNE SEULE FOIS
-  // (memoise — voir buildOpenAlexConnectorRunner), et REELLEMENT invoque
-  // AVANT la construction de ScreeningArtifact (executeActiveConnectorsRetrieval)
-  // — jamais un placeholder documentaire ("Source "+id) construit sans
-  // resultat retrieval reel derriere. La MEME instance (memoisee) est
-  // retournee a l'appelant pour que le noeud EF-01C2 du graphe (execute
-  // plus tard, MEME processus) reutilise EXACTEMENT ce resultat deja
-  // obtenu, jamais un second appel reseau reel.
+  // (memoise — voir buildOpenAlexConnectorRunner), pour que le noeud
+  // EF-01C2 du graphe (execute plus tard, MEME processus) reutilise
+  // EXACTEMENT le meme resultat que celui utilise pour construire
+  // ScreeningArtifact, jamais un second appel reseau reel.
   const sourceId = "source-" + runContract.runContractHash.slice(0, 12);
   const connectorRunners = { openalex: buildOpenAlexConnectorRunner(deps, sourceId, openAlexFetchImpl) };
-  const retrievalResult = await executeActiveConnectorsRetrieval(connectorRunners, searchProtocol);
-  const retrievalResultHash = await deps.sha256CanonicalJson(retrievalResult);
 
+  return { deps: deps, runContract: runContract, missionId: missionId, resolverTrace: resolverTrace, searchProtocol: searchProtocol, ef01aInjected: ef01aInjected, ef01fInjected: ef01fInjected, connectorRunners: connectorRunners };
+}
+
+/**
+ * buildScreeningAndQualification(deps, connectorRunners, searchProtocol,
+ * provenanceOpts, precomputedRetrievalResult?) — REMEDIATION R5.
+ * Seconde moitie de buildEForchArtifacts() : execute (ou REJOUE, si
+ * `precomputedRetrievalResult` est fourni — voir
+ * `buildReplayConnectorRunners()`, jamais un second appel reseau) la
+ * recuperation EF-01C2, puis construit ScreeningArtifact +
+ * QualificationTestArtifact + le lineage hashe complet. Reutilisee
+ * IDENTIQUEMENT par `buildEForchArtifacts()` (execution reelle) et par
+ * `resumeRealScreening()` (rejeu depuis un RetrievalSnapshot persiste).
+ */
+async function buildScreeningAndQualification(deps, connectorRunners, searchProtocol, provenanceOpts, precomputedRetrievalResult) {
+  const retrievalResult = precomputedRetrievalResult || await executeActiveConnectorsRetrieval(connectorRunners, searchProtocol);
+  const retrievalResultHash = await deps.sha256CanonicalJson(retrievalResult);
   const screeningArtifact = await buildScreeningArtifactForMission(deps, retrievalResult.sourcesTrouvees, searchProtocol.protocolHash, { mode: provenanceOpts.mode, auditDecisions: provenanceOpts.auditDecisions, retrievalResultHash: retrievalResultHash });
   const screeningArtifactHash = await deps.sha256CanonicalJson(screeningArtifact);
   const qualificationTestArtifact = buildQualificationArtifactForMission(deps, screeningArtifact, searchProtocol);
   const qualificationArtifactHash = await deps.sha256CanonicalJson(qualificationTestArtifact);
+  return { retrievalResult: retrievalResult, retrievalResultHash: retrievalResultHash, screeningArtifact: screeningArtifact, screeningArtifactHash: screeningArtifactHash, qualificationTestArtifact: qualificationTestArtifact, qualificationArtifactHash: qualificationArtifactHash };
+}
+
+async function buildEForchArtifacts(cfg, mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl, provenanceOpts) {
+  provenanceOpts = provenanceOpts || {};
+  const pre = await buildPreRetrievalArtifacts(cfg, mission, missionQuestion, documentBytesByUrl, openAlexFetchImpl, provenanceOpts);
+  const post = await buildScreeningAndQualification(pre.deps, pre.connectorRunners, pre.searchProtocol, provenanceOpts);
 
   const efOrchExecutionDependenciesSerializable = {
-    ef01aInjected: ef01aInjected,
-    resolverTrace: resolverTrace,
-    searchProtocol: searchProtocol,
-    screeningArtifact: screeningArtifact,
-    qualificationTestArtifact: qualificationTestArtifact,
-    ef01fInjected: ef01fInjected,
-    protocolHash: searchProtocol.protocolHash,
-    auditDecisions: screeningArtifact.auditDecisions,
+    ef01aInjected: pre.ef01aInjected,
+    resolverTrace: pre.resolverTrace,
+    searchProtocol: pre.searchProtocol,
+    screeningArtifact: post.screeningArtifact,
+    qualificationTestArtifact: post.qualificationTestArtifact,
+    ef01fInjected: pre.ef01fInjected,
+    protocolHash: pre.searchProtocol.protocolHash,
+    auditDecisions: post.screeningArtifact.auditDecisions,
     // REMEDIATION R4 (F-03, mandat section 13) : lineage explicite
     // retrieval -> screening -> qualification, verifiable sans inference.
-    retrievalLineage: { retrievalResultHash: retrievalResultHash, screeningArtifactHash: screeningArtifactHash, qualificationArtifactHash: qualificationArtifactHash },
+    retrievalLineage: { retrievalResultHash: post.retrievalResultHash, screeningArtifactHash: post.screeningArtifactHash, qualificationArtifactHash: post.qualificationArtifactHash },
   };
 
-  return { runContract: runContract, missionId: missionId, efOrchExecutionDependenciesSerializable: efOrchExecutionDependenciesSerializable, connectorRunners: connectorRunners };
+  return { runContract: pre.runContract, missionId: pre.missionId, efOrchExecutionDependenciesSerializable: efOrchExecutionDependenciesSerializable, connectorRunners: pre.connectorRunners };
 }
 
 async function createRealMissionRun(env, adapter, workerCallFn, opts) {
@@ -218,6 +249,117 @@ async function createRealMissionRun(env, adapter, workerCallFn, opts) {
       // construire ScreeningArtifact — jamais une nouvelle instance qui
       // relancerait un appel reseau reel distinct.
       efOrchExecutionDependencies: Object.assign({}, built.efOrchExecutionDependenciesSerializable, { connectorRunners: built.connectorRunners }),
+    }),
+    adapter: adapter,
+    dependenciesAvailable: { llm: true },
+    workerCallFn: workerCallFn,
+    builtAt: runInputsBundle.builtAt,
+    nodeOutputs: {},
+    nodeResults: {},
+  };
+  const engine = createOrchestrationEngine(cfg.GRAPH_PATH, mono01, ctx);
+  runRegistry.registerFreshEngine(runId, engine);
+  return { runId: runId, missionId: missionId };
+}
+
+/**
+ * createRealMissionRunFromSnapshot(env, adapter, workerCallFn, opts) —
+ * REMEDIATION R5 (A-01/A-02). Phase 2 (RESUME_REAL_SCREENING) du
+ * workflow deux-phases : reprend un run depuis un RetrievalSnapshot deja
+ * persiste par `prepareRealScreening()` — JAMAIS depuis zero, JAMAIS en
+ * recalculant RunContract/ResolverTrace/SearchProtocol (qui produiraient
+ * des hashes DIFFERENTS a chaque appel — `confirmedAt` horodate a
+ * chaque confirmation — cassant la coherence avec le snapshot deja
+ * persiste), et SURTOUT jamais en relancant le retrieval EF-01C2 : le
+ * noeud EF-01C2 du graphe recoit un connectorRunner qui REJOUE
+ * exactement le resultat deja capture dans le snapshot
+ * (`buildReplayConnectorRunners()`), aucun `fetchImpl` reel n'est meme
+ * fourni a cette fonction.
+ *
+ * opts : { runId, mission: {dimensions, targetDocuments},
+ * documentContentByUrl, snapshot (deja verifie intact par l'appelant —
+ * voir lib/real-screening-workflow.js::resumeRealScreening, qui reste
+ * l'UNIQUE point d'entree recommande), auditDecisionsInput (forme
+ * POST_RETRIEVAL_GATE — voir validatePostRetrievalAuditDecisions),
+ * heuristicPolicy?, exclusionRegistry? }.
+ */
+async function createRealMissionRunFromSnapshot(env, adapter, workerCallFn, opts) {
+  opts = opts || {};
+  const runId = opts.runId;
+  const mono03 = env.mono03;
+  const mono01 = env.mono01;
+  const runRegistry = env.runRegistry;
+  const cfg = env.cfg;
+  const { createOrchestrationEngine } = require(path.join(cfg.MONO02_PATH, "lib", "orchestration-engine.js"));
+  const { validatePostRetrievalAuditDecisions, buildReplayConnectorRunners } = require("./eforch-artifacts");
+
+  const snapshot = opts.snapshot;
+  if (!snapshot || typeof snapshot !== "object") {
+    throw new Error("createRealMissionRunFromSnapshot: opts.snapshot requis (RetrievalSnapshot deja persiste par prepareRealScreening()).");
+  }
+  const gateResult = validatePostRetrievalAuditDecisions(snapshot, opts.auditDecisionsInput);
+  if (!gateResult.valid) {
+    const err = new Error("OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS: POST_RETRIEVAL_GATE a rejete les decisions fournies — " + gateResult.problems.join("; ") + ".");
+    err.code = "OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS";
+    err.problems = gateResult.problems;
+    throw err;
+  }
+
+  const deps = loadEForchDeps(cfg.MONO01_PATH);
+  // REMEDIATION R5 (no-refetch) : connectorRunners de REJEU pur — aucun
+  // fetchImpl, aucune fonction reseau impliquee par construction. Le
+  // resultat REJOUE (snapshot.retrievalRaw) est aussi passe directement
+  // en `precomputedRetrievalResult` a buildScreeningAndQualification :
+  // AUCUN appel a un connectorRunner n'est meme necessaire pour
+  // construire ScreeningArtifact ici — le replay runner n'est construit
+  // que pour le noeud EF-01C2 du GRAPHE, plus loin, qui l'invoquera lui-meme.
+  const replayConnectorRunners = buildReplayConnectorRunners(snapshot.retrievalRaw.byConnector);
+  const post = await buildScreeningAndQualification(deps, replayConnectorRunners, snapshot.upstreamArtifacts.searchProtocol, { mode: "REAL", auditDecisions: gateResult.decisionsBySourceId }, snapshot.retrievalRaw);
+
+  const missionId = snapshot.missionId;
+  const documentContentByUrl = opts.documentContentByUrl || {};
+  const reviewMapping = buildRealReviewTargetsAndDocuments(cfg, opts.mission.targetDocuments, documentContentByUrl);
+  const nodeDefs = buildRealNodeDefs(cfg.GRAPH_PATH);
+  await mono03.runStore.createRun({
+    runId: runId, missionId: missionId, graphVersion: "MONO-02-R1", baselineVersion: "MONO-00-v1", integrationVersion: "MONO-01-v1", nodeDefs: nodeDefs,
+  });
+
+  const efOrchExecutionDependenciesSerializable = {
+    // REMEDIATION R5 : ef01aInjected.documentBytes est persiste en base64
+    // dans le snapshot (Uint8Array non hashable/JSON-canonique tel quel —
+    // voir lib/real-screening-workflow.js::serializeEf01aInjected) —
+    // desencode ici pour retrouver la forme exacte attendue par le
+    // graphe, jamais une perte de fidelite documentaire.
+    ef01aInjected: require("./real-screening-workflow").deserializeEf01aInjected(snapshot.upstreamArtifacts.ef01aInjected),
+    resolverTrace: snapshot.upstreamArtifacts.resolverTrace,
+    searchProtocol: snapshot.upstreamArtifacts.searchProtocol,
+    screeningArtifact: post.screeningArtifact,
+    qualificationTestArtifact: post.qualificationTestArtifact,
+    ef01fInjected: snapshot.upstreamArtifacts.ef01fInjected,
+    protocolHash: snapshot.searchProtocolHash,
+    auditDecisions: post.screeningArtifact.auditDecisions,
+    retrievalLineage: { retrievalResultHash: post.retrievalResultHash, screeningArtifactHash: post.screeningArtifactHash, qualificationArtifactHash: post.qualificationArtifactHash },
+  };
+
+  const externalInputs = {
+    runContract: snapshot.upstreamArtifacts.runContract,
+    missionDimensionSet: await buildRealMissionDimensionSet(cfg, missionId, opts.mission.dimensions),
+    missionDocumentMapping: buildRealMissionDocumentMapping(cfg, missionId, opts.mission.targetDocuments),
+    heuristicPolicy: opts.heuristicPolicy || buildRealHeuristicPolicy(cfg),
+    exclusionRegistry: opts.exclusionRegistry || { schema: "EvidenceForge.ExclusionRegistrySet", schemaVersion: "EF-GOV-REG-v1", entries: [] },
+    documents: reviewMapping.documents,
+    reviewTargets: reviewMapping.reviewTargets,
+    efOrchExecutionDependencies: efOrchExecutionDependenciesSerializable,
+  };
+
+  const runInputsBundle = { missionQuestion: snapshot.missionQuestion, externalInputs: externalInputs, builtAt: new Date().toISOString() };
+  await runRegistry.saveRunInputs(runId, runInputsBundle);
+
+  const ctx = {
+    missionId: missionId,
+    missionQuestion: snapshot.missionQuestion,
+    externalInputs: Object.assign({}, externalInputs, {
+      efOrchExecutionDependencies: Object.assign({}, efOrchExecutionDependenciesSerializable, { connectorRunners: replayConnectorRunners }),
     }),
     adapter: adapter,
     dependenciesAvailable: { llm: true },
@@ -303,4 +445,16 @@ async function rehydrateRealMissionRun(env, adapter, workerCallFn, openAlexFetch
   return { runId: runId };
 }
 
-module.exports = { createRealMissionRun: createRealMissionRun, rehydrateRealMissionRun: rehydrateRealMissionRun, buildEForchArtifacts: buildEForchArtifacts };
+module.exports = {
+  createRealMissionRun: createRealMissionRun,
+  createRealMissionRunFromSnapshot: createRealMissionRunFromSnapshot,
+  rehydrateRealMissionRun: rehydrateRealMissionRun,
+  buildEForchArtifacts: buildEForchArtifacts,
+  buildPreRetrievalArtifacts: buildPreRetrievalArtifacts,
+  buildScreeningAndQualification: buildScreeningAndQualification,
+  buildRealReviewTargetsAndDocuments: buildRealReviewTargetsAndDocuments,
+  buildRealMissionDimensionSet: buildRealMissionDimensionSet,
+  buildRealMissionDocumentMapping: buildRealMissionDocumentMapping,
+  buildRealHeuristicPolicy: buildRealHeuristicPolicy,
+  buildRealNodeDefs: buildRealNodeDefs,
+};

@@ -46,7 +46,7 @@ const { buildRealExternalStageAdapter, buildRealLlmWorkerCallFn } = require("../
 const { createRealMissionRun, rehydrateRealMissionRun } = require("../lib/real-e2e-driver");
 const { realOpenAlexFetchImpl } = require("../lib/real-openalex-fetch");
 const { buildDurableComponents } = require("../lib/durable-real-env");
-const { validateRealEForchProvenance } = require("../lib/eforch-artifacts");
+const { validatePreRetrievalProvenance } = require("../lib/eforch-artifacts");
 
 function loadMission() {
   const missionPath = path.join(__dirname, "..", "fixtures", "mission-real-smoke-v1.json");
@@ -82,11 +82,28 @@ function loadRealProvenance(mission) {
  * verifiait QUE readyForExecution — une mission pouvait donc obtenir
  * mission-gate=PASS alors que mission.eForchProvenance etait absent, pour
  * echouer immediatement ensuite en OPERATOR_INPUT_REQUIRED (F-02/F-03)
- * une fois la construction du run deja entamee. Reutilise desormais
- * validateRealEForchProvenance() (lib/eforch-artifacts.js — LA MEME
- * fonction, jamais une seconde logique de validation) pour echouer
- * MISSION_NOT_READY AVANT tout appel provider/construction couteuse
- * quand la provenance est absente ou structurellement invalide.
+ * une fois la construction du run deja entamee.
+ *
+ * REMEDIATION R5 (A-01, correction d'un defaut BLOQUANT de l'audit
+ * independant round 4) : ce gate utilisait jusqu'ici
+ * validateRealEForchProvenance() — qui exigeait `auditDecisions` non
+ * vide AVANT tout retrieval EF-01C2. Or `auditDecisions` est indexee
+ * par des `sourceId` qui n'existent structurellement QU'APRES ce
+ * retrieval (generes dynamiquement par le connecteur reel) — une
+ * dependance cyclique temporelle impossible a satisfaire honnetement
+ * sans inventer a l'avance des decisions sur des sources encore
+ * inconnues. Ce gate PRE-retrieval utilise desormais
+ * validatePreRetrievalProvenance() (lib/eforch-artifacts.js — LA MEME
+ * fonction que prepareRealScreening(), jamais une seconde logique de
+ * validation), qui ne verifie QUE les preconditions reellement
+ * disponibles avant tout retrieval (resolverRuns/plannerRun/
+ * plannerOutput/humanValidation) — jamais auditDecisions. La validation
+ * d'auditDecisions appartient desormais exclusivement au
+ * POST_RETRIEVAL_GATE (validatePostRetrievalAuditDecisions(),
+ * lib/real-screening-workflow.js), execute uniquement apres qu'un
+ * RetrievalSnapshot reel existe — voir AUDIT-REMEDIATION/
+ * 24-REAL-SCREENING-TWO-PHASE-WORKFLOW.md.
+ *
  * describeMissionGateStatus() porte la raison explicite ; missionGateStatus()
  * reste un predicat simple (string), inchange pour la compatibilite des
  * appelants/tests existants.
@@ -95,11 +112,11 @@ function describeMissionGateStatus(mission) {
   if (!mission.readyForExecution) {
     return { status: "MISSION_NOT_READY", reason: "readyForExecution=false - au moins une reference reste OPERATOR_INPUT_REQUIRED (voir MISSION.md)." };
   }
-  const provenanceCheck = validateRealEForchProvenance(mission);
+  const provenanceCheck = validatePreRetrievalProvenance(mission);
   if (!provenanceCheck.valid) {
     return { status: "MISSION_NOT_READY", reason: "eForchProvenance missing or invalid: " + provenanceCheck.problems.join("; ") };
   }
-  return { status: "PASS", reason: "mission complete, readyForExecution=true, eForchProvenance structurellement valide." };
+  return { status: "PASS", reason: "mission complete, readyForExecution=true, eForchProvenance structurellement valide (preconditions PRE-retrieval — voir PRE_RETRIEVAL_GATE, R5)." };
 }
 function missionGateStatus(mission) {
   return describeMissionGateStatus(mission).status;
