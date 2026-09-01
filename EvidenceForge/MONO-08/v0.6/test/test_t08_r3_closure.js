@@ -237,7 +237,14 @@ const HASH64_B = "f".repeat(64);
     if (runtimePrereqExists) {
       const prereqSrc = fs.readFileSync(runtimePrereqPath, "utf8");
       check("B04-R3-01. AUDIT-REMEDIATION/18-RUNTIME-PREREQUISITES.md existe et documente Node.js et npm comme prerequis systeme (jamais silencieusement omis)", /Node\.js|Node\b/.test(prereqSrc) && /npm/.test(prereqSrc));
-      check("B04-R3-02. 18-RUNTIME-PREREQUISITES.md ne pretend jamais qu'un `npm ci` est offline par defaut (mandat section 19)", !/npm ci.{0,40}(offline par defaut|est offline\b)/i.test(prereqSrc));
+      // Verification POSITIVE (jamais une regex fragile essayant de detecter
+      // l'ABSENCE d'une surqualification, qui confondrait a tort la phrase
+      // honnete de disclaimer elle-meme avec l'overclaim qu'elle nie) : le
+      // document doit contenir EXPLICITEMENT, dans cet ordre, la negation
+      // ("jamais") AVANT la phrase "npm ci ... offline par defaut" (mandat
+      // section 19) — preuve que le disclaimer est present, pas seulement
+      // l'absence accidentelle d'un motif.
+      check("B04-R3-02. 18-RUNTIME-PREREQUISITES.md contient EXPLICITEMENT le disclaimer niant qu'un `npm ci` serait offline par defaut (jamais silencieusement omis)", /jamais.{0,150}npm ci.{0,80}offline par d[ée]faut/i.test(prereqSrc));
     } else {
       check("B04-R3-01-SKIPPED. AUDIT-REMEDIATION/18-RUNTIME-PREREQUISITES.md non trouve depuis ce depot de developpement (jamais un FAIL trompeur — verifie directement sur le paquet assemble et zippe, voir rapport terminal de cette mission)", true, "attendu: " + runtimePrereqPath);
     }
