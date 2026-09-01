@@ -24,12 +24,17 @@ test('l’application expose la couche 10G.3B.1 extérieure aux moteurs',()=>{
   assert.match(html,/return beginExchange\(\)/);
 });
 
-test('Workers AI est primaire, Groq fallback technique et le local reste prudent',()=>{
+// FC-01a : l'ordre des deux fournisseurs Decision est INCHANGÉ. Ce qui change est la fin de chaîne :
+// la dernière assertion vérifiait la PRÉSENCE du repli local fabriquant {exploitable, architecte} —
+// c'est-à-dire qu'elle gelait le fail-open comme contrat. Elle vérifie désormais son ABSENCE.
+test('Workers AI est primaire, Groq fallback technique, et AUCUN repli local ne fabrique de décision',()=>{
   const primary=html.indexOf("['workers-ai'"),fallback=html.indexOf("['groq'");
   assert.ok(primary>0&&fallback>primary);
   assert.match(html,/https:\/\/atelier-decision-workers-ai\.11drumboy11\.workers\.dev\/decision/);
   assert.match(html,/https:\/\/atelier-decision-groq\.11drumboy11\.workers\.dev\/decision/);
-  assert.match(html,/etat_demande:'exploitable',route:'architecte',confiance:'moyenne'/);
+  assert.doesNotMatch(html,/etat_demande:'exploitable',route:'architecte',confiance:'moyenne'/,
+    "aucune décision exploitable ne doit plus être fabriquée localement sur panne de fournisseur.");
+  assert.doesNotMatch(html,/function adpFallbackLocal\(/,"adpFallbackLocal doit être supprimée du runtime.");
 });
 
 function loadProvider(fetchImpl){
@@ -75,13 +80,20 @@ test('Groq prend le relais uniquement sur erreur technique ou réponse invalide'
   }
 });
 
-test('la panne des deux providers conserve le fallback prudent local',async()=>{
+// FC-01a : ce test gelait précisément la régression. Une panne technique des deux fournisseurs
+// produisait une décision « exploitable + architecte » qu'aucun modèle n'avait prise, et le parcours
+// s'exécutait. L'invariant est désormais inversé : une indisponibilité technique reste une
+// indisponibilité technique, et n'autorise jamais l'exécution.
+test('la panne des deux providers échoue en technique — aucune décision fabriquée localement',async()=>{
   const provider=loadProvider(async()=>{throw new TypeError('network')});
-  const result=await provider.askDecisionProvider({demande:'Demande',materiau_present:false,mode_demande:'rapide'});
-  assert.equal(result.source,'local-prudent');
-  assert.equal(result.decision.etat_demande,'exploitable');
-  assert.equal(result.decision.route,'architecte');
-  assert.equal(result.decision.question,null);
+  const error=await provider.askDecisionProvider({demande:'Demande',materiau_present:false,mode_demande:'rapide'})
+    .then(()=>null,(caught)=>caught);
+  assert.ok(error,'la double panne doit échouer, jamais retourner une décision.');
+  assert.equal(error.decision_technical_failure,true);
+  const serialized=JSON.stringify({message:error.message,...error});
+  for(const forbidden of ['exploitable','architecte','rapide','clarification_necessaire']){
+    assert.ok(!serialized.includes(forbidden),`l'échec technique ne doit porter aucune sémantique (${forbidden}).`);
+  }
 });
 
 test('la fenêtre de clarification est modale, responsive et non technique',()=>{

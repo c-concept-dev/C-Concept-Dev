@@ -848,6 +848,7 @@ body[data-espace="debutant"] .avance-seulement{display:none}
 .ui-rapid-gate[data-state="architecte"]{background:#F4E3DC;border-color:#B76A4A;color:#7B3F2E}
 
 .ui-rapid-gate[data-state="thinking"]{background:#F6EBDD;border-color:#C89A5A;color:#7A5A32}
+.ui-rapid-gate[data-state="technical"]{background:#F1ECE6;border-color:#A79684;color:#5C5044}
 .ui-rapid-gate .adp-meta{font-size:.78rem;opacity:.82;margin-top:2px}
 .v11-clarification-modal{position:fixed;inset:0;z-index:10000;margin:0;padding:24px;display:grid;place-items:center;background:rgba(45,42,39,.52);backdrop-filter:blur(3px)}
 .v11-clarification-modal[hidden]{display:none!important}
@@ -11736,12 +11737,19 @@ async function adpAskEndpoint(endpoint,input){
     return adpDecisionValide(await response.json(),input.demande);
   }finally{clearTimeout(timer)}
 }
-function adpFallbackLocal(){
-  return {etat_demande:'exploitable',route:'architecte',confiance:'moyenne',raison_interne:ADP_REASONS.architecte,question:null};
+/* FC-01a : adpFallbackLocal() a ete SUPPRIMEE. Elle fabriquait localement, lorsque les deux
+   fournisseurs Decision echouaient, une decision {etat_demande:'exploitable', route:'architecte'} —
+   c'est-a-dire qu'une panne technique se transformait en autorisation d'executer. C'etait un
+   fail-open : le navigateur declarait exploitable une demande qu'aucun fournisseur n'avait analysee.
+   Une indisponibilite technique n'est pas un jugement sur la demande, et le frontend n'a aucune
+   autorite pour en produire un. Il n'existe donc plus AUCUN chemin par lequel le navigateur puisse
+   fabriquer un etat_demande, une route ou une execution. */
+function adpDecisionTechnicalFailure(){
+  return Object.assign(new Error('DECISION_TECHNICAL_FAILURE'),{decision_technical_failure:true});
 }
 async function askDecisionProvider(input){
   const minimal={demande:String(input&&input.demande||'').trim(),materiau_present:!!(input&&input.materiau_present),mode_demande:input&&input.mode_demande==='architecte'?'architecte':'rapide'};
-  if(!minimal.demande)return {decision:adpFallbackLocal(),source:'local-prudent'};
+  if(!minimal.demande)throw adpDecisionTechnicalFailure();
   const providers=[
     ['workers-ai',adpEndpointValide(ADP10G.endpoints.workersAI)],
     ['groq',adpEndpointValide(ADP10G.endpoints.groq)]
@@ -11750,7 +11758,7 @@ async function askDecisionProvider(input){
     if(!endpoint)continue;
     try{return {decision:await adpAskEndpoint(endpoint,minimal),source}}catch(error){console.warn('Decision Provider '+source+' indisponible.',error)}
   }
-  return {decision:adpFallbackLocal(),source:'local-prudent'};
+  throw adpDecisionTechnicalFailure();
 }
 function v11ShowRapidGate(decision){
   const box=$('#ui-rapid-gate'),title=$('#ui-rapid-gate-title'),txt=$('#ui-rapid-gate-text');
@@ -11760,6 +11768,15 @@ function v11ShowRapidGate(decision){
   box.dataset.state=decision.state||'improvable';
   if(title)title.textContent=decision.title||'';
   if(txt)txt.textContent=decision.text||'';
+}
+/* FC-01a : rendu de l'echec technique. Neutre par construction — il ne nomme aucun fournisseur,
+   aucun statut HTTP, aucune cause supposee, et n'invente rien. La demande saisie n'est jamais
+   touchee : l'utilisateur peut simplement relancer. */
+const ADP_TECHNICAL_FAILURE_UI=Object.freeze({state:'technical',title:'Analyse indisponible',text:'Impossible d’analyser la demande pour le moment. Votre demande est conservée. Vous pouvez réessayer.'});
+function adpShowTechnicalFailure(){
+  adpState.pendingQuestion=false;show(null);
+  v11ShowRapidGate(ADP_TECHNICAL_FAILURE_UI);
+  return false;
 }
 function adpShowThinking(){v11ShowRapidGate({state:'thinking',title:'Analyse de votre demande…',text:'Je vérifie si elle est suffisamment définie pour être préparée utilement.'})}
 function v11SwitchToArchitecteFromRapid(decision){
@@ -11848,7 +11865,9 @@ async function adpResumeAfterClarification(){
   if(adpState.running)return false;adpState.running=true;
   try{
     const demande=compositeDemand(),materiau=materialText();
-    const orientation=await adpDecideRapide(demande,materiau,adpState.requestedMode);
+    let orientation;
+    try{orientation=await adpDecideRapide(demande,materiau,adpState.requestedMode)}
+    catch(error){if(error&&error.decision_technical_failure)return adpShowTechnicalFailure();throw error}
     if(orientation.action.state==='clarification_required'){
       adpState.clarifications+=1;adpShowQuestion(orientation.action);return false;
     }
@@ -11863,7 +11882,9 @@ async function v11StartRapide(){
   if(adpState.running)return false;adpState.running=true;
   try{
     adpState.requestedMode='rapide';
-    const orientation=await adpDecideRapide(d,mat,'rapide');
+    let orientation;
+    try{orientation=await adpDecideRapide(d,mat,'rapide')}
+    catch(error){if(error&&error.decision_technical_failure)return adpShowTechnicalFailure();throw error}
     if(orientation.action.state==='clarification_required'){adpState.clarifications=1;adpShowQuestion(orientation.action);return false;}
     if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
     if(orientation.route==='architecte')return adpEnterArchitecte(d,mat,orientation);
@@ -11875,7 +11896,9 @@ async function v11StartArchitecte(){
   const mat=materialText();if(adpState.running)return false;adpState.running=true;
   try{
     adpState.requestedMode='architecte';
-    const orientation=await adpDecideRapide(compositeDemand(),mat,'architecte');
+    let orientation;
+    try{orientation=await adpDecideRapide(compositeDemand(),mat,'architecte')}
+    catch(error){if(error&&error.decision_technical_failure)return adpShowTechnicalFailure();throw error}
     if(orientation.action.state==='clarification_required'){adpState.clarifications=1;adpShowQuestion(orientation.action);return false;}
     if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
     return adpEnterArchitecte(compositeDemand(),mat,orientation);
