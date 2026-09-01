@@ -44,6 +44,13 @@
  *                              explicitement NON éligible : c'est la frontière formelle qui interdit
  *                              le model shopping (un désaccord, une confiance différente ou une route
  *                              non préférée ne sont pas des pannes).
+ * - REQUEST_REJECTED         : le provider a explicitement rejeté la requête comme malformée
+ *                              (HTTP 400/422). Ambigu par nature : ce peut être une particularité de
+ *                              dialecte propre à CE provider (un mot-clé de schéma qu'il n'accepte pas
+ *                              alors qu'un autre l'accepte), ou un défaut de NOTRE requête, commun aux
+ *                              trois. On ne peut pas trancher sur une seule observation. La classe est
+ *                              donc éligible au failover — sinon une simple différence de dialecte
+ *                              tuerait la chaîne — mais soumise à la règle de cause commune ci-dessous.
  * - CONTRACT_ERROR           : le contrat partagé (prompt, schéma, invariants) est lui-même
  *                              inutilisable. La cause est COMMUNE à tous les providers : les
  *                              enchaîner ne ferait que répéter le même échec trois fois. Fail-closed
@@ -57,6 +64,7 @@ export const FAILURE_CLASSES = Object.freeze({
   TECHNICAL_FAILOVER: "technical_failover",
   CONFIG_UNAVAILABLE: "config_unavailable",
   STRUCTURED_OUTPUT_INVALID: "structured_output_invalid",
+  REQUEST_REJECTED: "request_rejected",
   SEMANTIC_VALID: "semantic_valid",
   CONTRACT_ERROR: "contract_error",
   PROGRAMMING_ERROR: "programming_error"
@@ -71,8 +79,25 @@ export const FAILOVER_ELIGIBLE_CLASSES = Object.freeze([
   FAILURE_CLASSES.TECHNICAL_RETRYABLE,
   FAILURE_CLASSES.TECHNICAL_FAILOVER,
   FAILURE_CLASSES.CONFIG_UNAVAILABLE,
-  FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID
+  FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID,
+  FAILURE_CLASSES.REQUEST_REJECTED
 ]);
+
+/**
+ * Règle de CAUSE COMMUNE PRÉSUMÉE.
+ *
+ * Un seul rejet de requête (400/422) ne prouve rien : les providers n'acceptent pas exactement le même
+ * dialecte de JSON Schema, et basculer est alors le bon comportement. DEUX rejets par deux providers
+ * INDÉPENDANTS sur la MÊME requête sont en revanche une observation sur la requête, plus sur les
+ * providers. Le seuil vaut donc 2 parce que 2 est le nombre minimal d'observations indépendantes
+ * permettant de distinguer "dialecte" de "notre requête" — ce n'est pas un réglage empirique arbitraire,
+ * et il n'y a rien à calibrer.
+ *
+ * Effet : au deuxième rejet, la chaîne s'arrête et N'APPELLE PAS le troisième provider. Le gaspillage
+ * est borné à 2 appels, jamais 3, et l'événement provider_ha_common_cause_suspected nomme
+ * explicitement l'hypothèse au lieu de la noyer dans une "panne de tous les providers".
+ */
+export const COMMON_CAUSE_REJECTION_THRESHOLD = 2;
 
 export function isFailoverEligible(failureClass) {
   return FAILOVER_ELIGIBLE_CLASSES.includes(failureClass);
@@ -178,6 +203,13 @@ export async function runProviderChain({ role, providers, preflight, log = defau
       attempts.push({ provider: name, failure_class });
       log({ event: "provider_ha_failure", role, provider: name, attempt_index: index, failure_class });
 
+      const rejections = attempts.filter((attempt) => attempt.failure_class === FAILURE_CLASSES.REQUEST_REJECTED).length;
+      if (failure_class === FAILURE_CLASSES.REQUEST_REJECTED && rejections >= COMMON_CAUSE_REJECTION_THRESHOLD) {
+        // Deux providers indépendants ont rejeté la même requête : la cause est probablement chez nous.
+        // On s'arrête ici — le troisième appel serait un troisième échec identique, pas une chance.
+        log({ event: "provider_ha_common_cause_suspected", role, provider_order: order, rejections, attempts, remaining_providers: order.slice(index + 1) });
+        throw error;
+      }
       if (!isFailoverEligible(failure_class)) {
         // Cause commune (contrat/bug) ou résultat sémantiquement valide : enchaîner les providers
         // n'apporterait rien et transformerait un défaut identifiable en cascade opaque.

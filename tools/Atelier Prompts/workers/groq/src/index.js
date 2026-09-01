@@ -245,10 +245,10 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
       .replace(/\s+/g, " ")
       .slice(0, 500);
     console.error({ event: "groq_api_error", status: response.status, code: redact(code), message: redact(message) });
-    // 4xx comme 5xx : indisponibilité technique de CE provider sur CET appel. Jamais un désaccord
-    // sémantique, jamais une raison de préférer un autre modèle — seulement une raison d'en essayer
-    // un autre parce que celui-ci n'a rien produit.
-    throw tagFailure(new Error(`Groq a répondu ${response.status}.`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq", status: response.status });
+    // Classe déterminée par classifyProviderHttpStatus : jamais un désaccord sémantique, jamais une
+    // raison de préférer un autre modèle — seulement une raison d'en essayer un autre parce que
+    // celui-ci n'a rien produit.
+    throw tagFailure(new Error(`Groq a répondu ${response.status}.`), classifyProviderHttpStatus(response.status), { provider: "groq", status: response.status });
   }
   let envelope;
   try {
@@ -257,6 +257,41 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     throw tagFailure(new Error("Groq a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "groq" });
   }
   return envelope?.choices?.[0]?.message?.content;
+}
+
+/**
+ * HA-01 : classification EXPLICITE des statuts HTTP des providers, partagée par les TROIS adaptateurs
+ * (aucun mapping provider-specific : un 400 ne veut pas dire autre chose selon le fournisseur).
+ *
+ *   401, 403  -> CONFIG_UNAVAILABLE. Le justificatif d'authentification de CE provider est refusé :
+ *                clé absente, révoquée, sans droit sur le modèle. C'est exactement la même situation
+ *                qu'un secret manquant, et le provider suivant reste pertinent. Classe DISTINCTE de
+ *                TECHNICAL_FAILOVER pour rester explicitement observable : une chaîne qui bascule
+ *                trois fois pour cause d'authentification n'est pas une panne, c'est une
+ *                configuration à corriger, et le log doit le dire.
+ *
+ *   400, 422  -> REQUEST_REJECTED. Le provider dit que NOTRE requête est malformée. Ambigu sur une
+ *                seule observation (dialecte de schéma propre au provider, ou défaut commun de notre
+ *                requête) : la classe reste éligible au failover, mais provider-ha.js s'arrête au
+ *                DEUXIÈME rejet (COMMON_CAUSE_REJECTION_THRESHOLD) au lieu d'en consommer un
+ *                troisième. Voir la justification du seuil dans provider-ha.js.
+ *
+ *   404       -> TECHNICAL_FAILOVER. Endpoint ou modèle introuvable POUR CE PROVIDER (un modèle non
+ *                activé sur ce compte, par exemple) : strictement provider-specific.
+ *   408       -> TECHNICAL_FAILOVER. Timeout côté serveur, indiscernable d'un timeout réseau.
+ *   409       -> TECHNICAL_FAILOVER. Conflit d'état côté provider, jamais une propriété de la requête.
+ *   429       -> TECHNICAL_FAILOVER. N'atteint ce point qu'APRÈS la politique de reprise de
+ *                l'adaptateur (Groq : 1 + maxRetries ; Anthropic/OpenAI : aucune reprise, cf.
+ *                decideWithHaChain). Une limite de débit est par définition propre à un fournisseur.
+ *   5xx       -> TECHNICAL_FAILOVER. Panne du provider.
+ *   autre     -> TECHNICAL_FAILOVER, par défaut conservateur : un statut inattendu décrit le
+ *                fournisseur, jamais notre contrat — et le défaut ne doit jamais être la classe
+ *                fail-closed, qui priverait la chaîne d'un provider disponible.
+ */
+export function classifyProviderHttpStatus(status) {
+  if (status === 401 || status === 403) return FAILURE_CLASSES.CONFIG_UNAVAILABLE;
+  if (status === 400 || status === 422) return FAILURE_CLASSES.REQUEST_REJECTED;
+  return FAILURE_CLASSES.TECHNICAL_FAILOVER;
 }
 
 /**
@@ -432,7 +467,7 @@ async function callAnthropicMessages({ systemPrompt, userMessage, schema, schema
       .replace(/\s+/g, " ")
       .slice(0, 500);
     console.error({ event: "anthropic_api_error", status: response.status, code: redact(code), message: redact(message) });
-    throw tagFailure(new Error(`Anthropic a répondu ${response.status}.`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "anthropic", status: response.status });
+    throw tagFailure(new Error(`Anthropic a répondu ${response.status}.`), classifyProviderHttpStatus(response.status), { provider: "anthropic", status: response.status });
   }
   let envelope;
   try {
@@ -606,7 +641,7 @@ async function callOpenAiChatCompletion({ systemPrompt, userMessage, schema, sch
       .replace(/\s+/g, " ")
       .slice(0, 500);
     console.error({ event: "openai_api_error", status: response.status, code: redact(code), message: redact(message) });
-    throw tagFailure(new Error(`OpenAI a répondu ${response.status}.`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "openai", status: response.status });
+    throw tagFailure(new Error(`OpenAI a répondu ${response.status}.`), classifyProviderHttpStatus(response.status), { provider: "openai", status: response.status });
   }
   let envelope;
   try {

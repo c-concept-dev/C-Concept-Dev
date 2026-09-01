@@ -10,12 +10,14 @@ import groqWorker, {
   OPENAI_API_KEY_BINDINGS,
   OPENAI_MODEL,
   assertDecisionContractUsable,
+  classifyProviderHttpStatus,
   decideWithHaChain,
   decideWithOpenAI,
   decideWithSelectedProvider,
   resolveOpenAiApiKey
 } from '../workers/groq/src/index.js';
 import {
+  COMMON_CAUSE_REJECTION_THRESHOLD,
   FAILOVER_ELIGIBLE_CLASSES,
   FAILURE_CLASSES,
   ProviderChainError,
@@ -450,6 +452,7 @@ test('HA01-CLASSIF : la table d’éligibilité au failover est explicite, ferm�
       technical_failover: true,
       config_unavailable: true,
       structured_output_invalid: true,
+      request_rejected: true,
       semantic_valid: false,
       contract_error: false,
       programming_error: false
@@ -502,8 +505,8 @@ test('HA01-16 : l’observabilité du failover ne contient AUCUN secret, aucun p
   const byEvent = (name) => events.filter((event) => event.event === name);
   assert.deepEqual(byEvent('provider_ha_attempt').map((event) => event.provider), ['groq', 'anthropic', 'openai']);
   assert.deepEqual(byEvent('provider_ha_failure').map((event) => [event.provider, event.failure_class]), [
-    ['groq', FAILURE_CLASSES.TECHNICAL_FAILOVER], ['anthropic', FAILURE_CLASSES.TECHNICAL_FAILOVER]
-  ]);
+    ['groq', FAILURE_CLASSES.CONFIG_UNAVAILABLE], ['anthropic', FAILURE_CLASSES.CONFIG_UNAVAILABLE]
+  ], 'un 401 est un refus d’authentification propre au provider, explicitement observable comme tel.');
   assert.deepEqual(byEvent('provider_ha_fallback').map((event) => [event.fallback_from, event.fallback_to]), [
     ['groq', 'anthropic'], ['anthropic', 'openai']
   ]);
@@ -626,4 +629,125 @@ test('HA01-CONTRAT-b : le contrat Decision partagé reste byte-identique à deci
   assert.equal(DECISION_CONTRACT.schema, DECISION_JSON_SCHEMA, 'même référence : aucune copie, aucune variante provider-specific.');
   assert.equal(DECISION_CONTRACT.schemaName, 'decision_provider');
   assert.ok(Object.isFrozen(DECISION_CONTRACT));
+});
+
+// ==================================================================================================
+// HA01-HTTP : revue de la classification des statuts HTTP (§10).
+// Avant cette revue, TOUT statut non-2xx etait TECHNICAL_FAILOVER : un 401 de configuration et un
+// 400 de requete malformee etaient indiscernables d'une panne, et un defaut commun de notre requete
+// consommait les trois providers. La table ci-dessous est desormais explicite et testee statut par
+// statut, pour les trois adaptateurs.
+// ==================================================================================================
+
+test('HA01-HTTP-1 : table de classification des statuts, exhaustive et identique pour les trois providers', () => {
+  const expected = {
+    400: FAILURE_CLASSES.REQUEST_REJECTED,
+    401: FAILURE_CLASSES.CONFIG_UNAVAILABLE,
+    403: FAILURE_CLASSES.CONFIG_UNAVAILABLE,
+    404: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    408: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    409: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    422: FAILURE_CLASSES.REQUEST_REJECTED,
+    429: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    500: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    502: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    503: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    529: FAILURE_CLASSES.TECHNICAL_FAILOVER,
+    418: FAILURE_CLASSES.TECHNICAL_FAILOVER
+  };
+  for (const [status, failureClass] of Object.entries(expected)) {
+    assert.equal(classifyProviderHttpStatus(Number(status)), failureClass, `statut ${status}`);
+  }
+  // Aucune classe produite ici n'est fail-closed : un statut HTTP decrit toujours le fournisseur.
+  for (const failureClass of Object.values(expected)) assert.equal(isFailoverEligible(failureClass), true);
+});
+
+test('HA01-HTTP-2 : le meme statut produit la meme classe quel que soit le provider qui l’a renvoye', async (t) => {
+  for (const [status, expectedClass] of [[401, FAILURE_CLASSES.CONFIG_UNAVAILABLE], [503, FAILURE_CLASSES.TECHNICAL_FAILOVER], [400, FAILURE_CLASSES.REQUEST_REJECTED]]) {
+    await test(`HA01-HTTP-2/${status}`, async (sub) => {
+      const events = [];
+      withCapturedConsole(sub);
+      withProviders(sub, {
+        groq: () => Response.json({ error: { message: 'x' } }, { status }),
+        anthropic: () => Response.json({ error: { type: 'x' } }, { status }),
+        openai: () => Response.json({ error: { message: 'x' } }, { status })
+      });
+      await decideWithHaChain(INPUT, ALL_KEYS, { log: (event) => events.push(event) }).catch(() => {});
+      const observed = events.filter((event) => event.event === 'provider_ha_failure').map((event) => event.failure_class);
+      assert.ok(observed.length >= 2, `statut ${status} : au moins deux providers doivent avoir ete observes.`);
+      for (const failureClass of observed) assert.equal(failureClass, expectedClass, `statut ${status}`);
+    });
+  }
+});
+
+test('HA01-HTTP-3 : 401 sur les trois providers -> fail-closed, et chaque echec est observable comme CONFIG_UNAVAILABLE (jamais deguise en panne)', async (t) => {
+  const events = [];
+  withCapturedConsole(t);
+  const calls = withProviders(t, {
+    groq: () => Response.json({ error: { message: 'invalid key' } }, { status: 401 }),
+    anthropic: () => Response.json({ error: { type: 'authentication_error' } }, { status: 401 }),
+    openai: () => Response.json({ error: { message: 'invalid key' } }, { status: 403 })
+  });
+  const error = await decideWithHaChain(INPUT, ALL_KEYS, { log: (event) => events.push(event) }).then(() => null, (caught) => caught);
+  assert.ok(error instanceof ProviderChainError);
+  assert.deepEqual(calls, ['groq', 'anthropic', 'openai'], 'une erreur d’authentification est propre a chaque provider : les trois restent pertinents.');
+  assert.deepEqual(error.attempts.map((attempt) => attempt.failure_class), Array(3).fill(FAILURE_CLASSES.CONFIG_UNAVAILABLE));
+});
+
+test('HA01-HTTP-4 : REGLE DE CAUSE COMMUNE — deux rejets 400 consecutifs arretent la chaine, le TROISIEME provider n’est JAMAIS appele', async (t) => {
+  const events = [];
+  withCapturedConsole(t);
+  const calls = withProviders(t, {
+    groq: () => Response.json({ error: { message: 'invalid schema' } }, { status: 400 }),
+    anthropic: () => Response.json({ error: { type: 'invalid_request_error' } }, { status: 400 }),
+    openai: () => { throw new Error('le troisieme provider ne doit jamais etre appele'); }
+  });
+  await assert.rejects(() => decideWithHaChain(INPUT, ALL_KEYS, { log: (event) => events.push(event) }), /Anthropic a répondu 400/);
+  assert.deepEqual(calls, ['groq', 'anthropic'], 'gaspillage borne a 2 appels, jamais 3.');
+  const suspected = events.filter((event) => event.event === 'provider_ha_common_cause_suspected');
+  assert.equal(suspected.length, 1, 'l’hypothese de cause commune doit etre nommee explicitement, jamais noyee dans une panne generique.');
+  assert.equal(suspected[0].rejections, COMMON_CAUSE_REJECTION_THRESHOLD);
+  assert.deepEqual(suspected[0].remaining_providers, ['openai']);
+});
+
+test('HA01-HTTP-5 : un rejet 400 ISOLE reste une bascule normale — une difference de dialecte ne doit jamais tuer la chaine', async (t) => {
+  withCapturedConsole(t);
+  const calls = withProviders(t, {
+    groq: () => Response.json({ error: { message: 'unsupported schema keyword' } }, { status: 400 }),
+    anthropic: () => anthropicOk(decision('exploitable', 'rapide'))
+  });
+  const actual = await decideWithHaChain(INPUT, ALL_KEYS);
+  assert.deepEqual(calls, ['groq', 'anthropic']);
+  assert.equal(actual.route, 'rapide');
+});
+
+test('HA01-HTTP-6 : un 400 suivi d’une panne 503 n’atteint pas le seuil de cause commune — la chaine va bien jusqu’au tertiaire', async (t) => {
+  withCapturedConsole(t);
+  const calls = withProviders(t, {
+    groq: () => Response.json({ error: { message: 'invalid_request' } }, { status: 400 }),
+    anthropic: () => Response.json({ error: { type: 'overloaded_error' } }, { status: 503 }),
+    openai: () => openAiOk(decision('exploitable', 'rapide'))
+  });
+  const actual = await decideWithHaChain(INPUT, ALL_KEYS);
+  assert.deepEqual(calls, ['groq', 'anthropic', 'openai'], 'un seul rejet de requete ne suffit jamais a presumer une cause commune.');
+  assert.equal(actual.route, 'rapide');
+});
+
+test('HA01-HTTP-7 : REQUEST_REJECTED est eligible au failover mais soumis a la regle de cause commune (seuil = 2, minimum d’observations independantes)', () => {
+  assert.equal(isFailoverEligible(FAILURE_CLASSES.REQUEST_REJECTED), true);
+  assert.equal(COMMON_CAUSE_REJECTION_THRESHOLD, 2);
+  assert.ok(FAILOVER_ELIGIBLE_CLASSES.includes(FAILURE_CLASSES.REQUEST_REJECTED));
+});
+
+test('HA01-HTTP-8 : un 429 n’atteint la classification qu’APRES la politique de reprise de l’adaptateur', async (t) => {
+  withCapturedConsole(t);
+  const calls = withProviders(t, {
+    groq: () => new Response('{"error":{"message":"rate limit"}}', { status: 429, headers: { 'retry-after': '0' } }),
+    anthropic: () => Response.json({ error: { type: 'rate_limit_error' } }, { status: 429 }),
+    openai: () => openAiOk(decision('exploitable', 'rapide'))
+  });
+  const actual = await decideWithHaChain(INPUT, ALL_KEYS);
+  assert.equal(calls.filter((name) => name === 'groq').length, 3, 'Groq : 1 + maxRetries(2).');
+  assert.equal(calls.filter((name) => name === 'anthropic').length, 1, 'Anthropic : aucune reprise, bascule immediate.');
+  assert.equal(actual.route, 'rapide');
 });
