@@ -270,16 +270,20 @@ test("R1-12 (Workers AI) : runRoleWithWorkersAI(\"critic\", ...) — chemin mono
 
 // --- R1-13 : aucun double chemin production involontaire -----------------------------------------
 
-test("R1-13 : le routage fetch() ne peut router critic que vers le pipeline batché — une seule fonction de sélection (executeForRole), jamais deux branches concurrentes", () => {
+// HA-02 : l'invariant protégé par ce test est INCHANGÉ — « critic ne peut être routé que vers le
+// pipeline batché, par UNE seule décision de routage, jamais deux branches concurrentes ». Seule sa
+// PORTÉE de vérification s'élargit : depuis HA-02, la décision de routage critic vit dans
+// runRoleWithHaChain (qui choisit le pipeline batché comme unité de failover) et non plus dans le
+// corps de executeForRole, lequel se contente désormais de déléguer les trois rôles à la chaîne HA.
+// Vérifier l'unicité sur TOUT le fichier est strictement plus fort que sur le seul corps de
+// executeForRole : aucune seconde branche critic ne peut se cacher ailleurs. Aucun assouplissement.
+test("R1-13 (portée élargie HA-02) : le routage fetch() ne peut router critic que vers le pipeline batché — une seule fonction de sélection (executeForRole) et UNE SEULE décision de routage critic dans tout le fichier, jamais deux branches concurrentes", () => {
   for (const [label, path] of [["groq", groqSrcPath], ["workers-ai", workersAiSrcPath]]) {
     const source = fs.readFileSync(path, "utf8");
     const executeForRoleMatches = source.match(/function executeForRole\(/g) || [];
     assert.equal(executeForRoleMatches.length, 1, `${label} : une seule fonction executeForRole attendue.`);
-    // Une seule branche "critic" dans executeForRole (jamais une deuxième condition ailleurs qui
-    // pourrait re-router critic différemment selon un autre chemin caché).
-    const executeForRoleBody = source.slice(source.indexOf("function executeForRole("), source.indexOf("export default"));
-    const criticBranches = executeForRoleBody.match(/role === "critic"/g) || [];
-    assert.equal(criticBranches.length, 1, `${label} : une seule branche critic attendue dans executeForRole.`);
+    const criticBranches = source.match(/role === "critic"/g) || [];
+    assert.equal(criticBranches.length, 1, `${label} : une seule décision de routage critic attendue dans tout le fichier.`);
   }
 });
 

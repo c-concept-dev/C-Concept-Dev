@@ -17,9 +17,11 @@ import {
 } from "../../shared/operational-request-core.js";
 import {
   FAILURE_CLASSES,
+  failureClassOf,
   runProviderChain,
   tagFailure
 } from "../../shared/provider-ha.js";
+export { degradedResultFromProviderChainError } from "../../shared/role-degradation.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MODEL = "openai/gpt-oss-20b";
@@ -85,7 +87,42 @@ export const GROQ_PRODUCTION_RETRY_DEFAULTS = Object.freeze({
   maxRetries: 2,
   safetyMarginMs: 750,
   defaultBackoffMs: 30000,
-  timeoutMs: 8000
+  timeoutMs: 8000,
+  // HA-02 : aucune borne d'attente par défaut — c'est EXACTEMENT le comportement d'avant HA-02. Le
+  // pipeline Critic reste donc strictement inchangé (R2/R2.1/R3B, X2-BATCH) : pour lui, attendre le
+  // Retry-After annoncé est la seule stratégie correcte, puisqu'il n'a aujourd'hui aucun provider de
+  // repli et que ses contraintes TPM sont réelles.
+  maxRetryWaitMs: Infinity
+});
+
+/**
+ * HA-02 — POLITIQUE DE REPRISE PROPRE AU RÔLE DECISION. Dérivée, jamais choisie arbitrairement.
+ *
+ * Le problème mesuré après HA-01 : sur 429 persistant, /decision pouvait attendre 2 × (~30 s + 750 ms)
+ * AVANT même de tenter Anthropic, alors qu'Anthropic était disponible — soit ~60 s d'indisponibilité
+ * ressentie pour une requête interactive dont le repli coûte quelques secondes.
+ *
+ * Dérivation (aucun seuil magique) :
+ *   1. Decision est INTERACTIF : un humain attend la réponse, contrairement au pipeline Critic.
+ *   2. Le coût réel d'une bascule est MESURÉ, pas supposé : smokes réels HA-01 sur le Worker de
+ *      production — Anthropic /decision 3.41 s, OpenAI /decision 3.67–4.16 s.
+ *   3. Il s'ensuit une règle sans paramètre libre : attendre Groq n'a de sens que si l'attente
+ *      annoncée est INFÉRIEURE au coût de la bascule. Au-delà, patienter est strictement dominé par
+ *      le fait de changer de provider. maxRetryWaitMs = 3000 ms est le plus grand nombre rond
+ *      strictement inférieur à la latence de bascule la plus rapide réellement observée (3.41 s) :
+ *      la borne est donc dérivée d'une mesure, et tout autre valeur serait soit dominée, soit plus
+ *      lente que le repli.
+ *   4. maxRetries = 1 : une seule reprise courte suffit à absorber un 429 transitoire ; une seconde
+ *      n'apporterait rien qu'un provider de repli ne fasse mieux. Ce n'est PAS zéro reprise, car un
+ *      Retry-After très court (Groq en annonce fréquemment) est réellement moins coûteux qu'une
+ *      bascule.
+ *
+ * Latence de bascule /decision qui en résulte, dans le pire cas : 8 s (timeout réseau Groq) ou
+ * ~3.75 s (une reprise courte), au lieu de ~62 s. Aucune valeur n'est partagée avec Critic.
+ */
+export const DECISION_GROQ_RETRY_POLICY = Object.freeze({
+  maxRetries: 1,
+  maxRetryWaitMs: 3000
 });
 
 /**
@@ -95,7 +132,7 @@ export const GROQ_PRODUCTION_RETRY_DEFAULTS = Object.freeze({
  * l'ancienne fetchGroqWithRetry du harnais — seul le nom du module source change.
  */
 export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
-  const { maxRetries, safetyMarginMs, defaultBackoffMs, timeoutMs, sleepFn = sleep, signal } = { ...GROQ_PRODUCTION_RETRY_DEFAULTS, ...overrides };
+  const { maxRetries, safetyMarginMs, defaultBackoffMs, timeoutMs, maxRetryWaitMs, sleepFn = sleep, signal } = { ...GROQ_PRODUCTION_RETRY_DEFAULTS, ...overrides };
   let attempt = 0;
   let rateLimitedWaitMs = 0;
   while (true) {
@@ -110,6 +147,16 @@ export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
     const raw = await response.clone().text().catch(() => "");
     const retryAfterMs = parseRetryAfterMs(response) ?? parseRetryDelayFromBody(raw) ?? defaultBackoffMs;
     const waitMs = retryAfterMs + safetyMarginMs;
+    // HA-02 : plafond d'ATTENTE, distinct du plafond de NOMBRE de reprises. Par défaut Infinity — le
+    // comportement historique (Critic, R2/R2.1/R3B) est donc strictement inchangé, à l'octet près.
+    // Un appelant interactif peut en revanche décider qu'attendre plus longtemps que le coût d'une
+    // bascule n'a aucun sens : il abandonne alors la reprise IMMÉDIATEMENT, sans dormir.
+    if (waitMs > maxRetryWaitMs) {
+      throw Object.assign(
+        new Error(`Groq HTTP 429 : reprise abandonnée, le délai annoncé (${waitMs} ms) dépasse le plafond d'attente de ce rôle (${maxRetryWaitMs} ms).`),
+        { rateLimited: true, exhausted: true, wait_too_long: true, error_kind: "http_429", retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs, announced_wait_ms: waitMs }
+      );
+    }
     rateLimitedWaitMs += waitMs;
     attempt += 1;
     await sleepFn(waitMs, signal);
@@ -341,14 +388,18 @@ export function assertDecisionContractUsable(contract) {
   }
 }
 
-export async function decideWithGroq(input, env, { contract = DECISION_CONTRACT } = {}) {
+export async function decideWithGroq(input, env, { contract = DECISION_CONTRACT, retryOverrides = {} } = {}) {
   const content = await callGroqChatCompletion({
     systemPrompt: contract.prompt,
     userMessage: makeDecisionUserMessage(input),
     schema: contract.schema,
     schemaName: contract.schemaName,
     env,
-    maxCompletionTokens: 512
+    maxCompletionTokens: 512,
+    // HA-02 : politique de reprise PROPRE à Decision. callGroqChatCompletion et fetchGroqWithRetry
+    // restent une source de vérité UNIQUE, partagée avec Critic — seul le paramétrage diffère, jamais
+    // le transport (aucune duplication de fetchGroqWithRetry, cf. section 8 du lot).
+    retryOverrides: { ...DECISION_GROQ_RETRY_POLICY, ...retryOverrides }
   });
   try {
     return parseDecisionCandidate(content, input.demande);
@@ -787,7 +838,12 @@ export async function runRoleWithGroq(role, input, env) {
     env,
     maxCompletionTokens: 2048
   });
-  return definition.parseOutput(content);
+  // HA-02 : classification explicite, identique à celle des adaptateurs Anthropic et OpenAI. Avant
+  // cette correction, une sortie de rôle inexploitable produite par Groq remontait NON étiquetée,
+  // devenait donc PROGRAMMING_ERROR et faisait échouer la chaîne en fail-closed au lieu de basculer —
+  // alors que le chemin Decision traite exactement le même cas en STRUCTURED_OUTPUT_INVALID depuis
+  // HA-01. Défaut révélé par le test HA02-R4/R5.
+  return parseRoleOutput(role, content, "groq");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -997,17 +1053,226 @@ export async function runCriticWithAnthropic(input, env) {
   );
 }
 
+// =================================================================================================
+// HA-02 — HAUTE DISPONIBILITÉ DES RÔLES OPRIE (analyst, critic, arbiter).
+//
+// Réutilise l'orchestrateur de HA-01 (provider-ha.js) tel quel : aucun second orchestrateur, aucune
+// seconde taxonomie d'erreur, aucune seconde règle de cause commune. Les adaptateurs ci-dessous ne
+// sont que du TRANSPORT : prompts, schémas, parseurs et validateurs viennent tous, sans exception,
+// de ROLE_DEFINITIONS (operational-request-core.js, INCHANGÉ par ce lot).
+// =================================================================================================
+
+/** Même ordre que Decision : Groq (primary) -> Anthropic (secondary) -> OpenAI (tertiary). */
+export const ROLE_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
+
+// Les rôles OPRIE transportent des prompts et des sorties nettement plus volumineux qu'une décision :
+// ils utilisent le plafond de mesure déjà calibré en réel pour le pipeline Critic Anthropic (R5.2a),
+// jamais celui de /decision (20000 ms, dimensionné pour une décision courte).
+const OPENAI_ROLE_TIMEOUT_MS = 60000;
+const ROLE_MAX_OUTPUT_UNITS = 2048;
+
+/**
+ * Préflight de contrat COMMUN au rôle, exécuté UNE SEULE FOIS avant toute tentative provider —
+ * exactement la même discipline que assertDecisionContractUsable (HA-01) : un prompt vide ou un
+ * schéma inutilisable est une erreur de NOTRE code, identique pour les trois providers ; l'envoyer
+ * trois fois ne produirait que trois HTTP 400.
+ */
+export function assertRoleContractUsable(role, input) {
+  const fail = (reason) => {
+    throw tagFailure(new Error(`Contrat ${role} inutilisable : ${reason}`), FAILURE_CLASSES.CONTRACT_ERROR);
+  };
+  const definition = ROLE_DEFINITIONS[role];
+  if (!definition) fail("rôle OPRIE inconnu.");
+  if (typeof definition.systemPrompt !== "string" || !definition.systemPrompt.trim()) fail("prompt système absent ou vide.");
+  if (typeof definition.parseOutput !== "function") fail("parseur/validateur absent.");
+  const schema = resolveRoleSchema(definition, input);
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) fail("schéma absent.");
+  if (schema.type !== "object") fail("le schéma racine doit être de type \"object\".");
+  if (schema.additionalProperties !== false) fail("le schéma racine doit porter additionalProperties=false (mode strict).");
+  if (!schema.properties || typeof schema.properties !== "object") fail("le schéma racine ne déclare aucune propriété.");
+  const propertyKeys = Object.keys(schema.properties).sort();
+  const requiredKeys = Array.isArray(schema.required) ? [...schema.required].sort() : null;
+  if (!requiredKeys) fail("le schéma racine ne déclare pas \"required\".");
+  if (requiredKeys.length !== propertyKeys.length || requiredKeys.some((key, index) => key !== propertyKeys[index])) {
+    fail("\"required\" ne couvre pas exactement \"properties\" (mode strict).");
+  }
+}
+
+/** Sortie de rôle inexploitable = défaut de CE modèle sur CET appel, jamais un désaccord sémantique. */
+function parseRoleOutput(role, content, provider) {
+  try {
+    return ROLE_DEFINITIONS[role].parseOutput(content);
+  } catch (error) {
+    throw tagFailure(error, FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider, role });
+  }
+}
+
+/**
+ * HA-02 : rôle OPRIE sur Anthropic. Strictement symétrique de runRoleWithGroq — mêmes systemPrompt,
+ * schéma, userMessage et parseOutput, issus du MÊME registre. callAnthropicMessages (R5.1) était déjà
+ * entièrement générique : aucune adaptation de transport supplémentaire n'était nécessaire.
+ */
+export async function runRoleWithAnthropic(role, input, env) {
+  const definition = ROLE_DEFINITIONS[role];
+  if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
+  const content = await callAnthropicMessages({
+    systemPrompt: definition.systemPrompt,
+    userMessage: definition.buildUserMessage(input),
+    schema: resolveRoleSchema(definition, input),
+    schemaName: `oprie_${role}`,
+    env,
+    maxTokens: ROLE_MAX_OUTPUT_UNITS,
+    timeoutMs: ANTHROPIC_CRITIC_TIMEOUT_MS
+  });
+  return parseRoleOutput(role, content, "anthropic");
+}
+
+/**
+ * HA-02 : rôle OPRIE sur OpenAI. Le mode strict json_schema d'OpenAI exige required == properties et
+ * additionalProperties=false partout — invariants déjà garantis pour les trois schémas OPRIE par
+ * tests/operational-request-groq-schema-compat.test.mjs, et revérifiés à l'exécution par
+ * assertRoleContractUsable. Aucune projection, aucune réécriture de schéma.
+ */
+export async function runRoleWithOpenAI(role, input, env) {
+  const definition = ROLE_DEFINITIONS[role];
+  if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
+  const content = await callOpenAiChatCompletion({
+    systemPrompt: definition.systemPrompt,
+    userMessage: definition.buildUserMessage(input),
+    schema: resolveRoleSchema(definition, input),
+    schemaName: `oprie_${role}`,
+    env,
+    maxCompletionTokens: ROLE_MAX_OUTPUT_UNITS,
+    timeoutMs: OPENAI_ROLE_TIMEOUT_MS
+  });
+  return parseRoleOutput(role, content, "openai");
+}
+
+/**
+ * HA-02 : pipeline Critic batché sur OpenAI. Réutilise EXACTEMENT runCriticBatchedPipeline et le même
+ * plan de batch que Groq et Anthropic (groqCriticBatchPlanCapability / groqCriticOutputCapability,
+ * inchangées) : un même corpus produit le MÊME découpage quel que soit le provider — condition pour
+ * ne jamais confondre une variation de plan avec une variation de fournisseur. Aucun pacer, aucune
+ * reprise 429 : même discipline que runCriticWithAnthropic.
+ */
+export async function runCriticWithOpenAI(input, env) {
+  return runCriticBatchedPipeline(
+    { ...input, capability: groqCriticBatchPlanCapability(input) },
+    {
+      executeGlobal: (globalInput) => callOpenAiChatCompletion({
+        systemPrompt: CRITIC_GLOBAL_SYSTEM_PROMPT,
+        userMessage: makeCriticGlobalUserMessage(globalInput),
+        schema: CRITIC_GLOBAL_JSON_SCHEMA,
+        schemaName: "critic_global",
+        env,
+        maxCompletionTokens: GROQ_CRITIC_CAPABILITY.global_max_completion_units,
+        timeoutMs: OPENAI_ROLE_TIMEOUT_MS
+      }),
+      executeBatch: (batchInput) => callOpenAiChatCompletion({
+        systemPrompt: SUBSTITUTION_REVIEW_SYSTEM_PROMPT,
+        userMessage: makeSubstitutionReviewBatchUserMessage(batchInput),
+        schema: buildSubstitutionBatchSchema(batchInput.issueIds),
+        schemaName: "substitution_review_batch",
+        env,
+        maxCompletionTokens: estimateSubstitutionBatchOutputUnits(batchInput.issueIds.length, groqCriticOutputCapability()),
+        timeoutMs: OPENAI_ROLE_TIMEOUT_MS
+      })
+    }
+  );
+}
+
+/**
+ * HA-02 — GRANULARITÉ DU FAILOVER CRITIC : décision explicite, PAR PIPELINE, jamais par batch.
+ *
+ * Trois options étaient possibles : basculer un batch isolé, basculer l'appel global seul, ou rejouer
+ * le pipeline entier sur le provider suivant. La troisième est retenue, pour trois raisons de
+ * correction — pas de performance :
+ *
+ *   1. HOMOGÉNÉITÉ. Un CriticOutput assemble un appel global et K appels de Substitution Review qui
+ *      se référencent mutuellement (vetoes, semantic_drift_detected, gate de substitution). Mélanger
+ *      les fournisseurs à l'intérieur d'un même assemblage produirait un résultat qu'aucun modèle n'a
+ *      réellement produit, et que personne ne pourrait reproduire.
+ *   2. EXACT-SIX ET partial_failure. runCriticBatchedPipeline (INCHANGÉE) impose qu'un batch ne soit
+ *      réussi que si TOUS ses groupes réussissent, et rejette sinon avec technical_state=
+ *      "partial_failure". Réparer un batch avec un autre fournisseur reviendrait à contourner ce
+ *      contrat d'échec depuis l'extérieur.
+ *   3. NON-CONTAMINATION SÉMANTIQUE. Un failover par batch reviendrait à choisir, batch par batch, le
+ *      fournisseur qui « a réussi » — c'est-à-dire exactement du model shopping déguisé en résilience.
+ *
+ * Le prix est assumé : un échec tardif rejoue tout le pipeline sur le provider suivant. C'est le coût
+ * de la cohérence, et il ne se paie que sur le chemin d'échec.
+ *
+ * Seuls deux types d'échec du pipeline basculent : (a) ceux déjà classés par le transport
+ * (callGroqChatCompletion / callAnthropicMessages / callOpenAiChatCompletion), (b) technical_state=
+ * "partial_failure". Tout autre échec reste NON étiqueté, donc PROGRAMMING_ERROR, donc fail-closed :
+ * un rejet structurel de la sortie par validateCriticOutput ne doit pas être rejoué en espérant qu'un
+ * autre modèle passe — ce serait masquer un défaut de contrat par du model shopping.
+ */
+function tagCriticPipelineFailure(error, provider) {
+  if (failureClassOf(error) !== FAILURE_CLASSES.PROGRAMMING_ERROR) return error;
+  if (error?.technical_state === "partial_failure") {
+    return tagFailure(error, FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider, role: "critic" });
+  }
+  return error;
+}
+
+const CRITIC_PIPELINES = Object.freeze({
+  groq: (input, env, options) => runCriticWithGroq(input, env, options),
+  anthropic: (input, env) => runCriticWithAnthropic(input, env),
+  openai: (input, env) => runCriticWithOpenAI(input, env)
+});
+
+const GENERIC_ROLE_ADAPTERS = Object.freeze({
+  groq: (role, input, env) => runRoleWithGroq(role, input, env),
+  anthropic: (role, input, env) => runRoleWithAnthropic(role, input, env),
+  openai: (role, input, env) => runRoleWithOpenAI(role, input, env)
+});
+
+/**
+ * HA-02 : chaîne de haute disponibilité d'un rôle OPRIE. Même orchestrateur, même classification,
+ * même règle de cause commune, même fail-closed que Decision.
+ *
+ * SI LES TROIS ÉCHOUENT : ProviderChainError remonte telle quelle à handleRoleRequest, qui répond
+ * 502 role_provider_failure — contrat HTTP STRICTEMENT INCHANGÉ (R1-9/R1-10, qui interdisent
+ * explicitement tout champ state/degraded_state dans cette réponse). La traduction en degraded_state
+ * canonique est fournie séparément par degradedResultFromProviderChainError, à l'usage de la couche
+ * qui possède l'autorité OPRIE — jamais décidée ici.
+ */
+export async function runRoleWithHaChain(role, input, env, { order = ROLE_PROVIDER_ORDER, log, retryOverrides } = {}) {
+  const isCritic = role === "critic";
+  return runProviderChain({
+    role,
+    preflight: () => assertRoleContractUsable(role, input),
+    providers: order.map((name) => ({
+      name,
+      execute: isCritic
+        ? async () => {
+            try {
+              return await CRITIC_PIPELINES[name](input, env, retryOverrides ? { retryOverrides } : {});
+            } catch (error) {
+              throw tagCriticPipelineFailure(error, name);
+            }
+          }
+        : () => GENERIC_ROLE_ADAPTERS[name](role, input, env)
+    })),
+    ...(log ? { log } : {})
+  });
+}
+
 function roleFromPathname(pathname) {
   const role = pathname.replace(/^\//, "");
   return OPRIE_ROLES.includes(role) ? role : null;
 }
 
-// 3F.3.3-X2-BATCH-R1 : le rôle critic est routé vers le nouveau pipeline batché (chemin réel de
-// production) ; analyst et arbiter restent routés vers le chemin générique mono-call inchangé.
+// 3F.3.3-X2-BATCH-R1 : le rôle critic est routé vers le pipeline batché (chemin réel de production) ;
+// analyst et arbiter vers le chemin générique mono-call. Ces deux chemins restent EXACTEMENT ceux
+// d'avant HA-02 pour le provider Groq.
+//
+// HA-02 : ils sont désormais la PREMIÈRE tentative d'une chaîne Groq -> Anthropic -> OpenAI, au lieu
+// d'être la seule. Le chemin nominal est donc strictement inchangé (Groq répond, son succès est
+// final) ; seul le chemin d'échec gagne deux fournisseurs de repli.
 function executeForRole(role) {
-  return role === "critic"
-    ? (input, roleEnv) => runCriticWithGroq(input, roleEnv)
-    : (input, roleEnv) => runRoleWithGroq(role, input, roleEnv);
+  return (input, roleEnv) => runRoleWithHaChain(role, input, roleEnv);
 }
 
 export default {

@@ -133,14 +133,18 @@ test('HA01-2 : un timeout réseau Groq est borné (une seule tentative, aucune r
 
 // -- HA01-3 : 429 persistant Groq ------------------------------------------------------------------
 
-test('HA01-3 : un 429 Groq persistant épuise les reprises BORNÉES (1 + maxRetries = 3 appels, jamais plus) puis bascule vers Anthropic', async (t) => {
+// HA-02 (objectif A) : la borne attendue passe de 3 à 2 appels Groq. Ce n'est pas un assouplissement
+// du test mais l'objet même du lot — /decision applique désormais DECISION_GROQ_RETRY_POLICY
+// (maxRetries=1, plafond d'attente 3000 ms) au lieu de la politique historique partagée avec Critic.
+// L'invariant vérifié ici reste identique : les reprises sont BORNÉES et suivies d'une bascule.
+test('HA01-3 (borne mise à jour par HA-02) : un 429 Groq persistant épuise les reprises BORNÉES de Decision (1 + maxRetries = 2 appels, jamais plus) puis bascule vers Anthropic', async (t) => {
   const calls = withProviders(t, {
     groq: () => new Response('{"error":{"message":"rate limit"}}', { status: 429, headers: { 'retry-after': '0' } }),
     anthropic: () => anthropicOk(decision('exploitable', 'rapide'))
   });
   withCapturedConsole(t);
   const actual = await decideWithHaChain(INPUT, ALL_KEYS);
-  assert.equal(calls.filter((name) => name === 'groq').length, 3, 'GROQ_PRODUCTION_RETRY_DEFAULTS.maxRetries=2 : 1 tentative initiale + 2 reprises, jamais une boucle infinie.');
+  assert.equal(calls.filter((name) => name === 'groq').length, 2, 'DECISION_GROQ_RETRY_POLICY.maxRetries=1 : 1 tentative initiale + 1 reprise, jamais une boucle infinie.');
   assert.equal(calls.filter((name) => name === 'anthropic').length, 1, 'l’orchestrateur ne réessaie JAMAIS un provider : aucune multiplication des reprises entre les deux couches.');
   assert.equal(actual.route, 'rapide');
 });
@@ -747,7 +751,7 @@ test('HA01-HTTP-8 : un 429 n’atteint la classification qu’APRES la politique
     openai: () => openAiOk(decision('exploitable', 'rapide'))
   });
   const actual = await decideWithHaChain(INPUT, ALL_KEYS);
-  assert.equal(calls.filter((name) => name === 'groq').length, 3, 'Groq : 1 + maxRetries(2).');
+  assert.equal(calls.filter((name) => name === 'groq').length, 2, 'Groq /decision : 1 + DECISION_GROQ_RETRY_POLICY.maxRetries(1).');
   assert.equal(calls.filter((name) => name === 'anthropic').length, 1, 'Anthropic : aucune reprise, bascule immediate.');
   assert.equal(actual.route, 'rapide');
 });
