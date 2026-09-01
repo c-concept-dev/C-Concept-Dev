@@ -103,20 +103,26 @@ const workersAiSrcPath = fileURLToPath(new URL("../workers/workers-ai/src/index.
 
 // --- R2.1-1 : un délai déjà consommé n'est jamais repayé par l'appel suivant ----------------------
 
-test("R2.1-1 : 429 -> wait 31.8s -> retry 200 ; l'appel suivant ne repaie pas ces 31.8s", async (t) => {
+// HA-03 : l'invariant vérifié est INCHANGÉ — « une attente déjà consommée n'est jamais repayée par
+// l'appel suivant » : exactement UNE attente, égale au Retry-After annoncé + la marge, jamais plus.
+// Seule la MAGNITUDE de la fixture change : 31,8225 s dépasse désormais le plafond d'attente dérivé
+// du Critique (26 000 ms), et serait donc abandonnée au profit d'une bascule — ce qui est précisément
+// le comportement voulu par HA-03, et ce que vérifie HA03-9. On conserve ici une attente longue mais
+// réellement honorable (20 s), pour continuer d'éprouver le double-pacing sur un cas non trivial.
+test("R2.1-1 (magnitude ajustée HA-03) : 429 -> wait 20s -> retry 200 ; l'appel suivant ne repaie pas ces 20s", async (t) => {
   const sleeps = [];
   let globalCall = 0;
   withGroqFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") {
       globalCall += 1;
-      return globalCall === 1 ? groq429Body({ retryAfterS: 31.8225 }) : groqResponse(globalOutputFixture());
+      return globalCall === 1 ? groq429Body({ retryAfterS: 20 }) : groqResponse(globalOutputFixture());
     }
     return groqResponse(batchEntryFor(issueIdsOf(options), null));
   });
   const output = await runCriticWithGroq(criticInput(1), { GROQ_API_KEY: "server-only" }, { retryOverrides: { sleepFn: recordingSleep(sleeps) } });
   assert.equal(output.question_substitution_review.length, 1);
   assert.equal(sleeps.length, 1, `une seule attente réelle a eu lieu (le retry du global) ; obtenu ${sleeps.length} : ${JSON.stringify(sleeps)}`);
-  const expectedWaitMs = Math.round(31.8225 * 1000) + 750;
+  const expectedWaitMs = Math.round(20 * 1000) + 750;
   assert.equal(sleeps[0], expectedWaitMs, "l'unique attente doit correspondre exactement au Retry-After + marge de sécurité, jamais plus.");
 });
 

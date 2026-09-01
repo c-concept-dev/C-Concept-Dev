@@ -127,6 +127,48 @@ export const DECISION_GROQ_RETRY_POLICY = Object.freeze({
 });
 
 /**
+ * HA-03 — GARDE DE DISPONIBILITÉ DES RÔLES OPRIE.
+ *
+ * DÉFAUT CORRIGÉ, observé en production (version 06075188) et NON causé par ORCH-01 : les rôles
+ * héritaient de maxRetryWaitMs = Infinity. Quand Groq annonce un Retry-After long, le Worker dormait
+ * donc SANS BORNE à l'intérieur de sa première tentative Groq et n'atteignait jamais Anthropic ni
+ * OpenAI — pourtant disponibles. Les logs de production le montrent sans ambiguïté : un unique
+ * provider_ha_attempt(groq), puis 150 s de silence, aucun provider_ha_fallback. La chaîne HA des
+ * rôles était donc inopérante précisément dans le cas qu'elle existe pour couvrir.
+ *
+ * La preuve est contrainte, pas intuitive : dans le chemin Groq d'un rôle, seuls deux termes
+ * consomment du temps — l'appel réseau, borné à (maxRetries + 1) × timeoutMs = 24 000 ms, et
+ * l'attente entre reprises. Un blocage de 150 s ne peut venir que du second.
+ *
+ * DÉRIVATION DU PLAFOND — exactement la règle déjà retenue pour Decision en HA-02, appliquée à chaque
+ * rôle avec SON coût de bascule réellement mesuré : attendre Groq n'a de sens que si l'attente
+ * annoncée est INFÉRIEURE au coût de changer de fournisseur ; au-delà, patienter est strictement
+ * dominé. Le plafond vaut donc le plus grand millier strictement inférieur à la bascule la plus
+ * rapide observée en réel pour ce rôle :
+ *
+ *   rôle       Anthropic réel   OpenAI réel   bascule la plus rapide   plafond retenu
+ *   decision        3,41 s         3,67 s            3,41 s              3 000 ms  (HA-02, inchangé)
+ *   analyst        16,27 s        20,24 s           16,27 s             16 000 ms
+ *   arbiter        27,18 s        17,68 s           17,68 s             17 000 ms
+ *   critic         51,90 s        26,40 s           26,40 s             26 000 ms
+ *
+ * (Mesures réelles des lots HA-02 et CSR-01, sur versions preview à 0 % de trafic.) Aucun de ces
+ * nombres n'est posé à la main : chacun découle d'une mesure et d'une règle unique. Si les latences
+ * de bascule évoluent, la règle reste valable et les valeurs se recalibrent par la même mesure.
+ *
+ * CE QUI NE CHANGE PAS : maxRetries reste 2 pour les trois rôles. Seule l'ATTENTE est bornée, jamais
+ * le NOMBRE de reprises — R2 / R2.1 / R3B / X2-BATCH sont donc préservés à l'identique. Les
+ * Retry-After réellement observés côté Groq (3,85 s et 16,61 s, mesures CSR-01) restent intégralement
+ * honorés sous le plafond du Critique : le comportement historique est conservé dans tous les cas
+ * réalistes, et seul le cas pathologique — celui qui bloquait la production — bascule désormais.
+ */
+export const ROLE_GROQ_RETRY_POLICIES = Object.freeze({
+  analyst: Object.freeze({ maxRetryWaitMs: 16000 }),
+  critic: Object.freeze({ maxRetryWaitMs: 26000 }),
+  arbiter: Object.freeze({ maxRetryWaitMs: 17000 })
+});
+
+/**
  * Exécute fetch(url, requestInit) avec reprise automatique sur HTTP 429 : même appel, même corps,
  * après avoir attendu le délai indiqué par le provider (+ marge de sécurité) ou un repli fixe si
  * aucun délai n'est exploitable. Borné par maxRetries. Signature et comportement identiques à
@@ -828,7 +870,7 @@ export async function decideWithSelectedProvider(input, env, options = {}) {
  * Pour analyst et arbiter (mono-call par nature, non concernés par X2-BATCH), c'est toujours ici le
  * chemin réel de production.
  */
-export async function runRoleWithGroq(role, input, env) {
+export async function runRoleWithGroq(role, input, env, { retryOverrides = {} } = {}) {
   const definition = ROLE_DEFINITIONS[role];
   if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
   const content = await callGroqChatCompletion({
@@ -837,7 +879,11 @@ export async function runRoleWithGroq(role, input, env) {
     schema: resolveRoleSchema(definition, input),
     schemaName: `oprie_${role}`,
     env,
-    maxCompletionTokens: 2048
+    maxCompletionTokens: 2048,
+    // HA-03 : garde de disponibilité propre au rôle. Le transport reste UNIQUE
+    // (callGroqChatCompletion / fetchGroqWithRetry) : seul le paramétrage diffère, jamais une
+    // seconde boucle de reprise ni un second transport.
+    retryOverrides: { ...ROLE_GROQ_RETRY_POLICIES[role], ...retryOverrides }
   });
   // HA-02 : classification explicite, identique à celle des adaptateurs Anthropic et OpenAI. Avant
   // cette correction, une sortie de rôle inexploitable produite par Groq remontait NON étiquetée,
@@ -967,6 +1013,8 @@ function groqCriticOutputCapability() {
  * la suite locale rapide et déterministe (section 8 du lot R2) — jamais utilisé en production.
  */
 export async function runCriticWithGroq(input, env, { retryOverrides = {} } = {}) {
+  // HA-03 : garde de disponibilité du Critique, appliquée à l'appel global comme à chaque batch.
+  const criticRetryOverrides = { ...ROLE_GROQ_RETRY_POLICIES.critic, ...retryOverrides };
   const pacer = createGroqRateLimitPacer({ sleepFn: retryOverrides.sleepFn });
   return runCriticBatchedPipeline(
     { ...input, capability: groqCriticBatchPlanCapability(input) },
@@ -979,7 +1027,7 @@ export async function runCriticWithGroq(input, env, { retryOverrides = {} } = {}
         env,
         maxCompletionTokens: GROQ_CRITIC_CAPABILITY.global_max_completion_units,
         pacer,
-        retryOverrides
+        retryOverrides: criticRetryOverrides
       }),
       executeBatch: (batchInput) => callGroqChatCompletion({
         systemPrompt: SUBSTITUTION_REVIEW_SYSTEM_PROMPT,
@@ -989,7 +1037,7 @@ export async function runCriticWithGroq(input, env, { retryOverrides = {} } = {}
         env,
         maxCompletionTokens: estimateSubstitutionBatchOutputUnits(batchInput.issueIds.length, groqCriticOutputCapability()),
         pacer,
-        retryOverrides
+        retryOverrides: criticRetryOverrides
       })
     }
   );
@@ -1011,6 +1059,7 @@ export async function runCriticWithGroq(input, env, { retryOverrides = {} } = {}
  * constantes de capacité Groq, jamais une décision sémantique.
  */
 export async function runCriticWithGroqFanOut(input, env, { candidateFamilyGroups, retryOverrides = {} } = {}) {
+  const criticRetryOverrides = { ...ROLE_GROQ_RETRY_POLICIES.critic, ...retryOverrides };
   const pacer = createGroqRateLimitPacer({ sleepFn: retryOverrides.sleepFn });
   return runCriticBatchedPipeline(
     { ...input, capability: groqCriticBatchPlanCapability(input), candidateFamilyGroups },
@@ -1023,7 +1072,7 @@ export async function runCriticWithGroqFanOut(input, env, { candidateFamilyGroup
         env,
         maxCompletionTokens: GROQ_CRITIC_CAPABILITY.global_max_completion_units,
         pacer,
-        retryOverrides
+        retryOverrides: criticRetryOverrides
       }),
       executeBatch: (batchInput) => callGroqChatCompletion({
         systemPrompt: buildSubstitutionReviewGroupSystemPrompt(batchInput.familyGroup),
@@ -1033,7 +1082,7 @@ export async function runCriticWithGroqFanOut(input, env, { candidateFamilyGroup
         env,
         maxCompletionTokens: estimateSubstitutionBatchOutputUnits(batchInput.issueIds.length, groqCriticOutputCapability()),
         pacer,
-        retryOverrides
+        retryOverrides: criticRetryOverrides
       })
     }
   );
