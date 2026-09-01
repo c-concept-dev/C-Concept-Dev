@@ -61,9 +61,27 @@ function check(name, cond, detail) { results.push({ name: name, pass: !!cond, de
       readyForExecution: false, blockedReason: "T08-RUNNER-05 (mission synthetique) : document cible non verifie.",
       professionalCandidates: [{ status: "VERIFIED" }],
       targetDocuments: [{ documentId: "d1", url: "https://example.org/d1", status: "OPERATOR_INPUT_REQUIRED" }],
+      dimensions: [{ id: "DIM_A", label: "Dimension A" }],
     };
     check("T08-RUNNER-05a. mission-gate (bin/run-real-smoke.js::missionGateStatus) bloque reellement une mission synthetique incomplete", missionGateStatus(syntheticIncomplete) === "MISSION_NOT_READY");
-    check("T08-RUNNER-05b. mission-gate reel accepte une mission synthetique complete", missionGateStatus(Object.assign({}, syntheticIncomplete, { readyForExecution: true })) === "PASS");
+
+    // REMEDIATION R2 (B-03) : readyForExecution=true ne suffit plus a lui
+    // seul — une provenance eForchProvenance structurellement valide est
+    // desormais requise (voir describeMissionGateStatus()/
+    // validateRealEForchProvenance()). "complete" sans provenance doit
+    // rester bloque ; "complete" AVEC provenance valide doit passer.
+    const readyWithoutProvenance = Object.assign({}, syntheticIncomplete, { readyForExecution: true });
+    check("T08-RUNNER-05b. mission-gate reste MISSION_NOT_READY si readyForExecution=true mais eForchProvenance absent (jamais un PASS premature avant OPERATOR_INPUT_REQUIRED tardif)", missionGateStatus(readyWithoutProvenance) === "MISSION_NOT_READY");
+    const HASH64 = "a".repeat(64);
+    const readyWithProvenance = Object.assign({}, readyWithoutProvenance, {
+      eForchProvenance: {
+        resolverRuns: [{ provider: "anthropic", model: "claude-sonnet-5", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64, proposalCountRaw: 3, proposalCountStored: 3, technicalProposalLimit: 20, targetContextReport: [] }],
+        plannerRun: { provider: "anthropic", model: "claude-sonnet-5", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64 },
+        humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Protocole de recherche reellement revu (test)." },
+        auditDecisions: { "source-1": { acteur: "human", date: new Date().toISOString(), decision: "inclus", justification: "Decision humaine reelle (test)." } },
+      },
+    });
+    check("T08-RUNNER-05b2. mission-gate accepte une mission synthetique complete AVEC eForchProvenance structurellement valide", missionGateStatus(readyWithProvenance) === "PASS");
 
     let payloadsThrew = null;
     try {

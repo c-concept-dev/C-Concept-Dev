@@ -108,4 +108,4 @@ function buildRealProviderConfigs(env) {
   };
 }
 
-module.exports = { buildRealProviderConfigs: buildRealProviderConfigs, assertNotLocalOrSynthetic: assertNotLocalOrSynthetic };
+module.exports = { buildRealProviderConfigs: buildRealProviderConfigs, assertNotLocalOrSynthetic: assertNotLocalOrSynthetic, resolveAuthMode: resolveAuthMode };

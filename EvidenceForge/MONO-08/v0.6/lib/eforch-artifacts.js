@@ -96,6 +96,102 @@ function resolveMode(provenance) {
   return provenance && provenance.mode === "REAL" ? "REAL" : "LOCAL_CONTROLLED";
 }
 
+/**
+ * REMEDIATION R2 (B-03) : validateRealResolverRunFields()/
+ * validateRealPlannerRunFields() (identique en forme — un appel LLM
+ * REEL, resolver ou planner, porte les memes champs de provenance) et
+ * validateRealAuditDecisionFields() sont la SEULE UNE SEULE source de
+ * verite pour ce qui constitue une provenance REELLE structurellement
+ * valide. Utilisees ICI par les builders (fail-closed a la construction)
+ * ET par bin/run-real-smoke.js::missionGateStatus() (fail-closed AVANT
+ * toute construction/appel provider — voir mandat R2 section 12) via
+ * validateRealEForchProvenance() ci-dessous, exportee. Jamais une
+ * deuxieme logique de validation dupliquee entre le gate et les
+ * builders.
+ */
+function validateRealResolverRunFields(run) {
+  const missing = [];
+  ["provider", "model", "promptVersion", "date"].forEach(function (f) { if (!run || typeof run[f] !== "string" || !run[f].trim()) missing.push(f); });
+  if (!run || !isSha256Hex(run.inputHash)) missing.push("inputHash");
+  if (!run || !isSha256Hex(run.rawResponseHash)) missing.push("rawResponseHash");
+  // REMEDIATION R2 (M-02) : proposalCountRaw/proposalCountStored/
+  // technicalProposalLimit/targetContextReport ne se replient plus
+  // silencieusement sur des valeurs par defaut en mode REAL (voir
+  // header du fichier) — verifies ici, dans la MEME fonction que le
+  // gate (validateRealEForchProvenance) et le builder utilisent tous
+  // les deux, jamais deux listes de champs requis divergentes.
+  if (!run || typeof run.proposalCountRaw !== "number") missing.push("proposalCountRaw");
+  if (!run || typeof run.proposalCountStored !== "number") missing.push("proposalCountStored");
+  if (!run || typeof run.technicalProposalLimit !== "number") missing.push("technicalProposalLimit");
+  if (!run || !Array.isArray(run.targetContextReport)) missing.push("targetContextReport");
+  return missing;
+}
+/**
+ * validateRealPlannerRunFields(run) — le plannerRun REEL ne porte QUE la
+ * provenance de l'appel LLM (provider/model/promptVersion/date/hash),
+ * jamais les champs de comptage propres a ResolverTrace (proposalCountRaw
+ * etc., qui n'existent pas pour SearchProtocol.plannerRuns) — fonction
+ * DISTINCTE de validateRealResolverRunFields (jamais un simple alias,
+ * pour ne pas exiger des champs qui n'ont pas de sens ici).
+ */
+function validateRealPlannerRunFields(run) {
+  const missing = [];
+  ["provider", "model", "promptVersion", "date"].forEach(function (f) { if (!run || typeof run[f] !== "string" || !run[f].trim()) missing.push(f); });
+  if (!run || !isSha256Hex(run.inputHash)) missing.push("inputHash");
+  if (!run || !isSha256Hex(run.rawResponseHash)) missing.push("rawResponseHash");
+  return missing;
+}
+
+function validateRealAuditDecisionFields(d) {
+  return !d || d.acteur !== "human" || typeof d.justification !== "string" || !d.justification.trim() ||
+    typeof d.date !== "string" || !d.date.trim() || ["inclus", "exclu", "doublon"].indexOf(d.decision) === -1;
+}
+
+function validateRealHumanValidationFields(v) {
+  return !v || typeof v.validatedAt !== "string" || !v.validatedAt.trim() || typeof v.commentaire !== "string" || !v.commentaire.trim();
+}
+
+/**
+ * validateRealEForchProvenance(mission) — verification STRUCTURELLE
+ * (comptage/forme des champs), AVANT toute construction couteuse ou
+ * appel provider — jamais l'appariement EXACT par sourceId (celui-ci
+ * n'est connu qu'apres calcul du RunContract, effectue par les builders
+ * eux-memes qui restent l'autorite finale et fail-closed sur ce point
+ * precis). Utilisee par le mission-gate pour refuser une mission REAL
+ * sans jamais atteindre un builder/provider si la provenance est
+ * absente ou manifestement incomplete.
+ */
+function validateRealEForchProvenance(mission) {
+  const problems = [];
+  const provenance = mission && mission.eForchProvenance;
+  if (!provenance || typeof provenance !== "object") {
+    return { valid: false, problems: ["eForchProvenance absent ou invalide"] };
+  }
+  const disciplineCount = Array.isArray(mission.dimensions) ? mission.dimensions.length : 0;
+  if (!Array.isArray(provenance.resolverRuns) || provenance.resolverRuns.length !== disciplineCount) {
+    problems.push("resolverRuns manquant ou de longueur incorrecte (attendu " + disciplineCount + ", disciplines de la mission)");
+  } else {
+    provenance.resolverRuns.forEach(function (run, i) {
+      const missing = validateRealResolverRunFields(run);
+      if (missing.length) problems.push("resolverRuns[" + i + "] invalide: " + missing.join(","));
+    });
+  }
+  const plannerMissing = validateRealPlannerRunFields(provenance.plannerRun);
+  if (plannerMissing.length) problems.push("plannerRun invalide: " + plannerMissing.join(","));
+  if (validateRealHumanValidationFields(provenance.humanValidation)) {
+    problems.push("humanValidation invalide ou absent (validatedAt/commentaire requis, jamais invente)");
+  }
+  const auditDecisions = provenance.auditDecisions;
+  if (!auditDecisions || typeof auditDecisions !== "object" || Object.keys(auditDecisions).length === 0) {
+    problems.push("auditDecisions absent ou vide (au moins une decision humaine reelle requise)");
+  } else {
+    Object.keys(auditDecisions).forEach(function (key) {
+      if (validateRealAuditDecisionFields(auditDecisions[key])) problems.push("auditDecisions[\"" + key + "\"] invalide (acteur=\"human\"/justification/date/decision requis)");
+    });
+  }
+  return { valid: problems.length === 0, problems: problems };
+}
+
 function buildResolverTraceForMission(deps, missionId, confirmedRunContract, provenance) {
   const ResolverTraceSchema = deps.ResolverTraceSchema;
   const mode = resolveMode(provenance);
@@ -109,10 +205,11 @@ function buildResolverTraceForMission(deps, missionId, confirmedRunContract, pro
       );
     }
     realRuns.forEach(function (run, i) {
-      const missing = [];
-      ["provider", "model", "promptVersion", "date"].forEach(function (f) { if (!run || typeof run[f] !== "string" || !run[f].trim()) missing.push(f); });
-      if (!run || !isSha256Hex(run.inputHash)) missing.push("inputHash");
-      if (!run || !isSha256Hex(run.rawResponseHash)) missing.push("rawResponseHash");
+      // validateRealResolverRunFields() couvre desormais aussi
+      // proposalCountRaw/proposalCountStored/technicalProposalLimit/
+      // targetContextReport (REMEDIATION R2, M-02) — jamais un repli
+      // implicite sur 1/1/20/[] en mode REAL.
+      const missing = validateRealResolverRunFields(run);
       if (missing.length) {
         throw operatorInputRequired("ResolverTrace resolverRuns[" + i + "] (discipline \"" + (disciplines[i] && disciplines[i].discipline) + "\") — champ(s) reel(s) manquant(s) ou invalide(s) : " + missing.join(", ") + ".");
       }
@@ -122,19 +219,20 @@ function buildResolverTraceForMission(deps, missionId, confirmedRunContract, pro
     schema: ResolverTraceSchema.SCHEMA,
     schemaVersion: ResolverTraceSchema.SCHEMA_VERSION,
     runContractHash: confirmedRunContract.runContractHash,
-    evidenceProvenance: mode === "REAL" ? "REAL_LLM_CALL" : "SYNTHETIC_FIXTURE",
+    evidenceProvenance: mode === "REAL" ? "OPERATOR_ATTESTED_LLM_CALL" : "SYNTHETIC_FIXTURE",
     resolverRuns: disciplines.map(function (d, i) {
       if (mode === "REAL") {
         const run = realRuns[i];
+        // Tous les champs presents et valides (verifie ci-dessus) - jamais
+        // un repli implicite ici pour un champ cense refleter l'appel LLM
+        // reel.
         return {
           runId: "r" + (i + 1), date: run.date, provider: run.provider, model: run.model,
           promptVersion: run.promptVersion, missionId: missionId, inputHash: run.inputHash, rawResponseHash: run.rawResponseHash,
-          proposalCountRaw: typeof run.proposalCountRaw === "number" ? run.proposalCountRaw : 1,
-          proposalCountStored: typeof run.proposalCountStored === "number" ? run.proposalCountStored : 1,
-          technicalProposalLimit: typeof run.technicalProposalLimit === "number" ? run.technicalProposalLimit : 20,
-          technicalLimitApplied: !!run.technicalLimitApplied,
-          targetContextReport: Array.isArray(run.targetContextReport) ? run.targetContextReport : [],
-          evidenceProvenance: "REAL_LLM_CALL",
+          proposalCountRaw: run.proposalCountRaw, proposalCountStored: run.proposalCountStored,
+          technicalProposalLimit: run.technicalProposalLimit, technicalLimitApplied: !!run.technicalLimitApplied,
+          targetContextReport: run.targetContextReport,
+          evidenceProvenance: "OPERATOR_ATTESTED_LLM_CALL",
         };
       }
       return {
@@ -151,13 +249,21 @@ async function buildSearchProtocolForMission(deps, missionId, idSuffix, discipli
   const sha256LikeRealSearchProtocol = deps.sha256LikeRealSearchProtocol;
   const mode = resolveMode(provenance);
   const realPlanner = provenance && provenance.plannerRun;
+  const realHumanValidation = provenance && provenance.humanValidation;
   if (mode === "REAL") {
-    const missing = [];
-    ["provider", "model", "promptVersion", "date"].forEach(function (f) { if (!realPlanner || typeof realPlanner[f] !== "string" || !realPlanner[f].trim()) missing.push(f); });
-    if (!realPlanner || !isSha256Hex(realPlanner.inputHash)) missing.push("inputHash");
-    if (!realPlanner || !isSha256Hex(realPlanner.rawResponseHash)) missing.push("rawResponseHash");
+    const missing = validateRealPlannerRunFields(realPlanner);
     if (missing.length) {
       throw operatorInputRequired("SearchProtocol (EF-01C1) requiert un plannerRun REEL fourni par l'operateur — champ(s) manquant(s) ou invalide(s) : " + missing.join(", ") + ".");
+    }
+    // REMEDIATION R2 (M-02) : "humanValidation.commentaire" etait
+    // fabrique INCONDITIONNELLEMENT ("Revu (MONO-08).") y compris en
+    // mode REAL, sans jamais avoir ete detecte par F-02/F-03 (qui ne
+    // couvraient que ScreeningArtifact/ResolverTrace/plannerRuns) — une
+    // revue humaine du protocole de recherche etait donc presentee comme
+    // reelle sans jamais l'avoir ete. Meme discipline que ScreeningArtifact
+    // desormais : exige une validation humaine REELLE en mode REAL.
+    if (validateRealHumanValidationFields(realHumanValidation)) {
+      throw operatorInputRequired("SearchProtocol (EF-01C1) requiert une validation humaine REELLE (provenance.humanValidation: {validatedAt, commentaire}) — jamais une validation humaine inventee en mode REAL.");
     }
   }
   const sourcesActivees = [{ connectorId: "openalex", label: "OpenAlex", access: "", constraint: "", active: true, justification: "Justification." }];
@@ -176,10 +282,12 @@ async function buildSearchProtocolForMission(deps, missionId, idSuffix, discipli
     regleDedoublonnage: "DOI.", methodeQualification: "Qualitative.",
     retrievalPolicies: retrievalPolicies,
     statut: "figé", createdAt: new Date().toISOString(), validatedAt: new Date().toISOString(), frozenAt: new Date().toISOString(),
-    humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Revu (MONO-08)." },
-    evidenceProvenance: mode === "REAL" ? "REAL_LLM_CALL" : "SYNTHETIC_FIXTURE",
+    humanValidation: mode === "REAL"
+      ? { validatedAt: realHumanValidation.validatedAt, commentaire: realHumanValidation.commentaire, evidenceProvenance: "OPERATOR_ATTESTED_HUMAN_ACTION" }
+      : { validatedAt: new Date().toISOString(), commentaire: "Revu (MONO-08).", evidenceProvenance: "SYNTHETIC_FIXTURE" },
+    evidenceProvenance: mode === "REAL" ? "OPERATOR_ATTESTED_LLM_CALL" : "SYNTHETIC_FIXTURE",
     plannerRuns: mode === "REAL"
-      ? [{ runId: "planner-" + idSuffix, date: realPlanner.date, provider: realPlanner.provider, model: realPlanner.model, promptVersion: realPlanner.promptVersion, missionId: missionId, inputHash: realPlanner.inputHash, rawResponseHash: realPlanner.rawResponseHash, evidenceProvenance: "REAL_LLM_CALL" }]
+      ? [{ runId: "planner-" + idSuffix, date: realPlanner.date, provider: realPlanner.provider, model: realPlanner.model, promptVersion: realPlanner.promptVersion, missionId: missionId, inputHash: realPlanner.inputHash, rawResponseHash: realPlanner.rawResponseHash, evidenceProvenance: "OPERATOR_ATTESTED_LLM_CALL" }]
       : [{ runId: "planner-" + idSuffix, date: new Date().toISOString(), provider: "anthropic", model: "claude-sonnet-4-6", promptVersion: "EF01C1-search-planner-v2-compact", missionId: missionId, inputHash: "3".repeat(64), rawResponseHash: "4".repeat(64), evidenceProvenance: "SYNTHETIC_FIXTURE" }],
   };
   const protocolHash = await sha256LikeRealSearchProtocol(protoBase);
@@ -202,10 +310,7 @@ function buildScreeningArtifactForMission(sourceIds, protocolHash, provenance) {
       );
     }
     sourceIds.forEach(function (id) {
-      const d = realDecisions[id];
-      const invalid = !d || d.acteur !== "human" || typeof d.justification !== "string" || !d.justification.trim() ||
-        typeof d.date !== "string" || !d.date.trim() || ["inclus", "exclu", "doublon"].indexOf(d.decision) === -1;
-      if (invalid) {
+      if (validateRealAuditDecisionFields(realDecisions[id])) {
         throw operatorInputRequired("ScreeningArtifact: decision reelle fournie pour \"" + id + "\" incomplete ou invalide (acteur=\"human\", justification, date, decision requis).");
       }
     });
@@ -222,7 +327,7 @@ function buildScreeningArtifactForMission(sourceIds, protocolHash, provenance) {
     };
   });
   return {
-    evidenceProvenance: mode === "REAL" ? "REAL_HUMAN_ACTION" : "SYNTHETIC_FIXTURE",
+    evidenceProvenance: mode === "REAL" ? "OPERATOR_ATTESTED_HUMAN_ACTION" : "SYNTHETIC_FIXTURE",
     sourcesScreening: sources,
     auditDecisions: sources.map(function (s) {
       const real = mode === "REAL" ? realDecisions[s.id] : null;
@@ -232,7 +337,7 @@ function buildScreeningArtifactForMission(sourceIds, protocolHash, provenance) {
         decision: real ? real.decision : "inclus", justification: real ? real.justification : "Pertinent (MONO-08).",
         confidenceQualitative: real ? (real.confidenceQualitative || "humaine") : "humaine",
         humanOverride: real ? (real.humanOverride || null) : null,
-        evidenceProvenance: mode === "REAL" ? "REAL_HUMAN_ACTION" : "SYNTHETIC_FIXTURE",
+        evidenceProvenance: mode === "REAL" ? "OPERATOR_ATTESTED_HUMAN_ACTION" : "SYNTHETIC_FIXTURE",
       };
     }),
     completedAt: new Date().toISOString(),
@@ -266,4 +371,9 @@ module.exports = {
   buildQualificationArtifactForMission: buildQualificationArtifactForMission,
   buildEF01AInjectedForMission: buildEF01AInjectedForMission,
   buildEF01FInjectedForMission: buildEF01FInjectedForMission,
+  validateRealEForchProvenance: validateRealEForchProvenance,
+  validateRealResolverRunFields: validateRealResolverRunFields,
+  validateRealPlannerRunFields: validateRealPlannerRunFields,
+  validateRealAuditDecisionFields: validateRealAuditDecisionFields,
+  validateRealHumanValidationFields: validateRealHumanValidationFields,
 };

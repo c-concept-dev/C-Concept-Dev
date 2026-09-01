@@ -98,14 +98,37 @@ function createFileDurableBackend(baseDir) {
       const out = [];
       for (const entry of entries) {
         if (entry.includes(".tmp-")) continue; // ecriture concurrente en cours, jamais une cle valide
+        // REMEDIATION R2 (M-03) : avant ce correctif, TOUTE erreur ici
+        // (fichier disparu entre readdir()/readFile(), permission refusee,
+        // erreur IO reelle, JSON corrompu) etait absorbee de facon
+        // identique et silencieuse — une corruption disque reelle
+        // n'etait donc jamais distinguable d'une simple course benigne de
+        // suppression concurrente. Distingue desormais explicitement :
+        //   - ENOENT sur readFile() : course benigne (le fichier a
+        //     legitimement disparu entre le readdir() et ce readFile(),
+        //     ex. delete() concurrent) — silencieusement ignore, une cle
+        //     qui n'existe plus n'est jamais une erreur.
+        //   - toute autre erreur readFile() (permission/IO reelle) : JAMAIS
+        //     absorbee — relancee, fail-closed comme le reste de ce
+        //     backend.
+        //   - JSON invalide (fichier present, lu avec succes, mais
+        //     contenu corrompu) : JAMAIS traite comme une absence de cle
+        //     — relance explicitement, une cle existante mais illisible
+        //     n'est jamais silencieusement equivalente a une cle absente.
+        let raw;
         try {
-          const raw = await fs.promises.readFile(path.join(dir, entry), "utf8");
-          out.push(JSON.parse(raw).key);
+          raw = await fs.promises.readFile(path.join(dir, entry), "utf8");
         } catch (e) {
-          // fichier corrompu ou supprime entre readdir() et readFile() —
-          // jamais remonte comme cle valide, jamais une exception qui
-          // bloquerait l'enumeration des autres cles.
+          if (e.code === "ENOENT") continue;
+          throw new Error("createFileDurableBackend.keys(\"" + namespace + "\"): lecture de \"" + entry + "\" a echoue (" + e.code + ") — jamais silencieusement ignoree.");
         }
+        let parsed;
+        try {
+          parsed = JSON.parse(raw);
+        } catch (e) {
+          throw new Error("createFileDurableBackend.keys(\"" + namespace + "\"): contenu corrompu (JSON invalide) pour \"" + entry + "\" — une cle existante et illisible n'est jamais silencieusement traitee comme une absence de cle.");
+        }
+        out.push(parsed.key);
       }
       return out;
     },

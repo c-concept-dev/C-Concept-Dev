@@ -42,8 +42,18 @@ function realAuditDecisionsProxy() {
 function realProvenanceFixture() {
   return {
     mode: "REAL",
-    resolverRuns: [{ provider: "anthropic", model: "claude-sonnet-5", promptVersion: "EF01B-discipline-resolver-v2", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64 }],
+    // REMEDIATION R2 (M-02) : proposalCountRaw/proposalCountStored/
+    // technicalProposalLimit/targetContextReport desormais exiges
+    // explicitement en mode REAL (jamais un repli implicite 1/1/20/[]).
+    resolverRuns: [{
+      provider: "anthropic", model: "claude-sonnet-5", promptVersion: "EF01B-discipline-resolver-v2", date: new Date().toISOString(),
+      inputHash: HASH64, rawResponseHash: HASH64,
+      proposalCountRaw: 3, proposalCountStored: 3, technicalProposalLimit: 20, technicalLimitApplied: false, targetContextReport: [],
+    }],
     plannerRun: { provider: "anthropic", model: "claude-sonnet-5", promptVersion: "EF01C1-search-planner-v2-compact", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64 },
+    // REMEDIATION R2 (M-02) : humanValidation desormais exige explicitement
+    // en mode REAL (jamais "Revu (MONO-08)." fabrique par defaut).
+    humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Protocole de recherche reellement revu par l'operateur (test T-NEW)." },
     auditDecisions: realAuditDecisionsProxy(),
   };
 }
@@ -93,9 +103,9 @@ function realProvenanceFixture() {
   {
     const provenance = realProvenanceFixture();
     const builtReal = await buildEForchArtifacts(env.cfg, mission, "Question ?", documentBytesByUrl, openAlexFetchImpl, provenance);
-    check("REAL-01. mode REAL avec provenance complete construit reellement ResolverTrace, etiquete REAL_LLM_CALL", builtReal.efOrchExecutionDependenciesSerializable.resolverTrace.evidenceProvenance === "REAL_LLM_CALL");
-    check("REAL-02. mode REAL avec provenance complete construit reellement SearchProtocol, etiquete REAL_LLM_CALL", builtReal.efOrchExecutionDependenciesSerializable.searchProtocol.evidenceProvenance === "REAL_LLM_CALL");
-    check("REAL-03. mode REAL avec provenance complete construit reellement ScreeningArtifact, etiquete REAL_HUMAN_ACTION, acteur=\"human\" (reellement fourni, jamais invente)", builtReal.efOrchExecutionDependenciesSerializable.screeningArtifact.auditDecisions[0].evidenceProvenance === "REAL_HUMAN_ACTION" && builtReal.efOrchExecutionDependenciesSerializable.screeningArtifact.auditDecisions[0].acteur === "human");
+    check("REAL-01. mode REAL avec provenance complete construit reellement ResolverTrace, etiquete OPERATOR_ATTESTED_LLM_CALL", builtReal.efOrchExecutionDependenciesSerializable.resolverTrace.evidenceProvenance === "OPERATOR_ATTESTED_LLM_CALL");
+    check("REAL-02. mode REAL avec provenance complete construit reellement SearchProtocol, etiquete OPERATOR_ATTESTED_LLM_CALL", builtReal.efOrchExecutionDependenciesSerializable.searchProtocol.evidenceProvenance === "OPERATOR_ATTESTED_LLM_CALL");
+    check("REAL-03. mode REAL avec provenance complete construit reellement ScreeningArtifact, etiquete OPERATOR_ATTESTED_HUMAN_ACTION, acteur=\"human\" (reellement fourni, jamais invente)", builtReal.efOrchExecutionDependenciesSerializable.screeningArtifact.auditDecisions[0].evidenceProvenance === "OPERATOR_ATTESTED_HUMAN_ACTION" && builtReal.efOrchExecutionDependenciesSerializable.screeningArtifact.auditDecisions[0].acteur === "human");
     check("REAL-04. le ResolverTrace REAL transporte le provider/model/hash reellement fournis, jamais 'claude-sonnet-4-6'/'1'.repeat(64)", builtReal.efOrchExecutionDependenciesSerializable.resolverTrace.resolverRuns[0].inputHash === HASH64 && builtReal.efOrchExecutionDependenciesSerializable.resolverTrace.resolverRuns[0].inputHash !== "1".repeat(64));
   }
 

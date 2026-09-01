@@ -13,36 +13,27 @@
 // (deja teste ailleurs, jamais reimplemente ici), puis termine l'execution
 // jusqu'a 14/14 SUCCESS.
 //
+// REMEDIATION R2 (B-01) : reutilise lib/durable-real-env.js::
+// buildDurableComponents() — LA MEME fonction que lib/cross-process-
+// restart-worker.js (processus B du chemin REEL) emploie desormais.
+//
 // argv: mono05Root mono07LibPath eforchBackendDir mono03BackendDir runId
 
 const path = require("path");
 const [, , mono05Root, mono07LibPath, eforchBackendDir, mono03BackendDir, runId] = process.argv;
 
-const { createFileDurableBackend } = require(path.join(__dirname, "..", "..", "lib", "file-durable-backend.js"));
+const { buildDurableComponents } = require(path.join(__dirname, "..", "..", "lib", "durable-real-env.js"));
 const { rehydrateRealMissionRun } = require(path.join(__dirname, "..", "..", "lib", "real-e2e-driver.js"));
 const fx = require("./fixtures.js");
 
 async function main() {
-  const cfg = require(path.join(mono05Root, "app", "server", "config.js"));
-  const { createMono01 } = require(path.join(cfg.MONO01_PATH, "index.js"));
-  const { createMono03 } = require(path.join(cfg.MONO04_PATH, "dependencies", "MONO-03", "index.js"));
-  const { createMono04 } = require(path.join(cfg.MONO04_PATH, "index.js"));
-  const { createStaticSecretProvider } = require(path.join(cfg.MONO04_PATH, "lib", "secret-provider.js"));
-  const { createRunRegistry } = require(path.join(mono05Root, "app", "server", "run-registry.js"));
-  const { createOperatorApi } = require(path.join(mono05Root, "app", "server", "operator-api.js"));
   const { driveRun } = require(path.join(mono07LibPath, "e2e-driver.js"));
 
-  // MEME baseDir que le processus A, sur disque — deux instances de
-  // backend DIFFERENTES (aucune reference JS partagee), pointant vers le
-  // MEME contenu durable.
-  const efOrchBackend = createFileDurableBackend(eforchBackendDir);
-  const mono03Backend = createFileDurableBackend(mono03BackendDir);
-  const mono01 = createMono01(cfg.REGISTRY_PATH, { efOrchDurableBackend: efOrchBackend });
-  const mono03 = createMono03({ persistenceBackend: mono03Backend });
-  const mono04 = createMono04({ providerConfigs: {}, secretProvider: createStaticSecretProvider({}) });
-  const runRegistry = createRunRegistry(mono01, mono03);
-  const operatorApi = createOperatorApi({ mono01: mono01, mono03: mono03, mono04: mono04, runRegistry: runRegistry });
-  const env = { mono01: mono01, mono03: mono03, mono04: mono04, runRegistry: runRegistry, operatorApi: operatorApi, cfg: cfg };
+  // MEME baseDir que le processus A, sur disque — une instance de backend
+  // DIFFERENTE (aucune reference JS partagee), pointant vers le MEME
+  // contenu durable.
+  const env = buildDurableComponents(mono05Root, { eforchBackendDir: eforchBackendDir, mono03BackendDir: mono03BackendDir, providerConfigs: {}, secrets: {} });
+  const operatorApi = env.operatorApi;
 
   // Etat AVANT reprise : preuve que ce processus n'a rien en memoire tant
   // qu'il n'a pas explicitement rehydrate depuis le disque.

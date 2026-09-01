@@ -9,10 +9,13 @@
  *   mission gate -> connectivity -> construction EF-ORCH complete
  *   (RunContract, SearchProtocol, ScreeningArtifact, etc. via les
  *   builders geles identifies par inspection contractuelle) -> driveRun
- *   (14-node, reutilise tel quel depuis MONO-07) -> persistence restart
- *   (nouvelle instance + readback, lib/real-e2e-driver.js) -> UI smoke
- *   (vrai createHttpServer + Playwright) -> secret scan -> frozen ZIP
- *   integrity (apres) -> reports.
+ *   (14-node, reutilise tel quel depuis MONO-07) ->
+ *   persistence-restart-cross-process (REMEDIATION R2/B-01 : backends
+ *   FILE_DURABLE, processus B reellement spawn via child_process, jamais
+ *   une simple nouvelle instance dans le meme processus - voir
+ *   lib/durable-real-env.js, lib/cross-process-restart-worker.js) -> UI
+ *   smoke (vrai createHttpServer + Playwright) -> secret scan -> frozen
+ *   ZIP integrity (apres) -> reports.
  *
  * Dans CET environnement, preflight reste BLOCKED — tout le code
  * ci-dessous jusqu'a l'UI smoke inclus est CODE READY (verifie
@@ -41,6 +44,9 @@ const { scanForSecretValues } = require("../lib/secret-scan");
 const { buildRealProviderConfigs } = require("../lib/real-provider-configs");
 const { buildRealExternalStageAdapter, buildRealLlmWorkerCallFn } = require("../lib/real-external-adapter");
 const { createRealMissionRun, rehydrateRealMissionRun } = require("../lib/real-e2e-driver");
+const { realOpenAlexFetchImpl } = require("../lib/real-openalex-fetch");
+const { buildDurableComponents } = require("../lib/durable-real-env");
+const { validateRealEForchProvenance } = require("../lib/eforch-artifacts");
 
 function loadMission() {
   const missionPath = path.join(__dirname, "..", "fixtures", "mission-real-smoke-v1.json");
@@ -71,9 +77,32 @@ function loadRealProvenance(mission) {
  * mission-real-smoke-v1.json (qui a legitimement atteint readyForExecution
  * =true en v0.6 — l'ancien test asserait a tort que la mission fournie
  * resterait TOUJOURS incomplete).
+ *
+ * REMEDIATION R2 (B-03) : avant ce correctif, missionGateStatus() ne
+ * verifiait QUE readyForExecution — une mission pouvait donc obtenir
+ * mission-gate=PASS alors que mission.eForchProvenance etait absent, pour
+ * echouer immediatement ensuite en OPERATOR_INPUT_REQUIRED (F-02/F-03)
+ * une fois la construction du run deja entamee. Reutilise desormais
+ * validateRealEForchProvenance() (lib/eforch-artifacts.js — LA MEME
+ * fonction, jamais une seconde logique de validation) pour echouer
+ * MISSION_NOT_READY AVANT tout appel provider/construction couteuse
+ * quand la provenance est absente ou structurellement invalide.
+ * describeMissionGateStatus() porte la raison explicite ; missionGateStatus()
+ * reste un predicat simple (string), inchange pour la compatibilite des
+ * appelants/tests existants.
  */
+function describeMissionGateStatus(mission) {
+  if (!mission.readyForExecution) {
+    return { status: "MISSION_NOT_READY", reason: "readyForExecution=false - au moins une reference reste OPERATOR_INPUT_REQUIRED (voir MISSION.md)." };
+  }
+  const provenanceCheck = validateRealEForchProvenance(mission);
+  if (!provenanceCheck.valid) {
+    return { status: "MISSION_NOT_READY", reason: "eForchProvenance missing or invalid: " + provenanceCheck.problems.join("; ") };
+  }
+  return { status: "PASS", reason: "mission complete, readyForExecution=true, eForchProvenance structurellement valide." };
+}
 function missionGateStatus(mission) {
-  return mission.readyForExecution ? "PASS" : "MISSION_NOT_READY";
+  return describeMissionGateStatus(mission).status;
 }
 
 /**
@@ -95,19 +124,6 @@ function extractDocumentPayloads(mission) {
     documentContentByUrl[doc.url] = doc.content;
   }
   return { documentBytesByUrl, documentContentByUrl };
-}
-
-function realOpenAlexFetchImpl(timeoutMs) {
-  return async function (url) {
-    const controller = new AbortController();
-    const timer = setTimeout(function () { controller.abort(); }, timeoutMs || 8000);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      return { ok: res.ok, status: res.status, json: async function () { return res.json(); } };
-    } finally {
-      clearTimeout(timer);
-    }
-  };
 }
 
 /**
@@ -202,18 +218,23 @@ async function main() {
     record("mission-gate", "NOT_RUN_ENVIRONMENT_BLOCKED", "preflight non READY.", "NOT_RUN");
     record("connectivity", "NOT_RUN_ENVIRONMENT_BLOCKED", "preflight non READY - aucun appel externe reel tente.", "NOT_RUN");
     record("full-pipeline", "NOT_RUN_ENVIRONMENT_BLOCKED", "depend de connectivity.", "NOT_RUN");
-    record("persistence-restart", "NOT_RUN_ENVIRONMENT_BLOCKED", "depend du full pipeline.", "NOT_RUN");
+    record("persistence-restart-cross-process", "NOT_RUN_ENVIRONMENT_BLOCKED", "depend du full pipeline.", "NOT_RUN");
     record("ui-smoke", "NOT_RUN_ENVIRONMENT_BLOCKED", "depend du full pipeline.", "NOT_RUN");
     record("secret-scan", "NOT_RUN_ENVIRONMENT_BLOCKED", "aucun run reel a scanner.", "NOT_RUN");
   } else {
     const mission = loadMission();
-    if (missionGateStatus(mission) === "MISSION_NOT_READY") {
-      record("mission-gate", "MISSION_NOT_READY", "readyForExecution=false - au moins une reference reste OPERATOR_INPUT_REQUIRED (voir MISSION.md). Aucun appel externe couteux tente.");
+    const gateStatus = describeMissionGateStatus(mission);
+    if (gateStatus.status === "MISSION_NOT_READY") {
+      // REMEDIATION R2 (B-03) : la raison distingue desormais explicitement
+      // readyForExecution=false d'un eForchProvenance absent/invalide —
+      // jamais un mission-gate=PASS suivi d'un echec tardif en pleine
+      // construction du run.
+      record("mission-gate", "MISSION_NOT_READY", gateStatus.reason + " Aucun appel externe couteux tente.");
       const hashAfterEarly = hashKit(kitRoot, mono07ZipPath);
       record("frozen-zip-integrity-after", compareHashes(hashBefore, hashAfterEarly).identical ? "PASS" : "FAIL", "verifie malgre l'arret anticipe.");
       return finish(2);
     }
-    record("mission-gate", "PASS", "mission complete, readyForExecution=true.");
+    record("mission-gate", "PASS", gateStatus.reason);
     await runFullPipeline(kitRoot, mono07LibPath, mission);
   }
 
@@ -234,12 +255,24 @@ async function main() {
 }
 
 async function runFullPipeline(kitRoot, mono07LibPath, mission) {
-  const { buildEnv } = require(path.join(mono07LibPath, "harness-env.js"));
+  // REMEDIATION R2 (B-01) : extractFrozenMono05() reste reutilise tel
+  // quel depuis MONO-07 (extraction fraiche du ZIP MONO-05 canonique),
+  // mais buildEnv() (qui appelait cfg.createOperatorBackends(), backends
+  // EN MEMOIRE) n'est PLUS utilise pour le chemin REEL — remplace par
+  // lib/durable-real-env.js::buildDurableComponents() (backends
+  // FILE_DURABLE), condition necessaire pour que persistence-restart
+  // puisse etre reellement CROSS_PROCESS ci-dessous (le processus B ne
+  // peut rouvrir que du contenu ecrit sur disque, jamais une Map en
+  // memoire du processus A).
+  const { extractFrozenMono05 } = require(path.join(mono07LibPath, "harness-env.js"));
   const { driveRun } = require(path.join(mono07LibPath, "e2e-driver.js"));
   const providerConfigs = buildRealProviderConfigs();
   const runId = "mono08-real-smoke-" + Date.now().toString(36);
   const missionId = mission.missionId;
   const workRoot = process.env.EVIDENCEFORGE_PERSISTENCE_DIR || os.tmpdir();
+  const runWorkDir = path.join(workRoot, "mono08-real-work-" + Date.now());
+  const eforchBackendDir = path.join(runWorkDir, "durable-eforch");
+  const mono03BackendDir = path.join(runWorkDir, "durable-mono03");
 
   let payloads;
   try {
@@ -251,8 +284,9 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
 
   let env;
   try {
-    env = buildEnv(kitRoot, path.join(workRoot, "mono08-real-work-" + Date.now()), { providerConfigs: providerConfigs, secrets: process.env });
-    record("connectivity", "PASS", "environnement MONO-01->05 assemble avec des providers reels configures.");
+    const mono05Root = extractFrozenMono05(kitRoot, runWorkDir);
+    env = buildDurableComponents(mono05Root, { eforchBackendDir: eforchBackendDir, mono03BackendDir: mono03BackendDir, providerConfigs: providerConfigs, secrets: process.env });
+    record("connectivity", "PASS", "environnement MONO-01->05 assemble avec des providers reels configures et des backends durables FILE_DURABLE (" + eforchBackendDir + ", " + mono03BackendDir + ").");
   } catch (e) {
     record("connectivity", "FAIL", e.message);
     return;
@@ -302,7 +336,7 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
         nodeDiagnostic = { nodeId: firstNonSuccess && firstNonSuccess.nodeId, getNodeError: diagErr.message };
       }
       record("full-pipeline", "FAIL", "traversal: " + nodeTrace.map(function (t) { return t.nodeId + ":" + t.state; }).join(",") + " (14/14 SUCCESS: false) - premier noeud non-SUCCESS: " + JSON.stringify(nodeDiagnostic));
-      record("persistence-restart", "NOT_RUN", "full-pipeline non SUCCESS - aucune etape downstream consideree valide.");
+      record("persistence-restart-cross-process", "NOT_RUN", "full-pipeline non SUCCESS - aucune etape downstream consideree valide.");
       record("ui-smoke", "NOT_RUN", "full-pipeline non SUCCESS.");
       record("secret-scan", "NOT_RUN", "full-pipeline non SUCCESS.");
       return;
@@ -310,36 +344,63 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
     record("full-pipeline", "PASS", "traversal: " + nodeTrace.map(function (t) { return t.nodeId + ":" + t.state; }).join(",") + " (14/14 SUCCESS: true)");
   } catch (e) {
     record("full-pipeline", "FAIL", e.message);
-    record("persistence-restart", "NOT_RUN", "full-pipeline a leve une exception - aucune etape downstream consideree valide.");
+    record("persistence-restart-cross-process", "NOT_RUN", "full-pipeline a leve une exception - aucune etape downstream consideree valide.");
     record("ui-smoke", "NOT_RUN", "full-pipeline a leve une exception.");
     record("secret-scan", "NOT_RUN", "full-pipeline a leve une exception.");
     return;
   }
 
+  // REMEDIATION R2 (B-01) : le persistence-restart du chemin REEL doit
+  // prouver CROSS_PROCESS, jamais CROSS_INSTANCE (un simple nouvel
+  // objet JS wrapper dans le MEME processus, comme c'etait le cas
+  // avant ce correctif). Processus B reellement spawn (child_process),
+  // qui ne recoit RIEN du processus A hormis des chaines (chemins,
+  // runId, missionId) via argv - jamais un objet mono01/mono03/mono04
+  // partage. Reutilise lib/durable-real-env.js::buildDurableComponents()
+  // A L'IDENTIQUE de ce que le processus A a utilise ci-dessus (meme
+  // mecanique, jamais reimplementee dans le worker).
   let restartOk = false;
+  let restartPid = null;
+  let restartWorkerStdout = "", restartWorkerStderr = "";
   try {
-    const runRegistry2 = require(path.join(env.mono05Root, "app/server/run-registry.js")).createRunRegistry(env.mono01, env.mono03);
-    const operatorApi2 = require(path.join(env.mono05Root, "app/server/operator-api.js")).createOperatorApi({ mono01: env.mono01, mono03: env.mono03, mono04: env.mono04, runRegistry: runRegistry2 });
-    const env2 = Object.assign({}, env, { runRegistry: runRegistry2, operatorApi: operatorApi2 });
-    await rehydrateRealMissionRun(env2, adapter, realWorkerCallFn, openAlexFetchImpl, runId);
-    const graph2 = await operatorApi2.getGraph(runId);
-    restartOk = graph2.nodes.every(function (n) { return n.state === "SUCCESS"; });
-    record("persistence-restart", restartOk ? "PASS" : "FAIL", "readback depuis une nouvelle instance : 14/14 SUCCESS = " + restartOk + ".");
-    env.operatorApi = operatorApi2;
+    const { spawn } = require("child_process");
+    const workerPath = path.join(__dirname, "..", "lib", "cross-process-restart-worker.js");
+    const child = spawn(process.execPath, [workerPath, env.mono05Root, mono07LibPath, eforchBackendDir, mono03BackendDir, runId, missionId], { stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.on("data", function (d) { restartWorkerStdout += d; });
+    child.stderr.on("data", function (d) { restartWorkerStderr += d; });
+    const exitCode = await new Promise(function (resolve) { child.on("close", resolve); });
+    restartPid = child.pid;
+    const stdout = restartWorkerStdout;
+    const stderr = restartWorkerStderr;
+    const resultLine = stdout.split("\n").find(function (l) { return l.indexOf("RESTART_WORKER_RESULT:") === 0; });
+    const result = resultLine ? JSON.parse(resultLine.slice("RESTART_WORKER_RESULT:".length)) : null;
+    restartOk = exitCode === 0 && !!result && result.allSuccess === true;
+    record(
+      "persistence-restart-cross-process", restartOk ? "PASS" : "FAIL",
+      "processus A pid=" + process.pid + ", processus B pid=" + restartPid + " (exit " + exitCode + "), backend FILE_DURABLE (" + mono03BackendDir + ") - " +
+        (result ? "14/14 SUCCESS = " + result.allSuccess + ", graph=" + JSON.stringify(result.graph) : "aucun resultat parseable - stderr: " + stderr.slice(0, 800))
+    );
   } catch (e) {
-    record("persistence-restart", "FAIL", e.message);
+    record("persistence-restart-cross-process", "FAIL", e.message);
   }
 
   if (!restartOk) {
-    record("ui-smoke", "NOT_RUN", "persistence-restart non PASS - UI smoke non tente sur un etat non confirme.");
-    record("secret-scan", "NOT_RUN", "persistence-restart non PASS.");
+    record("ui-smoke", "NOT_RUN", "persistence-restart-cross-process non PASS - UI smoke non tente sur un etat non confirme.");
+    record("secret-scan", "NOT_RUN", "persistence-restart-cross-process non PASS.");
     return;
   }
 
+  // REMEDIATION R2 (B-02) : bodyText/localStorage/sessionStorage captures
+  // ici (pendant que la page Playwright est encore ouverte) pour etre
+  // scannes plus bas avec le reste des surfaces - jamais "NOT_APPLICABLE"
+  // alors qu'ils sont reellement produits a cette etape.
+  let uiScanSurfaces = { bodyText: null, localStorage: null, sessionStorage: null };
+  let uiHttpServerBundle = null;
   try {
     const { createHttpServer } = require(path.join(env.mono05Root, "app/server/http-server.js"));
     const { chromium } = require(path.join(env.mono05Root, "node_modules", "playwright"));
     const httpServerBundle = createHttpServer({ secrets: { providerConfigs: providerConfigs, secrets: process.env } });
+    uiHttpServerBundle = httpServerBundle;
     await new Promise(function (resolve) { httpServerBundle.server.listen(0, "127.0.0.1", resolve); });
     const baseUrl = "http://127.0.0.1:" + httpServerBundle.server.address().port;
 
@@ -363,6 +424,9 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
     await page.locator("button", { hasText: "Ouvrir le rapport" }).click();
     await page.waitForSelector("text=reference_revalidated_not_source_hash_bound");
     const bodyText = await page.textContent("body");
+    uiScanSurfaces.bodyText = bodyText;
+    uiScanSurfaces.localStorage = await page.evaluate(function () { return JSON.stringify(localStorage); });
+    uiScanSurfaces.sessionStorage = await page.evaluate(function () { return JSON.stringify(sessionStorage); });
     const uiSmokeOk = nodeCount === 14 && bodyText.includes("assuranceLevel");
     record("ui-smoke", uiSmokeOk ? "PASS" : "FAIL", "graphe (" + nodeCount + " noeuds), rapport ouvert, assuranceLevel visible: " + bodyText.includes("assuranceLevel") + ".");
     await browser.close();
@@ -371,12 +435,69 @@ async function runFullPipeline(kitRoot, mono07LibPath, mission) {
     record("ui-smoke", "FAIL", e.message);
   }
 
-  const secretValues = [process.env.ANTHROPIC_API_KEY].filter(Boolean);
-  if (secretValues.length > 0) {
-    const scan = scanForSecretValues({ trace: JSON.stringify(trace) }, secretValues);
-    record("secret-scan", scan.clean ? "PASS" : "FAIL", scan.clean ? "aucune fuite dans la trace produite jusqu'ici." : JSON.stringify(scan.occurrences));
-  } else {
-    record("secret-scan", "NOT_RUN", "aucun secret configure a scanner dans cet environnement.");
+  // REMEDIATION R2 (B-02) : secret(s) resolu(s) selon le SEUL mode
+  // LLM_AUTH_MODE reellement actif (jamais les deux modes melanges - voir
+  // lib/secret-scan-surfaces.js) et scan sur un ensemble EXHAUSTIF de
+  // surfaces : trace, RunState/ArtifactRecord/graph/report REELS (via
+  // operatorApi, backend FILE_DURABLE), contenu REELLEMENT persiste sur
+  // disque (les deux dossiers de backend durable), sortie stdout/stderr
+  // du processus B de persistence-restart, DOM/localStorage/sessionStorage
+  // (captures ci-dessus pendant que la page etait ouverte), et RunState/
+  // ArtifactRecord/graph du bundle UI (instance separee, backends en
+  // memoire de MONO-05 - hors perimetre FILE_DURABLE par construction).
+  try {
+    const { resolveActiveSecretNames, resolveActiveSecretValues, collectDurableBackendFileSurfaces } = require("../lib/secret-scan-surfaces");
+    const activeSecrets = resolveActiveSecretNames(process.env);
+    const secretValues = resolveActiveSecretValues(process.env);
+
+    const surfaces = { trace: JSON.stringify(trace) };
+    surfaces["restart-worker:stdout"] = restartWorkerStdout || "";
+    surfaces["restart-worker:stderr"] = restartWorkerStderr || "";
+    Object.assign(surfaces, collectDurableBackendFileSurfaces(eforchBackendDir, "durable-eforch"));
+    Object.assign(surfaces, collectDurableBackendFileSurfaces(mono03BackendDir, "durable-mono03"));
+
+    try {
+      surfaces["graph"] = await env.operatorApi.getGraph(runId);
+      surfaces["report"] = await env.operatorApi.getReport(runId);
+      surfaces["run-state"] = await env.mono03.runStore.loadRun(runId);
+      const artifactRefs = await env.operatorApi.listArtifacts(runId);
+      const artifactPayloads = [];
+      for (const a of artifactRefs) {
+        try { artifactPayloads.push(await env.mono03.artifactStore.getArtifact(a.artifactId)); } catch (e) { /* artefact individuel illisible, jamais bloquant pour le reste du scan */ }
+      }
+      surfaces["artifacts"] = artifactPayloads;
+    } catch (e) {
+      surfaces["operator-api-surfaces-error"] = "NOT_APPLICABLE_AT_THIS_STAGE: " + e.message;
+    }
+
+    if (uiHttpServerBundle) {
+      try {
+        surfaces["ui-graph"] = await uiHttpServerBundle.api.getGraph(runId);
+        surfaces["ui-report"] = await uiHttpServerBundle.api.getReport(runId);
+        surfaces["ui-run-state"] = await uiHttpServerBundle.mono03.runStore.loadRun(runId);
+      } catch (e) {
+        surfaces["ui-operator-api-surfaces-error"] = "NOT_APPLICABLE_AT_THIS_STAGE: " + e.message;
+      }
+    } else {
+      surfaces["ui-graph"] = surfaces["ui-report"] = surfaces["ui-run-state"] = "NOT_APPLICABLE_AT_THIS_STAGE: ui-smoke non atteint.";
+    }
+
+    surfaces["dom-bodyText"] = uiScanSurfaces.bodyText === null ? "NOT_APPLICABLE_AT_THIS_STAGE: ui-smoke non atteint." : uiScanSurfaces.bodyText;
+    surfaces["dom-localStorage"] = uiScanSurfaces.localStorage === null ? "NOT_APPLICABLE_AT_THIS_STAGE: ui-smoke non atteint." : uiScanSurfaces.localStorage;
+    surfaces["dom-sessionStorage"] = uiScanSurfaces.sessionStorage === null ? "NOT_APPLICABLE_AT_THIS_STAGE: ui-smoke non atteint." : uiScanSurfaces.sessionStorage;
+
+    if (secretValues.length > 0) {
+      const scan = scanForSecretValues(surfaces, secretValues);
+      record(
+        "secret-scan", scan.clean ? "PASS" : "FAIL",
+        "mode=" + activeSecrets.mode + ", secret(s) scanne(s)=" + JSON.stringify(activeSecrets.secretNames) + ", surfaces=" + Object.keys(surfaces).join(",") + " - " +
+          (scan.clean ? "aucune fuite." : JSON.stringify(scan.occurrences))
+      );
+    } else {
+      record("secret-scan", "NOT_RUN", "mode=" + activeSecrets.mode + " - aucune valeur de secret configuree dans cet environnement pour " + JSON.stringify(activeSecrets.secretNames) + " (surfaces qui auraient ete scannees : " + Object.keys(surfaces).join(",") + ").");
+    }
+  } catch (e) {
+    record("secret-scan", "FAIL", e.message);
   }
 }
 
@@ -389,7 +510,7 @@ function finish(exitCode) {
 // jamais une reimplementation du predicat dans le test) — n'invoque JAMAIS
 // main() sur un simple require() : seule l'execution directe (node bin/
 // run-real-smoke.js) declenche le pipeline reel.
-module.exports = { missionGateStatus: missionGateStatus, extractDocumentPayloads: extractDocumentPayloads, loadRealProvenance: loadRealProvenance, describeNodeFailure: describeNodeFailure };
+module.exports = { missionGateStatus: missionGateStatus, describeMissionGateStatus: describeMissionGateStatus, extractDocumentPayloads: extractDocumentPayloads, loadRealProvenance: loadRealProvenance, describeNodeFailure: describeNodeFailure };
 
 if (require.main === module) {
   main().catch(function (e) {
