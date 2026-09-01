@@ -15,6 +15,11 @@ import {
   buildSubstitutionReviewGroupSystemPrompt,
   estimateSubstitutionBatchOutputUnits, runCriticBatchedPipeline
 } from "../../shared/operational-request-core.js";
+import {
+  FAILURE_CLASSES,
+  runProviderChain,
+  tagFailure
+} from "../../shared/provider-ha.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MODEL = "openai/gpt-oss-20b";
@@ -153,7 +158,9 @@ export function createGroqRateLimitPacer({ sleepFn = sleep } = {}) {
  * sans dupliquer cette logique : cf. runCriticWithGroq ci-dessous.
  */
 async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schemaName, env, maxCompletionTokens, pacer, retryOverrides = {} }) {
-  if (!env.GROQ_API_KEY) throw new Error("Secret GROQ_API_KEY absent.");
+  // HA-01 : classe d'échec explicite. Secret absent = CE provider n'est pas configuré dans CET
+  // environnement — jamais un défaut du contrat partagé : le provider suivant reste pertinent.
+  if (!env.GROQ_API_KEY) throw tagFailure(new Error("Secret GROQ_API_KEY absent."), FAILURE_CLASSES.CONFIG_UNAVAILABLE, { provider: "groq" });
   if (pacer) await pacer.before();
   const requestInit = {
     method: "POST",
@@ -190,8 +197,24 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     // ENTIÈREMENT ÉCOULÉES par fetchGroqWithRetry avant d'abandonner (jamais une contrainte encore
     // future) — ne JAMAIS la transmettre à pacer.recordWaitMs (cf. correction du chemin succès
     // ci-dessus, même défaut, même raison). Conservée uniquement pour l'observabilité (log).
-    console.error({ event: "groq_rate_limit_exhausted", retries: retryExhaustedError.retries, rate_limited_wait_ms: retryExhaustedError.rate_limited_wait_ms });
-    throw new Error(`Groq HTTP 429 : limite de débit non résolue après ${retryExhaustedError.retries ?? 0} tentative(s) de reprise.`);
+    //
+    // HA-01 (CORRECTION d'observabilité) : ce bloc catch interceptait TOUT échec de fetchGroqWithRetry
+    // — y compris une panne de transport réelle (DNS, connexion refusée, AbortSignal.timeout) — et la
+    // rapportait systématiquement comme "Groq HTTP 429", ce qui est faux dès que l'échec n'est pas un
+    // 429 épuisé. Le failover HA classe désormais explicitement les échecs : les deux cas restent
+    // TECHNICAL_FAILOVER (même comportement de bascule, aucun changement fonctionnel), mais le
+    // diagnostic cesse de mentir. `exhausted` est posé par fetchGroqWithRetry elle-même (seul chemin
+    // 429 épuisé), jamais deviné ici.
+    if (retryExhaustedError?.exhausted === true) {
+      console.error({ event: "groq_rate_limit_exhausted", retries: retryExhaustedError.retries, rate_limited_wait_ms: retryExhaustedError.rate_limited_wait_ms });
+      throw tagFailure(
+        new Error(`Groq HTTP 429 : limite de débit non résolue après ${retryExhaustedError.retries ?? 0} tentative(s) de reprise.`),
+        FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq" }
+      );
+    }
+    const errorName = String(retryExhaustedError?.name || "unknown");
+    console.error({ event: "groq_transport_error", error_name: errorName });
+    throw tagFailure(new Error(`Groq : échec de transport (${errorName}).`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq" });
   }
   // 3F.3.3-X2-BATCH-R2.1 (CORRECTION double-pacing) : fetchGroqWithRetry attend déjà, en interne,
   // exactement le Retry-After (+ marge) nécessaire pour que CET appel réussisse — par construction,
@@ -204,7 +227,10 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   // un jour prouvée — aucune n'existe actuellement dans ce fichier, donc pacer.before() est
   // aujourd'hui un no-op systématique, ce qui est le comportement CORRECT (jamais inventer une
   // estimation proactive non prouvée, cf. section 5/"NE PAS INVENTER" du lot R2).
-  const raw = await readBoundedText(response);
+  const raw = await readBoundedText(response).catch((readError) => {
+    // Réponse tronquée / hors limite de taille : panne de transport de CE provider.
+    throw tagFailure(readError, FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq" });
+  });
   if (!response.ok) {
     let code = "unknown";
     let message = "Message Groq indisponible.";
@@ -219,22 +245,84 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
       .replace(/\s+/g, " ")
       .slice(0, 500);
     console.error({ event: "groq_api_error", status: response.status, code: redact(code), message: redact(message) });
-    throw new Error(`Groq a répondu ${response.status}.`);
+    // 4xx comme 5xx : indisponibilité technique de CE provider sur CET appel. Jamais un désaccord
+    // sémantique, jamais une raison de préférer un autre modèle — seulement une raison d'en essayer
+    // un autre parce que celui-ci n'a rien produit.
+    throw tagFailure(new Error(`Groq a répondu ${response.status}.`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq", status: response.status });
   }
-  const envelope = JSON.parse(raw);
+  let envelope;
+  try {
+    envelope = JSON.parse(raw);
+  } catch {
+    throw tagFailure(new Error("Groq a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "groq" });
+  }
   return envelope?.choices?.[0]?.message?.content;
 }
 
-export async function decideWithGroq(input, env) {
+/**
+ * HA-01 : le contrat sémantique de /decision, réuni en UN SEUL objet gelé, partagé À L'IDENTIQUE par
+ * les trois adaptateurs. Aucun provider ne possède son propre prompt, son propre schéma ni son propre
+ * nom de schéma : DECISION_MODEL_PROMPT et DECISION_JSON_SCHEMA (decision-core.js) restent l'unique
+ * source de vérité, strictement inchangés par ce lot. Le paramètre `contract` des adaptateurs n'existe
+ * que pour rendre ce contrat INJECTABLE dans les tests (même discipline que `retryOverrides`, déjà en
+ * vigueur ici) — la production n'utilise jamais autre chose que ce défaut.
+ */
+export const DECISION_CONTRACT = Object.freeze({
+  prompt: DECISION_MODEL_PROMPT,
+  schema: DECISION_JSON_SCHEMA,
+  schemaName: "decision_provider"
+});
+
+/**
+ * HA-01 : vérification du contrat COMMUN, exécutée UNE SEULE FOIS avant toute tentative provider.
+ *
+ * C'est la garantie structurelle contre la cascade aveugle : un prompt vide ou un DECISION_JSON_SCHEMA
+ * inutilisable est une erreur de NOTRE code, identique pour Groq, Anthropic et OpenAI. L'envoyer trois
+ * fois ne produirait que trois HTTP 400 et transformerait un défaut immédiatement identifiable en
+ * "panne de tous les providers". La classe CONTRACT_ERROR n'est jamais éligible au failover : la
+ * chaîne s'arrête AVANT le premier appel réseau.
+ *
+ * Les invariants vérifiés sont exactement ceux du mode strict Structured Outputs (Groq/OpenAI) déjà
+ * formalisés par tests/operational-request-groq-schema-compat.test.mjs pour les schémas OPRIE — ici
+ * appliqués au schéma Decision, au moment de l'exécution.
+ */
+export function assertDecisionContractUsable(contract) {
+  const fail = (reason) => {
+    throw tagFailure(new Error(`Contrat Decision inutilisable : ${reason}`), FAILURE_CLASSES.CONTRACT_ERROR);
+  };
+  if (!contract || typeof contract !== "object") fail("contrat absent.");
+  if (typeof contract.prompt !== "string" || !contract.prompt.trim()) fail("prompt système absent ou vide.");
+  if (typeof contract.schemaName !== "string" || !contract.schemaName.trim()) fail("nom de schéma absent ou vide.");
+  const schema = contract.schema;
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) fail("schéma absent.");
+  if (schema.type !== "object") fail("le schéma racine doit être de type \"object\".");
+  if (schema.additionalProperties !== false) fail("le schéma racine doit porter additionalProperties=false (mode strict).");
+  if (!schema.properties || typeof schema.properties !== "object" || Array.isArray(schema.properties)) fail("le schéma racine ne déclare aucune propriété.");
+  const propertyKeys = Object.keys(schema.properties).sort();
+  const requiredKeys = Array.isArray(schema.required) ? [...schema.required].sort() : null;
+  if (!requiredKeys) fail("le schéma racine ne déclare pas \"required\".");
+  if (requiredKeys.length !== propertyKeys.length || requiredKeys.some((key, index) => key !== propertyKeys[index])) {
+    fail("\"required\" ne couvre pas exactement \"properties\" (mode strict).");
+  }
+}
+
+export async function decideWithGroq(input, env, { contract = DECISION_CONTRACT } = {}) {
   const content = await callGroqChatCompletion({
-    systemPrompt: DECISION_MODEL_PROMPT,
+    systemPrompt: contract.prompt,
     userMessage: makeDecisionUserMessage(input),
-    schema: DECISION_JSON_SCHEMA,
-    schemaName: "decision_provider",
+    schema: contract.schema,
+    schemaName: contract.schemaName,
     env,
     maxCompletionTokens: 512
   });
-  return parseDecisionCandidate(content, input.demande);
+  try {
+    return parseDecisionCandidate(content, input.demande);
+  } catch (error) {
+    // Le modèle a répondu, mais sa sortie est techniquement inexploitable (JSON invalide, champs
+    // absents, invariants structurels violés). C'est un défaut de CE modèle sur CET appel, jamais un
+    // désaccord sémantique : un autre provider a une chance réelle de produire une sortie conforme.
+    throw tagFailure(error, FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "groq" });
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -300,7 +388,7 @@ const ANTHROPIC_CRITIC_TIMEOUT_MS = 60000;
  * mesure qui lui correspond réellement.
  */
 async function callAnthropicMessages({ systemPrompt, userMessage, schema, schemaName, env, maxTokens, timeoutMs = ANTHROPIC_TIMEOUT_MS }) {
-  if (!env.ANTHROPIC_API_KEY) throw new Error("Secret ANTHROPIC_API_KEY absent.");
+  if (!env.ANTHROPIC_API_KEY) throw tagFailure(new Error("Secret ANTHROPIC_API_KEY absent."), FAILURE_CLASSES.CONFIG_UNAVAILABLE, { provider: "anthropic" });
   const requestInit = {
     method: "POST",
     headers: {
@@ -319,8 +407,17 @@ async function callAnthropicMessages({ systemPrompt, userMessage, schema, schema
     }),
     signal: AbortSignal.timeout(timeoutMs)
   };
-  const response = await fetch(ANTHROPIC_ENDPOINT, requestInit);
-  const raw = await readBoundedText(response);
+  let response;
+  try {
+    response = await fetch(ANTHROPIC_ENDPOINT, requestInit);
+  } catch (transportError) {
+    const errorName = String(transportError?.name || "unknown");
+    console.error({ event: "anthropic_transport_error", error_name: errorName });
+    throw tagFailure(new Error(`Anthropic : échec de transport (${errorName}).`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "anthropic" });
+  }
+  const raw = await readBoundedText(response).catch((readError) => {
+    throw tagFailure(readError, FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "anthropic" });
+  });
   if (!response.ok) {
     let code = "unknown";
     let message = "Message Anthropic indisponible.";
@@ -335,12 +432,17 @@ async function callAnthropicMessages({ systemPrompt, userMessage, schema, schema
       .replace(/\s+/g, " ")
       .slice(0, 500);
     console.error({ event: "anthropic_api_error", status: response.status, code: redact(code), message: redact(message) });
-    throw new Error(`Anthropic a répondu ${response.status}.`);
+    throw tagFailure(new Error(`Anthropic a répondu ${response.status}.`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "anthropic", status: response.status });
   }
-  const envelope = JSON.parse(raw);
+  let envelope;
+  try {
+    envelope = JSON.parse(raw);
+  } catch {
+    throw tagFailure(new Error("Anthropic a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "anthropic" });
+  }
   const toolUseBlock = Array.isArray(envelope?.content) ? envelope.content.find((block) => block?.type === "tool_use" && block?.name === schemaName) : null;
   if (!toolUseBlock || typeof toolUseBlock.input !== "object" || toolUseBlock.input === null) {
-    throw new Error("Anthropic n'a pas produit de tool_use exploitable pour la décision.");
+    throw tagFailure(new Error("Anthropic n'a pas produit de tool_use exploitable pour la décision."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "anthropic" });
   }
   return toolUseBlock.input;
 }
@@ -359,33 +461,270 @@ async function callAnthropicMessages({ systemPrompt, userMessage, schema, schema
  * invalide, etc.) exactement comme avant — seule la comparaison raison_interne ne peut plus jamais
  * échouer pour une raison purement rédactionnelle du LLM, sans rapport avec la décision elle-même.
  */
-export async function decideWithAnthropic(input, env) {
+export async function decideWithAnthropic(input, env, { contract = DECISION_CONTRACT } = {}) {
   const content = await callAnthropicMessages({
-    systemPrompt: DECISION_MODEL_PROMPT,
+    systemPrompt: contract.prompt,
     userMessage: makeDecisionUserMessage(input),
-    schema: DECISION_JSON_SCHEMA,
-    schemaName: "decision_provider",
+    schema: contract.schema,
+    schemaName: contract.schemaName,
     env,
     maxTokens: 512
   });
   const candidate = { ...content, raison_interne: expectedReason(content) };
-  return validateDecision(candidate, input.demande);
+  try {
+    return validateDecision(candidate, input.demande);
+  } catch (error) {
+    throw tagFailure(error, FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "anthropic" });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// HA-01 : troisième provider pour /decision UNIQUEMENT — OpenAI Chat Completions.
+//
+// N'introduit AUCUNE logique de prompt/schéma propre : consomme DECISION_CONTRACT (donc
+// DECISION_MODEL_PROMPT et DECISION_JSON_SCHEMA, decision-core.js, inchangés) exactement comme Groq
+// et Anthropic. Le contrat public /decision reste strictement identique — seul LE TRANSPORT change.
+//
+// MÉCANISME DE STRUCTURED OUTPUT — justification explicite du choix : l'API Chat Completions d'OpenAI
+// est celle dont l'API Groq déjà en production ici est la réplique compatible
+// (https://api.groq.com/openai/v1/chat/completions). Le corps de requête envoyé ci-dessous est donc
+// structurellement IDENTIQUE à celui de callGroqChatCompletion : même response_format
+// {type:"json_schema", json_schema:{name, strict:true, schema}}, même schéma, même paire de messages.
+// C'est la preuve la plus forte dont ce dépôt dispose que DECISION_JSON_SCHEMA passe le mode strict
+// d'OpenAI : ce schéma exact y transite déjà quotidiennement via l'API compatible. Aucune projection,
+// aucune réécriture, aucune divergence provider-specific du schéma n'est introduite ici.
+//
+// CHOIX DU MODÈLE : gpt-5.6-sol — identifiant RÉEL, relevé le 2026-08-28 dans la documentation
+// officielle OpenAI et déjà utilisé par le harnais de mesure de ce dépôt
+// (evaluation/lot10g3b2/run-benchmark.mjs, evaluation/lot10g3b2/summarize.mjs), jamais inventé ici.
+// Il est exposé comme constante nommée, séparée du contrat sémantique, et surchargeable par la
+// variable NON secrète OPENAI_DECISION_MODEL : recalibrer le modèle ne doit jamais exiger de toucher
+// au prompt, au schéma ni à la validation. Ce n'est PAS du model shopping — c'est une configuration
+// statique de déploiement, évaluée une seule fois, jamais une comparaison de sorties à l'exécution.
+//
+// PARAMÈTRES DÉLIBÉRÉMENT ABSENTS : ni `temperature`, ni `stream`, ni `reasoning_effort`. Les familles
+// de modèles de raisonnement OpenAI rejettent (HTTP 400) une temperature explicite différente de leur
+// valeur par défaut ; envoyer un paramètre non supporté transformerait le provider tertiaire en panne
+// systématique. Le déterminisme du contrat est porté par le prompt gelé et le schéma strict, jamais
+// par un réglage d'échantillonnage — Groq conserve son `temperature: 0`, strictement inchangé.
+// ---------------------------------------------------------------------------------------------
+const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+export const OPENAI_MODEL = "gpt-5.6-sol";
+
+/**
+ * HA-01 — MAPPING DE SECRET EXPLICITE, SANS AUCUNE MUTATION CLOUDFLARE.
+ *
+ * Le secret OpenAI réellement présent sur le Worker de production `atelier-decision-groq` s'appelle
+ * `OPenAI-API` (nom non standard, vérifié par `wrangler secret list` — valeur jamais lue ni affichée).
+ * Ce lot NE LE RENOMME PAS : renommer un secret de production est une opération de déploiement, hors
+ * périmètre HA-01. L'adaptateur consomme donc la réalité existante via une liste ORDONNÉE et
+ * DOCUMENTÉE de noms acceptés :
+ *   1. OPENAI_API_KEY — nom standard, cible d'une éventuelle normalisation future ;
+ *   2. OPenAI-API     — nom réellement déployé aujourd'hui.
+ * Le nom standard est essayé en premier : aujourd'hui il est absent et la résolution retombe sur
+ * `OPenAI-API` ; le jour où un opérateur ajoutera proprement `OPENAI_API_KEY`, il prendra le relais
+ * sans AUCUN changement de code. `OPenAI-API` n'est pas un identifiant JavaScript valide : il n'est
+ * accessible que par indexation (env["OPenAI-API"]), jamais par `env.OPenAI-API`.
+ */
+export const OPENAI_API_KEY_BINDINGS = Object.freeze(["OPENAI_API_KEY", "OPenAI-API"]);
+
+// Borne CHAQUE tentative réseau individuelle. Aligné sur ANTHROPIC_TIMEOUT_MS (20000ms, valeur
+// validée en réel par le smoke R5.1a/R5.1c pour une décision) faute de mesure propre à OpenAI : ne
+// pas inventer une valeur plus fine sans preuve (même discipline "NE PAS INVENTER" que R2/R5.1).
+// Aucune politique de reprise 429 : cf. la note sur les retries en tête de decideWithHaChain.
+const OPENAI_TIMEOUT_MS = 20000;
+
+/**
+ * Résout la clé OpenAI par NOM, dans l'ordre de OPENAI_API_KEY_BINDINGS. Retourne le NOM du binding
+ * retenu (donnée d'observabilité sûre) et sa valeur (jamais journalisée, jamais retournée à
+ * l'appelant HTTP), ou null si aucun binding n'est présent.
+ */
+export function resolveOpenAiApiKey(env) {
+  for (const name of OPENAI_API_KEY_BINDINGS) {
+    const value = env?.[name];
+    if (typeof value === "string" && value.trim()) return { name, value };
+  }
+  return null;
+}
+
+async function callOpenAiChatCompletion({ systemPrompt, userMessage, schema, schemaName, env, maxCompletionTokens, timeoutMs = OPENAI_TIMEOUT_MS }) {
+  const apiKey = resolveOpenAiApiKey(env);
+  if (!apiKey) {
+    throw tagFailure(
+      new Error(`Secret OpenAI absent (aucun binding parmi ${OPENAI_API_KEY_BINDINGS.join(", ")}).`),
+      FAILURE_CLASSES.CONFIG_UNAVAILABLE, { provider: "openai" }
+    );
+  }
+  const model = typeof env.OPENAI_DECISION_MODEL === "string" && env.OPENAI_DECISION_MODEL.trim()
+    ? env.OPENAI_DECISION_MODEL.trim()
+    : OPENAI_MODEL;
+  let response;
+  try {
+    response = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey.value}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: schemaName,
+            strict: true,
+            schema
+          }
+        },
+        max_completion_tokens: maxCompletionTokens
+      }),
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+  } catch (transportError) {
+    const errorName = String(transportError?.name || "unknown");
+    console.error({ event: "openai_transport_error", error_name: errorName });
+    throw tagFailure(new Error(`OpenAI : échec de transport (${errorName}).`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "openai" });
+  }
+  const raw = await readBoundedText(response).catch((readError) => {
+    throw tagFailure(readError, FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "openai" });
+  });
+  if (!response.ok) {
+    let code = "unknown";
+    let message = "Message OpenAI indisponible.";
+    try {
+      const error = JSON.parse(raw)?.error;
+      code = String(error?.code || error?.type || "unknown");
+      message = String(error?.message || message);
+    } catch {}
+    const redact = (value) => value
+      .replace(/Bearer\s+\S+/gi, "Bearer [EXPURGÉ]")
+      .replace(/\b(?:sk-proj-|sk-ant-|gsk_|sk-)[A-Za-z0-9_-]+\b/g, "[EXPURGÉ]")
+      .replace(/\s+/g, " ")
+      .slice(0, 500);
+    console.error({ event: "openai_api_error", status: response.status, code: redact(code), message: redact(message) });
+    throw tagFailure(new Error(`OpenAI a répondu ${response.status}.`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "openai", status: response.status });
+  }
+  let envelope;
+  try {
+    envelope = JSON.parse(raw);
+  } catch {
+    throw tagFailure(new Error("OpenAI a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "openai" });
+  }
+  return envelope?.choices?.[0]?.message?.content;
 }
 
 /**
- * Sélection explicite du provider pour /decision UNIQUEMENT, via la variable NON secrète
- * DECISION_PROVIDER (jamais une valeur "auto", jamais un repli automatique Groq<->Anthropic sur
- * erreur/429 — interdiction explicite du lot R5.1). Défaut : "groq" (comportement historique
- * inchangé si la variable est absente). Toute valeur hors {"groq","anthropic"} est une erreur de
- * configuration explicite, remontée telle quelle à handleDecisionRequest (qui la transforme déjà,
- * sans changement ici, en réponse 502 provider_failure — même contrat public qu'aujourd'hui pour
- * toute panne de provider).
+ * HA-01 : adaptateur Decision OpenAI. Strictement symétrique de decideWithGroq — même contrat, même
+ * mécanisme de structured output, même validation finale (parseDecisionCandidate/validateDecision,
+ * decision-core.js, unique autorité). Contrairement à decideWithAnthropic, raison_interne N'EST PAS
+ * dérivée canoniquement ici : le mode strict json_schema contraint déjà `raison_interne` à l'énumération
+ * exacte des trois phrases (DECISION_JSON_SCHEMA), exactement comme sur Groq. La dérivation R5.1c
+ * répondait à une contrainte propre au mécanisme tool_use d'Anthropic, jamais à une faiblesse du
+ * contrat : ne pas l'étendre sans la même preuve empirique.
  */
-export async function decideWithSelectedProvider(input, env) {
-  const provider = env.DECISION_PROVIDER || "groq";
-  if (provider === "groq") return decideWithGroq(input, env);
-  if (provider === "anthropic") return decideWithAnthropic(input, env);
-  throw new Error(`DECISION_PROVIDER invalide : "${provider}" (valeurs autorisées : "groq", "anthropic").`);
+export async function decideWithOpenAI(input, env, { contract = DECISION_CONTRACT } = {}) {
+  const content = await callOpenAiChatCompletion({
+    systemPrompt: contract.prompt,
+    userMessage: makeDecisionUserMessage(input),
+    schema: contract.schema,
+    schemaName: contract.schemaName,
+    env,
+    maxCompletionTokens: 512
+  });
+  try {
+    return parseDecisionCandidate(content, input.demande);
+  } catch (error) {
+    throw tagFailure(error, FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "openai" });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// HA-01 : chaîne de haute disponibilité du rôle DECISION.
+// ---------------------------------------------------------------------------------------------
+
+/** Ordre de priorité, EXACT et FIGÉ : Groq (primary) -> Anthropic (secondary) -> OpenAI (tertiary). */
+export const DECISION_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
+
+/** Registre des adaptateurs. Un adaptateur = un TRANSPORT, jamais une variante de contrat. */
+export const DECISION_ADAPTERS = Object.freeze({
+  groq: decideWithGroq,
+  anthropic: decideWithAnthropic,
+  openai: decideWithOpenAI
+});
+
+/**
+ * Failover SERVER-SIDE, AUTOMATIQUE, TECHNIQUE UNIQUEMENT.
+ *
+ * Bascule (classes éligibles, cf. provider-ha.js) : timeout, DNS/connexion, 429 après reprises
+ * bornées, 5xx, provider indisponible, secret absent, transport rompu, structured output invalide.
+ * Ne bascule JAMAIS : une décision techniquement valide. Une décision "architecte", une confiance
+ * "moyenne" ou une clarification sont des RÉSULTATS FINAUX — l'orchestrateur ne lit même pas le
+ * résultat qu'il retourne, ce qui rend le model shopping structurellement impossible.
+ *
+ * RETRIES — politique explicite et non multipliée :
+ *   - l'orchestrateur ne réessaie JAMAIS un provider ; il n'y a donc aucune multiplication cachée
+ *     entre la couche adaptateur et la couche HA ;
+ *   - Groq conserve intégralement sa politique 429/Retry-After existante (GROQ_PRODUCTION_RETRY_DEFAULTS,
+ *     maxRetries=2, Retry-After + marge, timeout 8000ms par tentative) : aucun bug prouvé, donc aucune
+ *     modification (section 10 du lot) ;
+ *   - Anthropic et OpenAI n'ont AUCUNE politique de reprise. Ce n'est pas un oubli : avec une chaîne
+ *     de trois providers, réessayer un provider indisponible RETARDE l'accès au suivant. Une reprise
+ *     n'a de valeur que lorsqu'il n'existe pas d'alternative ; ici il en existe une, immédiate. Aucune
+ *     preuve empirique n'existe par ailleurs qu'une reprise Anthropic/OpenAI serait nécessaire (même
+ *     discipline "NE PAS INVENTER" que R2/R5.1).
+ *
+ * CIRCUIT BREAKER : délibérément absent de HA-01. Un breaker n'apporterait rien tant que le failover
+ * simple suffit, exigerait des seuils que rien ne justifie empiriquement aujourd'hui, et introduirait
+ * un état inter-requêtes dans un runtime dont les isolates sont recyclés sans garantie. À reconsidérer
+ * uniquement sur preuve de coût réel du chemin d'échec.
+ *
+ * SI LES TROIS ÉCHOUENT : ProviderChainError est levée. Aucune décision locale n'est fabriquée, aucun
+ * "exploitable" ni aucune route n'est inventé, aucun READY artificiel n'est produit. L'erreur remonte
+ * à handleDecisionRequest (decision-core.js, INCHANGÉ), qui répond 502 provider_failure — exactement
+ * le contrat HTTP déjà en vigueur aujourd'hui pour toute panne de provider. Intégration future du
+ * degraded_state : ProviderChainError transporte déjà `all_providers_failed` et `attempts`
+ * ([{provider, failure_class}]) — c'est la seule donnée que l'OPRIE aura besoin de consommer pour
+ * produire un degraded_state technique ; ce lot ne l'expose PAS sur le contrat HTTP public (hors
+ * périmètre HA-01), et OPRIE reste l'unique autorité de cet état.
+ */
+export async function decideWithHaChain(input, env, { contract = DECISION_CONTRACT, order = DECISION_PROVIDER_ORDER, log } = {}) {
+  return runProviderChain({
+    role: "decision",
+    preflight: () => assertDecisionContractUsable(contract),
+    providers: order.map((name) => ({
+      name,
+      execute: () => DECISION_ADAPTERS[name](input, env, { contract })
+    })),
+    ...(log ? { log } : {})
+  });
+}
+
+/**
+ * Sélection du provider pour /decision UNIQUEMENT, via la variable NON secrète DECISION_PROVIDER.
+ *
+ * - absente (cas de la production actuelle) ou "ha" -> CHAÎNE HA complète : Groq -> Anthropic -> OpenAI.
+ *   Le comportement nominal est donc strictement celui d'avant (Groq répond en premier et son succès
+ *   est final) ; seul le chemin d'ÉCHEC change.
+ * - "groq" | "anthropic" | "openai" -> provider ÉPINGLÉ, sans aucun failover. Une sélection explicite
+ *   par un opérateur reste une instruction, jamais une préférence à contourner : l'erreur du provider
+ *   choisi remonte telle quelle (contrat R5.1-12/R5.1-12b, préservé sans modification).
+ * - toute autre valeur, y compris "auto" -> erreur de configuration explicite, AUCUN appel réseau,
+ *   aucun repli silencieux (contrat R5.1-4/R5.1-4b, préservé sans modification : "auto" n'a jamais été
+ *   et n'est toujours pas un mode supporté ; le mode chaîne s'écrit "ha", ou ne s'écrit pas du tout).
+ */
+export async function decideWithSelectedProvider(input, env, options = {}) {
+  const provider = env.DECISION_PROVIDER || "ha";
+  if (provider === "ha") return decideWithHaChain(input, env, options);
+  if (Object.hasOwn(DECISION_ADAPTERS, provider)) return DECISION_ADAPTERS[provider](input, env, options);
+  const allowed = ["ha", ...DECISION_PROVIDER_ORDER].map((value) => `"${value}"`).join(", ");
+  throw tagFailure(
+    new Error(`DECISION_PROVIDER invalide : "${provider}" (valeurs autorisées : ${allowed}).`),
+    FAILURE_CLASSES.CONTRACT_ERROR
+  );
 }
 
 /**
