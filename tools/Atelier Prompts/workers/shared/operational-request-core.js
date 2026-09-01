@@ -295,7 +295,7 @@ export const CRITIC_OUTPUT_FIELDS = Object.freeze([
 // 3F.3.3-C8, B-01B : valeurs légales pour available_alternative — la ladder existante
 // (TREATMENT_VALUES), à l'exclusion explicite de "question" : un recours illégitime à question ne
 // peut jamais avoir "question" elle-même comme alternative proposée.
-const LADDER_ALTERNATIVE_VALUES = Object.freeze(TREATMENT_VALUES.filter((value) => value !== "question"));
+export const LADDER_ALTERNATIVE_VALUES = Object.freeze(TREATMENT_VALUES.filter((value) => value !== "question"));
 
 // 3F.3.3-S3 : retire au Critic une tâche purement structurelle — retrouver lui-même, dans tout
 // l'Analyst output, quelles issues satisfont impact="material" ET recommended_treatment="question"
@@ -1383,16 +1383,29 @@ export function buildSubstitutionBatchSchema(issueIds, candidateFamilies = LADDE
  *   - unitsForTarget(t)   : fonction optionnelle pour un coût par target non-uniforme (ex. taille
  *                           JSON réelle du target) — reste une mesure STRUCTURELLE (taille), jamais
  *                           un jugement de contenu.
+ *   - maxTargetsPerBatch  : CSR-01, OPTIONNEL. Plafond du NOMBRE de targets d'un batch, indépendant
+ *                           de l'enveloppe d'entrée. Comble un manque contractuel démontré :
+ *                           computeBatchPlan ne raisonnait que sur l'enveloppe d'ENTRÉE et pouvait
+ *                           donc planifier un batch parfaitement admissible en entrée mais auquel
+ *                           aucun modèle ne peut RÉPONDRE, faute de capacité de sortie suffisante
+ *                           (cf. CSR-01 : une entrée de batch coûte six familles × sept champs en
+ *                           sortie). Omis : comportement strictement inchangé pour tout appelant
+ *                           existant.
  *
  * Un seul target dont le coût dépasserait à lui seul maxUnitsPerBatch (fixedOverheadUnits inclus)
  * est une erreur de configuration explicite — jamais tronqué, jamais silencieusement dégradé.
  */
 export function computeBatchPlan(questionReviewTargets, capability) {
   const targets = list(questionReviewTargets);
-  const { fixedOverheadUnits, perTargetUnits, maxUnitsPerBatch, unitsForTarget } = capability || {};
+  const { fixedOverheadUnits, perTargetUnits, maxUnitsPerBatch, unitsForTarget, maxTargetsPerBatch } = capability || {};
   assert(Number.isFinite(fixedOverheadUnits) && fixedOverheadUnits >= 0, "computeBatchPlan: capability.fixedOverheadUnits invalide.");
   assert(Number.isFinite(perTargetUnits) && perTargetUnits > 0, "computeBatchPlan: capability.perTargetUnits invalide.");
   assert(Number.isFinite(maxUnitsPerBatch) && maxUnitsPerBatch > fixedOverheadUnits, "computeBatchPlan: capability.maxUnitsPerBatch invalide (doit excéder fixedOverheadUnits).");
+  assert(
+    maxTargetsPerBatch === undefined || (Number.isInteger(maxTargetsPerBatch) && maxTargetsPerBatch > 0),
+    "computeBatchPlan: capability.maxTargetsPerBatch invalide (entier > 0 attendu)."
+  );
+  const targetCeiling = maxTargetsPerBatch ?? Infinity;
   const sizeOf = typeof unitsForTarget === "function" ? unitsForTarget : () => perTargetUnits;
 
   const batches = [];
@@ -1406,7 +1419,7 @@ export function computeBatchPlan(questionReviewTargets, capability) {
       fixedOverheadUnits + targetUnits <= maxUnitsPerBatch,
       `computeBatchPlan: le target "${target?.issue_id}" dépasse à lui seul maxUnitsPerBatch même isolé dans son propre batch — configuration incompatible, jamais tronqué silencieusement.`
     );
-    if (current.length > 0 && currentUnits + targetUnits > maxUnitsPerBatch) {
+    if (current.length > 0 && (currentUnits + targetUnits > maxUnitsPerBatch || current.length >= targetCeiling)) {
       batches.push(current);
       current = [];
       currentUnits = fixedOverheadUnits;
@@ -1509,7 +1522,16 @@ export function assembleSubstitutionReviews(questionReviewTargets, batchResults)
   }
 
   const missing = expectedIds.filter((id) => !byIssueId.has(id));
-  assert(missing.length === 0, `assembleSubstitutionReviews: issue(s) manquante(s), aucun batch ne les a couvertes : ${missing.join(", ")}.`);
+  if (missing.length > 0) {
+    // CSR-01 : message IDENTIQUE à avant. Seul un marqueur structurel est ajouté : une issue non
+    // couverte est une violation du contrat de SORTIE par le modèle, jamais un défaut de cet
+    // assembleur. Il permet à la couche provider de la classer (STRUCTURED_OUTPUT_INVALID, donc
+    // éligible au failover) sans jamais inspecter un message d'erreur.
+    throw Object.assign(
+      new TypeError(`assembleSubstitutionReviews: issue(s) manquante(s), aucun batch ne les a couvertes : ${missing.join(", ")}.`),
+      { output_contract_violation: true, missing_issue_ids: missing }
+    );
+  }
 
   return expectedIds.map((id) => byIssueId.get(id));
 }

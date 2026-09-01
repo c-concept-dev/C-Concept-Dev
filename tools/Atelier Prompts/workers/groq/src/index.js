@@ -13,7 +13,8 @@ import {
   CRITIC_GLOBAL_SYSTEM_PROMPT, CRITIC_GLOBAL_JSON_SCHEMA, makeCriticGlobalUserMessage,
   SUBSTITUTION_REVIEW_SYSTEM_PROMPT, buildSubstitutionBatchSchema, makeSubstitutionReviewBatchUserMessage,
   buildSubstitutionReviewGroupSystemPrompt,
-  estimateSubstitutionBatchOutputUnits, runCriticBatchedPipeline
+  estimateSubstitutionBatchOutputUnits, runCriticBatchedPipeline,
+  LADDER_ALTERNATIVE_VALUES, SUBSTITUTION_CANDIDATE_FIELDS
 } from "../../shared/operational-request-core.js";
 import {
   FAILURE_CLASSES,
@@ -868,9 +869,29 @@ const GROQ_CRITIC_CAPABILITY = Object.freeze({
   global_max_completion_units: 2048,   // tokens, Critic global — valeur de production conservée par
                                         // prudence (aucune mesure réseau réelle de sa sortie réduite)
   fixed_output_units: 20,              // tokens, coût fixe de sortie par batch
-  per_target_output_units: 260,        // tokens, coût marginal de sortie par issue
+  // CSR-01 (RECALIBRATION) : 260 était le coût de sortie d'une entrée de batch dans sa forme
+  // ANTÉRIEURE à X2-C.4 — {alternatives_reviewed, available_alternative}, deux champs. X2-C.4 a
+  // remplacé cette forme par SIX candidates matérialisées de SEPT champs chacune (42 champs par
+  // issue) sans jamais recalibrer ce coût : le plafond de sortie effectif d'un batch d'une issue
+  // valait donc 350 tokens pour une réponse qui en exige plus de mille. Conséquence mesurée en réel
+  // (smokes CSR-01) : Anthropic s'arrêtait à max_tokens et renvoyait {} ; OpenAI s'arrêtait à length
+  // et renvoyait une chaîne tronquée ; dans les deux cas assembleSubstitutionReviews constatait
+  // ensuite, à juste titre, que l'issue n'était pas couverte. Le défaut n'a jamais été un défaut de
+  // modèle, ni de parsing, ni de contrat : c'était NOTRE plafond de sortie.
+  //
+  // La valeur n'est plus posée à la main : elle est DÉRIVÉE de la structure du contrat lui-même
+  // (familles × champs par candidate). Si le contrat change de forme, le coût suit automatiquement.
+  // Seul le coût unitaire par champ reste une mesure : 30 tokens/champ, pire cas réellement observé
+  // (Anthropic 1247 tokens pour 42 champs = 29.7 ; OpenAI 935 = 22.3).
+  per_target_output_units: LADDER_ALTERNATIVE_VALUES.length * SUBSTITUTION_CANDIDATE_FIELDS.length * 30,
   completion_safety_factor: 1.25,
   min_completion_units: 256,
+  // Plafond de sortie d'UN appel de batch. Conservé à 2048, mais désormais JUSTIFIÉ par la mesure au
+  // lieu d'être une valeur de prudence : la contrainte réelle est la limite Groq de 8000 jetons par
+  // minute (tpm_budget ci-dessus, désormais réellement utilisée et non plus seulement documentée).
+  // Mesuré en réel : l'appel global consomme ~2270 jetons (2110 entrée + 159 sortie) et l'entrée d'un
+  // appel de batch ~3550. Il reste donc ~2180 jetons de sortie exploitables dans la même fenêtre
+  // avant un HTTP 429 — 2048 s'y inscrit, une valeur plus grande n'y tiendrait pas.
   max_completion_units: 2048,
   // Repli requis par la validation de computeBatchPlan (perTargetUnits fini > 0 toujours exigé) —
   // JAMAIS utilisé pour le calcul réel ci-dessous, qui fournit systématiquement unitsForTarget
@@ -880,6 +901,24 @@ const GROQ_CRITIC_CAPABILITY = Object.freeze({
 
 /** Capacité d'entrée réelle pour CET appel : taille effective du prompt dédié + contexte complet
  * réellement transmis, jamais une moyenne — seul le plafond (input_budget) est une constante. */
+/**
+ * CSR-01 : nombre maximal d'issues auxquelles un modèle peut RÉPONDRE dans un seul batch. Dérivé,
+ * jamais posé : c'est le plus grand N dont le coût de sortie estimé tient encore sous
+ * max_completion_units, marge de sécurité comprise. Avec le coût réel d'une entrée post-X2-C.4, il
+ * vaut aujourd'hui 1 — ce n'est pas un choix, c'est la conséquence arithmétique du contrat de sortie
+ * et de la fenêtre de jetons mesurée. Si le contrat s'allège ou si le plafond s'élève, le regroupement
+ * réapparaît automatiquement, sans toucher à ce code.
+ *
+ * Comble le manque qui rendait le défaut possible : le plan de batch ne raisonnait que sur l'enveloppe
+ * d'ENTRÉE et pouvait donc composer un batch parfaitement admissible en entrée, mais auquel aucun
+ * modèle ne pouvait répondre.
+ */
+function maxAnswerableTargetsPerBatch() {
+  const { fixed_output_units, per_target_output_units, completion_safety_factor, max_completion_units } = GROQ_CRITIC_CAPABILITY;
+  const answerable = Math.floor((max_completion_units / completion_safety_factor - fixed_output_units) / per_target_output_units);
+  return Math.max(1, answerable);
+}
+
 function groqCriticBatchPlanCapability({ original_request, clarification_history, analyst_output }) {
   const fixedOverheadUnits = SUBSTITUTION_REVIEW_SYSTEM_PROMPT.length + JSON.stringify({
     original_request, clarification_history, analyst_output, question_review_targets: []
@@ -888,6 +927,7 @@ function groqCriticBatchPlanCapability({ original_request, clarification_history
     fixedOverheadUnits,
     perTargetUnits: GROQ_CRITIC_CAPABILITY.per_target_input_units_fallback,
     maxUnitsPerBatch: GROQ_CRITIC_CAPABILITY.input_budget,
+    maxTargetsPerBatch: maxAnswerableTargetsPerBatch(),
     unitsForTarget: (target) => JSON.stringify(target).length
   };
 }
@@ -1212,6 +1252,15 @@ function tagCriticPipelineFailure(error, provider) {
   if (failureClassOf(error) !== FAILURE_CLASSES.PROGRAMMING_ERROR) return error;
   if (error?.technical_state === "partial_failure") {
     return tagFailure(error, FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider, role: "critic" });
+  }
+  // CSR-01 : le modèle a répondu, mais sa sortie ne satisfait pas le contrat du rôle (une issue
+  // demandée n'est pas couverte). C'est un défaut de CE modèle sur CET appel — pas un défaut de notre
+  // assembleur, qui a raison de le refuser — donc STRUCTURED_OUTPUT_INVALID, éligible au failover.
+  // Le marqueur output_contract_violation est posé par assembleSubstitutionReviews elle-même : aucune
+  // inspection de message d'erreur ici. Tout ce qui n'est pas explicitement marqué reste
+  // PROGRAMMING_ERROR, donc fail-closed : jamais un autre modèle pour masquer notre propre bug.
+  if (error?.output_contract_violation === true) {
+    return tagFailure(error, FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider, role: "critic" });
   }
   return error;
 }

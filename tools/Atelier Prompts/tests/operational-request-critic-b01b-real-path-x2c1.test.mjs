@@ -163,10 +163,15 @@ test("X2C1-SCHEMA : le schéma réellement envoyé au provider exige structurell
     { id: "B", type: "missing_information", description: "y", impact: "material", substitutable: false, recommended_treatment: "question", kind: null }
   ]);
   const expectedTargets = buildQuestionReviewTargets(analystOutput);
-  let capturedSchema = null;
+  // CSR-01 : l'invariant vérifié est INCHANGÉ — « le schéma réellement envoyé exige les 6 candidates
+  // pour CHAQUE issue material+question ». Seule la répartition change : depuis la recalibration du
+  // coût de sortie, une issue par batch est le maximum auquel un modèle peut répondre, donc ces deux
+  // issues voyagent dans deux schémas au lieu d'un. On vérifie désormais TOUS les schémas émis, leur
+  // union et leur conformité individuelle : c'est strictement plus fort qu'observer le dernier seul.
+  const capturedSchemas = [];
   withGroqFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") return groqResponse(globalOutputFixture());
-    capturedSchema = schemaOf(options);
+    capturedSchemas.push(schemaOf(options));
     return substitutionBatchResponse(issueIdsOf(options), null);
   });
   await runCriticWithGroq(
@@ -174,13 +179,17 @@ test("X2C1-SCHEMA : le schéma réellement envoyé au provider exige structurell
     { GROQ_API_KEY: "server-only" },
     { retryOverrides: { sleepFn: async () => {} } }
   );
-  const expectedSchema = buildSubstitutionBatchSchema(expectedTargets.map((t) => t.issue_id));
-  assert.deepEqual(capturedSchema, expectedSchema);
-  for (const issueId of expectedTargets.map((t) => t.issue_id)) {
-    assert.deepEqual(
-      Object.keys(capturedSchema.properties[issueId].properties.candidates.properties).sort(),
-      [...LADDER].sort(),
-      "le schéma réel exige les 6 candidates, structurellement, sans dépendre du contenu de la réponse."
-    );
+  const expectedIds = expectedTargets.map((t) => t.issue_id);
+  const emittedIds = capturedSchemas.flatMap((schema) => Object.keys(schema.properties));
+  assert.deepEqual([...emittedIds].sort(), [...expectedIds].sort(), "chaque issue material+question doit être couverte par exactement un schéma émis.");
+  for (const schema of capturedSchemas) {
+    assert.deepEqual(schema, buildSubstitutionBatchSchema(Object.keys(schema.properties)), "chaque schéma émis reste exactement celui que construit buildSubstitutionBatchSchema.");
+    for (const issueId of Object.keys(schema.properties)) {
+      assert.deepEqual(
+        Object.keys(schema.properties[issueId].properties.candidates.properties).sort(),
+        [...LADDER].sort(),
+        "le schéma réel exige les 6 candidates, structurellement, sans dépendre du contenu de la réponse."
+      );
+    }
   }
 });

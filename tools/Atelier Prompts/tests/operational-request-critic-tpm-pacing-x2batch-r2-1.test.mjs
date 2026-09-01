@@ -232,11 +232,20 @@ test("R2.1-5 : un batch dont les retries s'épuisent (429 persistant) ne fait pa
       return true;
     }
   );
-  // maxRetries=2 -> 2 attentes internes exactement pour épuiser le batch1 (site catch), aucune
-  // troisième attente "reprogrammée" par le pacer après l'échec (ce qui prouverait le défaut R2).
+  // L'invariant vérifié est INCHANGÉ : le nombre d'attentes doit valoir EXACTEMENT le nombre de
+  // reprises internes des batches réellement tentés — jamais une attente supplémentaire
+  // "reprogrammée" par le pacer après un échec (ce qui prouverait le défaut R2).
+  //
+  // CSR-01 : l'attendu n'est plus le littéral 2 mais la valeur DÉRIVÉE du plan de batch réel
+  // (batches × maxRetries). Deux raisons : (a) depuis la recalibration du coût de sortie, ces deux
+  // issues forment deux batches et non un ; (b) runCriticBatchedPipeline ne s'arrête PAS au premier
+  // batch en échec — elle les tente tous puis lève partial_failure — ce que le commentaire d'origine
+  // de ce test supposait à tort. Paramétrer l'attendu rend l'invariant robuste au plan de batch.
+  const maxRetries = 2;
+  const attemptedBatches = new Set(batchCallLog.map((c) => c.issueIds.join(","))).size;
   const expectedWaitPerRetry = Math.round(1 * 1000) + 750;
-  assert.equal(sleeps.length, 2, `attendu exactement 2 attentes (les 2 retries internes du batch1 épuisé), obtenu ${sleeps.length} : ${JSON.stringify(sleeps)}`);
-  for (const w of sleeps) assert.equal(w, expectedWaitPerRetry);
+  assert.equal(sleeps.length, attemptedBatches * maxRetries, `attendu exactement ${attemptedBatches * maxRetries} attentes (les reprises internes des ${attemptedBatches} batch(es) épuisé(s)), obtenu ${sleeps.length} : ${JSON.stringify(sleeps)}`);
+  for (const w of sleeps) assert.equal(w, expectedWaitPerRetry, "aucune attente ne doit différer du Retry-After annoncé : jamais un délai déjà consommé reprogrammé.");
 });
 
 // --- R2.1-6 : partial_failure inchangé si retries réellement épuisés -------------------------------
