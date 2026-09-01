@@ -54,6 +54,13 @@ function loadEForchDeps(mono01Path) {
     sha256LikeRealSearchProtocol: dep("ef-orch-ef01-output-contracts-v0.1.js").sha256LikeRealSearchProtocol,
     generateQualificationTestArtifact: dep("ef-orch-ef01e-test-qualification-generator-v0.1.js").generateQualificationTestArtifact,
     sha256Bytes: dep("ef-orch-hash-v0.1.js").sha256Bytes,
+    // REMEDIATION R3 (M-02) : sha256CanonicalJson (deja exportee par le
+    // module gele ef-orch-hash-v0.1.js, jamais reimplementee ici) sert a
+    // hasher provenance.plannerOutput (contenu causal du planificateur,
+    // objet arbitraire fourni par l'operateur) de facon stable a l'ordre
+    // d'insertion des cles — jamais sha256LikeRealSearchProtocol, reservee
+    // au seul algorithme historique de protocolHash.
+    sha256CanonicalJson: dep("ef-orch-hash-v0.1.js").sha256CanonicalJson,
   };
 }
 
@@ -151,6 +158,133 @@ function validateRealHumanValidationFields(v) {
   return !v || typeof v.validatedAt !== "string" || !v.validatedAt.trim() || typeof v.commentaire !== "string" || !v.commentaire.trim();
 }
 
+function isNonEmptyStr(v) {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+/**
+ * validateRealPlannerOutputFields(output, disciplineIds) — REMEDIATION R3
+ * (M-02, mandat sections 6-9). Contenu CAUSAL du planificateur : ce que le
+ * planner a reellement decide (sources, requetes, criteres, politiques),
+ * distinct de plannerRun (qui ne porte QUE la provenance de l'appel — voir
+ * validateRealPlannerRunFields). En mode REAL, plannerRun seul ne suffit
+ * plus : sans plannerOutput structurellement valide, echec fail-closed
+ * explicite ("planner causal output missing"), jamais un repli sur les
+ * anciens gabarits fixes MONO-08 (F-02/F-03/M-02 round 2 : meme discipline
+ * partout, jamais une fabrication silencieuse d'un champ substantiel).
+ * Utilisee a la fois par buildSearchProtocolForMission() (fail-closed a la
+ * construction) et par validateRealEForchProvenance() (fail-closed au
+ * mission-gate, AVANT tout appel provider — meme fonction, jamais une
+ * deuxieme logique dupliquee, meme principe que B-03).
+ */
+function validateRealPlannerOutputFields(output, disciplineIds) {
+  const problems = [];
+  const disciplineList = Array.isArray(disciplineIds) ? disciplineIds : [];
+  if (!output || typeof output !== "object") {
+    return { valid: false, problems: ["plannerOutput absent ou invalide (planner causal output missing) — aucun contenu causal du planificateur fourni, seul plannerRun (metadonnees de provenance) ne suffit jamais a construire un SearchProtocol en mode REAL."] };
+  }
+  const sources = Array.isArray(output.sources) ? output.sources : null;
+  if (!sources || sources.length === 0) {
+    problems.push("plannerOutput.sources manquant ou vide (au moins une source active reellement decidee par le planner est requise)");
+  } else {
+    sources.forEach(function (s, i) {
+      if (!s || !isNonEmptyStr(s.connectorId)) problems.push("plannerOutput.sources[" + i + "].connectorId manquant");
+      if (!s || !isNonEmptyStr(s.justification)) problems.push("plannerOutput.sources[" + i + "].justification manquant");
+    });
+  }
+  const connectorIds = sources ? sources.map(function (s) { return s && s.connectorId; }).filter(Boolean) : [];
+  const queries = Array.isArray(output.queries) ? output.queries : null;
+  if (!queries || queries.length !== disciplineList.length) {
+    problems.push("plannerOutput.queries manquant ou de longueur incorrecte (attendu " + disciplineList.length + " — une requete reelle par discipline retenue de la mission, jamais devinee)");
+  } else {
+    disciplineList.forEach(function (discId) {
+      const q = queries.find(function (qq) { return qq && qq.discipline === discId; });
+      if (!q) { problems.push("plannerOutput.queries: aucune requete pour la discipline \"" + discId + "\""); return; }
+      if (!isNonEmptyStr(q.requete)) problems.push("plannerOutput.queries[discipline=\"" + discId + "\"].requete manquant");
+      if (!isNonEmptyStr(q.justification)) problems.push("plannerOutput.queries[discipline=\"" + discId + "\"].justification manquant");
+      if (!isNonEmptyStr(q.connectorId) || connectorIds.indexOf(q.connectorId) === -1) problems.push("plannerOutput.queries[discipline=\"" + discId + "\"].connectorId absent ou ne correspond a aucune source active declaree");
+    });
+  }
+  const retrieval = Array.isArray(output.retrieval) ? output.retrieval : null;
+  if (!retrieval || retrieval.length !== connectorIds.length) {
+    problems.push("plannerOutput.retrieval manquant ou de longueur incorrecte (attendu une politique reelle par source active, " + connectorIds.length + ")");
+  } else {
+    connectorIds.forEach(function (cid) {
+      const rp = retrieval.find(function (r) { return r && r.connectorId === cid; });
+      if (!rp) { problems.push("plannerOutput.retrieval: aucune politique pour le connecteur \"" + cid + "\""); return; }
+      ["sortMode", "stopCondition", "retryPolicy", "rateLimitPolicy", "budgetMax"].forEach(function (f) {
+        if (!isNonEmptyStr(rp[f])) problems.push("plannerOutput.retrieval[connectorId=\"" + cid + "\"]." + f + " manquant");
+      });
+      ["pageSize", "maxPages", "maxResults"].forEach(function (f) {
+        if (typeof rp[f] !== "number") problems.push("plannerOutput.retrieval[connectorId=\"" + cid + "\"]." + f + " manquant ou non numerique");
+      });
+    });
+  }
+  if (!Array.isArray(output.criteresInclusion) || output.criteresInclusion.length === 0 || !output.criteresInclusion.every(isNonEmptyStr)) {
+    problems.push("plannerOutput.criteresInclusion manquant, vide ou invalide (jamais repli sur [\"Pertinence a la mission.\"])");
+  }
+  if (!Array.isArray(output.criteresExclusion) || output.criteresExclusion.length === 0 || !output.criteresExclusion.every(isNonEmptyStr)) {
+    problems.push("plannerOutput.criteresExclusion manquant, vide ou invalide (jamais repli sur [\"Hors sujet.\"])");
+  }
+  if (!isNonEmptyStr(output.regleDedoublonnage)) problems.push("plannerOutput.regleDedoublonnage manquant (jamais repli sur \"DOI.\")");
+  if (!isNonEmptyStr(output.methodeQualification)) problems.push("plannerOutput.methodeQualification manquant (jamais repli sur \"Qualitative.\")");
+  return { valid: problems.length === 0, problems: problems };
+}
+
+/**
+ * buildSearchProtocolFromPlannerOutput(output, disciplineIds) —
+ * transformation DETERMINISTE, jamais un gabarit MONO-08 : chaque champ
+ * substantiel (sourcesActivees/requetesExactes/retrievalPolicies/
+ * criteresInclusion/criteresExclusion/regleDedoublonnage/
+ * methodeQualification) est copie ou reindexe DEPUIS `output` (deja
+ * valide par validateRealPlannerOutputFields — jamais appelee sans cette
+ * validation prealable). Seuls des defauts NON SUBSTANTIFS, jamais
+ * verifies par le contrat gele assertSearchProtocolFrozenAndValid
+ * (label/access/constraint de presentation, fenetreTemporelle/langues/
+ * typesDocumentsAdmis vides), sont completes silencieusement — jamais un
+ * critere d'inclusion/exclusion, une regle de dedoublonnage ou une
+ * methode de qualification, qui restent TOUJOURS exiges explicitement de
+ * `output` (fail-closed en amont sinon).
+ */
+function buildSearchProtocolFromPlannerOutput(output, disciplineIds) {
+  const sourcesActivees = output.sources.map(function (s) {
+    return {
+      connectorId: s.connectorId,
+      label: isNonEmptyStr(s.label) ? s.label : s.connectorId,
+      access: isNonEmptyStr(s.access) ? s.access : "",
+      constraint: isNonEmptyStr(s.constraint) ? s.constraint : "",
+      active: true,
+      justification: s.justification,
+    };
+  });
+  const requetesExactes = disciplineIds.map(function (discId, i) {
+    const q = output.queries.find(function (qq) { return qq.discipline === discId; });
+    return { id: "q" + (i + 1), connectorId: q.connectorId, discipline: discId, requete: q.requete, justification: q.justification };
+  });
+  const retrievalPolicies = output.sources.map(function (s) {
+    const rp = output.retrieval.find(function (r) { return r.connectorId === s.connectorId; });
+    const requetesDuConnecteur = requetesExactes.filter(function (q) { return q.connectorId === s.connectorId; }).map(function (q) { return q.requete; });
+    return {
+      connectorId: s.connectorId, requete: requetesDuConnecteur.join(", "),
+      sortMode: rp.sortMode, pageSize: rp.pageSize, maxPages: rp.maxPages, maxResults: rp.maxResults,
+      stopCondition: rp.stopCondition, retryPolicy: rp.retryPolicy, rateLimitPolicy: rp.rateLimitPolicy, budgetMax: rp.budgetMax,
+    };
+  });
+  const hasFenetre = output.fenetreTemporelle && (isNonEmptyStr(output.fenetreTemporelle.debut) || isNonEmptyStr(output.fenetreTemporelle.fin));
+  return {
+    sourcesActivees: sourcesActivees,
+    requetesExactes: requetesExactes,
+    retrievalPolicies: retrievalPolicies,
+    criteresInclusion: output.criteresInclusion.slice(),
+    criteresExclusion: output.criteresExclusion.slice(),
+    regleDedoublonnage: output.regleDedoublonnage,
+    methodeQualification: output.methodeQualification,
+    fenetreTemporelle: hasFenetre ? { debut: output.fenetreTemporelle.debut || "", fin: output.fenetreTemporelle.fin || "" } : { debut: "", fin: "" },
+    langues: Array.isArray(output.langues) ? output.langues.slice() : [],
+    typesDocumentsAdmis: Array.isArray(output.typesDocumentsAdmis) ? output.typesDocumentsAdmis.slice() : [],
+  };
+}
+
 /**
  * validateRealEForchProvenance(mission) — verification STRUCTURELLE
  * (comptage/forme des champs), AVANT toute construction couteuse ou
@@ -178,6 +312,18 @@ function validateRealEForchProvenance(mission) {
   }
   const plannerMissing = validateRealPlannerRunFields(provenance.plannerRun);
   if (plannerMissing.length) problems.push("plannerRun invalide: " + plannerMissing.join(","));
+  // REMEDIATION R3 (M-02) : plannerRun (provenance de l'appel) ne suffit
+  // plus a lui seul — le mission-gate echoue desormais AUSSI, avant tout
+  // appel provider, si provenance.plannerOutput (contenu causal reel du
+  // planificateur) est absent ou structurellement incomplet. Memes
+  // disciplines que celles que buildEForchArtifacts() calculera
+  // (mission.dimensions[].id) — jamais une liste divergente entre le
+  // gate et le builder.
+  const disciplineIds = Array.isArray(mission.dimensions) ? mission.dimensions.map(function (d) { return d.id; }) : [];
+  const plannerOutputCheck = validateRealPlannerOutputFields(provenance.plannerOutput, disciplineIds);
+  if (!plannerOutputCheck.valid) {
+    problems.push("plannerOutput invalide (planner causal output missing): " + plannerOutputCheck.problems.join("; "));
+  }
   if (validateRealHumanValidationFields(provenance.humanValidation)) {
     problems.push("humanValidation invalide ou absent (validatedAt/commentaire requis, jamais invente)");
   }
@@ -247,14 +393,35 @@ function buildResolverTraceForMission(deps, missionId, confirmedRunContract, pro
 
 async function buildSearchProtocolForMission(deps, missionId, idSuffix, disciplines, provenance) {
   const sha256LikeRealSearchProtocol = deps.sha256LikeRealSearchProtocol;
+  const sha256CanonicalJson = deps.sha256CanonicalJson;
   const mode = resolveMode(provenance);
   const realPlanner = provenance && provenance.plannerRun;
+  const realPlannerOutput = provenance && provenance.plannerOutput;
   const realHumanValidation = provenance && provenance.humanValidation;
+  let derived = null;
+  let plannerOutputHash = null;
   if (mode === "REAL") {
     const missing = validateRealPlannerRunFields(realPlanner);
     if (missing.length) {
       throw operatorInputRequired("SearchProtocol (EF-01C1) requiert un plannerRun REEL fourni par l'operateur — champ(s) manquant(s) ou invalide(s) : " + missing.join(", ") + ".");
     }
+    // REMEDIATION R3 (M-02, mandat sections 5-9) : plannerRun seul
+    // (metadonnees de provenance de l'appel LLM) ne suffisait a rien
+    // demontrer sur le CONTENU du SearchProtocol — celui-ci restait
+    // construit par gabarit MONO-08 fige, quel que soit le plannerRun
+    // fourni (deux plannerRun distincts produisaient un SearchProtocol
+    // substantiellement identique — voir 16-M02-CAUSAL-LINEAGE.md).
+    // provenance.plannerOutput (contenu CAUSAL reellement decide par le
+    // planificateur : sources/requetes/politiques/criteres) est desormais
+    // exige et REELLEMENT transforme (buildSearchProtocolFromPlannerOutput,
+    // deterministe, jamais un gabarit) — sinon fail-closed explicite,
+    // jamais un repli silencieux sur l'ancien gabarit fixe.
+    const outputCheck = validateRealPlannerOutputFields(realPlannerOutput, disciplines);
+    if (!outputCheck.valid) {
+      throw operatorInputRequired("SearchProtocol (EF-01C1) requiert provenance.plannerOutput (contenu causal reel du planificateur — planner causal output missing) : " + outputCheck.problems.join("; ") + ".");
+    }
+    derived = buildSearchProtocolFromPlannerOutput(realPlannerOutput, disciplines);
+    plannerOutputHash = await sha256CanonicalJson(realPlannerOutput);
     // REMEDIATION R2 (M-02) : "humanValidation.commentaire" etait
     // fabrique INCONDITIONNELLEMENT ("Revu (MONO-08).") y compris en
     // mode REAL, sans jamais avoir ete detecte par F-02/F-03 (qui ne
@@ -262,33 +429,69 @@ async function buildSearchProtocolForMission(deps, missionId, idSuffix, discipli
     // revue humaine du protocole de recherche etait donc presentee comme
     // reelle sans jamais l'avoir ete. Meme discipline que ScreeningArtifact
     // desormais : exige une validation humaine REELLE en mode REAL.
+    // Comportement PRESERVE tel quel en R3 (mandat section 12 : ne
+    // jamais reintroduire de faux acte humain).
     if (validateRealHumanValidationFields(realHumanValidation)) {
       throw operatorInputRequired("SearchProtocol (EF-01C1) requiert une validation humaine REELLE (provenance.humanValidation: {validatedAt, commentaire}) — jamais une validation humaine inventee en mode REAL.");
     }
   }
-  const sourcesActivees = [{ connectorId: "openalex", label: "OpenAlex", access: "", constraint: "", active: true, justification: "Justification." }];
-  const requetesExactes = disciplines.map(function (d, i) { return { id: "q" + (i + 1), connectorId: "openalex", discipline: d, requete: d, justification: "Requete pour la dimension " + d + "." }; });
+  // Mode LOCAL_CONTROLLED : gabarit synthetique INCHANGE depuis r1/r2
+  // (RÈGLE CARDINALE — aucune valeur fixture modifiee), seul le mode REAL
+  // (ci-dessus) construit desormais reellement depuis `derived`.
+  const sourcesActivees = mode === "REAL" ? derived.sourcesActivees
+    : [{ connectorId: "openalex", label: "OpenAlex", access: "", constraint: "", active: true, justification: "Justification." }];
+  const requetesExactes = mode === "REAL" ? derived.requetesExactes
+    : disciplines.map(function (d, i) { return { id: "q" + (i + 1), connectorId: "openalex", discipline: d, requete: d, justification: "Requete pour la dimension " + d + "." }; });
   // Cardinalite exigee par le validateur reel (validateEF01C1Output) :
   // retrievalPolicies.length === sourcesActivees.length (une politique par
-  // SOURCE active, jamais par discipline) — un seul connecteur openalex
-  // actif ici, donc une seule politique, quel que soit le nombre de
-  // disciplines/requetes.
-  const retrievalPolicies = [{ connectorId: "openalex", requete: disciplines.join(", "), sortMode: "relevance", pageSize: 25, maxPages: 1, maxResults: 5, stopCondition: "maxResults atteint", retryPolicy: "2 tentatives", rateLimitPolicy: "1000 req/s", budgetMax: "budget raisonnable" }];
+  // SOURCE active, jamais par discipline) — preservee par construction
+  // dans buildSearchProtocolFromPlannerOutput (une politique par source
+  // decidee par le planner) et dans le gabarit LOCAL_CONTROLLED (un seul
+  // connecteur openalex actif, donc une seule politique).
+  const retrievalPolicies = mode === "REAL" ? derived.retrievalPolicies
+    : [{ connectorId: "openalex", requete: disciplines.join(", "), sortMode: "relevance", pageSize: 25, maxPages: 1, maxResults: 5, stopCondition: "maxResults atteint", retryPolicy: "2 tentatives", rateLimitPolicy: "1000 req/s", budgetMax: "budget raisonnable" }];
+  const criteresInclusion = mode === "REAL" ? derived.criteresInclusion : ["Pertinence a la mission."];
+  const criteresExclusion = mode === "REAL" ? derived.criteresExclusion : ["Hors sujet."];
+  const regleDedoublonnage = mode === "REAL" ? derived.regleDedoublonnage : "DOI.";
+  const methodeQualification = mode === "REAL" ? derived.methodeQualification : "Qualitative.";
+  const fenetreTemporelle = mode === "REAL" ? derived.fenetreTemporelle : { debut: "", fin: "" };
+  const langues = mode === "REAL" ? derived.langues : [];
+  const typesDocumentsAdmis = mode === "REAL" ? derived.typesDocumentsAdmis : [];
   const protoBase = {
     schema: "EvidenceForge.SearchProtocol", schemaVersion: "EF-01C1-v1", id: "protocol-" + idSuffix, missionId: missionId,
     disciplinesRetenues: disciplines, sourcesActivees: sourcesActivees, requetesExactes: requetesExactes,
-    fenetreTemporelle: { debut: "", fin: "" }, langues: [], typesDocumentsAdmis: [],
-    criteresInclusion: ["Pertinence a la mission."], criteresExclusion: ["Hors sujet."],
-    regleDedoublonnage: "DOI.", methodeQualification: "Qualitative.",
+    fenetreTemporelle: fenetreTemporelle, langues: langues, typesDocumentsAdmis: typesDocumentsAdmis,
+    criteresInclusion: criteresInclusion, criteresExclusion: criteresExclusion,
+    regleDedoublonnage: regleDedoublonnage, methodeQualification: methodeQualification,
     retrievalPolicies: retrievalPolicies,
     statut: "figé", createdAt: new Date().toISOString(), validatedAt: new Date().toISOString(), frozenAt: new Date().toISOString(),
     humanValidation: mode === "REAL"
       ? { validatedAt: realHumanValidation.validatedAt, commentaire: realHumanValidation.commentaire, evidenceProvenance: "OPERATOR_ATTESTED_HUMAN_ACTION" }
       : { validatedAt: new Date().toISOString(), commentaire: "Revu (MONO-08).", evidenceProvenance: "SYNTHETIC_FIXTURE" },
     evidenceProvenance: mode === "REAL" ? "OPERATOR_ATTESTED_LLM_CALL" : "SYNTHETIC_FIXTURE",
+    // REMEDIATION R3 (M-02, mandat section 11) : provenanceClassification
+    // est une classification ADDITIVE distincte de evidenceProvenance —
+    // ATTESTED (l'appelant affirme) reste distinct de VERIFIED (MONO-08
+    // verifierait causalement l'appel provider reel, ce qu'il ne fait
+    // jamais). "OPERATOR_ATTESTED_LLM_DERIVED" signifie : le contenu
+    // substantiel EST reellement calcule depuis un plannerOutput fourni
+    // par l'operateur (jamais depuis un gabarit MONO-08), sans que cela
+    // constitue une verification independante que l'appel LLM sous-jacent
+    // a reellement eu lieu (cela resterait une attestation operateur).
+    provenanceClassification: mode === "REAL" ? "OPERATOR_ATTESTED_LLM_DERIVED" : "SYNTHETIC_FIXTURE",
     plannerRuns: mode === "REAL"
       ? [{ runId: "planner-" + idSuffix, date: realPlanner.date, provider: realPlanner.provider, model: realPlanner.model, promptVersion: realPlanner.promptVersion, missionId: missionId, inputHash: realPlanner.inputHash, rawResponseHash: realPlanner.rawResponseHash, evidenceProvenance: "OPERATOR_ATTESTED_LLM_CALL" }]
       : [{ runId: "planner-" + idSuffix, date: new Date().toISOString(), provider: "anthropic", model: "claude-sonnet-4-6", promptVersion: "EF01C1-search-planner-v2-compact", missionId: missionId, inputHash: "3".repeat(64), rawResponseHash: "4".repeat(64), evidenceProvenance: "SYNTHETIC_FIXTURE" }],
+    // REMEDIATION R3 (M-02, mandat section 10) : lineage explicite
+    // planner -> protocole, verifiable sans se fier uniquement au fait
+    // que plannerRuns[0] est stocke dans le meme objet. plannerOutputHash
+    // fait partie du contenu hashe par protocolHash (ci-dessous) : toute
+    // modification de plannerOutput change donc mecaniquement protocolHash
+    // (M02-07/M02-08) — protocolHash joue ainsi le role du "searchProtocolHash"
+    // du mandat, jamais duplique sous un second nom.
+    causalLineage: mode === "REAL"
+      ? { plannerRunRef: "planner-" + idSuffix, plannerInputHash: realPlanner.inputHash, plannerRawResponseHash: realPlanner.rawResponseHash, plannerOutputHash: plannerOutputHash, derivationMethod: "buildSearchProtocolFromPlannerOutput (MONO-08, deterministe, jamais un gabarit fige)" }
+      : { plannerRunRef: "planner-" + idSuffix, plannerInputHash: null, plannerRawResponseHash: null, plannerOutputHash: null, derivationMethod: "SYNTHETIC_FIXTURE (aucune derivation causale revendiquee)" },
   };
   const protocolHash = await sha256LikeRealSearchProtocol(protoBase);
   return Object.assign({}, protoBase, { protocolHash: protocolHash });
@@ -376,4 +579,6 @@ module.exports = {
   validateRealPlannerRunFields: validateRealPlannerRunFields,
   validateRealAuditDecisionFields: validateRealAuditDecisionFields,
   validateRealHumanValidationFields: validateRealHumanValidationFields,
+  validateRealPlannerOutputFields: validateRealPlannerOutputFields,
+  buildSearchProtocolFromPlannerOutput: buildSearchProtocolFromPlannerOutput,
 };

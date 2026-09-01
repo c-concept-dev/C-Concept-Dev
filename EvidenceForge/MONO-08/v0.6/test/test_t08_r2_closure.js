@@ -190,9 +190,22 @@ function extractResultLine(stdout, marker) {
     const { validateRealEForchProvenance } = require("../lib/eforch-artifacts");
     const HASH64 = "b".repeat(64);
     const baseDims = [{ id: "DIM_A", label: "Dimension A" }];
+    const validPlannerOutput = {
+      sources: [{ connectorId: "openalex", label: "OpenAlex", justification: "Connecteur retenu (test B-03)." }],
+      queries: [{ discipline: "DIM_A", connectorId: "openalex", requete: "requete reelle DIM_A (test B-03)", justification: "Justification reelle (test B-03)." }],
+      retrieval: [{ connectorId: "openalex", sortMode: "relevance", pageSize: 25, maxPages: 1, maxResults: 5, stopCondition: "maxResults atteint", retryPolicy: "2 tentatives", rateLimitPolicy: "1000 req/s", budgetMax: "budget raisonnable" }],
+      criteresInclusion: ["Critere d'inclusion reel (test B-03)."],
+      criteresExclusion: ["Critere d'exclusion reel (test B-03)."],
+      regleDedoublonnage: "DOI (test B-03).",
+      methodeQualification: "Qualitative (test B-03).",
+    };
     const validProvenance = {
       resolverRuns: [{ provider: "anthropic", model: "m", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64, proposalCountRaw: 3, proposalCountStored: 3, technicalProposalLimit: 20, targetContextReport: [] }],
       plannerRun: { provider: "anthropic", model: "m", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64 },
+      // REMEDIATION R3 (M-02) : plannerOutput desormais requis par le
+      // mission-gate lui-meme (validateRealEForchProvenance), pas
+      // seulement par le builder — meme fonction de validation partagee.
+      plannerOutput: validPlannerOutput,
       humanValidation: { validatedAt: new Date().toISOString(), commentaire: "reel" },
       auditDecisions: { "s1": { acteur: "human", date: new Date().toISOString(), decision: "inclus", justification: "reel" } },
     };
@@ -213,6 +226,8 @@ function extractResultLine(stdout, marker) {
       { name: "auditDecisions vide", provenance: Object.assign({}, validProvenance, { auditDecisions: {} }) },
       { name: "auditDecisions acteur invalide", provenance: Object.assign({}, validProvenance, { auditDecisions: { s1: { acteur: "system", date: "x", decision: "inclus", justification: "x" } } }) },
       { name: "humanValidation absent", provenance: Object.assign({}, validProvenance, { humanValidation: undefined }) },
+      { name: "plannerOutput absent (planner causal output missing)", provenance: Object.assign({}, validProvenance, { plannerOutput: undefined }) },
+      { name: "plannerOutput incomplet (criteresInclusion manquant)", provenance: Object.assign({}, validProvenance, { plannerOutput: Object.assign({}, validPlannerOutput, { criteresInclusion: undefined }) }) },
     ];
     for (const variant of incompleteVariants) {
       const result = describeMissionGateStatus({ readyForExecution: true, dimensions: baseDims, eForchProvenance: variant.provenance });
@@ -294,15 +309,22 @@ function extractResultLine(stdout, marker) {
   }
 
   // =====================================================================
-  // M-02 — audit de derivation causale : humanValidation (corrige) +
-  // preuve VERIFIABLE que le contenu substantiel de SearchProtocol
-  // (disciplinesRetenues/sourcesActivees/requetesExactes/criteresInclusion/
-  // criteresExclusion/retrievalPolicies) reste MONO08_CONSTRUCTED, JAMAIS
-  // derive du contenu reel du plannerRun fourni — meme en mode REAL. Ceci
-  // n'est PAS corrige dans ce round (mandat R2, section 18 : hors
-  // perimetre obligatoire de PATCH) mais DOIT etre demontre pour piloter
-  // honnetement REAL_SMOKE_NEXT (voir AUDIT-REMEDIATION/13-R2-REMAINING-
-  // MAJORS.md).
+  // M-02 — SECTION HISTORIQUE R2, REINTERPRETEE R3 (jamais supprimee ni
+  // reecrite silencieusement — mandat R3, section 20/36 : "ne falsifie pas
+  // l'historique"). A r2, M02-01 prouvait qu'un plannerRun REEL a lui seul
+  // ne changeait JAMAIS le contenu substantiel de SearchProtocol — c'etait
+  // la preuve du defaut. En r3 (voir lib/eforch-artifacts.js,
+  // buildSearchProtocolFromPlannerOutput, et test_t08_r3_closure.js pour
+  // la preuve POSITIVE de derivation causale), le contenu substantiel est
+  // desormais reellement derive de provenance.plannerOutput — jamais de
+  // provenance.plannerRun (qui ne porte QUE la provenance de l'appel :
+  // provider/model/hash, jamais son contenu). Ce bloc re-verifie ici,
+  // avec le MEME plannerOutput fourni aux deux appels et SEUL le
+  // plannerRun (provenance) variant, que le contenu substantiel reste
+  // IDENTIQUE — ce qui est desormais un comportement CORRECT et ATTENDU
+  // (la provenance de l'appel n'est pas censee, a elle seule, changer le
+  // contenu ; c'est le contenu du plannerOutput qui doit le faire — voir
+  // M02-06..M02-10 de test_t08_r3_closure.js pour la preuve inverse).
   // =====================================================================
   {
     const { loadEForchDeps, buildConfirmedRunContractForMission, buildSearchProtocolForMission } = require("../lib/eforch-artifacts");
@@ -316,20 +338,29 @@ function extractResultLine(stdout, marker) {
     const disciplines = missionForM02.dimensions.map(function (d) { return d.id; });
 
     const HASH64M02 = "c".repeat(64);
+    const samePlannerOutput = {
+      sources: [{ connectorId: "openalex", label: "OpenAlex", justification: "Connecteur retenu (test M02, r3)." }],
+      queries: [{ discipline: "DIM_A", connectorId: "openalex", requete: "requete commune DIM_A (test M02, r3)", justification: "Justification commune (test M02, r3)." }],
+      retrieval: [{ connectorId: "openalex", sortMode: "relevance", pageSize: 25, maxPages: 1, maxResults: 5, stopCondition: "maxResults atteint", retryPolicy: "2 tentatives", rateLimitPolicy: "1000 req/s", budgetMax: "budget raisonnable" }],
+      criteresInclusion: ["Critere commun (test M02, r3)."],
+      criteresExclusion: ["Critere d'exclusion commun (test M02, r3)."],
+      regleDedoublonnage: "DOI (test M02, r3).",
+      methodeQualification: "Qualitative (test M02, r3).",
+    };
     // DEUX plannerRun REELS DELIBEREMENT DIFFERENTS (hash/provider/model
-    // distincts) — si le contenu substantiel du SearchProtocol etait
-    // reellement derive de la sortie du planner, deux appels reels
-    // distincts produiraient un SearchProtocol substantiellement
-    // different. S'il reste IDENTIQUE, c'est la preuve directe que ce
-    // contenu est MONO08_CONSTRUCTED, jamais LLM_DERIVED.
+    // distincts) mais LE MEME plannerOutput (contenu causal) — r3 :
+    // le contenu substantiel doit rester identique (il ne depend QUE du
+    // plannerOutput, jamais de la provenance de l'appel).
     const protocolA = await buildSearchProtocolForMission(deps, missionId, "m02a", disciplines, {
       mode: "REAL",
       plannerRun: { provider: "anthropic", model: "model-A", promptVersion: "vA", date: new Date().toISOString(), inputHash: HASH64M02, rawResponseHash: HASH64M02 },
+      plannerOutput: samePlannerOutput,
       humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Revue A." },
     });
     const protocolB = await buildSearchProtocolForMission(deps, missionId, "m02b", disciplines, {
       mode: "REAL",
       plannerRun: { provider: "openai-hypothetique", model: "model-B-totalement-different", promptVersion: "vB", date: new Date().toISOString(), inputHash: "d".repeat(64), rawResponseHash: "d".repeat(64) },
+      plannerOutput: samePlannerOutput,
       humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Revue B, texte totalement different." },
     });
     const substantiveFieldsIdentical = JSON.stringify(protocolA.sourcesActivees) === JSON.stringify(protocolB.sourcesActivees) &&
@@ -338,16 +369,16 @@ function extractResultLine(stdout, marker) {
       JSON.stringify(protocolA.criteresExclusion) === JSON.stringify(protocolB.criteresExclusion) &&
       JSON.stringify(protocolA.retrievalPolicies) === JSON.stringify(protocolB.retrievalPolicies);
     check(
-      "M02-01. PREUVE DE NON-CAUSALITE : le contenu substantiel de SearchProtocol (sourcesActivees/requetesExactes/criteresInclusion/criteresExclusion/retrievalPolicies) reste IDENTIQUE entre deux plannerRun REELS totalement differents — MONO08_CONSTRUCTED confirme, jamais LLM_DERIVED (voir 13-R2-REMAINING-MAJORS.md)",
+      "M02-01-R3. avec le MEME plannerOutput, seule la provenance (plannerRun) differant, le contenu substantiel de SearchProtocol reste IDENTIQUE (comportement CORRECT r3 — la provenance de l'appel ne doit jamais, a elle seule, changer le contenu ; voir test_t08_r3_closure.js pour la preuve que plannerOutput, lui, le fait reellement)",
       substantiveFieldsIdentical,
       "protocolA.sourcesActivees=" + JSON.stringify(protocolA.sourcesActivees)
     );
     check("M02-02. seul le champ plannerRuns[0] (provenance) differe reellement entre les deux appels", JSON.stringify(protocolA.plannerRuns[0].provider) !== JSON.stringify(protocolB.plannerRuns[0].provider));
 
-    // --- humanValidation : corrige, verifie ici ---
+    // --- humanValidation : corrige, verifie ici (plannerOutput valide fourni pour isoler l'erreur testee) ---
     let m02c = null;
     try {
-      await buildSearchProtocolForMission(deps, missionId, "m02c", disciplines, { mode: "REAL", plannerRun: { provider: "p", model: "m", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64M02, rawResponseHash: HASH64M02 } });
+      await buildSearchProtocolForMission(deps, missionId, "m02c", disciplines, { mode: "REAL", plannerRun: { provider: "p", model: "m", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64M02, rawResponseHash: HASH64M02 }, plannerOutput: samePlannerOutput });
     } catch (e) { m02c = e; }
     check("M02-03. SearchProtocol REAL exige desormais une humanValidation reelle (OPERATOR_INPUT_REQUIRED si absente, jamais 'Revu (MONO-08).' fabrique)", !!m02c && m02c.code === "OPERATOR_INPUT_REQUIRED" && /humanValidation/.test(m02c.message), m02c && m02c.message);
     check("M02-04. SearchProtocol REAL avec humanValidation reelle transporte le commentaire REELLEMENT fourni, jamais 'Revu (MONO-08).'", protocolA.humanValidation.commentaire === "Revue A." && protocolA.humanValidation.evidenceProvenance === "OPERATOR_ATTESTED_HUMAN_ACTION");

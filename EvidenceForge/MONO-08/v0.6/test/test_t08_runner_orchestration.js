@@ -77,6 +77,18 @@ function check(name, cond, detail) { results.push({ name: name, pass: !!cond, de
       eForchProvenance: {
         resolverRuns: [{ provider: "anthropic", model: "claude-sonnet-5", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64, proposalCountRaw: 3, proposalCountStored: 3, technicalProposalLimit: 20, targetContextReport: [] }],
         plannerRun: { provider: "anthropic", model: "claude-sonnet-5", promptVersion: "v", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64 },
+        // REMEDIATION R3 (M-02) : plannerOutput desormais requis par
+        // validateRealEForchProvenance() (mission-gate) en plus de
+        // plannerRun — memes disciplines que mission.dimensions ("DIM_A").
+        plannerOutput: {
+          sources: [{ connectorId: "openalex", label: "OpenAlex", justification: "Connecteur retenu par le planificateur (test)." }],
+          queries: [{ discipline: "DIM_A", connectorId: "openalex", requete: "requete reelle DIM_A (test)", justification: "Justification reelle DIM_A (test)." }],
+          retrieval: [{ connectorId: "openalex", sortMode: "relevance", pageSize: 25, maxPages: 1, maxResults: 5, stopCondition: "maxResults atteint", retryPolicy: "2 tentatives", rateLimitPolicy: "1000 req/s", budgetMax: "budget raisonnable" }],
+          criteresInclusion: ["Critere d'inclusion reel (test)."],
+          criteresExclusion: ["Critere d'exclusion reel (test)."],
+          regleDedoublonnage: "DOI (test).",
+          methodeQualification: "Qualitative (test).",
+        },
         humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Protocole de recherche reellement revu (test)." },
         auditDecisions: { "source-1": { acteur: "human", date: new Date().toISOString(), decision: "inclus", justification: "Decision humaine reelle (test)." } },
       },

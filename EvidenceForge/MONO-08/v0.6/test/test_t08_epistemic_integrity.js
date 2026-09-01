@@ -51,6 +51,19 @@ function realProvenanceFixture() {
       proposalCountRaw: 3, proposalCountStored: 3, technicalProposalLimit: 20, technicalLimitApplied: false, targetContextReport: [],
     }],
     plannerRun: { provider: "anthropic", model: "claude-sonnet-5", promptVersion: "EF01C1-search-planner-v2-compact", date: new Date().toISOString(), inputHash: HASH64, rawResponseHash: HASH64 },
+    // REMEDIATION R3 (M-02) : plannerOutput (contenu CAUSAL reellement
+    // decide par le planificateur) desormais exige explicitement en mode
+    // REAL, distinct de plannerRun (provenance de l'appel uniquement) —
+    // jamais un repli sur l'ancien gabarit fixe MONO-08.
+    plannerOutput: {
+      sources: [{ connectorId: "openalex", label: "OpenAlex", justification: "Connecteur retenu par le planificateur (test T-NEW)." }],
+      queries: [{ discipline: "DIM_A", connectorId: "openalex", requete: "requete reelle DIM_A (test T-NEW)", justification: "Justification reelle DIM_A (test T-NEW)." }],
+      retrieval: [{ connectorId: "openalex", sortMode: "relevance", pageSize: 25, maxPages: 1, maxResults: 5, stopCondition: "maxResults atteint", retryPolicy: "2 tentatives", rateLimitPolicy: "1000 req/s", budgetMax: "budget raisonnable" }],
+      criteresInclusion: ["Critere d'inclusion reel (test T-NEW)."],
+      criteresExclusion: ["Critere d'exclusion reel (test T-NEW)."],
+      regleDedoublonnage: "DOI (test T-NEW).",
+      methodeQualification: "Qualitative (test T-NEW).",
+    },
     // REMEDIATION R2 (M-02) : humanValidation desormais exige explicitement
     // en mode REAL (jamais "Revu (MONO-08)." fabrique par defaut).
     humanValidation: { validatedAt: new Date().toISOString(), commentaire: "Protocole de recherche reellement revu par l'operateur (test T-NEW)." },
