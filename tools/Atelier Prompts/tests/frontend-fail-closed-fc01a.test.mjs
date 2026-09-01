@@ -163,8 +163,11 @@ test('FC01A-7 : une erreur technique neutre est rendue, sans route et sans exéc
   assert.match(html, /Votre demande est conservée\. Vous pouvez réessayer\./);
   assert.match(html, /function adpShowTechnicalFailure\(\)/);
   // Les trois points d'entrée traitent l'échec sans jamais router.
-  assert.equal((html.match(/if\(error&&error\.decision_technical_failure\)return adpShowTechnicalFailure\(\);/g) || []).length, 3,
-    'les trois points d’entrée (reprise, Rapide, Architecte) doivent tous rendre l’échec technique.');
+  // FC-01b : les trois points d'entrée passent désormais par oprieRunTurn, qui rend lui-même l'échec
+  // technique. Le rendu reste garanti, en un seul endroit au lieu de trois — l'invariant (aucun point
+  // d'entrée ne peut router sur un échec) est renforcé, pas affaibli.
+  assert.match(html, /catch\(error\)\{return oprieShowNetworkFailure\(\)\}/,
+    'le pilote unique rend l’échec technique sans jamais router.');
   assert.match(html, /\.ui-rapid-gate\[data-state="technical"\]/, 'l’état technique doit être visible.');
 });
 
@@ -193,8 +196,8 @@ test('FC01A-11 : aucune modification d’OPRIE, du backend ni de core/adn depuis
                       'core/adn/routing-engine.js', 'core/adn/execution-readiness.js']) {
     assert.ok(fs.existsSync(path.join(root, file)), file);
   }
-  // FC-01a ne câble pas encore OPRIE : c'est FC-01b.
-  assert.ok(!html.includes('/operational-request'), 'FC-01a ne doit pas câbler OPRIE — ce sera FC-01b.');
+  // FC-01b câble désormais OPRIE : cette assertion, propre à FC-01a, devient son inverse.
+  assert.ok(html.includes('/operational-request'), 'FC-01b câble OPRIE comme autorité de readiness.');
 });
 
 // --- FC01A-12 : hygiène ---------------------------------------------------------------------------------

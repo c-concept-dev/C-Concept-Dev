@@ -109,14 +109,15 @@ test('la fenêtre de clarification est modale, responsive et non technique',()=>
 
 test('la clarification conserve demande, réponses et documents sans plafond arbitraire',()=>{
   const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
+  // FC-01b : la clarification conserve toujours demande, réponses et documents, et reste sans plafond.
+  // Les ancrages suivent le nouveau pilote : la réponse alimente clarification_history au lieu d'être
+  // concaténée dans la demande, et c'est OPRIE qui décide de reposer une question.
   assert.match(html,/state\.answers\.push\(\{question:\$\('#v11-question'\)\.textContent,answer\}\)/);
-  assert.match(html,/syncLegacy\(\);\s*adpResumeAfterClarification\(\)/);
-  assert.match(section,/const demande=compositeDemand\(\),materiau=materialText\(\)/);
+  assert.match(html,/oprieRunTurn\(adpState\.requestedMode\|\|'rapide'\)/);
   assert.doesNotMatch(section,/adpState\.clarifications\s*<\s*\d+/);
-  assert.match(section,/adpState\.clarifications\+=1/);
-  assert.match(section,/materiau_present:state\.docs\.length>0\|\|/);
+  assert.match(html,/adpState\.clarifications\+=1/);
   assert.match(html,/Le document demandé est joint/);
-  assert.match(section,/orientation\.action\.state==='clarification_required'/);
+  assert.match(html,/turn\.state==='clarification_required'/);
   assert.match(section,/function adpRunRapide\([^)]*\)\{\s*adpState\.pendingQuestion=false;show\(null\)/);
 });
 

@@ -849,6 +849,8 @@ body[data-espace="debutant"] .avance-seulement{display:none}
 
 .ui-rapid-gate[data-state="thinking"]{background:#F6EBDD;border-color:#C89A5A;color:#7A5A32}
 .ui-rapid-gate[data-state="technical"]{background:#F1ECE6;border-color:#A79684;color:#5C5044}
+.ui-rapid-gate[data-state="degraded"]{background:#F1ECE6;border-color:#A79684;color:#5C5044}
+.ui-rapid-gate[data-state="confirmation"]{background:#F6EBDD;border-color:#C89A5A;color:#7A5A32}
 .ui-rapid-gate .adp-meta{font-size:.78rem;opacity:.82;margin-top:2px}
 .v11-clarification-modal{position:fixed;inset:0;z-index:10000;margin:0;padding:24px;display:grid;place-items:center;background:rgba(45,42,39,.52);backdrop-filter:blur(3px)}
 .v11-clarification-modal[hidden]{display:none!important}
@@ -1469,6 +1471,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
 
   <meta name="atelier-decision-workers-ai" content="https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision">
   <meta name="atelier-decision-groq" content="https://atelier-decision-groq.11drumboy11.workers.dev/decision">
+  <meta name="atelier-operational-request" content="https://atelier-decision-groq.11drumboy11.workers.dev/operational-request">
 </head>
 
 
@@ -9847,7 +9850,9 @@ function answerQuestion(answer){
   if(adpState&&adpState.pendingQuestion){
     adpState.pendingQuestion=false;
     syncLegacy();
-    adpResumeAfterClarification();
+    // FC-01b : la réponse vient d'entrer dans state.answers, donc dans clarification_history.
+    // Le tour suivant est un nouvel appel OPRIE complet — jamais une décision locale.
+    oprieRunTurn(adpState.requestedMode||'rapide');
     return;
   }
   syncLegacy();beginExchange();
@@ -11769,6 +11774,161 @@ function v11ShowRapidGate(decision){
   if(title)title.textContent=decision.title||'';
   if(txt)txt.textContent=decision.text||'';
 }
+/* =================================================================================================
+ * FC-01b — INTÉGRATION OPRIE : le backend canonique devient l'UNIQUE autorité de readiness.
+ *
+ * Avant ce lot, la readiness du frontend venait des Decision Providers navigateur (Workers AI puis
+ * Groq). Désormais elle vient exclusivement de POST /operational-request, qui enchaîne côté serveur
+ * Analyste → Critique → Arbitre et retourne un état OPRIE canonique.
+ *
+ * SÉPARATION DES RESPONSABILITÉS, volontaire et stricte :
+ *   - OPRIE décide si la demande est PRÊTE ;
+ *   - le MODE choisi par l'utilisateur (Rapide / Architecte) décide du moteur d'EXÉCUTION ;
+ *   - l'exécution du livrable reste le moteur Anthropic navigateur (BYO-key), inchangé.
+ * Un mode n'est jamais une readiness, et une readiness n'est jamais un mode.
+ *
+ * L'adaptateur ci-dessous ne produit AUCUNE sémantique : il envoie la demande et son historique,
+ * vérifie que la réponse porte un état de l'énumération canonique, et la transmet telle quelle. Il
+ * ne fabrique jamais d'état, ne réinterprète jamais celui reçu, et ne choisit aucun fournisseur.
+ * ================================================================================================= */
+const OPRIE_STATES=Object.freeze(['clarification_required','confirmation_required','operational_request_ready','blocked','degraded_state']);
+const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-request"]')||{}).content||'';
+const oprieState={seq:0,controller:null,running:false,lastTurn:null,requestedMode:'rapide'};
+
+function oprieTechnicalFailure(){
+  return Object.assign(new Error('OPERATIONAL_REQUEST_TECHNICAL_FAILURE'),{operational_request_technical_failure:true});
+}
+
+/* original_request est TOUJOURS la demande brute saisie : jamais la demande enrichie des réponses
+   (compositeDemand), qui concatène destructivement. Les réponses vivent uniquement dans
+   clarification_history, sous la forme canonique {turn, question, answer, provenance}. */
+function oprieOriginalRequest(){return String(($('#v11-demande')||{}).value||'').trim()}
+function oprieClarificationHistory(){
+  const turns=[];
+  for(const entry of state.answers){
+    const question=String(entry&&entry.question||'').trim(),answer=String(entry&&entry.answer||'').trim();
+    if(!question||!answer)continue;
+    turns.push({turn:turns.length+1,question,answer,provenance:'user'});
+  }
+  return turns;
+}
+
+/* Adaptateur : un appel = un tour. Une requête active au maximum ; toute réponse dont le numéro de
+   séquence n'est plus le courant est ignorée (jamais appliquée par-dessus un état plus récent). */
+async function oprieRequestTurn(){
+  if(!OPRIE_ENDPOINT)throw oprieTechnicalFailure();
+  const seq=++oprieState.seq;
+  if(oprieState.controller)oprieState.controller.abort();
+  const controller=new AbortController();oprieState.controller=controller;
+  const body={original_request:oprieOriginalRequest(),clarification_history:oprieClarificationHistory()};
+  let response;
+  try{
+    response=await fetch(OPRIE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body),signal:controller.signal,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
+  }catch(error){
+    if(seq!==oprieState.seq)return null;
+    throw oprieTechnicalFailure();
+  }
+  if(seq!==oprieState.seq)return null;
+  if(!response.ok)throw oprieTechnicalFailure();
+  let turn=null;
+  try{turn=await response.json()}catch(error){throw oprieTechnicalFailure()}
+  if(seq!==oprieState.seq)return null;
+  if(!turn||typeof turn!=='object'||Array.isArray(turn)||!OPRIE_STATES.includes(turn.state))throw oprieTechnicalFailure();
+  return turn;
+}
+
+function oprieSetBusy(busy){
+  for(const id of ['#v11-go-rapide','#v11-go-architecte','#v11-answer-continue']){
+    const el=$(id);if(el)el.disabled=!!busy;
+  }
+}
+function oprieShowAnalysing(){v11ShowRapidGate({state:'thinking',title:'Analyse de votre demande…',text:'Votre demande est en cours d’analyse.'})}
+function oprieShowBlocked(turn){
+  adpState.pendingQuestion=false;show(null);
+  v11ShowRapidGate({state:'blocked',title:'La demande ne peut pas être préparée',text:String(turn&&turn.blocked_reason||'')||'Une nouvelle information est nécessaire avant de poursuivre.'});
+  return false;
+}
+/* Le message de dégradation ne nomme aucun fournisseur, aucune classe d'échec, aucun délai : le
+   frontend n'en sait rien et n'a pas à en savoir. */
+function oprieShowDegraded(){
+  adpState.pendingQuestion=false;show(null);
+  v11ShowRapidGate({state:'degraded',title:'Analyse temporairement indisponible',text:'L’analyse de votre demande est temporairement indisponible. Votre demande est conservée. Vous pouvez réessayer.'});
+  return false;
+}
+function oprieShowNetworkFailure(){
+  adpState.pendingQuestion=false;show(null);
+  v11ShowRapidGate(ADP_TECHNICAL_FAILURE_UI);
+  return false;
+}
+/* Clarification et confirmation réutilisent la même modale que le parcours historique : une seule
+   sollicitation à la fois, et la réponse repart dans clarification_history au tour suivant. */
+function oprieAsk(question,intro,chips){
+  // Le bandeau d'analyse est effacé avant d'ouvrir la modale : sans cela il continuerait d'annoncer
+  // « Analyse de votre demande… » derrière une question déjà posée. Défaut révélé au test navigateur.
+  v11ShowRapidGate(null);
+  adpState.pendingQuestion=true;adpState.returnFocus=document.activeElement;
+  $('#v11-question').textContent=question;
+  $('#v11-answer').value='';
+  const why=$('#v11-why');if(why)why.textContent=intro;
+  const box=$('#v11-chips');box.innerHTML='';
+  for(const label of chips){
+    const b=document.createElement('button');b.type='button';b.className='v11-chip';b.textContent=label;
+    b.addEventListener('click',()=>{$('#v11-answer').value=label});box.appendChild(b);
+  }
+  show('#v11-dialogue','#v11-answer');
+  return false;
+}
+function oprieShowClarification(turn){
+  const question=String(turn&&turn.next_question&&turn.next_question.text||'').trim();
+  if(!question)return oprieShowNetworkFailure();
+  // Compteur d'audit conservé : il mesure les clarifications posées, sans jamais les plafonner.
+  // C'est OPRIE qui décide de continuer à questionner, jamais un seuil frontend.
+  adpState.clarifications+=1;
+  return oprieAsk(question,'Votre réponse sera ajoutée à l’historique de clarification, sans modifier votre demande initiale.',['Je ne sais pas','À vous de choisir']);
+}
+function oprieShowConfirmation(turn){
+  const reason=String(turn&&turn.confirmation_reason||'').trim()||'Des arbitrages ont été faits sur votre demande.';
+  return oprieAsk(reason+' Confirmez-vous ?','Votre réponse sera ajoutée à l’historique. Rien n’est exécuté tant que vous n’avez pas confirmé.',['Je confirme','Je ne confirme pas']);
+}
+/* SEUL operational_request_ready ouvre la suite : routing, puis Execution Readiness, puis exécution.
+   La route vient du MODE choisi par l'utilisateur, jamais d'un fournisseur. */
+function oprieEnterExecution(turn,requestedMode){
+  const demande=oprieOriginalRequest(),materiau=materialText();
+  const route=requestedMode==='architecte'?'architecte':'rapide';
+  const orientation={source:'oprie',route,oprie:turn,envelope:null,semantic:null,providerResult:null,action:null,
+    decision:route==='architecte'
+      ?{state:'architecte',title:'Préparation approfondie',text:'Votre demande est prête ; elle va être structurée.'}
+      :{state:'ready',title:'Demande prête',text:'Votre demande est prête à être préparée directement.'}};
+  adpState.pendingQuestion=false;
+  return route==='rapide'?adpRunRapide(demande,materiau,orientation):adpEnterArchitecte(demande,materiau,orientation);
+}
+function oprieApplyTurn(turn,requestedMode){
+  oprieState.lastTurn=turn;
+  if(turn.state==='clarification_required')return oprieShowClarification(turn);
+  if(turn.state==='confirmation_required')return oprieShowConfirmation(turn);
+  if(turn.state==='blocked')return oprieShowBlocked(turn);
+  if(turn.state==='degraded_state')return oprieShowDegraded();
+  if(turn.state==='operational_request_ready')return oprieEnterExecution(turn,requestedMode);
+  // Défaut FAIL-CLOSED, jamais l'exécution : un état hors énumération est déjà refusé par
+  // l'adaptateur, mais laisser l'exécution en cas par défaut ferait de toute extension future de
+  // l'énumération OPRIE un fail-open silencieux. L'exécution n'est atteinte que nommément.
+  return oprieShowNetworkFailure();
+}
+/* Un clic = un tour. oprieState.running interdit toute requête concurrente ; les boutons sont
+   désactivés pendant l'appel. Aucun timeout arbitraire : le pipeline serveur peut durer. */
+async function oprieRunTurn(requestedMode){
+  if(oprieState.running)return false;
+  oprieState.running=true;oprieState.requestedMode=requestedMode;adpState.requestedMode=requestedMode;
+  oprieSetBusy(true);oprieShowAnalysing();
+  let turn=null;
+  try{turn=await oprieRequestTurn()}
+  catch(error){return oprieShowNetworkFailure()}
+  finally{oprieState.running=false;oprieSetBusy(false)}
+  if(turn===null)return false;
+  return oprieApplyTurn(turn,requestedMode);
+}
+
 /* FC-01a : rendu de l'echec technique. Neutre par construction — il ne nomme aucun fournisseur,
    aucun statut HTTP, aucune cause supposee, et n'invente rien. La demande saisie n'est jamais
    touchee : l'utilisateur peut simplement relancer. */
@@ -11861,48 +12021,20 @@ function adpRunRapide(demande,materiau,orientation){
   if(box){box.hidden=false;box.scrollIntoView({behavior:'smooth',block:'nearest'});}
   return true;
 }
+/* FC-01b : la reprise après clarification rejoue un tour OPRIE complet avec l'historique enrichi.
+   original_request n'est jamais réécrit : seule clarification_history grandit. */
 async function adpResumeAfterClarification(){
-  if(adpState.running)return false;adpState.running=true;
-  try{
-    const demande=compositeDemand(),materiau=materialText();
-    let orientation;
-    try{orientation=await adpDecideRapide(demande,materiau,adpState.requestedMode)}
-    catch(error){if(error&&error.decision_technical_failure)return adpShowTechnicalFailure();throw error}
-    if(orientation.action.state==='clarification_required'){
-      adpState.clarifications+=1;adpShowQuestion(orientation.action);return false;
-    }
-    if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
-    if(orientation.route==='rapide')return adpRunRapide(demande,materiau,orientation);
-    return adpEnterArchitecte(demande,materiau,orientation);
-  }finally{adpState.running=false}
+  return oprieRunTurn(adpState.requestedMode||'rapide');
 }
 async function v11StartRapide(){
   const d=v11RequireDemand();if(!d)return false;
-  const mat=materialText();
-  if(adpState.running)return false;adpState.running=true;
-  try{
-    adpState.requestedMode='rapide';
-    let orientation;
-    try{orientation=await adpDecideRapide(d,mat,'rapide')}
-    catch(error){if(error&&error.decision_technical_failure)return adpShowTechnicalFailure();throw error}
-    if(orientation.action.state==='clarification_required'){adpState.clarifications=1;adpShowQuestion(orientation.action);return false;}
-    if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
-    if(orientation.route==='architecte')return adpEnterArchitecte(d,mat,orientation);
-    return adpRunRapide(d,mat,orientation);
-  }finally{adpState.running=false}
+  adpState.clarifications=0;
+  return oprieRunTurn('rapide');
 }
 async function v11StartArchitecte(){
   const d=v11RequireDemand();if(!d)return false;
-  const mat=materialText();if(adpState.running)return false;adpState.running=true;
-  try{
-    adpState.requestedMode='architecte';
-    let orientation;
-    try{orientation=await adpDecideRapide(compositeDemand(),mat,'architecte')}
-    catch(error){if(error&&error.decision_technical_failure)return adpShowTechnicalFailure();throw error}
-    if(orientation.action.state==='clarification_required'){adpState.clarifications=1;adpShowQuestion(orientation.action);return false;}
-    if(orientation.action.state==='blocked')return adpShowBlocked(orientation.action);
-    return adpEnterArchitecte(compositeDemand(),mat,orientation);
-  }finally{adpState.running=false}
+  adpState.clarifications=0;
+  return oprieRunTurn('architecte');
 }
 function v11StartAtelier(){
   const d=v11RequireDemand();if(!d)return false;

@@ -54,12 +54,16 @@ test("les deux chemins Architecte refusent de compiler avant execution_ready", (
 });
 
 test("le dialogue adaptatif n'a plus de plafond numérique de clarifications", () => {
+  // FC-01b : l'absence de plafond reste vérifiée, et le compteur d'audit est conservé — il vit
+  // désormais là où la clarification est réellement affichée, pas dans la reprise.
   const section = html.slice(
     html.indexOf("async function adpResumeAfterClarification"),
     html.indexOf("async function v11StartRapide")
   );
   assert.doesNotMatch(section, /clarifications\s*<\s*\d+/);
-  assert.match(section, /clarifications\+=1/);
+  const pilot = html.slice(html.indexOf("const OPRIE_STATES="), html.indexOf("function adpShowThinking"));
+  assert.doesNotMatch(pilot, /clarifications\s*<\s*\d+/, "aucun plafond numérique de clarifications.");
+  assert.match(pilot, /adpState\.clarifications\+=1/, "le compteur d'audit est conservé.");
 });
 
 test("le parcours normal API utilise un wrapper readiness sans modifier le moteur Architecte gelé", () => {
