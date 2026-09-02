@@ -582,3 +582,35 @@ test('T-QG01-53 aucune trace n’invente de sémantique', () => {
   const connues = new Set(runtime.collectCanonicalRequirements(nominal.canonical.contract).map((r) => r.key));
   for (const e of nominal.trace.entries) assert.ok(connues.has(e.key), `clé inconnue : ${e.key}`);
 });
+
+/* ======================================================================== *
+ * §31 — SENTINELLES ARCHITECTE COMPLÉMENTAIRES
+ *
+ * La fixture nominale ne porte ni quantité ni obligation : ces deux familles
+ * seraient restées non éprouvées côté Architecte. Elles sont donc exercées ici
+ * explicitement, plutôt que réputées couvertes.
+ * ======================================================================== */
+
+test('T-QG01-54 sentinelle Architecte : la quantité est projetée et tracée', () => {
+  const a = analyseFixture();
+  a.livrable.quantites = { min: 3, max: 5, unite: 'éléments' };
+  const { prompt, trace, contrat } = architecte({ analyse: a });
+  assert.ok(prompt.length > 0, 'ARCHITECTE_SENTINEL_FAILURES = 0');
+  assert.deepEqual({ min: contrat.quantities[0].min, max: contrat.quantities[0].max }, { min: 3, max: 5 });
+  const entree = trace.entries.find((e) => e.key === 'quantity');
+  assert.ok(entree, 'la quantité figure dans la trace native');
+  assert.deepEqual({ min: entree.value.min, max: entree.value.max }, { min: 3, max: 5 });
+  assert.ok(prompt.includes('- Quantité : minimum 3 ; maximum 5 éléments'));
+});
+
+test('T-QG01-55 sentinelle Architecte : les obligations sont projetées et tracées', () => {
+  const a = analyseFixture();
+  a.verification.criteres_bloquants = ['Le livrable doit citer ses sources.'];
+  const { prompt, trace } = architecte({ analyse: a });
+  assert.ok(prompt.includes('## OBLIGATIONS À RESPECTER'), 'les obligations atteignent le prompt');
+  const obligations = trace.entries.filter((e) => e.key.startsWith('obligation:'));
+  assert.equal(obligations.length, 1, 'chaque obligation reçoit une entrée propre');
+  assert.equal(obligations[0].canonical_path.startsWith('obligations['), true);
+  /* Le contrôle bloquant dont elle est promue est tracé lui aussi. */
+  assert.ok(trace.entries.some((e) => e.key.startsWith('check:')), 'le contrôle bloquant est tracé');
+});
