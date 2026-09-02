@@ -269,6 +269,18 @@ export function enrichRapidCanonicalContract(canonicalBase, {
         id: 'rapide-check-quantity', type: 'deterministic', target: 'deliverable',
         rule: projected.exact !== null && projected.exact !== undefined ? rule : `Le livrable doit comporter ${rule} éléments.`,
         blocking: true, source: 'derived_deterministic',
+        /* ADN-QG-02B — le contrôle porte sa MESURE, et cette mesure est
+           RECOPIÉE du contrat : rien n'est inventé ici pour rendre un contrôle
+           exécutable. Sans quantité canonique, ce contrôle n'existe pas. */
+        measure: {
+          unit: 'items',
+          exact: projected.exact !== null && projected.exact !== undefined ? projected.exact : null,
+          min: projected.min !== null && projected.min !== undefined ? projected.min : null,
+          max: projected.max !== null && projected.max !== undefined ? projected.max : null
+        },
+        /* La quantité est déjà vérifiée nativement à partir de `quantities[0]` :
+           le contrôle la redit, il ne la recompte pas. */
+        verifies: 'quantities[0]',
         rapide_source_field: 'quantities[0]', obligation_ids: []
       });
     }
@@ -278,6 +290,9 @@ export function enrichRapidCanonicalContract(canonicalBase, {
       id: 'rapide-check-format', type: 'deterministic', target: 'deliverable',
       rule: `Le livrable doit respecter le format ${contract.output.format}.`,
       blocking: true, source: 'derived_deterministic',
+      /* Le format est vérifié nativement contre la forme structurelle que la
+         table des formats déclare. Ce contrôle la redit sans la recompter. */
+      verifies: 'output.format',
       rapide_source_field: 'output.format', obligation_ids: []
     });
   }

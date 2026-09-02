@@ -96,14 +96,30 @@ const modules = [
     exports: ['RAPIDE_ENRICHMENT_VERSION','RAPIDE_ENRICHABLE_PATHS','RAPIDE_SIGNALS','RAPIDE_SIGNAL_IDS','normalizeRequestText','deriveQuantityFromRequest','deriveFormatFromRequest','enrichRapidCanonicalContract','validateRapidCanonicalEnrichment','createRapidEnrichmentAuditView'],
     deps: ['ARCHENRICH']
   },
-  /* ADN-QG-01 — LE GATE CONTRACTUEL EST EMBARQUÉ.
+  /* ADN-QG-02B — LE MOTEUR DE CONFORMITÉ DE SORTIE EST EMBARQUÉ.
+   * Il est indépendant du gate contractuel : les deux frontières restent
+   * distinctes, avant et après l'exécution. */
+  {
+    file: 'output-compliance-gate.js',
+    name: 'OUTPUTQG',
+    exports: ['OUTPUT_COMPLIANCE_GATE_VERSION','OUTPUT_COMPLIANCE_GATE_PRODUCTION_ACTIVE','OUTPUT_GATE_STATUSES','OUTPUT_VIOLATION_CODES','VERIFIABILITY_LEVELS','CHECK_STATUSES','MEASURABLE_UNITS','OUTPUT_TRACE_FORBIDDEN_FIELDS','normalizeOutput','countStructuralItems','detectStructuralFormat','measureOutput','executeOutputChecks','validateOutputAgainstCanonicalContract','auditOutputTrace']
+  },
+  /* ADN-QG-02B — le prototype de conformité de sortie que QG-00 avait laissé
+   * dans ce module n'est PAS exposé au navigateur : il porte le même nom que le
+   * moteur QG-02A et l'écrasait dans l'agrégat, si bien que le chemin Rapide
+   * appelait le prototype sans que rien ne le signale. Le fichier source n'est
+   * pas modifié — ses tests continuent de l'importer directement — mais le
+   * runtime n'expose qu'une seule implémentation de conformité de sortie.
+   * L'unification des deux appartient à QG-02D.
+   *
+   * ADN-QG-01 — LE GATE CONTRACTUEL EST EMBARQUÉ.
    * Une seule implémentation existe et elle est partagée : Rapide et Architecte
    * appellent la même fonction. Embarquer le module est ce qui rend ce partage
    * possible sans en recopier la moindre règle dans le navigateur. */
   {
     file: 'prompt-contract-gate.js',
     name: 'QG',
-    exports: ['PROMPT_CONTRACT_GATE_VERSION','PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE','GATE_STATUSES','GATE_MODES','REQUIREMENT_STATUSES','VIOLATION_CODES','OUTPUT_VIOLATION_CODES','OUTPUT_GATE_STATUSES','TRACE_FORBIDDEN_FIELDS','collectCanonicalRequirements','buildProjectionTrace','auditProjectionTrace','validatePromptAgainstCanonicalContract','validateOutputAgainstCanonicalContract','guardPromptContract','PROMPT_CONTRACT_PUBLIC_MESSAGES','selectTraceEntriesForContract']
+    exports: ['PROMPT_CONTRACT_GATE_VERSION','PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE','GATE_STATUSES','GATE_MODES','REQUIREMENT_STATUSES','VIOLATION_CODES','OUTPUT_VIOLATION_CODES','OUTPUT_GATE_STATUSES','TRACE_FORBIDDEN_FIELDS','collectCanonicalRequirements','buildProjectionTrace','auditProjectionTrace','validatePromptAgainstCanonicalContract','guardPromptContract','PROMPT_CONTRACT_PUBLIC_MESSAGES','selectTraceEntriesForContract']
   },
   {
     file: 'oprie-manual-roundtrip.js',
