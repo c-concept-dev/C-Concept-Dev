@@ -1,4 +1,5 @@
 import { buildAdnState, adnStateToExecutionContractSnapshot } from './adn-state.js';
+import { canonicalBaseToEnvelopeInput, assertCanonicalReadinessInvariant } from './oprie-canonical-mapping.js';
 import { selectAdaptiveLocks, validateAdaptiveLockSelection } from './adaptive-lock-selector.js';
 import { routeExecution, validateRoutingDecision } from './routing-engine.js';
 import { contractForContractualization } from './execution-readiness.js';
@@ -58,10 +59,31 @@ function fallbackDecision(providerResult) {
   };
 }
 
+/* CORRECTION-ADN-CANON-01-01 — L'ENVELOPPE CONSOMME LA BASE CANONIQUE.
+ *
+ *   CANONICAL BASE CONTRACT  sémantique pure, sans mode ni routing
+ *   EXECUTION ENVELOPE       cette fonction : base + decision + routing + locks
+ *                            + execution_policy + ethics + adn_summary
+ *
+ * Quand `canonical_base` est fourni, TOUTES les entrées sémantiques en sont
+ * dérivées par l'unique projection `canonicalBaseToEnvelopeInput()`. Aucune
+ * seconde sémantique n'est reconstruite ici. Sans `canonical_base`, la signature
+ * historique reste opérante à l'identique — la migration des appelants relève
+ * d'ADN-CANON-02. */
 export function buildExecutionEnvelope({
   request,
   material = '',
   provider_result = null,
+  canonical_base = null,
+  /* ADN-RAPIDE-FEED-00 — ALIMENTATION SANS MIGRATION.
+   * `true` (défaut, comportement inchangé) : la base canonique est la source des
+   * entrées sémantiques de l'état ADN.
+   * `false` : la base est ATTACHÉE et gouverne la READINESS, mais les entrées
+   * sémantiques restent celles de l'appelant. C'est le palier transitoire du
+   * chemin Rapide : la base y devient disponible et la promotion y devient
+   * impossible, AVANT que ADN-RAPIDE-01 ne migre la projection elle-même.
+   * Dans les deux cas la readiness vient de la base, jamais d'un repli. */
+  canonical_semantics = true,
   intent = {},
   evidence = {},
   executability = {},
@@ -74,11 +96,48 @@ export function buildExecutionEnvelope({
   semantic_lock_signals = [],
   preparation_signals = []
 } = {}) {
+  /* ADN-CANON-02 — AUCUNE PERTE SÉMANTIQUE.
+   * Les normaliseurs du moteur ADN ne savent porter qu'un sous-ensemble de la
+   * base (chaînes, sans provenance). Faire transiter TOUTE la base par eux
+   * perdrait secondary_objectives, priorities, preferences, delegated_decisions,
+   * remaining_unknowns, la liste external_facts et oprie_state — sept pertes
+   * sémantiques. L'enveloppe ATTACHE donc la base verbatim, en plus de la
+   * projeter vers l'état ADN : la base reste intégralement lisible en aval.
+   * C'est la traduction littérale de « enveloppe = base + couches aval ». */
+  const attachedBase = canonical_base !== null ? clone(canonical_base) : null;
+
+  if (canonical_base !== null) {
+    /* La DEMANDE ORIGINALE vient toujours de la base, même en simple
+       alimentation : elle est l'identité de la demande, pas un détail de
+       projection, et aucun appelant ne peut la réécrire. */
+    request = attachedBase.original_request;
+  }
+  if (canonical_base !== null && canonical_semantics !== false) {
+    const projected = canonicalBaseToEnvelopeInput(canonical_base);
+    request = projected.request;
+    intent = projected.intent;
+    evidence = projected.evidence;
+    executability = projected.executability;
+    assumptions = projected.assumptions;
+    obligations = projected.obligations;
+    quantities = projected.quantities;
+    output = projected.output;
+    checks = projected.checks;
+    semantic_lock_signals = projected.semantic_lock_signals;
+  }
+
   const originalRequest = text(request);
   if (!originalRequest) throw new TypeError('Une demande est requise pour construire l’enveloppe d’exécution.');
 
   const provider = normalizeProvider(provider_result);
-  const decisionForState = provider.available ? provider.decision : fallbackDecision(provider_result);
+  /* CORRECTION-ADN-CANON-02-01 — GARDE CENTRALE.
+   * Avec une base canonique, la readiness vient d'elle et d'elle seule. Le
+   * repli fallbackDecision() — qui promeut en `exploitable` + route `rapide` —
+   * est structurellement hors d'atteinte sur ce chemin. Toute contradiction
+   * d'un appelant échoue fermé, dans les deux sens. */
+  const decisionForState = attachedBase !== null
+    ? assertCanonicalReadinessInvariant(attachedBase, provider_result)
+    : (provider.available ? provider.decision : fallbackDecision(provider_result));
 
   const state = buildAdnState({
     demande: originalRequest,
@@ -145,7 +204,11 @@ export function buildExecutionEnvelope({
     state,
     locks,
     routing,
-    contract
+    contract,
+    /* La base canonique voyage intacte : l'enveloppe est « base + couches aval »,
+       jamais une réduction de la base. `null` quand l'appelant n'en fournit pas
+       (chemins legacy transitoires). */
+    canonical_base: attachedBase
   });
 }
 
