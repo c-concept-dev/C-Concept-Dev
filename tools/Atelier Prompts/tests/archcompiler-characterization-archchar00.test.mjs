@@ -462,7 +462,7 @@ test('T-ARCHCHAR-11b [CARACTÉRISATION] sans connaissance externe, aucune sectio
   assert.equal(hasSection(compileWith({ demande: DEMANDE }).prompt, 'RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES'), false);
 });
 
-test('T-ARCHCHAR-11c [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] verification.controle_provenance est produit et validé, mais n’atteint jamais le prompt', () => {
+test('T-ARCHCHAR-11c [ANOMALIE FERMÉE PAR ADN-QG-01] verification.controle_provenance atteint le prompt, avec son statut intact', () => {
   const sans = compileWith({ demande: DEMANDE }).prompt;
 
   const avec = analyseFixture();
@@ -473,8 +473,17 @@ test('T-ARCHCHAR-11c [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] verifi
   const { imported, prompt } = compileWith({ demande: DEMANDE, analyse: avec });
 
   assert.equal(imported, true, 'le contrôle de provenance est accepté par archValider');
-  assert.equal(prompt, sans, 'CURRENT_BEHAVIOR : il ne modifie strictement rien dans le prompt final');
-  assert.doesNotMatch(prompt, /affirmation traçable/);
+  /* L'anomalie caractérisée ici a été FERMÉE : la provenance était portée par le
+     contrat et perdue à la compilation ; elle est désormais projetée. */
+  assert.notEqual(prompt, sans, 'la provenance a maintenant un effet sur le prompt');
+  assert.match(prompt, /affirmation traçable/);
+  assert.match(prompt, /affirmation non vérifiée/);
+  /* Et surtout : un statut non vérifié n'est jamais requalifié en vérifié. */
+  assert.match(prompt, /affirmation non vérifiée\. — non vérifiée/);
+  assert.match(prompt, /affirmation traçable\. — soutenue/);
+  assert.doesNotMatch(prompt, /affirmation non vérifiée\. — soutenue/);
+  /* Sans provenance au contrat, aucun bloc n'apparaît : le prompt est inchangé. */
+  assert.doesNotMatch(sans, /PROVENANCE DES AFFIRMATIONS/);
 });
 
 test('T-ARCHCHAR-11d [CARACTÉRISATION] inventaire mesuré des champs 3.4 sans effet sur le prompt compilé', () => {
@@ -494,7 +503,8 @@ test('T-ARCHCHAR-11d [CARACTÉRISATION] inventaire mesuré des champs 3.4 sans e
     'strategie.capacites_necessaires': (a) => { a.strategie.capacites_necessaires = ['Une capacité.']; },
     'strategie.niveau_architecture': (a) => { a.strategie.niveau_architecture = 'approfondi'; },
     'verification.elements_non_verifiables': (a) => { a.verification.elements_non_verifiables = ['Un élément non vérifiable.']; },
-    'verification.controle_provenance': (a) => { a.verification.controle_provenance = [{ affirmation: 'A', statut: 'soutenue', justification: 'J' }]; },
+    /* ADN-QG-01 — `verification.controle_provenance` a QUITTÉ cet inventaire :
+       il a désormais un consommateur dans le compilateur (T-ARCHCHAR-11c). */
     'apprentissage.preferences_applicables': (a) => { a.apprentissage.preferences_applicables = ['Une préférence.']; },
     /* ADN-ARCH-02 — champs 3.4 devenus sans effet : ils portaient une CONCLUSION
        de readiness Architecte, autorité que le compilateur n'a plus. */

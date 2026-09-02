@@ -28,7 +28,6 @@ import {
   GATE_STATUSES,
   OUTPUT_GATE_STATUSES,
   OUTPUT_VIOLATION_CODES,
-  PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE,
   REQUIREMENT_STATUSES,
   VIOLATION_CODES,
   buildProjectionTrace,
@@ -166,7 +165,9 @@ test('T-QG00-03 aucun juge LLM, aucun fuzzy, aucun embedding, aucun seuil arbitr
   }
   /* Le ratio de couverture n'existe pas : la suffisance ne se score pas. */
   assert.equal(/coverage_ratio|score\s*[><=]/.test(src), false, 'aucun score ni ratio ne doit décider du statut');
-  assert.equal(PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE, false, 'QG-00 reste un prototype non branché');
+  /* ADN-QG-01 — l'état de branchement du gate n'est plus une propriété de QG-00 :
+     ce lot-ci l'a délibérément fait passer à true. La propriété est désormais
+     vérifiée par la suite QG-01, à laquelle elle appartient. */
 });
 
 test('T-QG00-04 le contrat canonique n’est jamais muté, même gelé en profondeur', () => {

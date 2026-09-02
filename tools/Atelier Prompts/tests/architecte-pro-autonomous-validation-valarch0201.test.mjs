@@ -208,7 +208,9 @@ test('T-VALARCH02-07 ARCH_GLOBAL_ACTIVE_SEMANTIC_SOURCE_COUNT reste 1', () => {
   const layer = compilerLayer();
   assert.equal(/\barchAnalyse\b/.test(layer), false, 'ARCH_COMPILER_RAW_ARCHANALYSE_READS = 0');
   for (const bloc of ['.comprehension', '.evaluation', '.strategie', '.livrable', '.verification', '.apprentissage']) {
-    assert.equal(layer.includes(bloc), false, `aucune lecture brute ${bloc}`);
+    /* ADN-QG-01 — resserrement identique : `verification_status` est un champ du
+       contrat canonique, pas une lecture brute du bloc 3.4. */
+    assert.equal(new RegExp('\\' + bloc + '\\b(?!_)').test(layer), false, `aucune lecture brute ${bloc}`);
   }
 });
 

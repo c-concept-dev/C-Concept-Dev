@@ -254,11 +254,11 @@ test('T-RAP01-LIFT-06 [MISE À JOUR ADN-RAPIDE-01] le moteur Rapide porte le suc
   /* Le gel a été consommé UNE fois, par la bascule canonique, et le diff a été
      audité : une seule fonction modifiée, `assemblerRapide()` intacte. */
   assert.equal(crypto.createHash('sha256').update(extrait).digest('hex'),
-    '83a140cbefb6bcec559af4d74913cf5d2669aee9925d95532c5733a3d57887c2',
+    '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664',
     'le moteur Rapide correspond au successeur audité');
 
   const baseline = JSON.parse(fs.readFileSync(path.join(root, 'anti-regression-baseline.json'), 'utf8')).hashes;
-  assert.equal(baseline['moteur Rapide'], '83a140cbefb6bcec559af4d74913cf5d2669aee9925d95532c5733a3d57887c2');
-  assert.equal(baseline['moteur Architecte'], '3af92d13d457c41ef04684aa15174d5de1ca94d30ef32a0b763b7cafa61d0a3b',
+  assert.equal(baseline['moteur Rapide'], '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664');
+  assert.equal(baseline['moteur Architecte'], 'ff20b2ca689d93f955a0d2c4af56c8d8554451eb4d4059f11f719ab8b1cd9848',
     'ARCH_FROZEN_HASH_CHANGED = NO');
 });

@@ -502,7 +502,9 @@ export function canonicalToArchProjectionInput(enrichedContract) {
       explicit: list(assumptions.explicit).map((x) => ({ text: text(x?.text), label: text(x?.label) || null })).filter((x) => x.text)
     },
     obligations: list(contract.obligations)
-      .map((o) => ({ text: text(o?.text), mandatory: o?.mandatory === true }))
+      /* ADN-QG-01 — l'identifiant est conservé : sans lui, une perte de
+         projection ne serait plus attribuable à une obligation précise. */
+      .map((o) => ({ id: text(o?.id) || null, text: text(o?.text), mandatory: o?.mandatory === true }))
       .filter((o) => o.text),
     checks: list(contract.checks).map((c) => ({
       id: text(c?.id) || null, type: text(c?.type) || null,
@@ -515,11 +517,22 @@ export function canonicalToArchProjectionInput(enrichedContract) {
     },
     evidence: {
       external_knowledge_needed: evidence.external_knowledge_needed === true,
-      freshness_needed: evidence.freshness_needed === true
+      freshness_needed: evidence.freshness_needed === true,
+      /* ADN-QG-01 — la provenance était portée par le contrat et perdue à la
+         projection. Elle est exposée TELLE QUELLE : un statut non vérifié reste
+         non vérifié, aucune requalification n'a lieu ici. */
+      provenance: list(evidence.provenance).map((x) => ({
+        statement_id: text(x?.statement_id) || null,
+        claim: text(x?.claim),
+        verification_status: text(x?.verification_status) || null
+      })).filter((x) => x.claim)
     },
     /* DONNÉE DE PROJECTION SEULEMENT — le compilateur ne sélectionne aucun verrou. */
     semantic_lock_signals: list(plain(contract.semantic_lock_signals).signals).map((s) => ({
-      id: text(s?.id) || null, reason: text(s?.reason) || null, priority: text(s?.priority) || null
+      id: text(s?.id) || null, reason: text(s?.reason) || null, priority: text(s?.priority) || null,
+      /* Références de champ, pas de contenu : elles permettent de compter ce
+         qui devait être projeté sans jamais lire ce que cela dit. */
+      needed: s?.needed === true, source_ids: list(s?.source_ids).map((x) => text(x)).filter(Boolean)
     })).filter((s) => s.id),
     selected_locks: list(plain(contract.selected_locks).locks).map((l) => ({
       id: text(l?.id) || null, priority: text(l?.priority) || null, reason: text(l?.reason) || null

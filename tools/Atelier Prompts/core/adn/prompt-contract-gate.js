@@ -31,8 +31,9 @@
 
 export const PROMPT_CONTRACT_GATE_VERSION = '1.0';
 
-/* Marqueur d'audit : ce prototype n'est branché nulle part. */
-export const PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE = false;
+/* ADN-QG-01 — le gate est desormais branche en production sur les DEUX chemins.
+ * Une seule implementation existe : Rapide et Architecte appellent la meme. */
+export const PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE = true;
 
 export const GATE_STATUSES = Object.freeze(['PASS', 'PASS_WITH_WARNINGS', 'FAIL']);
 
@@ -92,6 +93,13 @@ function requirement(id, key, status, { lock_id = null, blocking = true, source_
   return { id, key, status, lock_id, blocking, source_path, expectation };
 }
 
+/** Libellé du rôle, quelle que soit la forme portée par le contrat. */
+function canonicalRoleLabel(value) {
+  if (typeof value === 'string') return text(value);
+  const role = plain(value);
+  return text(role.title) || text(role.mission);
+}
+
 function signalById(contract, id) {
   return list(plain(contract.semantic_lock_signals).signals).find((s) => plain(s).id === id && plain(s).needed === true) || null;
 }
@@ -114,10 +122,14 @@ export function collectCanonicalRequirements(canonical_contract) {
   const na = (id, key, source_path, lock_id = null) =>
     reqs.push(requirement(id, key, 'NOT_APPLICABLE', { lock_id, blocking: false, source_path }));
 
-  /* --- rôle d'exécution (écrit par Architecte, jamais par OPRIE) --------- */
-  if (text(c.execution_role)) {
+  /* --- rôle d'exécution (écrit par Architecte, jamais par OPRIE) ---------
+     Le contrat porte soit un libellé, soit la structure {title, mission} que
+     produit l'enrichissement Architecte. Les deux formes désignent la MÊME
+     exigence : le gate n'en privilégie aucune et n'en déduit rien. */
+  const roleLabel = canonicalRoleLabel(c.execution_role);
+  if (roleLabel) {
     reqs.push(requirement('role', 'role', 'REQUIRED', {
-      lock_id: 'role', source_path: 'execution_role', expectation: { role: text(c.execution_role) }
+      lock_id: 'role', source_path: 'execution_role', expectation: { role: roleLabel }
     }));
   } else na('role', 'role', 'execution_role', 'role');
 
@@ -249,26 +261,65 @@ export function collectCanonicalRequirements(canonical_contract) {
  * mettre en forme et refuser ce qui n'est pas structuré. Elle n'ajoute aucune
  * entrée, ce qui interdit à ce module de « compléter » une projection perdue.
  * ------------------------------------------------------------------------ */
-export function buildProjectionTrace(entries, { request_id = null } = {}) {
+/* Une trace TEMOIGNE d'une projection. Elle ne peut donc porter ni readiness,
+ * ni route, ni sens ajoute : ces familles appartiennent a d'autres autorites et
+ * leur presence signalerait que la trace a commence a decider quelque chose. */
+export const TRACE_FORBIDDEN_FIELDS = Object.freeze([
+  'readiness', 'execution_ready', 'oprie_state', 'state',
+  'route', 'routing', 'engine_choice',
+  'inferred_intent', 'inferred', 'new_obligation', 'new_quantity', 'new_recipient', 'decision'
+]);
+
+export function buildProjectionTrace(entries, { request_id = null, native_from_compiler = false, lock_selection_observed = true } = {}) {
   if (!Array.isArray(entries)) throw new TypeError('ADN-QG-00 : la trace de projection doit être une liste.');
   return {
     version: PROMPT_CONTRACT_GATE_VERSION,
     request_id: text(request_id) || null,
-    /* Dette QG-01 : tant que ce marqueur est false, la trace vient de
-       l'appelant et non du compilateur lui-même. */
-    native_from_compiler: false,
+    /* ADN-QG-01 : true uniquement quand le compilateur lui-même a émis la trace
+       dans le passage qui a rendu le prompt. L'émetteur en répond ; le gate ne
+       fabrique jamais ce marqueur. */
+    native_from_compiler: native_from_compiler === true,
+    /* Certains chemins de projection ne s'accompagnent d'aucune sélection ADN.
+       Le dire est une DÉCLARATION de l'émetteur, pas une déduction du gate. */
+    lock_selection_observed: lock_selection_observed !== false,
     entries: entries.map((raw) => {
       const e = plain(raw);
       const key = text(e.key);
       if (!key) throw new TypeError('ADN-QG-00 : chaque entrée de trace exige une clé.');
+      for (const interdit of TRACE_FORBIDDEN_FIELDS) {
+        if (Object.prototype.hasOwnProperty.call(e, interdit)) {
+          throw new TypeError(`ADN-QG-01 : une trace ne peut pas porter « ${interdit} ».`);
+        }
+      }
       return {
         key,
         present: e.present === true,
         value: e.value === undefined ? null : e.value,
         rendered: typeof e.rendered === 'string' ? e.rendered : null,
+        /* Chemin canonique d'origine : la trace dit d'ou vient l'exigence,
+           jamais ce qu'elle signifie. */
+        canonical_path: text(e.canonical_path) || null,
         source: text(e.source) || null
       };
     })
+  };
+}
+
+/** Garde statique de trace : compte les familles interdites reellement portees
+ *  par une trace. Sert aux tests d'autorite autant qu'au diagnostic. */
+export function auditProjectionTrace(projection_trace) {
+  const trace = plain(projection_trace);
+  const entries = Array.isArray(trace.entries) ? trace.entries : [];
+  const compte = (familles) => entries.reduce((n, raw) => {
+    const e = plain(raw);
+    return n + familles.filter((f) => Object.prototype.hasOwnProperty.call(e, f)).length;
+  }, 0) + familles.filter((f) => Object.prototype.hasOwnProperty.call(trace, f)).length;
+  return {
+    entry_count: entries.length,
+    native_from_compiler: trace.native_from_compiler === true,
+    readiness_fields: compte(['readiness', 'execution_ready', 'oprie_state', 'state']),
+    route_fields: compte(['route', 'routing', 'engine_choice']),
+    inferred_semantic_fields: compte(['inferred_intent', 'inferred', 'new_obligation', 'new_quantity', 'new_recipient', 'decision'])
   };
 }
 
@@ -332,6 +383,7 @@ export function validatePromptAgainstCanonicalContract({
 
   const requirements = collectCanonicalRequirements(canonical_contract);
   const lockIds = new Set(selected_locks.map((l) => text(plain(l).id) || text(l)).filter(Boolean));
+  const lockSelectionObserved = trace.lock_selection_observed !== false;
 
   /* ---- indexation de la trace + détection des doublons ------------------ */
   const byKey = new Map();
@@ -384,8 +436,13 @@ export function validatePromptAgainstCanonicalContract({
       continue;
     }
 
-    /* --- cohérence de verrou : QG constate, il ne sélectionne jamais ----- */
-    if (req.lock_id && req.status === 'REQUIRED' && !lockIds.has(req.lock_id)) {
+    /* --- cohérence de verrou : QG constate, il ne sélectionne jamais -----
+       La comparaison n'a lieu que si une sélection de verrous accompagne
+       réellement cette projection. Certains chemins n'en ont aucune : y exiger
+       un verrou reviendrait pour le gate à s'arroger l'autorité de sélection.
+       Le fait est DÉCLARÉ par l'émetteur, jamais deviné ; par défaut il est
+       vrai, pour qu'un oubli de déclaration ne relâche jamais le contrôle. */
+    if (lockSelectionObserved && req.lock_id && req.status === 'REQUIRED' && !lockIds.has(req.lock_id)) {
       violations.push(violation('LOCK_MISMATCH', req.id,
         `Le verrou « ${req.lock_id} » est exigé par ${req.source_path} mais absent de la sélection ADN.`, true));
       checked.push({ ...req, outcome: 'LOCK_MISMATCH' });
@@ -582,4 +639,72 @@ export function validateOutputAgainstCanonicalContract({ canonical_contract, out
   else status = 'PASS';
 
   return { version: PROMPT_CONTRACT_GATE_VERSION, status, violations, deferred, not_verifiable: notVerifiable, executed };
+}
+
+/* ------------------------------------------------------------------------ *
+ * ADN-QG-01 — GARDE UNIQUE, PARTAGÉE PAR LES DEUX MOTEURS.
+ *
+ * Rapide et Architecte vivent dans deux blocs de script distincts. Faire vivre
+ * la garde ici est ce qui garantit qu'il n'en existe qu'UNE : les deux moteurs
+ * ne détiennent qu'un appel, jamais une règle.
+ *
+ * Elle ne peut pas lever d'exception et ne peut pas rendre autre chose qu'un
+ * verdict : toute anomalie devient un échec technique fermé.
+ * ------------------------------------------------------------------------ */
+
+/* §27 — vocabulaire public. Aucun terme interne n'y figure. */
+export const PROMPT_CONTRACT_PUBLIC_MESSAGES = Object.freeze({
+  contract: 'Le prompt produit ne reprend pas toutes les exigences de la demande validée. Il n’a pas été exposé ni exécuté. Reprenez la préparation de la demande.',
+  technical: 'La vérification du prompt n’a pas pu aboutir. Par sécurité, aucun prompt n’a été exposé ni exécuté.'
+});
+
+export function guardPromptContract(input) {
+  const echecTechnique = (detail) => ({
+    version: PROMPT_CONTRACT_GATE_VERSION,
+    status: 'FAIL',
+    violations: [violation('TECHNICAL_VALIDATION_FAILURE', null, detail, true)],
+    warnings: [],
+    coverage: { required: 0, satisfied: 0, optional: 0, not_applicable: 0, unknown: 0 },
+    checked_requirements: [],
+    trace: { mode: null, entry_count: 0, native_from_compiler: false, blocking_violations: 1, fail_closed: true },
+    public_message: PROMPT_CONTRACT_PUBLIC_MESSAGES.technical
+  });
+  let verdict;
+  try {
+    verdict = validatePromptAgainstCanonicalContract(input);
+  } catch (error) {
+    return echecTechnique(String((error && error.message) || error));
+  }
+  if (!verdict || typeof verdict.status !== 'string' || !GATE_STATUSES.includes(verdict.status)) {
+    return echecTechnique('Verdict contractuel illisible.');
+  }
+  const technique = verdict.violations.some((v) => v.code === 'TECHNICAL_VALIDATION_FAILURE');
+  return {
+    ...verdict,
+    public_message: verdict.status === 'FAIL'
+      ? (technique ? PROMPT_CONTRACT_PUBLIC_MESSAGES.technical : PROMPT_CONTRACT_PUBLIC_MESSAGES.contract)
+      : null
+  };
+}
+
+/* ------------------------------------------------------------------------ *
+ * ADN-QG-01 — CE DONT UNE TRACE PEUT TÉMOIGNER.
+ *
+ * Une trace atteste « l'exigence canonique R a été projetée dans ce bloc ».
+ * Un bloc rendu pour une autre raison — un verrou que l'ADN a jugé nécessaire
+ * sans qu'aucun champ du contrat ne le porte — n'atteste aucune exigence : il
+ * n'a rien à témoigner et n'entre donc pas dans la comparaison contractuelle.
+ * Signaler un tel bloc comme « non supporté » ferait du gate un juge de la
+ * sélection ADN, ce qu'il ne doit jamais devenir.
+ *
+ * Cette fonction ne peut que RETIRER des entrées. Elle ne peut donc jamais
+ * transformer un échec en succès : une exigence non projetée reste manquante.
+ * ------------------------------------------------------------------------ */
+export function selectTraceEntriesForContract(canonical_contract, entries) {
+  const keys = new Set(
+    collectCanonicalRequirements(canonical_contract)
+      .filter((r) => r.status !== 'NOT_APPLICABLE')
+      .map((r) => r.key)
+  );
+  return list(entries).filter((e) => keys.has(text(plain(e).key)));
 }

@@ -430,7 +430,10 @@ test('T-ARCH02-22 ARCH_COMPILER_RAW_ARCHANALYSE_READS = 0', () => {
   const body = compilerBody();
   assert.equal(/\barchAnalyse\b/.test(body), false, 'aucune lecture de archAnalyse dans le compilateur');
   for (const bloc of ['.comprehension', '.evaluation', '.strategie', '.livrable', '.compilation', '.verification', '.apprentissage']) {
-    assert.equal(body.includes(bloc), false, `aucune lecture brute du bloc 3.4 ${bloc}`);
+    /* ADN-QG-01 — la garde vise une LECTURE BRUTE du bloc 3.4, pas un nom de
+       champ canonique qui commence par la même chaîne (`verification_status`).
+       Le motif est resserré pour rester exact ; son intention est inchangée. */
+    assert.equal(new RegExp('\\' + bloc + '\\b(?!_)').test(body), false, `aucune lecture brute du bloc 3.4 ${bloc}`);
   }
 });
 

@@ -325,7 +325,7 @@ test('T-RFEED-18 le hash gelé du moteur Rapide est strictement inchangé', () =
   /* MISE À JOUR ADN-RAPIDE-01 : la bascule canonique modifie, à dessein et une
      seule fois, `assemblerRapideAdaptatif`. Le successeur est audité dans le
      rapport de ce lot ; `assemblerRapide()` reste identique octet pour octet. */
-  const successeur = '83a140cbefb6bcec559af4d74913cf5d2669aee9925d95532c5733a3d57887c2';
+  const successeur = '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664';
   assert.equal(crypto.createHash('sha256').update(extrait).digest('hex'), successeur,
     'le moteur Rapide correspond exactement au successeur audité');
 

@@ -96,6 +96,15 @@ const modules = [
     exports: ['RAPIDE_ENRICHMENT_VERSION','RAPIDE_ENRICHABLE_PATHS','RAPIDE_SIGNALS','RAPIDE_SIGNAL_IDS','normalizeRequestText','deriveQuantityFromRequest','deriveFormatFromRequest','enrichRapidCanonicalContract','validateRapidCanonicalEnrichment','createRapidEnrichmentAuditView'],
     deps: ['ARCHENRICH']
   },
+  /* ADN-QG-01 — LE GATE CONTRACTUEL EST EMBARQUÉ.
+   * Une seule implémentation existe et elle est partagée : Rapide et Architecte
+   * appellent la même fonction. Embarquer le module est ce qui rend ce partage
+   * possible sans en recopier la moindre règle dans le navigateur. */
+  {
+    file: 'prompt-contract-gate.js',
+    name: 'QG',
+    exports: ['PROMPT_CONTRACT_GATE_VERSION','PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE','GATE_STATUSES','GATE_MODES','REQUIREMENT_STATUSES','VIOLATION_CODES','OUTPUT_VIOLATION_CODES','OUTPUT_GATE_STATUSES','TRACE_FORBIDDEN_FIELDS','collectCanonicalRequirements','buildProjectionTrace','auditProjectionTrace','validatePromptAgainstCanonicalContract','validateOutputAgainstCanonicalContract','guardPromptContract','PROMPT_CONTRACT_PUBLIC_MESSAGES','selectTraceEntriesForContract']
+  },
   {
     file: 'oprie-manual-roundtrip.js',
     name: 'MANUAL',
@@ -138,7 +147,12 @@ for (const mod of modules) {
   }
   emittedSegments.set(mod.file, body.slice(segmentStart));
 }
-body += `global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ADAPTERS,...ORSTATE,...ORCORE,...ORORCH,...MANUAL,...RAPIDEENRICH,source_sha256:'${sourceHash}'});\n})(window);\n`;
+/* ADN-QG-01 — L'AGRÉGAT EST DÉRIVÉ, PLUS JAMAIS RECOPIÉ.
+ * Cette ligne était maintenue à la main : un module pouvait être compilé dans
+ * le bundle sans jamais être exposé au navigateur, silencieusement. C'est
+ * exactement ce qui vient de se produire avec le gate. La liste vient désormais
+ * de `modules`, si bien qu'ajouter un module suffit à l'exposer. */
+body += `global.__ATELIER_ADN_RUNTIME__=Object.freeze({${modules.map((m) => `...${m.name}`).join(',')},source_sha256:'${sourceHash}'});\n})(window);\n`;
 
 /* CORRECTION-ADN-CANON-02-01 — DURCISSEMENT DU BUILD.
  * Un patch précédent avait échoué silencieusement sur une ancre, produisant un
@@ -146,6 +160,11 @@ body += `global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTIN
  * le voie. Le build vérifie désormais que CHAQUE export et CHAQUE dépendance
  * déclarés sont réellement présents, et s'interrompt en code non nul sinon. */
 const missing = [];
+for (const mod of modules) {
+  if (!body.includes(`...${mod.name},`) && !body.includes(`...${mod.name},source_sha256`)) {
+    missing.push(`${mod.file} -> module compilé mais non exposé sur __ATELIER_ADN_RUNTIME__`);
+  }
+}
 for (const mod of modules) {
   /* On vérifie la SOURCE du module, pas le corps émis : le corps contient déjà
      la liste des exports dans son `return`, ce qui rendrait le contrôle vacu. */
