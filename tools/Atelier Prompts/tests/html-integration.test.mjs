@@ -117,7 +117,10 @@ test('la clarification conserve demande, réponses et documents sans plafond arb
   assert.doesNotMatch(section,/adpState\.clarifications\s*<\s*\d+/);
   assert.match(html,/adpState\.clarifications\+=1/);
   assert.match(html,/Le document demandé est joint/);
-  assert.match(html,/turn\.state==='clarification_required'/);
+  // IA-02A : le traitement de clarification_required a quitté le branchement inline du pilote pour
+  // la politique d'orchestration unique. L'ancrage suit ; l'invariant est le même.
+  assert.match(html,/WAIT_FOR_USER:\(turn\)=>turn&&turn\.state==='confirmation_required'\?oprieShowConfirmation\(turn\):oprieShowClarification\(turn\)/);
+  assert.match(html,/SOLICITING_OPRIE_STATES = Object\.freeze\(\["clarification_required", "confirmation_required"\]\)/);
   assert.match(section,/function adpRunRapide\([^)]*\)\{\s*adpState\.pendingQuestion=false;show\(null\)/);
 });
 

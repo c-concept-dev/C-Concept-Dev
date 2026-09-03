@@ -124,6 +124,15 @@ const modules = [
     exports: ['MANUAL_ROUNDTRIP_VERSION','MANUAL_SESSION_STATES','ARCHITECTE_TURN_OUTCOMES','buildPortableRolePrompt','createManualRoleExecutor','createProviderRoleExecutor','runOprieTurnWithExecutor','startManualOprieTurn','buildArchitecteContractFromTurn'],
     deps: ['ORCORE','ORORCH','CANON','ARCHENRICH']
   },
+  /* IA-02A — LA POLITIQUE D'ORCHESTRATION EST EMBARQUÉE.
+   * Une seule politique existe, et le navigateur exécute LA MÊME que le noyau.
+   * La dupliquer dans le HTML permettrait à un état d'être traité d'un côté
+   * autrement que de l'autre — c'est précisément ce que ce lot interdit. */
+  {
+    file: 'orchestration-policy.js',
+    name: 'ORCHPOLICY',
+    exports: ['ORCHESTRATION_POLICY_VERSION','ORCHESTRATION_ACTIONS','DIALOG_MODES','USER_SOLICITING_ACTIONS','decideNextOrchestrationAction','isKnownOrchestrationAction','oprieActionIsModeIndependent','createOrchestrationAuditView']
+  },
   /* PERF-04 — LE PLAN RAPIDE EST EMBARQUÉ TEL QUEL.
    * Le frontend ne réimplémente rien : il appelle EXACTEMENT les fonctions de
    * PERF-03A. C'est ce qui garantit qu'il n'existe qu'une seule définition de

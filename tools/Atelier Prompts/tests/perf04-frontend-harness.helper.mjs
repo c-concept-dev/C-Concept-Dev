@@ -15,6 +15,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import * as fastPlane from '../workers/shared/fast-interactive-plane.js';
+import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const html = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.html'), 'utf8');
@@ -72,7 +73,9 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
     validateFastInteraction: fastPlane.validateFastInteraction,
     projectInteractionForMode: fastPlane.projectInteractionForMode,
     reconcileFastWithDeep: fastPlane.reconcileFastWithDeep,
-    createTurnCoordinator: fastPlane.createTurnCoordinator
+    createTurnCoordinator: fastPlane.createTurnCoordinator,
+    /* IA-02A : la politique réelle, jamais une imitation. */
+    decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction
   };
 
   async function fetchImpl(url, opts) {
@@ -128,6 +131,7 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
   vm.runInNewContext(html.slice(start, end) + `
 ;globalThis.__pilot={oprieRunTurn,oprieApplyTurn,oprieRequestTurn,oprieState,oprieStartFastPlane,
   oprieRenderFastInteraction,oprieReconcileFast,oprieFastRuntime,oprieFastSnapshot,oprieSetBusy,
+  oprieDriveOrchestration,oprieDecideOrchestration,oprieTurnContext,ORCHESTRATION_DRIVER,
   FAST_ENDPOINT,FAST_SOLICITING_TYPES,OPRIE_STATES};`, context);
   const pilot = context.__pilot;
   const setBusy = pilot.oprieSetBusy;

@@ -342,12 +342,19 @@ test('T-READINESS-17 / T-READINESS-18 le mode Rapide reste strictement inchangé
   assert.equal(rapide.includes('archAnalyse'), false);
   assert.ok(rapide.includes("oprieRunTurn('rapide')"));
 
-  const dispatch = productionSlice('function oprieApplyTurn(', 'function oprieRunTurn(');
+  /* IA-02A : l'aiguillage des états OPRIE a quitté le corps de oprieApplyTurn pour LA politique
+     d'orchestration, embarquée dans le même HTML. Les cinq états y restent traités par un seul
+     endroit — l'invariant est inchangé, son domicile a bougé. */
+  const policy = productionSlice('function decideNextOrchestrationAction', 'function oprieActionIsModeIndependent');
   for (const state of ['clarification_required', 'confirmation_required', 'blocked', 'degraded_state', 'operational_request_ready']) {
-    assert.ok(dispatch.includes(state), `l'état ${state} reste traité par oprieApplyTurn`);
+    assert.ok(policy.includes(state) || productionSlice('const ACCEPTED_OPRIE_STATES', 'const ACCEPTED_PROMPT_GATE_STATUSES').includes(state),
+      `l'état ${state} reste traité par l'aiguillage unique`);
   }
+  const dispatch = productionSlice('function oprieApplyTurn(', 'function oprieRunTurn(');
   assert.equal(dispatch.includes('adnValidatePostOprie'), false,
     'la validation post-OPRIE reste hors du routage des états OPRIE');
+  assert.equal(policy.includes('adnValidatePostOprie'), false,
+    'et la politique ne la connaît pas davantage');
 });
 
 /* ==========================================================================

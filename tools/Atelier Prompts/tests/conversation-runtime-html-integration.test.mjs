@@ -14,9 +14,15 @@ test("Rapide et Architecte démarrent par le même pilote sémantique (OPRIE)", 
   assert.match(architecte, /oprieRunTurn\('architecte'\)/);
   assert.doesNotMatch(rapide, /adpDecideRapide/, "aucun fournisseur navigateur ne détermine plus la readiness.");
   assert.doesNotMatch(architecte, /adpDecideRapide/);
+  // IA-02A : le branchement par état OPRIE ne vit plus dans le pilote — il vit dans LA politique
+  // d'orchestration, embarquée dans ce même HTML. L'invariant vérifié est inchangé (un seul pilote
+  // traite les deux états) ; il est désormais vérifié là où la table existe réellement.
   const pilot = html.slice(html.indexOf("function oprieApplyTurn"), html.indexOf("async function oprieRunTurn"));
-  assert.match(pilot, /clarification_required/);
-  assert.match(pilot, /operational_request_ready/);
+  assert.match(pilot, /oprieDecideOrchestration\(oprieTurnContext\(turn,requestedMode,fast\)\)/,
+    "le pilote demande l'action à la politique unique…");
+  assert.match(pilot, /oprieDriveOrchestration\(decision,turn,requestedMode\)/, "…puis se borne à l'appliquer.");
+  assert.match(html, /deep\.state === "operational_request_ready"/, "la politique embarquée lit l'état exploitable.");
+  assert.match(html, /SOLICITING_OPRIE_STATES\.includes\(deep\.state\)/, "et les états qui sollicitent la personne.");
 });
 
 // FC-01b : invariant INCHANGÉ — chaque réponse relance le pilote avec le mode courant, sans plafond.

@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.html'), 'utf8');
@@ -50,6 +51,12 @@ function loadPilot({ fetchImpl, demande = 'Rédige une note.', answers = [] } = 
   const context = {
     AbortController, fetch: fetchImpl, console: { warn() {}, error() {} },
     $: el,
+    /* IA-02A : le tour délègue sa décision à la politique d'orchestration. Le harness expose donc
+       LA politique réelle du noyau — jamais une imitation : un pilote testé contre une politique
+       simulée ne prouverait rien de ce que la production exécute. */
+    adnRuntime: () => ({
+      decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction
+    }),
     state: { answers, docs: [] },
     adpState: { pendingQuestion: false, clarifications: 0, requestedMode: 'rapide', returnFocus: null },
     materialText: () => '',
@@ -171,8 +178,11 @@ test('FC01B-14 : aucun état OPRIE n’est jamais fabriqué localement', () => {
   assert.doesNotMatch(pilot, /state\s*[:=]\s*['"]operational_request_ready['"]/, 'le frontend ne prononce jamais ready.');
   assert.doesNotMatch(pilot, /state\s*[:=]\s*['"]clarification_required['"]/);
   assert.doesNotMatch(pilot, /state\s*[:=]\s*['"]degraded_state['"]/);
-  // Il ne fait que COMPARER l'état reçu, jamais l'assigner.
-  assert.match(pilot, /turn\.state==='operational_request_ready'/);
+  // Il ne fait que COMPARER l'état reçu, jamais l'assigner. IA-02A : la comparaison qui CHOISIT
+  // a migré dans la politique ; celle qui reste dans le pilote ne sert qu'à savoir quel afficheur
+  // d'OPRIE appeler — restituer une autorité n'est pas en dériver une.
+  assert.match(pilot, /turn\.state==='confirmation_required'/);
+  assert.match(pilot, /oprieDecideOrchestration\(/, "la décision vient de la politique unique.");
 });
 
 // --- FC01B-15/16 : double submit et réponses obsolètes --------------------------------------------------
@@ -226,11 +236,16 @@ test('FC01B-18/19 : Rapide et Architecte restent tous deux fonctionnels, via leu
 test('FC01B-20/21 : l’ordre est OPRIE ready -> routing -> Execution Readiness -> exécution', () => {
   const enter = html.slice(html.indexOf('function oprieEnterExecution'), html.indexOf('function oprieApplyTurn'));
   assert.match(enter, /adpRunRapide|adpEnterArchitecte/, 'l’exécution passe par les moteurs existants.');
-  const apply = html.slice(html.indexOf('function oprieApplyTurn'), html.indexOf('async function oprieRunTurn'));
-  const readyIndex = apply.indexOf("turn.state==='operational_request_ready'");
-  const executeIndex = apply.indexOf('oprieEnterExecution');
-  assert.ok(readyIndex >= 0 && executeIndex > readyIndex, 'l’exécution n’est atteinte que nommément depuis ready.');
-  assert.match(apply, /return oprieShowNetworkFailure\(\);\s*\n\}/, 'le défaut est fail-closed, jamais l’exécution.');
+  // IA-02A : l'ordre est désormais porté en DEUX temps vérifiables séparément — la politique dit
+  // que ready ouvre Execution Readiness, et le pilote n'a d'autre moyen d'exécuter que cette action.
+  assert.match(html, /deep\.state === "operational_request_ready"[\s\S]{0,400}?verdict\("ENTER_READINESS"/,
+    'ready ouvre Execution Readiness, jamais l’exécution.');
+  const table = html.slice(html.indexOf('const ORCHESTRATION_DRIVER='), html.indexOf('function oprieDriveOrchestration'));
+  assert.match(table, /ENTER_READINESS:\(turn,requestedMode\)=>oprieEnterExecution\(turn,requestedMode\)/,
+    'l’exécution n’est atteinte que par l’action ENTER_READINESS.');
+  assert.doesNotMatch(table, /EXECUTE:/, 'aucune action du pilote de tour ne va directement à l’exécution.');
+  const drive = html.slice(html.indexOf('function oprieDriveOrchestration'), html.indexOf('function oprieApplyTurn'));
+  assert.match(drive, /return oprieShowNetworkFailure\(\)/, 'le défaut est fail-closed, jamais l’exécution.');
 });
 
 // --- FC01B-22/23/24 : exécution BYO-key, secrets, hardcoding ----------------------------------------------

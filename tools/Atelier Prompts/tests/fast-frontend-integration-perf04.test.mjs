@@ -443,8 +443,13 @@ test('T-P04-34 : aucun contournement du gate de prompt', () => {
 
 test('T-P04-35 : le plan rapide ne déclenche aucune exécution finale', () => {
   assert.doesNotMatch(PERF04_BLOCK, /oprieEnterExecution|beginExchange|adpContinueArchitecte/);
-  assert.match(APPLY_TURN, /oprieEnterExecution\(turn,requestedMode\)/,
-    'l’exécution reste atteinte NOMMÉMENT, depuis l’état OPRIE, dans oprieApplyTurn.');
+  /* IA-02A : l'exécution reste atteinte NOMMÉMENT, mais par une action d'orchestration explicite
+     plutôt que par un branchement inline. Le plan rapide ne peut produire aucune de ces deux choses. */
+  const table = html.slice(html.indexOf('const ORCHESTRATION_DRIVER='), html.indexOf('function oprieDriveOrchestration'));
+  assert.match(table, /ENTER_READINESS:\(turn,requestedMode\)=>oprieEnterExecution\(turn,requestedMode\)/,
+    'seule l’action ENTER_READINESS atteint l’exécution.');
+  assert.doesNotMatch(PERF04_BLOCK, /ORCHESTRATION_DRIVER|oprieDriveOrchestration/,
+    'le plan rapide n’a aucun accès à la table d’application.');
 });
 
 // =================================================================================================
@@ -663,18 +668,34 @@ test('T-P04-SINGLE : il n’existe qu’UNE implémentation du plan rapide', () 
   assert.match(PERF04_BLOCK, /runtime\.reconcileFastWithDeep\(/);
 });
 
-test('T-P04-NOFALLBACK : sans noyau ou sans point d’entrée, il n’y a PAS de plan rapide dégradé', async () => {
-  for (const options of [{ noRuntime: true }, { noFastEndpoint: true }]) {
-    const { pilot, spy, ctx } = loadPilot({
-      ...options,
-      fast: async () => askClarification(),
-      deep: async () => clarificationTurn('Question profonde ?')
-    });
-    await pilot.oprieRunTurn('architecte');
-    assert.equal(spy.fastCalls.length, 0, 'aucun appel rapide n’est tenté.');
-    assert.equal(pilot.oprieState.fastInteraction, null, 'et surtout : aucune question locale n’est fabriquée.');
-    assert.equal(questionShown(ctx), 'Question profonde ?', 'le parcours profond est exactement celui d’avant PERF-04.');
-  }
+test('T-P04-NOFALLBACK : sans point d’entrée rapide, le parcours profond est celui d’avant PERF-04', async () => {
+  const { pilot, spy, ctx } = loadPilot({
+    noFastEndpoint: true,
+    fast: async () => askClarification(),
+    deep: async () => clarificationTurn('Question profonde ?')
+  });
+  await pilot.oprieRunTurn('architecte');
+  assert.equal(spy.fastCalls.length, 0, 'aucun appel rapide n’est tenté.');
+  assert.equal(pilot.oprieState.fastInteraction, null, 'et surtout : aucune question locale n’est fabriquée.');
+  assert.equal(questionShown(ctx), 'Question profonde ?', 'le parcours profond est intact.');
+});
+
+test('T-P04-NOFALLBACK-2 : sans noyau, il n’y a ni plan rapide ni orchestration — le tour se ferme', async () => {
+  /* IA-02A a fait de la politique d'orchestration une dépendance DURE du tour, au même titre que
+     le gate de prompt l'est de l'exécution. Un noyau absent ne dégrade donc pas le parcours : il
+     le ferme. C'est le prix, assumé, de n'avoir qu'UNE politique — un repli inline en serait une
+     seconde, et déciderait un jour autrement que celle du noyau. */
+  const { pilot, spy, ctx } = loadPilot({
+    noRuntime: true,
+    fast: async () => askClarification(),
+    deep: async () => clarificationTurn('Question profonde ?')
+  });
+  await pilot.oprieRunTurn('architecte');
+  assert.equal(spy.fastCalls.length, 0, 'aucun appel rapide n’est tenté.');
+  assert.equal(pilot.oprieState.fastInteraction, null, 'aucune question locale n’est fabriquée.');
+  assert.equal(questionShown(ctx), '', 'et aucune question n’est posée sans politique pour la décider.');
+  assert.deepEqual(spy.executed, [], 'surtout : rien n’est exécuté.');
+  assert.equal(spy.gate[spy.gate.length - 1].decision.state, 'technical', 'le tour se ferme, proprement.');
 });
 
 test('T-P04-SEC : aucun secret, aucune clé, aucun texte utilisateur dans la télémétrie', async () => {
