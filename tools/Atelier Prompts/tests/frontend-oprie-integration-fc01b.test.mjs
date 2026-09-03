@@ -55,7 +55,8 @@ function loadPilot({ fetchImpl, demande = 'Rédige une note.', answers = [] } = 
        LA politique réelle du noyau — jamais une imitation : un pilote testé contre une politique
        simulée ne prouverait rien de ce que la production exécute. */
     adnRuntime: () => ({
-      decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction
+      decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction,
+      isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction
     }),
     state: { answers, docs: [] },
     adpState: { pendingQuestion: false, clarifications: 0, requestedMode: 'rapide', returnFocus: null },

@@ -20449,10 +20449,19 @@ function oprieEnterExecution(turn,requestedMode){
  *   politique est indisponible, le tour se ferme : il n'existe aucune seconde politique de repli,
  *   et en fabriquer une ici recréerait exactement l'autorité concurrente que ce lot interdit.
  * ============================================================================================= */
+/* IA-02B — SURFACE MINIMALE EXIGÉE DE LA POLITIQUE.
+   Un module à moitié chargé est plus dangereux qu'un module absent : il répond, mais on ne sait pas
+   avec quoi. On exige donc la surface ENTIÈRE dont dépend le tour — la fonction de décision ET le
+   moyen de vérifier que ce qu'elle rend est une action connue. Un export manquant ferme le tour. */
+const ORCHESTRATION_POLICY_REQUIRED_SURFACE=Object.freeze(['decideNextOrchestrationAction','isKnownOrchestrationAction']);
 function oprieOrchestrationRuntime(){
   try{
     const runtime=adnRuntime();
-    return runtime&&typeof runtime.decideNextOrchestrationAction==='function'?runtime:null;
+    if(!runtime)return null;
+    for(const nom of ORCHESTRATION_POLICY_REQUIRED_SURFACE){
+      if(typeof runtime[nom]!=='function')return null;
+    }
+    return runtime;
   }catch(error){return null}
 }
 function oprieDecideOrchestration(context){
@@ -20486,14 +20495,30 @@ const ORCHESTRATION_DRIVER=Object.freeze({
   IGNORE_STALE:()=>false,
   STOP_FAIL_CLOSED:()=>oprieShowNetworkFailure()
 });
+/* IA-02B — LES ACTIONS QUE CE PILOTE PEUT RENCONTRER, ET SEULEMENT CELLES-LÀ.
+ *
+ * Le contexte d'un tour ne porte que l'identité du tour, la candidate rapide et le verdict d'OPRIE.
+ * Les neuf autres actions de la politique exigent un verdict que ce contexte NE CONTIENT JAMAIS
+ * (Readiness, gate de prompt, exécution, gate de sortie) : elles sont donc structurellement
+ * inatteignables ici. Les déclarer explicitement plutôt que de les laisser tomber dans un « sinon »
+ * est ce qui permet de distinguer une action INCONNUE d'une action connue mais HORS CONTEXTE — les
+ * deux ferment le tour, mais pour des raisons différentes, et l'audit doit pouvoir les séparer. */
+const ORCHESTRATION_TURN_ACTIONS=Object.freeze(Object.keys(ORCHESTRATION_DRIVER));
 function oprieDriveOrchestration(decision,turn,requestedMode){
-  const apply=decision&&ORCHESTRATION_DRIVER[decision.action];
-  /* Une action que ce pilote ne sait pas appliquer n'est pas ignorée : elle ferme le tour. */
-  if(typeof apply!=='function'){
-    oprieMark('orchestration_unapplicable',{action:(decision&&decision.action)||null});
+  const runtime=oprieOrchestrationRuntime();
+  const action=decision&&decision.action;
+  /* Une action que la politique elle-même ne reconnaît pas ne franchit pas cette ligne. */
+  if(!runtime||!runtime.isKnownOrchestrationAction(action)){
+    oprieMark('orchestration_unknown_action',{action:action||null});
     return oprieShowNetworkFailure();
   }
-  oprieMark('orchestration',{action:decision.action,reason:decision.reason});
+  if(!ORCHESTRATION_TURN_ACTIONS.includes(action)){
+    /* Action connue, mais qui ne peut pas naître d'un contexte de tour : jamais ignorée en silence. */
+    oprieMark('orchestration_out_of_context',{action});
+    return oprieShowNetworkFailure();
+  }
+  const apply=ORCHESTRATION_DRIVER[action];
+  oprieMark('orchestration',{action,reason:decision.reason});
   return apply(turn,requestedMode);
 }
 function oprieApplyTurn(turn,requestedMode){

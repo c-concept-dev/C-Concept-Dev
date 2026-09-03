@@ -51,7 +51,7 @@ const jsonResponse = (payload, status = 200) =>
  *   noRuntime      : rend le noyau PERF-03A indisponible.
  */
 export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.', answers = [], mode = 'architecte',
-                            noFastEndpoint = false, noRuntime = false } = {}) {
+                            noFastEndpoint = false, noRuntime = false, partialPolicy = null } = {}) {
   const start = html.indexOf('const OPRIE_STATES=');
   const end = html.indexOf('function adpShowThinking');
   if (start < 0 || end < 0) throw new Error('PERF-04 : bloc pilote introuvable dans le HTML.');
@@ -68,15 +68,20 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
     return dom.get(id);
   };
 
+  /* partialPolicy : liste des noms d'export à RETIRER, pour éprouver un module à moitié chargé. */
+  const absents = Array.isArray(partialPolicy) ? partialPolicy : [];
   const runtime = noRuntime ? null : {
     createTurnSnapshot: fastPlane.createTurnSnapshot,
     validateFastInteraction: fastPlane.validateFastInteraction,
     projectInteractionForMode: fastPlane.projectInteractionForMode,
     reconcileFastWithDeep: fastPlane.reconcileFastWithDeep,
     createTurnCoordinator: fastPlane.createTurnCoordinator,
-    /* IA-02A : la politique réelle, jamais une imitation. */
-    decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction
+    /* IA-02A/IA-02B : la politique réelle, jamais une imitation, et sa SURFACE COMPLÈTE —
+       le pilote exige les deux fonctions, un export partiel doit fermer le tour. */
+    decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction,
+    isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction
   };
+  for (const nom of absents) delete runtime[nom];
 
   async function fetchImpl(url, opts) {
     const target = String(url);
