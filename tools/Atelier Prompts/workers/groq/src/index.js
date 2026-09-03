@@ -23,6 +23,8 @@ import {
   tagFailure
 } from "../../shared/provider-ha.js";
 export { degradedResultFromProviderChainError } from "../../shared/role-degradation.js";
+import { createRateWindow, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
+export { PROVIDER_TECHNICAL_CAPABILITIES, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
 import { handleOperationalRequest } from "../../shared/operational-request-orchestrator.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
@@ -226,15 +228,24 @@ export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
  * ne fournit un délai réellement prospectif (ne jamais en inventer un, section 5 du lot R2).
  */
 export function createGroqRateLimitPacer({ sleepFn = sleep } = {}) {
-  let nextAvailableAt = 0;
+  /* M-03 — MÊME CONTRAT, RENDU SÛR SOUS CONCURRENCE.
+   *
+   * `before()` et `recordWaitMs()` gardent exactement leur signature et leur
+   * sémantique : à un seul appelant, le comportement est identique — c'est ce
+   * que vérifient les campagnes de stimulation R2 et R2.1, inchangées.
+   *
+   * Ce qui change est invisible en série et décisif en concurrence : la fenêtre
+   * est franchie par UN appel à la fois, dans l'ordre d'arrivée. Sans cela, N
+   * appels simultanés liraient le même instant, attendraient ensemble et
+   * partiraient ensemble — la protection deviendrait un point de rafale à
+   * l'instant précis où elle est censée protéger.
+   *
+   * La section critique ne couvre QUE la réservation. La requête réseau, elle,
+   * reste parallèle : sérialiser le vol annulerait le bénéfice qu'on cherche. */
+  const window = createRateWindow({ sleepFn });
   return {
-    async before() {
-      const waitMs = nextAvailableAt - Date.now();
-      if (waitMs > 0) await sleepFn(waitMs);
-    },
-    recordWaitMs(waitMs) {
-      if (Number.isFinite(waitMs) && waitMs > 0) nextAvailableAt = Date.now() + waitMs;
-    }
+    async before() { await window.reserve(); },
+    recordWaitMs(waitMs) { window.recordWaitMs(waitMs); }
   };
 }
 
@@ -1150,6 +1161,10 @@ export async function runCriticWithGroqFanOut(input, env, { candidateFamilyGroup
   return runCriticBatchedPipeline(
     { ...input, capability: groqCriticBatchPlanCapability(input), candidateFamilyGroups },
     {
+      /* M-03 — ACTIVATION du seul groupe que M-02 a prouvé indépendant. La
+         valeur ne vient pas d'ici : elle vient de la capacité technique déclarée
+         pour CE fournisseur, seule source de vérité du système. */
+      concurrency: resolveProviderConcurrency("groq"),
       executeGlobal: (globalInput) => callGroqChatCompletion({
         systemPrompt: CRITIC_GLOBAL_SYSTEM_PROMPT,
         userMessage: makeCriticGlobalUserMessage(globalInput),
@@ -1206,6 +1221,9 @@ export async function runCriticWithAnthropic(input, env) {
   return runCriticBatchedPipeline(
     { ...input, capability: groqCriticBatchPlanCapability(input) },
     {
+      /* M-03 — même activation, même source : ce fournisseur n'a ni stimulateur
+         ni reprise, la borne d'appels simultanés est donc sa seule protection. */
+      concurrency: resolveProviderConcurrency("anthropic"),
       executeGlobal: (globalInput) => callAnthropicMessages({
         systemPrompt: CRITIC_GLOBAL_SYSTEM_PROMPT,
         userMessage: makeCriticGlobalUserMessage(globalInput),
@@ -1334,6 +1352,9 @@ export async function runCriticWithOpenAI(input, env) {
   return runCriticBatchedPipeline(
     { ...input, capability: groqCriticBatchPlanCapability(input) },
     {
+      /* M-03 — même activation, même source : ce fournisseur n'a ni stimulateur
+         ni reprise, la borne d'appels simultanés est donc sa seule protection. */
+      concurrency: resolveProviderConcurrency("openai"),
       executeGlobal: (globalInput) => callOpenAiChatCompletion({
         systemPrompt: CRITIC_GLOBAL_SYSTEM_PROMPT,
         userMessage: makeCriticGlobalUserMessage(globalInput),

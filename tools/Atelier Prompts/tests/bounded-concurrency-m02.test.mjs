@@ -490,15 +490,22 @@ test('T-M02-38 la limite est une contrainte technique, jamais une propriété du
   assert.equal(/concurrency\s*[:=]\s*[0-9]/.test(core), false, 'DUPLICATE_CONCURRENCY_LIMITS = 0 : le pipeline n’en fixe aucune');
 });
 
-test('T-M02-39 aucun fournisseur n’active la concurrence tant que son débit n’est pas protégé', () => {
+test('T-M02-39 aucun fournisseur n’active la concurrence autrement que par la capacité déclarée', () => {
   const code = sansCommentaires(ADAPTERS_SRC);
-  /* Constat mesuré, et raison de ne PAS activer : le stimulateur Groq est un
-     état partagé (nextAvailableAt) que N appels simultanés liraient ensemble ;
-     Anthropic et OpenAI n'ont ni stimulateur ni reprise. Activer la concurrence
-     y affaiblirait une protection ou créerait une rafale non protégée. */
-  assert.equal(/concurrency\s*:/.test(code), false, 'aucun adaptateur ne demande encore la concurrence');
+  /* Cette garde a d'abord servi à INTERDIRE l'activation : tant que le contrôle
+     de débit n'était pas conscient de la concurrence, aucun adaptateur ne devait
+     la demander. M-03 a levé cette condition en rendant la fenêtre de débit sûre
+     et en bornant les appels simultanés.
+     Ce qu'elle protège désormais est ce qui reste dangereux : qu'une limite
+     apparaisse ailleurs que dans la source unique. Aucun nombre en dur, jamais. */
+  const activations = code.match(/concurrency:\s*([^,\n]+)/g) || [];
+  assert.ok(activations.length > 0, 'l’activation existe bel et bien');
+  for (const activation of activations) {
+    assert.match(activation, /resolveProviderConcurrency\(/,
+      `une limite doit venir de la capacité déclarée, jamais d’un littéral : ${activation}`);
+  }
   assert.ok(code.includes('createGroqRateLimitPacer'), 'le stimulateur Groq existe toujours');
-  assert.ok(ADAPTERS_SRC.includes('nextAvailableAt'), 'et reste un état partagé, donc incompatible en l’état');
+  assert.ok(code.includes('createRateWindow'), 'et sa fenêtre est désormais concurrency-safe');
 });
 
 /* ======================================================================== *
