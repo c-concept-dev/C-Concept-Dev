@@ -26,15 +26,20 @@ import { fileURLToPath } from 'node:url';
 import {
   GATE_MODES,
   GATE_STATUSES,
-  OUTPUT_GATE_STATUSES,
-  OUTPUT_VIOLATION_CODES,
   REQUIREMENT_STATUSES,
   VIOLATION_CODES,
   buildProjectionTrace,
   collectCanonicalRequirements,
-  validateOutputAgainstCanonicalContract,
   validatePromptAgainstCanonicalContract
 } from '../core/adn/prompt-contract-gate.js';
+/* ADN-QG-02D — la conformité de SORTIE a une source unique. Le prototype que
+   QG-00 avait esquissé ici est supprimé ; ce test éprouve désormais le moteur
+   réel, avec les mêmes attentes et sans rien relâcher. */
+import {
+  OUTPUT_GATE_STATUSES,
+  OUTPUT_VIOLATION_CODES,
+  validateOutputAgainstCanonicalContract
+} from '../core/adn/output-compliance-gate.js';
 import { enrichRapidCanonicalContract } from '../core/adn/rapide-canonical-enrichment.js';
 import { ADAPTIVE_LOCK_IDS } from '../core/adn/adaptive-lock-selector.js';
 import { canonicalFrom, oprieReadyTurn } from './post-oprie-validation-harness.helper.mjs';
@@ -389,9 +394,13 @@ test('T-QG00-19 contrôles : couverture exigée, exécution différée, non vér
   });
   assert.ok(OUTPUT_GATE_STATUSES.includes(sortie.status));
   assert.equal(sortie.status, 'INCOMPLETE_VERIFICATION', 'NOT_VERIFIABLE ne devient JAMAIS PASS');
-  assert.equal(sortie.deferred.length, 1, 'le contrôle sémantique est différé, jamais exécuté');
-  assert.equal(sortie.not_verifiable.length, 2);
-  assert.ok(sortie.executed >= 1, 'les contrôles déterministes, eux, sont réellement exécutés');
+  /* ADN-QG-02D — mêmes faits, lus dans le vocabulaire du moteur unique. Aucune
+     attente n'est relâchée : un contrôle sémantique reste différé, deux
+     contrôles restent hors de portée, et les déterministes sont bien exécutés. */
+  assert.equal(sortie.coverage.deferred, 1, 'le contrôle sémantique est différé, jamais exécuté');
+  assert.equal(sortie.coverage.not_verifiable, 2);
+  assert.ok(sortie.coverage.verifiable_here >= 1, 'les contrôles déterministes, eux, sont réellement exécutés');
+  assert.equal(sortie.verifications.filter((v) => v.verifiability === 'SEMANTIC' && v.status === 'PASS').length, 0);
   assert.equal(OUTPUT_VIOLATION_CODES.includes('MISSING_REQUIRED_PROJECTION'), false,
     'les deux taxonomies ne partagent aucun code de projection');
 });

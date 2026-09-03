@@ -104,13 +104,10 @@ const modules = [
     name: 'OUTPUTQG',
     exports: ['OUTPUT_COMPLIANCE_GATE_VERSION','OUTPUT_COMPLIANCE_GATE_PRODUCTION_ACTIVE','OUTPUT_GATE_STATUSES','OUTPUT_VIOLATION_CODES','VERIFIABILITY_LEVELS','CHECK_STATUSES','MEASURABLE_UNITS','OUTPUT_TRACE_FORBIDDEN_FIELDS','normalizeOutput','countStructuralItems','detectStructuralFormat','measureOutput','executeOutputChecks','validateOutputAgainstCanonicalContract','auditOutputTrace']
   },
-  /* ADN-QG-02B — le prototype de conformité de sortie que QG-00 avait laissé
-   * dans ce module n'est PAS exposé au navigateur : il porte le même nom que le
-   * moteur QG-02A et l'écrasait dans l'agrégat, si bien que le chemin Rapide
-   * appelait le prototype sans que rien ne le signale. Le fichier source n'est
-   * pas modifié — ses tests continuent de l'importer directement — mais le
-   * runtime n'expose qu'une seule implémentation de conformité de sortie.
-   * L'unification des deux appartient à QG-02D.
+  /* ADN-QG-02D — le prototype de conformité de sortie a été SUPPRIMÉ de la
+   * source ; il n'y a plus rien à exclure ici. La liste d'exports du gate de
+   * prompt ne porte plus que la frontière pré-exécution, et aucun nom ne peut
+   * donc plus en masquer un autre dans l'agrégat.
    *
    * ADN-QG-01 — LE GATE CONTRACTUEL EST EMBARQUÉ.
    * Une seule implémentation existe et elle est partagée : Rapide et Architecte
@@ -119,7 +116,7 @@ const modules = [
   {
     file: 'prompt-contract-gate.js',
     name: 'QG',
-    exports: ['PROMPT_CONTRACT_GATE_VERSION','PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE','GATE_STATUSES','GATE_MODES','REQUIREMENT_STATUSES','VIOLATION_CODES','OUTPUT_VIOLATION_CODES','OUTPUT_GATE_STATUSES','TRACE_FORBIDDEN_FIELDS','collectCanonicalRequirements','buildProjectionTrace','auditProjectionTrace','validatePromptAgainstCanonicalContract','guardPromptContract','PROMPT_CONTRACT_PUBLIC_MESSAGES','selectTraceEntriesForContract']
+    exports: ['PROMPT_CONTRACT_GATE_VERSION','PROMPT_CONTRACT_GATE_PRODUCTION_ACTIVE','GATE_STATUSES','GATE_MODES','REQUIREMENT_STATUSES','VIOLATION_CODES','TRACE_FORBIDDEN_FIELDS','collectCanonicalRequirements','buildProjectionTrace','auditProjectionTrace','validatePromptAgainstCanonicalContract','guardPromptContract','PROMPT_CONTRACT_PUBLIC_MESSAGES','selectTraceEntriesForContract']
   },
   {
     file: 'oprie-manual-roundtrip.js',

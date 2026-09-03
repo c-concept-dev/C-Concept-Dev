@@ -59,19 +59,10 @@ export const VIOLATION_CODES = Object.freeze([
   'TECHNICAL_VALIDATION_FAILURE'
 ]);
 
-/* Taxonomie DISTINCTE — la conformité de sortie n'est pas la conformité du
- * prompt. Les deux familles ne partagent aucun code, sauf l'échec technique. */
-export const OUTPUT_VIOLATION_CODES = Object.freeze([
-  'MISSING_REQUIRED_OUTPUT',
-  'OUTPUT_FORMAT_MISMATCH',
-  'OUTPUT_QUANTITY_MISMATCH',
-  'CHECK_FAILED',
-  'PROVENANCE_REQUIREMENT_FAILED',
-  'SCOPE_VIOLATION',
-  'FORBIDDEN_CONTENT_PRESENT',
-  'UNSUPPORTED_CLAIM',
-  'TECHNICAL_VALIDATION_FAILURE'
-]);
+/* ADN-QG-02D — la taxonomie de conformité de SORTIE a quitté ce module. Elle
+ * vit là où vit le moteur qui la produit : core/adn/output-compliance-gate.js.
+ * La garder ici en dupliquait la définition et, exportée sous le même nom, elle
+ * masquait la vraie dans l'agrégat du runtime. */
 
 export const GATE_MODES = Object.freeze(['strict', 'audit']);
 
@@ -576,70 +567,22 @@ function compareRequirement(req, value, prompt) {
 }
 
 /* ------------------------------------------------------------------------ *
- * §35 — OUTPUT COMPLIANCE : PROTOTYPE DISTINCT, NON BRANCHÉ.
+ * ADN-QG-02D — LE PROTOTYPE DE CONFORMITÉ DE SORTIE A ÉTÉ SUPPRIMÉ.
  *
- * Règle absolue : ce qui n'est pas vérifiable ne devient JAMAIS un PASS.
- * Un contrôle sémantique est DIFFÉRÉ, un contrôle qualitatif est NON VÉRIFIABLE ;
- * ni l'un ni l'autre ne peut être compté comme satisfait.
+ * QG-00 avait esquissé ici un contrôle de sortie, faute de moteur dédié.
+ * QG-02A en a construit un vrai, et les deux ont coexisté sous le MÊME nom
+ * exporté — au point qu'en QG-02B le prototype écrasait le moteur dans
+ * l'agrégat du runtime et répondait à sa place, sans qu'aucun signal ne
+ * l'indique. Ce lot ferme cette dette en supprimant l'esquisse plutôt qu'en
+ * l'enveloppant : un wrapper aurait conservé deux chemins de lecture pour une
+ * seule vérité.
+ *
+ * La conformité de sortie a désormais une source unique :
+ *     core/adn/output-compliance-gate.js
+ *
+ * Ce module ne traite plus que la frontière PRÉ-exécution — le prompt porte-t-il
+ * le contrat — et ne dit plus rien de ce qui se passe après.
  * ------------------------------------------------------------------------ */
-export const OUTPUT_GATE_STATUSES = Object.freeze([
-  'PASS', 'PASS_WITH_WARNINGS', 'INCOMPLETE_VERIFICATION', 'FAIL'
-]);
-
-export function validateOutputAgainstCanonicalContract({ canonical_contract, output, checks } = {}) {
-  if (!canonical_contract || typeof canonical_contract !== 'object' || Array.isArray(canonical_contract)
-      || !output || typeof output !== 'object' || Array.isArray(output)) {
-    return {
-      version: PROMPT_CONTRACT_GATE_VERSION,
-      status: 'FAIL',
-      violations: [{ code: 'TECHNICAL_VALIDATION_FAILURE', check_id: null, detail: 'Contrat canonique ou sortie absent.', blocking: true }],
-      deferred: [], not_verifiable: [], executed: 0
-    };
-  }
-
-  const c = plain(canonical_contract);
-  const source = Array.isArray(checks) ? checks : list(c.checks);
-  const violations = [];
-  const deferred = [];
-  const notVerifiable = [];
-  let executed = 0;
-
-  const expectedQuantity = plain(list(c.quantities)[0]);
-  const expectedFormat = text(plain(c.output).format);
-
-  for (const raw of source) {
-    const check = plain(raw);
-    const id = text(check.id) || null;
-    const type = text(check.type);
-
-    if (type === 'semantic') { deferred.push({ check_id: id, reason: 'DEFERRED' }); continue; }
-    if (type === 'heuristic' || type === 'not_verifiable') { notVerifiable.push({ check_id: id, reason: 'NOT_VERIFIABLE' }); continue; }
-    if (type !== 'deterministic') { notVerifiable.push({ check_id: id, reason: 'NOT_VERIFIABLE' }); continue; }
-
-    executed += 1;
-    if (check.rapide_source_field === 'quantities[0]' || /quantit/i.test(text(check.rule))) {
-      const produced = Array.isArray(output.items) ? output.items.length : null;
-      if (produced === null) {
-        violations.push({ code: 'MISSING_REQUIRED_OUTPUT', check_id: id, detail: 'La sortie ne porte aucune collection dénombrable.', blocking: check.blocking === true });
-      } else if (isInt(expectedQuantity.exact) && produced !== expectedQuantity.exact) {
-        violations.push({ code: 'OUTPUT_QUANTITY_MISMATCH', check_id: id, detail: `${expectedQuantity.exact} attendu(s), ${produced} produit(s).`, blocking: check.blocking === true });
-      }
-      continue;
-    }
-    if (expectedFormat && text(output.format) !== expectedFormat) {
-      violations.push({ code: 'OUTPUT_FORMAT_MISMATCH', check_id: id, detail: `Format attendu « ${expectedFormat} », produit « ${text(output.format) || 'aucun'} ».`, blocking: check.blocking === true });
-    }
-  }
-
-  const blocking = violations.filter((v) => v.blocking);
-  let status;
-  if (blocking.length) status = 'FAIL';
-  else if (deferred.length || notVerifiable.length) status = 'INCOMPLETE_VERIFICATION';
-  else if (violations.length) status = 'PASS_WITH_WARNINGS';
-  else status = 'PASS';
-
-  return { version: PROMPT_CONTRACT_GATE_VERSION, status, violations, deferred, not_verifiable: notVerifiable, executed };
-}
 
 /* ------------------------------------------------------------------------ *
  * ADN-QG-01 — GARDE UNIQUE, PARTAGÉE PAR LES DEUX MOTEURS.

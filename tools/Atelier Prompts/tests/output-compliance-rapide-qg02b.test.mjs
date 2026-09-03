@@ -149,8 +149,11 @@ test('T-QG02B-32 le contrôle n’écrit aucune route', () => {
 test('T-QG02B-33 le Prompt Contract Gate n’est pas touché', () => {
   const promptGate = fs.readFileSync(path.join(root, 'core/adn/prompt-contract-gate.js'), 'utf8');
   assert.ok(promptGate.includes('export function validatePromptAgainstCanonicalContract'));
-  assert.equal(promptGate.includes('output-compliance-gate'), false, 'aucune dépendance croisée introduite');
-  assert.equal(GATE.includes('validatePromptAgainstCanonicalContract'), false, 'les deux frontières restent distinctes');
+  /* Aucune dépendance croisée : un chemin cité dans un commentaire n'en est pas
+     une, seul un import en serait une. */
+  assert.equal(/import[^;]*output-compliance-gate/.test(promptGate), false, 'aucune dépendance croisée introduite');
+  assert.equal(sansCommentaires(GATE).includes('validatePromptAgainstCanonicalContract'), false,
+    'les deux frontières restent distinctes');
 });
 
 test('T-QG02B-34 aucune réécriture ni réparation de la sortie', () => {
@@ -233,10 +236,25 @@ test('T-QG02B-13 une erreur de transport reste une erreur d’exécution', () =>
   const bloc = HTML.slice(HTML.indexOf('async function envoyerApi(){'));
   const posCatch = bloc.indexOf('}catch(err){');
   const posGate = bloc.indexOf('rapideControleSortie(prompt, corps)');
-  assert.ok(posGate > -1 && posCatch > posGate, 'le contrôle vit dans le chemin de succès');
-  /* La branche d’échec du fournisseur n’appelle pas le contrôle de conformité :
-     un timeout n’est pas un défaut de contrat. */
-  assert.equal(bloc.slice(posCatch).includes('rapideControleSortie'), false, 'PROVIDER_ERROR_PRESERVED = YES');
+  assert.ok(posGate > -1 && posCatch > posGate, 'le contrôle vit d’abord dans le chemin de succès');
+
+  /* ADN-QG-02D — la règle exacte n’est pas « aucun contrôle dans le catch »,
+     mais « aucun texte exposé sans contrôle, et aucune erreur de transport
+     convertie en défaut de contrat ». Le seul endroit du catch qui expose un
+     corps est la troncature : il contrôle, et il continue de signaler une
+     erreur d’exécution. */
+  const branche = bloc.slice(posCatch, posCatch + 4000);
+  /* La règle porte sur les CLAIMS de conformité, pas sur les expositions : la
+     branche de refus montre un texte partiel sans rien en déclarer, et n'a donc
+     rien à faire gouverner. La troncature, elle, affiche un verdict : elle est
+     gouvernée. */
+  assert.ok(/rapideControleSortie\(/.test(branche), 'la branche qui affiche un verdict le fait contrôler');
+  assert.ok(/Réponse tronquée/.test(branche) && /'erreur'/.test(branche),
+    'PROVIDER_ERROR_PRESERVED = YES : la troncature reste une erreur d’exécution');
+
+  /* Et le gate n’est jamais nourri d’une erreur de transport : il ne reçoit
+     qu’un corps de réponse, jamais un objet d’erreur. */
+  assert.equal(/rapideControleSortie\([^)]*err/.test(bloc), false, 'aucune erreur n’entre dans le contrôle de contrat');
 });
 
 test('T-QG02B-14 un verdict défavorable ne relance jamais le fournisseur', async () => {
