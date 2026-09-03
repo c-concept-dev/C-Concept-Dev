@@ -5,6 +5,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
+import * as modeContracts from '../core/adn/mode-contracts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.html'), 'utf8');
@@ -56,7 +57,8 @@ function loadPilot({ fetchImpl, demande = 'Rédige une note.', answers = [] } = 
        simulée ne prouverait rien de ce que la production exécute. */
     adnRuntime: () => ({
       decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction,
-      isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction
+      isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction,
+      executionTargetFor: modeContracts.executionTargetFor
     }),
     state: { answers, docs: [] },
     adpState: { pendingQuestion: false, clarifications: 0, requestedMode: 'rapide', returnFocus: null },

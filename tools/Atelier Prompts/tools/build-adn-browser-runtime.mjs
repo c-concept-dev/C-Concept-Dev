@@ -124,6 +124,14 @@ const modules = [
     exports: ['MANUAL_ROUNDTRIP_VERSION','MANUAL_SESSION_STATES','ARCHITECTE_TURN_OUTCOMES','buildPortableRolePrompt','createManualRoleExecutor','createProviderRoleExecutor','runOprieTurnWithExecutor','startManualOprieTurn','buildArchitecteContractFromTurn'],
     deps: ['ORCORE','ORORCH','CANON','ARCHENRICH']
   },
+  /* MODE-01 — LES CONTRATS DE MODE SONT EMBARQUÉS.
+   * Le frontend lit la destination d'exécution ICI plutôt que de la redériver :
+   * deux dérivations du même fait finissent toujours par diverger. */
+  {
+    file: 'mode-contracts.js',
+    name: 'MODES',
+    exports: ['MODE_CONTRACTS_VERSION','MODE_CLASSES','EXECUTION_TARGETS','MODE_CONTRACTS','MODE_IDS','FORBIDDEN_CONTRACT_FIELDS','contractFor','executionTargetFor','usesGovernedPipeline','modesOfClass','validateModeContracts','createModeContractAuditView']
+  },
   /* IA-04 — LE CYCLE DE VIE D'EXÉCUTION EST EMBARQUÉ.
    * Le navigateur exécute LE MÊME registre que le noyau : une exécution
    * logique, des phases dans l'ordre, un terminal qui ne se réécrit pas. */

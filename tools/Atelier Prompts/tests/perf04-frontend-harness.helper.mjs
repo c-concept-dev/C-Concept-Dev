@@ -16,6 +16,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import * as fastPlane from '../workers/shared/fast-interactive-plane.js';
 import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
+import * as modeContracts from '../core/adn/mode-contracts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const html = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.html'), 'utf8');
@@ -79,7 +80,9 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
     /* IA-02A/IA-02B : la politique réelle, jamais une imitation, et sa SURFACE COMPLÈTE —
        le pilote exige les deux fonctions, un export partiel doit fermer le tour. */
     decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction,
-    isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction
+    isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction,
+    /* MODE-01 : la destination d'exécution vient du contrat de mode réel. */
+    executionTargetFor: modeContracts.executionTargetFor
   };
   for (const nom of absents) delete runtime[nom];
 
