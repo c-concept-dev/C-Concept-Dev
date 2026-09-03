@@ -9355,7 +9355,27 @@ function archNouvelleDemande(){
   signaler('Champs de travail effacés — prêt pour une nouvelle demande');
   return true
 }
-function archDemarrer(){const brut=lire('atelier10.architecte',{});const resultat=qMigrerStructure({structure:brut,versionCourante:ARCH_SAUVEGARDE_VERSION,migrations:ARCH_MIGRATIONS});if(resultat.erreur)console.error('Migration atelier10.architecte : '+resultat.erreur);const d=resultat.structure||{};Object.keys(d).forEach(k=>{if(k==='version'||k==='maxLivrable')return;const e=aq('#arch-'+k);if(e&&d[k]!=null)e.value=d[k]});if(d.maxLivrable!=null&&aq('#arch-max-livrable'))aq('#arch-max-livrable').value=d.maxLivrable;if(resultat.migree)archSauver();['arch-demande','arch-materiau','arch-destinataire','arch-detail','arch-structure','arch-volume','arch-densite','arch-max-livrable'].forEach(id=>{const e=aq('#'+id);if(e)e.addEventListener('input',archSauver)});aq('#arch-importer-demande').addEventListener('click',()=>{aq('#arch-demande').value=aq('#demande').value;aq('#arch-materiau').value=aq('#materiau').value;aq('#arch-destinataire').value=aq('#destinataire').value;archSauver();archEtat('Champs repris depuis l’Atelier avancé.','succes')});aq('#arch-prep-demarrer').addEventListener('click',archPreparationDemarrer);aq('#arch-prep-copier').addEventListener('click',()=>{archCopier(aq('#arch-prep-instructions').value);archPrepEtat(ARCH_PREP_MESSAGES.copie,'succes')});aq('#arch-prep-valider').addEventListener('click',archPreparationValider);aq('#arch-prep-annuler').addEventListener('click',archPreparationAnnuler);aq('#arch-preparer').addEventListener('click',()=>{if(!archTexte('arch-demande')){archEtat('Saisissez une demande.','alerte');return}aq('#arch-requete').value=archRequete();archEtat('Demande d’analyse prête. Copiez-la dans le LLM de votre choix.','succes')});aq('#arch-copier-analyse').addEventListener('click',()=>archCopier(aq('#arch-requete').value));aq('#arch-valider').addEventListener('click',archTraiterJsonSaisi);aq('#arch-copier-correction').addEventListener('click',()=>archCopier(aq('#arch-correction').value));aq('#arch-api').addEventListener('click',archApi);aq('#arch-construire').addEventListener('click',archConstruire);aq('#arch-construire-executer').addEventListener('click',archConstruireExecuter);aq('#arch-qualite-preparer-juge').addEventListener('click',()=>{const rep=aq('#arch-qualite-reponse').value.trim();if(!rep){archQualiteEtat('Collez d\u2019abord la réponse obtenue.','alerte');return}archRendreOracle();aq('#arch-qualite-message-juge').value=archMessageJuge(rep,aq('#arch-qualite-autoriser-materiau').checked);aq('#arch-qualite-bloc-juge').classList.remove('cache');archQualiteEtat('Message Juge prêt. Copiez-le dans une discussion distincte.','succes')});aq('#arch-qualite-copier-juge').addEventListener('click',()=>archCopier(aq('#arch-qualite-message-juge').value));aq('#arch-qualite-valider-juge').addEventListener('click',archValiderJugementPonctuel);aq('#arch-qualite-exporter').addEventListener('click',archExporterQualiteFichier);aq('#arch-importer-paquet-qualite').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){archEtat('Fichier trop volumineux ('+Math.round(f.size/1024/1024)+' Mo, maximum 10 Mo) — import refusé.','alerte');e.target.value='';return}const lecteur=new FileReader();lecteur.onload=()=>{try{const r=archImporterPaquetQualite(JSON.parse(lecteur.result));archEtat('Demande'+(r.materiauRecupere?' et matériau':'')+' récupérés depuis le paquet — la campagne elle-même (réponses, jugements) n\u2019est pas reprise, seulement le point de départ.','succes')}catch(err){archEtat('Import refusé : '+err.message,'alerte')}e.target.value=''};lecteur.readAsText(f)});aq('#arch-tout-activer').addEventListener('click',()=>{archComposants.forEach(x=>x.actif=true);archRendu()});aq('#arch-compiler').addEventListener('click',archCompiler);aq('#arch-copier-prompt').addEventListener('click',()=>archCopier(aq('#arch-sortie').textContent));aq('#arch-evaluer').addEventListener('click',archEvaluerPrompt);aq('#arch-comparer').addEventListener('click',archComparerAvecAutreVersion);aq('#arch-ouvrir-editeur').addEventListener('click',()=>{const p=archCompiler();if(!p)return;aq('#editeur').value=p;ouvrirVue('editeur');majEditeur()});aq('#btn-nouvelle-demande-globale').addEventListener('click',archNouvelleDemande);window.__ARCHITECTE_V10__={schema:ARCH_SCHEMA,systeme:ARCH_SYSTEM,contexte:archContexte,requete:archRequete,valider:archValider,importer:archImporter,compiler:archCompiler,appliquerContrat:archAppliquerContratCanonique,projeterContrat:archProjectionCanonique,preparer:archPreparationDemarrer,validerPreparation:archPreparationValider,annulerPreparation:archPreparationAnnuler,preparerAvecApi:archPreparerAvecApi,finaliserContrat:archFinaliserContrat,get preparation(){return archPreparation},get tourOprie(){return archTourOprie},COMPILER_SEMANTIC_SOURCE:'ENRICHED_CANONICAL_CONTRACT',get derniereTraceQg(){return archDerniereTraceQg},get dernierControleSortie(){return archDernierControleSortie},controleSortie:archControleSortie,vocabulaireStructurel:archVocabulaireStructurel,sortieCertifiee:archSortieCertifiee,messageSortie:archMessageSortie,get contratCanonique(){return archContratCanonique},nouvelleDemande:archNouvelleDemande,api:archApi,construire:archConstruire,construireExecuter:archConstruireExecuter,extraireJson:archExtraireObjetsJson,promptCorrection:archPromptCorrection,oracleProposé:archOracleProposé,messageJuge:archMessageJuge,exportQualite:archExportQualite,validerJugementPonctuel:archValiderJugementPonctuel,importerPaquetQualite:archImporterPaquetQualite,get dernierJugementPonctuel(){return archDernierJugementPonctuel},get composants(){return archComposants},get analyse(){return archAnalyse}}}
+/* IA-04 — UNE SEULE EXÉCUTION LOGIQUE PAR DÉCLENCHEMENT.
+ *
+ * Le drapeau est LOCAL, délibérément. L'onglet Architecte est autonome : il n'a aucun accès à l'état
+ * OPRIE, et T-VALARCH02-06 le vérifie. Faire dépendre son déclencheur d'oprieState briserait cette
+ * autonomie — l'onglet cesserait de fonctionner seul. Le garde n'a besoin de rien d'autre que de
+ * savoir si LUI-MÊME est déjà en cours.
+ *
+ * Enveloppe le moteur GELÉ sans le modifier : le moteur reste l'unique implémentation, on ne fait
+ * qu'interdire d'y entrer deux fois de suite. Une reprise fournisseur ou une bascule reste DANS
+ * l'appel enveloppé — elle ne repasse pas par ici, et ne compte donc pas comme une seconde
+ * exécution. Le drapeau retombe quoi qu'il arrive, y compris sur échec : un cycle qui s'est terminé
+ * en erreur doit pouvoir être relancé par la personne, explicitement. */
+let archExecutionEnCours=false;
+let archExecutionsRefusees=0;
+async function archExecutionUneSeuleFois(){
+  if(archExecutionEnCours){archExecutionsRefusees+=1;return false}
+  archExecutionEnCours=true;
+  try{return await archConstruireExecuter()}
+  finally{archExecutionEnCours=false}
+}
+function archDemarrer(){const brut=lire('atelier10.architecte',{});const resultat=qMigrerStructure({structure:brut,versionCourante:ARCH_SAUVEGARDE_VERSION,migrations:ARCH_MIGRATIONS});if(resultat.erreur)console.error('Migration atelier10.architecte : '+resultat.erreur);const d=resultat.structure||{};Object.keys(d).forEach(k=>{if(k==='version'||k==='maxLivrable')return;const e=aq('#arch-'+k);if(e&&d[k]!=null)e.value=d[k]});if(d.maxLivrable!=null&&aq('#arch-max-livrable'))aq('#arch-max-livrable').value=d.maxLivrable;if(resultat.migree)archSauver();['arch-demande','arch-materiau','arch-destinataire','arch-detail','arch-structure','arch-volume','arch-densite','arch-max-livrable'].forEach(id=>{const e=aq('#'+id);if(e)e.addEventListener('input',archSauver)});aq('#arch-importer-demande').addEventListener('click',()=>{aq('#arch-demande').value=aq('#demande').value;aq('#arch-materiau').value=aq('#materiau').value;aq('#arch-destinataire').value=aq('#destinataire').value;archSauver();archEtat('Champs repris depuis l’Atelier avancé.','succes')});aq('#arch-prep-demarrer').addEventListener('click',archPreparationDemarrer);aq('#arch-prep-copier').addEventListener('click',()=>{archCopier(aq('#arch-prep-instructions').value);archPrepEtat(ARCH_PREP_MESSAGES.copie,'succes')});aq('#arch-prep-valider').addEventListener('click',archPreparationValider);aq('#arch-prep-annuler').addEventListener('click',archPreparationAnnuler);aq('#arch-preparer').addEventListener('click',()=>{if(!archTexte('arch-demande')){archEtat('Saisissez une demande.','alerte');return}aq('#arch-requete').value=archRequete();archEtat('Demande d’analyse prête. Copiez-la dans le LLM de votre choix.','succes')});aq('#arch-copier-analyse').addEventListener('click',()=>archCopier(aq('#arch-requete').value));aq('#arch-valider').addEventListener('click',archTraiterJsonSaisi);aq('#arch-copier-correction').addEventListener('click',()=>archCopier(aq('#arch-correction').value));aq('#arch-api').addEventListener('click',archApi);aq('#arch-construire').addEventListener('click',archConstruire);aq('#arch-construire-executer').addEventListener('click',archExecutionUneSeuleFois);aq('#arch-qualite-preparer-juge').addEventListener('click',()=>{const rep=aq('#arch-qualite-reponse').value.trim();if(!rep){archQualiteEtat('Collez d\u2019abord la réponse obtenue.','alerte');return}archRendreOracle();aq('#arch-qualite-message-juge').value=archMessageJuge(rep,aq('#arch-qualite-autoriser-materiau').checked);aq('#arch-qualite-bloc-juge').classList.remove('cache');archQualiteEtat('Message Juge prêt. Copiez-le dans une discussion distincte.','succes')});aq('#arch-qualite-copier-juge').addEventListener('click',()=>archCopier(aq('#arch-qualite-message-juge').value));aq('#arch-qualite-valider-juge').addEventListener('click',archValiderJugementPonctuel);aq('#arch-qualite-exporter').addEventListener('click',archExporterQualiteFichier);aq('#arch-importer-paquet-qualite').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){archEtat('Fichier trop volumineux ('+Math.round(f.size/1024/1024)+' Mo, maximum 10 Mo) — import refusé.','alerte');e.target.value='';return}const lecteur=new FileReader();lecteur.onload=()=>{try{const r=archImporterPaquetQualite(JSON.parse(lecteur.result));archEtat('Demande'+(r.materiauRecupere?' et matériau':'')+' récupérés depuis le paquet — la campagne elle-même (réponses, jugements) n\u2019est pas reprise, seulement le point de départ.','succes')}catch(err){archEtat('Import refusé : '+err.message,'alerte')}e.target.value=''};lecteur.readAsText(f)});aq('#arch-tout-activer').addEventListener('click',()=>{archComposants.forEach(x=>x.actif=true);archRendu()});aq('#arch-compiler').addEventListener('click',archCompiler);aq('#arch-copier-prompt').addEventListener('click',()=>archCopier(aq('#arch-sortie').textContent));aq('#arch-evaluer').addEventListener('click',archEvaluerPrompt);aq('#arch-comparer').addEventListener('click',archComparerAvecAutreVersion);aq('#arch-ouvrir-editeur').addEventListener('click',()=>{const p=archCompiler();if(!p)return;aq('#editeur').value=p;ouvrirVue('editeur');majEditeur()});aq('#btn-nouvelle-demande-globale').addEventListener('click',archNouvelleDemande);window.__ARCHITECTE_V10__={schema:ARCH_SCHEMA,systeme:ARCH_SYSTEM,contexte:archContexte,requete:archRequete,valider:archValider,importer:archImporter,compiler:archCompiler,appliquerContrat:archAppliquerContratCanonique,projeterContrat:archProjectionCanonique,preparer:archPreparationDemarrer,validerPreparation:archPreparationValider,annulerPreparation:archPreparationAnnuler,preparerAvecApi:archPreparerAvecApi,finaliserContrat:archFinaliserContrat,get preparation(){return archPreparation},get tourOprie(){return archTourOprie},COMPILER_SEMANTIC_SOURCE:'ENRICHED_CANONICAL_CONTRACT',get derniereTraceQg(){return archDerniereTraceQg},get dernierControleSortie(){return archDernierControleSortie},controleSortie:archControleSortie,vocabulaireStructurel:archVocabulaireStructurel,sortieCertifiee:archSortieCertifiee,messageSortie:archMessageSortie,get contratCanonique(){return archContratCanonique},nouvelleDemande:archNouvelleDemande,api:archApi,construire:archConstruire,construireExecuter:archConstruireExecuter,extraireJson:archExtraireObjetsJson,promptCorrection:archPromptCorrection,oracleProposé:archOracleProposé,messageJuge:archMessageJuge,exportQualite:archExportQualite,validerJugementPonctuel:archValiderJugementPonctuel,importerPaquetQualite:archImporterPaquetQualite,get dernierJugementPonctuel(){return archDernierJugementPonctuel},get composants(){return archComposants},get analyse(){return archAnalyse}}}
 document.addEventListener('DOMContentLoaded',()=>{try{archDemarrer()}catch(e){console.error(e);archEtat('Démarrage incomplet de l’Architecte : '+e.message,'alerte')}})
 })();
 
@@ -10587,7 +10607,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 6b7434e31fd59a7e55a35af1a381124bc146d178fb9fc55cb6f167acdd700497
+ * source-sha256: dcc9b2aaa0a3362d0323957aa19ba9283efb7aeeb49e08482710e847455a93f7
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -18810,6 +18830,205 @@ function buildArchitecteContractFromTurn(turn, { request_id, original_request, a
 
 return {MANUAL_ROUNDTRIP_VERSION,MANUAL_SESSION_STATES,ARCHITECTE_TURN_OUTCOMES,buildPortableRolePrompt,createManualRoleExecutor,createProviderRoleExecutor,runOprieTurnWithExecutor,startManualOprieTurn,buildArchitecteContractFromTurn};
 })({...ORCORE,...ORORCH,...CANON,...ARCHENRICH});
+const EXECLIFE=(()=>{
+/* IA-04 — CYCLE DE VIE D'UNE EXÉCUTION
+ * ============================================================================
+ *
+ * Une exécution logique naît une fois, traverse ses phases dans l'ordre, et se
+ * termine une fois. Ce module ne fait respecter que cela.
+ *
+ * Ce qu'il n'est pas :
+ *
+ *   UNE AUTORITÉ. Il ne sait pas ce qu'est une readiness, un verdict de gate ou
+ *   un état OPRIE. Il ne les lit pas, ne les produit pas, n'en juge aucun. Les
+ *   phases qu'il connaît sont des étapes TECHNIQUES d'un cycle, pas des états
+ *   de la demande — et aucune ne porte le nom d'un état métier.
+ *
+ *   UN CLASSIFICATEUR DE RÉSULTAT. Le résultat terminal lui est DONNÉ ; il le
+ *   conserve tel quel et refuse qu'un second vienne l'écraser. Décider si un
+ *   livrable est conforme appartient au gate de sortie, et à lui seul.
+ *
+ * Les deux distinctions qui justifient son existence :
+ *
+ *   UNE TENTATIVE FOURNISSEUR N'EST PAS UNE EXÉCUTION. Une exécution logique
+ *   peut contenir N appels — reprises 429, bascule Groq -> Anthropic -> OpenAI.
+ *   Les compter comme N exécutions ferait payer, et rendrait « exactement une
+ *   fois » infalsifiable.
+ *
+ *   UN RÉSULTAT TARDIF N'EST PAS UN RÉSULTAT. Le premier terminal valide gagne.
+ *   Sans cela, deux rappels concurrents laisseraient le dernier écrire — et le
+ *   dernier n'est pas le plus vrai, seulement le plus lent.
+ *
+ * PURETÉ : aucune entrée/sortie, aucun réseau, aucun fournisseur, aucun DOM,
+ * aucune horloge, aucun aléa. Les identifiants sont des entiers monotones, pas
+ * des horodatages : un horodatage ne prouve aucun ordre.
+ * ========================================================================= */
+
+const EXECUTION_LIFECYCLE_VERSION = "1.0";
+
+/**
+ * Les phases TECHNIQUES d'un cycle, dans leur ordre strict. Aucune ne porte le
+ * nom d'un état OPRIE : ce sont des étapes de fabrication, pas des verdicts.
+ */
+const EXECUTION_PHASES = Object.freeze(["READINESS", "PROMPT_QG", "EXECUTION", "OUTPUT_QG", "TERMINAL"]);
+
+/** Motifs de refus. Techniques, destinés à l'audit — jamais à l'interface. */
+const LIFECYCLE_REFUSALS = Object.freeze([
+  "UNKNOWN_EXECUTION", "STALE_EXECUTION", "PHASE_UNKNOWN", "PHASE_SKIPPED",
+  "PHASE_REWIND", "PHASE_ALREADY_ENTERED", "ALREADY_TERMINAL", "TERMINAL_ALREADY_APPLIED",
+  "TURN_ID_INVALID", "OUTCOME_MISSING"
+]);
+
+const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+const isInt = (v) => Number.isInteger(v);
+const ok = (extra) => Object.freeze({ allowed: true, reason: null, ...(extra || {}) });
+const no = (reason, extra) => Object.freeze({ allowed: false, reason, ...(extra || {}) });
+
+/**
+ * Crée un registre de cycles. Un registre par application ; il ne conserve que
+ * des métadonnées d'exécution, jamais un contenu.
+ *
+ * @param {{maxRecords?: number}} [options] borne de rétention (défaut 20).
+ */
+function createExecutionLifecycle({ maxRecords = 20 } = {}) {
+  /* L'identifiant est un COMPTEUR, jamais un horodatage : deux exécutions
+     lancées dans la même milliseconde doivent rester distinguables et ordonnées. */
+  let nextId = 1;
+  const records = [];
+
+  const find = (executionId) => records.find((r) => r.execution_id === executionId) || null;
+  const trim = () => { while (records.length > maxRecords) records.shift(); };
+
+  return {
+    /**
+     * Ouvre une exécution logique pour un tour. Rend un identifiant technique.
+     * Le tour, lui, appartient à l'orchestration : ce module ne le décide pas.
+     */
+    begin({ turn_id, canonical_version = null } = {}) {
+      if (!isInt(turn_id) || turn_id < 0) return no("TURN_ID_INVALID");
+      const record = {
+        execution_id: nextId,
+        turn_id,
+        canonical_version,
+        phases: [],
+        provider_attempts: 0,
+        terminal: null,
+        terminal_applied: false
+      };
+      nextId += 1;
+      records.push(record);
+      trim();
+      return ok({ execution_id: record.execution_id });
+    },
+
+    /**
+     * Entre dans une phase. L'ordre est strict : on n'en saute aucune, on n'en
+     * rejoue aucune, et on ne revient jamais en arrière.
+     */
+    enterPhase(executionId, phase, { currentTurnId = null } = {}) {
+      const record = find(executionId);
+      if (!record) return no("UNKNOWN_EXECUTION");
+      if (currentTurnId !== null && isInt(currentTurnId) && record.turn_id < currentTurnId) {
+        /* Le tour a avancé : ce cycle appartient au passé et n'agit plus. */
+        return no("STALE_EXECUTION");
+      }
+      const index = EXECUTION_PHASES.indexOf(phase);
+      if (index === -1) return no("PHASE_UNKNOWN");
+      if (record.terminal_applied) return no("ALREADY_TERMINAL");
+      if (record.phases.includes(phase)) return no("PHASE_ALREADY_ENTERED");
+      const derniere = record.phases.length ? EXECUTION_PHASES.indexOf(record.phases[record.phases.length - 1]) : -1;
+      if (index < derniere) return no("PHASE_REWIND");
+      /* Sauter une phase n'est pas « aller plus vite » : c'est franchir une
+         porte sans la traverser. Chaque phase suit immédiatement la précédente. */
+      if (index !== derniere + 1) return no("PHASE_SKIPPED");
+      record.phases.push(phase);
+      return ok({ phase, entered: [...record.phases] });
+    },
+
+    /**
+     * Enregistre une tentative fournisseur. Elle ne crée AUCUNE exécution : une
+     * reprise ou une bascule reste le même appel logique, et doit le rester —
+     * sinon « exécuté exactement une fois » ne voudrait plus rien dire.
+     */
+    recordProviderAttempt(executionId) {
+      const record = find(executionId);
+      if (!record) return no("UNKNOWN_EXECUTION");
+      if (record.terminal_applied) return no("ALREADY_TERMINAL");
+      record.provider_attempts += 1;
+      return ok({ provider_attempts: record.provider_attempts });
+    },
+
+    /**
+     * Pose le résultat terminal. Le PREMIER gagne, définitivement.
+     *
+     * `outcome` est conservé tel quel et n'est jamais interprété : ce module ne
+     * sait pas distinguer un succès d'un échec, et n'a pas à le savoir.
+     */
+    applyTerminal(executionId, outcome) {
+      const record = find(executionId);
+      if (!record) return no("UNKNOWN_EXECUTION");
+      if (outcome === undefined || outcome === null) return no("OUTCOME_MISSING");
+      if (record.terminal_applied) return no("TERMINAL_ALREADY_APPLIED", { terminal: record.terminal });
+      record.terminal = outcome;
+      record.terminal_applied = true;
+      if (!record.phases.includes("TERMINAL")) record.phases.push("TERMINAL");
+      return ok({ terminal: outcome });
+    },
+
+    /** Ce cycle appartient-il encore au tour courant ? */
+    isCurrent(executionId, currentTurnId) {
+      const record = find(executionId);
+      if (!record || !isInt(currentTurnId)) return false;
+      return record.turn_id === currentTurnId && !record.terminal_applied;
+    },
+
+    /** Un cycle est-il encore ouvert pour ce tour ? Sert à refuser une seconde entrée. */
+    hasOpenExecution(turnId) {
+      return records.some((r) => r.turn_id === turnId && !r.terminal_applied);
+    },
+
+    /** Vue d'audit : métadonnées seules, aucun contenu. */
+    describe(executionId) {
+      const record = find(executionId);
+      if (!record) return null;
+      return Object.freeze({
+        execution_id: record.execution_id,
+        turn_id: record.turn_id,
+        canonical_version: record.canonical_version,
+        phases: Object.freeze([...record.phases]),
+        provider_attempts: record.provider_attempts,
+        terminal_applied: record.terminal_applied
+      });
+    },
+
+    get executionCount() { return records.length; },
+    get lastExecutionId() { return records.length ? records[records.length - 1].execution_id : null; }
+  };
+}
+
+/**
+ * PROVENANCE — l'artefact exécuté est-il celui qui a été contrôlé ?
+ *
+ * Un gate de prompt qui valide A pendant qu'on exécute B ne valide rien. La
+ * comparaison est faite sur des IDENTIFIANTS fournis, jamais sur une
+ * ressemblance de contenu : ce module ne compare aucun texte.
+ */
+function assertExecutionProvenance({ qg_artifact_id, execution_artifact_id } = {}) {
+  if (!qg_artifact_id || !execution_artifact_id) return no("OUTCOME_MISSING");
+  return qg_artifact_id === execution_artifact_id ? ok() : no("PHASE_SKIPPED");
+}
+
+/**
+ * Le résultat contrôlé est-il celui de l'exécution courante ?
+ * Même règle : des identifiants, pas des contenus.
+ */
+function assertOutputProvenance({ execution_id, output_execution_id } = {}) {
+  if (!isInt(execution_id) || !isInt(output_execution_id)) return no("UNKNOWN_EXECUTION");
+  return execution_id === output_execution_id ? ok() : no("STALE_EXECUTION");
+}
+
+return {EXECUTION_LIFECYCLE_VERSION,EXECUTION_PHASES,LIFECYCLE_REFUSALS,createExecutionLifecycle,assertExecutionProvenance,assertOutputProvenance};
+})();
 const ORCHPOLICY=(()=>{
 /* IA-02A — POLITIQUE D'ORCHESTRATION
  * ============================================================================
@@ -19729,7 +19948,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'6b7434e31fd59a7e55a35af1a381124bc146d178fb9fc55cb6f167acdd700497'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'dcc9b2aaa0a3362d0323957aa19ba9283efb7aeeb49e08482710e847455a93f7'});
 })(window);
 
 
@@ -20169,7 +20388,7 @@ function v11ShowRapidGate(decision){
  * ================================================================================================= */
 const OPRIE_STATES=Object.freeze(['clarification_required','confirmation_required','operational_request_ready','blocked','degraded_state']);
 const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-request"]')||{}).content||'';
-const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,enrichedContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],telemetry:[]};
+const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,enrichedContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
 
 function oprieTechnicalFailure(){
   return Object.assign(new Error('OPERATIONAL_REQUEST_TECHNICAL_FAILURE'),{operational_request_technical_failure:true});
@@ -20433,6 +20652,9 @@ function oprieEnterExecution(turn,requestedMode){
      même contrat de base pour Rapide et pour Architecte. */
   const canonical=oprieBuildCanonicalContract(turn);
   oprieState.canonicalContract=canonical;
+  /* IA-04 : le cycle d'exécution s'ouvre ICI, et nulle part ailleurs — au seul endroit du produit
+     qui pose le contrat canonique. Son identifiant est technique ; il ne porte aucune sémantique. */
+  oprieBeginExecutionCycle(oprieState.seq,canonical&&canonical.version||null);
   const orientation={source:'oprie',route,oprie:turn,canonical,envelope:null,semantic:null,providerResult:null,action:null,
     decision:route==='architecte'
       ?{state:'architecte',title:'Préparation approfondie',text:'Votre demande est prête ; elle va être structurée.'}
@@ -20536,6 +20758,43 @@ function oprieActionAlreadyApplied(turnId,action){
 function oprieRecordAppliedAction(turnId,action){
   oprieState.appliedActions.push({turn_id:turnId,action:action,applied:true});
   while(oprieState.appliedActions.length>ORCHESTRATION_APPLIED_MAX)oprieState.appliedActions.shift();
+}
+/* ================================================================================================
+ * IA-04 — LE CYCLE D'EXÉCUTION, GARDÉ À SON ENTRÉE.
+ *
+ * Le moteur Architecte est une plage GELÉE : son hash est vérifié à chaque lot et n'a pas bougé
+ * depuis dix lots. On ne le modifie donc pas. Ce qui est gardé ici, c'est ce qui l'entoure et qui,
+ * lui, est libre : l'ouverture du cycle, et le déclencheur qui l'appelle.
+ *
+ * Le défaut réel que cela ferme : archConstruireExecuter n'a AUCUN garde de ré-entrée. Ses deux
+ * confirmations sont modales, donc sérialisantes — mais entre elles s'intercalent plusieurs appels
+ * d'analyse qui durent des secondes, pendant lesquelles le bouton reste vivant. Un second clic dans
+ * cette fenêtre ouvre un second cycle complet, jusqu'à cinq appels facturés, et une seconde
+ * exécution du livrable. Le garde ci-dessous rend ce second cycle impossible sans toucher au moteur.
+ * ============================================================================================= */
+function oprieExecutionLifecycle(){
+  try{
+    const runtime=adnRuntime();
+    if(!runtime||typeof runtime.createExecutionLifecycle!=='function')return null;
+    if(!oprieState.lifecycle)oprieState.lifecycle=runtime.createExecutionLifecycle();
+    return oprieState.lifecycle;
+  }catch(error){return null}
+}
+/* Ouvre le cycle du tour courant. Rend l'identifiant technique, ou null si le noyau manque —
+   auquel cas rien n'est ouvert, et rien ne prétendra l'avoir été. */
+function oprieBeginExecutionCycle(turnId,canonicalVersion){
+  const cycle=oprieExecutionLifecycle();
+  if(!cycle)return null;
+  const verdict=cycle.begin({turn_id:turnId,canonical_version:canonicalVersion===undefined?null:canonicalVersion});
+  if(!verdict||verdict.allowed!==true)return null;
+  oprieState.executionId=verdict.execution_id;
+  oprieMark('execution_cycle_begin',{execution_id:verdict.execution_id});
+  return verdict.execution_id;
+}
+/* Un cycle est-il déjà ouvert pour ce tour ? C'est la seule question que pose le garde d'entrée. */
+function oprieExecutionCycleOpen(turnId){
+  const cycle=oprieExecutionLifecycle();
+  return !!cycle&&cycle.hasOpenExecution(turnId);
 }
 function oprieDriveOrchestration(decision,turn,requestedMode){
   const runtime=oprieOrchestrationRuntime();

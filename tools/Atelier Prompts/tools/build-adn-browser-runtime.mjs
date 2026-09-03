@@ -124,6 +124,14 @@ const modules = [
     exports: ['MANUAL_ROUNDTRIP_VERSION','MANUAL_SESSION_STATES','ARCHITECTE_TURN_OUTCOMES','buildPortableRolePrompt','createManualRoleExecutor','createProviderRoleExecutor','runOprieTurnWithExecutor','startManualOprieTurn','buildArchitecteContractFromTurn'],
     deps: ['ORCORE','ORORCH','CANON','ARCHENRICH']
   },
+  /* IA-04 — LE CYCLE DE VIE D'EXÉCUTION EST EMBARQUÉ.
+   * Le navigateur exécute LE MÊME registre que le noyau : une exécution
+   * logique, des phases dans l'ordre, un terminal qui ne se réécrit pas. */
+  {
+    file: 'execution-lifecycle.js',
+    name: 'EXECLIFE',
+    exports: ['EXECUTION_LIFECYCLE_VERSION','EXECUTION_PHASES','LIFECYCLE_REFUSALS','createExecutionLifecycle','assertExecutionProvenance','assertOutputProvenance']
+  },
   /* IA-02A — LA POLITIQUE D'ORCHESTRATION EST EMBARQUÉE.
    * Une seule politique existe, et le navigateur exécute LA MÊME que le noyau.
    * La dupliquer dans le HTML permettrait à un état d'être traité d'un côté

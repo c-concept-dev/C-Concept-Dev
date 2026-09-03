@@ -381,7 +381,7 @@ test('T-IA03-42 : une action de l’ancien mode ne peut pas agir après bascule'
 
 test('T-IA03-43..48 : IA-03 n’écrit aucune autorité', () => {
   /* Le registre d'application est la seule mémoire ajoutée : il ne porte que des métadonnées. */
-  const registre = html.slice(html.indexOf('const ORCHESTRATION_EFFECTLESS_ACTIONS='), html.indexOf('function oprieDriveOrchestration'));
+  const registre = html.slice(html.indexOf('const ORCHESTRATION_EFFECTLESS_ACTIONS='), html.indexOf('IA-04 — LE CYCLE'));
   for (const interdit of [/operational_request_ready/, /clarification_required/, /confirmation_required/,
                           /degraded_state/, /\broute\b/, /readiness/i, /canonical/i, /guardPromptContract/,
                           /validateOutputAgainstCanonicalContract/]) {
@@ -394,7 +394,7 @@ test('T-IA03-43..48 : IA-03 n’écrit aucune autorité', () => {
 });
 
 test('T-IA03-NOFSM : aucune seconde machine d’état sémantique n’a été créée', () => {
-  const registre = html.slice(html.indexOf('const ORCHESTRATION_EFFECTLESS_ACTIONS='), html.indexOf('function oprieDriveOrchestration'));
+  const registre = html.slice(html.indexOf('const ORCHESTRATION_EFFECTLESS_ACTIONS='), html.indexOf('IA-04 — LE CYCLE'));
   const etats = ['clarification_required', 'confirmation_required', 'operational_request_ready', 'blocked', 'degraded_state', 'execution_ready'];
   for (const etat of etats) assert.equal(registre.includes(etat), false, `${etat} n’est pas redéclaré.`);
   /* Le seul vocabulaire ajouté est celui d'une ACTION appliquée ou non. */
