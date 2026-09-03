@@ -4,8 +4,16 @@
 ║  CONSEILLER CLINIQUE — Bibliothèque thérapeutique · IA + RAG              ║
 ║  © C Concept&Dev                                                          ║
 ║                                                                           ║
-║  Version : v1.4.0-fiabilise                                              ║
+║  Version : v1.4.1-fiabilise                                              ║
 ║  Date de création : 2026-09-02                                           ║
+║                                                                           ║
+║  v1.4.1 : Correctifs terrain Phase UX-2bis — l'instruction technique de   ║
+║  bandeau "Hypothèses retenues" ne fuite plus dans la bulle utilisateur    ║
+║  (séparation message affiché / message envoyé au modèle, cf.             ║
+║  adocClarityBannerNote) ; indicateur d'attente statique remplacé par une  ║
+║  progression textuelle réelle (bibliothèque → rédaction → web si          ║
+║  utilisé). Trouvaille annexe : argument docCtx/plan inversés corrigés    ║
+║  dans le prompt système des documents longs.                             ║
 ║                                                                           ║
 ║  v1.4.0 : Phase B0 (suite et clôture) — SQL généré par le modèle          ║
 ║  entièrement supprimé (client ET Worker, intention structurée            ║
@@ -1574,7 +1582,7 @@
     <div class="adoc-header-left">
       <span style="font-size:20px;">📚</span>
       <div>
-        <div class="adoc-header-title">Conseiller Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.4.0-fiabilise</span></div>
+        <div class="adoc-header-title">Conseiller Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.4.1-fiabilise</span></div>
         <div class="adoc-header-sub" id="adoc-mode-sub">Bibliothèque thérapeutique · IA + RAG</div>
       </div>
     </div>
@@ -3107,7 +3115,11 @@ RÈGLES ABSOLUES :
   }
 
   // ── System prompt unifié ──
-  function adocBuildSystemPrompt(ragCtx, docCtx, plan) {
+  // `extraNote` (optionnel) : instruction technique invisible à l'écran, valable pour
+  // cette seule génération — ex. le bandeau "Hypothèses retenues" après un plafond de
+  // clarification (cf. adocClarityBannerNote). Jamais stockée dans adocConversations,
+  // jamais affichée en bulle utilisateur.
+  function adocBuildSystemPrompt(ragCtx, docCtx, plan, extraNote) {
     const ctxSession = adocSessionContext
       ? '\n\nCONTEXTE DE TRAVAIL : ' + adocSessionContext : '';
     const ctxPatient = adocPatientContext
@@ -3333,7 +3345,7 @@ Pour les livrables HTML visuels :
 
 ${orientationBlock}
 
-${commonBase}`
+${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──\n' + extraNote : ''}`
     );
   }
 
@@ -3588,11 +3600,15 @@ ${commonBase}`
       // ── Passe 2 : Récupération chunks D1 ──
       let ragResult = { chunks: [], chunkLen: 900 };
       if (plan?.needs_rag !== false) {
-        // Sweep universel — label selon profondeur
+        // Sweep universel — label selon profondeur, avec le vrai nombre d'ouvrages
+        // (correctif terrain UX-2bis, v1.4.0 : avant, un badge statique ne disait rien
+        // de concret pendant l'attente — remplacé par une progression textuelle qui
+        // reflète l'étape réellement en cours, cf. §0bis « jamais de silence »).
         const isDeepIntent = ['cours','document','comparatif','tableau','fiche'].includes(plan?.intent);
+        const libCount = adocLibStats?.books ? ' (' + adocLibStats.books + ' ouvrages)' : '';
         adocUpdateTypingLabel(typingId, isDeepIntent
-          ? '📚 Scan exhaustif bibliothèque…'
-          : '📚 Scan bibliothèque…');
+          ? '📚 Consultation exhaustive de la bibliothèque' + libCount + '…'
+          : '📚 Consultation de la bibliothèque' + libCount + '…');
         // M1 : adocExecutePlan + adocEnrichSearches en parallèle (Promise.all)
         const [ragRes, extraSearches] = await Promise.all([
           _precomputedRag ? Promise.resolve(_precomputedRag) : adocExecutePlan(plan),
@@ -3629,15 +3645,14 @@ ${commonBase}`
       //   • Raisonnement LLM  → ses propres connaissances, jamais bridées
       // Il n'y a plus de "fallback" — tout est mixte par défaut.
       // ─────────────────────────────────────────────────────────────────────────
-      // FIX-PIPELINE-BADGE : les 3 sources sont toujours actives — l'afficher clairement
+      // Correctif terrain UX-2bis (v1.4.0) : l'ancien badge ("IA + Web + Bibliothèque")
+      // était choisi une fois selon le nombre de chunks puis restait figé pendant toute
+      // la réflexion/rédaction du modèle — aucune information réelle sur ce qui se passe.
+      // La bibliothèque vient d'être consultée (label précédent) ; la prochaine étape
+      // visible est la rédaction elle-même — l'indicateur "🌐 CC consulte le web…"
+      // prend le relais dynamiquement si CC déclenche une recherche web pendant qu'il écrit.
       const d1Coverage = ragResult.chunks.length;
-      if (d1Coverage < 5) {
-        adocUpdateTypingLabel(typingId, '🧠 IA + 🌐 Web + 📚 Bibliothèque…');
-      } else if (d1Coverage < 15) {
-        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 IA + 🌐 Web…');
-      } else {
-        adocUpdateTypingLabel(typingId, '📚 Bibliothèque + 🧠 IA + 🌐 Web…');
-      }
+      adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
 
       // FIX-DEBUG-PIPELINE : guard overflow chunks
       console.log('[Pipeline] chunks avant systemPrompt:', ragResult?.chunks?.length || 0);
@@ -3670,7 +3685,13 @@ ${commonBase}`
         docCtx = `\n\n═══ DOCUMENT JOINT ═══\nFichier : ${doc.name}\n\n${excerpt}\n` + excerptNote;
       }
 
-      const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan);
+      // Correctif UX-2bis (v1.4.0) : instruction technique de clarification (bandeau
+      // "Hypothèses retenues"), le cas échéant — lue et effacée une seule fois ici,
+      // jamais affichée ni conservée dans l'historique de conversation (cf. adocRunClarityGate).
+      const clarityNote = adocClarityBannerNote;
+      adocClarityBannerNote = null;
+
+      const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan, clarityNote);
 
       // Auto-résumé si session longue (async, non bloquant)
       adocAutoSummarize().catch(() => {});
@@ -3695,7 +3716,11 @@ ${commonBase}`
       if (_isLongDoc && typeof adocLongDoc === 'function') {
         adocUpdateTypingLabel(typingId, '📖 Génération document long par chapitres…');
         const longDocMsgId = adocAddMsg('assistant', '', [], true);
-        const systemPromptLD = adocBuildSystemPrompt(ragCtx, plan, docCtx);
+        // Trouvaille annexe (v1.4.0) : ordre des arguments corrigé — docCtx et plan
+        // étaient inversés par rapport à la signature d'adocBuildSystemPrompt(ragCtx,
+        // docCtx, plan), ce qui cassait silencieusement le prompt système des documents
+        // longs (plan traité comme docCtx et vice versa). Même clarityNote que la voie standard.
+        const systemPromptLD = adocBuildSystemPrompt(ragCtx, docCtx, plan, clarityNote);
         const fullDocResult = await adocLongDoc(text, plan, ragResult, systemPromptLD, longDocMsgId, workerUrl);
         if (fullDocResult) {
           if (adocLastUsage) adocShowCost(longDocMsgId, adocLastUsage);
@@ -6474,6 +6499,12 @@ ${recent}`;
   let adocClarityLastQuestion = '';
   let adocClarityCardEl = null;
   let adocDefaultInputPlaceholder = null; // capturé au premier remplacement, pour pouvoir le restaurer
+  // Correctif UX-2bis (terrain, v1.4.0) : l'instruction de bandeau "Hypothèses retenues"
+  // ne doit jamais apparaître dans la bulle utilisateur ni dans l'historique de
+  // conversation — seulement transmise au modèle pour LA génération qui suit
+  // immédiatement le plafond de clarification. Lue et effacée une seule fois par
+  // window.adocSend (la version d'origine, plus bas), jamais réutilisée après.
+  let adocClarityBannerNote = null;
 
   // Retour de test réel (Christophe) : le champ libre existait déjà mais n'était signalé que
   // par une ligne de texte discrète, invisible face aux boutons de suggestion. Le bouton
@@ -6577,23 +6608,30 @@ ${recent}`;
     adocRemoveTyping(typingId);
 
     // status === 'ready', OU plafond de 2 tours atteint, OU évaluateur indisponible.
-    let finalMessage = adocClarityOriginalMessage;
+    //
+    // Correctif terrain (v1.4.0) : avant, un seul finalMessage servait à la fois de
+    // bulle utilisateur ET d'instruction au modèle — l'instruction technique de bandeau
+    // "Hypothèses retenues" s'affichait donc verbatim comme si la thérapeute l'avait
+    // tapée elle-même. Désormais deux valeurs séparées : displayMessage (bulle, courte,
+    // dans ses mots) et adocClarityBannerNote (invisible, lue une fois par
+    // window.adocSend pour enrichir le prompt système de CETTE génération seulement).
+    let displayMessage = adocClarityOriginalMessage;
     if (adocClarityQAPairs.length) {
-      const recap = adocClarityQAPairs.map(function (p) { return p.question + ' ' + p.answer; }).join(' ');
-      finalMessage += '\n\nPrécisions apportées : ' + recap;
+      const answersRecap = adocClarityQAPairs.map(function (p) { return p.answer; }).join(' ; ');
+      displayMessage += ' (précisé : ' + answersRecap + ')';
     }
     const assumptions = (judgment && judgment.status === 'needs_clarification') ? (judgment.assumptions_if_proceeding || []) : [];
-    if (assumptions.length) {
-      finalMessage += '\n\nLa demande restait partiellement ouverte après clarification. Indique clairement, ' +
-        'tout au début du document, dans un bandeau visible intitulé "Hypothèses retenues :", les points ' +
-        'suivants avant de poursuivre normalement : ' + assumptions.join(' ; ') + '.';
-    }
+    adocClarityBannerNote = assumptions.length
+      ? ('La demande restait partiellement ouverte après clarification. Indique clairement, ' +
+         'tout au début du document, dans un bandeau visible intitulé "Hypothèses retenues :", les points ' +
+         'suivants avant de poursuivre normalement : ' + assumptions.join(' ; ') + '.')
+      : null;
 
     adocClarityAwaitingAnswer = false;
     adocClarityCardEl = null;
     adocRestoreDefaultPlaceholder(); // plafond atteint / prêt — retour au placeholder d'origine
     const input = document.getElementById('adoc-input');
-    if (input) input.value = finalMessage;
+    if (input) input.value = displayMessage;
     adocThinking = false; // adocSendOriginal remet lui-même ce drapeau à true
     await adocSendOriginal();
   }
