@@ -166,8 +166,16 @@ test('FC01A-7 : une erreur technique neutre est rendue, sans route et sans exéc
   // FC-01b : les trois points d'entrée passent désormais par oprieRunTurn, qui rend lui-même l'échec
   // technique. Le rendu reste garanti, en un seul endroit au lieu de trois — l'invariant (aucun point
   // d'entrée ne peut router sur un échec) est renforcé, pas affaibli.
-  assert.match(html, /catch\(error\)\{return oprieShowNetworkFailure\(\)\}/,
+  // PERF-04 : le pilote unique a gagné un garde de tour (un échec d'un tour dépassé ne rend plus
+  // rien). L'invariant vérifié ici est inchangé et désormais porté sur le CORPS de la fonction au
+  // lieu d'une ligne littérale : l'échec technique est rendu, et ce chemin ne route ni n'exécute.
+  const pilote = html.slice(html.indexOf('async function oprieRunTurn'), html.indexOf('const ADP_TECHNICAL_FAILURE_UI'));
+  assert.ok(pilote.length > 0, 'le pilote unique doit exister.');
+  assert.match(pilote, /catch\(error\)\{[\s\S]*?oprieShowNetworkFailure\(\)/,
     'le pilote unique rend l’échec technique sans jamais router.');
+  for (const routage of [/adpRunRapide/, /adpEnterArchitecte/, /oprieEnterExecution/]) {
+    assert.doesNotMatch(pilote, routage, `le pilote ne doit jamais router (${routage}) : seul oprieApplyTurn le peut, sur un état OPRIE.`);
+  }
   assert.match(html, /\.ui-rapid-gate\[data-state="technical"\]/, 'l’état technique doit être visible.');
 });
 

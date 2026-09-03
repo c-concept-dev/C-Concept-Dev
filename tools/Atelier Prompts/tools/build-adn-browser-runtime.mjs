@@ -124,6 +124,17 @@ const modules = [
     exports: ['MANUAL_ROUNDTRIP_VERSION','MANUAL_SESSION_STATES','ARCHITECTE_TURN_OUTCOMES','buildPortableRolePrompt','createManualRoleExecutor','createProviderRoleExecutor','runOprieTurnWithExecutor','startManualOprieTurn','buildArchitecteContractFromTurn'],
     deps: ['ORCORE','ORORCH','CANON','ARCHENRICH']
   },
+  /* PERF-04 — LE PLAN RAPIDE EST EMBARQUÉ TEL QUEL.
+   * Le frontend ne réimplémente rien : il appelle EXACTEMENT les fonctions de
+   * PERF-03A. C'est ce qui garantit qu'il n'existe qu'une seule définition de
+   * ce qu'est une interaction candidate valide, et qu'un navigateur ne peut pas
+   * en accepter une que le serveur refuserait. */
+  {
+    file: 'fast-interactive-plane.js',
+    dir: 'workers/shared',
+    name: 'FASTPLANE',
+    exports: ['FAST_INTERACTION_TYPES','ONE_NEXT_INTERACTION_MAX','FAST_FORBIDDEN_AUTHORITY_FIELDS','FAST_INTERACTION_JSON_SCHEMA','createTurnSnapshot','validateFastInteraction','CONVERSATIONAL_MODES','projectInteractionForMode','createTurnCoordinator','RECONCILIATION_OUTCOMES','reconcileFastWithDeep','runInteractiveTurn']
+  },
   {
     file: 'engine-adapters.js',
     name: 'ADAPTERS',

@@ -25,6 +25,7 @@ import {
 export { degradedResultFromProviderChainError } from "../../shared/role-degradation.js";
 import { createRateWindow, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
 import { FAST_INTERACTION_JSON_SCHEMA, FAST_INTERACTION_TYPES } from "../../shared/fast-interactive-plane.js";
+import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from "../../shared/fast-interaction-endpoint.js";
 export { PROVIDER_TECHNICAL_CAPABILITIES, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
 import { handleOperationalRequest } from "../../shared/operational-request-orchestrator.js";
 
@@ -1578,6 +1579,14 @@ export default {
     // (Analyste -> Critique -> Arbitre), chacun sur sa propre chaîne HA. Ajout strictement additif :
     // /decision, /analyst, /critic et /arbiter conservent leur contrat public à l'octet près, et
     // restent utilisables tels quels — cette route ne les remplace pas, elle les compose.
+    // PERF-04 : porte d'entrée du PLAN RAPIDE. Ajout strictement additif et strictement parallèle —
+    // elle n'orchestre aucun rôle, ne lit pas /operational-request et ne peut rien décider. Son
+    // schéma de sortie (deux champs) est incapable de porter une readiness, une route ou un état.
+    if (new URL(request.url).pathname === FAST_INTERACTION_PATHNAME) {
+      return handleFastInteractionRequest(request, env, {
+        executeFast: (snapshot, fastEnv) => runFastInteractionWithHaChain(snapshot, fastEnv)
+      });
+    }
     if (new URL(request.url).pathname === "/operational-request") {
       return handleOperationalRequest(request, env, {
         executeRole: (role, roleInput) => runRoleWithHaChain(role, roleInput, env)

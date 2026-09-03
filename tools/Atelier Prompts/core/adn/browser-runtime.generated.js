@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: dd5124b40e1d213aac2f27db987737f267de8584ff1269342385356cfae1327c
+ * source-sha256: 2f3f614d5cc34ee9d079e0322260e6bdf6005688cf87e9318ee2c7f357ef7ed6
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -3858,7 +3858,8 @@ async function runProviderChain({ role, providers, preflight, log = defaultLog }
 return {FAILURE_CLASSES};
 })();
 const ORCORE=((deps)=>{
-const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,CANDIDATE_LIST_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,OPERATIONAL_REQUEST_STATE_VERSION,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,DecisionHttpError,TRANSPORT_LIMITS,corsHeaders,jsonResponse,readJsonBody}=deps;
+const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,CANDIDATE_LIST_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,OPERATIONAL_REQUEST_STATE_VERSION,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,DecisionHttpError,TRANSPORT_LIMITS,corsHeaders,jsonResponse,readJsonBody,runBounded}=deps;
+
 
 
 // Prompts, schémas, validation locale et câblage HTTP additif des 3 rôles de l'OPRIE (CDC V1.1
@@ -5678,7 +5679,7 @@ function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_drift_d
  * agreement ni illegitimate_question_found : c'est à la couche qui possède l'autorité OPRIE de
  * décider degraded_state, jamais à ce code.
  */
-async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch } = {}) {
+async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
   const questionReviewTargets = buildQuestionReviewTargets(analyst_output);
   const batchPlan = computeBatchPlan(questionReviewTargets, capability);
   const familyGroups = list(candidateFamilyGroups).length > 0 ? candidateFamilyGroups : [LADDER_ALTERNATIVE_VALUES];
@@ -5689,26 +5690,69 @@ async function runCriticBatchedPipeline({ original_request, clarification_histor
     analyst_output
   );
 
-  const batchResults = [];
-  const batchFailures = [];
+  /* M-02 — LES APPELS DE SUBSTITUTION REVIEW SONT INDÉPENDANTS.
+   *
+   * Preuve, lisible dans ce corps même : `executeBatch` reçoit uniquement
+   * `{original_request, clarification_history, analyst_output, batchTargets,
+   * batchIndex, issueIds, familyGroup, groupIndex}`. Aucune sortie d'un appel
+   * n'est l'entrée d'un autre, `batchPlan` est calculé AVANT le premier appel,
+   * et `globalOutput` n'entre qu'à l'agrégation (applySubstitutionGate). Ces
+   * B × G appels ne partagent donc ni donnée, ni décision.
+   *
+   * Ce qui NE change pas : le Critic global reste un préalable strict. Il n'est
+   * pas parallélisé avec les batches, non parce qu'il en dépendrait, mais parce
+   * qu'aujourd'hui son échec empêche tout appel de batch — lancer les batches en
+   * même temps que lui changerait le nombre d'appels sur le chemin d'échec.
+   *
+   * La limite est INJECTÉE et vaut 1 par défaut : à défaut d'opt-in explicite,
+   * l'exécution reste exactement celle d'avant, dans le même ordre.
+   */
+  const tasks = [];
   for (let index = 0; index < batchPlan.length; index += 1) {
     const batchTargets = batchPlan[index];
     const issueIds = batchTargets.map((t) => t.issue_id);
-    const groupRaws = [];
-    let batchSucceeded = true;
     for (let groupIndex = 0; groupIndex < familyGroups.length; groupIndex += 1) {
       const familyGroup = familyGroups[groupIndex];
+      tasks.push({
+        batchIndex: index, groupIndex, issueIds, familyGroup,
+        run: () => executeBatch({ original_request, clarification_history, analyst_output, batchTargets, batchIndex: index, issueIds, familyGroup, groupIndex })
+      });
+    }
+  }
+
+  const settled = await runBounded(tasks.map((task) => task.run), { concurrency, signal });
+
+  /* Réassemblage par INDEX, jamais par ordre d'arrivée : `groupRaws[groupIndex]`
+     et l'ordre de `batchFailures` sont exactement ceux de l'exécution série. */
+  const groupRawsByBatch = batchPlan.map(() => new Array(familyGroups.length));
+  const batchSucceeded = batchPlan.map(() => true);
+  const batchFailures = [];
+  for (let taskIndex = 0; taskIndex < tasks.length; taskIndex += 1) {
+    const { batchIndex, groupIndex, issueIds, familyGroup } = tasks[taskIndex];
+    const verdict = settled[taskIndex];
+    if (verdict.status === "fulfilled") {
+      const raw = verdict.value;
       try {
-        const raw = await executeBatch({ original_request, clarification_history, analyst_output, batchTargets, batchIndex: index, issueIds, familyGroup, groupIndex });
-        groupRaws.push(typeof raw === "string" ? parseJsonMaybeFenced(raw) : raw);
+        groupRawsByBatch[batchIndex][groupIndex] = typeof raw === "string" ? parseJsonMaybeFenced(raw) : raw;
+        continue;
       } catch (error) {
-        batchFailures.push({ batchIndex: index, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
-        batchSucceeded = false;
+        /* Une réponse illisible reste un échec de CE batch, exactement comme
+           lorsque le parsing était fait dans la boucle série. */
+        batchFailures.push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
+        batchSucceeded[batchIndex] = false;
+        continue;
       }
     }
-    if (batchSucceeded) {
-      batchResults.push(familyGroups.length === 1 ? groupRaws[0] : mergeCandidateGroups(familyGroups, groupRaws));
-    }
+    const error = verdict.reason;
+    batchFailures.push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
+    batchSucceeded[batchIndex] = false;
+  }
+
+  const batchResults = [];
+  for (let index = 0; index < batchPlan.length; index += 1) {
+    if (!batchSucceeded[index]) continue;
+    const groupRaws = groupRawsByBatch[index];
+    batchResults.push(familyGroups.length === 1 ? groupRaws[0] : mergeCandidateGroups(familyGroups, groupRaws));
   }
 
   if (batchFailures.length > 0) {
@@ -8178,6 +8222,301 @@ function buildArchitecteContractFromTurn(turn, { request_id, original_request, a
 
 return {MANUAL_ROUNDTRIP_VERSION,MANUAL_SESSION_STATES,ARCHITECTE_TURN_OUTCOMES,buildPortableRolePrompt,createManualRoleExecutor,createProviderRoleExecutor,runOprieTurnWithExecutor,startManualOprieTurn,buildArchitecteContractFromTurn};
 })({...ORCORE,...ORORCH,...CANON,...ARCHENRICH});
+const FASTPLANE=(()=>{
+/* PERF-03A — PLAN INTERACTIF RAPIDE, DISTINCT DU PLAN DE VALIDATION PROFONDE
+ * ============================================================================
+ *
+ * Le problème n'était pas la lenteur d'un appel : c'était une CAUSALITÉ. Rien
+ * ne pouvait s'afficher avant qu'Analyst, Critic et Arbiter aient tous terminé,
+ * alors que la plupart de ce travail ne sert pas à décider quoi montrer à
+ * l'instant même. M-02 et M-03 ont réduit le coût interne ; ils n'ont pas
+ * touché à cette dépendance. Ce lot la coupe.
+ *
+ * LA SÉPARATION, ET SA LIMITE EXACTE
+ *
+ *   Le plan RAPIDE répond à une seule question : « quelle interaction sûre
+ *   peut-on afficher maintenant ? ». Il propose. Il ne décide pas.
+ *
+ *   Le plan PROFOND reste entier — Analyst → Critic → Arbiter → OPRIE — et
+ *   demeure la seule autorité sur les états sémantiques, la readiness et le
+ *   routage. Il n'est ni raccourci, ni sauté, ni conditionné au succès du plan
+ *   rapide.
+ *
+ * POURQUOI CE N'EST PAS UN CONTOURNEMENT : ce que le plan rapide produit porte
+ * `authority: "candidate"`. Son schéma ne comporte AUCUN champ d'autorité — pas
+ * par convention, mais parce qu'ils n'existent pas : un fournisseur qui
+ * renverrait `operational_request_ready` ferait échouer la validation, faute de
+ * place où le mettre. On ne se repose pas sur la discipline d'un modèle ; on
+ * lui retire la possibilité.
+ *
+ * L'AUTRE MOITIÉ DU PROBLÈME : deux plans qui avancent à des vitesses
+ * différentes finissent dans le désordre. Un résultat profond du tour 10 peut
+ * arriver après le tour 11. Sans garde, il écraserait une question à laquelle
+ * l'utilisateur est déjà en train de répondre. D'où le tour immuable,
+ * l'identifiant monotone, et le rejet explicite de tout résultat périmé.
+ * ========================================================================= */
+
+/** Ce que le plan rapide a le droit de proposer. Énumération fermée. */
+const FAST_INTERACTION_TYPES = Object.freeze([
+  "ACKNOWLEDGE",
+  "ASK_CLARIFICATION",
+  "ASK_CONFIRMATION",
+  "ORIENT_ARCHITECTE",
+  "WAIT_FOR_DEEP_VALIDATION"
+]);
+
+/** Une seule interaction par tour. Jamais un questionnaire. */
+const ONE_NEXT_INTERACTION_MAX = 1;
+
+/**
+ * Champs d'autorité que le plan rapide ne peut pas porter.
+ *
+ * Cette liste sert de GARDE, pas de contrat : le schéma ci-dessous ne les
+ * contient déjà pas. Elle existe pour qu'une extension future du schéma ne
+ * puisse pas les réintroduire sans faire échouer un test.
+ */
+const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
+  "operational_request_ready", "clarification_required", "confirmation_required",
+  "blocked", "degraded_state", "state",
+  "route", "routing", "execution_ready", "readiness", "can_execute_now"
+]);
+
+/**
+ * Schéma MINIMAL, strict. Deux champs, et rien d'autre.
+ *
+ * Le réduire à ce point n'est pas de l'économie : c'est la garantie. Réutiliser
+ * le schéma OPRIE aurait donné au plan rapide des champs qu'il n'a pas le droit
+ * de décider, et la seule protection aurait été qu'il s'abstienne de les
+ * remplir. Ici, il ne peut pas.
+ */
+const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "text"],
+  properties: {
+    type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
+    text: { type: "string" }
+  }
+});
+
+const text = (v) => (typeof v === "string" ? v.trim() : "");
+const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+
+function deepFreeze(value) {
+  if (value && typeof value === "object") {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+/* ------------------------------------------------------------------------ *
+ * LE TOUR — une photographie, consommée à l'identique par les deux plans.
+ *
+ * Les deux plans doivent partir du MÊME état. S'ils lisaient chacun l'état
+ * courant au moment où ils démarrent, une réponse utilisateur arrivée entre les
+ * deux les ferait diverger silencieusement — et la réconciliation comparerait
+ * alors deux choses qui ne parlent pas du même tour.
+ * ------------------------------------------------------------------------ */
+function createTurnSnapshot({ turn_id, original_request, clarification_history = [], current_answer = null, canonical_version = 0 } = {}) {
+  if (!Number.isInteger(turn_id) || turn_id < 0) {
+    throw new TypeError("PERF-03A : turn_id doit être un entier monotone (jamais un horodatage).");
+  }
+  if (!text(original_request)) throw new TypeError("PERF-03A : la demande originale est obligatoire.");
+  if (!Array.isArray(clarification_history)) throw new TypeError("PERF-03A : clarification_history doit être une liste.");
+  if (!Number.isInteger(canonical_version) || canonical_version < 0) {
+    throw new TypeError("PERF-03A : canonical_version doit être un entier.");
+  }
+  return deepFreeze({
+    turn_id,
+    original_request: String(original_request),
+    clarification_history: clarification_history.map((entry) => (isObject(entry) ? { ...entry } : entry)),
+    current_answer: current_answer === null ? null : String(current_answer),
+    canonical_version
+  });
+}
+
+/* ------------------------------------------------------------------------ *
+ * L'INTERACTION CANDIDATE — non autoritaire par construction.
+ * ------------------------------------------------------------------------ */
+function validateFastInteraction(candidate, snapshot) {
+  if (!isObject(snapshot)) throw new TypeError("PERF-03A : un instantané de tour est requis.");
+  if (!isObject(candidate)) {
+    return { ok: false, reason: "FAST_OUTPUT_INVALID", detail: "sortie rapide absente ou non structurée." };
+  }
+  /* Clés exactes : ni manquantes, ni surnuméraires. Un champ d'autorité glissé
+     dans la réponse échoue ici, avant d'avoir pu être lu par qui que ce soit. */
+  const cles = Object.keys(candidate).sort();
+  if (cles.length !== 2 || cles[0] !== "text" || cles[1] !== "type") {
+    return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
+  }
+  if (!FAST_INTERACTION_TYPES.includes(candidate.type)) {
+    return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `type d'interaction inconnu : ${String(candidate.type)}` };
+  }
+  if (typeof candidate.text !== "string" || !candidate.text.trim()) {
+    return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: "texte d'interaction vide." };
+  }
+  return {
+    ok: true,
+    interaction: deepFreeze({
+      interaction_id: `fast-${snapshot.turn_id}`,
+      type: candidate.type,
+      text: candidate.text.trim(),
+      source: "fast_plane",
+      /* Le mot compte : ce résultat est un CANDIDAT. Rien dans le système ne
+         doit le lire comme un état. */
+      authority: "candidate",
+      turn_id: snapshot.turn_id,
+      canonical_version: snapshot.canonical_version,
+      can_execute: false,
+      can_route: false,
+      can_mark_ready: false
+    })
+  };
+}
+
+/* ------------------------------------------------------------------------ *
+ * LE MODE RAPIDE N'A PAS DE BOUCLE DE DIALOGUE.
+ *
+ * Invariant R1, antérieur à ce lot : Rapide ne converse pas. Une clarification
+ * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne
+ * lui ouvre pas un échange que ce mode ne sait pas tenir.
+ * ------------------------------------------------------------------------ */
+const CONVERSATIONAL_MODES = Object.freeze(["architecte"]);
+
+function projectInteractionForMode(interaction, mode) {
+  if (!isObject(interaction)) return null;
+  if (CONVERSATIONAL_MODES.includes(String(mode))) return interaction;
+  if (interaction.type === "ASK_CLARIFICATION" || interaction.type === "ASK_CONFIRMATION") {
+    return deepFreeze({ ...interaction, type: "ORIENT_ARCHITECTE", projected_from: interaction.type });
+  }
+  return interaction;
+}
+
+/* ------------------------------------------------------------------------ *
+ * LE COORDINATEUR — ce qui empêche le passé d'écraser le présent.
+ * ------------------------------------------------------------------------ */
+function createTurnCoordinator({ initialTurnId = -1 } = {}) {
+  let currentTurnId = initialTurnId;
+  const discarded = [];
+  return {
+    /** Ouvre un tour. L'identifiant ne recule jamais. */
+    openTurn(turnId) {
+      if (!Number.isInteger(turnId) || turnId <= currentTurnId) {
+        throw new TypeError(`PERF-03A : turn_id non monotone (${turnId} après ${currentTurnId}).`);
+      }
+      currentTurnId = turnId;
+      return currentTurnId;
+    },
+    /** Un résultat d'un tour révolu est écarté — jamais appliqué, jamais levé. */
+    accept(result, { plane } = {}) {
+      const turnId = isObject(result) ? result.turn_id : undefined;
+      if (!Number.isInteger(turnId)) return { accepted: false, stale: false, reason: "TURN_ID_MISSING" };
+      if (turnId < currentTurnId) {
+        discarded.push({ plane: plane || "unknown", turn_id: turnId, current: currentTurnId });
+        return { accepted: false, stale: true, reason: "TURN_STALE" };
+      }
+      return { accepted: true, stale: false, reason: null };
+    },
+    get currentTurnId() { return currentTurnId; },
+    get discardedCount() { return discarded.length; },
+    get discarded() { return discarded.map((d) => ({ ...d })); }
+  };
+}
+
+/* ------------------------------------------------------------------------ *
+ * LA RÉCONCILIATION — OPRIE gagne, toujours.
+ *
+ * Ce n'est pas une préférence d'arbitrage : le plan rapide n'a jamais eu
+ * l'autorité. Quand le plan profond arrive, il ne « l'emporte » pas — il dit ce
+ * qui est, là où le premier disait ce qu'on pouvait provisoirement montrer.
+ * ------------------------------------------------------------------------ */
+const RECONCILIATION_OUTCOMES = Object.freeze([
+  "DEEP_CONFIRMS_FAST",
+  "DEEP_SUPERSEDES_FAST",
+  "TURN_STALE"
+]);
+
+/** Correspondance STRUCTURELLE entre un état OPRIE et un type d'interaction. */
+const OPRIE_STATE_TO_INTERACTION = Object.freeze({
+  clarification_required: "ASK_CLARIFICATION",
+  confirmation_required: "ASK_CONFIRMATION"
+});
+
+function reconcileFastWithDeep(fastInteraction, deepTurn, { coordinator } = {}) {
+  if (!isObject(deepTurn) || !text(deepTurn.state)) {
+    throw new TypeError("PERF-03A : un tour OPRIE est requis pour la réconciliation.");
+  }
+  if (coordinator) {
+    const verdict = coordinator.accept(deepTurn, { plane: "deep" });
+    if (verdict.stale) {
+      return deepFreeze({ outcome: "TURN_STALE", display: fastInteraction || null, authoritative_state: null, superseded: false });
+    }
+  }
+  const attendu = OPRIE_STATE_TO_INTERACTION[deepTurn.state] || null;
+  const confirme = !!fastInteraction && attendu !== null && fastInteraction.type === attendu;
+  return deepFreeze({
+    /* Confirmé ou non, l'état qui fait foi est celui d'OPRIE : `display` cesse
+       d'être une interaction candidate dès que le plan profond a parlé. */
+    outcome: confirme ? "DEEP_CONFIRMS_FAST" : "DEEP_SUPERSEDES_FAST",
+    display: confirme ? fastInteraction : null,
+    authoritative_state: deepTurn.state,
+    superseded: !confirme
+  });
+}
+
+/* ------------------------------------------------------------------------ *
+ * LE TOUR INTERACTIF — les deux plans, un seul instantané.
+ *
+ * Le plan profond démarre en même temps que le rapide et n'attend pas son
+ * résultat : c'est ce qui retire le plan profond du chemin critique de
+ * l'affichage, sans jamais le retirer du chemin de la décision.
+ * ------------------------------------------------------------------------ */
+async function runInteractiveTurn({ snapshot, mode = "architecte", executeFast, executeDeep, onFastInteraction, coordinator } = {}) {
+  if (!isObject(snapshot)) throw new TypeError("PERF-03A : un instantané de tour est requis.");
+  if (typeof executeFast !== "function") throw new TypeError("PERF-03A : executeFast est obligatoire.");
+  if (typeof executeDeep !== "function") throw new TypeError("PERF-03A : executeDeep est obligatoire.");
+
+  /* Les deux partent d'ici, du même objet gelé, à la même milliseconde. */
+  const deepPromise = executeDeep(snapshot);
+
+  let fastInteraction = null;
+  let fastFailure = null;
+  try {
+    const brut = await executeFast(snapshot);
+    const verdict = validateFastInteraction(brut, snapshot);
+    if (verdict.ok) {
+      const projetee = projectInteractionForMode(verdict.interaction, mode);
+      const accepte = coordinator ? coordinator.accept(projetee, { plane: "fast" }) : { accepted: true, stale: false };
+      if (accepte.accepted) {
+        fastInteraction = projetee;
+        if (typeof onFastInteraction === "function") onFastInteraction(projetee);
+      }
+    } else {
+      /* Un échec rapide ne fabrique JAMAIS d'interaction : on n'invente pas une
+         question pour avoir quelque chose à montrer. On attend le plan profond. */
+      fastFailure = { reason: verdict.reason, detail: verdict.detail };
+    }
+  } catch (error) {
+    fastFailure = { reason: "FAST_PROVIDER_ERROR", detail: String((error && error.message) || error) };
+  }
+
+  /* Le plan profond n'est jamais sauté, quel qu'ait été le sort du rapide. */
+  const deepTurn = await deepPromise;
+  const reconciliation = reconcileFastWithDeep(fastInteraction, deepTurn, { coordinator });
+
+  return deepFreeze({
+    turn_id: snapshot.turn_id,
+    fast_interaction: fastInteraction,
+    fast_failure: fastFailure,
+    deep_turn: deepTurn,
+    reconciliation,
+    deep_executed: true
+  });
+}
+
+return {FAST_INTERACTION_TYPES,ONE_NEXT_INTERACTION_MAX,FAST_FORBIDDEN_AUTHORITY_FIELDS,FAST_INTERACTION_JSON_SCHEMA,createTurnSnapshot,validateFastInteraction,CONVERSATIONAL_MODES,projectInteractionForMode,createTurnCoordinator,RECONCILIATION_OUTCOMES,reconcileFastWithDeep,runInteractiveTurn};
+})();
 const ADAPTERS=((deps)=>{
 const {buildAdnState,adnStateToExecutionContractSnapshot,canonicalBaseToEnvelopeInput,assertCanonicalReadinessInvariant,selectAdaptiveLocks,validateAdaptiveLockSelection,routeExecution,validateRoutingDecision,contractForContractualization}=deps;
 
@@ -8481,5 +8820,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...ADAPTERS,source_sha256:'dd5124b40e1d213aac2f27db987737f267de8584ff1269342385356cfae1327c'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...FASTPLANE,...ADAPTERS,source_sha256:'2f3f614d5cc34ee9d079e0322260e6bdf6005688cf87e9318ee2c7f357ef7ed6'});
 })(window);
