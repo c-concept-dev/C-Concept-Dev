@@ -10553,6 +10553,11 @@ function showQuestion(q,missing){
 }
 function answerQuestion(answer){
   answer=String(answer||'').trim();if(!answer){toast('Répondez avec vos mots, ou choisissez « Je ne sais pas ».');return}
+  /* IA-03 : un second clic pendant que le tour né du premier démarre encore n'est pas une seconde
+     réponse. Sans ce garde, la même réponse entrait DEUX fois dans l'historique de clarification, et
+     le second clic partait dans la branche d'échange manuel au lieu du tour. On sort avant d'écrire :
+     l'historique de clarification est une matière d'autorité, il ne se duplique pas. */
+  if(oprieState.running)return;
   state.answers.push({question:$('#v11-question').textContent,answer});
   adpState.lastAnswerReceived=true;
   adpState.lastProgressDetected=adpTexteQuestion(answer)!=='je ne sais pas';
@@ -20164,7 +20169,7 @@ function v11ShowRapidGate(decision){
  * ================================================================================================= */
 const OPRIE_STATES=Object.freeze(['clarification_required','confirmation_required','operational_request_ready','blocked','degraded_state']);
 const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-request"]')||{}).content||'';
-const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,enrichedContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,telemetry:[]};
+const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,enrichedContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],telemetry:[]};
 
 function oprieTechnicalFailure(){
   return Object.assign(new Error('OPERATIONAL_REQUEST_TECHNICAL_FAILURE'),{operational_request_technical_failure:true});
@@ -20308,6 +20313,8 @@ function oprieReleaseForFastQuestion(seq){
 }
 function oprieRenderFastInteraction(interaction,seq){
   if(seq!==oprieState.seq){oprieMark('fast_discarded_stale');return false}
+  /* Le tour a déjà été tranché par l'autorité : une candidate n'a plus rien à proposer. */
+  if(oprieState.concludedTurn===seq){oprieMark('fast_discarded_concluded');return false}
   /* UNE seule sollicitation à la fois : si une question est déjà ouverte, la candidate ne s'y
      superpose pas. C'est ce qui rend une double question structurellement impossible. */
   if(adpState.pendingQuestion){oprieMark('fast_discarded_pending');return false}
@@ -20504,6 +20511,32 @@ const ORCHESTRATION_DRIVER=Object.freeze({
  * est ce qui permet de distinguer une action INCONNUE d'une action connue mais HORS CONTEXTE — les
  * deux ferment le tour, mais pour des raisons différentes, et l'audit doit pouvoir les séparer. */
 const ORCHESTRATION_TURN_ACTIONS=Object.freeze(Object.keys(ORCHESTRATION_DRIVER));
+/* ================================================================================================
+ * IA-03 — PROTECTION CONTRE LE REJEU.
+ *
+ * Une action appartient à UN tour. L'appliquer deux fois pour ce même tour ne produit pas deux fois
+ * la même chose : elle produit un dégât.
+ *
+ *   ENTER_READINESS rejouée exécute DEUX fois.
+ *   WAIT_FOR_USER rejouée réouvre la modale — et oprieAsk remet $('#v11-answer').value à vide,
+ *   donc EFFACE ce que la personne était en train d'écrire.
+ *
+ * Le registre ci-dessous ne contient que des métadonnées d'orchestration : un numéro de tour, un nom
+ * d'action, le fait qu'elle ait été appliquée. Il ne connaît aucun état sémantique, n'en déclare
+ * aucun, et ne peut donc pas devenir une seconde machine d'état de la demande.
+ *
+ * Deux actions en sont exemptées, parce qu'elles n'ont AUCUN effet : conserver l'interaction
+ * courante, et écarter un tour dépassé. Les rejouer ne fait rien — les compter serait du bruit.
+ * ============================================================================================= */
+const ORCHESTRATION_EFFECTLESS_ACTIONS=Object.freeze(['KEEP_CURRENT_INTERACTION','IGNORE_STALE']);
+const ORCHESTRATION_APPLIED_MAX=50;
+function oprieActionAlreadyApplied(turnId,action){
+  return oprieState.appliedActions.some(r=>r.turn_id===turnId&&r.action===action);
+}
+function oprieRecordAppliedAction(turnId,action){
+  oprieState.appliedActions.push({turn_id:turnId,action:action,applied:true});
+  while(oprieState.appliedActions.length>ORCHESTRATION_APPLIED_MAX)oprieState.appliedActions.shift();
+}
 function oprieDriveOrchestration(decision,turn,requestedMode){
   const runtime=oprieOrchestrationRuntime();
   const action=decision&&decision.action;
@@ -20518,11 +20551,25 @@ function oprieDriveOrchestration(decision,turn,requestedMode){
     return oprieShowNetworkFailure();
   }
   const apply=ORCHESTRATION_DRIVER[action];
+  /* IA-03 : une action à effet n'est appliquée qu'UNE fois par tour. Le second passage n'est pas une
+     erreur — c'est un doublon, et un doublon s'absorbe en silence, sans rien casser ni rien afficher. */
+  if(ORCHESTRATION_EFFECTLESS_ACTIONS.indexOf(action)===-1){
+    if(oprieActionAlreadyApplied(oprieState.seq,action)){
+      oprieMark('orchestration_replay_suppressed',{action});
+      return false;
+    }
+    oprieRecordAppliedAction(oprieState.seq,action);
+  }
   oprieMark('orchestration',{action,reason:decision.reason});
   return apply(turn,requestedMode);
 }
 function oprieApplyTurn(turn,requestedMode){
   oprieState.lastTurn=turn;
+  /* IA-03 : ce tour est désormais CONCLU par l'autorité. Le garde de numéro de tour ne suffit pas à
+     protéger ce moment : un plan rapide lent peut encore répondre pour CE tour, dont le numéro n'a
+     pas bougé — il s'est conclu, pas avancé. Sans cette marque, une candidate arrivée après coup
+     afficherait une question sur une demande déjà routée. Défaut introduit en PERF-04, révélé ici. */
+  oprieState.concludedTurn=oprieState.seq;
   /* PERF-04 : la candidate rapide est LUE avant d'être retirée — c'est elle qui permet à la
      politique de reconnaître qu'une interaction de la même catégorie est déjà affichée. */
   const fast=oprieState.fastInteraction;

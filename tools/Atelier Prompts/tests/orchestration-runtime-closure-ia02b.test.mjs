@@ -512,11 +512,20 @@ test('T-IA02B-PERF : le plan rapide rend toujours avant le plan profond', async 
 });
 
 test('T-IA02B-NOCOPY : aucune copie de la politique dans le frontend', () => {
-  /* Les seules actions nommées dans le frontend écrit à la main sont les 7 clés de la table. */
+  /* Le scan porte sur le CODE, commentaires retirés : une prose qui explique pourquoi une action est
+     protégée n'est pas une copie de la politique. Ce qui serait une copie, c'est qu'une action que le
+     pilote de tour ne peut pas rencontrer apparaisse quand même dans sa logique. */
+  const code = FRONTEND.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   for (const action of ORCHESTRATION_ACTIONS) {
-    const attendu = TURN_ACTIONS.includes(action) ? 1 : 0;
-    const vu = [...FRONTEND.matchAll(new RegExp(`\\b${action}\\b`, 'g'))].length;
-    assert.equal(vu, attendu, `${action} : ${vu} occurrence(s) dans le frontend, attendu ${attendu}.`);
+    if (TURN_ACTIONS.includes(action)) continue;
+    assert.equal([...code.matchAll(new RegExp(`\\b${action}\\b`, 'g'))].length, 0,
+      `${action} n’a rien à faire dans le frontend : le pilote de tour ne peut pas la rencontrer.`);
   }
-  assert.doesNotMatch(FRONTEND, /ORCHESTRATION_ACTIONS\s*=/, 'l’énumération n’est pas recopiée.');
+  /* Et les actions du tour n'apparaissent que comme clés de la table ou dans la liste des actions
+     sans effet — jamais dans un aiguillage qui rejouerait la décision. */
+  for (const action of TURN_ACTIONS) {
+    const vu = [...code.matchAll(new RegExp(`\\b${action}\\b`, 'g'))].length;
+    assert.ok(vu >= 1 && vu <= 2, `${action} : ${vu} occurrence(s) — au-delà de deux, ce serait une logique dupliquée.`);
+  }
+  assert.doesNotMatch(code, /ORCHESTRATION_ACTIONS\s*=/, 'l’énumération n’est pas recopiée.');
 });

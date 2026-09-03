@@ -162,3 +162,31 @@ export function classify(p95, sampleCount, { minimumSample = 20 } = {}) {
   if (p95 <= 5000) return 'DEGRADED';
   return 'NON_CONFORMING';
 }
+
+/* ------------------------------------------------------------------------ *
+ * IA-03 — CHARGEMENT DE answerQuestion, LE CHEMIN RÉEL D'UNE RÉPONSE.
+ *
+ * Cette fonction vit hors du bloc pilote et ne peut donc pas être chargée par
+ * loadPilot. On la charge SEULE, telle qu'elle est écrite en production, avec
+ * ses dépendances remplacées par des espions : ce qui est éprouvé reste le code
+ * du produit, jamais une reconstitution.
+ * ------------------------------------------------------------------------ */
+export function loadAnswerQuestion({ running = false, pendingQuestion = true, question = 'Q ?' } = {}) {
+  const source = html.slice(html.indexOf('function answerQuestion(answer){'), html.indexOf('function resetAll()'));
+  const spy = { turns: [], exchanges: [], toasts: [] };
+  const dom = new Map([['#v11-question', { textContent: question }],
+                       ['#v11-exchange-status', { className: '', innerHTML: '' }]]);
+  const context = {
+    state: { answers: [] },
+    adpState: { pendingQuestion, requestedMode: 'architecte' },
+    oprieState: { running, seq: 1 },
+    $: (id) => { if (!dom.has(id)) dom.set(id, { textContent: '', value: '', className: '', innerHTML: '' }); return dom.get(id); },
+    toast: (m) => spy.toasts.push(m),
+    syncLegacy: () => {},
+    beginExchange: () => spy.exchanges.push(true),
+    oprieRunTurn: (mode) => { spy.turns.push(mode); return true; },
+    adpTexteQuestion: (t) => String(t || '').toLowerCase()
+  };
+  vm.runInNewContext(source + '\n;globalThis.__aq=answerQuestion;', context);
+  return { answerQuestion: context.__aq, spy, ctx: context };
+}
