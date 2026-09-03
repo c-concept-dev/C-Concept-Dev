@@ -55,7 +55,11 @@ export const MODE_CONTRACTS = Object.freeze({
     usesDeepPlane: true,
     allowsExecution: true,
     executionTarget: "rapide",
-    producesFinalDeliverable: true,
+    /* MESURÉ EN MODE-02, et corrigé : le parcours Rapide entre bien dans la chaîne gouvernée
+       (Readiness puis gate de prompt) mais il produit un PROMPT, qu'il rend sur place. Il n'appelle
+       aucun fournisseur et ne fabrique aucun livrable — celui-ci naît ailleurs, chez la personne ou
+       via l'envoi direct. Écrire `true` ici affirmait une chose que le code ne fait pas. */
+    producesFinalDeliverable: false,
     manualComposition: false,
     supportsModeSwitch: true,
     presentationProfile: "direct"

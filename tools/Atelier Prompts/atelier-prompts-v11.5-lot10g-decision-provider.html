@@ -10607,7 +10607,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: b1d59b3731f3d2c3c8e795bf21c66b76b8bed9c176a44ae804a1a998818e2fbf
+ * source-sha256: 12e511f7774612d8da4a1b92df5a6898bb7d19a5c000f5feb0364f96643d1830
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -18888,7 +18888,11 @@ const MODE_CONTRACTS = Object.freeze({
     usesDeepPlane: true,
     allowsExecution: true,
     executionTarget: "rapide",
-    producesFinalDeliverable: true,
+    /* MESURÉ EN MODE-02, et corrigé : le parcours Rapide entre bien dans la chaîne gouvernée
+       (Readiness puis gate de prompt) mais il produit un PROMPT, qu'il rend sur place. Il n'appelle
+       aucun fournisseur et ne fabrique aucun livrable — celui-ci naît ailleurs, chez la personne ou
+       via l'envoi direct. Écrire `true` ici affirmait une chose que le code ne fait pas. */
+    producesFinalDeliverable: false,
     manualComposition: false,
     supportsModeSwitch: true,
     presentationProfile: "direct"
@@ -20133,7 +20137,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'b1d59b3731f3d2c3c8e795bf21c66b76b8bed9c176a44ae804a1a998818e2fbf'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'12e511f7774612d8da4a1b92df5a6898bb7d19a5c000f5feb0364f96643d1830'});
 })(window);
 
 
@@ -21168,6 +21172,16 @@ function adpRunRapide(demande,materiau,orientation){
     }
   }catch(error){console.warn('Adapter Rapide ADN non appliqué ; moteur historique conservé.',error)}
   if(typeof contratDuPrompt==='function')etat.contrat=contratDuPrompt(r.ctx,r.actifs);
+  /* MODE-02 — LE PROMPT RENDU ICI DOIT RESTER OPPOSABLE AU CONTRAT QUI L'A PRODUIT.
+     Défaut mesuré : ce parcours — le chemin PRINCIPAL du mode Rapide — affichait un prompt sans
+     jamais poser le couple {prompt, contrat}. Une sortie obtenue à partir de ce prompt ne pouvait
+     donc être opposée à AUCUN contrat : le contrôle de conformité rendait null, faute de lien. La
+     voie historique (copie depuis la vue Rapide) posait ce lien ; la voie principale ne le posait
+     pas. On le pose ici, sur le prompt RÉELLEMENT rendu — celui d'après l'affinage, pas celui
+     d'avant, sinon on opposerait la sortie à un texte que personne n'a vu. */
+  if(typeof rapideDernierePublication!=='undefined'){
+    rapideDernierePublication=r.canonical?{prompt:r.prompt,contract:r.canonical.contract}:null;
+  }
   const out=$('#ui-rapid-output'),box=$('#ui-rapid-result'),tok=$('#ui-rapid-tokens');
   if(out)out.textContent=r.prompt;
   if(tok&&typeof fourchetteTokens==='function'){const f=fourchetteTokens(r.prompt);tok.textContent=f.bas.toLocaleString('fr-FR')+'–'+f.haut.toLocaleString('fr-FR')+' tokens estimés';}

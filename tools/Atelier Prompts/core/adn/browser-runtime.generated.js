@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: b1d59b3731f3d2c3c8e795bf21c66b76b8bed9c176a44ae804a1a998818e2fbf
+ * source-sha256: 12e511f7774612d8da4a1b92df5a6898bb7d19a5c000f5feb0364f96643d1830
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -8280,7 +8280,11 @@ const MODE_CONTRACTS = Object.freeze({
     usesDeepPlane: true,
     allowsExecution: true,
     executionTarget: "rapide",
-    producesFinalDeliverable: true,
+    /* MESURÉ EN MODE-02, et corrigé : le parcours Rapide entre bien dans la chaîne gouvernée
+       (Readiness puis gate de prompt) mais il produit un PROMPT, qu'il rend sur place. Il n'appelle
+       aucun fournisseur et ne fabrique aucun livrable — celui-ci naît ailleurs, chez la personne ou
+       via l'envoi direct. Écrire `true` ici affirmait une chose que le code ne fait pas. */
+    producesFinalDeliverable: false,
     manualComposition: false,
     supportsModeSwitch: true,
     presentationProfile: "direct"
@@ -9525,5 +9529,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'b1d59b3731f3d2c3c8e795bf21c66b76b8bed9c176a44ae804a1a998818e2fbf'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CONVERSATION,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'12e511f7774612d8da4a1b92df5a6898bb7d19a5c000f5feb0364f96643d1830'});
 })(window);
