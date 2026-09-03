@@ -347,7 +347,9 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   } catch {
     throw tagFailure(new Error("Groq a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "groq" });
   }
-  return envelope?.choices?.[0]?.message?.content;
+  const choice = envelope?.choices?.[0];
+  assertNotTruncated("groq", choice?.finish_reason, ["length"]);
+  return assertNonEmptyContent("groq", choice?.message?.content);
 }
 
 /**
@@ -379,6 +381,65 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
  *                fournisseur, jamais notre contrat — et le défaut ne doit jamais être la classe
  *                fail-closed, qui priverait la chaîne d'un provider disponible.
  */
+/**
+ * M-01 — TAXONOMIE TECHNIQUE DES SORTIES STRUCTURÉES.
+ *
+ * Elle nomme ce qui s'est passé au TRANSPORT, et rien d'autre. Elle ne remplace
+ * ni `degraded_state`, ni aucun état OPRIE : ces autorités restent seules à
+ * décider ce qu'il faut en conclure. Ici, on dit seulement pourquoi une
+ * structure attendue n'est pas exploitable — pour que « vide », « tronqué »,
+ * « refus » et « illisible » cessent d'être le même événement indistinct.
+ */
+export const STRUCTURED_STATUS = Object.freeze({
+  VALID: "valid",
+  PARSE_ERROR: "parse_error",
+  SCHEMA_ERROR: "schema_error",
+  TRUNCATED: "truncated",
+  EMPTY: "empty",
+  REFUSAL: "refusal",
+  MULTIPLE_TOOL_CALLS: "multiple_tool_calls"
+});
+
+/**
+ * M-01 — un succès de transport n'est pas un succès applicatif.
+ *
+ * HTTP 200 + structure inexploitable reste un échec, de la classe
+ * STRUCTURED_OUTPUT_INVALID : provider-specific, donc éligible au failover, et
+ * le provider suivant repassera par exactement la même validation. Aucune
+ * structure n'est fabriquée, aucun champ n'est complété, rien n'est réparé.
+ */
+function rejectStructured(provider, structuredStatus, message) {
+  return tagFailure(
+    new Error(message),
+    FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID,
+    { provider, structured_status: structuredStatus }
+  );
+}
+
+/**
+ * M-01 — une réponse coupée par la limite de longueur n'est PAS une réponse.
+ *
+ * Sans ce contrôle, un JSON tronqué échouait plus loin comme « non parsable » :
+ * la cause réelle — la limite de tokens — restait invisible, et le diagnostic
+ * désignait le mauvais coupable. Le contrôle vient donc AVANT toute lecture du
+ * contenu, et aucune complétion d'accolade n'est tentée.
+ */
+function assertNotTruncated(provider, finishReason, truncatedValues) {
+  if (finishReason && truncatedValues.includes(String(finishReason))) {
+    throw rejectStructured(provider, STRUCTURED_STATUS.TRUNCATED,
+      `${provider} a interrompu la réponse (${finishReason}) : la structure est incomplète.`);
+  }
+}
+
+/** M-01 — un contenu absent ou vide n'est pas une structure : il n'en a que le statut HTTP. */
+function assertNonEmptyContent(provider, content) {
+  if (typeof content !== "string" || !content.trim()) {
+    throw rejectStructured(provider, STRUCTURED_STATUS.EMPTY,
+      `${provider} n'a produit aucun contenu structuré.`);
+  }
+  return content;
+}
+
 export function classifyProviderHttpStatus(status) {
   if (status === 401 || status === 403) return FAILURE_CLASSES.CONFIG_UNAVAILABLE;
   if (status === 400 || status === 422) return FAILURE_CLASSES.REQUEST_REJECTED;
@@ -570,9 +631,26 @@ async function callAnthropicMessages({ systemPrompt, userMessage, schema, schema
   } catch {
     throw tagFailure(new Error("Anthropic a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "anthropic" });
   }
-  const toolUseBlock = Array.isArray(envelope?.content) ? envelope.content.find((block) => block?.type === "tool_use" && block?.name === schemaName) : null;
-  if (!toolUseBlock || typeof toolUseBlock.input !== "object" || toolUseBlock.input === null) {
-    throw tagFailure(new Error("Anthropic n'a pas produit de tool_use exploitable pour la décision."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "anthropic" });
+  /* M-01 — un refus est un statut du fournisseur, pas un défaut de schéma : le
+     confondre avec une structure illisible masquerait ce qui s'est réellement
+     produit. Anthropic l'expose distinctement, on le nomme distinctement. */
+  if (envelope?.stop_reason === "refusal") {
+    throw rejectStructured("anthropic", STRUCTURED_STATUS.REFUSAL, "Anthropic a refusé de répondre à cette requête.");
+  }
+  assertNotTruncated("anthropic", envelope?.stop_reason, ["max_tokens"]);
+  /* M-01 — `tool_choice` force UN appel d'outil. En recevoir plusieurs n'est pas
+     une abondance dont on prendrait le premier : c'est une violation du protocole,
+     et choisir arbitrairement reviendrait à décider à la place du contrat. */
+  const toolUseBlocks = Array.isArray(envelope?.content)
+    ? envelope.content.filter((block) => block?.type === "tool_use" && block?.name === schemaName)
+    : [];
+  if (toolUseBlocks.length > 1) {
+    throw rejectStructured("anthropic", STRUCTURED_STATUS.MULTIPLE_TOOL_CALLS,
+      `Anthropic a produit ${toolUseBlocks.length} appels d'outil là où un seul est attendu.`);
+  }
+  const toolUseBlock = toolUseBlocks[0] || null;
+  if (!toolUseBlock || typeof toolUseBlock.input !== "object" || toolUseBlock.input === null || Array.isArray(toolUseBlock.input)) {
+    throw rejectStructured("anthropic", STRUCTURED_STATUS.EMPTY, "Anthropic n'a pas produit de tool_use exploitable pour la décision.");
   }
   return toolUseBlock.input;
 }
@@ -744,7 +822,14 @@ async function callOpenAiChatCompletion({ systemPrompt, userMessage, schema, sch
   } catch {
     throw tagFailure(new Error("OpenAI a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "openai" });
   }
-  return envelope?.choices?.[0]?.message?.content;
+  const choice = envelope?.choices?.[0];
+  /* M-01 — OpenAI expose le refus dans un canal dédié : le lire évite de le
+     traiter comme un JSON malformé et d'accuser le schéma à sa place. */
+  if (typeof choice?.message?.refusal === "string" && choice.message.refusal.trim()) {
+    throw rejectStructured("openai", STRUCTURED_STATUS.REFUSAL, "OpenAI a refusé de répondre à cette requête.");
+  }
+  assertNotTruncated("openai", choice?.finish_reason, ["length", "content_filter"]);
+  return assertNonEmptyContent("openai", choice?.message?.content);
 }
 
 /**
