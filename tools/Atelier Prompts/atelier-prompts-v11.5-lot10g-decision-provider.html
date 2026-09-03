@@ -21117,6 +21117,13 @@ function adpShowBlocked(action){
   return false;
 }
 function adpEnterArchitecte(demande,materiau,orientation){
+  /* MODE-03 — AUCUNE ENVELOPPE ÉTRANGÈRE NE SURVIT À L'ENTRÉE EN ARCHITECTE.
+     Défaut mesuré : si la construction d'enveloppe échouait, le catch laissait adpState.lastEnvelope
+     à sa valeur PRÉCÉDENTE. Or le mode Atelier y dépose une enveloppe locale portant un
+     etat_demande fabriqué — et makeEnvelope() lit ce champ pour composer la requête envoyée à l'IA.
+     Une entrée Architecte en échec aurait donc pu embarquer le contrat d'un autre mode. On efface
+     AVANT de tenter : en cas d'échec il ne reste rien, et rien vaut mieux qu'autre chose. */
+  adpState.lastEnvelope=null;adpState.lastProjection=null;
   try{
     let envelope=orientation&&orientation.envelope;
     /* ADN-CANON-02 : la base canonique, quand elle existe, est la source unique.
