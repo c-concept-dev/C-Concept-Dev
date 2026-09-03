@@ -13,6 +13,8 @@ import {
 } from "../../core/adn/operational-request-state.js";
 import { DecisionHttpError, TRANSPORT_LIMITS, corsHeaders, jsonResponse, readJsonBody } from "./decision-core.js";
 
+import { runBounded } from "./bounded-concurrency.js";
+
 // Prompts, schémas, validation locale et câblage HTTP additif des 3 rôles de l'OPRIE (CDC V1.1
 // §16-20). Provider-agnostique par construction : aucun prompt, schéma ou validateur ci-dessous ne
 // référence Workers AI ni Groq — seuls workers/workers-ai/src/index.js et workers/groq/src/index.js
@@ -1830,7 +1832,7 @@ export function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_
  * agreement ni illegitimate_question_found : c'est à la couche qui possède l'autorité OPRIE de
  * décider degraded_state, jamais à ce code.
  */
-export async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch } = {}) {
+export async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
   const questionReviewTargets = buildQuestionReviewTargets(analyst_output);
   const batchPlan = computeBatchPlan(questionReviewTargets, capability);
   const familyGroups = list(candidateFamilyGroups).length > 0 ? candidateFamilyGroups : [LADDER_ALTERNATIVE_VALUES];
@@ -1841,26 +1843,69 @@ export async function runCriticBatchedPipeline({ original_request, clarification
     analyst_output
   );
 
-  const batchResults = [];
-  const batchFailures = [];
+  /* M-02 — LES APPELS DE SUBSTITUTION REVIEW SONT INDÉPENDANTS.
+   *
+   * Preuve, lisible dans ce corps même : `executeBatch` reçoit uniquement
+   * `{original_request, clarification_history, analyst_output, batchTargets,
+   * batchIndex, issueIds, familyGroup, groupIndex}`. Aucune sortie d'un appel
+   * n'est l'entrée d'un autre, `batchPlan` est calculé AVANT le premier appel,
+   * et `globalOutput` n'entre qu'à l'agrégation (applySubstitutionGate). Ces
+   * B × G appels ne partagent donc ni donnée, ni décision.
+   *
+   * Ce qui NE change pas : le Critic global reste un préalable strict. Il n'est
+   * pas parallélisé avec les batches, non parce qu'il en dépendrait, mais parce
+   * qu'aujourd'hui son échec empêche tout appel de batch — lancer les batches en
+   * même temps que lui changerait le nombre d'appels sur le chemin d'échec.
+   *
+   * La limite est INJECTÉE et vaut 1 par défaut : à défaut d'opt-in explicite,
+   * l'exécution reste exactement celle d'avant, dans le même ordre.
+   */
+  const tasks = [];
   for (let index = 0; index < batchPlan.length; index += 1) {
     const batchTargets = batchPlan[index];
     const issueIds = batchTargets.map((t) => t.issue_id);
-    const groupRaws = [];
-    let batchSucceeded = true;
     for (let groupIndex = 0; groupIndex < familyGroups.length; groupIndex += 1) {
       const familyGroup = familyGroups[groupIndex];
+      tasks.push({
+        batchIndex: index, groupIndex, issueIds, familyGroup,
+        run: () => executeBatch({ original_request, clarification_history, analyst_output, batchTargets, batchIndex: index, issueIds, familyGroup, groupIndex })
+      });
+    }
+  }
+
+  const settled = await runBounded(tasks.map((task) => task.run), { concurrency, signal });
+
+  /* Réassemblage par INDEX, jamais par ordre d'arrivée : `groupRaws[groupIndex]`
+     et l'ordre de `batchFailures` sont exactement ceux de l'exécution série. */
+  const groupRawsByBatch = batchPlan.map(() => new Array(familyGroups.length));
+  const batchSucceeded = batchPlan.map(() => true);
+  const batchFailures = [];
+  for (let taskIndex = 0; taskIndex < tasks.length; taskIndex += 1) {
+    const { batchIndex, groupIndex, issueIds, familyGroup } = tasks[taskIndex];
+    const verdict = settled[taskIndex];
+    if (verdict.status === "fulfilled") {
+      const raw = verdict.value;
       try {
-        const raw = await executeBatch({ original_request, clarification_history, analyst_output, batchTargets, batchIndex: index, issueIds, familyGroup, groupIndex });
-        groupRaws.push(typeof raw === "string" ? parseJsonMaybeFenced(raw) : raw);
+        groupRawsByBatch[batchIndex][groupIndex] = typeof raw === "string" ? parseJsonMaybeFenced(raw) : raw;
+        continue;
       } catch (error) {
-        batchFailures.push({ batchIndex: index, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
-        batchSucceeded = false;
+        /* Une réponse illisible reste un échec de CE batch, exactement comme
+           lorsque le parsing était fait dans la boucle série. */
+        batchFailures.push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
+        batchSucceeded[batchIndex] = false;
+        continue;
       }
     }
-    if (batchSucceeded) {
-      batchResults.push(familyGroups.length === 1 ? groupRaws[0] : mergeCandidateGroups(familyGroups, groupRaws));
-    }
+    const error = verdict.reason;
+    batchFailures.push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
+    batchSucceeded[batchIndex] = false;
+  }
+
+  const batchResults = [];
+  for (let index = 0; index < batchPlan.length; index += 1) {
+    if (!batchSucceeded[index]) continue;
+    const groupRaws = groupRawsByBatch[index];
+    batchResults.push(familyGroups.length === 1 ? groupRaws[0] : mergeCandidateGroups(familyGroups, groupRaws));
   }
 
   if (batchFailures.length > 0) {
