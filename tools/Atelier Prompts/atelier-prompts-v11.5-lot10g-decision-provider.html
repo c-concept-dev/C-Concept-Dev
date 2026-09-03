@@ -9195,6 +9195,61 @@ async function archConstruire(){
   if(ok)archCompiler();
   return ok;
 }
+/* ADN-QG-02C — CONFORMITÉ DE SORTIE, CHEMIN ARCHITECTE.
+ * ------------------------------------------------------------------------
+ * Le moteur est celui du noyau, exactement le même que sur le chemin Rapide :
+ * ce bloc ne détient qu'un appel, jamais une règle. Il s'interpose entre la
+ * réponse du fournisseur et son exposition.
+ *
+ * Le lien prompt ↔ contrat n'a pas besoin d'être comparé ici : le prompt est
+ * compilé et exécuté dans le MÊME appel, et le contrat est capturé au moment
+ * de la compilation. Il n'existe donc aucune fenêtre où l'un pourrait changer
+ * sans l'autre — une preuve plus forte qu'une comparaison a posteriori.
+ *
+ * §38 — vocabulaire public uniquement. Aucun terme interne n'en sort.
+ */
+const ARCH_QG_SORTIE_MESSAGES={
+  PASS:'Livrable obtenu, conforme aux exigences vérifiables de la demande.',
+  PASS_WITH_WARNINGS:'Livrable obtenu, conforme aux exigences vérifiables, avec des points à relire.',
+  INCOMPLETE_VERIFICATION:'Livrable obtenu. Toutes les exigences ne sont pas vérifiables automatiquement : il n’est pas certifié conforme.',
+  FAIL:'Livrable obtenu, mais non conforme à des exigences vérifiables de la demande.',
+  TECHNIQUE:'Livrable obtenu. Sa vérification n’a pas pu aboutir : il n’est pas certifié conforme.'
+};
+/* §38 — surface de diagnostic uniquement, jamais relue par le compilateur. */
+let archDernierControleSortie=null;
+/** Formes structurelles RÉELLEMENT déclarées par la table des formats gelée.
+ *  Architecte n'a pas de table propre : il lit la même, et un format dont la
+ *  structure n'est pas déclarée reste non vérifiable plutôt que supposé tenu. */
+function archVocabulaireStructurel(){
+  return (typeof FORMATS==='object'&&FORMATS)
+    ?Object.keys(FORMATS).map(id=>({id,structural_kind:FORMATS[id].marqueur==='json'?'json':null}))
+    :[];
+}
+/** Délégation PURE au moteur du noyau. Fail-closed sur toute anomalie. */
+function archControleSortie(contrat,texte){
+  if(!contrat)return null;
+  const runtime=window.__ATELIER_ADN_RUNTIME__;
+  const echec=detail=>({status:'FAIL',technical_failure:true,violations:[{code:'TECHNICAL_VALIDATION_FAILURE',check_id:null,detail:detail,blocking:true}],warnings:[],verifications:[],unverifiable:[],coverage:null,trace:{fail_closed:true,entries:[]}});
+  if(!runtime||typeof runtime.validateOutputAgainstCanonicalContract!=='function')return echec('Contrôle de sortie indisponible.');
+  try{
+    const verdict=runtime.validateOutputAgainstCanonicalContract({
+      canonical_contract:contrat,
+      output:typeof texte==='string'?texte:'',
+      checks:Array.isArray(contrat.checks)?contrat.checks:[],
+      execution_context:{format_vocabulary:archVocabulaireStructurel()}
+    });
+    if(!verdict||typeof verdict.status!=='string')return echec('Verdict de conformité illisible.');
+    return verdict;
+  }catch(error){return echec(String(error&&error.message||error))}
+}
+/** Le mot « conforme » n'est prononcé que sur ces deux statuts. */
+function archSortieCertifiee(verdict){
+  return !!verdict&&!verdict.technical_failure&&(verdict.status==='PASS'||verdict.status==='PASS_WITH_WARNINGS');
+}
+function archMessageSortie(verdict){
+  if(!verdict)return 'Livrable obtenu.';
+  return verdict.technical_failure?ARCH_QG_SORTIE_MESSAGES.TECHNIQUE:(ARCH_QG_SORTIE_MESSAGES[verdict.status]||ARCH_QG_SORTIE_MESSAGES.TECHNIQUE);
+}
 async function archConstruireExecuter(){
   const c=archContexte();
   if(!c.demande){archEtat('Saisissez une demande avant l\u2019analyse.','alerte');return false}
@@ -9225,6 +9280,10 @@ async function archConstruireExecuter(){
   if(!ok)return false; // analyse refusée ou échouée : un seul appel tenté, jamais d'exécution, jamais de seconde confirmation
   const prompt=archCompiler();
   if(!prompt)return false;
+  /* ADN-QG-02C — le contrat qui vient de produire ce prompt, capturé ici même.
+     La confirmation qui suit peut durer ; capturer maintenant garantit qu'on
+     opposera la sortie au contrat qui l'a réellement engendrée. */
+  const contratExecute=archContratCanonique;
   /* Étape 2/2 : confirmation FINALE, juste avant l'exécution réelle du
      livrable — un refus ici laisse le prompt compilé intact, avec un
      seul appel au total (l'analyse), déjà annoncé à l'étape 1. */
@@ -9234,9 +9293,17 @@ async function archConstruireExecuter(){
   archEtat('Exécution du prompt compilé en cours…','avis');
   try{
     const r=await appelFournisseur({fournisseur,cle:obtenirCleFournisseur(fournisseur),modele,maxTokens:plafondLivrable,systeme:'Répondez directement et complètement au prompt suivant.',contenuUtilisateur:prompt});
+    /* ADN-QG-02C — le contrôle de conformité s'exécute ICI : après la réponse
+       du fournisseur, avant qu'elle ne soit exposée. Il n'altère pas la sortie,
+       ne relance rien et ne pose aucune question ; il détermine seulement ce
+       qu'on a le droit d'en dire. */
+    const verdictSortie=archControleSortie(contratExecute,r.texte);
+    archDernierControleSortie=verdictSortie;
     zone.textContent=r.texte;
     aq('#arch-zone-execution').classList.remove('cache');
-    archEtat('Livrable obtenu.','succes');
+    /* Le livrable reste consultable dans tous les cas — le cacher ferait perdre
+       un travail réel. Mais il n'est déclaré conforme que s'il l'est. */
+    archEtat(archMessageSortie(verdictSortie),!verdictSortie?'succes':verdictSortie.status==='FAIL'?'alerte':archSortieCertifiee(verdictSortie)?'succes':'avis');
     return true;
   }catch(err){
     /* Le prompt compilé (#arch-sortie) n'est jamais touché ici : un échec
@@ -9276,7 +9343,7 @@ function archNouvelleDemande(){
   signaler('Champs de travail effacés — prêt pour une nouvelle demande');
   return true
 }
-function archDemarrer(){const brut=lire('atelier10.architecte',{});const resultat=qMigrerStructure({structure:brut,versionCourante:ARCH_SAUVEGARDE_VERSION,migrations:ARCH_MIGRATIONS});if(resultat.erreur)console.error('Migration atelier10.architecte : '+resultat.erreur);const d=resultat.structure||{};Object.keys(d).forEach(k=>{if(k==='version'||k==='maxLivrable')return;const e=aq('#arch-'+k);if(e&&d[k]!=null)e.value=d[k]});if(d.maxLivrable!=null&&aq('#arch-max-livrable'))aq('#arch-max-livrable').value=d.maxLivrable;if(resultat.migree)archSauver();['arch-demande','arch-materiau','arch-destinataire','arch-detail','arch-structure','arch-volume','arch-densite','arch-max-livrable'].forEach(id=>{const e=aq('#'+id);if(e)e.addEventListener('input',archSauver)});aq('#arch-importer-demande').addEventListener('click',()=>{aq('#arch-demande').value=aq('#demande').value;aq('#arch-materiau').value=aq('#materiau').value;aq('#arch-destinataire').value=aq('#destinataire').value;archSauver();archEtat('Champs repris depuis l’Atelier avancé.','succes')});aq('#arch-prep-demarrer').addEventListener('click',archPreparationDemarrer);aq('#arch-prep-copier').addEventListener('click',()=>{archCopier(aq('#arch-prep-instructions').value);archPrepEtat(ARCH_PREP_MESSAGES.copie,'succes')});aq('#arch-prep-valider').addEventListener('click',archPreparationValider);aq('#arch-prep-annuler').addEventListener('click',archPreparationAnnuler);aq('#arch-preparer').addEventListener('click',()=>{if(!archTexte('arch-demande')){archEtat('Saisissez une demande.','alerte');return}aq('#arch-requete').value=archRequete();archEtat('Demande d’analyse prête. Copiez-la dans le LLM de votre choix.','succes')});aq('#arch-copier-analyse').addEventListener('click',()=>archCopier(aq('#arch-requete').value));aq('#arch-valider').addEventListener('click',archTraiterJsonSaisi);aq('#arch-copier-correction').addEventListener('click',()=>archCopier(aq('#arch-correction').value));aq('#arch-api').addEventListener('click',archApi);aq('#arch-construire').addEventListener('click',archConstruire);aq('#arch-construire-executer').addEventListener('click',archConstruireExecuter);aq('#arch-qualite-preparer-juge').addEventListener('click',()=>{const rep=aq('#arch-qualite-reponse').value.trim();if(!rep){archQualiteEtat('Collez d\u2019abord la réponse obtenue.','alerte');return}archRendreOracle();aq('#arch-qualite-message-juge').value=archMessageJuge(rep,aq('#arch-qualite-autoriser-materiau').checked);aq('#arch-qualite-bloc-juge').classList.remove('cache');archQualiteEtat('Message Juge prêt. Copiez-le dans une discussion distincte.','succes')});aq('#arch-qualite-copier-juge').addEventListener('click',()=>archCopier(aq('#arch-qualite-message-juge').value));aq('#arch-qualite-valider-juge').addEventListener('click',archValiderJugementPonctuel);aq('#arch-qualite-exporter').addEventListener('click',archExporterQualiteFichier);aq('#arch-importer-paquet-qualite').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){archEtat('Fichier trop volumineux ('+Math.round(f.size/1024/1024)+' Mo, maximum 10 Mo) — import refusé.','alerte');e.target.value='';return}const lecteur=new FileReader();lecteur.onload=()=>{try{const r=archImporterPaquetQualite(JSON.parse(lecteur.result));archEtat('Demande'+(r.materiauRecupere?' et matériau':'')+' récupérés depuis le paquet — la campagne elle-même (réponses, jugements) n\u2019est pas reprise, seulement le point de départ.','succes')}catch(err){archEtat('Import refusé : '+err.message,'alerte')}e.target.value=''};lecteur.readAsText(f)});aq('#arch-tout-activer').addEventListener('click',()=>{archComposants.forEach(x=>x.actif=true);archRendu()});aq('#arch-compiler').addEventListener('click',archCompiler);aq('#arch-copier-prompt').addEventListener('click',()=>archCopier(aq('#arch-sortie').textContent));aq('#arch-evaluer').addEventListener('click',archEvaluerPrompt);aq('#arch-comparer').addEventListener('click',archComparerAvecAutreVersion);aq('#arch-ouvrir-editeur').addEventListener('click',()=>{const p=archCompiler();if(!p)return;aq('#editeur').value=p;ouvrirVue('editeur');majEditeur()});aq('#btn-nouvelle-demande-globale').addEventListener('click',archNouvelleDemande);window.__ARCHITECTE_V10__={schema:ARCH_SCHEMA,systeme:ARCH_SYSTEM,contexte:archContexte,requete:archRequete,valider:archValider,importer:archImporter,compiler:archCompiler,appliquerContrat:archAppliquerContratCanonique,projeterContrat:archProjectionCanonique,preparer:archPreparationDemarrer,validerPreparation:archPreparationValider,annulerPreparation:archPreparationAnnuler,preparerAvecApi:archPreparerAvecApi,finaliserContrat:archFinaliserContrat,get preparation(){return archPreparation},get tourOprie(){return archTourOprie},COMPILER_SEMANTIC_SOURCE:'ENRICHED_CANONICAL_CONTRACT',get derniereTraceQg(){return archDerniereTraceQg},get contratCanonique(){return archContratCanonique},nouvelleDemande:archNouvelleDemande,api:archApi,construire:archConstruire,construireExecuter:archConstruireExecuter,extraireJson:archExtraireObjetsJson,promptCorrection:archPromptCorrection,oracleProposé:archOracleProposé,messageJuge:archMessageJuge,exportQualite:archExportQualite,validerJugementPonctuel:archValiderJugementPonctuel,importerPaquetQualite:archImporterPaquetQualite,get dernierJugementPonctuel(){return archDernierJugementPonctuel},get composants(){return archComposants},get analyse(){return archAnalyse}}}
+function archDemarrer(){const brut=lire('atelier10.architecte',{});const resultat=qMigrerStructure({structure:brut,versionCourante:ARCH_SAUVEGARDE_VERSION,migrations:ARCH_MIGRATIONS});if(resultat.erreur)console.error('Migration atelier10.architecte : '+resultat.erreur);const d=resultat.structure||{};Object.keys(d).forEach(k=>{if(k==='version'||k==='maxLivrable')return;const e=aq('#arch-'+k);if(e&&d[k]!=null)e.value=d[k]});if(d.maxLivrable!=null&&aq('#arch-max-livrable'))aq('#arch-max-livrable').value=d.maxLivrable;if(resultat.migree)archSauver();['arch-demande','arch-materiau','arch-destinataire','arch-detail','arch-structure','arch-volume','arch-densite','arch-max-livrable'].forEach(id=>{const e=aq('#'+id);if(e)e.addEventListener('input',archSauver)});aq('#arch-importer-demande').addEventListener('click',()=>{aq('#arch-demande').value=aq('#demande').value;aq('#arch-materiau').value=aq('#materiau').value;aq('#arch-destinataire').value=aq('#destinataire').value;archSauver();archEtat('Champs repris depuis l’Atelier avancé.','succes')});aq('#arch-prep-demarrer').addEventListener('click',archPreparationDemarrer);aq('#arch-prep-copier').addEventListener('click',()=>{archCopier(aq('#arch-prep-instructions').value);archPrepEtat(ARCH_PREP_MESSAGES.copie,'succes')});aq('#arch-prep-valider').addEventListener('click',archPreparationValider);aq('#arch-prep-annuler').addEventListener('click',archPreparationAnnuler);aq('#arch-preparer').addEventListener('click',()=>{if(!archTexte('arch-demande')){archEtat('Saisissez une demande.','alerte');return}aq('#arch-requete').value=archRequete();archEtat('Demande d’analyse prête. Copiez-la dans le LLM de votre choix.','succes')});aq('#arch-copier-analyse').addEventListener('click',()=>archCopier(aq('#arch-requete').value));aq('#arch-valider').addEventListener('click',archTraiterJsonSaisi);aq('#arch-copier-correction').addEventListener('click',()=>archCopier(aq('#arch-correction').value));aq('#arch-api').addEventListener('click',archApi);aq('#arch-construire').addEventListener('click',archConstruire);aq('#arch-construire-executer').addEventListener('click',archConstruireExecuter);aq('#arch-qualite-preparer-juge').addEventListener('click',()=>{const rep=aq('#arch-qualite-reponse').value.trim();if(!rep){archQualiteEtat('Collez d\u2019abord la réponse obtenue.','alerte');return}archRendreOracle();aq('#arch-qualite-message-juge').value=archMessageJuge(rep,aq('#arch-qualite-autoriser-materiau').checked);aq('#arch-qualite-bloc-juge').classList.remove('cache');archQualiteEtat('Message Juge prêt. Copiez-le dans une discussion distincte.','succes')});aq('#arch-qualite-copier-juge').addEventListener('click',()=>archCopier(aq('#arch-qualite-message-juge').value));aq('#arch-qualite-valider-juge').addEventListener('click',archValiderJugementPonctuel);aq('#arch-qualite-exporter').addEventListener('click',archExporterQualiteFichier);aq('#arch-importer-paquet-qualite').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){archEtat('Fichier trop volumineux ('+Math.round(f.size/1024/1024)+' Mo, maximum 10 Mo) — import refusé.','alerte');e.target.value='';return}const lecteur=new FileReader();lecteur.onload=()=>{try{const r=archImporterPaquetQualite(JSON.parse(lecteur.result));archEtat('Demande'+(r.materiauRecupere?' et matériau':'')+' récupérés depuis le paquet — la campagne elle-même (réponses, jugements) n\u2019est pas reprise, seulement le point de départ.','succes')}catch(err){archEtat('Import refusé : '+err.message,'alerte')}e.target.value=''};lecteur.readAsText(f)});aq('#arch-tout-activer').addEventListener('click',()=>{archComposants.forEach(x=>x.actif=true);archRendu()});aq('#arch-compiler').addEventListener('click',archCompiler);aq('#arch-copier-prompt').addEventListener('click',()=>archCopier(aq('#arch-sortie').textContent));aq('#arch-evaluer').addEventListener('click',archEvaluerPrompt);aq('#arch-comparer').addEventListener('click',archComparerAvecAutreVersion);aq('#arch-ouvrir-editeur').addEventListener('click',()=>{const p=archCompiler();if(!p)return;aq('#editeur').value=p;ouvrirVue('editeur');majEditeur()});aq('#btn-nouvelle-demande-globale').addEventListener('click',archNouvelleDemande);window.__ARCHITECTE_V10__={schema:ARCH_SCHEMA,systeme:ARCH_SYSTEM,contexte:archContexte,requete:archRequete,valider:archValider,importer:archImporter,compiler:archCompiler,appliquerContrat:archAppliquerContratCanonique,projeterContrat:archProjectionCanonique,preparer:archPreparationDemarrer,validerPreparation:archPreparationValider,annulerPreparation:archPreparationAnnuler,preparerAvecApi:archPreparerAvecApi,finaliserContrat:archFinaliserContrat,get preparation(){return archPreparation},get tourOprie(){return archTourOprie},COMPILER_SEMANTIC_SOURCE:'ENRICHED_CANONICAL_CONTRACT',get derniereTraceQg(){return archDerniereTraceQg},get dernierControleSortie(){return archDernierControleSortie},controleSortie:archControleSortie,vocabulaireStructurel:archVocabulaireStructurel,sortieCertifiee:archSortieCertifiee,messageSortie:archMessageSortie,get contratCanonique(){return archContratCanonique},nouvelleDemande:archNouvelleDemande,api:archApi,construire:archConstruire,construireExecuter:archConstruireExecuter,extraireJson:archExtraireObjetsJson,promptCorrection:archPromptCorrection,oracleProposé:archOracleProposé,messageJuge:archMessageJuge,exportQualite:archExportQualite,validerJugementPonctuel:archValiderJugementPonctuel,importerPaquetQualite:archImporterPaquetQualite,get dernierJugementPonctuel(){return archDernierJugementPonctuel},get composants(){return archComposants},get analyse(){return archAnalyse}}}
 document.addEventListener('DOMContentLoaded',()=>{try{archDemarrer()}catch(e){console.error(e);archEtat('Démarrage incomplet de l’Architecte : '+e.message,'alerte')}})
 })();
 
