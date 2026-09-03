@@ -24,6 +24,7 @@ import {
 } from "../../shared/provider-ha.js";
 export { degradedResultFromProviderChainError } from "../../shared/role-degradation.js";
 import { createRateWindow, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
+import { FAST_INTERACTION_JSON_SCHEMA, FAST_INTERACTION_TYPES } from "../../shared/fast-interactive-plane.js";
 export { PROVIDER_TECHNICAL_CAPABILITIES, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
 import { handleOperationalRequest } from "../../shared/operational-request-orchestrator.js";
 
@@ -873,6 +874,94 @@ export async function decideWithOpenAI(input, env, { contract = DECISION_CONTRAC
 // ---------------------------------------------------------------------------------------------
 
 /** Ordre de priorité, EXACT et FIGÉ : Groq (primary) -> Anthropic (secondary) -> OpenAI (tertiary). */
+/**
+ * PERF-03A — PLAN INTERACTIF RAPIDE : consigne système.
+ *
+ * Elle dit ce que le modèle a le droit de proposer, et rappelle ce qu'il ne
+ * décide pas. Elle ne contient aucun mot de domaine, aucun corpus, aucun seuil :
+ * seul le PROTOCOLE est décrit, jamais le sujet traité.
+ *
+ * La discipline du programme est reprise telle quelle : une inconnue n'appelle
+ * pas automatiquement une question. Elle peut être recherchée, décidée, estimée,
+ * mise en scénario, conditionnée, ou laissée explicitement inconnue — demander
+ * reste le dernier recours, jamais le premier.
+ */
+export const FAST_INTERACTION_SYSTEM_PROMPT = [
+  "Vous proposez UNE interaction utilisateur, et une seule, pour le tour en cours.",
+  "Vous ne décidez rien : ni que la demande est prête, ni quelle route suivre, ni aucun état.",
+  "Une information manquante n'appelle pas automatiquement une question : elle peut être recherchée,",
+  "décidée, estimée, traitée par scénario, conditionnée, ou laissée explicitement inconnue.",
+  "Demander une précision est le dernier recours, jamais le premier : ne le faites que si aucune de ces voies n'est sûre.",
+  "Types possibles : ACKNOWLEDGE (accuser réception), ASK_CLARIFICATION (une seule question),",
+  "ASK_CONFIRMATION (une seule confirmation), ORIENT_ARCHITECTE (orienter vers le parcours guidé),",
+  "WAIT_FOR_DEEP_VALIDATION (rien à demander pour l'instant).",
+  "Répondez exactement au schéma fourni : un type, un texte. Rien d'autre."
+].join(" ");
+
+export function makeFastInteractionUserMessage(snapshot) {
+  return JSON.stringify({
+    demande: snapshot.original_request,
+    historique_clarifications: snapshot.clarification_history,
+    reponse_courante: snapshot.current_answer
+  });
+}
+
+/**
+ * PERF-03A — adaptateurs du plan rapide.
+ *
+ * Aucun transport nouveau, aucun schéma libre, aucune politique de repli
+ * inventée : ce sont EXACTEMENT les trois fonctions d'appel de M-01, avec le
+ * durcissement des sorties structurées, et le contrôle de débit de M-03. Seul
+ * le schéma diffère — et il est délibérément incapable de porter une autorité.
+ */
+export const FAST_INTERACTION_ADAPTERS = Object.freeze({
+  groq: (snapshot, env) => callGroqChatCompletion({
+    systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,
+    userMessage: makeFastInteractionUserMessage(snapshot),
+    schema: FAST_INTERACTION_JSON_SCHEMA,
+    schemaName: "fast_interaction",
+    env,
+    maxCompletionTokens: 512,
+    pacer: createGroqRateLimitPacer()
+  }),
+  anthropic: (snapshot, env) => callAnthropicMessages({
+    systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,
+    userMessage: makeFastInteractionUserMessage(snapshot),
+    schema: FAST_INTERACTION_JSON_SCHEMA,
+    schemaName: "fast_interaction",
+    env,
+    maxTokens: 512
+  }),
+  openai: (snapshot, env) => callOpenAiChatCompletion({
+    systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,
+    userMessage: makeFastInteractionUserMessage(snapshot),
+    schema: FAST_INTERACTION_JSON_SCHEMA,
+    schemaName: "fast_interaction",
+    env,
+    maxCompletionTokens: 512
+  })
+});
+
+/**
+ * PERF-03A — exécution du plan rapide sur la chaîne HA EXISTANTE.
+ *
+ * `runProviderChain` est réutilisée telle quelle : même ordre, mêmes classes
+ * d'échec, mêmes règles d'éligibilité au repli. Ce lot n'invente aucune
+ * politique de bascule pour le plan rapide — il n'en avait pas besoin.
+ */
+export async function runFastInteractionWithHaChain(snapshot, env, { order = DECISION_PROVIDER_ORDER, log } = {}) {
+  const providers = order.map((name) => ({
+    name,
+    run: async () => {
+      const brut = await FAST_INTERACTION_ADAPTERS[name](snapshot, env);
+      /* Le contenu revient soit déjà structuré (outil Anthropic), soit en texte
+         strictement conforme au schéma : aucune tolérance ajoutée ici. */
+      return typeof brut === "string" ? JSON.parse(brut) : brut;
+    }
+  }));
+  return runProviderChain({ role: "fast_interaction", providers, ...(log ? { log } : {}) });
+}
+
 export const DECISION_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
 
 /** Registre des adaptateurs. Un adaptateur = un TRANSPORT, jamais une variante de contrat. */
