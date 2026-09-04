@@ -7861,15 +7861,44 @@ ${recent}`;
     // l'appel streaming principal) : jamais de recherche web forcée, CC décide seul si la
     // bibliothèque suffit. Séparé du second appel car tool_choice forcé sur emit_fiche_document
     // interdirait tout autre outil (dont web_search) dans le même appel.
+    // Correctif (lot streaming appel 1) : DIAGNOSTIC confirmé — ce timeout à 20s n'était pas
+    // une preuve de blocage serveur mais notre propre AbortController, sur un appel qui était
+    // le SEUL des 4 usages de web_search du fichier à ne pas être streamé (les 3 autres,
+    // lignes ~3829/4244/6621, le sont tous). Converti en stream:true, même patron
+    // d'accumulation/parsing que le 2e appel, timeout basé sur l'INACTIVITÉ (reset à chaque
+    // chunk), pas une durée fixe.
+    // Correctif (contexte réduit, corrigé après vérification) : la première version de ce
+    // correctif construisait encore ce prompt par-dessus `systemPrompt` — or `systemPrompt`
+    // (paramètre reçu depuis adocSendOriginal) est LUI-MÊME déjà construit par
+    // adocBuildSystemPrompt(ragCtx, ...) où ragCtx (adocBuildRAGCtx) embarque le texte intégral
+    // des passages RAG (jusqu'à ~18 000 caractères de budget, cf. FIX-CHUNKLEN-GUARD) — le
+    // "résumé" ne faisait donc qu'AJOUTER par-dessus ce texte complet, sans rien retirer.
+    // Ce 1er appel ne décide que oui/non : reconstruit ENTIÈREMENT à partir de zéro, sans
+    // aucune dépendance à `systemPrompt` — seulement le résumé titres/auteurs (bookSummary),
+    // jamais le texte intégral des passages ni les instructions de mise en forme/illustration/
+    // emoji réservées à la génération finale (2e appel, qui lui reste construit sur la base
+    // complète de `baseStructuredSystemPrompt`/`systemPrompt`, dont il a réellement besoin).
+    const bookSummary = Array.from(new Set(sourceSnapshot.entries.map(function(e) {
+      return e.book + (e.author ? ' [' + e.author + ']' : '');
+    }))).join(' ; ');
+    const searchDecisionSystemPrompt =
+      "Tu es l'assistant clinique CC. On te demande UNIQUEMENT de décider si une recherche " +
+      "web t'apporterait une information réellement absente de la bibliothèque déjà " +
+      "consultée pour répondre à la demande ci-dessous (actualité récente, chiffre précis, " +
+      "étude postérieure, etc.) — utilise l'outil web_search UNIQUEMENT si cela apporte une " +
+      "valeur réelle, jamais par défaut. Si tu n'as pas besoin de chercher, réponds " +
+      "simplement par un court accusé, sans détailler.\n\n" +
+      'La bibliothèque a déjà fourni ' + sourceSnapshot.entries.length + ' passage(s) dans : ' + bookSummary + '.';
+
     let usedWebSearch = false;
     let webFindings = '';
     try {
-      // Correctif BUG 1 (lot correctifs urgents) : timeout explicite — jamais une attente
-      // infinie sur cet appel, qui n'est de toute façon qu'une décision préalable optionnelle.
       const _searchCtrl = new AbortController();
-      const _searchTid = setTimeout(() => _searchCtrl.abort(), 20000);
+      let _searchTid = setTimeout(() => _searchCtrl.abort(), 20000);
+      function _resetSearchTimeout() { clearTimeout(_searchTid); _searchTid = setTimeout(() => _searchCtrl.abort(), 20000); }
+
       let searchResp;
-      _logTiming('avant envoi appel 1 (décision web_search)');
+      _logTiming('avant envoi appel 1 (décision web_search, streamée, contexte réduit)');
       try {
         searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
           method: 'POST',
@@ -7879,7 +7908,8 @@ ${recent}`;
               provider: 'anthropic',
               model: 'claude-sonnet-4-6',
               max_tokens: 4000,
-              system: baseStructuredSystemPrompt,
+              stream: true,
+              system: searchDecisionSystemPrompt,
               messages: [{ role: 'user', content: text }],
               tools: [{ type: 'web_search_20250305', name: 'web_search' }],
               tool_choice: { type: 'auto' },
@@ -7887,25 +7917,59 @@ ${recent}`;
           }),
           signal: _searchCtrl.signal,
         });
-      } finally {
+      } catch (_searchFetchErr) {
         clearTimeout(_searchTid);
+        throw _searchFetchErr;
       }
-      _logTiming('réponse appel 1 reçue (HTTP ' + searchResp.status + ')');
-      if (searchResp.ok) {
-        const searchData = await searchResp.json();
-        const searchContent = searchData.content || [];
-        usedWebSearch = searchContent.some(function(b) { return b.type === 'server_tool_use' && b.name === 'web_search'; });
+      if (!searchResp.ok) {
+        clearTimeout(_searchTid);
+        console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
+      } else {
+        _logTiming('réponse appel 1 reçue (HTTP ' + searchResp.status + '), début du flux');
+        const _searchReader = searchResp.body.getReader();
+        const _searchDecoder = new TextDecoder();
+        let _searchSseBuffer = '';
+        const textBlocks = [];
+        const resultEntries = [];
+        try {
+          while (true) {
+            const { done, value } = await _searchReader.read();
+            if (done) break;
+            _resetSearchTimeout();
+            _searchSseBuffer += _searchDecoder.decode(value, { stream: true });
+            const _searchLines = _searchSseBuffer.split('\n');
+            _searchSseBuffer = _searchLines.pop();
+            for (const _sl of _searchLines) {
+              if (!_sl.startsWith('data: ')) continue;
+              const _sd = _sl.slice(6).trim();
+              if (_sd === '[DONE]') continue;
+              try {
+                const _se = JSON.parse(_sd);
+                if (_se.type === 'content_block_start' && _se.content_block) {
+                  if (_se.content_block.type === 'server_tool_use' && _se.content_block.name === 'web_search') {
+                    usedWebSearch = true;
+                  }
+                  if (_se.content_block.type === 'web_search_tool_result' && Array.isArray(_se.content_block.content)) {
+                    resultEntries.push.apply(resultEntries, _se.content_block.content);
+                  }
+                }
+                if (_se.type === 'content_block_delta' && _se.delta && _se.delta.type === 'text_delta') {
+                  textBlocks.push(_se.delta.text);
+                }
+              } catch (_searchParseErr) { /* SSE malformée — ignorer */ }
+            }
+          }
+        } finally {
+          clearTimeout(_searchTid);
+        }
+        _logTiming('flux appel 1 terminé');
         if (usedWebSearch) {
-          const textBlocks = searchContent.filter(function(b) { return b.type === 'text' && b.text; }).map(function(b) { return b.text; });
-          const resultBlocks = searchContent.filter(function(b) { return b.type === 'web_search_tool_result' && Array.isArray(b.content); });
-          const sourcesListing = resultBlocks.reduce(function(acc, rb) { return acc.concat(rb.content); }, [])
+          const sourcesListing = resultEntries
             .filter(function(r) { return r && r.type === 'web_search_result'; })
             .map(function(r) { return '- ' + (r.title || r.url) + ' — ' + r.url; }).join('\n');
-          webFindings = [textBlocks.join('\n\n'), sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
+          webFindings = [textBlocks.join(''), sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
             .filter(Boolean).join('\n\n');
         }
-      } else {
-        console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
       }
     } catch (_searchErr) {
       _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + ')');
