@@ -4,8 +4,28 @@
 ║  STUDIO CLINIQUE — Bibliothèque thérapeutique · Création clinique         ║
 ║  assistée · © C Concept&Dev                                              ║
 ║                                                                           ║
-║  Version : v1.6.0-studio                                                 ║
-║  Date de création : 2026-09-03                                           ║
+║  Version : v1.6.1-studio                                                 ║
+║  Date de création : 2026-09-04                                           ║
+║                                                                           ║
+║  v1.6.1 : Phase UX-8A.1 — lot correctif suite à audit indépendant (6      ║
+║  défauts confirmés, 2 rejetés après vérification réelle). Citations       ║
+║  affichées dérivées strictement de validation.citationLinks (jamais de   ║
+║  citationIds brut non validé), généralisées à tous les blocs porteurs de ║
+║  texte (heading/list/table inclus). Export réellement bloqué (html:null) ║
+║  si le contrôle qualité l'interdit. RenderManifest réellement résolu et  ║
+║  consommé (tokensSnapshotId → variables CSS, changer de jetons change    ║
+║  visiblement le rendu). Validation JSON Schema réelle (ajv 2020-12,      ║
+║  vendorisé localement — vendor/ajv2020.min.js, 5 schémas embarqués) à la ║
+║  frontière du renderer, document malformé rejeté avant tout rendu.       ║
+║  contentChecksum réellement recalculé (SHA-256 natif, Web Crypto) et     ║
+║  comparé, divergence → needs-review, jamais un silence. Fiche synthèse   ║
+║  branchée sur la génération live (Structured Outputs, tool forcé),       ║
+║  bascule explicite (adocStructuredFicheEnabled) + repli automatique vers ║
+║  l'ancien moteur — Carrousel non branché (validation Fiche seule         ║
+║  d'abord, demande explicite). Rejeté après vérification réelle : le lien ║
+║  "Retour Collab" fonctionnait déjà (testé par clic réel) ; la "double    ║
+║  définition" de adocSend est un wrapper de clarification documenté et    ║
+║  nécessaire, pas du code mort — aucun des deux n'a été touché.           ║
 ║                                                                           ║
 ║  v1.6.0 : BRAND-SC-00/01 — migration de marque "Conseiller Clinique" →   ║
 ║  "Studio Clinique" (fichier renommé studio-clinique.html, socle verbal   ║
@@ -1454,16 +1474,20 @@
       }
     }
 
-    /* ── Phase UX-8A — moteur de rendu canonique, modèle minimal des deux pilotes ──
-       Utilise exclusivement les jetons de charte déjà en production (pétrole/terracotta/
-       ivoire, déjà audités AA en Phase UX-2A) — jamais de couleur nouvelle introduite ici,
-       cohérent avec tokensSnapshotId pointant vers studio-clinique-default. */
+    /* ── Phase UX-8A / UX-8A.1 — moteur de rendu canonique, modèle minimal des deux pilotes ──
+       Piloté par des variables CSS (--adoc-sc-*) injectées en style inline par le renderer,
+       résolues depuis le RenderManifest → tokensSnapshotId (correctif point 3 : le manifeste
+       est réellement consommé, pas seulement référencé). Les valeurs de repli ci-dessous sont
+       identiques aux jetons studio-clinique-default déjà en production (pétrole/terracotta/
+       ivoire) : sans override, le rendu est visuellement inchangé ; avec un autre
+       tokensSnapshotId, le rendu change visiblement (voir rapport). */
     .adoc-sc-doc {
-      font-family: "Source Serif 4", Georgia, serif;
-      color: var(--ink); line-height: 1.65; font-size: 15px;
+      font-family: var(--adoc-sc-body-font, "IBM Plex Sans", sans-serif);
+      color: var(--adoc-sc-body-color, var(--ink)); line-height: 1.65; font-size: 15px;
     }
     .adoc-sc-heading {
-      color: var(--petrol-950); font-family: "Source Serif 4", Georgia, serif;
+      color: var(--adoc-sc-heading-color, var(--petrol-950));
+      font-family: var(--adoc-sc-heading-font, "Source Serif 4", Georgia, serif);
       margin: 1.3em 0 0.5em; line-height: 1.2;
     }
     .adoc-sc-heading:first-child { margin-top: 0; }
@@ -1472,20 +1496,23 @@
       padding: 12px 16px; border-radius: 8px; margin: 1em 0; border-left: 4px solid;
       font-size: 14px;
     }
-    .adoc-sc-callout-info    { background: var(--petrol-100);     border-color: var(--petrol-800); }
-    .adoc-sc-callout-warning { background: var(--terracotta-100); border-color: var(--terracotta-700); }
+    .adoc-sc-callout-info    { background: var(--adoc-sc-callout-info-bg, var(--petrol-100));     border-color: var(--adoc-sc-callout-info-border, var(--petrol-800)); }
+    .adoc-sc-callout-warning { background: var(--adoc-sc-callout-warning-bg, var(--terracotta-100)); border-color: var(--adoc-sc-callout-warning-border, var(--terracotta-700)); }
     .adoc-sc-callout-critical{ background: #fdeaea; border-color: #c0392b; }
     .adoc-sc-callout-success { background: #e8f5e9; border-color: #2e7d32; }
-    .adoc-sc-list { margin: 0 0 1em 1.4em; }
-    .adoc-sc-list li { margin-bottom: 0.3em; }
-    .adoc-sc-table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 13px; }
-    .adoc-sc-table th, .adoc-sc-table td { border: 1px solid var(--stone-300); padding: 6px 10px; text-align: left; }
-    .adoc-sc-table th { background: var(--petrol-100); color: var(--petrol-950); }
+    .adoc-sc-list, .adoc-sc-table { margin: 0 0 1em; }
+    .adoc-sc-list-el { margin: 0; padding-left: 1.4em; }
+    .adoc-sc-list-el li { margin-bottom: 0.3em; }
+    .adoc-sc-table-el { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .adoc-sc-table-el th, .adoc-sc-table-el td { border: 1px solid var(--adoc-sc-table-border, var(--stone-300)); padding: 6px 10px; text-align: left; }
+    .adoc-sc-table-el th { background: var(--adoc-sc-table-header-bg, var(--petrol-100)); color: var(--adoc-sc-table-header-color, var(--petrol-950)); }
+    .adoc-sc-cite-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .adoc-sc-quote {
-      border-left: 3px solid var(--terracotta-700); padding-left: 12px;
-      font-style: italic; color: var(--petrol-900); margin: 1em 0;
+      border-left: 3px solid var(--adoc-sc-quote-border, var(--terracotta-700)); padding-left: 12px;
+      font-style: italic; color: var(--adoc-sc-quote-color, var(--petrol-900)); margin: 1em 0;
     }
-    .adoc-sc-cite { color: var(--terracotta-700); font-size: 0.7em; margin-left: 2px; }
+    .adoc-sc-cite { color: var(--adoc-sc-cite-color, var(--terracotta-700)); font-size: 0.7em; margin-left: 2px; }
+    .adoc-sc-cite-flagged { text-decoration: underline wavy #c0392b; text-underline-offset: 2px; }
     .adoc-sc-needs-review { outline: 2px dashed #c0392b; outline-offset: 3px; border-radius: 4px; }
     .adoc-sc-carrousel {
       display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 16px;
@@ -1493,11 +1520,12 @@
     }
     .adoc-sc-card {
       flex: 0 0 320px; scroll-snap-align: start;
-      background: var(--paper); border: 1px solid var(--stone-300); border-radius: 12px;
+      background: var(--adoc-sc-card-bg, var(--paper)); border: 1px solid var(--adoc-sc-card-border, var(--stone-300)); border-radius: 12px;
       padding: 18px;
     }
     .adoc-sc-card-title {
-      color: var(--petrol-950); font-family: "Source Serif 4", Georgia, serif;
+      color: var(--adoc-sc-heading-color, var(--petrol-950));
+      font-family: var(--adoc-sc-heading-font, "Source Serif 4", Georgia, serif);
       margin: 0 0 10px; font-size: 1.1rem;
     }
     .adoc-sc-card-img { width: 100%; border-radius: 8px; margin-bottom: 10px; display: block; }
@@ -1861,7 +1889,7 @@
         aria-label="Afficher ou masquer le panneau latéral">☰</button>
       <span style="font-size:20px;">📚</span>
       <div>
-        <div class="adoc-header-title">Studio Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.6.0-studio</span></div>
+        <div class="adoc-header-title">Studio Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.6.1-studio</span></div>
         <div class="adoc-header-sub" id="adoc-mode-sub">Bibliothèque thérapeutique · Création clinique assistée</div>
       </div>
     </div>
@@ -2051,6 +2079,30 @@
      dans bibliotheque-admin.html, même version ; Mammoth pour le DOCX, nouveau ici) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+<!-- Phase UX-8A.1 — vendorisé localement (pas de CDN externe) : ajv 2020-12 + ajv-formats,
+     bundlés en un seul fichier IIFE avec esbuild (window.Ajv2020, window.ajvAddFormats).
+     Utilisé pour valider réellement chaque ClinicalDocument/RenderManifest/SourceSnapshot
+     contre les schémas ci-dessous avant tout rendu (correctif point 4 de l'audit). -->
+<script src="vendor/ajv2020.min.js"></script>
+
+<!-- Phase UX-8A.1 — les 5 schémas JSON Schema du dépôt (schemas/*.schema.json), embarqués
+     ici tels quels pour être compilés par ajv au chargement, sans dépendre d'un fetch()
+     réseau de fichiers sibling (fragile en file:// ; fonctionne partout, y compris en local). -->
+<script type="application/json" id="adoc-sc-schemas">
+{"clinical-document.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"clinical-document.schema.json","$comment":"UX-8A — source de vérité pour tout document généré. `documentKind` (type clinique) et `exportTarget` (format de fichier exporté) sont deux concepts distincts : exportTarget n'apparaît PAS sur ce document — c'est un paramètre d'export (UX-1/UX-2B), jamais un champ persisté sur ClinicalDocument. Ne référence le rendu que par renderManifestId (jamais template/brandKit/rendererVersion dupliqués ici, cf. render-manifest.schema.json). Pour schemaVersion:1, un champ inconnu est rejeté (additionalProperties:false partout), jamais silencieusement ignoré.","$defs":{"derivedFrom":{"$comment":"null pour une génération initiale ou une simple édition (nouvelle version du même document). Renseigné uniquement par une transformation UX-8D (Magic Switch), qui crée un document dérivé — jamais par une édition (UX-9A) ni par un export (UX-1/UX-2B).","type":["object","null"],"required":["documentId","versionId","operation"],"additionalProperties":false,"properties":{"documentId":{"type":"string","minLength":1},"versionId":{"type":"string","minLength":1},"operation":{"const":"document-kind-change"}}},"qcStatus":{"$comment":"Vocabulaire réutilisé de claimSupport (block.schema.json) pour les quatre dimensions de contrôle qualité automatique : pending (pas encore vérifié), pass, needs-review.","enum":["pending","pass","needs-review"]},"validation":{"type":"object","required":["sourceIntegrity","contentCompleteness","layout","accessibility","humanClinicalReview"],"additionalProperties":false,"properties":{"sourceIntegrity":{"$ref":"#/$defs/qcStatus"},"contentCompleteness":{"$ref":"#/$defs/qcStatus"},"layout":{"$ref":"#/$defs/qcStatus"},"accessibility":{"$ref":"#/$defs/qcStatus"},"humanClinicalReview":{"const":"required","$comment":"Reste toujours présent, à 'required' par défaut — la certification clinique reste à la charge de la clinicienne, un contrôle automatique ne peut jamais la remplacer. Un mécanisme de transition (ex. 'reviewed') appartient à une phase ultérieure, hors périmètre UX-8A."}}}},"type":"object","required":["schemaVersion","documentId","versionId","previousVersionId","requestId","sourceSnapshotId","createdAt","language","status","title","purpose","audience","documentKind","renderManifestId","derivedFrom","blocks","citations","validation"],"additionalProperties":false,"properties":{"schemaVersion":{"const":1},"documentId":{"type":"string","minLength":1},"versionId":{"type":"string","minLength":1},"previousVersionId":{"type":["string","null"],"$comment":"null pour la première version d'un document. Renseigné par une édition (UX-9A) — jamais par une transformation (voir derivedFrom) ni par un export."},"requestId":{"type":"string","minLength":1},"sourceSnapshotId":{"type":"string","minLength":1},"createdAt":{"type":"string","format":"date-time"},"language":{"type":"string","minLength":2,"maxLength":5},"status":{"type":"string","minLength":1},"title":{"type":"string","minLength":1},"purpose":{"type":"string","minLength":1},"audience":{"type":"string","minLength":1},"documentKind":{"enum":["fiche","carrousel","tableau","script","liens"]},"renderManifestId":{"type":"string","minLength":1},"derivedFrom":{"$ref":"#/$defs/derivedFrom"},"blocks":{"type":"array","$comment":"Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel'. tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."},"citations":{"type":"array","items":{"$ref":"citation.schema.json"}},"validation":{"$ref":"#/$defs/validation"}},"allOf":[{"if":{"properties":{"documentKind":{"const":"fiche"}},"required":["documentKind"]},"then":{"properties":{"blocks":{"type":"array","minItems":1,"items":{"$ref":"block.schema.json#/$defs/editorialBlock"}}}}},{"if":{"properties":{"documentKind":{"const":"carrousel"}},"required":["documentKind"]},"then":{"properties":{"blocks":{"type":"array","minItems":1,"items":{"$ref":"block.schema.json#/$defs/cardOnlyBlock"},"$comment":"Un document carrousel n'a QUE des blocs `card` au niveau racine — jamais un bloc éditorial orphelin. Chaque carte porte ses propres blocs enfants dans content.blocks[]."}}}}]},"render-manifest.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"render-manifest.schema.json","$comment":"UX-8A — source de vérité unique pour tout ce qui touche au rendu d'un ClinicalDocument. `template`/`brandKit`/`rendererVersion` ne sont JAMAIS dupliqués dans ClinicalDocument, qui ne référence que renderManifestId. Immuable une fois créé : toute modification produit un nouvel id + un nouveau manifestChecksum, jamais une mutation sur place.","$defs":{"templateRef":{"type":"object","required":["id","version"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"version":{"type":"integer","minimum":1}}},"brandKitRef":{"type":"object","required":["id","version"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1,"default":"studio-clinique-default"},"version":{"type":"integer","minimum":1}}}},"type":"object","required":["id","schemaVersion","rendererVersion","templateRef","brandKitRef","tokensSnapshotId","assetsSnapshotId","createdAt","manifestChecksum"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"schemaVersion":{"const":1},"rendererVersion":{"type":"string","pattern":"^\\d+\\.\\d+\\.\\d+$"},"templateRef":{"$ref":"#/$defs/templateRef"},"brandKitRef":{"$ref":"#/$defs/brandKitRef"},"tokensSnapshotId":{"type":"string","minLength":1,"$comment":"Obligatoire dès UX-8A (pas nullable) — pointe vers les jetons déjà résolus de studio-clinique-default. Ne devient nullable/optionnel qu'en UX-8B pour une charte externe non encore résolue, ce qui n'est pas le cas ici."},"assetsSnapshotId":{"type":["string","null"],"$comment":"Réservé, reste null jusqu'à UX-8B (actifs binaires d'une charte importée : logos/polices/images). La charte par défaut n'en a pas besoin."},"createdAt":{"type":"string","format":"date-time"},"manifestChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$","$comment":"SHA-256 de la sérialisation JSON canonique du manifeste (clés triées, sans espace superflu), ce champ lui-même exclu du calcul."}}},"source-snapshot.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"source-snapshot.schema.json","$comment":"UX-8A — instantané des passages RAG utilisés au moment de la génération. `exactText` est le champ indispensable pour un document de session : sans le texte exact conservé, la source disparaît à la fermeture de la session et le document devient invérifiable.","$defs":{"locator":{"type":"object","required":["page","section"],"additionalProperties":false,"properties":{"page":{"type":["integer","null"],"minimum":1},"section":{"type":["string","null"]}}},"sourceSnapshotEntry":{"type":"object","required":["sourceSnapshotEntryId","sourceType","sourceId","passageId","exactText","contentChecksum","book","author","locator","retrievedAt"],"additionalProperties":false,"properties":{"sourceSnapshotEntryId":{"type":"string","minLength":1},"sourceType":{"enum":["library","session"]},"sourceId":{"type":"string","minLength":1},"passageId":{"type":"string","minLength":1},"exactText":{"type":"string","minLength":1},"contentChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"book":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"locator":{"$ref":"#/$defs/locator"},"retrievedAt":{"type":"string","format":"date-time"}}}},"type":"object","required":["sourceSnapshotId","entries"],"additionalProperties":false,"properties":{"sourceSnapshotId":{"type":"string","minLength":1},"entries":{"type":"array","items":{"$ref":"#/$defs/sourceSnapshotEntry"}}}},"citation.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"citation.schema.json","$comment":"UX-8A — référence stable et minimale vers une entrée de SourceSnapshot. Volontairement minimal : ne duplique jamais le texte exact ni la localisation (ceux-là vivent dans SourceSnapshot). Réutilisable par plusieurs block.validation.citationLinks[] sans duplication.","type":"object","required":["citationId","sourceSnapshotEntryId","displayLabel"],"additionalProperties":false,"properties":{"citationId":{"type":"string","minLength":1},"sourceSnapshotEntryId":{"type":"string","minLength":1},"displayLabel":{"type":"string","minLength":1}}},"block.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"block.schema.json","$comment":"UX-8A — union discriminée des blocs de ClinicalDocument, par `type` (const). Pas de `content` libre : chaque type a un schéma de contenu propre, additionalProperties:false à tous les niveaux. `card` est réservé au niveau racine d'un Carrousel (voir $defs/cardOnlyRootBlocks dans clinical-document.schema.json) ; les blocs imbriqués dans `card.content.blocks[]` utilisent $defs/nestedBlock (tous les types sauf `card` et `table`, cf. §UX-8A du CDC).","$defs":{"citationLink":{"type":"object","required":["citationId","claimText","claimSupport"],"additionalProperties":false,"properties":{"citationId":{"type":"string","minLength":1},"claimText":{"type":"string","minLength":1},"claimSupport":{"enum":["pass","needs-review","pending"]}}},"blockValidation":{"type":"object","additionalProperties":false,"properties":{"citationLinks":{"type":"array","items":{"$ref":"#/$defs/citationLink"}}}},"citationIds":{"type":"array","items":{"type":"string","minLength":1}},"headingContent":{"type":"object","required":["text","level"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1},"level":{"enum":[1,2,3]}}},"paragraphContent":{"type":"object","required":["text"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1}}},"calloutContent":{"type":"object","required":["text","visualRole"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1},"visualRole":{"enum":["info","warning","critical","success"]}}},"listContent":{"type":"object","required":["items","ordered"],"additionalProperties":false,"properties":{"items":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}},"ordered":{"type":"boolean"}}},"tableContent":{"type":"object","required":["headers","rows"],"additionalProperties":false,"properties":{"headers":{"type":"array","minItems":1,"items":{"type":"string"}},"rows":{"type":"array","items":{"type":"array","items":{"type":"string"}}}}},"quoteContent":{"type":"object","required":["text"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1}}},"cardContent":{"$comment":"imageAlt : requis (non vide) dès que imageRef est renseigné — le contrat de contrôle qualité UX-8A traite un texte alternatif absent sur une image informative comme bloquant. Reste optionnel/null quand imageRef est null (pas d'image, rien à décrire).","type":"object","required":["title","imageRef","imageAlt","blocks"],"additionalProperties":false,"properties":{"title":{"type":"string","minLength":1},"imageRef":{"type":["string","null"]},"imageAlt":{"type":["string","null"]},"blocks":{"type":"array","items":{"$ref":"#/$defs/nestedBlock"}}},"if":{"properties":{"imageRef":{"type":"string"}},"required":["imageRef"]},"then":{"properties":{"imageAlt":{"type":"string","minLength":1}}}},"headingBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"heading"},"content":{"$ref":"#/$defs/headingContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"paragraphBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"paragraph"},"content":{"$ref":"#/$defs/paragraphContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"calloutBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"callout"},"content":{"$ref":"#/$defs/calloutContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"listBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"list"},"content":{"$ref":"#/$defs/listContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"tableBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"table"},"content":{"$ref":"#/$defs/tableContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"quoteBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"quote"},"content":{"$ref":"#/$defs/quoteContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"cardBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"card"},"content":{"$ref":"#/$defs/cardContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"editorialBlock":{"$comment":"Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.","oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/tableBlock"},{"$ref":"#/$defs/quoteBlock"}]},"nestedBlock":{"$comment":"Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte).","oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/quoteBlock"}]},"cardOnlyBlock":{"$comment":"Bloc autorisé au niveau racine d'un Carrousel (documentKind:'carrousel') : exclusivement `card`.","oneOf":[{"$ref":"#/$defs/cardBlock"}]}},"oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/tableBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/cardBlock"}]}}
+</script>
+
+<!-- Phase UX-8A.1 — RenderManifest et jetons de studio-clinique-default embarqués (mêmes
+     valeurs que fixtures/render-manifest-default.json et
+     fixtures/tokens-studio-clinique-default-v1.json), pour résolution réelle de
+     renderManifestId → tokensSnapshotId par le moteur canonique (correctif point 3). -->
+<script type="application/json" id="adoc-sc-render-manifests">
+{"manifest-default-001":{"id":"manifest-default-001","schemaVersion":1,"rendererVersion":"1.0.0","templateRef":{"id":"fiche-editoriale","version":1},"brandKitRef":{"id":"studio-clinique-default","version":1},"tokensSnapshotId":"tokens-studio-clinique-default-v1","assetsSnapshotId":null,"createdAt":"2026-09-03T09:00:00Z","manifestChecksum":"sha256:531d86a80100df4c521d59e4541e65f4f95893f807061b14511c3830521d59e4"}}
+</script>
+<script type="application/json" id="adoc-sc-tokens-snapshots">
+{"tokens-studio-clinique-default-v1":{"tokensSnapshotId":"tokens-studio-clinique-default-v1","$comment":"UX-8A.1 — jetons résolus de la charte studio-clinique-default, extraits verbatim du bloc :root en production de studio-clinique.html (palette pétrole/terracotta/ivoire, Phase UX-3). Référencé par render-manifest-default.json via tokensSnapshotId.","colors":{"petrol950":"#102f31","petrol900":"#173f42","petrol800":"#1f5053","petrol100":"#dce8e6","terracotta700":"#8a3f29","terracotta600":"#9b4e36","terracotta100":"#f4e5de","ink":"#273331","muted":"#5d6966","stone400":"#a9a49a","stone300":"#c9c3b8","stone200":"#ddd7cc","ivory":"#f6f2ea","paper":"#fffdf9","white":"#ffffff"},"typography":{"headingFontFamily":"\"Source Serif 4\", Georgia, serif","bodyFontFamily":"\"IBM Plex Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"}}}
+</script>
 
 <script>
 // ASSISTANT DOC v2 — LOGIQUE COMPLÈTE (N1+N2+N3+N4)
@@ -4103,6 +4155,28 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           return;
         }
         // Si adocLongDoc échoue → fallback vers stream normal ci-dessous
+      }
+
+      // ── Phase UX-8A.1, point 10 — Fiche synthèse UNIQUEMENT, bascule explicite ──
+      // window.adocStructuredFicheEnabled : un seul point de vérité pour couper ce chemin.
+      // Repli automatique (catch ci-dessous) vers le moteur legacy inchangé en cas d'échec
+      // — jamais d'interruption du parcours utilisateur. Carrousel n'est pas branché ici.
+      if (window.adocStructuredFicheEnabled && plan?.intent === 'fiche' && !_isLongDoc
+          && adocGetRendererMode('fiche') === 'structured') {
+        try {
+          adocUpdateTypingLabel(typingId, '🧩 Génération structurée (Fiche synthèse)…');
+          const _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl);
+          const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot);
+          adocAppendStructuredDocMsg(_rendered.html);
+          adocConversations.push({ role: 'assistant', content: '[Fiche synthèse structurée générée : "' + _struct.doc.title + '"]' });
+          adocExchangeCount++;
+          window._adocLastStructuredDoc = { doc: _rendered.validatedDoc, qc: _rendered.qc };
+          console.log('[UX-8A.1] Fiche structurée rendue avec succès — QC bloquant:', _rendered.qc.blocking.length);
+          if (adocExchangeCount % 4 === 0) adocAccumulateSessionContext(plan, _struct.doc.title).catch(()=>{});
+          return;
+        } catch (_structErr) {
+          console.warn('[UX-8A.1] Génération structurée Fiche en échec, repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
+        }
       }
 
       const MODEL = 'claude-sonnet-4-6';
@@ -7036,54 +7110,169 @@ ${recent}`;
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Phase UX-8A — Moteur de rendu canonique par blocs (fondation du Studio)
+  // Phase UX-8A / UX-8A.1 — Moteur de rendu canonique par blocs (fondation du Studio)
   // ═══════════════════════════════════════════════════════════════════════
   // Prend un ClinicalDocument structuré (conforme à schemas/clinical-document.schema.json)
-  // + un SourceSnapshot, et produit un rendu HTML. Couvre les deux pilotes (fiche,
-  // carrousel) avec un modèle minimal chacun — tableau/script/liens restent sur l'ancien
-  // moteur (génération HTML directe par le modèle) via rendererModeByDocumentKind.
+  // + un SourceSnapshot, résout son RenderManifest (renderManifestId → jetons de rendu),
+  // et produit un rendu HTML. Couvre les deux pilotes (fiche, carrousel) avec un modèle
+  // minimal chacun — tableau/script/liens restent sur l'ancien moteur (génération HTML
+  // directe par le modèle) via rendererModeByDocumentKind.
   //
-  // Portée délibérée de ce lot : ce moteur est complet et fonctionnel — prouvé par les
-  // fixtures figées (fixtures/fixture-fiche-type.json, -longue.json, -carrousel-type.json)
-  // et le contrat qualité ci-dessous, mesuré dans les budgets de performance du CDC. Le fil
-  // de génération existant (adocSend → prompt → HTML plat) n'est PAS branché pour produire
-  // du ClinicalDocument JSON en direct via Structured Outputs dans ce lot : ce câblage est
-  // une étape distincte et plus risquée (fiabilité du modèle sur une sortie structurée
-  // complexe), volontairement non entamée ici pour ne jamais interrompre l'ancien moteur en
-  // production (principe non négociable "progressif, jamais de réécriture brutale").
-  // Signalé explicitement dans le rapport de changement — à discuter avant de l'entreprendre.
+  // UX-8A.1 (lot correctif, audit indépendant confirmé point par point) :
+  //  - tout document/manifeste/snapshot est validé contre les VRAIS schémas JSON Schema
+  //    (ajv, vendorisé localement) avant d'atteindre le renderer — rejeté sinon ;
+  //  - le RenderManifest est réellement résolu et consommé (tokensSnapshotId → jetons
+  //    appliqués au rendu via des variables CSS, changer tokensSnapshotId change le rendu) ;
+  //  - contentChecksum est réellement recalculé (SHA-256 natif, Web Crypto) et comparé ;
+  //  - l'affichage des citations dérive strictement de validation.citationLinks (jamais de
+  //    citationIds brut, non validé) et couvre tous les types de blocs porteurs de texte ;
+  //  - l'export est réellement bloqué (html:null) si le contrôle qualité l'interdit.
+
+  // Registres résolus depuis les blocs <script type="application/json"> embarqués en tête
+  // de fichier (mêmes valeurs que fixtures/render-manifest-default.json et
+  // fixtures/tokens-studio-clinique-default-v1.json — voir commentaire à leur emplacement).
+  window.adocRenderManifests = JSON.parse(document.getElementById('adoc-sc-render-manifests').textContent);
+  window.adocTokensSnapshots = JSON.parse(document.getElementById('adoc-sc-tokens-snapshots').textContent);
 
   window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'legacy', script: 'legacy', liens: 'legacy' };
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
 
-  // ── Validation des citations en deux temps (technique, puis agrégat par bloc) ──
-  // 1. Contrôle technique (vérifiable automatiquement) : le citationId référencé existe-t-il
-  //    dans doc.citations[], et l'entrée SourceSnapshot qu'il désigne existe-t-elle ?
-  // 2. claimSupport (soutien de l'affirmation) : conservé tel que fourni en amont (assisté
-  //    IA en amont de ce moteur) — jamais réévalué ici, seulement dégradé à "needs-review"
-  //    si le contrôle technique échoue ou si la valeur reçue est hors énumération.
-  function adocValidateClinicalDocument(doc, sourceSnapshot) {
+  // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
+  let _adocAjvValidators = null;
+  function adocInitSchemaValidators() {
+    if (_adocAjvValidators) return _adocAjvValidators;
+    if (typeof window.Ajv2020 !== 'function') {
+      console.warn('[UX-8A.1] ajv (vendor/ajv2020.min.js) non chargé — validation de schéma indisponible.');
+      return null;
+    }
+    const ajv = new window.Ajv2020({ strict: true, allErrors: true });
+    if (typeof window.ajvAddFormats === 'function') window.ajvAddFormats(ajv);
+    const schemasEl = document.getElementById('adoc-sc-schemas');
+    const schemas = JSON.parse(schemasEl.textContent);
+    Object.keys(schemas).forEach(id => ajv.addSchema(schemas[id], id));
+    _adocAjvValidators = {
+      clinicalDocument: ajv.getSchema('clinical-document.schema.json'),
+      renderManifest: ajv.getSchema('render-manifest.schema.json'),
+      sourceSnapshot: ajv.getSchema('source-snapshot.schema.json'),
+      citation: ajv.getSchema('citation.schema.json'),
+      block: ajv.getSchema('block.schema.json'),
+    };
+    return _adocAjvValidators;
+  }
+  function adocValidateSchema(kind, obj) {
+    const validators = adocInitSchemaValidators();
+    if (!validators || !validators[kind]) return { valid: true, errors: null, skipped: true };
+    const fn = validators[kind];
+    const valid = fn(obj);
+    return { valid, errors: valid ? null : (fn.errors || []).map(e => (e.instancePath || '/') + ' ' + e.message) };
+  }
+  function AdocSchemaValidationError(kind, errors) {
+    const e = new Error('Validation de schéma échouée (' + kind + ') : ' + (errors || []).join(' | '));
+    e.name = 'AdocSchemaValidationError';
+    e.kind = kind;
+    e.schemaErrors = errors;
+    return e;
+  }
+
+  // ── Résolution du RenderManifest et des jetons (point 3 : réellement consommés) ──
+  function adocResolveRenderManifest(doc, renderManifestOverride) {
+    const manifest = renderManifestOverride || (window.adocRenderManifests && window.adocRenderManifests[doc.renderManifestId]);
+    if (!manifest) {
+      throw AdocSchemaValidationError('render-manifest.schema.json', ['renderManifestId "' + doc.renderManifestId + '" introuvable dans window.adocRenderManifests']);
+    }
+    const check = adocValidateSchema('renderManifest', manifest);
+    if (!check.valid && !check.skipped) throw AdocSchemaValidationError('render-manifest.schema.json', check.errors);
+    return manifest;
+  }
+  function adocResolveTokens(renderManifest) {
+    const tokens = window.adocTokensSnapshots && window.adocTokensSnapshots[renderManifest.tokensSnapshotId];
+    if (!tokens) {
+      throw AdocSchemaValidationError('tokens-snapshot', ['tokensSnapshotId "' + renderManifest.tokensSnapshotId + '" introuvable dans window.adocTokensSnapshots']);
+    }
+    return tokens;
+  }
+  function adocTokensToCSSVars(tokens) {
+    const c = tokens.colors || {};
+    const t = tokens.typography || {};
+    const pairs = {
+      '--adoc-sc-body-color': c.ink,
+      '--adoc-sc-heading-color': c.petrol950,
+      '--adoc-sc-callout-info-bg': c.petrol100,
+      '--adoc-sc-callout-info-border': c.petrol800,
+      '--adoc-sc-callout-warning-bg': c.terracotta100,
+      '--adoc-sc-callout-warning-border': c.terracotta700,
+      '--adoc-sc-cite-color': c.terracotta700,
+      '--adoc-sc-quote-border': c.terracotta700,
+      '--adoc-sc-quote-color': c.petrol900,
+      '--adoc-sc-table-header-bg': c.petrol100,
+      '--adoc-sc-table-header-color': c.petrol950,
+      '--adoc-sc-table-border': c.stone300,
+      '--adoc-sc-card-border': c.stone300,
+      '--adoc-sc-card-bg': c.paper,
+      '--adoc-sc-heading-font': t.headingFontFamily,
+      '--adoc-sc-body-font': t.bodyFontFamily,
+    };
+    return Object.keys(pairs).filter(k => pairs[k] != null).map(k => k + ':' + pairs[k] + ';').join('');
+  }
+
+  // ── SHA-256 réel (Web Crypto native, pas d'implémentation maison) ──
+  async function adocComputeSHA256Hex(text) {
+    const data = new TextEncoder().encode(text == null ? '' : String(text));
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ── Validation des citations en deux temps (technique + intégrité, puis agrégat) ──
+  // 1. Contrôle technique : le citationId référencé existe dans doc.citations[], l'entrée
+  //    SourceSnapshot qu'il désigne existe, ET son contentChecksum stocké correspond
+  //    réellement au SHA-256 recalculé de son exactText (point 5 — plus jamais un silence).
+  // 2. claimSupport : conservé tel que fourni en amont — jamais réévalué ici, seulement
+  //    dégradé à "needs-review" si le contrôle technique échoue ou si la valeur est hors
+  //    énumération.
+  // Ferme aussi la faille du point 1 : un citationIds déclaré mais absent de
+  // validation.citationLinks (jamais validé) est désormais détecté et remonté séparément —
+  // le rendu, lui, ne dérive plus JAMAIS de citationIds (voir adocRenderBlockHTML).
+  async function adocValidateClinicalDocument(doc, sourceSnapshot) {
     const entriesById = {};
     (sourceSnapshot && sourceSnapshot.entries || []).forEach(e => { entriesById[e.sourceSnapshotEntryId] = e; });
     const citationsById = {};
     (doc.citations || []).forEach(c => { citationsById[c.citationId] = c; });
+
+    // Recalcule le SHA-256 réel de chaque entrée en parallèle, une seule fois.
+    const entryIds = Object.keys(entriesById);
+    const checksumResults = await Promise.all(entryIds.map(async id => {
+      const entry = entriesById[id];
+      const realHex = await adocComputeSHA256Hex(entry.exactText);
+      const stored = (entry.contentChecksum || '').replace(/^sha256:/, '');
+      return { id, ok: realHex === stored };
+    }));
+    const checksumOkByEntryId = {};
+    checksumResults.forEach(r => { checksumOkByEntryId[r.id] = r.ok; });
+
     const invalidCitationIds = [];
+    const checksumMismatchIds = [];
+    const orphanCitationIds = [];
 
     function checkLinks(links) {
       return (links || []).map(link => {
         const citation = citationsById[link.citationId];
         const entry = citation ? entriesById[citation.sourceSnapshotEntryId] : null;
-        const technicalOk = !!citation && !!entry;
+        const existsOk = !!citation && !!entry;
+        const checksumOk = existsOk && !!checksumOkByEntryId[entry.sourceSnapshotEntryId];
+        const technicalOk = existsOk && checksumOk;
         let claimSupport = link.claimSupport;
-        if (!technicalOk) {
+        if (!existsOk) {
           claimSupport = 'needs-review';
           if (invalidCitationIds.indexOf(link.citationId) === -1) invalidCitationIds.push(link.citationId);
+        } else if (!checksumOk) {
+          claimSupport = 'needs-review';
+          if (checksumMismatchIds.indexOf(link.citationId) === -1) checksumMismatchIds.push(link.citationId);
         } else if (['pass', 'needs-review', 'pending'].indexOf(claimSupport) === -1) {
           claimSupport = 'needs-review';
         }
-        return Object.assign({}, link, { claimSupport });
+        return Object.assign({}, link, { claimSupport, _technicalOk: technicalOk });
       });
     }
 
@@ -7103,24 +7292,42 @@ ${recent}`;
         const links = checkLinks(b.validation && b.validation.citationLinks);
         nb.validation = links.length ? { citationLinks: links } : (b.validation || {});
         nb._status = aggregateStatus(links);
+        // Point 1 (fermeture de la faille) : citationIds déclaré mais jamais mirroré dans
+        // validation.citationLinks — ni affiché (le rendu ignore désormais citationIds),
+        // ni silencieux : remonté au contrôle qualité comme référence non vérifiée.
+        const linkedIds = links.map(l => l.citationId);
+        (b.citationIds || []).forEach(cid => {
+          if (linkedIds.indexOf(cid) === -1 && orphanCitationIds.indexOf(cid) === -1) orphanCitationIds.push(cid);
+        });
         return nb;
       });
     }
 
-    return { doc: Object.assign({}, doc, { blocks: walkBlocks(doc.blocks) }), invalidCitationIds };
+    return {
+      doc: Object.assign({}, doc, { blocks: walkBlocks(doc.blocks) }),
+      invalidCitationIds,
+      checksumMismatchIds,
+      orphanCitationIds,
+    };
   }
 
   // ── Contrat de contrôle qualité (bloquant / non bloquant, cf. CDC §UX-8A) ──
-  // Bloquant : citation manifestement invalide, contenu tronqué, texte alternatif absent
-  // sur une image informative. Le contraste AA est garanti par construction (le moteur
-  // n'utilise que les jetons déjà audités de studio-clinique-default), donc jamais recalculé
-  // dynamiquement ici — signalé en non-bloquant pour traçabilité du rapport.
-  function adocRunQualityContract(doc, invalidCitationIds) {
+  // Bloquant : citation invalide (passage introuvable OU checksum divergent), citationIds
+  // orphelin (jamais validé — même risque qu'une citation invalide), contenu tronqué, texte
+  // alternatif absent sur une image informative. Le contraste AA est garanti par
+  // construction (jetons déjà audités), jamais recalculé dynamiquement.
+  function adocRunQualityContract(doc, invalidCitationIds, checksumMismatchIds, orphanCitationIds) {
     const blocking = [];
     const nonBlocking = [];
 
     if (invalidCitationIds && invalidCitationIds.length) {
       blocking.push('Citation invalide : passage introuvable pour ' + invalidCitationIds.length + ' référence(s) (' + invalidCitationIds.join(', ') + ').');
+    }
+    if (checksumMismatchIds && checksumMismatchIds.length) {
+      blocking.push('Intégrité du passage rompue : contentChecksum ne correspond pas au texte réel pour ' + checksumMismatchIds.length + ' citation(s) (' + checksumMismatchIds.join(', ') + ').');
+    }
+    if (orphanCitationIds && orphanCitationIds.length) {
+      blocking.push('Référence non vérifiée : ' + orphanCitationIds.length + ' citationIds déclaré(s) sans entrée validée dans validation.citationLinks (' + orphanCitationIds.join(', ') + ').');
     }
 
     function looksTruncated(text) {
@@ -7150,18 +7357,29 @@ ${recent}`;
     return { blocking, nonBlocking, exportAllowed: blocking.length === 0 };
   }
 
+  // ── Note de citations (dérivée STRICTEMENT de validation.citationLinks, jamais de
+  //    citationIds brut — point 1). Un lien non techniquement valide (_technicalOk:false)
+  //    reste visible mais marqué, jamais simplement masqué en silence. ──
+  function adocCiteFootnoteHTML(links) {
+    if (!links || !links.length) return '';
+    return ' <sup class="adoc-sc-cite">' + links.map(function(l) {
+      const flagged = l.claimSupport !== 'pass' ? ' adoc-sc-cite-flagged' : '';
+      const label = l.citationId.replace('citation-', '');
+      return '<span class="' + flagged.trim() + '" title="' + adocEsc(l.citationId + ' — ' + l.claimSupport) + '">[' + adocEsc(label) + ']</span>';
+    }).join(' ') + '</sup>';
+  }
+
   // ── Rendu d'un bloc (utilisé à la racine ET imbriqué dans une card) ──
+  // Point 6 : les citations s'affichent désormais sur TOUS les types de blocs porteurs de
+  // texte (heading/paragraph/callout/list/table/quote), placement adapté à chaque type.
   function adocRenderBlockHTML(b) {
     const statusClass = b._status === 'needs-review' ? ' adoc-sc-needs-review' : '';
-    const cites = (b.citationIds || []).length
-      ? ' <sup class="adoc-sc-cite">' + b.citationIds.map(function(id) {
-          return '<span title="' + adocEsc(id) + '">[' + adocEsc(id.replace('citation-', '')) + ']</span>';
-        }).join(' ') + '</sup>'
-      : '';
+    const links = (b.validation && b.validation.citationLinks) || [];
+    const cites = adocCiteFootnoteHTML(links);
     switch (b.type) {
       case 'heading': {
         const lvl = Math.min(Math.max(b.content.level, 1), 3);
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + '</h' + lvl + '>';
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</h' + lvl + '>';
       }
       case 'paragraph':
         return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</p>';
@@ -7169,13 +7387,17 @@ ${recent}`;
         return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '" role="note">' + adocEsc(b.content.text) + cites + '</div>';
       case 'list': {
         const tag = b.content.ordered ? 'ol' : 'ul';
-        return '<' + tag + ' class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '">' +
+        const list = '<' + tag + ' class="adoc-sc-list-el">' +
           b.content.items.map(function(it) { return '<li>' + adocEsc(it) + '</li>'; }).join('') + '</' + tag + '>';
+        const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
+        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '">' + list + note + '</div>';
       }
       case 'table': {
         const head = '<tr>' + b.content.headers.map(function(h) { return '<th>' + adocEsc(h) + '</th>'; }).join('') + '</tr>';
         const rows = b.content.rows.map(function(r) { return '<tr>' + r.map(function(c) { return '<td>' + adocEsc(c) + '</td>'; }).join('') + '</tr>'; }).join('');
-        return '<table class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+        const table = '<table class="adoc-sc-table-el"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+        const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
+        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '">' + table + note + '</div>';
       }
       case 'quote':
         return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</blockquote>';
@@ -7185,9 +7407,9 @@ ${recent}`;
   }
 
   // ── Pilote 1 : Fiche synthèse (modèle minimal unique) ──
-  function adocRenderFicheHTML(doc) {
+  function adocRenderFicheHTML(doc, tokens) {
     const body = (doc.blocks || []).map(adocRenderBlockHTML).join('\n');
-    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + '">' + body + '</article>';
+    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + '" style="' + adocTokensToCSSVars(tokens) + '">' + body + '</article>';
   }
 
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
@@ -7199,45 +7421,283 @@ ${recent}`;
     return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '" role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
       img + '<h2 class="adoc-sc-card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
   }
-  function adocRenderCarrouselHTML(doc) {
+  function adocRenderCarrouselHTML(doc, tokens) {
     const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
-    return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + '" role="region" aria-label="Carrousel">' + cards + '</div>';
+    return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + '" role="region" aria-label="Carrousel" style="' + adocTokensToCSSVars(tokens) + '">' + cards + '</div>';
   }
 
   // ── Point d'entrée du moteur canonique ──
-  // Retourne { html, qc, validatedDoc } — qc.exportAllowed === false bloque l'export
-  // (cf. contrat de contrôle qualité ci-dessus), jamais une simple alerte esthétique.
-  window.adocRenderClinicalDocument = function(doc, sourceSnapshot) {
+  // Point 4 : doc/manifest/snapshot sont validés contre les VRAIS schémas JSON Schema
+  // AVANT tout rendu — un document malformé est rejeté (AdocSchemaValidationError), jamais
+  // rendu partiellement. Devenu asynchrone (point 5 : contentChecksum recalculé via
+  // Web Crypto, intrinsèquement asynchrone).
+  // Retourne { html, qc, validatedDoc, renderManifest, tokens } — qc.exportAllowed===false
+  // n'empêche PAS l'aperçu (l'utilisatrice doit voir ce qui cloche pour le corriger), mais
+  // bloque l'export (voir adocExportClinicalDocumentHTML ci-dessous, correctif point 2).
+  window.adocRenderClinicalDocument = async function(doc, sourceSnapshot, renderManifestOverride) {
     const mode = adocGetRendererMode(doc.documentKind);
     if (mode !== 'structured') {
       throw new Error('adocRenderClinicalDocument: documentKind "' + doc.documentKind + '" est en mode "' + mode + '" (ancien moteur), pas encore migré vers le rendu canonique (voir UX-8M).');
     }
-    const validated = adocValidateClinicalDocument(doc, sourceSnapshot);
-    const qc = adocRunQualityContract(validated.doc, validated.invalidCitationIds);
+
+    const docCheck = adocValidateSchema('clinicalDocument', doc);
+    if (!docCheck.valid && !docCheck.skipped) throw AdocSchemaValidationError('clinical-document.schema.json', docCheck.errors);
+
+    if (sourceSnapshot) {
+      const snapCheck = adocValidateSchema('sourceSnapshot', sourceSnapshot);
+      if (!snapCheck.valid && !snapCheck.skipped) throw AdocSchemaValidationError('source-snapshot.schema.json', snapCheck.errors);
+    }
+
+    const renderManifest = adocResolveRenderManifest(doc, renderManifestOverride);
+    const tokens = adocResolveTokens(renderManifest);
+
+    const validated = await adocValidateClinicalDocument(doc, sourceSnapshot);
+    const qc = adocRunQualityContract(validated.doc, validated.invalidCitationIds, validated.checksumMismatchIds, validated.orphanCitationIds);
+
     let html;
-    if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc);
-    else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc);
+    if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc, tokens);
+    else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
     else throw new Error('adocRenderClinicalDocument: aucun modèle de rendu pour documentKind "' + doc.documentKind + '" (prévu en UX-8M).');
-    return { html: html, qc: qc, validatedDoc: validated.doc };
+
+    return { html: html, qc: qc, validatedDoc: validated.doc, renderManifest: renderManifest, tokens: tokens };
   };
   window.adocValidateClinicalDocument = adocValidateClinicalDocument;
   window.adocRunQualityContract = adocRunQualityContract;
   window.adocGetRendererMode = adocGetRendererMode;
+  window.adocValidateSchema = adocValidateSchema;
+  window.adocResolveRenderManifest = adocResolveRenderManifest;
+  window.adocResolveTokens = adocResolveTokens;
 
   // ── Export HTML autonome — même moteur, même fragment que l'aperçu (principe UX-1 :
-  //    "aperçu = livrable", un seul et même contenu, jamais deux représentations). ──
-  window.adocExportClinicalDocumentHTML = function(doc, sourceSnapshot) {
-    const result = window.adocRenderClinicalDocument(doc, sourceSnapshot);
+  //    "aperçu = livrable"). Point 2 : le blocage qualité est réellement appliqué ici —
+  //    si qc.exportAllowed est false, AUCUN html exploitable n'est retourné. ──
+  window.adocExportClinicalDocumentHTML = async function(doc, sourceSnapshot, renderManifestOverride) {
+    const result = await window.adocRenderClinicalDocument(doc, sourceSnapshot, renderManifestOverride);
+    if (!result.qc.exportAllowed) {
+      return { html: null, qc: result.qc, blocked: true };
+    }
+    const cssVars = adocTokensToCSSVars(result.tokens);
     const html = '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
       '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
-      '<style>body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
-      '.adoc-sc-doc{font-family:Georgia,serif;color:#2a2a28;line-height:1.65;}' +
+      '<style>:root{' + cssVars + '}' +
+      'body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
+      '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
+      '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
       '.adoc-sc-carrousel{display:flex;gap:16px;overflow-x:auto;}' +
-      '.adoc-sc-card{flex:0 0 320px;border:1px solid #c9c3b8;border-radius:12px;padding:18px;}' +
-      '.adoc-sc-table{border-collapse:collapse;width:100%;}.adoc-sc-table th,.adoc-sc-table td{border:1px solid #c9c3b8;padding:6px 10px;}' +
+      '.adoc-sc-card{flex:0 0 320px;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
+      '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
+      '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
+      '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
+      '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
       '</style></head><body>' + result.html + '</body></html>';
-    return { html: html, qc: result.qc };
+    return { html: html, qc: result.qc, blocked: false };
   };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Phase UX-8A.1, point 10 — Branchement live progressif, Fiche synthèse UNIQUEMENT
+  // ═══════════════════════════════════════════════════════════════════════
+  // Bascule explicite (window.adocStructuredFicheEnabled, true par défaut ici mais un seul
+  // point de vérité à couper en cas de souci) : quand elle est active ET que le plan détecte
+  // intent==='fiche' (hors document long, qui garde son propre mécanisme par chapitres),
+  // une génération structurée est tentée via Structured Outputs (tool_choice forcé, même
+  // patron déjà éprouvé que ADOC_CLARITY_TOOL/evaluate_clarity en Phase UX-2bis). En cas
+  // d'échec — réseau, tool_use absent, validation de schéma refusée par le moteur canonique,
+  // n'importe quelle exception — repli AUTOMATIQUE et silencieux (juste un warning console,
+  // sans contenu clinique) vers l'ancien moteur (le code streaming existant, inchangé,
+  // juste en dessous). Carrousel n'est délibérément PAS branché ici (demande explicite :
+  // valider Fiche seule sur plusieurs demandes réelles avant d'étendre).
+  window.adocStructuredFicheEnabled = true;
+
+  function adocUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  // Construit un SourceSnapshot RÉEL à partir des passages RAG effectivement récupérés pour
+  // cette demande (ragResult.chunks) — jamais inventé par le modèle. contentChecksum est le
+  // vrai SHA-256 du texte réellement injecté, recalculable et vérifié par le moteur canonique.
+  async function adocBuildSourceSnapshotFromRAG(ragResult) {
+    const chunks = (ragResult && ragResult.chunks) || [];
+    const entries = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i];
+      const exactText = (c.content || '').trim();
+      if (!exactText) continue;
+      const hex = await adocComputeSHA256Hex(exactText);
+      entries.push({
+        sourceSnapshotEntryId: 'entry-' + (i + 1),
+        sourceType: 'library',
+        sourceId: String(c.book_title || ('book-' + i)).slice(0, 120),
+        passageId: 'passage-' + (i + 1),
+        exactText,
+        contentChecksum: 'sha256:' + hex,
+        book: c.book_title || 'Référence',
+        author: c.author || 'Auteur inconnu',
+        locator: { page: c.page_number || null, section: null },
+        retrievedAt: new Date().toISOString(),
+      });
+    }
+    return { sourceSnapshotId: 'snapshot-' + adocUUID(), entries };
+  }
+
+  // Schéma d'outil volontairement APLATI (pas d'union discriminée profonde) — plus fiable en
+  // sortie structurée forcée que de demander au modèle de reproduire content:{...} typé par
+  // bloc. La conversion vers la vraie forme du schéma (block.schema.json) se fait ci-dessous,
+  // et REPASSE de toute façon par la validation ajv réelle du moteur canonique (point 4) —
+  // ce tool_schema n'est qu'un filet de collecte, jamais la source de vérité du contrat.
+  const ADOC_STRUCTURED_FICHE_TOOL = {
+    name: 'emit_fiche_document',
+    description: "Produit le contenu d'une fiche synthèse clinique structurée en blocs typés, sourcée exclusivement par les passages numérotés fournis dans le prompt système.",
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        purpose: { type: 'string' },
+        audience: { type: 'string' },
+        blocks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'table', 'quote'] },
+              text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+              level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
+              visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
+              items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
+              ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
+              headers: { type: 'array', items: { type: 'string' }, description: 'table uniquement ; liste vide sinon.' },
+              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'table uniquement ; liste vide sinon.' },
+              citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
+            },
+            required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'headers', 'rows', 'citationEntryIds'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'purpose', 'audience', 'blocks'],
+      additionalProperties: false,
+    },
+  };
+
+  async function adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl) {
+    const sourceSnapshot = await adocBuildSourceSnapshotFromRAG(ragResult);
+    if (!sourceSnapshot.entries.length) {
+      throw new Error('Aucun passage RAG disponible pour sourcer une fiche structurée.');
+    }
+
+    const passagesListing = sourceSnapshot.entries.map(function(e) {
+      return e.sourceSnapshotEntryId + ' — ' + e.book + (e.author ? ' [' + e.author + ']' : '') +
+        (e.locator.page ? ', p.' + e.locator.page : '') + ' : ' + e.exactText.slice(0, 500);
+    }).join('\n\n');
+
+    const structuredSystemPrompt = systemPrompt +
+      '\n\n---\nGÉNÉRATION STRUCTURÉE (Phase UX-8A.1, pilote Fiche synthèse)\n' +
+      "Réponds exclusivement via l'outil emit_fiche_document. Chaque affirmation clinique " +
+      'significative doit citer un ou plusieurs passages ci-dessous par leur identifiant ' +
+      'exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant inventé, jamais ' +
+      'une citation sans passage correspondant dans la liste. Passages disponibles :\n\n' + passagesListing;
+
+    const resp = await fetch(workerUrl.replace(/\/+$/, ''), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payload: {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          max_tokens: 8000,
+          system: structuredSystemPrompt,
+          messages: [{ role: 'user', content: text }],
+          tools: [ADOC_STRUCTURED_FICHE_TOOL],
+          tool_choice: { type: 'tool', name: 'emit_fiche_document' },
+        },
+      }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const toolUse = (data.content || []).find(function(b) { return b.type === 'tool_use' && b.name === 'emit_fiche_document'; });
+    if (!toolUse || !toolUse.input) throw new Error('Réponse sans bloc tool_use structuré (emit_fiche_document).');
+
+    const raw = toolUse.input;
+    const now = new Date().toISOString();
+    const documentId = 'doc-' + adocUUID();
+    const citationsById = {};
+    let citationSeq = 0;
+    function citationIdFor(entryId) {
+      if (!citationsById[entryId]) {
+        citationSeq++;
+        citationsById[entryId] = 'citation-' + citationSeq;
+      }
+      return citationsById[entryId];
+    }
+
+    let blockSeq = 0;
+    const blocks = (raw.blocks || []).map(function(b) {
+      blockSeq++;
+      const id = (b.type || 'block') + '-' + String(blockSeq).padStart(2, '0');
+      let content;
+      switch (b.type) {
+        case 'heading': content = { text: b.text || '', level: [1, 2, 3].indexOf(b.level) !== -1 ? b.level : 2 }; break;
+        case 'paragraph': content = { text: b.text || '' }; break;
+        case 'callout': content = { text: b.text || '', visualRole: ['info', 'warning', 'critical', 'success'].indexOf(b.visualRole) !== -1 ? b.visualRole : 'info' }; break;
+        case 'list': content = { items: (b.items || []).filter(Boolean), ordered: !!b.ordered }; break;
+        case 'table': content = { headers: b.headers || [], rows: b.rows || [] }; break;
+        case 'quote': content = { text: b.text || '' }; break;
+        default: return null;
+      }
+      const validEntryIds = (b.citationEntryIds || []).filter(function(eid) {
+        return sourceSnapshot.entries.some(function(e) { return e.sourceSnapshotEntryId === eid; });
+      });
+      const citationIds = validEntryIds.map(citationIdFor);
+      // claimSupport reste "needs-review" par défaut (jamais "pass" implicite, cf. contrat
+      // de citations UX-8A) : ce lot ne fait pas encore de vérification IA dédiée du soutien
+      // de chaque affirmation — seulement le contrôle technique (passage existe + checksum).
+      const citationLinks = citationIds.length ? citationIds.map(function(cid) {
+        return { citationId: cid, claimText: (b.text || (b.items && b.items[0]) || 'Affirmation du bloc.').slice(0, 200), claimSupport: 'needs-review' };
+      }) : [];
+      return { id: id, type: b.type, content: content, citationIds: citationIds, validation: citationLinks.length ? { citationLinks: citationLinks } : {} };
+    }).filter(Boolean);
+
+    if (!blocks.length) throw new Error('Le modèle a produit un document structuré sans bloc exploitable.');
+
+    const citations = Object.keys(citationsById).map(function(entryId) {
+      const entry = sourceSnapshot.entries.filter(function(e) { return e.sourceSnapshotEntryId === entryId; })[0];
+      return {
+        citationId: citationsById[entryId],
+        sourceSnapshotEntryId: entryId,
+        displayLabel: (entry.author ? entry.author.split(',')[0] + ', ' : '') + (entry.locator.page ? 'p. ' + entry.locator.page : entry.book),
+      };
+    });
+
+    const doc = {
+      schemaVersion: 1, documentId: documentId, versionId: documentId + '-v1', previousVersionId: null,
+      requestId: 'request-' + adocUUID(), sourceSnapshotId: sourceSnapshot.sourceSnapshotId,
+      createdAt: now, language: 'fr', status: 'draft',
+      title: raw.title || 'Fiche synthèse', purpose: raw.purpose || '', audience: raw.audience || 'clinicien',
+      documentKind: 'fiche', renderManifestId: 'manifest-default-001', derivedFrom: null,
+      blocks: blocks, citations: citations,
+      validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending', accessibility: 'pending', humanClinicalReview: 'required' },
+    };
+    return { doc: doc, sourceSnapshot: sourceSnapshot };
+  }
+
+  // Injecte le HTML déjà rendu/assaini du moteur canonique tel quel dans une nouvelle bulle
+  // assistant, sans repasser par adocFormatMd (markdown) qui casserait la structure.
+  function adocAppendStructuredDocMsg(html) {
+    const msgId = adocAddMsg('assistant', '', [], false);
+    const div = document.getElementById(msgId);
+    const bubble = div && div.querySelector('.adoc-bubble');
+    if (bubble) bubble.innerHTML = html;
+    return msgId;
+  }
+
+  // Exposés pour test/vérification (Playwright) et pour l'inspection en mode développeur.
+  window.adocGenerateStructuredFiche = adocGenerateStructuredFiche;
+  window.adocBuildSourceSnapshotFromRAG = adocBuildSourceSnapshotFromRAG;
+  window.adocAppendStructuredDocMsg = adocAppendStructuredDocMsg;
 
 })(); // fin IIFE Assistant Doc v2
 </script>

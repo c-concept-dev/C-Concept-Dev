@@ -1,0 +1,17 @@
+{
+  "id": "manifest-default-001",
+  "schemaVersion": 1,
+  "rendererVersion": "1.0.0",
+  "templateRef": {
+    "id": "fiche-editoriale",
+    "version": 1
+  },
+  "brandKitRef": {
+    "id": "studio-clinique-default",
+    "version": 1
+  },
+  "tokensSnapshotId": "tokens-studio-clinique-default-v1",
+  "assetsSnapshotId": null,
+  "createdAt": "2026-09-03T09:00:00Z",
+  "manifestChecksum": "sha256:531d86a80100df4c521d59e4541e65f4f95893f807061b14511c3830521d59e4"
+}

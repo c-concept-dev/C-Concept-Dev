@@ -1,0 +1,380 @@
+{
+  "sourceSnapshotId": "snapshot-broken-checksum-001",
+  "entries": [
+    {
+      "sourceSnapshotEntryId": "entry-001",
+      "sourceType": "library",
+      "sourceId": "book-internal-family-systems-therapy",
+      "passageId": "passage-0001",
+      "exactText": "La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales.",
+      "contentChecksum": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "book": "Internal Family Systems Therapy",
+      "author": "Schwartz, Richard",
+      "locator": {
+        "page": 27,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-002",
+      "sourceType": "library",
+      "sourceId": "book-eye-movement-desensitization-and-reproce",
+      "passageId": "passage-0002",
+      "exactText": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation.",
+      "contentChecksum": "sha256:6f4a3a92e6cb313f0b91e17dbca4c89e9af5fabc4d0d8d40c365244707941c3e",
+      "book": "Eye Movement Desensitization and Reprocessing",
+      "author": "Shapiro, Francine",
+      "locator": {
+        "page": 34,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-003",
+      "sourceType": "library",
+      "sourceId": "book-nonviolent-communication",
+      "passageId": "passage-0003",
+      "exactText": "Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre.",
+      "contentChecksum": "sha256:a9601c78a855ecdb475ba5b9659b85c6005b1f69bc9a0b678afaa3a2360febc5",
+      "book": "Nonviolent Communication",
+      "author": "Rosenberg, Marshall",
+      "locator": {
+        "page": 41,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-004",
+      "sourceType": "library",
+      "sourceId": "book-internal-family-systems-therapy",
+      "passageId": "passage-0004",
+      "exactText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+      "contentChecksum": "sha256:da83457dd6b4ec2219595a561ed08bec7ed51eb24c3d948e45c392dba2f15380",
+      "book": "Internal Family Systems Therapy",
+      "author": "Schwartz, Richard",
+      "locator": {
+        "page": 48,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-005",
+      "sourceType": "library",
+      "sourceId": "book-eye-movement-desensitization-and-reproce",
+      "passageId": "passage-0005",
+      "exactText": "Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement.",
+      "contentChecksum": "sha256:b168e75175a3c7caa65a3b9ecf99a445634d4a7e94c0cb3d274f40f070d75b06",
+      "book": "Eye Movement Desensitization and Reprocessing",
+      "author": "Shapiro, Francine",
+      "locator": {
+        "page": 55,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-006",
+      "sourceType": "library",
+      "sourceId": "book-nonviolent-communication",
+      "passageId": "passage-0006",
+      "exactText": "Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre.",
+      "contentChecksum": "sha256:6cedee69c3d19f01c435c4deb25f20633d9c4ec959fe48c88ddb4dbf37bfbfa1",
+      "book": "Nonviolent Communication",
+      "author": "Rosenberg, Marshall",
+      "locator": {
+        "page": 62,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-007",
+      "sourceType": "library",
+      "sourceId": "book-internal-family-systems-therapy",
+      "passageId": "passage-0007",
+      "exactText": "Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple.",
+      "contentChecksum": "sha256:ab9acc3016467966fc695ef14f795b675692378383c70b4b6a46f605c1550a6f",
+      "book": "Internal Family Systems Therapy",
+      "author": "Schwartz, Richard",
+      "locator": {
+        "page": 69,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-008",
+      "sourceType": "library",
+      "sourceId": "book-eye-movement-desensitization-and-reproce",
+      "passageId": "passage-0008",
+      "exactText": "Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis.",
+      "contentChecksum": "sha256:f3e5a39a2536061c8082ade3dca1aaa97e2489584cd89aded35c544f78f6b9d2",
+      "book": "Eye Movement Desensitization and Reprocessing",
+      "author": "Shapiro, Francine",
+      "locator": {
+        "page": 76,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-009",
+      "sourceType": "library",
+      "sourceId": "book-nonviolent-communication",
+      "passageId": "passage-0009",
+      "exactText": "L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre.",
+      "contentChecksum": "sha256:ef2456bbefedfd4e160e29ce77dcb033dfeccff2e4a3d099c7d5ef32e1698a43",
+      "book": "Nonviolent Communication",
+      "author": "Rosenberg, Marshall",
+      "locator": {
+        "page": 83,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-010",
+      "sourceType": "library",
+      "sourceId": "book-nonviolent-communication",
+      "passageId": "passage-0010",
+      "exactText": "La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même.",
+      "contentChecksum": "sha256:4abdfe4472732cab444d09fee8c94d36586a84f9dc082cd901b55e17b60d10aa",
+      "book": "Nonviolent Communication",
+      "author": "Rosenberg, Marshall",
+      "locator": {
+        "page": 90,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-011",
+      "sourceType": "library",
+      "sourceId": "book-ce-que-veulent-vraiment-les-femmes",
+      "passageId": "passage-0011",
+      "exactText": "Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple.",
+      "contentChecksum": "sha256:d55311bf02c9ce37c18cbe30cad011ee267d290f787c9e51387bf5c8606ecc99",
+      "book": "Ce que veulent vraiment les femmes",
+      "author": "Gottman, John",
+      "locator": {
+        "page": 97,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-012",
+      "sourceType": "library",
+      "sourceId": "book-les-principes-de-sue-johnson-sur-l-attac",
+      "passageId": "passage-0012",
+      "exactText": "La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales.",
+      "contentChecksum": "sha256:7f6a4696e85b2667fba42374bfb1ad6ef09a1fb390bd8254c796038619a847ee",
+      "book": "Les principes de Sue Johnson sur l'attachement adulte",
+      "author": "Johnson, Sue",
+      "locator": {
+        "page": 104,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-013",
+      "sourceType": "library",
+      "sourceId": "book-nonviolent-communication",
+      "passageId": "passage-0013",
+      "exactText": "Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité.",
+      "contentChecksum": "sha256:fbc241795b6b16a3b452f92bf3c5e758e0e8c9c55f1dfb5073577e61e4a23807",
+      "book": "Nonviolent Communication",
+      "author": "Rosenberg, Marshall",
+      "locator": {
+        "page": 111,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-014",
+      "sourceType": "library",
+      "sourceId": "book-ce-que-veulent-vraiment-les-femmes",
+      "passageId": "passage-0014",
+      "exactText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+      "contentChecksum": "sha256:dc2eec0ccd41d11085a56ce4b570572e2e39159a0a989262fb2ab43d907f89ea",
+      "book": "Ce que veulent vraiment les femmes",
+      "author": "Gottman, John",
+      "locator": {
+        "page": 118,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-015",
+      "sourceType": "library",
+      "sourceId": "book-les-principes-de-sue-johnson-sur-l-attac",
+      "passageId": "passage-0015",
+      "exactText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+      "contentChecksum": "sha256:da83457dd6b4ec2219595a561ed08bec7ed51eb24c3d948e45c392dba2f15380",
+      "book": "Les principes de Sue Johnson sur l'attachement adulte",
+      "author": "Johnson, Sue",
+      "locator": {
+        "page": 125,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-016",
+      "sourceType": "library",
+      "sourceId": "book-nonviolent-communication",
+      "passageId": "passage-0016",
+      "exactText": "Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé.",
+      "contentChecksum": "sha256:2157fa2c6dd68fbe496eb3fac58c298b3ef031945ddb66058242a7f3e46c3cbb",
+      "book": "Nonviolent Communication",
+      "author": "Rosenberg, Marshall",
+      "locator": {
+        "page": 132,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-017",
+      "sourceType": "library",
+      "sourceId": "book-ce-que-veulent-vraiment-les-femmes",
+      "passageId": "passage-0017",
+      "exactText": "La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même.",
+      "contentChecksum": "sha256:e4229cbe92d0cc77d59edb5d0fc387ba6ebf40a5f267007f4dacc1260c35c539",
+      "book": "Ce que veulent vraiment les femmes",
+      "author": "Gottman, John",
+      "locator": {
+        "page": 139,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-018",
+      "sourceType": "library",
+      "sourceId": "book-les-principes-de-sue-johnson-sur-l-attac",
+      "passageId": "passage-0018",
+      "exactText": "Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple.",
+      "contentChecksum": "sha256:ab9acc3016467966fc695ef14f795b675692378383c70b4b6a46f605c1550a6f",
+      "book": "Les principes de Sue Johnson sur l'attachement adulte",
+      "author": "Johnson, Sue",
+      "locator": {
+        "page": 146,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-019",
+      "sourceType": "library",
+      "sourceId": "book-les-principes-de-sue-johnson-sur-l-attac",
+      "passageId": "passage-0019",
+      "exactText": "L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée.",
+      "contentChecksum": "sha256:974e902c810739107f8fd53ee4db23f441546913c238134b3573fa6185a2b778",
+      "book": "Les principes de Sue Johnson sur l'attachement adulte",
+      "author": "Johnson, Sue",
+      "locator": {
+        "page": 153,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-020",
+      "sourceType": "library",
+      "sourceId": "book-la-th-rapie-des-sch-mas",
+      "passageId": "passage-0020",
+      "exactText": "L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité.",
+      "contentChecksum": "sha256:b97dcd2da12c3cc84116c260073aae7bd0e6f21e5343c7114769cb3e1d0311e8",
+      "book": "La thérapie des schémas",
+      "author": "Young, Jeffrey",
+      "locator": {
+        "page": 160,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-021",
+      "sourceType": "library",
+      "sourceId": "book-l-attachement-au-cours-de-la-vie",
+      "passageId": "passage-0021",
+      "exactText": "La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même.",
+      "contentChecksum": "sha256:4abdfe4472732cab444d09fee8c94d36586a84f9dc082cd901b55e17b60d10aa",
+      "book": "L'attachement au cours de la vie",
+      "author": "Bowlby, John",
+      "locator": {
+        "page": 167,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-022",
+      "sourceType": "library",
+      "sourceId": "book-internal-family-systems-therapy",
+      "passageId": "passage-0022",
+      "exactText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+      "contentChecksum": "sha256:dc2eec0ccd41d11085a56ce4b570572e2e39159a0a989262fb2ab43d907f89ea",
+      "book": "Internal Family Systems Therapy",
+      "author": "Schwartz, Richard",
+      "locator": {
+        "page": 174,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-023",
+      "sourceType": "library",
+      "sourceId": "book-eye-movement-desensitization-and-reproce",
+      "passageId": "passage-0023",
+      "exactText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+      "contentChecksum": "sha256:da83457dd6b4ec2219595a561ed08bec7ed51eb24c3d948e45c392dba2f15380",
+      "book": "Eye Movement Desensitization and Reprocessing",
+      "author": "Shapiro, Francine",
+      "locator": {
+        "page": 181,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-024",
+      "sourceType": "library",
+      "sourceId": "book-l-attachement-au-cours-de-la-vie",
+      "passageId": "passage-0024",
+      "exactText": "Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé.",
+      "contentChecksum": "sha256:2157fa2c6dd68fbe496eb3fac58c298b3ef031945ddb66058242a7f3e46c3cbb",
+      "book": "L'attachement au cours de la vie",
+      "author": "Bowlby, John",
+      "locator": {
+        "page": 188,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    },
+    {
+      "sourceSnapshotEntryId": "entry-025",
+      "sourceType": "library",
+      "sourceId": "book-internal-family-systems-therapy",
+      "passageId": "passage-0025",
+      "exactText": "La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même.",
+      "contentChecksum": "sha256:e4229cbe92d0cc77d59edb5d0fc387ba6ebf40a5f267007f4dacc1260c35c539",
+      "book": "Internal Family Systems Therapy",
+      "author": "Schwartz, Richard",
+      "locator": {
+        "page": 195,
+        "section": null
+      },
+      "retrievedAt": "2026-09-03T09:00:00Z"
+    }
+  ]
+}
