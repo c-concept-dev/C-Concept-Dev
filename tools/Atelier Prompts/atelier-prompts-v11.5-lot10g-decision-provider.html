@@ -10320,6 +10320,22 @@ async function beginApiAnalysis(){
   const max=Math.max(8000,Number($('#api-max')&&$('#api-max').value)||8000);
   const readinessInstruction=adnReadinessInstruction();
   show('#v11-api-progress');
+  /* MODE-05 — CETTE ANALYSE APPARTIENT AU CONTEXTE QUI L'A DEMANDÉE, ET À LUI SEUL.
+     Défaut mesuré : c'était le SEUL écrivain asynchrone du parcours gouverné qui n'était lié
+     ni au tour, ni au mode. Le plan profond et le plan rapide se périment par numéro de tour ;
+     cet appel-ci, lui, durait plusieurs secondes puis écrivait state.analysis, #v11-final et
+     show('#v11-ready') sans jamais demander si quelqu'un l'attendait encore. Une personne qui
+     partait vers Atelier — ou qui relançait ailleurs — voyait donc l'écran repris par le
+     résultat d'un contexte qu'elle avait quitté, et `show` masquait au passage les panneaux du
+     contexte courant : le dernier arrivé gagnait.
+     Deux conditions, une seule idée — le contexte demandeur n'est plus là :
+       LE TOUR a changé — c'est la discipline de péremption déjà partagée par les deux plans ;
+       LE MODE AFFICHÉ a changé — la bascule de présentation est immédiate, et cette analyse ne
+       doit pas écrire dans un écran qui annonce désormais autre chose.
+     Rien n'est décidé ici : on n'affiche pas, c'est tout. */
+  const tourDemandeur=oprieState.seq;
+  const modeDemandeur=(($('#ui-mode-select')||{}).value)||null;
+  const contexteDemandeurPerdu=()=>tourDemandeur!==oprieState.seq||modeDemandeur!==((($('#ui-mode-select')||{}).value)||null);
   let parsed;
   try{
     const r=await window.appelFournisseur({
@@ -10332,9 +10348,11 @@ async function beginApiAnalysis(){
       schema:api.schema,
       effort:'high'
     });
+    if(contexteDemandeurPerdu())return false;
     const brut=String(r&&r.texte||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
     parsed=JSON.parse(brut);
   }catch(error){
+    if(contexteDemandeurPerdu())return false;
     show(null,'#v11-demande');
     throw new Error('L’analyse API n’a pas abouti : '+error.message);
   }
