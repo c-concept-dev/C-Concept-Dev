@@ -812,6 +812,25 @@ body[data-espace="debutant"] .avance-seulement{display:none}
 .visite-actions button.lien{background:none;border:0;color:var(--encre-doux);font-size:12.5px;cursor:pointer;padding:6px 4px}
 .visite-actions button.lien:hover{color:var(--encre-doux);text-decoration:underline}
 
+/* HTML-FINAL-01A — LES DEUX TEXTES DE LA VISITE GUIDÉE PASSENT LE SEUIL.
+   Mesuré au navigateur réel, en thème clair : le compteur d'étape rendait
+   3,61:1 et le libellé « Suivant » 3,76:1. Les deux sont du texte standard —
+   10,5 px et 11 px, très en deçà des 18,66 px gras qui ouvriraient le seuil
+   réduit — donc le seuil applicable est 4,5:1, sans exception.
+   La correction ne touche ni --signal ni .bouton : elle est enfermée dans les
+   conteneurs de la visite (.visite-carte, .visite-actions) et ne s'applique
+   qu'en thème clair, où le défaut existe. Le thème sombre rendait déjà 5,5:1
+   et 6,06:1 ; il est laissé strictement intact par construction, la garde
+   :not([data-theme="sombre"]) excluant ces règles.
+   #7b5738 n'est pas une teinte nouvelle : c'est celle que portent déjà
+   .ui-api-status, .ui-mode-badge et .ui-eyebrow.
+   Le survol est redéclaré dans la même portée parce que la règle générale
+   .bouton.primaire:hover a une spécificité inférieure et serait sinon
+   supplantée — le survol reste donc ce qu'il était, à 14,27:1. */
+html:not([data-theme="sombre"]) .visite-carte .visite-etape{color:#7b5738}
+html:not([data-theme="sombre"]) .visite-actions .bouton.primaire{background:#7b5738;border-color:#7b5738}
+html:not([data-theme="sombre"]) .visite-actions .bouton.primaire:hover{background:var(--encre);border-color:var(--encre)}
+
 @media(max-width:900px){
   .visite-carte{width:calc(100vw - 32px)}
 }
