@@ -1914,8 +1914,43 @@ function executeForRole(role) {
   return (input, roleEnv) => runRoleWithHaChain(role, input, roleEnv);
 }
 
+
+/**
+ * FAST-CAPACITY-ADMISSION-01 — MESURE DE PORTÉE D'ISOLAT, OBSERVATION SEULE.
+ *
+ * POURQUOI CE RELEVÉ EXISTE. La section 19 du lot exige de PROUVER la portée d'un
+ * éventuel souvenir de Retry-After avant de choisir où le stocker : « si un isolat
+ * mémorise le refroidissement pendant qu'un autre continue d'émettre, le mécanisme
+ * peut être inopérant ». Cette question ne se raisonne pas, elle se mesure — un
+ * Worker Cloudflare n'offre aucune garantie publique de réutilisation d'isolat.
+ *
+ * CE QU'IL MESURE EXACTEMENT. Une identité tirée une fois par isolat, au premier
+ * appel, et un compteur d'invocations vues par cet isolat. Deux invocations portant
+ * la même identité prouvent une réutilisation ; des identités toutes distinctes
+ * prouveraient l'inverse. Rien d'autre n'en est déduit.
+ *
+ * CE QU'IL NE FAIT PAS. Il ne décide rien, ne retarde rien, n'atteint aucun
+ * fournisseur, ne lit ni le corps ni les en-têtes de la demande, et ne transporte ni
+ * contenu ni secret. L'identité est aléatoire et locale : elle ne désigne ni une
+ * personne, ni une session, ni une requête — seulement un isolat.
+ *
+ * L'initialisation est PARESSEUSE à dessein : la portée globale d'un Worker
+ * n'autorise pas les opérations de génération aléatoire au démarrage du module.
+ */
+let IDENTITE_ISOLAT = null;
+let INVOCATIONS_VUES_PAR_CET_ISOLAT = 0;
+
+export function observerIsolat() {
+  if (IDENTITE_ISOLAT === null) IDENTITE_ISOLAT = crypto.randomUUID();
+  INVOCATIONS_VUES_PAR_CET_ISOLAT += 1;
+  return { isolat: IDENTITE_ISOLAT, invocations_vues: INVOCATIONS_VUES_PAR_CET_ISOLAT };
+}
+
 export default {
   fetch(request, env) {
+    /* FAST-CAPACITY-ADMISSION-01 : relevé de portée, avant tout traitement et sans
+       lire quoi que ce soit de la demande. Voir observerIsolat ci-dessus. */
+    console.log(JSON.stringify({ event: "isolate_observation", ...observerIsolat() }));
     if (!request.headers.get("Origin")) {
       return Response.json({ error: "origin_not_allowed" }, { status: 403 });
     }
