@@ -291,6 +291,59 @@ tire donc aucune conclusion. La preuve suivante est le banc de saturation — m�
 Groq épinglé, débits dérivés d'une cible de charge produit qui n'existe pas encore.
 Rapport : [PERF-NOMINAL-PROVIDER-01.md](PERF-NOMINAL-PROVIDER-01.md).
 
+**Mise à jour CAPACITY-SLA-DEFINITION-01 — la dette se scinde, et la ressource rare
+change de nom.** Le propriétaire produit a posé une contrainte ferme : **les abonnements ne
+changent pas**, chez aucun fournisseur. La question cesse donc d'être « combien acheter »
+pour devenir « comment répartir ce qui est déjà payé ».
+
+Ce déplacement révèle un fait que les huit lots précédents avaient tous croisé sans le
+nommer. Les budgets déclarés, relevés aux en-têtes pendant les runs nominaux, sont
+massivement asymétriques :
+
+| Fournisseur | Budget déclaré | Rapport à Groq | Latence rapide p95 |
+| --- | --- | --- | --- |
+| **Groq** | **8 000 jetons/min** | — | **1 617 ms** — tient le contrat |
+| OpenAI | 1 000 000 jetons/min | × 125 | 4 234 ms — dégradé |
+| Anthropic | 10 000 000 jetons d'entrée/min | **× 1 250** | 5 562 ms — non conforme |
+
+**La ressource rare est exactement celle dont le plan rapide a besoin**, et d'un facteur à
+trois chiffres. Or le plan profond la consomme sur la même clé `GROQ_API_KEY` — alors qu'il
+est, des deux, le seul à pouvoir s'en passer : le contrat existant lui accorde déjà 16 000 ms
+d'attente pour l'Analyste, 17 000 pour l'Arbitre et 26 000 pour le Critique, quand le plan
+rapide n'en a aucune.
+
+La direction retenue — **à valider, non implémentée** — est de donner à chaque plan le
+fournisseur qui correspond à son contrat : le rapide garde Groq, rare et véloce ; le profond
+migre vers la capacité abondante déjà payée d'Anthropic et d'OpenAI. C'est une **assignation
+de rôle fixe**, indépendante du contenu, du domaine et du sujet — pas du magasinage
+sémantique. Elle ne coûte rien et rend au plan rapide jusqu'à la totalité des 8 000
+jetons/min.
+
+Son obstacle est nommé et mesurable : **la qualité des sorties OPRIE hors de Groq n'a jamais
+été comparée à parité.** Les trois rôles savent s'y exécuter — ils l'ont fait lors des
+bascules — mais savoir s'exécuter n'est pas produire une qualité équivalente.
+
+Ce que la capacité actuelle permet, à quota inchangé et en supposant que le plan rapide en
+dispose seul : **18 requêtes/min à 426 jetons, 16 à 485 jetons** (13 avec 20 % de marge,
+11 avec 30 %). La contrainte qui mord est le jeton et non la requête — 1 000 requêtes/min
+sont autorisées contre 16 permises par les jetons, un facteur 60. Toutes ces valeurs sont des
+**majorants** : la part réellement disponible est inférieure de ce que consomme le plan
+profond, qui n'a pas été mesuré.
+
+`CAPACITY_SLA_DEFINED = NO`. Les six décisions produit qui débloqueraient le contrat sont
+énumérées dans le document ; ce lot s'interdit d'y répondre. `RATE_LIMIT_SCOPE = UNKNOWN` :
+les en-têtes donnent des valeurs, jamais une portée, et supposer qu'une seconde clé
+multiplierait la capacité serait un pari.
+
+**La dette se lit désormais en deux moitiés :**
+
+```
+FAST_LATENCY_PART   = CLOSED / PROUVÉE   (Groq, p50 467,3 ms, p95 1 617,0 ms)
+FAST_CAPACITY_PART  = OPEN
+```
+
+Document : [CAPACITY-SLA-DEFINITION-01.md](CAPACITY-SLA-DEFINITION-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

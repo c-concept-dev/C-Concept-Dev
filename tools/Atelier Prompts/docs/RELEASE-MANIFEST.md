@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `186f6a4f92439e6f0e4f7b8071d6d848b4c59dff` |
-| Date du commit | 2026-09-04T22:27:20+02:00 |
+| Commit local | `e11b62302c6364d65c7f44f55f0ac30aaf36eed4` |
+| Date du commit | 2026-09-04T22:43:33+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-41 fichiers. C'est ce qui doit exister pour **servir** la page,
+42 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `0e9659a4ff2f00e48c399437dd8dc867bbfc79f40165519aabfadae3d5ce9ac9` |
+| Empreinte du jeu | `de85e6a8286149b79eebda00cbe8026309eb150f1bfda1cabfe0a3f560029f10` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -84,7 +84,8 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/prompt-contract-gate.js` | `49a31369b431ab8d93007a6ddc4a9acd0d9923145bf4c076b1cb3d179a56d1b8` |
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `39338eb7489e5845c7eb1faa8e38fe54e595b8d244f0925fac6a17bc22d72cd6` |
+| REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `763aff91d91988e2bd12f976b1e02e79c00e69580a7cd686b6f162b3784e6ca0` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `aea0d5778b43feec1f570932385780949a5d53cbe7119c724ee8b6429ac7f5af` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
@@ -110,7 +111,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 134 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 135 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 199 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -136,7 +137,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2720 |
+| Tests au vert | 2732 |
 
 ## Dette encore ouverte
 
