@@ -223,3 +223,155 @@ PERF_REAL_01_STATUS               = OPEN
 ```
 
 Le lot suivant peut reprendre PERF-REAL-01 à sa section « mesure ».
+
+---
+
+# PERF-REAL-01B — la mesure réelle
+
+**Verdict : DÉGRADÉ. `p95 = 3245 ms`, au-dessus des 3 000 ms du contrat. La dette
+reste ouverte, et rien n'a été optimisé pour la refermer.**
+
+## Le plan, arrêté avant de mesurer
+
+| Paramètre | Valeur |
+| --- | --- |
+| Déploiement mesuré | `6ecc4c97-0d54-4c11-a32a-43e0ac802df9` |
+| Classes | 6 — SIMPLE, VAGUE, RICHE, CONFIRMATION, ORIENTATION, INCONNU_VALIDE |
+| Répétitions | 8 par classe |
+| Échantillons officiels | 48 |
+| Variantes de texte | 3 par classe, cyclées — jamais 48 fois la même phrase |
+| Ordre | tour de rôle, jamais une classe en bloc |
+| Chauffes | 3, exclues des officiels |
+| Espacement | 700 ms, séquentiel |
+| Horloge | `process.hrtime.bigint()`, monotone |
+| Percentile | rang le plus proche : `index = ceil(p/100 × N)` sur la liste croissante |
+| TTFI | envoi HTTP → candidate rapide valide reçue (réseau, worker, fournisseur, parsing, schéma) |
+
+La méthode de percentile et les seuils ont été fixés **avant** le premier appel et
+n'ont pas bougé après lecture.
+
+## Les chiffres
+
+| Mesure | Valeur |
+| --- | --- |
+| Échantillons | 48 |
+| Succès | 47 |
+| Échecs | 1 |
+| Taux de succès | 97,9 % |
+| TTFI min | 208,3 ms |
+| **TTFI p50** | **472,9 ms** |
+| **TTFI p95** | **3 245,3 ms** |
+| TTFI max | 3 328 ms |
+| TTFI moyen | 1 193,1 ms |
+
+| Tranche | Échantillons |
+| --- | --- |
+| ≤ 1 s | 31 |
+| 1 – 2 s | 5 |
+| 2 – 3 s | 2 |
+| 3 – 5 s | 9 |
+| > 5 s | 0 |
+| > 10 s | 0 |
+
+La moyenne ne doit pas servir de consolation : 31 appels sur 47 rendent en moins
+d'une seconde, et neuf dépassent trois secondes. C'est cette queue qui décide.
+
+## Par classe
+
+| Classe | n | succès | p50 | p95 | max |
+| --- | --- | --- | --- | --- | --- |
+| SIMPLE | 8 | 8 | 387,0 ms | 3 293,0 ms | 3 293,0 ms |
+| VAGUE | 8 | 8 | 419,8 ms | 3 195,2 ms | 3 195,2 ms |
+| RICHE | 8 | 8 | 588,0 ms | 3 245,3 ms | 3 245,3 ms |
+| CONFIRMATION | 8 | 8 | 413,7 ms | 3 239,8 ms | 3 239,8 ms |
+| ORIENTATION | 8 | 7 | 527,5 ms | 3 328,0 ms | 3 328,0 ms |
+| INCONNU_VALIDE | 8 | 8 | 472,9 ms | 3 177,9 ms | 3 177,9 ms |
+
+Avec huit points par classe, un p95 vaut le maximum : ces colonnes sont
+indicatives, pas robustes. Elles disent surtout une chose — **aucune classe n'est
+lente en propre**.
+
+## Ce que la queue dit vraiment
+
+Onze des douze échantillons les plus lents portent les index de séquence 38 à 47,
+c'est-à-dire la **fin du banc**. Les six classes y figurent, à parts comparables.
+La lenteur est donc corrélée à la **position dans la série**, pas au type de
+demande — et c'est le tour de rôle qui permet de le voir : une exécution par
+blocs aurait fait passer cela pour un effet de classe.
+
+Une explication compatible existe — la politique 429 / `Retry-After` de Groq,
+documentée dans le worker, produirait exactement des paliers de l'ordre de trois
+secondes sous charge accumulée. **Elle n'est pas établie** : l'attribution par
+échantillon manque pour la démontrer, et ce rapport ne la présente pas comme
+acquise.
+
+## L'échec
+
+Un échantillon sur 48 : `B005`, classe ORIENTATION, `error_class = NETWORK`,
+254 517 ms avant abandon côté client. Ce n'est pas un TTFI lent, c'est un tour
+qui n'a jamais abouti — il compte donc comme échec et sort des statistiques de
+latence, sans sortir du taux de succès. Il n'a pas été retiré pour arranger le
+p95 : le retirer ne changerait ni le p50 ni le p95, qui portent sur les succès.
+
+## Fournisseur
+
+| Élément | Valeur |
+| --- | --- |
+| Couverture d'attribution | **partielle** — 8 invocations sur 48 observées, plus 6 sondes dédiées |
+| Cause | la session `wrangler tail` a expiré pendant le banc |
+| Fournisseur observé | groq, sur les 14 invocations attribuées |
+| Index de tentative | 0 sur les 14 |
+| Bascules observées | aucune |
+
+Les 40 échantillons non attribués ne sont pas comptés comme groq par défaut :
+ils sont comptés comme non attribués. C'est une limite de l'instrumentation, pas
+une donnée.
+
+## Repli, épuisement, autorité, péremption
+
+| Vérification | Résultat |
+| --- | --- |
+| Repli groq → anthropic | servi par anthropic |
+| Repli groq + anthropic → openai | servi par openai |
+| Ordre de repli | valide |
+| Épuisement des trois | fermeture, `all_providers_failed`, aucun résultat fabriqué |
+| Faux READY | 0 |
+| Champs d'autorité refusés | 11 / 11 |
+| `can_mark_ready` / `can_route` / `can_execute` | false / false / false |
+| Candidate d'un tour révolu | périmée, 0 écriture visible |
+
+## Navigateur
+
+`BROWSER_MEASUREMENT_STATUS = NOT_AVAILABLE`, et c'est une conséquence des règles
+de ce lot, pas un oubli. La politique CORS déployée n'admet qu'une origine,
+`https://c-concept-dev.github.io` ; le frontend n'est pas déployé et ce lot
+interdit de le déployer. Une sonde depuis `file://` est refusée au préflight :
+
+```
+Access to fetch at '…/fast-interaction' from origin 'file://' has been blocked
+by CORS policy: No 'Access-Control-Allow-Origin' header is present.
+```
+
+Aucun patch du produit n'a été fait pour contourner cela — la consigne l'interdit,
+et le contourner aurait mesuré autre chose que le produit.
+
+## Verdict
+
+```
+PREFERRED_TARGET_MET              = YES   (p50 472,9 ms <= 2 000 ms)
+INTERACTIVE_P95_CONTRACT_MET      = NO    (p95 3 245,3 ms > 3 000 ms)
+DEGRADED_BAND                     = YES   (3 000 < p95 <= 5 000)
+NON_CONFORMING                    = NO
+CONTRACT_FAILURE_SAMPLE_COUNT     = 0     (aucun échantillon > 10 s)
+REAL_PROVIDER_TTFI_PROVEN         = YES
+PERF_REAL_01_STATUS               = OPEN / DEGRADED
+```
+
+La première interaction arrive vite la moitié du temps — moins de 500 ms — et le
+contrat interactif porte sur le p95, pas sur la médiane. À 3 245 ms, il n'est pas
+tenu. L'écart est de 245 ms, ce qui est peu ; le seuil n'a pas été déplacé pour
+autant, et il ne le sera pas.
+
+Rien n'a été optimisé ici. La suite est une décision produit, puis un lot
+d'optimisation distinct — la queue positionnelle en est le premier suspect, et
+elle mérite d'être attribuée avant d'être traitée.

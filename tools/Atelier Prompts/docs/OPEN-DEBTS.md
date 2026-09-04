@@ -52,6 +52,34 @@ Ce qui reste dû est la **mesure elle-même** : six appels ne sont pas un
 échantillon. Aucun p50, aucun p95, aucun verdict sur le contrat interactif. Le lot
 suivant reprend PERF-REAL-01 à sa section « mesure », avec au moins trente points.
 
+**Mise à jour PERF-REAL-01B — mesurée, et dégradée.** 48 échantillons réels,
+6 classes × 8, tour de rôle, 3 chauffes exclues, 700 ms d'espacement, horloge
+monotone, percentile au rang le plus proche — plan et seuils figés avant le premier
+appel.
+
+| Mesure | Valeur | Contrat |
+| --- | --- | --- |
+| p50 | 472,9 ms | ≤ 2 000 ms — **tenu** |
+| p95 | **3 245,3 ms** | ≤ 3 000 ms — **non tenu** |
+| max | 3 328 ms | — |
+| succès | 47 / 48 (97,9 %) | — |
+| > 5 s | 0 | — |
+| > 10 s | 0 | — |
+
+`3 000 < p95 ≤ 5 000` : la bande **DÉGRADÉE**. Trente-et-un appels sur quarante-sept
+rendent en moins d'une seconde, neuf dépassent trois secondes, et onze des douze plus
+lents portent les index de séquence 38 à 47 — la lenteur est corrélée à la POSITION
+dans la série, pas au type de demande. Une explication compatible existe (la politique
+429 / Retry-After de Groq) ; elle n'est pas établie, l'attribution par échantillon
+ayant manqué.
+
+Le repli, l'épuisement fermé, la frontière d'autorité et la péremption sont tous
+vérifiés et intacts. `REAL_PROVIDER_TTFI_PROVEN = YES` : la latence réelle est
+désormais connue. C'est le contrat qui n'est pas tenu, pas la mesure qui manque.
+
+Rien n'a été optimisé : ce lot mesurait. La suite est une décision produit, puis un
+lot d'optimisation distinct.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
