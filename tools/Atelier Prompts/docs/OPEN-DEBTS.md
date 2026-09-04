@@ -39,8 +39,18 @@ le défaut parce qu'elles vérifiaient la *présence textuelle* de
 `runProviderChain({ role: "fast_interaction"` dans la source, sans jamais exécuter
 la jointure.
 
-Fermer cette dette demande un lot distinct : aligner la clé, ajouter une preuve qui
-exécute réellement la jointure, redéployer, puis reprendre la mesure.
+**Mise à jour PERF-REAL-01A — le bloquant est levé, la dette reste ouverte.** La
+clé a été alignée sur `execute`, le contrat canonique déjà employé par les deux
+autres appelants de la chaîne ; aucun alias de compatibilité n'a été ajouté.
+Une preuve *exécutée* de la jointure remplace la vérification textuelle qui avait
+laissé passer le défaut. Le worker a été redéployé
+(`6ecc4c97-0d54-4c11-a32a-43e0ac802df9`) et `/fast-interaction` atteint désormais
+un vrai fournisseur : six requêtes réelles, six réponses 200 au schéma à deux
+champs, Groq au premier essai.
+
+Ce qui reste dû est la **mesure elle-même** : six appels ne sont pas un
+échantillon. Aucun p50, aucun p95, aucun verdict sur le contrat interactif. Le lot
+suivant reprend PERF-REAL-01 à sa section « mesure », avec au moins trente points.
 
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.

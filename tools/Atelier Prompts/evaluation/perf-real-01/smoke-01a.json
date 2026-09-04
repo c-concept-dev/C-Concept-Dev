@@ -1,0 +1,115 @@
+{
+ "lot": "PERF-REAL-01A",
+ "objet": "smoke reel apres reparation du contrat de jointure — PAS un benchmark",
+ "mesure_le": "2026-09-04T13:37:41.923753Z",
+ "route": "/fast-interaction",
+ "worker": "atelier-decision-groq",
+ "version_deployee": "6ecc4c97-0d54-4c11-a32a-43e0ac802df9",
+ "version_precedente": "6bdbe2ec-2910-427f-b013-59fa7152cf4a",
+ "fournisseur_atteint": "groq",
+ "preuve_fournisseur": "provider_ha_success role=fast_interaction provider=groq attempt_index=0 previous_failures=[]",
+ "resultat": "BLOQUANT_LEVE",
+ "avertissement": "six appels ne sont pas une mesure : aucun p50 ni p95 officiel n'est prononce ici, et PERF-REAL-01 reste ouverte jusqu'a un echantillon d'au moins 30",
+ "echantillons": [
+  {
+   "sample_id": "A01",
+   "scenario_class": "A_SIMPLE",
+   "status": 200,
+   "total_ms": 689.9,
+   "candidate_type": "ACKNOWLEDGE",
+   "champs": [
+    "text",
+    "type"
+   ],
+   "deux_champs": true,
+   "type_autorise": true,
+   "texte_non_vide": true,
+   "error_class": null
+  },
+  {
+   "sample_id": "A02",
+   "scenario_class": "B_VAGUE",
+   "status": 200,
+   "total_ms": 497.1,
+   "candidate_type": "ACKNOWLEDGE",
+   "champs": [
+    "text",
+    "type"
+   ],
+   "deux_champs": true,
+   "type_autorise": true,
+   "texte_non_vide": true,
+   "error_class": null
+  },
+  {
+   "sample_id": "A03",
+   "scenario_class": "C_RICHE",
+   "status": 200,
+   "total_ms": 212.9,
+   "candidate_type": "ACKNOWLEDGE",
+   "champs": [
+    "text",
+    "type"
+   ],
+   "deux_champs": true,
+   "type_autorise": true,
+   "texte_non_vide": true,
+   "error_class": null
+  },
+  {
+   "sample_id": "A04",
+   "scenario_class": "D_CONFIRMATION",
+   "status": 200,
+   "total_ms": 299.6,
+   "candidate_type": "ACKNOWLEDGE",
+   "champs": [
+    "text",
+    "type"
+   ],
+   "deux_champs": true,
+   "type_autorise": true,
+   "texte_non_vide": true,
+   "error_class": null
+  },
+  {
+   "sample_id": "A05",
+   "scenario_class": "E_ORIENTATION",
+   "status": 200,
+   "total_ms": 173.4,
+   "candidate_type": "ACKNOWLEDGE",
+   "champs": [
+    "text",
+    "type"
+   ],
+   "deux_champs": true,
+   "type_autorise": true,
+   "texte_non_vide": true,
+   "error_class": null
+  },
+  {
+   "sample_id": "A06",
+   "scenario_class": "F_DIFFICILE",
+   "status": 200,
+   "total_ms": 163.4,
+   "candidate_type": "ASK_CLARIFICATION",
+   "champs": [
+    "text",
+    "type"
+   ],
+   "deux_champs": true,
+   "type_autorise": true,
+   "texte_non_vide": true,
+   "error_class": null
+  }
+ ],
+ "agregats_smoke_seulement": {
+  "count": 6,
+  "succes_http_200": 6,
+  "schema_deux_champs": 6,
+  "type_autorise": 6,
+  "texte_non_vide": 6,
+  "total_ms_min": 163.4,
+  "total_ms_max": 689.9
+ },
+ "benchmark_officiel_effectue": false
+}

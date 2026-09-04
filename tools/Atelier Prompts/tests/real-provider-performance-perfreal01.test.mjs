@@ -65,28 +65,31 @@ test('T-PERFREAL01-01 : la route déployée répond — elle n’est plus introu
   assert.match(RAPPORT, /\| État de `\/fast-interaction` avant \| \*\*404\*\*/);
 });
 
-test('T-PERFREAL01-02 : aucun fournisseur n’est atteint — la jointure de chaîne est rompue', async () => {
-  /* LE DÉFAUT, REPRODUIT LOCALEMENT. Ce que la production a fait, ce fichier le
-     refait ici : la chaîne s'arrête avant le premier fournisseur. */
+test('T-PERFREAL01-02 : le défaut mesuré en production, et sa réparation en PERF-REAL-01A', async () => {
+  /* CE QUE LA PRODUCTION A FAIT, LE 4 SEPTEMBRE 2026. Une entrée de chaîne
+     construite sous une clé que la chaîne ne lit pas : le premier appel lève,
+     la classe est programming_error, et aucun adaptateur n'est jamais atteint.
+     On le rejoue ici pour que la trace reste exécutable, pas seulement racontée. */
   let appele = 0;
-  const chaine = () => runProviderChain({
+  await assert.rejects(() => runProviderChain({
     role: 'fast_interaction',
     providers: DECISION_PROVIDER_ORDER.map((name) => ({ name, run: async () => { appele += 1; return {}; } })),
     log: () => {}
-  });
-  await assert.rejects(chaine, (erreur) => {
+  }), (erreur) => {
     assert.match(erreur.message, /execute is not a function/);
     assert.equal(failureClassOf(erreur), FAILURE_CLASSES.PROGRAMMING_ERROR);
     return true;
   });
-  assert.equal(appele, 0, 'aucun adaptateur n’a été appelé');
-  /* Et la source du produit construit bien ses entrées sous « run ». */
+  assert.equal(appele, 0, 'aucun adaptateur n’a été appelé — c’est bien ce qui s’est produit');
+  /* ET CE QUE LE PRODUIT FAIT DEPUIS. PERF-REAL-01A a aligné l'appelant sur le
+     contrat canonique. La preuve exécutée de la jointure vit désormais dans
+     tests/fast-provider-chain-contract-perfreal01a.test.mjs ; ici on constate
+     seulement que la source ne porte plus la clé fautive. */
   const construction = WORKER.slice(WORKER.indexOf('export async function runFastInteractionWithHaChain'),
     WORKER.indexOf('export const DECISION_PROVIDER_ORDER'));
-  assert.match(construction, /providers = order\.map\(\(name\) => \(\{\s*name,\s*run: async \(\) =>/);
+  assert.match(construction, /providers = order\.map\(\(name\) => \(\{\s*name,\s*execute: async \(\) =>/);
   assert.match(CHAINE, /const \{ name, execute \} = providers\[index\];/);
-  assert.equal(construction.includes('execute:'), false,
-    'DÉFAUT OUVERT : la clé produite n’est pas celle qui est consommée.');
+  assert.equal(/\brun:\s*async/.test(construction), false, 'la clé fautive a disparu');
 });
 
 test('T-PERFREAL01-03 : le nombre d’échantillons exigé n’a pas pu être atteint, et on ne fait pas semblant', () => {

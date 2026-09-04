@@ -124,3 +124,102 @@ Tant que cela n'est pas fait :
 - `PERF-REAL-01` = **OPEN**
 - `REAL_PROVIDER_TTFI_PROVEN` = **NO**
 - `RELEASE_READY` = **NO**
+
+---
+
+# PERF-REAL-01A — le bloquant est levé
+
+**La dette n'est pas fermée pour autant. Six appels ne sont pas une mesure.**
+
+```
+BLOCKER               = RESOLVED
+ROOT_CAUSE            = run / execute contract mismatch
+REPAIR_DEPLOYMENT_ID  = 6ecc4c97-0d54-4c11-a32a-43e0ac802df9
+REAL_FAST_PROVIDER_SMOKE = PASS
+```
+
+## La correction
+
+Un mot. `runFastInteractionWithHaChain` construisait ses entrées de chaîne sous
+la clé `run` ; elles sont désormais construites sous `execute`, le champ que
+`runProviderChain` lit réellement. Les deux autres appelants de la chaîne — la
+décision et les rôles OPRIE — l'employaient déjà : le contrat était canonique,
+c'est l'appelant fautif qui s'y conforme.
+
+Aucun alias de compatibilité n'a été ajouté. Deux noms pour une même chose
+recréeraient exactement l'ambiguïté qui a coûté ce silence. `programming_error`
+reste hors du repli, l'ordre `groq → anthropic → openai` est inchangé, et aucune
+classe d'échec n'a été élargie pour faire passer quoi que ce soit.
+
+## La preuve qui manquait
+
+Ce qui avait fait défaut n'était pas un test de plus, c'était un test qui
+**exécute**. Les preuves de PERF-03A et PERF-04 cherchaient le texte
+`runProviderChain({ role: "fast_interaction"` dans la source ; il y était, et le
+produit ne fonctionnait pas.
+
+`T-PERFREAL01A-03` appelle maintenant la fonction du produit sans aucune clé
+configurée et lit ce que la chaîne rapporte :
+
+```
+attempts = [
+  { provider: "groq",      failure_class: "config_unavailable" },
+  { provider: "anthropic", failure_class: "config_unavailable" },
+  { provider: "openai",    failure_class: "config_unavailable" }
+]
+```
+
+`config_unavailable` n'est produite qu'à l'intérieur d'un adaptateur, par le
+`tagFailure` qui constate le secret absent. Voir les trois y figurer prouve que
+le corps des trois adaptateurs a été atteint. Avec la clé fautive, `attempts` ne
+contenait qu'une entrée, `programming_error`, produite par la chaîne elle-même.
+
+## Le smoke réel
+
+Six requêtes, une par classe de demande, sur la route déployée.
+
+| Classe | HTTP | Durée | Type rendu |
+| --- | --- | --- | --- |
+| A_SIMPLE | 200 | 689,9 ms | ACKNOWLEDGE |
+| B_VAGUE | 200 | 497,1 ms | ACKNOWLEDGE |
+| C_RICHE | 200 | 212,9 ms | ACKNOWLEDGE |
+| D_CONFIRMATION | 200 | 299,6 ms | ACKNOWLEDGE |
+| E_ORIENTATION | 200 | 173,4 ms | ACKNOWLEDGE |
+| F_DIFFICILE | 200 | 163,4 ms | ASK_CLARIFICATION |
+
+Fournisseur atteint, journal du worker à l'appui :
+
+```
+{"event":"provider_ha_attempt","role":"fast_interaction","provider":"groq","attempt_index":0,"provider_order":["groq","anthropic","openai"]}
+{"event":"provider_ha_success","role":"fast_interaction","provider":"groq","attempt_index":0,"previous_failures":[]}
+```
+
+Les six réponses portent exactement deux champs, `type` et `text`, avec un type
+de la liste autorisée et un texte non vide. Aucune ne transporte de champ
+d'autorité — le schéma ne peut pas en porter.
+
+## Non-régression en production
+
+| Vérification | Résultat |
+| --- | --- |
+| `/decision` après réparation | **200** en 1,19 s, réponse Groq authentique |
+| `/fast-interaction` | **200**, schéma valide, fournisseur réel |
+| CORS | inchangé, borné à l'origine du frontend |
+| Artefact frontend | inchangé, `3efa45ff…a6dc` |
+
+## Pourquoi la dette reste ouverte
+
+Six appels établissent qu'un pipeline est **mesurable**. Ils n'établissent pas
+ce qu'il vaut. Les durées ci-dessus vont de 163 à 690 ms et n'ont pas été prises
+dans les conditions d'un échantillon : pas de plan de tirage, pas de séparation
+froid/chaud, pas de répartition contrôlée, pas de trente points. Aucun p50 ni
+p95 n'est donc prononcé, et le contrat interactif n'est ni déclaré tenu ni
+déclaré manqué.
+
+```
+OFFICIAL_TTFI_BENCHMARK_PERFORMED = NO
+PERF_REAL_01_BLOCKER_REMOVED      = YES
+PERF_REAL_01_STATUS               = OPEN
+```
+
+Le lot suivant peut reprendre PERF-REAL-01 à sa section « mesure ».

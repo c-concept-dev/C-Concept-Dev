@@ -949,11 +949,23 @@ export const FAST_INTERACTION_ADAPTERS = Object.freeze({
  * `runProviderChain` est réutilisée telle quelle : même ordre, mêmes classes
  * d'échec, mêmes règles d'éligibilité au repli. Ce lot n'invente aucune
  * politique de bascule pour le plan rapide — il n'en avait pas besoin.
+ *
+ * PERF-REAL-01A — LE CHAMP S'APPELLE `execute`, ET C'EST TOUT CE QUI A CHANGÉ.
+ * Cette entrée était construite sous la clé `run`, tandis que `runProviderChain`
+ * lit `const { name, execute } = providers[index]`. En production, la première
+ * tentative levait donc « execute is not a function », classée programming_error
+ * — une classe volontairement non éligible au repli, si bien que la chaîne
+ * s'arrêtait avant Groq et que /fast-interaction rendait 502 sans jamais
+ * atteindre un fournisseur. Les deux autres appelants de la chaîne (décision,
+ * rôles) employaient déjà `execute` : c'est le contrat canonique, et c'est cet
+ * appelant-ci qui s'y conforme. Aucun alias de compatibilité n'est ajouté — deux
+ * noms pour une même chose recréeraient exactement l'ambiguïté qui a coûté ce
+ * silence.
  */
 export async function runFastInteractionWithHaChain(snapshot, env, { order = DECISION_PROVIDER_ORDER, log } = {}) {
   const providers = order.map((name) => ({
     name,
-    run: async () => {
+    execute: async () => {
       const brut = await FAST_INTERACTION_ADAPTERS[name](snapshot, env);
       /* Le contenu revient soit déjà structuré (outil Anthropic), soit en texte
          strictement conforme au schéma : aucune tolérance ajoutée ici. */
