@@ -20303,6 +20303,30 @@ function v11ShowRapidGate(decision){
  * ================================================================================================= */
 const OPRIE_STATES=Object.freeze(['clarification_required','confirmation_required','operational_request_ready','blocked','degraded_state']);
 const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-request"]')||{}).content||'';
+/* CLEAN-03 — CET ÉTAT PORTE DEUX CHOSES DE NATURES DIFFÉRENTES, ET IL FAUT SAVOIR LAQUELLE.
+ *
+ * DE PRODUIT — lu par le code pour décider quelque chose :
+ *   seq, controller, fastController, running   péremption et annulation d'un tour
+ *   concludedTurn                              une candidate rapide arrivée après coup se tait
+ *   appliedActions                             une action à effet ne s'applique qu'une fois
+ *   lifecycle                                  le cycle d'exécution, ouvert au seul endroit gouverné
+ *   canonicalContract                          le contrat de base du tour
+ *   requestedMode, fastInteraction             le mode demandé, la candidate en cours
+ *
+ * D'OBSERVATION SEULEMENT — écrits, et lus par AUCUN code du produit :
+ *   lastTurn, lastReconciliation, lastOrchestration, executionId, telemetry
+ *
+ * Ces cinq-là sont la trace du tour. Ce qui les lit, ce sont les PREUVES : qu'un tour périmé
+ * n'a rien appliqué, qu'une candidate a bien été réconciliée et selon quel verdict, qu'un
+ * cycle d'exécution ne s'est ouvert qu'une fois. Les retirer ne retirerait pas du bruit, mais
+ * la capacité de démontrer ces trois faits — et aucun mark de télémétrie ne porte les mêmes
+ * champs qu'eux : la trace dit QUAND, le champ dit QUOI. Ils sont donc conservés, et nommés
+ * ici pour qu'on ne les confonde jamais avec une autorité. Une trace n'en est pas une : rien
+ * dans le produit ne les lit pour décider d'un état, d'une route, d'une readiness ou d'un
+ * gate — c'est vérifié, pas supposé.
+ *
+ * `telemetry` est bornée à OPRIE_TELEMETRY_MAX et `appliedActions` à ORCHESTRATION_APPLIED_MAX :
+ * aucune de ces collections ne grandit sans fin. */
 const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
 
 function oprieTechnicalFailure(){
