@@ -43,10 +43,16 @@ const FRONTEND = (() => { const i = html.indexOf('/* GENERATED'); const j = html
 const FRONT_CODE = sansProse(FRONTEND);
 const FICHIERS_TEST = fs.readdirSync(path.join(root, 'tests')).filter((f) => f.endsWith('.mjs'));
 
-/** Les trois dettes officielles encore ouvertes. Liste FERMÉE et littérale. */
-const DETTES_OUVERTES = Object.freeze(['FORMAT-STRUCT-01', 'PERF-REAL-01', 'EXEC-PHASE-INSTRUMENT-01']);
-/** Les dettes de nettoyage refermées par la chaîne CLEAN. */
-const DETTES_FERMEES = Object.freeze(['ORCH-LEGACY-CLEAN-01']);
+/* FORMAT-STRUCT-01 a créé un registre persistant : ces listes ne sont donc plus
+   recopiées ici, elles en sont LUES. Une dette ne peut plus diverger entre deux
+   fichiers, puisqu'il n'y a plus qu'un endroit qui la déclare. */
+const REGISTRE_DETTES = fs.readFileSync(path.join(root, 'docs/OPEN-DEBTS.md'), 'utf8');
+const DETTES_OUVERTES = Object.freeze(
+  [...REGISTRE_DETTES.slice(REGISTRE_DETTES.indexOf('## Ouvertes'), REGISTRE_DETTES.indexOf('## Fermées'))
+    .matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]));
+const DETTES_FERMEES = Object.freeze(
+  [...REGISTRE_DETTES.slice(REGISTRE_DETTES.indexOf('## Fermées'))
+    .matchAll(/^\| ([A-Z][A-Z-]+-\d{2}) \|/gm)].map((m) => m[1]));
 
 // =================================================================================================
 // §54 — CE QUI A ÉTÉ RETIRÉ L'EST RESTÉ
@@ -239,16 +245,21 @@ test('T-CLEAN05-17 : aucun marqueur de travail inachevé dans le produit', () =>
   }
 });
 
-test('T-CLEAN05-18/19/20 : trois dettes ouvertes, nommées, et aucune quatrième', () => {
-  assert.equal(DETTES_OUVERTES.length, 3);
-  assert.deepEqual([...DETTES_OUVERTES], ['FORMAT-STRUCT-01', 'PERF-REAL-01', 'EXEC-PHASE-INSTRUMENT-01']);
+test('T-CLEAN05-18/19/20 : les dettes ouvertes sont nommées par le registre, et aucune autre', () => {
+  /* CLEAN-05 déclarait trois dettes dans son propre fichier. FORMAT-STRUCT-01 en a
+     fermé une ET créé le registre persistant : la liste est désormais LUE, pas recopiée. */
+  assert.equal(DETTES_OUVERTES.length, 2);
+  assert.deepEqual([...DETTES_OUVERTES], ['PERF-REAL-01', 'EXEC-PHASE-INSTRUMENT-01']);
+  assert.deepEqual([...DETTES_FERMEES].sort(), ['FORMAT-STRUCT-01', 'ORCH-LEGACY-CLEAN-01']);
   /* Aucun identifiant de dette du dépôt n'est en dehors des trois ouvertes et
      de celles que la chaîne CLEAN a refermées. */
   const tout = [html, ...FICHIERS_TEST.map((f) => fs.readFileSync(path.join(root, 'tests', f), 'utf8'))].join('\n');
   /* On cherche les identifiants de DETTE, pas les noms de lot : CLEAN-02 ou MODE-05
      désignent un lot, pas une dette. Le vocabulaire de dette est celui-ci, et lui seul. */
-  const trouves = new Set((tout.match(/\b[A-Z][A-Z-]{4,30}-\d{2}\b/g) || [])
-    .filter((x) => /(STRUCT|-REAL-|INSTRUMENT|LEGACY-CLEAN|DEBT)/.test(x)));
+  const trouves = new Set((tout.match(/(?<!-)\b[A-Z][A-Z-]{4,30}-\d{2}\b/g) || [])
+    .filter((x) => /(STRUCT|-REAL-|INSTRUMENT|LEGACY-CLEAN|DEBT)/.test(x))
+    /* Les identifiants de TEST commencent par « T- » : ce ne sont pas des dettes. */
+    .filter((x) => !/^T-/.test(x)));
   assert.ok(trouves.size > 0, 'la mesure trouve bien des identifiants de dette.');
   for (const id of trouves) {
     assert.ok(DETTES_OUVERTES.includes(id) || DETTES_FERMEES.includes(id),
@@ -258,6 +269,8 @@ test('T-CLEAN05-18/19/20 : trois dettes ouvertes, nommées, et aucune quatrième
      code : les deux autres ne vivent que dans l'historique des lots. C'est un fait,
      pas un oubli — et le dire ici est ce qui les rend traçables depuis le dépôt. */
   assert.ok(tout.includes('EXEC-PHASE-INSTRUMENT-01'), 'celle-ci est marquée dans les preuves.');
+  /* Et le registre les porte toutes, y compris celles qu'aucune preuve ne marque. */
+  for (const id of [...DETTES_OUVERTES, ...DETTES_FERMEES]) assert.ok(REGISTRE_DETTES.includes(id));
 });
 
 // =================================================================================================
