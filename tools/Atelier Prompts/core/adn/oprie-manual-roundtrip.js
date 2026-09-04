@@ -34,8 +34,6 @@ import {
   validateArchCanonicalEnrichment
 } from './arch-canonical-enrichment.js';
 
-export const MANUAL_ROUNDTRIP_VERSION = '1.0';
-
 /** États de la SESSION UX, et eux seuls. Aucun n'est un état métier : les états
  *  de la demande restent ceux d'OPRIE, décidés par l'Arbitre. */
 export const MANUAL_SESSION_STATES = Object.freeze(['idle', 'waiting_for_external_response', 'running', 'completed', 'failed']);

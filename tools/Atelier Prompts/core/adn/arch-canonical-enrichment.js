@@ -143,10 +143,6 @@ export const PROVENANCE_STATUS_MAP = Object.freeze({
   connaissance_externe_non_verifiee: 'external_unverified'
 });
 
-export const FONDEMENT_NATURES = Object.freeze([
-  'utilisateur', 'materiau', 'preference', 'deduction', 'hypothese', 'connaissance_externe_non_verifiee'
-]);
-
 /** Types structurels des composants 3.4. Énumération fermée, aucun mot du contenu. */
 export const COMPONENT_TYPES = Object.freeze([
   'section', 'instruction', 'donnee', 'contrainte', 'hypothese', 'interdiction', 'critere', 'verification'

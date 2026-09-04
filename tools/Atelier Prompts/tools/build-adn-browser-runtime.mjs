@@ -38,7 +38,7 @@ const modules = [
   {
     file: 'arch-canonical-enrichment.js',
     name: 'ARCHENRICH',
-    exports: ['ARCH_ENRICHMENT_VERSION','ARCH_ENRICHABLE_PATHS','ARCH_SIGNALS','DECLARATION_STATUS_MAP','PROVENANCE_STATUS_MAP','FONDEMENT_NATURES','COMPONENT_TYPES','changedPaths','enrichCanonicalContractFromArchAnalysis','validateArchCanonicalEnrichment','validateArchSignals','createArchEnrichmentAuditView','ARCH_SIGNAL_POLICY','mergePostOprieSignals','ARCH_COMPILER_SEMANTIC_SOURCE','canonicalToArchProjectionInput','activeArchSemanticSourceCount'],
+    exports: ['ARCH_ENRICHMENT_VERSION','ARCH_ENRICHABLE_PATHS','ARCH_SIGNALS','DECLARATION_STATUS_MAP','PROVENANCE_STATUS_MAP','COMPONENT_TYPES','changedPaths','enrichCanonicalContractFromArchAnalysis','validateArchCanonicalEnrichment','validateArchSignals','createArchEnrichmentAuditView','ARCH_SIGNAL_POLICY','mergePostOprieSignals','ARCH_COMPILER_SEMANTIC_SOURCE','canonicalToArchProjectionInput','activeArchSemanticSourceCount'],
     deps: ['CANON']
   },
   /* ADN-ARCH-02-B1 — MOTEUR OPRIE EMBARQUÉ TEL QUEL.
@@ -116,7 +116,7 @@ const modules = [
   {
     file: 'oprie-manual-roundtrip.js',
     name: 'MANUAL',
-    exports: ['MANUAL_ROUNDTRIP_VERSION','MANUAL_SESSION_STATES','ARCHITECTE_TURN_OUTCOMES','buildPortableRolePrompt','createManualRoleExecutor','createProviderRoleExecutor','runOprieTurnWithExecutor','startManualOprieTurn','buildArchitecteContractFromTurn'],
+    exports: ['MANUAL_SESSION_STATES','ARCHITECTE_TURN_OUTCOMES','buildPortableRolePrompt','createManualRoleExecutor','createProviderRoleExecutor','runOprieTurnWithExecutor','startManualOprieTurn','buildArchitecteContractFromTurn'],
     deps: ['ORCORE','ORORCH','CANON','ARCHENRICH']
   },
   /* MODE-01 — LES CONTRATS DE MODE SONT EMBARQUÉS.

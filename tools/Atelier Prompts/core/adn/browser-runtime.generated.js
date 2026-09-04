@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 904a45200adbad45e6f089145ef1acaaef40a60171fbf52f1b17ca15f0b55852
+ * source-sha256: 8f6f8922a038b95b3870f63c1ae4578558f80eba494b7f1a4a7521cbb97ebc60
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -2164,10 +2164,6 @@ const PROVENANCE_STATUS_MAP = Object.freeze({
   connaissance_externe_non_verifiee: 'external_unverified'
 });
 
-const FONDEMENT_NATURES = Object.freeze([
-  'utilisateur', 'materiau', 'preference', 'deduction', 'hypothese', 'connaissance_externe_non_verifiee'
-]);
-
 /** Types structurels des composants 3.4. Énumération fermée, aucun mot du contenu. */
 const COMPONENT_TYPES = Object.freeze([
   'section', 'instruction', 'donnee', 'contrainte', 'hypothese', 'interdiction', 'critere', 'verification'
@@ -2749,7 +2745,7 @@ function createArchEnrichmentAuditView(base, enriched, signals) {
   });
 }
 
-return {ARCH_ENRICHMENT_VERSION,ARCH_ENRICHABLE_PATHS,ARCH_SIGNALS,DECLARATION_STATUS_MAP,PROVENANCE_STATUS_MAP,FONDEMENT_NATURES,COMPONENT_TYPES,changedPaths,enrichCanonicalContractFromArchAnalysis,validateArchCanonicalEnrichment,validateArchSignals,createArchEnrichmentAuditView,ARCH_SIGNAL_POLICY,mergePostOprieSignals,ARCH_COMPILER_SEMANTIC_SOURCE,canonicalToArchProjectionInput,activeArchSemanticSourceCount};
+return {ARCH_ENRICHMENT_VERSION,ARCH_ENRICHABLE_PATHS,ARCH_SIGNALS,DECLARATION_STATUS_MAP,PROVENANCE_STATUS_MAP,COMPONENT_TYPES,changedPaths,enrichCanonicalContractFromArchAnalysis,validateArchCanonicalEnrichment,validateArchSignals,createArchEnrichmentAuditView,ARCH_SIGNAL_POLICY,mergePostOprieSignals,ARCH_COMPILER_SEMANTIC_SOURCE,canonicalToArchProjectionInput,activeArchSemanticSourceCount};
 })({...CANON});
 const ORSTATE=(()=>{
 const OPERATIONAL_REQUEST_STATE_VERSION = "1.0";
@@ -3651,7 +3647,7 @@ async function runProviderChain({ role, providers, preflight, log = defaultLog }
 return {FAILURE_CLASSES};
 })();
 const ORCORE=((deps)=>{
-const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,CANDIDATE_LIST_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,OPERATIONAL_REQUEST_STATE_VERSION,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,DecisionHttpError,TRANSPORT_LIMITS,corsHeaders,jsonResponse,readJsonBody,runBounded}=deps;
+const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,OPERATIONAL_REQUEST_STATE_VERSION,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,DecisionHttpError,TRANSPORT_LIMITS,corsHeaders,jsonResponse,readJsonBody,runBounded}=deps;
 
 
 
@@ -7777,8 +7773,6 @@ const {ROLE_DEFINITIONS,OPERATIONAL_REQUEST_ROLE_SEQUENCE,runOperationalRequestT
 
 
 
-const MANUAL_ROUNDTRIP_VERSION = '1.0';
-
 /** États de la SESSION UX, et eux seuls. Aucun n'est un état métier : les états
  *  de la demande restent ceux d'OPRIE, décidés par l'Arbitre. */
 const MANUAL_SESSION_STATES = Object.freeze(['idle', 'waiting_for_external_response', 'running', 'completed', 'failed']);
@@ -8013,7 +8007,7 @@ function buildArchitecteContractFromTurn(turn, { request_id, original_request, a
   return { outcome: 'ready', contract: enrichment.contract, base, signals: [], detail: '' };
 }
 
-return {MANUAL_ROUNDTRIP_VERSION,MANUAL_SESSION_STATES,ARCHITECTE_TURN_OUTCOMES,buildPortableRolePrompt,createManualRoleExecutor,createProviderRoleExecutor,runOprieTurnWithExecutor,startManualOprieTurn,buildArchitecteContractFromTurn};
+return {MANUAL_SESSION_STATES,ARCHITECTE_TURN_OUTCOMES,buildPortableRolePrompt,createManualRoleExecutor,createProviderRoleExecutor,runOprieTurnWithExecutor,startManualOprieTurn,buildArchitecteContractFromTurn};
 })({...ORCORE,...ORORCH,...CANON,...ARCHENRICH});
 const MODES=(()=>{
 /* MODE-01 — CONTRATS DES MODES
@@ -9322,5 +9316,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'904a45200adbad45e6f089145ef1acaaef40a60171fbf52f1b17ca15f0b55852'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'8f6f8922a038b95b3870f63c1ae4578558f80eba494b7f1a4a7521cbb97ebc60'});
 })(window);
