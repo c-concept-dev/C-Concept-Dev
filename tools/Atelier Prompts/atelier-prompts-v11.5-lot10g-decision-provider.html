@@ -809,7 +809,7 @@ body[data-espace="debutant"] .avance-seulement{display:none}
 .visite-carte h3{font-size:15px;margin:0 0 6px}
 .visite-carte p{font-size:13px;color:var(--encre-doux);line-height:1.5;margin:0}
 .visite-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px}
-.visite-actions button.lien{background:none;border:0;color:var(--encre-tres-doux);font-size:12.5px;cursor:pointer;padding:6px 4px}
+.visite-actions button.lien{background:none;border:0;color:var(--encre-doux);font-size:12.5px;cursor:pointer;padding:6px 4px}
 .visite-actions button.lien:hover{color:var(--encre-doux);text-decoration:underline}
 
 @media(max-width:900px){
@@ -1016,7 +1016,7 @@ body.v11-normal #v11-shell{display:block}
 #v11-shell .ui-panel-main{padding:32px 36px}
 #v11-shell .ui-visual-stack{display:flex;flex-direction:column;gap:24px}
 #v11-shell .ui-panel-hero{display:flex;flex-direction:column;min-height:100%}
-#v11-shell .ui-eyebrow{font:700 .78rem/1.2 var(--ds-font);text-transform:uppercase;letter-spacing:.14em;color:var(--ui-accent);margin-bottom:10px}
+#v11-shell .ui-eyebrow{font:700 .78rem/1.2 var(--ds-font);text-transform:uppercase;letter-spacing:.14em;color:#7b5738;margin-bottom:10px}
 #v11-shell .ui-title{font:780 clamp(2rem,4vw,3.45rem)/1.03 var(--ds-font);color:var(--ui-text);margin:0;max-width:17ch;letter-spacing:-.04em}
 #v11-shell .ui-lead{font:400 1rem/1.65 var(--ds-font);color:var(--ui-muted);max-width:70ch;margin:12px 0 0}
 #v11-shell .ui-composer{margin-top:22px;display:flex;flex-direction:column;gap:15px}
@@ -1075,9 +1075,9 @@ body.v11-normal #v11-shell{display:block}
 #v11-shell .ui-mode-card:hover{transform:translateY(-2px);border-color:var(--ds-border-strong)}
 #v11-shell .ui-mode-card.is-active{border-color:var(--ui-accent);box-shadow:0 12px 24px rgba(184,115,70,.11);background:linear-gradient(180deg,var(--ds-accent-soft-2),var(--ds-surface-strong))}
 #v11-shell .ui-mode-card-head{grid-area:head;display:flex;justify-content:space-between;align-items:center;gap:10px}
-#v11-shell .ui-mode-badge{display:inline-flex;padding:6px 9px;border-radius:var(--ds-radius-pill);background:var(--ui-accent-3);color:var(--ui-accent);font:700 .7rem/1 var(--ds-font);text-transform:uppercase;letter-spacing:.08em}
+#v11-shell .ui-mode-badge{display:inline-flex;padding:6px 9px;border-radius:var(--ds-radius-pill);background:var(--ui-accent-3);color:#7b5738;font:700 .7rem/1 var(--ds-font);text-transform:uppercase;letter-spacing:.08em}
 #v11-shell .ui-mode-image{display:none}
-#v11-shell .ui-mode-card h3{grid-area:title;margin:0;color:var(--ui-text);font:700 1rem/1.2 var(--ds-font)}
+#v11-shell .ui-mode-card h2{grid-area:title;margin:0;color:var(--ui-text);font:700 1rem/1.2 var(--ds-font)}
 #v11-shell .ui-mode-card p{grid-area:desc;margin:0;color:var(--ui-muted);font:400 .84rem/1.48 var(--ds-font)}
 #v11-shell .ui-inline-result{margin-top:16px;background:var(--ds-surface);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow);padding:22px 24px}
 #v11-shell .ui-inline-result[hidden]{display:none}
@@ -1145,7 +1145,11 @@ body.v11-normal #v11-shell{display:block}
    ========================================================================== */
 .skip-link{
   position:fixed;left:16px;top:12px;z-index:12000;transform:translateY(-160%);
-  padding:10px 14px;border-radius:10px;background:var(--ds-text,#2d2a27);color:#fff;
+  /* HTML-FINAL-01 — le lien d'évitement s'inverse contre la page. Le fond suivait
+     déjà le jeton de texte ; la couleur, elle, était figée à blanc : en thème sombre
+     le lien devenait blanc sur blanc cassé (1,2:1) au moment même où le clavier le
+     révèle. Elle suit maintenant le jeton de fond, dans les deux thèmes. */
+  padding:10px 14px;border-radius:10px;background:var(--ds-text,#2d2a27);color:var(--ds-bg,#fff);
   font:700 13px/1.2 var(--ds-font,system-ui,sans-serif);box-shadow:0 8px 24px rgba(0,0,0,.18)
 }
 .skip-link:focus{transform:none;outline:3px solid var(--ds-accent,#b87346);outline-offset:3px}
@@ -1158,6 +1162,29 @@ body.v11-normal #v11-shell{display:block}
   outline:3px solid var(--ds-accent);outline-offset:3px;box-shadow:0 0 0 5px rgba(184,115,70,.14)
 }
 #v11-shell .ui-mode-card[aria-pressed="true"]{border-color:var(--ds-accent)}
+
+/* HTML-FINAL-01 — LE THÈME SOMBRE ATTEINT AUSSI L'ACCUEIL v11.5.
+   Défaut mesuré au navigateur réel : huit surfaces de la coque portaient une valeur
+   claire écrite en dur, là où le reste du produit passe par les jetons --ds-*. En
+   thème sombre, le texte passait donc au blanc cassé pendant que le panneau restait
+   blanc : le titre de la page tombait à 1,15:1, « Votre demande » et « Mode » à 1,15:1
+   aussi — c'est-à-dire illisibles. Ces règles rendent ces mêmes surfaces au jeton
+   sombre correspondant. Elles n'ajoutent aucune couleur nouvelle : chaque valeur est
+   celle que la palette sombre définit déjà. Le thème clair n'est pas touché — aucune
+   de ces déclarations ne s'applique sans data-theme="sombre" — et rien ici ne relève
+   d'autre chose que de la présentation. */
+html[data-theme="sombre"]{--ui-surface:rgba(41,37,33,.96)}
+html[data-theme="sombre"] body.v11-normal{background:radial-gradient(circle at top left,#25211e 0,#201d1a 48%,#1b1815 100%)}
+html[data-theme="sombre"] #v11-shell .ui-top-button{background:rgba(41,37,33,.82);box-shadow:0 8px 18px rgba(0,0,0,.22)}
+html[data-theme="sombre"] #v11-shell .ui-mode-card{background:rgba(41,37,33,.80);box-shadow:0 8px 18px rgba(0,0,0,.20)}
+html[data-theme="sombre"] #v11-shell .ui-mode-helper{background:linear-gradient(180deg,#25211e,#201d1a);border-color:var(--ds-accent-soft);color:var(--ds-text-muted)}
+html[data-theme="sombre"] #v11-shell .ui-inline-result-output{background:#25211e}
+html[data-theme="sombre"] #v11-shell .ui-hero-caption{background:linear-gradient(180deg,rgba(41,37,33,.55),var(--ds-surface))}
+html[data-theme="sombre"] #v11-shell .ui-api-status{color:var(--ds-accent)}
+html[data-theme="sombre"] #v11-shell .ui-status{color:var(--ds-accent)}
+html[data-theme="sombre"] #v11-shell ::placeholder{color:#a49b92}
+html[data-theme="sombre"] #v11-shell .ui-mode-badge{color:var(--ds-accent-hover)}
+html[data-theme="sombre"] #v11-shell .ui-eyebrow{color:var(--ds-accent)}
 
 /* Cibles tactiles. */
 #v11-shell button,#v11-shell select,#v11-shell input:not([type="checkbox"]):not([type="radio"]){min-height:44px}
@@ -1528,7 +1555,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
             </div>
           </div>
 
-          <input class="v11-hidden-input" id="v11-files" type="file" multiple accept=".txt,.md,.json,.csv,.html,.htm,.pdf,.docx,image/*">
+          <input class="v11-hidden-input" id="v11-files" type="file" multiple aria-label="Choisir des documents à joindre" accept=".txt,.md,.json,.csv,.html,.htm,.pdf,.docx,image/*">
           <div id="v11-dropzone" class="ui-dropzone" role="button" tabindex="0" aria-label="Ajouter des documents ou du contexte">
             <div class="ui-drop-icon" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,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" alt="" loading="eager" decoding="async"></div>
             <div>
@@ -1560,7 +1587,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <span class="ui-mode-badge">Rapide</span>
           <span class="ui-mini-icon thumb-rapide" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,UklGRpAFAABXRUJQVlA4IIQFAAAQHgCdASqAAIAAPmEuk0akIqGhKZQ5aIAMCWUA0MTuFEEDPgfmTFiNMWUMXw0CY+aPKT0e+H7kmsT4ZCfT6WxvOanQ2adznRgG7NiEVTMbH+q/j/sDjtJAfrupWyTsbm31PuFRUiTWFasibKaKvgt6gh4pvqp6aVuIyc/H1Lh3KhiR4tc9Rt6EnWD1b/0Lvl7d5+5VTHL3BkuxCL/DNSPH6pfbCWBJiawJujq3HIG/w/hkHEpX/+Ks40Zgll18XvTfeRwNQTmAmzIS08RBl8JlI9ycBHihFn+TCTmGc5ixMaE4CFt3a65j7k9WU38sbmmeYfFzuHI8Z5gA/vuES72b/33KSveFj3Fy/nfbJVvTFwMeTQDYnbo9NEvrQqbHqcrZr4HLOU9Vfwo3pMzhE3GBzLtnmjAa55G8kYynEHDCQO8JZIIAamtRRE1DQjZ5mmM8755nhOKSmF9aX/5qsJDzFslkfvzT8l/eJEeAj0DEExcJbGh2UzpdjCk0FnjqnxLrQ/Je6A5D3VdRSz1LzqXckxw5Lkq4O+uBDqoSG5L2P9D8uMizOurTQYYHzoMv1KQ5n/WjgNyTI56Ll9/wbIbswEJxwYqsrFvm54Kjzqb+1cDDw3wS0RUm2/VZNEAzHT2LwdBThKlFjdLp6qCBlKR5W4NeKgxhwaHrwBtTg+8N40mnOQbgDbkkTJG+EXrNky5PhOsAOf+pSP2gzYniLzfLm1pfZ61VwARgvk/kJ3kzwHGeOFFk3AHtog/y/9L8TRUCwYorf4DYVJqhZhgnpl9htVXJ+43MVpPsP9Y5PkEYXSyzsGPvb5IJbqMjX837sIYzg2E8oQDRjCOeWX//iCiNSkYt+HpQ8MLvLyZioT0NFtIurg3LMfs2d2f1mi47LJgJEigaGA/WAK5LftpXUzYBru5ZV7eficEjLB/PelBe1SFIbwnYcKrqJt7UwDusIbQ/ev4MfBjaxSkwAu99eu/roIym5uZAD35faQdPqYVb87f4PW+Xk1kbT/ID5h8hJwIyZOmDlPqOCT5PNoLNpLMg8DXS465pKrqHpPhFiyjbqWgCSF3uzh3bEu1d8bfRgjMRcywL5lRML0RetAeIt8gOMxsI8WW1ARb8dyJ0h6TGbUoeE+33/4SjqKmHzZPjc+aO0W2mqFrogMd3vvOQbTaoo0mEmGGaZBcmD6i+F1GjhcYvDxaQPCe9bZeg1JXWroY2dgVUIT9/Rhp0C3/6ipvLrabDj5ziy37remwrMkqYX+HRr8iANM8jAxRd9fxZSmVwRsyXPkAL1yax0cM7ISg5LisWFuS7vuTj5ZFX4rpvtRGnYM/hKZK9Sr4fR1ezT95Jbm2KncWnB3fmQCrqzbWVLmUxgU3AbTLRQDW8q7xhyyAS1JJ0Pou6aZIudWC+E87bkyxY0gCGTS1HPmD7fdpmUzHVZoML6VRtAjKMQz1mx04+gPJ7kQV04onqK6UZzioic9sAhPKZKJkhsh95SNhwpENXrO/2LxBp+jNKP+5Cjuhp+sVPQUorxc3AQrZWiLpizLG3OyMeaL1qEDzBC8xHOAUJo6zknYjS83IGf35NwC2jwIaOax9vzY2MW1kNxHPflyVbhq89miDxOlNjB5Cl0O3TEQjzNU6TNyFuuXzp9XbNl6tacJXYiP7JIjyc2ad4geRrGACT4d4krtlgbmTMex0CXx5Nv3Om5NqT6/twHjndstbRMrn/WwlioK/kpjO3+N3teKXKcr0zwJnZa4lZmBWKWtUNhbOudgj2aGBqjzgngv6e5/u1u213HSYpmoQpnoa1SPR1hSW8p5qdqUJ1/ULCTtRvTkMe/cETDQEXRxJIvK9zsCg3gl2cZtj1BHxjtPIrMJAHtDxvl6OyFgzRPOZUAA==" alt="" loading="eager" decoding="async"></span>
         </div>
-        <h3>Aller droit au but</h3>
+        <h2>Aller droit au but</h2>
         <p>Pour une demande simple, immédiate, du quotidien. Le résultat se prépare vite, avec le minimum de friction.</p>
       </button>
       <button type="button" class="ui-mode-card is-active" data-mode="architecte" aria-pressed="true">
@@ -1568,7 +1595,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <span class="ui-mode-badge">Architecte</span>
           <span class="ui-mini-icon thumb-architecte" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,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" alt="" loading="eager" decoding="async"></span>
         </div>
-        <h3>Comprendre et structurer</h3>
+        <h2>Comprendre et structurer</h2>
         <p>Pour cadrer, vérifier, arbitrer et organiser. Il clarifie votre demande avant de la transmettre à l’IA.</p>
       </button>
       <button type="button" class="ui-mode-card" data-mode="atelier" aria-pressed="false">
@@ -1576,12 +1603,12 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <span class="ui-mode-badge">Atelier</span>
           <span class="ui-mini-icon thumb-atelier" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,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" alt="" loading="eager" decoding="async"></span>
         </div>
-        <h3>Fabriquer avec inventivité</h3>
+        <h2>Fabriquer avec inventivité</h2>
         <p>Pour régler consciemment la fabrication : contraintes, niveau d’exigence, profondeur, contrôle et finesse.</p>
       </button>
     </section>
 
-    <section class="ui-inline-result" id="ui-rapid-result" aria-live="polite" hidden aria-live="polite">
+    <section class="ui-inline-result" id="ui-rapid-result" aria-live="polite" hidden>
       <div class="ui-inline-result-head">
         <div>
           <span class="ui-mode-badge">Rapide</span>
@@ -1600,7 +1627,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
       </div>
     </section>
 
-    <div class="v11-stage" id="v11-api-progress" hidden>
+    <div class="v11-stage" id="v11-api-progress" role="status" aria-live="polite" hidden>
       <div class="v11-card ui-stage-card ui-progress-card" aria-live="polite">
         <div class="ui-stage-icon thumb-architecte" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,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" alt="" loading="lazy" decoding="async"></div>
         <div>
@@ -1629,8 +1656,8 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <strong>Déposez ici le fichier reçu de votre IA</strong>
           <span><strong id="v11-response-name-drop">reponse-de-ia.json</strong> — glissez-déposez le fichier ou cliquez pour le choisir.</span>
         </div>
-        <input class="v11-hidden-input" id="v11-response-file" type="file" accept=".json,application/json,text/plain">
-        <details class="ui-paste-panel"><summary>Je préfère coller la réponse</summary><textarea id="v11-paste-response" rows="6" placeholder="Collez ici la réponse reçue."></textarea><div class="v11-actions ui-stage-actions"><button type="button" class="v11-secondary ui-stage-secondary" id="v11-use-paste">Utiliser cette réponse</button></div></details>
+        <input class="v11-hidden-input" id="v11-response-file" type="file" aria-label="Choisir le fichier de réponse reçu de votre IA" accept=".json,application/json,text/plain">
+        <details class="ui-paste-panel"><summary>Je préfère coller la réponse</summary><textarea id="v11-paste-response" rows="6" aria-label="Coller la réponse reçue de votre IA" placeholder="Collez ici la réponse reçue."></textarea><div class="v11-actions ui-stage-actions"><button type="button" class="v11-secondary ui-stage-secondary" id="v11-use-paste">Utiliser cette réponse</button></div></details>
       </div>
     </div>
 
@@ -1644,7 +1671,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           </div>
         </div>
         <p class="v11-clarification-intro" id="v11-dialogue-intro">Pour bien préparer votre demande, j’ai besoin d’un détail.</p>
-        <textarea class="v11-answer ui-answer" id="v11-answer" placeholder="Répondez simplement avec vos mots…"></textarea>
+        <textarea class="v11-answer ui-answer" id="v11-answer" aria-label="Votre réponse à la question posée" placeholder="Répondez simplement avec vos mots…"></textarea>
         <div class="v11-chiprow ui-chiprow" id="v11-chips"></div>
         <div class="v11-actions ui-stage-actions">
           <button type="button" class="v11-primary ui-stage-primary" id="v11-answer-continue">Continuer</button>
@@ -1665,7 +1692,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           </div>
         </div>
         <p class="v11-sub ui-ready-sub">Elle a été préparée pour être plus claire, plus complète et plus exploitable par une IA.</p>
-        <textarea id="v11-final" readonly></textarea>
+        <textarea id="v11-final" aria-label="Demande finale préparée" readonly></textarea>
         <div class="v11-actions ui-stage-actions">
           <button type="button" class="v11-primary ui-stage-primary" id="v11-copy-final">Copier pour mon IA</button>
           <button type="button" class="v11-secondary ui-stage-secondary" id="v11-restart">Nouvelle demande</button>
@@ -1754,7 +1781,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
         <button type="button" class="bouton menu" id="btn-sensible">Mode données sensibles</button>
         <button type="button" class="bouton menu" id="btn-export-sauvegarde">Exporter mes données</button>
         <button type="button" class="bouton menu" id="btn-import-sauvegarde">Importer une sauvegarde</button>
-        <input type="file" id="input-import-sauvegarde" accept="application/json" class="cache">
+        <input type="file" id="input-import-sauvegarde" aria-label="Choisir un fichier de sauvegarde à importer" accept="application/json" class="cache">
         <button type="button" class="bouton menu" id="btn-purge">Effacer les données locales</button>
         <button type="button" class="bouton menu" id="btn-theme">Thème sombre</button>
         <button type="button" class="bouton menu" id="btn-modeles">Modèles de demande</button>
@@ -2817,8 +2844,8 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
   <div class="champ">
     <label class="etiquette">Ce qu’une bonne réponse doit réussir</label>
     <p class="aide">Pour la demande sélectionnée : ce qui doit y figurer, et ce qui ne devrait jamais y figurer.</p>
-    <textarea id="qualite-attendus" rows="3" placeholder="Un élément attendu par ligne"></textarea>
-    <textarea id="qualite-interdits" rows="2" placeholder="Une erreur à éviter par ligne"></textarea>
+    <textarea id="qualite-attendus" rows="3" aria-label="Ce qu’une bonne réponse doit réussir" placeholder="Un élément attendu par ligne"></textarea>
+    <textarea id="qualite-interdits" rows="2" aria-label="Ce qu’une réponse ne devrait jamais contenir" placeholder="Une erreur à éviter par ligne"></textarea>
   </div>
 
   <div class="champ">
@@ -2874,8 +2901,8 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
     <details class="avancee">
       <summary>Détails techniques (corpus, candidats, oracle, JSON)</summary>
       <p class="aide">Le corpus, les candidats et l'oracle sont les mêmes données que ci-dessus, sous leur forme technique — celle attendue par le simulateur qualitatif autonome, avec lequel ce paquet est directement compatible.</p>
-      <textarea id="qualite-corpus-json" rows="6"></textarea>
-      <textarea id="qualite-candidats-json" rows="6"></textarea>
+      <textarea id="qualite-corpus-json" rows="6" aria-label="Corpus au format JSON"></textarea>
+      <textarea id="qualite-candidats-json" rows="6" aria-label="Candidats au format JSON"></textarea>
     </details>
   </div>
 
