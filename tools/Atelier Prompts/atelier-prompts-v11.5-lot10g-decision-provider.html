@@ -21161,6 +21161,14 @@ async function adpDecideRapide(demande,materiau,requestedMode='rapide'){
 }
 function adpRunRapide(demande,materiau,orientation){
   adpState.pendingQuestion=false;show(null);
+  /* MODE-04 — AUCUNE ENVELOPPE ÉTRANGÈRE NE SURVIT À L'ENTRÉE EN RAPIDE.
+     Symétrie de la garde posée en MODE-03 à l'entrée Architecte. Ici l'affinage écrit l'enveloppe
+     seulement s'il aboutit : sur échec — projection indisponible, contexte incomplet — la valeur
+     PRÉCÉDENTE restait en place, y compris l'enveloppe locale déposée par Atelier, dont
+     l'etat_demande est fabriqué. Aucun lecteur ne la consomme sur ce chemin aujourd'hui — et c'est
+     précisément ce qui rend l'invariant fragile : il tient par absence de lecteur, pas par
+     structure. On efface AVANT de tenter ; en cas d'échec il ne reste rien. */
+  adpState.lastEnvelope=null;adpState.lastProjection=null;
   v11ShowRapidGate(orientation.decision);
   const rd=$('#rapide-demande'),rt=$('#rapide-texte');
   if(rd){rd.value=demande;rd.dispatchEvent(new Event('input',{bubbles:true}))}
@@ -21238,11 +21246,49 @@ window.__ADAPTIVE_DECISION_PIPELINE_10G__=Object.freeze({
 
 window.__V11_ROUTER__=Object.freeze({
   start(mode){
+    /* MODE-04 — ENTRER EN COMPOSITION MANUELLE PÉRIME LE TOUR GOUVERNÉ EN VOL.
+       Défaut mesuré : Rapide et Architecte se protègent d'eux-mêmes — oprieRunTurn refuse un
+       second tour tant que le premier court. Atelier, lui, n'a aucune machinerie de tour et n'en
+       aura pas : il entrait donc SANS que le tour en cours l'apprenne, et ce tour atterrissait
+       ensuite par-dessus quelqu'un qui compose déjà ailleurs — bandeau d'analyse, bascule du
+       sélecteur de mode, ouverture de l'étape d'échange, appel fournisseur avec clé, réécriture de
+       adpState.lastEnvelope. La frontière de bascule le périme au lieu de le laisser atterrir.
+       Rien de neuf n'est inventé : c'est la discipline de péremption déjà en place — numéro de
+       tour et annulation de transport — appliquée là où personne ne l'appliquait. La décision vient
+       de la table des contrats, pas d'une liste de modes écrite ici, et Atelier n'apprend rien. */
+    if(!v11ModeUsesGovernedPipeline(mode))v11AbandonGovernedTurn();
     if(mode==='rapide')return v11StartRapide();
     if(mode==='atelier')return v11StartAtelier();
     return v11StartArchitecte();
   }
 });
+/* La famille d'un mode vient de la table des contrats — source unique. Si elle est injoignable,
+   on ne périme rien : deviner reviendrait à interrompre un tour légitime. */
+function v11ModeUsesGovernedPipeline(mode){
+  try{
+    const runtime=adnRuntime();
+    if(!runtime||typeof runtime.usesGovernedPipeline!=='function')return true;
+    return runtime.usesGovernedPipeline(mode);
+  }catch(error){return true}
+}
+/* Périme le tour gouverné en vol. Le numéro de tour avance, les transports sont annulés, et les
+   gardes de numéro déjà présents dans le tour font le reste : la réponse tardive n'est jamais
+   appliquée. Le verrou de tour est relâché ICI parce que le `finally` du tour ne le relâchera
+   plus — son numéro n'est plus le courant — et le pipeline resterait fermé pour toujours. Un tour
+   périmé ne porte plus aucune sollicitation : l'état cesse de l'affirmer au même instant.
+   Ne touche à rien s'il n'y a rien en vol. */
+function v11AbandonGovernedTurn(){
+  if(!oprieState.running&&!oprieState.controller&&!oprieState.fastController)return false;
+  oprieState.seq+=1;
+  if(oprieState.controller){try{oprieState.controller.abort()}catch(error){}}
+  if(oprieState.fastController){try{oprieState.fastController.abort()}catch(error){}}
+  oprieState.controller=null;oprieState.fastController=null;
+  oprieState.fastInteraction=null;
+  oprieState.running=false;oprieSetBusy(false);
+  adpState.pendingQuestion=false;
+  oprieMark('turn_abandoned_mode_switch');
+  return true;
+}
 
 function init(){
   setNormal(true);setExchangeNames();state.exchangeId=null;state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';
