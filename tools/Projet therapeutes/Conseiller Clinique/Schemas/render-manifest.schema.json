@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "render-manifest.schema.json",
+  "$comment": "UX-8A — source de vérité unique pour tout ce qui touche au rendu d'un ClinicalDocument. `template`/`brandKit`/`rendererVersion` ne sont JAMAIS dupliqués dans ClinicalDocument, qui ne référence que renderManifestId. Immuable une fois créé : toute modification produit un nouvel id + un nouveau manifestChecksum, jamais une mutation sur place.",
+  "$defs": {
+    "templateRef": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "brandKitRef": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "default": "studio-clinique-default" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    }
+  },
+  "type": "object",
+  "required": [
+    "id", "schemaVersion", "rendererVersion", "templateRef", "brandKitRef",
+    "tokensSnapshotId", "assetsSnapshotId", "createdAt", "manifestChecksum"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "schemaVersion": { "const": 1 },
+    "rendererVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "templateRef": { "$ref": "#/$defs/templateRef" },
+    "brandKitRef": { "$ref": "#/$defs/brandKitRef" },
+    "tokensSnapshotId": {
+      "type": "string",
+      "minLength": 1,
+      "$comment": "Obligatoire dès UX-8A (pas nullable) — pointe vers les jetons déjà résolus de studio-clinique-default. Ne devient nullable/optionnel qu'en UX-8B pour une charte externe non encore résolue, ce qui n'est pas le cas ici."
+    },
+    "assetsSnapshotId": {
+      "type": ["string", "null"],
+      "$comment": "Réservé, reste null jusqu'à UX-8B (actifs binaires d'une charte importée : logos/polices/images). La charte par défaut n'en a pas besoin."
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "manifestChecksum": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "$comment": "SHA-256 de la sérialisation JSON canonique du manifeste (clés triées, sans espace superflu), ce champ lui-même exclu du calcul."
+    }
+  }
+}

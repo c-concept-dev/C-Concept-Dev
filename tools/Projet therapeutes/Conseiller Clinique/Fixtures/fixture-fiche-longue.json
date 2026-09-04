@@ -1,0 +1,1482 @@
+{
+  "schemaVersion": 1,
+  "documentId": "doc-fiche-longue-001",
+  "versionId": "doc-fiche-longue-001-v1",
+  "previousVersionId": null,
+  "requestId": "request-doc-fiche-longue-001",
+  "sourceSnapshotId": "snapshot-fiche-longue-001",
+  "createdAt": "2026-09-03T09:00:00Z",
+  "language": "fr",
+  "status": "draft",
+  "title": "Attachement, schémas de Young et communication de couple — synthèse approfondie",
+  "purpose": "supervision",
+  "audience": "clinicien",
+  "documentKind": "fiche",
+  "renderManifestId": "manifest-default-001",
+  "derivedFrom": null,
+  "blocks": [
+    {
+      "id": "heading-01",
+      "type": "heading",
+      "content": {
+        "text": "Attachement, schémas de Young et communication de couple — synthèse approfondie",
+        "level": 1
+      },
+      "citationIds": [],
+      "validation": {}
+    },
+    {
+      "id": "paragraph-02",
+      "type": "paragraph",
+      "content": {
+        "text": "L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité."
+      },
+      "citationIds": [
+        "citation-001",
+        "citation-002",
+        "citation-003"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-001",
+            "claimText": "L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-002",
+            "claimText": "La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-003",
+            "claimText": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-03",
+      "type": "paragraph",
+      "content": {
+        "text": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis."
+      },
+      "citationIds": [
+        "citation-004",
+        "citation-005",
+        "citation-006"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-004",
+            "claimText": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-005",
+            "claimText": "Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-006",
+            "claimText": "La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-04",
+      "type": "paragraph",
+      "content": {
+        "text": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple."
+      },
+      "citationIds": [
+        "citation-007",
+        "citation-008",
+        "citation-009"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-007",
+            "claimText": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-008",
+            "claimText": "Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-009",
+            "claimText": "Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "callout-05",
+      "type": "callout",
+      "content": {
+        "text": "La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même.",
+        "visualRole": "info"
+      },
+      "citationIds": [
+        "citation-010",
+        "citation-011",
+        "citation-012"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-010",
+            "claimText": "La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-011",
+            "claimText": "Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-012",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-06",
+      "type": "paragraph",
+      "content": {
+        "text": "L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité."
+      },
+      "citationIds": [
+        "citation-013",
+        "citation-014",
+        "citation-015"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-013",
+            "claimText": "L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-014",
+            "claimText": "La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-015",
+            "claimText": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table-07",
+      "type": "table",
+      "content": {
+        "headers": [
+          "Approche",
+          "Mécanisme central",
+          "Indication clinique"
+        ],
+        "rows": [
+          [
+            "Gottman",
+            "Cavaliers de l'apocalypse",
+            "Couples en conflit chronique"
+          ],
+          [
+            "Attachement",
+            "Modèles internes opérants",
+            "Anxiété relationnelle"
+          ],
+          [
+            "Schémas de Young",
+            "Patterns précoces inadaptés",
+            "Répétition de schémas dysfonctionnels"
+          ]
+        ]
+      },
+      "citationIds": [],
+      "validation": {}
+    },
+    {
+      "id": "paragraph-08",
+      "type": "paragraph",
+      "content": {
+        "text": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis."
+      },
+      "citationIds": [
+        "citation-016",
+        "citation-017",
+        "citation-018"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-016",
+            "claimText": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-017",
+            "claimText": "Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-018",
+            "claimText": "La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "callout-09",
+      "type": "callout",
+      "content": {
+        "text": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle.",
+        "visualRole": "warning"
+      },
+      "citationIds": [
+        "citation-019",
+        "citation-020",
+        "citation-021"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-019",
+            "claimText": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-020",
+            "claimText": "Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-021",
+            "claimText": "Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-10",
+      "type": "paragraph",
+      "content": {
+        "text": "Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même."
+      },
+      "citationIds": [
+        "citation-022",
+        "citation-023",
+        "citation-024"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-022",
+            "claimText": "Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-023",
+            "claimText": "La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-024",
+            "claimText": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-11",
+      "type": "paragraph",
+      "content": {
+        "text": "L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité."
+      },
+      "citationIds": [
+        "citation-025",
+        "citation-026",
+        "citation-027"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-025",
+            "claimText": "L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-026",
+            "claimText": "La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-027",
+            "claimText": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-12",
+      "type": "paragraph",
+      "content": {
+        "text": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis."
+      },
+      "citationIds": [
+        "citation-028",
+        "citation-029",
+        "citation-030"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-028",
+            "claimText": "Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-029",
+            "claimText": "Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-030",
+            "claimText": "La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "callout-13",
+      "type": "callout",
+      "content": {
+        "text": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle.",
+        "visualRole": "info"
+      },
+      "citationIds": [
+        "citation-031",
+        "citation-032"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-031",
+            "claimText": "Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-032",
+            "claimText": "Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table-14",
+      "type": "table",
+      "content": {
+        "headers": [
+          "Approche",
+          "Mécanisme central",
+          "Indication clinique"
+        ],
+        "rows": [
+          [
+            "Gottman",
+            "Cavaliers de l'apocalypse",
+            "Couples en conflit chronique"
+          ],
+          [
+            "Attachement",
+            "Modèles internes opérants",
+            "Anxiété relationnelle"
+          ],
+          [
+            "Schémas de Young",
+            "Patterns précoces inadaptés",
+            "Répétition de schémas dysfonctionnels"
+          ]
+        ]
+      },
+      "citationIds": [],
+      "validation": {}
+    },
+    {
+      "id": "paragraph-15",
+      "type": "paragraph",
+      "content": {
+        "text": "La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé."
+      },
+      "citationIds": [
+        "citation-033",
+        "citation-034"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-033",
+            "claimText": "La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-034",
+            "claimText": "Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-16",
+      "type": "paragraph",
+      "content": {
+        "text": "Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle."
+      },
+      "citationIds": [
+        "citation-035",
+        "citation-036"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-035",
+            "claimText": "Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-036",
+            "claimText": "L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "callout-17",
+      "type": "callout",
+      "content": {
+        "text": "La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+        "visualRole": "warning"
+      },
+      "citationIds": [
+        "citation-037",
+        "citation-038"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-037",
+            "claimText": "La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-038",
+            "claimText": "Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-18",
+      "type": "paragraph",
+      "content": {
+        "text": "La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente."
+      },
+      "citationIds": [
+        "citation-039",
+        "citation-040"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-039",
+            "claimText": "La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-040",
+            "claimText": "Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-19",
+      "type": "paragraph",
+      "content": {
+        "text": "La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique."
+      },
+      "citationIds": [
+        "citation-041",
+        "citation-042"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-041",
+            "claimText": "La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-042",
+            "claimText": "L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table-20",
+      "type": "table",
+      "content": {
+        "headers": [
+          "Approche",
+          "Mécanisme central",
+          "Indication clinique"
+        ],
+        "rows": [
+          [
+            "Gottman",
+            "Cavaliers de l'apocalypse",
+            "Couples en conflit chronique"
+          ],
+          [
+            "Attachement",
+            "Modèles internes opérants",
+            "Anxiété relationnelle"
+          ],
+          [
+            "Schémas de Young",
+            "Patterns précoces inadaptés",
+            "Répétition de schémas dysfonctionnels"
+          ]
+        ]
+      },
+      "citationIds": [],
+      "validation": {}
+    },
+    {
+      "id": "callout-21",
+      "type": "callout",
+      "content": {
+        "text": "La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon.",
+        "visualRole": "info"
+      },
+      "citationIds": [
+        "citation-043",
+        "citation-044"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-043",
+            "claimText": "La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-044",
+            "claimText": "Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-22",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-045",
+        "citation-046"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-045",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-046",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-23",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-047",
+        "citation-048"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-047",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-048",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-24",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-049",
+        "citation-050"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-049",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-050",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-25",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-051",
+        "citation-052"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-051",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-052",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-26",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-053",
+        "citation-054"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-053",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-054",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-27",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-055",
+        "citation-056"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-055",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-056",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-28",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-057",
+        "citation-058"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-057",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-058",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-29",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-059",
+        "citation-060"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-059",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-060",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-30",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-061",
+        "citation-062"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-061",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-062",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-31",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-063",
+        "citation-064"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-063",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-064",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-32",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-065",
+        "citation-066"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-065",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-066",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-33",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-067",
+        "citation-068"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-067",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-068",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-34",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-069",
+        "citation-070"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-069",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-070",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-35",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-071",
+        "citation-072"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-071",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-072",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-36",
+      "type": "paragraph",
+      "content": {
+        "text": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations. Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente. Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement. Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre."
+      },
+      "citationIds": [
+        "citation-073",
+        "citation-074"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-073",
+            "claimText": "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-074",
+            "claimText": "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-37",
+      "type": "paragraph",
+      "content": {
+        "text": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même. Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique. Le sentiment de sécurité de base, au cœur de la théorie de l'attachement, conditionne la capacité ultérieure à explorer le monde et à tolérer la séparation temporaire d'un partenaire. Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon."
+      },
+      "citationIds": [
+        "citation-075",
+        "citation-076"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-075",
+            "claimText": "La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-076",
+            "claimText": "Le modèle de Gottman distingue les conflits perpétuels — liés à des différences de personnalité durables — des conflits résolubles, une distinction qui réoriente utilement l'objectif thérapeutique.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "list-38",
+      "type": "list",
+      "content": {
+        "items": [
+          "Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations.",
+          "Le schéma d'abandon/instabilité génère une anticipation chronique de la perte du lien affectif, même en l'absence d'indices objectifs de rupture imminente.",
+          "Le schéma de méfiance/abus conduit à interpréter les intentions du partenaire comme potentiellement malveillantes, rendant la confiance difficile à établir durablement."
+        ],
+        "ordered": false
+      },
+      "citationIds": [],
+      "validation": {}
+    },
+    {
+      "id": "paragraph-39",
+      "type": "paragraph",
+      "content": {
+        "text": "Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre. La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté. L'intégration du cycle de vie (ICV) travaille à reconstituer une continuité narrative du soi, particulièrement utile lorsque le trauma a fragmenté le sentiment de cohérence temporelle. L'EMDR mobilise les mouvements oculaires bilatéraux pour faciliter le retraitement adaptatif de souvenirs traumatiques restés bloqués dans leur forme originelle, non intégrée. L'IFS (Internal Family Systems) conceptualise le psychisme comme un système de parties — exilés, protecteurs, pompiers — organisées autour d'un Soi central capable de les accueillir avec curiosité. La réparation après une rupture de communication reste l'indicateur le plus prédictif de stabilité conjugale à long terme, davantage que l'absence de conflit elle-même. Les ratios positif/négatif observés par Gottman en laboratoire — cinq interactions positives pour une négative chez les couples stables — offrent un repère clinique concret pour l'évaluation d'un couple. La rupture du lien d'attachement précoce peut se rejouer à l'âge adulte sous forme de protestations relationnelles disproportionnées face à des séparations pourtant banales. Le travail thérapeutique sur les schémas vise moins l'éradication du schéma que le développement d'un mode adulte sain capable de moduler sa réactivation. Les ruptures de dialogue répétées finissent par éroder la carte d'amour — la connaissance intime que chaque partenaire a du monde intérieur de l'autre. La psychoéducation sur les styles d'attachement permet souvent au couple de dépersonnaliser le conflit, en le reformulant comme une rencontre de deux stratégies de régulation plutôt qu'une accusation. Les techniques de recadrage transforment une plainte accusatrice en expression d'un besoin non satisfait, ouvrant un espace de négociation là où existait un blocage. La vigilance clinique reste nécessaire : un mépris chronique et non traité constitue un facteur de risque documenté, y compris en dehors du cadre relationnel lui-même."
+      },
+      "citationIds": [
+        "citation-077",
+        "citation-078"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-077",
+            "claimText": "Le schéma de carence affective renvoie à la conviction que ses besoins émotionnels ne seront jamais suffisamment comblés par autrui, quel que soit l'effort de l'autre.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-078",
+            "claimText": "La communication non violente propose de distinguer observation, sentiment, besoin et demande — une structure qui désamorce l'escalade critique-défense typique des couples en difficulté.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    },
+    {
+      "id": "paragraph-40",
+      "type": "paragraph",
+      "content": {
+        "text": "Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs. La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes. Le silence prolongé d'un partenaire pendant un conflit est fréquemment vécu par l'autre comme un abandon actif, indépendamment de l'intention réelle qui l'a motivé. La cohérence entre l'aperçu affiché et le document livré conditionne la confiance de l'utilisatrice dans l'outil autant que la qualité du contenu clinique lui-même. Les quatre cavaliers de l'apocalypse identifiés par Gottman — critique, mépris, attitude défensive et obstruction — prédisent la rupture avec une fiabilité remarquable lorsqu'ils s'installent durablement dans les échanges du couple. Le mépris, en particulier, constitue le signal le plus toxique : il porte en lui une dévalorisation globale du partenaire, au-delà du reproche ponctuel sur un comportement précis. L'attitude défensive, souvent une réaction au mépris ou à la critique, empêche toute réparation en renvoyant systématiquement la responsabilité vers l'autre. L'obstruction — se murer dans le silence, quitter la pièce, refuser tout échange — protège temporairement mais prive le couple de tout espace de réparation. La théorie de l'attachement de Bowlby postule que les premières relations avec les figures d'attachement façonnent des modèles internes opérants qui guideront les relations adultes. Un style d'attachement anxieux se caractérise par une hypervigilance aux signaux de disponibilité du partenaire et une peur persistante de l'abandon. Un style d'attachement évitant se traduit par une désactivation des besoins de proximité, une préférence pour l'autonomie et une difficulté à demander du soutien. Le style désorganisé, souvent issu de traumatismes précoces, combine simultanément recherche de proximité et peur de cette même proximité. Young a développé le concept de schémas précoces inadaptés pour décrire des patterns cognitifs et émotionnels durables, ancrés dans l'enfance, qui structurent la perception de soi et des relations."
+      },
+      "citationIds": [
+        "citation-079",
+        "citation-080"
+      ],
+      "validation": {
+        "citationLinks": [
+          {
+            "citationId": "citation-079",
+            "claimText": "Un protecteur, dans le modèle IFS, agit préventivement pour éviter que l'exilé ne soit à nouveau exposé à la douleur qu'il porte, quitte à générer des comportements en apparence excessifs.",
+            "claimSupport": "pass"
+          },
+          {
+            "citationId": "citation-080",
+            "claimText": "La restructuration cognitive appliquée aux schémas de Young combine reconnaissance émotionnelle du schéma et mise à l'épreuve rationnelle de ses prédictions catastrophistes.",
+            "claimSupport": "pass"
+          }
+        ]
+      }
+    }
+  ],
+  "citations": [
+    {
+      "citationId": "citation-001",
+      "sourceSnapshotEntryId": "entry-001",
+      "displayLabel": "Young, p. 27"
+    },
+    {
+      "citationId": "citation-002",
+      "sourceSnapshotEntryId": "entry-002",
+      "displayLabel": "Bowlby, p. 34"
+    },
+    {
+      "citationId": "citation-003",
+      "sourceSnapshotEntryId": "entry-003",
+      "displayLabel": "Schwartz, p. 41"
+    },
+    {
+      "citationId": "citation-004",
+      "sourceSnapshotEntryId": "entry-004",
+      "displayLabel": "Schwartz, p. 48"
+    },
+    {
+      "citationId": "citation-005",
+      "sourceSnapshotEntryId": "entry-005",
+      "displayLabel": "Shapiro, p. 55"
+    },
+    {
+      "citationId": "citation-006",
+      "sourceSnapshotEntryId": "entry-006",
+      "displayLabel": "Rosenberg, p. 62"
+    },
+    {
+      "citationId": "citation-007",
+      "sourceSnapshotEntryId": "entry-007",
+      "displayLabel": "Rosenberg, p. 69"
+    },
+    {
+      "citationId": "citation-008",
+      "sourceSnapshotEntryId": "entry-008",
+      "displayLabel": "Gottman, p. 76"
+    },
+    {
+      "citationId": "citation-009",
+      "sourceSnapshotEntryId": "entry-009",
+      "displayLabel": "Johnson, p. 83"
+    },
+    {
+      "citationId": "citation-010",
+      "sourceSnapshotEntryId": "entry-010",
+      "displayLabel": "Schwartz, p. 90"
+    },
+    {
+      "citationId": "citation-011",
+      "sourceSnapshotEntryId": "entry-011",
+      "displayLabel": "Shapiro, p. 97"
+    },
+    {
+      "citationId": "citation-012",
+      "sourceSnapshotEntryId": "entry-012",
+      "displayLabel": "Rosenberg, p. 104"
+    },
+    {
+      "citationId": "citation-013",
+      "sourceSnapshotEntryId": "entry-013",
+      "displayLabel": "Rosenberg, p. 111"
+    },
+    {
+      "citationId": "citation-014",
+      "sourceSnapshotEntryId": "entry-014",
+      "displayLabel": "Gottman, p. 118"
+    },
+    {
+      "citationId": "citation-015",
+      "sourceSnapshotEntryId": "entry-015",
+      "displayLabel": "Johnson, p. 125"
+    },
+    {
+      "citationId": "citation-016",
+      "sourceSnapshotEntryId": "entry-016",
+      "displayLabel": "Johnson, p. 132"
+    },
+    {
+      "citationId": "citation-017",
+      "sourceSnapshotEntryId": "entry-017",
+      "displayLabel": "Young, p. 139"
+    },
+    {
+      "citationId": "citation-018",
+      "sourceSnapshotEntryId": "entry-018",
+      "displayLabel": "Bowlby, p. 146"
+    },
+    {
+      "citationId": "citation-019",
+      "sourceSnapshotEntryId": "entry-019",
+      "displayLabel": "Rosenberg, p. 153"
+    },
+    {
+      "citationId": "citation-020",
+      "sourceSnapshotEntryId": "entry-020",
+      "displayLabel": "Gottman, p. 160"
+    },
+    {
+      "citationId": "citation-021",
+      "sourceSnapshotEntryId": "entry-021",
+      "displayLabel": "Johnson, p. 167"
+    },
+    {
+      "citationId": "citation-022",
+      "sourceSnapshotEntryId": "entry-022",
+      "displayLabel": "Johnson, p. 174"
+    },
+    {
+      "citationId": "citation-023",
+      "sourceSnapshotEntryId": "entry-023",
+      "displayLabel": "Young, p. 181"
+    },
+    {
+      "citationId": "citation-024",
+      "sourceSnapshotEntryId": "entry-024",
+      "displayLabel": "Bowlby, p. 188"
+    },
+    {
+      "citationId": "citation-025",
+      "sourceSnapshotEntryId": "entry-025",
+      "displayLabel": "Bowlby, p. 195"
+    },
+    {
+      "citationId": "citation-026",
+      "sourceSnapshotEntryId": "entry-026",
+      "displayLabel": "Schwartz, p. 202"
+    },
+    {
+      "citationId": "citation-027",
+      "sourceSnapshotEntryId": "entry-027",
+      "displayLabel": "Shapiro, p. 209"
+    },
+    {
+      "citationId": "citation-028",
+      "sourceSnapshotEntryId": "entry-028",
+      "displayLabel": "Shapiro, p. 216"
+    },
+    {
+      "citationId": "citation-029",
+      "sourceSnapshotEntryId": "entry-029",
+      "displayLabel": "Rosenberg, p. 223"
+    },
+    {
+      "citationId": "citation-030",
+      "sourceSnapshotEntryId": "entry-030",
+      "displayLabel": "Gottman, p. 230"
+    },
+    {
+      "citationId": "citation-031",
+      "sourceSnapshotEntryId": "entry-031",
+      "displayLabel": "Bowlby, p. 237"
+    },
+    {
+      "citationId": "citation-032",
+      "sourceSnapshotEntryId": "entry-032",
+      "displayLabel": "Schwartz, p. 244"
+    },
+    {
+      "citationId": "citation-033",
+      "sourceSnapshotEntryId": "entry-033",
+      "displayLabel": "Schwartz, p. 251"
+    },
+    {
+      "citationId": "citation-034",
+      "sourceSnapshotEntryId": "entry-034",
+      "displayLabel": "Shapiro, p. 258"
+    },
+    {
+      "citationId": "citation-035",
+      "sourceSnapshotEntryId": "entry-035",
+      "displayLabel": "Shapiro, p. 265"
+    },
+    {
+      "citationId": "citation-036",
+      "sourceSnapshotEntryId": "entry-036",
+      "displayLabel": "Rosenberg, p. 272"
+    },
+    {
+      "citationId": "citation-037",
+      "sourceSnapshotEntryId": "entry-037",
+      "displayLabel": "Young, p. 279"
+    },
+    {
+      "citationId": "citation-038",
+      "sourceSnapshotEntryId": "entry-038",
+      "displayLabel": "Bowlby, p. 286"
+    },
+    {
+      "citationId": "citation-039",
+      "sourceSnapshotEntryId": "entry-039",
+      "displayLabel": "Bowlby, p. 293"
+    },
+    {
+      "citationId": "citation-040",
+      "sourceSnapshotEntryId": "entry-040",
+      "displayLabel": "Schwartz, p. 300"
+    },
+    {
+      "citationId": "citation-041",
+      "sourceSnapshotEntryId": "entry-041",
+      "displayLabel": "Schwartz, p. 307"
+    },
+    {
+      "citationId": "citation-042",
+      "sourceSnapshotEntryId": "entry-042",
+      "displayLabel": "Shapiro, p. 314"
+    },
+    {
+      "citationId": "citation-043",
+      "sourceSnapshotEntryId": "entry-043",
+      "displayLabel": "Johnson, p. 321"
+    },
+    {
+      "citationId": "citation-044",
+      "sourceSnapshotEntryId": "entry-044",
+      "displayLabel": "Young, p. 328"
+    },
+    {
+      "citationId": "citation-045",
+      "sourceSnapshotEntryId": "entry-045",
+      "displayLabel": "Young, p. 335"
+    },
+    {
+      "citationId": "citation-046",
+      "sourceSnapshotEntryId": "entry-046",
+      "displayLabel": "Bowlby, p. 342"
+    },
+    {
+      "citationId": "citation-047",
+      "sourceSnapshotEntryId": "entry-047",
+      "displayLabel": "Bowlby, p. 349"
+    },
+    {
+      "citationId": "citation-048",
+      "sourceSnapshotEntryId": "entry-048",
+      "displayLabel": "Schwartz, p. 356"
+    },
+    {
+      "citationId": "citation-049",
+      "sourceSnapshotEntryId": "entry-049",
+      "displayLabel": "Schwartz, p. 363"
+    },
+    {
+      "citationId": "citation-050",
+      "sourceSnapshotEntryId": "entry-050",
+      "displayLabel": "Shapiro, p. 370"
+    },
+    {
+      "citationId": "citation-051",
+      "sourceSnapshotEntryId": "entry-051",
+      "displayLabel": "Shapiro, p. 377"
+    },
+    {
+      "citationId": "citation-052",
+      "sourceSnapshotEntryId": "entry-052",
+      "displayLabel": "Rosenberg, p. 384"
+    },
+    {
+      "citationId": "citation-053",
+      "sourceSnapshotEntryId": "entry-053",
+      "displayLabel": "Rosenberg, p. 391"
+    },
+    {
+      "citationId": "citation-054",
+      "sourceSnapshotEntryId": "entry-054",
+      "displayLabel": "Gottman, p. 398"
+    },
+    {
+      "citationId": "citation-055",
+      "sourceSnapshotEntryId": "entry-055",
+      "displayLabel": "Gottman, p. 25"
+    },
+    {
+      "citationId": "citation-056",
+      "sourceSnapshotEntryId": "entry-056",
+      "displayLabel": "Johnson, p. 32"
+    },
+    {
+      "citationId": "citation-057",
+      "sourceSnapshotEntryId": "entry-057",
+      "displayLabel": "Johnson, p. 39"
+    },
+    {
+      "citationId": "citation-058",
+      "sourceSnapshotEntryId": "entry-058",
+      "displayLabel": "Young, p. 46"
+    },
+    {
+      "citationId": "citation-059",
+      "sourceSnapshotEntryId": "entry-059",
+      "displayLabel": "Young, p. 53"
+    },
+    {
+      "citationId": "citation-060",
+      "sourceSnapshotEntryId": "entry-060",
+      "displayLabel": "Bowlby, p. 60"
+    },
+    {
+      "citationId": "citation-061",
+      "sourceSnapshotEntryId": "entry-061",
+      "displayLabel": "Bowlby, p. 67"
+    },
+    {
+      "citationId": "citation-062",
+      "sourceSnapshotEntryId": "entry-062",
+      "displayLabel": "Schwartz, p. 74"
+    },
+    {
+      "citationId": "citation-063",
+      "sourceSnapshotEntryId": "entry-063",
+      "displayLabel": "Schwartz, p. 81"
+    },
+    {
+      "citationId": "citation-064",
+      "sourceSnapshotEntryId": "entry-064",
+      "displayLabel": "Shapiro, p. 88"
+    },
+    {
+      "citationId": "citation-065",
+      "sourceSnapshotEntryId": "entry-065",
+      "displayLabel": "Shapiro, p. 95"
+    },
+    {
+      "citationId": "citation-066",
+      "sourceSnapshotEntryId": "entry-066",
+      "displayLabel": "Rosenberg, p. 102"
+    },
+    {
+      "citationId": "citation-067",
+      "sourceSnapshotEntryId": "entry-067",
+      "displayLabel": "Rosenberg, p. 109"
+    },
+    {
+      "citationId": "citation-068",
+      "sourceSnapshotEntryId": "entry-068",
+      "displayLabel": "Gottman, p. 116"
+    },
+    {
+      "citationId": "citation-069",
+      "sourceSnapshotEntryId": "entry-069",
+      "displayLabel": "Gottman, p. 123"
+    },
+    {
+      "citationId": "citation-070",
+      "sourceSnapshotEntryId": "entry-070",
+      "displayLabel": "Johnson, p. 130"
+    },
+    {
+      "citationId": "citation-071",
+      "sourceSnapshotEntryId": "entry-071",
+      "displayLabel": "Johnson, p. 137"
+    },
+    {
+      "citationId": "citation-072",
+      "sourceSnapshotEntryId": "entry-072",
+      "displayLabel": "Young, p. 144"
+    },
+    {
+      "citationId": "citation-073",
+      "sourceSnapshotEntryId": "entry-073",
+      "displayLabel": "Young, p. 151"
+    },
+    {
+      "citationId": "citation-074",
+      "sourceSnapshotEntryId": "entry-074",
+      "displayLabel": "Bowlby, p. 158"
+    },
+    {
+      "citationId": "citation-075",
+      "sourceSnapshotEntryId": "entry-075",
+      "displayLabel": "Bowlby, p. 165"
+    },
+    {
+      "citationId": "citation-076",
+      "sourceSnapshotEntryId": "entry-076",
+      "displayLabel": "Schwartz, p. 172"
+    },
+    {
+      "citationId": "citation-077",
+      "sourceSnapshotEntryId": "entry-077",
+      "displayLabel": "Gottman, p. 179"
+    },
+    {
+      "citationId": "citation-078",
+      "sourceSnapshotEntryId": "entry-078",
+      "displayLabel": "Johnson, p. 186"
+    },
+    {
+      "citationId": "citation-079",
+      "sourceSnapshotEntryId": "entry-079",
+      "displayLabel": "Johnson, p. 193"
+    },
+    {
+      "citationId": "citation-080",
+      "sourceSnapshotEntryId": "entry-080",
+      "displayLabel": "Young, p. 200"
+    }
+  ],
+  "validation": {
+    "sourceIntegrity": "pending",
+    "contentCompleteness": "pending",
+    "layout": "pending",
+    "accessibility": "pending",
+    "humanClinicalReview": "required"
+  }
+}

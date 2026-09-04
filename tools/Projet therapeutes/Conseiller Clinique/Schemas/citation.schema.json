@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "citation.schema.json",
+  "$comment": "UX-8A — référence stable et minimale vers une entrée de SourceSnapshot. Volontairement minimal : ne duplique jamais le texte exact ni la localisation (ceux-là vivent dans SourceSnapshot). Réutilisable par plusieurs block.validation.citationLinks[] sans duplication.",
+  "type": "object",
+  "required": ["citationId", "sourceSnapshotEntryId", "displayLabel"],
+  "additionalProperties": false,
+  "properties": {
+    "citationId": { "type": "string", "minLength": 1 },
+    "sourceSnapshotEntryId": { "type": "string", "minLength": 1 },
+    "displayLabel": { "type": "string", "minLength": 1 }
+  }
+}

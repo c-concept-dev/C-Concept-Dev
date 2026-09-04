@@ -1,11 +1,56 @@
 <!DOCTYPE html>
 <!--
 ╔═══════════════════════════════════════════════════════════════════════════╗
-║  CONSEILLER CLINIQUE — Bibliothèque thérapeutique · IA + RAG              ║
-║  © C Concept&Dev                                                          ║
+║  STUDIO CLINIQUE — Bibliothèque thérapeutique · Création clinique         ║
+║  assistée · © C Concept&Dev                                              ║
 ║                                                                           ║
-║  Version : v1.4.1-fiabilise                                              ║
-║  Date de création : 2026-09-02                                           ║
+║  Version : v1.6.0-studio                                                 ║
+║  Date de création : 2026-09-03                                           ║
+║                                                                           ║
+║  v1.6.0 : BRAND-SC-00/01 — migration de marque "Conseiller Clinique" →   ║
+║  "Studio Clinique" (fichier renommé studio-clinique.html, socle verbal   ║
+║  remplacé partout dans l'interface visible et les documents exportés,    ║
+║  signature "Des sources solides. Des documents qui restent les vôtres."  ║
+║  ajoutée à l'accueil). Phase UX-8A — fondation du document clinique       ║
+║  structuré : schémas JSON Schema réels (ClinicalDocument, RenderManifest,║
+║  SourceSnapshot, Citation, blocs en union discriminée), moteur de rendu   ║
+║  canonique par blocs pour les pilotes Fiche synthèse et Carrousel,        ║
+║  validation des citations en deux temps par affirmation (claimSupport),  ║
+║  bascule rendererModeByDocumentKind (fiche/carrousel structurés,          ║
+║  tableau/script/liens sur l'ancien moteur, inchangés), aucune persistance ║
+║  serveur. Voir rapport de changement pour le détail complet.             ║
+║                                                                           ║
+║  v1.5.1 : Correctifs CSS sur Phase UX-2A, suite à audit indépendant       ║
+║  (aucun changement JS/RAG/Worker). Contraste placeholder insuffisant      ║
+║  corrigé (opacity 0.7→1, ~2,85:1 → 5,62:1) sur .adoc-context-inp,         ║
+║  règle explicite ajoutée sur .adoc-textarea et les 2 champs Mémoire       ║
+║  patient (rendu par défaut non garanti selon navigateur sinon).           ║
+║  Focus-visible manquant ajouté sur send/quick-btn/context-close/          ║
+║  exp-btn/output-dl (terracotta-700) et sur le bouton "Retour Collab" du   ║
+║  bandeau sombre (blanc, terracotta y tombant sous le seuil de contraste  ║
+║  requis) — vérifié sans conflit avec les règles déjà spécifiques          ║
+║  (upload-zone, doc-item, composeur). Description corrigée : le           ║
+║  responsive a deux paliers (980px sidebar réduite fixe, 768px tiroir      ║
+║  off-canvas), pas un seul comme annoncé par erreur dans le rapport v1.5.0.║
+║                                                                           ║
+║  v1.5.0 : Phase UX-2A — refonte de la coquille d'écran (HTML/CSS/JS       ║
+║  d'interface uniquement, aucun changement au moteur de génération/RAG/   ║
+║  clarté). Barre "Contexte" et question fusionnées en un composeur        ║
+║  unique (panneau repliable) ; jargon technique (tokens/coût, sync        ║
+║  D1↔Vector) déplacé dans un panneau développeur Ctrl+D, invisible sinon, ║
+║  libellés grand public partout ailleurs (Bibliothèque thérapeutique,     ║
+║  Passages disponibles, Approches représentées…) ; progression textuelle  ║
+║  généralisée à toutes les attentes restantes de l'écran ; sidebar        ║
+║  réordonnée (Mémoire patient en tête, sensibilité oblige) et bouton "×"  ║
+║  explicitement libellé ; responsive tranché et testé dès la tablette     ║
+║  (tiroir off-canvas + bouton ☰ sous 980px) ; accessibilité de base du    ║
+║  shell (aria-label sur les boutons icône, navigation clavier, focus      ║
+║  visible) ; vide central de la conversation supprimé (ancrage bas) ;     ║
+║  espacement aéré étendu au reste de l'écran ; upload de document         ║
+║  possible dès l'accueil (même zone que la question, même composant      ║
+║  d'extraction, liste "Documents joints" de la conversation conservée en ║
+║  complément). Non-régression vérifiée sur le correctif de fuite de       ║
+║  bulle de clarification (v1.4.1).                                        ║
 ║                                                                           ║
 ║  v1.4.1 : Correctifs terrain Phase UX-2bis — l'instruction technique de   ║
 ║  bandeau "Hypothèses retenues" ne fuite plus dans la bulle utilisateur    ║
@@ -63,7 +108,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conseiller Clinique — C Concept&Dev</title>
+    <title>Studio Clinique — C Concept&Dev</title>
 
     <!-- Google Fonts - IBM Plex Sans / Source Serif 4 (Phase UX-3 : police unique de tout l'écran, -->
     <!-- remplace Montserrat qui ne servait plus qu'à l'ancienne charte .adoc-*) -->
@@ -86,7 +131,7 @@
             min-height: 100vh;
         }
 
-        /* ── CSS Conseiller Clinique (reprise exacte de therapeute-collab-v8.html */
+        /* ── CSS Studio Clinique (reprise exacte de therapeute-collab-v8.html */
         /*    lignes 1953–2227, aucune modification) ── */
         /* ═══ ASSISTANT DOC — OVERLAY ═══ */
         #assistdoc-screen {
@@ -117,30 +162,87 @@
         }
         .adoc-close-btn:hover { background: rgba(255,255,255,0.25); }
 
-        /* ── Barre contexte (mode unique) ── */
-        .adoc-mode-bar {
-            background: var(--petrol-950); padding: 7px 18px;
-            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-            border-bottom: 1px solid rgba(31,80,83,0.18);
+        /* ── Phase UX-2A.1 — composeur unique : le contexte devient une partie
+           optionnelle, repliée par défaut, du même bloc de saisie que la question
+           (avant : deux barres séparées, tout en haut et tout en bas de l'écran,
+           sans que rien n'indique laquelle est facultative et laquelle envoie). ── */
+        .adoc-context-toggle {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: none; border: 1px dashed var(--stone-300); color: var(--muted);
+            border-radius: 999px; padding: 4px 11px; font-size: 10px; font-weight: 600;
+            font-family: inherit; cursor: pointer; margin-bottom: 8px; max-width: 100%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .adoc-mode-label {
-            font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.35);
-            letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+        .adoc-context-toggle:hover, .adoc-context-toggle:focus-visible {
+            border-color: var(--petrol-800); color: var(--petrol-950);
+            outline: 2px solid var(--petrol-800); outline-offset: 1px;
         }
-        .adoc-context-wrap { display: flex; align-items: center; gap: 7px; flex: 1; }
-        .adoc-context-wrap span { font-size: 10px; color: rgba(255,255,255,0.3); white-space: nowrap; }
+        .adoc-context-toggle.has-value {
+            border-style: solid; border-color: var(--petrol-800);
+            background: var(--petrol-100); color: var(--petrol-950);
+        }
+        .adoc-context-panel {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+        }
+        .adoc-context-panel span {
+            font-size: 10px; color: var(--muted); white-space: nowrap;
+        }
         .adoc-context-inp {
-            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13);
-            border-radius: 6px; padding: 4px 10px; font-size: 11px; color: white;
-            font-family: inherit; flex: 1; max-width: 420px; outline: none; transition: border-color 0.15s;
+            background: var(--ivory); border: 1px solid var(--stone-300);
+            border-radius: 6px; padding: 5px 10px; font-size: 11px; color: var(--ink);
+            font-family: inherit; flex: 1; outline: none; transition: border-color 0.15s;
         }
-        .adoc-context-inp:focus { border-color: rgba(31,80,83,0.55); }
-        .adoc-mode-badge {
-            font-size: 10px; font-weight: 700; color: var(--petrol-800);
-            background: rgba(31,80,83,0.12); border: 1px solid rgba(31,80,83,0.25);
-            padding: 3px 10px; border-radius: 20px; white-space: nowrap; letter-spacing: .3px;
+        .adoc-context-inp:focus { border-color: var(--petrol-800); }
+        .adoc-context-inp::placeholder { color: var(--muted); opacity: 1; }
+        .adoc-context-close {
+            background: none; border: none; color: var(--muted); cursor: pointer;
+            font-size: 13px; padding: 4px; opacity: 0.7;
         }
-        .adoc-context-inp::placeholder { color: rgba(255,255,255,0.25); }
+        .adoc-context-close:hover { opacity: 1; color: var(--terracotta-700); }
+        /* Phase UX-2A correctifs — placeholders sans règle explicite = rendu non garanti
+           selon le navigateur (opacité par défaut variable) ; couleur/opacité fixées ici
+           pour un contraste AA garanti (5,11:1 avec var(--muted) à opacity:1 sur ivoire/blanc). */
+        #adoc-kv-therapist-id::placeholder, #adoc-kv-patient-id::placeholder { color: var(--muted); opacity: 1; }
+        /* Focus-visible manquant sur ces boutons (audit indépendant). Sélecteurs propres
+           à chaque classe : aucun conflit avec les règles plus spécifiques déjà en place
+           (.adoc-upload-zone, .adoc-doc-item, cartes de clarté, boutons de l'accueil).
+           Couleur/offset alignés sur le style déjà utilisé ailleurs dans le fichier
+           (cartes de clarté, boutons de continuation) : terracotta-700, 2px. */
+        /* Déclarations en propriétés longues (pas le raccourci "outline: ...") : dans ce
+           moteur de rendu, le raccourci combiné à var() perd sa largeur/couleur calculées
+           lorsqu'il est appliqué via une liste de sélecteurs groupés par virgule — vérifié
+           en isolant chaque bouton (voir rapport). Les propriétés longues n'ont pas ce
+           problème et donnent le même résultat visuel. */
+        .adoc-send-btn:focus-visible,
+        .adoc-quick-btn:focus-visible,
+        .adoc-context-close:focus-visible,
+        .adoc-exp-btn:focus-visible,
+        .adoc-output-dl:focus-visible {
+            outline-width: 2px;
+            outline-style: solid;
+            outline-color: var(--terracotta-700);
+            outline-offset: 2px;
+        }
+        /* .adoc-close-btn est sur le bandeau pétrole foncé (var(--petrol-950)) : un
+           contour terracotta-700 y tomberait à ~1,9:1, sous le seuil requis — contour
+           blanc à la place, même choix déjà fait pour .cc-doc-popup-close sur fond sombre. */
+        .adoc-close-btn:focus-visible {
+            outline-width: 2px;
+            outline-style: solid;
+            outline-color: white;
+            outline-offset: 2px;
+        }
+
+        /* ── Phase UX-2A.2 — jargon technique masqué hors mode développeur (Ctrl+D) ── */
+        .adoc-dev-only { display: none; }
+        .adoc-devmode-on .adoc-dev-only { display: block; }
+        .adoc-devmode-badge {
+            display: none; position: fixed; bottom: 14px; right: 14px; z-index: 9000;
+            background: var(--petrol-950); color: white; font-size: 11px; font-weight: 700;
+            padding: 6px 14px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            letter-spacing: .3px;
+        }
+        .adoc-devmode-on .adoc-devmode-badge { display: block; }
 
         /* ── Patient sidebar section N2 ── */
         .adoc-patient-box {
@@ -166,6 +268,12 @@
             padding: 16px 18px 14px;
             border-bottom: 1px solid var(--stone-200);
         }
+        /* Phase UX-2A.4 — signale visuellement le bloc le plus sensible de la sidebar */
+        .adoc-sidebar-sensitive {
+            background: var(--terracotta-100);
+            border-left: 3px solid var(--terracotta-700);
+            border-bottom: 1px solid var(--terracotta-600);
+        }
         .adoc-sidebar-title {
             font-size: 9px; font-weight: 700; color: var(--muted);
             letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
@@ -176,6 +284,8 @@
             transition: all 0.2s; background: var(--ivory); font-size: 11px;
         }
         .adoc-upload-zone:hover { border-color: var(--petrol-800); background: rgba(31,80,83,0.08); }
+        .adoc-upload-zone:focus-visible { outline: 2px solid var(--petrol-800); outline-offset: 2px; border-color: var(--petrol-800); }
+        .adoc-doc-item:focus-visible { outline: 2px solid var(--petrol-800); outline-offset: -2px; }
         .adoc-upload-zone .icon { font-size: 18px; margin-bottom: 4px; }
         .adoc-upload-zone .txt { color: var(--muted); font-weight: 500; }
         .adoc-upload-zone .sub { color: var(--muted); opacity: 0.7; font-size: 9px; margin-top: 2px; }
@@ -229,6 +339,12 @@
         .adoc-messages {
             flex: 1; overflow-y: auto; padding: 26px 34px;
             scroll-behavior: smooth;
+            /* Phase UX-2A.7 — une conversation courte s'ancre en bas plutôt que de
+               laisser une zone morte de plusieurs centaines de pixels sous les
+               premiers messages (même principe déjà appliqué à l'accueil) ; une
+               fois le contenu plus long que l'espace visible, le défilement normal
+               reprend le dessus sans rien changer au comportement. */
+            display: flex; flex-direction: column; justify-content: flex-end;
         }
         .adoc-welcome {
             display: flex; flex-direction: column; align-items: center;
@@ -349,6 +465,7 @@
             transition: border-color 0.2s; overflow-y: auto;
         }
         .adoc-textarea:focus { outline: none; border-color: var(--petrol-800); background: white; }
+        .adoc-textarea::placeholder { color: var(--muted); opacity: 1; }
         .adoc-send-btn {
             width: 40px; height: 40px; border-radius: 9px; border: none;
             background: var(--petrol-950); color: white; cursor: pointer;
@@ -375,6 +492,53 @@
 
         @keyframes adocMsgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes adocBounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+
+        /* ── Phase UX-2A.5 — responsive tranché explicitement pour Studio Clinique
+           (entité autonome, cf. Phase UX-0) : contrairement au shell Collaborateur où
+           window.VARIANT.responsive=false était un choix historique, activé ici. ── */
+        .adoc-sidebar-toggle {
+            display: none; background: none; border: none; color: white;
+            font-size: 18px; cursor: pointer; padding: 4px 8px; margin-right: 2px;
+            border-radius: 6px;
+        }
+        .adoc-sidebar-toggle:hover, .adoc-sidebar-toggle:focus-visible {
+            background: rgba(255,255,255,0.12); outline: 2px solid rgba(255,255,255,0.4);
+        }
+        .adoc-sidebar-backdrop {
+            display: none; position: fixed; inset: 0; background: rgba(16,47,49,0.5); z-index: 899;
+        }
+
+        @media (max-width: 980px) {
+            .adoc-sidebar { width: 220px; }
+            .adoc-messages { padding: 20px 22px; }
+            .adoc-quick-btns { gap: 4px; }
+        }
+
+        @media (max-width: 768px) {
+            /* Tablette portrait a minima (exigence CDC) : sidebar devient un tiroir
+               plutôt que de compresser la conversation à quelques centaines de pixels. */
+            .adoc-sidebar-toggle { display: inline-block; }
+            .adoc-sidebar {
+                position: fixed; top: 0; bottom: 0; left: 0; width: 280px; max-width: 82vw;
+                z-index: 900; transform: translateX(-100%); transition: transform 0.2s ease;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+            }
+            .adoc-sidebar.open { transform: translateX(0); }
+            .adoc-sidebar-backdrop.open { display: block; }
+            .adoc-header-title { font-size: 14px; }
+            .adoc-header-sub { display: none; } /* libellé secondaire — priorité à la place disponible */
+            .adoc-messages { padding: 16px 14px; }
+            .adoc-bubble { max-width: 88%; }
+            .adoc-input-zone { padding: 14px 14px; }
+            .adoc-quick-btns { gap: 4px; }
+            .adoc-quick-btn { padding: 4px 8px; font-size: 9px; }
+        }
+
+        @media (max-width: 480px) {
+            .adoc-header-left span[style*="font-size:20px"] { display: none; } /* icône décorative seule à disparaître en 1er */
+            .adoc-close-btn { padding: 6px 10px; font-size: 11px; }
+            .adoc-send-btn { width: 36px; height: 36px; }
+        }
 
         /* ── Phase UX-2bis — carte de clarification ────────────────────────── */
         /* Palette volontairement alignée sur l'écran d'accueil #cc-landing     */
@@ -704,6 +868,14 @@
       background: var(--terracotta-600);
     }
 
+    /* BRAND-SC-01 — signature de marque, sous la barre de séparation */
+    #cc-landing .brand .tagline {
+      margin: 0.75rem 0 0;
+      color: var(--petrol-800);
+      font-style: italic;
+      font-size: clamp(0.85rem, 1.1vw, 1rem);
+    }
+
     #cc-landing .library-proof {
       display: flex;
       align-items: stretch;
@@ -835,6 +1007,19 @@
       height: 0.95rem;
       flex: none;
       color: var(--terracotta-700);
+    }
+
+    /* Phase UX-2A.10 — joindre un document dès l'accueil */
+    #cc-landing .cc-landing-upload { margin-top: 0.3rem; }
+    #cc-landing .cc-landing-upload-label {
+      font-size: 0.85rem; font-weight: 600; color: var(--ink); margin-bottom: 0.5rem;
+    }
+    #cc-landing .cc-landing-upload-optional { font-weight: 400; color: var(--muted); }
+    #cc-landing .cc-landing-upload .adoc-upload-zone {
+      border-radius: 0.75rem; padding: 0.9rem 0.8rem;
+    }
+    #cc-landing .cc-landing-upload .adoc-doc-item {
+      background: var(--paper); border: 1px solid var(--stone-300);
     }
 
     #cc-landing .question-field::placeholder {
@@ -1268,6 +1453,54 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* ── Phase UX-8A — moteur de rendu canonique, modèle minimal des deux pilotes ──
+       Utilise exclusivement les jetons de charte déjà en production (pétrole/terracotta/
+       ivoire, déjà audités AA en Phase UX-2A) — jamais de couleur nouvelle introduite ici,
+       cohérent avec tokensSnapshotId pointant vers studio-clinique-default. */
+    .adoc-sc-doc {
+      font-family: "Source Serif 4", Georgia, serif;
+      color: var(--ink); line-height: 1.65; font-size: 15px;
+    }
+    .adoc-sc-heading {
+      color: var(--petrol-950); font-family: "Source Serif 4", Georgia, serif;
+      margin: 1.3em 0 0.5em; line-height: 1.2;
+    }
+    .adoc-sc-heading:first-child { margin-top: 0; }
+    .adoc-sc-paragraph { margin: 0 0 1em; }
+    .adoc-sc-callout {
+      padding: 12px 16px; border-radius: 8px; margin: 1em 0; border-left: 4px solid;
+      font-size: 14px;
+    }
+    .adoc-sc-callout-info    { background: var(--petrol-100);     border-color: var(--petrol-800); }
+    .adoc-sc-callout-warning { background: var(--terracotta-100); border-color: var(--terracotta-700); }
+    .adoc-sc-callout-critical{ background: #fdeaea; border-color: #c0392b; }
+    .adoc-sc-callout-success { background: #e8f5e9; border-color: #2e7d32; }
+    .adoc-sc-list { margin: 0 0 1em 1.4em; }
+    .adoc-sc-list li { margin-bottom: 0.3em; }
+    .adoc-sc-table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 13px; }
+    .adoc-sc-table th, .adoc-sc-table td { border: 1px solid var(--stone-300); padding: 6px 10px; text-align: left; }
+    .adoc-sc-table th { background: var(--petrol-100); color: var(--petrol-950); }
+    .adoc-sc-quote {
+      border-left: 3px solid var(--terracotta-700); padding-left: 12px;
+      font-style: italic; color: var(--petrol-900); margin: 1em 0;
+    }
+    .adoc-sc-cite { color: var(--terracotta-700); font-size: 0.7em; margin-left: 2px; }
+    .adoc-sc-needs-review { outline: 2px dashed #c0392b; outline-offset: 3px; border-radius: 4px; }
+    .adoc-sc-carrousel {
+      display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 16px;
+      scroll-snap-type: x proximity;
+    }
+    .adoc-sc-card {
+      flex: 0 0 320px; scroll-snap-align: start;
+      background: var(--paper); border: 1px solid var(--stone-300); border-radius: 12px;
+      padding: 18px;
+    }
+    .adoc-sc-card-title {
+      color: var(--petrol-950); font-family: "Source Serif 4", Georgia, serif;
+      margin: 0 0 10px; font-size: 1.1rem;
+    }
+    .adoc-sc-card-img { width: 100%; border-radius: 8px; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
@@ -1287,8 +1520,9 @@
     <header class="masthead">
       <div class="masthead-inner">
         <div class="brand">
-          <h1>Conseiller Clinique</h1>
-          <p>Bibliothèque thérapeutique · IA + RAG</p>
+          <h1>Studio Clinique</h1>
+          <p>Bibliothèque thérapeutique · Création clinique assistée</p>
+          <p class="tagline">Des sources solides. Des documents qui restent les vôtres.</p>
         </div>
 
         <ul class="library-proof" aria-label="Contenu de la bibliothèque">
@@ -1316,7 +1550,7 @@
           <div class="section-heading">
             <span class="step-number" aria-hidden="true">1</span>
             <div class="heading-copy">
-              <label class="field-label" for="clinical-question">Votre question clinique</label>
+              <label class="field-label" for="clinical-question">Que souhaitez-vous créer ou explorer ?</label>
               <p>Décrivez ce que vous souhaitez comprendre, comparer ou transformer en support de travail.</p>
             </div>
           </div>
@@ -1336,6 +1570,25 @@
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2"/><rect x="2.5" y="7" width="11" height="7" rx="2"/></svg>
               Utilisez des initiales plutôt que des données identifiantes.
             </span>
+          </div>
+
+          <!-- Phase UX-2A.10 — joindre un document dès l'accueil, même composant et même
+               extraction que le panneau "Documents joints" de la conversation (qui reste
+               disponible ensuite, en complément, pour en ajouter d'autres en cours d'échange). -->
+          <div class="cc-landing-upload">
+            <div class="cc-landing-upload-label">Document à joindre <span class="cc-landing-upload-optional">(optionnel)</span></div>
+            <div class="adoc-upload-zone" id="cc-landing-upload-zone" role="button" tabindex="0"
+              aria-label="Déposer ou choisir un document à joindre à votre question — PDF, DOCX, TXT, JSON ou MD"
+              onclick="document.getElementById('cc-landing-file-input').click()"
+              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cc-landing-file-input').click();}">
+              <div class="icon">📎</div>
+              <div class="txt">Déposer ou cliquer</div>
+              <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
+            </div>
+            <input type="file" id="cc-landing-file-input" multiple accept=".pdf,.docx,.txt,.json,.html,.htm,.md,.csv" style="display:none"
+              onchange="window.adocHandleUpload && window.adocHandleUpload(this.files)">
+            <div id="cc-landing-upload-progress" style="display:none;font-size:11px;color:var(--petrol-800);margin-top:8px;padding:6px 10px;background:var(--petrol-100);border-radius:6px;"></div>
+            <div id="cc-landing-upload-list" style="margin-top:8px;"></div>
           </div>
         </div>
 
@@ -1366,11 +1619,11 @@
 
 
         <fieldset>
-          <legend>Choisissez le format du document</legend>
+          <legend>Choisissez le type de document</legend>
           <div class="section-heading">
             <span class="step-number" aria-hidden="true">2</span>
             <div class="heading-copy">
-              <div class="field-label">Choisissez votre format</div>
+              <div class="field-label">Type de document</div>
               <p>Le contenu sera structuré directement pour l’usage que vous en ferez.</p>
             </div>
           </div>
@@ -1568,6 +1821,26 @@
           document.querySelector('#library-passages').textContent = passages.toLocaleString('fr-FR');
         }
       };
+
+      // Phase UX-2A.10 — glisser-déposer sur la zone de dépôt de l'accueil ; le clic est
+      // déjà géré par l'attribut onclick de la zone. window.adocHandleUpload (extraction
+      // pdf.js/Mammoth déjà validée) n'est appelé qu'au moment du dépôt, jamais ici — à ce
+      // moment le script hôte (IIFE Assistant Doc v2, plus bas dans le fichier) est déjà chargé.
+      const landingUploadZone = document.querySelector('#cc-landing-upload-zone');
+      if (landingUploadZone) {
+        landingUploadZone.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          landingUploadZone.style.borderColor = 'var(--petrol-800)';
+        });
+        landingUploadZone.addEventListener('dragleave', () => {
+          landingUploadZone.style.borderColor = '';
+        });
+        landingUploadZone.addEventListener('drop', (event) => {
+          event.preventDefault();
+          landingUploadZone.style.borderColor = '';
+          if (window.adocHandleUpload) window.adocHandleUpload(event.dataTransfer.files);
+        });
+      }
     })();
 
 </script>
@@ -1576,14 +1849,20 @@
 <!-- ASSISTANT DOC v2 — ÉCRAN OVERLAY MODE COLLAB       -->
 <!-- ═══════════════════════════════════════════════════ -->
 <div id="assistdoc-screen">
+  <!-- Phase UX-2A.5 — fond de fermeture du panneau latéral en dessous de 768px -->
+  <div class="adoc-sidebar-backdrop" id="adoc-sidebar-backdrop" onclick="adocToggleSidebar(false)"></div>
 
   <!-- Header -->
   <div class="adoc-header">
     <div class="adoc-header-left">
+      <!-- Phase UX-2A.5 — bascule sidebar, visible uniquement en dessous de 768px -->
+      <button type="button" class="adoc-sidebar-toggle" id="adoc-sidebar-toggle"
+        onclick="adocToggleSidebar()" aria-expanded="false" aria-controls="adoc-sidebar-panel"
+        aria-label="Afficher ou masquer le panneau latéral">☰</button>
       <span style="font-size:20px;">📚</span>
       <div>
-        <div class="adoc-header-title">Conseiller Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.4.1-fiabilise</span></div>
-        <div class="adoc-header-sub" id="adoc-mode-sub">Bibliothèque thérapeutique · IA + RAG</div>
+        <div class="adoc-header-title">Studio Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.6.0-studio</span></div>
+        <div class="adoc-header-sub" id="adoc-mode-sub">Bibliothèque thérapeutique · Création clinique assistée</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -1592,50 +1871,29 @@
     </div>
   </div>
 
-  <!-- Contexte de session (simplifié) -->
-  <div class="adoc-mode-bar" style="gap:8px;">
-    <span style="font-size:11px;color:var(--muted);white-space:nowrap;">Contexte :</span>
-    <input class="adoc-context-inp" id="adoc-context-inp" type="text" style="flex:1;"
-      placeholder="ex: couple avec trauma d'abandon, travail en ACT, supervision de cas…"
-      oninput="adocSetContext(this.value)" />
-  </div>
-
   <!-- Body -->
   <div class="adoc-body">
 
     <!-- Sidebar -->
-    <div class="adoc-sidebar">
-      <div class="adoc-sidebar-section">
-        <div class="adoc-sidebar-title">Documents joints</div>
-        <div class="adoc-upload-zone" id="adoc-upload-zone" onclick="document.getElementById('adoc-file-input').click()">
-          <div class="icon">📎</div>
-          <div class="txt">Déposer ou cliquer</div>
-          <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
-        </div>
-        <input type="file" id="adoc-file-input" multiple accept=".pdf,.docx,.txt,.json,.html,.htm,.md,.csv" style="display:none" onchange="adocHandleUpload(this.files)">
-        <div id="adoc-upload-progress" style="display:none;font-size:10px;color:var(--petrol-800);margin-top:6px;padding:5px 8px;background:var(--petrol-100);border-radius:6px;"></div>
-      </div>
-
-      <!-- Dossier patient N2 -->
-      <div class="adoc-sidebar-section" id="adoc-patient-section" style="display:none;">
-        <div class="adoc-sidebar-title">Dossier patient actif</div>
-        <div class="adoc-patient-box" id="adoc-patient-box"></div>
-      </div>
-
-      <!-- Mémoire KV inter-sessions (P1-1) -->
-      <div class="adoc-sidebar-section">
-        <div class="adoc-sidebar-title">🧠 Mémoire patient</div>
+    <div class="adoc-sidebar" id="adoc-sidebar-panel">
+      <!-- Phase UX-2A.4 — Mémoire patient remontée en premier : c'est la fonction la
+           plus sensible de l'écran (identification patient), elle passait avant après
+           "Documents joints" qui n'a rien de sensible. Traitement visuel légèrement
+           renforcé (bordure gauche) pour signaler cette sensibilité, pas seulement la
+           position. -->
+      <div class="adoc-sidebar-section adoc-sidebar-sensitive">
+        <div class="adoc-sidebar-title">🔒 Mémoire patient</div>
         <!-- P3-3 : ID thérapeute -->
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">
           <input id="adoc-kv-therapist-id" type="text" placeholder="ID thérapeute (optionnel)"
             style="flex:1;padding:4px 8px;border:1px solid var(--stone-300);border-radius:5px;font-size:10px;background:var(--ivory);color:var(--muted);"
-            oninput="adocKvTherapistIdChange(this.value)" />
+            oninput="adocKvTherapistIdChange(this.value)" aria-label="ID thérapeute, optionnel" />
         </div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
           <input id="adoc-kv-patient-id" type="text" placeholder="ID patient (ex: dupont-marie)"
             style="flex:1;padding:5px 8px;border:1px solid var(--stone-300);border-radius:5px;font-size:11px;background:#fff;"
-            oninput="adocKvPatientIdChange(this.value)" />
-          <button onclick="adocKvLoad()" title="Charger le dossier"
+            oninput="adocKvPatientIdChange(this.value)" aria-label="ID patient" />
+          <button onclick="adocKvLoad()" title="Charger le dossier de ce patient" aria-label="Charger le dossier de ce patient"
             style="padding:4px 8px;background:var(--petrol-950);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">↓</button>
         </div>
         <div id="adoc-kv-status" style="font-size:10px;color:var(--muted);min-height:14px;"></div>
@@ -1645,11 +1903,34 @@
             style="flex:1;padding:4px;background:var(--petrol-800);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
             💾 Sauvegarder
           </button>
-          <button onclick="adocKvClear()" title="Effacer ID patient"
-            style="padding:4px 8px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;">
-            ✕
+          <!-- Phase UX-2A.4 — bouton "×" sans texte : sa fonction réelle (adocKvClear)
+               ferme ce dossier dans l'écran, sans rien supprimer côté serveur — libellé
+               explicite pour ne pas laisser croire à une suppression de données. -->
+          <button onclick="adocKvClear()" title="Fermer ce dossier ici — les séances déjà enregistrées ne sont pas supprimées" aria-label="Fermer le dossier patient actif"
+            style="padding:4px 10px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;white-space:nowrap;">
+            ✕ Fermer
           </button>
         </div>
+      </div>
+
+      <!-- Dossier patient N2 -->
+      <div class="adoc-sidebar-section" id="adoc-patient-section" style="display:none;">
+        <div class="adoc-sidebar-title">Dossier patient actif</div>
+        <div class="adoc-patient-box" id="adoc-patient-box"></div>
+      </div>
+
+      <div class="adoc-sidebar-section">
+        <div class="adoc-sidebar-title">Documents joints</div>
+        <div class="adoc-upload-zone" id="adoc-upload-zone" role="button" tabindex="0"
+          aria-label="Déposer ou choisir un document — PDF, DOCX, TXT, JSON ou MD"
+          onclick="document.getElementById('adoc-file-input').click()"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('adoc-file-input').click();}">
+          <div class="icon">📎</div>
+          <div class="txt">Déposer ou cliquer</div>
+          <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
+        </div>
+        <input type="file" id="adoc-file-input" multiple accept=".pdf,.docx,.txt,.json,.html,.htm,.md,.csv" style="display:none" onchange="adocHandleUpload(this.files)">
+        <div id="adoc-upload-progress" style="display:none;font-size:10px;color:var(--petrol-800);margin-top:6px;padding:5px 8px;background:var(--petrol-100);border-radius:6px;"></div>
       </div>
 
       <div class="adoc-docs-list" id="adoc-docs-list">
@@ -1666,12 +1947,13 @@
       </div>
 
       <div class="adoc-stats" id="adoc-stats">
-        <div class="adoc-sidebar-title">Bibliothèque RAG</div>
+        <!-- Phase UX-2A.2 — libellés cliniques (remplace le jargon RAG/chunks/index) -->
+        <div class="adoc-sidebar-title">Bibliothèque thérapeutique</div>
         <div class="adoc-stat-row"><span>Ouvrages</span><span class="adoc-stat-val" id="adoc-stat-books">—</span></div>
-        <div class="adoc-stat-row"><span>Chunks</span><span class="adoc-stat-val" id="adoc-stat-chunks">—</span></div>
-        <div class="adoc-stat-row"><span>Index</span><span class="adoc-stat-val" id="adoc-stat-appr">—</span></div>
-        <!-- P3-2 : Sync-check D1↔Vectorize -->
-        <div style="margin-top:8px;">
+        <div class="adoc-stat-row"><span>Passages disponibles</span><span class="adoc-stat-val" id="adoc-stat-chunks">—</span></div>
+        <div class="adoc-stat-row"><span>Approches représentées</span><span class="adoc-stat-val" id="adoc-stat-appr">—</span></div>
+        <!-- P3-2 : Sync-check D1↔Vectorize — jargon technique, mode développeur uniquement (Ctrl+D) -->
+        <div style="margin-top:8px;" class="adoc-dev-only">
           <button onclick="adocRunSyncCheck()" id="adoc-sync-btn"
             style="width:100%;padding:4px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
             🔍 Vérifier sync D1↔Vector
@@ -1686,7 +1968,7 @@
       <div class="adoc-messages" id="adoc-messages">
         <div class="adoc-welcome" id="adoc-welcome">
           <div class="adoc-welcome-icon">📚</div>
-          <div class="adoc-welcome-title">Conseiller Clinique</div>
+          <div class="adoc-welcome-title">Studio Clinique</div>
           <div class="adoc-welcome-text">
             Posez votre question, demandez un cours, un tableau, un carrousel…<br>
             Le conseiller consulte votre <span id="adoc-welcome-book-count">bibliothèque thérapeutique</span> et produit<br>
@@ -1707,9 +1989,23 @@
       <div class="adoc-input-zone">
         <div class="adoc-doc-banner" id="adoc-doc-banner">
           <span>📄</span><span id="adoc-doc-banner-name">Document actif</span>
-          <span style="margin-left:auto;cursor:pointer;opacity:0.6;" onclick="adocClearDoc()">✕</span>
+          <button type="button" style="margin-left:auto;background:none;border:none;cursor:pointer;opacity:0.6;font-size:13px;color:inherit;padding:2px;" onclick="adocClearDoc()" aria-label="Retirer ce document actif de la demande">✕</button>
         </div>
         <div class="adoc-doc-truncnotice" id="adoc-doc-truncnotice"></div>
+        <!-- Phase UX-2A.1 — composeur unique : le contexte est optionnel et replié par
+             défaut, clairement distinct de la question ci-dessous qui, elle, envoie. -->
+        <button type="button" class="adoc-context-toggle" id="adoc-context-toggle"
+          onclick="adocToggleContext()" aria-expanded="false" aria-controls="adoc-context-panel">
+          + Ajouter un contexte de conversation (optionnel)
+        </button>
+        <div class="adoc-context-panel" id="adoc-context-panel" style="display:none;">
+          <span>Contexte, mémorisé pour toutes vos questions ici :</span>
+          <input class="adoc-context-inp" id="adoc-context-inp" type="text"
+            placeholder="ex: couple avec trauma d'abandon, travail en ACT, supervision de cas…"
+            oninput="adocSetContext(this.value)"
+            aria-label="Contexte de la conversation, optionnel, mémorisé pour toutes vos questions" />
+          <button type="button" class="adoc-context-close" id="adoc-context-close" onclick="adocToggleContext(false)" aria-label="Fermer le champ de contexte">✕</button>
+        </div>
         <div class="adoc-quick-btns" id="adoc-quick-btns">
           <button class="adoc-quick-btn" onclick="adocInsert('carrousel')">🎠 Carrousel</button>
           <button class="adoc-quick-btn" onclick="adocInsert('tableau')">📊 Tableau</button>
@@ -1720,11 +2016,12 @@
         <div class="adoc-input-row">
           <textarea class="adoc-textarea" id="adoc-input"
             placeholder="Posez votre question… (Entrée pour envoyer, Maj+Entrée pour saut de ligne)"
-            onkeydown="adocKey(event)" oninput="adocResize(this)" rows="1"></textarea>
-          <button class="adoc-send-btn" id="adoc-send-btn" onclick="adocSend()" title="Envoyer">➤</button>
+            onkeydown="adocKey(event)" oninput="adocResize(this)" rows="1"
+            aria-label="Votre question — Entrée pour envoyer"></textarea>
+          <button class="adoc-send-btn" id="adoc-send-btn" onclick="adocSend()" title="Envoyer" aria-label="Envoyer la question">➤</button>
         </div>
         <div class="adoc-footer-row">
-          <span id="adoc-rag-status" style="font-size:10px;color:var(--muted);">RAG —</span>
+          <span id="adoc-rag-status" style="font-size:10px;color:var(--muted);">Bibliothèque —</span>
           <button class="adoc-exp-btn" onclick="adocClear()" title="Effacer la conversation" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--muted);opacity:0.6;">🗑 Effacer</button>
         </div>
       </div>
@@ -1732,6 +2029,9 @@
 
   </div>
 </div>
+
+<!-- Phase UX-2A.2 — mode développeur (Ctrl+D) : révèle les blocs .adoc-dev-only -->
+<div class="adoc-devmode-badge" id="adoc-devmode-badge">🛠 Mode développeur — Ctrl+D pour quitter</div>
 
 <!-- ═══ Phase UX-1 / UX-1ter — popup document en taille réelle ═══ -->
 <div class="cc-doc-popup-overlay" id="cc-doc-popup-overlay" role="dialog" aria-modal="true" aria-labelledby="cc-doc-popup-title">
@@ -1917,6 +2217,17 @@
   }
 
 
+  // ── Phase UX-2A.2 — mode développeur (Ctrl+D) : révèle tokens/coût et le bouton
+  // de sync D1↔Vectorize, invisibles sinon (jargon technique hors du parcours normal).
+  let adocDevMode = false;
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault(); // sinon le navigateur ouvre son propre "Ajouter un favori"
+      adocDevMode = !adocDevMode;
+      document.body.classList.toggle('adoc-devmode-on', adocDevMode);
+    }
+  });
+
   // ── State ──
   let adocConversations = [];
   let adocDocs = [];
@@ -2006,7 +2317,52 @@
   // ── N2 — Contexte de session ──
   window.adocSetContext = function(val) {
     adocSessionContext = val.trim();
+    adocUpdateContextToggleLabel();
   };
+
+  // Phase UX-2A.1 — composeur unique : le contexte est replié par défaut, son
+  // libellé reflète son état (vide vs rempli) sans jamais se confondre avec la
+  // question elle-même, qui reste seule à déclencher l'envoi.
+  function adocUpdateContextToggleLabel() {
+    const btn = document.getElementById('adoc-context-toggle');
+    if (!btn) return;
+    if (adocSessionContext) {
+      btn.textContent = '✓ Contexte : ' + (adocSessionContext.length > 40 ? adocSessionContext.substring(0, 40) + '…' : adocSessionContext);
+      btn.classList.add('has-value');
+    } else {
+      btn.textContent = '+ Ajouter un contexte de conversation (optionnel)';
+      btn.classList.remove('has-value');
+    }
+  }
+
+  window.adocToggleContext = function(forceState) {
+    const panel = document.getElementById('adoc-context-panel');
+    const toggle = document.getElementById('adoc-context-toggle');
+    if (!panel || !toggle) return;
+    const willOpen = typeof forceState === 'boolean' ? forceState : panel.style.display === 'none';
+    panel.style.display = willOpen ? 'flex' : 'none';
+    toggle.style.display = willOpen ? 'none' : 'inline-flex';
+    toggle.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) {
+      setTimeout(function () { document.getElementById('adoc-context-inp')?.focus(); }, 20);
+    }
+  };
+
+  // Phase UX-2A.5 — bascule du tiroir sidebar (≤768px uniquement, la CSS masque le
+  // bouton et neutralise le comportement fixe/tiroir au-dessus de ce seuil).
+  window.adocToggleSidebar = function (forceState) {
+    const sidebar = document.getElementById('adoc-sidebar-panel');
+    const backdrop = document.getElementById('adoc-sidebar-backdrop');
+    const toggle = document.getElementById('adoc-sidebar-toggle');
+    if (!sidebar || !toggle) return;
+    const willOpen = typeof forceState === 'boolean' ? forceState : !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', willOpen);
+    if (backdrop) backdrop.classList.toggle('open', willOpen);
+    toggle.setAttribute('aria-expanded', String(willOpen));
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') window.adocToggleSidebar(false);
+  });
 
   // ── Helper URL Worker (fallback hardcodé) ──
   function adocGetWorkerUrl() {
@@ -2091,7 +2447,7 @@
         document.getElementById('adoc-stat-chunks').textContent = chunks.toLocaleString('fr');
         document.getElementById('adoc-stat-appr').textContent   = appr;
         document.getElementById('adoc-rag-badge').textContent   = `📚 ${books} ouvrages`;
-        document.getElementById('adoc-rag-status').textContent  = `Bibliothèque : ${books} ouvrages · ${chunks.toLocaleString('fr')} chunks`;
+        document.getElementById('adoc-rag-status').textContent  = `Bibliothèque : ${books} ouvrages · ${chunks.toLocaleString('fr')} passages disponibles`;
         // Même source pour le message de bienvenue — plus aucune valeur codée en dur
         const welcomeCount = document.getElementById('adoc-welcome-book-count');
         if (welcomeCount && books) welcomeCount.textContent = books + ' ouvrages';
@@ -2161,12 +2517,17 @@
   // tel quel). DOCX : Mammoth (texte brut — un .docx n'a pas de pagination fixe
   // dans son XML, donc pas de vrai numéro de page à donner ; on le dit explicitement
   // plutôt que d'inventer un découpage).
+  // Phase UX-2A.10 — même progression affichée quel que soit l'écran d'où l'upload
+  // a été lancé (accueil ou conversation) ; l'élément absent sur l'écran non actif
+  // est silencieusement ignoré.
   function adocUploadProgress(text) {
-    const el = document.getElementById('adoc-upload-progress');
-    if (!el) return;
-    if (text === null) { el.style.display = 'none'; el.textContent = ''; return; }
-    el.style.display = 'block';
-    el.textContent = text;
+    ['adoc-upload-progress', 'cc-landing-upload-progress'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (text === null) { el.style.display = 'none'; el.textContent = ''; return; }
+      el.style.display = 'block';
+      el.textContent = text;
+    });
   }
 
   async function extractPDFText(file, progressCb) {
@@ -2274,19 +2635,30 @@
     return n + ' ' + unit;
   }
 
+  // Phase UX-2A.10 — un seul rendu de la liste, écrit dans les deux emplacements
+  // qui peuvent l'afficher (zone de dépôt de l'accueil + panneau de conversation,
+  // ce dernier restant disponible pour joindre d'autres documents en cours
+  // d'échange). Même composant, même comportement, aucune divergence possible.
   function adocRenderDocs() {
-    const list = document.getElementById('adoc-docs-list');
-    if (!adocDocs.length) { list.innerHTML = '<div style="text-align:center;padding:14px 8px;font-size:10px;color:var(--muted);opacity:0.7;">Aucun document importé</div>'; return; }
+    const emptyHtml = '<div style="text-align:center;padding:14px 8px;font-size:10px;color:var(--muted);opacity:0.7;">Aucun document importé</div>';
     const icons = { pdf:'📄', docx:'📝', txt:'📃', json:'🔧', html:'🌐', md:'📋', csv:'📊' };
-    list.innerHTML = adocDocs.map((d, i) => `
-      <div class="adoc-doc-item ${adocActiveDoc===i?'active':''}" onclick="adocSetDoc(${i})" title="${d.extractNote ? adocEsc(d.extractNote) : ''}">
-        <span>${icons[d.type]||'📁'}</span>
+    const html = !adocDocs.length ? emptyHtml : adocDocs.map((d, i) => `
+      <div class="adoc-doc-item ${adocActiveDoc===i?'active':''}" onclick="adocSetDoc(${i})"
+        role="button" tabindex="0" aria-pressed="${adocActiveDoc===i}"
+        aria-label="${adocEsc(d.name)}, ${adocActiveDoc===i ? 'document actif — activer pour désélectionner' : 'activer pour utiliser comme contexte'}"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();adocSetDoc(${i});}"
+        title="${d.extractNote ? adocEsc(d.extractNote) : ''}">
+        <span aria-hidden="true">${icons[d.type]||'📁'}</span>
         <div style="flex:1;min-width:0">
           <div class="adoc-doc-name" title="${d.name}">${d.name}</div>
           <div class="adoc-doc-meta">${d.words?.toLocaleString('fr')||'?'} mots${d.pages ? ' · ' + adocPagesLabel(d) : ''}${d.extractNote ? ' · ⚠️' : ''}</div>
         </div>
-        <span class="adoc-doc-rm" onclick="adocRemoveDoc(event,${i})">✕</span>
+        <button type="button" class="adoc-doc-rm" style="background:none;border:none;font-family:inherit;" onclick="adocRemoveDoc(event,${i})" aria-label="Supprimer ${adocEsc(d.name)}">✕</button>
       </div>`).join('');
+    ['adoc-docs-list', 'cc-landing-upload-list'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = (id === 'cc-landing-upload-list' && !adocDocs.length) ? '' : html;
+    });
   }
 
   // Phase B0 (suite) — la troncature à 8000 caractères était déjà signalée au modèle
@@ -3251,7 +3623,7 @@ RÈGLES ABSOLUES :
     const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
 
     return (
-      `Tu es le Conseiller Clinique (CC) de C Concept&Dev.
+      `Tu es le Studio Clinique de C Concept&Dev.
 
 Tu es un penseur de premier plan en psychothérapie, sciences humaines et communication.
 Tu penses en natif. Tu raisonnes, tu crées, tu questionnes.
@@ -4351,7 +4723,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       } else if (fmt === 'zip') {
         workerUrl = ADOC_WORKER + '/generate-zip';
         // ZIP enrichi : HTML + README
-        const readmeMd = '# ' + topic + '\n\nDocument généré par le Conseiller Clinique · C Concept&Dev\n\n'
+        const readmeMd = '# ' + topic + '\n\nDocument généré par le Studio Clinique · C Concept&Dev\n\n'
           + '## Contenu du ZIP\n- `index.html` — Document complet (ouvrir dans un navigateur)\n\n'
           + '## Usage\nOuvrir `index.html` dans Chrome ou Firefox pour consulter le document.\n\n'
           + '## Source\nGénéré le ' + new Date().toLocaleDateString('fr-FR') + ' · Bibliothèque thérapeutique '
@@ -4496,7 +4868,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           '<div style="font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + adocEsc(topic) + '</div>' +
           '<div style="font-size:10px;opacity:0.6;">Document · HTML</div>' +
         '</div>' +
-        '<button data-key="' + storeKey + '" data-action="download-html" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">⬇ Télécharger</button>' +
+        '<button data-key="' + storeKey + '" data-action="download-html" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">⬇ Exporter</button>' +
       '</div>' +
       '<div style="position:relative;height:280px;background:var(--ivory);">' +
         '<iframe src="' + blobUrl + '" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts" loading="lazy"></iframe>' +
@@ -4555,7 +4927,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           ? '<button data-key="' + storeKey + '" data-action="preview" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.5);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔍 Aperçu</button>'
           : '') +
         (downloadUrl
-          ? '<button data-key="' + storeKey + '" data-action="download" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ Télécharger</button>'
+          ? '<button data-key="' + storeKey + '" data-action="download" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ Exporter</button>'
           : (artSrc?.htmlBlobUrl && (fmt === 'pdf' || artSrc?.fmt === 'pdf-fallback'))
             ? '<button onclick="(function(){var w=window.open(window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl,\'_blank\');if(!w){var a=document.createElement(\'a\');a.href=window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl;a.target=\'_blank\';a.click();}})()" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️ Imprimer → PDF</button>'
             : '<span style="font-size:11px;opacity:0.7;">⏳ Génération…</span>') +
@@ -4663,7 +5035,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const dlBtn = document.createElement('button');
     dlBtn.className = 'adoc-output-dl';
     dlBtn.style.background = meta.color;
-    dlBtn.title = 'Télécharger ' + meta.label;
+    dlBtn.title = 'Exporter ' + meta.label;
     dlBtn.textContent = '⬇';
     dlBtn.addEventListener('click', function() {
       const art = window._adocArtifacts?.[storeKey];
@@ -4811,7 +5183,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     const dlBtn = document.createElement('button');
     dlBtn.className = 'adoc-output-dl';
-    dlBtn.title = 'Télécharger ' + ext.toUpperCase();
+    dlBtn.title = 'Exporter ' + ext.toUpperCase();
     dlBtn.textContent = '⬇';
     dlBtn.addEventListener('click', function() {
       const a = document.createElement('a');
@@ -5049,7 +5421,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const modeLabels = { reflexion:'🔮 Réflexion', consultation:'🩺 Consultation', production:'✍️ Production' };
 
     if (format === 'txt') {
-      let txt = `CONSEILLER CLINIQUE — C Concept&Dev\nExport du ${date} à ${time}\nMode : ${'Conseiller Clinique'}\n${'═'.repeat(50)}\n\n`;
+      let txt = `STUDIO CLINIQUE — C Concept&Dev\nExport du ${date} à ${time}\nMode : ${'Studio Clinique'}\n${'═'.repeat(50)}\n\n`;
       if (adocSessionContext) txt += `Contexte : ${adocSessionContext}\n${'─'.repeat(35)}\n\n`;
       adocConversations.forEach(m => { txt += `[${m.role.toUpperCase()}]\n${m.content}\n\n${'─'.repeat(35)}\n\n`; });
       adocDownload(txt, `consultation-${Date.now()}.txt`, 'text/plain');
@@ -5065,13 +5437,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       const msgCount = adocConversations.filter(m => m.role === 'user').length;
       const msgs = adocConversations.map((m) => {
         if (m.role === 'user') return `<div class="msg-w user-w"><span class="chip user-chip">Vous</span><div class="msg user"><p>${adocEsc(m.content).replace(/\n/g,'<br>')}</p></div></div>`;
-        return `<div class="msg-w asst-w"><span class="chip asst-chip">${'Conseiller Clinique'}</span><div class="msg asst">${adocRenderMdExport(m.content)}</div></div>`;
+        return `<div class="msg-w asst-w"><span class="chip asst-chip">${'Studio Clinique'}</span><div class="msg asst">${adocRenderMdExport(m.content)}</div></div>`;
       }).join('\n');
 
       const ctxBanner = adocSessionContext
         ? `<div style="background:var(--terracotta-100);border-left:4px solid var(--terracotta-700);padding:10px 18px;margin:0 0 20px;border-radius:0 8px 8px 0;font-size:12px;color:var(--terracotta-700);"><strong>Contexte de session :</strong> ${adocEsc(adocSessionContext)}</div>` : '';
 
-      const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Conseiller Clinique — ${date}</title>
+      const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Studio Clinique — ${date}</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
 <style>
 :root{--mer:#1f5053;--deep:#102f31;--sable:#f6f2ea;--beige:#ddd7cc;--violet:#8a3f29;--vl:#f4e5de;--text:#273331;--muted:#5d6966;--surf:#f6f2ea;}
@@ -5113,11 +5485,11 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
 .ftr-brand{font-weight:700;color:var(--mer);}
 @media print{body{background:white;}.hdr,.bar{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 <\/style><\/head><body>
-<div class="hdr"><div><h1>🔬 Conseiller Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
-<div class="hdr-r"><div>${date} · ${time}</div><div>Mode : ${'Conseiller Clinique'}</div><div>${msgCount} échange${msgCount !== 1 ? 's' : ''}</div><div><span class="badge">Export consultation</span></div></div></div>
+<div class="hdr"><div><h1>🔬 Studio Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
+<div class="hdr-r"><div>${date} · ${time}</div><div>Mode : ${'Studio Clinique'}</div><div>${msgCount} échange${msgCount !== 1 ? 's' : ''}</div><div><span class="badge">Export consultation</span></div></div></div>
 <div class="bar"></div>
 <div class="content">${ctxBanner}${msgs}</div>
-<div class="ftr"><span class="ftr-brand">C Concept&amp;Dev</span><span>Conseiller Clinique — ${date}</span></div>
+<div class="ftr"><span class="ftr-brand">C Concept&amp;Dev</span><span>Studio Clinique — ${date}</span></div>
 </body></html>`;
       adocDownload(html, `consultation-${Date.now()}.html`, 'text/html');
     }
@@ -5134,14 +5506,14 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
       if (m.role === 'user') {
         return `<div class="msg-w user-w"><span class="chip user-chip">Vous</span><div class="msg user"><p>${adocEsc(m.content).replace(/\n/g,'<br>')}</p></div></div>`;
       }
-      return `<div class="msg-w asst-w"><span class="chip asst-chip">${'Conseiller Clinique'}</span><div class="msg asst">${adocRenderMdExport(m.content)}</div></div>`;
+      return `<div class="msg-w asst-w"><span class="chip asst-chip">${'Studio Clinique'}</span><div class="msg asst">${adocRenderMdExport(m.content)}</div></div>`;
     }).join('\n');
 
     const ctxBanner = adocSessionContext
       ? `<div class="ctx-banner"><strong>Contexte de session :</strong> ${adocEsc(adocSessionContext)}</div>` : '';
 
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<title>Conseiller Clinique — ${date}</title>
+<title>Studio Clinique — ${date}</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
 <style>
 :root{--mer:#1f5053;--deep:#102f31;--sable:#f6f2ea;--beige:#ddd7cc;--violet:#8a3f29;--vl:#f4e5de;--text:#273331;--muted:#5d6966;--surf:#f6f2ea;}
@@ -5197,12 +5569,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
   📄 Fenêtre d'impression ouverte — choisissez <strong>Enregistrer en PDF</strong> comme destination
 </div>
 <div class="hdr">
-  <div><h1>🔬 Conseiller Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
-  <div class="hdr-r"><div>${date} · ${time}</div><div>Mode : ${'Conseiller Clinique'}</div><div>${msgCount} échange${msgCount !== 1 ? 's' : ''}</div><div><span class="badge">Export PDF</span></div></div>
+  <div><h1>🔬 Studio Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
+  <div class="hdr-r"><div>${date} · ${time}</div><div>Mode : ${'Studio Clinique'}</div><div>${msgCount} échange${msgCount !== 1 ? 's' : ''}</div><div><span class="badge">Export PDF</span></div></div>
 </div>
 <div class="bar"></div>
 <div class="content">${ctxBanner}${msgs}</div>
-<div class="ftr"><span class="ftr-brand">C Concept&amp;Dev</span><span>Conseiller Clinique — ${date}</span></div>
+<div class="ftr"><span class="ftr-brand">C Concept&amp;Dev</span><span>Studio Clinique — ${date}</span></div>
 <script>
   // Déclencher l'impression automatiquement après chargement des polices
   window.onload = function() {
@@ -5231,7 +5603,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
       return;
     }
 
-    const modeLabel = 'Conseiller Clinique';
+    const modeLabel = 'Studio Clinique';
     const msgCount  = adocConversations.filter(m=>m.role==='user').length;
 
     // ── Convertisseur Markdown → OOXML paragraphes ──
@@ -5292,7 +5664,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
     let body = '';
 
     // Titre du document
-    body += `<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Conseiller Clinique</w:t></w:r></w:p>`;
+    body += `<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Studio Clinique</w:t></w:r></w:p>`;
     body += `<w:p><w:pPr><w:pStyle w:val="Subtitle"/></w:pPr><w:r><w:t>C Concept&amp;Dev — ${date} · ${time} · ${escXMLdoc(modeLabel)}</w:t></w:r></w:p>`;
 
     // Contexte de session
@@ -5504,7 +5876,7 @@ ${body}
     }
   }
 
-  // Bouton "☁ Télécharger" — upload vers KV, puis ouvre URL directe
+  // Bouton "☁ Exporter" — upload vers KV, puis ouvre URL directe
   async function adocCloudDownload(storeKey, btnEl, ext) {
     const art = window._adocArtifacts?.[storeKey];
     if (!art) return;
@@ -5637,14 +6009,14 @@ ${body}
     // Bouton DL HTML toujours disponible
     const dlHtmlBtn = document.createElement('button');
     dlHtmlBtn.className = 'adoc-output-dl';
-    dlHtmlBtn.title = blobData ? ('Télécharger ' + ext.toUpperCase()) : 'Télécharger HTML';
+    dlHtmlBtn.title = blobData ? ('Exporter ' + ext.toUpperCase()) : 'Exporter HTML';
     dlHtmlBtn.textContent = '⬇';
 
     // Bouton DL PDF (si pdfMode)
     const dlPdfBtn = document.createElement('button');
     if (pdfMode) {
       dlPdfBtn.className = 'adoc-output-dl adoc-output-dl-pdf';
-      dlPdfBtn.title = 'Télécharger PDF';
+      dlPdfBtn.title = 'Exporter PDF';
       dlPdfBtn.textContent = '📕';
     }
 
@@ -5704,7 +6076,7 @@ ${body}
     const area = document.getElementById('adoc-messages');
     area.innerHTML = `<div class="adoc-welcome" id="adoc-welcome">
       <div class="adoc-welcome-icon">📚</div>
-      <div class="adoc-welcome-title">Conseiller Clinique</div>
+      <div class="adoc-welcome-title">Studio Clinique</div>
       <div class="adoc-welcome-text">Choisissez un mode de travail, précisez votre contexte si souhaité,<br>
       puis posez votre question.</div>
       <div class="adoc-hints">
@@ -5858,7 +6230,7 @@ ${body}
     if (old) old.remove();
 
     const footer = document.createElement('div');
-    footer.className = 'adoc-cost-footer';
+    footer.className = 'adoc-cost-footer adoc-dev-only'; // Phase UX-2A.2 — tokens/coût : mode développeur uniquement
     footer.style.cssText = 'font-size:10px;color:var(--muted);margin-top:4px;padding:2px 8px;text-align:right;opacity:0.8;';
     footer.innerHTML =
       `<span title="Input: ${usage.input.toLocaleString()} tokens · Output: ${usage.output.toLocaleString()} tokens">` +
@@ -5946,7 +6318,7 @@ ${recent}`;
     panel.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
         <span style="font-weight:700;color:var(--terracotta-700)">📚 Référence [${n}]</span>
-        <span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;color:#999;font-size:16px;margin-left:12px">×</span>
+        <button type="button" onclick="this.closest('#adoc-ref-panel').remove()" aria-label="Fermer la référence" style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;margin-left:12px;font-family:inherit;">×</button>
       </div>
       <div style="color:var(--ink);font-weight:600">${ref.book_title}</div>
       ${ref.author ? `<div style="color:var(--muted)">${ref.author}</div>` : ''}
@@ -6661,6 +7033,210 @@ ${recent}`;
     adocClarityQAPairs = [];
     adocClarityOriginalMessage = raw;
     await adocRunClarityGate();
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Phase UX-8A — Moteur de rendu canonique par blocs (fondation du Studio)
+  // ═══════════════════════════════════════════════════════════════════════
+  // Prend un ClinicalDocument structuré (conforme à schemas/clinical-document.schema.json)
+  // + un SourceSnapshot, et produit un rendu HTML. Couvre les deux pilotes (fiche,
+  // carrousel) avec un modèle minimal chacun — tableau/script/liens restent sur l'ancien
+  // moteur (génération HTML directe par le modèle) via rendererModeByDocumentKind.
+  //
+  // Portée délibérée de ce lot : ce moteur est complet et fonctionnel — prouvé par les
+  // fixtures figées (fixtures/fixture-fiche-type.json, -longue.json, -carrousel-type.json)
+  // et le contrat qualité ci-dessous, mesuré dans les budgets de performance du CDC. Le fil
+  // de génération existant (adocSend → prompt → HTML plat) n'est PAS branché pour produire
+  // du ClinicalDocument JSON en direct via Structured Outputs dans ce lot : ce câblage est
+  // une étape distincte et plus risquée (fiabilité du modèle sur une sortie structurée
+  // complexe), volontairement non entamée ici pour ne jamais interrompre l'ancien moteur en
+  // production (principe non négociable "progressif, jamais de réécriture brutale").
+  // Signalé explicitement dans le rapport de changement — à discuter avant de l'entreprendre.
+
+  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'legacy', script: 'legacy', liens: 'legacy' };
+  function adocGetRendererMode(documentKind) {
+    return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
+  }
+
+  // ── Validation des citations en deux temps (technique, puis agrégat par bloc) ──
+  // 1. Contrôle technique (vérifiable automatiquement) : le citationId référencé existe-t-il
+  //    dans doc.citations[], et l'entrée SourceSnapshot qu'il désigne existe-t-elle ?
+  // 2. claimSupport (soutien de l'affirmation) : conservé tel que fourni en amont (assisté
+  //    IA en amont de ce moteur) — jamais réévalué ici, seulement dégradé à "needs-review"
+  //    si le contrôle technique échoue ou si la valeur reçue est hors énumération.
+  function adocValidateClinicalDocument(doc, sourceSnapshot) {
+    const entriesById = {};
+    (sourceSnapshot && sourceSnapshot.entries || []).forEach(e => { entriesById[e.sourceSnapshotEntryId] = e; });
+    const citationsById = {};
+    (doc.citations || []).forEach(c => { citationsById[c.citationId] = c; });
+    const invalidCitationIds = [];
+
+    function checkLinks(links) {
+      return (links || []).map(link => {
+        const citation = citationsById[link.citationId];
+        const entry = citation ? entriesById[citation.sourceSnapshotEntryId] : null;
+        const technicalOk = !!citation && !!entry;
+        let claimSupport = link.claimSupport;
+        if (!technicalOk) {
+          claimSupport = 'needs-review';
+          if (invalidCitationIds.indexOf(link.citationId) === -1) invalidCitationIds.push(link.citationId);
+        } else if (['pass', 'needs-review', 'pending'].indexOf(claimSupport) === -1) {
+          claimSupport = 'needs-review';
+        }
+        return Object.assign({}, link, { claimSupport });
+      });
+    }
+
+    function aggregateStatus(links) {
+      if (!links || !links.length) return 'pass';
+      if (links.some(l => l.claimSupport === 'needs-review')) return 'needs-review';
+      if (links.some(l => l.claimSupport === 'pending')) return 'pending';
+      return 'pass';
+    }
+
+    function walkBlocks(blocks) {
+      return (blocks || []).map(b => {
+        const nb = Object.assign({}, b);
+        if (b.type === 'card') {
+          nb.content = Object.assign({}, b.content, { blocks: walkBlocks(b.content.blocks) });
+        }
+        const links = checkLinks(b.validation && b.validation.citationLinks);
+        nb.validation = links.length ? { citationLinks: links } : (b.validation || {});
+        nb._status = aggregateStatus(links);
+        return nb;
+      });
+    }
+
+    return { doc: Object.assign({}, doc, { blocks: walkBlocks(doc.blocks) }), invalidCitationIds };
+  }
+
+  // ── Contrat de contrôle qualité (bloquant / non bloquant, cf. CDC §UX-8A) ──
+  // Bloquant : citation manifestement invalide, contenu tronqué, texte alternatif absent
+  // sur une image informative. Le contraste AA est garanti par construction (le moteur
+  // n'utilise que les jetons déjà audités de studio-clinique-default), donc jamais recalculé
+  // dynamiquement ici — signalé en non-bloquant pour traçabilité du rapport.
+  function adocRunQualityContract(doc, invalidCitationIds) {
+    const blocking = [];
+    const nonBlocking = [];
+
+    if (invalidCitationIds && invalidCitationIds.length) {
+      blocking.push('Citation invalide : passage introuvable pour ' + invalidCitationIds.length + ' référence(s) (' + invalidCitationIds.join(', ') + ').');
+    }
+
+    function looksTruncated(text) {
+      const t = (text || '').trim();
+      return !!t && !/[.!?…»"”]$/.test(t);
+    }
+
+    function walk(blocks) {
+      (blocks || []).forEach(b => {
+        if (b.type === 'paragraph' || b.type === 'quote' || b.type === 'callout') {
+          if (looksTruncated(b.content.text)) {
+            blocking.push('Bloc ' + b.id + ' : contenu apparemment tronqué (ne se termine pas par une ponctuation finale).');
+          }
+        }
+        if (b.type === 'card') {
+          if (b.content.imageRef && !(b.content.imageAlt && b.content.imageAlt.trim())) {
+            blocking.push('Bloc ' + b.id + ' : image informative (imageRef) sans texte alternatif.');
+          }
+          walk(b.content.blocks);
+        }
+      });
+    }
+    walk(doc.blocks);
+
+    nonBlocking.push('Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu\'aucune charte externe n\'est en jeu — UX-8B).');
+
+    return { blocking, nonBlocking, exportAllowed: blocking.length === 0 };
+  }
+
+  // ── Rendu d'un bloc (utilisé à la racine ET imbriqué dans une card) ──
+  function adocRenderBlockHTML(b) {
+    const statusClass = b._status === 'needs-review' ? ' adoc-sc-needs-review' : '';
+    const cites = (b.citationIds || []).length
+      ? ' <sup class="adoc-sc-cite">' + b.citationIds.map(function(id) {
+          return '<span title="' + adocEsc(id) + '">[' + adocEsc(id.replace('citation-', '')) + ']</span>';
+        }).join(' ') + '</sup>'
+      : '';
+    switch (b.type) {
+      case 'heading': {
+        const lvl = Math.min(Math.max(b.content.level, 1), 3);
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + '</h' + lvl + '>';
+      }
+      case 'paragraph':
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</p>';
+      case 'callout':
+        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '" role="note">' + adocEsc(b.content.text) + cites + '</div>';
+      case 'list': {
+        const tag = b.content.ordered ? 'ol' : 'ul';
+        return '<' + tag + ' class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '">' +
+          b.content.items.map(function(it) { return '<li>' + adocEsc(it) + '</li>'; }).join('') + '</' + tag + '>';
+      }
+      case 'table': {
+        const head = '<tr>' + b.content.headers.map(function(h) { return '<th>' + adocEsc(h) + '</th>'; }).join('') + '</tr>';
+        const rows = b.content.rows.map(function(r) { return '<tr>' + r.map(function(c) { return '<td>' + adocEsc(c) + '</td>'; }).join('') + '</tr>'; }).join('');
+        return '<table class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+      }
+      case 'quote':
+        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</blockquote>';
+      default:
+        return '';
+    }
+  }
+
+  // ── Pilote 1 : Fiche synthèse (modèle minimal unique) ──
+  function adocRenderFicheHTML(doc) {
+    const body = (doc.blocks || []).map(adocRenderBlockHTML).join('\n');
+    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + '">' + body + '</article>';
+  }
+
+  // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
+  function adocRenderCardHTML(card, index, total) {
+    const nested = (card.content.blocks || []).map(adocRenderBlockHTML).join('\n');
+    const img = card.content.imageRef
+      ? '<img class="adoc-sc-card-img" src="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
+      : '';
+    return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '" role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
+      img + '<h2 class="adoc-sc-card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
+  }
+  function adocRenderCarrouselHTML(doc) {
+    const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
+    return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + '" role="region" aria-label="Carrousel">' + cards + '</div>';
+  }
+
+  // ── Point d'entrée du moteur canonique ──
+  // Retourne { html, qc, validatedDoc } — qc.exportAllowed === false bloque l'export
+  // (cf. contrat de contrôle qualité ci-dessus), jamais une simple alerte esthétique.
+  window.adocRenderClinicalDocument = function(doc, sourceSnapshot) {
+    const mode = adocGetRendererMode(doc.documentKind);
+    if (mode !== 'structured') {
+      throw new Error('adocRenderClinicalDocument: documentKind "' + doc.documentKind + '" est en mode "' + mode + '" (ancien moteur), pas encore migré vers le rendu canonique (voir UX-8M).');
+    }
+    const validated = adocValidateClinicalDocument(doc, sourceSnapshot);
+    const qc = adocRunQualityContract(validated.doc, validated.invalidCitationIds);
+    let html;
+    if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc);
+    else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc);
+    else throw new Error('adocRenderClinicalDocument: aucun modèle de rendu pour documentKind "' + doc.documentKind + '" (prévu en UX-8M).');
+    return { html: html, qc: qc, validatedDoc: validated.doc };
+  };
+  window.adocValidateClinicalDocument = adocValidateClinicalDocument;
+  window.adocRunQualityContract = adocRunQualityContract;
+  window.adocGetRendererMode = adocGetRendererMode;
+
+  // ── Export HTML autonome — même moteur, même fragment que l'aperçu (principe UX-1 :
+  //    "aperçu = livrable", un seul et même contenu, jamais deux représentations). ──
+  window.adocExportClinicalDocumentHTML = function(doc, sourceSnapshot) {
+    const result = window.adocRenderClinicalDocument(doc, sourceSnapshot);
+    const html = '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
+      '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
+      '<style>body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
+      '.adoc-sc-doc{font-family:Georgia,serif;color:#2a2a28;line-height:1.65;}' +
+      '.adoc-sc-carrousel{display:flex;gap:16px;overflow-x:auto;}' +
+      '.adoc-sc-card{flex:0 0 320px;border:1px solid #c9c3b8;border-radius:12px;padding:18px;}' +
+      '.adoc-sc-table{border-collapse:collapse;width:100%;}.adoc-sc-table th,.adoc-sc-table td{border:1px solid #c9c3b8;padding:6px 10px;}' +
+      '</style></head><body>' + result.html + '</body></html>';
+    return { html: html, qc: result.qc };
   };
 
 })(); // fin IIFE Assistant Doc v2

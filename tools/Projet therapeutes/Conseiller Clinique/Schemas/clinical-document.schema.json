@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clinical-document.schema.json",
+  "$comment": "UX-8A — source de vérité pour tout document généré. `documentKind` (type clinique) et `exportTarget` (format de fichier exporté) sont deux concepts distincts : exportTarget n'apparaît PAS sur ce document — c'est un paramètre d'export (UX-1/UX-2B), jamais un champ persisté sur ClinicalDocument. Ne référence le rendu que par renderManifestId (jamais template/brandKit/rendererVersion dupliqués ici, cf. render-manifest.schema.json). Pour schemaVersion:1, un champ inconnu est rejeté (additionalProperties:false partout), jamais silencieusement ignoré.",
+  "$defs": {
+    "derivedFrom": {
+      "$comment": "null pour une génération initiale ou une simple édition (nouvelle version du même document). Renseigné uniquement par une transformation UX-8D (Magic Switch), qui crée un document dérivé — jamais par une édition (UX-9A) ni par un export (UX-1/UX-2B).",
+      "type": ["object", "null"],
+      "required": ["documentId", "versionId", "operation"],
+      "additionalProperties": false,
+      "properties": {
+        "documentId": { "type": "string", "minLength": 1 },
+        "versionId": { "type": "string", "minLength": 1 },
+        "operation": { "const": "document-kind-change" }
+      }
+    },
+    "qcStatus": {
+      "$comment": "Vocabulaire réutilisé de claimSupport (block.schema.json) pour les quatre dimensions de contrôle qualité automatique : pending (pas encore vérifié), pass, needs-review.",
+      "enum": ["pending", "pass", "needs-review"]
+    },
+    "validation": {
+      "type": "object",
+      "required": ["sourceIntegrity", "contentCompleteness", "layout", "accessibility", "humanClinicalReview"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceIntegrity": { "$ref": "#/$defs/qcStatus" },
+        "contentCompleteness": { "$ref": "#/$defs/qcStatus" },
+        "layout": { "$ref": "#/$defs/qcStatus" },
+        "accessibility": { "$ref": "#/$defs/qcStatus" },
+        "humanClinicalReview": {
+          "const": "required",
+          "$comment": "Reste toujours présent, à 'required' par défaut — la certification clinique reste à la charge de la clinicienne, un contrôle automatique ne peut jamais la remplacer. Un mécanisme de transition (ex. 'reviewed') appartient à une phase ultérieure, hors périmètre UX-8A."
+        }
+      }
+    }
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion", "documentId", "versionId", "previousVersionId", "requestId",
+    "sourceSnapshotId", "createdAt", "language", "status", "title", "purpose",
+    "audience", "documentKind", "renderManifestId", "derivedFrom", "blocks",
+    "citations", "validation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "documentId": { "type": "string", "minLength": 1 },
+    "versionId": { "type": "string", "minLength": 1 },
+    "previousVersionId": {
+      "type": ["string", "null"],
+      "$comment": "null pour la première version d'un document. Renseigné par une édition (UX-9A) — jamais par une transformation (voir derivedFrom) ni par un export."
+    },
+    "requestId": { "type": "string", "minLength": 1 },
+    "sourceSnapshotId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "language": { "type": "string", "minLength": 2, "maxLength": 5 },
+    "status": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "purpose": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string", "minLength": 1 },
+    "documentKind": { "enum": ["fiche", "carrousel", "tableau", "script", "liens"] },
+    "renderManifestId": { "type": "string", "minLength": 1 },
+    "derivedFrom": { "$ref": "#/$defs/derivedFrom" },
+    "blocks": {
+      "type": "array",
+      "$comment": "Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel'. tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."
+    },
+    "citations": {
+      "type": "array",
+      "items": { "$ref": "citation.schema.json" }
+    },
+    "validation": { "$ref": "#/$defs/validation" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "documentKind": { "const": "fiche" } }, "required": ["documentKind"] },
+      "then": {
+        "properties": {
+          "blocks": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "block.schema.json#/$defs/editorialBlock" }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "documentKind": { "const": "carrousel" } }, "required": ["documentKind"] },
+      "then": {
+        "properties": {
+          "blocks": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "block.schema.json#/$defs/cardOnlyBlock" },
+            "$comment": "Un document carrousel n'a QUE des blocs `card` au niveau racine — jamais un bloc éditorial orphelin. Chaque carte porte ses propres blocs enfants dans content.blocks[]."
+          }
+        }
+      }
+    }
+  ]
+}

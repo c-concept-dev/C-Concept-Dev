@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "source-snapshot.schema.json",
+  "$comment": "UX-8A — instantané des passages RAG utilisés au moment de la génération. `exactText` est le champ indispensable pour un document de session : sans le texte exact conservé, la source disparaît à la fermeture de la session et le document devient invérifiable.",
+  "$defs": {
+    "locator": {
+      "type": "object",
+      "required": ["page", "section"],
+      "additionalProperties": false,
+      "properties": {
+        "page": { "type": ["integer", "null"], "minimum": 1 },
+        "section": { "type": ["string", "null"] }
+      }
+    },
+    "sourceSnapshotEntry": {
+      "type": "object",
+      "required": [
+        "sourceSnapshotEntryId", "sourceType", "sourceId", "passageId",
+        "exactText", "contentChecksum", "book", "author", "locator", "retrievedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceSnapshotEntryId": { "type": "string", "minLength": 1 },
+        "sourceType": { "enum": ["library", "session"] },
+        "sourceId": { "type": "string", "minLength": 1 },
+        "passageId": { "type": "string", "minLength": 1 },
+        "exactText": { "type": "string", "minLength": 1 },
+        "contentChecksum": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "book": { "type": "string", "minLength": 1 },
+        "author": { "type": "string", "minLength": 1 },
+        "locator": { "$ref": "#/$defs/locator" },
+        "retrievedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["sourceSnapshotId", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "sourceSnapshotId": { "type": "string", "minLength": 1 },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceSnapshotEntry" }
+    }
+  }
+}
