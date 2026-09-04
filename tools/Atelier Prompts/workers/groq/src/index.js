@@ -6,7 +6,8 @@ import {
   makeDecisionUserMessage,
   parseDecisionCandidate,
   readBoundedText,
-  validateDecision
+  validateDecision,
+  DecisionHttpError
 } from "../../shared/decision-core.js";
 import {
   ROLE_DEFINITIONS, OPRIE_ROLES, handleRoleRequest, resolveRoleSchema,
@@ -273,7 +274,12 @@ export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
       );
     }
     const raw = await response.clone().text().catch(() => "");
-    const retryAfterMs = parseRetryAfterMs(response) ?? parseRetryDelayFromBody(raw) ?? defaultBackoffMs;
+    /* FAST-CAPACITY-ADMISSION-01 — DISTINGUER CE QUE LE FOURNISSEUR A DIT DE CE QUE
+       LE DÉPÔT SUPPOSE. `defaultBackoffMs` est une valeur du dépôt, pas une annonce :
+       elle reste le repli de la boucle de reprise, mais elle ne doit jamais fonder une
+       période d'abstention. On sépare donc les deux, et seule l'annonce voyage. */
+    const annonceFournisseur = parseRetryAfterMs(response) ?? parseRetryDelayFromBody(raw);
+    const retryAfterMs = annonceFournisseur ?? defaultBackoffMs;
     /* PERF-REAL-01G — attendre ou basculer ? La question porte sur le délai ANNONCÉ,
        avant que la marge ne s'y ajoute. Au-dessus du seuil, on ne dort pas : la
        chaîne HA prend le relais, dans son ordre inchangé. */
@@ -283,6 +289,7 @@ export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
         { rateLimited: true, exhausted: true, wait_too_long: true, error_kind: "http_429",
           retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs,
           announced_wait_ms: retryAfterMs + safetyMarginMs, announced_retry_after_ms: retryAfterMs,
+          provider_announced_retry_after_ms: annonceFournisseur,
           capacity_threshold_ms: capacityRetryThresholdMs }
       );
     }
@@ -294,7 +301,7 @@ export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
     if (waitMs > maxRetryWaitMs) {
       throw Object.assign(
         new Error(`Groq HTTP 429 : reprise abandonnée, le délai annoncé (${waitMs} ms) dépasse le plafond d'attente de ce rôle (${maxRetryWaitMs} ms).`),
-        { rateLimited: true, exhausted: true, wait_too_long: true, error_kind: "http_429", retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs, announced_wait_ms: waitMs }
+        { rateLimited: true, exhausted: true, wait_too_long: true, error_kind: "http_429", retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs, announced_wait_ms: waitMs, provider_announced_retry_after_ms: annonceFournisseur }
       );
     }
     rateLimitedWaitMs += waitMs;
@@ -1245,20 +1252,145 @@ export const FAST_INTERACTION_ADAPTERS = Object.freeze({
  * noms pour une même chose recréeraient exactement l'ambiguïté qui a coûté ce
  * silence.
  */
-export async function runFastInteractionWithHaChain(snapshot, env, { order = DECISION_PROVIDER_ORDER, log } = {}) {
+export async function runFastInteractionWithHaChain(snapshot, env, { order = FAST_PROVIDER_ORDER, log } = {}) {
+  /* FAST-CAPACITY-ADMISSION-01 — L'ABSTENTION SE DÉCIDE AVANT L'APPEL, ET SUR RIEN
+     D'AUTRE QUE L'HORLOGE. `admissionRapide` ne reçoit ni l'instantané, ni la demande,
+     ni l'environnement : elle ne peut donc dépendre ni du contenu, ni du domaine, ni
+     du mode, ni d'un état OPRIE. Elle ne connaît qu'un horodatage annoncé par Groq. */
+  const admission = admissionRapide();
+  console.log(JSON.stringify({
+    event: "fast_admission_observation",
+    admission_decision: admission.admise ? "ADMIT" : "SKIP",
+    admission_reason: admission.raison,
+    retry_after_until: admission.refroidissement_jusqua,
+    cooldown_remaining_ms: admission.restant_ms,
+    precheck_strength: FAST_ADMISSION_STRENGTH,
+    provider_order: order
+  }));
+  if (!admission.admise) {
+    /* Résultat TECHNIQUE, et rien de plus. Il ne traverse pas la validation du schéma
+       rapide, ne produit aucune candidate, et n'a aucun chemin vers un état OPRIE, une
+       readiness ou une route : c'est une erreur de transport, rendue telle quelle. */
+    throw new DecisionHttpError(503, FAST_CAPACITY_UNAVAILABLE_CODE,
+      "Le fournisseur du plan rapide a annoncé un délai encore en cours ; aucune interaction candidate n'est produite pour ce tour.");
+  }
   const providers = order.map((name) => ({
     name,
     execute: async () => {
-      const brut = await FAST_INTERACTION_ADAPTERS[name](snapshot, env);
-      /* Le contenu revient soit déjà structuré (outil Anthropic), soit en texte
-         strictement conforme au schéma : aucune tolérance ajoutée ici. */
-      return typeof brut === "string" ? JSON.parse(brut) : brut;
+      try {
+        const brut = await FAST_INTERACTION_ADAPTERS[name](snapshot, env);
+        /* Le contenu revient soit déjà structuré (outil Anthropic), soit en texte
+           strictement conforme au schéma : aucune tolérance ajoutée ici. */
+        return typeof brut === "string" ? JSON.parse(brut) : brut;
+      } catch (error) {
+        /* Le souvenir se prend ICI, au seul endroit où l'erreur d'origine existe
+           encore : la chaîne, en s'épuisant, la remplace par la sienne. Seule une
+           valeur RÉELLEMENT annoncée est retenue — `enregistrerSignalCapaciteRapide`
+           refuse tout le reste, et n'invente donc jamais de délai. */
+        if (name === "groq") {
+          const jusqua = enregistrerSignalCapaciteRapide(error?.provider_announced_retry_after_ms);
+          if (jusqua !== null) {
+            console.log(JSON.stringify({
+              event: "fast_cooldown_recorded",
+              provider_announced_retry_after_ms: error.provider_announced_retry_after_ms,
+              retry_after_until: jusqua,
+              capacity_signal: true
+            }));
+          }
+        }
+        throw error;
+      }
     }
   }));
   return runProviderChain({ role: "fast_interaction", providers, ...(log ? { log } : {}) });
 }
 
 export const DECISION_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
+
+/**
+ * FAST-CAPACITY-ADMISSION-01 — SOUVENIR MÉCANIQUE DU DÉLAI ANNONCÉ PAR LE FOURNISSEUR.
+ *
+ * CE QUE CE MÉCANISME EST, ET RIEN DE PLUS. Quand Groq répond 429 EN ANNONÇANT un
+ * délai, ce délai est un fait fournisseur : pendant sa durée, un nouvel appel est
+ * voué au même refus. On le retient donc, et on s'abstient jusqu'à son expiration.
+ * Après expiration, l'appel suivant repart normalement. Il n'y a pas d'autre état.
+ *
+ * POURQUOI CE N'EST PAS UNE ADMISSION DE CAPACITÉ. Une vraie admission comparerait
+ * la capacité restante au coût de la requête. Les deux termes manquent :
+ *
+ *   - LE COÛT est inconnu avant l'appel. Le Worker n'embarque aucun tokenizer, et
+ *     Groq n'expose aucune route de comptage. La seule borne EXACTE disponible est
+ *     « jetons <= octets » : 794 octets de prompt système + 16 384 octets de corps
+ *     (TRANSPORT_LIMITS.analyst) + 512 jetons de sortie = 17 690, soit 2,2 fois le
+ *     quota d'une minute entière. Une admission fondée sur cette borne refuserait
+ *     100 % des requêtes. Substituer les 426 ou 485 jetons mesurés serait faire
+ *     d'une statistique une autorité — ce que la section 9 du lot interdit.
+ *   - LA CAPACITÉ RESTANTE n'est connue qu'APRÈS coup : les en-têtes de débit
+ *     voyagent sur la RÉPONSE. Toute vérification préalable lirait donc une valeur
+ *     périmée d'au moins un aller-retour, aveugle aux appels concurrents et aveugle
+ *     au plan profond, qui consomme le même budget sur la même clé.
+ *
+ * Ce mécanisme ne prétend donc à aucune garantie de capacité. Il évite seulement de
+ * rappeler un fournisseur qui vient de dire quand revenir.
+ *
+ * AUCUN REFROIDISSEMENT N'EST INVENTÉ. Seule une valeur réellement annoncée par le
+ * fournisseur — en-tête Retry-After, ou délai explicite dans le corps de l'erreur —
+ * ouvre une période d'abstention. Le repli fixe de 30 s de la boucle de reprise est
+ * une valeur du dépôt, pas du fournisseur : il n'entre jamais ici.
+ *
+ * PORTÉE : L'ISOLAT, ET C'EST MESURÉ. La section 19 exige de prouver la portée avant
+ * de choisir un stockage. 50 invocations réelles ont été observées : 4 isolats
+ * distincts seulement, 87 % des invocations servies par un isolat déjà vu à 1 s
+ * d'espacement, 100 % à 5 s — la cadence du pic déclaré — et les quatre isolats ont
+ * survécu à une pause de 20 s. Une mémoire de module est donc consultée par la
+ * quasi-totalité des requêtes suivantes, sans KV, sans Durable Object, sans aucun
+ * état distribué. Ce n'est pas une garantie : un isolat qui n'a pas encore vu de 429
+ * l'apprendra par le sien. Le coût de cette ignorance est borné — un refus par
+ * isolat — et c'est exactement ce qui range ce mécanisme parmi les BEST_EFFORT.
+ */
+export const FAST_ADMISSION_STRENGTH = "BEST_EFFORT";
+export const FAST_CAPACITY_UNAVAILABLE_CODE = "fast_capacity_unavailable";
+
+let REFROIDISSEMENT_RAPIDE_JUSQUA = 0;
+
+/**
+ * Décide si le plan rapide peut tenter un appel. Ne lit que l'horloge et le souvenir
+ * du délai annoncé — jamais la demande, son domaine, son mode ou son état.
+ */
+export function admissionRapide(maintenant = Date.now()) {
+  if (REFROIDISSEMENT_RAPIDE_JUSQUA > maintenant) {
+    return {
+      admise: false,
+      raison: "PROVIDER_ANNOUNCED_COOLDOWN_ACTIVE",
+      refroidissement_jusqua: REFROIDISSEMENT_RAPIDE_JUSQUA,
+      restant_ms: REFROIDISSEMENT_RAPIDE_JUSQUA - maintenant
+    };
+  }
+  return {
+    admise: true,
+    raison: REFROIDISSEMENT_RAPIDE_JUSQUA === 0 ? "NO_COOLDOWN_RECORDED" : "COOLDOWN_EXPIRED",
+    refroidissement_jusqua: REFROIDISSEMENT_RAPIDE_JUSQUA || null,
+    restant_ms: 0
+  };
+}
+
+/**
+ * Enregistre un délai ANNONCÉ par le fournisseur. Toute autre valeur — absente, nulle,
+ * négative, non finie — ne produit aucun refroidissement : c'est la règle « aucun
+ * refroidissement inventé », et elle est vérifiée par les preuves.
+ * Un délai déjà couvert par un souvenir plus lointain ne le raccourcit jamais.
+ */
+export function enregistrerSignalCapaciteRapide(delaiAnnonceMs, maintenant = Date.now()) {
+  if (!Number.isFinite(delaiAnnonceMs) || delaiAnnonceMs <= 0) return null;
+  const jusqua = maintenant + delaiAnnonceMs;
+  if (jusqua > REFROIDISSEMENT_RAPIDE_JUSQUA) REFROIDISSEMENT_RAPIDE_JUSQUA = jusqua;
+  return REFROIDISSEMENT_RAPIDE_JUSQUA;
+}
+
+/** Remise à zéro — réservée aux preuves, jamais appelée par le produit. */
+export function reinitialiserRefroidissementRapide() {
+  REFROIDISSEMENT_RAPIDE_JUSQUA = 0;
+}
 
 /**
  * PERF-NOMINAL-PROVIDER-01 — ÉPINGLAGE DIAGNOSTIC DU FOURNISSEUR DU PLAN RAPIDE.
@@ -1298,9 +1430,29 @@ export const DECISION_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "open
 export const FAST_BENCH_PROVIDER_BINDING = "FAST_BENCH_PROVIDER";
 export const FAST_BENCH_CHAIN = "ha";
 
+/**
+ * FAST-CAPACITY-ADMISSION-01 — LE PLAN RAPIDE N'A PLUS QU'UN FOURNISSEUR.
+ *
+ * PERF-NOMINAL-PROVIDER-01 a mesuré les trois au repos, sur les mêmes fixtures :
+ * Groq rend p95 = 1 617 ms, OpenAI 4 234 ms, Anthropic 5 562 ms. Les deux replis
+ * échouent donc le contrat interactif de 3 secondes AVANT même toute saturation.
+ * Basculer vers eux ne préservait pas la latence : cela produisait une candidate
+ * hors contrat, plus lentement que de n'en produire aucune.
+ *
+ * La décision produit du contrat de capacité en tire la conséquence : quand
+ * Groq est plein, le plan rapide se tait et le plan profond poursuit. Ce n'est pas
+ * une perte de capacité — le plan rapide est candidat, jamais autoritatif.
+ *
+ * CE QUI N'EST PAS TOUCHÉ : DECISION_PROVIDER_ORDER et ROLE_PROVIDER_ORDER, qui
+ * régissent /decision et les trois rôles OPRIE, restent Groq -> Anthropic -> OpenAI,
+ * à l'octet près. Seul le plan rapide a son ordre propre, parce que seul son contrat
+ * de latence rend un repli lent contre-productif.
+ */
+export const FAST_PROVIDER_ORDER = Object.freeze(["groq"]);
+
 export function resolveFastProviderOrder(env) {
   const choisi = (env && env[FAST_BENCH_PROVIDER_BINDING]) || FAST_BENCH_CHAIN;
-  if (choisi === FAST_BENCH_CHAIN) return DECISION_PROVIDER_ORDER;
+  if (choisi === FAST_BENCH_CHAIN) return FAST_PROVIDER_ORDER;
   if (DECISION_PROVIDER_ORDER.includes(choisi)) return Object.freeze([choisi]);
   const permis = [FAST_BENCH_CHAIN, ...DECISION_PROVIDER_ORDER].map((v) => `"${v}"`).join(", ");
   throw tagFailure(

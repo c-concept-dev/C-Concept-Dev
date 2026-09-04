@@ -203,8 +203,19 @@ test('T-PERFREAL01F-12/13 : aucune sélection sémantique, aucun équilibrage de
   assert.equal([...adaptateurs.matchAll(/makeFastInteractionUserMessage\(snapshot\)/g)].length, 3);
   assert.equal(/snapshot\.(original_request|clarification_history)\s*[.[]/.test(adaptateurs), false,
     'aucun adaptateur n’inspecte le contenu de la demande');
-  assert.equal(/\bif\s*\(/.test(adaptateurs), false,
-    'aucune branche dans les adaptateurs : ce sont des transports, pas des décideurs');
+  /* FAST-CAPACITY-ADMISSION-01 — UNE BRANCHE EST APPARUE, ET ELLE EST TECHNIQUE.
+     Le souvenir du délai annoncé se prend au seul endroit où l'erreur d'origine
+     existe encore, ce qui impose de distinguer le fournisseur qui l'a émise. Ce que
+     cette preuve doit interdire n'a jamais été « toute branche » mais « toute branche
+     qui lit la demande » : on vérifie donc que chaque condition ne compare qu'un NOM
+     de fournisseur ou une décision d'admission, jamais un contenu. */
+  const conditions = [...adaptateurs.matchAll(/\bif\s*\(([^)]*)\)/g)].map((m) => m[1].trim());
+  for (const condition of conditions) {
+    assert.match(condition, /^(name === "(groq|anthropic|openai)"|!admission\.admise|jusqua !== null)$/,
+      `condition non technique dans le chemin rapide : ${condition}`);
+  }
+  assert.equal(/snapshot|original_request|clarification_history|domaine|mode/.test(conditions.join(' ')), false,
+    'aucune condition ne regarde la demande, son domaine ou son mode');
   /* Aucun équilibrage : pas de tirage, pas de rotation, pas d'appel double. */
   for (const interdit of ['Math.random', 'round-robin', 'roundRobin', 'hedge', 'Promise.race',
                           'Promise.any', 'weighted']) {

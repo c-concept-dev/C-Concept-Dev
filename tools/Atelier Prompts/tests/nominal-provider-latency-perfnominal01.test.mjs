@@ -52,8 +52,12 @@ const rang = (p, l) => l[Math.max(0, Math.ceil((p / 100) * l.length) - 1)];
 test('T-PERFNOMINAL01-01 : l’épinglage du fournisseur rapide est explicite', () => {
   assert.equal(FAST_BENCH_PROVIDER_BINDING, 'FAST_BENCH_PROVIDER');
   assert.equal(FAST_BENCH_CHAIN, 'ha');
-  assert.deepEqual(resolveFastProviderOrder({}), ['groq', 'anthropic', 'openai']);
-  assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: 'ha' }), ['groq', 'anthropic', 'openai']);
+  /* FAST-CAPACITY-ADMISSION-01 : le défaut du plan rapide s'est réduit à Groq — les
+     deux autres échouent son contrat même au repos, ce que CE lot avait mesuré.
+     L'épinglage diagnostic, lui, continue de les atteindre : c'est un outil de
+     mesure d'opérateur, pas un repli de production. */
+  assert.deepEqual(resolveFastProviderOrder({}), ['groq']);
+  assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: 'ha' }), ['groq']);
   for (const f of FOURNISSEURS) {
     assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: f }), [f],
       `${f} épinglé rend une chaîne d’un seul fournisseur`);

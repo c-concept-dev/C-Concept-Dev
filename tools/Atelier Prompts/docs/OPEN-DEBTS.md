@@ -376,6 +376,54 @@ FAST_CAPACITY_PART  = OPEN
 
 Document : [CAPACITY-SLA-DEFINITION-01.md](CAPACITY-SLA-DEFINITION-01.md).
 
+**Mise à jour FAST-CAPACITY-ADMISSION-01 — ce qu'on peut savoir avant d'appeler, et ce qu'on
+ne peut pas.** La question était : peut-on décider, AVANT l'appel Groq, si une requête rapide
+tient dans la capacité restante, sans inventer de seuil ? La réponse est **non**, et pas par
+prudence — par arithmétique, trois fois plutôt qu'une.
+
+1. **Le coût est inconnu avant l'appel.** Le Worker n'a aucune dépendance de production et
+   Groq n'expose aucune route de comptage. La seule borne EXACTE disponible est
+   « jetons ≤ octets » : 794 + 16 384 + 512 = **17 690 jetons**, soit **2,21 fois le quota
+   d'une minute entière**. Une admission fondée dessus refuserait 100 % des requêtes. Elle est
+   exacte et inutilisable, les deux à la fois.
+2. **Substituer les 426 ou 485 jetons mesurés est exclu** : ce serait faire d'une statistique
+   de banc une autorité de production.
+3. **La capacité restante n'arrive qu'APRÈS coup.** Les en-têtes de débit voyagent sur la
+   réponse ; une vérification préalable lirait une valeur périmée d'au moins un aller-retour,
+   sur un seau qui se remplit en 3 à 5 s, aveugle aux appels concurrents et aveugle au plan
+   profond qui consomme le même budget sur la même clé.
+
+Un seul signal fournisseur est **autoritatif** : `Retry-After`. Il ne décrit pas un état, il
+énonce une instruction datée — « reviens dans 2 000 ms » reste vrai pendant 2 000 ms. Les six
+en-têtes de budget sont bien formés mais **observationnels**.
+
+**Le niveau 1 a donc été implémenté, et rien d'autre** : quand Groq annonce un délai, on le
+retient et le plan rapide s'abstient jusqu'à l'échéance, à la milliseconde près. Aucun
+refroidissement inventé — le repli fixe de 30 s du dépôt a été structurellement séparé de
+l'annonce du fournisseur pour qu'il ne puisse plus la contrefaire. Aucune machine à états,
+aucun seuil, aucun pourcentage, aucun compteur d'utilisateurs : l'admission ne reçoit qu'une
+horloge, et sa signature ne comporte aucun paramètre capable de porter la demande.
+
+**La portée du souvenir a été mesurée, pas supposée.** 50 invocations réelles à corps invalide
+— refusées en 400 avant tout appel fournisseur, donc **zéro jeton consommé** — révèlent
+**4 isolats distincts seulement**, 87 % des requêtes servies par un isolat déjà vu en rafale
+dense et **100 % à la cadence du pic déclaré**. Une mémoire de module suffit : ni KV, ni
+Durable Object. La limite est assumée — un isolat neuf perdra son propre appel, coût borné à
+un refus par isolat.
+
+**Second changement, tiré de la mesure du lot précédent :** le plan rapide n'a plus qu'un
+fournisseur. Groq rend 1 617 ms de p95 au repos, OpenAI 4 234, Anthropic 5 562 — les deux
+replis échouent le contrat de 3 secondes AVANT toute saturation. Basculer vers eux produisait
+une candidate hors contrat, plus lentement que de n'en produire aucune. `FAST_PROVIDER_ORDER`
+vaut désormais `["groq"]` ; `DECISION_PROVIDER_ORDER` et `ROLE_PROVIDER_ORDER` restent
+`groq → anthropic → openai` à l'octet près. Un refus rend `503 fast_capacity_unavailable`,
+erreur de transport qui ne touche ni readiness, ni route, ni état OPRIE — le plan profond
+poursuit son tour, exactement le mode dégradé décidé au contrat de capacité.
+
+Ce lot n'a **pas** déplacé la dette : il évite de harceler un fournisseur saturé, il ne dit
+rien de la part que le plan profond prend sur le même budget.
+Document : [FAST-CAPACITY-ADMISSION-01.md](FAST-CAPACITY-ADMISSION-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

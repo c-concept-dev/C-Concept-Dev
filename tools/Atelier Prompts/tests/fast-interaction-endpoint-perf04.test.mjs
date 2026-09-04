@@ -114,9 +114,14 @@ test('T-P04-EP09 : le worker branche la route sur la chaîne HA EXISTANTE, sans 
      production, et la ligne suivante le prouve plutôt que de le supposer. */
   assert.match(WORKER, /executeFast: \(snapshot, fastEnv\) => runFastInteractionWithHaChain\(snapshot, fastEnv, \{ order: resolveFastProviderOrder\(fastEnv\) \}\)/,
     'elle passe par la chaîne HA de PERF-03A, dont l\'ordre reste le défaut.');
-  assert.deepEqual(resolveFastProviderOrder({}), ["groq", "anthropic", "openai"],
-    'sans variable, l\'ordre rendu est exactement celui de production.');
-  assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: "ha" }), ["groq", "anthropic", "openai"],
+  /* FAST-CAPACITY-ADMISSION-01 — LE DÉFAUT DU PLAN RAPIDE EST GROQ SEUL. Les deux
+     autres fournisseurs échouent le contrat interactif au repos (4 234 et 5 562 ms
+     de p95 mesurés) : basculer vers eux produisait une candidate hors contrat, plus
+     lentement que de n'en produire aucune. L'ordre de PRODUCTION des rôles et de
+     /decision, lui, est inchangé — la ligne suivante le garde. */
+  assert.deepEqual(resolveFastProviderOrder({}), ["groq"],
+    'sans variable, le plan rapide n’interroge que Groq.');
+  assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: "ha" }), ["groq"],
     'et "ha" — la valeur déclarée du Worker — rend le même.');
   const bloc = WORKER.slice(WORKER.indexOf('export default {'));
   assert.doesNotMatch(bloc, /Promise\.race|hedge/i, 'aucune course, aucun appel dédoublé.');

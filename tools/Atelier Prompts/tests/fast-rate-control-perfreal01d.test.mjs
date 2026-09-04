@@ -152,7 +152,16 @@ test('T-PERFREAL01D-07/08/09 : Retry-After, marge et nombre de reprises inchang�
   assert.equal(GROQ_PRODUCTION_RETRY_DEFAULTS.defaultBackoffMs, 30000);
   /* RETRY_AFTER_POLICY_CHANGED = NO : la lecture de l'en-tête est intacte. */
   assert.match(WORKER, /export function parseRetryAfterMs\(response\)/);
-  assert.match(WORKER, /const retryAfterMs = parseRetryAfterMs\(response\) \?\? parseRetryDelayFromBody\(raw\) \?\? defaultBackoffMs;/);
+  /* FAST-CAPACITY-ADMISSION-01 — LA LIGNE S'EST SCINDÉE EN DEUX, LA POLITIQUE NON.
+     Il fallait pouvoir distinguer ce que le FOURNISSEUR annonce de ce que le DÉPÔT
+     suppose : `defaultBackoffMs` est une valeur locale, et elle ne doit jamais
+     fonder une période d'abstention. L'ordre de résolution, lui, est le même à
+     l'octet près — en-tête, puis corps, puis repli local. */
+  assert.match(WORKER, /const annonceFournisseur = parseRetryAfterMs\(response\) \?\? parseRetryDelayFromBody\(raw\);/);
+  assert.match(WORKER, /const retryAfterMs = annonceFournisseur \?\? defaultBackoffMs;/);
+  /* Et le repli local ne voyage jamais comme une annonce du fournisseur. */
+  assert.equal(/provider_announced_retry_after_ms: (retryAfterMs|defaultBackoffMs)\b/.test(WORKER), false,
+    'seule l’annonce réelle est transmise sous ce nom');
   /* Et la mesure le confirme, d'une façon que 01C n'avait pas pu voir : cette
      série porte DEUX attentes, 2 750 et 1 750 ms. Groq n'annonce donc pas toujours
      la même chose — 2 000 ms ou 1 000 ms selon l'ampleur du dépassement. Ce qui

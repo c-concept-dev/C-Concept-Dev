@@ -35,7 +35,8 @@ import {
 import { createTurnSnapshot, validateFastInteraction, FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS }
   from '../workers/shared/fast-interactive-plane.js';
 import {
-  DECISION_PROVIDER_ORDER, FAST_INTERACTION_ADAPTERS, runFastInteractionWithHaChain
+  DECISION_PROVIDER_ORDER,
+  FAST_PROVIDER_ORDER, FAST_INTERACTION_ADAPTERS, runFastInteractionWithHaChain
 } from '../workers/groq/src/index.js';
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -92,7 +93,13 @@ test('T-PERFREAL01A-03 : la jointure, EXÉCUTÉE, entre réellement dans les tro
      fabriquer cette classe. Voir les trois y figurer prouve donc que le corps des
      trois adaptateurs a été atteint. Avec la clé fautive, `attempts` ne contenait
      qu'une entrée, en programming_error, produite par la chaîne elle-même. */
-  const erreur = await runFastInteractionWithHaChain(instantane(), {}, { log: () => {} })
+  /* FAST-CAPACITY-ADMISSION-01 — L'ORDRE PAR DÉFAUT DU PLAN RAPIDE EST DEVENU
+     ["groq"], parce que les deux autres fournisseurs échouent le contrat interactif
+     même au repos. La JOINTURE, elle, n'a pas changé d'un octet : c'est elle que
+     cette preuve garde, et on la lui fait traverser en passant l'ordre explicitement.
+     Le défaut de production est vérifié séparément, en T-PERFREAL01A-06. */
+  const erreur = await runFastInteractionWithHaChain(instantane(), {},
+    { order: ['groq', 'anthropic', 'openai'], log: () => {} })
     .then(() => null, (e) => e);
   assert.ok(erreur, 'sans clé, la chaîne finit par fermer');
   assert.equal(erreur.name, 'ProviderChainError');
@@ -141,8 +148,14 @@ test('T-PERFREAL01A-06 : l’ordre des fournisseurs est intact, et la chaîne le
     'PROVIDER_ORDER_CHANGED = NO');
   /* Sans aucune clé configurée, la jointure corrigée traverse maintenant les trois
      fournisseurs — chacun en config_unavailable — puis ferme. Avant, elle mourait au premier. */
+  /* FAST-CAPACITY-ADMISSION-01 : le plan rapide a désormais son ordre PROPRE, réduit
+     à Groq. DECISION_PROVIDER_ORDER — /decision et les trois rôles OPRIE — reste
+     inchangé, et c'est ce que l'assertion ci-dessus continue de garder. */
+  assert.deepEqual([...FAST_PROVIDER_ORDER], ['groq'],
+    'le plan rapide ne bascule plus vers un fournisseur qui échoue son contrat');
   const journal = [];
-  await assert.rejects(() => runFastInteractionWithHaChain(instantane(), {}, { log: (e) => journal.push(e) }));
+  await assert.rejects(() => runFastInteractionWithHaChain(instantane(), {},
+    { order: ['groq', 'anthropic', 'openai'], log: (e) => journal.push(e) }));
   const tentes = journal.filter((e) => e.event === 'provider_ha_attempt').map((e) => e.provider);
   assert.deepEqual(tentes, ['groq', 'anthropic', 'openai']);
   assert.deepEqual([...new Set(journal.filter((e) => e.event === 'provider_ha_failure').map((e) => e.failure_class))],

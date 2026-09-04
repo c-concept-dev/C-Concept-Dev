@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `f37dc85330afb8a3f2dc8e9c740fd6fa74bfe98e` |
-| Date du commit | 2026-09-04T23:05:46+02:00 |
+| Commit local | `8fabe906f0f6f52a4a995d0adf33e5b89c84c98c` |
+| Date du commit | 2026-09-04T23:53:36+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-42 fichiers. C'est ce qui doit exister pour **servir** la page,
+43 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `ff993e225073c896f8ca2d85e562446a6bef43b5bb0b3d6abd1e6a61ff70476e` |
+| Empreinte du jeu | `d64e05c8251fc9e2970c78b0cef5277b35064ee994e70cca4de5915b8c8c9fa1` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -85,7 +85,8 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `2dad2676d0ce7bc8d3bf5c0d1a0f306436499250c2b7369d32f7f3db65bdf2f9` |
+| REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `7aa3840c52905336901e4da9abdc97d2b7cb62a7ace2f1576a4316b7aa2572eb` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
@@ -93,7 +94,7 @@ sa propre empreinte.
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `70bcb641500d52f5cea1fa095932f8b004c59467e97d4e1669f82e64330ba8fb` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `81c447463db407859be38b5208c376d2f4470b721b36c1b6c6d95e8aae7fc7ba` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `7519730f049e534b41ac3b48bab6c8639bfebcf395c3c072bd2a2f1a922e0dbd` |
 | REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `8c91d1b407d84426d0507969a740b7c0182216006e9ac9880ee9cbef453b898c` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/decision-core.js` | `2879c8e720146b4d2a620f76e329aa1a2e9f1ae3c7725749bbe6cbaf31b32869` |
@@ -111,8 +112,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 135 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 199 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 136 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 200 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -137,7 +138,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2735 |
+| Tests au vert | 2748 |
 
 ## Dette encore ouverte
 
