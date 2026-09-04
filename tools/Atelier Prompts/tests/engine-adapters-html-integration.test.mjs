@@ -54,8 +54,11 @@ test('Architecte reçoit le contrat ADN comme cadrage sans modifier ARCH_SYSTEM 
   assert.match(section,/produisez uniquement l’analyse JSON demandée par le système/);
 });
 
-test('Atelier reste un choix manuel et reçoit seulement une projection de contexte',()=>{
+test('Atelier reste un choix manuel, et ne calcule plus de projection que personne ne lit',()=>{
+  /* CLEAN-02 : la projection de contexte d'Atelier était calculée puis rangée dans un champ
+     partagé qu'aucun code ne lisait. Elle est retirée ; l'enveloppe locale d'audit demeure. */
   const section=html.slice(html.indexOf('function v11StartAtelier'),html.indexOf('window.askDecisionProvider'));
-  assert.match(section,/projectToAtelier/);
+  assert.match(section,/adnManualEnvelope\(d,mat,'rapide'\)/);
+  assert.doesNotMatch(section,/projectToAtelier|lastProjection/);
   assert.match(section,/ouvrirVue\('generation'\)/);
 });

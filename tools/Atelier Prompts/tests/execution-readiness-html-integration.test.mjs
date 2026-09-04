@@ -52,7 +52,7 @@ test("les deux chemins Architecte refusent de compiler tant que la validation po
   );
   const imported = html.slice(
     html.indexOf("function useAnalysis"),
-    html.indexOf("function showQuestion")
+    html.indexOf("function answerQuestion(")
   );
   for (const [name, section] of [["API", api], ["import", imported]]) {
     assert.match(section, /adnValidatePostOprie/, `${name} : la validation post-OPRIE gouverne le passage`);
@@ -112,7 +112,7 @@ test("la technique 9 est réinjectée dans le prompt final seulement après une 
   );
   const imported = html.slice(
     html.indexOf("function useAnalysis"),
-    html.indexOf("function showQuestion")
+    html.indexOf("function answerQuestion(")
   );
   assert.match(api, /adnAppendFinalExecutionDirective/);
   assert.match(imported, /adnAppendFinalExecutionDirective/);

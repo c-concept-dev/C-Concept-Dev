@@ -326,8 +326,7 @@ test('T-MODE03-51/52 : l’enveloppe fabriquée d’Atelier ne peut PAS contamin
   /* Défaut mesuré et fermé : le catch laissait survivre l'enveloppe du mode précédent — celle
      d'Atelier porte un etat_demande fabriqué, et makeEnvelope() la lit pour composer la requête
      envoyée à l'IA. On efface AVANT de tenter. */
-  assert.match(ENTER_ARCH, /adpState\.lastEnvelope=null;adpState\.lastProjection=null;/,
-    'l’entrée Architecte repart d’une table rase.');
+  assert.match(ENTER_ARCH, /adpState\.lastEnvelope=null;/, 'l’entrée Architecte repart d’une table rase.');
   const posEfface = ENTER_ARCH.indexOf('adpState.lastEnvelope=null');
   const posTry = ENTER_ARCH.indexOf('try{');
   assert.ok(posEfface < posTry, 'et l’effacement précède la tentative, pas l’inverse.');
@@ -370,8 +369,14 @@ test('T-MODE03-57/58 : l’ancien chemin ne définit aucune politique Architecte
 // =================================================================================================
 
 test('T-MODE03-59/60 : aucun contrôle d’aide actif purement cosmétique', () => {
+  /* CLEAN-02 : la « visée des porteurs réels » vivait dans cibleAide — une fonction que
+     PERSONNE n'appelait. Elle est retirée. Ce qui reste est le gestionnaire délégué, lui
+     bien branché, et c'est lui que ce test mesure désormais. */
   assert.equal((html.match(/class="[^"]*aide-btn[^"]*"/g) || []).length, 0, 'aucun bouton d’aide statique.');
-  assert.match(FRONT_CODE, /closest\('label\.etiquette, \.cle, \.famille-tete/, 'le gestionnaire vise des porteurs réels.');
+  assert.equal(FRONT_CODE.includes('cibleAide'), false, 'plus de viseur inutilisé.');
+  const aides = FRONT_CODE.slice(FRONT_CODE.indexOf('function brancherAides()'), FRONT_CODE.indexOf('function brancherAides()') + 1400);
+  assert.match(aides, /closest\('\.aide-btn'\)/, 'le gestionnaire délégué vise le bouton d’aide.');
+  assert.match(aides, /addEventListener\('focusin'/, 'et il est réellement branché.');
 });
 
 test('T-MODE03-61 : EXEC-PHASE-INSTRUMENT-01 reste ouverte, et rien n’a été injecté dans la plage gelée', () => {

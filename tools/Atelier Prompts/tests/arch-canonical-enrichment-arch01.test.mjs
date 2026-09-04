@@ -639,7 +639,10 @@ test('T-ARCH01-INT le chemin Architecte enrichit après la validation post-OPRIE
   const builder = HTML.slice(HTML.indexOf('function adnEnrichCanonicalWithArch('), HTML.indexOf('/* READINESS-00 — VALIDATION POST-OPRIE.'));
   assert.match(builder, /enrichCanonicalContractFromArchAnalysis/);
   assert.match(builder, /validateArchCanonicalEnrichment/);
-  assert.match(builder, /oprieState\.enrichedContract=result\.contract/);
+  /* CLEAN-02 : oprieState.enrichedContract était écrit ici et lu nulle part ; il est retiré.
+     Le contrat enrichi voyage par la VALEUR DE RETOUR, qui est ce que le compilateur reçoit. */
+  assert.match(builder, /return result;/);
+  assert.equal(builder.includes('enrichedContract'), false);
 
   /* Les deux chemins Architecte enrichissent ; l'autorité de blocage reste au
      validateur post-OPRIE, conformément à READINESS-00. */
@@ -648,7 +651,7 @@ test('T-ARCH01-INT le chemin Architecte enrichit après la validation post-OPRIE
 
   for (const [name, slice] of [
     ['API', HTML.slice(HTML.indexOf('async function beginApiAnalysis'), HTML.indexOf('function compositeDemand'))],
-    ['import', HTML.slice(HTML.indexOf('function useAnalysis'), HTML.indexOf('function showQuestion'))]
+    ['import', HTML.slice(HTML.indexOf('function useAnalysis'), HTML.indexOf('function answerQuestion('))]
   ]) {
     assert.ok(slice.indexOf('adnValidatePostOprie') < slice.indexOf('adnEnrichCanonicalWithArch'),
       `${name} : la validation post-OPRIE précède l'enrichissement`);
@@ -665,18 +668,17 @@ test('T-ARCH01-45 ARCH_ACTIVE_SEMANTIC_SOURCE_COUNT = 1 sur le chemin enrichi', 
   assert.match(builder, /const base=oprieState\.canonicalContract/, 'la source est le contrat canonique, jamais archAnalyse seule');
 });
 
-test('T-ARCH01-37b l’ancienne readiness Architecte n’a plus aucun site d’appel', () => {
-  /* READINESS-00 a retiré l'autorité ; ADN-ARCH-01 vérifie qu'aucun nouveau
-     consommateur ne l'a rebranchée. La fonction subsiste, inerte : son retrait
-     appartient à un lot de nettoyage, pas à celui-ci. */
-  const occurrences = HTML.match(/adnAssessArchitecteReadiness/g) || [];
-  assert.equal(occurrences.length, 1, 'une définition, zéro appel');
-  assert.match(HTML, /function adnAssessArchitecteReadiness\(/);
+test('T-ARCH01-37b l’ancienne readiness Architecte a été retirée', () => {
+  /* READINESS-00 a retiré l'autorité et laissé la fonction inerte, en renvoyant son retrait
+     « à un lot de nettoyage ». CLEAN-02 est ce lot : zéro appel est devenu zéro définition. */
+  assert.equal((HTML.match(/adnAssessArchitecteReadiness/g) || []).length, 0);
+  /* L'autorité de readiness, elle, reste exactement là où READINESS-00 l'a mise. */
+  assert.match(HTML, /function assessAnalysisReadiness\(/, 'le noyau conserve la sienne.');
 });
 
 test('T-ARCH01-36 adnCompactContractForArchitecte reste une projection en lecture seule', () => {
   const start = HTML.indexOf('function adnCompactContractForArchitecte()');
-  const body = HTML.slice(start, HTML.indexOf('function adnAssessArchitecteReadiness'));
+  const body = HTML.slice(start, HTML.indexOf('function adnEnrichCanonicalWithArch('));
   assert.match(body, /const env=adpState\.lastEnvelope/);
   /* Aucune écriture : ni affectation dans un état partagé, ni readiness dérivée. */
   assert.equal(/oprieState\.|adpState\.[a-zA-Z]+\s*=/.test(body), false, 'aucune écriture d’état');

@@ -323,8 +323,9 @@ test('T-MODE02-44/45 : aucun contrôle d’aide cosmétique sur le parcours Rapi
      il n'y a donc aucun contrôle visible inerte à corriger sur ce parcours. */
   assert.equal((html.match(/class="[^"]*aide-btn[^"]*"/g) || []).length, 0,
     'aucun bouton d’aide statique.');
+  /* CLEAN-02 : le viseur de « porteurs réels » n'avait aucun appelant ; il est retiré. */
   assert.match(FRONT_CODE, /aide-btn/, 'le gestionnaire délégué existe bien…');
-  assert.match(FRONT_CODE, /closest\('label\.etiquette, \.cle, \.famille-tete/, '…et vise des porteurs réels.');
+  assert.equal(FRONT_CODE.includes('cibleAide'), false, '…et plus rien d’inutilisé autour.');
 });
 
 test('T-MODE02-46..50 : Rapide n’écrit aucune autorité et ne choisit aucun fournisseur', () => {

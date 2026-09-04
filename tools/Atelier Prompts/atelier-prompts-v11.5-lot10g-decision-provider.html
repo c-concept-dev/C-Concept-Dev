@@ -1062,21 +1062,12 @@ body.v11-normal #v11-shell{display:block}
 #v11-shell .ui-hero-caption{padding:18px 20px;background:linear-gradient(180deg,rgba(251,250,247,.55),var(--ds-surface))}
 #v11-shell .ui-caption-badge{display:inline-flex;padding:7px 10px;border-radius:var(--ds-radius-pill);background:var(--ui-accent-3);color:var(--ui-accent);font:700 .74rem/1 var(--ds-font);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
 #v11-shell .ui-hero-caption p{margin:0;color:var(--ui-muted);font:400 .92rem/1.58 var(--ds-font)}
-#v11-shell .ui-process-panel{padding:22px}
 #v11-shell .ui-section-title{margin:0;font:700 1.25rem/1.2 var(--ds-font);color:var(--ui-text)}
-#v11-shell .ui-process-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-#v11-shell .ui-process-step{appearance:none;border:1px solid var(--ui-border);background:var(--ds-surface-strong);border-radius:var(--ds-radius-lg);padding:12px;display:flex;gap:12px;align-items:center;text-align:left;cursor:pointer;transition:transform var(--ds-transition),border-color var(--ds-transition),box-shadow var(--ds-transition)}
-#v11-shell .ui-process-step:hover{transform:translateY(-1px);border-color:var(--ds-border-strong)}
-#v11-shell .ui-process-step.active{border-color:var(--ui-accent);box-shadow:0 12px 24px rgba(184,115,70,.10);background:var(--ds-accent-soft-2)}
-#v11-shell .ui-process-thumb,#v11-shell .ui-mini-icon,#v11-shell .ui-stage-icon,#v11-shell .ui-return-icon{display:inline-grid;place-items:center;flex:0 0 auto;border-radius:var(--ds-radius-lg);background:var(--ds-surface-strong);border:1px solid var(--ds-border);box-shadow:0 8px 18px rgba(72,50,32,.08);position:relative;overflow:hidden}
-#v11-shell .ui-process-thumb{width:56px;height:56px}
+#v11-shell .ui-mini-icon,#v11-shell .ui-stage-icon,#v11-shell .ui-return-icon{display:inline-grid;place-items:center;flex:0 0 auto;border-radius:var(--ds-radius-lg);background:var(--ds-surface-strong);border:1px solid var(--ds-border);box-shadow:0 8px 18px rgba(72,50,32,.08);position:relative;overflow:hidden}
 #v11-shell .ui-mini-icon{width:42px;height:42px;border-radius:var(--ds-radius-md)}
 #v11-shell .ui-stage-icon,#v11-shell .ui-return-icon{width:62px;height:62px}
 #v11-shell .thumb-hero,#v11-shell .thumb-rapide,#v11-shell .thumb-architecte,#v11-shell .thumb-atelier{background-image:none}
 #v11-shell .thumb-hero::before,#v11-shell .thumb-hero::after,#v11-shell .thumb-rapide::before,#v11-shell .thumb-rapide::after,#v11-shell .thumb-architecte::before,#v11-shell .thumb-architecte::after,#v11-shell .thumb-atelier::before,#v11-shell .thumb-atelier::after{content:none}
-#v11-shell .ui-process-step strong{display:block;color:var(--ui-text);font:700 .94rem/1.15 var(--ds-font)}
-#v11-shell .ui-process-step small{display:block;color:var(--ui-muted);font:400 .82rem/1.45 var(--ds-font);margin-top:3px}
-#v11-shell .ui-process-text{margin:16px 0 0;color:var(--ui-muted);font:400 .92rem/1.6 var(--ds-font)}
 #v11-shell .ui-modes-intro{display:flex;justify-content:space-between;gap:16px;align-items:baseline;margin:2px 2px -4px;color:var(--ui-muted);font:500 .82rem/1.4 var(--ds-font)}
 #v11-shell .ui-modes-intro span{color:var(--ui-text);font-weight:700}
 #v11-shell .ui-modes-intro strong{font-weight:500}
@@ -1137,7 +1128,6 @@ body.v11-normal #v11-shell{display:block}
   #v11-shell .ui-mode-cards{grid-template-columns:1fr}#v11-shell .ui-inline-result-footer{align-items:stretch;flex-direction:column}#v11-shell .ui-inline-result-actions{flex-direction:column}#v11-shell .ui-inline-result-actions .ui-cta{width:100%}
   #v11-shell .ui-modes-intro{flex-direction:column;gap:3px;align-items:flex-start}
   #v11-shell .ui-panel-main{padding:22px 20px}
-  #v11-shell .ui-process-grid{grid-template-columns:1fr}
   #v11-shell .ui-panel-main{padding:22px}
   #v11-shell .ui-return-dropzone,
   #v11-shell .ui-dropzone{grid-template-columns:1fr}
@@ -3381,7 +3371,6 @@ function tarifDuJour(id){
   return {entree:m.entree, sortie:m.sortie, connu:true};
 }
 
-const TARIFS = MODELES;   /* alias conservé pour le reste du code */
 
 const MODELES_DEMANDE = [
   {nom:'Extraction structurée', format:'json', niveau:'exhaustif',
@@ -5852,11 +5841,6 @@ function etatApi(message, type){
   z.textContent = message;
 }
 
-function texteReponse(donnees){
-  if(!donnees || !Array.isArray(donnees.content)) return '';
-  return donnees.content.filter(b => b && b.type === 'text').map(b => b.text).join('\n');
-}
-
 function chargerConfigApi(){
   const zone = coffre.lire('session','atelier.cle') ? 'session' : 'local';
   const cle = coffre.lire(zone,'atelier.cle');
@@ -6735,13 +6719,6 @@ function boutonAide(texte){
    à mouseenter/mouseleave posés au cas par cas. La zone sensible est
    étendue au libellé entier, bien plus facile à atteindre qu'un rond de
    seize pixels. */
-function cibleAide(e){
-  const direct = e.target.closest('.aide-btn');
-  if(direct) return direct;
-  const groupe = e.target.closest('label.etiquette, .cle, .famille-tete, .compteur-verrous, .budget-legende');
-  return groupe ? groupe.querySelector('.aide-btn') : null;
-}
-
 function brancherAides(){
   /* V11.5 LOT 9C — l'aide devient un vrai contrôle au clic. */
   document.addEventListener('focusin', e => {
@@ -8050,19 +8027,6 @@ async function copierRapide(){
     {format: r.ctx.format, niveau:r.niveau, verrous: r.actifs, provenance:'', droit:'', usage:''});
   enregistrerSuivi(note, estimerTokens(r.prompt), r.ctx.format);
 }
-
-function ouvrirRapideDansAvance(){
-  const i = INTENTIONS.find(x => x.id === intentionActive);
-  const langue = i.langueCible ? $('#rapide-langue').value : '';
-  $('#demande').value = construireDemandeRapide(i, $('#rapide-demande').value.trim(), langue);
-  $('#materiau').value = $('#rapide-texte').value;
-  $('#format').value = i.format;
-  $('#format').dispatchEvent(new Event('change'));
-  majCompteurDemande();
-  $('#compteur-materiau').textContent = $('#materiau').value.length.toLocaleString('fr-FR');
-  ouvrirVue('generation');
-}
-
 
 function demarrer(){
   peuplerFormats($('#format'), 'report');
@@ -10354,7 +10318,7 @@ async function beginApiAnalysis(){
   const erreurs=typeof api.valider==='function'?api.valider(parsed):[];
   if(erreurs&&erreurs.length)throw new Error('L’analyse API ne respecte pas le contrat attendu : '+erreurs.join(' · '));
   const ok=api.importer(parsed);if(!ok)throw new Error('L’analyse API a été reçue mais n’a pas pu être importée.');
-  const obj=api.analyse||parsed;state.analysis=obj;
+  const obj=api.analyse||parsed;
   /* READINESS-00 : plus aucune décision de readiness ici. Le validateur post-OPRIE
    * signale, il ne décide pas, et ne pose jamais de question. */
   const validation=adnValidatePostOprie(obj,oprieState.canonicalContract);
@@ -10476,7 +10440,7 @@ function makeEnvelope(){
     requete_complete:request,
     fichier_retour_attendu:state.responseName
   };
-  state.lastRequest=envelope;return envelope;
+  return envelope;
 }
 function blobDownload(name,text,type='application/json'){
   const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
@@ -10487,7 +10451,7 @@ async function copyText(text){
 async function beginExchange(){
   const d=$('#v11-demande').value.trim();if(!d){toast('Expliquez d’abord ce que vous voulez obtenir.');$('#v11-demande').focus();return}
   v11PushApiUi();if($('#api-cle')&&$('#api-cle').value.trim()){try{await beginApiAnalysis()}catch(e){toast(e.message);show(null,'#v11-demande')}return}
-  state.exchangeId=newExchangeId();setExchangeNames();state.analysis=null;
+  state.exchangeId=newExchangeId();setExchangeNames();
   const rf=$('#v11-response-file');if(rf)rf.value='';const pr=$('#v11-paste-response');if(pr)pr.value='';
   try{const env=makeEnvelope();
     const ext=env.pieces_a_joindre;const note=$('#v11-attachment-note');
@@ -10532,7 +10496,7 @@ function humanValidationError(erreurs){
     '<details style="margin-top:.65rem"><summary>Afficher les détails pour diagnostic</summary><div style="margin-top:.45rem;white-space:pre-wrap">'+escapeHtml(erreurs.join('\n'))+'</div></details>';
 }
 function rotateExchangeAfterMismatch(){
-  state.exchangeId=newExchangeId();setExchangeNames();state.analysis=null;
+  state.exchangeId=newExchangeId();setExchangeNames();
   const rf=$('#v11-response-file');if(rf)rf.value='';
   try{makeEnvelope()}catch(e){}
 }
@@ -10563,7 +10527,6 @@ function useAnalysis(obj){
     if(erreurs2&&erreurs2.length){humanValidationError(erreurs2);show('#v11-exchange','#v11-return-dropzone');return;}
     throw new Error('Le fichier est reconnu, mais l’Atelier n’a pas réussi à poursuivre. Recommencez l’import ; si le problème persiste, ouvrez les détails de diagnostic.');
   }
-  state.analysis=legacyObj;
   /* READINESS-00 : chemin par fichier — même validation post-OPRIE, mêmes signaux. */
   const validation=adnValidatePostOprie(legacyObj,oprieState.canonicalContract);
   /* CORRECTION-ADN-ARCH-01-01 : chemin par fichier — même séquence exactement,
@@ -10574,15 +10537,6 @@ function useAnalysis(obj){
   /* ADN-ARCH-02 — PATH_B : chemin par fichier, MÊME source sémantique unique. */
   const prompt=api.compiler(enrichment&&enrichment.contract);if(!prompt)throw new Error('La demande a été comprise, mais le résultat final n’a pas pu être préparé.');
   $('#v11-final').value=adnAppendFinalExecutionDirective(prompt);show('#v11-ready','#v11-copy-final');
-}
-function showQuestion(q,missing){
-  $('#v11-question').textContent=q;
-  $('#v11-answer').value='';
-  const m=missing.find(x=>x&&x.information&&q.toLowerCase().split(/\s+/).some(w=>w.length>5&&x.information.toLowerCase().includes(w)));
-  $('#v11-why').textContent=(m&&m.justification)||'Cette précision peut modifier la qualité ou la fiabilité de la demande préparée.';
-  const chips=$('#v11-chips');chips.innerHTML='';
-  ['Je ne sais pas','À vous de choisir'].forEach(t=>{const b=document.createElement('button');b.type='button';b.className='v11-chip';b.textContent=t;b.addEventListener('click',()=>{$('#v11-answer').value=t});chips.appendChild(b)});
-  show('#v11-dialogue','#v11-answer');
 }
 function answerQuestion(answer){
   answer=String(answer||'').trim();if(!answer){toast('Répondez avec vos mots, ou choisissez « Je ne sais pas ».');return}
@@ -10605,8 +10559,8 @@ function answerQuestion(answer){
   $('#v11-exchange-status').innerHTML='<strong>Merci, cette précision est ajoutée.</strong><br>Envoyez le nouveau fichier à votre IA pour poursuivre la préparation.';
 }
 function resetAll(){
-  state.docs=[];state.answers=[];state.lastRequest=null;state.analysis=null;state.exchangeId=null;
-  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.lastEnvelope=null;adpState.lastProjection=null;adpState.lastAction=null;adpState.requestedMode='rapide';adpState.running=false;adpState.returnFocus=null;}
+  state.docs=[];state.answers=[];state.exchangeId=null;
+  if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.lastEnvelope=null;adpState.requestedMode='rapide';adpState.returnFocus=null;}
   state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';$('#v11-demande').value='';renderFiles();$('#v11-final').value='';show(null);
   if(window.__ARCHITECTE_V10__&&window.__ARCHITECTE_V10__.nouvelleDemande)try{window.__ARCHITECTE_V10__.nouvelleDemande()}catch(e){}
 }
@@ -19958,7 +19912,13 @@ const ADP10G=Object.freeze({
   })
 });
 const ADP_REASONS=Object.freeze({clarification:'La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.',rapide:'La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.',architecte:'La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.'});
-const adpState={pendingQuestion:false,clarifications:0,lastEnvelope:null,lastProjection:null,lastAction:null,requestedMode:'rapide',running:false,returnFocus:null};
+/* CLEAN-02 — CET ÉTAT NE PORTE PLUS QUE CE QUE QUELQU'UN LIT.
+   Trois champs en sont retirés : `lastProjection` (six écritures, zéro lecture — la projection
+   était calculée puis jetée), `running` (le verrou de tour vit dans oprieState, celui-ci n'était
+   que remis à zéro), et `lastAction` (son unique écrivain a disparu avec l'ancien chemin, il
+   n'aurait plus jamais rendu que null). Un champ qu'on écrit sans jamais le lire finit par être
+   lu un jour, et il ment alors depuis longtemps. */
+const adpState={pendingQuestion:false,clarifications:0,lastEnvelope:null,requestedMode:'rapide',returnFocus:null};
 const ADP_ADN_RUNTIME_VERSION='10G.3B.3F';
 function adnRuntime(){
   const runtime=window.__ATELIER_ADN_RUNTIME__;
@@ -20080,19 +20040,6 @@ function adnCompactContractForArchitecte(){
     ethics:contract.ethics||{}
   };
 }
-function adnAssessArchitecteReadiness(analysis){
-  try{
-    const runtime=adnRuntime();
-    if(runtime&&typeof runtime.assessAnalysisReadiness==='function'){
-      return runtime.assessAnalysisReadiness(analysis,{previous_questions:state.answers.map(x=>x.question)});
-    }
-  }catch(error){console.warn('Execution Readiness Gate indisponible.',error)}
-  const ev=analysis&&analysis.evaluation||{};
-  if(ev.action_recommandee==='questionner'&&Array.isArray(ev.questions_a_poser)&&ev.questions_a_poser.length)return {state:'clarification_required',execution_ready:false,question:ev.questions_a_poser[0]};
-  return ev.livrable_complet_possible===true&&ev.action_recommandee==='continuer'
-    ?{state:'execution_ready',execution_ready:true,question:null}
-    :{state:'blocked',execution_ready:false,question:null};
-}
 /* ADN-ARCH-01 — ENRICHISSEMENT ARCHITECTE DU CONTRAT CANONIQUE.
  * Additif seulement : l'enrichisseur ne peut écrire que dans des champs que
  * OPRIE ne produit pas, et sa garde générique refuse toute écriture ailleurs.
@@ -20118,7 +20065,6 @@ function adnEnrichCanonicalWithArch(analysis){
       console.warn('Enrichissement Architecte refusé.',verdict&&verdict.problems);
       return {contract:null,signals:[adnPostOprieSignal('CONTRACT_INCONSISTENT','contract','archAnalyse','L’enrichissement a tenté de modifier un champ sous autorité OPRIE.',true)]};
     }
-    oprieState.enrichedContract=result.contract;
     return result;
   }catch(error){
     console.warn('Enrichissement Architecte indisponible.',error);
@@ -20357,7 +20303,7 @@ function v11ShowRapidGate(decision){
  * ================================================================================================= */
 const OPRIE_STATES=Object.freeze(['clarification_required','confirmation_required','operational_request_ready','blocked','degraded_state']);
 const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-request"]')||{}).content||'';
-const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,enrichedContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
+const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
 
 function oprieTechnicalFailure(){
   return Object.assign(new Error('OPERATIONAL_REQUEST_TECHNICAL_FAILURE'),{operational_request_technical_failure:true});
@@ -20777,10 +20723,6 @@ function oprieBeginExecutionCycle(turnId,canonicalVersion){
   return verdict.execution_id;
 }
 /* Un cycle est-il déjà ouvert pour ce tour ? C'est la seule question que pose le garde d'entrée. */
-function oprieExecutionCycleOpen(turnId){
-  const cycle=oprieExecutionLifecycle();
-  return !!cycle&&cycle.hasOpenExecution(turnId);
-}
 function oprieDriveOrchestration(decision,turn,requestedMode){
   const runtime=oprieOrchestrationRuntime();
   const action=decision&&decision.action;
@@ -20871,15 +20813,6 @@ function v11SwitchToArchitecteFromRapid(decision){
   const action=$('#ui-main-action');if(action)action.focus();
   return false;
 }
-function adpShowQuestion(decision){
-  adpState.pendingQuestion=true;adpState.lastAction=decision;adpState.returnFocus=document.activeElement;
-  $('#v11-question').textContent=decision.question;
-  $('#v11-answer').value='';
-  $('#v11-why').textContent='Votre réponse sera ajoutée à la demande avant une nouvelle analyse.';
-  const chips=$('#v11-chips');chips.innerHTML='';
-  ['Je ne sais pas','À vous de choisir'].forEach(t=>{const b=document.createElement('button');b.type='button';b.className='v11-chip';b.textContent=t;b.addEventListener('click',()=>{$('#v11-answer').value=t});chips.appendChild(b)});
-  show('#v11-dialogue','#v11-answer');
-}
 function adpCancelClarification(){
   adpState.pendingQuestion=false;
   show(null);if(adpState.returnFocus&&typeof adpState.returnFocus.focus==='function')adpState.returnFocus.focus();return false;
@@ -20895,7 +20828,7 @@ function adpEnterArchitecte(demande,materiau,orientation){
      etat_demande fabriqué — et makeEnvelope() lit ce champ pour composer la requête envoyée à l'IA.
      Une entrée Architecte en échec aurait donc pu embarquer le contrat d'un autre mode. On efface
      AVANT de tenter : en cas d'échec il ne reste rien, et rien vaut mieux qu'autre chose. */
-  adpState.lastEnvelope=null;adpState.lastProjection=null;
+  adpState.lastEnvelope=null;
   try{
     let envelope=orientation&&orientation.envelope;
     /* ADN-CANON-02 : la base canonique, quand elle existe, est la source unique.
@@ -20907,7 +20840,6 @@ function adpEnterArchitecte(demande,materiau,orientation){
     }
     if(!envelope||!envelope.routing||envelope.routing.route!=='architecte')envelope=adnManualEnvelope(demande,materiau,'architecte');
     adpState.lastEnvelope=envelope;
-    adpState.lastProjection=adnRuntime().projectToArchitecte(envelope,{material:materiau});
   }catch(error){console.warn('Adapter Architecte ADN non appliqué ; parcours historique conservé.',error)}
   v11SwitchToArchitecteFromRapid(orientation&&orientation.decision||{state:'architecte',title:'Préparation approfondie',text:'Les éléments fournis vont maintenant être structurés.'});
   return adpContinueArchitecte();
@@ -20921,7 +20853,7 @@ function adpRunRapide(demande,materiau,orientation){
      l'etat_demande est fabriqué. Aucun lecteur ne la consomme sur ce chemin aujourd'hui — et c'est
      précisément ce qui rend l'invariant fragile : il tient par absence de lecteur, pas par
      structure. On efface AVANT de tenter ; en cas d'échec il ne reste rien. */
-  adpState.lastEnvelope=null;adpState.lastProjection=null;
+  adpState.lastEnvelope=null;
   v11ShowRapidGate(orientation.decision);
   const rd=$('#rapide-demande'),rt=$('#rapide-texte');
   if(rd){rd.value=demande;rd.dispatchEvent(new Event('input',{bubbles:true}))}
@@ -20936,7 +20868,7 @@ function adpRunRapide(demande,materiau,orientation){
       const projection=adnRuntime().projectToRapide(refined,{material:materiau,format:r.ctx.format,level:r.niveau});
       const actifs=adnMergeLegacyLocks(r.actifs,projection);
       if(typeof assembler==='function'&&JSON.stringify(actifs)!==JSON.stringify(r.actifs)){r.actifs=actifs;r.prompt=assembler(r.ctx,actifs)}
-      adpState.lastEnvelope=refined;adpState.lastProjection=projection;
+      adpState.lastEnvelope=refined;
     }
   }catch(error){console.warn('Adapter Rapide ADN non appliqué ; moteur historique conservé.',error)}
   if(typeof contratDuPrompt==='function')etat.contrat=contratDuPrompt(r.ctx,r.actifs);
@@ -20969,7 +20901,7 @@ async function v11StartArchitecte(){
 function v11StartAtelier(){
   const d=v11RequireDemand();if(!d)return false;
   const mat=materialText();
-  try{const env=adnManualEnvelope(d,mat,'rapide');adpState.lastEnvelope=env;adpState.lastProjection=adnRuntime().projectToAtelier(env,{material:mat})}catch(error){console.warn('Adapter Atelier ADN non appliqué ; parcours historique conservé.',error)}
+  try{adpState.lastEnvelope=adnManualEnvelope(d,mat,'rapide')}catch(error){console.warn('Adapter Atelier ADN non appliqué ; parcours historique conservé.',error)}
   const ad=$('#demande'),am=$('#materiau');
   if(ad){ad.value=d;ad.dispatchEvent(new Event('input',{bubbles:true}))}
   if(am){am.value=mat;am.dispatchEvent(new Event('input',{bubbles:true}))}
@@ -20993,8 +20925,7 @@ window.askDecisionProvider=askDecisionProvider;
 window.__ADAPTIVE_DECISION_PIPELINE_10G__=Object.freeze({
   version:ADP10G.version,
   adnRuntimeVersion:ADP_ADN_RUNTIME_VERSION,
-  askDecisionProvider,
-  get lastAction(){return adpState.lastAction}
+  askDecisionProvider
 });
 
 window.__V11_ROUTER__=Object.freeze({
@@ -21090,12 +21021,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     architecte:{helper:'Le mode Architecte analyse la demande, complète ce qui manque et prépare une structure plus robuste avant exécution.',primary:'Préparer avec Architecte'},
     atelier:{helper:'Le mode Atelier sert à façonner consciemment la demande : réglages, contraintes, structure et niveau d’exigence.',primary:'Préparer dans Atelier'}
   };
-  const processText=[
-    'Le système part de vos mots, sans exiger de vocabulaire technique. Vous pouvez décrire votre besoin comme vous le feriez à voix haute.',
-    'Le choix du mode doit rester évident : Rapide pour aller vite, Architecte pour cadrer, Atelier pour façonner.',
-    'Le moteur garde la complexité en arrière-plan et transforme votre demande en structure exploitable par une IA.',
-    'Au bon moment, l’outil livre un prompt final ou un fichier prêt à l’emploi, sans vous faire trébucher sur la mécanique.'
-  ];
   function $(s){return document.querySelector(s)}
   function $$(s){return Array.from(document.querySelectorAll(s))}
   function resetModePresentation(mode){
@@ -21126,10 +21051,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     const rapidCopy=$('#ui-rapid-copy');if(rapidCopy)rapidCopy.addEventListener('click',async()=>{const p=$('#ui-rapid-output')?.textContent||'';if(p&&typeof copier==='function')await copier(p,'Prompt');});
     const rapidAtelier=$('#ui-rapid-open-atelier');if(rapidAtelier)rapidAtelier.addEventListener('click',()=>{setMode('atelier');document.querySelector('#ui-main-action')?.focus();});
     const rapidPhoto=$('#ui-rapid-result-photo'),sourcePhoto=document.querySelector('.ui-mode-card[data-mode="rapide"] img');if(rapidPhoto&&sourcePhoto)rapidPhoto.src=sourcePhoto.src;
-    $$('.ui-process-step').forEach(step=>step.addEventListener('click',()=>{
-      $$('.ui-process-step').forEach(s=>s.classList.remove('active'));step.classList.add('active');
-      const text=$('#ui-process-text'),idx=Number(step.dataset.process||0);if(text)text.textContent=processText[idx]||processText[0];
-    }));
     setMode(currentMode());
   },{once:true});
 })();

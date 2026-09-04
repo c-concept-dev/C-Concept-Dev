@@ -266,7 +266,7 @@ test('T-MODE05-15/16 : Atelier → gouverné repart d’un contexte propre', () 
     assert.ok(efface > -1, `${nom} efface l’enveloppe partagée.`);
     assert.ok(efface < src.indexOf(pose), `${nom} l’efface avant de la reposer.`);
     assert.ok(efface < src.indexOf('try{'), `${nom} l’efface hors du try : un échec ne laisse rien.`);
-    assert.match(src, /adpState\.lastProjection=null/, `${nom} efface aussi la projection.`);
+    assert.doesNotMatch(src, /lastProjection/, `${nom} : plus de projection partagée.`);
   }
   /* Et l'entrée gouvernée passe par un tour OPRIE complet, jamais par un état repris. */
   assert.match(sansProse(tranche('async function v11StartRapide()', 'async function v11StartArchitecte')), /oprieRunTurn\('rapide'\)/);
@@ -377,21 +377,21 @@ test('T-MODE05-29 : une analyse fournisseur d’un contexte quitté n’écrit p
   await nominal.run();
   assert.equal(nominal.trace.compile, 1, 'le parcours nominal compile bien.');
   assert.ok(nominal.trace.show.includes('#v11-ready'), 'et rend son prompt.');
-  assert.ok(nominal.state.analysis, 'et pose son analyse.');
+  assert.ok(nominal.ctx.window.__ARCHITECTE_V10__.analyse, 'et pose son analyse dans le seul magasin qui la porte.');
 
   /* Le tour a changé pendant l'appel : plus rien n'est écrit. */
   const tourChange = chargerAnalyse({ pendantAppel: (ctx) => { ctx.oprieState.seq += 1; } });
   assert.equal(await tourChange.run(), false);
   assert.equal(tourChange.trace.compile, 0, 'rien n’est compilé.');
   assert.equal(tourChange.trace.show.includes('#v11-ready'), false, 'rien n’est affiché.');
-  assert.equal(tourChange.state.analysis, null, 'et state.analysis reste intact.');
+  assert.equal(tourChange.ctx.window.__ARCHITECTE_V10__.analyse, null, 'et aucune analyse n’est importée.');
 
   /* Le mode affiché a changé pendant l'appel : idem. */
   const modeChange = chargerAnalyse({ pendantAppel: (ctx, el) => { el('#ui-mode-select').value = 'atelier'; } });
   assert.equal(await modeChange.run(), false);
   assert.equal(modeChange.trace.compile, 0);
   assert.equal(modeChange.trace.show.includes('#v11-ready'), false);
-  assert.equal(modeChange.state.analysis, null);
+  assert.equal(modeChange.ctx.window.__ARCHITECTE_V10__.analyse, null);
 });
 
 test('T-MODE05-30 : le livrable Pro écrit dans son propre onglet, sous garde de cycle', () => {
@@ -434,21 +434,19 @@ test('T-MODE05-32 : aucune enveloppe ne peut entrer dans le mode d’un autre', 
   /* CLEAN-01 : l'ancien décideur écrivait aussi ce champ ; il est retiré. */
   assert.equal(ecritures('adpState.lastEnvelope'), 6);
   assert.equal([...FRONT_CODE.matchAll(/=\s*adpState\.lastEnvelope\b/g)].length, 1);
-  assert.match(sansProse(tranche('function adnCompactContractForArchitecte(', 'function adnAssessArchitecteReadiness(')),
+  assert.match(sansProse(tranche('function adnCompactContractForArchitecte(', 'function adnEnrichCanonicalWithArch(')),
     /const env=adpState\.lastEnvelope/, 'le lecteur unique est nommé.');
   assert.match(sansProse(tranche('function makeEnvelope(){', 'function blobDownload(')),
     /adnCompactContractForArchitecte\(\)/, 'et consommé au seul endroit gouverné.');
   for (const src of [RUN_RAPIDE, ENTER_ARCH]) assert.ok(src.includes('adpState.lastEnvelope=null'));
 });
 
-test('T-MODE05-33 : lastProjection suit l’enveloppe, et n’est lue par personne', () => {
-  /* Elle est écrite partout où l'enveloppe l'est, effacée partout où l'enveloppe
-     l'est — et JAMAIS lue : elle ne peut donc porter aucune décision. */
-  assert.equal(ecritures('adpState.lastProjection'), 6);
-  assert.equal([...FRONT_CODE.matchAll(/=\s*adpState\.lastProjection\b/g)].length, 0,
-    'aucun lecteur : rien ne peut en dépendre.');
-  assert.equal([...FRONT_CODE.matchAll(/adpState\.lastProjection\s*[.[]/g)].length, 0,
-    'et aucun accès à son contenu.');
+test('T-MODE05-33 : lastProjection n’existe plus — elle n’était lue par personne', () => {
+  /* MODE-05 l'avait mesurée : six écritures, zéro lecture. CLEAN-02 l'a retirée.
+     Un état qu'on écrit sans jamais le lire ne peut plus mentir s'il n'existe pas. */
+  assert.equal(ecritures('adpState.lastProjection'), 0);
+  assert.equal(FRONT_CODE.includes('lastProjection'), false);
+  assert.equal(FRONT_CODE.includes('projectToAtelier'), false, 'la projection Atelier partait avec elle.');
 });
 
 test('T-MODE05-34/36 : le contrat canonique et l’historique n’ont chacun qu’une source', () => {

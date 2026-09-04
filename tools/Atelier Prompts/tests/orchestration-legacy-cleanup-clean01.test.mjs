@@ -131,13 +131,11 @@ test('T-CLEAN01-06 : plus aucune référence de contrôle sans cible', () => {
   const orchestration = [...nommes].filter((id) => /^(v11|ui-mode|ui-main|ui-rapid|arch)/.test(id));
   const orphelins = orchestration.filter((id) => !html.includes(`id="${id}"`));
   assert.deepEqual(orphelins, [], 'aucun identifiant d’orchestration sans élément correspondant.');
-  /* MESURÉ ET DIT, hors périmètre : #ui-process-text est nommé par le carrousel de
-     présentation et n'existe pas non plus dans le document — la classe CSS existe, l'id
-     jamais. Ce n'est pas du legacy d'orchestration : c'est un défaut de présentation, et
-     le corriger changerait ce que l'écran affiche. CLEAN-01 ne change aucun comportement,
-     donc CLEAN-01 le nomme et n'y touche pas. */
-  assert.ok(nommes.has('ui-process-text'), 'la référence existe…');
-  assert.equal(html.includes('id="ui-process-text"'), false, '…et sa cible, non. Constat, pas correction.');
+  /* CLEAN-01 avait NOMMÉ, sans y toucher, une seconde référence sans cible :
+     #ui-process-text. CLEAN-02 l'a traitée — le carrousel entier n'avait aucun élément,
+     nulle part. La garde ci-dessous vaut donc maintenant pour tout le frontend. */
+  const tousOrphelins = [...nommes].filter((id) => !html.includes(`id="${id}"`));
+  assert.deepEqual(tousOrphelins, [], 'plus aucun identifiant nommé sans élément correspondant.');
 });
 
 // =================================================================================================

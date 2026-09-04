@@ -222,7 +222,7 @@ test('T-VALARCH02-08 OPRIE reste seule autorité de readiness, et Architecte ne 
   /* Les deux chemins actifs continuent de valider AVANT de compiler. */
   for (const [nom, slice] of [
     ['PATH_A', productionSlice('async function beginApiAnalysis', 'function compositeDemand')],
-    ['PATH_B', productionSlice('function useAnalysis', 'function showQuestion')]
+    ['PATH_B', productionSlice('function useAnalysis', 'function answerQuestion(')]
   ]) {
     assert.ok(slice.indexOf('adnValidatePostOprie') < slice.indexOf('api.compiler('), `${nom} : validation avant compilation`);
     assert.match(slice, /if\(stopSignals\.length\)/, `${nom} : arrêt fail-closed conservé`);
@@ -234,7 +234,7 @@ test('T-VALARCH02-08 OPRIE reste seule autorité de readiness, et Architecte ne 
     'clarification', 'confirm(']) {
     assert.equal(layer.includes(interdit), false, `ARCH_CAN_ASK_DIRECT_QUESTION = NO (${interdit})`);
   }
-  /* L'ancienne readiness Architecte reste sans appelant (DEFER → CLEAN-01). */
+  /* CLEAN-02 a exécuté le DEFER : l'ancienne readiness Architecte n'est plus définie du tout. */
   const callers = (HTML.match(/adnAssessArchitecteReadiness/g) || []).length;
-  assert.equal(callers, 1, 'adnAssessArchitecteReadiness reste défini et jamais appelé');
+  assert.equal(callers, 0, 'adnAssessArchitecteReadiness est retirée');
 });

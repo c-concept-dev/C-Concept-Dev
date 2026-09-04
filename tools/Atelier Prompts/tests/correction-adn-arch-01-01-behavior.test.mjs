@@ -15,7 +15,7 @@ const HTML = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decis
 const BROWSER_RUNTIME = fs.readFileSync(path.join(root, 'core/adn/browser-runtime.generated.js'), 'utf8');
 const PATHS = Object.freeze({
   API: productionSlice('async function beginApiAnalysis', 'function compositeDemand'),
-  IMPORT: productionSlice('function useAnalysis', 'function showQuestion')
+  IMPORT: productionSlice('function useAnalysis', 'function answerQuestion(')
 });
 const clone = (value) => JSON.parse(JSON.stringify(value));
 

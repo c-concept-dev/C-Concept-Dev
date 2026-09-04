@@ -25,7 +25,7 @@ const SIGNALS = ['CONTRACT_INCONSISTENT', 'EXECUTION_UNSAFE', 'MISSING_PROJECTIO
 
 /** Tranche du chemin de production API (clé BYO) et du chemin par fichier. */
 const apiPath = () => productionSlice('async function beginApiAnalysis', 'function compositeDemand');
-const importedPath = () => productionSlice('function useAnalysis', 'function showQuestion');
+const importedPath = () => productionSlice('function useAnalysis', 'function answerQuestion(');
 
 test('READINESS-00 — le harnais charge bien le fragment de validation attendu', () => {
   assert.deepEqual(assertFragmentBounds(), []);

@@ -92,7 +92,7 @@ const withCandidate = (over) => arbiterFixture({ operational_request_candidate: 
 
 const PATHS = Object.freeze({
   API: productionSlice('async function beginApiAnalysis', 'function compositeDemand'),
-  IMPORT: productionSlice('function useAnalysis', 'function showQuestion')
+  IMPORT: productionSlice('function useAnalysis', 'function answerQuestion(')
 });
 
 function makeElement() {
@@ -740,7 +740,7 @@ test('T-ARCH02-37 [CARTE] aucun consommateur aval actif ne lit archAnalyse comme
   const consommateurs = {
     /* nom : [tranche de production, lecture brute autorisée ?] */
     archCompiler: [compilerBody(), false],
-    adnCompactContractForArchitecte: [productionSlice('function adnCompactContractForArchitecte(', 'function adnAssessArchitecteReadiness('), false],
+    adnCompactContractForArchitecte: [productionSlice('function adnCompactContractForArchitecte(', 'function adnEnrichCanonicalWithArch('), false],
     canonicalToArchProjectionInput: [fs.readFileSync(path.join(root, 'core/adn/arch-canonical-enrichment.js'), 'utf8').slice(
       fs.readFileSync(path.join(root, 'core/adn/arch-canonical-enrichment.js'), 'utf8').indexOf('export function canonicalToArchProjectionInput'),
       fs.readFileSync(path.join(root, 'core/adn/arch-canonical-enrichment.js'), 'utf8').indexOf('export function activeArchSemanticSourceCount')
@@ -751,7 +751,7 @@ test('T-ARCH02-37 [CARTE] aucun consommateur aval actif ne lit archAnalyse comme
     assert.equal(/\barchAnalyse\b/.test(nettoye), autorise, `${nom} : lecture brute de archAnalyse`);
   }
   /* adnCompactContractForArchitecte est PROJECTION-ONLY sur le contrat ADN. */
-  const compact = productionSlice('function adnCompactContractForArchitecte(', 'function adnAssessArchitecteReadiness(');
+  const compact = productionSlice('function adnCompactContractForArchitecte(', 'function adnEnrichCanonicalWithArch(');
   assert.match(compact, /adpState\.lastEnvelope/, 'sa source est l’enveloppe, dérivée de la base canonique');
   assert.equal(/comprehension|strategie|livrable\b/.test(compact), false, 'elle ne reconstruit aucune sémantique 3.4');
 });

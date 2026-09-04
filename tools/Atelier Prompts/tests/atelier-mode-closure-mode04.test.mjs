@@ -201,7 +201,7 @@ test('T-MODE04-21 : l’unique lecteur gouverné de lastEnvelope est nommé, et 
     'remise à zéro, effacement Architecte, pose Architecte, effacement Rapide, pose Rapide, Atelier.');
   const lecteurs = [...FRONT_CODE.matchAll(/=\s*adpState\.lastEnvelope\b/g)].length;
   assert.equal(lecteurs, 1, 'un seul lecteur : adnCompactContractForArchitecte.');
-  assert.match(sansProse(tranche('function adnCompactContractForArchitecte(', 'function adnAssessArchitecteReadiness(')),
+  assert.match(sansProse(tranche('function adnCompactContractForArchitecte(', 'function adnEnrichCanonicalWithArch(')),
     /const env=adpState\.lastEnvelope/);
   assert.match(MAKE_ENVELOPE, /adnCompactContractForArchitecte\(\)/, 'et il n’est consommé que là.');
 });
@@ -225,7 +225,8 @@ test('T-MODE04-24 : entrer en Rapide efface aussi — l’asymétrie est fermée
   assert.ok(efface > -1, 'l’entrée Rapide efface l’enveloppe partagée.');
   assert.ok(efface < ecrit, 'et elle l’efface avant de la réécrire.');
   assert.ok(efface < tentative, 'hors du try : un échec d’affinage ne laisse rien.');
-  assert.match(RUN_RAPIDE, /adpState\.lastProjection=null/, 'la projection suit l’enveloppe.');
+  /* CLEAN-02 : la projection partagée est retirée — elle n’avait aucun lecteur. */
+  assert.doesNotMatch(RUN_RAPIDE, /lastProjection/, 'plus de projection partagée à effacer.');
 });
 
 test('T-MODE04-25 : aucun résidu d’un autre mode n’entre dans le tour OPRIE', () => {

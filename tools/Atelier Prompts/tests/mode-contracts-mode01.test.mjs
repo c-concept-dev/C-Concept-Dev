@@ -184,7 +184,11 @@ test('T-MODE01-ATELIER-ENVELOPPE : l’enveloppe locale d’Atelier n’est PAS 
      doit dire pourquoi elle ne compte pas. */
   const atelier = bloc('function v11StartAtelier()', 'window.askDecisionProvider');
   assert.match(atelier, /adnManualEnvelope\(d,mat,'rapide'\)/, 'l’enveloppe locale existe bien.');
-  assert.match(atelier, /adpState\.lastEnvelope=env/, 'elle alimente un champ d’audit…');
+  /* CLEAN-02 : elle alimentait AUSSI une projection que personne ne lisait ; celle-ci est
+     retirée. L'enveloppe, elle, demeure — et ce test dit toujours pourquoi elle ne compte pas. */
+  assert.match(atelier, /adpState\.lastEnvelope=adnManualEnvelope\(d,mat,'rapide'\)/,
+    'elle alimente un champ d’audit…');
+  assert.doesNotMatch(atelier, /lastProjection|projectToAtelier/, '…et plus aucune projection jetée.');
   assert.doesNotMatch(atelier, /oprieState|canonicalContract|adpRunRapide|adpEnterArchitecte/,
     '…et rien d’autre : elle ne touche ni l’état OPRIE ni aucun moteur.');
   /* Le contrat canonique, lui, n'est posé qu'au seul endroit gouverné. */
