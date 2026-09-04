@@ -3453,7 +3453,15 @@ RÈGLES ABSOLUES :
     const catalog = chunksRR.map((c, i) =>
       `[${i}] ${(c.book_title||'').substring(0,25)} — ${(c.content||'').substring(0,60).replace(/\n/g,' ')}`
     ).join('\n');
-    const prompt = `Q: ${(plan.topic_summary||plan.intent||'').substring(0,80)}\n${catalog}\nJSON: {"keep":[10-20 indices]}`;
+    // FIX-RERANK-PROMPT (FIL 2) : le préfixe "Q: <sujet>" ressemblait trop à une question posée
+    // au modèle — sur un sujet du type "Tableau comparatif EMDR / ICV / IFS", Haiku répondait
+    // parfois directement à la question (un JSON {"comparison":{...}} halluciné) au lieu de
+    // sélectionner des indices de passages. Le system prompt d'origine ("JSON only. No prose.")
+    // ne contraignait que le FORMAT, jamais la TÂCHE elle-même. Reformulation explicite ci-dessous :
+    // le sujet est présenté comme un objet de sélection documentaire (pas une question), et
+    // l'interdiction de répondre/comparer est énoncée sans ambiguïté, en français comme le reste
+    // du prompt système applicatif.
+    const prompt = `Sujet documentaire (pour sélection de passages — PAS une question à répondre) : ${(plan.topic_summary||plan.intent||'').substring(0,80)}\n${catalog}\nRéponds uniquement par {"keep":[10-20 indices les plus pertinents]}. N'écris ni comparaison, ni tableau, ni réponse au sujet : sélectionne seulement des indices.`;
 
     try {
       adocUpdateTypingLabel && adocUpdateTypingLabel(
@@ -3466,7 +3474,10 @@ RÈGLES ABSOLUES :
         body: JSON.stringify({ payload: {
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 300,
-          system: 'JSON only. No prose. Respond with a single JSON object.',
+          system: 'Tu sélectionnes des indices de passages documentaires pour un système de recherche. ' +
+            'Tu ne réponds JAMAIS à la question ou au sujet donné, tu ne rédiges aucun contenu clinique ' +
+            'ni comparaison. JSON only. No prose. Respond with a single JSON object shaped exactly ' +
+            '{"keep":[...]} — no other key.',
           messages: [{ role: 'user', content: prompt }]
         }})
       });
@@ -3682,10 +3693,25 @@ RÈGLES ABSOLUES :
     const _fmtSpecific = fmt === 'xlsx'
       ? "\nXLSX — STRUCTURE OBLIGATOIRE dans <head> :\n"
         + "<scr" + "ipt id=\"xlsx-data\" type=\"application/json\">\n"
-        + '{"headers":["Col A","Col B","Col C"],"rows":[["val1","val2","val3"],["val4","val5","val6"]]}<\/script>\n'
-        + "headers = tableau de strings (noms colonnes).\n"
-        + "rows = tableau de tableaux (une ligne = un sous-tableau).\n"
-        + "INTERDIT : Markdown, tableau ASCII, texte libre. UNIQUEMENT ce JSON dans ce script."
+        + '{"headers":["Col A","Col B","Col C"],"rows":[["val1","val2","val3"],["val4","val5","val6"]],'
+        + '"sections":[{"title":"01 — TITRE DE SECTION","startRow":0}],'
+        + '"columnSummaries":[{"header":"Col B","tagline":"Accroche courte","description":"1-2 phrases : pour quoi, atout, limite."}],'
+        + '"legend":[{"symbol":"●","label":"Indication forte / point fort"},{"symbol":"◐","label":"Indication partielle / à adapter"},{"symbol":"○","label":"Limite / contre-indication relative"}]}'
+        + "<\/script>\n"
+        + "headers = tableau de strings (noms colonnes). rows = tableau de tableaux (une ligne = un sous-tableau).\n"
+        + "sections, columnSummaries, legend sont OPTIONNELS — inclus-les UNIQUEMENT si le tableau les justifie, "
+        + "et reprends-y les MÊMES informations que celles que tu integrerais de toute facon dans le rendu visuel "
+        + "(ne les laisse jamais UNIQUEMENT dans le HTML, elles doivent aussi être structurées ici pour l'export xlsx) :\n"
+        + "-> sections : si les lignes se regroupent naturellement en blocs thematiques, un objet par bloc avec "
+        + "startRow = index (0-based) de la 1re ligne du bloc dans 'rows'. N'invente rien si les lignes ne forment "
+        + "pas de blocs naturels.\n"
+        + "-> columnSummaries : UNIQUEMENT pour un tableau qui COMPARE plusieurs approches/entites en colonnes "
+        + "(ex. EMDR / ICV / IFS) — un objet par colonne comparee (jamais la 1re colonne \"critere\") avec son "
+        + "accroche et sa description de synthese.\n"
+        + "-> legend : UNIQUEMENT si le tableau utilise un code de lecture rapide (indication forte, partielle, "
+        + "limite, etc.) — decris chaque repere utilise, et utilise alors ce MEME symbole texte (ex. ●/◐/○) "
+        + "DIRECTEMENT dans les cellules de 'rows' concernees, jamais une couleur seule qui ne survivrait pas en xlsx.\n"
+        + "INTERDIT : Markdown, tableau ASCII, texte libre HORS de ce JSON. UNIQUEMENT ce JSON dans ce script."
       : fmt === 'pptx'
       ? "\nPPTX — STRUCTURE OBLIGATOIRE dans <head> :\n"
         + "<scr" + "ipt id=\"pptx-data\" type=\"application/json\">\n"
@@ -4836,15 +4862,39 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       } else if (fmt === 'xlsx') {
         workerUrl = ADOC_WORKER + '/generate-xlsx';
         // Priorité 1 : JSON structuré embarqué dans le HTML
-        let headers, rows;
+        let headers, rows, sections, columnSummaries, legend;
         const xlsxJson = adocExtractEmbeddedJson(html, 'xlsx-data');
         if (xlsxJson?.headers?.length) {
           ({ headers, rows } = xlsxJson);
+          sections = Array.isArray(xlsxJson.sections) ? xlsxJson.sections : null;
+          columnSummaries = Array.isArray(xlsxJson.columnSummaries) ? xlsxJson.columnSummaries : null;
+          legend = Array.isArray(xlsxJson.legend) ? xlsxJson.legend : null;
         } else {
           ({ headers, rows } = adocParseXlsxTable(markdown));
         }
-        body = { content: { sheets: [{ name: topic.substring(0, 30), headers, rows }] }, filename: safeName };
-        window._adocArtifacts[storeKey].xlsxData = { headers, rows: rows.slice(0, 6) };
+        // FIX-XLSX-DETTE : taglines/descriptions par approche, légende de lecture et
+        // regroupement en sections existaient déjà côté modèle (visibles dans le rendu HTML)
+        // mais étaient perdus à l'export xlsx (headers/rows bruts uniquement) — vraie perte
+        // d'information de synthèse, pas une différence de style acceptable. Ces trois
+        // éléments deviennent des feuilles/zones dédiées, adaptées au format tableur plutôt
+        // qu'un copier-coller du HTML (une puce Unicode remplace les points de couleur).
+        const sheets = [{ name: topic.substring(0, 30), headers, rows, sections: sections || undefined }];
+        if (columnSummaries?.length) {
+          sheets.push({
+            name: 'Résumé des approches',
+            headers: ['Approche', 'Tagline', 'Description'],
+            rows: columnSummaries.map(c => [c.header || '', c.tagline || '', c.description || '']),
+          });
+        }
+        if (legend?.length) {
+          sheets.push({
+            name: 'Légende',
+            headers: ['Repère', 'Signification'],
+            rows: legend.map(l => [l.symbol || '', l.label || '']),
+          });
+        }
+        body = { content: { sheets }, filename: safeName };
+        window._adocArtifacts[storeKey].xlsxData = { headers, rows: rows.slice(0, 6), sections, columnSummaries, legend };
 
       } else if (fmt === 'docx') {
         workerUrl = ADOC_WORKER + '/generate-docx';
