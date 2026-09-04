@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `d621fba399e4c0553d98f5b67ed6b36ba5a2e657` |
-| Date du commit | 2026-09-04T20:44:40+02:00 |
+| Commit local | `2eb4a304ae4bdf2798f0c650980c98fb2b51e0f8` |
+| Date du commit | 2026-09-04T21:47:32+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-39 fichiers. C'est ce qui doit exister pour **servir** la page,
+40 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `834fdd8dca47c5ad80e4532efbc6fb4c661fc9e61908fe850b5a078652cf6f77` |
+| Empreinte du jeu | `513304b2a2c97d50f20a5dec2ec64326e8e0749858bfda382bba9cb29a785afe` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -84,7 +84,8 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/prompt-contract-gate.js` | `49a31369b431ab8d93007a6ddc4a9acd0d9923145bf4c076b1cb3d179a56d1b8` |
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `7000fc80713128b55cb1ce416b1c5b9ea549374e8e3b00e4565a351bc74d0a29` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `a88ba717a70893959c9d281eeb59e3b7fe45226357dcfc10405819838b6811b6` |
+| REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
 | REQUIRED_BUILD | `package.json` | `c89fdaa9b4ce892b8a75eac66b42ddc20868098b608c24fc6ed1d30c8e064693` |
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
@@ -108,7 +109,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 132 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 133 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 198 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -134,7 +135,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2692 |
+| Tests au vert | 2706 |
 
 ## Dette encore ouverte
 

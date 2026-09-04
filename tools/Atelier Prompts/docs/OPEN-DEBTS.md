@@ -218,6 +218,42 @@ n'a rencontré aucun 429, donc n'a jamais exercé le mécanisme qu'elle devait m
 Le relevé du budget déclaré, qui aurait permis d'établir la comparabilité des runs,
 avait disparu en 01E lors d'un renommage de champs — il est rétabli, après coup.
 
+**Mise à jour PERF-CAPACITY-DECISION-01 — la dette change de nature, elle ne se
+ferme pas.** Ce lot n'a rien mesuré et rien codé : il a relu les preuves de 01B à 01G
+et pris une décision. Deux constats la portent.
+
+Le premier est que le banc **confond deux contrats**. À 700 ms d'espacement et
+402,7 ms de latence nominale, il émet 54,4 appels par minute depuis un client unique
+et sériel, soit environ 23 120 jetons par minute contre 8 000 souscrits — près de trois
+fois la capacité. Sans concurrence et sans pause, ce n'est pas un banc de latence :
+c'est un banc de **débit soutenu**, et son p95 global décrit un système qui sature son
+propre fournisseur. La population non saturée, elle, tient le contrat : p95 = 1 535,3 ms
+en 01C, 780,5 ms sur les 40 échantillons Groq de 01F. Le contrat de 3 secondes n'est
+donc pas démenti — il n'a **jamais été éprouvé sous une charge énoncée**.
+
+Le second est que la cible de capacité **n'existe pas**. Utilisateurs simultanés,
+requêtes par seconde, pic, jetons par minute : tous inconnus, et ce lot s'interdit de
+les inventer. `CAPACITY_TARGET_UNDEFINED = YES`.
+
+S'y ajoute un fait relevé ici et jamais mesuré : le plan rapide et les trois rôles
+OPRIE partagent **une seule clé, donc un seul budget de 8 000 jetons/min**, sans aucune
+isolation. Les campagnes 01B à 01G ont bénéficié de la totalité de ce budget ; en
+production, la part réelle du plan rapide ne peut être que plus petite.
+
+Six options ont été comparées sur dix critères. La direction retenue est un
+séquencement : séparer les deux contrats et corriger le protocole, obtenir la cible de
+charge, acheter la capacité si le pic l'exige, isoler les deux plans si la contention
+domine. La bascule sur signal de capacité est **conservée comme politique de
+disponibilité** — elle a converti 192/192 signaux en réponses réussies — et retirée de
+la notation du SLA de latence, qu'elle ne peut pas tenir. Anthropic primaire est
+`NOT_YET` : ses 27 échantillons réels ont tous été pris sous saturation, par bascule,
+et aucune mesure nominale n'existe.
+
+Ce qui referme cette dette est nommé : un banc **nominal non saturé** — mêmes fixtures,
+espacement porté à ≥ 3 200 ms pour rester sous le budget déclaré, zéro 429 comme
+critère de validité — puis, la cible de charge une fois connue, un banc de saturation
+distinct. Décision complète : [PERF-CAPACITY-DECISION-01.md](PERF-CAPACITY-DECISION-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
