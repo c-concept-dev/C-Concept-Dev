@@ -637,3 +637,122 @@ RATE_LIMIT_OPTIMIZATION_EFFECTIVE  = NO
 PERF_REAL_01D_PERFORMANCE_GATE     = FAIL
 PERF_REAL_01_STATUS                = OPEN / DEGRADED
 ```
+
+---
+
+# PERF-REAL-01E — la réduction de jetons ne peut pas suffire
+
+**Arrêté sur preuve. Le plancher structurel d'un appel Fast est de 192 jetons ;
+la capacité disponible en autorise 147. Aucune réduction du prompt, même totale,
+ne ferme cet écart. Rien n'a été amputé.**
+
+## La comptabilité, telle que Groq la rapporte
+
+Le lot a relevé le champ `usage` du fournisseur — metadata seule, lue par
+personne — plutôt que d'estimer sur le texte.
+
+| Mesure | min | p50 | p95 | max |
+| --- | --- | --- | --- | --- |
+| `prompt_tokens` | 363 | **367** | 395 | 395 |
+| `completion_tokens` | 50 | **59** | 88 | 88 |
+| `total_tokens` | 418 | **425** | 483 | 483 |
+
+`finish_reason` vaut `stop` sur les six classes : le plafond de 512 jetons de
+complétion n'est jamais atteint, et ne consomme donc aucun budget. Le réduire
+n'aurait rien rendu.
+
+## Ce que le payload contient déjà — et ne contient pas
+
+| Bloc | Jetons | Requis | Retirable |
+| --- | --- | --- | --- |
+| Schéma | ~69 | oui | **non** |
+| Instructions système | ~221 | oui | partiellement |
+| Demande | 10 à 45 | oui | non |
+| Historique de clarifications | 0 dans le banc | oui | non — déjà minimal |
+| Enveloppe de rôles (API) | ~46 | oui | non |
+| Contexte canonique | **0** | non | déjà absent |
+| Exemples | **0** | non | déjà absent |
+| Verrous redondants | **0** | non | déjà absent |
+
+`DUPLICATE_FAST_CONTEXT_COUNT = 0`, avant comme après. Le message utilisateur ne
+porte que trois champs : la demande, l'historique de clarifications du tour, la
+réponse courante. Ni contrat canonique, ni instructions de mode, ni schéma
+répété, ni verrous, ni amorce fournisseur. Il n'y avait rien à dédupliquer.
+
+Le schéma n'est pas retirable : ses deux champs, son `enum` fermé et son
+`additionalProperties: false` **sont** la garantie structurelle que la candidate
+ne peut porter aucune autorité. Le supprimer supprimerait le contrat que ce lot
+a interdiction de toucher.
+
+## Le calcul de capacité
+
+| Grandeur | Valeur |
+| --- | --- |
+| Quota observé | 8 000 jetons/minute |
+| Espacement du protocole | 700 ms |
+| Latence nominale (p50 sans reprise, 01D) | 402,7 ms |
+| Période par appel | 1 102,7 ms |
+| **Débit du banc** | **54,4 appels/minute** |
+| **Maximum soutenable** | **147 jetons/requête** |
+| Coût actuel (p50) | 425 jetons/requête |
+| **Réduction requise** | **65,4 %** |
+| Demande réelle du banc | **23 120 jetons/minute** |
+
+## Le plancher, et pourquoi il tranche
+
+Supposons le prompt système **intégralement supprimé** — hypothèse que le contrat
+Fast interdit, mais qui borne le problème :
+
+```
+  schéma                     69
+  enveloppe de rôles (API)   46
+  demande la plus courte     27
+  sortie la plus courte      50
+  ────────────────────────────
+  plancher structurel       192  jetons
+```
+
+**192 > 147.** L'appel le moins cher qu'on puisse construire dépasse encore de
+45 jetons ce que la capacité autorise. La réduction du payload ne peut donc pas
+suffire, quelle que soit son ampleur — et il n'existe aucune version du prompt
+qui change cette conclusion.
+
+`TOKEN_OPTIMIZATION_CAPACITY_FEASIBLE = NO`
+
+## Ce qui n'a pas été fait, et pourquoi
+
+Aucune ligne du prompt système n'a été retirée. La section 13 impose de s'arrêter
+si le Fast minimal reste structurellement au-dessus de la capacité ; il l'est
+avant même qu'on y touche. Et la section 6 interdit de supprimer une instruction
+parce qu'elle est longue : les 221 jetons du prompt système portent la
+non-autorité, la discipline du dernier recours et l'énumération des types —
+trois choses qu'aucun autre mécanisme n'impose. Les amputer aurait dégradé le
+contrat fonctionnel **sans** faire entrer le banc dans le quota.
+
+Schéma, modèle, ordre des fournisseurs, reprises, délais d'expiration, seuils et
+artefact frontend : inchangés. La seule modification du worker est le relevé
+metadata-only de `usage`, nécessaire parce que la section 3 exige la
+comptabilité du fournisseur plutôt qu'une estimation textuelle.
+
+## Ce qui reste
+
+Le problème n'est pas le coût d'un appel : c'est le rapport entre une charge de
+54 appels par minute et une capacité de 8 000 jetons par minute. Deux voies, et
+ce sont celles que 01D avait déjà nommées :
+
+1. **Augmenter la capacité souscrite.** À 24 000 TPM, le banc actuel passerait
+   sans qu'une ligne de code change.
+2. **Répartir la charge entre fournisseurs.** Cela transforme un repli technique
+   en répartition, c'est-à-dire un changement de contrat de disponibilité.
+
+Une troisième reste ouverte, mais elle porte sur la mesure et non sur le produit :
+constater que 54 appels par minute pendant une minute ne décrit pas un usage
+interactif, et redéfinir le protocole. Ce serait déplacer la question, pas la
+résoudre — et cela ne se décide pas dans un lot technique.
+
+```
+TOKEN_OPTIMIZATION_CAPACITY_FEASIBLE = NO
+TOKEN_REDUCTION_PERCENT              = 0 (aucune réduction appliquée)
+PERF_REAL_01E_VERDICT                = BLOCKED
+PERF_REAL_01_STATUS                  = OPEN / DEGRADED
+```

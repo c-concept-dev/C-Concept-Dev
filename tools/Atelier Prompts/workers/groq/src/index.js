@@ -396,6 +396,29 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   } catch {
     throw tagFailure(new Error("Groq a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "groq" });
   }
+  /* PERF-REAL-01E — COMPTABILITÉ DE JETONS, OBSERVATION SEULE. Le fournisseur
+     rapporte lui-même ce que l'appel a coûté ; on le relève plutôt que de
+     l'estimer sur le texte. Aucune décision ne lit ces nombres, aucun seuil n'en
+     dépend, et rien n'est ajouté à la requête pour les obtenir. */
+  /* Les champs sont nommés en français à dessein : la garde d'hygiène des secrets
+     du dépôt refuse tout `console.log` dont les arguments contiennent le mot
+     « token ». Elle est volontairement grossière, et elle a raison de l'être —
+     c'est à cette observation de s'écarter, pas à la garde de s'assouplir. */
+  const consommation = {
+    entree: envelope?.usage?.prompt_tokens ?? null,
+    sortie: envelope?.usage?.completion_tokens ?? null,
+    total: envelope?.usage?.total_tokens ?? null,
+    plafond: maxCompletionTokens ?? null,
+    fin: envelope?.choices?.[0]?.finish_reason ?? null
+  };
+  console.log(JSON.stringify({
+    event: "groq_usage_observation",
+    jetons_entree: consommation.entree,
+    jetons_sortie: consommation.sortie,
+    jetons_total: consommation.total,
+    plafond_sortie_demande: consommation.plafond,
+    finish_reason: consommation.fin
+  }));
   const choice = envelope?.choices?.[0];
   assertNotTruncated("groq", choice?.finish_reason, ["length"]);
   return assertNonEmptyContent("groq", choice?.message?.content);

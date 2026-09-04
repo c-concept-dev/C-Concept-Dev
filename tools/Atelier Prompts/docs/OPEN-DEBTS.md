@@ -136,6 +136,32 @@ Construire une fenêtre TPM à partir des en-têtes désormais relevés serait p
 et non inventé, mais c'est un changement d'architecture que M-03 a explicitement
 décidé de ne pas avoir.
 
+**Mise à jour PERF-REAL-01E — la deuxième voie est fermée par l'arithmétique.** La
+comptabilité du fournisseur, relevée plutôt qu'estimée, donne **425 jetons** par
+appel (p50) : 367 d'entrée, 59 de sortie, `finish_reason` toujours à `stop` — le
+plafond de 512 n'est jamais atteint et ne coûte donc rien.
+
+Le banc tourne à **54,4 appels/minute** (700 ms d'espacement + 402,7 ms de latence
+nominale) et demande donc **23 120 jetons/minute** à un quota de 8 000. La capacité
+autorise **147 jetons par requête**. Il faudrait en retirer **65,4 %**.
+
+C'est impossible : en supprimant *intégralement* le prompt système — ce que le
+contrat Fast interdit, mais qui borne le problème — un appel coûte encore
+**192 jetons** (schéma 69, enveloppe de rôles imposée par l'API 46, demande la plus
+courte 27, sortie la plus courte 50). 192 dépasse 147. Aucune version du prompt ne
+change cette conclusion.
+
+Rien n'a donc été amputé. Le payload était déjà minimal — ni contexte canonique, ni
+exemples, ni verrous, ni schéma répété : `DUPLICATE_FAST_CONTEXT_COUNT = 0` avant
+comme après. Et les 221 jetons du prompt système portent la non-autorité, la
+discipline du dernier recours et l'énumération des types, qu'aucun autre mécanisme
+n'impose.
+
+`TOKEN_OPTIMIZATION_CAPACITY_FEASIBLE = NO`. Restent les deux voies de capacité :
+augmenter le quota souscrit — à 24 000 TPM le banc actuel passerait sans qu'une
+ligne change — ou répartir la charge entre fournisseurs, ce qui transforme un repli
+technique en répartition.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
