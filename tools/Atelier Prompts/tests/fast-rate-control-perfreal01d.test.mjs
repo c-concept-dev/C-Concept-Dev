@@ -201,8 +201,16 @@ test('T-PERFREAL01D-14 : le budget déclaré est relevé, et lu par personne', (
   }
   assert.equal(/if\s*\(\s*declared_|declared_remaining_tokens\s*[<>]/.test(WORKER), false,
     'aucune décision ne lit le budget déclaré');
-  assert.equal([...WORKER.matchAll(/enTeteDebit\(/g)].length, 6, 'six lectures, une par en-tête');
+  /* PERF-REAL-01G a rétabli le relevé du budget dans le journal de succès, perdu en
+     01E : le nombre de lectures a donc augmenté. Ce qui est invariant, et c'est ce
+     que ce test garde, c'est qu'elles passent TOUTES par le même helper et que rien
+     ne branche sur leurs valeurs. */
   assert.match(WORKER, /const enTeteDebit = \(nom\) => \{/);
+  assert.equal([...WORKER.matchAll(/enTeteDebit\(/g)].length >= 6, true);
+  assert.equal(/response\.headers\.get\("x-ratelimit/.test(WORKER), false,
+    'aucune lecture d’en-tête de débit hors du helper');
+  assert.equal(/budget\.(restant|limite)\s*[<>]|Number\(budget\./.test(WORKER), false,
+    'aucune décision ne lit le budget');
   /* Et ce qu'il déclare est la cause finale : 8 000 jetons par minute pour ~14 000 demandés. */
   assert.equal(D.budget_declare_par_le_fournisseur.limit_tokens_par_minute, 8000);
   assert.equal(D.budget_declare_par_le_fournisseur.remaining_tokens_min, 52);

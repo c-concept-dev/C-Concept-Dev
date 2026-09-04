@@ -38,6 +38,7 @@ import {
 } from '../workers/shared/fast-interactive-plane.js';
 import {
   FAST_GROQ_RETRY_POLICY, DECISION_GROQ_RETRY_POLICY, ROLE_GROQ_RETRY_POLICIES,
+  shouldRetrySameProviderOnCapacitySignal, fastCapacityRetryThresholdMs,
   GROQ_PRODUCTION_RETRY_DEFAULTS, DECISION_PROVIDER_ORDER, FAST_INTERACTION_ADAPTERS,
   fetchGroqWithRetry, MODEL
 } from '../workers/groq/src/index.js';
@@ -123,12 +124,17 @@ test('T-PERFREAL01F-03 : un 429 Groq fait basculer vers Anthropic, qui répond',
 });
 
 test('T-PERFREAL01F-04 : aucune attente du même fournisseur avant la bascule', () => {
+  /* PERF-REAL-01G a remplacé le plafond fixe par un SEUIL configuré, mais le
+     contrat que ce test garde est inchangé : à seuil 0 — la valeur par défaut, et
+     celle que 01F a déployée — aucun délai annoncé n'est jamais attendu. */
   assert.deepEqual({ ...FAST_GROQ_RETRY_POLICY }, { maxRetryWaitMs: 0 });
-  assert.match(WORKER, /retryOverrides: FAST_GROQ_RETRY_POLICY/);
-  /* Le plafond ne s'applique QU'au plan rapide. */
+  assert.equal(fastCapacityRetryThresholdMs({}), 0, 'le défaut reste la bascule immédiate');
+  assert.equal(shouldRetrySameProviderOnCapacitySignal(1000, 0), false);
+  assert.equal(shouldRetrySameProviderOnCapacitySignal(2000, 0), false);
+  /* La politique ne s'applique QU'au plan rapide. */
   const adaptateurs = WORKER.slice(WORKER.indexOf('export const FAST_INTERACTION_ADAPTERS'),
     WORKER.indexOf('export async function runFastInteractionWithHaChain'));
-  assert.equal([...adaptateurs.matchAll(/retryOverrides: FAST_GROQ_RETRY_POLICY/g)].length, 1,
+  assert.equal([...adaptateurs.matchAll(/retryOverrides: fastGroqRetryPolicy\(env\)/g)].length, 1,
     'un seul adaptateur — le transport Groq du plan rapide');
   assert.equal(DECISION_GROQ_RETRY_POLICY.maxRetryWaitMs, 3000, 'Decision garde son plafond mesuré');
   assert.deepEqual(ROLE_GROQ_RETRY_POLICIES,

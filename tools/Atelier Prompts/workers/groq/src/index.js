@@ -203,13 +203,64 @@ export const ROLE_GROQ_RETRY_POLICIES = Object.freeze({
 export const FAST_GROQ_RETRY_POLICY = Object.freeze({ maxRetryWaitMs: 0 });
 
 /**
+ * PERF-REAL-01G — LE SEUIL QUI DÉPARTAGE ATTENDRE ET BASCULER.
+ *
+ * 01F a mesuré ce qui manquait : la bascule vers Anthropic coûte 3 436 ms en
+ * médiane, alors que Groq annonce des Retry-After de 1 000 ou 2 000 ms. Attendre
+ * un délai court est donc moins cher que basculer ; attendre un délai long ne
+ * l'est plus. Entre les deux il existe un seuil, et ce lot le mesure au lieu de
+ * le poser.
+ *
+ * LA DÉCISION EST MÉCANIQUE, ET C'EST TOUT CE QU'ELLE EST. Elle ne lit ni le
+ * contenu de la demande, ni sa classe, ni le mode, ni le domaine : seulement le
+ * nombre de millisecondes que le fournisseur a lui-même annoncé. Un seul point
+ * de comparaison dans tout le produit, et il est ici.
+ *
+ * LE SEUIL PORTE SUR LE RETRY-AFTER ANNONCÉ, jamais sur Retry-After + marge : la
+ * marge de 750 ms reste ce qu'elle est, une sûreté ajoutée à une attente déjà
+ * décidée, et non un terme de la décision.
+ *
+ * Par défaut Infinity — tout délai annoncé est honoré, ce qui est EXACTEMENT le
+ * comportement historique de Decision, des rôles OPRIE et du pipeline Critic.
+ * Seul le plan rapide en fixe un, et il le lit dans sa configuration.
+ */
+export function shouldRetrySameProviderOnCapacitySignal(retryAfterMs, thresholdMs) {
+  if (!Number.isFinite(retryAfterMs) || retryAfterMs < 0) return false;
+  if (thresholdMs === Infinity) return true;
+  if (!Number.isFinite(thresholdMs) || thresholdMs < 0) return false;
+  return retryAfterMs <= thresholdMs;
+}
+
+/** Bornes du lot PERF-REAL-01G : jeu fermé, aucune valeur intermédiaire admise. */
+export const FAST_CAPACITY_THRESHOLD_CANDIDATES = Object.freeze([0, 1000, 1500, 2000]);
+
+/**
+ * Le seuil effectif du plan rapide, lu dans la configuration du worker.
+ *
+ * Il n'est pas écrit en dur : le comparatif de PERF-REAL-01G exécute LE MÊME code
+ * avec quatre valeurs, plutôt que quatre variantes de code. Une valeur absente ou
+ * hors du jeu fermé retombe sur 0 — le contrat déployé par 01F, jamais une valeur
+ * permissive choisie par défaut.
+ */
+export function fastCapacityRetryThresholdMs(env) {
+  const brut = Number((env && env.FAST_CAPACITY_RETRY_THRESHOLD_MS) ?? NaN);
+  return FAST_CAPACITY_THRESHOLD_CANDIDATES.includes(brut) ? brut : 0;
+}
+
+/** La politique de reprise du plan rapide, dérivée du seuil configuré. */
+export function fastGroqRetryPolicy(env) {
+  return { capacityRetryThresholdMs: fastCapacityRetryThresholdMs(env) };
+}
+
+/**
  * Exécute fetch(url, requestInit) avec reprise automatique sur HTTP 429 : même appel, même corps,
  * après avoir attendu le délai indiqué par le provider (+ marge de sécurité) ou un repli fixe si
  * aucun délai n'est exploitable. Borné par maxRetries. Signature et comportement identiques à
  * l'ancienne fetchGroqWithRetry du harnais — seul le nom du module source change.
  */
 export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
-  const { maxRetries, safetyMarginMs, defaultBackoffMs, timeoutMs, maxRetryWaitMs, sleepFn = sleep, signal } = { ...GROQ_PRODUCTION_RETRY_DEFAULTS, ...overrides };
+  const { maxRetries, safetyMarginMs, defaultBackoffMs, timeoutMs, maxRetryWaitMs,
+    capacityRetryThresholdMs = Infinity, sleepFn = sleep, signal } = { ...GROQ_PRODUCTION_RETRY_DEFAULTS, ...overrides };
   let attempt = 0;
   let rateLimitedWaitMs = 0;
   while (true) {
@@ -223,6 +274,18 @@ export async function fetchGroqWithRetry(url, requestInit, overrides = {}) {
     }
     const raw = await response.clone().text().catch(() => "");
     const retryAfterMs = parseRetryAfterMs(response) ?? parseRetryDelayFromBody(raw) ?? defaultBackoffMs;
+    /* PERF-REAL-01G — attendre ou basculer ? La question porte sur le délai ANNONCÉ,
+       avant que la marge ne s'y ajoute. Au-dessus du seuil, on ne dort pas : la
+       chaîne HA prend le relais, dans son ordre inchangé. */
+    if (!shouldRetrySameProviderOnCapacitySignal(retryAfterMs, capacityRetryThresholdMs)) {
+      throw Object.assign(
+        new Error(`Groq HTTP 429 : délai annoncé (${retryAfterMs} ms) au-dessus du seuil de reprise (${capacityRetryThresholdMs} ms) — bascule immédiate.`),
+        { rateLimited: true, exhausted: true, wait_too_long: true, error_kind: "http_429",
+          retries: attempt, rate_limited_wait_ms: rateLimitedWaitMs,
+          announced_wait_ms: retryAfterMs + safetyMarginMs, announced_retry_after_ms: retryAfterMs,
+          capacity_threshold_ms: capacityRetryThresholdMs }
+      );
+    }
     const waitMs = retryAfterMs + safetyMarginMs;
     // HA-02 : plafond d'ATTENTE, distinct du plafond de NOMBRE de reprises. Par défaut Infinity — le
     // comportement historique (Critic, R2/R2.1/R3B) est donc strictement inchangé, à l'octet près.
@@ -361,6 +424,8 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
         retries: retryExhaustedError.retries,
         rate_limited_wait_ms: retryExhaustedError.rate_limited_wait_ms,
         attente_annoncee_ms: retryExhaustedError.announced_wait_ms ?? null,
+        delai_annonce_fournisseur_ms: retryExhaustedError.announced_retry_after_ms ?? null,
+        seuil_reprise_ms: retryExhaustedError.capacity_threshold_ms ?? null,
         attente_evitee_ms: retryExhaustedError.wait_too_long === true
           ? (retryExhaustedError.announced_wait_ms ?? null)
           : 0,
@@ -450,6 +515,15 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
      du dépôt refuse tout `console.log` dont les arguments contiennent le mot
      « token ». Elle est volontairement grossière, et elle a raison de l'être —
      c'est à cette observation de s'écarter, pas à la garde de s'assouplir. */
+  /* Les noms restent en français jusque dans les clés : la garde d'hygiène des
+     secrets refuse tout console.log dont les arguments portent le mot « token ».
+     C'est à l'observation de s'écarter, pas à la garde de s'assouplir. */
+  const budget = {
+    limite: enTeteDebit("x-ratelimit-limit-tokens"),
+    restant: enTeteDebit("x-ratelimit-remaining-tokens"),
+    reset: enTeteDebit("x-ratelimit-reset-tokens"),
+    requetes: enTeteDebit("x-ratelimit-remaining-requests")
+  };
   const consommation = {
     entree: envelope?.usage?.prompt_tokens ?? null,
     sortie: envelope?.usage?.completion_tokens ?? null,
@@ -457,6 +531,11 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     plafond: maxCompletionTokens ?? null,
     fin: envelope?.choices?.[0]?.finish_reason ?? null
   };
+  /* PERF-REAL-01G — RÉGRESSION D'INSTRUMENTATION CORRIGÉE. Le relevé du budget
+     déclaré, ajouté en 01D, avait disparu en 01E : le renommage des champs avait
+     remplacé le bloc entier au lieu de l'amender. On ne s'en aperçoit qu'ici,
+     faute d'avoir pu établir l'état de capacité au départ de chaque politique.
+     Il est rétabli — toujours metadata seule, toujours lu par personne. */
   console.log(JSON.stringify({
     event: "groq_usage_observation",
     provider_outcome: "SUCCESS",
@@ -465,7 +544,11 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     jetons_sortie: consommation.sortie,
     jetons_total: consommation.total,
     plafond_sortie_demande: consommation.plafond,
-    finish_reason: consommation.fin
+    finish_reason: consommation.fin,
+    budget_limite: budget.limite,
+    budget_restant: budget.restant,
+    budget_reset: budget.reset,
+    budget_requetes_restantes: budget.requetes
   }));
   const choice = envelope?.choices?.[0];
   assertNotTruncated("groq", choice?.finish_reason, ["length"]);
@@ -1031,7 +1114,7 @@ export const FAST_INTERACTION_ADAPTERS = Object.freeze({
     env,
     maxCompletionTokens: 512,
     pacer: createGroqRateLimitPacer(),
-    retryOverrides: FAST_GROQ_RETRY_POLICY
+    retryOverrides: fastGroqRetryPolicy(env)
   }),
   anthropic: (snapshot, env) => callAnthropicMessages({
     systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,

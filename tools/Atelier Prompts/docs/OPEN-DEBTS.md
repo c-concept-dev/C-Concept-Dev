@@ -192,6 +192,32 @@ déjà produit les quatre autres plafonds du produit. Il honorerait les `Retry-A
 courts que Groq annonce à 1 000 ms, et basculerait pour les longs. C'est la première
 fois que cette valeur peut être dérivée d'une mesure plutôt que posée.
 
+**Mise à jour PERF-REAL-01G — quatre seuils, aucun gagnant.** Le jeu fermé
+{0, 1 000, 1 500, 2 000} ms a été mesuré au protocole identique, 48 échantillons
+chacun, 192 au total, même code, seule la valeur de seuil changeant.
+
+| Politique | Seuil | p50 | p95 | max | 429 | Bascules |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | 0 ms | 336,8 ms | **3 336,3 ms** | 5 270,3 ms | 7 | 7 |
+| B | 1 000 ms | 467,6 ms | **3 260,9 ms** | 5 242,9 ms | 7 | 7 |
+| C | 1 500 ms | 405,1 ms | **5 020,2 ms** | 10 239,9 ms | 5 | 5 |
+| D | 2 000 ms | 616,0 ms | **3 398,0 ms** | 3 611,6 ms | 0 | 0 |
+
+`NO_CALIBRATION_WINNER = YES`. Aucune n'est retenue — la section 29 interdit
+d'adopter la moins mauvaise, et le worker est revenu à son seuil par défaut déclaré.
+
+**Pourquoi aucun seuil ne peut suffire :** il choisit entre attendre (2 750 ms) et
+basculer (2,2 à 10,2 s selon les runs). Les deux branches dépassent le budget de
+3 secondes dès que Groq sature. Le problème n'est ni la reprise, ni le seuil, ni le
+payload — c'est qu'il n'existe aujourd'hui aucune voie sous 3 secondes lorsque le
+fournisseur primaire est plein.
+
+Deux limites enregistrées : un seul délai annoncé (2 000 ms) est apparu, si bien que
+B et C se sont comportées comme A faute d'occurrence du cas qui les distingue ; et D
+n'a rencontré aucun 429, donc n'a jamais exercé le mécanisme qu'elle devait mesurer.
+Le relevé du budget déclaré, qui aurait permis d'établir la comparabilité des runs,
+avait disparu en 01E lors d'un renommage de champs — il est rétabli, après coup.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

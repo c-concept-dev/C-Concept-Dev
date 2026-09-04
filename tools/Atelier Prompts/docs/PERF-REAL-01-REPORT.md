@@ -883,3 +883,115 @@ INTERACTIVE_P95_CONTRACT_MET      = NO
 PERF_REAL_01F_VERDICT             = PARTIAL
 PERF_REAL_01_STATUS               = OPEN / DEGRADED
 ```
+
+---
+
+# PERF-REAL-01G — calibration bornée : aucun seuil ne gagne
+
+**Les quatre politiques du jeu fermé échouent au contrat. Aucune n'est retenue —
+la section 29 interdit d'adopter la moins mauvaise.**
+
+## Le mécanisme
+
+Un seul point de comparaison dans tout le produit :
+
+```js
+shouldRetrySameProviderOnCapacitySignal(retryAfterMs, thresholdMs)
+```
+
+Déterministe, sans accès au contenu, à la classe, au mode ni au domaine. Le seuil
+porte sur le **Retry-After annoncé par le fournisseur**, jamais sur
+`Retry-After + marge` : la marge de 750 ms reste une sûreté ajoutée à une attente
+déjà décidée, pas un terme de la décision. Par défaut `Infinity` — le comportement
+historique de Decision, des rôles OPRIE et du Critique est strictement préservé.
+
+Le comparatif exécute **le même code** avec quatre valeurs, lues dans la
+configuration du worker, plutôt que quatre variantes de code.
+
+## Les quatre runs
+
+192 échantillons officiels. Même protocole que 01B à 01F : 6 classes × 8, tour de
+rôle, 3 chauffes, 700 ms d'espacement, rang le plus proche, 180 s de silence avant
+chaque run, même clé, même modèle, même ordre.
+
+| Politique | Seuil | p50 | **p95** | max | 429 | Reprise Groq | Bascule Anthropic | Succès | Contrat |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A | 0 ms | 336,8 ms | **3 336,3 ms** | 5 270,3 ms | 7 | 0 | 7 | 48/48 | non |
+| B | 1 000 ms | 467,6 ms | **3 260,9 ms** | 5 242,9 ms | 7 | 0 | 7 | 48/48 | non |
+| C | 1 500 ms | 405,1 ms | **5 020,2 ms** | 10 239,9 ms | 5 | 0 | 5 | 48/48 | non |
+| D | 2 000 ms | 616,0 ms | **3 398,0 ms** | 3 611,6 ms | 0 | 0 | 0 | 48/48 | non |
+
+`NO_CALIBRATION_WINNER = YES`.
+
+## Deux limites qu'il faut lire avant les chiffres
+
+**Un seul délai est apparu.** Groq n'a annoncé que des `Retry-After` de 2 000 ms
+sur ces quatre runs ; les 1 000 ms observés en 01D ne se sont pas représentés. B
+(1 000) et C (1 500) se sont donc comportées **exactement comme A** — 2 000 dépasse
+leur seuil, elles basculent. Le jeu fermé était construit autour des deux valeurs
+observées ; une seule s'est manifestée. B et C ne sont donc pas départagées de A
+par la mesure : faute d'occurrence du cas qui les distingue, pas par égalité prouvée.
+
+**La politique D n'a pas exercé le mécanisme.** Zéro 429 sur ses 48 appels : son
+run a démarré avec plus de marge que les autres. Ses 3 398 ms de p95 viennent de
+**Groq lui-même**, pas d'une reprise ni d'une bascule. Elle échoue donc au contrat
+pour une raison différente des trois autres, et n'est pas comparable à elles.
+
+Je n'ai pas pu établir l'état de capacité au départ de chaque run comme la
+section 19 le demande : le relevé des en-têtes de débit, ajouté en 01D, avait
+**disparu en 01E** — le renommage des champs avait remplacé le bloc entier au lieu
+de l'amender, et rien ne l'avait signalé. Il est rétabli, mais après coup. Le
+substitut observable est le nombre de signaux de capacité : 7, 7, 5, 0. A, B et C
+partagent le même régime ; D non.
+
+Cette limite ne change pas la conclusion : les quatre échouent, D comprise.
+
+## Pourquoi aucun seuil ne peut suffire
+
+| Bascule vers Anthropic | min | p50 | max |
+| --- | --- | --- | --- |
+| Politique A | 2 631,5 ms | 3 285,7 ms | 5 270,3 ms |
+| Politique B | 2 187,5 ms | 3 136,7 ms | 5 242,9 ms |
+| Politique C | 3 515,6 ms | 5 020,2 ms | **10 239,9 ms** |
+
+La bascule coûte entre **2,2 et 10,2 secondes**. Le budget interactif est de 3.
+Aucun réglage du seuil ne rend ce coût acceptable : le seuil choisit entre attendre
+et basculer, et **les deux branches dépassent le budget** dès que Groq sature.
+
+C'est le point que les six lots précédents avaient approché sans le refermer : le
+problème n'est ni la reprise, ni le seuil, ni le payload. C'est qu'il n'existe
+aujourd'hui aucune voie sous 3 secondes lorsque le fournisseur primaire est plein.
+
+## Invariants
+
+Ordre des fournisseurs, fournisseur primaire, marge de 750 ms, `maxRetries`,
+délais d'expiration, seuils du contrat : inchangés. `FAST_AUTHORITY_WRITES = 0`,
+`programming_error` non éligible au repli, aucun faux READY, aucune écriture
+périmée, aucune sélection sémantique, aucun équilibrage. 192/192 succès, schémas
+tous valides.
+
+Le worker est revenu au seuil **par défaut déclaré (0 ms)** — le contrat de 01F —
+plutôt que de rester sur le dernier réglage expérimental.
+
+## Ce qui reste
+
+```
+NO_CALIBRATION_WINNER        = YES
+CANDIDATE_POLICY             = NONE
+CONFIRMATION_RUN_PERFORMED   = NO
+PERF_REAL_01_STATUS          = OPEN / DEGRADED
+```
+
+Les options sont celles que 01D et 01E avaient déjà nommées, et elles sont
+maintenant les seules restantes :
+
+1. **Augmenter la capacité souscrite chez Groq.** C'est la seule qui traite la
+   cause : sans 429, le plan rapide rend 336 ms de médiane et moins de 1,3 s de p95.
+2. **Changer de fournisseur primaire pour le plan rapide**, si un fournisseur plus
+   rapide qu'Anthropic existe à ce niveau de charge.
+3. **Distribution proactive** plutôt que repli réactif — un changement
+   d'architecture que M-03 a explicitement décidé de ne pas avoir.
+4. **Réviser le protocole de mesure**, en constatant que 54 appels par minute ne
+   décrivent pas un usage interactif. Cela déplace la question sans la résoudre.
+
+Aucune ne s'implémente dans un lot de calibration.
