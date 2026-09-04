@@ -18,6 +18,33 @@ que les gardes de tour tiennent, mais aucune mesure n'est prise sur un parcours
 réel, avec un fournisseur réel, sur un échantillon suffisant. Tant que cette
 mesure n'existe pas, aucune affirmation de latence utilisateur n'est opposable.
 
+**Mise à jour du 4 septembre 2026 — tentative de mesure, cause trouvée, dette
+maintenue.** La route `/fast-interaction` rendait 404 en production : la porte de
+PERF-04 n'avait jamais été déployée. Elle l'a été (worker `atelier-decision-groq`,
+version `6bdbe2ec-2910-427f-b013-59fa7152cf4a`). La route répond désormais, refuse
+ce qu'elle doit refuser et n'invente rien — mais elle n'atteint aucun fournisseur.
+
+La cause est une **jointure de chaîne rompue** :
+`runFastInteractionWithHaChain` construit ses entrées sous la clé `run`, tandis
+que `runProviderChain` les consomme sous la clé `execute`. La première tentative
+lève `execute is not a function`, classée `programming_error` — une classe
+volontairement non éligible au repli, parce qu'un défaut de contrat n'est pas une
+panne de fournisseur. La chaîne s'arrête donc avant Groq, et douze requêtes réelles
+réparties sur six classes de demande ont toutes rendu 502 `fast_interaction_failure`.
+
+Aucune interaction rapide n'étant jamais produite, il n'existe aucun instant de
+première interaction à chronométrer : **le TTFI reste non mesurable**, et aucun
+seuil du contrat interactif n'est applicable. Les preuves locales n'avaient pas vu
+le défaut parce qu'elles vérifiaient la *présence textuelle* de
+`runProviderChain({ role: "fast_interaction"` dans la source, sans jamais exécuter
+la jointure.
+
+Fermer cette dette demande un lot distinct : aligner la clé, ajouter une preuve qui
+exécute réellement la jointure, redéployer, puis reprendre la mesure.
+
+Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
+Mesures brutes : `evaluation/perf-real-01/results.json`.
+
 ## Fermées
 
 | Dette | Fermée par | Ce qui a été établi |
