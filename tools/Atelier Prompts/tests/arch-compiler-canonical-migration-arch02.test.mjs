@@ -148,7 +148,7 @@ function createPathHarness(pathName, analysis, { oprieState = 'operational_reque
     valider: () => [], importer(value) { this.analyse = value; return true; },
     compiler(contrat) { calls.compiler.push(contrat === undefined ? '__AUCUN_ARGUMENT__' : clone(contrat ?? null)); return 'PROMPT_COMPILE'; }
   };
-  vm.runInContext(productionSlice('function adnEnrichCanonicalWithArch(', 'function adnNextConversationAction('), context, { filename: 'atelier:post-oprie-runtime' });
+  vm.runInContext(productionSlice('function adnEnrichCanonicalWithArch(', 'function adnReadinessInstruction('), context, { filename: 'atelier:post-oprie-runtime' });
   vm.runInContext(PATHS[pathName], context, { filename: `atelier:path-${pathName}` });
   return {
     calls, network, canonicalContract, context,

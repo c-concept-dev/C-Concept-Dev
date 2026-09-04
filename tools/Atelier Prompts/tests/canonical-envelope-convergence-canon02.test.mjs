@@ -395,7 +395,7 @@ test('T-CANON02-MIG le chemin Architecte consomme la base canonique', () => {
 test('T-CANON02-ANTI-SOURCE ACTIVE_CANONICAL_SEMANTIC_SOURCE_COUNT = 1 sur le chemin migré', () => {
   /* Borne serrée sur la seule fonction migrée : adpDecideRapide, chemin legacy
      sans appelant, possède son propre repli et n'entre pas dans ce périmètre. */
-  const section = HTML.slice(HTML.indexOf('function adpEnterArchitecte('), HTML.indexOf('async function adpDecideRapide('));
+  const section = HTML.slice(HTML.indexOf('function adpEnterArchitecte('), HTML.indexOf('function adpRunRapide('));
 
   /* Sur ce chemin, un champ canonique ne peut venir que de la base. Le repli
      manuel n'est atteint QUE si aucune base n'existe — jamais en concurrence. */

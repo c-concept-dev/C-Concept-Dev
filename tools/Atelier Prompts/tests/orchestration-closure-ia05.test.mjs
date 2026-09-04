@@ -31,7 +31,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const lire = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const POLICY = lire('core/adn/orchestration-policy.js');
 const LIFECYCLE = lire('core/adn/execution-lifecycle.js');
-const LEGACY = lire('core/adn/conversation-orchestrator.js');
 
 /** Le frontend ÉCRIT À LA MAIN : le bloc runtime généré en est retiré. */
 const FRONTEND = (() => { const i = html.indexOf('/* GENERATED'); const j = html.indexOf('})(window);', i); return html.slice(0, i) + html.slice(j); })();
@@ -317,13 +316,14 @@ test('T-IA05-31..35 : SENTINELLE — aucun contournement du pipeline', () => {
   }
 });
 
-test('T-IA05-36/37/38 : SENTINELLE — l’ancien chemin reste inerte', () => {
-  assert.equal([...FRONT_CODE.matchAll(/adpResumeAfterClarification/g)].length, 1, 'toujours sans appelant.');
-  assert.equal([...FRONT_CODE.matchAll(/adpDecideRapide/g)].length, 2, 'définition + handle de compatibilité.');
-  assert.equal([...FRONT_CODE.matchAll(/adnNextConversationAction/g)].length, 2, 'définition + appel legacy.');
-  /* L'appariement flou hérité existe toujours, et n'est consulté par aucun chemin actif. */
-  assert.match(LEGACY, /conversationQuestionsSimilar/);
-  assert.match(LEGACY, />= 0\.6/);
+test('T-IA05-36/37/38 : SENTINELLE — l’ancien chemin n’existe plus', () => {
+  /* CLEAN-01 : cette sentinelle veillait sur trois vestiges inertes. Ils sont retirés ;
+     elle veille désormais sur leur absence, ce qui est la même garde en plus fort. */
+  assert.equal([...FRONT_CODE.matchAll(/adpResumeAfterClarification/g)].length, 0);
+  assert.equal([...FRONT_CODE.matchAll(/adpDecideRapide/g)].length, 0);
+  assert.equal([...FRONT_CODE.matchAll(/adnNextConversationAction/g)].length, 0);
+  assert.equal(html.includes('conversationQuestionsSimilar'), false, 'le flou hérité est retiré.');
+  assert.equal(html.includes('source: "local-prudent"'), false, 'le repli hérité aussi.');
   for (const source of [sansProse(POLICY), sansProse(LIFECYCLE)]) {
     assert.doesNotMatch(source, /conversationQuestionsSimilar|nextConversationAction|local-prudent/);
   }

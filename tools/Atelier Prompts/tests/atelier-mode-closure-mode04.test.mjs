@@ -46,7 +46,7 @@ const ATELIER_GENERER = sansProse(tranche('function generer(){', 'function affic
 const ATELIER_CHEMIN = ATELIER_ENTREE + '\n' + ATELIER_GENERER;
 const ATELIER_VUE = tranche('<section class="vue atelier-v115" id="vue-generation"', '<section class="vue legacy-v115" id="vue-dictee"');
 const ROUTEUR = sansProse(tranche('window.__V11_ROUTER__', 'function init()'));
-const RUN_RAPIDE = sansProse(tranche('function adpRunRapide(', 'async function adpResumeAfterClarification'));
+const RUN_RAPIDE = sansProse(tranche('function adpRunRapide(', 'async function v11StartRapide'));
 const ENTER_ARCH = sansProse(tranche('function adpEnterArchitecte(', 'async function adpDecideRapide'));
 const MAKE_ENVELOPE = sansProse(tranche('function makeEnvelope(){', 'function blobDownload('));
 
@@ -196,8 +196,9 @@ test('T-MODE04-18..20 : l’« exploitable » local ne déclenche ni readiness, 
 
 test('T-MODE04-21 : l’unique lecteur gouverné de lastEnvelope est nommé, et il n’y en a qu’un', () => {
   /* Le champ est partagé. Le dire précisément est ce qui permet de le garder. */
-  assert.equal(ecritures('adpState.lastEnvelope'), 7,
-    'remise à zéro, effacement Architecte, pose Architecte, ancien chemin, effacement Rapide, pose Rapide, Atelier.');
+  /* CLEAN-01 : l'ancien chemin (adpDecideRapide) écrivait aussi ce champ ; il est retiré. */
+  assert.equal(ecritures('adpState.lastEnvelope'), 6,
+    'remise à zéro, effacement Architecte, pose Architecte, effacement Rapide, pose Rapide, Atelier.');
   const lecteurs = [...FRONT_CODE.matchAll(/=\s*adpState\.lastEnvelope\b/g)].length;
   assert.equal(lecteurs, 1, 'un seul lecteur : adnCompactContractForArchitecte.');
   assert.match(sansProse(tranche('function adnCompactContractForArchitecte(', 'function adnAssessArchitecteReadiness(')),

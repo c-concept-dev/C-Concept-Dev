@@ -53,7 +53,7 @@ const FRONT_CODE = sansProse(FRONTEND);
 
 const ROUTEUR = sansProse(tranche('window.__V11_ROUTER__', 'function init()'));
 const API_ANALYSE = sansProse(tranche('async function beginApiAnalysis()', 'function compositeDemand'));
-const RUN_RAPIDE = sansProse(tranche('function adpRunRapide(', 'async function adpResumeAfterClarification'));
+const RUN_RAPIDE = sansProse(tranche('function adpRunRapide(', 'async function v11StartRapide'));
 const ENTER_ARCH = sansProse(tranche('function adpEnterArchitecte(', 'async function adpDecideRapide'));
 const ATELIER_ENTREE = sansProse(tranche('function v11StartAtelier()', 'window.askDecisionProvider'));
 const RESET_PRESENTATION_BRUT = tranche('function resetModePresentation(', 'function setMode(');
@@ -137,7 +137,7 @@ function chargerAnalyse({ pendantAppel = () => {}, mode = 'architecte' } = {}) {
     valider: () => [], importer(v) { this.analyse = v; return true; },
     compiler() { trace.compile += 1; return 'PROMPT_COMPILE'; }
   };
-  vm.runInContext(productionSlice('function adnEnrichCanonicalWithArch(', 'function adnNextConversationAction('), contexte);
+  vm.runInContext(productionSlice('function adnEnrichCanonicalWithArch(', 'function adnReadinessInstruction('), contexte);
   vm.runInContext(productionSlice('async function beginApiAnalysis', 'function compositeDemand'), contexte);
   return { trace, state, ctx: contexte, element, run: () => vm.runInContext('beginApiAnalysis()', contexte) };
 }
@@ -431,7 +431,8 @@ test('T-MODE05-31 : le verrou de tour ne peut pas rester collé après une bascu
 test('T-MODE05-32 : aucune enveloppe ne peut entrer dans le mode d’un autre', () => {
   /* Sept écritures, UNE lecture, et cette lecture est précédée d'un effacement
      sur les deux entrées gouvernées : aucune enveloppe étrangère n'est atteignable. */
-  assert.equal(ecritures('adpState.lastEnvelope'), 7);
+  /* CLEAN-01 : l'ancien décideur écrivait aussi ce champ ; il est retiré. */
+  assert.equal(ecritures('adpState.lastEnvelope'), 6);
   assert.equal([...FRONT_CODE.matchAll(/=\s*adpState\.lastEnvelope\b/g)].length, 1);
   assert.match(sansProse(tranche('function adnCompactContractForArchitecte(', 'function adnAssessArchitecteReadiness(')),
     /const env=adpState\.lastEnvelope/, 'le lecteur unique est nommé.');
@@ -653,22 +654,20 @@ test('T-MODE05-REJEU : une action à effet ne s’applique qu’une fois par tou
 // §120 — AUCUN CHEMIN PARALLÈLE, AUCUNE AUTORITÉ EN DOUBLE
 // =================================================================================================
 
-test('T-MODE05-66/67 : les entrées de mode actives convergent toutes vers la même frontière', () => {
-  /* Un seul contrôle VISIBLE lance un mode, et il passe par le routeur. */
+test('T-MODE05-66/67 : une seule entrée de mode, et plus aucune entrée héritée', () => {
+  /* Un seul contrôle lance un mode, et il passe par le routeur. */
   assert.match(html, /\$\('#ui-main-action'\)\?\.addEventListener\('click',routeCurrentMode\)/);
   assert.match(sansProse(tranche('function routeCurrentMode(', 'document.addEventListener')),
     /router\.start\(currentMode\(\)\)/);
-  /* Les entrées héritées existent encore — et sont hors interface, par CSS et par ARIA. */
-  assert.match(html, /#v11-shell \.ui-hidden-bridge\{display:none\}/);
-  const pont = tranche('<div class="ui-hidden-bridge" aria-hidden="true">', '</div>');
+  /* CLEAN-01 : le pont d'entrées héritées était hors interface par CSS et par ARIA.
+     Il n'est plus caché — il n'existe plus : markup, style et écouteurs compris. */
+  assert.equal(html.includes('ui-hidden-bridge'), false, 'le pont hérité est retiré.');
   for (const id of ['v11-prepare', 'v11-go-rapide', 'v11-go-avance']) {
-    assert.ok(pont.includes(`id="${id}"`), `${id} vit dans le pont caché.`);
+    assert.equal(html.includes(`id="${id}"`), false, `${id} : plus de markup.`);
   }
-  /* Aucun autre écouteur ne lance un mode. */
-  assert.equal([...FRONT_CODE.matchAll(/addEventListener\('click',v11Start/g)].length, 2,
-    'les deux boutons du pont caché, et rien d’autre.');
+  assert.equal([...FRONT_CODE.matchAll(/addEventListener\('click',v11Start/g)].length, 0,
+    'plus aucun écouteur hérité ne lance un mode.');
 });
-
 test('T-MODE05-68/69 : aucune table de contrats en double, aucune dérivation de destination en double', () => {
   assert.equal((html.match(/const MODE_CONTRACTS = Object\.freeze\(\{/g) || []).length, 1);
   assert.equal((html.match(/function executionTargetFor\(mode\)/g) || []).length, 1);
@@ -679,24 +678,15 @@ test('T-MODE05-68/69 : aucune table de contrats en double, aucune dérivation de
   assert.equal([...FRONT_CODE.matchAll(/mode==='(rapide|atelier)'/g)].length, 2);
 });
 
-test('T-MODE05-CONTROLE-MORT : la seule référence sans cible est nommée, pas masquée', () => {
-  /* Fait mesuré : oprieSetBusy désarme #v11-go-architecte, qui n'existe pas dans
-     le document. La référence est inerte — `$` rend null et l'écriture est gardée —
-     mais la nommer vaut mieux que laisser croire à un bouton désarmé. */
-  assert.match(html, /for\(const id of \['#v11-go-rapide','#v11-go-architecte','#v11-answer-continue'\]\)/);
-  assert.equal(html.includes('id="v11-go-architecte"'), false, 'ce bouton n’existe pas.');
-  assert.match(sansProse(tranche('function oprieSetBusy(', 'function oprieShowAnalysing')),
-    /const el=\$\(id\);if\(el\)el\.disabled=!!busy/, 'et l’absence de cible ne casse rien.');
-  /* Les trois cibles nommées sont hors interface : le verrou visuel réel est ailleurs. */
-  for (const id of ['v11-go-rapide', 'v11-answer-continue']) {
-    assert.ok(html.includes(`id="${id}"`), `${id}, lui, existe.`);
-  }
+test('T-MODE05-CONTROLE-MORT : plus aucune référence de contrôle sans cible', () => {
+  /* MODE-05 avait mesuré, et nommé, une référence morte : oprieSetBusy désarmait un
+     identifiant qui n'a jamais existé dans le document. CLEAN-01 l'a retirée, avec
+     celle du pont hérité. Ne reste que la cible réelle. */
+  assert.equal(html.includes('v11-go-architecte'), false, 'la référence sans cible est retirée.');
+  const busy = sansProse(tranche('function oprieSetBusy(', 'function oprieShowAnalysing'));
+  assert.match(busy, /const el=\$\('#v11-answer-continue'\);if\(el\)el\.disabled=!!busy/);
+  assert.ok(html.includes('id="v11-answer-continue"'), 'et cette cible, elle, existe.');
 });
-
-// =================================================================================================
-// §121 — LE BUILD
-// =================================================================================================
-
 test('T-MODE05-70..72 : un seul bloc runtime, une seule table compilée, build reproductible', () => {
   assert.equal((html.match(/\/\* GENERATED — LOT 10G\.3B\.3F\.[12]/g) || []).length, 1);
   assert.equal((html.match(/\}\)\(window\);/g) || []).length, 1);

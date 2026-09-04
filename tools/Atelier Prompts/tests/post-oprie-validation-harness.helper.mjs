@@ -18,7 +18,7 @@ const HTML = path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.htm
 const html = fs.readFileSync(HTML, 'utf8');
 
 const FRAGMENT_START = 'const ADN_POST_OPRIE_SIGNALS=';
-const FRAGMENT_END = 'function adnNextConversationAction(';
+const FRAGMENT_END = 'function adnReadinessInstruction(';
 
 export function assertFragmentBounds() {
   const problems = [];

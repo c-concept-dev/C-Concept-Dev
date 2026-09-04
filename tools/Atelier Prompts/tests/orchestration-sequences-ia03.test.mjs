@@ -436,11 +436,12 @@ test('T-IA03-49..54 : aucune porte ne peut être sautée, à aucun moment de la 
 // =================================================================================================
 
 test('T-IA03-55/56/57 : rien d’inerte n’a été réactivé', () => {
-  assert.equal([...FRONTEND.matchAll(/adpResumeAfterClarification/g)].length, 1, 'toujours sans appelant.');
-  assert.equal([...FRONTEND.matchAll(/adpDecideRapide/g)].length, 2, 'toujours définition + handle.');
-  assert.equal([...FRONTEND.matchAll(/adnNextConversationAction/g)].length, 2, 'toujours définition + appel legacy.');
-  const legacy = fs.readFileSync(path.join(root, 'core/adn/conversation-orchestrator.js'), 'utf8');
-  assert.match(legacy, /conversationQuestionsSimilar/, 'le flou hérité existe toujours…');
+  /* CLEAN-01 : « rien d'inerte n'a été réactivé » devient « rien d'inerte ne subsiste ». */
+  assert.equal([...FRONTEND.matchAll(/adpResumeAfterClarification/g)].length, 0);
+  assert.equal([...FRONTEND.matchAll(/adpDecideRapide/g)].length, 0);
+  assert.equal([...FRONTEND.matchAll(/adnNextConversationAction/g)].length, 0);
+  assert.equal(fs.existsSync(path.join(root, 'core/adn/conversation-orchestrator.js')), false,
+    'le module hérité est retiré…');
   assert.doesNotMatch(DRIVER, /conversationQuestionsSimilar|nextConversationAction|local-prudent/, '…et reste hors du pilote.');
   assert.doesNotMatch(POLICY, /conversationQuestionsSimilar|nextConversationAction|local-prudent/);
 });

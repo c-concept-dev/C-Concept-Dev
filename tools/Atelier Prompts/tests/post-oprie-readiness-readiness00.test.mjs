@@ -382,7 +382,7 @@ test('T-READINESS-20 la validation n’introduit aucun appel réseau', () => {
 });
 
 test('T-READINESS-21 aucun vocabulaire métier n’est introduit dans la couche de validation', () => {
-  const fragment = productionSlice('const ADN_POST_OPRIE_SIGNALS=', 'function adnNextConversationAction(').toLowerCase();
+  const fragment = productionSlice('const ADN_POST_OPRIE_SIGNALS=', 'function adnReadinessInstruction(').toLowerCase();
   for (const forbidden of ['juridique', 'médical', 'medical', ' rh ', 'finance', 'voyage', 'neuro', 'recrutement', 'immobilier', 'santé']) {
     assert.equal(fragment.includes(forbidden), false, `terme métier interdit détecté : ${forbidden}`);
   }

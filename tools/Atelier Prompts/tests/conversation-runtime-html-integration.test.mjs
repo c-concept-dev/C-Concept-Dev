@@ -29,7 +29,10 @@ test("Rapide et Architecte démarrent par le même pilote sémantique (OPRIE)", 
 // Ce qui change est la matière transmise : plus compositeDemand() (qui concaténait destructivement
 // les réponses dans la demande) mais original_request immuable + clarification_history.
 test("chaque réponse relance le pilote OPRIE avec le mode courant, sans plafond", () => {
-  const resume = html.slice(html.indexOf("async function adpResumeAfterClarification"), html.indexOf("async function v11StartRapide"));
+  /* CLEAN-01 : adpResumeAfterClarification portait cet invariant SANS APPELANT — la reprise
+     réelle vit dans answerQuestion. Le vestige est retiré ; l'invariant est désormais mesuré
+     là où il s'applique vraiment, ce qui le rend opposable au lieu de décoratif. */
+  const resume = html.slice(html.indexOf("function answerQuestion(answer){"), html.indexOf("function resetAll()"));
   assert.match(resume, /oprieRunTurn\(adpState\.requestedMode/);
   assert.doesNotMatch(resume, /clarifications\s*<\s*\d+/);
   assert.doesNotMatch(resume, /compositeDemand\(\)/, "original_request ne doit jamais être la demande concaténée.");
@@ -39,15 +42,25 @@ test("chaque réponse relance le pilote OPRIE avec le mode courant, sans plafond
 });
 
 test("l'orchestrateur est l'unique traducteur des décisions en actions UI", () => {
-  const section = html.slice(html.indexOf("function adnNextConversationAction"), html.indexOf("function adnReadinessInstruction"));
-  assert.match(section, /runtime\.nextConversationAction/);
-  assert.match(section, /runtime\.createConversationAuditEvent/);
-  assert.match(section, /state\.answers\.map\(x=>x\.question\)/);
-  assert.doesNotMatch(section, /voyage|italie|rome|florence|\bcv\b|médical/i);
+  /* CLEAN-01 : ce test mesurait le TRADUCTEUR HÉRITÉ (adnNextConversationAction), sans appelant.
+     Le traducteur réel — et unique — est la table d'application du pilote de tour. C'est elle
+     qui est mesurée maintenant : une action connue, un composant existant, rien d'inventé. */
+  const table = html.slice(html.indexOf("const ORCHESTRATION_DRIVER="), html.indexOf("IA-04 — LE CYCLE"));
+  assert.equal((html.match(/const ORCHESTRATION_DRIVER=/g) || []).length, 1, "un seul traducteur.");
+  for (const action of ['WAIT_FOR_USER', 'KEEP_CURRENT_INTERACTION', 'SHOW_BLOCKED', 'SHOW_DEGRADED',
+                        'ENTER_READINESS', 'IGNORE_STALE', 'STOP_FAIL_CLOSED']) {
+    assert.ok(table.includes(action + ':'), `${action} a son application.`);
+  }
+  assert.doesNotMatch(table, /voyage|italie|rome|florence|\bcv\b|médical/i);
 });
 
-test("la trace exposée est une copie et ne contient pas les réponses", () => {
+test("la façade de compatibilité n’expose ni trace, ni réponses, ni ancien décideur", () => {
+  /* CLEAN-01 : la trace exposée (getAudit) n'était alimentée que par l'ancien décideur.
+     Celui-ci retiré, elle n'aurait plus jamais rendu qu'un tableau vide — annoncer une trace
+     toujours vide est pire que ne rien annoncer. La façade est réduite à ce qui a un
+     consommateur réel, et ce test vérifie qu'elle ne réapparaît pas. */
   const exposure = html.slice(html.indexOf("window.__ADAPTIVE_DECISION_PIPELINE_10G__"), html.indexOf("window.__V11_ROUTER__"));
-  assert.match(exposure, /getAudit\(\)\{return JSON\.parse\(JSON\.stringify\(adpState\.audit\)\)\}/);
+  assert.doesNotMatch(exposure, /getAudit|adpState\.audit|decide:|lastDecision/);
   assert.doesNotMatch(exposure, /state\.answers|original_request|demande/);
+  assert.match(exposure, /askDecisionProvider/, "le transport, lui, a un consommateur réel.");
 });

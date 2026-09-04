@@ -21,7 +21,8 @@ import { loadPilot, arbiterTurn, clarificationTurn, confirmationTurn, delay, htm
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const POLICY = fs.readFileSync(path.join(root, 'core/adn/orchestration-policy.js'), 'utf8');
-const LEGACY = fs.readFileSync(path.join(root, 'core/adn/conversation-orchestrator.js'), 'utf8');
+const HTML = html;
+const BUNDLE = fs.readFileSync(path.join(root, 'core/adn/browser-runtime.generated.js'), 'utf8');
 
 /** Le HTML sans le bloc runtime généré : c'est le code frontend écrit à la main. */
 const FRONTEND = (() => {
@@ -182,15 +183,15 @@ test('T-IA02B-15 : action inconnue → fermeture, et jamais un effet métier', a
 // §57 — L'ANCIEN CHEMIN : PRÉSENT, CARACTÉRISÉ, INACTIF
 // =================================================================================================
 
-test('T-IA02B-16 : nextConversationAction n’est atteignable par AUCUN chemin d’interface', () => {
-  assert.match(LEGACY, /export function nextConversationAction/, 'la fonction existe toujours (retrait = lot CLEAN).');
-  /* Son unique consommateur frontend est adnNextConversationAction, appelé par adpDecideRapide. */
-  const appelants = [...FRONTEND.matchAll(/adnNextConversationAction\(/g)].length;
-  assert.equal(appelants, 2, 'une définition et un unique appel : adpDecideRapide.');
-  /* adpDecideRapide n'est atteignable que par un handle de compatibilité, jamais par l'interface. */
-  const usages = [...FRONTEND.matchAll(/adpDecideRapide/g)].length;
-  assert.equal(usages, 2, 'une définition et une exposition de compatibilité, rien d’autre.');
-  assert.match(FRONTEND, /decide:adpDecideRapide/, 'la seule référence restante est le handle.');
+test('T-IA02B-16 : nextConversationAction n’existe plus — le retrait annoncé a eu lieu', () => {
+  /* CLEAN-01 : ce test disait « la fonction existe toujours (retrait = lot CLEAN) ».
+     Le lot CLEAN a eu lieu. Le module hérité, son consommateur frontend et l'ancien
+     décideur ont été retirés ; l'inatteignabilité prouvée ici est devenue une absence. */
+  assert.equal(fs.existsSync(path.join(root, 'core/adn/conversation-orchestrator.js')), false,
+    'le module hérité est retiré.');
+  assert.equal([...FRONTEND.matchAll(/adnNextConversationAction/g)].length, 0);
+  assert.equal([...FRONTEND.matchAll(/adpDecideRapide/g)].length, 0);
+  assert.equal(FRONTEND.includes('decide:'), false, 'le handle n’expose plus d’ancien décideur.');
   /* Et aucun écouteur d'événement, aucun routeur, ne le nomme. */
   for (const entree of ['v11StartRapide', 'v11StartArchitecte', 'v11StartAtelier', 'routeCurrentMode', 'answerQuestion']) {
     const bloc = FRONTEND.slice(FRONTEND.indexOf(`function ${entree}`), FRONTEND.indexOf(`function ${entree}`) + 900);
@@ -198,14 +199,12 @@ test('T-IA02B-16 : nextConversationAction n’est atteignable par AUCUN chemin d
   }
 });
 
-test('T-IA02B-17 : l’ancien chemin ne peut pas se substituer à la politique active', () => {
-  /* Preuve structurelle : il n'écrit aucun des états sur lesquels le tour s'appuie. */
-  const decide = FRONTEND.slice(FRONTEND.indexOf('async function adpDecideRapide'), FRONTEND.indexOf('function adpRunRapide'));
-  for (const interdit of [/oprieState\./, /oprieApplyTurn/, /oprieDriveOrchestration/, /oprieDecideOrchestration/,
-                          /adpRunRapide\(/, /adpEnterArchitecte\(/, /oprieEnterExecution/]) {
-    assert.doesNotMatch(decide, interdit, `l’ancien chemin ne touche pas ${interdit}.`);
-  }
-  assert.doesNotMatch(decide, /canonicalContract/, 'et ne pose aucun contrat canonique.');
+test('T-IA02B-17 : plus aucun chemin ne peut se substituer à la politique active', () => {
+  /* CLEAN-01 : l'ancien chemin prouvait son innocuité champ par champ. Il n'existe plus ;
+     la preuve devient un dénombrement — une seule entrée en exécution, une seule table. */
+  assert.equal([...FRONTEND.matchAll(/oprieEnterExecution\(/g)].length, 2, 'définition + unique appel.');
+  assert.equal([...FRONTEND.matchAll(/oprieState\.canonicalContract\s*=/g)].length, 1);
+  assert.equal([...FRONTEND.matchAll(/const ORCHESTRATION_DRIVER=/g)].length, 1);
 });
 
 test('T-IA02B-18 : le handle de compatibilité ne peut pas altérer le tour courant', async () => {
@@ -219,9 +218,11 @@ test('T-IA02B-18 : le handle de compatibilité ne peut pas altérer le tour cour
   assert.deepEqual({ orchestration: pilot.oprieState.lastOrchestration, tour: pilot.oprieState.lastTurn, seq: pilot.oprieState.seq }, avant);
 });
 
-test('T-IA02B-19 : l’appariement flou hérité n’est consulté par aucun chemin actif', () => {
-  assert.match(LEGACY, /conversationQuestionsSimilar/, 'le flou existe toujours dans l’ancien module.');
-  assert.match(LEGACY, />= 0\.6/, 'avec son seuil historique.');
+test('T-IA02B-19 : l’appariement flou hérité n’existe plus nulle part', () => {
+  /* CLEAN-01 : le flou 0.6 vivait dans le module hérité, sans consommateur. Il est retiré,
+     du source comme du bundle navigateur — il n'y a plus de « chemin actif » à vérifier. */
+  assert.equal(HTML.includes('conversationQuestionsSimilar'), false, 'plus rien dans le produit.');
+  assert.equal(BUNDLE.includes('conversationQuestionsSimilar'), false, 'plus rien dans le bundle.');
   /* Aucun chemin du tour ne le nomme, ni directement ni via le runtime. */
   assert.doesNotMatch(DRIVER, /conversationQuestionsSimilar|nextConversationAction/);
   assert.doesNotMatch(POLICY, /conversationQuestionsSimilar|nextConversationAction|0\.6/);
@@ -229,9 +230,11 @@ test('T-IA02B-19 : l’appariement flou hérité n’est consulté par aucun che
   assert.doesNotMatch(tourBloc, /conversationQuestionsSimilar|Similar|previous_questions/);
 });
 
-test('T-IA02B-20 : le repli « local-prudent » reste inatteignable', () => {
-  assert.match(LEGACY, /local-prudent/, 'le repli existe toujours dans l’ancien module.');
-  /* Il ne peut être atteint que par nextConversationAction, que le tour n'appelle jamais. */
+test('T-IA02B-20 : le repli « local-prudent » n’existe plus', () => {
+  /* CLEAN-01 : ce repli promouvait execution_ready quand le fournisseur était indisponible.
+     Il n'était atteignable que par nextConversationAction ; les deux sont retirés. */
+  assert.equal(HTML.includes('source: "local-prudent"'), false, 'le repli est retiré du produit.');
+  assert.equal((HTML.match(/source:\s*'local-prudent'/g) || []).length, 0, 'et personne ne le produit.');
   assert.doesNotMatch(DRIVER, /local-prudent/);
   assert.doesNotMatch(POLICY, /local-prudent/);
   /* Et la politique ne rend JAMAIS un état exploitable sur panne : elle ferme. */
@@ -451,10 +454,12 @@ test('T-IA02B-46 : zéro contournement actif — aucun aiguillage par état hors
 
 test('T-IA02B-47 : zéro chemin d’orchestration hérité actif', () => {
   /* Les trois vestiges connus sont présents mais inertes : on le prouve, on ne le suppose pas. */
+  /* CLEAN-01 : ces trois vestiges étaient présents mais inertes. Ils sont retirés ;
+     « inerte » n'a plus à être prouvé, l'absence se compte. */
   const vestiges = {
-    'adpResumeAfterClarification': 1,   // définition seule : aucun appelant
-    'adpDecideRapide': 2,               // définition + handle de compatibilité
-    'adnNextConversationAction': 2      // définition + unique appel depuis adpDecideRapide
+    'adpResumeAfterClarification': 0,
+    'adpDecideRapide': 0,
+    'adnNextConversationAction': 0
   };
   for (const [nom, attendu] of Object.entries(vestiges)) {
     assert.equal([...FRONTEND.matchAll(new RegExp(nom, 'g'))].length, attendu, `${nom} : occurrences`);

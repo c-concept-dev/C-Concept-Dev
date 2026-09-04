@@ -161,7 +161,10 @@ test('FC01A-7 : une erreur technique neutre est rendue, sans route et sans exéc
   assert.match(html, /const ADP_TECHNICAL_FAILURE_UI=Object\.freeze\(/);
   assert.match(html, /Impossible d’analyser la demande pour le moment\./);
   assert.match(html, /Votre demande est conservée\. Vous pouvez réessayer\./);
-  assert.match(html, /function adpShowTechnicalFailure\(\)/);
+  // CLEAN-01 : adpShowTechnicalFailure était le JUMEAU HÉRITÉ de ce rendu, sans appelant depuis
+  // que oprieRunTurn porte l'échec technique. Il est retiré ; l'invariant est désormais porté par
+  // le rendu RÉELLEMENT atteint, ce qui le renforce au lieu de l'affaiblir.
+  assert.match(html, /function oprieShowNetworkFailure\(\)\{\s*adpState\.pendingQuestion=false;show\(null\);\s*v11ShowRapidGate\(ADP_TECHNICAL_FAILURE_UI\);/);
   // Les trois points d'entrée traitent l'échec sans jamais router.
   // FC-01b : les trois points d'entrée passent désormais par oprieRunTurn, qui rend lui-même l'échec
   // technique. Le rendu reste garanti, en un seul endroit au lieu de trois — l'invariant (aucun point
@@ -181,7 +184,7 @@ test('FC01A-7 : une erreur technique neutre est rendue, sans route et sans exéc
 
 test('FC01A-8 : le message d’erreur ne nomme aucun fournisseur, aucun statut, aucune cause inventée', () => {
   const start = html.indexOf('const ADP_TECHNICAL_FAILURE_UI');
-  const block = html.slice(start, html.indexOf('function adpShowThinking'));
+  const block = html.slice(start, html.indexOf('function v11SwitchToArchitecteFromRapid'));
   for (const forbidden of [/workers[- ]?ai/i, /groq/i, /anthropic/i, /openai/i, /provider/i, /fournisseur/i, /http/i, /retry/i, /\b\d{3}\b/, /token/i, /sk-/]) {
     assert.doesNotMatch(block, forbidden, `le message ne doit pas exposer ${forbidden}.`);
   }
@@ -200,7 +203,7 @@ test('FC01A-10 : l’exécution BYO-key Anthropic est INCHANGÉE (hors périmèt
 test('FC01A-11 : aucune modification d’OPRIE, du backend ni de core/adn depuis ce lot', () => {
   for (const file of ['workers/shared/operational-request-core.js', 'workers/shared/operational-request-orchestrator.js',
                       'workers/shared/provider-ha.js', 'workers/groq/src/index.js',
-                      'core/adn/conversation-orchestrator.js', 'core/adn/operational-request-state.js',
+                      'core/adn/operational-request-state.js',
                       'core/adn/routing-engine.js', 'core/adn/execution-readiness.js']) {
     assert.ok(fs.existsSync(path.join(root, file)), file);
   }
@@ -225,10 +228,11 @@ test('FC01A-UNREACHABLE : le repli « local proportionné » du miroir Conversat
   // de core/adn/conversation-orchestrator.js — GELÉ, hors périmètre, donc non modifié ici. Il n'est
   // atteignable que si un providerResult porte source:'local-prudent'. Or plus AUCUN code ne produit
   // cette valeur : le seul producteur était adpFallbackLocal, supprimée.
-  assert.match(html, /source: "local-prudent"/, 'le miroir gelé conserve sa forme, non modifié par ce lot.');
+  // CLEAN-01 : « inatteignable » est devenu « absent ». Le miroir portait le seul fail-open
+  // restant de cette famille ; il est retiré du produit avec son module. La garde consommatrice
+  // d'engine-adapters demeure, parce que la valeur reste un mot légal du contrat de fil.
+  assert.equal(html.includes('source: "local-prudent"'), false, 'le repli est retiré du produit.');
   const producers = html.match(/source:\s*'local-prudent'/g) || [];
-  assert.deepEqual(producers, [], 'plus aucun code ne doit PRODUIRE source:\'local-prudent\'.');
-  for (const consumer of [/source !== 'local-prudent'/, /providerResult\.source!=='local-prudent'/]) {
-    assert.match(html, consumer, 'les gardes consommatrices restent en place, inchangées.');
-  }
+  assert.deepEqual(producers, [], 'et personne ne le produit.');
+  assert.match(html, /source !== 'local-prudent'/, 'la garde d’engine-adapters reste en place.');
 });

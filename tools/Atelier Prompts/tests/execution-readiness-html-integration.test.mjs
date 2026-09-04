@@ -84,7 +84,7 @@ test("le dialogue adaptatif n'a plus de plafond numérique de clarifications", (
     html.indexOf("async function v11StartRapide")
   );
   assert.doesNotMatch(section, /clarifications\s*<\s*\d+/);
-  const pilot = html.slice(html.indexOf("const OPRIE_STATES="), html.indexOf("function adpShowThinking"));
+  const pilot = html.slice(html.indexOf("const OPRIE_STATES="), html.indexOf("function v11SwitchToArchitecteFromRapid"));
   assert.doesNotMatch(pilot, /clarifications\s*<\s*\d+/, "aucun plafond numérique de clarifications.");
   assert.match(pilot, /adpState\.clarifications\+=1/, "le compteur d'audit est conservé.");
 });

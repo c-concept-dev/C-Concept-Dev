@@ -125,9 +125,10 @@ test('la clarification conserve demande, réponses et documents sans plafond arb
 });
 
 test('après exploitabilité, seules les routes Rapide et Architecte sont automatiques',()=>{
+  /* CLEAN-01 : l'aiguillage vivait en double — dans l'ancien décideur et dans l'entrée en
+     exécution. L'ancien est retiré ; l'invariant est mesuré sur l'aiguillage qui subsiste. */
   const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
-  assert.match(section,/if\(action\.route==='rapide'\)/);
-  assert.match(section,/action\.route==='architecte'/);
+  assert.match(section,/route==='rapide'\?adpRunRapide\(demande,materiau,orientation\):adpEnterArchitecte\(demande,materiau,orientation\)/);
   assert.doesNotMatch(section,/route:'atelier'|sem\.route==='atelier'/);
 });
 

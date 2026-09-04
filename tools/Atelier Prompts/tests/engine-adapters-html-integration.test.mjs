@@ -19,7 +19,6 @@ test('le bundle ADN navigateur est autonome et exécutable',()=>{
   assert.equal(typeof runtime.selectAdaptiveLocks,'function');
   assert.equal(typeof runtime.routeExecution,'function');
   assert.equal(typeof runtime.projectToRapide,'function');
-  assert.equal(typeof runtime.nextConversationAction,'function');
 });
 
 test('le HTML autonome embarque exactement le runtime ADN généré',()=>{
@@ -31,14 +30,18 @@ test('le HTML autonome embarque exactement le runtime ADN généré',()=>{
 });
 
 test('le routage produit utilise l’enveloppe ADN quand elle est disponible',()=>{
-  const section=html.slice(html.indexOf('async function adpDecideRapide'),html.indexOf('function adpRunRapide'));
-  assert.match(section,/adnBuildEnvelope\(demande,materiau,result\)/);
-  assert.match(section,/adnNextConversationAction\(\{providerResult:result,requestedMode\}\)/);
-  assert.match(section,/action\.route==='architecte'/);
+  /* CLEAN-01 : ce test mesurait l'ANCIEN décideur, retiré. Les enveloppes ADN du produit
+     vivent sur les deux entrées gouvernées réelles ; c'est là qu'on les mesure. */
+  const rapide=html.slice(html.indexOf('function adpRunRapide('),html.indexOf('async function v11StartRapide'));
+  assert.match(rapide,/adnRefineRapidEnvelope\(r,orientation,materiau\)/);
+  const arch=html.slice(html.indexOf('function adpEnterArchitecte('),html.indexOf('function adpRunRapide('));
+  assert.match(arch,/adnCanonicalEnvelope\(canonical,materiau,'architecte'\)/);
+  assert.match(arch,/adnManualEnvelope\(demande,materiau,'architecte'\)/);
+  assert.match(arch,/envelope\.routing\.route!=='architecte'/);
 });
 
 test('Rapide conserve ses verrous historiques et peut recevoir les verrous ADN manquants',()=>{
-  const section=html.slice(html.indexOf('function adpRunRapide'),html.indexOf('async function adpResumeAfterClarification'));
+  const section=html.slice(html.indexOf('function adpRunRapide'),html.indexOf('async function v11StartRapide'));
   assert.match(section,/adnMergeLegacyLocks\(r\.actifs,projection\)/);
   assert.match(section,/r\.prompt=assembler\(r\.ctx,actifs\)/);
   assert.match(section,/etat\.contrat=contratDuPrompt\(r\.ctx,r\.actifs\)/);

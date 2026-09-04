@@ -31,11 +31,6 @@ const modules = [
     exports: ['EXECUTION_READINESS_VERSION','EXECUTION_READINESS_STATES','contractForContractualization','assessAnalysisReadiness','buildExecutionReadinessInstruction','buildFinalExecutionDirective','createReadinessAuditView']
   },
   {
-    file: 'conversation-orchestrator.js',
-    name: 'CONVERSATION',
-    exports: ['CONVERSATION_ORCHESTRATOR_VERSION','CONVERSATION_STATES','conversationQuestionsSimilar','nextConversationAction','createConversationAuditEvent','validateConversationAuditEvent']
-  },
-  {
     file: 'oprie-canonical-mapping.js',
     name: 'CANON',
     exports: ['CANONICAL_CONTRACT_VERSION','CANONICAL_EVALUATION_MARKERS','CANONICAL_BASE_FIELDS','isCanonicalBaseContract','canonicalBaseToEnvelopeInput','OPRIE_STATES','OPRIE_EXECUTABLE_STATE','OPRIE_TRANSIENT_FIELDS','CANONICAL_SOURCES','SEMANTIC_SIGNAL_SOURCES','SEMANTIC_SIGNAL_PRIORITIES','mapOprieToCanonicalContract','validateCanonicalContract','createCanonicalMappingAuditView','validateCanonicalEnvelopeConvergence','CANONICAL_SEMANTIC_FIELDS','ACCEPTED_PRESENTATION_LOSSES','assertCanonicalReadinessInvariant','activeReadinessSourceCount','CANONICAL_READINESS_MATRIX']

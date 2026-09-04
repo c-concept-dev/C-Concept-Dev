@@ -93,7 +93,7 @@ function createPathHarness(pathName, analysis, { runtimeAvailable = true, oprieS
     compiler() { counters.compiler += 1; return 'PROMPT_COMPILE'; }
   };
   context.window.__ARCHITECTE_V10__ = api;
-  vm.runInContext(productionSlice('function adnEnrichCanonicalWithArch(', 'function adnNextConversationAction('), context, { filename: 'atelier:post-oprie-runtime' });
+  vm.runInContext(productionSlice('function adnEnrichCanonicalWithArch(', 'function adnReadinessInstruction('), context, { filename: 'atelier:post-oprie-runtime' });
   vm.runInContext(PATHS[pathName], context, { filename: `atelier:path-${pathName.toLowerCase()}` });
   context.questionRenderer = () => { counters.questionRenderer += 1; };
   return {
@@ -236,8 +236,11 @@ test('§18/§23 aucun champ OPRIE n’est muté par les deux chemins', async () 
 test('§18–20 scopes, discovery et métriques de sources restent honnêtes', () => {
   assert.equal(ADN_CORE_FILES.length, 12);
   assert.equal(ADN_CORE_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 74);
-  assert.equal(ADN_RELEVANT_FILES.length, 15);
-  assert.equal(ADN_RELEVANT_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 112);
+  /* CLEAN-01 : le périmètre PERTINENT perd conversation-orchestrator.test.mjs — le module
+     qu'il éprouvait est retiré. Le périmètre NOYAU, lui, est intact : 12 fichiers, 74 tests.
+     La sélection historique 104, elle, est figée littéralement et ne bouge plus. */
+  assert.equal(ADN_RELEVANT_FILES.length, 14);
+  assert.equal(ADN_RELEVANT_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 102);
   assert.ok(discoveredTestFiles().includes('correction-adn-arch-01-01-behavior.test.mjs'));
   const producers = fs.readdirSync(path.join(root, 'core/adn')).filter((f) => f.endsWith('.js') && !f.includes('generated')).filter((f) => /function enrichCanonicalContractFromArchAnalysis/.test(fs.readFileSync(path.join(root, 'core/adn', f), 'utf8')));
   assert.deepEqual(producers, ['arch-canonical-enrichment.js']);

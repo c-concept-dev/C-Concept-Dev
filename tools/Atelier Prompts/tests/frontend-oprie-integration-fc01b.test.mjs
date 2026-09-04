@@ -42,7 +42,7 @@ const degradedTurn = () => ({ role: 'analyst', state: 'degraded_state', reason: 
  */
 function loadPilot({ fetchImpl, demande = 'Rédige une note.', answers = [] } = {}) {
   const start = html.indexOf('const OPRIE_STATES=');
-  const end = html.indexOf('function adpShowThinking');
+  const end = html.indexOf('function v11SwitchToArchitecteFromRapid');
   const dom = new Map([['#v11-demande', { value: demande }]]);
   const spy = { gate: [], shown: [], executed: [], busy: [], question: null, chips: [] };
   const el = (id) => {
@@ -93,7 +93,8 @@ test('FC01B-01 : le frontend appelle /operational-request, et rien d’autre, po
 });
 
 test('FC01B-02/03 : aucun Decision Provider navigateur n’est plus une autorité de readiness', () => {
-  for (const fn of ['async function v11StartRapide', 'async function v11StartArchitecte', 'async function adpResumeAfterClarification']) {
+  /* CLEAN-01 : adpResumeAfterClarification est retiré ; les deux entrées réelles demeurent. */
+  for (const fn of ['async function v11StartRapide', 'async function v11StartArchitecte']) {
     const block = html.slice(html.indexOf(fn), html.indexOf(fn) + 400);
     assert.doesNotMatch(block, /adpDecideRapide/, `${fn} ne doit plus consulter les Decision Providers.`);
     assert.match(block, /oprieRunTurn/, `${fn} doit passer par OPRIE.`);
@@ -177,7 +178,7 @@ test('FC01B-11/12/13 : blocked, degraded_state et panne réseau n’exécutent j
 });
 
 test('FC01B-14 : aucun état OPRIE n’est jamais fabriqué localement', () => {
-  const pilot = html.slice(html.indexOf('const OPRIE_STATES='), html.indexOf('function adpShowThinking'));
+  const pilot = html.slice(html.indexOf('const OPRIE_STATES='), html.indexOf('function v11SwitchToArchitecteFromRapid'));
   assert.doesNotMatch(pilot, /state\s*[:=]\s*['"]operational_request_ready['"]/, 'le frontend ne prononce jamais ready.');
   assert.doesNotMatch(pilot, /state\s*[:=]\s*['"]clarification_required['"]/);
   assert.doesNotMatch(pilot, /state\s*[:=]\s*['"]degraded_state['"]/);
@@ -262,7 +263,7 @@ test('FC01B-22 : l’exécution BYO-key Anthropic est INCHANGÉE', () => {
 });
 
 test('FC01B-23 : aucun secret nouveau, aucune clé côté readiness', () => {
-  const pilot = html.slice(html.indexOf('const OPRIE_STATES='), html.indexOf('function adpShowThinking'));
+  const pilot = html.slice(html.indexOf('const OPRIE_STATES='), html.indexOf('function v11SwitchToArchitecteFromRapid'));
   for (const forbidden of [/sk-ant-/, /gsk_/, /x-api-key/i, /Authorization/i, /Bearer/]) {
     assert.doesNotMatch(pilot, forbidden, `le pilote de readiness ne porte aucun matériau d’authentification (${forbidden}).`);
   }
@@ -270,7 +271,7 @@ test('FC01B-23 : aucun secret nouveau, aucune clé côté readiness', () => {
 });
 
 test('FC01B-24 : aucun hardcoding métier dans le pilote', () => {
-  const pilot = html.slice(html.indexOf('const OPRIE_STATES='), html.indexOf('function adpShowThinking'));
+  const pilot = html.slice(html.indexOf('const OPRIE_STATES='), html.indexOf('function v11SwitchToArchitecteFromRapid'));
   for (const forbidden of [/case_id/i, /fixture/i, /corpus/i, /\bItalie\b/i, /\bvoyage\b/i, /lettre de motivation/i]) {
     assert.doesNotMatch(pilot, forbidden, String(forbidden));
   }
@@ -279,7 +280,8 @@ test('FC01B-24 : aucun hardcoding métier dans le pilote', () => {
 // --- FC01B-25/26/27 : second fail-open, confidentialité, relance -------------------------------------------
 
 test('FC01B-25 : le second fail-open de core/adn reste inatteignable', () => {
-  assert.match(html, /source: "local-prudent"/, 'le miroir gelé est inchangé.');
+  /* CLEAN-01 : le second fail-open n'est plus « inatteignable » — il est retiré. */
+  assert.equal(html.includes('source: "local-prudent"'), false, 'le miroir hérité est retiré.');
   assert.equal((html.match(/source:\s*'local-prudent'/g) || []).length, 0, 'plus aucun producteur.');
 });
 

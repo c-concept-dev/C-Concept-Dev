@@ -38,7 +38,6 @@ export const ADN_CORE_FILES = Object.freeze([
 /** Ce que ADN_RELEVANT ajoute au noyau : exactement les fichiers que l'ancienne
  *  sélection « 104 » incluait et que le noyau n'inclut pas. */
 export const ADN_RELEVANT_EXTRA_FILES = Object.freeze([
-  'conversation-orchestrator.test.mjs',
   'intent-preservation.test.mjs',
   'routing-engine.test.mjs'
 ]);
@@ -47,9 +46,26 @@ export const ADN_RELEVANT_FILES = Object.freeze([...ADN_CORE_FILES, ...ADN_RELEV
 
 /** Les deux sélections historiques, conservées pour PROUVER l'écart 104 / 74.
  *  Elles ne servent plus à rapporter : elles servent à expliquer. */
-export const HISTORICAL_SCOPE_104 = Object.freeze(
-  ADN_RELEVANT_FILES.filter((f) => f !== 'execution-readiness-html-integration.test.mjs')
-);
+/* CLEAN-01 : cette sélection historique était DÉRIVÉE de la liste vivante. Un fichier retiré
+ * aujourd'hui aurait donc réécrit le passé. Une mesure historique se fige : la voici littérale,
+ * telle qu'elle était au moment où l'écart 104 / 74 a été constaté — conversation-orchestrator
+ * inclus, parce qu'il en faisait alors partie. */
+export const HISTORICAL_SCOPE_104 = Object.freeze([
+  'adaptive-lock-selector.test.mjs',
+  'adn-state-engine.test.mjs',
+  'conversation-orchestrator.test.mjs',
+  'engine-adapters-html-integration.test.mjs',
+  'engine-adapters.test.mjs',
+  'execution-contract-adn-27.test.mjs',
+  'execution-contract-invariants.test.mjs',
+  'execution-contract-mapping.test.mjs',
+  'execution-contract-no-hardcoding.test.mjs',
+  'execution-contract-roundtrip.test.mjs',
+  'execution-contract-schema.test.mjs',
+  'execution-readiness.test.mjs',
+  'intent-preservation.test.mjs',
+  'routing-engine.test.mjs'
+]);
 export const HISTORICAL_SCOPE_74 = ADN_CORE_FILES;
 
 /** Tous les fichiers réellement découverts par la suite globale (`tests/*.test.mjs`). */

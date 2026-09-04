@@ -54,7 +54,7 @@ const jsonResponse = (payload, status = 200) =>
 export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.', answers = [], mode = 'architecte',
                             noFastEndpoint = false, noRuntime = false, partialPolicy = null } = {}) {
   const start = html.indexOf('const OPRIE_STATES=');
-  const end = html.indexOf('function adpShowThinking');
+  const end = html.indexOf('function v11SwitchToArchitecteFromRapid');
   if (start < 0 || end < 0) throw new Error('PERF-04 : bloc pilote introuvable dans le HTML.');
 
   const t0 = Date.now();

@@ -259,7 +259,7 @@ test('T-RFEED-14 original_request est immuable sur le chemin Rapide', () => {
  * ======================================================================= */
 
 test('T-RFEED-15 RAPIDE_CAN_ASK_QUESTION = NO · RAPIDE_DIALOG_LOOP_COUNT = 0', () => {
-  const rapide = stripComments(productionSlice('function adpRunRapide(', 'async function adpResumeAfterClarification('));
+  const rapide = stripComments(productionSlice('function adpRunRapide(', 'async function v11StartRapide('));
   for (const interdit of ['showQuestion', 'oprieAsk', 'next_question', 'questions_a_poser',
     'pendingQuestion=true', 'adnNextConversationAction']) {
     assert.equal(rapide.includes(interdit), false, `Rapide ne pose aucune question (${interdit})`);
@@ -339,7 +339,7 @@ test('T-RFEED-18 le hash gelé du moteur Rapide est strictement inchangé', () =
 
 test('T-RFEED-19 OPRIE reste seule autorité de readiness sur le chemin Rapide', () => {
   const refine = stripComments(productionSlice('function adnRefineRapidEnvelope(', 'function adnMergeLegacyLocks('));
-  const rapide = stripComments(productionSlice('function adpRunRapide(', 'async function adpResumeAfterClarification('));
+  const rapide = stripComments(productionSlice('function adpRunRapide(', 'async function v11StartRapide('));
 
   for (const source of [refine, rapide]) {
     for (const interdit of ["'exploitable'", "'operational_request_ready'", 'fallbackDecision',

@@ -357,12 +357,12 @@ test('T-MODE03-53..56 : Architecte n’écrit aucune autorité', () => {
 });
 
 test('T-MODE03-57/58 : l’ancien chemin ne définit aucune politique Architecte active', () => {
-  assert.equal([...FRONT_CODE.matchAll(/adnNextConversationAction/g)].length, 2, 'définition + appel legacy.');
+  /* CLEAN-01 : l'ancien chemin est retiré ; l'absence remplace l'inertie. */
+  assert.equal([...FRONT_CODE.matchAll(/adnNextConversationAction/g)].length, 0);
   assert.doesNotMatch(ENTER_ARCH, /adnNextConversationAction|adpDecideRapide|conversationQuestionsSimilar/);
   assert.doesNotMatch(ARCH_EXEC, /adnNextConversationAction|conversationQuestionsSimilar/);
-  const legacy = fs.readFileSync(path.join(root, 'core/adn/conversation-orchestrator.js'), 'utf8');
-  assert.match(legacy, /local-prudent/, 'le repli hérité existe toujours…');
-  assert.doesNotMatch(ENTER_ARCH + ARCH_EXEC, /local-prudent/, '…et reste hors du parcours Architecte.');
+  assert.equal(html.includes('source: "local-prudent"'), false, 'le repli hérité est retiré…');
+  assert.doesNotMatch(ENTER_ARCH + ARCH_EXEC, /local-prudent/, '…et n’a jamais touché Architecte.');
 });
 
 // =================================================================================================

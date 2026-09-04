@@ -336,12 +336,10 @@ test('T-MODE01-39/40/41/42 : Fast et Deep suivent le contrat, mode par mode', as
 // =================================================================================================
 
 test('T-MODE01-43/44 : l’ancien chemin ne définit aucune politique de mode active', () => {
-  /* Les branches de mode héritées vivent dans adpDecideRapide / askDecisionProvider, inertes. */
-  assert.equal([...FRONT_CODE.matchAll(/adpDecideRapide/g)].length, 2, 'définition + handle.');
-  const legacy = bloc('async function adpDecideRapide', 'function adpRunRapide');
-  assert.doesNotMatch(legacy, /executionTargetFor|MODE_CONTRACTS|contractFor/,
-    'l’ancien chemin ne touche pas la table de contrats…');
-  assert.doesNotMatch(legacy, /oprieState|oprieEnterExecution/, '…ni le tour gouverné.');
+  /* CLEAN-01 : les branches de mode héritées vivaient dans adpDecideRapide, inertes.
+     L'ancien décideur est retiré : il ne reste plus de chemin à innocenter. */
+  assert.equal([...FRONT_CODE.matchAll(/adpDecideRapide/g)].length, 0, 'l’ancien décideur est retiré.');
+  assert.equal([...FRONT_CODE.matchAll(/adnNextConversationAction/g)].length, 0);
   /* Et le handle de compatibilité n'expose aucun contrat de mode. */
   const handle = bloc('window.__ADAPTIVE_DECISION_PIPELINE_10G__', 'window.__V11_ROUTER__');
   assert.doesNotMatch(handle, /MODE_CONTRACTS|executionTargetFor|setMode/);
