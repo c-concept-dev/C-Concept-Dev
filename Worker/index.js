@@ -55612,6 +55612,23 @@ async function handleUpdateBookMeta(request2, env2) {
   }
 }
 __name(handleUpdateBookMeta, "handleUpdateBookMeta");
+// ── Phase B0.3 (suite) — recherche structurée uniquement, jamais de SQL texte reçu
+// du client. Avant : {sql, params} où `sql` était du texte SQL complet (généré par le
+// modèle ou construit côté client) passé quasiment tel quel à env2.DB.prepare(sql) —
+// un préfixe SELECT/WITH ne garantit rien (une CTE WITH peut précéder une écriture),
+// et seul un blocage regex de DROP/ALTER/CREATE protégeait le reste : INSERT/UPDATE/
+// DELETE passaient tels quels via stmt.run(). Désormais : intention structurée
+// {terms, term_match, authors, approaches, book_title, limit} → mappée vers l'un des
+// DEUX gabarits de requête fixes ci-dessous, jamais de texte client dans le SQL lui-même
+// (seules des VALEURS liées via .bind() varient), propriétés inconnues rejetées.
+const D1_SEARCH_ALLOWED_KEYS = new Set(["terms", "term_match", "authors", "approaches", "book_title", "limit"]);
+const D1_SEARCH_MAX_VALUES_PER_FIELD = 8;
+
+function d1SearchNormalize(s) {
+  return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+}
+__name(d1SearchNormalize, "d1SearchNormalize");
+
 async function handleD1Query(request2, env2) {
   let body;
   try {
@@ -55619,112 +55636,103 @@ async function handleD1Query(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  let { sql, params } = body;
-  if (!sql)
-    return jsonErr("Missing sql", 400);
   if (!env2.DB)
     return jsonErr("D1 not configured", 500);
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return jsonErr("Body must be a structured search object", 400);
 
-  // ── DDL guard : ignorer le contenu des strings SQL (multilignes) ──
-  const sqlNoStrings = sql.replace(/'(?:[^']|'')*'/gs, "''");
-  const upperNoStrings = sqlNoStrings.toUpperCase();
-  if (upperNoStrings.includes("DROP ") || upperNoStrings.includes("ALTER ") || upperNoStrings.includes("CREATE "))
-    return jsonErr("DDL statements not allowed", 403);
+  const unknownKeys = Object.keys(body).filter((k) => !D1_SEARCH_ALLOWED_KEYS.has(k));
+  if (unknownKeys.length)
+    return jsonErr("Unknown properties: " + unknownKeys.join(", "), 400);
 
-  // ── Sanitisation SQL côté Worker ──
-  // Ordre : 1) MATCH multi-termes → 2) apostrophes toutes strings → 3) LIKE trop long
+  const rawTerms = Array.isArray(body.terms) ? body.terms : [];
+  const rawAuthors = Array.isArray(body.authors) ? body.authors : [];
+  const rawApproaches = Array.isArray(body.approaches) ? body.approaches : [];
+  const termMatch = body.term_match === "all" ? "all" : "any";
 
-  // 1. Fix FTS5 MATCH : strip préfixes colonne invalides (word:terme) + multi-termes sans opérateur
-  sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
-    // Strip préfixes colonne FTS5 (ex: content:mot, attachement:mot)
-    terms = terms.replace(/\b\w+:/g, '');
-    const hasOp = /\b(OR|AND|NOT)\b/i.test(terms);
-    const hasQuoted = terms.includes('"');
-    if (!hasOp && !hasQuoted && /\s/.test(terms.trim())) {
-      const termList = terms.trim().split(/\s+/).filter(Boolean).map(t => '"' + t.replace(/"/g, '') + '"').join(' OR ');
-      return "MATCH '" + termList + "'";
-    }
-    return "MATCH '" + terms + "'";
-  });
+  const terms = [...new Set(rawTerms.filter((t) => typeof t === "string").map(d1SearchNormalize).filter(Boolean))].slice(0, D1_SEARCH_MAX_VALUES_PER_FIELD);
+  const authors = [...new Set(rawAuthors.filter((a) => typeof a === "string").map(d1SearchNormalize).filter(Boolean))].slice(0, D1_SEARCH_MAX_VALUES_PER_FIELD);
+  const approaches = [...new Set(rawApproaches.filter((a) => typeof a === "string").map(d1SearchNormalize).filter(Boolean))].slice(0, D1_SEARCH_MAX_VALUES_PER_FIELD);
+  const bookTitle = typeof body.book_title === "string" && body.book_title.trim() ? d1SearchNormalize(body.book_title) : null;
 
-  // 1b. Fix FTS5 MATCH terme unique — tiret ou accent → guillemets FTS5
-  //     ex: MATCH 'poursuite-retrait' → MATCH '"poursuite-retrait"'
-  //     ex: MATCH 'évitant'           → MATCH '"évitant"'
-  //     Sans guillemets : FTS5 interprète '-' comme NOT → syntax error 500
-  sql = sql.replace(/\bMATCH\s+'((?:[^']|'')*)'/gi, (m, terms) => {
-    if (terms.includes('"') || /\b(OR|AND|NOT)\b/i.test(terms)) return m;
-    const trimmed = terms.trim();
-    if (!trimmed.includes(' ')) {
-      return "MATCH '\"" + trimmed.replace(/"/g, '') + "\"'";
-    }
-    return m;
-  });
+  let limit = Number.isFinite(body.limit) ? Math.floor(body.limit) : 10;
+  limit = Math.max(1, Math.min(50, limit));
 
-  // 1c. Fix MATCH sur table chunks (non-FTS5) → réécrire vers chunks_fts + JOIN
-  //     ex: FROM chunks WHERE content MATCH 'X'
-  //      → FROM chunks_fts JOIN chunks c ON c.rowid=chunks_fts.rowid WHERE chunks_fts MATCH 'X'
-  if (/\bFROM\s+chunks\b/i.test(sql) && /\bMATCH\b/i.test(sql) && !/chunks_fts/i.test(sql)) {
-    // Réécrire le FROM + le MATCH
-    sql = sql.replace(
-      /SELECT\s+(.*?)\s+FROM\s+chunks\s+((?:WHERE|JOIN|ORDER|LIMIT)[\s\S]*?)$/i,
-      (m, cols, rest) => {
-        // Normaliser les colonnes : préfixer c. si pas déjà qualifiées
-        const safeCols = cols === '*'
-          ? 'c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach'
-          : cols.replace(/\b(book_title|author|chapter|page_number|content|approach|chunk_index|rowid)\b/g, 'c.$1');
-        // Remplacer content MATCH → chunks_fts MATCH
-        const safeRest = rest
-          .replace(/\bFROM\s+chunks\b/gi, '')
-          .replace(/\bcontent\s+MATCH\b/gi, 'chunks_fts MATCH')
-          .replace(/^\s*WHERE\s+/i, '');
-        return "SELECT " + safeCols + " FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid WHERE " + safeRest;
-      }
-    );
-  }
+  if (!terms.length && !authors.length && !approaches.length && !bookTitle)
+    return jsonErr("At least one of terms/authors/approaches/book_title is required", 400);
 
-  // 2. Fix apostrophes dans TOUTES les strings SQL (hors FTS5 MATCH déjà traité)
-  //    Remplace les ' isolées (non doublées) dans toute valeur entre quotes simples
-  sql = sql.replace(/'((?:[^']|'')*)'/g, (m, inner) => {
-    const fixed = inner.replace(/(?<!')'(?!')/g, "''");
-    return fixed !== inner ? "'" + fixed + "'" : m;
-  });
+  const overFetch = Math.min(limit * 3, 150); // sur-échantillonne un peu avant dédup, jamais sans borne
 
-  // 3. Fix LIKE trop complexe (>40 chars) → tronquer le pattern
-  sql = sql.replace(/\bLIKE\s+'([^']{40,})'/gi, (m, pattern) => {
-    const simplified = pattern.replace(/%/g, '').trim().substring(0, 35);
-    return "LIKE '%" + simplified + "%'";
-  });
-
-  const upper = sql.toUpperCase().trim();
   try {
-    let stmt = env2.DB.prepare(sql);
-    if (params?.length)
-      stmt = stmt.bind(...params);
-    const result = upper.startsWith("SELECT") || upper.startsWith("WITH") ? await stmt.all() : await stmt.run();
-    return json(result);
-  } catch (err2) {
-    console.error("[D1_FAIL] SQL:", sql.substring(0, 300), "| ERR:", err2.message);
-    // ── Fallback intelligent : si SQL avec MATCH échoue → retry FTS5 sécurisé ──
-    if (/\bMATCH\b/i.test(sql)) {
+    let stmt, result;
+
+    if (terms.length) {
+      // Gabarit A — recherche par termes (FTS5, BM25) + filtres additionnels en AND.
+      // Chaque terme entre guillemets FTS5 (les guillemets internes sont retirés avant
+      // d'être ré-ajoutés : impossible de rompre la citation depuis une valeur externe),
+      // joints en OR ("any", défaut) ou AND ("all") — TOUJOURS une seule valeur liée,
+      // jamais interpolée dans le texte de la requête.
+      const ftsExpr = terms.map((t) => '"' + t.replace(/"/g, "") + '"').join(termMatch === "all" ? " AND " : " OR ");
+      const clauses = ["chunks_fts MATCH ?"];
+      const params = [ftsExpr];
+      if (authors.length) { clauses.push("(" + authors.map(() => "lower(c.author) LIKE ?").join(" OR ") + ")"); authors.forEach((a) => params.push("%" + a + "%")); }
+      if (approaches.length) { clauses.push("(" + approaches.map(() => "lower(c.approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => params.push(a)); }
+      if (bookTitle) { clauses.push("lower(c.book_title) LIKE ?"); params.push(bookTitle + "%"); }
+      params.push(overFetch);
+      const sql = `SELECT c.id, c.book_id, c.book_title, c.author, c.chapter, c.page_number, c.chunk_index, c.content, c.approach
+        FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
+        WHERE ${clauses.join(" AND ")}
+        ORDER BY rank LIMIT ?`;
+      stmt = env2.DB.prepare(sql).bind(...params);
       try {
-        const matchTerm = (sql.match(/MATCH\s+'([^']+)'/i) || [])[1] || '';
-        const safeTerms = matchTerm
-          .replace(/['"\\]/g, '').trim()
-          .split(/\s+/).filter(Boolean).slice(0, 5)
-          .map(t => '"' + t.replace(/"/g,'') + '"').join(' OR ');
-        if (safeTerms) {
-          const fbSql = "SELECT c.book_title, c.author, c.chapter, c.page_number, c.content, c.approach " +
-            "FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid " +
-            "WHERE chunks_fts MATCH '" + safeTerms + "' LIMIT 15";
-          const fb = await env2.DB.prepare(fbSql).all();
-          console.warn("[D1_FALLBACK] OK — safeTerms:", safeTerms);
-          return json(fb);
-        }
-      } catch (fbErr) {
-        console.error("[D1_FALLBACK] aussi échoué:", fbErr.message);
+        result = await stmt.all();
+      } catch (ftsErr) {
+        // FTS5 peut échouer sur un terme normalisé mais toujours syntaxiquement piégeux
+        // (rare une fois nettoyé) — repli sur le gabarit B (LIKE) avec les mêmes termes,
+        // jamais un 500 qui bloquerait tout le RAG.
+        console.warn("[D1_SEARCH] FTS5 failed, falling back to LIKE:", ftsErr.message);
+        const likeClauses = ["(" + terms.map(() => "lower(content) LIKE ?").join(termMatch === "all" ? " AND " : " OR ") + ")"];
+        const likeParams = terms.map((t) => "%" + t + "%");
+        if (authors.length) { likeClauses.push("(" + authors.map(() => "lower(author) LIKE ?").join(" OR ") + ")"); authors.forEach((a) => likeParams.push("%" + a + "%")); }
+        if (approaches.length) { likeClauses.push("(" + approaches.map(() => "lower(approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => likeParams.push(a)); }
+        if (bookTitle) { likeClauses.push("lower(book_title) LIKE ?"); likeParams.push(bookTitle + "%"); }
+        likeParams.push(overFetch);
+        const likeSql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
+          FROM chunks WHERE ${likeClauses.join(" AND ")} LIMIT ?`;
+        result = await env2.DB.prepare(likeSql).bind(...likeParams).all();
       }
+    } else {
+      // Gabarit B — pas de terme : filtre par auteur/approche/livre uniquement,
+      // ordre naturel du livre (utile pour un balayage bibliographique par ouvrage).
+      const clauses = [];
+      const params = [];
+      if (authors.length) { clauses.push("(" + authors.map(() => "lower(author) LIKE ?").join(" OR ") + ")"); authors.forEach((a) => params.push("%" + a + "%")); }
+      if (approaches.length) { clauses.push("(" + approaches.map(() => "lower(approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => params.push(a)); }
+      if (bookTitle) { clauses.push("lower(book_title) LIKE ?"); params.push(bookTitle + "%"); }
+      params.push(overFetch);
+      const sql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
+        FROM chunks WHERE ${clauses.join(" AND ")} ORDER BY chunk_index ASC LIMIT ?`;
+      stmt = env2.DB.prepare(sql).bind(...params);
+      result = await stmt.all();
     }
-    // Retourner tableau vide proprement — évite le 500 qui bloque le RAG
+
+    // Dédup book_id+chunk_id (chunk_index sert d'identifiant de chunk au sein d'un livre —
+    // "id" seul suffirait déjà en théorie, mais la paire couvre aussi un id absent/rejoué).
+    const rows = result.results || [];
+    const seen = new Set();
+    const deduped = [];
+    for (const r of rows) {
+      const key = (r.book_id ?? r.book_title) + ":" + (r.chunk_index ?? r.id);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push({ book_title: r.book_title, author: r.author, chapter: r.chapter, page_number: r.page_number, content: r.content, approach: r.approach });
+      if (deduped.length >= limit) break;
+    }
+    return json({ results: deduped });
+  } catch (err2) {
+    console.error("[D1_SEARCH_FAIL]", err2.message);
+    // Jamais un 500 qui bloque tout le RAG — tableau vide, l'appelant continue avec
+    // les autres sources (vector search, autres recherches, web).
     return json({ results: [], error: err2.message });
   }
 }
@@ -56309,7 +56317,10 @@ async function handleGenerateXLSX(request2, env2) {
     workbook.creator = "C Concept&Dev";
     workbook.created = /* @__PURE__ */ new Date();
     for (const sheetDef of content.sheets) {
-      const sheet = workbook.addWorksheet(sheetDef.name || "Feuille 1");
+      // FIX-XLSX-SHEETNAME : Excel interdit \ / ? * [ ] : dans un nom de feuille (crash sinon,
+      // ex. sujet "EMDR / ICV / IFS" utilisé tel quel comme nom) — jamais nettoyé auparavant.
+      const safeSheetName = String(sheetDef.name || "Feuille 1").replace(/[\\/?*[\]:]/g, "-").trim().substring(0, 31) || "Feuille 1";
+      const sheet = workbook.addWorksheet(safeSheetName);
       if (sheetDef.headers) {
         sheet.columns = sheetDef.headers.map((h, i) => ({
           header: h,
@@ -56325,13 +56336,36 @@ async function handleGenerateXLSX(request2, env2) {
         });
         headerRow.height = 22;
       }
+      // FIX-XLSX-DETTE : titres de section optionnels (sheetDef.sections = [{title, startRow}]) —
+      // une ligne fusionnée et mise en évidence insérée avant la 1re ligne de chaque bloc, pour
+      // regrouper les lignes de comparaison au lieu d'une liste plate (perte réelle d'information
+      // de synthèse constatée entre le rendu HTML et l'export xlsx d'origine, pas juste un style).
+      const sectionByStartRow = new Map(
+        (sheetDef.sections || [])
+          .filter((s) => s && typeof s.startRow === "number" && s.title)
+          .map((s) => [s.startRow, s.title])
+      );
+      const nCols = sheetDef.headers?.length || Math.max(1, ...(sheetDef.rows || []).map((r) => r.length));
+      let stripe = 0;
       for (let ri = 0; ri < (sheetDef.rows || []).length; ri++) {
+        if (sectionByStartRow.has(ri)) {
+          const sectionRow = sheet.addRow([sectionByStartRow.get(ri)]);
+          if (nCols > 1) sheet.mergeCells(sectionRow.number, 1, sectionRow.number, nCols);
+          sectionRow.eachCell((cell) => {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.vertSauge } };
+            cell.font = { bold: true, color: { argb: "FF" + C_CONCEPT_COLORS.deep }, name: "Calibri", size: 11 };
+            cell.alignment = { horizontal: "left", vertical: "middle" };
+          });
+          sectionRow.height = 20;
+          stripe = 0; // repart à zéro pour que le zébrage recommence proprement à chaque bloc
+        }
         const excelRow = sheet.addRow(sheetDef.rows[ri]);
-        if (ri % 2 === 0) {
+        if (stripe % 2 === 0) {
           excelRow.eachCell((cell) => {
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.sable } }; // sable charte
           });
         }
+        stripe++;
         excelRow.eachCell((cell) => {
           cell.alignment = { vertical: "middle" };
           cell.font = { name: "Calibri", size: 10 };
