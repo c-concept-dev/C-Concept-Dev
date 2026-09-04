@@ -13,7 +13,7 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `11797738189636ac7c8bbecfc03fa7a6ba8dff3e` |
+| Commit local | `f37dc85330afb8a3f2dc8e9c740fd6fa74bfe98e` |
 | Date du commit | 2026-09-04T23:05:46+02:00 |
 
 ## Artefact canonique
@@ -59,7 +59,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `933a5dcca1aea6f23da7cf61f04b7fc6913c4d17c33ceedbf4ce0caf9f3667d5` |
+| Empreinte du jeu | `ff993e225073c896f8ca2d85e562446a6bef43b5bb0b3d6abd1e6a61ff70476e` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -93,7 +93,7 @@ sa propre empreinte.
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `70bcb641500d52f5cea1fa095932f8b004c59467e97d4e1669f82e64330ba8fb` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `f9a3ebdd4c46eb036a5ef0f204d324fabe055f41e92859ca0830637d207884b3` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `81c447463db407859be38b5208c376d2f4470b721b36c1b6c6d95e8aae7fc7ba` |
 | REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `8c91d1b407d84426d0507969a740b7c0182216006e9ac9880ee9cbef453b898c` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/decision-core.js` | `2879c8e720146b4d2a620f76e329aa1a2e9f1ae3c7725749bbe6cbaf31b32869` |
