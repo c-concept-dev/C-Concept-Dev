@@ -13,6 +13,7 @@
       }
     },
     "sourceSnapshotEntry": {
+      "$comment": "relevanceScore : optionnel, non requis — absent des fixtures existantes (rétrocompatible). Reflète le score RAG déjà calculé (ragResult.chunks[]._score, cf. adocExecutePlan), jamais recalculé ni inventé ici ; null quand la source ne porte pas de score exploitable.",
       "type": "object",
       "required": [
         "sourceSnapshotEntryId", "sourceType", "sourceId", "passageId",
@@ -29,7 +30,8 @@
         "book": { "type": "string", "minLength": 1 },
         "author": { "type": "string", "minLength": 1 },
         "locator": { "$ref": "#/$defs/locator" },
-        "retrievedAt": { "type": "string", "format": "date-time" }
+        "retrievedAt": { "type": "string", "format": "date-time" },
+        "relevanceScore": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
       }
     }
   },
