@@ -94,6 +94,16 @@
         "text": { "type": "string", "minLength": 1 }
       }
     },
+    "imageContent": {
+      "$comment": "UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide : contrairement à card.content.imageAlt (conditionnel, l'image y est optionnelle), un bloc image n'existe que pour porter une image, donc le texte alternatif est obligatoire par construction, jamais implicite.",
+      "type": "object",
+      "required": ["query", "alt"],
+      "additionalProperties": false,
+      "properties": {
+        "query": { "type": "string", "minLength": 1 },
+        "alt": { "type": "string", "minLength": 1 }
+      }
+    },
     "cardContent": {
       "$comment": "imageAlt : requis (non vide) dès que imageRef est renseigné — le contrat de contrôle qualité UX-8A traite un texte alternatif absent sur une image informative comme bloquant. Reste optionnel/null quand imageRef est null (pas d'image, rien à décrire).",
       "type": "object",
@@ -196,6 +206,18 @@
         "validation": { "$ref": "#/$defs/blockValidation" }
       }
     },
+    "imageBlock": {
+      "type": "object",
+      "required": ["id", "type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "image" },
+        "content": { "$ref": "#/$defs/imageContent" },
+        "citationIds": { "$ref": "#/$defs/citationIds" },
+        "validation": { "$ref": "#/$defs/blockValidation" }
+      }
+    },
 
     "editorialBlock": {
       "$comment": "Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.",
@@ -205,7 +227,8 @@
         { "$ref": "#/$defs/calloutBlock" },
         { "$ref": "#/$defs/listBlock" },
         { "$ref": "#/$defs/tableBlock" },
-        { "$ref": "#/$defs/quoteBlock" }
+        { "$ref": "#/$defs/quoteBlock" },
+        { "$ref": "#/$defs/imageBlock" }
       ]
     },
     "nestedBlock": {
@@ -215,7 +238,8 @@
         { "$ref": "#/$defs/paragraphBlock" },
         { "$ref": "#/$defs/calloutBlock" },
         { "$ref": "#/$defs/listBlock" },
-        { "$ref": "#/$defs/quoteBlock" }
+        { "$ref": "#/$defs/quoteBlock" },
+        { "$ref": "#/$defs/imageBlock" }
       ]
     },
     "cardOnlyBlock": {
@@ -233,6 +257,7 @@
     { "$ref": "#/$defs/listBlock" },
     { "$ref": "#/$defs/tableBlock" },
     { "$ref": "#/$defs/quoteBlock" },
-    { "$ref": "#/$defs/cardBlock" }
+    { "$ref": "#/$defs/cardBlock" },
+    { "$ref": "#/$defs/imageBlock" }
   ]
 }
