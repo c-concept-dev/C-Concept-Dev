@@ -129,8 +129,20 @@ test('T-CLEAN04-05 : un seul graphe de build, et il ne diverge pas des imports r
   }
   /* Et il n'existe qu'une seule liste de modules dans tout le dépôt. */
   assert.equal((BUILD.match(/const modules\s*=\s*\[/g) || []).length, 1);
+  /* HTML-FINAL-02 — le répertoire d'outils accueille un troisième programme, et
+     c'est volontaire : build-release-manifest.mjs ne participe pas au graphe de
+     build, il le CONSTATE. Il ne compile rien, ne réinjecte rien, n'écrit dans
+     aucune source ; il lit l'inventaire et produit un document. L'invariant que
+     ce test défend — un seul graphe de build, une seule liste de modules — reste
+     entier, et on le vérifie ici plutôt que de se contenter d'élargir la liste. */
   const outils = fs.readdirSync(path.join(root, 'tools'));
-  assert.deepEqual(outils.sort(), ['build-adn-browser-runtime.mjs', 'frozen-guard.mjs']);
+  assert.deepEqual(outils.sort(), ['build-adn-browser-runtime.mjs', 'build-release-manifest.mjs',
+    'frozen-guard.mjs']);
+  const manifeste = fs.readFileSync(path.join(root, 'tools/build-release-manifest.mjs'), 'utf8');
+  assert.equal(/const modules\s*=\s*\[/.test(manifeste), false,
+    'le générateur de manifeste ne tient aucune seconde liste de modules.');
+  const ecritures = [...manifeste.matchAll(/writeFileSync\(path\.join\(racine, ([A-Z_]+)\)/g)].map((m) => m[1]);
+  assert.deepEqual(ecritures, ['MANIFESTE'], 'il n’écrit que le manifeste, nulle part ailleurs.');
 });
 
 // =================================================================================================
