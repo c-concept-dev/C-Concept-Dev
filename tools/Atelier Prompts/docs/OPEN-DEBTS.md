@@ -80,6 +80,35 @@ désormais connue. C'est le contrat qui n'est pas tenu, pas la mesure qui manque
 Rien n'a été optimisé : ce lot mesurait. La suite est une décision produit, puis un
 lot d'optimisation distinct.
 
+**Mise à jour PERF-REAL-01C — la cause est prouvée.** Attribution complète, 48/48,
+fournisseur, tentative et reprises. La queue est portée en totalité par les 429 de
+Groq : 14 échantillons sur 48 en ont vu un, chacun a fait exactement une reprise et
+honoré une attente de 2 750 ms — les 2 000 ms annoncés par Groq plus la marge de
+sûreté de 750 ms du worker. Les douze plus lents sont exactement les douze premiers
+retriés.
+
+| Population | n | p95 |
+| --- | --- | --- |
+| sans reprise | 34 | **1 535,3 ms** — le contrat serait tenu |
+| avec reprise | 14 | **4 009,5 ms** |
+
+Les deux populations ne se recouvrent pas. La pression monte au fil de la série —
+0, 0, 5 puis 9 réponses 429 par quart — ce qui explique ce que 01B avait vu comme
+un effet de position.
+
+Écartées par la mesure : bascule de fournisseur (48/48 sur groq, `attempt_index` 0),
+saturation ou concurrence (régulateur à 0 ms), effet d'isolat et réseau client
+(le `wallTime` du worker suit la latence fournisseur à la milliseconde).
+
+Une instrumentation *metadata-only* a été ajoutée au worker pour rendre cela
+observable — `fetchGroqWithRetry` calculait déjà ces nombres, le chemin de succès
+les jetait. Aucun comportement modifié, aucun délai ajouté
+(déploiement `81617950-d862-42fa-be5d-b04eb9ef5271`).
+
+Rien n'a été corrigé : le levier existe mais chaque option — réduire la pression,
+revoir la marge de 750 ms, basculer plus tôt, accepter la bande dégradée — change un
+contrat. C'est une décision produit.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

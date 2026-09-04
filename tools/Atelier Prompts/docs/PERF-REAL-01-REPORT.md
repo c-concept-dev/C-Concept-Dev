@@ -375,3 +375,115 @@ autant, et il ne le sera pas.
 Rien n'a été optimisé ici. La suite est une décision produit, puis un lot
 d'optimisation distinct — la queue positionnelle en est le premier suspect, et
 elle mérite d'être attribuée avant d'être traitée.
+
+---
+
+# PERF-REAL-01C — la cause
+
+**Prouvée. La queue de latence est portée en totalité par les 429 de Groq et
+l'attente `Retry-After` que le worker honore. Rien n'a été optimisé.**
+
+## Ce qui manquait pour le voir
+
+`fetchGroqWithRetry` calculait déjà `retries` et `rate_limited_wait_ms`. Le
+chemin de succès les **jetait** : seul le chemin d'épuisement les journalisait.
+Une reprise réussie ne laissait donc aucune trace, et 01B n'avait aucun moyen
+d'attribuer sa queue.
+
+L'instrumentation ajoutée tient en une ligne de journal, `groq_call_observation`,
+émise après l'appel, portant cinq nombres déjà calculés : statut HTTP, reprises,
+attente de débit, attente du régulateur, latence fournisseur. Aucune décision ne
+la lit, aucun délai n'est ajouté, aucun contenu utilisateur ni secret n'y figure.
+Déploiement `81617950-d862-42fa-be5d-b04eb9ef5271`.
+
+## Attribution complète
+
+| Couverture | Valeur |
+| --- | --- |
+| Fournisseur | **48 / 48** |
+| Index de tentative | **48 / 48** |
+| Reprises | **48 / 48** |
+
+La jointure est séquentielle et stricte entre le flux `wrangler tail` et les
+appels émis — 52 invocations pour 52 appels (1 sonde froide, 3 chauffes, 48
+officiels), **0 anomalie d'alignement** : la latence fournisseur observée reste
+toujours inférieure ou égale au TTFI mesuré côté client.
+
+## La cause, en un tableau
+
+| | Sans reprise | Avec reprise |
+| --- | --- | --- |
+| Échantillons | 34 | 14 |
+| p50 | 494,8 ms | 3 250,2 ms |
+| **p95** | **1 535,3 ms** | **4 009,5 ms** |
+| max | 2 009,6 ms | 4 009,5 ms |
+
+Les 34 appels qui n'ont pas vu de 429 rendent un p95 de **1 535 ms**, soit la
+moitié du budget contractuel. Les 14 qui en ont vu un rendent **4 009 ms**. Il
+n'y a pas deux populations de demandes : il y a une population, et un péage.
+
+Les douze échantillons les plus lents sont **exactement** les douze premiers
+retriés. Aucune exception, aucun ex æquo à départager.
+
+## Le mécanisme, bout à bout
+
+1. Groq répond **429**.
+2. Il annonce un `Retry-After` de **2 000 ms**.
+3. Le worker y ajoute sa marge de sûreté, `safetyMarginMs = 750`, et attend donc
+   **2 750 ms** — la même valeur sur les quatorze, sans variation.
+4. La reprise réussit : **une seule** à chaque fois, jamais deux, `maxRetries`
+   n'est jamais approché.
+5. Le fournisseur suivant n'est jamais sollicité : un 429 repris n'est pas un
+   échec, la chaîne HA ne bascule pas — et c'est le comportement correct.
+
+Total d'attente imputable aux 429 sur la série : **38 500 ms**, soit 14 × 2 750.
+
+## La progression
+
+| Rang dans la série | p50 | p95 | 429 | reprises | attente 429 | latence fournisseur p50 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 – 12 | 506,1 ms | 2 009,6 ms | 0 | 0 | 0 ms | 442 ms |
+| 13 – 24 | 518,1 ms | 1 136,2 ms | 0 | 0 | 0 ms | 442 ms |
+| 25 – 36 | 918,6 ms | 3 421,0 ms | 5 | 5 | 13 750 ms | 779 ms |
+| 37 – 48 | 3 046,2 ms | 4 009,5 ms | 9 | 9 | 24 750 ms | 2 958 ms |
+
+Vingt-quatre appels sans un seul 429, puis cinq, puis neuf. La limite de débit
+s'accumule au fil de la série — ce que 01B avait vu comme « la fin du banc » est
+donc bien un effet de **débit cumulé**, et non de position, de classe, ni de
+fatigue d'isolat.
+
+## Les hypothèses, une par une
+
+| Hypothèse | Verdict | Preuve |
+| --- | --- | --- |
+| H1 — limitation de débit fournisseur | **PROUVÉE** | 14 réponses 429 attribuées |
+| H2 — 429 + `Retry-After` | **PROUVÉE** | 2 750 ms d'attente sur chacune des 14 |
+| H3 — reprise / temporisation interne | **PROUVÉE** | exactement 1 reprise par échantillon lent |
+| H4 — bascule de fournisseur | **REJETÉE** | 48 / 48 sur groq, `attempt_index` 0, aucune bascule |
+| H5 — saturation / concurrence | **REJETÉE** | régulateur à 0 ms d'attente, banc strictement séquentiel |
+| H6 — effet worker / isolat | **REJETÉE** | `wallTime` du worker ≈ latence fournisseur, à la milliseconde |
+| H7 — réseau client | **REJETÉE** | TTFI ≈ `wallTime` : rien ne se perd entre le client et le worker |
+| H8 — autre | — | aucune autre cause observée |
+
+## L'échec réseau de 01B
+
+Non reproduit : les 48 échantillons de ce banc ont abouti. Il reste **non
+expliqué**, et n'est pas requalifié pour autant. Un incident unique sur 96 appels
+cumulés ne se laisse pas diagnostiquer par absence.
+
+## Ce que ce lot ne fait pas
+
+Il ne corrige rien. La cause est connue, le levier est identifiable, et le choix
+appartient au produit : réduire la pression sur Groq, revoir la marge de 750 ms,
+basculer plus tôt, ou accepter la bande dégradée. Chacune de ces options change
+un contrat — débit, repli ou seuil — et aucune ne se décide dans un lot de
+diagnostic.
+
+```
+ROOT_CAUSE_RATE_LIMIT        = PROVEN
+ROOT_CAUSE_RETRY_BACKOFF     = PROVEN
+ROOT_CAUSE_FAILOVER          = REJECTED
+ROOT_CAUSE_PROVIDER_LATENCY  = REJECTED
+ROOT_CAUSE_NETWORK           = REJECTED
+PERF_REAL_01_STATUS          = OPEN / DEGRADED
+```

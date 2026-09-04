@@ -265,7 +265,13 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   // HA-01 : classe d'échec explicite. Secret absent = CE provider n'est pas configuré dans CET
   // environnement — jamais un défaut du contrat partagé : le provider suivant reste pertinent.
   if (!env.GROQ_API_KEY) throw tagFailure(new Error("Secret GROQ_API_KEY absent."), FAILURE_CLASSES.CONFIG_UNAVAILABLE, { provider: "groq" });
+  /* PERF-REAL-01C — OBSERVATION SEULE. Les trois horodatages ci-dessous ne
+     décident de rien : ils datent ce que le code fait déjà, pour que la queue de
+     latence mesurée en PERF-REAL-01B puisse être attribuée. Aucun délai n'est
+     ajouté, aucune reprise n'est modifiée, aucune décision ne les lit. */
+  const observationDebut = Date.now();
   if (pacer) await pacer.before();
+  const observationApresPacer = Date.now();
   const requestInit = {
     method: "POST",
     headers: {
@@ -294,8 +300,11 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     })
   };
   let response;
+  let observationReprises = 0;
+  let observationAttenteDebit = 0;
   try {
-    ({ response } = await fetchGroqWithRetry(GROQ_ENDPOINT, requestInit, retryOverrides));
+    ({ response, retries: observationReprises = 0, rate_limited_wait_ms: observationAttenteDebit = 0 } =
+      await fetchGroqWithRetry(GROQ_ENDPOINT, requestInit, retryOverrides));
   } catch (retryExhaustedError) {
     // 3F.3.3-X2-BATCH-R2.1 : retryExhaustedError.rate_limited_wait_ms est la SOMME des attentes déjà
     // ENTIÈREMENT ÉCOULÉES par fetchGroqWithRetry avant d'abandonner (jamais une contrainte encore
@@ -331,6 +340,18 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   // un jour prouvée — aucune n'existe actuellement dans ce fichier, donc pacer.before() est
   // aujourd'hui un no-op systématique, ce qui est le comportement CORRECT (jamais inventer une
   // estimation proactive non prouvée, cf. section 5/"NE PAS INVENTER" du lot R2).
+  /* PERF-REAL-01C — une seule ligne d'observation, émise après coup, qui ne
+     transporte que des durées et des compteurs déjà calculés par le code
+     existant. Ni prompt, ni réponse, ni secret, ni décision. Elle est ce qui
+     manquait pour attribuer la queue de latence à sa cause. */
+  console.log(JSON.stringify({
+    event: "groq_call_observation",
+    http_status: response.status,
+    retries: observationReprises,
+    rate_limited_wait_ms: observationAttenteDebit,
+    pacer_wait_ms: observationApresPacer - observationDebut,
+    provider_latency_ms: Date.now() - observationApresPacer
+  }));
   const raw = await readBoundedText(response).catch((readError) => {
     // Réponse tronquée / hors limite de taille : panne de transport de CE provider.
     throw tagFailure(readError, FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq" });
