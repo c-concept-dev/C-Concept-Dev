@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `6e12855005e1dbc2bc91dfccdb14185d9d7b4067` |
-| Date du commit | 2026-09-04T17:35:34+02:00 |
+| Commit local | `1ccfb252d2178aa3fa4120f74cca3e68f1e6843c` |
+| Date du commit | 2026-09-04T19:39:37+02:00 |
 
 ## Artefact canonique
 
@@ -59,7 +59,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `e469f6e4db655c7e88237deedbaaf28fc16787315510efb78e7c9c92fe7c0596` |
+| Empreinte du jeu | `09634dbf8d801768f13bb1146b2272b83d95dd9795aaa789795e994b617761e4` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -84,13 +84,13 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/prompt-contract-gate.js` | `49a31369b431ab8d93007a6ddc4a9acd0d9923145bf4c076b1cb3d179a56d1b8` |
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `66f22e365f813faed944cecce8077f6804fb1590c3deeb8b1d7e1976c8914b12` |
-| REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `009fc1e49b734ba0de6a15619c324dc3ea6df4f2383dde626e81ea8d3cb6a19e` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `14b7b10378ab995de94a5cb52e9552d882bd08b69e411254199fa8992f8a7e32` |
+| REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `478e9730f6e3c88a8f17965b7063e364dabd60bdef9543d81b58db6fea7cad47` |
 | REQUIRED_BUILD | `package.json` | `c89fdaa9b4ce892b8a75eac66b42ddc20868098b608c24fc6ed1d30c8e064693` |
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `70bcb641500d52f5cea1fa095932f8b004c59467e97d4e1669f82e64330ba8fb` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `0f73187697bdccb49d798ef3e39af13993fd0871b60ffa63d91449063f3e23a2` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `3c21426a6a88c9028b0c11208dae612a7dd4d9ab582c7e45d98fb4aa7b06b0e5` |
 | REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `90a49443fde0f6735a676887b6047b1746f0d6176a6465a923234e5471c0f71f` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/decision-core.js` | `2879c8e720146b4d2a620f76e329aa1a2e9f1ae3c7725749bbe6cbaf31b32869` |
@@ -108,8 +108,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 128 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 194 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 129 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 195 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -134,7 +134,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2644 |
+| Tests au vert | 2656 |
 
 ## Dette encore ouverte
 

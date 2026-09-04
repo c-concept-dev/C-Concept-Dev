@@ -109,6 +109,33 @@ Rien n'a été corrigé : le levier existe mais chaque option — réduire la pr
 revoir la marge de 750 ms, basculer plus tôt, accepter la bande dégradée — change un
 contrat. C'est une décision produit.
 
+**Mise à jour PERF-REAL-01D — l'optimisation n'a pas eu lieu, et la cause finale
+n'est pas dans le code.** L'audit du contrôle de débit M-03 montre qu'il n'a rien à
+offrir au chemin Fast : son stimulateur y est créé et attendu mais **inerte**
+(`recordWaitMs` n'a aucun appelant de production, depuis la correction R2.1), il
+refuse par doctrine écrite d'inventer une fenêtre de débit, et sa seule autre
+capacité — la concurrence bornée — s'applique à un lot, là où le Fast traite une
+requête par invocation. L'écart est de **contrat**, pas de câblage.
+
+Le relevé des en-têtes de Groq donne la cause finale : **8 000 jetons par minute**
+déclarés, contre environ 14 000 demandés par le banc. Le budget de jetons est tombé
+à 52 sur 8 000 pendant que 934 requêtes sur 1 000 restaient disponibles — la
+contrainte qui mord est le débit de jetons, pas le nombre d'appels. Aucun
+stimulateur ne crée de jetons : il ne pourrait que déplacer l'attente avant l'appel,
+ce que le lot exclut lui-même comme succès.
+
+Rebenchmark au protocole identique : p50 = 527,5 ms, **p95 = 3 394,9 ms**, 48/48
+succès, attribution 48/48 sur les quatre dimensions. 21 réponses 429 contre 14 en
+01C — pire, sans qu'une ligne de politique ait bougé. Les populations restent
+disjointes : sans reprise p95 = **529,3 ms**, avec reprise p95 = 3 626,7 ms.
+
+Quatre voies, toutes des décisions produit : augmenter la capacité souscrite,
+réduire le coût en jetons d'un appel Fast, répartir la charge entre fournisseurs, ou
+constater que 1,4 requête par seconde soutenue n'est pas un profil interactif.
+Construire une fenêtre TPM à partir des en-têtes désormais relevés serait possible
+et non inventé, mais c'est un changement d'architecture que M-03 a explicitement
+décidé de ne pas avoir.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

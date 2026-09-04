@@ -344,13 +344,28 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
      transporte que des durées et des compteurs déjà calculés par le code
      existant. Ni prompt, ni réponse, ni secret, ni décision. Elle est ce qui
      manquait pour attribuer la queue de latence à sa cause. */
+  /* PERF-REAL-01D — CE QUE LE FOURNISSEUR DÉCLARE DE SON PROPRE BUDGET.
+     M-03 refuse d'inventer une fenêtre de débit, et il a raison : le dépôt n'a
+     jamais lu de quota opposable. La seule façon d'en obtenir un sans l'inventer
+     est de le lire là où le fournisseur l'écrit — ses en-têtes de réponse. On les
+     relève ici, sans les lire ailleurs : aucune décision, aucune attente, aucun
+     seuil n'en dépend. C'est une observation destinée à une décision produit. */
+  const enTeteDebit = (nom) => {
+    try { return response.headers.get(nom); } catch { return null; }
+  };
   console.log(JSON.stringify({
     event: "groq_call_observation",
     http_status: response.status,
     retries: observationReprises,
     rate_limited_wait_ms: observationAttenteDebit,
     pacer_wait_ms: observationApresPacer - observationDebut,
-    provider_latency_ms: Date.now() - observationApresPacer
+    provider_latency_ms: Date.now() - observationApresPacer,
+    declared_limit_requests: enTeteDebit("x-ratelimit-limit-requests"),
+    declared_remaining_requests: enTeteDebit("x-ratelimit-remaining-requests"),
+    declared_reset_requests: enTeteDebit("x-ratelimit-reset-requests"),
+    declared_limit_tokens: enTeteDebit("x-ratelimit-limit-tokens"),
+    declared_remaining_tokens: enTeteDebit("x-ratelimit-remaining-tokens"),
+    declared_reset_tokens: enTeteDebit("x-ratelimit-reset-tokens")
   }));
   const raw = await readBoundedText(response).catch((readError) => {
     // Réponse tronquée / hors limite de taille : panne de transport de CE provider.

@@ -487,3 +487,153 @@ ROOT_CAUSE_PROVIDER_LATENCY  = REJECTED
 ROOT_CAUSE_NETWORK           = REJECTED
 PERF_REAL_01_STATUS          = OPEN / DEGRADED
 ```
+
+---
+
+# PERF-REAL-01D — l'optimisation n'a pas eu lieu, et voici pourquoi
+
+**Verdict : BLOQUÉ. Aucune optimisation conforme n'existe dans les contraintes du
+lot, et la cause finale n'est pas un défaut de code : c'est une capacité
+souscrite inférieure à la charge que le banc applique.**
+
+## Ce que le lot supposait
+
+Que le mécanisme de contrôle de débit M-03, déjà validé, puisse être raccordé au
+chemin Fast pour prévenir les 429. L'audit montre que ce mécanisme n'a rien à
+offrir à ce chemin — non par oubli de câblage, mais par décision d'architecture
+documentée.
+
+## L'audit
+
+| Élément | Constat |
+| --- | --- |
+| Module | `workers/shared/provider-rate-control.js` (M-03) |
+| Fonction d'attente | `createRateWindow().reserve()` |
+| Fonction d'alimentation | `createRateWindow().recordWaitMs(waitMs)` |
+| Consommateurs de `resolveProviderConcurrency` | 3 — tous des **lots** (pipelines Critic) |
+| Consommateurs de `recordWaitMs` | **aucun, nulle part en production** |
+| Fast avant | stimulateur **créé et attendu, mais inerte** |
+| Fast après | inchangé |
+| Type d'écart | **CONTRAT**, pas câblage |
+
+Deux faits ferment la question.
+
+**Le stimulateur n'est alimenté par personne.** `recordWaitMs` n'a aucun appelant
+de production, sur aucun chemin. Ce n'est pas un oubli : c'est la correction
+R2.1, qui a retiré la seule alimentation existante parce qu'elle repayait un
+délai déjà écoulé. La fenêtre reste donc à zéro, et `pacer.before()` est un
+no-op — les 48 échantillons le confirment, `rate_control_wait_total_ms = 0`.
+
+**M-03 refuse d'inventer une fenêtre de débit**, et le dit dans son propre
+en-tête : « Aucun quota commercial. […] Écrire ici un RPM, un RPS ou une rafale
+reviendrait à inventer le contrat commercial d'une API qu'on n'a pas lu. » Pour
+Groq, la protection qu'il déclare est `per_request_retry_after` — c'est-à-dire
+exactement la reprise que 01C a mesurée. La seule autre capacité de M-03, la
+concurrence bornée, s'applique à un **lot** d'appels ; le chemin Fast traite une
+requête par invocation. Il n'y a rien à borner.
+
+## Ce que le fournisseur déclare, et que personne n'avait lu
+
+Le lot a relevé les en-têtes de débit de Groq — metadata seule, aucune décision
+ne les lit.
+
+| En-tête | Valeur |
+| --- | --- |
+| `x-ratelimit-limit-tokens` | **8 000 par minute** |
+| `x-ratelimit-limit-requests` | 1 000 |
+| `x-ratelimit-remaining-requests` | 985 au début, **934 à la fin** |
+| `x-ratelimit-remaining-tokens` | 7 353 au début, **52 au plus bas** |
+| `x-ratelimit-reset-tokens` | de 4,8 s à 15,5 s selon l'épuisement |
+
+Trajectoire du budget de jetons, un échantillon sur quatre :
+
+```
+7353  6058  5038  3939  2976  2074  968  52  218  169  209  168  1300
+```
+
+**La contrainte qui mord est le budget de jetons par minute, pas le nombre de
+requêtes.** Il restait 934 requêtes sur 1 000 quand le budget de jetons est tombé
+à 52 sur 8 000.
+
+## La cause finale
+
+Le banc envoie 48 appels en une minute, à environ 300 jetons l'appel : il demande
+de l'ordre de **14 000 jetons par minute à un compte qui en déclare 8 000**.
+
+Les 429 ne sont donc pas un défaut à lisser. Ce sont la réponse correcte d'un
+fournisseur à une demande supérieure à la capacité souscrite. **Aucun
+stimulateur ne crée de jetons** : il ne peut que déplacer l'attente *avant*
+l'appel au lieu de la subir *après* — ce que la section 30 du lot exclut
+explicitement comme succès, puisque le verdict porte sur le TTFI total.
+
+## Le rebenchmark, au protocole identique
+
+48 échantillons, 6 classes × 8, tour de rôle, 3 chauffes, 700 ms, rang le plus
+proche. Attribution **48/48** sur les quatre dimensions, 0 anomalie d'alignement.
+
+| Mesure | 01C | 01D |
+| --- | --- | --- |
+| 429 | 14 | **21** |
+| Reprises | 14 | 21 |
+| Attente Retry-After totale | 38 500 ms | **49 750 ms** |
+| Attente du contrôle de débit | 0 ms | **0 ms** |
+| p95 | 3 406 ms | **3 394,9 ms** |
+
+| | Sans reprise | Avec reprise |
+| --- | --- | --- |
+| Échantillons | 27 | 21 |
+| p50 | 402,7 ms | 3 115,3 ms |
+| **p95** | **529,3 ms** | **3 626,7 ms** |
+| max | 533,7 ms | 3 641,8 ms |
+
+Les deux populations sont **totalement disjointes** : le plus lent des non-repris
+rend 534 ms, le plus rapide des repris 2 060 ms. Un appel qui ne heurte pas le
+plafond répond en un demi-tiers de seconde ; un appel qui le heurte paie 2 750 ms
+de péage. Il n'y a pas de continuum.
+
+Davantage de 429 qu'en 01C — 21 contre 14 — parce que le budget était déjà
+entamé au départ (7 353 jetons au lieu de 8 000). Le résultat est donc *pire*, à
+protocole strictement identique, sans qu'une ligne de politique ait bougé.
+
+Un détail que 01C n'avait pas pu voir : cette série porte **deux** attentes
+distinctes, 1 750 ms (8 fois) et 2 750 ms (13 fois). Groq n'annonce donc pas
+toujours la même chose — 1 000 ms ou 2 000 ms selon l'ampleur du dépassement. Ce
+qui reste invariant est la marge : chaque attente vaut exactement l'annonce du
+fournisseur plus les 750 ms du worker.
+
+## Ce qui n'a pas été touché
+
+`Retry-After`, la marge de 750 ms, `maxRetries`, l'ordre des fournisseurs, les
+classes de repli, les délais d'expiration, les seuils du contrat, l'artefact
+frontend. Rien. La seule modification du worker est le relevé metadata-only des
+en-têtes, que `T-PERFREAL01D-14` vérifie comme non-autoritaire.
+
+## Ce qui appartient maintenant au produit
+
+Quatre voies, aucune décidable dans un lot d'optimisation technique :
+
+1. **Augmenter la capacité souscrite** chez Groq. C'est la seule voie qui traite
+   la cause sans rien changer au code.
+2. **Réduire le coût en jetons d'un appel Fast** — le prompt système du plan
+   rapide et son plafond de 512 jetons de complétion. Cela touche un contrat de
+   contenu.
+3. **Répartir la charge entre fournisseurs** au lieu de la concentrer sur Groq.
+   Cela change l'ordre et la sémantique du repli, aujourd'hui purement technique.
+4. **Accepter la bande dégradée** en constatant que 1,4 requête par seconde
+   soutenue pendant une minute n'est pas le profil d'un utilisateur interactif —
+   ce qui reviendrait à réviser le protocole de mesure, pas le produit.
+
+Construire une fenêtre TPM à partir des en-têtes désormais relevés serait
+techniquement possible et non inventé. Ce serait néanmoins un **changement
+d'architecture** : M-03 a explicitement décidé de ne pas en avoir, et
+l'autorisation de ce lot exclut « architecture change ». Cette option appartient
+donc, elle aussi, à la décision produit.
+
+```
+FAST_RATE_CONTROL_BEFORE           = CONNECTED_BUT_INERT
+FAST_RATE_CONTROL_AFTER            = CONNECTED_BUT_INERT
+FAST_RATE_CONTROL_GAP_TYPE         = CONTRACT
+RATE_LIMIT_OPTIMIZATION_EFFECTIVE  = NO
+PERF_REAL_01D_PERFORMANCE_GATE     = FAIL
+PERF_REAL_01_STATUS                = OPEN / DEGRADED
+```
