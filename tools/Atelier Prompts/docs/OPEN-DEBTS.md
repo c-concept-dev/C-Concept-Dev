@@ -424,6 +424,51 @@ Ce lot n'a **pas** déplacé la dette : il évite de harceler un fournisseur sat
 rien de la part que le plan profond prend sur le même budget.
 Document : [FAST-CAPACITY-ADMISSION-01.md](FAST-CAPACITY-ADMISSION-01.md).
 
+**Mise à jour DEEP-TOKEN-COST-01 — le chiffre manquant est arrivé, et il reformule le
+dossier.** Douze tours profonds réels, corpus de régression existant, compteurs fournisseur,
+**aucun code modifié, aucun déploiement** : l'instrumentation suffisait.
+
+| Mesure | Valeur | Contre le quota de 8 000 jetons/min |
+| --- | --- | --- |
+| Tour le moins cher observé | **7 820 jetons** | 98 % du budget d'une minute |
+| **Tour médian** | **16 015 jetons** | **2,0 ×** |
+| Tour au p95 | **103 894 jetons** | **13,0 ×** |
+
+**Un seul tour profond dépasse le budget d'une minute entière.** Le plancher structurel de
+1 455 jetons estimé au contrat de capacité était **cinq fois trop bas** — l'estimation se
+disait conservatrice sans savoir à quel point. Le Critique en est la cause : son pipeline
+batché émet de **1 à 13 appels fournisseur** selon le nombre d'issues que l'Analyste marque
+« question », et son coût varie d'un facteur 39 entre le tour le moins cher et le plus cher.
+L'Analyste et l'Arbitre, eux, sont stables.
+
+**Et la conséquence était déjà là, jamais vue : le plan profond ne tourne déjà plus
+majoritairement sur Groq.** Sur ces douze tours nominaux, **77,7 % de ses jetons ont été
+servis par Anthropic** (292 887 contre 83 870), par bascule automatique — non par panne du
+fournisseur, mais parce que le budget Groq s'épuise EN COURS DE TOUR, souvent dès le deuxième
+appel. Groq l'a même dit explicitement une fois, en rendant un `413 rate_limit_exceeded` :
+le statut qu'il réserve à une requête UNIQUE dépassant à elle seule la limite par minute.
+
+La « migration du plan profond vers Anthropic » que les deux lots précédents envisageaient
+comme une décision à prendre **a donc déjà eu lieu**, de fait, sans avoir été décidée, mesurée
+ni choisie — et elle s'exécute au pire moment, après avoir payé un aller-retour Groq perdu.
+
+Ce que cela fait au contrat de capacité de la bêta : il supposait un « reste » de
+2 180 jetons/minute pour le plan profond au pic rapide. **Il n'y a pas de reste** — le tour
+profond le moins cher en coûte 3,6 fois plus. Les deux plans ne se partagent pas un budget :
+le profond le dépasse à lui seul. `DEEP_COST_DOMINANT`, classification dérivée du quota et non
+d'un seuil inventé.
+
+Une limite est enregistrée plutôt que masquée : 16 échecs sont classés `technical_failover`
+mais 3 erreurs d'API seulement sont journalisées — le chemin d'épuisement 429 lève son erreur
+avant toute journalisation. La répartition exacte entre épuisement 429 et autres causes
+techniques **n'est pas observable** avec l'instrumentation actuelle.
+
+`DEEP_SEPARATION_FROM_FAST_SUPPORTED_BY_EVIDENCE = YES`, et plus fortement que la séparation ne
+le supposait. La preuve suivante change de nature : **la qualité des sorties OPRIE sous
+`claude-sonnet-4-6` n'est plus une question hypothétique conditionnant une migration future,
+c'est une propriété ACTUELLE et non mesurée de la production.**
+Rapport : [DEEP-COUT-JETONS-01.md](DEEP-COUT-JETONS-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
