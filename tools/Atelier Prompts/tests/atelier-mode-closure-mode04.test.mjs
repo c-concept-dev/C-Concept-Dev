@@ -47,7 +47,7 @@ const ATELIER_CHEMIN = ATELIER_ENTREE + '\n' + ATELIER_GENERER;
 const ATELIER_VUE = tranche('<section class="vue atelier-v115" id="vue-generation"', '<section class="vue legacy-v115" id="vue-dictee"');
 const ROUTEUR = sansProse(tranche('window.__V11_ROUTER__', 'function init()'));
 const RUN_RAPIDE = sansProse(tranche('function adpRunRapide(', 'async function v11StartRapide'));
-const ENTER_ARCH = sansProse(tranche('function adpEnterArchitecte(', 'async function adpDecideRapide'));
+const ENTER_ARCH = sansProse(tranche('function adpEnterArchitecte(', 'function adpRunRapide('));
 const MAKE_ENVELOPE = sansProse(tranche('function makeEnvelope(){', 'function blobDownload('));
 
 /** Nombre d'AFFECTATIONS d'un nom — une lecture n'est pas une écriture. */

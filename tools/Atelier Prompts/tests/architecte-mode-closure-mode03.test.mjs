@@ -28,7 +28,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sansProse = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const FRONTEND = (() => { const i = html.indexOf('/* GENERATED'); const j = html.indexOf('})(window);', i); return html.slice(0, i) + html.slice(j); })();
 const FRONT_CODE = sansProse(FRONTEND);
-const ENTER_ARCH = sansProse(html.slice(html.indexOf('function adpEnterArchitecte('), html.indexOf('async function adpDecideRapide')));
+const ENTER_ARCH = sansProse(html.slice(html.indexOf('function adpEnterArchitecte('), html.indexOf('function adpRunRapide(')));
 const ARCH_EXEC = sansProse(html.slice(html.indexOf('async function archConstruireExecuter()'), html.indexOf('const ARCH_SAUVEGARDE_VERSION=')));
 const API_ANALYSE = sansProse(html.slice(html.indexOf('async function beginApiAnalysis()'), html.indexOf('async function beginExchange()')));
 const ecritures = (nom, src = FRONT_CODE) => [...src.matchAll(new RegExp(`(?<![=!<>])\\b${nom}\\s*=(?![=>])`, 'g'))].length;

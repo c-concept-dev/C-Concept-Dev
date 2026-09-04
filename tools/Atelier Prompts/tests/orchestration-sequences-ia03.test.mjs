@@ -241,7 +241,7 @@ test('T-IA03-22/23/24/25 : l’entrée dans la chaîne d’exécution est appliq
   for (let i = 0; i < 4; i += 1) h.pilot.oprieDriveOrchestration({ action: 'ENTER_READINESS', reason: 'X' }, turn, 'architecte');
   assert.equal(h.spy.executed.length, 1, 'ENTER_READINESS — et donc Readiness, QG et exécution — n’est franchie qu’une fois.');
   /* Les étages aval ne sont jamais appliqués par le pilote de tour : ils ne peuvent pas s’y rejouer. */
-  const table = html.slice(html.indexOf('const ORCHESTRATION_DRIVER='), html.indexOf('/* ====\n * IA-03'));
+  const table = html.slice(html.indexOf('const ORCHESTRATION_DRIVER='), html.indexOf('IA-04 — LE CYCLE'));
   for (const aval of ['RUN_PROMPT_QG:', 'EXECUTE:', 'RUN_OUTPUT_QG:']) {
     assert.equal(table.includes(aval), false, `${aval} n’a pas sa place dans le pilote de tour.`);
   }

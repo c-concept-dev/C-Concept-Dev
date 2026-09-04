@@ -79,10 +79,14 @@ test("les deux chemins Architecte refusent de compiler tant que la validation po
 test("le dialogue adaptatif n'a plus de plafond numérique de clarifications", () => {
   // FC-01b : l'absence de plafond reste vérifiée, et le compteur d'audit est conservé — il vit
   // désormais là où la clarification est réellement affichée, pas dans la reprise.
+  // CLEAN-05 : la reprise héritée a été retirée en CLEAN-01, et cette tranche partait donc
+  // d'une borne introuvable — le test ne mesurait plus rien. Elle vise désormais la reprise
+  // RÉELLE, celle qu'une réponse déclenche.
   const section = html.slice(
-    html.indexOf("async function adpResumeAfterClarification"),
-    html.indexOf("async function v11StartRapide")
+    html.indexOf("function answerQuestion(answer){"),
+    html.indexOf("function resetAll()")
   );
+  assert.ok(section.length > 200, "la tranche mesure une région réelle.");
   assert.doesNotMatch(section, /clarifications\s*<\s*\d+/);
   const pilot = html.slice(html.indexOf("const OPRIE_STATES="), html.indexOf("function v11SwitchToArchitecteFromRapid"));
   assert.doesNotMatch(pilot, /clarifications\s*<\s*\d+/, "aucun plafond numérique de clarifications.");

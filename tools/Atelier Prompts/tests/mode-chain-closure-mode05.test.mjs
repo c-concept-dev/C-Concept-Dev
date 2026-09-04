@@ -23,10 +23,12 @@
  * show('#v11-ready') sans demander si quelqu'un l'attendait encore. `show()`
  * masquant les quatre autres panneaux, le dernier arrivé gagnait l'écran.
  *
- * CE QUI N'EST PAS PRÉTENDU FERMÉ. `etat.prompt` reste une case partagée de
+ * CE QUI N'EST PAS PRÉTENDU FERMÉ ICI. `etat.prompt` reste une case partagée de
  * l'espace avancé, écrite par les trois vues de cet espace. Ce n'est pas la
- * frontière des trois modes — c'est l'héritage que ORCH-LEGACY-CLEAN-01 porte,
- * et cette suite le caractérise au lieu de le maquiller.
+ * frontière des trois modes, et cette suite le caractérise au lieu de le
+ * maquiller. (CLEAN-02 lui a depuis donné un propriétaire explicite — l'espace
+ * avancé — et a prouvé qu'il n'entre dans aucun tour gouverné. Ce n'est donc
+ * plus une dette : c'est un état partagé assumé, et nommé.)
  * ========================================================================= */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -54,7 +56,7 @@ const FRONT_CODE = sansProse(FRONTEND);
 const ROUTEUR = sansProse(tranche('window.__V11_ROUTER__', 'function init()'));
 const API_ANALYSE = sansProse(tranche('async function beginApiAnalysis()', 'function compositeDemand'));
 const RUN_RAPIDE = sansProse(tranche('function adpRunRapide(', 'async function v11StartRapide'));
-const ENTER_ARCH = sansProse(tranche('function adpEnterArchitecte(', 'async function adpDecideRapide'));
+const ENTER_ARCH = sansProse(tranche('function adpEnterArchitecte(', 'function adpRunRapide('));
 const ATELIER_ENTREE = sansProse(tranche('function v11StartAtelier()', 'window.askDecisionProvider'));
 const RESET_PRESENTATION_BRUT = tranche('function resetModePresentation(', 'function setMode(');
 const RESET_PRESENTATION = sansProse(RESET_PRESENTATION_BRUT);
