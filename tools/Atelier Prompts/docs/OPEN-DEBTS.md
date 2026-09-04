@@ -330,10 +330,42 @@ sont autorisées contre 16 permises par les jetons, un facteur 60. Toutes ces va
 **majorants** : la part réellement disponible est inférieure de ce que consomme le plan
 profond, qui n'a pas été mesuré.
 
-`CAPACITY_SLA_DEFINED = NO`. Les six décisions produit qui débloqueraient le contrat sont
-énumérées dans le document ; ce lot s'interdit d'y répondre. `RATE_LIMIT_SCOPE = UNKNOWN` :
-les en-têtes donnent des valeurs, jamais une portée, et supposer qu'une seconde clé
-multiplierait la capacité serait un pari.
+**Le propriétaire produit a depuis fourni les six décisions**, et le contrat de capacité de
+la bêta est calculé : 6 utilisateurs rapides simultanés, 1 tour/min en nominal, 2 au pic
+pendant une rafale de 2 minutes, 485 jetons par requête — le p95 **et** le maximum des 48
+relevés, aucun échantillon ne le dépasse.
+
+| | Débit | Jetons/min | Part du quota | Statut |
+| --- | --- | --- | --- | --- |
+| Nominal | 6 req/min | 2 910 | 36,4 % | SUFFISANT |
+| Pic (2 min) | 12 req/min | 5 820 | 72,8 % | SUFFISANT, MARGINAL |
+
+**La marge de 20 % n'est plus choisie, elle est dérivée :** le pic déclaré impose un plafond
+de 27,25 %, et 20 % est le seul des trois candidats qui passe — 30 % rendrait le pic
+infaisable (103,9 % de l'enveloppe). À 20 %, le pic occupe 90,9 % des 6 400 jetons
+utilisables, et **un septième utilisateur au pic dépasserait** (6 790 > 6 400).
+
+**Mais la marge apparente n'en est pas une.** Au pic, il ne reste que **2 180 jetons/min** au
+plan profond, qui partage la même clé. Un tour profond exécute trois appels fournisseur au
+minimum ; en leur prêtant très généreusement le coût d'un appel *rapide*, son plancher vaut
+1 455 jetons — soit **1,5 tour profond par minute** pendant un pic rapide. Ce plancher est
+extrêmement conservateur : les trois prompts système profonds pèsent 25 685 caractères contre
+794 pour le rapide, 32 fois plus. **Six utilisateurs en rafale dont deux lanceraient un tour
+profond saturent Groq.**
+
+La séparation Fast/Deep cesse donc d'être une amélioration souhaitable : elle est la
+**condition d'existence du pic déclaré**.
+
+Comportement retenu quand Groq est plein : **le plan rapide se déclare dégradé et ne rend
+aucune candidate ; le plan profond poursuit son travail autoritaire**, 5 minutes maximum par
+incident. Ce choix est le seul cohérent avec l'architecture — le plan rapide étant candidat et
+non autoritatif, le suspendre retire une commodité, pas une capacité.
+
+`CAPACITY_SLA_DEFINED = YES` pour la bêta, `CAPACITY_SLA_PROVEN = NO` : le contrat est
+calculé, il n'est pas éprouvé. `RATE_LIMIT_SCOPE = UNKNOWN` : les en-têtes donnent des
+valeurs, jamais une portée, et supposer qu'une seconde clé multiplierait la capacité serait un
+pari. `DEEP_TPM` reste non mesuré — c'est le seul chiffre qui empêche encore le contrat d'être
+autre chose qu'un majorant. Le lot suivant, strictement nécessaire, le mesure.
 
 **La dette se lit désormais en deux moitiés :**
 

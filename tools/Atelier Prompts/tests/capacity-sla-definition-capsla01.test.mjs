@@ -29,6 +29,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DECISION_PROVIDER_ORDER, ROLE_PROVIDER_ORDER, ROLE_GROQ_RETRY_POLICIES, FAST_GROQ_RETRY_POLICY } from '../workers/groq/src/index.js';
+import { OPERATIONAL_REQUEST_ROLE_SEQUENCE } from '../workers/shared/operational-request-orchestrator.js';
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const lire = (r) => fs.readFileSync(path.join(racine, r), 'utf8');
@@ -112,37 +113,115 @@ test('T-CAPSLA01-05 : les plafonds de débit se recalculent', () => {
   assert.match(DOC, /La contrainte qui mord est le jeton, pas la requête/);
 });
 
-/* T-CAPSLA01-06 — rien n'est inventé : les dix variables produit restent UNKNOWN
- * et les six décisions manquantes sont nommées. */
-test('T-CAPSLA01-06 : aucune entrée produit n’est fabriquée', () => {
-  const bloc = DOC.slice(DOC.indexOf('INITIAL_RELEASE_TYPE'), DOC.indexOf('### `MINIMUM_PRODUCT_INPUTS_REQUIRED`'));
-  const lignes = bloc.split('\n').filter((l) => /^[A-Z_]+\s+=/.test(l.trim()));
-  assert.equal(lignes.length, 11, 'onze variables de charge sont énumérées');
-  for (const l of lignes) {
-    assert.match(l, /=\s+UNKNOWN/, `variable laissée inconnue : ${l.trim()}`);
+/* T-CAPSLA01-06 — les entrées produit sont celles que le propriétaire a fournies,
+ * transcrites sans arrondi ni interprétation. Ce qu'il n'a pas donné reste inconnu. */
+test('T-CAPSLA01-06 : les entrées produit sont transcrites, jamais fabriquées', () => {
+  const fournies = {
+    INITIAL_RELEASE_TYPE: 'BETA',
+    EXPECTED_CONCURRENT_FAST_USERS: '6',
+    TYPICAL_FAST_TURNS_PER_USER_PER_MIN: '1',
+    PEAK_FAST_TURNS_PER_USER_PER_MIN: '2',
+    PEAK_SHAPE: 'SHORT_BURST',
+    PEAK_DURATION_MIN: '2'
+  };
+  for (const [cle, valeur] of Object.entries(fournies)) {
+    const ligne = DOC.split('\n').find((l) => l.trim().startsWith(`${cle} `));
+    assert.ok(ligne, `entrée produit absente : ${cle}`);
+    assert.ok(ligne.includes(`= ${valeur}`), `${cle} doit valoir ${valeur}, ligne : ${ligne.trim()}`);
   }
-  assert.match(DOC, /MINIMUM_PRODUCT_INPUTS_REQUIRED/);
-  const decisions = DOC.slice(DOC.indexOf('Six décisions'), DOC.indexOf('Avec (2) et (3)'));
-  assert.equal([...decisions.matchAll(/^\d\. \*\*/gm)].length, 6, 'exactement six décisions produit');
-  assert.equal(/CAPACITY_SLA_DEFINED = NO/.test(DOC), true);
+  /* Le multiplicateur de rafale est DÉRIVÉ des deux rythmes, pas posé. */
+  assert.equal(Number(fournies.PEAK_FAST_TURNS_PER_USER_PER_MIN)
+    / Number(fournies.TYPICAL_FAST_TURNS_PER_USER_PER_MIN), 2);
+  assert.match(DOC, /EXPECTED_BURST_MULTIPLIER\s+= 2\s+\(dérivé/);
+  /* Et ce que le propriétaire n'a pas fourni reste inconnu. */
+  for (const inconnu of ['GEOGRAPHIC_DISTRIBUTION', 'DEEP_SHARE_OF_PROVIDER_CAPACITY']) {
+    const ligne = DOC.split('\n').find((l) => l.trim().startsWith(`${inconnu} `));
+    assert.match(ligne, /= UNKNOWN/, `${inconnu} reste inconnu`);
+  }
+  assert.match(DOC, /`CAPACITY_SLA_DEFINED = YES`\*\* pour la bêta/);
 });
 
-/* T-CAPSLA01-07 — les scénarios sont marqués illustratifs et ne deviennent pas un
- * SLA par inadvertance. Leurs chiffres se recalculent tout de même. */
-test('T-CAPSLA01-07 : les scénarios sont illustratifs et arithmétiquement justes', () => {
-  assert.match(DOC, /`ILLUSTRATIVE_ONLY = YES`/);
-  assert.match(DOC, /ne sont pas un SLA et ne doivent jamais être citées comme tel/);
-  const p95 = N.groq.jetons.total.p95;
-  for (const [utilisateurs, tours, tpm] of [[10, 1, 4850], [25, 1, 12125], [100, 1.5, 72750]]) {
-    assert.equal(utilisateurs * tours * p95, tpm, `${utilisateurs} × ${tours} × ${p95} = ${tpm}`);
-    assert.ok(DOC.includes(String(tpm).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')), `${tpm} figure au tableau`);
+/* T-CAPSLA01-07 — LE CŒUR ARITHMÉTIQUE. Chaque valeur du contrat se recalcule depuis
+ * les décisions produit et le coût en jetons mesuré. Un SLA qui ne se refait pas
+ * n'est pas un contrat, c'est une affirmation. */
+test('T-CAPSLA01-07 : le contrat de capacité se recalcule intégralement', () => {
+  const T = N.groq.jetons.total.p95;
+  assert.equal(T, 485, 'la valeur conservatrice est le p95 mesuré');
+  assert.equal(N.groq.jetons.total.max, 485, 'et elle est aussi le maximum : rien ne la dépasse');
+  const utilisateurs = 6, nominal = 1, pic = 2, quota = 8000, marge = 0.2;
+
+  assert.equal(utilisateurs * nominal, 6, 'SUPPORTED_FAST_RPM');
+  assert.equal(utilisateurs * pic, 12, 'PEAK_FAST_RPM');
+  assert.equal(utilisateurs * nominal * T, 2910, 'SUPPORTED_FAST_TPM');
+  assert.equal(utilisateurs * pic * T, 5820, 'PEAK_FAST_TPM');
+  assert.equal(quota * (1 - marge), 6400, 'enveloppe utilisable à 20 % de marge');
+
+  for (const attendu of ['SUPPORTED_FAST_RPM                = 6 requêtes/min',
+    'PEAK_FAST_RPM                     = 12 requêtes/min',
+    'SUPPORTED_FAST_TPM                = 2 910 jetons/min',
+    'PEAK_FAST_TPM                     = 5 820 jetons/min',
+    'HEADROOM                          = 20 %  -> 6 400 jetons/min utilisables']) {
+    assert.ok(DOC.includes(attendu), `ligne de contrat absente : ${attendu}`);
   }
-  /* Les tiers restent explicitement non chiffrés. */
-  for (const t of ['TIER_1', 'TIER_2', 'TIER_3']) {
-    const ligne = DOC.split('\n').find((l) => l.trim().startsWith(t));
-    assert.match(ligne, /RPM = UNKNOWN\s+TPM = UNKNOWN/, `${t} n’est pas chiffré`);
+  /* Les pourcentages annoncés sont exacts. */
+  assert.equal(Math.round((2910 / quota) * 1000) / 10, 36.4);
+  assert.equal(Math.round((5820 / quota) * 1000) / 10, 72.8);
+  assert.equal(Math.round((5820 / 6400) * 1000) / 10, 90.9);
+  for (const pct of ['36,4 %', '72,8 %', '90,9 %', '63,6 %', '27,3 %']) {
+    assert.ok(DOC.includes(pct), `pourcentage absent : ${pct}`);
   }
-  assert.match(DOC, /`CURRENT_GROQ_CAPACITY_STATUS` = \*\*UNKNOWN\*\*/);
+  /* TIER_2 reste inconnu : le propriétaire a défini une bêta, pas une production. */
+  assert.match(DOC, /\*\*TIER_2\*\* \| Production normale \| UNKNOWN/);
+});
+
+/* T-CAPSLA01-07B — la marge est DÉRIVÉE du pic déclaré, pas choisie : 30 % rend le
+ * pic infaisable, 20 % est le seul candidat proposé qui passe. */
+test('T-CAPSLA01-07B : la marge de 20 % est imposée par le pic, pas préférée', () => {
+  const quota = 8000, pic = 6 * 2 * 485;
+  const plafond = 1 - pic / quota;
+  assert.equal(Math.round(plafond * 10000) / 100, 27.25, 'plafond arithmétique de marge');
+  assert.ok(pic <= quota * 0.8, '20 % : le pic tient');
+  assert.ok(pic > quota * 0.7, '30 % : le pic dépasse');
+  assert.ok(pic > quota * 0.5, '50 % : le pic dépasse largement');
+  assert.match(DOC, /`HEADROOM_POLICY` = \*\*20 %\*\*, et c'est un résultat, pas une préférence/);
+  assert.ok(DOC.includes('27,25 %'));
+  assert.match(DOC, /\*\*DÉPASSE \(103,9 %\)\*\*/, '30 % est explicitement marqué infaisable');
+});
+
+/* T-CAPSLA01-07C — plafonds d'utilisateurs, et le point exact où la bêta casse. */
+test('T-CAPSLA01-07C : les plafonds d’utilisateurs se recalculent', () => {
+  const quota = 8000, T = 485;
+  const plafond = (marge, tours) => Math.floor((quota * (1 - marge)) / (T * tours));
+  assert.equal(plafond(0, 1), 16);
+  assert.equal(plafond(0, 2), 8);
+  assert.equal(plafond(0.2, 1), 13);
+  assert.equal(plafond(0.2, 2), 6, 'à 20 % de marge, le pic tient exactement la cible de 6');
+  assert.equal(plafond(0.3, 1), 11);
+  assert.equal(plafond(0.3, 2), 5, 'à 30 %, le pic ne tient plus que 5 — sous la cible');
+  /* Le septième utilisateur au pic dépasse l'enveloppe. */
+  assert.equal(7 * 2 * T, 6790);
+  assert.ok(6790 > quota * 0.8);
+  assert.ok(DOC.includes('6 790'), 'le point de rupture est écrit');
+  assert.match(DOC, /le plafond dur est de \*\*8 utilisateurs simultanés au rythme\s*\n?pic\*\*|\*\*8 utilisateurs simultanés au rythme[\s\S]{0,10}pic\*\*/,
+    'le plafond dur sans marge est écrit');
+});
+
+/* T-CAPSLA01-07D — la condition qui décide de tout : ce qui reste au plan profond.
+ * Le plancher est structurel — trois appels minimum — et non une conversion de
+ * caractères en jetons, qui serait une invention. */
+test('T-CAPSLA01-07D : le budget restant au plan profond est calculé, son plancher est structurel', () => {
+  const quota = 8000, T = 485;
+  assert.equal(quota - 6 * 1 * T, 5090, 'restant en nominal');
+  assert.equal(quota - 6 * 2 * T, 2180, 'restant au pic');
+  assert.ok(DOC.includes('5 090') && DOC.includes('2 180'));
+  /* Trois rôles, donc trois appels fournisseur au minimum : c'est la séquence figée. */
+  assert.deepEqual(OPERATIONAL_REQUEST_ROLE_SEQUENCE, ['analyst', 'critic', 'arbiter']);
+  const plancher = OPERATIONAL_REQUEST_ROLE_SEQUENCE.length * T;
+  assert.equal(plancher, 1455);
+  assert.ok(DOC.includes('1 455'));
+  assert.equal(Math.round((2180 / plancher) * 10) / 10, 1.5, 'au pic : 1,5 tour profond au plancher');
+  assert.equal(Math.round((5090 / plancher) * 10) / 10, 3.5, 'en nominal : 3,5 tours au plancher');
+  assert.match(DOC, /condition d'existence du pic déclaré/);
 });
 
 /* T-CAPSLA01-08 — la portée des limites de débit est déclarée inconnue, et le
@@ -188,7 +267,16 @@ test('T-CAPSLA01-10 : le repli préserve la disponibilité, pas la latence', () 
   assert.ok(N.openai.officiel.ttfi.p95 > 3000);
   assert.ok(DOC.includes('4 234') && DOC.includes('5 562'));
   /* Les quatre comportements dégradés sont posés sans qu'aucun soit décidé. */
-  assert.match(DOC, /`DEGRADED_MODE_POLICY` = \*\*décision produit, non prise ici\.\*\*/);
+  /* La politique dégradée est désormais DÉCIDÉE par le propriétaire : le plan rapide
+     se suspend, le plan profond poursuit. Les quatre options restent documentées avec
+     leur coût mesuré, une seule est marquée retenue. */
+  assert.match(DOC, /`DEGRADED_MODE_POLICY` — décidée par le propriétaire/);
+  assert.match(DOC, /le plan rapide se déclare dégradé, ne rend aucune candidate, et le\s*\n?plan profond poursuit/);
+  assert.match(DOC, /\*\*5 minutes maximum par\s*\n?incident\*\*/);
+  const options = DOC.split('\n').filter((l) => /^\| [A-D]\.|^\| \*\*C\./.test(l));
+  assert.equal(options.length, 4, 'les quatre comportements restent documentés');
+  assert.equal(options.filter((l) => l.trim().endsWith('| **OUI** |')).length, 1,
+    'un seul est retenu');
 });
 
 /* T-CAPSLA01-11 — rien n'a bougé en production : ordres, primaire, seuils de
@@ -210,7 +298,10 @@ test('T-CAPSLA01-11 : aucun contrat de production n’a été touché', () => {
 test('T-CAPSLA01-12 : la dette est scindée, et elle reste ouverte', () => {
   assert.match(DOC, /FAST_LATENCY_PART\s+= CLOSED \/ PROUVÉE/);
   assert.match(DOC, /FAST_CAPACITY_PART\s+= OPEN/);
-  assert.match(DOC, /`CAPACITY_SLA_PROVEN = NO`/);
+  assert.match(DOC, /CAPACITY_SLA_PROVEN\s+= NO/);
+  assert.match(DOC, /CAPACITY_SLA_DEFINED\s+= YES/);
+  assert.match(DOC, /il n'est pas \*\*éprouvé\*\*/,
+    'défini ne veut pas dire prouvé, et le document le dit');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

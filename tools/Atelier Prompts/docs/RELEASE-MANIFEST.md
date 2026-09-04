@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `e11b62302c6364d65c7f44f55f0ac30aaf36eed4` |
-| Date du commit | 2026-09-04T22:43:33+02:00 |
+| Commit local | `11797738189636ac7c8bbecfc03fa7a6ba8dff3e` |
+| Date du commit | 2026-09-04T23:05:46+02:00 |
 
 ## Artefact canonique
 
@@ -59,7 +59,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `de85e6a8286149b79eebda00cbe8026309eb150f1bfda1cabfe0a3f560029f10` |
+| Empreinte du jeu | `933a5dcca1aea6f23da7cf61f04b7fc6913c4d17c33ceedbf4ce0caf9f3667d5` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -84,8 +84,8 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/prompt-contract-gate.js` | `49a31369b431ab8d93007a6ddc4a9acd0d9923145bf4c076b1cb3d179a56d1b8` |
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
-| REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `763aff91d91988e2bd12f976b1e02e79c00e69580a7cd686b6f162b3784e6ca0` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `aea0d5778b43feec1f570932385780949a5d53cbe7119c724ee8b6429ac7f5af` |
+| REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `2dad2676d0ce7bc8d3bf5c0d1a0f306436499250c2b7369d32f7f3db65bdf2f9` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
@@ -137,7 +137,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2732 |
+| Tests au vert | 2735 |
 
 ## Dette encore ouverte
 

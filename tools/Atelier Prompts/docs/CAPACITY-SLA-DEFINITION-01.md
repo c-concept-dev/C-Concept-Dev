@@ -20,12 +20,17 @@ sémantique unique ; le plan rapide reste candidat, non autoritatif.
 | Contrat | État |
 | --- | --- |
 | **Latence** | **DÉFINI et PROUVÉ** — p50 ≤ 2 000 ms préféré, p95 ≤ 3 000 ms requis |
-| **Capacité** | **NON DÉFINI** — aucune cible de charge produit n'existe |
+| **Capacité** | **DÉFINI pour la bêta** — 6 utilisateurs simultanés, 6 req/min, 12 au pic ; **non éprouvé** |
 
 PERF-NOMINAL-PROVIDER-01 a prouvé que le plan rapide tient son contrat de latence sur
 Groq, hors saturation : **p50 = 467,3 ms, p95 = 1 617,0 ms**, 48/48 succès, zéro 429. Le
-problème de latence est clos. **Ce qui reste ouvert est la capacité, et désormais
-uniquement sa répartition.**
+problème de latence est clos.
+
+Le propriétaire produit a depuis fourni les six décisions de charge, et la contrainte
+d'abonnements figés. Le contrat de capacité de la **bêta** est donc **calculé** dans ce
+document — et il tient, à une condition mesurable qui ne l'est pas encore : la part que le
+plan profond prend sur la même clé Groq. **Ce qui reste ouvert n'est plus la définition du
+contrat, c'est sa preuve.**
 
 ---
 
@@ -122,25 +127,36 @@ le plan profond sur la même clé.
 
 ---
 
-## 6. Marge de sécurité — fourchette recommandée, choix non arbitraire
+## 6. Marge de sécurité — désormais **dérivée**, non plus choisie
 
-Une marge ne se choisit pas dans l'abstrait : elle amortit une rafale, et la taille d'une
-rafale dépend d'une cible de pic qui n'existe pas encore. Ce que la mesure permet néanmoins
-de dire :
+Le pic déclaré fixe lui-même le plafond. Six utilisateurs à deux tours/minute demandent
+**5 820 jetons/min** ; sur un budget de 8 000, cela laisse exactement **27,25 %**. Toute marge
+supérieure à cette valeur rend le pic déclaré infaisable.
 
-- **20 % est un plancher défendable.** La fenêtre Groq se reconstitue en ~5 s (`reset`
-  observé entre 3,4 et 5,1 s) ; une marge de 20 % couvre environ trois requêtes rapides
-  simultanées de plus que le régime nominal — soit une rafale très courte, pas un pic.
-- **30 % est le point où une rafale d'un ordre de grandeur au-dessus du nominal reste
-  absorbée**, au prix de 5 req/min de débit soutenu.
-- **50 % ramène le plafond à 8 requêtes/min**, ce qui, sur un budget déjà étroit et non
-  extensible, coûte plus que ce que la marge protège.
+| Marge | Jetons utilisables | Nominal 2 910 | Pic 5 820 |
+| --- | --- | --- | --- |
+| 0 % | 8 000 | tient (36,4 %) | tient (72,8 %) |
+| **20 %** | **6 400** | **tient (45,5 %)** | **tient (90,9 %)** |
+| 25 % | 6 000 | tient (48,5 %) | tient (97,0 %) |
+| **30 %** | **5 600** | tient (52,0 %) | **DÉPASSE (103,9 %)** |
+| 50 % | 4 000 | tient (72,8 %) | DÉPASSE (145,5 %) |
 
-`HEADROOM_POLICY` = **fourchette recommandée 20–30 %, valeur exacte à fixer par le
-propriétaire une fois la cible de pic connue.** Aucune valeur n'est retenue ici : sans cible,
-un pourcentage serait un chiffre choisi, pas dérivé.
+`HEADROOM_POLICY` = **20 %**, et c'est un résultat, pas une préférence : parmi les trois
+candidats proposés (20 / 30 / 50 %), **20 % est le seul compatible avec le pic déclaré**. Le
+plafond arithmétique exact vaut 27,25 % ; la règle du dépôt — retenir le plus grand nombre
+rond strictement inférieur à la borne mesurée, celle-là même qui a produit les quatre
+plafonds d'attente du produit — donne 25 %, et 20 % est le candidat proposé qui s'en approche
+par le bas avec une réserve réelle.
 
----
+**Ce que 20 % achète :** 6 400 jetons/min utilisables, le pic à 90,9 % de cette enveloppe,
+et 580 jetons/min de réserve au-dessus du pic.
+
+**Une précision qui compte :** le pic est déclaré comme une **rafale courte de 2 minutes**.
+La fenêtre de débit de Groq se reconstitue en 3,4 à 5,1 s (mesuré) — elle est donc glissante
+à l'échelle de la minute. Une rafale de deux minutes n'est **pas** amortie par la fenêtre :
+elle dure assez longtemps pour que chacune de ses minutes doive tenir seule dans le budget.
+C'est pourquoi le pic est traité ici comme une contrainte par minute, et non comme un
+transitoire absorbable.
 
 ## 7. Portée des limites de débit
 
@@ -159,60 +175,59 @@ chiffrable — c'est un pari.
 
 ---
 
-## 8. Entrées produit manquantes
-
-Ces valeurs ne sont pas inventées. Elles restent inconnues jusqu'à décision du propriétaire.
+## 8. Entrées produit — **fournies par le propriétaire**
 
 ```
-INITIAL_RELEASE_TYPE                  = UNKNOWN
-EXPECTED_ACTIVE_USERS                 = UNKNOWN
-EXPECTED_CONCURRENT_FAST_USERS        = UNKNOWN
-TYPICAL_FAST_TURNS_PER_USER_PER_MIN   = UNKNOWN
-PEAK_FAST_TURNS_PER_USER_PER_MIN      = UNKNOWN
-PEAK_DURATION_MIN                     = UNKNOWN
-ACCEPTABLE_DEGRADED_DURATION          = UNKNOWN
-GEOGRAPHIC_DISTRIBUTION               = UNKNOWN
-EXPECTED_BURST_MULTIPLIER             = UNKNOWN
-DEEP_SHARE_OF_PROVIDER_CAPACITY       = UNKNOWN (non mesuré)
-FAST_SHARE_OF_PROVIDER_CAPACITY       = UNKNOWN (complément du précédent)
+INITIAL_RELEASE_TYPE                  = BETA
+EXPECTED_CONCURRENT_FAST_USERS        = 6
+TYPICAL_FAST_TURNS_PER_USER_PER_MIN   = 1
+PEAK_FAST_TURNS_PER_USER_PER_MIN      = 2
+PEAK_SHAPE                            = SHORT_BURST
+PEAK_DURATION_MIN                     = 2
+ACCEPTABLE_DEGRADED_DURATION          = 5 min maximum par incident
+GROQ_FULL_BEHAVIOR                    = FAST DÉGRADÉ / AUCUNE CANDIDATE / LE PROFOND CONTINUE
+EXPECTED_BURST_MULTIPLIER             = 2   (dérivé : pic ÷ nominal)
+GEOGRAPHIC_DISTRIBUTION               = UNKNOWN — sans effet sur le budget de jetons
+DEEP_SHARE_OF_PROVIDER_CAPACITY       = UNKNOWN — non mesuré
 ```
 
-### `MINIMUM_PRODUCT_INPUTS_REQUIRED`
+Deux valeurs restent inconnues, et une seule des deux compte.
 
-Six décisions, et elles seules, débloquent le contrat de capacité :
+La **répartition géographique** n'a pas été fournie et n'entre dans aucun calcul de ce
+document : le Worker est global, le budget de jetons ne l'est pas, et un budget par minute ne
+dépend pas d'où viennent les requêtes.
 
-1. **Type de lancement** — privé, bêta restreinte, ou public.
-2. **Utilisateurs rapides simultanés au pic** — le nombre que le lancement doit tenir.
-3. **Tours rapides par minute et par utilisateur actif** — le plan rapide se déclenche une
-   fois par tour ; c'est le multiplicateur qui transforme des utilisateurs en jetons.
-4. **Forme du pic** — rafale courte ou plateau soutenu, et sa durée en minutes.
-5. **Durée de service dégradé acceptable** lors d'un événement de capacité exceptionnel.
-6. **Comportement voulu quand Groq est plein** — parmi les quatre options de la section 11.
+La **part du plan profond**, elle, est déterminante — voir la section 12.
 
-Avec (2) et (3), tout le reste se **calcule** :
-`FAST_TPM = utilisateurs × tours/min × 485 jetons`, puis
-`marge appliquée`, puis comparaison aux 8 000 jetons/min disponibles.
+## 9. Le contrat de capacité, calculé
 
----
+**`CAPACITY_SLA_DEFINED = YES`** pour la bêta. Toutes les valeurs ci-dessous se dérivent des
+décisions produit et du coût en jetons mesuré ; aucune n'est choisie.
 
-## 9. Scénarios illustratifs — `ILLUSTRATIVE_ONLY = YES`
+```
+SUPPORTED_CONCURRENT_FAST_USERS   = 6
+SUPPORTED_FAST_RPM                = 6 requêtes/min
+SUPPORTED_FAST_RPS                = 0,10 requête/s
+SUPPORTED_FAST_TPM                = 2 910 jetons/min      (6 × 1 × 485)
+PEAK_FAST_RPM                     = 12 requêtes/min
+PEAK_FAST_RPS                     = 0,20 requête/s
+PEAK_FAST_TPM                     = 5 820 jetons/min      (6 × 2 × 485)
+PEAK_DURATION                     = 2 minutes, rafale courte
+HEADROOM                          = 20 %  -> 6 400 jetons/min utilisables
+FAST_DEEP_CAPACITY_POLICY         = SÉPARATION par assignation de rôle fixe
+DEGRADED_BEHAVIOR                 = plan rapide dégradé, aucune candidate rendue,
+                                    le plan profond poursuit son tour ; 5 min max par incident
+```
 
-**Ces trois lignes ne sont pas un SLA et ne doivent jamais être citées comme tel.** Elles
-montrent seulement où se situe la frontière, pour aider à répondre aux questions ci-dessus.
-Elles supposent que le plan rapide dispose de **toute** la capacité Groq — hypothèse fausse
-aujourd'hui.
+### Valeur conservatrice : 485 jetons, et pourquoi elle est légitime
 
-| Scénario | Utilisateurs simultanés | Tours/utilisateur/min | Débit | Jetons/min (p95) | Tient dans 8 000 ? |
-| --- | --- | --- | --- | --- | --- |
-| **BAS** — bêta privée | 10 | 1 | 10 req/min | 4 850 | oui, avec ~39 % de marge |
-| **MOYEN** — production restreinte | 25 | 1 | 25 req/min | 12 125 | **non** — 1,5 × le budget |
-| **HAUT** — public | 100 | 1,5 | 150 req/min | 72 750 | **non** — 9,1 × le budget |
+485 n'est pas une majoration prudente inventée pour la circonstance : c'est **à la fois le p95
+et le maximum** des 48 relevés d'usage fournisseur de PERF-NOMINAL-PROVIDER-01. Trois
+échantillons sur quarante-huit l'atteignent, **aucun ne le dépasse**. Dimensionner à 485,
+c'est dimensionner sur la requête rapide la plus chère jamais observée sur ce corpus.
 
-La frontière est nette et vaut la peine d'être retenue : **à un tour par minute et par
-utilisateur, la capacité Groq actuelle sature autour de 16 utilisateurs simultanés** (13 avec
-20 % de marge, 11 avec 30 %) — et moins encore tant que le plan profond partage la même clé.
-
----
+Le même calcul à la médiane mesurée (426 jetons) donne 2 556 jetons/min en nominal et
+5 112 au pic — les chiffres retenus au contrat sont donc bien les plus défavorables des deux.
 
 ## 10. Options de répartition, à abonnements figés
 
@@ -270,94 +285,162 @@ branche de repli est mesurée à 4 234 ms (OpenAI) et 5 562 ms (Anthropic) au re
 **Le repli de capacité préserve la disponibilité et ne peut pas préserver la latence.** Les
 deux ne doivent jamais être notés ensemble.
 
-`DEGRADED_MODE_POLICY` = **décision produit, non prise ici.** Les quatre comportements
-possibles quand Groq est plein, avec leur coût mesuré :
+### `DEGRADED_MODE_POLICY` — décidée par le propriétaire
 
-| Comportement | Ce qu'il préserve | Ce qu'il coûte |
-| --- | --- | --- |
-| **A.** Bascule vers Anthropic/OpenAI | la réponse arrive (48/48, 192/192 mesurés) | 4,2 à 5,6 s — hors contrat |
-| **B.** Attente contrôlée | reste sur le fournisseur rapide | 2 750 ms mesurés par attente — hors contrat |
-| **C.** État dégradé explicite | l'honnêteté envers l'utilisateur, et le budget | le plan rapide ne rend rien à ce tour |
-| **D.** Rejet immédiat | le budget | pire que C sans contrepartie |
+**Quand Groq est plein : le plan rapide se déclare dégradé, ne rend aucune candidate, et le
+plan profond poursuit son travail autoritaire.** Durée tolérée : **5 minutes maximum par
+incident**.
 
-Le plan rapide étant **candidat et non autoritatif**, l'option C a une propriété que les
-autres n'ont pas : le plan profond continue son tour normalement, et l'utilisateur perd une
-commodité, pas une capacité. C'est un argument, pas une décision.
+Les quatre comportements possibles et leur coût mesuré, pour mémoire :
 
----
+| Comportement | Ce qu'il préserve | Ce qu'il coûte | Retenu |
+| --- | --- | --- | --- |
+| A. Bascule vers Anthropic/OpenAI | la réponse arrive (192/192 mesurés) | 4,2 à 5,6 s — hors contrat | non |
+| B. Attente contrôlée | reste sur le fournisseur rapide | 2 750 ms mesurés — hors contrat | non |
+| **C. État dégradé explicite** | **le budget, et l'honnêteté du contrat** | le plan rapide ne rend rien à ce tour | **OUI** |
+| D. Rejet immédiat | le budget | pire que C sans contrepartie | non |
 
-## 12. Tiers de capacité
+**Ce choix est cohérent avec l'architecture, et c'est ce qui le rend bon.** Le plan rapide est
+*candidat et non autoritatif* : il n'a jamais eu le droit de conclure quoi que ce soit. Le
+suspendre retire donc une commodité, pas une capacité — le plan profond continue son tour,
+OPRIE reste l'autorité, l'utilisateur obtient le même résultat, seulement sans
+l'accompagnement interactif. Aucune des trois autres options n'a cette propriété : A et B
+paient une latence hors contrat pour produire une candidate dont personne ne dépend.
 
-```
-TIER_1  INITIAL / BÊTA        RPM = UNKNOWN   TPM = UNKNOWN   tenu par l'existant ? UNKNOWN
-TIER_2  PRODUCTION NORMALE    RPM = UNKNOWN   TPM = UNKNOWN   tenu par l'existant ? UNKNOWN
-TIER_3  PIC                   RPM = UNKNOWN   TPM = UNKNOWN   tenu par l'existant ? UNKNOWN
-```
+Corollaire explicite : **le débordement de capacité vers Anthropic ou OpenAI est écarté pour
+le plan rapide**, conformément à la décision produit. Ces deux fournisseurs restent
+disponibles pour la disponibilité du plan *profond*, jamais pour prétendre tenir un SLA de
+latence rapide qu'ils ne tiennent pas.
 
-`CURRENT_GROQ_CAPACITY_STATUS` = **UNKNOWN** pour les trois tiers : un statut se prononce
-contre une cible, et il n'y en a pas. Ce qui est connu est le **plafond** : 16 à 18 requêtes
-rapides par minute à quota plein, moins la part non mesurée du plan profond.
+## 12. Tiers de capacité, et le statut du quota Groq
 
----
+| Tier | Régime | Débit | Jetons/min (485) | Jetons/min (426) | % du quota | Statut |
+| --- | --- | --- | --- | --- | --- | --- |
+| **TIER_1** | Bêta nominal — 6 × 1 | 6 req/min (0,10 req/s) | **2 910** | 2 556 | 36,4 % | **SUFFISANT** |
+| **TIER_2** | Production normale | UNKNOWN | UNKNOWN | UNKNOWN | — | UNKNOWN |
+| **TIER_3** | Pic — 6 × 2, rafale 2 min | 12 req/min (0,20 req/s) | **5 820** | 5 112 | 72,8 % | **SUFFISANT, MARGINAL** |
 
-## 13. Déclencheurs de croissance
+`TIER_2` reste inconnu parce que le propriétaire a défini une **bêta**, pas une cible de
+production. Ce n'est pas un manque : c'est le périmètre de la décision. Il devra être défini
+avant la sortie de bêta, et la section 13 dit à quel signal.
 
-Trois déclencheurs sont proposés. Deux sont **dérivés de mesures**, le troisième attend une
-cible — et est marqué comme tel plutôt que chiffré arbitrairement.
+### `CURRENT_GROQ_CAPACITY_STATUS` = **SUFFISANT** pour la bêta
 
-1. **Tout signal de capacité en production — seuil : plus de zéro par heure.** Ce n'est pas
-   un seuil choisi : un seul 429 coûte 2 750 ms d'attente ou 2,2 à 10,2 s de bascule, et les
-   deux dépassent le budget de 3 secondes. Le premier 429 en production est donc déjà
-   l'événement à surveiller.
-2. **p95 rapide observé en production > 3 000 ms.** C'est le contrat lui-même, mesuré sur le
+À une condition, et elle est décisive.
+
+**Marge réelle en régime nominal :** 2 910 sur 8 000, soit **63,6 % du quota libre**. Sur
+l'enveloppe de 6 400 jetons utilisables après marge de 20 %, le nominal en occupe **45,5 %**.
+
+**Marge réelle au pic :** 5 820 sur 8 000, soit **27,3 % du quota libre** — et **90,9 % de
+l'enveloppe utilisable**. Il reste 580 jetons/min au-dessus du pic.
+
+**Où la bêta casse, exactement.** À 20 % de marge, le sixième utilisateur au rythme de pic
+consomme 5 820 des 6 400 jetons disponibles ; **un septième en demanderait 6 790, au-dessus de
+l'enveloppe**. Sans aucune marge, le plafond dur est de **8 utilisateurs simultanés au rythme
+de pic** (7 760 jetons), le neuvième dépassant le quota. La cible de 6 est donc tenue, mais
+elle est à **deux utilisateurs du plafond absolu** et à **un utilisateur du plafond avec
+marge**.
+
+### La condition : ce qui reste au plan profond
+
+Tous les chiffres ci-dessus supposent que le plan rapide dispose du budget entier. **C'est
+faux :** le plan profond consomme la même clé.
+
+| Régime rapide | Jetons/min restants pour le profond |
+| --- | --- |
+| Nominal (2 910) | **5 090** |
+| **Pic (5 820)** | **2 180** |
+
+Un tour profond exécute **trois appels fournisseur au minimum** — Analyste, Critique, Arbitre,
+séquence figée dans `OPERATIONAL_REQUEST_ROLE_SEQUENCE`. En leur prêtant, très généreusement,
+le coût d'un appel *rapide* — 485 jetons — le plancher d'un tour profond vaut **1 455 jetons**.
+Ce plancher est extrêmement conservateur : les trois prompts système profonds pèsent
+**25 685 caractères** contre 794 pour le prompt rapide, soit **32 fois plus**, avant même le
+contenu utilisateur.
+
+Conséquence, au plancher et donc dans le meilleur des cas :
+
+- en régime **nominal**, les 5 090 jetons restants autorisent environ **3,5 tours profonds par
+  minute** ;
+- au **pic**, les 2 180 jetons restants n'en autorisent plus que **1,5**.
+
+**Six utilisateurs en rafale de pic dont deux lanceraient un tour profond saturent Groq.**
+C'est le résultat central de ce lot : la séparation Fast/Deep n'est pas une amélioration
+souhaitable, elle est la **condition d'existence du pic déclaré**. Le chiffre exact manque —
+`DEEP_TPM` n'a pas été mesuré — mais le plancher structurel suffit à établir que la marge
+apparente de 27,3 % au pic n'est pas une marge : c'est ce qui reste à partager avec un plan
+profond qui coûte davantage.
+
+## 13. Déclencheurs de croissance — désormais chiffrés
+
+Trois déclencheurs, chacun dérivé d'une mesure ou d'une décision, aucun choisi.
+
+1. **Utilisation soutenue du budget Groq > 80 % sur une minute.** Le seuil n'est plus posé : il
+   vaut `1 − marge`, et la marge vaut 20 % parce que le pic déclaré l'impose (section 6).
+   Franchir 80 % en régime soutenu signifie que le pic n'a plus de réserve.
+2. **Tout signal de capacité en production — seuil : plus de zéro par heure.** Un seul 429
+   coûte 2 750 ms d'attente ou 2,2 à 10,2 s de bascule, et les deux dépassent le budget de
+   3 secondes. Avec la politique dégradée retenue, il coûte désormais une candidate rapide
+   non rendue. Le premier 429 en production est l'événement à surveiller.
+3. **p95 rapide observé en production > 3 000 ms.** C'est le contrat lui-même, mesuré sur le
    trafic réel plutôt que sur un banc.
-3. **Utilisation soutenue du budget Groq.** La forme du déclencheur est connue — la fraction
-   de 8 000 jetons/min consommée en régime — mais **son seuil ne peut pas être fixé avant la
-   cible de pic** : il doit valoir `1 − marge`, et la marge dépend de la rafale à absorber.
-   Le poser aujourd'hui serait inventer un nombre.
 
-L'instrumentation nécessaire aux trois existe déjà : `capacity_signal`, `provider_outcome`,
-`budget_limite` et `budget_restant` sont émis à chaque appel depuis PERF-REAL-01D/01G.
+Deux déclencheurs de sortie de bêta s'y ajoutent, directement lisibles du contrat :
 
----
+4. **Un septième utilisateur rapide simultané** — au rythme de pic, il dépasse l'enveloppe
+   utilisable (6 790 > 6 400).
+5. **Plus d'un tour profond par minute pendant un pic rapide** — au plancher structurel, le
+   budget restant n'en autorise que 1,5.
 
-## 14. Prochaine preuve
+L'instrumentation nécessaire aux cinq existe déjà : `capacity_signal`, `provider_outcome`,
+`budget_limite` et `budget_restant` sont émis à chaque appel Groq depuis PERF-REAL-01D/01G,
+pour le plan rapide **comme pour les trois rôles profonds**.
 
-**Avant toute mise en œuvre, deux mesures, dans cet ordre :**
+## 14. Prochaine preuve — un seul lot est strictement nécessaire
 
-1. **Coût en jetons d'un tour profond.** Un seul tour réel observé sous `wrangler tail`
-   donne `DEEP_TPM` par tour, sans une ligne de code — l'instrumentation l'émet déjà pour
-   les trois rôles. Sans ce nombre, la part réellement disponible au plan rapide reste
-   inconnue et aucun tier ne peut être validé.
-2. **Qualité OPRIE à parité, hors de Groq.** Les mêmes demandes, les mêmes rôles, exécutés
-   sur Anthropic puis OpenAI, comparés au résultat Groq. C'est la condition de S2, et la
-   seule chose qui empêche aujourd'hui de la recommander en mise en œuvre plutôt qu'en
-   direction. La comparaison doit être **humaine ou structurelle** — aucune similarité
-   floue, aucun score automatique, aucun juge LLM.
+**`DEEP-TOKEN-COST-01` — mesurer le coût réel en jetons d'un tour profond.**
 
-**Puis, une fois le SLA de capacité officiel existant**, le banc de capacité :
+C'est le seul chiffre qui manque pour que le contrat de capacité cesse d'être un majorant. La
+section 12 établit que le pic rapide ne laisse que 2 180 jetons/min au plan profond et que le
+plancher structurel d'un tour en consomme au moins 1 455 : le contrat tient ou ne tient pas
+selon un nombre que personne n'a mesuré.
+
+Ce lot ne demande **ni code, ni déploiement, ni décision** : l'instrumentation émet déjà
+`jetons_entree`, `jetons_sortie` et `jetons_total` pour chaque appel Groq, rôles profonds
+compris, depuis PERF-REAL-01E. Quelques tours réels observés sous `wrangler tail` suffisent —
+sur les mêmes fixtures que le banc rapide, pour rester comparables.
+
+Il rend trois choses : `DEEP_TPM` par tour, la part réelle du budget disponible au plan
+rapide, et le verdict définitif sur `CURRENT_GROQ_CAPACITY_STATUS` au pic.
+
+**Ce qui vient ensuite, mais seulement ensuite :**
+
+- **`OPRIE-QUALITY-PARITY-01`** — comparer la qualité des sorties OPRIE sur Anthropic et
+  OpenAI à celle de Groq, sur les mêmes demandes. C'est la condition de la migration du plan
+  profond, et donc de la séparation Fast/Deep. Comparaison **humaine ou structurelle** :
+  aucune similarité floue, aucun score automatique, aucun juge LLM.
+- **`CAPACITY-BENCH-01`** — le banc de capacité, désormais dérivable du contrat :
 
 ```
-LOAD 1  charge normale attendue    -> débit dérivé de TIER_2
-LOAD 2  pic officiel               -> débit dérivé de TIER_3
-LOAD 3  surcharge contrôlée        -> au-delà du pic, pour localiser la rupture
+LOAD 1  nominal    ->  6 req/min   ( 2 910 jetons/min)  espacement ~9 530 ms
+LOAD 2  pic        -> 12 req/min   ( 5 820 jetons/min)  espacement ~4 530 ms, tenu 2 min
+LOAD 3  surcharge  -> 18 req/min   ( 8 730 jetons/min)  au-delà du quota, pour localiser la rupture
 ```
 
-Chaque niveau se dérive du SLA — `espacement = 60 000 / débit cible − latence nominale` —
-**jamais d'une cadence arbitraire**. Le banc de 700 ms qui a produit sept lots de mesures
-trompeuses n'est pas reconduit.
-
----
+Chaque espacement se calcule — `60 000 / débit − latence nominale`, avec 467,3 ms mesurés —
+et non plus au jugé. LOAD 3 dépasse délibérément le quota : c'est une **surcharge contrôlée**
+destinée à observer le comportement dégradé retenu, pas un régime supporté. Le banc de 700 ms
+qui a produit sept lots de mesures trompeuses n'est pas reconduit.
 
 ## 15. Enregistrement de décision (ADR)
 
 ```
 DECISION
     USE_EXISTING_SUBSCRIPTIONS_ONLY. Aucun achat de quota chez aucun fournisseur.
-    Le contrat de capacité n'est PAS défini : les entrées produit manquent.
-    Direction retenue, à valider et non à implémenter : donner à chaque plan le
-    fournisseur qui correspond à son contrat — le rapide garde Groq, le profond
-    migre vers la capacité abondante déjà payée d'Anthropic et d'OpenAI.
+    Le contrat de capacité de la BÊTA est défini : 6 utilisateurs rapides simultanés,
+    6 requêtes/min en nominal, 12 au pic pendant 2 minutes, 485 jetons par requête,
+    20 % de marge. Le quota Groq actuel le tient — sous une condition non encore
+    mesurée, la part qu'y prend le plan profond.
 
 CONTEXT
     Le plan rapide tient son contrat de latence sur Groq hors saturation
@@ -367,49 +450,53 @@ CONTEXT
     exactement celle dont le plan rapide a besoin — et le plan profond, qui tolère
     déjà 16 à 26 s par rôle, la consomme sur la même clé.
 
-FAST_PROVIDER_DIRECTION
-    Groq primaire, inchangé. Preuve HAUTE. Aucune raison de changer.
+WORKLOAD_ASSUMPTIONS
+    Aucune. Les six valeurs de charge viennent du propriétaire produit :
+    BÊTA, 6 utilisateurs simultanés, 1 tour/min en nominal, 2 au pic, rafale de
+    2 minutes, 5 minutes de dégradation tolérées par incident.
 
-DEEP_PROVIDER_DIRECTION
-    Anthropic primaire, OpenAI secondaire — à valider par une comparaison de
-    qualité à parité, jamais adoptée sans elle. Assignation de rôle fixe,
-    indépendante du contenu : ce n'est pas du magasinage sémantique.
+MEASURED_INPUTS
+    485 jetons par requête rapide — p95 ET maximum de 48 relevés fournisseur.
+    8 000 jetons/min déclarés par Groq. 1 000 000 chez OpenAI, 10 000 000 chez
+    Anthropic. Latences nominales des trois fournisseurs. Trois appels minimum par
+    tour profond, prompts système 32 fois plus longs que celui du plan rapide.
 
-FAST_DEEP_CAPACITY_POLICY
-    SÉPARATION. Les deux plans ne doivent plus se disputer la même ressource rare.
-    Le mécanisme est l'assignation de fournisseur par plan, pas une seconde clé :
-    la portée des limites de débit est inconnue, et supposer qu'une clé
-    supplémentaire multiplie la capacité serait un pari.
+UNKNOWN_INPUTS
+    DEEP_TPM — jamais mesuré. RATE_LIMIT_SCOPE — les en-têtes donnent des valeurs,
+    pas une portée. TIER_2 production normale — hors périmètre d'une bêta.
+    Qualité OPRIE hors de Groq. Tarifs — aucun n'entre dans ce document.
 
-CAPACITY_UNKNOWN
-    Cible de charge produit (six décisions, section 8). Coût en jetons d'un tour
-    profond. Portée des limites de débit. Qualité OPRIE hors de Groq.
+CAPACITY_MODEL
+    FAST_TPM = utilisateurs × tours/min × 485.
+    Nominal 6 × 1 × 485 = 2 910 (36,4 % du quota).
+    Pic     6 × 2 × 485 = 5 820 (72,8 % du quota, 90,9 % de l'enveloppe à 20 %).
 
-RISKS
-    1. La qualité OPRIE sous un autre modèle n'est pas mesurée — c'est le seul
-       obstacle sérieux à la direction retenue, et il est levable par une mesure.
-    2. Sans DEEP_TPM, la capacité réellement disponible au plan rapide reste un
-       majorant : 16 à 18 req/min est un plafond, pas une promesse.
-    3. Les abonnements étant figés, un lancement au-delà d'environ 16 utilisateurs
-       simultanés à un tour par minute saturera Groq — et la seule réponse
-       disponible sera un mode dégradé, pas de la capacité supplémentaire.
-    4. Déplacer le profond consomme davantage chez Anthropic, où un appel rapide
-       coûtait déjà 1 144 jetons contre 426 chez Groq. L'abondance y est telle que
-       le risque paraît nul, mais il n'est pas quantifié faute de DEEP_TPM.
+HEADROOM
+    20 %, DÉRIVÉ et non choisi : le pic déclaré impose un plafond de 27,25 %, et 20 %
+    est le seul des trois candidats proposés qui passe. 30 % rend le pic infaisable.
 
-REVERSIBILITY
-    Totale. Rien n'a été changé. La direction, le jour où elle sera mise en œuvre,
-    tiendra dans une constante d'ordre de fournisseur par plan, et s'annulera de
-    la même façon.
+FAST_DEEP_POLICY
+    SÉPARATION, par assignation de rôle fixe : le rapide garde Groq, le profond migre
+    vers la capacité abondante déjà payée d'Anthropic puis d'OpenAI. Indépendante du
+    contenu, du domaine et du sujet — ce n'est pas du magasinage sémantique. Elle passe
+    du rang de bonne idée à celui de CONDITION du pic déclaré : au pic, le budget
+    restant n'autorise qu'environ 1,5 tour profond par minute, au plancher.
+
+CURRENT_QUOTA_FIT
+    TIER_1 nominal : SUFFISANT, 63,6 % du quota libre.
+    TIER_3 pic     : SUFFISANT mais MARGINAL — 90,9 % de l'enveloppe utilisable,
+                     un septième utilisateur au pic la dépasserait.
+    TIER_2         : UNKNOWN, hors périmètre de la bêta.
+
+GROWTH_TRIGGER
+    Utilisation Groq soutenue > 80 % ; tout 429 en production ; p95 production
+    > 3 000 ms ; un septième utilisateur rapide simultané ; plus d'un tour profond
+    par minute pendant un pic rapide.
 
 NEXT_PROOF
-    1. Coût en jetons d'un tour profond réel (instrumentation déjà en place).
-    2. Qualité OPRIE à parité sur Anthropic et OpenAI.
-    3. Puis, la cible de charge produit une fois connue, le banc de capacité à
-       trois niveaux dérivés du SLA.
+    DEEP-TOKEN-COST-01 — mesurer le coût en jetons d'un tour profond réel. Sans lui,
+    tous les chiffres de ce contrat restent des majorants.
 ```
-
----
 
 ## 16. Ce qui n'a pas été fait, délibérément
 
@@ -417,13 +504,22 @@ Aucun abonnement modifié, aucun quota acheté, aucun ordre de fournisseur chang
 primaire changé, aucun code de production touché, aucun déploiement, aucun push, aucun seuil
 de latence modifié, aucun appel fournisseur émis par ce lot.
 
-`CAPACITY_SLA_DEFINED = NO` — les entrées produit manquent, et ce lot s'interdit de les
-inventer. `CAPACITY_SLA_PROVEN = NO` — aucun banc de capacité n'existe encore.
+La séparation Fast/Deep reste une **direction**, pas une mise en œuvre : elle attend la
+comparaison de qualité OPRIE à parité, et ce lot ne l'anticipe pas.
 
-`PERF-REAL-01` reste **ouverte**, désormais scindée en deux moitiés dont une seule est
-close :
+```
+CAPACITY_SLA_DEFINED   = YES   (pour la bêta)
+CAPACITY_SLA_PROVEN    = NO    (aucun banc de capacité n'existe encore)
+```
+
+La distinction est entière : le contrat est **écrit et calculé**, il n'est pas **éprouvé**.
+Aucune charge réelle n'a été appliquée à ce système ; ce qui précède est de l'arithmétique
+appuyée sur des mesures unitaires, pas un test de tenue.
+
+`PERF-REAL-01` reste **ouverte**, scindée en deux moitiés dont une seule est close :
 
 ```
 FAST_LATENCY_PART   = CLOSED / PROUVÉE   (Groq, p50 467,3 ms, p95 1 617,0 ms)
 FAST_CAPACITY_PART  = OPEN
 ```
+
