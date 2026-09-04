@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `2eb4a304ae4bdf2798f0c650980c98fb2b51e0f8` |
-| Date du commit | 2026-09-04T21:47:32+02:00 |
+| Commit local | `186f6a4f92439e6f0e4f7b8071d6d848b4c59dff` |
+| Date du commit | 2026-09-04T22:27:20+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-40 fichiers. C'est ce qui doit exister pour **servir** la page,
+41 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `513304b2a2c97d50f20a5dec2ec64326e8e0749858bfda382bba9cb29a785afe` |
+| Empreinte du jeu | `0e9659a4ff2f00e48c399437dd8dc867bbfc79f40165519aabfadae3d5ce9ac9` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -84,15 +84,16 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/prompt-contract-gate.js` | `49a31369b431ab8d93007a6ddc4a9acd0d9923145bf4c076b1cb3d179a56d1b8` |
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `a88ba717a70893959c9d281eeb59e3b7fe45226357dcfc10405819838b6811b6` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `39338eb7489e5845c7eb1faa8e38fe54e595b8d244f0925fac6a17bc22d72cd6` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
+| REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
 | REQUIRED_BUILD | `package.json` | `c89fdaa9b4ce892b8a75eac66b42ddc20868098b608c24fc6ed1d30c8e064693` |
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `70bcb641500d52f5cea1fa095932f8b004c59467e97d4e1669f82e64330ba8fb` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `be9d0f199a649e66b553535724e5ec20ebf88f99d6e0748dd51e63db8c14536e` |
-| REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `6d7034b1c24f8f74192c5cdbb3edc2c23596d8c70af9403d131bb0a078af0ca9` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `f9a3ebdd4c46eb036a5ef0f204d324fabe055f41e92859ca0830637d207884b3` |
+| REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `8c91d1b407d84426d0507969a740b7c0182216006e9ac9880ee9cbef453b898c` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/decision-core.js` | `2879c8e720146b4d2a620f76e329aa1a2e9f1ae3c7725749bbe6cbaf31b32869` |
 | REQUIRED_RUNTIME | `workers/shared/fast-interaction-endpoint.js` | `37fe4af9be7a7e9aa1e8672004fe4f4d688e4e7eaa4bd24a78be8f6c4e9855e9` |
@@ -109,8 +110,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 133 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 198 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 134 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 199 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -135,7 +136,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2706 |
+| Tests au vert | 2720 |
 
 ## Dette encore ouverte
 

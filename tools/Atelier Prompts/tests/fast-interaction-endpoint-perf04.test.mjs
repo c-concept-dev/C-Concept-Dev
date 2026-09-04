@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest, snapshotFromBody } from '../workers/shared/fast-interaction-endpoint.js';
+import { resolveFastProviderOrder } from '../workers/groq/src/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKER = fs.readFileSync(path.join(root, 'workers/groq/src/index.js'), 'utf8');
@@ -105,8 +106,18 @@ test('T-P04-EP08 : la route n’orchestre AUCUN rôle et ne double pas /operatio
 
 test('T-P04-EP09 : le worker branche la route sur la chaîne HA EXISTANTE, sans nouvelle politique', () => {
   assert.match(WORKER, /pathname === FAST_INTERACTION_PATHNAME/, 'la route est branchée.');
-  assert.match(WORKER, /executeFast: \(snapshot, fastEnv\) => runFastInteractionWithHaChain\(snapshot, fastEnv\)/,
-    'elle passe par la chaîne HA de PERF-03A, telle quelle.');
+  /* PERF-NOMINAL-PROVIDER-01 — LE LITTÉRAL A CHANGÉ, LE CONTRAT NON. La route
+     reçoit désormais son ORDRE par resolveFastProviderOrder(env), qui rend la
+     chaîne de production tant que FAST_BENCH_PROVIDER vaut "ha" — sa valeur
+     déclarée. L'épinglage est un outil de mesure d'opérateur, pas une politique
+     de bascule : la chaîne HA de PERF-03A reste celle qui s'exécute en
+     production, et la ligne suivante le prouve plutôt que de le supposer. */
+  assert.match(WORKER, /executeFast: \(snapshot, fastEnv\) => runFastInteractionWithHaChain\(snapshot, fastEnv, \{ order: resolveFastProviderOrder\(fastEnv\) \}\)/,
+    'elle passe par la chaîne HA de PERF-03A, dont l\'ordre reste le défaut.');
+  assert.deepEqual(resolveFastProviderOrder({}), ["groq", "anthropic", "openai"],
+    'sans variable, l\'ordre rendu est exactement celui de production.');
+  assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: "ha" }), ["groq", "anthropic", "openai"],
+    'et "ha" — la valeur déclarée du Worker — rend le même.');
   const bloc = WORKER.slice(WORKER.indexOf('export default {'));
   assert.doesNotMatch(bloc, /Promise\.race|hedge/i, 'aucune course, aucun appel dédoublé.');
   assert.match(WORKER, /export const DECISION_PROVIDER_ORDER = Object\.freeze\(\["groq", "anthropic", "openai"\]\)/,

@@ -217,7 +217,10 @@ test('T-PERFREAL01-14 : le worker déployé est exactement le candidat local', (
   assert.equal(RESULTATS.version_deployee, '6bdbe2ec-2910-427f-b013-59fa7152cf4a');
   /* Et la source déployée porte bien la route de PERF-04. */
   assert.match(WORKER, /if \(new URL\(request\.url\)\.pathname === FAST_INTERACTION_PATHNAME\) \{/);
-  assert.match(WORKER, /executeFast: \(snapshot, fastEnv\) => runFastInteractionWithHaChain\(snapshot, fastEnv\)/);
+  /* PERF-NOMINAL-PROVIDER-01 : la ligne porte maintenant l'ordre résolu. Ce qui
+     est vérifié ici reste le même fait — la route de PERF-04 est bien celle qui
+     est partie en production — et non la forme exacte de son appel. */
+  assert.match(WORKER, /executeFast: \(snapshot, fastEnv\) => runFastInteractionWithHaChain\(snapshot, fastEnv, \{ order: resolveFastProviderOrder\(fastEnv\) \}\)/);
 });
 
 test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {

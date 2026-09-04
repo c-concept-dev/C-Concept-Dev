@@ -254,6 +254,43 @@ espacement porté à ≥ 3 200 ms pour rester sous le budget déclaré, zéro 42
 critère de validité — puis, la cible de charge une fois connue, un banc de saturation
 distinct. Décision complète : [PERF-CAPACITY-DECISION-01.md](PERF-CAPACITY-DECISION-01.md).
 
+**Mise à jour PERF-NOMINAL-PROVIDER-01 — la moitié latence de la dette est
+refermée ; la moitié capacité reste entière.** Pour la première fois, le plan rapide a été
+mesuré **hors saturation** : 144 échantillons officiels, 48 par fournisseur, mêmes fixtures,
+même ordre, mêmes index, 3 chauffes exclues, cadence portée à 3 200 ms — et **zéro 429 sur
+les trois runs**, budgets déclarés relevés aux deux bouts pour le prouver.
+
+| Fournisseur | Modèle | p50 | p95 | Contrat |
+| --- | --- | --- | --- | --- |
+| **Groq** | `openai/gpt-oss-20b` | **467,3 ms** | **1 617,0 ms** | **TENU** |
+| OpenAI | `gpt-5.6-sol` | 2 186,2 ms | 4 234,2 ms | DÉGRADÉ |
+| Anthropic | `claude-sonnet-4-6` | 3 155,3 ms | 5 561,8 ms | NON CONFORME |
+
+**Le contrat de 3 secondes est tenable, et il l'est déjà.** Le p95 de Groq vaut 38 % du
+budget, avec 44 appels sur 48 sous la seconde — contre 3 245 à 5 020 ms mesurés par les sept
+bancs saturants précédents. Ce que 01B à 01G mesuraient n'était pas la latence du plan
+rapide : c'était le coût de la saturation.
+
+**Le doute sur Anthropic est levé par la mesure.** Ses 27 échantillons antérieurs étaient
+tous des secondes tentatives prises sous saturation ; mesuré seul et reposé, en première
+tentative, il rend p95 = 5 561,8 ms et aucun appel sous 1,9 s. Le `NOT_YET` de
+PERF-CAPACITY-DECISION-01 devient, pour la latence, un **NON mesuré**. OpenAI ne passe pas
+davantage — mais il consomme 362 jetons par appel contre 426 pour Groq et **1 013 d'entrée
+pour Anthropic** : le même prompt coûte 2,8 fois plus cher selon l'enveloppe de sortie
+structurée du transport, ce qui appartient au dossier de capacité.
+
+**Conséquence pour les options restantes.** Répartir la charge ne peut plus préserver le
+contrat : toute requête détournée de Groq atterrit chez un fournisseur mesuré à 4,2 ou 5,6 s
+de p95. La distribution proactive et la bascule de capacité perdent leur attrait comme
+réponses de latence. Restent la capacité chez Groq, et l'infrastructure rapide dédiée dont
+ce lot ne dit rien.
+
+Ce qui reste dû est **la capacité, et elle seule** : `CAPACITY_PROVEN = NO`,
+`CAPACITY_SLA_DEFINED = NO`, `EXPECTED_PEAK_TPM = UNKNOWN`. Ce lot n'a rien saturé et n'en
+tire donc aucune conclusion. La preuve suivante est le banc de saturation — mêmes fixtures,
+Groq épinglé, débits dérivés d'une cible de charge produit qui n'existe pas encore.
+Rapport : [PERF-NOMINAL-PROVIDER-01.md](PERF-NOMINAL-PROVIDER-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

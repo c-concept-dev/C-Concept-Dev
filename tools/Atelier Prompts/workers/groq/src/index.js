@@ -834,6 +834,57 @@ async function callAnthropicMessages({ systemPrompt, userMessage, schema, schema
   } catch {
     throw tagFailure(new Error("Anthropic a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "anthropic" });
   }
+  const enTeteAnthropic = (nom) => {
+    try { return response.headers.get(nom); } catch { return null; }
+  };
+  /* PERF-NOMINAL-PROVIDER-01 — OBSERVATION SEULE, ALIGNÉE SUR CELLE DE GROQ.
+     Groq déclare son budget dans ses en-têtes depuis 01D, et sa consommation
+     depuis 01E ; sans l'équivalent ici, un banc nominal ne pourrait pas prouver
+     qu'il n'a PAS saturé Anthropic — il ne pourrait que l'espérer. Aucune
+     décision ne lit ces nombres, aucun seuil n'en dépend, et rien n'est ajouté
+     à la requête pour les obtenir.
+     Les clés restent en français : la garde d'hygiène des secrets refuse tout
+     console.log dont les arguments portent le mot « token ». Les noms d'en-têtes
+     sont donc lus AVANT la trace, jamais dedans. */
+  const budgetAnthropic = {
+    requetes_limite: enTeteAnthropic("anthropic-ratelimit-requests-limit"),
+    requetes_restantes: enTeteAnthropic("anthropic-ratelimit-requests-remaining"),
+    requetes_reset: enTeteAnthropic("anthropic-ratelimit-requests-reset"),
+    entree_limite: enTeteAnthropic("anthropic-ratelimit-input-tokens-limit"),
+    entree_restant: enTeteAnthropic("anthropic-ratelimit-input-tokens-remaining"),
+    entree_reset: enTeteAnthropic("anthropic-ratelimit-input-tokens-reset"),
+    sortie_limite: enTeteAnthropic("anthropic-ratelimit-output-tokens-limit"),
+    sortie_restant: enTeteAnthropic("anthropic-ratelimit-output-tokens-remaining"),
+    sortie_reset: enTeteAnthropic("anthropic-ratelimit-output-tokens-reset")
+  };
+  const consommationAnthropic = {
+    entree: envelope?.usage?.input_tokens ?? null,
+    sortie: envelope?.usage?.output_tokens ?? null,
+    plafond: maxTokens ?? null,
+    fin: envelope?.stop_reason ?? null
+  };
+  consommationAnthropic.total = (consommationAnthropic.entree ?? 0) + (consommationAnthropic.sortie ?? 0);
+  console.log(JSON.stringify({
+    event: "anthropic_usage_observation",
+    modele: ANTHROPIC_MODEL,
+    http_status: response.status,
+    provider_outcome: "SUCCESS",
+    capacity_signal: false,
+    jetons_entree: consommationAnthropic.entree,
+    jetons_sortie: consommationAnthropic.sortie,
+    jetons_total: consommationAnthropic.total,
+    plafond_sortie_demande: consommationAnthropic.plafond,
+    finish_reason: consommationAnthropic.fin,
+    budget_requetes_limite: budgetAnthropic.requetes_limite,
+    budget_requetes_restantes: budgetAnthropic.requetes_restantes,
+    budget_requetes_reset: budgetAnthropic.requetes_reset,
+    budget_entree_limite: budgetAnthropic.entree_limite,
+    budget_entree_restant: budgetAnthropic.entree_restant,
+    budget_entree_reset: budgetAnthropic.entree_reset,
+    budget_sortie_limite: budgetAnthropic.sortie_limite,
+    budget_sortie_restant: budgetAnthropic.sortie_restant,
+    budget_sortie_reset: budgetAnthropic.sortie_reset
+  }));
   /* M-01 — un refus est un statut du fournisseur, pas un défaut de schéma : le
      confondre avec une structure illisible masquerait ce qui s'est réellement
      produit. Anthropic l'expose distinctement, on le nomme distinctement. */
@@ -1025,6 +1076,47 @@ async function callOpenAiChatCompletion({ systemPrompt, userMessage, schema, sch
   } catch {
     throw tagFailure(new Error("OpenAI a renvoyé une enveloppe non parsable."), FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID, { provider: "openai" });
   }
+  const enTeteOpenAi = (nom) => {
+    try { return response.headers.get(nom); } catch { return null; }
+  };
+  /* PERF-NOMINAL-PROVIDER-01 — OBSERVATION SEULE, MÊME RÔLE QUE POUR LES DEUX
+     AUTRES FOURNISSEURS. Sans elle, le banc nominal ne pourrait pas prouver
+     qu'il est resté sous le budget d'OpenAI. Lecture d'en-têtes et de l'usage
+     déclaré, rien d'autre : aucune décision, aucun seuil, aucune requête
+     supplémentaire. Clés en français pour la même raison qu'ailleurs. */
+  const budgetOpenAi = {
+    requetes_limite: enTeteOpenAi("x-ratelimit-limit-requests"),
+    requetes_restantes: enTeteOpenAi("x-ratelimit-remaining-requests"),
+    requetes_reset: enTeteOpenAi("x-ratelimit-reset-requests"),
+    limite: enTeteOpenAi("x-ratelimit-limit-tokens"),
+    restant: enTeteOpenAi("x-ratelimit-remaining-tokens"),
+    reset: enTeteOpenAi("x-ratelimit-reset-tokens")
+  };
+  const consommationOpenAi = {
+    entree: envelope?.usage?.prompt_tokens ?? null,
+    sortie: envelope?.usage?.completion_tokens ?? null,
+    total: envelope?.usage?.total_tokens ?? null,
+    plafond: maxCompletionTokens ?? null,
+    fin: envelope?.choices?.[0]?.finish_reason ?? null
+  };
+  console.log(JSON.stringify({
+    event: "openai_usage_observation",
+    modele: model,
+    http_status: response.status,
+    provider_outcome: "SUCCESS",
+    capacity_signal: false,
+    jetons_entree: consommationOpenAi.entree,
+    jetons_sortie: consommationOpenAi.sortie,
+    jetons_total: consommationOpenAi.total,
+    plafond_sortie_demande: consommationOpenAi.plafond,
+    finish_reason: consommationOpenAi.fin,
+    budget_requetes_limite: budgetOpenAi.requetes_limite,
+    budget_requetes_restantes: budgetOpenAi.requetes_restantes,
+    budget_requetes_reset: budgetOpenAi.requetes_reset,
+    budget_limite: budgetOpenAi.limite,
+    budget_restant: budgetOpenAi.restant,
+    budget_reset: budgetOpenAi.reset
+  }));
   const choice = envelope?.choices?.[0];
   /* M-01 — OpenAI expose le refus dans un canal dédié : le lire évite de le
      traiter comme un JSON malformé et d'accuser le schéma à sa place. */
@@ -1167,6 +1259,55 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = DEC
 }
 
 export const DECISION_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
+
+/**
+ * PERF-NOMINAL-PROVIDER-01 — ÉPINGLAGE DIAGNOSTIC DU FOURNISSEUR DU PLAN RAPIDE.
+ *
+ * POURQUOI. Les 27 échantillons Anthropic du dossier PERF-REAL-01 ont tous été
+ * pris SOUS SATURATION, en seconde tentative, après un 429 de Groq. Comparer des
+ * fournisseurs sur ces chiffres reviendrait à comparer un premier essai reposé à
+ * un rattrapage. Mesurer la latence NOMINALE de chacun exige de n'en interroger
+ * qu'un seul, à froid, sans repli — donc de l'épingler.
+ *
+ * MÊME CONTRAT QUE DECISION_PROVIDER, ET DÉLIBÉRÉMENT PAS UN AUTRE. La route
+ * /decision possède déjà cette capacité depuis R5.1 ; ce lot n'invente pas une
+ * seconde architecture de sélection, il applique la même règle au plan rapide :
+ *
+ *   - absente ou "ha"                  -> chaîne HA complète, comportement de
+ *                                         production strictement inchangé ;
+ *   - "groq" | "anthropic" | "openai"  -> fournisseur ÉPINGLÉ, AUCUN repli : la
+ *                                         chaîne ne contient qu'une seule entrée,
+ *                                         il n'existe donc rien vers quoi
+ *                                         basculer, et l'erreur du fournisseur
+ *                                         choisi remonte telle quelle ;
+ *   - toute autre valeur               -> erreur de configuration explicite,
+ *                                         AUCUN appel réseau, aucun repli muet.
+ *
+ * CE QUE CE MÉCANISME N'EST PAS. Il ne lit ni le contenu de la demande, ni son
+ * domaine, ni le mode, ni l'état OPRIE : c'est une variable d'environnement du
+ * Worker, résolue avant que le moindre octet de la demande soit regardé. Un
+ * utilisateur de production ne peut pas l'atteindre — elle ne se transmet par
+ * aucun en-tête, aucun paramètre d'URL, aucun champ de corps, et l'interface
+ * n'en connaît pas l'existence. Choisir un fournisseur reste une instruction
+ * d'opérateur, jamais une préférence exprimable par une requête.
+ *
+ * IL NE CHANGE RIEN À LA PRODUCTION. La valeur déclarée du Worker est "ha" :
+ * l'ordre de production — Groq puis Anthropic puis OpenAI — n'est pas touché, et
+ * le fournisseur primaire non plus.
+ */
+export const FAST_BENCH_PROVIDER_BINDING = "FAST_BENCH_PROVIDER";
+export const FAST_BENCH_CHAIN = "ha";
+
+export function resolveFastProviderOrder(env) {
+  const choisi = (env && env[FAST_BENCH_PROVIDER_BINDING]) || FAST_BENCH_CHAIN;
+  if (choisi === FAST_BENCH_CHAIN) return DECISION_PROVIDER_ORDER;
+  if (DECISION_PROVIDER_ORDER.includes(choisi)) return Object.freeze([choisi]);
+  const permis = [FAST_BENCH_CHAIN, ...DECISION_PROVIDER_ORDER].map((v) => `"${v}"`).join(", ");
+  throw tagFailure(
+    new Error(`${FAST_BENCH_PROVIDER_BINDING} invalide : "${choisi}" (valeurs autorisées : ${permis}).`),
+    FAILURE_CLASSES.CONTRACT_ERROR
+  );
+}
 
 /** Registre des adaptateurs. Un adaptateur = un TRANSPORT, jamais une variante de contrat. */
 export const DECISION_ADAPTERS = Object.freeze({
@@ -1787,7 +1928,7 @@ export default {
     // schéma de sortie (deux champs) est incapable de porter une readiness, une route ou un état.
     if (new URL(request.url).pathname === FAST_INTERACTION_PATHNAME) {
       return handleFastInteractionRequest(request, env, {
-        executeFast: (snapshot, fastEnv) => runFastInteractionWithHaChain(snapshot, fastEnv)
+        executeFast: (snapshot, fastEnv) => runFastInteractionWithHaChain(snapshot, fastEnv, { order: resolveFastProviderOrder(fastEnv) })
       });
     }
     if (new URL(request.url).pathname === "/operational-request") {
