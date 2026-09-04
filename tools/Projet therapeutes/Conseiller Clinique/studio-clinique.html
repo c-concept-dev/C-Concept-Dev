@@ -1512,8 +1512,15 @@
       font-style: italic; color: var(--adoc-sc-quote-color, var(--petrol-900)); margin: 1em 0;
     }
     .adoc-sc-cite { color: var(--adoc-sc-cite-color, var(--terracotta-700)); font-size: 0.7em; margin-left: 2px; }
+    .adoc-sc-cite a { color: inherit; text-decoration: underline; cursor: pointer; }
     .adoc-sc-cite-flagged { text-decoration: underline wavy #c0392b; text-underline-offset: 2px; }
     .adoc-sc-needs-review { outline: 2px dashed #c0392b; outline-offset: 3px; border-radius: 4px; }
+    /* Correctif BUG 2 (lot correctifs urgents) : notes de bas de document, cibles des ancres .adoc-sc-cite */
+    .adoc-sc-citations { margin-top: 1.6em; padding-top: 1em; border-top: 1px solid var(--adoc-sc-table-border, var(--stone-300)); font-size: 13px; }
+    .adoc-sc-citations-title { font-size: 14px; margin: 0 0 0.6em; color: var(--adoc-sc-heading-color, var(--petrol-950)); }
+    .adoc-sc-citations-list { margin: 0; padding-left: 1.4em; }
+    .adoc-sc-citations-list li { margin-bottom: 0.5em; scroll-margin-top: 16px; }
+    .adoc-sc-citation-excerpt { color: var(--muted); font-style: italic; }
     .adoc-sc-carrousel {
       display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 16px;
       scroll-snap-type: x proximity;
@@ -4174,15 +4181,32 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           adocUpdateTypingLabel(typingId, '🧩 Génération structurée (Fiche synthèse)…');
           const _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl);
           const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot);
+          // Correctif BUG 1 (lot correctifs urgents) : un document techniquement rendu mais
+          // qualité bloquante (qc.blocking non vide) n'est JAMAIS présenté comme acceptable —
+          // on déclenche le repli déjà existant (catch ci-dessous) vers l'ancien moteur plutôt
+          // que de l'afficher tel quel ou de rester silencieux.
+          if (_rendered.qc.blocking.length) {
+            throw new Error('QC bloquant (' + _rendered.qc.blocking.length + ') — ' + _rendered.qc.blocking.join(' | '));
+          }
+          // Correctif BUG 1 : retirer l'indicateur de frappe AVANT d'insérer le document —
+          // il ne se retirait jamais sur ce chemin (seul le chemin legacy l'appelait),
+          // laissant "🧩 Génération structurée…" affiché indéfiniment même en cas de succès.
+          adocRemoveTyping(typingId);
           adocAppendStructuredDocMsg(_rendered.html);
           adocConversations.push({ role: 'assistant', content: '[Fiche synthèse structurée générée : "' + _struct.doc.title + '"]' });
           adocExchangeCount++;
           window._adocLastStructuredDoc = { doc: _rendered.validatedDoc, qc: _rendered.qc };
           console.log('[UX-8A.1] Fiche structurée rendue avec succès — QC bloquant:', _rendered.qc.blocking.length);
           if (adocExchangeCount % 4 === 0) adocAccumulateSessionContext(plan, _struct.doc.title).catch(()=>{});
+          // Correctif BUG 1 : un `return` nu ici sautait le nettoyage commun en bas de
+          // fonction (drapeau adocThinking, bouton d'envoi, focus) — le bouton restait
+          // désactivé indéfiniment après une génération structurée réussie.
+          adocThinking = false;
+          document.getElementById('adoc-send-btn').disabled = false;
+          input.focus();
           return;
         } catch (_structErr) {
-          console.warn('[UX-8A.1] Génération structurée Fiche en échec, repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
+          console.warn('[UX-8A.1] Génération structurée Fiche en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
         }
       }
 
@@ -7372,11 +7396,33 @@ ${recent}`;
   //    reste visible mais marqué, jamais simplement masqué en silence. ──
   function adocCiteFootnoteHTML(links) {
     if (!links || !links.length) return '';
+    // Correctif BUG 2 (lot correctifs urgents) : chaque référence est désormais une vraie
+    // ancre cliquable (#cite-{citationId}) vers la note correspondante en bas de document
+    // (voir adocRenderCitationsFooterHTML) — choix du lien d'ancrage simple plutôt qu'un
+    // panneau de détail, suffisant pour ce lot.
     return ' <sup class="adoc-sc-cite">' + links.map(function(l) {
       const flagged = l.claimSupport !== 'pass' ? ' adoc-sc-cite-flagged' : '';
       const label = l.citationId.replace('citation-', '');
-      return '<span class="' + flagged.trim() + '" title="' + adocEsc(l.citationId + ' — ' + l.claimSupport) + '">[' + adocEsc(label) + ']</span>';
+      return '<a href="#' + adocEsc('cite-' + l.citationId) + '" class="' + flagged.trim() + '" title="' + adocEsc(l.citationId + ' — ' + l.claimSupport) + '">[' + adocEsc(label) + ']</a>';
     }).join(' ') + '</sup>';
+  }
+
+  // ── Notes de bas de document (correctif BUG 2) — une entrée par citation utilisée,
+  // ancrée sur l'id ciblé par adocCiteFootnoteHTML, avec l'extrait exact du SourceSnapshot
+  // utilisé pour la génération (jamais reconstitué, jamais résumé). ──
+  function adocRenderCitationsFooterHTML(doc, sourceSnapshot) {
+    const citations = doc.citations || [];
+    if (!citations.length) return '';
+    const entriesById = {};
+    (sourceSnapshot && sourceSnapshot.entries || []).forEach(function(e) { entriesById[e.sourceSnapshotEntryId] = e; });
+    const items = citations.map(function(c) {
+      const entry = entriesById[c.sourceSnapshotEntryId];
+      const excerpt = entry ? entry.exactText.slice(0, 300).trim() + (entry.exactText.length > 300 ? '…' : '') : '';
+      return '<li id="' + adocEsc('cite-' + c.citationId) + '"><strong>' + adocEsc(c.displayLabel) + '</strong>' +
+        (excerpt ? ' — <span class="adoc-sc-citation-excerpt">« ' + adocEsc(excerpt) + ' »</span>' : '') + '</li>';
+    }).join('');
+    return '<section class="adoc-sc-citations" aria-label="Sources"><h2 class="adoc-sc-citations-title">Sources</h2>' +
+      '<ol class="adoc-sc-citations-list">' + items + '</ol></section>';
   }
 
   // ── Rendu d'un bloc (utilisé à la racine ET imbriqué dans une card) ──
@@ -7477,6 +7523,10 @@ ${recent}`;
     else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
     else throw new Error('adocRenderClinicalDocument: aucun modèle de rendu pour documentKind "' + doc.documentKind + '" (prévu en UX-8M).');
 
+    // ── Notes de bas de document (correctif BUG 2, lot correctifs urgents) — sibling après
+    // le document (pas à l'intérieur, pour ne pas perturber le flex/overflow du Carrousel).
+    html += adocRenderCitationsFooterHTML(validated.doc, sourceSnapshot);
+
     // ── Résolution Pexels des blocs image (UX-8A.2) — RÉUTILISE le mécanisme existant et
     // éprouvé adocResolveImages (data-pexels=, cf. adocHandleReply) plutôt qu'un nouveau
     // mécanisme. html est un fragment (pas un document complet) : même patron d'enveloppe/
@@ -7516,6 +7566,12 @@ ${recent}`;
       '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
       '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
       '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
+      '.adoc-sc-cite a{color:inherit;text-decoration:underline;cursor:pointer;}' +
+      '.adoc-sc-citations{margin-top:1.6em;padding-top:1em;border-top:1px solid var(--adoc-sc-table-border,#c9c3b8);font-size:13px;}' +
+      '.adoc-sc-citations-title{font-size:14px;margin:0 0 0.6em;color:var(--adoc-sc-heading-color,#102f31);}' +
+      '.adoc-sc-citations-list{margin:0;padding-left:1.4em;}' +
+      '.adoc-sc-citations-list li{margin-bottom:0.5em;scroll-margin-top:16px;}' +
+      '.adoc-sc-citation-excerpt{color:#5d6966;font-style:italic;}' +
       '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
       '</style></head><body>' + result.html + '</body></html>';
     return { html: html, qc: result.qc, blocked: false };
@@ -7613,7 +7669,25 @@ ${recent}`;
     },
   };
 
+  // Correctif BUG 3 (lot correctifs urgents) : vérification post-génération — ne pas se
+  // reposer uniquement sur la consigne du prompt système, qui peut être ignorée par le
+  // modèle. Retire tout emoji/pictogramme/symbole décoratif Unicode d'un texte produit
+  // (ex. ronds de couleur 🔴🔵⚫ utilisés comme indicateurs dans un tableau, interdits par
+  // le CDC comme sur l'ancien moteur). Plage volontairement large (émoticônes, symboles
+  // divers, pictogrammes, transport, drapeaux, sélecteurs de variation) plutôt qu'une
+  // liste blanche fragile.
+  const ADOC_EMOJI_RE = /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}️‍]/gu;
+  let _adocEmojiStrippedCount = 0;
+  function adocStripEmoji(s) {
+    if (typeof s !== 'string' || !s) return s;
+    if (!ADOC_EMOJI_RE.test(s)) return s;
+    ADOC_EMOJI_RE.lastIndex = 0;
+    _adocEmojiStrippedCount++;
+    return s.replace(ADOC_EMOJI_RE, '').replace(/ {2,}/g, ' ').trim();
+  }
+
   async function adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl) {
+    _adocEmojiStrippedCount = 0;
     const sourceSnapshot = await adocBuildSourceSnapshotFromRAG(ragResult);
     if (!sourceSnapshot.entries.length) {
       throw new Error('Aucun passage RAG disponible pour sourcer une fiche structurée.');
@@ -7635,7 +7709,11 @@ ${recent}`;
       "clinique ou pédagogique réelle au propos — jamais par défaut, jamais pour \"décorer\". " +
       "Jamais de photo générique ou caricaturale de stock (ex. poignée de main souriante, couple " +
       'anonyme qui se dispute face caméra) : imageQuery doit être une requête Pexels concrète et ' +
-      "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".";
+      "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".\n\n" +
+      '── TEXTE (lot correctifs urgents) ──\n' +
+      "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+      "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre " +
+      'uniquement, y compris dans les tableaux (pas de 🔴🟢⚫ comme indicateur : utilise un mot).';
 
     // ── Premier appel — web_search en libre décision (récupère le trio bibliothèque + web + IA) ──
     // Même patron que le moteur legacy (tool_choice:'auto', cf. adocRunContinuationRound /
@@ -7645,21 +7723,31 @@ ${recent}`;
     let usedWebSearch = false;
     let webFindings = '';
     try {
-      const searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payload: {
-            provider: 'anthropic',
-            model: 'claude-sonnet-4-6',
-            max_tokens: 4000,
-            system: baseStructuredSystemPrompt,
-            messages: [{ role: 'user', content: text }],
-            tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-            tool_choice: { type: 'auto' },
-          },
-        }),
-      });
+      // Correctif BUG 1 (lot correctifs urgents) : timeout explicite — jamais une attente
+      // infinie sur cet appel, qui n'est de toute façon qu'une décision préalable optionnelle.
+      const _searchCtrl = new AbortController();
+      const _searchTid = setTimeout(() => _searchCtrl.abort(), 20000);
+      let searchResp;
+      try {
+        searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payload: {
+              provider: 'anthropic',
+              model: 'claude-sonnet-4-6',
+              max_tokens: 4000,
+              system: baseStructuredSystemPrompt,
+              messages: [{ role: 'user', content: text }],
+              tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+              tool_choice: { type: 'auto' },
+            },
+          }),
+          signal: _searchCtrl.signal,
+        });
+      } finally {
+        clearTimeout(_searchTid);
+      }
       if (searchResp.ok) {
         const searchData = await searchResp.json();
         const searchContent = searchData.content || [];
@@ -7694,21 +7782,35 @@ ${recent}`;
           'que sur ce complément web.\n\n' + webFindings
         : '');
 
-    const resp = await fetch(workerUrl.replace(/\/+$/, ''), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        payload: {
-          provider: 'anthropic',
-          model: 'claude-sonnet-4-6',
-          max_tokens: 8000,
-          system: structuredSystemPrompt,
-          messages: [{ role: 'user', content: text }],
-          tools: [ADOC_STRUCTURED_FICHE_TOOL],
-          tool_choice: { type: 'tool', name: 'emit_fiche_document' },
-        },
-      }),
-    });
+    // Correctif BUG 1 (lot correctifs urgents) : timeout explicite sur l'appel critique —
+    // en cas de dépassement, l'erreur remonte au catch existant (repli automatique sur
+    // l'ancien moteur, cf. point d'appel ci-dessus) au lieu de laisser l'attente indéfinie.
+    const _genCtrl = new AbortController();
+    const _genTid = setTimeout(() => _genCtrl.abort(), 45000);
+    let resp;
+    try {
+      resp = await fetch(workerUrl.replace(/\/+$/, ''), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload: {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-6',
+            max_tokens: 8000,
+            system: structuredSystemPrompt,
+            messages: [{ role: 'user', content: text }],
+            tools: [ADOC_STRUCTURED_FICHE_TOOL],
+            tool_choice: { type: 'tool', name: 'emit_fiche_document' },
+          },
+        }),
+        signal: _genCtrl.signal,
+      });
+    } catch (_genErr) {
+      if (_genErr && _genErr.name === 'AbortError') throw new Error('Génération structurée : délai dépassé (>45s), abandon.');
+      throw _genErr;
+    } finally {
+      clearTimeout(_genTid);
+    }
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     const toolUse = (data.content || []).find(function(b) { return b.type === 'tool_use' && b.name === 'emit_fiche_document'; });
@@ -7732,16 +7834,19 @@ ${recent}`;
       blockSeq++;
       const id = (b.type || 'block') + '-' + String(blockSeq).padStart(2, '0');
       let content;
+      // Correctif BUG 3 : passage systématique par adocStripEmoji sur tout champ texte,
+      // avant même la validation de schéma — la consigne du prompt système reste la
+      // première ligne de défense, celle-ci est le filet de sécurité.
       switch (b.type) {
-        case 'heading': content = { text: b.text || '', level: [1, 2, 3].indexOf(b.level) !== -1 ? b.level : 2 }; break;
-        case 'paragraph': content = { text: b.text || '' }; break;
-        case 'callout': content = { text: b.text || '', visualRole: ['info', 'warning', 'critical', 'success'].indexOf(b.visualRole) !== -1 ? b.visualRole : 'info' }; break;
-        case 'list': content = { items: (b.items || []).filter(Boolean), ordered: !!b.ordered }; break;
-        case 'table': content = { headers: b.headers || [], rows: b.rows || [] }; break;
-        case 'quote': content = { text: b.text || '' }; break;
+        case 'heading': content = { text: adocStripEmoji(b.text || ''), level: [1, 2, 3].indexOf(b.level) !== -1 ? b.level : 2 }; break;
+        case 'paragraph': content = { text: adocStripEmoji(b.text || '') }; break;
+        case 'callout': content = { text: adocStripEmoji(b.text || ''), visualRole: ['info', 'warning', 'critical', 'success'].indexOf(b.visualRole) !== -1 ? b.visualRole : 'info' }; break;
+        case 'list': content = { items: (b.items || []).filter(Boolean).map(adocStripEmoji), ordered: !!b.ordered }; break;
+        case 'table': content = { headers: (b.headers || []).map(adocStripEmoji), rows: (b.rows || []).map(function(r) { return (r || []).map(adocStripEmoji); }) }; break;
+        case 'quote': content = { text: adocStripEmoji(b.text || '') }; break;
         case 'image': {
           const q = (b.imageQuery || '').trim();
-          const alt = (b.imageAlt || '').trim();
+          const alt = adocStripEmoji((b.imageAlt || '').trim());
           if (!q || !alt) return null; // pas exploitable sans requête ET texte alternatif — jamais un bloc image à moitié rempli
           content = { query: q, alt: alt };
           break;
@@ -7762,6 +7867,7 @@ ${recent}`;
     }).filter(Boolean);
 
     if (!blocks.length) throw new Error('Le modèle a produit un document structuré sans bloc exploitable.');
+    if (_adocEmojiStrippedCount) console.log('[UX-8A.2] emoji(s)/pictogramme(s) retiré(s) du texte produit — ' + _adocEmojiStrippedCount + ' champ(s) concerné(s).');
 
     const citations = Object.keys(citationsById).map(function(entryId) {
       const entry = sourceSnapshot.entries.filter(function(e) { return e.sourceSnapshotEntryId === entryId; })[0];
