@@ -344,7 +344,7 @@ test('T-FORMATSTRUCT-REGISTRE : le registre de dettes est persistant, exact et n
   const registre = fs.readFileSync(path.join(root, 'docs/OPEN-DEBTS.md'), 'utf8');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   const ids = [...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]);
-  assert.deepEqual(ids, ['PERF-REAL-01', 'EXEC-PHASE-INSTRUMENT-01'], 'deux dettes ouvertes, nommées.');
+  assert.deepEqual(ids, ['PERF-REAL-01'], 'une seule dette ouverte demeure, nommée.');
   assert.match(registre, /FORMAT-STRUCT-01 \| FORMAT-STRUCT-01/, 'et FORMAT-STRUCT-01 est déclarée fermée.');
   assert.match(registre, /ORCH-LEGACY-CLEAN-01 \| CLEAN-01/);
   /* Il n'est lu par aucun code : ce n'est pas une autorité. */

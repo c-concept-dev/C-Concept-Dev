@@ -20739,7 +20739,29 @@ function oprieBeginExecutionCycle(turnId,canonicalVersion){
   oprieMark('execution_cycle_begin',{execution_id:verdict.execution_id});
   return verdict.execution_id;
 }
-/* Un cycle est-il déjà ouvert pour ce tour ? C'est la seule question que pose le garde d'entrée. */
+/* EXEC-PHASE-INSTRUMENT-01 — CE QUE LE CYCLE D'EXÉCUTION OBSERVE, ET CE QU'IL N'OBSERVE PAS.
+ *
+ * Ce commentaire décrivait `oprieExecutionCycleOpen`, retirée par CLEAN-02 faute d'appelant ;
+ * il est resté au-dessus d'une fonction qu'il ne décrit pas. Voici ce qui est vrai.
+ *
+ * Le cycle est OUVERT ici, une fois par tour, au seul endroit du produit qui pose le contrat
+ * canonique — et il n'est rien fait de plus : ni phase parcourue, ni tentative fournisseur
+ * enregistrée, ni verdict terminal appliqué. Ce n'est pas un oubli, c'est une CONSÉQUENCE.
+ *
+ * Le noyau de cycle connaît cinq phases — READINESS, PROMPT_QG, EXECUTION, OUTPUT_QG,
+ * TERMINAL — et les impose dans un ordre strict : entrer dans l'une exige d'avoir traversé
+ * la précédente, et sauter en refuse l'entrée (PHASE_SKIPPED). Or trois de ces cinq phases
+ * se produisent à l'intérieur d'UN SEUL appel, `archConstruireExecuter`, situé dans la plage
+ * GELÉE du moteur Architecte. Les distinguer exigerait de modifier cette plage.
+ *
+ * Le résultat est net : on ne peut pas parcourir la moitié d'une machine à phases dont l'ordre
+ * est strict. Soit on les traverse toutes, soit aucune. Prétendre instrumenter les phases
+ * internes alors que trois d'entre elles sont indiscernables depuis l'extérieur serait une
+ * preuve inventée — et une preuve inventée est pire que pas de preuve.
+ *
+ * Ce qui EST prouvé se trouve à la frontière, et suffit à ce dont le produit dépend : le cycle
+ * s'ouvre exactement une fois par tour, un tour périmé ne le rouvre pas, un rejeu ne le
+ * duplique pas, et l'exécution réelle est protégée par son propre garde de ré-entrée. */
 function oprieDriveOrchestration(decision,turn,requestedMode){
   const runtime=oprieOrchestrationRuntime();
   const action=decision&&decision.action;

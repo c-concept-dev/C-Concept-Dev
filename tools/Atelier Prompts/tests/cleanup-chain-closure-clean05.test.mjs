@@ -248,9 +248,11 @@ test('T-CLEAN05-17 : aucun marqueur de travail inachevé dans le produit', () =>
 test('T-CLEAN05-18/19/20 : les dettes ouvertes sont nommées par le registre, et aucune autre', () => {
   /* CLEAN-05 déclarait trois dettes dans son propre fichier. FORMAT-STRUCT-01 en a
      fermé une ET créé le registre persistant : la liste est désormais LUE, pas recopiée. */
-  assert.equal(DETTES_OUVERTES.length, 2);
-  assert.deepEqual([...DETTES_OUVERTES], ['PERF-REAL-01', 'EXEC-PHASE-INSTRUMENT-01']);
-  assert.deepEqual([...DETTES_FERMEES].sort(), ['FORMAT-STRUCT-01', 'ORCH-LEGACY-CLEAN-01']);
+  /* EXEC-PHASE-INSTRUMENT-01 a fermé la sienne à son tour : il n'en reste qu'une. */
+  assert.equal(DETTES_OUVERTES.length, 1);
+  assert.deepEqual([...DETTES_OUVERTES], ['PERF-REAL-01']);
+  assert.deepEqual([...DETTES_FERMEES].sort(),
+    ['EXEC-PHASE-INSTRUMENT-01', 'FORMAT-STRUCT-01', 'ORCH-LEGACY-CLEAN-01']);
   /* Aucun identifiant de dette du dépôt n'est en dehors des trois ouvertes et
      de celles que la chaîne CLEAN a refermées. */
   const tout = [html, ...FICHIERS_TEST.map((f) => fs.readFileSync(path.join(root, 'tests', f), 'utf8'))].join('\n');
