@@ -3670,7 +3670,11 @@ RÈGLES ABSOLUES :
         + "INTERDIT : backticks ```html ou ```excel, \"Je vais generer\", tout preambule ou commentaire.\n"
         + "OBLIGATOIRE : premiere ligne = <!DOCTYPE html> — rien avant. Derniere ligne = </html>.\n"
         + "Le fichier vivra SEUL dans un navigateur. Consequences :\n"
-        + "-> [REF:n] illisible hors app. Remplace par <sup title=\"Auteur, p.XX\">n</sup>.\n"
+        + "-> CITATIONS OBLIGATOIRES, jamais une mention nue : chaque affirmation sourcee porte "
+        + "<sup title=\"Auteur, p.XX\">n</sup> juste apres elle (numerotation continue 1,2,3...). "
+        + "INTERDIT : \"(Young)\", \"(Bowlby)\" ou toute parenthese nue sans cette balise — "
+        + "[REF:n] illisible hors app, ET une simple parenthese ne donne aucune source verifiable "
+        + "au lecteur du fichier autonome.\n"
         + "-> Charte C Concept&Dev OBLIGATOIRE : IBM Plex Sans (titres Source Serif 4) + :root { --mer:#1f5053; --deep:#102f31;\n"
         + "   --vert-sauge:#c9c3b8; --beige:#ddd7cc; --sable:#f6f2ea; --surf:#f6f2ea;\n"
         + "   --text:#273331; --muted:#5d6966; --blanc:#FFFFFF } (valeurs en dur — le document vit seul)\n"
@@ -3704,7 +3708,10 @@ RÈGLES ABSOLUES :
         + "(ne les laisse jamais UNIQUEMENT dans le HTML, elles doivent aussi être structurées ici pour l'export xlsx) :\n"
         + "-> sections : si les lignes se regroupent naturellement en blocs thematiques, un objet par bloc avec "
         + "startRow = index (0-based) de la 1re ligne du bloc dans 'rows'. N'invente rien si les lignes ne forment "
-        + "pas de blocs naturels.\n"
+        + "pas de blocs naturels. Le titre de section (sections[].title) ne doit JAMAIS aussi apparaitre comme une "
+        + "ligne de 'rows' — la section elle-meme porte deja ce titre, une ligne qui le repeterait (1re colonne = "
+        + "titre, colonnes suivantes vides) est un doublon interdit : 'rows' contient UNIQUEMENT des lignes de "
+        + "donnees, jamais un titre de section.\n"
         + "-> columnSummaries : UNIQUEMENT pour un tableau qui COMPARE plusieurs approches/entites en colonnes "
         + "(ex. EMDR / ICV / IFS) — un objet par colonne comparee (jamais la 1re colonne \"critere\") avec son "
         + "accroche et sa description de synthese.\n"
@@ -3899,6 +3906,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   async function adocFinalizeGeneration(streamMsgId, reply, plan, ragResult) {
     await adocHandleReply(reply, plan, ragResult?.chunks || []);
     if (adocLastUsage) adocShowCost(streamMsgId, adocLastUsage);
+    // FIX-STREAM-BUBBLE-DOUBLON : adocHandleReply insère TOUJOURS un nouvel élément (bulle
+    // formatée via adocAddMsg, ou carte artifact via adocDeliverArtifact) sans jamais retirer
+    // la bulle de streaming (streamMsgId) qui affichait le texte brut pendant la génération —
+    // les deux coexistaient, contenu dupliqué à l'écran. Retirée seulement APRÈS adocShowCost
+    // (qui a besoin de l'élément pour comptabiliser le coût, cf. adocShowCost) : le badge de
+    // coût est donc calculé avant que la bulle ne disparaisse, sans effet visible (même tick
+    // JS synchrone que l'ajout du nouveau contenu, aucun scintillement).
+    document.getElementById(streamMsgId)?.remove();
     adocConversations.push({ role: 'assistant', content: reply });
     adocExchangeCount++;
     if (adocExchangeCount % 4 === 0 && adocExchangeCount > 0) {
@@ -4627,7 +4642,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     // ── Formats HTML-first : PDF, ZIP, HTML natif ──
     if (isResolvedHtml) {
-      const repairedHtml = adocRepairHTML(resolvedTrimmed);
+      // FIX-EMOJI-LEGACY : adocStripEmoji existait déjà et était appliqué systématiquement
+      // pour le moteur structuré (Fiche synthèse), mais jamais pour ce chemin "ancien moteur"
+      // partagé par Carrousel, Liens transversaux, cours, document — constaté sur deux vrais
+      // documents (24 emojis sur un Liens transversaux, 5 sur un Carrousel), alors que le CDC
+      // interdit les emojis décoratifs sur les deux moteurs, pas seulement le nouveau. Filtre
+      // Unicode uniquement (plages emoji) : sans effet sur la structure HTML (balises,
+      // attributs, JSON éventuel), donc sûr à appliquer sur le document entier plutôt que sur
+      // chaque champ texte séparément comme le fait le moteur structuré.
+      const repairedHtml = adocStripEmoji(adocRepairHTML(resolvedTrimmed));
       if (fmt === 'pdf') {
         await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'pdf', citations, autoGenerate: true });
       } else if (fmt === 'html-visual') {
@@ -4808,6 +4831,42 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   }
 
 
+  // FIX-XLSX-SECTION-DOUBLON : le modèle inclut parfois le titre de section à deux endroits —
+  // correctement dans `sections` (ligne fusionnée/mise en évidence), ET par erreur comme
+  // 1re ligne de données de cette même section (ligne fantôme, colonnes suivantes vides).
+  // Filtre défensif : supprime toute ligne dont la 1re colonne correspond (numérotation "NN — "
+  // ignorée) au titre d'une section ET dont toutes les autres colonnes sont vides, puis réindexe
+  // les startRow en conséquence — nécessaire même si le prompt est renforcé, pour garantir
+  // qu'aucun doublon ne passe si le modèle se trompe quand même.
+  function adocStripSectionNumbering(s) {
+    return String(s || '').replace(/^\s*\d+\s*[—\-–]\s*/, '').trim().toLowerCase();
+  }
+  function adocFilterGhostSectionRows(rows, sections) {
+    if (!Array.isArray(rows) || !rows.length || !Array.isArray(sections) || !sections.length) {
+      return { rows, sections };
+    }
+    const titles = sections.map(s => adocStripSectionNumbering(s?.title)).filter(Boolean);
+    const ghostIndices = [];
+    rows.forEach((r, i) => {
+      if (!Array.isArray(r) || !r.length) return;
+      const first = String(r[0] || '').trim();
+      if (!first) return;
+      const restEmpty = r.slice(1).every(c => !String(c || '').trim());
+      if (!restEmpty) return;
+      if (titles.includes(adocStripSectionNumbering(first))) ghostIndices.push(i);
+    });
+    if (!ghostIndices.length) return { rows, sections };
+    const ghostSet = new Set(ghostIndices);
+    const filteredRows = rows.filter((_, i) => !ghostSet.has(i));
+    const reindexedSections = sections.map(s => {
+      if (typeof s?.startRow !== 'number') return s;
+      const removedBefore = ghostIndices.filter(gi => gi < s.startRow).length;
+      return { ...s, startRow: s.startRow - removedBefore };
+    });
+    console.warn('[FIX-XLSX-SECTION-DOUBLON]', ghostIndices.length, 'ligne(s) fantôme(s) de titre de section supprimée(s) avant export xlsx.');
+    return { rows: filteredRows, sections: reindexedSections };
+  }
+
   async function adocDeliverArtifact({ html, markdown, topic, fmt, citations, autoGenerate }) {
     const meta = ARTIFACT_META[fmt] || ARTIFACT_META.html;
     const safeName = (topic || 'document')
@@ -4871,6 +4930,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           legend = Array.isArray(xlsxJson.legend) ? xlsxJson.legend : null;
         } else {
           ({ headers, rows } = adocParseXlsxTable(markdown));
+        }
+        // FIX-XLSX-SECTION-DOUBLON : retire toute ligne fantôme (titre de section répété en
+        // ligne de données) avant construction des feuilles — cf. définition de la fonction
+        // pour le détail du bug et pourquoi un filtre défensif est nécessaire en plus du prompt.
+        if (sections?.length) {
+          ({ rows, sections } = adocFilterGhostSectionRows(rows, sections));
         }
         // FIX-XLSX-DETTE : taglines/descriptions par approche, légende de lecture et
         // regroupement en sections existaient déjà côté modèle (visibles dans le rendu HTML)
@@ -5463,7 +5528,10 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (role === 'assistant' && citations?.length) {
       citeHtml = '<div class="adoc-citations">' +
         citations.slice(0, 5).map(c =>
-          `<div class="adoc-cite"><span>📚</span><span><span class="adoc-cite-book">${adocEsc(c.book_title||'Référence')}</span> — ${adocEsc(c.author||'')}</span><span class="adoc-cite-score">${c.score?Math.round(c.score*100)+'%':''}</span></div>`
+          // FIX-CITE-SCORE : c.score n'existe jamais sur les chunks RAG — le champ réellement
+          // peuplé partout ailleurs dans le pipeline est c._score (cf. adocShowArtifactCard,
+          // adocBuildSourceSnapshotFromRAG) — le badge de score n'apparaissait donc jamais ici.
+          `<div class="adoc-cite"><span>📚</span><span><span class="adoc-cite-book">${adocEsc(c.book_title||'Référence')}</span> — ${adocEsc(c.author||'')}</span><span class="adoc-cite-score">${c._score?Math.round(c._score*100)+'%':''}</span></div>`
         ).join('') + '</div>';
     }
 
@@ -5483,7 +5551,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       const ref = map[parseInt(n)];
       if (!ref) return '';
       const tip = `${ref.book_title}${ref.author ? ' — ' + ref.author : ''}${ref.page_number ? ', p.' + ref.page_number : ''}`;
-      return `<sup class="adoc-ref" data-ref="${n}" title="${tip.replace(/"/g,"'")}" onclick="adocShowRefPanel(${n},${JSON.stringify(map).replace(/"/g,"'")})">${n}</sup>`;
+      // FIX-REF-INJECTION : le texte généré par le modèle (titres, auteurs, extraits — donc
+      // potentiellement des apostrophes françaises : "n'oublie pas", "l'attachement"…) était
+      // injecté dans un attribut onclick via un remplacement naïf des guillemets par des
+      // apostrophes (`.replace(/"/g,"'")`), ce qui casse la syntaxe JS dès qu'une apostrophe
+      // réelle apparaît dans la donnée (SyntaxError AU CLIC — le navigateur compile l'attribut
+      // onclick à la demande — panneau de référence jamais ouvert). adocEsc échappe correctement
+      // pour un contexte attribut HTML (guillemets → &quot;) : le navigateur les redécode avant
+      // de parser le JS, et adocShowRefPanel reçoit alors un vrai littéral objet (déjà géré par
+      // son `typeof refMapStr === 'object'`) — aucune apostrophe, si nombreuse soit-elle, ne
+      // peut plus casser la syntaxe.
+      return `<sup class="adoc-ref" data-ref="${n}" title="${adocEsc(tip)}" onclick="adocShowRefPanel(${n},${adocEsc(JSON.stringify(map))})">${n}</sup>`;
     });
   }
 
@@ -6841,6 +6919,10 @@ ${recent}`;
       // standard côté appelant, à l'opposé du choix explicite de la thérapeute.
       finalText = 'Document interrompu à la demande de la thérapeute avant la fin du premier chapitre — aucun contenu complet à afficher pour l\'instant.';
     }
+    // FIX-EMOJI-LEGACY : même filtre que le chemin HTML-first (cf. adocHandleReply) — les
+    // documents longs (cours/document, potentiellement Liens transversaux selon l'intent
+    // détecté par le planner) partagent ce risque d'emojis décoratifs jamais filtrés.
+    finalText = adocStripEmoji(finalText);
     // FIX-LONGDOC-REF : résoudre les [REF:n] en citations cliquables avant rendu final
     const fullDocRendered = (typeof adocRenderCiteInline === 'function')
       ? adocRenderCiteInline(finalText, adocLastRefMap)
