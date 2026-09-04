@@ -56317,7 +56317,10 @@ async function handleGenerateXLSX(request2, env2) {
     workbook.creator = "C Concept&Dev";
     workbook.created = /* @__PURE__ */ new Date();
     for (const sheetDef of content.sheets) {
-      const sheet = workbook.addWorksheet(sheetDef.name || "Feuille 1");
+      // FIX-XLSX-SHEETNAME : Excel interdit \ / ? * [ ] : dans un nom de feuille (crash sinon,
+      // ex. sujet "EMDR / ICV / IFS" utilisé tel quel comme nom) — jamais nettoyé auparavant.
+      const safeSheetName = String(sheetDef.name || "Feuille 1").replace(/[\\/?*[\]:]/g, "-").trim().substring(0, 31) || "Feuille 1";
+      const sheet = workbook.addWorksheet(safeSheetName);
       if (sheetDef.headers) {
         sheet.columns = sheetDef.headers.map((h, i) => ({
           header: h,
@@ -56333,13 +56336,36 @@ async function handleGenerateXLSX(request2, env2) {
         });
         headerRow.height = 22;
       }
+      // FIX-XLSX-DETTE : titres de section optionnels (sheetDef.sections = [{title, startRow}]) —
+      // une ligne fusionnée et mise en évidence insérée avant la 1re ligne de chaque bloc, pour
+      // regrouper les lignes de comparaison au lieu d'une liste plate (perte réelle d'information
+      // de synthèse constatée entre le rendu HTML et l'export xlsx d'origine, pas juste un style).
+      const sectionByStartRow = new Map(
+        (sheetDef.sections || [])
+          .filter((s) => s && typeof s.startRow === "number" && s.title)
+          .map((s) => [s.startRow, s.title])
+      );
+      const nCols = sheetDef.headers?.length || Math.max(1, ...(sheetDef.rows || []).map((r) => r.length));
+      let stripe = 0;
       for (let ri = 0; ri < (sheetDef.rows || []).length; ri++) {
+        if (sectionByStartRow.has(ri)) {
+          const sectionRow = sheet.addRow([sectionByStartRow.get(ri)]);
+          if (nCols > 1) sheet.mergeCells(sectionRow.number, 1, sectionRow.number, nCols);
+          sectionRow.eachCell((cell) => {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.vertSauge } };
+            cell.font = { bold: true, color: { argb: "FF" + C_CONCEPT_COLORS.deep }, name: "Calibri", size: 11 };
+            cell.alignment = { horizontal: "left", vertical: "middle" };
+          });
+          sectionRow.height = 20;
+          stripe = 0; // repart à zéro pour que le zébrage recommence proprement à chaque bloc
+        }
         const excelRow = sheet.addRow(sheetDef.rows[ri]);
-        if (ri % 2 === 0) {
+        if (stripe % 2 === 0) {
           excelRow.eachCell((cell) => {
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C_CONCEPT_COLORS.sable } }; // sable charte
           });
         }
+        stripe++;
         excelRow.eachCell((cell) => {
           cell.alignment = { vertical: "middle" };
           cell.font = { name: "Calibri", size: 10 };
