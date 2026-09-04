@@ -174,6 +174,35 @@ export const ROLE_GROQ_RETRY_POLICIES = Object.freeze({
 });
 
 /**
+ * PERF-REAL-01F — LE PLAN RAPIDE N'ATTEND PAS UNE CAPACITÉ, IL EN CHANGE.
+ *
+ * Ce plafond suit la MÊME règle que Decision et les rôles OPRIE : attendre Groq
+ * n'a de sens que si l'attente annoncée est inférieure au coût d'une bascule.
+ * Il s'en distingue sur un point, et il faut le dire : les quatre autres valeurs
+ * sont dérivées d'une latence de bascule MESURÉE, alors que la latence Anthropic
+ * du plan rapide n'a jamais été observée — aucune requête rapide n'avait atteint
+ * Anthropic avant ce lot, faute d'un 429 qui déclenche la bascule.
+ *
+ * La décision produit de PERF-REAL-01F tranche donc en amont de la mesure : un
+ * 429 est un signal de CAPACITÉ, pas une panne, et le plan rapide y répond en
+ * changeant de fournisseur plutôt qu'en payant l'attente. maxRetryWaitMs = 0
+ * exprime exactement cela — toute attente annoncée dépasse le plafond, la reprise
+ * est abandonnée immédiatement, sans dormir, et la chaîne HA existante prend le
+ * relais dans son ordre inchangé.
+ *
+ * CE QUE CE PLAFOND NE FAIT PAS : il ne touche ni à maxRetries, ni au Retry-After
+ * lui-même, ni à la marge de 750 ms, ni aux classes d'éligibilité. Il ne s'applique
+ * qu'au plan rapide : Decision, Analyste, Critique et Arbitre conservent leurs
+ * plafonds mesurés, à l'octet près.
+ *
+ * CE QU'IL RESTE À VÉRIFIER, et que ce lot mesure : si la bascule vers Anthropic
+ * coûte plus que les 1 750 à 2 750 ms d'attente observés, alors ne pas attendre
+ * est dominé, et le plafond devra être recalibré par la même règle — à partir de
+ * la mesure que ce lot produit.
+ */
+export const FAST_GROQ_RETRY_POLICY = Object.freeze({ maxRetryWaitMs: 0 });
+
+/**
  * Exécute fetch(url, requestInit) avec reprise automatique sur HTTP 429 : même appel, même corps,
  * après avoir attendu le délai indiqué par le provider (+ marge de sécurité) ou un repli fixe si
  * aucun délai n'est exploitable. Borné par maxRetries. Signature et comportement identiques à
@@ -319,14 +348,31 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     // diagnostic cesse de mentir. `exhausted` est posé par fetchGroqWithRetry elle-même (seul chemin
     // 429 épuisé), jamais deviné ici.
     if (retryExhaustedError?.exhausted === true) {
-      console.error({ event: "groq_rate_limit_exhausted", retries: retryExhaustedError.retries, rate_limited_wait_ms: retryExhaustedError.rate_limited_wait_ms });
+      /* PERF-REAL-01F — UN 429 EST UN SIGNAL DE CAPACITÉ, PAS UNE PANNE. La classe
+         d'échec reste TECHNICAL_FAILOVER, donc la bascule est inchangée ; ce qui
+         change est ce que la télémétrie en dit. Un fournisseur qui annonce sa
+         limite fonctionne : le confondre avec une panne fausserait toute lecture
+         de sa fiabilité. `attente_evitee_ms` est CONTREFACTUELLE — c'est le délai
+         que l'ancien contrat aurait payé, jamais une latence observée. */
+      console.error({
+        event: "groq_rate_limit_exhausted",
+        provider_outcome: "CAPACITY_SIGNAL",
+        capacity_signal: true,
+        retries: retryExhaustedError.retries,
+        rate_limited_wait_ms: retryExhaustedError.rate_limited_wait_ms,
+        attente_annoncee_ms: retryExhaustedError.announced_wait_ms ?? null,
+        attente_evitee_ms: retryExhaustedError.wait_too_long === true
+          ? (retryExhaustedError.announced_wait_ms ?? null)
+          : 0,
+        abandon_immediat: retryExhaustedError.wait_too_long === true
+      });
       throw tagFailure(
         new Error(`Groq HTTP 429 : limite de débit non résolue après ${retryExhaustedError.retries ?? 0} tentative(s) de reprise.`),
         FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq" }
       );
     }
     const errorName = String(retryExhaustedError?.name || "unknown");
-    console.error({ event: "groq_transport_error", error_name: errorName });
+    console.error({ event: "groq_transport_error", provider_outcome: "FAILURE", capacity_signal: false, error_name: errorName });
     throw tagFailure(new Error(`Groq : échec de transport (${errorName}).`), FAILURE_CLASSES.TECHNICAL_FAILOVER, { provider: "groq" });
   }
   // 3F.3.3-X2-BATCH-R2.1 (CORRECTION double-pacing) : fetchGroqWithRetry attend déjà, en interne,
@@ -413,6 +459,8 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   };
   console.log(JSON.stringify({
     event: "groq_usage_observation",
+    provider_outcome: "SUCCESS",
+    capacity_signal: false,
     jetons_entree: consommation.entree,
     jetons_sortie: consommation.sortie,
     jetons_total: consommation.total,
@@ -982,7 +1030,8 @@ export const FAST_INTERACTION_ADAPTERS = Object.freeze({
     schemaName: "fast_interaction",
     env,
     maxCompletionTokens: 512,
-    pacer: createGroqRateLimitPacer()
+    pacer: createGroqRateLimitPacer(),
+    retryOverrides: FAST_GROQ_RETRY_POLICY
   }),
   anthropic: (snapshot, env) => callAnthropicMessages({
     systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,

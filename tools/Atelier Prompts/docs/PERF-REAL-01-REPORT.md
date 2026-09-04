@@ -756,3 +756,130 @@ TOKEN_REDUCTION_PERCENT              = 0 (aucune réduction appliquée)
 PERF_REAL_01E_VERDICT                = BLOCKED
 PERF_REAL_01_STATUS                  = OPEN / DEGRADED
 ```
+
+---
+
+# PERF-REAL-01F — la bascule coûte plus cher que l'attente
+
+**Le mécanisme fonctionne exactement comme prévu. Le résultat est moins bon.
+p95 3 394,9 → 3 947 ms. La dette reste ouverte, et le lot livre enfin le chiffre
+qui manquait pour décider.**
+
+## Le changement
+
+| | Avant | Après |
+| --- | --- | --- |
+| Classification du 429 | `TECHNICAL_FAILOVER` après épuisement | **`CAPACITY_SIGNAL`** (classe d'échec inchangée) |
+| Comportement | attendre `Retry-After` + 750 ms, puis retenter Groq | **abandon immédiat, sans dormir** |
+| Plafond d'attente du plan rapide | `Infinity` (défaut hérité) | **0** |
+| Ordre des fournisseurs | groq → anthropic → openai | **inchangé** |
+| Portée | — | **plan rapide seul** — Decision, Analyste, Critique et Arbitre gardent leurs plafonds mesurés |
+
+Le changement tient en une constante, `FAST_GROQ_RETRY_POLICY = { maxRetryWaitMs: 0 }`,
+et emploie un mécanisme que HA-02 avait déjà construit pour ce cas exact : « un
+appelant interactif peut décider qu'attendre plus longtemps que le coût d'une
+bascule n'a aucun sens ». Ni `maxRetries`, ni le `Retry-After`, ni la marge de
+750 ms, ni les classes d'éligibilité ne bougent.
+
+## Un 429 n'est pas une panne
+
+La télémétrie distingue désormais trois issues — `SUCCESS`, `CAPACITY_SIGNAL`,
+`FAILURE`. Un fournisseur qui annonce sa limite **fonctionne** ; le compter
+comme défaillant fausserait toute lecture de sa fiabilité.
+
+| Fournisseur | Invocations | Succès | Signaux de capacité | **Pannes** |
+| --- | --- | --- | --- | --- |
+| Groq | 48 | 40 | **8** | **0** |
+| Anthropic | 8 | 8 | 0 | **0** |
+| OpenAI | 0 | 0 | 0 | 0 |
+
+`GROQ_RELIABILITY_FAILURE_COUNT = 0`. Groq n'a pas failli une seule fois : il a
+dit huit fois qu'il était plein.
+
+## Le mécanisme, vérifié
+
+| Mesure | Valeur |
+| --- | --- |
+| Signaux de capacité | 8 |
+| Bascules groq → anthropic | **8 / 8** |
+| Bascules anthropic → openai | 0 |
+| Reprises sur le même fournisseur | **0** |
+| Attente de reprise réellement payée | **0 ms** (49 750 ms en 01D) |
+| Attente évitée (contrefactuelle) | 22 000 ms |
+| Attribution | **48 / 48** sur les quatre dimensions, 0 anomalie |
+
+L'attente évitée est **contrefactuelle** : c'est ce que l'ancien contrat aurait
+payé. Elle ne s'additionne à aucune latence observée, et ce rapport ne l'utilise
+nulle part comme un gain de temps.
+
+## Le résultat
+
+| Mesure | 01D | **01F** |
+| --- | --- | --- |
+| p50 | 527,5 ms | **416,1 ms** |
+| **p95** | 3 394,9 ms | **3 947,0 ms** |
+| max | 3 641,8 ms | **5 027,0 ms** |
+| Échantillons > 5 s | 0 | **1** |
+| 429 | 21 | 8 |
+| Attente de reprise | 49 750 ms | 0 ms |
+
+La médiane s'améliore — moins de 429, parce que huit appels partis chez Anthropic
+ont soulagé le budget de Groq. Le p95 se dégrade, et pour la première fois de la
+série un échantillon dépasse cinq secondes.
+
+## Pourquoi : la première mesure réelle d'Anthropic
+
+Aucune requête rapide n'avait jamais atteint Anthropic — faute d'un 429 qui
+déclenche la bascule. Ce lot produit ce chiffre.
+
+| | n | min | p50 | p95 | max |
+| --- | --- | --- | --- | --- | --- |
+| Groq | 40 | 144,2 ms | **343,4 ms** | 780,5 ms | 1 207,2 ms |
+| **Anthropic** | 8 | **1 769,9 ms** | **3 435,9 ms** | 5 027,0 ms | 5 027,0 ms |
+
+Avec huit points, le p95 d'Anthropic vaut son maximum : à lire comme un ordre de
+grandeur, pas comme une statistique robuste. Le min et la médiane, eux, suffisent
+à trancher.
+
+**La règle du projet dit :** attendre n'a de sens que si l'attente annoncée est
+inférieure au coût de la bascule.
+
+```
+  attente annoncée par Groq   2 750 ms
+  coût de la bascule          3 436 ms  (Anthropic, médiane)
+```
+
+**2 750 < 3 436.** Attendre était le meilleur choix. Le nouveau contrat est
+dominé — non pas par erreur de mise en œuvre, mais parce que le chiffre qui
+permettait de le savoir n'existait pas avant ce lot.
+
+## Ce que ce lot n'a pas fait
+
+Aucun équilibrage de charge, aucun tirage, aucune rotation, aucun appel double,
+aucune sélection fondée sur le contenu, la classe ou le domaine. Les trois
+adaptateurs reçoivent le même instantané et le même schéma, et n'ont aucune
+branche : ce sont des transports. `programming_error` reste hors du repli.
+L'artefact frontend est inchangé.
+
+Et surtout : **rien n'a été réoptimisé après lecture des résultats.** La section 48
+l'interdit, et la recommandation ci-dessous n'est donc pas appliquée.
+
+## Ce que la mesure recommande
+
+En appliquant la règle du projet — le plus grand nombre rond strictement inférieur
+à la bascule la plus rapide réellement observée (1 769,9 ms) — le plafond d'attente
+du plan rapide devrait valoir **1 000 ms**, et non 0.
+
+Ce réglage dominerait les deux contrats mesurés : il honorerait les `Retry-After`
+courts, que Groq annonce à 1 000 ms dans huit cas sur vingt-et-un (mesure 01D), et
+basculerait pour les longs. C'est une valeur **dérivée d'une mesure**, comme les
+quatre autres plafonds du produit — et c'est la première fois qu'elle peut l'être.
+
+Elle appartient au lot suivant, pas à celui-ci.
+
+```
+CAPACITY_FAILOVER_EFFECTIVE       = NO
+INTERACTIVE_P95_CONTRACT_MET      = NO
+PERF_REAL_01F_VERDICT             = PARTIAL
+PERF_REAL_01_STATUS               = OPEN / DEGRADED
+```

@@ -162,6 +162,36 @@ augmenter le quota souscrit — à 24 000 TPM le banc actuel passerait sans qu'u
 ligne change — ou répartir la charge entre fournisseurs, ce qui transforme un repli
 technique en répartition.
 
+**Mise à jour PERF-REAL-01F — la bascule coûte plus cher que l'attente.** Le 429 est
+désormais traité comme un signal de capacité et non comme une panne : le plan rapide
+abandonne immédiatement, sans dormir, et bascule vers Anthropic. Le mécanisme a fait
+exactement ce qu'on lui demandait — 8 signaux, 8 bascules, 0 ms d'attente payée
+contre 49 750 ms en 01D, attribution 48/48, aucune panne fournisseur.
+
+Le résultat est pourtant moins bon :
+
+| Mesure | 01D | 01F |
+| --- | --- | --- |
+| p50 | 527,5 ms | **416,1 ms** |
+| **p95** | 3 394,9 ms | **3 947,0 ms** |
+| max | 3 641,8 ms | **5 027,0 ms** |
+
+Parce que ce lot livre enfin le chiffre qui manquait — **la première mesure réelle
+d'Anthropic sur le plan rapide** : p50 = 3 435,9 ms, min 1 769,9 ms (8 points ;
+le p95 y vaut le maximum). Groq seul rend 343,4 ms de médiane.
+
+La règle du projet dit qu'attendre n'a de sens que si l'attente annoncée est
+inférieure au coût de la bascule. **2 750 ms annoncés contre 3 436 ms de bascule :
+attendre était le meilleur choix.** Le contrat de ce lot est dominé, non par erreur
+de mise en œuvre, mais parce que le chiffre permettant de le savoir n'existait pas.
+
+Ce que la mesure recommande, et qui n'a PAS été appliqué ici : le plafond d'attente
+du plan rapide devrait valoir **1 000 ms** — le plus grand nombre rond strictement
+inférieur à la bascule la plus rapide observée (1 769,9 ms), selon la règle qui a
+déjà produit les quatre autres plafonds du produit. Il honorerait les `Retry-After`
+courts que Groq annonce à 1 000 ms, et basculerait pour les longs. C'est la première
+fois que cette valeur peut être dérivée d'une mesure plutôt que posée.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
