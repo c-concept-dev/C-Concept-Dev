@@ -169,6 +169,21 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
       return validateDegradedRoleResult(createDegradedRoleResult(role, publicDegradationReason(role)));
     }
     outputs[role] = assertRoleOutputShape(role, raw);
+    /* OPRIE-MATERIAL-PROVENANCE-CONFORMANCE-01 — OBSERVATION, PAS COMPORTEMENT.
+       Mesurer la conformité de l'écrivain exigeait de voir ce que l'Analyste DÉCLARE, et la
+       réponse HTTP ne porte que la sortie de l'Arbitre. Cette trace n'émet que des ÉTIQUETTES :
+       les valeurs de provenance, qui sont un vocabulaire fermé, et les noms de champs du
+       candidat. Aucune valeur, donc aucun octet de matériau. Rien ici ne lit, ne décide, ni ne
+       modifie quoi que ce soit. */
+    if (role === "analyst") {
+      const records = Array.isArray(outputs.analyst.provenance_records) ? outputs.analyst.provenance_records : [];
+      log({
+        event: "analyst_provenance_observation",
+        provenance_record_count: records.length,
+        provenance_values: [...new Set(records.map((record) => record.provenance))],
+        provenance_fields: [...new Set(records.map((record) => record.field))]
+      });
+    }
     log({ event: "operational_request_role_ok", role });
   }
 

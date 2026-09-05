@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `0ab187e50a2a676cec7ad5fb9b5fd86b7c17674d` |
-| Date du commit | 2026-09-05T19:10:53+02:00 |
+| Commit local | `35996edd8c303bc174143d545df69b10957303b9` |
+| Date du commit | 2026-09-05T21:26:11+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1325798 octets |
-| SHA-256 | `6be95369eaf3611bc72b7d5d7972ffbb6a1f19c8901355c58da171b4274eccde` |
+| Taille | 1326737 octets |
+| SHA-256 | `5260458b2c23cee7ec84b64bc129bfba0b7f6d57d8a7658c2a5802865fc70c83` |
 
 ## Runtime compilé
 
@@ -34,11 +34,11 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Champ | Valeur |
 | --- | --- |
 | Fichier | `core/adn/browser-runtime.generated.js` |
-| SHA-256 du fichier | `f00c82ca9a61d56565c7fd586aae6ded349cba5e3cfbd00c014da11e0d3d8f8a` |
-| SHA-256 du bloc embarqué | `f00c82ca9a61d56565c7fd586aae6ded349cba5e3cfbd00c014da11e0d3d8f8a` |
+| SHA-256 du fichier | `9730c39d36250d5860f6e56f2b88060e0b6b42d2a85bd399d6d3d8b585313873` |
+| SHA-256 du bloc embarqué | `9730c39d36250d5860f6e56f2b88060e0b6b42d2a85bd399d6d3d8b585313873` |
 | Identiques | oui |
 | Blocs de runtime dans la page | 1 |
-| Empreinte des sources compilées | `dbbf18cf36e6d58bc93b151ef33fb07459106a494f39afe14c5194173e8ecffa` |
+| Empreinte des sources compilées | `5cf5eacb7af9b67f1658a2517d9a1139e011e1c9b4c2261a257f967ae0572b8d` |
 
 ## Plages gelées
 
@@ -54,22 +54,22 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-53 fichiers. C'est ce qui doit exister pour **servir** la page,
+54 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `31b6a280df588568e8f68cb5522614e806e8d114856692c56de52ec0ebd8f70e` |
+| Empreinte du jeu | `159d04cc37bce69e7061efd89a01a6d27ff0ec4ead81f25bc1ea9803e4701263` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `6be95369eaf3611bc72b7d5d7972ffbb6a1f19c8901355c58da171b4274eccde` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `5260458b2c23cee7ec84b64bc129bfba0b7f6d57d8a7658c2a5802865fc70c83` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `323c60c3b224193bf957fba38d5668fa2a881a06c8bf301161b1751f1d6bb2e0` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `ee87dff7cd6c822b8aaba63edd05eff0614749ec6044fe0bacd22531b1ab8fc0` |
-| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `f00c82ca9a61d56565c7fd586aae6ded349cba5e3cfbd00c014da11e0d3d8f8a` |
+| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `9730c39d36250d5860f6e56f2b88060e0b6b42d2a85bd399d6d3d8b585313873` |
 | REQUIRED_BUILD | `core/adn/engine-adapters.js` | `81e206b5bb1705c404a494dd136fea1fd17bb7cd502aca2855b6bf6f9b161255` |
 | REQUIRED_BUILD | `core/adn/execution-lifecycle.js` | `accdee01c6c294f33e28be321024501c152e2fdd6e53298575c2450adebf8ec7` |
 | REQUIRED_BUILD | `core/adn/execution-readiness.js` | `5276f0f8cfafd9b1fdae72b4f26193ab6f7639196bee15d80c048844545bfb18` |
@@ -95,6 +95,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-INTERPRETATION-01.md` | `e453ca80c15e984fbf549dc6b26c3313103bc4dc7b287be8ff5d07084552946b` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-PROVENANCE-01.md` | `291cdf010a20e1bdbc8788db7e49c71c41b3d437bd70fa165d62dd2fc3325ce1` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-PROVENANCE-02.md` | `57a928e2037c95c04038e51cc6691d55e99f2672ef8c918377f4a878cbcc2148` |
+| REQUIRED_DOC | `docs/OPRIE-MATERIAL-PROVENANCE-CONFORMANCE-01.md` | `4ddff6fe8e24a8cd1eae2bfcc5798ac4b7d6fccd02542148602fb3291bae63f9` |
 | REQUIRED_DOC | `docs/OPRIE-QUALITY-PARITY-01.md` | `d46a60a86d4883e935e575e0ec8e1ce9f177614942903ee64ec88560d6eb1a2b` |
 | REQUIRED_DOC | `docs/OPRIE-REFERENCE-ORACLE-01.md` | `e09e87dd9092a3e98f59aa1773dc19ede0cda8fbf63fdd8be226c8d127a8814f` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
@@ -111,7 +112,7 @@ sa propre empreinte.
 | REQUIRED_RUNTIME | `workers/shared/fast-interaction-endpoint.js` | `37fe4af9be7a7e9aa1e8672004fe4f4d688e4e7eaa4bd24a78be8f6c4e9855e9` |
 | REQUIRED_RUNTIME | `workers/shared/fast-interactive-plane.js` | `3259b2d54357d1e2d60be4e891887d7e3f0b493090589b5861aa96c672016eea` |
 | REQUIRED_RUNTIME | `workers/shared/operational-request-core.js` | `a4ca581ea29091be80b9e9352fd73c2cd48f791c4df4d0aa112a43a3efe6def6` |
-| REQUIRED_RUNTIME | `workers/shared/operational-request-orchestrator.js` | `0a267e72665c49b98f6b7bcc59bc40737dbd3aba64d6193a9cd0e979643a11fc` |
+| REQUIRED_RUNTIME | `workers/shared/operational-request-orchestrator.js` | `58664ccd73391c6a58264e031c400619f081b0bdcf48ad3f96c0574a6c3be837` |
 | REQUIRED_RUNTIME | `workers/shared/provider-ha.js` | `19ae3e7af098a875b30e59e9a8c0257a09b4709b810b2c8fe5fa2a4dbcabf1da` |
 | REQUIRED_RUNTIME | `workers/shared/provider-rate-control.js` | `38da9840452fa70e444108559d78b9423e733208cf05e0a23f350936e3a94abd` |
 | REQUIRED_RUNTIME | `workers/shared/role-degradation.js` | `2259190f7f3a2b2f224605fc1b3ae8c4d6552f88e4cf4d56e34875b61a6a9ab7` |
@@ -123,7 +124,7 @@ sa propre empreinte.
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
 | REQUIRED_TEST_ONLY | 145 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 210 | bancs et campagnes, dont le worker `…-local-only` |
+| EVALUATION_ONLY | 214 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 

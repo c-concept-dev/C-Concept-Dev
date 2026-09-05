@@ -236,7 +236,7 @@ test('T-PERFREAL01D-15 : l’artefact frontend n’a pas bougé', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '6be95369eaf3611bc72b7d5d7972ffbb6a1f19c8901355c58da171b4274eccde', 'CANONICAL_HTML_CHANGED = NO');
+    '5260458b2c23cee7ec84b64bc129bfba0b7f6d57d8a7658c2a5802865fc70c83', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 test('T-PERFREAL01D-16 : les seuils officiels n’ont pas bougé, et le verdict en découle', () => {

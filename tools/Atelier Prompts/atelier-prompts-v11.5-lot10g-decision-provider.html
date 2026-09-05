@@ -10617,7 +10617,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: dbbf18cf36e6d58bc93b151ef33fb07459106a494f39afe14c5194173e8ecffa
+ * source-sha256: 5cf5eacb7af9b67f1658a2517d9a1139e011e1c9b4c2261a257f967ae0572b8d
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -16736,6 +16736,21 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog 
       return validateDegradedRoleResult(createDegradedRoleResult(role, publicDegradationReason(role)));
     }
     outputs[role] = assertRoleOutputShape(role, raw);
+    /* OPRIE-MATERIAL-PROVENANCE-CONFORMANCE-01 — OBSERVATION, PAS COMPORTEMENT.
+       Mesurer la conformité de l'écrivain exigeait de voir ce que l'Analyste DÉCLARE, et la
+       réponse HTTP ne porte que la sortie de l'Arbitre. Cette trace n'émet que des ÉTIQUETTES :
+       les valeurs de provenance, qui sont un vocabulaire fermé, et les noms de champs du
+       candidat. Aucune valeur, donc aucun octet de matériau. Rien ici ne lit, ne décide, ni ne
+       modifie quoi que ce soit. */
+    if (role === "analyst") {
+      const records = Array.isArray(outputs.analyst.provenance_records) ? outputs.analyst.provenance_records : [];
+      log({
+        event: "analyst_provenance_observation",
+        provenance_record_count: records.length,
+        provenance_values: [...new Set(records.map((record) => record.provenance))],
+        provenance_fields: [...new Set(records.map((record) => record.field))]
+      });
+    }
     log({ event: "operational_request_role_ok", role });
   }
 
@@ -20131,7 +20146,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'dbbf18cf36e6d58bc93b151ef33fb07459106a494f39afe14c5194173e8ecffa'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'5cf5eacb7af9b67f1658a2517d9a1139e011e1c9b4c2261a257f967ae0572b8d'});
 })(window);
 
 

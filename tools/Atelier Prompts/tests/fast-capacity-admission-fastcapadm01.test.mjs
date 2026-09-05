@@ -269,7 +269,7 @@ test('T-FASTCAPADM-12 : le HTML canonique est inchangé', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '6be95369eaf3611bc72b7d5d7972ffbb6a1f19c8901355c58da171b4274eccde', 'CANONICAL_HTML_CHANGED = NO');
+    '5260458b2c23cee7ec84b64bc129bfba0b7f6d57d8a7658c2a5802865fc70c83', 'CANONICAL_HTML_CHANGED = NO');
   /* Et rien du mécanisme n'a fui vers le navigateur. */
   const html = lire('atelier-prompts-v11.5-lot10g-decision-provider.html');
   for (const interdit of ['admissionRapide', 'REFROIDISSEMENT_RAPIDE', FAST_CAPACITY_UNAVAILABLE_CODE,
