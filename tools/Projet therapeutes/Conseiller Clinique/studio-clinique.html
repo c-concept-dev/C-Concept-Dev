@@ -1067,6 +1067,32 @@
       opacity: 1;
     }
 
+    /* UX-8B Lot 2 — sélecteur de charte au moment de la demande. S'applique UNIQUEMENT au
+       document produit (jamais au chrome de #cc-landing/#assistdoc-screen/#cc-workspace, qui
+       reste toujours pétrole/terracotta/ivoire) — ce contrôle ne fait donc que choisir une
+       valeur transmise à la génération, sa propre apparence reste celle du chrome standard. */
+    #cc-landing .cc-landing-brandkit { margin-top: 1.2rem; }
+    #cc-landing .cc-landing-brandkit-label {
+      font-size: 0.85rem; font-weight: 600; color: var(--ink); margin-bottom: 0.5rem; display: block;
+    }
+    #cc-landing .cc-landing-brandkit-select {
+      width: 100%;
+      max-width: 22rem;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid var(--stone-400);
+      border-radius: 0.75rem;
+      background: var(--paper);
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.9rem;
+    }
+    #cc-landing .cc-landing-brandkit-select:focus {
+      outline: none;
+      border-color: var(--terracotta-700);
+      background: var(--white);
+      box-shadow: var(--focus);
+    }
+
     #cc-landing .question-field:hover { border-color: var(--petrol-800); }
 
     #cc-landing .question-field:focus {
@@ -1605,6 +1631,13 @@
       font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
       background: rgba(255,255,255,.14); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
     }
+    /* UX-8B Lot 2 — simple accent visuel, jamais une couleur issue de la charte du document
+       (le chrome de la barre supérieure reste toujours pétrole/terracotta/ivoire, cf. CDC). */
+    .cc-ws-brandkit {
+      font-size: 11px; font-style: italic; opacity: .75; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; max-width: 16vw;
+    }
+    .cc-ws-brandkit:empty { display: none; }
     .cc-ws-status { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
     .cc-ws-status.review { background: var(--terracotta-100); color: var(--terracotta-700); }
     .cc-ws-status.ready { background: rgba(255,255,255,.14); color: #fff; }
@@ -2033,6 +2066,19 @@
           </div>
         </fieldset>
 
+        <!-- UX-8B Lot 2 — choix de la charte graphique du DOCUMENT, au moment de la demande
+             (CDC UX-8B : "choix au moment de la demande, pas seulement en réglage global").
+             N'affecte jamais le chrome de Studio Clinique, qui reste toujours pétrole/
+             terracotta/ivoire — uniquement les couleurs/typographies du document produit. -->
+        <div class="cc-landing-brandkit">
+          <label class="cc-landing-brandkit-label" for="cc-brandkit-select">
+            Charte graphique du document <span class="cc-landing-upload-optional">(s'applique au document, jamais à l'interface)</span>
+          </label>
+          <select class="cc-landing-brandkit-select" id="cc-brandkit-select" name="brand-kit">
+            <option value="">Chargement des chartes…</option>
+          </select>
+        </div>
+
         <div class="submit-row">
           <button class="submit-button" type="submit">
             <span class="submit-copy">
@@ -2148,12 +2194,38 @@
 
         status.textContent = `${formatLabels[format] || 'Demande'} : prêt à démarrer.`;
 
+        // UX-8B Lot 2 — charte choisie pour CETTE demande précise (jamais un réglage global
+        // figé — modifiable à chaque nouvelle demande). '' si la liste n'a pas encore chargé :
+        // l'application hôte retombe alors sur la charte par défaut, jamais un blocage.
+        const brandKitSelect = document.querySelector('#cc-brandkit-select');
+        const brandKitId = brandKitSelect ? brandKitSelect.value : '';
+
         // Point de raccord avec l’application hôte.
         // Claude Code peut écouter cet événement puis ouvrir l’interface de conversation.
         window.dispatchEvent(new CustomEvent('conseiller-clinique:start', {
-          detail: { prompt, format }
+          detail: { prompt, format, brandKitId }
         }));
       });
+
+      // UX-8B Lot 2 — point d'intégration prévu pour la liste réelle des chartes (jamais codée
+      // en dur ici) : l'application hôte l'appelle après un vrai GET /brand-kits, même patron
+      // que window.setConseillerCliniqueLibraryStats ci-dessous. Persistance locale du dernier
+      // choix (même mécanisme que adocPreferredDocumentKind), mais toujours modifiable.
+      const ADOC_PREFERRED_BRANDKIT_KEY = 'adocPreferredBrandKitId';
+      window.setConseillerCliniqueBrandKits = (brandKits) => {
+        const select = document.querySelector('#cc-brandkit-select');
+        if (!select || !Array.isArray(brandKits) || !brandKits.length) return;
+        let savedId = null;
+        try { savedId = localStorage.getItem(ADOC_PREFERRED_BRANDKIT_KEY); } catch (e) {}
+        const validIds = brandKits.map((k) => k.id);
+        const defaultId = validIds.includes(savedId) ? savedId : brandKits[0].id;
+        select.innerHTML = brandKits.map((k) =>
+          `<option value="${k.id}"${k.id === defaultId ? ' selected' : ''}>${(k.name || 'Charte').replace(/</g, '&lt;')}</option>`
+        ).join('');
+        select.addEventListener('change', () => {
+          try { localStorage.setItem(ADOC_PREFERRED_BRANDKIT_KEY, select.value); } catch (e) {}
+        });
+      };
 
       // Mise à jour facultative des chiffres depuis l’application hôte.
       window.setConseillerCliniqueLibraryStats = ({ books, passages } = {}) => {
@@ -4563,7 +4635,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         try {
           adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)…');
           const _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId);
-          const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot);
+          // UX-8B Lot 2 — charte choisie pour CETTE demande : uniquement un choix de RENDU,
+          // appliqué après coup sur le _struct.doc déjà produit ci-dessus. Ne relit ni ne
+          // relance jamais ragResult/sourceSnapshot — donc jamais de nouvelle recherche RAG.
+          const _brandKitResolved = await adocResolveBrandKitForGeneration(_struct.doc);
+          const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot, _brandKitResolved.renderManifestOverride);
           // Correctif BUG 1 (lot correctifs urgents) : un document techniquement rendu mais
           // qualité bloquante (qc.blocking non vide) n'est JAMAIS présenté comme acceptable —
           // on déclenche le repli déjà existant (catch ci-dessous) vers l'ancien moteur plutôt
@@ -4584,7 +4660,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // _status non prévu par le schéma (additionalProperties:false), ce qui ferait
           // échouer la RE-validation déclenchée par un futur clic sur "Exporter"
           // (adocExportClinicalDocumentHTML re-rend depuis le doc stocké).
-          const _storeKey = await adocDeliverStructuredFicheArtifact(_struct.doc, _struct.sourceSnapshot, _rendered);
+          const _storeKey = await adocDeliverStructuredFicheArtifact(_struct.doc, _struct.sourceSnapshot, _rendered, _brandKitResolved.brandKitName);
           adocConversations.push({ role: 'assistant', content: '[Fiche synthèse structurée générée : "' + _struct.doc.title + '"]' });
           adocExchangeCount++;
           window._adocLastStructuredDoc = { doc: _rendered.validatedDoc, qc: _rendered.qc, storeKey: _storeKey };
@@ -7339,6 +7415,10 @@ ${recent}`;
     const format = detail.format || '';
     if (!prompt) return;
 
+    // UX-8B Lot 2 — charte choisie pour CETTE demande précise (jamais un réglage global figé).
+    // '' ou absente ⇒ adocResolveBrandKitForGeneration retombe sur la charte par défaut.
+    adocActiveBrandKitId = detail.brandKitId || '';
+
     const landing = document.getElementById('cc-landing');
     if (landing) landing.style.display = 'none';
 
@@ -7366,6 +7446,11 @@ ${recent}`;
   // plus haut dans cette IIFE, qui alimente aussi le point d'intégration
   // window.setConseillerCliniqueLibraryStats() prévu par l'accueil.
   adocLoadLibraryStats();
+
+  // ═══ UX-8B Lot 2 — liste réelle des chartes graphiques pour #cc-landing (au chargement) ═══
+  // Même patron que ci-dessus : un vrai GET /brand-kits, jamais une liste codée en dur, qui
+  // alimente le point d'intégration window.setConseillerCliniqueBrandKits() prévu par l'accueil.
+  adocFetchBrandKits();
 
   // ═══════════════════════════════════════════════════════════════════════
   // Phase UX-1 / UX-1ter — Popup document en taille réelle (aperçu avant
@@ -7851,6 +7936,159 @@ ${recent}`;
     return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
+  // ── UX-8B Lot 2 — pont entre le schéma générique brand_kits (D1 : primary/accent/
+  // background/text/success/warning/critical) et le vocabulaire fin déjà consommé par
+  // adocTokensToCSSVars (petrol950/900/800/100, terracotta700/600/100, ink, stone300, paper…).
+  // Aucune modification d'adocTokensToCSSVars ni du chrome : uniquement une traduction, côté
+  // jetons du DOCUMENT. Choix de correspondance assumés (à documenter dans le rapport de lot,
+  // pas des bugs) :
+  //  - terracotta700 ← warning : pour la charte 1 (seed migration 0001), warning=#8a3f29 est
+  //    strictement identique à l'ancien terracotta700 en dur — ce choix préserve donc à
+  //    l'identique le rendu déjà existant des callouts d'avertissement pour la charte par
+  //    défaut. Les citations (qui réutilisaient aussi terracotta700) glissent légèrement de
+  //    teinte avec ce même mappage — décalage mineur assumé, pas une régression du lot 1 (qui
+  //    ne câblait rien au rendu).
+  //  - petrol950/900/800 (3 teintes distinctes) collapsent sur la seule valeur `primary` du
+  //    nouveau schéma, avec des teintes claires/sombres synthétisées par mélange — cohérent
+  //    avec la simplification volontaire du schéma générique (UX-8B), pas une perte accidentelle.
+  function adocMixHexColor(hexA, hexB, ratio) {
+    const parse = (hex) => {
+      const h = String(hex).replace('#', '');
+      const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+      return [0, 2, 4].map((i) => parseInt(full.substr(i, 2), 16) || 0);
+    };
+    const a = parse(hexA), b = parse(hexB);
+    const mix = (x, y) => Math.round(x + (y - x) * ratio);
+    return '#' + [0, 1, 2].map((i) => mix(a[i], b[i]).toString(16).padStart(2, '0')).join('');
+  }
+
+  function adocBrandKitToTokensSnapshot(brandKit) {
+    const c = brandKit.colors || {};
+    const t = brandKit.typography || {};
+    const primary = c.primary || '#102f31';
+    const accent = c.accent || '#9b4e36';
+    const background = c.background || '#f6f2ea';
+    const text = c.text || '#273331';
+    const warning = c.warning || accent;
+    return {
+      tokensSnapshotId: 'brandkit-' + brandKit.id + '-tokens-v' + (brandKit.version || 1),
+      colors: {
+        petrol950: primary,
+        petrol900: adocMixHexColor(primary, '#000000', 0.12),
+        petrol800: adocMixHexColor(primary, '#ffffff', 0.18),
+        petrol100: adocMixHexColor(primary, '#ffffff', 0.88),
+        terracotta700: warning,
+        terracotta600: accent,
+        terracotta100: adocMixHexColor(warning, '#ffffff', 0.85),
+        ink: text,
+        muted: adocMixHexColor(text, background, 0.45),
+        stone400: adocMixHexColor(text, background, 0.6),
+        stone300: adocMixHexColor(text, background, 0.72),
+        stone200: adocMixHexColor(text, background, 0.85),
+        ivory: background,
+        paper: adocMixHexColor(background, '#ffffff', 0.4),
+        white: '#ffffff',
+      },
+      typography: {
+        headingFontFamily: t.headingFont || '"Source Serif 4", Georgia, serif',
+        bodyFontFamily: t.bodyFont || '"IBM Plex Sans", system-ui, sans-serif',
+      },
+    };
+  }
+
+  // Sérialisation JSON canonique (clés triées, sans espace superflu) — exigée par
+  // render-manifest.schema.json pour le calcul de manifestChecksum.
+  function adocCanonicalJSONStringify(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return '[' + value.map(adocCanonicalJSONStringify).join(',') + ']';
+    const keys = Object.keys(value).sort();
+    return '{' + keys.map((k) => JSON.stringify(k) + ':' + adocCanonicalJSONStringify(value[k])).join(',') + '}';
+  }
+
+  // Construit un RenderManifest réel (checksum réellement calculé, pas de valeur figée) pour
+  // une charte choisie au moment de la demande. Reprend templateRef/rendererVersion du
+  // manifeste déjà associé au document (jamais réinventés ici) — seuls brandKitRef,
+  // tokensSnapshotId et assetsSnapshotId changent, exactement ce que permet déjà
+  // adocResolveRenderManifest(doc, renderManifestOverride) sans aucune modification du moteur
+  // de rendu canonique.
+  async function adocBuildRenderManifestForBrandKit(doc, brandKit) {
+    const baseManifest = window.adocRenderManifests && window.adocRenderManifests[doc.renderManifestId];
+    const templateRef = (baseManifest && baseManifest.templateRef) || { id: 'fiche-editoriale', version: 1 };
+    const rendererVersion = (baseManifest && baseManifest.rendererVersion) || '1.0.0';
+    const tokens = adocBrandKitToTokensSnapshot(brandKit);
+    window.adocTokensSnapshots = window.adocTokensSnapshots || {};
+    window.adocTokensSnapshots[tokens.tokensSnapshotId] = tokens;
+    const manifestBase = {
+      id: 'manifest-brandkit-' + brandKit.id + '-' + Date.now(),
+      schemaVersion: 1,
+      rendererVersion: rendererVersion,
+      templateRef: templateRef,
+      brandKitRef: { id: brandKit.id, version: brandKit.version || 1 },
+      tokensSnapshotId: tokens.tokensSnapshotId,
+      assetsSnapshotId: null,
+      createdAt: new Date().toISOString(),
+    };
+    const checksumHex = await adocComputeSHA256Hex(adocCanonicalJSONStringify(manifestBase));
+    return Object.assign({}, manifestBase, { manifestChecksum: 'sha256:' + checksumHex });
+  }
+
+  // ── UX-8B Lot 2 — liste réelle des chartes, jamais codée en dur côté client (GET /brand-kits,
+  // même clé X-API-Key que toutes les autres routes protégées). Un échec réseau/serveur ne
+  // bloque jamais l'écran d'accueil : la charte par défaut reste utilisable via le fallback
+  // déjà en place dans adocResolveBrandKitForGeneration (générateur de manifeste) plus bas.
+  const ADOC_DEFAULT_BRAND_KIT_ID = '00000000-0000-4000-8000-000000000001';
+  let _adocBrandKitsCache = null;
+  // Charte choisie pour la demande EN COURS (capturée par le listener conseiller-clinique:start
+  // ci-dessous) — jamais un réglage global : remise à '' n'importe quand par une nouvelle demande.
+  let adocActiveBrandKitId = '';
+  function adocFetchBrandKits() {
+    const workerUrl = adocGetWorkerUrl();
+    return fetch(workerUrl + '/brand-kits', { headers: { 'X-API-Key': adocGetApiKey() } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((data) => {
+        const kits = Array.isArray(data.brand_kits) ? data.brand_kits : [];
+        _adocBrandKitsCache = kits;
+        window._adocBrandKits = kits;
+        if (typeof window.setConseillerCliniqueBrandKits === 'function' && kits.length) {
+          window.setConseillerCliniqueBrandKits(kits);
+        }
+        return kits;
+      })
+      .catch((e) => {
+        console.warn('[UX-8B] GET /brand-kits indisponible, charte par défaut utilisée au besoin.', e);
+        return [];
+      });
+  }
+  function adocGetBrandKitById(id) {
+    const cached = (_adocBrandKitsCache || []).find((k) => k.id === id);
+    if (cached) return Promise.resolve(cached);
+    if (!id) return Promise.resolve(null);
+    const workerUrl = adocGetWorkerUrl();
+    return fetch(workerUrl + '/brand-kits/' + encodeURIComponent(id), { headers: { 'X-API-Key': adocGetApiKey() } })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  }
+
+  // Point d'appel unique du call site de génération (point 3 du lot — « le vrai test »).
+  // Résout la charte réellement choisie pour CETTE demande (adocActiveBrandKitId, capturé par
+  // le listener conseiller-clinique:start) et construit un RenderManifest override réel. Ne
+  // déclenche JAMAIS de nouvelle recherche RAG : ne touche qu'à un GET /brand-kits/:id déjà en
+  // cache la plupart du temps, et ne lit/n'écrit jamais doc.blocks ni sourceSnapshot. Repli
+  // silencieux sur la charte par défaut (aucun override construit → moteur canonique inchangé)
+  // si la charte demandée est introuvable/indisponible — jamais un blocage de la génération.
+  async function adocResolveBrandKitForGeneration(doc) {
+    const requestedId = adocActiveBrandKitId || ADOC_DEFAULT_BRAND_KIT_ID;
+    try {
+      const brandKit = await adocGetBrandKitById(requestedId);
+      if (!brandKit || !brandKit.id) return { renderManifestOverride: null, brandKitName: null };
+      const renderManifestOverride = await adocBuildRenderManifestForBrandKit(doc, brandKit);
+      return { renderManifestOverride, brandKitName: brandKit.name || null };
+    } catch (e) {
+      console.warn('[UX-8B] Résolution de charte impossible, repli sur la charte par défaut du manifeste.', e);
+      return { renderManifestOverride: null, brandKitName: null };
+    }
+  }
+
   // ── Validation des citations en deux temps (technique + intégrité, puis agrégat) ──
   // 1. Contrôle technique : le citationId référencé existe dans doc.citations[], l'entrée
   //    SourceSnapshot qu'il désigne existe, ET son contentChecksum stocké correspond
@@ -8099,7 +8337,14 @@ ${recent}`;
       '<p class="adoc-sc-cover-meta">' + subtitle + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
-    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + '" style="' + adocTokensToCSSVars(tokens) + '">' + cover + body + '</article>';
+    // Correctif (découvert en UX-8B Lot 2, préexistant à ce lot — affecte déjà la charte par
+    // défaut) : adocTokensToCSSVars() produit des valeurs de police entre guillemets doubles
+    // (ex. "Source Serif 4") ; les mettre dans un attribut style="..." lui-même délimité par des
+    // guillemets doubles tronquait silencieusement l'attribut au premier guillemet rencontré,
+    // perdant --adoc-sc-heading-font ET --adoc-sc-body-font (les deux dernières paires). Le
+    // guillemet simple ne peut jamais entrer en collision ici (aucune police du catalogue
+    // n'utilise de guillemet simple).
+    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
   }
 
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
@@ -8113,7 +8358,9 @@ ${recent}`;
   }
   function adocRenderCarrouselHTML(doc, tokens) {
     const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
-    return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + '" role="region" aria-label="Carrousel" style="' + adocTokensToCSSVars(tokens) + '">' + cards + '</div>';
+    // Même correctif que adocRenderFicheHTML ci-dessus (guillemet simple pour style=, jamais en
+    // collision avec les polices entre guillemets doubles produites par adocTokensToCSSVars).
+    return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + "\" role=\"region\" aria-label=\"Carrousel\" style='" + adocTokensToCSSVars(tokens) + "'>" + cards + '</div>';
   }
 
   // ── Point d'entrée du moteur canonique ──
@@ -8224,12 +8471,17 @@ ${recent}`;
   // TOUJOURS le HTML déjà rendu (même si qc.exportAllowed est false, cf. principe UX-1 :
   // l'aperçu doit rester visible pour corriger) ; seul le bouton Exporter (délégation de
   // clic dans adocShowArtifactCard) respecte le blocage qualité via adocExportClinicalDocumentHTML.
-  async function adocDeliverStructuredFicheArtifact(doc, sourceSnapshot, rendered) {
+  async function adocDeliverStructuredFicheArtifact(doc, sourceSnapshot, rendered, brandKitName) {
     const previewHtml = adocClinicalDocumentWrapHTML(doc, rendered.html, rendered.tokens);
     const storeKey = await adocDeliverArtifact({ html: previewHtml, topic: doc.title, fmt: 'html', citations: [], autoGenerate: false });
     if (storeKey && window._adocArtifacts && window._adocArtifacts[storeKey]) {
       window._adocArtifacts[storeKey]._adocStructuredDoc = doc;
       window._adocArtifacts[storeKey]._adocStructuredSnapshot = sourceSnapshot;
+      // UX-8B Lot 2 — mémorise la charte RÉELLEMENT utilisée pour CE document précis (jamais un
+      // réglage global) : le RenderManifest complet pour toute re-génération (aperçu plein écran,
+      // export) reste cohérent avec la charte choisie, et son nom pour le badge UX-8W.
+      window._adocArtifacts[storeKey]._adocRenderManifestOverride = rendered.renderManifest || null;
+      window._adocArtifacts[storeKey]._adocBrandKitName = brandKitName || null;
     }
     return storeKey;
   }
@@ -8725,7 +8977,11 @@ ${recent}`;
     const snapshot = art._adocStructuredSnapshot;
     let rendered;
     try {
-      rendered = await window.adocRenderClinicalDocument(doc, snapshot);
+      // UX-8B Lot 2 — ré-applique la charte RÉELLEMENT utilisée pour CE document (mémorisée à
+      // la génération), jamais la charte par défaut du manifeste embarqué. art._adocRenderManifestOverride
+      // est null pour un document généré avant ce lot (ou dont la charte n'a pas pu être résolue) —
+      // le moteur canonique retombe alors sur son comportement inchangé (renderManifestId du doc).
+      rendered = await window.adocRenderClinicalDocument(doc, snapshot, art._adocRenderManifestOverride || null);
     } catch (e) {
       console.warn('[UX-8W] rendu impossible, ouverture annulée:', e && e.message);
       return;
@@ -8738,6 +8994,10 @@ ${recent}`;
     document.getElementById('cc-ws-title').textContent = doc.title || 'Document';
     document.getElementById('cc-ws-badge').textContent =
       (kindLabels[doc.documentKind] || doc.documentKind || '').toUpperCase();
+    // UX-8B Lot 2 — reflète le nom RÉEL de la charte utilisée pour ce document précis (jamais un
+    // libellé fixe). Élément séparé de cc-ws-badge (documentKind, non modifiable par ce lot).
+    const brandKitEl = document.getElementById('cc-ws-brandkit');
+    if (brandKitEl) brandKitEl.textContent = art._adocBrandKitName || '';
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -8784,7 +9044,8 @@ ${recent}`;
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocStructuredDoc) return;
-    const result = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot);
+    // UX-8B Lot 2 — même charte que l'aperçu (cohérence aperçu/export déjà exigée par UX-1).
+    const result = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
     if (result.blocked) {
       alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + result.qc.blocking.join('\n'));
       return;
@@ -8947,6 +9208,9 @@ ${recent}`;
     <svg class="cc-ws-icon" aria-hidden="true" focusable="false" style="width:20px;height:20px;"><use href="#icon-brand"></use></svg>
     <div class="cc-ws-topbar-title" id="cc-ws-title">Document</div>
     <span class="cc-ws-badge" id="cc-ws-badge">—</span>
+    <!-- UX-8B Lot 2 — simple accent visuel (nom de la charte active du DOCUMENT, jamais du
+         chrome — cf. CDC UX-8B), séparé de cc-ws-badge qui reste exclusivement le documentKind. -->
+    <span class="cc-ws-brandkit" id="cc-ws-brandkit"></span>
     <span class="cc-ws-status" id="cc-ws-status"></span>
     <div class="cc-ws-topbar-spacer"></div>
     <button type="button" class="cc-ws-panel-toggle cc-ws-topbar-btn" id="cc-ws-panel-toggle-btn"
