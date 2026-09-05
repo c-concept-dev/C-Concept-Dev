@@ -255,8 +255,13 @@ test('T-PERFNOMINAL01-10 : l’ordre de production et le primaire sont inchangé
 /* T-PERFNOMINAL01-11 — l'artefact canonique n'a pas été touché. */
 test('T-PERFNOMINAL01-11 : le HTML canonique est inchangé', () => {
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
+  /* OPRIE-MATERIAL-CONTEXT-02 — L'EMPREINTE A CHANGÉ, ET C'EST DÉLIBÉRÉ. Le noyau
+     OPRIE est embarqué verbatim dans le bundle navigateur : ajouter le champ optionnel
+     material_context au contrat d'entrée le répercute mécaniquement dans l'artefact.
+     Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
+     aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '3efa45ff351f1d293023c062a70540241871e6f7d605c70670db6e1227b2a6dc', 'CANONICAL_HTML_CHANGED = NO');
+    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
   assert.equal(R.invariants.canonical_html_changed, false);
 });
 

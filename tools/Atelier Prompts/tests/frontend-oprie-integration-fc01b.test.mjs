@@ -88,8 +88,14 @@ test('FC01B-01 : le frontend appelle /operational-request, et rien d’autre, po
   await pilot.oprieRunTurn('rapide');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, ENDPOINT);
-  assert.deepEqual(Object.keys(calls[0].body).sort(), ['clarification_history', 'original_request'],
+  /* OPRIE-MATERIAL-CONTEXT-02 : le contrat d'entrée a gagné un champ optionnel, et
+     le frontend le construit à l'instant de l'envoi. Ce que cette preuve garde reste
+     le même — l'enveloppe ne porte QUE les champs du contrat serveur. */
+  assert.deepEqual(Object.keys(calls[0].body).sort(),
+    ['clarification_history', 'material_context', 'original_request'],
     'le contrat d’entrée est exactement celui du serveur : rien de plus.');
+  assert.deepEqual(Object.keys(calls[0].body.material_context).sort(), ['present', 'usable'],
+    'et le contexte matériau porte exactement ses deux dimensions.');
 });
 
 test('FC01B-02/03 : aucun Decision Provider navigateur n’est plus une autorité de readiness', () => {

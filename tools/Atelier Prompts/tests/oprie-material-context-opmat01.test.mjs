@@ -42,10 +42,14 @@ test('T-OPMAT01-01 : les deux contrats d’entrée sont lus, pas devinés', () =
   assert.match(DECISION, /if \(typeof value\.materiau_present !== "boolean"\)/);
   assert.match(DECISION, /materiau_present est un fait fiable/);
   /* /operational-request n’accepte que deux clés, et refuse toute autre. */
-  assert.match(NOYAU, /requireExactKeys\(value, \["original_request", "clarification_history"\], "AnalystInput"\)/);
-  assert.equal(/material_context|materiau_present/.test(
-    NOYAU.slice(NOYAU.indexOf('export function validateAnalystInput'), NOYAU.indexOf('export function validateAnalystInput') + 400)), false,
-    'aucun champ de matériau dans le contrat du tour profond');
+  /* OPRIE-MATERIAL-CONTEXT-02 — LE DÉFAUT CONSTATÉ ICI A ÉTÉ CORRIGÉ. Le contrat
+     accepte désormais une clé OPTIONNELLE nommée, sans relâcher sa rigueur : toute
+     autre clé reste refusée. Ce que cette preuve garde change donc de nature — elle
+     ne garde plus l'absence du canal, mais le fait que son ajout n'a pas ouvert le
+     contrat à des champs arbitraires. */
+  assert.match(NOYAU, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\], \["material_context"\], "AnalystInput"\)/);
+  assert.match(NOYAU, /const inconnue = actual\.find\(\(key\) => !legales\.has\(key\)\);/,
+    'toute clé non énumérée est toujours refusée');
   assert.equal(R.gap.reel, true);
   assert.deepEqual(R.contrats_actuels.deep.cles_acceptees, ['original_request', 'clarification_history']);
 });
@@ -56,13 +60,17 @@ test('T-OPMAT01-02 : state.docs existe et n’atteint pas le plan profond', () =
   assert.match(HTML, /id="v11-files" type="file" multiple/);
   assert.match(HTML, /state\.docs\.push\(\{name:file\.name,type:file\.type,size:file\.size,text,external:!textual\}\)/);
   /* Le corps envoyé au plan profond ne porte que deux champs. */
-  assert.match(HTML, /const body=\{original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\)\}/);
+  /* CORRIGÉ EN 02 : le corps porte désormais le troisième champ. */
+  assert.match(HTML, /const body=\{original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\),material_context:oprieMaterialContext\(\)\}/);
   /* Et la demande ne lit qu’une zone de saisie. */
   assert.match(HTML, /function oprieOriginalRequest\(\)\{return String\(\(\$\('#v11-demande'\)\|\|\{\}\)\.value\|\|''\)\.trim\(\)\}/);
   /* state.docs n’apparaît dans aucun des deux. */
-  const corps = HTML.slice(HTML.indexOf('async function oprieRequestTurn'), HTML.indexOf('async function oprieRequestTurn') + 800);
-  assert.equal(corps.includes('state.docs'), false, 'le matériau n’entre pas dans la requête');
-  assert.equal(R.chemin_reel.materiau_transmis, false);
+  /* CORRIGÉ EN 02 : l'enveloppe construit désormais le contexte à l'instant de
+     l'envoi, en lisant state.docs directement — d'où la fraîcheur par construction. */
+  assert.match(HTML, /function oprieMaterialContext\(\)\{/);
+  assert.match(HTML, /const docs=\(typeof state!=='undefined'&&state&&Array\.isArray\(state\.docs\)\)\?state\.docs:null;/);
+  assert.equal(R.chemin_reel.materiau_transmis, false,
+    'la mesure de CE lot-ci reste ce qu’elle était : elle décrit l’avant');
 });
 
 /* T-OPMAT01-03 — LA DISTINCTION PRÉSENT / EXPLOITABLE EXISTE DÉJÀ, elle n’est
@@ -131,10 +139,12 @@ test('T-OPMAT01-07 : aucun code de production n’a bougé', () => {
   assert.equal(R.deploiement, false);
   assert.equal(R.appels_fournisseur, 0);
   /* Le contrat du tour est exactement celui d’avant. */
-  assert.match(NOYAU, /requireExactKeys\(value, \["original_request", "clarification_history"\], "AnalystInput"\)/);
-  assert.equal(NOYAU.includes('material_context'), false, 'aucun champ ajouté');
-  assert.equal(lire('workers/shared/operational-request-orchestrator.js').includes('material_context'), false);
-  assert.equal(HTML.includes('material_context'), false, 'l’enveloppe navigateur est intacte');
+  /* CORRIGÉ EN 02 : le champ existe désormais dans les trois couches. Ce que cette
+     preuve garde est ce qui n’a PAS changé — la limite de transport, et le fait que
+     le lot 01 lui-même n’avait rien implémenté. */
+  assert.ok(NOYAU.includes('material_context'), 'le champ a été ajouté par le lot 02');
+  assert.ok(lire('workers/shared/operational-request-orchestrator.js').includes('material_context'));
+  assert.ok(HTML.includes('material_context'), 'l’enveloppe navigateur le construit');
   /* La limite de transport n’a pas bougé non plus. */
   assert.equal(TRANSPORT_LIMITS.analyst, 16384);
   assert.match(DOC, /IMPLEMENTATION_TYPE  = BLOCKED_ARCH_CHANGE/);
@@ -172,9 +182,12 @@ test('T-OPMAT01-08 : le contrat ne nomme ni domaine, ni cas, ni fournisseur', ()
 test('T-OPMAT01-09 : le piège de buildRoleInput est identifié', () => {
   const orchestrateur = lire('workers/shared/operational-request-orchestrator.js');
   /* base est diffusé aux trois rôles : un champ ajouté à base les atteindrait tous. */
-  assert.match(orchestrateur, /if \(role === "analyst"\) return \{ \.\.\.base \};/);
-  assert.match(orchestrateur, /if \(role === "critic"\) return \{ \.\.\.base, analyst_output/);
-  assert.match(orchestrateur, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic \};/);
+  /* CORRIGÉ EN 02, ET LE PIÈGE A ÉTÉ ÉVITÉ : le contexte ne passe PAS par base. Les
+     deux premiers rôles le reçoivent explicitement, l’Arbitre ne le reçoit pas. */
+  assert.match(orchestrateur, /if \(role === "analyst"\) return \{ \.\.\.base, material_context \};/);
+  assert.match(orchestrateur, /if \(role === "critic"\) return \{ \.\.\.base, analyst_output: outputs\.analyst, previous_vetoes: \[\], material_context \};/);
+  assert.match(orchestrateur, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic \};/,
+    'l’Arbitre reste sans contexte matériau');
   assert.match(DOC, /Le contexte ne doit\s*\n?donc \*\*pas\*\* être ajouté à `base`/);
   assert.match(DOC, /\| \*\*Arbitre\*\* \| \*\*NON\*\* \|/);
 });
@@ -182,8 +195,13 @@ test('T-OPMAT01-09 : le piège de buildRoleInput est identifié', () => {
 /* T-OPMAT01-10 — artefact canonique intact, dette ouverte. */
 test('T-OPMAT01-10 : HTML canonique inchangé, dette ouverte', () => {
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
+  /* OPRIE-MATERIAL-CONTEXT-02 — L'EMPREINTE A CHANGÉ, ET C'EST DÉLIBÉRÉ. Le noyau
+     OPRIE est embarqué verbatim dans le bundle navigateur : ajouter le champ optionnel
+     material_context au contrat d'entrée le répercute mécaniquement dans l'artefact.
+     Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
+     aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '3efa45ff351f1d293023c062a70540241871e6f7d605c70670db6e1227b2a6dc', 'CANONICAL_HTML_CHANGED = NO');
+    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

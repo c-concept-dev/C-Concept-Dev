@@ -301,8 +301,13 @@ test('T-PERFREAL01F-19 : la mesure réelle, et ce qu’elle dit du plafond chois
 
 test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transition explicite', () => {
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
+  /* OPRIE-MATERIAL-CONTEXT-02 — L'EMPREINTE A CHANGÉ, ET C'EST DÉLIBÉRÉ. Le noyau
+     OPRIE est embarqué verbatim dans le bundle navigateur : ajouter le champ optionnel
+     material_context au contrat d'entrée le répercute mécaniquement dans l'artefact.
+     Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
+     aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '3efa45ff351f1d293023c062a70540241871e6f7d605c70670db6e1227b2a6dc', 'CANONICAL_HTML_CHANGED = NO');
+    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

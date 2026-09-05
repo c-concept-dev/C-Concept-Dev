@@ -609,6 +609,49 @@ donc pas y être ajouté, sous peine d'atteindre l'Arbitre par effet de bord.
 changeraient si le canal existait — cela se documente, cela ne se réécrit pas en silence.
 Document : [OPRIE-MATERIAL-CONTEXT-01.md](OPRIE-MATERIAL-CONTEXT-01.md).
 
+**Mise à jour OPRIE-MATERIAL-CONTEXT-02 — le canal est posé, et il ne suffit pas.** Le contrat
+`material_context {present, usable}` est implémenté de bout en bout, exactement tel qu'il avait
+été spécifié : champ optionnel dont l'absence vaut `unknown`, transport strict — une clé
+**nommée** ajoutée, toute autre toujours refusée en 400 —, propagation sélective vers l'Analyste
+et le Critique **jamais vers l'Arbitre**, deux prompts amendés d'un point chacun, enveloppe
+navigateur lisant `state.docs` à l'instant de l'envoi. Validé en production.
+
+**Et l'observation réelle montre que l'état ne change pas.** Deux tours sur R08, même demande,
+120 s d'écart :
+
+| | Sans contexte | Avec `{present:true, usable:true}` |
+| --- | --- | --- |
+| État | `clarification_required` | `clarification_required` |
+| Question | « Pourriez-vous **fournir le texte** que vous souhaitez résumer ? » | « Pouvez-vous **coller directement le texte** dans votre message ? » |
+
+**Le matériau n'est plus invisible — la question le prouve.** Elle ne demande plus le document en
+ignorant son existence, elle demande d'en coller le **contenu**. Le raisonnement a compris qu'un
+document existe et qu'il ne le reçoit pas.
+
+**Mais le contenu n'a jamais été transmis.** `state.docs[].text` est extrait par le navigateur et
+y reste. Savoir qu'un document existe ne permet pas de le résumer : la clarification qui subsiste
+est donc **légitime au regard du contrat** — une information matérielle non substituable manque
+réellement.
+
+**Une ambiguïté du contrat, révélée par la mesure et non par la relecture :** `usable`, tel
+qu'implémenté, signifie « lisible par le navigateur », pas « disponible au raisonnement profond ».
+La spécification ne distinguait pas les deux. Ce n'est pas une erreur d'implémentation — le
+contrat a été posé tel qu'écrit — c'est une limite de la spécification que seule l'exécution
+pouvait faire apparaître.
+
+Le canal de **visibilité** est posé ; le canal de **contenu** ne l'est pas.
+`OPRIE_MATERIAL_CONTEXT_02_VERDICT = PARTIAL`.
+
+L'artefact canonique a changé, mécaniquement : le noyau OPRIE est embarqué verbatim dans le bundle
+navigateur. Quatorze preuves gardant l'ancienne empreinte ont été mises à jour, chacune avec sa
+note. Aucun changement visuel, aucun redesign. L'oracle n'a pas été touché.
+
+Le choix suivant appartient au propriétaire : ouvrir un canal de contenu — avec ses questions
+réelles de volume (16 384 octets de transport), de coût et de confidentialité — ou admettre que le
+plan profond ne lit pas les documents et tenir `material_context` pour ce qu'il est réellement :
+ce qui permet à l'Analyste de poser **la bonne question** plutôt que la mauvaise.
+Document : [OPRIE-MATERIAL-CONTEXT-02.md](OPRIE-MATERIAL-CONTEXT-02.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

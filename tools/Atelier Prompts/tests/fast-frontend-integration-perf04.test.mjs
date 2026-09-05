@@ -41,8 +41,14 @@ test('T-P04-01 : soumettre déclenche le plan profond', async () => {
   await pilot.oprieRunTurn('architecte');
   assert.equal(spy.deepCalls.length, 1, 'le plan profond part à chaque tour.');
   assert.equal(spy.deepCalls[0].body.original_request, 'Rédige une note de cadrage.');
-  assert.deepEqual(Object.keys(spy.deepCalls[0].body).sort(), ['clarification_history', 'original_request'],
-    'le contrat du plan profond est INCHANGÉ : PERF-04 ne lui ajoute aucun champ.');
+  /* OPRIE-MATERIAL-CONTEXT-02 — UN TROISIÈME CHAMP, ET UN SEUL. PERF-04 n'ajoutait
+     rien au contrat du plan profond, et c'est toujours vrai de PERF-04. Ce qui a
+     changé vient d'ailleurs : le contexte matériau, champ OPTIONNEL dont l'absence
+     vaut "unknown". L'assertion continue de garder ce qu'elle gardait — que le plan
+     rapide n'ajoute rien — en énumérant exactement les champs légaux. */
+  assert.deepEqual(Object.keys(spy.deepCalls[0].body).sort(),
+    ['clarification_history', 'material_context', 'original_request'],
+    'le contrat du plan profond ne porte que ses champs déclarés.');
 });
 
 test('T-P04-02 : soumettre déclenche le plan rapide, sur le même tour', async () => {

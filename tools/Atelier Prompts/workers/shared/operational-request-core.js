@@ -169,6 +169,7 @@ MISSION
 7. Après une réponse équivalente à « je ne sais pas » ou à une délégation explicite (« à vous de choisir » ou équivalent), il est interdit de reposer mécaniquement la même question ou une question portant sur le même choix. Réévaluez plutôt, dans cet ordre : décider (si la délégation l'autorise), estimer, scénariser, conditionner, ou laisser localement inconnue. Questionner à nouveau sur ce point précis reste le tout dernier recours, seulement si aucune de ces stratégies ne préserve honnêtement le résultat.
 8. question_candidates peut contenir plusieurs candidats internes lorsque plusieurs issues matérielles distinctes subsistent réellement après application de la ladder de substitution (rechercher/décider/estimer/scénariser/conditionner/laisser inconnue) — ce n'est pas un maximum global de questions et cela ne plafonne jamais le nombre total de tours. Mais un rôle ultérieur (l'Arbitre s'il est appelé, ou le mécanisme qui sélectionne la prochaine question lorsqu'il n'est pas appelé) ne retient toujours qu'UNE seule prochaine question effectivement posée à l'utilisateur. En conséquence : n'incluez dans question_candidates que les issues réellement non substituables après application complète de la ladder — jamais une conversion mécanique de chaque issue détectée en question — et, s'il en reste plusieurs, classez-les par ordre décroissant de valeur informationnelle : la première est celle qu'un rôle ultérieur retiendra en priorité. Chaque question_candidate.text reste une seule question, jamais deux questions coordonnées dans la même chaîne.
 9. Renseignez honnêtement confirmation_signals (multiple_ambiguities_resolved, complex_conflict_arbitrated, strong_restructuring, multiple_objectives_hierarchized, significant_delegation) en reflétant ce que vous venez réellement de faire à ce tour, jamais une estimation de risque abstraite.
+10. material_context, lorsqu'il vous est fourni, énonce UNIQUEMENT un fait de disponibilité : present indique qu'un matériau est effectivement joint à la demande, usable qu’au moins un des matériaux joints a un contenu lisible par le système. Il ne dit jamais qu'un matériau est REQUIS — cela reste votre raisonnement, et lui seul. present=true ne rend jamais une demande prête, usable=true ne rend jamais une information suffisante, et "unknown" ne doit jamais être lu comme false. Si la demande ou l'historique déclare explicitement qu'un intrant manque, cette déclaration l'emporte sur le contexte : le contexte décrit ce dont le système dispose, jamais ce que la personne affirme.
 
 ${ISSUE_TAXONOMY_GUIDE}
 
@@ -182,8 +183,12 @@ Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
 
 export const ANALYST_OUTPUT_FIELDS = Object.freeze(["operational_request_candidate", "provenance_records", "issues", "question_candidates", "confirmation_signals"]);
 
-export function makeAnalystUserMessage({ original_request, clarification_history = [] } = {}) {
-  return JSON.stringify({ original_request: text(original_request), clarification_history: list(clarification_history) });
+export function makeAnalystUserMessage({ original_request, clarification_history = [], material_context } = {}) {
+  return JSON.stringify({
+    original_request: text(original_request),
+    clarification_history: list(clarification_history),
+    material_context: normalizeMaterialContext(material_context)
+  });
 }
 
 export function validateAnalystOutput(value) {
@@ -268,6 +273,7 @@ MISSION
 4. Si, et seulement si, vous identifiez un problème matériel réel, soulevez un veto qualifié : {issue_id, new_information_trigger (ce qui justifie de le soulever maintenant), why_material, why_not_substitutable}. Un veto qui répète, sans élément nouveau, un point déjà présent dans previous_vetoes est redondant et ne doit pas être soulevé à nouveau.
 5. SECONDE LECTURE OBLIGATOIRE, STRUCTURÉE ET TRAÇABLE — légitimité de chaque recommended_treatment="question" : parcourez individuellement chaque issue listée dans question_review_targets (voir FORME ci-dessus), déjà filtrée exactement pour les issues dont impact != "material" est faux et recommended_treatment != "question" est faux : B-01B ne s'applique qu'aux issues matérielles que l'Analyste a traitées par question. Pour chaque target, produisez la clé correspondante dans question_substitution_review (forme ci-dessus) : testez une par une, sur les six alternatives non-question de la ladder (définies ci-dessus), si chacune était raisonnablement disponible compte tenu de original_request, de clarification_history, de l'issue elle-même, des informations déjà disponibles, de la nature de l'inconnue et des contraintes exprimées, et consignez pour chacune sa conclusion (reasonably_available) et sa justification (reason) — y compris pour une alternative jugée non disponible. N'inventez jamais une alternative théorique seulement pour produire une disponibilité : une alternative n'est raisonnablement disponible que si elle est réellement compatible avec les données reçues à ce tour. Si aucune alternative n'est raisonnablement disponible, available_alternative et why_available valent tous deux null, et une question ainsi confirmée reste pleinement légitime — cela ne doit jamais être requalifié ni forcé vers une disponibilité artificielle. Sinon, désignez dans available_alternative celle que vous jugez la plus appropriée et justifiez dans why_available. Cette lecture est strictement individuelle, issue par issue — aucun maximum, aucune cible, aucun seuil de nombre de questions n'existe. Le nombre de clés attendu dans question_substitution_review est exactement égal au nombre d'éléments de question_review_targets (cf. FORME DE question_review_targets).
 6. Évaluez significant_stakes : les conséquences d'une erreur de préparation sont-elles significatives par leur portée, leur réversibilité ou leur impact — indépendamment de tout domaine particulier ? Justifiez dans significant_stakes_reason si vrai.
+7. material_context, lorsqu'il vous est fourni, ne vous sert qu'à une chose : vérifier si une question de l'Analyste portant sur la disponibilité d'un matériau est légitime. Il énonce un fait de disponibilité — present : un matériau est joint ; usable : son contenu est lisible par le système — jamais une exigence métier, jamais une readiness. N'en tirez aucune conclusion d'état, ne le convertissez jamais en décision, et ne lisez jamais "unknown" comme false.
 
 ${ISSUE_TAXONOMY_GUIDE}
 
@@ -315,10 +321,11 @@ export function buildQuestionReviewTargets(analystOutput) {
     }));
 }
 
-export function makeCriticUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [] } = {}) {
+export function makeCriticUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context } = {}) {
   return JSON.stringify({
     original_request: text(original_request),
     clarification_history: list(clarification_history),
+    material_context: normalizeMaterialContext(material_context),
     analyst_output,
     question_review_targets: buildQuestionReviewTargets(analyst_output),
     previous_vetoes: list(previous_vetoes)
@@ -1981,6 +1988,19 @@ export const ARBITER_JSON_SCHEMA = Object.freeze({
 // construire (createDegradedRoleResult) si elle choisit de basculer sur l'autre provider et que
 // celui-ci échoue aussi.
 
+/* OPRIE-MATERIAL-CONTEXT-02 — variante de requireExactKeys admettant des clés
+   OPTIONNELLES ÉNUMÉRÉES. Elle ne tolère aucune clé inconnue : la rigueur du contrat
+   est identique, seule la liste des clés légales s'allonge d'un élément déclaré. */
+function requireKeysWithOptional(value, required, optional, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new DecisionHttpError(400, "invalid_input", `${label} doit être un objet.`);
+  const actual = Object.keys(value);
+  const legales = new Set([...required, ...optional]);
+  const inconnue = actual.find((key) => !legales.has(key));
+  if (inconnue) throw new DecisionHttpError(400, "invalid_input", `${label} contient des champs inattendus ou manquants.`);
+  const manquante = required.find((key) => !actual.includes(key));
+  if (manquante) throw new DecisionHttpError(400, "invalid_input", `${label} contient des champs inattendus ou manquants.`);
+}
+
 function requireExactKeys(value, keys, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new DecisionHttpError(400, "invalid_input", `${label} doit être un objet.`);
   const actual = Object.keys(value).sort();
@@ -1988,6 +2008,61 @@ function requireExactKeys(value, keys, label) {
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
     throw new DecisionHttpError(400, "invalid_input", `${label} contient des champs inattendus ou manquants.`);
   }
+}
+
+
+/* OPRIE-MATERIAL-CONTEXT-02 — CONTEXTE MATÉRIAU : UN FAIT DE DISPONIBILITÉ, RIEN DE PLUS.
+ *
+ * POURQUOI CE CHAMP EXISTE. Le produit possède un canal de matériau — documents
+ * joints, glissés-déposés, stockés côté navigateur — et le plan profond est, depuis
+ * la migration OPRIE, la seule autorité de readiness. Les deux ne communiquaient pas :
+ * une demande qui présuppose un intrant voyait cet intrant structurellement invisible,
+ * et l'Analyste ne pouvait que le réclamer. L'audit qui l'a établi a aussi délimité la
+ * portée du défaut — six fixtures sur trente — et spécifié ce contrat.
+ *
+ * DEUX DIMENSIONS, ET DEUX SEULEMENT.
+ *   present  — un matériau est-il effectivement joint ?
+ *   usable   — au moins un des matériaux joints a-t-il un contenu lisible par le système ?
+ *
+ * CE QU'IL NE DIT JAMAIS. Ni qu'un matériau est REQUIS — le déterminer est le
+ * raisonnement de l'Analyste, et le lui fournir créerait une seconde autorité —, ni
+ * qu'il est pertinent, ni qu'il suffit. `required` est délibérément absent du contrat.
+ * `accessible` l'est aussi, faute de source qui le porte réellement dans ce produit.
+ *
+ * TROIS VALEURS, DONT UNE DE PREMIÈRE CLASSE. true, false, et "unknown" — employé
+ * quand la disponibilité ne peut pas être établie de façon fiable. L'ABSENCE DU CHAMP
+ * VAUT "unknown" : les requêtes antérieures à ce contrat restent valides, à l'octet
+ * près, et rien n'est jamais rempli à true par défaut.
+ */
+export const MATERIAL_CONTEXT_UNKNOWN = "unknown";
+export const MATERIAL_CONTEXT_FIELDS = Object.freeze(["present", "usable"]);
+export const MATERIAL_CONTEXT_VALUES = Object.freeze([true, false, MATERIAL_CONTEXT_UNKNOWN]);
+export const MATERIAL_CONTEXT_ABSENT = Object.freeze({
+  present: MATERIAL_CONTEXT_UNKNOWN,
+  usable: MATERIAL_CONTEXT_UNKNOWN
+});
+
+/**
+ * Normalise le contexte matériau. Absent -> tout inconnu. Présent -> strictement
+ * validé : deux champs, trois valeurs, rien d'autre. Un contexte malformé est une
+ * erreur de l'appelant, jamais une valeur devinée.
+ */
+export function normalizeMaterialContext(value) {
+  if (value === undefined || value === null) return { ...MATERIAL_CONTEXT_ABSENT };
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new DecisionHttpError(400, "invalid_input", "material_context doit être un objet.");
+  }
+  const keys = Object.keys(value).sort();
+  const expected = [...MATERIAL_CONTEXT_FIELDS].sort();
+  if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
+    throw new DecisionHttpError(400, "invalid_input", "material_context accepte exactement present et usable.");
+  }
+  for (const field of MATERIAL_CONTEXT_FIELDS) {
+    if (!MATERIAL_CONTEXT_VALUES.includes(value[field])) {
+      throw new DecisionHttpError(400, "invalid_input", `material_context.${field} vaut true, false ou "unknown".`);
+    }
+  }
+  return { present: value.present, usable: value.usable };
 }
 
 function validateOriginalRequestAndHistory(value) {
@@ -2004,8 +2079,14 @@ function validateOriginalRequestAndHistory(value) {
 }
 
 export function validateAnalystInput(value) {
-  requireExactKeys(value, ["original_request", "clarification_history"], "AnalystInput");
-  return validateOriginalRequestAndHistory(value);
+  /* OPRIE-MATERIAL-CONTEXT-02 — UNE CLÉ OPTIONNELLE, NOMMÉE, ET RIEN DE PLUS.
+     requireExactKeys reste la règle : on ne relâche pas le contrat, on énumère
+     l'unique clé supplémentaire admise. Toute autre clé est refusée comme avant. */
+  requireKeysWithOptional(value, ["original_request", "clarification_history"], ["material_context"], "AnalystInput");
+  return {
+    ...validateOriginalRequestAndHistory(value),
+    material_context: normalizeMaterialContext(value.material_context)
+  };
 }
 
 export function validateCriticInput(value) {

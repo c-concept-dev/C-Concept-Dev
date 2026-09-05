@@ -94,9 +94,21 @@ function isProviderChainExhausted(error) {
  * qui rend l'orchestration non contournable — un client ne peut pas injecter un analyst_output
  * fabriqué pour court-circuiter l'Analyste.
  */
-function buildRoleInput(role, base, outputs) {
-  if (role === "analyst") return { ...base };
-  if (role === "critic") return { ...base, analyst_output: outputs.analyst, previous_vetoes: [] };
+/* OPRIE-MATERIAL-CONTEXT-02 — PROPAGATION SÉLECTIVE, ET LA RAISON DE L ÊTRE.
+ *
+ * `base` est diffusé aux trois rôles : y ajouter le contexte matériau l aurait rendu
+ * visible à l Arbitre par simple effet de bord. Ce n est pas ce qu on veut.
+ *
+ * L Analyste interprète le fait — c est lui qui identifie les inconnues matérielles.
+ * Le Critique audite cette interprétation — il ne peut juger si une question portant
+ * sur un document était légitime sans savoir si ce document était joint.
+ * L Arbitre arbitre ce que les deux précédents ont soulevé : lui donner le signal brut
+ * en ferait un TROISIÈME interprète direct du même fait, avec le risque de trois
+ * lectures divergentes d une seule donnée. Il ne le reçoit donc pas.
+ */
+function buildRoleInput(role, base, outputs, material_context) {
+  if (role === "analyst") return { ...base, material_context };
+  if (role === "critic") return { ...base, analyst_output: outputs.analyst, previous_vetoes: [], material_context };
   return { ...base, analyst_output: outputs.analyst, critic_output: outputs.critic };
 }
 
@@ -120,13 +132,21 @@ function defaultLog(event) {
 export async function runOperationalRequestTurn(input, { executeRole, log = defaultLog } = {}) {
   if (typeof executeRole !== "function") throw new TypeError("runOperationalRequestTurn: executeRole est obligatoire.");
   const base = Object.freeze({ original_request: input.original_request, clarification_history: input.clarification_history });
+  /* Le contexte matériau vit à côté de `base`, jamais dedans : voir buildRoleInput. */
+  const material_context = input.material_context;
+  log({
+    event: "material_context_observation",
+    material_context_present: material_context ? material_context.present : null,
+    material_context_usable: material_context ? material_context.usable : null,
+    material_context_absent: !material_context
+  });
   const outputs = {};
 
   for (const role of OPERATIONAL_REQUEST_ROLE_SEQUENCE) {
     log({ event: "operational_request_role_start", role, sequence: OPERATIONAL_REQUEST_ROLE_SEQUENCE });
     let raw;
     try {
-      raw = await executeRole(role, buildRoleInput(role, base, outputs));
+      raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context));
     } catch (error) {
       if (!isProviderChainExhausted(error)) throw error;
       // Le détail technique reste côté serveur ; le client reçoit un motif neutre.

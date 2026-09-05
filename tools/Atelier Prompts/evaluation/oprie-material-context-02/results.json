@@ -1,0 +1,70 @@
+{
+ "lot": "OPRIE-MATERIAL-CONTEXT-02",
+ "objet": "implementation du contrat material_context de bout en bout",
+ "mesure_le": "2026-09-05",
+ "worker": "atelier-decision-groq",
+ "version_deployee": "cef47a65-76fa-407b-91f4-a862260fc90f",
+ "contrat": {
+  "champ": "material_context",
+  "dimensions": [
+   "present",
+   "usable"
+  ],
+  "valeurs": [
+   true,
+   false,
+   "unknown"
+  ],
+  "optionnel": true,
+  "absence_vaut": "unknown",
+  "required_absent": true,
+  "accessible_absent": true
+ },
+ "validation_transport_en_production": {
+  "contexte_incomplet": 400,
+  "valeur_illegale": 400,
+  "cle_inconnue": 400,
+  "contexte_valide": "accepte, le tour part vers les roles",
+  "lecture": "le contrat reste strict : une cle optionnelle NOMMEE a ete ajoutee, aucune ouverture arbitraire."
+ },
+ "propagation": {
+  "analyst": true,
+  "critic": true,
+  "arbiter": false,
+  "mecanisme": "le contexte ne passe pas par `base` — il est transmis explicitement aux deux premiers roles",
+  "raison": "base est diffuse aux trois ; l Arbitre l aurait recu par effet de bord et serait devenu un troisieme interprete du meme fait"
+ },
+ "fraicheur": {
+  "mecanisme": "lecture de state.docs a l instant de la construction du corps de requete",
+  "copie": false,
+  "cache": false,
+  "ttl_invente": 0,
+  "repli": "si la source est hors de portee -> unknown, jamais un defaut optimiste"
+ },
+ "observation_reelle_R08": {
+  "demande": "Résume ce texte en cinq idées clés et une conclusion",
+  "sans_contexte": {
+   "state": "clarification_required",
+   "question": "Pourriez-vous fournir le texte que vous souhaitez résumer ?",
+   "latence_s": 34.9
+  },
+  "avec_contexte": {
+   "contexte": {
+    "present": true,
+    "usable": true
+   },
+   "state": "clarification_required",
+   "question": "Pouvez-vous coller directement le texte à résumer dans votre message ?",
+   "latence_s": 47.9
+  },
+  "etat_change": false,
+  "question_changee": true
+ },
+ "limite_decouverte": {
+  "nom": "le canal de VISIBILITE est pose, le canal de CONTENU ne l est pas",
+  "constat": "informe que le materiau existe, le plan profond continue de demander une clarification — mais il ne demande plus le document en ignorant son existence, il demande d en coller le contenu dans le message. Il a compris que le materiau existe ET qu il ne le recoit pas.",
+  "cause": "le contenu de state.docs[].text n est jamais transmis : il est extrait par le navigateur et reste dans le navigateur. Savoir qu un document existe ne permet pas de le resumer.",
+  "ambiguite_du_champ": "usable, tel qu implemente, signifie « lisible par le navigateur ». Ce n est pas « disponible au raisonnement profond ». La formulation du contrat ne distingue pas les deux, et l observation le revele.",
+  "consequence": "la clarification qui subsiste est desormais LEGITIME au regard du contrat : une information materielle non substituable — le contenu — manque reellement."
+ }
+}

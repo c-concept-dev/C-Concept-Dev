@@ -412,15 +412,22 @@ test("CONFIRMATION_TRIGGERS couvre les cinq signaux analyste plus significant_st
 // --- Messages et parsing ------------------------------------------------------------
 
 test("les constructeurs de message produisent un JSON exploitable avec les clés attendues", () => {
+  /* OPRIE-MATERIAL-CONTEXT-02 — LA PROPAGATION EST SÉLECTIVE, ET CE TEST EN EST LA
+     PREUVE LA PLUS DIRECTE : l'Analyste et le Critique reçoivent material_context,
+     l'Arbitre ne le reçoit PAS. Il arbitre ce que les deux précédents ont soulevé ;
+     lui donner le signal brut en ferait un troisième interprète du même fait. */
   const analystMessage = JSON.parse(makeAnalystUserMessage({ original_request: "Préparer un voyage.", clarification_history: [] }));
-  assert.deepEqual(Object.keys(analystMessage).sort(), ["clarification_history", "original_request"]);
+  assert.deepEqual(Object.keys(analystMessage).sort(), ["clarification_history", "material_context", "original_request"]);
+  assert.deepEqual(analystMessage.material_context, { present: "unknown", usable: "unknown" },
+    "absence du champ = unknown, jamais un défaut optimiste");
 
   const criticMessage = JSON.parse(makeCriticUserMessage({ original_request: "x", analyst_output: minimalAnalystOutput(), previous_vetoes: [] }));
   // 3F.3.3-S3 : question_review_targets est désormais une entrée pré-calculée mécaniquement à
   // partir de analyst_output.issues (buildQuestionReviewTargets), jamais une décision sémantique.
-  assert.deepEqual(Object.keys(criticMessage).sort(), ["analyst_output", "clarification_history", "original_request", "previous_vetoes", "question_review_targets"]);
+  assert.deepEqual(Object.keys(criticMessage).sort(), ["analyst_output", "clarification_history", "material_context", "original_request", "previous_vetoes", "question_review_targets"]);
 
   const arbiterMessage = JSON.parse(makeArbiterUserMessage({ original_request: "x", analyst_output: minimalAnalystOutput(), critic_output: minimalCriticOutput() }));
+  /* L'Arbitre, lui, est INCHANGÉ : aucun material_context. C'est l'invariant. */
   assert.deepEqual(Object.keys(arbiterMessage).sort(), ["analyst_output", "clarification_history", "critic_output", "original_request"]);
 });
 
