@@ -55403,6 +55403,11 @@ var Worker_default = {
       return handleBrandKitsList(env2);
     if (p === "/brand-kits" && request2.method === "POST")
       return handleBrandKitCreate(request2, env2);
+    // UX-8B Lot 3 — import réel de charte (analyse texte via Claude). Vérifiée AVANT le motif
+    // générique /brand-kits/:id ci-dessous pour éviter toute ambiguïté de route (même si la
+    // méthode POST ne collisionnerait de toute façon jamais avec le GET de ce dernier).
+    if (p === "/brand-kits/analyze" && request2.method === "POST")
+      return handleBrandKitAnalyze(request2, env2);
     const brandKitStatusMatch = p.match(/^\/brand-kits\/([^\/]+)\/status$/);
     if (brandKitStatusMatch && request2.method === "PATCH")
       return handleBrandKitStatusUpdate(request2, env2, brandKitStatusMatch[1]);
@@ -55420,7 +55425,7 @@ var Worker_default = {
 // ═══ UX-8B Lot 1 — Brand Kits : infrastructure de stockage uniquement ═══
 // Aucun parcours d'import, aucune extraction — la fondation (R2 + D1) qui rend le reste
 // possible. Voir migrations/0001_add_brand_kit_tables.sql pour le schéma exact.
-var BRAND_ASSET_ROLES = ["logo", "font", "image"];
+var BRAND_ASSET_ROLES = ["logo", "font", "image", "reference"];
 var BRAND_SOURCE_TYPES = ["pptx", "pdf", "image", "font"];
 var BRAND_COLOR_KEYS = ["primary", "accent", "background", "text", "success", "warning", "critical"];
 
@@ -55565,6 +55570,139 @@ async function handleBrandKitStatusUpdate(request2, env2, id) {
   }
 }
 __name(handleBrandKitStatusUpdate, "handleBrandKitStatusUpdate");
+
+// ═══ UX-8B Lot 3 — import réel de charte : extraction texte (côté client) + interprétation
+// par Claude (ici, côté Worker) ═══
+// Le schéma de sortie forcé reprend EXACTEMENT les 5 clés déjà actées au CDC (§UX-8B) pour un
+// élément détecté — element/candidate/confidence/detectionMode/requiresConfirmation — étendues
+// avec les champs propres à chaque type (hexExact/proposedRole pour une couleur, sizes pour une
+// police), nécessaires puisque l'exemple du CDC n'illustre qu'un cas (une police) et ne fixe pas
+// à lui seul tout le contrat de données.
+var BRAND_KIT_ANALYSIS_TOOL = {
+  name: "emit_brand_kit_analysis",
+  description: "Analyse le texte extrait d'un document de charte graphique (identité visuelle) et retourne les couleurs et polices RÉELLEMENT nommées dans le texte, avec un niveau de confiance explicite jamais présenté comme une certitude.",
+  input_schema: {
+    type: "object",
+    properties: {
+      colors: {
+        type: "array",
+        description: "Chaque couleur nommée et/ou codée en hexadécimal trouvée explicitement dans le texte.",
+        items: {
+          type: "object",
+          properties: {
+            element: { type: "string", const: "color" },
+            candidate: { type: "string", description: "Nom donné à la couleur dans la charte source (ex. \"Pin profond\"), pour affichage à l'utilisatrice." },
+            hexExact: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$", description: "Code hexadécimal EXACTEMENT tel qu'il apparaît dans le texte, au caractère près — jamais corrigé, complété ou réinterprété." },
+            proposedRole: { type: "string", enum: ["primary", "accent", "background", "text", "success", "warning", "critical", "decorative"], description: "Rôle fonctionnel proposé (primary/accent/background/text/success/warning/critical) uniquement s'il est raisonnablement déductible du texte ; 'decorative' si le texte indique explicitement que cette couleur n'est jamais utilisée pour du texte courant/du contenu." },
+            confidence: { type: "number", minimum: 0, maximum: 0.99, description: "Toujours strictement inférieure à 1.0, même si le code hex et le nom sont écrits explicitement — une ambiguïté de rôle reste toujours possible." },
+            detectionMode: { type: "string", const: "text-extraction" },
+            requiresConfirmation: { type: "boolean" }
+          },
+          required: ["element", "candidate", "hexExact", "proposedRole", "confidence", "detectionMode", "requiresConfirmation"],
+          additionalProperties: false
+        }
+      },
+      fonts: {
+        type: "array",
+        description: "Chaque police nommée explicitement dans le texte.",
+        items: {
+          type: "object",
+          properties: {
+            element: { type: "string", const: "font" },
+            candidate: { type: "string", description: "Nom exact de la police." },
+            proposedRole: { type: "string", enum: ["heading", "body"] },
+            sizes: { type: "string", description: "Tailles/hiérarchie mentionnées dans le texte pour cette police, en texte libre (ex. \"H1 28/32pt, H2 20/25pt, corps 14/18pt\") ; chaîne vide si aucune taille précisée." },
+            confidence: { type: "number", minimum: 0, maximum: 0.99 },
+            detectionMode: { type: "string", const: "text-extraction" },
+            requiresConfirmation: { type: "boolean" }
+          },
+          required: ["element", "candidate", "proposedRole", "sizes", "confidence", "detectionMode", "requiresConfirmation"],
+          additionalProperties: false
+        }
+      },
+      toneRules: { type: "array", items: { type: "string" }, description: "Règles qualitatives explicites trouvées dans le texte (texte libre), ex. \"le pin sur papier reste le couple de lecture principal\"." },
+      visualProhibitions: { type: "array", items: { type: "string" }, description: "Interdictions explicites trouvées dans le texte (texte libre), ex. \"le laiton n'est jamais utilisé pour du texte courant\"." },
+      noBrandDataFound: { type: "boolean", description: "true si le texte ne contient AUCUNE couleur ni police identifiable — dans ce cas colors et fonts doivent être des tableaux vides, ne jamais fabriquer de charte par défaut." }
+    },
+    required: ["colors", "fonts", "toneRules", "visualProhibitions", "noBrandDataFound"],
+    additionalProperties: false
+  }
+};
+
+async function handleBrandKitAnalyze(request2, env2) {
+  if (!env2.ANTHROPIC_API_KEY) return jsonErr("ANTHROPIC_API_KEY not configured", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { text } = body || {};
+  if (!text || typeof text !== "string" || !text.trim()) return jsonErr("Missing text", 400);
+  // Plafond défensif — un texte de charte structuré tient largement dans quelques dizaines de
+  // milliers de caractères ; évite un envoi disproportionné si un PDF hors profil est déposé.
+  const clippedText = text.length > 40000 ? text.slice(0, 40000) : text;
+
+  const systemPrompt = "Tu analyses le texte extrait d'un document de charte graphique (identité visuelle) pour en extraire les couleurs et polices RÉELLEMENT nommées dans le texte — jamais devinées ni inventées. " +
+    "Pour chaque couleur : reprends le code hexadécimal EXACTEMENT comme il apparaît dans le texte, au caractère près (ne corrige jamais, ne complète jamais, ne réinterprète jamais une valeur). " +
+    "Propose un rôle fonctionnel (primary/accent/background/text/success/warning/critical) UNIQUEMENT s'il est raisonnablement déductible du nom ou de la description donnée dans le texte (ex. \"Fond principal\" → background, \"Structure · titres\" → primary) ; si le texte indique explicitement qu'une couleur n'est jamais utilisée pour du texte courant ou du contenu (décor uniquement), utilise le rôle 'decorative'. " +
+    "confidence est TOUJOURS strictement inférieure à 1.0, même quand le code hex et le nom sont écrits noir sur blanc dans le texte — une ambiguïté de rôle ou d'usage reste toujours possible. " +
+    "Capture aussi les règles qualitatives explicites (toneRules) et les interdictions explicites (visualProhibitions) trouvées dans le texte, en texte libre, sans les inventer ni les généraliser au-delà de ce qui est écrit. " +
+    "Si le texte ne contient AUCUNE couleur ni police identifiable, retourne des tableaux vides et noBrandDataFound=true — ne fabrique JAMAIS une charte par défaut à la place.";
+
+  const ab = {
+    model: "claude-sonnet-4-6",
+    max_tokens: 4000,
+    system: systemPrompt,
+    messages: [{ role: "user", content: "Texte extrait du document de charte :\n\n" + clippedText }],
+    tools: [BRAND_KIT_ANALYSIS_TOOL],
+    tool_choice: { type: "tool", name: "emit_brand_kit_analysis" }
+  };
+
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": env2.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(ab)
+    });
+  } catch (err2) {
+    return jsonErr("Anthropic request failed: " + err2.message, 502);
+  }
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    return jsonErr("Anthropic API error " + res.status + ": " + errText.slice(0, 500), 502);
+  }
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    return jsonErr("Invalid Anthropic response", 502);
+  }
+  const toolUse = (data.content || []).find((b) => b.type === "tool_use" && b.name === "emit_brand_kit_analysis");
+  if (!toolUse || !toolUse.input) return jsonErr("No structured analysis returned", 502);
+
+  const analysis = toolUse.input;
+  // Filet de sécurité serveur — ne fait jamais dépendre une garantie de qualité d'un seul
+  // mécanisme : même si le schéma envoyé à Anthropic interdit déjà confidence:1.0, on plafonne
+  // aussi ici avant de renvoyer la réponse au client.
+  const clamp99 = (c) => (typeof c === "number" && c >= 1 ? 0.99 : c);
+  const colors = (analysis.colors || []).map((c) => Object.assign({}, c, { confidence: clamp99(c.confidence) }));
+  const fonts = (analysis.fonts || []).map((f) => Object.assign({}, f, { confidence: clamp99(f.confidence) }));
+
+  return json({
+    colors,
+    fonts,
+    toneRules: analysis.toneRules || [],
+    visualProhibitions: analysis.visualProhibitions || [],
+    noBrandDataFound: !!analysis.noBrandDataFound
+  });
+}
+__name(handleBrandKitAnalyze, "handleBrandKitAnalyze");
 
 async function handleBrandAssetUpload(request2, env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
