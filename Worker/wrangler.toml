@@ -24,5 +24,10 @@ index_name = "therapeute-library"
 [ai]
 binding = "AI"
 
+# ── R2 : actifs binaires des chartes graphiques (UX-8B), adressés par empreinte SHA-256 ──
+[[r2_buckets]]
+binding = "BRAND_ASSETS"
+bucket_name = "studio-clinique-brand-assets"
+
 # ── Secrets (via Dashboard ou wrangler secret put) ────────────────
 # ANTHROPIC_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, PEXELS_API_KEY, GOOGLE_TTS_KEY, OPENAI_API_KEY
