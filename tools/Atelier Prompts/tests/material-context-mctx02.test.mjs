@@ -6,7 +6,8 @@
  * autorité de readiness, ne le voyait pas. Ce lot pose le canal, en quatre couches,
  * et cette suite garde ce qui compte à chacune.
  *
- * DEUX DIMENSIONS, TROIS VALEURS. present et usable, chacune true, false ou
+ * DEUX DIMENSIONS, TROIS VALEURS. present et deep_content_available, chacune true,
+ * false ou
  * "unknown". L'ABSENCE DU CHAMP VAUT "unknown" : les requêtes antérieures restent
  * valides, et rien n'est jamais rempli à true par défaut.
  *
@@ -42,51 +43,57 @@ const sansProse = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$
 
 /* T-MCTX02-01 — le champ optionnel est accepté, et rien d'autre ne l'est. */
 test('T-MCTX02-01 : le champ optionnel est accepté, le contrat reste strict', () => {
-  const avec = validateAnalystInput({ ...demande, material_context: { present: true, usable: true } });
-  assert.deepEqual(avec.material_context, { present: true, usable: true });
+  /* L’invariant est indissociable : annoncer la disponibilité EXIGE de fournir le contenu. */
+  const avec = validateAnalystInput({ ...demande, material_context: { present: true, deep_content_available: true }, material_content: ['texte'] });
+  assert.deepEqual(avec.material_context, { present: true, deep_content_available: true });
+  assert.deepEqual(avec.material_content, ['texte']);
   /* La rigueur n'a pas été relâchée : toute clé non énumérée reste refusée. */
   assert.throws(() => validateAnalystInput({ ...demande, autre_chose: 1 }), /champs inattendus/);
-  assert.throws(() => validateAnalystInput({ ...demande, material_context: { present: true, usable: true }, extra: 1 }), /champs inattendus/);
+  assert.throws(() => validateAnalystInput({ ...demande, material_context: { present: true, deep_content_available: true }, material_content: ['x'], extra: 1 }), /champs inattendus/);
   /* Les clés requises le restent. */
   assert.throws(() => validateAnalystInput({ original_request: 'x' }), /champs inattendus/);
   /* Un contexte malformé est une erreur de l'appelant, jamais une valeur devinée. */
-  assert.throws(() => validateAnalystInput({ ...demande, material_context: { present: true } }), /exactement present et usable/);
-  assert.throws(() => validateAnalystInput({ ...demande, material_context: { present: 'oui', usable: true } }), /vaut true, false ou/);
+  assert.throws(() => validateAnalystInput({ ...demande, material_context: { present: true } }), /exactement present et deep_content_available/);
+  assert.throws(() => validateAnalystInput({ ...demande, material_context: { present: 'oui', deep_content_available: true } }), /vaut true, false ou/);
   assert.throws(() => validateAnalystInput({ ...demande, material_context: [] }), /doit être un objet/);
 });
 
 /* T-MCTX02-02 — absence = unknown, jamais un défaut optimiste. */
 test('T-MCTX02-02 : l’absence du champ vaut unknown', () => {
-  assert.deepEqual(validateAnalystInput(demande).material_context, { present: 'unknown', usable: 'unknown' });
+  assert.deepEqual(validateAnalystInput(demande).material_context, { present: 'unknown', deep_content_available: 'unknown' });
   assert.deepEqual(normalizeMaterialContext(undefined), MATERIAL_CONTEXT_ABSENT);
   assert.deepEqual(normalizeMaterialContext(null), MATERIAL_CONTEXT_ABSENT);
   assert.equal(MATERIAL_CONTEXT_ABSENT.present, MATERIAL_CONTEXT_UNKNOWN);
-  assert.equal(MATERIAL_CONTEXT_ABSENT.usable, MATERIAL_CONTEXT_UNKNOWN);
+  assert.equal(MATERIAL_CONTEXT_ABSENT.deep_content_available, MATERIAL_CONTEXT_UNKNOWN);
   /* Et jamais true par défaut, nulle part. */
   assert.equal(/present:\s*true\s*[,}]/.test(sansProse(NOYAU).slice(sansProse(NOYAU).indexOf('normalizeMaterialContext'))), false);
 });
 
-/* T-MCTX02-03 / 04 — present et usable atteignent l'Analyste, distinctement. */
-test('T-MCTX02-03/04 : present et usable parviennent à l’Analyste, séparément', () => {
-  for (const contexte of [{ present: true, usable: true }, { present: true, usable: false },
-    { present: false, usable: false }, { present: 'unknown', usable: 'unknown' }]) {
+/* T-MCTX02-03 / 04 — les deux dimensions atteignent l'Analyste, distinctement. */
+test('T-MCTX02-03/04 : les deux dimensions parviennent à l’Analyste, séparément', () => {
+  for (const contexte of [{ present: true, deep_content_available: false },
+    { present: false, deep_content_available: false }, { present: 'unknown', deep_content_available: 'unknown' }]) {
     const message = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: contexte }));
     assert.deepEqual(message.material_context, contexte);
   }
-  /* Les deux dimensions sont indépendantes : present=true n’impose pas usable=true. */
-  const m = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: true, usable: false } }));
+  /* Et le cas disponible, indissociable de son contenu. */
+  const avecContenu = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: true, deep_content_available: true }, material_content: ['texte'] }));
+  assert.deepEqual(avecContenu.material_context, { present: true, deep_content_available: true });
+  assert.deepEqual(avecContenu.material_content, ['texte']);
+  /* Les deux dimensions sont indépendantes : present=true n’impose rien du contenu. */
+  const m = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: true, deep_content_available: false } }));
   assert.equal(m.material_context.present, true);
-  assert.equal(m.material_context.usable, false);
-  assert.deepEqual([...MATERIAL_CONTEXT_FIELDS], ['present', 'usable']);
+  assert.equal(m.material_context.deep_content_available, false);
+  assert.deepEqual([...MATERIAL_CONTEXT_FIELDS], ['present', 'deep_content_available']);
   assert.deepEqual([...MATERIAL_CONTEXT_VALUES], [true, false, 'unknown']);
 });
 
 /* T-MCTX02-05 — le Critique le reçoit aussi : il ne peut auditer sans lui. */
 test('T-MCTX02-05 : le Critique reçoit le contexte', () => {
   const message = JSON.parse(makeCriticUserMessage({
-    ...demande, analyst_output: { issues: [] }, material_context: { present: true, usable: true }
+    ...demande, analyst_output: { issues: [] }, material_context: { present: true, deep_content_available: true }
   }));
-  assert.deepEqual(message.material_context, { present: true, usable: true });
+  assert.deepEqual(message.material_context, { present: true, deep_content_available: true });
   assert.match(ORCH, /if \(role === "critic"\) return \{ \.\.\.base, analyst_output: outputs\.analyst, previous_vetoes: \[\], material_context \};/);
 });
 
@@ -94,7 +101,7 @@ test('T-MCTX02-05 : le Critique reçoit le contexte', () => {
 test('T-MCTX02-06 : l’Arbitre ne reçoit jamais le contexte', () => {
   const message = JSON.parse(makeArbiterUserMessage({
     ...demande, analyst_output: { issues: [] }, critic_output: { agreement: 'agree' },
-    material_context: { present: true, usable: true }
+    material_context: { present: true, deep_content_available: true }
   }));
   assert.equal(Object.prototype.hasOwnProperty.call(message, 'material_context'), false,
     'le message de l’Arbitre ne porte aucun contexte matériau');
@@ -108,13 +115,13 @@ test('T-MCTX02-06 : l’Arbitre ne reçoit jamais le contexte', () => {
 
 /* T-MCTX02-07 / 08 — la demande reste immuable, l'historique intact. */
 test('T-MCTX02-07/08 : original_request immuable, clarification_history inchangé', () => {
-  const entree = validateAnalystInput({ ...demande, material_context: { present: true, usable: true } });
+  const entree = validateAnalystInput({ ...demande, material_context: { present: true, deep_content_available: true }, material_content: ['texte du document'] });
   assert.equal(entree.original_request, demande.original_request,
     'la demande n’est pas enrichie du contexte');
   assert.equal(entree.original_request.includes('material'), false);
   assert.deepEqual(entree.clarification_history, []);
   /* Aucun fait technique n’est injecté dans l’historique. */
-  const message = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: true, usable: false } }));
+  const message = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: true, deep_content_available: false } }));
   assert.equal(message.original_request, demande.original_request);
   assert.deepEqual(message.clarification_history, []);
   assert.notEqual(message.material_context, undefined, 'le contexte vit à part, jamais fondu ailleurs');
@@ -129,7 +136,7 @@ test('T-MCTX02-09/10/11 : ni fournisseur, ni domaine, ni identifiant de cas', ()
     assert.equal(new RegExp(interdit, 'i').test(zone), false, `le contrat ne nomme pas ${interdit}`);
   }
   /* Côté navigateur, le calcul ne lit ni extension, ni type MIME, ni nom. */
-  const envelope = HTML.slice(HTML.indexOf('function oprieMaterialContext'), HTML.indexOf('function oprieMaterialContext') + 420);
+  const envelope = HTML.slice(HTML.indexOf('function oprieBuildBody'), HTML.indexOf('async function oprieRequestTurn'));
   for (const interdit of ['\\.name', 'file\\.type', 'split', 'endsWith', 'includes\\(ext', 'pdf', 'docx']) {
     assert.equal(new RegExp(interdit).test(envelope), false, `l’enveloppe ne lit pas ${interdit}`);
   }
@@ -140,31 +147,32 @@ test('T-MCTX02-09/10/11 : ni fournisseur, ni domaine, ni identifiant de cas', ()
   }
 });
 
-/* T-MCTX02-12 / 13 — present et usable ne suffisent JAMAIS à un READY. */
-test('T-MCTX02-12/13 : ni present ni usable ne peuvent produire un état', () => {
+/* T-MCTX02-12 / 13 — ni la présence ni la disponibilité ne suffisent JAMAIS à un READY. */
+test('T-MCTX02-12/13 : ni present ni deep_content_available ne produisent un état', () => {
   /* Le contrat ne connaît aucun état OPRIE. */
   const debut = NOYAU.indexOf('export const MATERIAL_CONTEXT_UNKNOWN');
   const zone = NOYAU.slice(debut, NOYAU.indexOf('function validateOriginalRequestAndHistory'));
+  assert.ok(zone.length > 500, 'la zone du contrat est bien delimitee');
   for (const etat of ['operational_request_ready', 'clarification_required', 'confirmation_required',
     'blocked', 'degraded_state']) {
     assert.equal(zone.includes(etat), false, `le contrat ne mentionne pas ${etat}`);
   }
   /* Et le prompt l’interdit explicitement à l’Analyste comme au Critique. */
-  assert.match(ANALYST_SYSTEM_PROMPT, /present=true ne rend jamais une demande prête/);
-  assert.match(ANALYST_SYSTEM_PROMPT, /usable=true ne rend jamais une information suffisante/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /ne rendent jamais une demande prête/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /décider si ce matériau est requis, et s'il suffit, reste votre raisonnement/);
   assert.match(CRITIC_SYSTEM_PROMPT, /jamais une readiness/);
-  assert.match(CRITIC_SYSTEM_PROMPT, /N'en tirez aucune conclusion d'état/);
+  assert.match(CRITIC_SYSTEM_PROMPT, /N’en tirez aucune conclusion d’état/);
   /* required reste une déduction de l’Analyste : le champ n’existe pas. */
   assert.equal(MATERIAL_CONTEXT_FIELDS.includes('required'), false);
-  assert.match(ANALYST_SYSTEM_PROMPT, /Il ne dit jamais qu'un matériau est REQUIS/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /décrivent la disponibilité technique d'un matériau, jamais une exigence/);
   /* L’Arbitre, lui, n’a même pas été informé de l’existence du champ. */
   assert.equal(/material_context/.test(ARBITER_SYSTEM_PROMPT), false);
 });
 
 /* T-MCTX02-14 — une absence réelle de matériau reste clarifiable. */
 test('T-MCTX02-14 : present=false laisse toute latitude de clarifier', () => {
-  const message = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: false, usable: false } }));
-  assert.deepEqual(message.material_context, { present: false, usable: false });
+  const message = JSON.parse(makeAnalystUserMessage({ ...demande, material_context: { present: false, deep_content_available: false } }));
+  assert.deepEqual(message.material_context, { present: false, deep_content_available: false });
   /* Rien dans le contrat ne restreint la conduite de l’Analyste : il ne reçoit
      qu’un fait, et le prompt lui rappelle que la déclaration de la personne prime. */
   assert.match(ANALYST_SYSTEM_PROMPT, /cette déclaration l'emporte sur le contexte/);
@@ -175,16 +183,18 @@ test('T-MCTX02-14 : present=false laisse toute latitude de clarifier', () => {
 /* T-MCTX02-15 / 17 — fraîcheur par construction, et aucun délai inventé. */
 test('T-MCTX02-15/17 : le signal est lu à l’envoi, sans durée de validité inventée', () => {
   /* Le contexte est construit DANS le corps de la requête, à l’instant de l’envoi. */
-  assert.match(HTML, /const body=\{original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\),material_context:oprieMaterialContext\(\)\}/);
+  assert.match(HTML, /const body=oprieBuildBody\(\);/);
+  assert.match(HTML, /material_context:\{present,deep_content_available:true\},material_content:textes/);
   /* Il n’est ni mémorisé, ni recopié : une seule définition, un seul appel. */
-  assert.equal((HTML.match(/function oprieMaterialContext/g) || []).length, 1);
+  assert.equal((HTML.match(/function oprieBuildBody/g) || []).length, 1);
   /* Un seul site d’appel — la définition contient elle aussi la chaîne, on compte
      donc l’usage réel, celui qui construit le corps de la requête. */
-  assert.equal((HTML.match(/material_context:oprieMaterialContext\(\)/g) || []).length, 1);
+  assert.equal((HTML.match(/const body=oprieBuildBody\(\);/g) || []).length, 1,
+    'un seul site d’appel : celui qui construit le corps de la requête');
   /* Si la source est hors de portée, on rend unknown — jamais un défaut optimiste. */
-  assert.match(HTML, /if\(!docs\)return\{present:'unknown',usable:'unknown'\}/);
+  assert.match(HTML, /if\(!docs\)return\{\.\.\.base,material_context:\{present:'unknown',deep_content_available:'unknown'\}\}/);
   /* INVENTED_MATERIAL_TTL_COUNT = 0 : aucune constante de temps dans le mécanisme. */
-  const envelope = HTML.slice(HTML.indexOf('function oprieMaterialContext'), HTML.indexOf('function oprieMaterialContext') + 420);
+  const envelope = HTML.slice(HTML.indexOf('function oprieBuildBody'), HTML.indexOf('async function oprieRequestTurn'));
   for (const motif of [/\bDate\b/, /\bsetTimeout\b/, /\bttl\b/i, /\b\d{3,}\b/, /expire/i, /stale/i]) {
     assert.equal(motif.test(envelope), false, `aucune notion de durée : ${motif}`);
   }
@@ -209,10 +219,10 @@ test('T-MCTX02-18 : une requête antérieure au contrat reste valide', () => {
   const ancienne = { original_request: 'Explique la photosynthèse.', clarification_history: [] };
   const entree = validateAnalystInput(ancienne);
   assert.equal(entree.original_request, ancienne.original_request);
-  assert.deepEqual(entree.material_context, { present: 'unknown', usable: 'unknown' });
+  assert.deepEqual(entree.material_context, { present: 'unknown', deep_content_available: 'unknown' });
   /* Et le message produit reste lisible, avec le contexte à unknown. */
   const message = JSON.parse(makeAnalystUserMessage(ancienne));
-  assert.deepEqual(message.material_context, { present: 'unknown', usable: 'unknown' });
+  assert.deepEqual(message.material_context, { present: 'unknown', deep_content_available: 'unknown' });
   /* L’observation du tour signale l’absence sans la transformer en fait. */
   assert.match(ORCH, /material_context_absent: !material_context/);
 });

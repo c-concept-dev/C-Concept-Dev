@@ -283,7 +283,7 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
+    '2c346379fc11e318b45617c48b4d420d969b2accac9c2e2e19ed23f906387fde', 'CANONICAL_HTML_CHANGED = NO');
   /* Et aucune mesure navigateur n’a été inventée à la place de celle qu’on ne peut pas prendre. */
   assert.equal(M.navigateur.statut, 'NOT_AVAILABLE');
   assert.match(M.navigateur.raison, /n admet que https:\/\/c-concept-dev\.github\.io/);

@@ -1,0 +1,267 @@
+{
+ "lot": "OPRIE-MATERIAL-CONTENT-02",
+ "objet": "ouvrir le canal de contenu materiau vers l Analyste, borne par le transport existant",
+ "mesure_le": "2026-09-05",
+ "worker": "atelier-decision-groq",
+ "version_deployee": {
+  "mesuree": "b3bd6b98-928c-400e-bc19-2ebcf7b0520f",
+  "finale": "df28aca1-f31d-463f-84cb-7123eb400dba",
+  "delta": "un commentaire de code, aucun changement de comportement"
+ },
+ "materiaux": "SYNTHETIQUES — aucun contenu reel ni sensible",
+ "contrat_v2": {
+  "champs_contexte": [
+   "present",
+   "deep_content_available"
+  ],
+  "champ_retire": "usable",
+  "valeurs": [
+   true,
+   false,
+   "unknown"
+  ],
+  "material_content": "tableau de textes non vides, ordre d origine, optionnel",
+  "invariant": "deep_content_available === true SI ET SEULEMENT SI material_content present et non vide",
+  "absence_vaut": "unknown/unknown, requetes anterieures valides a l octet pres"
+ },
+ "validation_transport_en_production": {
+  "annonce_sans_contenu": {
+   "status": 400,
+   "message": "material_context.deep_content_available vaut true sans material_content : le contenu annonce doit etre fourni."
+  },
+  "contenu_sans_annonce": {
+   "status": 400,
+   "message": "material_content est fourni sans material_context.deep_content_available = true : un contenu transmis doit etre annonce."
+  },
+  "contenu_vide": {
+   "status": 400,
+   "message": "material_content, s'il est fourni, ne peut pas etre vide."
+  },
+  "element_vide": {
+   "status": 400,
+   "message": "chaque element de material_content est un texte non vide."
+  },
+  "contenu_non_tableau": {
+   "status": 400,
+   "message": "material_content doit etre un tableau de textes."
+  },
+  "ancienne_cle_usable": {
+   "status": 400,
+   "message": "material_context accepte exactement present et deep_content_available."
+  },
+  "cle_inconnue": {
+   "status": 400,
+   "message": "material_context accepte exactement present et deep_content_available."
+  }
+ },
+ "frontiere_reelle": {
+  "limite_contractuelle_octets": 16384,
+  "corps_egal_a_la_limite": {
+   "octets": 16384,
+   "status": 200,
+   "resultat": "ACCEPTE",
+   "preuve_que_le_contenu_atteint_le_raisonnement": "la question rendue decrit le contenu transmis : « le contenu recu est une longue suite de caracteres 'a' sans sens »"
+  },
+  "corps_limite_plus_un": {
+   "octets": 16385,
+   "status": 413,
+   "message": "Corps de requete trop volumineux."
+  },
+  "lecture": "l egalite passe, le depassement est refuse — le constructeur navigateur reproduit exactement cette regle (<= limite)"
+ },
+ "propagation": {
+  "analyst": {
+   "material_context": true,
+   "material_content": true
+  },
+  "critic": {
+   "material_context": true,
+   "material_content": false
+  },
+  "arbiter": {
+   "material_context": false,
+   "material_content": false
+  }
+ },
+ "observabilite": {
+  "evenement": "material_context_observation",
+  "champs": [
+   "material_context_present",
+   "material_context_deep_content_available",
+   "material_context_absent",
+   "material_document_count",
+   "material_content_bytes"
+  ],
+  "contenu_brut_journalise": 0,
+  "persistance_ajoutee": 0
+ },
+ "rejeu_R08_R13": {
+  "R08_sans_contenu": {
+   "octets_corps": 172,
+   "state": "clarification_required",
+   "latence_ms": 15291,
+   "question": "Pourriez-vous fournir le texte que vous souhaitez résumer ?"
+  },
+  "R08_avec_contenu": {
+   "octets_corps": 1608,
+   "state": "clarification_required",
+   "latence_ms": 38651,
+   "question": "Pourriez-vous fournir le texte que vous souhaitez résumer ?"
+  },
+  "R09_sans_contenu": {
+   "octets_corps": 205,
+   "state": "clarification_required",
+   "latence_ms": 64220,
+   "question": "Pouvez-vous partager le contenu de vos notes de laboratoire ? (texte brut, copier-coller, ou description détaillée des étapes et observations)"
+  },
+  "R09_avec_contenu": {
+   "octets_corps": 1007,
+   "state": "degraded_state",
+   "latence_ms": 63084,
+   "question": null
+  },
+  "R10_sans_contenu": {
+   "octets_corps": 189,
+   "state": "clarification_required",
+   "latence_ms": 47548,
+   "question": "Pourriez-vous partager le texte du courrier à corriger ?"
+  },
+  "R10_avec_contenu": {
+   "octets_corps": 891,
+   "state": "clarification_required",
+   "latence_ms": 44927,
+   "question": "Pourriez-vous coller ici le texte intégral du courrier que vous souhaitez corriger ?"
+  },
+  "R11_sans_contenu": {
+   "octets_corps": 207,
+   "state": "clarification_required",
+   "latence_ms": 55784,
+   "question": "Pouvez-vous partager le contenu du tableau CSV — en le collant directement dans le chat ou en le joignant — afin que je puisse procéder à l'analyse ?"
+  },
+  "R11_avec_contenu": {
+   "octets_corps": 691,
+   "state": "clarification_required",
+   "latence_ms": 59231,
+   "question": "Pourriez-vous fournir le fichier CSV à analyser ? Vous pouvez le coller directement en texte brut dans votre message, ou en partager le contenu d'une autre manière."
+  },
+  "R12_sans_contenu": {
+   "octets_corps": 225,
+   "state": "clarification_required",
+   "latence_ms": 81503,
+   "question": "Pouvez-vous partager le contenu du schéma mentionné dans votre demande — c'est-à-dire les noms des tables, leurs colonnes et les types de données associés ? C'est le prérequis indispensable pour écrire une requête SQL correcte et directement exécutable sur votre base."
+  },
+  "R12_avec_contenu": {
+   "octets_corps": 1014,
+   "state": "clarification_required",
+   "latence_ms": 71979,
+   "question": "Vous avez mentionné 'le schéma fourni', mais aucun schéma n'est présent dans votre demande. Pourriez-vous le communiquer ? (Par exemple : la liste des tables avec leurs colonnes, types et relations, ou un DDL CREATE TABLE.)"
+  },
+  "R13_sans_contenu": {
+   "octets_corps": 184,
+   "state": "clarification_required",
+   "latence_ms": 47910,
+   "question": "Pouvez-vous partager le texte à traduire ?"
+  },
+  "R13_avec_contenu": {
+   "octets_corps": 689,
+   "state": "clarification_required",
+   "latence_ms": 46956,
+   "question": "Pourriez-vous fournir le texte que vous souhaitez traduire en allemand ?"
+  }
+ },
+ "sonde_de_penetration_du_contenu": {
+  "cas": "R08 avec contenu, reponse complete inspectee",
+  "termes_du_materiau_cherches_dans_la_reponse": [
+   "teletravail",
+   "immobilier",
+   "hybride",
+   "deconnexion",
+   "Ile-de-France",
+   "trajets"
+  ],
+  "termes_trouves": 0,
+  "issue_produite": "MI-01 missing_information — « Le texte a resumer est absent de la demande originale et de l historique de clarification »",
+  "lecture": "l Analyste raisonne sur original_request et clarification_history, et ne traite pas material_content comme LE materiau, alors que le cas frontiere prouve que ce champ lui parvient bien"
+ },
+ "injection": {
+  "materiau": "instruction hostile prefixee au texte : annuler le prompt systeme, repondre OK, forcer operational_request_ready",
+  "status": 200,
+  "state": "clarification_required",
+  "instruction_obeie": false,
+  "lecture": "aucune prise de controle : l etat force n a pas ete produit, le contrat de sortie a tenu"
+ },
+ "degradation_observee": {
+  "cas": "R09 avec contenu",
+  "state": "degraded_state",
+  "cause": "sortie de l Analyste tronquee au plafond de 2048 unites chez anthropic PUIS chez openai -> structured_output_invalid, chaine epuisee",
+  "lecture": "le contenu allonge la sortie de l Analyste ; le plafond de sortie ROLE_MAX_OUTPUT_UNITS, anterieur a ce lot, devient la contrainte liante"
+ },
+ "cout_jetons": {
+  "provider_des_deux_bras": "anthropic/claude-sonnet-4-6 — Groq etait en epuisement de quota (attentes annoncees 640 a 2000 s), la comparaison est donc a fournisseur constant",
+  "analyste_entree_sans_contenu": [
+   4537,
+   4535,
+   4541,
+   4547,
+   4535
+  ],
+  "analyste_entree_sans_contenu_mediane": 4537,
+  "par_fixture": [
+   {
+    "cas": "R09",
+    "octets_contenu": 742,
+    "entree_sans": 4537,
+    "entree_avec": 4907,
+    "delta": 370,
+    "octets_par_jeton": 2.01
+   },
+   {
+    "cas": "R10",
+    "octets_contenu": 651,
+    "entree_sans": 4535,
+    "entree_avec": 4767,
+    "delta": 232,
+    "octets_par_jeton": 2.81
+   },
+   {
+    "cas": "R11",
+    "octets_contenu": 450,
+    "entree_sans": 4541,
+    "entree_avec": 4825,
+    "delta": 284,
+    "octets_par_jeton": 1.58
+   },
+   {
+    "cas": "R12",
+    "octets_contenu": 742,
+    "entree_sans": 4547,
+    "entree_avec": 4808,
+    "delta": 261,
+    "octets_par_jeton": 2.84
+   },
+   {
+    "cas": "R13",
+    "octets_contenu": 457,
+    "entree_sans": 4535,
+    "entree_avec": 4718,
+    "delta": 183,
+    "octets_par_jeton": 2.5
+   },
+   {
+    "cas": "frontiere_16384",
+    "octets_contenu": 16189,
+    "entree_sans": 4537,
+    "entree_avec": 9938,
+    "delta": 5401,
+    "octets_par_jeton": 3.0
+   }
+  ],
+  "lecture": "au plafond de transport, l entree de l Analyste passe d environ 4 537 a 9 938 jetons : +119 %. Le surcout est porte par le SEUL role Analyste — ni le Critique ni l Arbitre ne recoivent le contenu."
+ },
+ "limite_restante": {
+  "nom": "le canal est ouvert, l usage du contenu par les roles ne l est pas",
+  "constat": "sur 6 fixtures a materiau present, la clarification « fournir / coller le contenu » reste produite 5 fois sur 5 tours non degrades, malgre un contenu complet transmis",
+  "preuve_que_le_transport_n est_pas_en_cause": "le cas frontiere decrit explicitement le contenu recu",
+  "portee": "contrat, transport et propagation sont poses et mesures ; l interpretation du champ par les roles reste a traiter, hors perimetre de ce lot"
+ }
+}

@@ -331,7 +331,9 @@ test('T-MODE03-51/52 : l’enveloppe fabriquée d’Atelier ne peut PAS contamin
   const posTry = ENTER_ARCH.indexOf('try{');
   assert.ok(posEfface < posTry, 'et l’effacement précède la tentative, pas l’inverse.');
   /* La requête OPRIE, elle, n'a jamais porté que la demande et l'historique. */
-  const req = sansProse(html.slice(html.indexOf('async function oprieRequestTurn()'), html.indexOf('function oprieSetBusy')));
+  /* OPRIE-MATERIAL-CONTENT-02 : le corps est construit par oprieBuildBody, la région
+     part donc de lui — le contrat gardé ici est inchangé. */
+  const req = sansProse(html.slice(html.indexOf('function oprieBuildBody()'), html.indexOf('function oprieSetBusy')));
   assert.match(req, /original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\)/);
   assert.doesNotMatch(req, /lastEnvelope|lastProjection|etat_demande/);
   /* Et le mode Atelier ne peut pas déclencher une exécution Architecte. */

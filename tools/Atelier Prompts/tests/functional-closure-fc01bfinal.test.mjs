@@ -294,7 +294,7 @@ test('T-FC01BFINAL-33/34 : le plan rapide et l’observation n’écrivent aucun
 // =================================================================================================
 
 test('T-FC01BFINAL-35/36/37 : demande originale immuable, clarifications distinctes, canonique à part', () => {
-  const tour = sansProse(tranche('async function oprieRequestTurn()', 'function oprieSetBusy'));
+  const tour = sansProse(tranche('function oprieBuildBody()', 'function oprieSetBusy'));
   assert.match(tour, /original_request:oprieOriginalRequest\(\)/);
   assert.match(tour, /clarification_history:oprieClarificationHistory\(\)/);
   assert.doesNotMatch(tour, /compositeDemand\(\)/, 'la demande n’est jamais la concaténation des réponses.');

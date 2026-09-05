@@ -134,8 +134,9 @@ test('T-MCNT01-07 : la clause de sécurité existe déjà et serait étendue', (
 
 /* T-MCNT01-08 — la correction de `usable` remplace un flag, n'en ajoute pas. */
 test('T-MCNT01-08 : deep_content_available remplace usable, sans multiplier les flags', () => {
-  /* Le contrat ACTUEL porte toujours deux dimensions — rien n’a été implémenté. */
-  assert.deepEqual([...MATERIAL_CONTEXT_FIELDS], ['present', 'usable']);
+  /* OPRIE-MATERIAL-CONTENT-02 — LA PROPOSITION A ÉTÉ IMPLÉMENTÉE. Ce que cette
+     preuve garde reste vrai : deux dimensions, jamais trois, usable REMPLACÉ. */
+  assert.deepEqual([...MATERIAL_CONTEXT_FIELDS], ['present', 'deep_content_available']);
   /* La proposition en porte deux aussi : un remplacement, pas un ajout. */
   const section = DOC.slice(DOC.indexOf('## J. Correction'), DOC.indexOf('## K.'));
   const champs = [...section.matchAll(/^\s*"(\w+)":/gm)].map((m) => m[1])
@@ -153,10 +154,12 @@ test('T-MCNT01-09 : aucun code, aucun déploiement, oracle intact', () => {
   assert.equal(R.deploiement, false);
   assert.equal(R.appels_fournisseur, 0);
   /* Le contrat d’entrée n’a pas bougé depuis le lot précédent. */
+  /* IMPLÉMENTÉE PAR LE LOT SUIVANT : ce que cette preuve garde devient l’inverse —
+     la proposition a bien été posée, dans les trois couches qu’elle nommait. */
   const noyau = lire('workers/shared/operational-request-core.js');
-  assert.equal(noyau.includes('deep_content_available'), false, 'la proposition n’est pas implémentée');
-  assert.equal(noyau.includes('material_content'), false);
-  assert.equal(lire('atelier-prompts-v11.5-lot10g-decision-provider.html').includes('deep_content_available'), false);
+  assert.ok(noyau.includes('deep_content_available'), 'la proposition a été implémentée');
+  assert.ok(noyau.includes('material_content'));
+  assert.ok(lire('atelier-prompts-v11.5-lot10g-decision-provider.html').includes('deep_content_available'));
   /* L’oracle porte toujours ses attentes d’origine sur les six cas concernés. */
   const O = JSON.parse(lire('evaluation/oprie-reference-oracle-01/oracle.json'));
   for (const id of R.corpus.fixtures_avec_materiau_declare) {
@@ -185,7 +188,7 @@ test('T-MCNT01-10 : aucun contenu dans les traces ni dans les preuves', () => {
 test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0',
+    '2c346379fc11e318b45617c48b4d420d969b2accac9c2e2e19ed23f906387fde',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

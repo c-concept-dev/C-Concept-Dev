@@ -230,8 +230,16 @@ test('T-MODE04-24 : entrer en Rapide efface aussi — l’asymétrie est fermée
 });
 
 test('T-MODE04-25 : aucun résidu d’un autre mode n’entre dans le tour OPRIE', () => {
-  const requete = sansProse(tranche('async function oprieRequestTurn()', 'function oprieSetBusy'));
-  assert.match(requete, /original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\)/);
+  /* OPRIE-MATERIAL-CONTENT-02 — LE CORPS EST DÉSORMAIS CONSTRUIT PAR UNE FONCTION
+     DÉDIÉE, parce qu'il doit mesurer sa propre taille avant de décider s'il emporte
+     le contenu. Ce que cette preuve garde est inchangé : le tour ne lit que la
+     demande et son historique — on le vérifie maintenant dans le constructeur. */
+  const requete = sansProse(tranche('function oprieBuildBody()', 'function oprieSetBusy'));
+  assert.match(requete, /const body=oprieBuildBody\(\);/);
+  const constructeur = sansProse(tranche('function oprieBuildBody()', 'async function oprieRequestTurn'));
+  assert.match(constructeur, /original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\)/);
+  assert.doesNotMatch(constructeur, /lastEnvelope|lastProjection|etat\.prompt|archAnalyse/,
+    'le constructeur ne lit que la demande, son historique et le matériau.');
   assert.doesNotMatch(requete, /lastEnvelope|lastProjection|etat\.prompt|archAnalyse/,
     'le tour ne lit que la demande et son historique.');
 });

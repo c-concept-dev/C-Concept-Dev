@@ -239,7 +239,7 @@ test('T-CLEAN02-18/19 : le prompt courant appartient à l’espace avancé, et n
      pas la frontière : le tour gouverné ne lit que la demande et l'historique. */
   assert.equal(ecritures('etat.prompt'), 6);
   assert.ok(lectures('etat.prompt') > 10, 'il est réellement lu, partout dans l’espace avancé.');
-  const tour = sansProse(tranche('async function oprieRequestTurn()', 'function oprieSetBusy'));
+  const tour = sansProse(tranche('function oprieBuildBody()', 'function oprieSetBusy'));
   assert.doesNotMatch(tour, /etat\.prompt|lastEnvelope/, 'le tour n’en sait rien.');
   const enveloppe = sansProse(tranche('function makeEnvelope(){', 'function blobDownload('));
   assert.doesNotMatch(enveloppe, /etat\.prompt/, 'la requête envoyée à l’IA non plus.');

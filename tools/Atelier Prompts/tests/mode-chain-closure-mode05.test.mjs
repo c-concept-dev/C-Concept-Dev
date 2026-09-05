@@ -62,7 +62,7 @@ const RESET_PRESENTATION_BRUT = tranche('function resetModePresentation(', 'func
 const RESET_PRESENTATION = sansProse(RESET_PRESENTATION_BRUT);
 const SET_MODE = sansProse(tranche('function setMode(', 'function currentMode()'));
 const ARCH_EXEC = sansProse(tranche('async function archConstruireExecuter()', 'const ARCH_SAUVEGARDE_VERSION='));
-const TOUR = sansProse(tranche('async function oprieRequestTurn()', 'function oprieSetBusy'));
+const TOUR = sansProse(tranche('function oprieBuildBody()', 'function oprieSetBusy'));
 const PLAN_RAPIDE = sansProse(tranche('function oprieStartFastPlane(', 'function oprieReconcileFast('));
 
 const ecritures = (nom, src = FRONT_CODE) =>

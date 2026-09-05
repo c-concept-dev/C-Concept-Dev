@@ -261,7 +261,7 @@ test('T-PERFNOMINAL01-11 : le HTML canonique est inchangé', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
+    '2c346379fc11e318b45617c48b4d420d969b2accac9c2e2e19ed23f906387fde', 'CANONICAL_HTML_CHANGED = NO');
   assert.equal(R.invariants.canonical_html_changed, false);
 });
 

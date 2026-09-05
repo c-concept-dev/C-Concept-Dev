@@ -697,6 +697,24 @@ existe déjà au contrat ; elle devrait être **étendue** au contenu, non réin
 qu'ils deviendraient READY : il dit seulement que leur raison actuelle de clarifier disparaîtrait.
 Document : [OPRIE-MATERIAL-CONTENT-01.md](OPRIE-MATERIAL-CONTENT-01.md).
 
+**Mise à jour du 5 septembre 2026 — OPRIE-MATERIAL-CONTENT-02 : le canal est ouvert, son
+usage ne l'est pas.** Le contrat v2 est posé (`usable` retiré, `deep_content_available` et
+`material_content` ajoutés), l'invariant est porté par la porte d'entrée, et la frontière de
+transport est vérifiée en production : 16 384 octets acceptés, 16 385 refusés en 413. Le contenu
+parvient bien aux rôles — le cas frontière produit une question qui **décrit** le contenu reçu.
+
+Mais sur les six fixtures à matériau présent, avec le contenu complet transmis, la clarification
+« fournir / coller le contenu » **reste produite** sur les cinq tours non dégradés. L'Analyste
+raisonne sur `original_request` et `clarification_history` et ne reconnaît pas `material_content`
+comme le matériau de la demande. Ce n'est pas un défaut de transport ; c'est un défaut
+d'interprétation, et il n'est pas résolu.
+
+Deux faits mesurés s'y ajoutent : au plafond de transport, l'entrée de l'Analyste passe de ~4 537
+à 9 938 jetons (+119 %), portée par ce seul rôle ; et sur du matériau volumineux, le plafond de
+sortie de rôle (2 048 unités, antérieur à ce lot) devient liant — un tour a dégradé pour cette
+raison. Document : [OPRIE-MATERIAL-CONTENT-02.md](OPRIE-MATERIAL-CONTENT-02.md).
+Mesures brutes : `evaluation/oprie-material-content-02/results.json`.
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

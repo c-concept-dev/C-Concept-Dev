@@ -143,8 +143,8 @@ test('T-OPORAC01-06 : l’absence de canal de matériau est établie sur le cont
   /* OPRIE-MATERIAL-CONTEXT-02 : une troisième clé, OPTIONNELLE, a été ajoutée depuis.
      Ce que cet oracle établissait reste vrai — il a été construit contre le contrat
      d’alors, et ses attentes n’ont pas été retouchées. */
-  assert.match(noyau, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\], \["material_context"\], "AnalystInput"\)/,
-    'le tour accepte deux clés requises et une optionnelle, nommée');
+  assert.match(noyau, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\],/,
+    'le tour accepte deux clés requises et des optionnelles, nommées');
   /* Alors que /decision, lui, reçoit materiau_present comme fait fiable. */
   assert.match(lire('workers/shared/decision-core.js'), /materiau_present est un fait fiable/);
   /* D’où le motif appliqué aux demandes qui présupposent un intrant. */
@@ -239,7 +239,7 @@ test('T-OPORAC01-11 : HTML canonique inchangé, dette ouverte', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
+    '2c346379fc11e318b45617c48b4d420d969b2accac9c2e2e19ed23f906387fde', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

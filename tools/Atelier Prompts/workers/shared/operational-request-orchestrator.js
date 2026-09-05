@@ -106,8 +106,10 @@ function isProviderChainExhausted(error) {
  * en ferait un TROISIÈME interprète direct du même fait, avec le risque de trois
  * lectures divergentes d une seule donnée. Il ne le reçoit donc pas.
  */
-function buildRoleInput(role, base, outputs, material_context) {
-  if (role === "analyst") return { ...base, material_context };
+function buildRoleInput(role, base, outputs, material_context, material_content) {
+  /* OPRIE-MATERIAL-CONTENT-02 — LE CONTENU NE VA QU À L ANALYSTE, et le spread
+     conditionnel garantit qu il n apparaît nulle part ailleurs, même vide. */
+  if (role === "analyst") return { ...base, material_context, ...(material_content ? { material_content } : {}) };
   if (role === "critic") return { ...base, analyst_output: outputs.analyst, previous_vetoes: [], material_context };
   return { ...base, analyst_output: outputs.analyst, critic_output: outputs.critic };
 }
@@ -134,11 +136,16 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
   const base = Object.freeze({ original_request: input.original_request, clarification_history: input.clarification_history });
   /* Le contexte matériau vit à côté de `base`, jamais dedans : voir buildRoleInput. */
   const material_context = input.material_context;
+  const material_content = input.material_content;
   log({
     event: "material_context_observation",
     material_context_present: material_context ? material_context.present : null,
     material_context_usable: material_context ? material_context.usable : null,
-    material_context_absent: !material_context
+    material_context_absent: !material_context,
+    /* Metadata SEULE : nombre de documents et volume, jamais un octet de contenu. */
+    material_document_count: Array.isArray(material_content) ? material_content.length : 0,
+    material_content_bytes: Array.isArray(material_content)
+      ? material_content.reduce((total, piece) => total + piece.length, 0) : 0
   });
   const outputs = {};
 
@@ -146,7 +153,7 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
     log({ event: "operational_request_role_start", role, sequence: OPERATIONAL_REQUEST_ROLE_SEQUENCE });
     let raw;
     try {
-      raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context));
+      raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context, material_content));
     } catch (error) {
       if (!isProviderChainExhausted(error)) throw error;
       // Le détail technique reste côté serveur ; le client reçoit un motif neutre.

@@ -124,7 +124,9 @@ test('T-MODE02-13/14 : venir en Rapide depuis Architecte ou Atelier est sûr', (
   const routeur = sansProse(html.slice(html.indexOf('window.__V11_ROUTER__'), html.indexOf('function init()')));
   assert.match(routeur, /if\(mode==='rapide'\)return v11StartRapide\(\)/);
   /* Et aucun état d'un autre mode n'entre dans le tour : le tour ne lit que la demande. */
-  const req = sansProse(html.slice(html.indexOf('async function oprieRequestTurn()'), html.indexOf('function oprieSetBusy')));
+  /* OPRIE-MATERIAL-CONTENT-02 : le corps est construit par oprieBuildBody ; la région
+     part donc de lui, et ce que la preuve garde est inchangé. */
+  const req = sansProse(html.slice(html.indexOf('function oprieBuildBody()'), html.indexOf('function oprieSetBusy')));
   assert.match(req, /original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\)/);
   assert.doesNotMatch(req, /adpState\.lastEnvelope|lastProjection|archAnalyse/,
     'aucun résidu Atelier ou Architecte n’entre dans OPRIE.');

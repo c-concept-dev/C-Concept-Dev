@@ -47,7 +47,7 @@ test('T-OPMAT01-01 : les deux contrats d’entrée sont lus, pas devinés', () =
      autre clé reste refusée. Ce que cette preuve garde change donc de nature — elle
      ne garde plus l'absence du canal, mais le fait que son ajout n'a pas ouvert le
      contrat à des champs arbitraires. */
-  assert.match(NOYAU, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\], \["material_context"\], "AnalystInput"\)/);
+  assert.match(NOYAU, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\],\s*\n?\s*\["material_context", "material_content"\], "AnalystInput"\)/);
   assert.match(NOYAU, /const inconnue = actual\.find\(\(key\) => !legales\.has\(key\)\);/,
     'toute clé non énumérée est toujours refusée');
   assert.equal(R.gap.reel, true);
@@ -61,14 +61,14 @@ test('T-OPMAT01-02 : state.docs existe et n’atteint pas le plan profond', () =
   assert.match(HTML, /state\.docs\.push\(\{name:file\.name,type:file\.type,size:file\.size,text,external:!textual\}\)/);
   /* Le corps envoyé au plan profond ne porte que deux champs. */
   /* CORRIGÉ EN 02 : le corps porte désormais le troisième champ. */
-  assert.match(HTML, /const body=\{original_request:oprieOriginalRequest\(\),clarification_history:oprieClarificationHistory\(\),material_context:oprieMaterialContext\(\)\}/);
+  assert.match(HTML, /const body=oprieBuildBody\(\);/);
   /* Et la demande ne lit qu’une zone de saisie. */
   assert.match(HTML, /function oprieOriginalRequest\(\)\{return String\(\(\$\('#v11-demande'\)\|\|\{\}\)\.value\|\|''\)\.trim\(\)\}/);
   /* state.docs n’apparaît dans aucun des deux. */
   /* CORRIGÉ EN 02 : l'enveloppe construit désormais le contexte à l'instant de
      l'envoi, en lisant state.docs directement — d'où la fraîcheur par construction. */
-  assert.match(HTML, /function oprieMaterialContext\(\)\{/);
-  assert.match(HTML, /const docs=\(typeof state!=='undefined'&&state&&Array\.isArray\(state\.docs\)\)\?state\.docs:null;/);
+  assert.match(HTML, /function oprieBuildBody\(\)\{/);
+  assert.match(HTML, /return \(typeof state!=='undefined'&&state&&Array\.isArray\(state\.docs\)\)\?state\.docs:null;/);
   assert.equal(R.chemin_reel.materiau_transmis, false,
     'la mesure de CE lot-ci reste ce qu’elle était : elle décrit l’avant');
 });
@@ -184,7 +184,7 @@ test('T-OPMAT01-09 : le piège de buildRoleInput est identifié', () => {
   /* base est diffusé aux trois rôles : un champ ajouté à base les atteindrait tous. */
   /* CORRIGÉ EN 02, ET LE PIÈGE A ÉTÉ ÉVITÉ : le contexte ne passe PAS par base. Les
      deux premiers rôles le reçoivent explicitement, l’Arbitre ne le reçoit pas. */
-  assert.match(orchestrateur, /if \(role === "analyst"\) return \{ \.\.\.base, material_context \};/);
+  assert.match(orchestrateur, /if \(role === "analyst"\) return \{ \.\.\.base, material_context, \.\.\.\(material_content \? \{ material_content \} : \{\}\) \};/);
   assert.match(orchestrateur, /if \(role === "critic"\) return \{ \.\.\.base, analyst_output: outputs\.analyst, previous_vetoes: \[\], material_context \};/);
   assert.match(orchestrateur, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic \};/,
     'l’Arbitre reste sans contexte matériau');
@@ -201,7 +201,7 @@ test('T-OPMAT01-10 : HTML canonique inchangé, dette ouverte', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c701ccbea727a07dc5fccd55ee282500ad5fe38f295a4e634c73ba1e1e8f63f0', 'CANONICAL_HTML_CHANGED = NO');
+    '2c346379fc11e318b45617c48b4d420d969b2accac9c2e2e19ed23f906387fde', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

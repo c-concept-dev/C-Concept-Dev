@@ -418,8 +418,10 @@ test("les constructeurs de message produisent un JSON exploitable avec les clés
      lui donner le signal brut en ferait un troisième interprète du même fait. */
   const analystMessage = JSON.parse(makeAnalystUserMessage({ original_request: "Préparer un voyage.", clarification_history: [] }));
   assert.deepEqual(Object.keys(analystMessage).sort(), ["clarification_history", "material_context", "original_request"]);
-  assert.deepEqual(analystMessage.material_context, { present: "unknown", usable: "unknown" },
+  assert.deepEqual(analystMessage.material_context, { present: "unknown", deep_content_available: "unknown" },
     "absence du champ = unknown, jamais un défaut optimiste");
+  assert.equal(Object.prototype.hasOwnProperty.call(analystMessage, "material_content"), false,
+    "sans contenu fourni, aucun champ de contenu n'est fabriqué");
 
   const criticMessage = JSON.parse(makeCriticUserMessage({ original_request: "x", analyst_output: minimalAnalystOutput(), previous_vetoes: [] }));
   // 3F.3.3-S3 : question_review_targets est désormais une entrée pré-calculée mécaniquement à

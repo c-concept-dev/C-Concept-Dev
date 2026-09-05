@@ -339,7 +339,7 @@ test('T-CLEAN05-CHAINE : les gardes posées par CLEAN-01 à CLEAN-04 sont toutes
   assert.equal((html.match(/const ORCHESTRATION_DRIVER=/g) || []).length, 1);
   assert.equal((FRONT_CODE.match(/window\.__V11_ROUTER__=Object\.freeze/g) || []).length, 1);
   /* CLEAN-02 : le propriétaire de `etat.prompt` est nommé, et il n'entre dans aucun tour. */
-  const tour = sansProse(tranche('async function oprieRequestTurn()', 'function oprieSetBusy'));
+  const tour = sansProse(tranche('function oprieBuildBody()', 'function oprieSetBusy'));
   assert.doesNotMatch(tour, /etat\.prompt|lastEnvelope/);
   /* CLEAN-03 : la classification des traces est écrite là où l'état vit. */
   assert.ok(html.includes('/* CLEAN-03 — CET ÉTAT PORTE DEUX CHOSES'));

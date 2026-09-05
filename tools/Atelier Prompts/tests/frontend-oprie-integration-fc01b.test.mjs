@@ -94,7 +94,11 @@ test('FC01B-01 : le frontend appelle /operational-request, et rien d’autre, po
   assert.deepEqual(Object.keys(calls[0].body).sort(),
     ['clarification_history', 'material_context', 'original_request'],
     'le contrat d’entrée est exactement celui du serveur : rien de plus.');
-  assert.deepEqual(Object.keys(calls[0].body.material_context).sort(), ['present', 'usable'],
+  /* OPRIE-MATERIAL-CONTENT-02 : usable est remplacé par deep_content_available, qui
+     dit ce qui compte — le contenu est-il DANS ce tour — et non ce que le navigateur
+     sait lire. Toujours deux dimensions, jamais trois. */
+  assert.deepEqual(Object.keys(calls[0].body.material_context).sort(),
+    ['deep_content_available', 'present'],
     'et le contexte matériau porte exactement ses deux dimensions.');
 });
 

@@ -77,15 +77,22 @@ test('T-CLEAN04-01 : chaque module embarqué est atteignable depuis un chemin pr
   const inatteignables = MODULES.filter((m) => !ATTEINTS.has(m.name)).map((m) => m.name);
   assert.deepEqual(inatteignables, [], 'aucun module n’est embarqué sans raison.');
   assert.equal(MODULES.length, 21, 'le graphe compte vingt-et-un modules.');
-  assert.equal(DIRECTS.size, 12, 'douze ont un consommateur frontend direct…');
-  assert.equal(ATTEINTS.size - DIRECTS.size, 9, '…et neuf sont atteints indirectement.');
+  /* OPRIE-MATERIAL-CONTENT-02 — DECISIONCORE EST PASSÉ D'INDIRECT À DIRECT, et c'est
+     voulu : l'enveloppe navigateur lit maintenant TRANSPORT_LIMITS depuis le runtime
+     plutôt que de recopier la limite en dur. Le graphe enregistre ce lien nouveau,
+     et c'est précisément ce qu'on voulait qu'il enregistre. */
+  assert.equal(DIRECTS.size, 13, 'treize ont un consommateur frontend direct…');
+  assert.equal(ATTEINTS.size - DIRECTS.size, 8, '…et huit sont atteints indirectement.');
 });
 
 test('T-CLEAN04-02/04 : les neuf modules indirects ont chacun une chaîne nommée', () => {
   /* Ne pas confondre « sans consommateur direct » et « mort » : voici la chaîne. */
   const attendu = {
     ADN: ['ADAPTERS'], LOCKS: ['ADAPTERS'], ROUTING: ['ADAPTERS'],
-    ORSTATE: ['ORCORE', 'ORORCH'], DECISIONCORE: ['ORCORE', 'ORORCH'],
+    /* OPRIE-MATERIAL-CONTENT-02 — DECISIONCORE a QUITTÉ cette liste : l enveloppe
+       navigateur lit désormais TRANSPORT_LIMITS depuis le runtime, ce qui lui donne
+       un consommateur frontend direct. Il n est plus atteint indirectement. */
+    ORSTATE: ['ORCORE', 'ORORCH'],
     PROVIDERHA: ['ROLEDEG'], ORCORE: ['ROLEDEG', 'ORORCH', 'MANUAL'],
     ROLEDEG: ['ORORCH'], ORORCH: ['MANUAL']
   };
