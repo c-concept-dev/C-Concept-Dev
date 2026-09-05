@@ -1844,6 +1844,49 @@ export async function runCriticWithAnthropic(input, env) {
 /** Même ordre que Decision : Groq (primary) -> Anthropic (secondary) -> OpenAI (tertiary). */
 export const ROLE_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
 
+/**
+ * OPRIE-QUALITY-PARITY-01 — ÉPINGLAGE DIAGNOSTIC DU FOURNISSEUR DU PLAN PROFOND.
+ *
+ * POURQUOI. DEEP-TOKEN-COST-01 a établi que 77,7 % des jetons du plan profond sont
+ * déjà servis par Anthropic, par bascule automatique et non par décision. Comparer
+ * la qualité des deux fournisseurs exige donc de pouvoir n'en interroger qu'un seul,
+ * sans repli — sinon la mesure « Groq » contiendrait des réponses d'Anthropic, et
+ * ne comparerait plus rien.
+ *
+ * MÊME CONTRAT QUE FAST_BENCH_PROVIDER, ET DÉLIBÉRÉMENT PAS UN AUTRE. Le plan rapide
+ * possède cette capacité depuis PERF-NOMINAL-PROVIDER-01 ; ce lot n'invente pas une
+ * seconde architecture de sélection, il applique la même règle aux rôles OPRIE :
+ *
+ *   - absente ou "ha"                  -> chaîne HA complète, production inchangée ;
+ *   - "groq" | "anthropic" | "openai"  -> fournisseur ÉPINGLÉ, AUCUN repli : la
+ *                                         chaîne ne contient qu'une entrée, il
+ *                                         n'existe donc rien vers quoi basculer ;
+ *   - toute autre valeur               -> erreur de configuration explicite,
+ *                                         AUCUN appel réseau, aucun repli muet.
+ *
+ * CE QUE CE MÉCANISME N'EST PAS. Il ne lit ni la demande, ni son domaine, ni son
+ * mode, ni un état OPRIE : c'est une variable d'environnement du Worker, résolue
+ * avant que le moindre octet de la demande soit regardé. Elle ne se transmet par
+ * aucun en-tête, aucun paramètre d'URL, aucun champ de corps, et l'interface n'en
+ * connaît pas l'existence. Choisir un fournisseur reste une instruction d'opérateur.
+ *
+ * IL NE CHANGE RIEN À LA PRODUCTION. La valeur déclarée du Worker est "ha" :
+ * ROLE_PROVIDER_ORDER — Groq puis Anthropic puis OpenAI — n'est pas touché.
+ */
+export const DEEP_BENCH_PROVIDER_BINDING = "DEEP_BENCH_PROVIDER";
+
+export function resolveRoleProviderOrder(env) {
+  const choisi = (env && env[DEEP_BENCH_PROVIDER_BINDING]) || FAST_BENCH_CHAIN;
+  if (choisi === FAST_BENCH_CHAIN) return ROLE_PROVIDER_ORDER;
+  if (ROLE_PROVIDER_ORDER.includes(choisi)) return Object.freeze([choisi]);
+  const permis = [FAST_BENCH_CHAIN, ...ROLE_PROVIDER_ORDER].map((v) => `"${v}"`).join(", ");
+  throw tagFailure(
+    new Error(`${DEEP_BENCH_PROVIDER_BINDING} invalide : "${choisi}" (valeurs autorisées : ${permis}).`),
+    FAILURE_CLASSES.CONTRACT_ERROR
+  );
+}
+
+
 // Les rôles OPRIE transportent des prompts et des sorties nettement plus volumineux qu'une décision :
 // ils utilisent le plafond de mesure déjà calibré en réel pour le pipeline Critic Anthropic (R5.2a),
 // jamais celui de /decision (20000 ms, dimensionné pour une décision courte).
@@ -2063,7 +2106,7 @@ function roleFromPathname(pathname) {
 // d'être la seule. Le chemin nominal est donc strictement inchangé (Groq répond, son succès est
 // final) ; seul le chemin d'échec gagne deux fournisseurs de repli.
 function executeForRole(role) {
-  return (input, roleEnv) => runRoleWithHaChain(role, input, roleEnv);
+  return (input, roleEnv) => runRoleWithHaChain(role, input, roleEnv, { order: resolveRoleProviderOrder(roleEnv) });
 }
 
 
@@ -2120,7 +2163,7 @@ export default {
     }
     if (new URL(request.url).pathname === "/operational-request") {
       return handleOperationalRequest(request, env, {
-        executeRole: (role, roleInput) => runRoleWithHaChain(role, roleInput, env)
+        executeRole: (role, roleInput) => runRoleWithHaChain(role, roleInput, env, { order: resolveRoleProviderOrder(env) })
       });
     }
     const role = roleFromPathname(new URL(request.url).pathname);

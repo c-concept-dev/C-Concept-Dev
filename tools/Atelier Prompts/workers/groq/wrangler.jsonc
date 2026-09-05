@@ -10,7 +10,8 @@
   "vars": {
     "ALLOWED_ORIGINS": "https://c-concept-dev.github.io",
     "FAST_CAPACITY_RETRY_THRESHOLD_MS": "0",
-    "FAST_BENCH_PROVIDER": "ha"
+    "FAST_BENCH_PROVIDER": "ha",
+    "DEEP_BENCH_PROVIDER": "ha"
   },
   "observability": {
     "enabled": true,

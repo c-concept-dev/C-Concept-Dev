@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `76359454198327a4f05f74ad50be77624bd43bf8` |
-| Date du commit | 2026-09-05T00:42:44+02:00 |
+| Commit local | `ac6c30564240696f384a28ce935f1c439ebb339c` |
+| Date du commit | 2026-09-05T12:06:02+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-44 fichiers. C'est ce qui doit exister pour **servir** la page,
+45 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `ab6326b960aa1f860ce02d81a9118e36095417893a121a174482cafbd6994bac` |
+| Empreinte du jeu | `b96ea5225c80c9fcc871fe7832f5eebe0c29dcd1f395efb19553b73908e2d4e0` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -87,7 +87,8 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
 | REQUIRED_DOC | `docs/DEEP-COUT-JETONS-01.md` | `5d298c68b4b7d5fe6adc285e828abd6c0a33a611c2407013835162009302e3a2` |
 | REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `d2b17a0ce17987d9812f60bc89ffd4faa5439d8cb8f435328ef2adb78d75c014` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `eec42840cf87cb542a992d2437b103e9631a44590793a36f20b76e0da8499e1b` |
+| REQUIRED_DOC | `docs/OPRIE-QUALITY-PARITY-01.md` | `d46a60a86d4883e935e575e0ec8e1ce9f177614942903ee64ec88560d6eb1a2b` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
@@ -95,8 +96,8 @@ sa propre empreinte.
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `70bcb641500d52f5cea1fa095932f8b004c59467e97d4e1669f82e64330ba8fb` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `7519730f049e534b41ac3b48bab6c8639bfebcf395c3c072bd2a2f1a922e0dbd` |
-| REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `8c91d1b407d84426d0507969a740b7c0182216006e9ac9880ee9cbef453b898c` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `d4020d27f72d38bfd770e6e1fc243daba22aee2d1bfb0191f773cb3be8970e51` |
+| REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `a49272421d15e9348d5e389e37e36a493f40c6a65c13ec0bbd8e56ac964ebfb7` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/decision-core.js` | `2879c8e720146b4d2a620f76e329aa1a2e9f1ae3c7725749bbe6cbaf31b32869` |
 | REQUIRED_RUNTIME | `workers/shared/fast-interaction-endpoint.js` | `37fe4af9be7a7e9aa1e8672004fe4f4d688e4e7eaa4bd24a78be8f6c4e9855e9` |
@@ -113,8 +114,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 137 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 201 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 138 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 202 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -139,7 +140,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2758 |
+| Tests au vert | 2768 |
 
 ## Dette encore ouverte
 

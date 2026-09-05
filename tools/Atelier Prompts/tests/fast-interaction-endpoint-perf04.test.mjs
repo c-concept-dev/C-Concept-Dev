@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest, snapshotFromBody } from '../workers/shared/fast-interaction-endpoint.js';
-import { resolveFastProviderOrder } from '../workers/groq/src/index.js';
+import { resolveFastProviderOrder, resolveRoleProviderOrder } from '../workers/groq/src/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKER = fs.readFileSync(path.join(root, 'workers/groq/src/index.js'), 'utf8');
@@ -131,7 +131,17 @@ test('T-P04-EP09 : le worker branche la route sur la chaîne HA EXISTANTE, sans 
 
 test('T-P04-EP10 : /operational-request conserve son contrat à l’octet près', () => {
   assert.match(WORKER, /if \(new URL\(request\.url\)\.pathname === "\/operational-request"\) \{/);
-  assert.match(WORKER, /executeRole: \(role, roleInput\) => runRoleWithHaChain\(role, roleInput, env\)/);
+  /* OPRIE-QUALITY-PARITY-01 — LE LITTÉRAL A CHANGÉ, LE CONTRAT NON. La route reçoit
+     désormais son ORDRE par resolveRoleProviderOrder(env), qui rend ROLE_PROVIDER_ORDER
+     tant que DEEP_BENCH_PROVIDER vaut "ha" — sa valeur déclarée. L'épinglage est un
+     outil de mesure d'opérateur, exactement comme celui du plan rapide : la chaîne HA
+     des trois rôles reste ce qui s'exécute en production, et les deux lignes suivantes
+     le prouvent plutôt que de le supposer. */
+  assert.match(WORKER, /executeRole: \(role, roleInput\) => runRoleWithHaChain\(role, roleInput, env, \{ order: resolveRoleProviderOrder\(env\) \}\)/);
+  assert.deepEqual(resolveRoleProviderOrder({}), ["groq", "anthropic", "openai"],
+    'sans variable, l\'ordre des rôles est exactement celui de production.');
+  assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: "ha" }), ["groq", "anthropic", "openai"],
+    'et "ha" — la valeur déclarée du Worker — rend le même.');
   const avantFast = WORKER.indexOf('FAST_INTERACTION_PATHNAME');
   const avantOprie = WORKER.indexOf('"/operational-request"');
   assert.ok(avantFast > 0 && avantOprie > 0, 'les deux routes coexistent.');

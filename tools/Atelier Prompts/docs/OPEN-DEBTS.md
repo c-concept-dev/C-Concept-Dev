@@ -469,6 +469,55 @@ le supposait. La preuve suivante change de nature : **la qualité des sorties OP
 c'est une propriété ACTUELLE et non mesurée de la production.**
 Rapport : [DEEP-COUT-JETONS-01.md](DEEP-COUT-JETONS-01.md).
 
+**Mise à jour OPRIE-QUALITY-PARITY-01 — la référence n'existe pas.** Le lot devait comparer la
+qualité du plan profond sur Anthropic à celle de Groq, Groq faisant référence. Épinglé sans
+repli — un épinglage diagnostic `DEEP_BENCH_PROVIDER` a dû être ajouté, miroir exact de celui
+du plan rapide, sans quoi un run « Groq » aurait contenu des réponses d'Anthropic — **Groq n'a
+produit que 2 décisions gouvernées sur 12**. Les dix autres tours se sont dégradés avant
+d'aboutir. La référence comportementale attendue **n'existe pas** au quota actuel.
+
+| | Groq épinglé | Anthropic épinglé |
+| --- | --- | --- |
+| Tours gouvernés | **2 / 12** | **11 / 12** |
+| Échecs fournisseur | **10** | **0** |
+| Reprises | 9 | 0 |
+| Échecs de schéma | 0 | 1 |
+| Bascules (contamination) | 0 | 0 |
+
+Chez Groq, le nombre de cas ATTEINTS décroît de rôle en rôle — 12 pour l'Analyste, 9 pour le
+Critique, 7 pour l'Arbitre — parce qu'un rôle qui échoue empêche les suivants de s'exécuter.
+Ce n'est pas un défaut de qualité : c'est l'épuisement du budget en cours de tour, déjà chiffré
+par DEEP-TOKEN-COST-01.
+
+**Ce qui a tout de même été établi sur Anthropic.** Aucun défaut critique, **aucun faux READY**,
+**aucune clarification manquée** — les quatre cas où l'oracle du corpus exige une question l'ont
+tous reçue. Mais il **sur-questionne** : 5 clarifications demandées là où l'oracle n'en attend
+aucune, sur 11 décisions. Il questionne dans 9 cas sur 11 quand l'attente est de 4.
+
+La comparaison est **structurelle et déterministe** : aucune similarité textuelle, aucun
+embedding, aucun juge LLM, aucun seuil sémantique. Seul le comportement gouverné est comparé.
+La vérité terrain se limite à `question_required`, la seule dimension du corpus qui corresponde
+directement — et cet oracle a été écrit pour le contrat `/decision`, non pour les états OPRIE.
+C'est pourquoi le sur-questionnement est classé MAJOR et non CRITICAL : son statut de défaut
+dépend d'une attente qui n'a pas été écrite pour cet usage. `confirmation_required` et `blocked`
+ne sont éprouvés par aucune attente ; aucun cas n'a été fabriqué pour combler ce trou.
+
+`ANTHROPIC_DEEP_QUALITY_PARITY = PARTIAL`. Pas PASS, car cinq fausses clarifications sur onze
+décisions ne sont pas démontrablement comparables et la référence manque. Pas FAIL, car rien
+dans ces données ne disqualifie Anthropic — au contraire : un échec contre dix.
+
+**Ce que le lot démontre dépasse sa question.** Ce n'est pas qu'Anthropic serait un candidat
+imparfait pour le plan profond : c'est que **Groq n'en est plus un du tout**. La chaîne HA ne
+compense pas une insuffisance passagère, elle dissimule une inadéquation structurelle. La
+production s'exécute aujourd'hui sur une chaîne dont le fournisseur primaire échoue quatre fois
+sur cinq et dont le repli, non choisi, fait l'essentiel du travail.
+
+`DEEP-PROVIDER-ROUTING-01` n'est pas déclenché — la migration reste fermée sur un verdict
+PARTIAL. La preuve manquante est étroite : une attente explicite au niveau OPRIE, écrite par le
+propriétaire produit et couvrant aussi `confirmation_required` et `blocked`, permettrait de dire
+si le sur-questionnement est un défaut ou un artefact.
+Rapport : [OPRIE-QUALITY-PARITY-01.md](OPRIE-QUALITY-PARITY-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
