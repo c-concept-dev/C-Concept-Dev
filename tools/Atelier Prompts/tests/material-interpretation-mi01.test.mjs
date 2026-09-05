@@ -128,15 +128,14 @@ test('T-MI01-03C : le contrat nomme le seul canal de matériau qui existe', () =
 });
 
 test('T-MI01-03D : un fait du matériau a une provenance, et elle est vraie', () => {
-  /* Sans provenance possible, l'Analyste en inventait une fausse — clarification_answer sur un
-     historique vide — que le Critique sanctionnait par un veto, jusqu'au blocked. */
-  assert.match(ANALYST_SYSTEM_PROMPT, /Un fait lu dans material_content a une provenance, et c'est explicit_user_statement/);
+  /* Ce lot-ci avait fait porter les faits du matériau par explicit_user_statement, faute de mieux.
+     L'audit OPRIE-MATERIAL-PROVENANCE-01 a montré que cette valeur n'a aucune définition écrite,
+     et OPRIE-MATERIAL-PROVENANCE-02 a ajouté celle qui manquait. L'assertion suit le contrat. */
+  assert.match(ANALYST_SYSTEM_PROMPT, /Un fait lu dans material_content a sa propre provenance, et c'est user_provided_material/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /Ne lui donnez pas explicit_user_statement/);
   assert.match(ANALYST_SYSTEM_PROMPT, /la valeur exacte que porte le matériau/);
   assert.match(ANALYST_SYSTEM_PROMPT, /jamais une valeur devinée, jamais une extrapolation, jamais un fait que le matériau n'énonce pas/);
-  assert.match(ANALYST_SYSTEM_PROMPT, /N'inventez sous aucun prétexte une provenance qui serait fausse/);
-  /* Et la valeur employée existe bien dans le contrat gelé : rien n'a été ajouté au schéma. */
-  assert.ok(PROVENANCE_VALUES.includes('explicit_user_statement'));
-  assert.equal(PROVENANCE_VALUES.length, 8);
+  assert.ok(PROVENANCE_VALUES.includes('user_provided_material'));
 });
 
 /* T-MI01-04 — AUCUN RACCOURCI VERS READY, NI DANS LE PROMPT NI DANS LE CODE. */
@@ -218,8 +217,11 @@ test('T-MI01-09 : la trace prouve la présence du contenu sans en journaliser un
 
 /* T-MI01-10 — SORTIES STRUCTURÉES INCHANGÉES. */
 test('T-MI01-10 : ni le schéma Analyste ni la provenance n’ont été touchés', () => {
+  /* Les huit valeurs du CDC sont intactes ; la neuvième est l'extension tracée de
+     OPRIE-MATERIAL-PROVENANCE-02, seule modification du vocabulaire depuis l'origine. */
   assert.deepEqual([...PROVENANCE_VALUES], ['explicit_user_statement', 'clarification_answer', 'confirmed_preference',
-    'safe_deduction', 'delegated_decision', 'external_fact_to_research', 'labeled_estimate', 'conditional_scenario']);
+    'safe_deduction', 'delegated_decision', 'external_fact_to_research', 'labeled_estimate', 'conditional_scenario',
+    'user_provided_material']);
   assert.deepEqual(Object.keys(ANALYST_JSON_SCHEMA.properties).sort(),
     ['confirmation_signals', 'issues', 'operational_request_candidate', 'provenance_records', 'question_candidates'].sort());
   /* Le registre de rôles reste la source unique des trois contrats. */

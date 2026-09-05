@@ -150,7 +150,14 @@ test("la machine d'état interdit à degraded_state de produire un verdict séma
   assert.throws(() => isLegalTransition("etat_inconnu", "understanding"), TypeError);
 });
 
-test("PROVENANCE_VALUES couvre exactement le vocabulaire du CDC", () => {
+/* Le vocabulaire du CDC §6, PLUS l'unique extension autorisée par OPRIE-MATERIAL-PROVENANCE-02.
+ *
+ * La garde n'est ni supprimée ni relâchée : elle protège désormais neuf valeurs au lieu de huit,
+ * et continue de refuser toute valeur qui n'y figure pas. L'extension est tracée, motivée par
+ * l'audit OPRIE-MATERIAL-PROVENANCE-01 — aucune des huit valeurs d'origine ne désignait un fait
+ * porté par material_content, troisième source du plan profond depuis OPRIE-MATERIAL-CONTENT-02.
+ * Les huit valeurs historiques sont inchangées et gardent exactement leur sens. */
+test("PROVENANCE_VALUES couvre le vocabulaire du CDC et sa seule extension tracée", () => {
   assert.deepEqual([...PROVENANCE_VALUES].sort(), [
     "clarification_answer",
     "conditional_scenario",
@@ -159,6 +166,12 @@ test("PROVENANCE_VALUES couvre exactement le vocabulaire du CDC", () => {
     "explicit_user_statement",
     "external_fact_to_research",
     "labeled_estimate",
-    "safe_deduction"
+    "safe_deduction",
+    "user_provided_material"
   ].sort());
+  /* Les huit du CDC restent présentes, dans leur ordre d'origine : l'extension est ADDITIVE. */
+  assert.deepEqual([...PROVENANCE_VALUES].slice(0, 8), [
+    "explicit_user_statement", "clarification_answer", "confirmed_preference", "safe_deduction",
+    "delegated_decision", "external_fact_to_research", "labeled_estimate", "conditional_scenario"
+  ]);
 });

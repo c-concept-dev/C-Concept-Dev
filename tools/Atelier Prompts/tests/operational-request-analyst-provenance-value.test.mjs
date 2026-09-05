@@ -149,10 +149,15 @@ test("P1-9 : le prompt Analyst exige explicitement une valeur non vide et interd
 
 // --- Non-régression : PROVENANCE_VALUES / CANDIDATE_FIELDS inchangés (P1 ne touche pas la sémantique) ---
 
-test("P1 : PROVENANCE_VALUES et CANDIDATE_FIELDS restent inchangés (P1 ne modifie aucune règle de matérialité/valeurs légales)", () => {
-  assert.deepEqual(PROVENANCE_VALUES, [
+test("P1 : PROVENANCE_VALUES et CANDIDATE_FIELDS restent inchangés hors extension tracée (P1 ne modifie aucune règle de matérialité/valeurs légales)", () => {
+  /* Les huit valeurs de P1 sont intactes, dans leur ordre. La neuvième vient d'une évolution de
+     contrat explicitement autorisée (OPRIE-MATERIAL-PROVENANCE-02) et documentée dans
+     PROVENANCE_DEFINITIONS ; la garde continue d'interdire toute autre variation. */
+  assert.deepEqual(PROVENANCE_VALUES.slice(0, 8), [
     "explicit_user_statement", "clarification_answer", "confirmed_preference", "safe_deduction",
     "delegated_decision", "external_fact_to_research", "labeled_estimate", "conditional_scenario"
   ]);
+  assert.deepEqual(PROVENANCE_VALUES.slice(8), ["user_provided_material"]);
+  assert.equal(PROVENANCE_VALUES.length, 9);
   assert.ok(CANDIDATE_FIELDS.includes("objective"));
 });

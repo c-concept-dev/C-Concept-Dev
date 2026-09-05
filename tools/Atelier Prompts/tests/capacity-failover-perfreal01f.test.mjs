@@ -307,7 +307,7 @@ test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transit
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '7175454f5c3a0977fd5cd70fa3637a433b24fdba0eba74d9333d82cdb4e8ace9', 'CANONICAL_HTML_CHANGED = NO');
+    '6be95369eaf3611bc72b7d5d7972ffbb6a1f19c8901355c58da171b4274eccde', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

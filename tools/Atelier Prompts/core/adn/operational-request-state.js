@@ -21,7 +21,29 @@ export const OPERATIONAL_REQUEST_TRANSITIONS = Object.freeze({
   operational_request_ready: Object.freeze([])
 });
 
-// Provenance obligatoire pour tout élément matériel du candidat (CDC §6).
+/* Provenance obligatoire pour tout élément matériel du candidat (CDC §6).
+ *
+ * OPRIE-MATERIAL-PROVENANCE-02 — UNE VALEUR AJOUTÉE, ET LA RAISON DE L'AJOUT.
+ *
+ * Le vocabulaire du CDC §6 décrivait COMMENT un fait est venu à la connaissance du système, à une
+ * époque où le plan profond ne recevait que deux sources : la demande et l'historique. Depuis
+ * OPRIE-MATERIAL-CONTENT-02, il en reçoit une troisième — material_content — et l'audit
+ * OPRIE-MATERIAL-PROVENANCE-01 a établi qu'AUCUNE des huit valeurs ne désigne un fait porté par
+ * elle : « la personne a écrit ZX-4821 » et « ZX-4821 figure dans le document qu'elle a joint »
+ * sont deux origines distinctes, et le contrat ne savait pas les distinguer.
+ *
+ * Faute de valeur juste, l'Analyste en employait une fausse, et le Critique la sanctionnait — à
+ * juste titre. Ce n'est pas le contrôle qui était trop strict : c'est le vocabulaire qui était
+ * incomplet.
+ *
+ * UNE SEULE VALEUR, ET GÉNÉRIQUE. Pas de document_fact, pas de pdf_fact, pas de csv_fact : le
+ * nom ne doit encoder ni format, ni domaine, ni fournisseur, ni protocole. Les huit valeurs
+ * historiques sont inchangées, à l'octet près, et gardent exactement leur sens.
+ *
+ * CE QU'UNE PROVENANCE DIT, ET CE QU'ELLE NE DIT PAS. Elle décrit une ORIGINE, jamais une
+ * fiabilité, jamais une suffisance, jamais une readiness. Un fait correctement sourcé sur un
+ * matériau utilisateur n'est ni vrai, ni suffisant, ni pertinent pour autant.
+ */
 export const PROVENANCE_VALUES = Object.freeze([
   "explicit_user_statement",
   "clarification_answer",
@@ -30,8 +52,21 @@ export const PROVENANCE_VALUES = Object.freeze([
   "delegated_decision",
   "external_fact_to_research",
   "labeled_estimate",
-  "conditional_scenario"
+  "conditional_scenario",
+  "user_provided_material"
 ]);
+
+/* Définitions normatives. Le CDC §6 nommait les valeurs sans les définir : l'audit
+ * OPRIE-MATERIAL-PROVENANCE-01 l'a établi, et c'est ce silence qui rendait indécidable la
+ * question « quelle provenance pour un fait lu dans un matériau ? ». Les deux valeurs que ce lot
+ * met en jeu sont donc définies ici, sans ouvrir la définition des six autres — dont les usages
+ * historiques restent l'unique référence, inchangés. */
+export const PROVENANCE_DEFINITIONS = Object.freeze({
+  explicit_user_statement:
+    "Fait explicitement déclaré par la personne dans original_request ou dans clarification_history.",
+  user_provided_material:
+    "Fait explicitement présent dans le contenu d'un matériau fourni par la personne et transmis à l'Analyste pendant le tour courant (material_content). Décrit l'origine du fait, jamais sa véracité, sa suffisance ni sa pertinence."
+});
 
 // Provenance de l'historique de clarification (CDC §5.2) : uniquement l'utilisateur répond.
 export const CLARIFICATION_PROVENANCE_VALUES = Object.freeze(["user"]);

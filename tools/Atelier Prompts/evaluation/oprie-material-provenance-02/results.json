@@ -1,0 +1,168 @@
+{
+ "lot": "OPRIE-MATERIAL-PROVENANCE-02",
+ "objet": "ajouter la provenance manquante pour un fait issu de material_content et remettre a jour la regle d ancrage du Critique",
+ "mesure_le": "2026-09-05",
+ "worker": "atelier-decision-groq",
+ "versions": {
+  "mesure_epinglee_anthropic": "ea1546a0-4d28-4e27-a5d1-66fc2295b93a",
+  "finale_chaine_ha_retablie": "e5c120be-eb8c-4329-a812-b049e7ff0792"
+ },
+ "materiaux": "SYNTHETIQUES — aucun contenu reel",
+ "matrice_provenance": {
+  "avant": [
+   "explicit_user_statement",
+   "clarification_answer",
+   "confirmed_preference",
+   "safe_deduction",
+   "delegated_decision",
+   "external_fact_to_research",
+   "labeled_estimate",
+   "conditional_scenario"
+  ],
+  "apres": [
+   "explicit_user_statement",
+   "clarification_answer",
+   "confirmed_preference",
+   "safe_deduction",
+   "delegated_decision",
+   "external_fact_to_research",
+   "labeled_estimate",
+   "conditional_scenario",
+   "user_provided_material"
+  ],
+  "ajoutees": [
+   "user_provided_material"
+  ],
+  "retirees": [],
+  "renommees": [],
+  "resemantisees": [],
+  "ordre_des_huit_preserve": true,
+  "definitions_ecrites": {
+   "explicit_user_statement": "Fait explicitement declare par la personne dans original_request ou dans clarification_history.",
+   "user_provided_material": "Fait explicitement present dans le contenu d un materiau fourni par la personne et transmis a l Analyste pendant le tour courant (material_content). Decrit l origine du fait, jamais sa veracite, sa suffisance ni sa pertinence."
+  }
+ },
+ "gardes_invariant": {
+  "garde_cdc": "conservee et resserree — verifie les neuf valeurs ET que les huit du CDC restent dans leur ordre",
+  "garde_p1": "conservee et resserree — verifie slice(0,8) identique, slice(8) = la seule extension, longueur exacte 9",
+  "supprimee": false,
+  "relachee": false
+ },
+ "schema": {
+  "enum_envoye_au_fournisseur": [
+   "explicit_user_statement",
+   "clarification_answer",
+   "confirmed_preference",
+   "safe_deduction",
+   "delegated_decision",
+   "external_fact_to_research",
+   "labeled_estimate",
+   "conditional_scenario",
+   "user_provided_material"
+  ],
+  "verifie_sur_le_corps_reel": true,
+  "validation_stricte_preservee": true
+ },
+ "consommateurs": {
+  "analyste": "ecrit la provenance — regle 2 et point 10 mis a jour",
+  "critique_simple": "regle d ancrage portee a trois sources",
+  "critique_batche": "MEME regle mise a jour — elle existait en double",
+  "arbitre": "INCHANGE — recoit deja provenance_records dans analyst_output",
+  "assessProvenance": "INCHANGE — n inspecte toujours pas l etiquette"
+ },
+ "cas_synthetiques": {
+  "T1_explicit_user_statement": {
+   "state": "clarification_required",
+   "valeur_dans_reponse": true,
+   "question": "Quelles informations propres au dossier ZX-4821 souhaitez-vous voir figurer dans la fiche ? Par exemple : statut actuel, responsable, actions en cours, dates clés, observations, ou tout autre champ pertinent pour votre contexte.",
+   "reason": "Le Critique soulève un point de decision_authority_unclear pertinent : l'Analyste n'a pas examiné si le format et la structure pouvaient être délégués à l'IA par défaut. J'examine ce point en premier. La question est fondée : une fiche de suivi générique avec des champs typiques est techniquement produisible par l'IA sans instruction explicite. Cependant, le Critique lui-même conclut, après examen"
+  },
+  "T2_material_fact": {
+   "state": "blocked",
+   "valeur_dans_reponse": false,
+   "question": null,
+   "reason": "Le Critique est en accord avec l'Analyste, et les deux convergent vers un candidat structurellement cohérent. Cependant, l'arbitrage révèle un problème matériel fondamental que ni l'Analyste ni le Critique n'ont identifié : le matériau source censé contenir le numéro de dossier n'a jamais été fourni. La demande originale fait référence à \"le matériau disponible\", mais aucun document, texte, image,"
+  },
+  "T5_material_missing": {
+   "state": "clarification_required",
+   "valeur_dans_reponse": false,
+   "question": "Pouvez-vous partager le contenu du matériau (ou coller directement le texte du document) afin que je puisse en extraire le numéro de dossier ?",
+   "reason": "L'Analyste et le Critique sont en accord complet. L'unique issue matérielle (I1) est non substituable : le contenu du matériau n'a pas été transmis, et aucune stratégie alternative (research, decide, estimate, scenario, condition, leave_unknown) ne peut produire le livrable attendu — un numéro de dossier exact, restitué tel quel. La question posée par l'Analyste est légitime, non redondante (aucun"
+  },
+  "T8_injection_et_fait": {
+   "state": "blocked",
+   "valeur_dans_reponse": false,
+   "question": null,
+   "reason": "Le Critique a émis un veto qualifié (MI-001) sur l'absence de matériau accessible. L'examen de ce veto est fondé : la demande originale mentionne un \"matériau disponible\", mais ni la clarification_history, ni aucun champ de contexte ne confirme qu'un matériau a effectivement été transmis ou est accessible. L'Analyste a supposé implicitement que le matériau était présent et contenait un numéro de d"
+  }
+ },
+ "cas_decisif_repete_anthropic": [
+  {
+   "n": 1,
+   "state": "blocked",
+   "valeur": false,
+   "provenance_materiau_emise": true,
+   "reason": "Le Critique a émis un veto qualifié (MI-01) sur l'absence de matériau accessible dans le contexte transmis. L'examen de ce veto est fondé : aucun enregistrement de provenance dans la sortie de l'Analyste ne référence un matériau utilisateur (user_provided_material absent de tous les provenance_recor"
+  },
+  {
+   "n": 2,
+   "state": "clarification_required",
+   "valeur": true,
+   "provenance_materiau_emise": true,
+   "reason": "Le Critique émet un veto qualifié (MI-01) sur un point matériel réel : la valeur 'ZX-4821' a été inscrite par l'Analyste directement dans expected_deliverable avec provenance user_provided_material, mais aucune confirmation de disponibilité effective du matériau source n'est présente dans les donnée"
+  },
+  {
+   "n": 3,
+   "state": "operational_request_ready",
+   "valeur": true,
+   "provenance_materiau_emise": false,
+   "reason": "L'Analyste et le Critique sont en accord complet. Aucun veto, aucune ambiguïté matérielle, aucune information manquante non substituable, aucun conflit non résolu. Le numéro de dossier est identifié dans le matériau (ZX-4821), la contrainte de restitution telle quelle est explicite, et le livrable e"
+  }
+ ],
+ "lecture_du_cas_decisif": {
+  "critique_comprend_la_nouvelle_provenance": "PROUVE — au tour 1 il la cherche explicitement et signale son absence",
+  "chaine_peut_se_fermer_sans_toucher_l_arbitre": "PROUVE — le tour 3 rend operational_request_ready en accord complet",
+  "conformite_de_l_ecrivain": "NON FIABLE — 2 tours sur 3 emettent la provenance, 1 seul aboutit"
+ },
+ "rejeu_R08_R13": "sous-processus interrompu par le systeme avant ecriture du fichier",
+ "rejeu_R08_R13_observe": {
+  "R08": {
+   "state": "blocked",
+   "provenance_materiau": false,
+   "critere_37": "echec"
+  },
+  "R09": {
+   "state": "degraded_state",
+   "provenance_materiau": false,
+   "critere_37": "non concluant — panne technique"
+  },
+  "R10": {
+   "state": "clarification_required",
+   "provenance_materiau": true,
+   "question": "coller ici le texte integral du courrier",
+   "critere_37": "echec"
+  },
+  "R11": {
+   "state": "degraded_state",
+   "provenance_materiau": false,
+   "critere_37": "non concluant — panne technique"
+  },
+  "R12": {
+   "state": "clarification_required",
+   "provenance_materiau": false,
+   "question": "Sur quel moteur de base de donnees la requete doit-elle s executer ?",
+   "critere_37": "REUSSITE — le schema n est plus reclame"
+  },
+  "R13": {
+   "state": "clarification_required",
+   "provenance_materiau": true,
+   "question": "fournir le texte que vous souhaitez traduire",
+   "critere_37": "echec"
+  }
+ },
+ "controle_sans_contenu": "T5 — clarification preservee, aucune valeur ni provenance inventee",
+ "faux_ready": 0,
+ "contenu_brut_au_critique": false,
+ "contenu_brut_a_l_arbitre": false,
+ "raw_content_logging": 0
+}
