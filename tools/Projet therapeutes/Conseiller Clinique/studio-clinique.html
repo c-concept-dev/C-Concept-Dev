@@ -2620,7 +2620,7 @@
         .join('\n');
       const prompt = 'Resume cette conversation clinique en 10 lignes. Garde: cas cliniques, approches, decisions.\n\n' + convText + '\n\nResume:';
       const r = await fetch(wUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: { model: 'claude-haiku-4-5-20251001', max_tokens: 400,
           messages: [{ role: 'user', content: prompt }] }})
       });
@@ -2749,6 +2749,23 @@
     ).replace(/\/$/, '');
   }
 
+  // SEC-HOTFIX-01 — jeton partagé attendu par le Worker (X-API-Key), vérifié côté serveur
+  // contre la variable d'environnement Cloudflare WORKER_API_KEY (cf. Worker/index.js).
+  // Portée volontairement limitée : dissuader un tiers qui découvrirait l'URL publique du
+  // Worker, PAS distinguer les deux utilisatrices légitimes du compte partagé (hors sujet
+  // ici) — un jeton statique visible dans le source suffit pour ce seul objectif. Même
+  // schéma de surcharge que adocGetWorkerUrl() ci-dessus, pour permettre une rotation sans
+  // republier ce fichier si besoin.
+  function adocGetApiKey() {
+    return (
+      window.conversationalSystem?.WORKER_API_KEY ||
+      window._therapyWorkerApiKey ||
+      window.CONFIG?.WORKER_API_KEY ||
+      localStorage.getItem('workerApiKey') ||
+      '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8'
+    );
+  }
+
   // N2 — Charger dossier patient depuis le système thérapeutique
   function adocLoadPatientContext() {
     try {
@@ -2760,14 +2777,20 @@
       if (!patSection || !patBox) return;
 
       // Tente d'extraire infos patient depuis l'état Collab
+      // SEC-HOTFIX-01 : ces valeurs viennent d'un système externe (le Collab), jamais
+      // garanties exemptes de caractères HTML — seules les balises <strong>/<br> ci-dessous
+      // sont littérales et sûres (écrites ici), chaque valeur interpolée passe par adocEsc
+      // (même helper que le reste du fichier) avant d'atteindre innerHTML.
       let info = '';
+      let isStructuredHtml = false;
       if (cs.currentPatient) {
         const p = cs.currentPatient;
-        info += p.name ? `<strong>Patient :</strong> ${p.name}<br>` : '';
-        info += p.age ? `<strong>Âge :</strong> ${p.age} ans<br>` : '';
-        info += p.motif ? `<strong>Motif :</strong> ${p.motif}<br>` : '';
-        info += p.approche ? `<strong>Approche :</strong> ${p.approche}<br>` : '';
-        info += p.notes ? `<strong>Notes :</strong> ${p.notes}` : '';
+        info += p.name ? `<strong>Patient :</strong> ${adocEsc(p.name)}<br>` : '';
+        info += p.age ? `<strong>Âge :</strong> ${adocEsc(p.age)} ans<br>` : '';
+        info += p.motif ? `<strong>Motif :</strong> ${adocEsc(p.motif)}<br>` : '';
+        info += p.approche ? `<strong>Approche :</strong> ${adocEsc(p.approche)}<br>` : '';
+        info += p.notes ? `<strong>Notes :</strong> ${adocEsc(p.notes)}` : '';
+        isStructuredHtml = true;
       } else if (cs.patientContext || cs.currentContext) {
         const ctx = cs.patientContext || cs.currentContext;
         if (typeof ctx === 'string' && ctx.length > 10) {
@@ -2782,8 +2805,10 @@
         }
       }
       if (info) {
+        // adocPatientContext (texte envoyé au modèle) reste calculé sur la valeur brute —
+        // seul l'affichage DOM a besoin d'échappement.
         adocPatientContext = info.replace(/<[^>]+>/g, ' ').trim();
-        patBox.innerHTML = info;
+        patBox.innerHTML = isStructuredHtml ? info : adocEsc(info);
         patSection.style.display = 'block';
       } else {
         patSection.style.display = 'none';
@@ -3141,7 +3166,7 @@
     const tid = setTimeout(() => ctrl.abort(), 4000);
     try {
       const r = await fetch(workerUrl + '/d1-query', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify(intent || {}),
         signal: ctrl.signal
       });
@@ -3165,7 +3190,7 @@
     const tid = setTimeout(() => ctrl.abort(), 5000);
     try {
       const r = await fetch(workerUrl + '/search-library', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ query, topK, ...(approach ? { approach } : {}) }),
         signal: ctrl.signal
       });
@@ -3444,7 +3469,7 @@ RÈGLES ABSOLUES :
 
     try {
       const r = await fetch(workerUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: {
           // P2-4 : Sonnet pour supervision/analyse_cas, Haiku sinon
           model: (() => {
@@ -3765,7 +3790,7 @@ RÈGLES ABSOLUES :
       );
       const r = await fetch(workerUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: {
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 300,
@@ -4147,7 +4172,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     const contResp = await fetch(workerUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
       body: JSON.stringify({ payload: {
         model: MODEL,
         max_tokens: 16000,
@@ -4373,7 +4398,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
             + 'Chaque recherche est un objet : {"terms":["..."],"term_match":"any","authors":[],"approaches":[],"limit":10}\n'
             + 'Réponds UNIQUEMENT avec un tableau JSON de 3 objets de ce type.';
           const r = await fetch(adocGetWorkerUrl(), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
             body: JSON.stringify({ payload: {
               model: 'claude-haiku-4-5-20251001', max_tokens: 600,
               messages: [{ role: 'user', content: enrichPrompt }]
@@ -4585,7 +4610,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // Le streaming SSE gère nativement les blocs text + tool_use interleaved
       const response = await fetch(workerUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: {
           model: MODEL,
           max_tokens: 16000,
@@ -5086,7 +5111,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     const fetchPexels = async (query) => {
       const q = encodeURIComponent(query.trim().substring(0, 100));
-      const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1');
+      const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1', { headers: { 'X-API-Key': adocGetApiKey() } });
       if (!r.ok) throw new Error('Pexels ' + r.status);
       const d = await r.json();
       return d.photos?.[0] || null;
@@ -5095,7 +5120,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const fetchFlux = async (prompt) => {
       const r = await fetch(workerUrl + '/generate-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ prompt })
       });
       if (!r.ok) throw new Error('FLUX ' + r.status);
@@ -5299,7 +5324,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
       const res = await fetch(workerUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -5673,7 +5698,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     try {
       const res = await fetch(ADOC_WORKER + '/generate-zip', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({
           content: [{ name: safeName + '.html', data: htmlContent }],
           filename: safeName
@@ -5743,7 +5768,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
       const res = await fetch(ADOC_WORKER + route, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -6506,7 +6531,7 @@ ${body}
     try {
       const res = await fetch(ADOC_WORKER + '/store-file', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ content, filename, mime })
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -6623,7 +6648,7 @@ ${body}
     try {
       const res = await fetch(ADOC_WORKER + '/generate-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ content: art.html, filename: art.name || 'document' }),
       });
       const data = await res.json();
@@ -6806,8 +6831,8 @@ ${body}
       histEl.style.display = 'block';
       histEl.innerHTML = data.history.slice(0, 3).map(s =>
         `<div style="margin-bottom:6px;padding:5px 7px;background:var(--terracotta-100);border-radius:4px;font-size:10px;">
-          <span style="font-weight:600;color:var(--terracotta-700);">${s.date}</span><br>
-          ${s.summary.substring(0, 120)}${s.summary.length > 120 ? '…' : ''}
+          <span style="font-weight:600;color:var(--terracotta-700);">${adocEsc(s.date)}</span><br>
+          ${adocEsc(s.summary.substring(0, 120))}${s.summary.length > 120 ? '…' : ''}
         </div>`
       ).join('');
     } catch(e) {
@@ -6932,7 +6957,7 @@ ${recent}`;
 
     try {
       const r = await fetch(workerUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: {
           model: 'claude-haiku-4-5-20251001', max_tokens: 300,
           messages: [{ role: 'user', content: prompt }]
@@ -7113,7 +7138,7 @@ ${recent}`;
   async function adocLongDocStreamChapter(docId, msgs) {
     const state = window._adocLongDocState[docId];
     const r = await fetch(state.workerUrl, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
       body: JSON.stringify({ payload: {
         model: state.MODEL, max_tokens: 4000, stream: true,
         system: state.systemPrompt, messages: msgs,
@@ -7234,7 +7259,7 @@ ${recent}`;
         + 'Génère 4 à 8 chapitres. Réponds UNIQUEMENT avec :\n'
         + '[{"titre":"Chapitre 1 : ...","instructions":"contenu attendu en 2-3 phrases"},...]';
       const cr = await fetch(workerUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: {
           model: 'claude-haiku-4-5-20251001', max_tokens: 800,
           messages: [{ role: 'user', content: chapPrompt }]
@@ -7511,7 +7536,7 @@ ${recent}`;
 
     const resp = await fetch(workerUrl.replace(/\/+$/, ''), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
       body: JSON.stringify({
         payload: {
           provider: 'anthropic',
@@ -8411,7 +8436,7 @@ ${recent}`;
       try {
         searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
           body: JSON.stringify({
             payload: {
               provider: 'anthropic',
@@ -8517,7 +8542,7 @@ ${recent}`;
     try {
       resp = await fetch(workerUrl.replace(/\/+$/, ''), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({
           payload: {
             provider: 'anthropic',
