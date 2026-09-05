@@ -159,7 +159,7 @@ test('T-MCTX02-12/13 : ni present ni deep_content_available ne produisent un ét
   }
   /* Et le prompt l’interdit explicitement à l’Analyste comme au Critique. */
   assert.match(ANALYST_SYSTEM_PROMPT, /ne rendent jamais une demande prête/);
-  assert.match(ANALYST_SYSTEM_PROMPT, /décider si ce matériau est requis, et s'il suffit, reste votre raisonnement/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /déterminer s'il est requis puis s'il suffit reste votre raisonnement/);
   assert.match(CRITIC_SYSTEM_PROMPT, /jamais une readiness/);
   assert.match(CRITIC_SYSTEM_PROMPT, /N’en tirez aucune conclusion d’état/);
   /* required reste une déduction de l’Analyste : le champ n’existe pas. */

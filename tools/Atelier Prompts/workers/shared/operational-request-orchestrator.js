@@ -140,12 +140,19 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
   log({
     event: "material_context_observation",
     material_context_present: material_context ? material_context.present : null,
-    material_context_usable: material_context ? material_context.usable : null,
+    /* OPRIE-MATERIAL-INTERPRETATION-01 — la trace nommait encore `usable`, retiré du contrat
+       par le lot precedent : elle journalisait donc undefined a chaque tour. Elle nomme
+       desormais le champ qui existe, et dit si le contenu est reellement entre dans l'entree
+       de l'Analyste — le fait qu'il fallait pouvoir prouver sans lire un octet de contenu. */
+    material_context_deep_content_available: material_context ? material_context.deep_content_available : null,
+    material_content_present_in_analyst_input: Array.isArray(material_content) && material_content.length > 0,
     material_context_absent: !material_context,
-    /* Metadata SEULE : nombre de documents et volume, jamais un octet de contenu. */
+    /* Metadata SEULE : nombre de documents et volume, jamais un octet de contenu. Le volume est
+       compte en OCTETS UTF-8, comme partout ailleurs dans ce canal : `.length` compterait des
+       unites UTF-16 et sous-estimerait tout texte accentue. */
     material_document_count: Array.isArray(material_content) ? material_content.length : 0,
     material_content_bytes: Array.isArray(material_content)
-      ? material_content.reduce((total, piece) => total + piece.length, 0) : 0
+      ? material_content.reduce((total, piece) => total + new TextEncoder().encode(piece).byteLength, 0) : 0
   });
   const outputs = {};
 

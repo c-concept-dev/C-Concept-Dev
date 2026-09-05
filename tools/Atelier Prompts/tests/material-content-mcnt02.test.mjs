@@ -284,7 +284,7 @@ test('T-MCNT02-14 : aucun raccourci vers READY', () => {
     assert.equal(zone.includes(etat), false, `le constructeur ne connaît pas ${etat}`);
   }
   assert.match(ANALYST_SYSTEM_PROMPT, /ne rendent jamais une demande prête/);
-  assert.match(ANALYST_SYSTEM_PROMPT, /décider si ce matériau est requis, et s'il suffit, reste votre raisonnement/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /déterminer s'il est requis puis s'il suffit reste votre raisonnement/);
   /* Et la déclaration de la personne prime toujours sur le signal d’infrastructure. */
   assert.match(ANALYST_SYSTEM_PROMPT, /cette déclaration l'emporte sur le contexte/);
 });

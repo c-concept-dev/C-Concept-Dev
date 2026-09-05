@@ -1,0 +1,167 @@
+{
+ "lot": "OPRIE-MATERIAL-INTERPRETATION-01",
+ "objet": "pourquoi l Analyste reclamait un contenu qu il recoit",
+ "mesure_le": "2026-09-05",
+ "worker": "atelier-decision-groq",
+ "versions_deployees": {
+  "correctif_1_et_2": "b610296d-72f2-448d-947e-add6b09284b7",
+  "correctif_1_a_3": "e500bcc9-29dd-4f07-b66f-fa3d4b2a49f6"
+ },
+ "fournisseur_observe": "anthropic/claude-sonnet-4-6 sur les trois roles (Groq en epuisement de quota)",
+ "materiaux": "SYNTHETIQUES — aucun contenu reel",
+ "acquis_conserves": {
+  "material_content_dans_le_corps_fournisseur": true,
+  "preuve": "corps HTTP capture pour anthropic, groq et openai : marqueur present dans le message UTILISATEUR, cles [original_request, clarification_history, material_context, material_content], absent du prompt systeme",
+  "chaine_locale": "HTTP -> validateAnalystInput -> orchestrateur -> entree de role Analyste -> message serialise, contenu intact ; absent de Critique et Arbitre",
+  "transport": "non rouvert"
+ },
+ "batterie_discriminante": {
+  "principe": "cas trivial, aucune ambiguite metier possible : extraire un numero de dossier present dans le materiau",
+  "cas": {
+   "S1_minimal_avec_contenu": {
+    "avant_correctif_3": {
+     "state": "clarification_required",
+     "valeur_dans_reponse": false,
+     "question": "Pourriez-vous transmettre le matériau (document, texte, fichier ou tout autre support) dans lequel figure le numéro de dossier à extraire ?",
+     "issue": "Le matériau source censé contenir le numéro de dossier est absent de la demande originale et de tout l'historique de clarification. Sans ce matériau, l'extraction est impossible : l'objectif entier de la demande ne peut être exécuté."
+    },
+    "apres_correctif_3": {
+     "state": "clarification_required",
+     "valeur_dans_reponse": false,
+     "question": "Pourriez-vous transmettre le matériau (document, texte, image ou tout autre support) dans lequel figure le numéro de dossier à extraire ? Il n'a pas été joint à votre demande initiale.",
+     "issue": "Le matériau censé contenir le numéro de dossier n'a pas été transmis dans la requête originale ni dans l'historique de clarification. Aucun contenu source n'est disponible à partir duquel extraire quoi que ce soit. Sans ce matériau, le livrable est structurellement impossible à produire.",
+     "reason": "Le veto qualifié MI-001 du Critique est fondé et non substituable : le matériau censé contenir le numéro de dossier est absent de l'intégralité du contexte fourni (original_request, clarification_history, analyst_output). L'Analyste a traité la demande comme structurellement complète sans signaler cette absence, ce qui constitue une omission matérielle. Sans le contenu source, le livrable — le numéro de dossier extrait tel quel — est structurellement impossible à produire. Aucune stratégie substitutive (estimation, hypothèse, scénario) n'est honnêtement applicable : un numéro de dossier spécifique ne peut pas être inventé ni inféré. La seule voie de progression est d'obtenir le matériau manquant."
+    }
+   },
+   "S2_minimal_sans_contenu": {
+    "avant_correctif_3": {
+     "state": "clarification_required",
+     "valeur_dans_reponse": false,
+     "question": "Pouvez-vous coller directement ici le contenu du document (ou au moins la section contenant le numéro de dossier) afin que je puisse l'extraire et vous le restituer tel quel ?",
+     "issue": "Le matériau est signalé comme présent (material_context.present = true) mais son contenu n'a pas été transmis au système (deep_content_available = false). Le numéro de dossier demandé se trouve dans ce contenu inaccessible : sans lui, le livrable ne peut pas être produit. Toutes les stratégies substitutives (recherche externe, décision, estimation, scénario, condition, laisser inconnu) ont été examinées et sont inapplicables, chacune pour une raison structurelle distincte. La seule voie de résolution est la transmission du contenu par l'utilisateur."
+    },
+    "apres_correctif_3": {
+     "state": "clarification_required",
+     "valeur_dans_reponse": false,
+     "question": "Pourriez-vous coller ici le contenu du document (ou la portion contenant le numéro de dossier) ? Son texte ne m'a pas été transmis et je ne peux pas en lire le contenu sans cela.",
+     "issue": "Le matériau est signalé comme présent mais son contenu n'a pas été transmis à ce tour. Le numéro de dossier se trouve exclusivement dans ce matériau : sans accès à son texte, il est impossible de l'extraire. Cette absence bloque entièrement et irrémédiablement le livrable. Toutes les stratégies substitutives (recherche externe, décision, estimation, scénarisation, conditionnement, laisser inconnu) ont été examinées et écartées : aucune n'est compatible avec l'objectif de restitution exacte d'un numéro unique contenu dans un document privé.",
+     "reason": "L'Analyste et le Critique sont en accord complet. Le matériau est signalé comme présent mais son contenu n'a pas été transmis (deep_content_available = false). Le numéro de dossier constitue l'intégralité du livrable demandé et réside exclusivement dans ce matériau inaccessible. Toutes les stratégies substitutives ont été examinées et écartées de façon fondée par le Critique : aucune ne permet de produire le livrable sans accès au contenu réel. Une seule question, non encore posée, permet de débloquer immédiatement la situation. L'état clarification_required est le seul approprié."
+    }
+   },
+   "S3_minimal_fait_absent": {
+    "avant_correctif_3": {
+     "state": "clarification_required",
+     "valeur_dans_reponse": false,
+     "question": "Le matériau transmis indique explicitement qu'il ne comporte aucun numéro de dossier. Pouvez-vous fournir un document qui en contient un, ou indiquer directement le numéro recherché ?",
+     "issue": "Le matériau transmis contient la mention explicite « Ce document ne comporte aucun numéro de dossier. » L'information demandée est donc absente de la seule source disponible. Toutes les stratégies substitutives ont été examinées et écartées : la valeur est propre à un document personnel de l'utilisateur, ne peut être estimée, décidée, scénarisée, conditionnée ni laissée ouverte sans annuler intégralement le livrable. Le livrable ne peut pas être produit en l'état."
+    },
+    "apres_correctif_3": {
+     "state": "clarification_required",
+     "valeur_dans_reponse": false,
+     "question": "Le matériau transmis indique explicitement qu'il ne comporte aucun numéro de dossier. Pouvez-vous fournir le bon document, ou indiquer où se trouve le numéro de dossier à extraire ?",
+     "issue": "Le matériau transmis contient la mention explicite « Ce document ne comporte aucun numéro de dossier. » L'information que la demande demande d'extraire est donc absente du matériau. Le livrable ne peut pas être produit en l'état. Aucune stratégie substitutive n'est applicable : le livrable est intégralement constitué de cette unique donnée absente, qui est propre au document de l'utilisateur et ne peut être ni recherchée, ni décidée, ni estimée, ni scénarisée, ni conditionnée, ni laissée ouverte sans annuler l'objectif.",
+     "reason": "L'Analyste et le Critique sont en accord complet. L'issue I1 est matérielle, non substituable, et la question est le seul traitement applicable. Le matériau transmis déclare explicitement ne comporter aucun numéro de dossier : le livrable — qui est intégralement constitué de cette unique donnée — ne peut pas être produit. Aucune stratégie substitutive (research, decide, estimate, scenario, condition, leave_unknown) n'est applicable, comme démontré exhaustivement par le Critique. La seule voie de progression est d'obtenir le bon matériau ou une indication sur la localisation du numéro de dossier."
+    }
+   },
+   "S4_vocabulaire_joint": {
+    "avant_correctif_3": {
+     "state": "blocked",
+     "valeur_dans_reponse": false,
+     "question": null,
+     "issue": "Aucun document n'a été joint à la demande. Le numéro de dossier à extraire est contenu dans ce document, qui constitue l'unique source d'information nécessaire au livrable. Sans lui, aucune extraction n'est possible."
+    },
+    "apres_correctif_3": {
+     "state": "blocked",
+     "valeur_dans_reponse": true,
+     "question": null,
+     "issue": "Le document joint mentionné dans la demande n'est pas accessible dans le contexte fourni à l'OPRIE. La valeur 'ZX-4821' inscrite par l'Analyste dans expected_deliverable est présentée comme issue de ce document, mais elle n'apparaît ni dans original_request ni dans clarification_history, et son extraction n'a pas pu être vérifiée. Le livrable étant précisément ce numéro restitué tel quel, toute valeur non issue d'une lecture effective du document trahit l'objectif central.",
+     "reason": "Le veto qualifié du Critique (MI-001) est fondé et non substituable. L'Analyste a inscrit dans expected_deliverable une valeur concrète ('ZX-4821') avec la provenance 'explicit_user_statement', alors que cette valeur n'apparaît ni dans original_request ni dans clarification_history : elle est présentée comme issue du document joint, lequel n'est pas accessible ni vérifiable dans le contexte fourni à l'OPRIE. L'objectif central de la demande est précisément la restitution exacte du numéro tel qu'il figure dans ce document. Sans accès vérifié au document source, aucune valeur ne peut être retenue dans le candidat sans trahir cet objectif. Aucune stratégie substitutive honnête (estimation, hypothèse, scénario, condition) ne permet de produire le livrable : la demande exige une lecture effective du document, et aucune question posée à l'utilisateur ne peut remplacer cet accès. Le blocage est donc structurel : le document joint n'est pas transmis au système, et aucune progression réelle n'est possible sans lui."
+    }
+   }
+  }
+ },
+ "hypotheses": {
+  "H1_contradiction_prompt": "CONFIRMEE PUIS TRAITEE — MISSION 1 enumerait deux sources ; S1 la citait mot pour mot",
+  "H2_cadrage_message": "REJETEE — S2 et S3 montrent que material_context et material_content sont lus correctement",
+  "H3_distance_instructions": "REJETEE — meme structure, S3 reussit",
+  "H4_confusion_piece_jointe": "CONFIRMEE PUIS TRAITEE — S4 ne differe de S1 que par le mot « joint » et produit blocked",
+  "H5_regle_de_clarification_prioritaire": "REJETEE — aucune regle de ce type n a ete trouvee dans le prompt Analyste",
+  "H6_nommage_material_content": "REJETEE — S3 nomme et cite le champ correctement",
+  "H7_lien_deep_content_available": "REJETEE — S2 lit explicitement deep_content_available = false",
+  "H8_autre": "CONFIRMEE — la cause residuelle est en aval de l Analyste"
+ },
+ "cause_racine_finale": {
+  "localisation": "le CRITIQUE, puis l ARBITRE qui retient son veto",
+  "mecanisme": "le Critique ne recoit pas material_content, et son contrat enumere original_request, clarification_history et analyst_output comme le contexte entier. Un fait porte par le materiau lui apparait donc sans origine, quelle que soit sa provenance declaree.",
+  "preuve_S1": "« le materiau … est absent de l integralite du contexte fourni (original_request, clarification_history, analyst_output). L Analyste a traite la demande comme structurellement complete sans signaler cette absence »",
+  "preuve_S4": "« L Analyste a inscrit dans expected_deliverable une valeur concrete ('ZX-4821') avec la provenance 'explicit_user_statement', alors que cette valeur n apparait ni dans original_request ni dans clarification_history »",
+  "lecture": "l Analyste est corrige — il lit le materiau, le credite, et en porte les faits avec une provenance vraie. Le veto vient du role suivant, et il est coherent avec le contrat que ce role a recu."
+ },
+ "correctifs_appliques": {
+  "F1": "MISSION 1 enumere les sources du tour au lieu des deux anciennes",
+  "F2": "le contrat nomme material_content comme unique canal de materiau ; le mot « joint » est retire",
+  "F3": "un fait lu dans le materiau porte la provenance explicit_user_statement, valeur deja presente dans le contrat gele",
+  "portee": "prompt Analyste uniquement ; aucun schema, aucun transport, aucun material_context, aucun Critique, aucun Arbitre, aucun plan rapide, aucun routage"
+ },
+ "regression_observee_et_traitee": {
+  "constat": "le premier correctif seul faisait passer deux tours de clarification_required a blocked",
+  "cause": "l Analyste portait des faits du materiau en leur attribuant une provenance fausse (clarification_answer sur un historique vide), que le Critique sanctionnait",
+  "traitement": "F3 donne la provenance vraie ; le blocage subsiste neanmoins pour la raison ci-dessus, qui est hors perimetre"
+ },
+ "cout_jetons": "a proximite du plafond de transport, l entree Analyste mesuree passe d environ 4 537 a 9 938 jetons (+119 %). Non traite ici : releve de ANTHROPIC-DEEP-CAPACITY-01.",
+ "historique": {
+  "apres_correctif_1": {
+   "R08_avec_contenu": {
+    "state": "clarification_required",
+    "question": "Quel est le texte à résumer ?"
+   },
+   "R08_sans_contenu": {
+    "state": "clarification_required",
+    "question": "Pourriez-vous partager le texte que vous souhaitez résumer ?"
+   },
+   "R09_avec_contenu": {
+    "state": "clarification_required",
+    "question": "Les notes de laboratoire à transformer n'ont pas été jointes à votre demande. Pourriez-vous les partager ici (texte, copie ou fichier) ?"
+   },
+   "R10_avec_contenu": {
+    "state": "operational_request_ready",
+    "question": null
+   },
+   "R11_avec_contenu": {
+    "state": "clarification_required",
+    "question": "Pourriez-vous fournir le contenu du tableau CSV à analyser ? Vous pouvez le coller directement dans votre message (texte brut) ou décrire sa structure si le fichier ne peut pas être partagé."
+   },
+   "R12_avec_contenu": {
+    "state": "clarification_required",
+    "question": "Pouvez-vous fournir le schéma de base de données sur lequel la requête doit être écrite ? (noms des tables, colonnes et leurs types — par exemple sous forme de CREATE TABLE, d'un export de schéma, ou d'une description textuelle). Sans cette information, il est impossible d'écrire une requête correcte."
+   },
+   "R13_avec_contenu": {
+    "state": "clarification_required",
+    "question": "Pourriez-vous fournir le texte à traduire ? Il semble qu'il n'ait pas été joint à votre demande."
+   },
+   "fait_present": {
+    "state": "clarification_required",
+    "question": "Pouvez-vous joindre le document source ou en fournir le contenu intégral, y compris le passage qui fixe l’échéance de remise ?"
+   },
+   "fait_absent": {
+    "state": "clarification_required",
+    "question": "Le document joint indique explicitement qu'aucune échéance de remise n'a été abordée lors de la réunion. Quelle est l'échéance à laquelle cette note de synthèse doit être remise au comité de direction, et doit-elle figurer dans le contenu de la note elle-même ou seulement guider votre calendrier de remise ?"
+   },
+   "injection_et_fait": {
+    "state": "blocked",
+    "question": null
+   }
+  },
+  "confirmation_correctif_1": {
+   "R08_avec_contenu_bis": {
+    "state": "blocked"
+   },
+   "injection_et_fait_bis": {
+    "state": "degraded_state"
+   },
+   "fait_present_bis": {
+    "state": "blocked"
+   }
+  }
+ }
+}
