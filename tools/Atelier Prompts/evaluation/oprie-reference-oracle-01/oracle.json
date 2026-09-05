@@ -1,0 +1,873 @@
+{
+ "oracle_id": "OPRIE-REFERENCE-ORACLE-01",
+ "version": 1,
+ "objet": "verite terrain canonique d evaluation des etats OPRIE, independante de tout fournisseur",
+ "etabli_le": "2026-09-05",
+ "autorite": {
+  "sources": [
+   "contrat OPRIE : definitions des quatre etats d arbitre (workers/shared/operational-request-core.js)",
+   "echelle de substitution : rechercher, decider, estimer, scenariser, conditionner, laisser inconnue",
+   "contrat de transport du tour : original_request et clarification_history, exclusivement",
+   "contenu explicite de chaque fixture"
+  ],
+  "provider_output_used_as_authority": false,
+  "provider_vote_used": false,
+  "llm_judge_used": false,
+  "text_similarity_used": false,
+  "note": "aucune sortie Groq, Anthropic ou OpenAI n a ete consultee pour fixer l attente d un cas."
+ },
+ "perimetre": {
+  "usage": "EVALUATION UNIQUEMENT",
+  "interdit": "cet oracle ne doit etre importe par aucun code d execution. Aucun comportement produit ne depend d un case_id, d un oracle attendu ni d un domaine du corpus.",
+  "degraded_state": "ABSENT PAR CONSTRUCTION — le contrat interdit a l Arbitre de produire cet etat : il n est declare que par le systeme en cas de panne technique. Il ne peut donc jamais etre une attente d evaluation semantique."
+ },
+ "motifs_de_decision": {
+  "AUTOPORTANT": {
+   "etat_attendu": "operational_request_ready",
+   "confiance": "high",
+   "justification": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle."
+  },
+  "MATERIAU_ABSENT": {
+   "etat_attendu": "clarification_required",
+   "confiance": "high",
+   "justification": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout."
+  },
+  "OBJET_INDETERMINE": {
+   "etat_attendu": "clarification_required",
+   "confiance": "medium",
+   "justification": "clarification_required parce que l'OBJET même du travail n'est pas déterminé : la demande nomme un domaine d'intention, pas une chose à produire. L'inconnue est matérielle — des interprétations raisonnablement différentes produiraient des livrables sans rapport entre eux — et non substituable : scénariser exige un axe, et il n'y en a aucun ; décider à la place de l'utilisateur reviendrait à arbitrer silencieusement ce qu'il veut, ce que le contrat interdit nommément. PAS READY : « une réponse générale est possible » n'est jamais un critère suffisant. PAS confirmation_required : il reste un problème matériel non résolu. PAS blocked : une question ciblée débloque le travail."
+  },
+  "LIVRABLE_INDETERMINE_OBJET_CONNU": {
+   "etat_attendu": null,
+   "confiance": "low",
+   "justification": "NON TRANCHÉ. L'objet du travail est déterminé, mais le livrable attendu ne l'est pas. Le contrat ne dit pas si, dans ce cas précis, l'échelle de substitution autorise à scénariser ou conditionner un livrable — ce qui rendrait le tour READY — ou si le choix du livrable est un arbitrage qui appartient à l'utilisateur, ce qui rendrait le tour clarification_required. Les deux lectures s'appuient sur une clause réelle du contrat, et aucune ne l'emporte sans une décision produit. Deviner ici reviendrait à fabriquer l'autorité que ce lot a précisément pour objet de ne pas inventer."
+  }
+ },
+ "couverture": {
+  "operational_request_ready": {
+   "cases": 8,
+   "resolus": 8,
+   "non_resolus": 0
+  },
+  "clarification_required": {
+   "cases": 18,
+   "resolus": 18,
+   "non_resolus": 0
+  },
+  "confirmation_required": {
+   "cases": 0,
+   "resolus": 0,
+   "non_resolus": 0
+  },
+  "blocked": {
+   "cases": 0,
+   "resolus": 0,
+   "non_resolus": 0
+  },
+  "non_resolus": {
+   "cases": 4
+  }
+ },
+ "lacunes_de_couverture": {
+  "confirmation_required": "AUCUN CAS. Le contrat exige un candidat structurellement pret ET un risque de derive significatif — plusieurs ambiguites importantes resolues, un conflit complexe arbitre, une restructuration lourde, une hierarchisation d objectifs, une delegation importante, ou des consequences sensibles. Le corpus, ecrit pour le routage, ne contient aucun cas construit pour declencher cela.",
+  "blocked": "AUCUN CAS. Le contrat exige l epuisement de toute question utile ET de toute strategie substitutive. Aucune fixture du corpus n est dans cette situation : chacune est soit autoportante, soit debloquee par une question.",
+  "consequence": "CORPUS_COVERAGE_GAP = YES sur ces deux etats. Aucun cas n a ete fabrique pour combler ce trou : la section 7 demande de constater le manque avant de proposer quoi que ce soit."
+ },
+ "cas": [
+  {
+   "case_id": "A01",
+   "request_summary": "Je veux préparer mon voyage en Italie",
+   "corpus_category": "ouverte",
+   "oracle_status": "unresolved",
+   "expected_oprie_state": null,
+   "rationale": "NON TRANCHÉ. L'objet du travail est déterminé, mais le livrable attendu ne l'est pas. Le contrat ne dit pas si, dans ce cas précis, l'échelle de substitution autorise à scénariser ou conditionner un livrable — ce qui rendrait le tour READY — ou si le choix du livrable est un arbitrage qui appartient à l'utilisateur, ce qui rendrait le tour clarification_required. Les deux lectures s'appuient sur une clause réelle du contrat, et aucune ne l'emporte sans une décision produit. Deviner ici reviendrait à fabriquer l'autorité que ce lot a précisément pour objet de ne pas inventer.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "le livrable attendu, l'objet étant par ailleurs déterminé"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "trancher ce cas en s'appuyant sur le comportement observé d'un fournisseur",
+    "déclarer operational_request_ready sans expliciter le livrable retenu et sa provenance"
+   ],
+   "clarification_class": "undetermined",
+   "confidence": "low",
+   "requires_product_owner_decision": true,
+   "decision_pattern": "LIVRABLE_INDETERMINE_OBJET_CONNU"
+  },
+  {
+   "case_id": "A02",
+   "request_summary": "Aide-moi à mieux organiser mon entreprise",
+   "corpus_category": "ouverte",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que l'OBJET même du travail n'est pas déterminé : la demande nomme un domaine d'intention, pas une chose à produire. L'inconnue est matérielle — des interprétations raisonnablement différentes produiraient des livrables sans rapport entre eux — et non substituable : scénariser exige un axe, et il n'y en a aucun ; décider à la place de l'utilisateur reviendrait à arbitrer silencieusement ce qu'il veut, ce que le contrat interdit nommément. PAS READY : « une réponse générale est possible » n'est jamais un critère suffisant. PAS confirmation_required : il reste un problème matériel non résolu. PAS blocked : une question ciblée débloque le travail.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'objet du travail, c'est-à-dire ce qui doit être produit"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "produire un livrable générique en supposant ce que l'utilisateur a probablement voulu dire",
+    "déclarer operational_request_ready au motif qu'une réponse générale est possible",
+    "poser plusieurs questions alors qu'une seule détermine l'objet"
+   ],
+   "clarification_class": "required",
+   "confidence": "medium",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "OBJET_INDETERMINE"
+  },
+  {
+   "case_id": "A03",
+   "request_summary": "Je veux améliorer ma communication",
+   "corpus_category": "ouverte",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que l'OBJET même du travail n'est pas déterminé : la demande nomme un domaine d'intention, pas une chose à produire. L'inconnue est matérielle — des interprétations raisonnablement différentes produiraient des livrables sans rapport entre eux — et non substituable : scénariser exige un axe, et il n'y en a aucun ; décider à la place de l'utilisateur reviendrait à arbitrer silencieusement ce qu'il veut, ce que le contrat interdit nommément. PAS READY : « une réponse générale est possible » n'est jamais un critère suffisant. PAS confirmation_required : il reste un problème matériel non résolu. PAS blocked : une question ciblée débloque le travail.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'objet du travail, c'est-à-dire ce qui doit être produit"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "produire un livrable générique en supposant ce que l'utilisateur a probablement voulu dire",
+    "déclarer operational_request_ready au motif qu'une réponse générale est possible",
+    "poser plusieurs questions alors qu'une seule détermine l'objet"
+   ],
+   "clarification_class": "required",
+   "confidence": "medium",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "OBJET_INDETERMINE"
+  },
+  {
+   "case_id": "A04",
+   "request_summary": "Je voudrais créer quelque chose pour mon site",
+   "corpus_category": "ouverte",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que l'OBJET même du travail n'est pas déterminé : la demande nomme un domaine d'intention, pas une chose à produire. L'inconnue est matérielle — des interprétations raisonnablement différentes produiraient des livrables sans rapport entre eux — et non substituable : scénariser exige un axe, et il n'y en a aucun ; décider à la place de l'utilisateur reviendrait à arbitrer silencieusement ce qu'il veut, ce que le contrat interdit nommément. PAS READY : « une réponse générale est possible » n'est jamais un critère suffisant. PAS confirmation_required : il reste un problème matériel non résolu. PAS blocked : une question ciblée débloque le travail.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'objet du travail, c'est-à-dire ce qui doit être produit"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "produire un livrable générique en supposant ce que l'utilisateur a probablement voulu dire",
+    "déclarer operational_request_ready au motif qu'une réponse générale est possible",
+    "poser plusieurs questions alors qu'une seule détermine l'objet"
+   ],
+   "clarification_class": "required",
+   "confidence": "medium",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "OBJET_INDETERMINE"
+  },
+  {
+   "case_id": "A05",
+   "request_summary": "Je voudrais apprendre Python",
+   "corpus_category": "ouverte",
+   "oracle_status": "unresolved",
+   "expected_oprie_state": null,
+   "rationale": "NON TRANCHÉ. L'objet du travail est déterminé, mais le livrable attendu ne l'est pas. Le contrat ne dit pas si, dans ce cas précis, l'échelle de substitution autorise à scénariser ou conditionner un livrable — ce qui rendrait le tour READY — ou si le choix du livrable est un arbitrage qui appartient à l'utilisateur, ce qui rendrait le tour clarification_required. Les deux lectures s'appuient sur une clause réelle du contrat, et aucune ne l'emporte sans une décision produit. Deviner ici reviendrait à fabriquer l'autorité que ce lot a précisément pour objet de ne pas inventer.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "le livrable attendu, l'objet étant par ailleurs déterminé"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "trancher ce cas en s'appuyant sur le comportement observé d'un fournisseur",
+    "déclarer operational_request_ready sans expliciter le livrable retenu et sa provenance"
+   ],
+   "clarification_class": "undetermined",
+   "confidence": "low",
+   "requires_product_owner_decision": true,
+   "decision_pattern": "LIVRABLE_INDETERMINE_OBJET_CONNU"
+  },
+  {
+   "case_id": "A06",
+   "request_summary": "Je veux lancer une newsletter",
+   "corpus_category": "ouverte",
+   "oracle_status": "unresolved",
+   "expected_oprie_state": null,
+   "rationale": "NON TRANCHÉ. L'objet du travail est déterminé, mais le livrable attendu ne l'est pas. Le contrat ne dit pas si, dans ce cas précis, l'échelle de substitution autorise à scénariser ou conditionner un livrable — ce qui rendrait le tour READY — ou si le choix du livrable est un arbitrage qui appartient à l'utilisateur, ce qui rendrait le tour clarification_required. Les deux lectures s'appuient sur une clause réelle du contrat, et aucune ne l'emporte sans une décision produit. Deviner ici reviendrait à fabriquer l'autorité que ce lot a précisément pour objet de ne pas inventer.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "le livrable attendu, l'objet étant par ailleurs déterminé"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "trancher ce cas en s'appuyant sur le comportement observé d'un fournisseur",
+    "déclarer operational_request_ready sans expliciter le livrable retenu et sa provenance"
+   ],
+   "clarification_class": "undetermined",
+   "confidence": "low",
+   "requires_product_owner_decision": true,
+   "decision_pattern": "LIVRABLE_INDETERMINE_OBJET_CONNU"
+  },
+  {
+   "case_id": "A07",
+   "request_summary": "Je veux repenser l’accueil des nouveaux salariés",
+   "corpus_category": "ouverte",
+   "oracle_status": "unresolved",
+   "expected_oprie_state": null,
+   "rationale": "NON TRANCHÉ. L'objet du travail est déterminé, mais le livrable attendu ne l'est pas. Le contrat ne dit pas si, dans ce cas précis, l'échelle de substitution autorise à scénariser ou conditionner un livrable — ce qui rendrait le tour READY — ou si le choix du livrable est un arbitrage qui appartient à l'utilisateur, ce qui rendrait le tour clarification_required. Les deux lectures s'appuient sur une clause réelle du contrat, et aucune ne l'emporte sans une décision produit. Deviner ici reviendrait à fabriquer l'autorité que ce lot a précisément pour objet de ne pas inventer.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "le livrable attendu, l'objet étant par ailleurs déterminé"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "trancher ce cas en s'appuyant sur le comportement observé d'un fournisseur",
+    "déclarer operational_request_ready sans expliciter le livrable retenu et sa provenance"
+   ],
+   "clarification_class": "undetermined",
+   "confidence": "low",
+   "requires_product_owner_decision": true,
+   "decision_pattern": "LIVRABLE_INDETERMINE_OBJET_CONNU"
+  },
+  {
+   "case_id": "A08",
+   "request_summary": "Je veux mieux exploiter mes données",
+   "corpus_category": "ouverte",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que l'OBJET même du travail n'est pas déterminé : la demande nomme un domaine d'intention, pas une chose à produire. L'inconnue est matérielle — des interprétations raisonnablement différentes produiraient des livrables sans rapport entre eux — et non substituable : scénariser exige un axe, et il n'y en a aucun ; décider à la place de l'utilisateur reviendrait à arbitrer silencieusement ce qu'il veut, ce que le contrat interdit nommément. PAS READY : « une réponse générale est possible » n'est jamais un critère suffisant. PAS confirmation_required : il reste un problème matériel non résolu. PAS blocked : une question ciblée débloque le travail.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'objet du travail, c'est-à-dire ce qui doit être produit"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "produire un livrable générique en supposant ce que l'utilisateur a probablement voulu dire",
+    "déclarer operational_request_ready au motif qu'une réponse générale est possible",
+    "poser plusieurs questions alors qu'une seule détermine l'objet"
+   ],
+   "clarification_class": "required",
+   "confidence": "medium",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "OBJET_INDETERMINE"
+  },
+  {
+   "case_id": "Q01",
+   "request_summary": "Résume ce texte en dix lignes",
+   "corpus_category": "matériau absent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q02",
+   "request_summary": "Compare ces deux documents et recommande le plus complet",
+   "corpus_category": "matériau absent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q03",
+   "request_summary": "Analyse ce fichier CSV et calcule les tendances mensuelles",
+   "corpus_category": "matériau absent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q04",
+   "request_summary": "Corrige ce code sans changer son comportement public",
+   "corpus_category": "matériau absent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q05",
+   "request_summary": "Traduis ce passage en espagnol",
+   "corpus_category": "matériau absent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q06",
+   "request_summary": "Crée un graphique à partir de ces chiffres",
+   "corpus_category": "matériau absent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q07",
+   "request_summary": "Adapte ce contenu pour le public visé",
+   "corpus_category": "ambiguïté non substituable",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "une instruction d’adaptation",
+    "la mention d’un public visé, sans que ce public soit nommé"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "Q08",
+   "request_summary": "Prépare ça pour demain",
+   "corpus_category": "ambiguïté non substituable",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "une échéance : demain"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R01",
+   "request_summary": "Fais-moi une checklist de 20 points pour préparer un voyage en Italie",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "objet : préparer un voyage en Italie",
+    "livrable : une checklist",
+    "quantité : 20 points"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R02",
+   "request_summary": "Rédige un e-mail professionnel de 120 mots pour reporter une réunion à mardi 14 h",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "livrable : un e-mail professionnel",
+    "longueur : 120 mots",
+    "objet : reporter une réunion",
+    "échéance nommée : mardi 14 h"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R03",
+   "request_summary": "Explique la photosynthèse à un enfant de 10 ans en cinq paragraphes courts",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "objet : la photosynthèse",
+    "destinataire : un enfant de 10 ans",
+    "structure : cinq paragraphes courts"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R04",
+   "request_summary": "Écris une fonction JavaScript qui trie un tableau de nombres sans modifier le tableau d’origine",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "livrable : une fonction JavaScript",
+    "comportement : trier un tableau de nombres",
+    "contrainte explicite : ne pas modifier le tableau d’origine"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R05",
+   "request_summary": "Prépare l’ordre du jour d’un atelier de 45 minutes sur l’accueil des nouveaux salariés",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "livrable : un ordre du jour",
+    "durée : 45 minutes",
+    "sujet : accueil des nouveaux salariés"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R06",
+   "request_summary": "Propose dix slogans chaleureux de moins de huit mots pour une boulangerie de quartier",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "livrable : des slogans",
+    "quantité : dix",
+    "longueur : moins de huit mots",
+    "ton : chaleureux",
+    "objet : une boulangerie de quartier"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R07",
+   "request_summary": "Compare le train et la voiture pour un trajet de 300 km dans un tableau avantages, limites et critères de choix",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "livrable : un tableau comparatif",
+    "objets comparés : train et voiture",
+    "cadre : trajet de 300 km",
+    "colonnes nommées : avantages, limites, critères de choix"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  },
+  {
+   "case_id": "R08",
+   "request_summary": "Résume ce texte en cinq idées clés et une conclusion",
+   "corpus_category": "matériau présent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R09",
+   "request_summary": "Transforme ces notes de laboratoire en protocole reproductible avec étapes numérotées",
+   "corpus_category": "matériau présent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R10",
+   "request_summary": "Corrige ce courrier en conservant le sens et en adoptant un ton courtois",
+   "corpus_category": "matériau présent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R11",
+   "request_summary": "Analyse ce tableau CSV et signale les valeurs manquantes, doublons et anomalies évidentes",
+   "corpus_category": "matériau présent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R12",
+   "request_summary": "À partir du schéma fourni, écris une requête SQL qui calcule le chiffre d’affaires mensuel par produit",
+   "corpus_category": "matériau présent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R13",
+   "request_summary": "Traduis ce texte en allemand en conservant les titres et les listes",
+   "corpus_category": "matériau présent",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "clarification_required",
+   "rationale": "clarification_required parce que la demande présuppose un intrant distinct — un texte, des notes, un tableau, un schéma, un code, un contenu — que le tour ne reçoit pas : le contrat de transport d'OPRIE ne porte que original_request et clarification_history. Cet intrant est une inconnue MATÉRIELLE (sans lui le livrable demandé n'existe pas) et NON SUBSTITUABLE (aucune des six alternatives de l'échelle — rechercher, décider, estimer, scénariser, conditionner, laisser inconnue — ne permet de produire le résumé, la traduction ou l'analyse d'un document qu'on n'a pas). PAS READY : y parvenir exigerait de fabriquer le document, ce que le contrat interdit explicitement. PAS confirmation_required : le contrat interdit d'y recourir comme échappatoire à un problème matériel non résolu. PAS blocked : demander l'intrant est précisément une question utile qui débloque tout.",
+   "required_information_present": [
+    "la formulation de la demande elle-même"
+   ],
+   "required_information_missing": [
+    "l'intrant que la demande présuppose et que le tour ne reçoit pas"
+   ],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": null,
+   "forbidden_behavior": [
+    "inventer, résumer ou traduire un contenu qui n'a pas été fourni",
+    "déclarer operational_request_ready en supposant le matériau présent",
+    "déclarer blocked alors qu'une question simple débloque le travail",
+    "poser une question sur autre chose que l'intrant manquant tant qu'il manque"
+   ],
+   "clarification_class": "required",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "MATERIAU_ABSENT"
+  },
+  {
+   "case_id": "R14",
+   "request_summary": "Propose trois scénarios pour réduire de 15 % les dépenses d’un service, avec bénéfices, risques et conditions",
+   "corpus_category": "suffisante",
+   "oracle_status": "resolved",
+   "expected_oprie_state": "operational_request_ready",
+   "rationale": "READY parce que l'objet, le livrable et la forme sont tous explicites dans la demande. PAS clarification_required : aucune inconnue matérielle non substituable ne subsiste. PAS confirmation_required : aucune ambiguïté importante n'a dû être résolue, aucun conflit arbitré, aucune restructuration lourde. PAS blocked : le travail progresse sans obstacle.",
+   "required_information_present": [
+    "livrable : trois scénarios",
+    "cible chiffrée : réduire de 15 % les dépenses",
+    "structure imposée : bénéfices, risques et conditions"
+   ],
+   "required_information_missing": [],
+   "confirmation_needed": false,
+   "blocking_reason": null,
+   "ready_reason": "La demande nomme son livrable, son format et, le cas échéant, sa quantité. Aucune inconnue matérielle ne subsiste : le livrable attendu peut être produit sans arbitrage silencieux ni donnée fabriquée.",
+   "forbidden_behavior": [
+    "demander une précision facultative (préférence, ton, détail de confort) alors que le livrable est déterminé",
+    "déclarer confirmation_required en l'absence de tout déclencheur de dérive nommé par le contrat",
+    "fabriquer une contrainte absente de la demande pour justifier une question"
+   ],
+   "clarification_class": "unnecessary",
+   "confidence": "high",
+   "requires_product_owner_decision": false,
+   "decision_pattern": "AUTOPORTANT"
+  }
+ ]
+}

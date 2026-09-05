@@ -518,6 +518,50 @@ propriétaire produit et couvrant aussi `confirmation_required` et `blocked`, pe
 si le sur-questionnement est un défaut ou un artefact.
 Rapport : [OPRIE-QUALITY-PARITY-01.md](OPRIE-QUALITY-PARITY-01.md).
 
+**Mise à jour OPRIE-REFERENCE-ORACLE-01 — la mesure précédente était faite contre la mauvaise
+règle.** Le lot précédent s'était arrêté sur une impasse : Groq ne pouvait pas servir de
+référence. Une vérité terrain indépendante de tout fournisseur a donc été construite — 30 cas du
+corpus existant, tous inclus, aucun inventé, chaque état attendu dérivé **du contrat OPRIE** et
+du contenu de la fixture. **Aucun appel fournisseur, aucun déploiement, aucun code modifié.**
+
+| État attendu | Cas |
+| --- | --- |
+| `operational_request_ready` | **8** |
+| `clarification_required` | **18** |
+| `confirmation_required` | **0** — aucun cas du corpus ne le déclenche |
+| `blocked` | **0** — aucun cas du corpus ne l'atteint |
+| non tranchés | **4** |
+
+**Le fait structurant, jamais relevé jusqu'ici : le tour profond n'a aucun canal de matériau.**
+`validateAnalystInput` n'accepte que `original_request` et `clarification_history`, là où
+`/decision` reçoit `materiau_present` comme *fait fiable*. Une demande qui présuppose un intrant
+— « résume ce texte », « analyse ce tableau CSV » — a donc cet intrant **structurellement
+absent**, que le corpus l'ait étiquetée « matériau présent » ou « matériau absent » : les deux
+étiquettes sont indistinguables du point de vue d'OPRIE, et appartiennent à un autre contrat.
+
+**Conséquence directe sur le lot précédent.** Traités par la règle uniforme, sans consulter leur
+historique, quatre des cinq cas comptés comme « fausses clarifications » d'Anthropic reçoivent
+`clarification_required` : R08 et R09 (intrant absent), A02 et A03 (objet indéterminé). Seul A01
+reste non tranché. **Quatre des cinq « fausses clarifications » n'en étaient pas** — l'oracle
+utilisé alors avait été écrit pour `/decision`. Cela ne réhabilite ni ne condamne Anthropic : la
+mesure doit être refaite contre la bonne règle.
+
+Autre point que le contrat tranche seul : **`degraded_state` ne peut jamais être une attente
+sémantique** — l'Arbitre se voit explicitement interdire de le produire, il n'est déclaré que
+par le système sur panne technique. Un 429 Groq ou l'absence de candidate rapide n'est pas un
+état OPRIE.
+
+Quatre cas restent **non tranchés** — A01, A05, A06, A07 — et ils posent **une seule** question
+produit : lorsque l'objet du travail est déterminé mais que le livrable ne l'est pas, OPRIE
+doit-il proposer un livrable scénarisé ou conditionnel, ou poser une question ? Les deux
+lectures s'appuient sur une clause réelle du contrat ; aucune ne l'emporte sans décision.
+
+`CORPUS_COVERAGE_GAP = YES` sur `confirmation_required` et `blocked` : aucun cas n'a été fabriqué
+pour combler ce trou, le manque est constaté avant toute proposition. L'oracle vit dans
+`evaluation/`, n'est importé par aucun code d'exécution, et aucun comportement de production ne
+dépend d'un `case_id` — une preuve statique le vérifie sur le worker, le noyau et l'artefact.
+Document : [OPRIE-REFERENCE-ORACLE-01.md](OPRIE-REFERENCE-ORACLE-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
