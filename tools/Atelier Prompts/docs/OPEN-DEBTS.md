@@ -562,6 +562,53 @@ pour combler ce trou, le manque est constaté avant toute proposition. L'oracle 
 dépend d'un `case_id` — une preuve statique le vérifie sur le worker, le noyau et l'artefact.
 Document : [OPRIE-REFERENCE-ORACLE-01.md](OPRIE-REFERENCE-ORACLE-01.md).
 
+**Mise à jour OPRIE-MATERIAL-CONTEXT-01 — le canal de matériau ne mène nulle part.** L'audit
+demandé par le lot précédent est fait, sur les contrats réels et sans un seul appel fournisseur.
+`MATERIAL_CONTEXT_GAP = REAL`, et plus largement qu'annoncé.
+
+Le produit possède un **canal de matériau complet** — `#v11-files` en `multiple`, glisser-déposer,
+extraction de texte, stockage dans `state.docs` sous la forme
+`{name, type, size, text, external}` — et une **autorité de readiness**, le plan profond, seul à
+décider depuis la migration OPRIE. Les deux ne communiquent pas :
+
+```js
+const body = { original_request: oprieOriginalRequest(), clarification_history: ... };
+function oprieOriginalRequest(){ return String(($('#v11-demande')||{}).value||'').trim() }
+```
+
+**`state.docs` n'entre dans aucun des deux champs.** Les documents joints par la personne sont
+entièrement ignorés par le rôle qui décide de la readiness.
+
+**Portée délimitée, sans exagération :** le défaut ne se manifeste que lorsqu'une demande
+*présuppose* un intrant. Sur les 30 cas de l'oracle, **6 sont affectés** — R08 à R13. Les huit
+cas « matériau absent » ne le sont pas : l'absence y est réelle, la clarification restera
+correcte. Les seize autres relèvent d'un problème sans rapport — objet ou livrable indéterminé.
+**Trois des cinq cas historiquement signalés — A01, A02, A03 — ne relèvent pas de ce défaut.**
+
+**Le produit distingue déjà présent et exploitable**, sans qu'il faille l'inventer : seuls les
+formats textuels donnent un contenu, les autres sont marqués `external: true`. Le contrat minimal
+proposé s'y adosse — deux dimensions, `present` et `usable`, chacune pouvant valoir `unknown`,
+metadata seule, une quinzaine de jetons. `REQUIRED` est écarté à dessein : déterminer ce que la
+demande *exige* est le raisonnement de l'Analyste, et le lui fournir créerait une autorité
+parallèle. Le contexte dit ce qui est **disponible**, jamais ce qui est **nécessaire**.
+
+**Rien n'a été implémenté, et c'est le résultat du lot.** Le canal traverse quatre couches ;
+**deux sont interdites ici** — l'enveloppe navigateur touche au HTML canonique, la couche de sens
+touche aux prompts des rôles. Construire les deux couches intermédiaires seules aurait produit un
+canal à moitié fait : un champ traversant le transport pour atteindre des rôles à qui personne
+n'a expliqué comment le lire, changeant le comportement du plan profond sans contrat pour le
+décrire. `IMPLEMENTATION_TYPE = BLOCKED_ARCH_CHANGE`.
+
+Visibilité par rôle, tranchée plutôt que supposée : **Analyste oui**, c'est lui qui identifie les
+inconnues matérielles ; **Critique oui**, il ne peut auditer la légitimité d'une question sans
+savoir si le document était joint ; **Arbitre non**, il arbitre ce que les deux précédents ont
+soulevé. Piège identifié : `buildRoleInput` diffuse `base` aux trois rôles — le contexte ne doit
+donc pas y être ajouté, sous peine d'atteindre l'Arbitre par effet de bord.
+
+**L'oracle n'a pas été retouché.** Ses attentes sont correctes pour le contrat actuel ; elles
+changeraient si le canal existait — cela se documente, cela ne se réécrit pas en silence.
+Document : [OPRIE-MATERIAL-CONTEXT-01.md](OPRIE-MATERIAL-CONTEXT-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 

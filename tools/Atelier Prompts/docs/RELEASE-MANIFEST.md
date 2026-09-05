@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `dbebe70c790c66d928ba96cdddf9be946ea14f6e` |
-| Date du commit | 2026-09-05T12:19:26+02:00 |
+| Commit local | `edce82eb3ee8beffc3624a4553ff577b7dfeec8c` |
+| Date du commit | 2026-09-05T12:36:44+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-46 fichiers. C'est ce qui doit exister pour **servir** la page,
+47 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `84f4d8d1dd337e32b9bece4611b84229c87aacd7db015002c202dd4dfb9e9879` |
+| Empreinte du jeu | `abe255aa466ecf83609de3c91614435b309e1fc49f4eaff138ba98d1677cb7ac` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -87,7 +87,8 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
 | REQUIRED_DOC | `docs/DEEP-COUT-JETONS-01.md` | `5d298c68b4b7d5fe6adc285e828abd6c0a33a611c2407013835162009302e3a2` |
 | REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `9774e8236d9667b5887030063f727db95f5bcb0605efd5a8770ba74df869d543` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `f4650fcdac3c0f757e89c5a071072ae5b5ffb7b0fdd6a701cc9ba4cd1d788f56` |
+| REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTEXT-01.md` | `2ce2729e3e6ccae1aa4d740d2302afe19f07ba80336d108a406a41daa621ef76` |
 | REQUIRED_DOC | `docs/OPRIE-QUALITY-PARITY-01.md` | `d46a60a86d4883e935e575e0ec8e1ce9f177614942903ee64ec88560d6eb1a2b` |
 | REQUIRED_DOC | `docs/OPRIE-REFERENCE-ORACLE-01.md` | `e09e87dd9092a3e98f59aa1773dc19ede0cda8fbf63fdd8be226c8d127a8814f` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
@@ -115,8 +116,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 139 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 203 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 140 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 204 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -141,7 +142,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2779 |
+| Tests au vert | 2789 |
 
 ## Dette encore ouverte
 
