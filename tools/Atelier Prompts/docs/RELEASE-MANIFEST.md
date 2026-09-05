@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `f60f24f9b120103cf6f9bbb993815b3534694f93` |
-| Date du commit | 2026-09-05T13:03:23+02:00 |
+| Commit local | `08492f8f2cc84db6d7cf3c81f67cfcea8082dc28` |
+| Date du commit | 2026-09-05T14:21:36+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-48 fichiers. C'est ce qui doit exister pour **servir** la page,
+49 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `bf1d52e58005c31dab4a6bdf4d4bc4f029be3ae6e75783225c70b35ca3870cde` |
+| Empreinte du jeu | `5b0f8ebf6f50569c7645305e8fc503a46af6cb3647c75f2b4ad7d474feb6752a` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -87,7 +87,8 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
 | REQUIRED_DOC | `docs/DEEP-COUT-JETONS-01.md` | `5d298c68b4b7d5fe6adc285e828abd6c0a33a611c2407013835162009302e3a2` |
 | REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
-| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `8dcc5ed157920af2d2a637c636818c57e0bd6a60904bf4c96feb223db26f8418` |
+| REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `c05570ef6e1e4850f9949e00c60a8c3b23faa0755f201a57cc919595c29a9f57` |
+| REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTENT-01.md` | `f054f6b5a0c39e92b00a1ef49ce701f7623ae1f6976760e8efa3f733e6382427` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTEXT-01.md` | `2ce2729e3e6ccae1aa4d740d2302afe19f07ba80336d108a406a41daa621ef76` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTEXT-02.md` | `32570d057739a6042d9d367d721a20035b02621f72ae61e90f6b7e0280bbff3b` |
 | REQUIRED_DOC | `docs/OPRIE-QUALITY-PARITY-01.md` | `d46a60a86d4883e935e575e0ec8e1ce9f177614942903ee64ec88560d6eb1a2b` |
@@ -117,8 +118,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 141 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 205 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 142 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 206 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -143,7 +144,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2801 |
+| Tests au vert | 2812 |
 
 ## Dette encore ouverte
 

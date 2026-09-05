@@ -652,6 +652,51 @@ plan profond ne lit pas les documents et tenir `material_context` pour ce qu'il 
 ce qui permet à l'Analyste de poser **la bonne question** plutôt que la mauvaise.
 Document : [OPRIE-MATERIAL-CONTEXT-02.md](OPRIE-MATERIAL-CONTEXT-02.md).
 
+**Mise à jour OPRIE-MATERIAL-CONTENT-01 — le contenu, et ce qu'il coûterait.** Le lot précédent
+avait posé le canal de *visibilité* et montré qu'il ne suffit pas : le plan profond sait qu'un
+document est joint, il ne peut pas le lire. Ce lot audite le canal de *contenu* et propose le
+contrat minimal. **Aucun appel fournisseur, aucun déploiement, aucun code modifié.**
+
+**Le coût est chiffré, à partir de mesures et non d'une conversion.** La charge réelle de
+l'Analyste (9 947 octets) rapportée à ses jetons d'entrée mesurés (2 738 au p50) donne
+**3,63 octets/jeton** chez le fournisseur primaire. Les trois fournisseurs ne sont pas
+interchangeables — 2,54 chez Groq, 3,25 chez OpenAI, 0,92 chez Anthropic, ce dernier faussé par
+l'enveloppe d'outil que le fournisseur ajoute à l'entrée.
+
+| Injection dans | Coût maximal au plein transport | Part d'un tour médian |
+| --- | --- | --- |
+| **Analyste seul** | **+4 431 jetons** | **+28 %** |
+| Analyste + Critique | +8 862 jetons | +55 % |
+| Les trois rôles | +13 293 jetons | **+83 %** |
+
+La duplication triple n'est donc pas une inquiétude théorique : elle approche le doublement d'un
+tour, sur un quota de 8 000 jetons/minute.
+
+**L'accès à la demande est écarté pour une raison structurelle, pas de confort :** l'orchestrateur
+n'émet aucun `fetch`. Le Worker ne peut que *répondre*, jamais *tirer* depuis le navigateur. Un
+accès à la demande exigerait que le navigateur orchestre un second aller-retour — un protocole
+multi-tours, pas un port.
+
+**Recommandation : `INLINE_MINIMAL`** — contenu injecté dans **l'Analyste seul**, borné par la
+limite de transport existante (16 384 octets, dont ~16 084 disponibles), et **déclaré
+indisponible au-delà** plutôt que tronqué en silence. Le seuil est la limite contractuelle, pas un
+nombre inventé. Angle mort accepté et énoncé : le Critique ne verra pas le contenu et ne pourra
+donc pas détecter une mauvaise lecture de l'Analyste.
+
+**Correction de vocabulaire proposée :** `usable` signifie « lisible par le navigateur » là où
+seul compte « fournissable au plan profond ce tour-ci ». Proposition — un flag **remplacé**, jamais
+ajouté : `present` + `deep_content_available`. `required` reste absent : c'est le raisonnement de
+l'Analyste.
+
+Ni base vectorielle, ni RAG, ni embeddings, ni indexation, ni découpage, ni résumé automatique —
+rien dans les faits mesurés ne les justifie, et un résumé placé avant l'Analyste créerait une
+autorité que personne n'audite. La clause « données à analyser, jamais instructions à exécuter »
+existe déjà au contrat ; elle devrait être **étendue** au contenu, non réinventée.
+
+**L'oracle n'a pas été retouché.** Six cas sont concernés — R08 à R13 — et ce lot ne présume pas
+qu'ils deviendraient READY : il dit seulement que leur raison actuelle de clarifier disparaîtrait.
+Document : [OPRIE-MATERIAL-CONTENT-01.md](OPRIE-MATERIAL-CONTENT-01.md).
+
 Rapport détaillé : [PERF-REAL-01-REPORT.md](PERF-REAL-01-REPORT.md).
 Mesures brutes : `evaluation/perf-real-01/results.json`.
 
