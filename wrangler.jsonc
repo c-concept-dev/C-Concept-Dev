@@ -1,14 +1,21 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "c-concept-dev",
-  "compatibility_date": "2025-09-27",
-  "observability": {
-    "enabled": true
-  },
-  "assets": {
-    "directory": "."
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "c-concept-dev",
+	"compatibility_date": "2025-09-27",
+	"observability": {
+		"enabled": true
+	},
+	"assets": {
+		"directory": "."
+	},
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"r2_buckets": [
+		{
+			"bucket_name": "studio-clinique-brand-assets",
+			"binding": "studio_clinique_brand_assets",
+			"remote": true
+		}
+	]
 }
