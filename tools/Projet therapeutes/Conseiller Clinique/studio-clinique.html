@@ -1093,6 +1093,111 @@
       box-shadow: var(--focus);
     }
 
+    /* UX-8B Lot 3 — import réel de charte (PDF). Zone VOLONTAIREMENT distincte de
+       ".cc-landing-upload" (document clinique, "Déposer ou cliquer") : icône différente
+       (icon-brand, jamais icon-attachment), libellé différent, jamais dans le même conteneur —
+       pour qu'aucune confusion visuelle ni fonctionnelle ne soit possible entre "joindre une
+       source clinique" et "importer une charte". Un fichier de charte n'entre JAMAIS dans le RAG. */
+    #cc-landing .cc-landing-brandkit-import { margin-top: 0.9rem; }
+    #cc-landing .cc-landing-brandkit-import-row {
+      display: flex; align-items: stretch; gap: 0.6rem; flex-wrap: wrap;
+    }
+    #cc-landing .cc-landing-brandkit-import-zone {
+      flex: 1 1 14rem; padding: 0.7rem 0.9rem; min-height: 0;
+      display: flex; flex-direction: row; align-items: center; gap: 0.6rem; text-align: left;
+    }
+    #cc-landing .cc-landing-brandkit-import-zone .icon { margin: 0; }
+    #cc-landing .cc-landing-brandkit-import-zone .txt { font-size: 0.85rem; }
+    #cc-landing .cc-landing-brandkit-import-zone .sub { font-size: 0.72rem; }
+    #cc-landing .cc-brandkit-remove-btn {
+      flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 0.8rem; border: 1px solid var(--stone-400); border-radius: 0.75rem;
+      background: var(--paper); color: var(--terracotta-700); font: inherit; font-size: 0.8rem;
+      cursor: pointer;
+    }
+    #cc-landing .cc-brandkit-remove-btn:hover { background: var(--terracotta-100); border-color: var(--terracotta-700); }
+    #cc-landing .cc-brandkit-remove-btn[hidden] { display: none; }
+
+    /* ── UX-8B Lot 3 — écran de confirmation (jamais de sauvegarde silencieuse) ── */
+    #cc-brandkit-confirm {
+      display: none; position: fixed; inset: 0; z-index: 8400;
+      background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    #cc-brandkit-confirm.open { display: flex; }
+    .cc-brandkit-confirm-panel {
+      background: var(--paper); border-radius: 1rem; max-width: 46rem; width: 100%;
+      max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(16,47,49,0.35);
+    }
+    .cc-brandkit-confirm-header {
+      flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 1.4rem; background: var(--petrol-950); color: #fff;
+    }
+    .cc-brandkit-confirm-header h2 { margin: 0; font-size: 1.05rem; }
+    .cc-brandkit-confirm-close {
+      background: none; border: none; color: #fff; cursor: pointer; padding: 0.3rem;
+      display: flex; opacity: 0.85;
+    }
+    .cc-brandkit-confirm-close:hover { opacity: 1; }
+    .cc-brandkit-confirm-close svg { width: 18px; height: 18px; }
+    .cc-brandkit-confirm-body { flex: 1; overflow-y: auto; padding: 1.2rem 1.4rem; }
+    .cc-brandkit-confirm-body h3 {
+      font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+      margin: 1.4rem 0 0.6rem;
+    }
+    .cc-brandkit-confirm-body h3:first-of-type { margin-top: 0.4rem; }
+    .cc-brandkit-confirm-name-label { font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.4rem; }
+    .cc-brandkit-confirm-name-input {
+      width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--stone-400); border-radius: 0.6rem;
+      font: inherit; font-size: 0.95rem; color: var(--ink); background: var(--white);
+    }
+    .cc-brandkit-element-row {
+      display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0.6rem; border-radius: 0.6rem;
+      border: 1px solid var(--stone-300); margin-bottom: 0.5rem; background: var(--white);
+    }
+    .cc-brandkit-element-swatch {
+      flex: 0 0 auto; width: 1.6rem; height: 1.6rem; border-radius: 0.4rem; border: 1px solid var(--stone-400);
+    }
+    .cc-brandkit-element-info { flex: 1 1 auto; min-width: 0; }
+    .cc-brandkit-element-name { font-size: 0.85rem; font-weight: 600; }
+    .cc-brandkit-element-detail { font-size: 0.75rem; color: var(--muted); }
+    .cc-brandkit-element-role select {
+      font: inherit; font-size: 0.8rem; padding: 0.35rem 0.5rem; border-radius: 0.5rem;
+      border: 1px solid var(--stone-400); background: var(--paper); color: var(--ink);
+    }
+    .cc-brandkit-confidence {
+      flex: 0 0 auto; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 999px;
+      white-space: nowrap;
+    }
+    .cc-brandkit-confidence.high { background: var(--petrol-100); color: var(--petrol-950); }
+    .cc-brandkit-confidence.low { background: var(--terracotta-100); color: var(--terracotta-700); }
+    .cc-brandkit-wcag-warning {
+      display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--terracotta-700);
+      margin-top: 0.3rem;
+    }
+    .cc-brandkit-wcag-warning svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .cc-brandkit-confirm-rules { font-size: 0.82rem; color: var(--ink); }
+    .cc-brandkit-confirm-rules ul { margin: 0.3rem 0 0.8rem 1.1rem; padding: 0; }
+    .cc-brandkit-confirm-rules li { margin-bottom: 0.2rem; }
+    .cc-brandkit-confirm-preview {
+      border: 1px solid var(--stone-300); border-radius: 0.6rem; padding: 1rem; background: var(--stone-200);
+      max-height: 20rem; overflow: auto;
+    }
+    #cc-brandkit-confirm-empty {
+      background: var(--terracotta-100); color: var(--terracotta-700); border-radius: 0.6rem;
+      padding: 0.8rem 1rem; font-size: 0.85rem; margin-top: 0.8rem;
+    }
+    .cc-brandkit-confirm-footer {
+      flex-shrink: 0; display: flex; justify-content: flex-end; gap: 0.7rem;
+      padding: 1rem 1.4rem; border-top: 1px solid var(--stone-300); background: var(--paper);
+    }
+    .cc-brandkit-confirm-cancel, .cc-brandkit-confirm-save {
+      padding: 0.6rem 1.1rem; border-radius: 0.7rem; font: inherit; font-size: 0.85rem; cursor: pointer;
+    }
+    .cc-brandkit-confirm-cancel { background: var(--paper); border: 1px solid var(--stone-400); color: var(--ink); }
+    .cc-brandkit-confirm-save { background: var(--terracotta-600); border: 1px solid var(--terracotta-600); color: #fff; font-weight: 600; }
+    .cc-brandkit-confirm-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
     #cc-landing .question-field:hover { border-color: var(--petrol-800); }
 
     #cc-landing .question-field:focus {
@@ -2077,6 +2182,31 @@
           <select class="cc-landing-brandkit-select" id="cc-brandkit-select" name="brand-kit">
             <option value="">Chargement des chartes…</option>
           </select>
+        </div>
+
+        <!-- UX-8B Lot 3 — import réel de charte (PDF), ACTION SÉPARÉE de "Document à joindre"
+             ci-dessus : jamais confondue avec l'ajout d'une source clinique (RAG). Ce fichier
+             ne sert qu'à en extraire couleurs/polices, jamais envoyé comme contenu clinique. -->
+        <div class="cc-landing-brandkit-import">
+          <div class="cc-landing-brandkit-import-row">
+            <div class="adoc-upload-zone cc-landing-brandkit-import-zone" id="cc-brandkit-import-zone" role="button" tabindex="0"
+              aria-label="Importer une charte graphique — PDF uniquement"
+              onclick="document.getElementById('cc-brandkit-import-input').click()"
+              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cc-brandkit-import-input').click();}">
+              <div class="icon"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-brand"></use></svg></div>
+              <div class="txt">Importer une charte</div>
+              <div class="sub">PDF uniquement</div>
+            </div>
+            <button type="button" class="cc-brandkit-remove-btn" id="cc-brandkit-remove-btn" hidden
+              onclick="window.adocBrandKitRemove()"
+              title="Retirer cette charte de la liste (archive — un document déjà généré avec elle reste inchangé)">
+              <svg class="sc-icon" aria-hidden="true" focusable="false" style="width:14px;height:14px;"><use href="#icon-trash"></use></svg>
+              Retirer cette charte
+            </button>
+          </div>
+          <input type="file" id="cc-brandkit-import-input" accept=".pdf,application/pdf" style="display:none"
+            onchange="window.adocHandleBrandKitImport && window.adocHandleBrandKitImport(this.files)">
+          <div id="cc-brandkit-import-progress" style="display:none;font-size:11px;color:var(--petrol-800);margin-top:8px;padding:6px 10px;background:var(--petrol-100);border-radius:6px;"></div>
         </div>
 
         <div class="submit-row">
@@ -8052,6 +8182,10 @@ ${recent}`;
         if (typeof window.setConseillerCliniqueBrandKits === 'function' && kits.length) {
           window.setConseillerCliniqueBrandKits(kits);
         }
+        // UX-8B Lot 3 — le bouton "Retirer" ne doit jamais apparaître sur les 2 chartes par
+        // défaut (Lot 1/2) ; à réévaluer à chaque rafraîchissement (chargement initial, après
+        // import, après retrait), pas seulement sur un changement manuel de sélection.
+        adocUpdateBrandKitRemoveButtonVisibility();
         return kits;
       })
       .catch((e) => {
@@ -8088,6 +8222,397 @@ ${recent}`;
       return { renderManifestOverride: null, brandKitName: null };
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // UX-8B Lot 3 — import réel de charte PDF (extraction texte + interprétation par Claude,
+  // écran de confirmation, sauvegarde, retrait). Action séparée de "Document à joindre" —
+  // ce fichier n'entre JAMAIS dans le RAG comme contenu clinique (CDC UX-8B, critère
+  // d'acceptation). Aucune génération, aucune recherche RAG n'est jamais déclenchée par ce
+  // parcours : il ne fait qu'ajouter une ligne dans brand_kits, consommée plus tard par le
+  // sélecteur du Lot 2 déjà existant, sans le modifier.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  const ADOC_DEFAULT_BRAND_KIT_2_ID = '00000000-0000-4000-8000-000000000002';
+  function adocIsDefaultBrandKitId(id) {
+    return id === ADOC_DEFAULT_BRAND_KIT_ID || id === ADOC_DEFAULT_BRAND_KIT_2_ID;
+  }
+
+  // ── WCAG 2.1 — luminance relative et ratio de contraste (même formule que celle déjà
+  // documentée et vérifiée dans migrations/0002_add_second_brand_kit.sql, ici en JS pour un
+  // contrôle live pendant la confirmation). Seuil 4.5:1 pour texte normal (SC 1.4.3). ──
+  function adocRelativeLuminance(hex) {
+    const h = String(hex || '').replace('#', '');
+    const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+    const rgb = [0, 2, 4].map((i) => parseInt(full.substr(i, 2), 16) / 255);
+    const lin = rgb.map((c) => (isNaN(c) ? 0 : (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))));
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  }
+  function adocContrastRatio(hexA, hexB) {
+    const l1 = adocRelativeLuminance(hexA), l2 = adocRelativeLuminance(hexB);
+    const lighter = Math.max(l1, l2), darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  const ADOC_BRANDKIT_COLOR_ROLES = [
+    { value: 'primary', label: 'Principale' },
+    { value: 'accent', label: 'Accent' },
+    { value: 'background', label: 'Fond' },
+    { value: 'text', label: 'Texte' },
+    { value: 'success', label: 'Succès' },
+    { value: 'warning', label: 'Avertissement' },
+    { value: 'critical', label: 'Critique' },
+    { value: 'decorative', label: 'Décorative (jamais du texte)' },
+  ];
+  const ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES = ['primary', 'accent', 'background', 'text', 'success', 'warning', 'critical'];
+  const ADOC_BRANDKIT_FONT_ROLES = [
+    { value: 'heading', label: 'Titres' },
+    { value: 'body', label: 'Corps' },
+  ];
+  // Seuil d'affichage "confiance élevée" vs "à vérifier" — le CDC (§UX-8B) exige un niveau de
+  // confiance TOUJOURS visible, sans imposer de valeur numérique précise pour la bascule
+  // visuelle ; 0.75 est un choix assumé de ce lot (à ajuster si Christophe préfère un autre
+  // seuil), jamais un obstacle à l'édition manuelle du rôle quel que soit l'affichage.
+  const ADOC_BRANDKIT_CONFIDENCE_HIGH_THRESHOLD = 0.75;
+
+  // Petit fragment de démonstration RÉUTILISANT le moteur de rendu canonique existant
+  // (adocRenderFicheHTML, jamais un second moteur de prévisualisation) — contenu illustratif
+  // fixe, jamais les données cliniques réelles de l'utilisatrice (aucune recherche RAG,
+  // aucun document réel n'est impliqué dans cet aperçu).
+  const ADOC_BRANDKIT_PREVIEW_DOC = {
+    documentId: 'brandkit-preview',
+    title: 'Aperçu — Les cavaliers de l’apocalypse',
+    purpose: 'Aperçu de charte',
+    audience: 'clinicien',
+    blocks: [
+      { id: 'preview-h1', type: 'heading', content: { text: 'Les quatre cavaliers de l’apocalypse', level: 1 }, citationIds: [], validation: { citationLinks: [] } },
+      { id: 'preview-p1', type: 'paragraph', content: { text: 'Critique, mépris, attitude défensive et obstruction prédisent la rupture avec une fiabilité remarquable.' }, citationIds: [], validation: { citationLinks: [] } },
+      { id: 'preview-c1', type: 'callout', content: { text: 'Le mépris est le signal le plus toxique du couple — à repérer en priorité.', visualRole: 'warning' }, citationIds: [], validation: { citationLinks: [] } },
+    ],
+  };
+
+  let _adocBrandKitImportState = null;
+
+  function adocBrandKitImportProgress(text, iconId) {
+    const el = document.getElementById('cc-brandkit-import-progress');
+    if (!el) return;
+    if (text === null) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    if (iconId) { el.innerHTML = adocIconSvg(iconId) + ' <span>' + adocEsc(text) + '</span>'; }
+    else { el.textContent = text; }
+  }
+
+  // ── 1-2. Zone d'import + extraction texte (réutilise extractPDFText, mécanisme pdf.js déjà
+  // en place pour les documents joints — jamais un second chemin d'extraction). ──
+  window.adocHandleBrandKitImport = async function(files) {
+    const file = files && files[0];
+    if (!file) return;
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!isPdf) {
+      adocBrandKitImportProgress('Seul un PDF est accepté pour importer une charte dans ce lot.', 'icon-warning');
+      setTimeout(() => adocBrandKitImportProgress(null), 4000);
+      return;
+    }
+    if (typeof pdfjsLib === 'undefined') {
+      adocBrandKitImportProgress('Extraction PDF indisponible (bibliothèque pdf.js non chargée).', 'icon-warning');
+      setTimeout(() => adocBrandKitImportProgress(null), 4000);
+      return;
+    }
+    try {
+      const res = await extractPDFText(file, (p, total) => adocBrandKitImportProgress(`Analyse de « ${file.name} » — page ${p}/${total}…`, 'icon-file'));
+      if (!res.fullText.trim()) {
+        adocBrandKitImportProgress(`« ${file.name} » : aucun texte extractible (PDF scanné sans OCR ?).`, 'icon-warning');
+        setTimeout(() => adocBrandKitImportProgress(null), 4000);
+        return;
+      }
+      adocBrandKitImportProgress('Interprétation de la charte par Claude…', 'icon-brand');
+      const workerUrl = adocGetWorkerUrl();
+      const r = await fetch(workerUrl + '/brand-kits/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ text: res.fullText }),
+      });
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({}));
+        adocBrandKitImportProgress('Analyse impossible : ' + (errBody.error || ('HTTP ' + r.status)), 'icon-warning');
+        setTimeout(() => adocBrandKitImportProgress(null), 5000);
+        return;
+      }
+      const analysis = await r.json();
+      _adocBrandKitImportState = {
+        file,
+        suggestedName: file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || 'Charte importée',
+        colors: (analysis.colors || []).map((c) => Object.assign({}, c)),
+        fonts: (analysis.fonts || []).map((f) => Object.assign({}, f)),
+        toneRules: analysis.toneRules || [],
+        visualProhibitions: analysis.visualProhibitions || [],
+        noBrandDataFound: !!analysis.noBrandDataFound,
+      };
+      adocBrandKitImportProgress(null);
+      adocRenderBrandKitConfirmModal();
+      document.getElementById('cc-brandkit-confirm').classList.add('open');
+    } catch (e) {
+      console.warn('[UX-8B Lot 3] Import de charte en échec:', e);
+      adocBrandKitImportProgress('Import de charte impossible pour le moment.', 'icon-warning');
+      setTimeout(() => adocBrandKitImportProgress(null), 4000);
+    } finally {
+      const input = document.getElementById('cc-brandkit-import-input');
+      if (input) input.value = '';
+    }
+  };
+
+  // ── 3-4. Écran de confirmation : rôles modifiables, confiance visible, WCAG live, aperçu réel.
+  // Jamais de sauvegarde silencieuse — cf. window.adocBrandKitImportSave plus bas. ──
+  function adocBrandKitConfidenceBadgeHTML(confidence) {
+    const pct = Math.round((confidence || 0) * 100);
+    const cls = confidence >= ADOC_BRANDKIT_CONFIDENCE_HIGH_THRESHOLD ? 'high' : 'low';
+    return '<span class="cc-brandkit-confidence ' + cls + '">' + pct + '%</span>';
+  }
+  function adocBrandKitRoleSelectHTML(kind, index, roles, selected) {
+    const opts = roles.map((r) => '<option value="' + r.value + '"' + (r.value === selected ? ' selected' : '') + '>' + adocEsc(r.label) + '</option>').join('');
+    return '<div class="cc-brandkit-element-role"><select data-brandkit-role="' + kind + '" data-brandkit-index="' + index + '">' + opts + '</select></div>';
+  }
+  // Retourne { role: [{hex, candidate, index}, ...] } — un TABLEAU par rôle (jamais un seul
+  // objet écrasé silencieusement) pour que deux couleurs assignées au même rôle fonctionnel
+  // restent détectables comme un conflit explicite, jamais résolues en silence par écrasement.
+  function adocBrandKitDraftColors() {
+    const map = {};
+    document.querySelectorAll('[data-brandkit-role="color"]').forEach((sel) => {
+      const i = parseInt(sel.dataset.brandkitIndex, 10);
+      const c = _adocBrandKitImportState.colors[i];
+      if (sel.value === 'decorative') return;
+      map[sel.value] = map[sel.value] || [];
+      map[sel.value].push({ hex: c.hexExact, candidate: c.candidate, index: i });
+    });
+    return map;
+  }
+  function adocBrandKitDraftFonts() {
+    const map = {};
+    document.querySelectorAll('[data-brandkit-role="font"]').forEach((sel) => {
+      const i = parseInt(sel.dataset.brandkitIndex, 10);
+      const f = _adocBrandKitImportState.fonts[i];
+      map[sel.value] = map[sel.value] || [];
+      map[sel.value].push({ candidate: f.candidate, index: i });
+    });
+    return map;
+  }
+  function adocRefreshBrandKitPreviewAndWarnings() {
+    const draftColors = adocBrandKitDraftColors();
+    const draftFonts = adocBrandKitDraftFonts();
+    // ── Alertes WCAG live (jamais bloquantes — l'utilisatrice reste décisionnaire) ──
+    const bg = draftColors.background && draftColors.background[0] ? draftColors.background[0].hex : null;
+    document.querySelectorAll('.cc-brandkit-element-row[data-brandkit-color-index]').forEach((row) => {
+      const i = parseInt(row.dataset.brandkitColorIndex, 10);
+      const c = _adocBrandKitImportState.colors[i];
+      const sel = row.querySelector('[data-brandkit-role="color"]');
+      const warnEl = row.querySelector('.cc-brandkit-wcag-warning');
+      if (warnEl) warnEl.remove();
+      if (!bg || !sel || sel.value === 'background' || sel.value === 'decorative') return;
+      const ratio = adocContrastRatio(c.hexExact, bg);
+      if (ratio < 4.5) {
+        const div = document.createElement('div');
+        div.className = 'cc-brandkit-wcag-warning';
+        div.innerHTML = adocIconSvg('icon-warning') + ' <span>Contraste ' + ratio.toFixed(1) + ':1 contre le fond — sous le seuil AA (4.5:1) pour du texte normal.</span>';
+        row.querySelector('.cc-brandkit-element-info').appendChild(div);
+      }
+    });
+    // ── Aperçu réel : même moteur de rendu canonique que la génération, jamais un second moteur.
+    const colorsForTokens = {};
+    ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.forEach((role) => { colorsForTokens[role] = draftColors[role] && draftColors[role][0] ? draftColors[role][0].hex : undefined; });
+    const headingFont = draftFonts.heading && draftFonts.heading[0] ? draftFonts.heading[0].candidate : null;
+    const bodyFont = draftFonts.body && draftFonts.body[0] ? draftFonts.body[0].candidate : null;
+    const previewBlock = document.getElementById('cc-brandkit-confirm-preview-block');
+    const previewEl = document.getElementById('cc-brandkit-confirm-preview');
+    if (!previewBlock || !previewEl) return;
+    if (!colorsForTokens.primary && !colorsForTokens.background) { previewBlock.hidden = true; return; }
+    previewBlock.hidden = false;
+    const fallback = { primary: '#102F31', accent: '#9B4E36', background: '#F6F2EA', text: '#273331', success: '#2F6E52', warning: '#8A3F29', critical: '#A13327' };
+    const draftBrandKit = {
+      id: 'draft-preview',
+      version: 1,
+      colors: Object.assign({}, fallback, Object.fromEntries(Object.entries(colorsForTokens).filter(([, v]) => v))),
+      typography: { headingFont: headingFont || '"Source Serif 4", Georgia, serif', bodyFont: bodyFont || '"IBM Plex Sans", system-ui, sans-serif' },
+    };
+    const tokens = adocBrandKitToTokensSnapshot(draftBrandKit);
+    const html = adocRenderFicheHTML(ADOC_BRANDKIT_PREVIEW_DOC, tokens);
+    previewEl.innerHTML = '<div style="background:' + adocEsc(tokens.colors.paper) + ';padding:1rem;border-radius:8px;">' + html + '</div>';
+  }
+  function adocRenderBrandKitConfirmModal() {
+    const state = _adocBrandKitImportState;
+    const nameInput = document.getElementById('cc-brandkit-confirm-name');
+    if (nameInput) nameInput.value = state.suggestedName;
+
+    const emptyEl = document.getElementById('cc-brandkit-confirm-empty');
+    const hasAnyElement = state.colors.length > 0 || state.fonts.length > 0;
+    if (emptyEl) emptyEl.hidden = hasAnyElement;
+    ['cc-brandkit-confirm-colors-title', 'cc-brandkit-confirm-fonts-title'].forEach((id) => {
+      const el = document.getElementById(id); if (el) el.hidden = !hasAnyElement;
+    });
+    const saveBtn = document.getElementById('cc-brandkit-confirm-save');
+    if (saveBtn) saveBtn.disabled = !hasAnyElement;
+
+    const colorsEl = document.getElementById('cc-brandkit-confirm-colors');
+    if (colorsEl) {
+      colorsEl.innerHTML = state.colors.map((c, i) =>
+        '<div class="cc-brandkit-element-row" data-brandkit-color-index="' + i + '">' +
+        '<div class="cc-brandkit-element-swatch" style="background:' + adocEsc(c.hexExact) + '"></div>' +
+        '<div class="cc-brandkit-element-info"><div class="cc-brandkit-element-name">' + adocEsc(c.candidate) + '</div>' +
+        '<div class="cc-brandkit-element-detail">' + adocEsc(c.hexExact) + '</div></div>' +
+        adocBrandKitRoleSelectHTML('color', i, ADOC_BRANDKIT_COLOR_ROLES, c.proposedRole) +
+        adocBrandKitConfidenceBadgeHTML(c.confidence) +
+        '</div>'
+      ).join('');
+    }
+    const fontsEl = document.getElementById('cc-brandkit-confirm-fonts');
+    if (fontsEl) {
+      fontsEl.innerHTML = state.fonts.map((f, i) =>
+        '<div class="cc-brandkit-element-row">' +
+        '<div class="cc-brandkit-element-info"><div class="cc-brandkit-element-name">' + adocEsc(f.candidate) + '</div>' +
+        '<div class="cc-brandkit-element-detail">' + adocEsc(f.sizes || 'Tailles non précisées') + '</div></div>' +
+        adocBrandKitRoleSelectHTML('font', i, ADOC_BRANDKIT_FONT_ROLES, f.proposedRole) +
+        adocBrandKitConfidenceBadgeHTML(f.confidence) +
+        '</div>'
+      ).join('');
+    }
+    const rulesBlock = document.getElementById('cc-brandkit-confirm-rules-block');
+    const rulesEl = document.getElementById('cc-brandkit-confirm-rules');
+    const allRules = [].concat(state.toneRules || [], state.visualProhibitions || []);
+    if (rulesBlock) rulesBlock.hidden = !allRules.length;
+    if (rulesEl) rulesEl.innerHTML = allRules.length ? '<ul>' + allRules.map((r) => '<li>' + adocEsc(r) + '</li>').join('') + '</ul>' : '';
+
+    // Un seul jeu d'écouteurs, posé une fois par rendu — recalcule aperçu + alertes WCAG à
+    // chaque changement de rôle, jamais une nouvelle recherche RAG ni un nouvel appel réseau.
+    document.querySelectorAll('[data-brandkit-role]').forEach((sel) => {
+      sel.addEventListener('change', adocRefreshBrandKitPreviewAndWarnings);
+    });
+    adocRefreshBrandKitPreviewAndWarnings();
+  }
+
+  window.adocBrandKitImportCancel = function() {
+    document.getElementById('cc-brandkit-confirm').classList.remove('open');
+    _adocBrandKitImportState = null;
+  };
+
+  // ── 5. Sauvegarde : upload PDF (dédup SHA-256 déjà en place, réutilisée telle quelle) puis
+  // POST /brand-kits (route déjà existante du Lot 1, inchangée). Jamais de rôle deviné pour
+  // combler un manque — validation stricte avant tout envoi réseau. ──
+  window.adocBrandKitImportSave = async function() {
+    const state = _adocBrandKitImportState;
+    if (!state) return;
+    const name = (document.getElementById('cc-brandkit-confirm-name').value || '').trim();
+    if (!name) { alert('Donnez un nom à cette charte avant de l’enregistrer.'); return; }
+
+    const draftColors = adocBrandKitDraftColors();
+    const missingColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
+    if (missingColorRoles.length) {
+      alert('Attribuez une couleur à chaque rôle manquant avant d’enregistrer : ' + missingColorRoles.join(', ') + '.');
+      return;
+    }
+    const duplicateColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => draftColors[role].length > 1);
+    if (duplicateColorRoles.length) {
+      alert('Un seul rôle par couleur : ' + duplicateColorRoles.join(', ') + ' ' + (duplicateColorRoles.length > 1 ? 'sont' : 'est') + ' attribué(s) à plusieurs couleurs à la fois. Corrigez avant d’enregistrer.');
+      return;
+    }
+    const draftFonts = adocBrandKitDraftFonts();
+    if (!draftFonts.heading || draftFonts.heading.length !== 1 || !draftFonts.body || draftFonts.body.length !== 1) {
+      alert('Attribuez exactement une police aux titres et une police au corps avant d’enregistrer.');
+      return;
+    }
+
+    const saveBtn = document.getElementById('cc-brandkit-confirm-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…'; }
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const apiKey = adocGetApiKey();
+      const fileBuffer = await state.file.arrayBuffer();
+      const base64 = btoa(new Uint8Array(fileBuffer).reduce((s, b) => s + String.fromCharCode(b), ''));
+      const uploadRes = await fetch(workerUrl + '/brand-assets/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        body: JSON.stringify({ content: base64, role: 'reference', mime_type: 'application/pdf' }),
+      });
+      if (!uploadRes.ok) throw new Error('Échec de l’upload du PDF (HTTP ' + uploadRes.status + ')');
+      const uploadBody = await uploadRes.json();
+
+      const colors = {};
+      ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.forEach((role) => { colors[role] = draftColors[role][0].hex; });
+      const typography = { headingFont: draftFonts.heading[0].candidate, bodyFont: draftFonts.body[0].candidate };
+      // Les couleurs marquées 'decorative' (ex. laiton) ne rejoignent jamais colors_json — leur
+      // règle d'usage est préservée en texte libre plutôt que perdue.
+      const usedColorIndices = new Set(ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.map((role) => draftColors[role][0].index));
+      const decorativeNotes = state.colors
+        .filter((c, i) => !usedColorIndices.has(i))
+        .map((c) => c.candidate + ' (' + c.hexExact + ') : décorative uniquement, jamais pour du texte courant.');
+      const visualProhibitions = [].concat(state.visualProhibitions || [], decorativeNotes).join('\n') || null;
+      const toneRules = (state.toneRules || []).join('\n') || null;
+      const provenance = {
+        sourceFilename: state.file.name,
+        extractedAt: new Date().toISOString(),
+        detectionMode: 'text-extraction',
+        model: 'claude-sonnet-4-6',
+      };
+
+      const createRes = await fetch(workerUrl + '/brand-kits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        body: JSON.stringify({
+          name, colors, typography,
+          tone_rules: toneRules, visual_prohibitions: visualProhibitions,
+          source_asset_id: uploadBody.asset_id, source_checksum: uploadBody.asset_id,
+          source_type: 'pdf', provenance,
+        }),
+      });
+      if (!createRes.ok) {
+        const errBody = await createRes.json().catch(() => ({}));
+        throw new Error(errBody.error || ('HTTP ' + createRes.status));
+      }
+      const created = await createRes.json();
+
+      window.adocBrandKitImportCancel();
+      await adocFetchBrandKits();
+      const select = document.querySelector('#cc-brandkit-select');
+      if (select && created.id) {
+        select.value = created.id;
+        try { localStorage.setItem('adocPreferredBrandKitId', created.id); } catch (e) {}
+        adocUpdateBrandKitRemoveButtonVisibility();
+      }
+    } catch (e) {
+      console.warn('[UX-8B Lot 3] Sauvegarde de charte en échec:', e);
+      alert('Impossible d’enregistrer cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+    }
+  };
+
+  // ── 6. Retirer (archive, jamais de suppression définitive dans ce lot) — visible
+  // uniquement pour une charte importée, jamais pour les deux chartes par défaut (Lot 1/2). ──
+  function adocUpdateBrandKitRemoveButtonVisibility() {
+    const select = document.querySelector('#cc-brandkit-select');
+    const btn = document.getElementById('cc-brandkit-remove-btn');
+    if (!select || !btn) return;
+    btn.hidden = !select.value || adocIsDefaultBrandKitId(select.value);
+  }
+  window.adocBrandKitRemove = async function() {
+    const select = document.querySelector('#cc-brandkit-select');
+    const id = select ? select.value : '';
+    if (!id || adocIsDefaultBrandKitId(id)) return;
+    if (!confirm('Retirer cette charte de la liste ? Les documents déjà générés avec elle resteront affichés à l’identique.')) return;
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const r = await fetch(workerUrl + '/brand-kits/' + encodeURIComponent(id) + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ status: 'archived' }),
+      });
+      if (!r.ok) { alert('Impossible de retirer cette charte pour le moment.'); return; }
+      await adocFetchBrandKits();
+      adocUpdateBrandKitRemoveButtonVisibility();
+    } catch (e) {
+      alert('Impossible de retirer cette charte pour le moment.');
+    }
+  };
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'cc-brandkit-select') adocUpdateBrandKitRemoveButtonVisibility();
+  });
 
   // ── Validation des citations en deux temps (technique + intégrité, puis agrégat) ──
   // 1. Contrôle technique : le citationId référencé existe dans doc.citations[], l'entrée
@@ -9256,6 +9781,49 @@ ${recent}`;
     </aside>
     <div class="cc-ws-doc-area">
       <div class="cc-ws-doc-card" id="cc-ws-doc-card"></div>
+    </div>
+  </div>
+</div>
+
+<!-- UX-8B Lot 3 — écran de confirmation de charte importée. Toujours affiché avant
+     enregistrement, même sur une extraction très fiable (jamais de sauvegarde silencieuse). -->
+<div id="cc-brandkit-confirm" role="dialog" aria-modal="true" aria-labelledby="cc-brandkit-confirm-title">
+  <div class="cc-brandkit-confirm-panel">
+    <div class="cc-brandkit-confirm-header">
+      <h2 id="cc-brandkit-confirm-title">Confirmer la charte importée</h2>
+      <button type="button" class="cc-brandkit-confirm-close" id="cc-brandkit-confirm-close" aria-label="Annuler l'import" onclick="window.adocBrandKitImportCancel()">
+        <svg aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="cc-brandkit-confirm-body">
+      <label class="cc-brandkit-confirm-name-label" for="cc-brandkit-confirm-name">Nom de la charte</label>
+      <input type="text" id="cc-brandkit-confirm-name" class="cc-brandkit-confirm-name-input" placeholder="Nom de la charte">
+
+      <h3 id="cc-brandkit-confirm-colors-title">Couleurs détectées</h3>
+      <div id="cc-brandkit-confirm-colors"></div>
+
+      <h3 id="cc-brandkit-confirm-fonts-title">Polices détectées</h3>
+      <div id="cc-brandkit-confirm-fonts"></div>
+
+      <div id="cc-brandkit-confirm-empty" hidden>
+        Aucune couleur ni police identifiable dans ce document — le texte extrait ne semble pas
+        décrire une charte graphique structurée. Importez une référence plus détaillée, ou
+        créez la charte manuellement (hors périmètre de cet écran).
+      </div>
+
+      <div id="cc-brandkit-confirm-rules-block" hidden>
+        <h3>Règles et interdictions relevées dans le texte</h3>
+        <div class="cc-brandkit-confirm-rules" id="cc-brandkit-confirm-rules"></div>
+      </div>
+
+      <div id="cc-brandkit-confirm-preview-block" hidden>
+        <h3>Aperçu sur un exemple réel</h3>
+        <div class="cc-brandkit-confirm-preview" id="cc-brandkit-confirm-preview"></div>
+      </div>
+    </div>
+    <div class="cc-brandkit-confirm-footer">
+      <button type="button" class="cc-brandkit-confirm-cancel" id="cc-brandkit-confirm-cancel" onclick="window.adocBrandKitImportCancel()">Annuler</button>
+      <button type="button" class="cc-brandkit-confirm-save" id="cc-brandkit-confirm-save" onclick="window.adocBrandKitImportSave()">Enregistrer la charte</button>
     </div>
   </div>
 </div>
