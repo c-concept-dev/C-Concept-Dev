@@ -2075,8 +2075,29 @@
         status.textContent = '';
       };
 
+      // UX-1/UX-2B (clôture) — préférence de type de document, strictement locale (jamais
+      // envoyée au serveur : hors périmètre SEC-PERSIST par construction). N'affecte que la
+      // sélection au chargement de CET écran d'accueil — jamais un document déjà généré ou
+      // affiché dans l'écran de travail, qui vit entièrement ailleurs dans le DOM (#cc-workspace).
+      const ADOC_PREFERRED_KIND_KEY = 'adocPreferredDocumentKind';
+      try {
+        const savedKind = localStorage.getItem(ADOC_PREFERRED_KIND_KEY);
+        // formatLabels est la liste canonique des 5 valeurs valides — une clé orpheline
+        // (ancienne version, storage corrompu) est ignorée, jamais appliquée telle quelle.
+        if (savedKind && Object.prototype.hasOwnProperty.call(formatLabels, savedKind)) {
+          updateSelectedFormat(savedKind);
+        }
+      } catch (e) {
+        // localStorage indisponible (navigation privée stricte, quota, etc.) — comportement
+        // par défaut inchangé, jamais bloquant.
+      }
+
       form.querySelectorAll('[name="output-format"]').forEach((radio) => {
-        radio.addEventListener('change', () => updateSelectedFormat(radio.value));
+        radio.addEventListener('change', () => {
+          updateSelectedFormat(radio.value);
+          // Écriture immédiate au clic sur une carte — pas seulement à l'envoi du formulaire.
+          try { localStorage.setItem(ADOC_PREFERRED_KIND_KEY, radio.value); } catch (e) {}
+        });
       });
 
       const helpButtons = [...document.querySelectorAll('.format-help')];
