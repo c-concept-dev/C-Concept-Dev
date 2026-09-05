@@ -640,6 +640,26 @@
             padding: 6px 10px;
             margin: 4px 0 8px;
         }
+        /* Harmonisation A→D — illustration décorative desktop uniquement (jamais l'unique
+           indicateur : la question et les choix restent le contenu réel de la carte). */
+        .cc-clarity-illustration {
+            display: block;
+            width: 100%;
+            max-width: 320px;
+            height: auto;
+            margin: 4px 0 14px;
+            border-radius: 10px;
+        }
+        @media (max-width: 768px) {
+            .cc-clarity-illustration { display: none; }
+        }
+        .sc-clarification-choice--other {
+            border-style: dashed;
+        }
+        .cc-clarity-question.sc-icon-label {
+            display: flex;
+            align-items: flex-start;
+        }
 
         /* ── Phase B0.3 — choix explicite de continuer un document tronqué ──── */
         .cc-continue-prompt {
@@ -1417,6 +1437,16 @@
       box-shadow: var(--focus);
     }
 
+    /* Harmonisation A→D — la zone de dépôt de l'accueil partage .adoc-upload-zone avec
+       l'écran de conversation (même composant, cf. adocHandleUpload) mais doit reprendre
+       ici l'anneau de focus terracotta des autres cartes de l'accueil plutôt que le
+       contour pétrole générique — cohérence visuelle sans toucher au composant partagé. */
+    #cc-landing .adoc-upload-zone:focus-visible {
+      outline: none;
+      border-color: var(--terracotta-700);
+      box-shadow: var(--focus);
+    }
+
     @media (max-width: 980px) {
       #cc-landing main { align-items: flex-start; }
       #cc-landing .format-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1670,6 +1700,129 @@
       #cc-ws-export-btn { padding: 6px 9px; }
       #cc-ws-export-btn span { display: none; }
     }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       Harmonisation visuelle A→D — intégration de integration/harmonisation.css
+       Les jetons de marque et le sprite sont déjà ceux du fichier ; seules les
+       règles utiles au chrome harmonisé (icônes, focus, cartes B/C) sont reprises
+       ici. Les règles de fond de l'état D en chemin relatif (workspace-desktop/
+       mobile.webp) sont volontairement OMISES : l'état D reste inchangé et utilise
+       déjà ses fonds encodés en data URI (UX-8W) — un chemin relatif les casserait. */
+    :root {
+      --sc-font-editorial: "Source Serif 4", Georgia, serif;
+      --sc-font-interface: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --sc-radius-sm: 8px;
+      --sc-radius-md: 12px;
+      --sc-radius-lg: 18px;
+      --sc-focus: 0 0 0 3px var(--terracotta-100), 0 0 0 5px var(--terracotta-700);
+      --sc-shadow: 0 12px 34px rgba(16, 47, 49, .12);
+    }
+    /* :where() = spécificité nulle : ne prime jamais sur un style de focus déjà défini
+       ailleurs (ex. état D) — sert uniquement de filet par défaut pour tout contrôle
+       qui n'a pas encore de traitement de focus dédié. */
+    :where(button, a, input, textarea, select, [role="button"]):focus-visible {
+      outline: 0;
+      box-shadow: var(--sc-focus);
+    }
+    .sc-icon {
+      inline-size: 1.15em;
+      block-size: 1.15em;
+      flex: 0 0 auto;
+      color: currentColor;
+      fill: none;
+      vertical-align: -.18em;
+    }
+    .sc-icon-label {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+    }
+    #cc-landing .format-card svg.sc-icon,
+    #cc-landing .adoc-upload-zone svg.sc-icon,
+    #assistdoc-screen .adoc-upload-zone svg.sc-icon { color: var(--petrol-800); }
+
+    /* État B — carte de clarification harmonisée (cf. adocRenderClarityCard). La logique
+       de sélection, le fail-open et la limite de deux tours restent inchangés en JS. */
+    .sc-clarification-card__intro { color: var(--muted); line-height: 1.55; }
+    .sc-clarification-card__choices {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-block: 4px 8px;
+    }
+    .sc-clarification-choice[aria-pressed="true"],
+    .sc-clarification-choice.is-selected {
+      border: 2px solid var(--terracotta-700) !important;
+      background: var(--terracotta-100) !important;
+      color: var(--terracotta-700) !important;
+    }
+    @media (max-width: 768px) {
+      .sc-clarification-card__choices { grid-template-columns: 1fr; }
+    }
+
+    /* État C — progression à étapes réelles (cf. adocShowTyping / adocUpdateTypingLabel).
+       Jamais de faux pourcentage : les trois étapes ne reflètent que des transitions
+       déjà présentes dans le code (clarification résolue, consultation terminée,
+       rédaction lancée) — cf. commentaire dans adocUpdateTypingLabel. */
+    .sc-generation-illustration {
+      display: block;
+      width: 100%;
+      max-width: 280px;
+      height: auto;
+      margin: 2px 0 10px;
+      border-radius: 10px;
+    }
+    @media (max-width: 768px) {
+      .sc-generation-illustration { display: none; }
+    }
+    .sc-progress-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 10px 0 2px;
+      padding: 0;
+      list-style: none;
+      max-width: 420px;
+    }
+    .sc-progress-step {
+      position: relative;
+      padding-top: 26px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .sc-progress-step::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      translate: -50% 0;
+      border: 2px solid var(--stone-200);
+      border-radius: 50%;
+      background: var(--paper);
+    }
+    .sc-progress-step.is-complete { color: var(--ink); }
+    .sc-progress-step.is-complete::before { border-color: var(--petrol-950); background: var(--petrol-950); }
+    .sc-progress-step.is-active { color: var(--terracotta-700); }
+    .sc-progress-step.is-active::before { border: 3px solid var(--terracotta-700); }
+    @media (prefers-reduced-motion: no-preference) {
+      .sc-progress-step.is-active::before { animation: sc-pulse 1.8s ease-in-out infinite; }
+    }
+    @keyframes sc-pulse {
+      0%,100% { box-shadow: 0 0 0 0 var(--terracotta-100); }
+      50% { box-shadow: 0 0 0 5px var(--terracotta-100); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
     </style>
 </head>
 <body>
@@ -1750,7 +1903,7 @@
               aria-label="Déposer ou choisir un document à joindre à votre question — PDF, DOCX, TXT, JSON ou MD"
               onclick="document.getElementById('cc-landing-file-input').click()"
               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cc-landing-file-input').click();}">
-              <div class="icon">📎</div>
+              <div class="icon"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-attachment"></use></svg></div>
               <div class="txt">Déposer ou cliquer</div>
               <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
             </div>
@@ -2027,8 +2180,8 @@
       <!-- Phase UX-2A.5 — bascule sidebar, visible uniquement en dessous de 768px -->
       <button type="button" class="adoc-sidebar-toggle" id="adoc-sidebar-toggle"
         onclick="adocToggleSidebar()" aria-expanded="false" aria-controls="adoc-sidebar-panel"
-        aria-label="Afficher ou masquer le panneau latéral">☰</button>
-      <span style="font-size:20px;">📚</span>
+        aria-label="Afficher ou masquer le panneau latéral"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-menu"></use></svg></button>
+      <span style="font-size:20px;" aria-hidden="true"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-library"></use></svg></span>
       <div>
         <div class="adoc-header-title">Studio Clinique <span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);vertical-align:middle;">v1.6.1-studio</span></div>
         <div class="adoc-header-sub" id="adoc-mode-sub">Bibliothèque thérapeutique · Création clinique assistée</div>
@@ -2036,7 +2189,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span id="adoc-rag-badge" style="font-size:10px;font-weight:600;color:var(--petrol-800);opacity:0.8;">—</span>
-      <button class="adoc-close-btn" onclick="adocReturnToLanding()">← Retour à l'accueil</button>
+      <button class="adoc-close-btn" onclick="adocReturnToLanding()"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-arrow-left"></use></svg> Retour à l'accueil</button>
     </div>
   </div>
 
@@ -2051,7 +2204,7 @@
            renforcé (bordure gauche) pour signaler cette sensibilité, pas seulement la
            position. -->
       <div class="adoc-sidebar-section adoc-sidebar-sensitive">
-        <div class="adoc-sidebar-title">🔒 Mémoire patient</div>
+        <div class="adoc-sidebar-title"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-lock"></use></svg> Mémoire patient</div>
         <!-- P3-3 : ID thérapeute -->
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">
           <input id="adoc-kv-therapist-id" type="text" placeholder="ID thérapeute (optionnel)"
@@ -2070,14 +2223,14 @@
         <div style="display:flex;gap:6px;margin-top:6px;">
           <button onclick="adocKvSaveNow()" title="Sauvegarder la session maintenant"
             style="flex:1;padding:4px;background:var(--petrol-800);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
-            💾 Sauvegarder
+            <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg> Sauvegarder
           </button>
           <!-- Phase UX-2A.4 — bouton "×" sans texte : sa fonction réelle (adocKvClear)
                ferme ce dossier dans l'écran, sans rien supprimer côté serveur — libellé
                explicite pour ne pas laisser croire à une suppression de données. -->
           <button onclick="adocKvClear()" title="Fermer ce dossier ici — les séances déjà enregistrées ne sont pas supprimées" aria-label="Fermer le dossier patient actif"
             style="padding:4px 10px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;white-space:nowrap;">
-            ✕ Fermer
+            <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg> Fermer
           </button>
         </div>
       </div>
@@ -2094,7 +2247,7 @@
           aria-label="Déposer ou choisir un document — PDF, DOCX, TXT, JSON ou MD"
           onclick="document.getElementById('adoc-file-input').click()"
           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('adoc-file-input').click();}">
-          <div class="icon">📎</div>
+          <div class="icon"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-attachment"></use></svg></div>
           <div class="txt">Déposer ou cliquer</div>
           <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
         </div>
@@ -2125,7 +2278,7 @@
         <div style="margin-top:8px;" class="adoc-dev-only">
           <button onclick="adocRunSyncCheck()" id="adoc-sync-btn"
             style="width:100%;padding:4px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
-            🔍 Vérifier sync D1↔Vector
+            <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg> Vérifier sync D1↔Vector
           </button>
           <div id="adoc-sync-result" style="font-size:9px;color:var(--muted);margin-top:4px;display:none;line-height:1.5;"></div>
         </div>
@@ -2136,7 +2289,7 @@
     <div class="adoc-chat">
       <div class="adoc-messages" id="adoc-messages">
         <div class="adoc-welcome" id="adoc-welcome">
-          <div class="adoc-welcome-icon">📚</div>
+          <div class="adoc-welcome-icon" aria-hidden="true"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-library"></use></svg></div>
           <div class="adoc-welcome-title">Studio Clinique</div>
           <div class="adoc-welcome-text">
             Posez votre question, demandez un cours, un tableau, un carrousel…<br>
@@ -2157,8 +2310,8 @@
       <!-- Input -->
       <div class="adoc-input-zone">
         <div class="adoc-doc-banner" id="adoc-doc-banner">
-          <span>📄</span><span id="adoc-doc-banner-name">Document actif</span>
-          <button type="button" style="margin-left:auto;background:none;border:none;cursor:pointer;opacity:0.6;font-size:13px;color:inherit;padding:2px;" onclick="adocClearDoc()" aria-label="Retirer ce document actif de la demande">✕</button>
+          <span aria-hidden="true"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-file"></use></svg></span><span id="adoc-doc-banner-name">Document actif</span>
+          <button type="button" style="margin-left:auto;background:none;border:none;cursor:pointer;opacity:0.6;font-size:13px;color:inherit;padding:2px;" onclick="adocClearDoc()" aria-label="Retirer ce document actif de la demande"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
         </div>
         <div class="adoc-doc-truncnotice" id="adoc-doc-truncnotice"></div>
         <!-- Phase UX-2A.1 — composeur unique : le contexte est optionnel et replié par
@@ -2173,25 +2326,25 @@
             placeholder="ex: couple avec trauma d'abandon, travail en ACT, supervision de cas…"
             oninput="adocSetContext(this.value)"
             aria-label="Contexte de la conversation, optionnel, mémorisé pour toutes vos questions" />
-          <button type="button" class="adoc-context-close" id="adoc-context-close" onclick="adocToggleContext(false)" aria-label="Fermer le champ de contexte">✕</button>
+          <button type="button" class="adoc-context-close" id="adoc-context-close" onclick="adocToggleContext(false)" aria-label="Fermer le champ de contexte"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
         </div>
         <div class="adoc-quick-btns" id="adoc-quick-btns">
-          <button class="adoc-quick-btn" onclick="adocInsert('carrousel')">🎠 Carrousel</button>
-          <button class="adoc-quick-btn" onclick="adocInsert('tableau')">📊 Tableau</button>
-          <button class="adoc-quick-btn" onclick="adocInsert('fiche')">📋 Fiche synthèse</button>
-          <button class="adoc-quick-btn" onclick="adocInsert('script')">💬 Script verbatim</button>
-          <button class="adoc-quick-btn" onclick="adocInsert('liens')">🔗 Liens transversaux</button>
+          <button class="adoc-quick-btn" onclick="adocInsert('carrousel')"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-carrousel"></use></svg> Carrousel</button>
+          <button class="adoc-quick-btn" onclick="adocInsert('tableau')"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-tableau"></use></svg> Tableau</button>
+          <button class="adoc-quick-btn" onclick="adocInsert('fiche')"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-fiche"></use></svg> Fiche synthèse</button>
+          <button class="adoc-quick-btn" onclick="adocInsert('script')"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-script"></use></svg> Script verbatim</button>
+          <button class="adoc-quick-btn" onclick="adocInsert('liens')"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-links"></use></svg> Liens transversaux</button>
         </div>
         <div class="adoc-input-row">
           <textarea class="adoc-textarea" id="adoc-input"
             placeholder="Posez votre question… (Entrée pour envoyer, Maj+Entrée pour saut de ligne)"
             onkeydown="adocKey(event)" oninput="adocResize(this)" rows="1"
             aria-label="Votre question — Entrée pour envoyer"></textarea>
-          <button class="adoc-send-btn" id="adoc-send-btn" onclick="adocSend()" title="Envoyer" aria-label="Envoyer la question">➤</button>
+          <button class="adoc-send-btn" id="adoc-send-btn" onclick="adocSend()" title="Envoyer" aria-label="Envoyer la question"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-send"></use></svg></button>
         </div>
         <div class="adoc-footer-row">
           <span id="adoc-rag-status" style="font-size:10px;color:var(--muted);">Bibliothèque —</span>
-          <button class="adoc-exp-btn" onclick="adocClear()" title="Effacer la conversation" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--muted);opacity:0.6;">🗑 Effacer</button>
+          <button class="adoc-exp-btn" onclick="adocClear()" title="Effacer la conversation" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--muted);opacity:0.6;"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-trash"></use></svg> Effacer</button>
         </div>
       </div>
     </div>
@@ -2200,14 +2353,14 @@
 </div>
 
 <!-- Phase UX-2A.2 — mode développeur (Ctrl+D) : révèle les blocs .adoc-dev-only -->
-<div class="adoc-devmode-badge" id="adoc-devmode-badge">🛠 Mode développeur — Ctrl+D pour quitter</div>
+<div class="adoc-devmode-badge" id="adoc-devmode-badge"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-settings"></use></svg> Mode développeur — Ctrl+D pour quitter</div>
 
 <!-- ═══ Phase UX-1 / UX-1ter — popup document en taille réelle ═══ -->
 <div class="cc-doc-popup-overlay" id="cc-doc-popup-overlay" role="dialog" aria-modal="true" aria-labelledby="cc-doc-popup-title">
   <div class="cc-doc-popup">
     <div class="cc-doc-popup-header">
       <span class="cc-doc-popup-title" id="cc-doc-popup-title">Aperçu du document</span>
-      <button type="button" class="cc-doc-popup-close" id="cc-doc-popup-close" onclick="adocCloseDocPopup()">✕ Fermer (Échap)</button>
+      <button type="button" class="cc-doc-popup-close" id="cc-doc-popup-close" onclick="adocCloseDocPopup()"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg> Fermer (Échap)</button>
     </div>
     <div class="cc-doc-popup-body" id="cc-doc-popup-body"></div>
   </div>
@@ -2646,7 +2799,7 @@
         document.getElementById('adoc-stat-books').textContent  = books;
         document.getElementById('adoc-stat-chunks').textContent = chunks.toLocaleString('fr');
         document.getElementById('adoc-stat-appr').textContent   = appr;
-        document.getElementById('adoc-rag-badge').textContent   = `📚 ${books} ouvrages`;
+        document.getElementById('adoc-rag-badge').innerHTML   = adocIconSvg('icon-library') + ` ${books} ouvrages`;
         document.getElementById('adoc-rag-status').textContent  = `Bibliothèque : ${books} ouvrages · ${chunks.toLocaleString('fr')} passages disponibles`;
         // Même source pour le message de bienvenue — plus aucune valeur codée en dur
         const welcomeCount = document.getElementById('adoc-welcome-book-count');
@@ -2720,13 +2873,15 @@
   // Phase UX-2A.10 — même progression affichée quel que soit l'écran d'où l'upload
   // a été lancé (accueil ou conversation) ; l'élément absent sur l'écran non actif
   // est silencieusement ignoré.
-  function adocUploadProgress(text) {
+  // iconId optionnel : décoratif uniquement, le texte porte toujours l'information (ex. avertissement).
+  function adocUploadProgress(text, iconId) {
     ['adoc-upload-progress', 'cc-landing-upload-progress'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       if (text === null) { el.style.display = 'none'; el.textContent = ''; return; }
       el.style.display = 'block';
-      el.textContent = text;
+      if (iconId) { el.innerHTML = adocIconSvg(iconId) + ' <span>' + adocEsc(text) + '</span>'; }
+      else { el.textContent = text; }
     });
   }
 
@@ -2769,37 +2924,37 @@
 
         if (ext === 'pdf') {
           if (typeof pdfjsLib === 'undefined') {
-            adocUploadProgress('⚠️ Extraction PDF indisponible (bibliothèque pdf.js non chargée) — ' + file.name + ' ignoré.');
+            adocUploadProgress('Extraction PDF indisponible (bibliothèque pdf.js non chargée) — ' + file.name + ' ignoré.', 'icon-warning');
             setTimeout(() => adocUploadProgress(null), 4000);
             continue;
           }
-          const res = await extractPDFText(file, (p, total) => adocUploadProgress(`📄 Analyse de « ${file.name} » — page ${p}/${total}…`));
+          const res = await extractPDFText(file, (p, total) => adocUploadProgress(`Analyse de « ${file.name} » — page ${p}/${total}…`, 'icon-file'));
           content = res.fullText; pages = res.pages;
           const noText = res.numPages - pages.length;
           if (noText > 0) extractNote = ` (${noText} page${noText > 1 ? 's' : ''} sans texte détecté — probablement scannée·s, non OCRisée·s)`;
           if (!content.trim()) {
-            adocUploadProgress(`⚠️ « ${file.name} » : aucun texte extractible (PDF scanné sans OCR ?).`);
+            adocUploadProgress(`« ${file.name} » : aucun texte extractible (PDF scanné sans OCR ?).`, 'icon-warning');
             setTimeout(() => adocUploadProgress(null), 4000);
             continue;
           }
         } else if (ext === 'docx') {
           if (typeof mammoth === 'undefined') {
-            adocUploadProgress('⚠️ Extraction DOCX indisponible (bibliothèque Mammoth non chargée) — ' + file.name + ' ignoré.');
+            adocUploadProgress('Extraction DOCX indisponible (bibliothèque Mammoth non chargée) — ' + file.name + ' ignoré.', 'icon-warning');
             setTimeout(() => adocUploadProgress(null), 4000);
             continue;
           }
-          adocUploadProgress(`📝 Analyse de « ${file.name} »…`);
+          adocUploadProgress(`Analyse de « ${file.name} »…`, 'icon-file-text');
           const res = await extractDOCXText(file);
           content = res.fullText; pages = res.pages;
           if (!content.trim()) {
-            adocUploadProgress(`⚠️ « ${file.name} » : aucun texte extractible.`);
+            adocUploadProgress(`« ${file.name} » : aucun texte extractible.`, 'icon-warning');
             setTimeout(() => adocUploadProgress(null), 4000);
             continue;
           }
         } else if (['doc', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) {
           // Autres formats binaires non pris en charge — jamais de lecture texte
           // silencieuse d'un binaire (c'était le bug initial), un message clair à la place.
-          adocUploadProgress(`⚠️ Format .${ext} non pris en charge pour l'extraction — « ${file.name} » ignoré. Formats acceptés : PDF, DOCX, TXT, JSON, HTML, MD, CSV.`);
+          adocUploadProgress(`Format .${ext} non pris en charge pour l'extraction — « ${file.name} » ignoré. Formats acceptés : PDF, DOCX, TXT, JSON, HTML, MD, CSV.`, 'icon-warning');
           setTimeout(() => adocUploadProgress(null), 5000);
           continue;
         } else {
@@ -2821,7 +2976,7 @@
         adocUploadProgress(null);
       } catch(e) {
         console.warn('adoc upload:', e);
-        adocUploadProgress(`⚠️ Échec de l'analyse de « ${file.name} » : ${e.message}. Réessayez, ou déposez un autre fichier.`);
+        adocUploadProgress(`Échec de l'analyse de « ${file.name} » : ${e.message}. Réessayez, ou déposez un autre fichier.`, 'icon-warning');
         setTimeout(() => adocUploadProgress(null), 5000);
       }
     }
@@ -2841,19 +2996,19 @@
   // d'échange). Même composant, même comportement, aucune divergence possible.
   function adocRenderDocs() {
     const emptyHtml = '<div style="text-align:center;padding:14px 8px;font-size:10px;color:var(--muted);opacity:0.7;">Aucun document importé</div>';
-    const icons = { pdf:'📄', docx:'📝', txt:'📃', json:'🔧', html:'🌐', md:'📋', csv:'📊' };
+    const icons = { pdf:adocIconSvg('icon-file-pdf'), docx:adocIconSvg('icon-file-docx'), txt:adocIconSvg('icon-file-text'), json:adocIconSvg('icon-file-data'), html:adocIconSvg('icon-file-html'), md:adocIconSvg('icon-file-text'), csv:adocIconSvg('icon-file-sheet') };
     const html = !adocDocs.length ? emptyHtml : adocDocs.map((d, i) => `
       <div class="adoc-doc-item ${adocActiveDoc===i?'active':''}" onclick="adocSetDoc(${i})"
         role="button" tabindex="0" aria-pressed="${adocActiveDoc===i}"
         aria-label="${adocEsc(d.name)}, ${adocActiveDoc===i ? 'document actif — activer pour désélectionner' : 'activer pour utiliser comme contexte'}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();adocSetDoc(${i});}"
         title="${d.extractNote ? adocEsc(d.extractNote) : ''}">
-        <span aria-hidden="true">${icons[d.type]||'📁'}</span>
+        <span aria-hidden="true">${icons[d.type]||adocIconSvg('icon-documents')}</span>
         <div style="flex:1;min-width:0">
           <div class="adoc-doc-name" title="${d.name}">${d.name}</div>
-          <div class="adoc-doc-meta">${d.words?.toLocaleString('fr')||'?'} mots${d.pages ? ' · ' + adocPagesLabel(d) : ''}${d.extractNote ? ' · ⚠️' : ''}</div>
+          <div class="adoc-doc-meta">${d.words?.toLocaleString('fr')||'?'} mots${d.pages ? ' · ' + adocPagesLabel(d) : ''}${d.extractNote ? ' · ' + adocIconSvg('icon-warning') + ' extraction partielle' : ''}</div>
         </div>
-        <button type="button" class="adoc-doc-rm" style="background:none;border:none;font-family:inherit;" onclick="adocRemoveDoc(event,${i})" aria-label="Supprimer ${adocEsc(d.name)}">✕</button>
+        <button type="button" class="adoc-doc-rm" style="background:none;border:none;font-family:inherit;" onclick="adocRemoveDoc(event,${i})" aria-label="Supprimer ${adocEsc(d.name)}">${adocIconSvg('icon-close')}</button>
       </div>`).join('');
     ['adoc-docs-list', 'cc-landing-upload-list', 'cc-ws-docs-list'].forEach(id => {
       const el = document.getElementById(id);
@@ -2873,11 +3028,11 @@
     if (!doc || doc.content.length <= ADOC_DOC_CTX_BUDGET) { el.classList.remove('visible'); el.innerHTML = ''; return; }
     const canDeepAnalyze = !!doc.pages && !doc.deepAnalysis;
     if (doc.deepAnalysis) {
-      el.innerHTML = '⚠️ Seul un extrait de ce document est utilisé pour chaque demande — '
+      el.innerHTML = adocIconSvg('icon-warning') + ' Seul un extrait de ce document est utilisé pour chaque demande — '
         + ADOC_DOC_CTX_BUDGET + ' caractères sur ' + doc.content.length.toLocaleString('fr') + ', '
         + 'sélectionnés selon les mots de votre question (analyse en profondeur activée).';
     } else {
-      el.innerHTML = '⚠️ Seul le début de ce document est utilisé pour cette demande — '
+      el.innerHTML = adocIconSvg('icon-warning') + ' Seul le début de ce document est utilisé pour cette demande — '
         + ADOC_DOC_CTX_BUDGET + ' caractères analysés sur ' + doc.content.length.toLocaleString('fr') + '.'
         + (canDeepAnalyze
             ? '<br><button type="button" onclick="adocEnableDeepAnalysis()">Analyser le document en profondeur</button>'
@@ -2926,7 +3081,7 @@
     adocRenderDocs();
     const banner = document.getElementById('adoc-doc-banner');
     if (adocActiveDoc !== null) {
-      document.getElementById('adoc-doc-banner-name').textContent = `📄 ${adocDocs[adocActiveDoc].name}`;
+      document.getElementById('adoc-doc-banner-name').textContent = adocDocs[adocActiveDoc].name;
       banner.classList.add('visible');
     } else { banner.classList.remove('visible'); }
     adocRenderTruncNotice();
@@ -3584,7 +3739,8 @@ RÈGLES ABSOLUES :
     try {
       adocUpdateTypingLabel && adocUpdateTypingLabel(
         document.querySelector('.adoc-typing')?.id,
-        '🎯 Sélection passages clés…'
+        'icon-select',
+        'Sélection passages clés…'
       );
       const r = await fetch(workerUrl, {
         method: 'POST',
@@ -3678,7 +3834,7 @@ RÈGLES ABSOLUES :
         ctx += `▶ ${book}${author ? ' — ' + author : ''}\n`;
         items.forEach((item, j) => {
           const refN = ragResult.chunks.indexOf(item) + 1;
-          const qual = item._source?.includes('vector') ? '★' : '·';
+          const qual = item._source?.includes('vector') ? '(pertinence vectorielle)' : '·';
           ctx += `  [${refN}] ${qual} p.${item.page_number||'?'} · ${(item.content||'').substring(0, chunkLen).trim()}\n\n`;
         });
       });
@@ -3687,7 +3843,7 @@ RÈGLES ABSOLUES :
       ctx += 'Matériaux de ta bibliothèque — utilise ce qui sert ton raisonnement.\n\n';
       chunks.forEach((item, idx) => {
         const refN = idx + 1;
-        const qual = item._source?.includes('+') ? '★★' : item._source === 'vector' ? '★' : '·';
+        const qual = item._source?.includes('+') ? '(pertinence vectorielle et mot-clé)' : item._source === 'vector' ? '(pertinence vectorielle)' : '·';
         ctx += `[${refN}] ${qual} ${item.book_title||'Référence'}${item.page_number ? ', p.'+item.page_number : ''}`;
         ctx += item.author ? ` [${item.author}]` : '';
         ctx += item.approach ? ` {${item.approach}}` : '';
@@ -4151,7 +4307,10 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       const workerUrl = adocGetWorkerUrl();
 
   // ── Passe 1 : Planning (modèle rapide) ──
-      adocUpdateTypingLabel(typingId, '🔍 Analyse de la demande…');
+      // stepIndex=1 : la demande de clarification est nécessairement résolue avant d'arriver
+      // ici (cf. adocRunClarityGate → adocSendOriginal) — "Demande comprise" est donc déjà
+      // acquis, et l'étape "Références consultées" démarre avec cette analyse.
+      adocUpdateTypingLabel(typingId, 'icon-search', 'Analyse de la demande…', 1);
       // FIX-MULTI-PLAN : orchestre split + plan par Q + merge
       let _multiResult = null;
       try { _multiResult = await adocMultiPlan(text); } catch(_me) { console.warn('[FIX-MULTI-PLAN] err', _me); }
@@ -4219,9 +4378,9 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // reflète l'étape réellement en cours, cf. §0bis « jamais de silence »).
         const isDeepIntent = ['cours','document','comparatif','tableau','fiche'].includes(plan?.intent);
         const libCount = adocLibStats?.books ? ' (' + adocLibStats.books + ' ouvrages)' : '';
-        adocUpdateTypingLabel(typingId, isDeepIntent
-          ? '📚 Consultation exhaustive de la bibliothèque' + libCount + '…'
-          : '📚 Consultation de la bibliothèque' + libCount + '…');
+        adocUpdateTypingLabel(typingId, 'icon-library', isDeepIntent
+          ? 'Consultation exhaustive de la bibliothèque' + libCount + '…'
+          : 'Consultation de la bibliothèque' + libCount + '…');
         // M1 : adocExecutePlan + adocEnrichSearches en parallèle (Promise.all)
         const [ragRes, extraSearches] = await Promise.all([
           _precomputedRag ? Promise.resolve(_precomputedRag) : adocExecutePlan(plan),
@@ -4262,10 +4421,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // était choisi une fois selon le nombre de chunks puis restait figé pendant toute
       // la réflexion/rédaction du modèle — aucune information réelle sur ce qui se passe.
       // La bibliothèque vient d'être consultée (label précédent) ; la prochaine étape
-      // visible est la rédaction elle-même — l'indicateur "🌐 CC consulte le web…"
+      // visible est la rédaction elle-même — l'indicateur "CC consulte le web…"
       // prend le relais dynamiquement si CC déclenche une recherche web pendant qu'il écrit.
       const d1Coverage = ragResult.chunks.length;
-      adocUpdateTypingLabel(typingId, '✍️ Rédaction en cours…');
+      // stepIndex=2 : atteint uniquement après la consultation bibliothèque/web (bloc
+      // ci-dessus, qu'elle ait eu lieu ou ait été jugée inutile par le planner) — jamais
+      // avant que cette décision soit réellement prise.
+      adocUpdateTypingLabel(typingId, 'icon-writing', 'Rédaction en cours…', 2);
 
       // FIX-DEBUG-PIPELINE : guard overflow chunks
       console.log('[Pipeline] chunks avant systemPrompt:', ragResult?.chunks?.length || 0);
@@ -4327,7 +4489,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         && !['pdf','docx','pptx','xlsx'].includes(plan?.output_format);
 
       if (_isLongDoc && typeof adocLongDoc === 'function') {
-        adocUpdateTypingLabel(typingId, '📖 Génération document long par chapitres…');
+        adocUpdateTypingLabel(typingId, 'icon-library', 'Génération document long par chapitres…');
         const longDocMsgId = adocAddMsg('assistant', '', [], true);
         // Trouvaille annexe (v1.4.0) : ordre des arguments corrigé — docCtx et plan
         // étaient inversés par rapport à la signature d'adocBuildSystemPrompt(ragCtx,
@@ -4353,7 +4515,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (window.adocStructuredFicheEnabled && plan?.intent === 'fiche' && !_isLongDoc
           && adocGetRendererMode('fiche') === 'structured') {
         try {
-          adocUpdateTypingLabel(typingId, '🧩 Génération structurée (Fiche synthèse)…');
+          adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)…');
           const _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId);
           const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot);
           // Correctif BUG 1 (lot correctifs urgents) : un document techniquement rendu mais
@@ -4365,7 +4527,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           }
           // Correctif BUG 1 : retirer l'indicateur de frappe AVANT d'insérer le document —
           // il ne se retirait jamais sur ce chemin (seul le chemin legacy l'appelait),
-          // laissant "🧩 Génération structurée…" affiché indéfiniment même en cas de succès.
+          // laissant "Génération structurée…" affiché indéfiniment même en cas de succès.
           adocRemoveTyping(typingId);
           // Correctif parité sidebar/aperçu/export (lot streaming) : réutilise le mécanisme
           // artifact déjà éprouvé de l'ancien moteur (carte + "Fichiers générés" + Aperçu/
@@ -4457,8 +4619,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
               usedWebSearch = true;
               const ind = document.createElement('div');
               ind.id = 'adoc-ws-ind-' + streamMsgId;
-              ind.style.cssText = 'font-size:10px;color:var(--petrol-800);padding:3px 10px;opacity:0.8;font-style:italic;';
-              ind.textContent = '🌐 CC consulte le web…';
+              ind.style.cssText = 'font-size:10px;color:var(--petrol-800);padding:3px 10px;opacity:0.8;font-style:italic;display:flex;align-items:center;gap:.35rem;';
+              ind.innerHTML = adocIconSvg('icon-web') + '<span>CC consulte le web…</span>';
               const msgEl = document.getElementById(streamMsgId);
               if (msgEl && !document.getElementById(ind.id)) msgEl.appendChild(ind);
             }
@@ -4531,7 +4693,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     } catch(e) {
       adocRemoveTyping(typingId);
-      adocAddMsg('assistant', `⚠️ Erreur : ${e.message}`, []);
+      adocAddMsg('assistant', `Erreur : ${e.message}`, []);
     }
 
     adocThinking = false;
@@ -4540,11 +4702,20 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   };
 
   // ── Helper : mettre à jour le label du typing indicator ──
-  function adocUpdateTypingLabel(id, label) {
+  // iconId optionnel : décoratif uniquement, le texte du label (role=status aria-live=polite,
+  // cf. adocShowTyping) porte toujours l'information réelle.
+  // stepIndex optionnel (0/1/2) : n'active le récapitulatif visuel à 3 étapes de l'état C que
+  // pour les appels qui le fournissent explicitement — jamais pour la vérification de
+  // clarification (état B), qui reste hors de ce récapitulatif. Voir ADOC_PROGRESS_STEP_LABELS.
+  function adocUpdateTypingLabel(id, iconId, label, stepIndex) {
+    if (arguments.length === 2) { label = iconId; iconId = null; }
     const el = document.getElementById(id);
     if (!el) return;
     const lbl = el.querySelector('.adoc-typing-label');
-    if (lbl) lbl.textContent = label;
+    if (!lbl) return;
+    lbl.textContent = label;
+    if (iconId) lbl.innerHTML = adocIconSvg(iconId) + '<span>' + adocEsc(label) + '</span>';
+    if (typeof stepIndex === 'number') adocRenderProgressSteps(id, stepIndex);
   }
 
   // ── Affichage artefact HTML — panneau chat + entrée sidebar outputs ──
@@ -4555,15 +4726,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
   // Icônes et libellés par format
   const ARTIFACT_META = {
-    pdf:  { icon: '📕', label: 'PDF',  color: '#C44',    mime: 'application/pdf' },
-    docx: { icon: '📘', label: 'Word', color: '#2B579A', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
-    pptx: { icon: '📊', label: 'PowerPoint', color: '#D24726', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' },
-    xlsx: { icon: '📗', label: 'Excel', color: '#217346', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
-    zip:  { icon: '📦', label: 'ZIP',  color: 'var(--terracotta-700)', mime: 'application/zip' },
-    html: { icon: '📄', label: 'HTML', color: 'var(--petrol-950)', mime: 'text/html;charset=utf-8' },
-    md:   { icon: '📝', label: 'Markdown', color: 'var(--muted)', mime: 'text/markdown;charset=utf-8' },
-    txt:  { icon: '📃', label: 'Texte', color: 'var(--muted)', mime: 'text/plain;charset=utf-8' },
-    csv:  { icon: '📋', label: 'CSV',  color: 'var(--petrol-800)', mime: 'text/csv;charset=utf-8' },
+    pdf:  { icon: adocIconSvg('icon-file-pdf'),  label: 'PDF',  color: '#C44',    mime: 'application/pdf' },
+    docx: { icon: adocIconSvg('icon-file-docx'), label: 'Word', color: '#2B579A', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    pptx: { icon: adocIconSvg('icon-file-slides'), label: 'PowerPoint', color: '#D24726', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' },
+    xlsx: { icon: adocIconSvg('icon-file-sheet'), label: 'Excel', color: '#217346', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+    zip:  { icon: adocIconSvg('icon-archive'),  label: 'ZIP',  color: 'var(--terracotta-700)', mime: 'application/zip' },
+    html: { icon: adocIconSvg('icon-file'), label: 'HTML', color: 'var(--petrol-950)', mime: 'text/html;charset=utf-8' },
+    md:   { icon: adocIconSvg('icon-file-text'), label: 'Markdown', color: 'var(--muted)', mime: 'text/markdown;charset=utf-8' },
+    txt:  { icon: adocIconSvg('icon-file-text'), label: 'Texte', color: 'var(--muted)', mime: 'text/plain;charset=utf-8' },
+    csv:  { icon: adocIconSvg('icon-file-sheet'), label: 'CSV',  color: 'var(--petrol-800)', mime: 'text/csv;charset=utf-8' },
   };
 
   // ── Entrée principale : appelée après chaque réponse LLM ──
@@ -4671,7 +4842,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         _a.click();
         document.body.removeChild(_a);
         setTimeout(() => URL.revokeObjectURL(_url), 5000);
-        adocAddMsg('assistant', '✅ Fichier `' + _a.download + '` généré directement par le modèle et téléchargé.', citations);
+        adocAddMsg('assistant', 'Fichier `' + _a.download + '` généré directement par le modèle et téléchargé.', citations);
         return;
       } catch(_e) { console.warn('[adocHandleReply] data URI decode failed:', _e); }
     }
@@ -4824,7 +4995,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (!card) return;
     const btn = card.querySelector('.adoc-dl-btn');
     if (btn) {
-      btn.textContent = '⏱ Expiré';
+      btn.innerHTML = adocIconSvg('icon-timer') + ' Expiré';
       btn.style.background = '#999';
       btn.style.cursor = 'not-allowed';
       btn.title = 'Fichier expiré (TTL 60 min) — relancez la demande pour régénérer';
@@ -5130,7 +5301,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (fmt === 'pdf' && html) {
         console.warn('[PDF-FALLBACK] Worker indisponible, basculement sur impression navigateur');
         const printCSS = '<style>@media print{body{margin:0}}.adoc-print-bar{position:fixed;top:0;left:0;right:0;background:var(--petrol-950);color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;}</style>';
-        const printBar = '<div class="adoc-print-bar"><span>📄 Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:var(--petrol-800);color:var(--ink);border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">🖨️ Enregistrer PDF</button></div>';
+        const printBar = '<div class="adoc-print-bar"><span>Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:var(--petrol-800);color:var(--ink);border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">Enregistrer PDF</button></div>';
         const repairedHtml = adocRepairHTML(html);
         const htmlWithPrint = repairedHtml.replace('</head>', printCSS + '</head>').replace('<body', '<body').replace(/>/, '>' + printBar);
         const blobUrl = URL.createObjectURL(new Blob([htmlWithPrint], { type: 'text/html;charset=utf-8' }));
@@ -5158,11 +5329,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (citations?.length) {
       citeBadge = '<div class="adoc-citations" style="margin-top:8px;">' +
         citations.slice(0, 5).map(ct => {
-          const star = ct._source === 'sql+vector' ? '★★' : ct._source === 'vector' ? '★' : '·';
-          const scoreStr = ct._score ? ' <span class="adoc-cite-score">' + star + ' ' + (ct._score*100|0) + '%</span>' : '';
+          const relevance = ct._source === 'sql+vector' ? 'pertinence vectorielle et mot-clé' : ct._source === 'vector' ? 'pertinence vectorielle' : '';
+          const scoreStr = ct._score ? ' <span class="adoc-cite-score">' + (relevance ? adocEsc(relevance) + ' · ' : '') + (ct._score*100|0) + '%</span>' : '';
           const appStr = ct.approach ? ' <em style="opacity:0.6;font-size:9px;">{' + adocEsc(ct.approach) + '}</em>' : '';
           const pageStr = ct.page_number ? ' p.' + ct.page_number : '';
-          return '<div class="adoc-cite"><span>📚</span><span>' +
+          return '<div class="adoc-cite"><span aria-hidden="true">' + adocIconSvg('icon-library') + '</span><span>' +
             '<span class="adoc-cite-book">' + adocEsc(ct.book_title || 'Référence') + pageStr + '</span>' +
             appStr + ' — ' + adocEsc(ct.author || '') + '</span>' + scoreStr + '</div>';
         }).join('') + '</div>';
@@ -5234,7 +5405,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // ── Templates de carte ──
   function adocArtifactCardLoading(topic, fmt, meta) {
     return '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:' + meta.color + ';color:white;border-radius:10px;">' +
-      '<span style="font-size:22px;animation:spin 1s linear infinite;display:inline-block;">⏳</span>' +
+      '<span style="font-size:22px;animation:spin 1s linear infinite;display:inline-block;">' + adocIconSvg('icon-progress') + '</span>' +
       '<div>' +
         '<div style="font-weight:700;font-size:13px;">' + adocEsc(topic) + '</div>' +
         '<div style="font-size:11px;opacity:0.8;">Génération ' + meta.label + ' en cours…</div>' +
@@ -5245,19 +5416,19 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   function adocArtifactCardHtml(storeKey, topic, blobUrl) {
     return '<div style="border-radius:10px;overflow:hidden;border:1px solid var(--stone-200);background:white;">' +
       '<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--petrol-950);color:white;">' +
-        '<span style="font-size:16px;">📄</span>' +
+        '<span style="font-size:16px;" aria-hidden="true">' + adocIconSvg('icon-file') + '</span>' +
         '<div style="flex:1;min-width:0;">' +
           '<div style="font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + adocEsc(topic) + '</div>' +
           '<div style="font-size:10px;opacity:0.6;">Document · HTML</div>' +
         '</div>' +
-        '<button data-key="' + storeKey + '" data-action="download-html" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">⬇ Exporter</button>' +
+        '<button data-key="' + storeKey + '" data-action="download-html" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">' + adocIconSvg('icon-download') + ' Exporter</button>' +
       '</div>' +
       '<div style="position:relative;height:280px;background:var(--ivory);">' +
         '<iframe src="' + blobUrl + '" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts" loading="lazy"></iframe>' +
         '<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,rgba(244,240,234,0.95));pointer-events:none;"></div>' +
       '</div>' +
       '<div style="padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--ivory);font-size:10px;color:var(--muted);">' +
-        '<span>✓ Aperçu disponible</span>' +
+        '<span>' + adocIconSvg('icon-verify') + ' Aperçu disponible</span>' +
         '<button data-key="' + storeKey + '" data-action="preview-html" style="background:none;border:none;color:var(--petrol-950);font-size:10px;font-weight:700;cursor:pointer;text-decoration:underline;">Plein écran →</button>' +
       '</div>' +
     '</div>';
@@ -5274,16 +5445,16 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           + '<object data="' + embedUrl + '#toolbar=1&view=FitH" type="application/pdf"'
           + ' style="width:100%;height:100%;border:none;display:block;">'
           + '<p style="padding:20px;font-size:12px;color:var(--muted);">'
-          + '\u2601 PDF g\u00e9n\u00e9r\u00e9 \u00b7 <a href="' + (downloadUrl||'') + '" target="_blank" style="color:var(--petrol-950);">T\u00e9l\u00e9charger</a>'
+          + adocIconSvg('icon-cloud') + ' PDF g\u00e9n\u00e9r\u00e9 \u00b7 <a href="' + (downloadUrl||'') + '" target="_blank" style="color:var(--petrol-950);">T\u00e9l\u00e9charger</a>'
           + '</p></object>'
           + '<div style="position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,rgba(255,255,255,0.8));pointer-events:none;"></div>'
         + '</div>';
     } else if (fmt === 'pdf' && !embedUrl && artSrc?.htmlBlobUrl) {
       // Fallback PDF : aperçu iframe du HTML source
-      previewHtml = '<div style="position:relative;height:340px;background:var(--ivory);border-bottom:1px solid var(--stone-200);">'        + '<iframe src="' + artSrc.htmlBlobUrl + '" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts" loading="lazy"></iframe>'        + '<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,rgba(244,240,234,0.9));pointer-events:none;"></div>'        + '<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:3px 8px;border-radius:4px;">⚠️ Mode impression (Worker PDF indisponible)</div>'        + '</div>';    } else if (fmt === 'zip' && artSrc?.htmlBlobUrl) {
+      previewHtml = '<div style="position:relative;height:340px;background:var(--ivory);border-bottom:1px solid var(--stone-200);">'        + '<iframe src="' + artSrc.htmlBlobUrl + '" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts" loading="lazy"></iframe>'        + '<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,rgba(244,240,234,0.9));pointer-events:none;"></div>'        + '<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:3px 8px;border-radius:4px;">' + adocIconSvg('icon-warning') + ' Mode impression (Worker PDF indisponible)</div>'        + '</div>';    } else if (fmt === 'zip' && artSrc?.htmlBlobUrl) {
       previewHtml = '<div style="border-bottom:1px solid var(--stone-200);">'
         + '<div style="padding:6px 12px;background:var(--terracotta-100);font-size:10px;color:var(--terracotta-700);font-weight:700;">'
-        + '📦 Contenu de l\u0027archive : <code style="background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">index.html</code> '
+        + adocIconSvg('icon-archive') + ' Contenu de l\u0027archive : <code style="background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">index.html</code> '
         + '<code style="background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">README.md</code></div>'
         + '<div style="position:relative;height:260px;background:var(--ivory);">'
         + '<iframe src="' + artSrc.htmlBlobUrl + '" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts" loading="lazy"></iframe>'
@@ -5306,13 +5477,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           '<div style="font-size:11px;opacity:0.75;">Document · ' + meta.label + (sizeStr ? ' · ' + sizeStr : '') + '</div>' +
         '</div>' +
         ((artSrc?.html || artSrc?.htmlBlobUrl || embedUrl)
-          ? '<button data-key="' + storeKey + '" data-action="preview" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.5);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔍 Aperçu</button>'
+          ? '<button data-key="' + storeKey + '" data-action="preview" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.5);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">' + adocIconSvg('icon-search') + ' Aperçu</button>'
           : '') +
         (downloadUrl
-          ? '<button data-key="' + storeKey + '" data-action="download" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ Exporter</button>'
+          ? '<button data-key="' + storeKey + '" data-action="download" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">' + adocIconSvg('icon-download') + ' Exporter</button>'
           : (artSrc?.htmlBlobUrl && (fmt === 'pdf' || artSrc?.fmt === 'pdf-fallback'))
-            ? '<button onclick="(function(){var w=window.open(window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl,\'_blank\');if(!w){var a=document.createElement(\'a\');a.href=window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl;a.target=\'_blank\';a.click();}})()" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️ Imprimer → PDF</button>'
-            : '<span style="font-size:11px;opacity:0.7;">⏳ Génération…</span>') +
+            ? '<button onclick="(function(){var w=window.open(window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl,\'_blank\');if(!w){var a=document.createElement(\'a\');a.href=window._adocArtifacts[\''+storeKey+'\']?.htmlBlobUrl;a.target=\'_blank\';a.click();}})()" style="background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.6);padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">' + adocIconSvg('icon-print') + ' Imprimer → PDF</button>'
+            : '<span style="font-size:11px;opacity:0.7;">' + adocIconSvg('icon-progress') + ' Génération…</span>') +
       '</div>' +
       previewHtml +
     '</div>';
@@ -5332,7 +5503,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const card = document.getElementById('card-' + storeKey);
     if (!card) return;
     card.innerHTML = '<div style="padding:12px 16px;background:#fdf2f2;border:1px solid #f5c6cb;border-radius:10px;color:#721c24;font-size:12px;">' +
-      '<strong>❌ Erreur de génération</strong><br>' + adocEsc(errMsg) + '</div>';
+      '<strong>' + adocIconSvg('icon-error') + ' Erreur de génération</strong><br>' + adocEsc(errMsg) + '</div>';
   }
 
   // ── Parseurs Markdown → structures Worker ──
@@ -5418,7 +5589,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     dlBtn.className = 'adoc-output-dl';
     dlBtn.style.background = meta.color;
     dlBtn.title = 'Exporter ' + meta.label;
-    dlBtn.textContent = '⬇';
+    dlBtn.setAttribute('aria-label', 'Exporter ' + meta.label);
+    dlBtn.innerHTML = adocIconSvg('icon-download');
     dlBtn.addEventListener('click', async function() {
       const art = window._adocArtifacts?.[storeKey];
       if (!art) return;
@@ -5467,7 +5639,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   window.adocPrintBlob = function(url) {
     const win = window.open(url, '_blank');
     if (win) setTimeout(() => win.print(), 800);
-    else { alert('⚠️ Popup bloqué. Ouvrez le HTML téléchargé et imprimez depuis le navigateur.'); }
+    else { alert('Popup bloqué. Ouvrez le HTML téléchargé et imprimez depuis le navigateur.'); }
   };
 
 
@@ -5568,8 +5740,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const counter = document.getElementById('adoc-outputs-count');
     if (!section || !list) return;
     section.style.display = 'block';
-    const icons = { html: '📄', pdf: '📕', docx: '📘', pptx: '📊', xlsx: '📗', zip: '📦', txt: '📃' };
-    const icon  = icons[ext] || '📄';
+    const icons = { html: adocIconSvg('icon-file'), pdf: adocIconSvg('icon-file-pdf'), docx: adocIconSvg('icon-file-docx'), pptx: adocIconSvg('icon-file-slides'), xlsx: adocIconSvg('icon-file-sheet'), zip: adocIconSvg('icon-archive'), txt: adocIconSvg('icon-file-text') };
+    const icon  = icons[ext] || adocIconSvg('icon-file');
 
     const item = document.createElement('div');
     item.className = 'adoc-output-item';
@@ -5578,13 +5750,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       '<div class="adoc-output-icon">' + icon + '</div>' +
       '<div class="adoc-output-info">' +
         '<div class="adoc-output-name">' + adocEsc(label) + '</div>' +
-        '<div class="adoc-output-meta">' + ext.toUpperCase() + ' · Worker ✓</div>' +
+        '<div class="adoc-output-meta">' + ext.toUpperCase() + ' · Worker ' + adocIconSvg('icon-verify') + '</div>' +
       '</div>';
 
     const dlBtn = document.createElement('button');
     dlBtn.className = 'adoc-output-dl';
     dlBtn.title = 'Exporter ' + ext.toUpperCase();
-    dlBtn.textContent = '⬇';
+    dlBtn.setAttribute('aria-label', 'Exporter ' + ext.toUpperCase());
+    dlBtn.innerHTML = adocIconSvg('icon-download');
     dlBtn.addEventListener('click', function() {
       const a = document.createElement('a');
       a.href = url; a.download = filename;
@@ -5616,7 +5789,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       for (const _part of _textParts) {
         if (/^<!DOCTYPE\s+html/i.test(_part.trim())) {
           _htmlCount++;
-          _displayParts.push('<div style="margin:8px 0;padding:10px 14px;background:var(--ivory);border-left:3px solid var(--petrol-800);border-radius:4px;font-size:11px;color:var(--petrol-950);">⚡ Document ' + _htmlCount + ' en cours de génération…</div>');
+          _displayParts.push('<div style="margin:8px 0;padding:10px 14px;background:var(--ivory);border-left:3px solid var(--petrol-800);border-radius:4px;font-size:11px;color:var(--petrol-950);">' + adocIconSvg('icon-progress') + ' Document ' + _htmlCount + ' en cours de génération…</div>');
         } else if (_part.trim().length > 0) {
           _displayParts.push(adocFormatMd(_part));
         }
@@ -5635,7 +5808,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     div.className = `adoc-msg ${role}`;
     const msgId = 'adoc-msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
     div.id = msgId;
-    const avatar = role === 'assistant' ? '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : '👤';
+    const avatar = role === 'assistant' ? '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : adocIconSvg('icon-user');
     // P3-1 : snapshots la refMap au moment de l'affichage (Haiku rerank peut changer adocLastRefMap)
     const msgRefMap = JSON.parse(JSON.stringify(adocLastRefMap || {}));
     const body   = role === 'assistant'
@@ -5649,13 +5822,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // FIX-CITE-SCORE : c.score n'existe jamais sur les chunks RAG — le champ réellement
           // peuplé partout ailleurs dans le pipeline est c._score (cf. adocShowArtifactCard,
           // adocBuildSourceSnapshotFromRAG) — le badge de score n'apparaissait donc jamais ici.
-          `<div class="adoc-cite"><span>📚</span><span><span class="adoc-cite-book">${adocEsc(c.book_title||'Référence')}</span> — ${adocEsc(c.author||'')}</span><span class="adoc-cite-score">${c._score?Math.round(c._score*100)+'%':''}</span></div>`
+          `<div class="adoc-cite"><span aria-hidden="true">${adocIconSvg('icon-library')}</span><span><span class="adoc-cite-book">${adocEsc(c.book_title||'Référence')}</span> — ${adocEsc(c.author||'')}</span><span class="adoc-cite-score">${c._score?Math.round(c._score*100)+'%':''}</span></div>`
         ).join('') + '</div>';
     }
 
     // Badge icône sur la réponse assistant
     const modeBadge  = role === 'assistant'
-      ? `<span style="font-size:9px;opacity:0.5;margin-left:6px;">🔬</span>` : '';
+      ? `<span style="font-size:9px;opacity:0.5;margin-left:6px;" aria-hidden="true">${adocIconSvg('icon-verify')}</span>` : '';
 
     div.innerHTML = `<div class="adoc-avatar">${avatar}</div><div><div class="adoc-bubble">${body}</div>${citeHtml}</div>${modeBadge}`;
     area.appendChild(div);
@@ -5772,6 +5945,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
   function adocEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+  // ── Harmonisation visuelle — sprite canonique (audit/emoji-audit.json) ──
+  // Petit helper pour éviter de répéter le balisage <svg><use> à chaque remplacement d'emoji.
+  // aria-hidden="true" systématique : l'icône est toujours décorative, le texte adjacent (déjà
+  // présent à chaque site d'appel) porte l'information réelle — jamais une icône seule.
+  function adocIconSvg(iconId, extraClass) {
+    return '<svg class="sc-icon' + (extraClass ? ' ' + extraClass : '') + '" aria-hidden="true" focusable="false"><use href="#' + iconId + '"></use></svg>';
+  }
+
   // ── Réparer HTML potentiellement tronqué ──
   function adocRepairHTML(html) {
     let h = html.trim();
@@ -5802,9 +5983,36 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     div.className = 'adoc-msg assistant';
     const id = 'adoc-typing-' + Date.now();
     div.id = id;
-    div.innerHTML = `<div class="adoc-avatar"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div><div><div class="adoc-bubble"><div class="adoc-typing"><div class="adoc-dot"></div><div class="adoc-dot"></div><div class="adoc-dot"></div></div><div class="adoc-typing-label" style="font-size:10px;color:var(--muted);margin-top:5px;font-style:italic;">Réflexion en cours…</div></div></div>`;
+    div.innerHTML = `<div class="adoc-avatar"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div><div><div class="adoc-bubble"><div class="adoc-typing"><div class="adoc-dot"></div><div class="adoc-dot"></div><div class="adoc-dot"></div></div><div class="adoc-typing-label" role="status" aria-live="polite" style="font-size:10px;color:var(--muted);margin-top:5px;font-style:italic;">Réflexion en cours…</div><ul class="sc-progress-steps" style="display:none;" aria-hidden="true"></ul></div></div>`;
     area.appendChild(div); area.scrollTop = area.scrollHeight;
     return id;
+  }
+
+  // Harmonisation A→D — état C : les 3 étapes ne reflètent QUE des transitions déjà
+  // présentes dans le pipeline (jamais un pourcentage calculé). aria-hidden car purement
+  // décoratif — le texte de .adoc-typing-label (role=status aria-live=polite) porte déjà
+  // l'information réelle pour les technologies d'assistance.
+  const ADOC_PROGRESS_STEP_LABELS = ['Demande comprise', 'Références consultées', 'Document composé'];
+  function adocRenderProgressSteps(id, activeIndex) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ul = el.querySelector('.sc-progress-steps');
+    if (!ul) return;
+    // Illustration insérée une seule fois, au premier passage réel en phase de génération
+    // (jamais pendant la vérification de clarification, qui n'appelle jamais cette fonction).
+    if (!el.querySelector('.sc-generation-illustration')) {
+      const img = document.createElement('img');
+      img.className = 'sc-generation-illustration';
+      img.src = ADOC_GENERATION_ILLUSTRATION;
+      img.alt = '';
+      img.setAttribute('aria-hidden', 'true');
+      ul.parentNode.insertBefore(img, ul);
+    }
+    ul.innerHTML = ADOC_PROGRESS_STEP_LABELS.map(function (label, i) {
+      const cls = i < activeIndex ? 'is-complete' : i === activeIndex ? 'is-active' : '';
+      return '<li class="sc-progress-step' + (cls ? ' ' + cls : '') + '">' + adocEsc(label) + '</li>';
+    }).join('');
+    ul.style.display = '';
   }
 
   function adocRemoveTyping(id) { document.getElementById(id)?.remove(); }
@@ -5831,7 +6039,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const now  = new Date();
     const date = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' });
     const time = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-    const modeLabels = { reflexion:'🔮 Réflexion', consultation:'🩺 Consultation', production:'✍️ Production' };
+    const modeLabels = { reflexion:'Réflexion', consultation:'Consultation', production:'Production' };
 
     if (format === 'txt') {
       let txt = `STUDIO CLINIQUE — C Concept&Dev\nExport du ${date} à ${time}\nMode : ${'Studio Clinique'}\n${'═'.repeat(50)}\n\n`;
@@ -5898,7 +6106,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
 .ftr-brand{font-weight:700;color:var(--mer);}
 @media print{body{background:white;}.hdr,.bar{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 <\/style><\/head><body>
-<div class="hdr"><div><h1>🔬 Studio Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
+<div class="hdr"><div><h1>Studio Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
 <div class="hdr-r"><div>${date} · ${time}</div><div>Mode : ${'Studio Clinique'}</div><div>${msgCount} échange${msgCount !== 1 ? 's' : ''}</div><div><span class="badge">Export consultation</span></div></div></div>
 <div class="bar"></div>
 <div class="content">${ctxBanner}${msgs}</div>
@@ -5979,10 +6187,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
 </style>
 </head><body>
 <div class="print-tip" style="background:var(--petrol-950);color:white;text-align:center;padding:10px;font-size:13px;font-family:sans-serif;">
-  📄 Fenêtre d'impression ouverte — choisissez <strong>Enregistrer en PDF</strong> comme destination
+  Fenêtre d'impression ouverte — choisissez <strong>Enregistrer en PDF</strong> comme destination
 </div>
 <div class="hdr">
-  <div><h1>🔬 Studio Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
+  <div><h1>Studio Clinique</h1><p>C Concept&amp;Dev — Bibliothèque thérapeutique</p></div>
   <div class="hdr-r"><div>${date} · ${time}</div><div>Mode : ${'Studio Clinique'}</div><div>${msgCount} échange${msgCount !== 1 ? 's' : ''}</div><div><span class="badge">Export PDF</span></div></div>
 </div>
 <div class="bar"></div>
@@ -6004,7 +6212,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
       const a = document.createElement('a');
       a.href = url; a.download = `consultation-${Date.now()}.html`;
       a.click();
-      alert('⚠️ Popup bloqué par le navigateur.\nLe fichier HTML a été téléchargé.\nOuvrez-le et faites Fichier → Imprimer → Enregistrer en PDF.');
+      alert('Popup bloqué par le navigateur.\nLe fichier HTML a été téléchargé.\nOuvrez-le et faites Fichier → Imprimer → Enregistrer en PDF.');
     }
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
@@ -6012,7 +6220,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--surf);color:var(--t
   // ── Export DOCXX (JSZip — pur JS, sans dépendance externe) ──
   async function adocExportDOCX(date, time, modeLabels) {
     if (typeof JSZip === 'undefined') {
-      alert('⚠️ JSZip non chargé. Export DOCX indisponible.');
+      alert('JSZip non chargé. Export DOCX indisponible.');
       return;
     }
 
@@ -6289,13 +6497,19 @@ ${body}
     }
   }
 
-  // Bouton "☁ Exporter" — upload vers KV, puis ouvre URL directe
+  // Bouton export cloud — upload vers KV, puis ouvre URL directe
   async function adocCloudDownload(storeKey, btnEl, ext) {
     const art = window._adocArtifacts?.[storeKey];
     if (!art) return;
-    const origText = btnEl ? btnEl.textContent : '';
+    const origHTML = btnEl ? btnEl.innerHTML : '';
     const origTitle = btnEl ? btnEl.title : '';
-    if (btnEl) { btnEl.textContent = '⏳'; btnEl.disabled = true; btnEl.title = 'Préparation…'; }
+    const origAriaLabel = btnEl ? btnEl.getAttribute('aria-label') : null;
+    if (btnEl) {
+      btnEl.innerHTML = adocIconSvg('icon-progress');
+      btnEl.disabled = true;
+      btnEl.title = 'Préparation…';
+      btnEl.setAttribute('aria-label', 'Préparation…');
+    }
 
     const mimeMap = {
       html: 'text/html;charset=utf-8',
@@ -6327,19 +6541,22 @@ ${body}
       const shareUrl = result.url;
 
       if (btnEl) {
-        btnEl.textContent = '✅';
+        btnEl.innerHTML = adocIconSvg('icon-verify');
         btnEl.style.background = '#2a7a5a';
-        btnEl.title = '✅ Téléchargé + URL serveur (clic = copier URL)';
+        btnEl.title = 'Téléchargé + URL serveur (clic = copier URL)';
+        btnEl.setAttribute('aria-label', 'Téléchargé + URL serveur, cliquer pour copier le lien');
         btnEl.disabled = false;
         btnEl.onclick = function() {
           navigator.clipboard?.writeText(shareUrl).then(() => {
-            btnEl.title = '📋 URL copiée !';
-            setTimeout(() => { btnEl.title = '✅ Clic = copier URL'; }, 2000);
+            btnEl.title = 'URL copiée !';
+            btnEl.setAttribute('aria-label', 'URL copiée');
+            setTimeout(() => { btnEl.title = 'Clic = copier URL'; btnEl.setAttribute('aria-label', 'Cliquer pour copier le lien'); }, 2000);
           });
         };
         setTimeout(() => {
-          if (btnEl.textContent === '✅') {
-            btnEl.textContent = origText; btnEl.title = origTitle;
+          if (btnEl.innerHTML === adocIconSvg('icon-verify')) {
+            btnEl.innerHTML = origHTML; btnEl.title = origTitle;
+            if (origAriaLabel === null) { btnEl.removeAttribute('aria-label'); } else { btnEl.setAttribute('aria-label', origAriaLabel); }
             btnEl.style.background = ''; btnEl.onclick = null;
           }
         }, 30000);
@@ -6348,7 +6565,8 @@ ${body}
       // KV optionnel — le téléchargement local a déjà eu lieu
       console.warn('KV upload skipped:', kvErr.message);
       if (btnEl) {
-        btnEl.textContent = origText; btnEl.title = origTitle;
+        btnEl.innerHTML = origHTML; btnEl.title = origTitle;
+        if (origAriaLabel === null) { btnEl.removeAttribute('aria-label'); } else { btnEl.setAttribute('aria-label', origAriaLabel); }
         btnEl.style.background = ''; btnEl.disabled = false; btnEl.onclick = null;
       }
     }
@@ -6359,7 +6577,7 @@ ${body}
     const art = window._adocArtifacts?.[storeKey];
     if (!art) return;
     const printCSS = '<style>@media print { @page { size: A4; margin: 15mm 18mm; } body { font-family: Arial, sans-serif; font-size: 11pt; } h1{font-size:20pt;} h2{font-size:15pt;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ccc;padding:5pt;} .no-print{display:none!important;} }</style>'
-      + '<scr' + 'ipt>window.addEventListener("load",function(){var b=document.createElement("div");b.style.cssText="position:fixed;top:0;left:0;right:0;background:var(--petrol-950);color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;";b.innerHTML=\'<span>📄 Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:var(--petrol-800);color:var(--ink);border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">🖨️ Enregistrer PDF</button>\';document.body.insertBefore(b,document.body.firstChild);document.body.style.paddingTop="50px";});<\/script>';
+      + '<scr' + 'ipt>window.addEventListener("load",function(){var b=document.createElement("div");b.style.cssText="position:fixed;top:0;left:0;right:0;background:var(--petrol-950);color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;";b.innerHTML=\'<span>Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:var(--petrol-800);color:var(--ink);border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">Enregistrer PDF</button>\';document.body.insertBefore(b,document.body.firstChild);document.body.style.paddingTop="50px";});<\/script>';
     const repairedHtml = adocRepairHTML(art.html);
     const htmlWithPrint = repairedHtml.replace('</head>', printCSS + '</head>');
     const blob = new Blob([htmlWithPrint], { type: 'text/html;charset=utf-8' });
@@ -6373,8 +6591,14 @@ ${body}
   async function adocGeneratePDFWorker(storeKey, btnEl) {
     const art = window._adocArtifacts?.[storeKey];
     if (!art) return;
-    const orig = btnEl ? btnEl.textContent : '';
-    if (btnEl) { btnEl.textContent = '⏳'; btnEl.disabled = true; }
+    const orig = btnEl ? btnEl.innerHTML : '';
+    const origAriaLabel = btnEl ? btnEl.getAttribute('aria-label') : null;
+    const restoreBtn = () => {
+      if (!btnEl) return;
+      btnEl.innerHTML = orig; btnEl.disabled = false;
+      if (origAriaLabel === null) { btnEl.removeAttribute('aria-label'); } else { btnEl.setAttribute('aria-label', origAriaLabel); }
+    };
+    if (btnEl) { btnEl.innerHTML = adocIconSvg('icon-progress'); btnEl.disabled = true; btnEl.setAttribute('aria-label', 'Génération PDF en cours…'); }
     try {
       const res = await fetch(ADOC_WORKER + '/generate-pdf', {
         method: 'POST',
@@ -6387,10 +6611,10 @@ ${body}
       const a = document.createElement('a');
       a.href = data.url; a.download = (art.name || 'document') + '.pdf';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      if (btnEl) { btnEl.textContent = '✅'; setTimeout(() => { btnEl.textContent = orig; btnEl.disabled = false; }, 3000); }
+      if (btnEl) { btnEl.innerHTML = adocIconSvg('icon-verify'); btnEl.setAttribute('aria-label', 'PDF généré'); setTimeout(restoreBtn, 3000); }
     } catch (err) {
       console.error('PDF Worker error:', err);
-      if (btnEl) { btnEl.textContent = '❌'; setTimeout(() => { btnEl.textContent = orig; btnEl.disabled = false; }, 3000); }
+      if (btnEl) { btnEl.innerHTML = adocIconSvg('icon-error'); btnEl.setAttribute('aria-label', 'Erreur génération PDF'); setTimeout(restoreBtn, 3000); }
       alert('Erreur PDF : ' + err.message);
     }
   }
@@ -6403,8 +6627,8 @@ ${body}
     if (!section || !list) return;
 
     section.style.display = 'block';
-    const icons = { html: '📄', pdf: '📕', docx: '📘', pptx: '📊', txt: '📃', md: '📝', csv: '📋' };
-    const icon  = icons[ext] || '📄';
+    const icons = { html: adocIconSvg('icon-file'), pdf: adocIconSvg('icon-file-pdf'), docx: adocIconSvg('icon-file-docx'), pptx: adocIconSvg('icon-file-slides'), txt: adocIconSvg('icon-file-text'), md: adocIconSvg('icon-file-text'), csv: adocIconSvg('icon-file-sheet') };
+    const icon  = icons[ext] || adocIconSvg('icon-file');
     const mimeMap = {
       pdf:  'application/pdf',
       docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -6423,14 +6647,16 @@ ${body}
     const dlHtmlBtn = document.createElement('button');
     dlHtmlBtn.className = 'adoc-output-dl';
     dlHtmlBtn.title = blobData ? ('Exporter ' + ext.toUpperCase()) : 'Exporter HTML';
-    dlHtmlBtn.textContent = '⬇';
+    dlHtmlBtn.setAttribute('aria-label', dlHtmlBtn.title);
+    dlHtmlBtn.innerHTML = adocIconSvg('icon-download');
 
     // Bouton DL PDF (si pdfMode)
     const dlPdfBtn = document.createElement('button');
     if (pdfMode) {
       dlPdfBtn.className = 'adoc-output-dl adoc-output-dl-pdf';
       dlPdfBtn.title = 'Exporter PDF';
-      dlPdfBtn.textContent = '📕';
+      dlPdfBtn.setAttribute('aria-label', 'Exporter PDF');
+      dlPdfBtn.innerHTML = adocIconSvg('icon-file-pdf');
     }
 
     item.innerHTML =
@@ -6462,11 +6688,12 @@ ${body}
 
     item.appendChild(dlHtmlBtn);
 
-    // Bouton ☁ Cloud (upload KV → URL serveur réelle)
+    // Bouton Cloud (upload KV → URL serveur réelle)
     const dlCloudBtn = document.createElement('button');
     dlCloudBtn.className = 'adoc-output-dl adoc-output-dl-cloud';
     dlCloudBtn.title = 'Uploader sur le serveur → lien de téléchargement réel';
-    dlCloudBtn.textContent = '☁';
+    dlCloudBtn.setAttribute('aria-label', dlCloudBtn.title);
+    dlCloudBtn.innerHTML = adocIconSvg('icon-cloud');
     dlCloudBtn.addEventListener('click', function() {
       adocCloudDownload(storeKey, dlCloudBtn, 'html');
     });
@@ -6488,7 +6715,7 @@ ${body}
     adocConversations = []; adocExchangeCount = 0;
     const area = document.getElementById('adoc-messages');
     area.innerHTML = `<div class="adoc-welcome" id="adoc-welcome">
-      <div class="adoc-welcome-icon">📚</div>
+      <div class="adoc-welcome-icon" aria-hidden="true">${adocIconSvg('icon-library')}</div>
       <div class="adoc-welcome-title">Studio Clinique</div>
       <div class="adoc-welcome-text">Choisissez un mode de travail, précisez votre contexte si souhaité,<br>
       puis posez votre question.</div>
@@ -6533,11 +6760,11 @@ ${body}
 
   window.adocKvLoad = async function() {
     if (!adocKvPatientId) {
-      document.getElementById('adoc-kv-status').textContent = '⚠️ Saisir un ID patient';
+      document.getElementById('adoc-kv-status').innerHTML = adocIconSvg('icon-warning') + ' Saisir un ID patient';
       return;
     }
     const statusEl = document.getElementById('adoc-kv-status');
-    statusEl.textContent = '⏳ Chargement…';
+    statusEl.innerHTML = adocIconSvg('icon-progress') + ' Chargement…';
     try {
       const resp = await fetch(adocGetWorkerUrl() + '/session-load', {
         method: 'POST',
@@ -6546,13 +6773,13 @@ ${body}
       });
       const data = await resp.json();
       if (!data.found || !data.history?.length) {
-        statusEl.textContent = '📭 Aucune séance enregistrée';
+        statusEl.innerHTML = adocIconSvg('icon-empty') + ' Aucune séance enregistrée';
         adocKvHistory = [];
         document.getElementById('adoc-kv-history').style.display = 'none';
         return;
       }
       adocKvHistory = data.history;
-      statusEl.textContent = `✅ ${data.history.length} séance(s) chargée(s)`;
+      statusEl.innerHTML = adocIconSvg('icon-verify') + ` ${data.history.length} séance(s) chargée(s)`;
       // Afficher résumé dans la sidebar
       const histEl = document.getElementById('adoc-kv-history');
       histEl.style.display = 'block';
@@ -6563,7 +6790,7 @@ ${body}
         </div>`
       ).join('');
     } catch(e) {
-      statusEl.textContent = '❌ Erreur : ' + e.message;
+      statusEl.innerHTML = adocIconSvg('icon-error') + ' Erreur : ' + adocEsc(e.message);
     }
   };
 
@@ -6577,7 +6804,7 @@ ${body}
     if (!force && exchanges.length < 2) return; // Trop peu d'échanges
 
     const statusEl = document.getElementById('adoc-kv-status');
-    if (statusEl) statusEl.textContent = '💾 Résumé en cours…';
+    if (statusEl) statusEl.innerHTML = adocIconSvg('icon-download') + ' Résumé en cours…';
 
     // Demander à Haiku de résumer la session
     const recent = adocConversations.slice(-12).map(m =>
@@ -6609,12 +6836,12 @@ ${body}
         body: JSON.stringify({ patientId: adocKvPatientId, summary, ...(adocKvTherapistId ? { therapistId: adocKvTherapistId } : {}) })
       });
       const saveData = await saveResp.json();
-      if (statusEl) statusEl.textContent = `✅ Sauvegardé (${saveData.sessions} séance(s))`;
+      if (statusEl) statusEl.innerHTML = adocIconSvg('icon-verify') + ` Sauvegardé (${saveData.sessions} séance(s))`;
       // Mettre à jour l'historique local
       adocKvHistory.unshift({ date: new Date().toISOString().slice(0, 10), summary });
       if (adocKvHistory.length > 10) adocKvHistory = adocKvHistory.slice(0, 10);
     } catch(e) {
-      if (statusEl) statusEl.textContent = '❌ Sauvegarde échouée';
+      if (statusEl) statusEl.innerHTML = adocIconSvg('icon-error') + ' Sauvegarde échouée';
     }
   };
 
@@ -6730,8 +6957,8 @@ ${recent}`;
     panel.style.cssText = 'position:fixed;bottom:80px;right:20px;background:#fff;border:1px solid var(--stone-300);border-radius:10px;padding:14px 18px;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;font-size:12px;line-height:1.5';
     panel.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-        <span style="font-weight:700;color:var(--terracotta-700)">📚 Référence [${n}]</span>
-        <button type="button" onclick="this.closest('#adoc-ref-panel').remove()" aria-label="Fermer la référence" style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;margin-left:12px;font-family:inherit;">×</button>
+        <span style="font-weight:700;color:var(--terracotta-700)">${adocIconSvg('icon-library')} Référence [${n}]</span>
+        <button type="button" onclick="this.closest('#adoc-ref-panel').remove()" aria-label="Fermer la référence" style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;margin-left:12px;font-family:inherit;">${adocIconSvg('icon-close')}</button>
       </div>
       <div style="color:var(--ink);font-weight:600">${ref.book_title}</div>
       ${ref.author ? `<div style="color:var(--muted)">${ref.author}</div>` : ''}
@@ -6749,7 +6976,7 @@ ${recent}`;
     if (!btn || !res) return;
 
     btn.disabled    = true;
-    btn.textContent = '⏳ Vérification…';
+    btn.innerHTML   = adocIconSvg('icon-progress') + ' Vérification…';
     res.style.display = 'none';
 
     try {
@@ -6758,18 +6985,18 @@ ${recent}`;
       const data = await resp.json();
 
       if (data.error) {
-        res.innerHTML = `❌ ${data.error}`;
+        res.innerHTML = `${adocIconSvg('icon-error')} ${adocEsc(data.error)}`;
         res.style.display = 'block';
         return;
       }
 
-      const icon    = data.all_synced ? '✅' : (data.missing_approaches?.length ? '❌' : '⚠️');
+      const icon    = data.all_synced ? adocIconSvg('icon-verify') : (data.missing_approaches?.length ? adocIconSvg('icon-error') : adocIconSvg('icon-warning'));
       const status  = data.all_synced ? 'Synchronisé' : 'Désynchronisé';
       const missing = data.missing_approaches?.length
-        ? `<br>❌ Manquants : ${data.missing_approaches.join(', ')}`
+        ? `<br>${adocIconSvg('icon-error')} Manquants : ${data.missing_approaches.join(', ')}`
         : '';
       const partial = data.partial_approaches?.length
-        ? `<br>⚠️ Partiels : ${data.partial_approaches.join(', ')}`
+        ? `<br>${adocIconSvg('icon-warning')} Partiels : ${data.partial_approaches.join(', ')}`
         : '';
 
       // Tableau des résultats par approche
@@ -6777,7 +7004,7 @@ ${recent}`;
         `<tr>
           <td style="padding:1px 4px">${d.approach}</td>
           <td style="padding:1px 4px;text-align:right">${d.d1_chunks.toLocaleString('fr')}</td>
-          <td style="padding:1px 4px;text-align:center">${d.status === 'ok' ? '✅' : d.status === 'missing' ? '❌' : '⚠️'} ${d.sync_rate}%</td>
+          <td style="padding:1px 4px;text-align:center">${d.status === 'ok' ? adocIconSvg('icon-verify') : d.status === 'missing' ? adocIconSvg('icon-error') : adocIconSvg('icon-warning')} ${d.sync_rate}%</td>
         </tr>`
       ).join('');
 
@@ -6790,11 +7017,11 @@ ${recent}`;
       res.style.display = 'block';
 
     } catch(e) {
-      res.innerHTML = `❌ Erreur : ${e.message}`;
+      res.innerHTML = `${adocIconSvg('icon-error')} Erreur : ${adocEsc(e.message)}`;
       res.style.display = 'block';
     } finally {
       btn.disabled    = false;
-      btn.textContent = '🔍 Vérifier sync D1↔Vector';
+      btn.innerHTML   = adocIconSvg('icon-search') + ' Vérifier sync D1↔Vector';
     }
   };
 
@@ -6903,7 +7130,7 @@ ${recent}`;
     const chap = state.chapters[state.chapterIndex];
     const chapBadge = document.createElement('div');
     chapBadge.style.cssText = 'font-size:11px;color:var(--petrol-800);padding:2px 10px;font-weight:600;margin:2px 0;';
-    chapBadge.textContent = '✍️ ' + chap.titre + '…';
+    chapBadge.innerHTML = adocIconSvg('icon-writing') + ' ' + adocEsc(chap.titre) + '…';
     if (state.msgEl) state.msgEl.appendChild(chapBadge);
 
     const chapUserMsg = chap.titre + '\n\nInstructions : ' + chap.instructions
@@ -6951,26 +7178,26 @@ ${recent}`;
         continue; // reboucle : re-teste stopReason
       }
       if (action === 'keep') {
-        chapBadge.textContent = '⚠️ ' + chap.titre + ' (conservé incomplet)';
+        chapBadge.innerHTML = adocIconSvg('icon-warning') + ' ' + adocEsc(chap.titre) + ' (conservé incomplet)';
         state.hadIncompleteChapter = true;
         state.completedDocument += '\n\n' + state.currentChapterText;
         return;
       }
       if (action === 'skip') {
-        chapBadge.textContent = '⏭️ ' + chap.titre + ' (chapitre ignoré, resté incomplet)';
+        chapBadge.innerHTML = adocIconSvg('icon-skip') + ' ' + adocEsc(chap.titre) + ' (chapitre ignoré, resté incomplet)';
         state.hadIncompleteChapter = true;
         state.completedDocument += '\n\n[Ce chapitre a été ignoré à la demande de la thérapeute — resté incomplet après plusieurs tentatives.]';
         return;
       }
       // action === 'stop'
-      chapBadge.textContent = '⏹️ ' + chap.titre + ' (arrêté ici)';
+      chapBadge.innerHTML = adocIconSvg('icon-stop') + ' ' + adocEsc(chap.titre) + ' (arrêté ici)';
       state.hadIncompleteChapter = true;
       state.stoppedEarly = true;
       return;
     }
 
     // Chapitre terminé normalement — seul cas qui reçoit la coche
-    chapBadge.textContent = '✅ ' + chap.titre;
+    chapBadge.innerHTML = adocIconSvg('icon-verify') + ' ' + adocEsc(chap.titre);
     state.completedDocument += '\n\n' + state.currentChapterText;
   }
 
@@ -7026,9 +7253,9 @@ ${recent}`;
     }
 
     const isComplete = !state.hadIncompleteChapter;
-    planBadge.textContent = isComplete
-      ? '✅ Document complet — ' + chapters.length + ' chapitres'
-      : '⚠️ Document généré avec au moins un chapitre incomplet ou ignoré — jamais qualifié de complet';
+    planBadge.innerHTML = isComplete
+      ? adocIconSvg('icon-verify') + ' Document complet — ' + chapters.length + ' chapitres'
+      : adocIconSvg('icon-warning') + ' Document généré avec au moins un chapitre incomplet ou ignoré — jamais qualifié de complet';
 
     let finalText = state.completedDocument.trim();
     if (!finalText && state.stoppedEarly) {
@@ -7320,23 +7547,30 @@ ${recent}`;
     if (input && adocDefaultInputPlaceholder !== null) input.placeholder = adocDefaultInputPlaceholder;
   }
 
+  // Harmonisation A→D — illustrations décoratives (jamais l'unique indicateur ; le texte
+  // et les statuts portés par aria-live restent la source d'information réelle). Encodées en
+  // data URI pour rester dans un HTML autonome (aucune dépendance de fichier externe).
+  const ADOC_CLARIFICATION_ILLUSTRATION = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MjAgMjQwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+Q2xhcmlmaWVyIHVuZSBkZW1hbmRlIGNsaW5pcXVlPC90aXRsZT4KICA8ZGVzYyBpZD0iZGVzYyI+VHJvaXMgcGlzdGVzIGNvbnZlcmdlbnQgdmVycyB1bmUgcXVlc3Rpb24gY2xpbmlxdWUgc3RydWN0dXLDqWUuPC9kZXNjPgogIDxyZWN0IHdpZHRoPSI0MjAiIGhlaWdodD0iMjQwIiByeD0iMjQiIGZpbGw9IiNGNkYyRUEiLz4KICA8cGF0aCBkPSJNNzIgNjFjNTcgMCA3NiAzMCAxMDUgNThNNzIgMTIwaDEwNU03MiAxNzljNTcgMCA3Ni0zMCAxMDUtNTgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFGNTA1MyIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIG9wYWNpdHk9Ii42MiIvPgogIDxjaXJjbGUgY3g9IjY5IiBjeT0iNjEiIHI9IjI0IiBmaWxsPSIjRkZGREY5IiBzdHJva2U9IiM4QTNGMjkiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxjaXJjbGUgY3g9IjY5IiBjeT0iMTIwIiByPSIyNCIgZmlsbD0iI0RDRThFNiIgc3Ryb2tlPSIjMUY1MDUzIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8Y2lyY2xlIGN4PSI2OSIgY3k9IjE3OSIgcj0iMjQiIGZpbGw9IiNGRkZERjkiIHN0cm9rZT0iIzFGNTA1MyIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHBhdGggZD0iTTYxIDYxaDE2TTYxIDEyMGgxNk02MSAxNzloMTYiIHN0cm9rZT0iIzEwMkYzMSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cmVjdCB4PSIxNzciIHk9IjU0IiB3aWR0aD0iMTc2IiBoZWlnaHQ9IjEzMiIgcng9IjE0IiBmaWxsPSIjRkZGREY5IiBzdHJva2U9IiNEREQ3Q0MiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxyZWN0IHg9IjE3NyIgeT0iNTQiIHdpZHRoPSIxNzYiIGhlaWdodD0iMzQiIHJ4PSIxNCIgZmlsbD0iIzEwMkYzMSIvPgogIDxwYXRoIGQ9Ik0xNzcgNzRWNjhjMC04IDYtMTQgMTQtMTRoMTQ4YzggMCAxNCA2IDE0IDE0djYiIGZpbGw9IiMxMDJGMzEiLz4KICA8cmVjdCB4PSIyMDAiIHk9IjEwOCIgd2lkdGg9IjEyNiIgaGVpZ2h0PSI4IiByeD0iNCIgZmlsbD0iIzEwMkYzMSIvPgogIDxyZWN0IHg9IjIwMCIgeT0iMTI5IiB3aWR0aD0iMTAzIiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNEREQ3Q0MiLz4KICA8cmVjdCB4PSIyMDAiIHk9IjE0NCIgd2lkdGg9IjExNiIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjREREN0NDIi8+CiAgPHJlY3QgeD0iMjAwIiB5PSIxNjEiIHdpZHRoPSI2MiIgaGVpZ2h0PSI5IiByeD0iNC41IiBmaWxsPSIjRjRFNURFIi8+CiAgPGNpcmNsZSBjeD0iMzQ0IiBjeT0iNzIiIHI9IjE0IiBmaWxsPSIjOEEzRjI5Ii8+CiAgPHBhdGggZD0iTTMzOSA3MmwzIDMgNi03IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZERjkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=';
+  const ADOC_GENERATION_ILLUSTRATION = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MjAgMjQwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+Q3LDqWF0aW9uIGTigJl1biBkb2N1bWVudCDDoCBwYXJ0aXIgZGUgbGEgYmlibGlvdGjDqHF1ZTwvdGl0bGU+CiAgPGRlc2MgaWQ9ImRlc2MiPkRlcyBvdXZyYWdlcyBldCBwYXNzYWdlcyBjb252ZXJnZW50IHZlcnMgdW4gZG9jdW1lbnQgZW4gY291cnMgZGUgY29tcG9zaXRpb24uPC9kZXNjPgogIDxyZWN0IHdpZHRoPSI0MjAiIGhlaWdodD0iMjQwIiByeD0iMjQiIGZpbGw9IiNGNkYyRUEiLz4KICA8cmVjdCB4PSI0NiIgeT0iNTAiIHdpZHRoPSI5MiIgaGVpZ2h0PSIxNDIiIHJ4PSIxMiIgZmlsbD0iI0ZGRkRGOSIgc3Ryb2tlPSIjREREN0NDIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8cmVjdCB4PSI2MSIgeT0iNzEiIHdpZHRoPSIxNyIgaGVpZ2h0PSI5MiIgcng9IjMiIGZpbGw9IiMxMDJGMzEiLz4KICA8cmVjdCB4PSI4MiIgeT0iNjAiIHdpZHRoPSIxNyIgaGVpZ2h0PSIxMDMiIHJ4PSIzIiBmaWxsPSIjOEEzRjI5Ii8+CiAgPHJlY3QgeD0iMTAzIiB5PSI4MiIgd2lkdGg9IjE3IiBoZWlnaHQ9IjgxIiByeD0iMyIgZmlsbD0iI0RDRThFNiIgc3Ryb2tlPSIjMUY1MDUzIiBzdHJva2Utd2lkdGg9IjEuNSIvPgogIDxwYXRoIGQ9Ik02MSAxNzZoNTkiIHN0cm9rZT0iI0RERDdDQyIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJNMTQxIDgzYzQ0IDAgNTIgMjggNzcgMjhNMTQxIDE1OWM0NCAwIDUyLTI4IDc3LTI4IiBmaWxsPSJub25lIiBzdHJva2U9IiMxRjUwNTMiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIuNTgiLz4KICA8Y2lyY2xlIGN4PSIyMjIiIGN5PSIxMjAiIHI9IjMxIiBmaWxsPSIjRENFOEU2IiBzdHJva2U9IiMxRjUwNTMiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxwYXRoIGQ9Ik0yMjIgMTAyYTE4IDE4IDAgMSAxLTE2LjYgMTEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFGNTA1MyIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJtMjA0IDEwOCAyIDggOC0yIiBmaWxsPSJub25lIiBzdHJva2U9IiMxRjUwNTMiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CiAgPHBhdGggZD0iTTI1NCAxMjBoMzEiIHN0cm9rZT0iIzFGNTA1MyIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIG9wYWNpdHk9Ii41OCIvPgogIDxyZWN0IHg9IjI4NSIgeT0iNDIiIHdpZHRoPSI5MyIgaGVpZ2h0PSIxNTYiIHJ4PSIxMCIgZmlsbD0iI0ZGRkRGOSIgc3Ryb2tlPSIjREREN0NDIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8cmVjdCB4PSIyODUiIHk9IjQyIiB3aWR0aD0iOTMiIGhlaWdodD0iMzgiIHJ4PSIxMCIgZmlsbD0iIzEwMkYzMSIvPgogIDxwYXRoIGQ9Ik0yODUgNjlWNTJjMC02IDQtMTAgMTAtMTBoNzNjNiAwIDEwIDQgMTAgMTB2MTciIGZpbGw9IiMxMDJGMzEiLz4KICA8cmVjdCB4PSIzMDEiIHk9IjEwMCIgd2lkdGg9IjYxIiBoZWlnaHQ9IjciIHJ4PSIzLjUiIGZpbGw9IiMxMDJGMzEiLz4KICA8cmVjdCB4PSIzMDEiIHk9IjEyMCIgd2lkdGg9IjUzIiBoZWlnaHQ9IjQiIHJ4PSIyIiBmaWxsPSIjREREN0NDIi8+CiAgPHJlY3QgeD0iMzAxIiB5PSIxMzMiIHdpZHRoPSI2MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iI0RERDdDQyIvPgogIDxyZWN0IHg9IjMwMSIgeT0iMTUzIiB3aWR0aD0iNjEiIGhlaWdodD0iMjQiIHJ4PSI1IiBmaWxsPSIjRjRFNURFIi8+CiAgPHJlY3QgeD0iMzAxIiB5PSIxNTMiIHdpZHRoPSI0IiBoZWlnaHQ9IjI0IiByeD0iMiIgZmlsbD0iIzhBM0YyOSIvPgo8L3N2Zz4K';
+
   function adocRenderClarityCard(judgment) {
     const area = document.getElementById('adoc-messages');
     if (!area) return;
     const card = document.createElement('div');
-    card.className = 'cc-clarity-card';
+    card.className = 'cc-clarity-card sc-clarification-card';
     card.setAttribute('role', 'group');
     card.setAttribute('aria-label', 'Précision nécessaire avant de générer le document');
 
     const replies = (judgment.quick_replies || []).slice(0, 4);
     card.innerHTML =
-      '<div class="cc-clarity-understood">' + adocEsc(judgment.understood_so_far || '') + '</div>' +
-      '<div class="cc-clarity-question">' + adocEsc(judgment.question || '') + '</div>' +
-      '<div class="cc-clarity-replies">' +
+      (judgment.understood_so_far ? '<div class="cc-clarity-understood sc-clarification-card__intro">' + adocEsc(judgment.understood_so_far) + '</div>' : '') +
+      '<div class="cc-clarity-question sc-clarification-card__heading sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>' + adocEsc(judgment.question || '') + '</span></div>' +
+      '<img class="cc-clarity-illustration" src="' + ADOC_CLARIFICATION_ILLUSTRATION + '" alt="" aria-hidden="true">' +
+      '<div class="cc-clarity-replies sc-clarification-card__choices">' +
         replies.map(function (r) {
-          return '<button type="button" class="cc-clarity-reply-btn" onclick="adocClarityQuickReply(this.textContent)">' + adocEsc(r) + '</button>';
+          return '<button type="button" class="cc-clarity-reply-btn sc-clarification-choice" onclick="this.classList.add(\'is-selected\');adocClarityQuickReply(this.textContent)">' + adocEsc(r) + '</button>';
         }).join('') +
-        '<button type="button" class="cc-clarity-other-btn" onclick="adocClarityFocusInput()">Autre, précisez…</button>' +
+        '<button type="button" class="cc-clarity-other-btn sc-clarification-choice sc-clarification-choice--other" onclick="adocClarityFocusInput()">Autre, précisez…</button>' +
       '</div>';
 
     area.appendChild(card);
@@ -7372,7 +7606,7 @@ ${recent}`;
     const sendBtn = document.getElementById('adoc-send-btn');
     if (sendBtn) sendBtn.disabled = true;
     const typingId = adocShowTyping();
-    adocUpdateTypingLabel(typingId, '🤔 Vérification de la demande…');
+    adocUpdateTypingLabel(typingId, 'icon-clarify', 'Vérification de la demande…');
 
     let judgment = null;
     try {
@@ -8058,7 +8292,7 @@ ${recent}`;
   // Correctif BUG 3 (lot correctifs urgents) : vérification post-génération — ne pas se
   // reposer uniquement sur la consigne du prompt système, qui peut être ignorée par le
   // modèle. Retire tout emoji/pictogramme/symbole décoratif Unicode d'un texte produit
-  // (ex. ronds de couleur 🔴🔵⚫ utilisés comme indicateurs dans un tableau, interdits par
+  // (ex. ronds de couleur utilisés comme indicateurs dans un tableau, interdits par
   // le CDC comme sur l'ancien moteur). Plage volontairement large (émoticônes, symboles
   // divers, pictogrammes, transport, drapeaux, sélecteurs de variation) plutôt qu'une
   // liste blanche fragile.
@@ -8108,7 +8342,7 @@ ${recent}`;
       '── TEXTE (lot correctifs urgents) ──\n' +
       "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
       "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre " +
-      'uniquement, y compris dans les tableaux (pas de 🔴🟢⚫ comme indicateur : utilise un mot).';
+      'uniquement, y compris dans les tableaux (pas de rond de couleur comme indicateur : utilise un mot).';
 
     // ── Premier appel — web_search en libre décision (récupère le trio bibliothèque + web + IA) ──
     // Même patron que le moteur legacy (tool_choice:'auto', cf. adocRunContinuationRound /
@@ -8315,7 +8549,7 @@ ${recent}`;
               _genToolInputJson += frag;
               _genReceivedChars += frag.length;
               // Progression réelle à l'écran pendant le flux — jamais un texte figé.
-              if (typingId) adocUpdateTypingLabel(typingId, '🧩 Génération structurée (Fiche synthèse)… ' + _genReceivedChars + ' caractères reçus');
+              if (typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… ' + _genReceivedChars + ' caractères reçus');
             }
             if (_ge.type === 'message_delta' && _ge.delta && _ge.delta.stop_reason) _genStopReason = _ge.delta.stop_reason;
             if (_ge.type === 'error') throw new Error('Stream error: ' + (_ge.error && _ge.error.message || ''));
@@ -8569,7 +8803,7 @@ ${recent}`;
     toggle.type = 'button';
     toggle.className = 'cc-ws-memory-toggle';
     toggle.setAttribute('aria-expanded', 'false');
-    toggle.innerHTML = '<span>🔒 Mémoire patient</span>'
+    toggle.innerHTML = '<span>' + adocIconSvg('icon-lock') + ' Mémoire patient</span>'
       + '<svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>';
     const body = document.createElement('div');
     body.className = 'cc-ws-memory-body';
@@ -8606,7 +8840,7 @@ ${recent}`;
 </script>
 <!-- ═══ UX-8W — écran de travail (coquille), sprite d'icônes chrome (currentColor) ═══ -->
 <svg aria-hidden="true" style="display:none">
-<symbol id="icon-sources" viewBox="0 0 24 24"><path d="M4 5h16M4 12h12M4 19h15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-sources" viewBox="0 0 24 24"><path d="M4 5h16M4 12h12M4 19h15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="icon-documents" viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v11H4zM7 7V4h6l2 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="icon-library" viewBox="0 0 24 24"><path d="M4 5h7v15H4zM13 5h7v15h-7zM7.5 5v15M16.5 5v15" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
   <symbol id="icon-creations" viewBox="0 0 24 24"><path d="M4 7h16v13H4zM7 4h10v3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
@@ -8619,6 +8853,48 @@ ${recent}`;
   <symbol id="icon-send" viewBox="0 0 24 24"><path d="M4 12h15M14 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="M7 9l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M5 15v5h14v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-attachment" viewBox="0 0 24 24"><path d="m8 12 6.7-6.7a3.5 3.5 0 0 1 5 5L10.5 19.5a5 5 0 0 1-7-7l9-9M6.5 15.5l9-9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.5 15.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m2 0-1 13H8L7 7m3 4v5m4-5v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V5H5v11h3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="icon-print" viewBox="0 0 24 24"><path d="M7 9V4h10v5M7 17H4v-7h16v7h-3M7 14h10v6H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-7.9A6 6 0 0 0 6.3 8.4 4.8 4.8 0 0 0 7 18Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-carrousel" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 9v6m18-6v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-tableau" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4 10h16M10 5v14M15 5v14" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="icon-fiche" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 11h6M9 15h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-script" viewBox="0 0 24 24"><path d="M5 5h6v6H7l-2 3V5Zm10 0h4v6h-2l-2 3V5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-links" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="19" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m10.5 7-4 8.5M13.5 7l4 8.5M7.5 18h9" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="icon-file" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-pdf" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M8.5 16h7M8.5 12h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-docx" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M8.5 11h7M8.5 14h7M8.5 17h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-text" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 11h6M9 14h6M9 17h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-html" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4m-8 7-2 2 2 2m3-4 2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-data" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M11 11l-2 2 2 2m3-4 2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-sheet" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 11h6v6H9zm3 0v6m-3-3h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-file-slides" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM15 3v4h4M9 11h6v5H9zm3 5v2m-2 0h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-archive" viewBox="0 0 24 24"><path d="M4 7h16v13H4zM3 4h18v4H3zm6 7h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-progress" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-8.3 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="icon-warning" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 9v5m0 3v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m9 9 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 10v7m0-10v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9 3h6m-3 3v7l4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-skip" viewBox="0 0 24 24"><path d="m5 6 7 6-7 6V6Zm8 0 7 6-7 6V6Zm7 0v12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="icon-clarify" viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-8-8c0 1.5.4 2.9 1.1 4.1L4 20l3.9-1.1A8 8 0 0 0 12 20Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.7 9.2a2.5 2.5 0 1 1 3.3 2.4c-.7.3-1 .7-1 1.4m0 3v.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-select" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-web" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c3 3.3 3 14.7 0 18M12 3c-3 3.3-3 14.7 0 18" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="icon-writing" viewBox="0 0 24 24"><path d="M5 19l4-1 10-10-3-3L6 15zM4 21h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-structure" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="icon-reflection" viewBox="0 0 24 24"><path d="M9 18h6m-5 3h4M8.5 15.5a7 7 0 1 1 7 0c-.8.6-1.3 1.5-1.5 2.5h-4c-.2-1-.7-1.9-1.5-2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-consultation" viewBox="0 0 24 24"><path d="M5 5v6a4 4 0 0 0 8 0V5M3 5h4m4 0h4m-2 10a5 5 0 0 0 5 5h1m0 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="icon-empty" viewBox="0 0 24 24"><path d="M4 7h16v12H4zM8 7V4h8v3m-8 6h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 <div id="cc-workspace" role="region" aria-label="Espace de travail du document">
   <div class="cc-ws-topbar">
