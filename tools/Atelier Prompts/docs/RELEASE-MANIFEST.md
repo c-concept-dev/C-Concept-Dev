@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `35996edd8c303bc174143d545df69b10957303b9` |
-| Date du commit | 2026-09-05T21:26:11+02:00 |
+| Commit local | `9ed849542f704f9f034794eb44cd1d93e7f76b1b` |
+| Date du commit | 2026-09-05T21:54:37+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-54 fichiers. C'est ce qui doit exister pour **servir** la page,
+55 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `159d04cc37bce69e7061efd89a01a6d27ff0ec4ead81f25bc1ea9803e4701263` |
+| Empreinte du jeu | `6612561906302f2308cbd6421d7243f6aca0520aee2a6e1b9e570f500cba2c81` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -88,6 +88,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/DEEP-COUT-JETONS-01.md` | `5d298c68b4b7d5fe6adc285e828abd6c0a33a611c2407013835162009302e3a2` |
 | REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
 | REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `cce92ba10b4bb7e8698fc8a6db8791f1af85c6466028baf6bd7f421c7c42a65d` |
+| REQUIRED_DOC | `docs/OPRIE-CRITIC-MATERIAL-AWARENESS-01.md` | `f5857503ce556393a453e679c4cf902252d64518d6cf45d5444312954c35b566` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTENT-01.md` | `f054f6b5a0c39e92b00a1ef49ce701f7623ae1f6976760e8efa3f733e6382427` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTENT-02.md` | `4a2cb1bfc2915099b982df7ab1fb35e2e05eaa0424b81813f963c80c67f405bf` |
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-CONTEXT-01.md` | `2ce2729e3e6ccae1aa4d740d2302afe19f07ba80336d108a406a41daa621ef76` |
@@ -124,7 +125,7 @@ sa propre empreinte.
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
 | REQUIRED_TEST_ONLY | 145 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 214 | bancs et campagnes, dont le worker `…-local-only` |
+| EVALUATION_ONLY | 216 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
