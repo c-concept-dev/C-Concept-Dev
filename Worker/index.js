@@ -55246,11 +55246,53 @@ function zipSync(data, opts) {
 __name(zipSync, "zipSync");
 
 // index.js
+// SEC-HOTFIX-01 — origine restreinte au site réel (GitHub Pages). Une valeur statique
+// suffit : le navigateur compare cette valeur à l'Origin réel de la page appelante et
+// bloque la lecture de la réponse si elles ne correspondent pas — inutile de refléter
+// dynamiquement l'en-tête Origin de la requête pour obtenir cet effet.
+var ADOC_ALLOWED_ORIGIN = "https://c-concept-dev.github.io";
 var CORS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ADOC_ALLOWED_ORIGIN,
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization"
 };
+// SEC-HOTFIX-01 — routes publiques par exception explicite ; tout le reste exige X-API-Key.
+// Volontairement une liste courte de routes SANS coût réel ni donnée sensible :
+//  - /get-file/ : lien de téléchargement ouvert par navigation directe du navigateur
+//    (window.open / clic <a>) — jamais un fetch() de la page, donc aucun en-tête
+//    personnalisé n'est possible côté client ; le CORS ne s'applique de toute façon pas
+//    à une navigation directe (seulement à fetch/XHR).
+//  - /library-stats, /sync-check : lectures agrégées (compteurs), aucune donnée patient
+//    ni document, appelées avant tout contexte applicatif (chargement de la page).
+var ADOC_PUBLIC_ROUTES = ["/get-file/", "/library-stats", "/sync-check"];
+function adocIsPublicRoute(pathname) {
+  return ADOC_PUBLIC_ROUTES.some((r) => r.endsWith("/") ? pathname.startsWith(r) : pathname === r);
+}
+// SEC-HOTFIX-01 — limitation de débit basique par IP, fenêtre glissante par compteur KV.
+// Seuil VOLONTAIREMENT généreux (60 req/min/IP) : l'outil sert deux personnes de confiance,
+// pas un public large — le but est de couper un abus scripté depuis l'extérieur, jamais de
+// gêner un usage normal. Une seule question de génération peut déjà déclencher plusieurs
+// appels internes chaînés (clarification, plan, recherche, rédaction, relances de chapitre
+// pour un document long) : 60/min laisse une large marge même pour un document long à
+// plusieurs chapitres généré en rafale. Ajustable ici si besoin (cf. rapport SEC-HOTFIX-01).
+var ADOC_RATE_LIMIT_MAX = 60;
+var ADOC_RATE_LIMIT_WINDOW_S = 60;
+async function adocCheckRateLimit(env2, ip) {
+  // Jamais bloquant si KV indisponible ou IP non identifiable — un problème d'infrastructure
+  // ne doit jamais se traduire par un blocage total de l'outil.
+  if (!env2.CLONE_KV || !ip) return true;
+  const bucket = Math.floor(Date.now() / (ADOC_RATE_LIMIT_WINDOW_S * 1e3));
+  const key = `ratelimit:${ip}:${bucket}`;
+  let current = 0;
+  try {
+    current = parseInt(await env2.CLONE_KV.get(key) || "0", 10) || 0;
+  } catch { return true; }
+  if (current >= ADOC_RATE_LIMIT_MAX) return false;
+  try {
+    await env2.CLONE_KV.put(key, String(current + 1), { expirationTtl: ADOC_RATE_LIMIT_WINDOW_S * 2 });
+  } catch {}
+  return true;
+}
 var C_CONCEPT_COLORS = {
   deep:       "3A5658",  // Vert profond — titres, en-têtes
   mer:        "8FAFB1",  // Mer (bleu-vert doux) — accents, bordures
@@ -55279,11 +55321,20 @@ var Worker_default = {
       return new Response(null, { headers: CORS });
     const url = new URL(request2.url);
     const p = url.pathname;
-    const _protected = ['/rag-query','/rag-search','/generate-presentation','/llm-proxy','/rag-stats','/voices','/models','/speak'];
-    if (_protected.some(r => p.startsWith(r))) {
+    // SEC-HOTFIX-01 — protégé par défaut (liste d'exceptions publiques ci-dessus), plutôt
+    // que l'ancienne liste blanche de routes protégées : une route ajoutée plus tard au
+    // routeur ci-dessous est désormais protégée automatiquement, jamais ouverte par oubli.
+    if (!adocIsPublicRoute(p)) {
       const k = request2.headers.get('X-API-Key') || request2.headers.get('x-api-key');
-      if (env2.WORKER_API_KEY && k !== env2.WORKER_API_KEY)
-        return new Response(JSON.stringify({error:'Unauthorized'}), {status:401, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      // Fail closed : une clé serveur non configurée bloque désormais l'accès (401) au lieu
+      // de désactiver silencieusement la vérification — cf. rapport SEC-HOTFIX-01, WORKER_API_KEY
+      // doit être définie via `wrangler secret put` AVANT le déploiement de ce changement.
+      if (!env2.WORKER_API_KEY || k !== env2.WORKER_API_KEY)
+        return new Response(JSON.stringify({error:'Unauthorized'}), {status:401, headers:{...CORS,'Content-Type':'application/json'}});
+      const ip = request2.headers.get('CF-Connecting-IP') || 'unknown';
+      const withinLimit = await adocCheckRateLimit(env2, ip);
+      if (!withinLimit)
+        return new Response(JSON.stringify({error:'Too many requests — réessayez dans une minute.'}), {status:429, headers:{...CORS,'Content-Type':'application/json'}});
     }
     if (p === "/search-library" && request2.method === "POST")
       return handleLibrarySearch(request2, env2);
@@ -55345,11 +55396,226 @@ var Worker_default = {
       return handleModelsList(env2);
     if (p === "/speak" && request2.method === "POST")
       return handleSpeak(request2, env2);
+    // UX-8B Lot 1 — Brand Kits (infrastructure seule ; aucun écran ne les appelle encore).
+    // Protégées par le même mécanisme deny-by-default que le reste (cf. adocIsPublicRoute
+    // ci-dessus) — non ajoutées à ADOC_PUBLIC_ROUTES, donc X-API-Key + débit s'appliquent déjà.
+    if (p === "/brand-kits" && request2.method === "GET")
+      return handleBrandKitsList(env2);
+    if (p === "/brand-kits" && request2.method === "POST")
+      return handleBrandKitCreate(request2, env2);
+    const brandKitStatusMatch = p.match(/^\/brand-kits\/([^\/]+)\/status$/);
+    if (brandKitStatusMatch && request2.method === "PATCH")
+      return handleBrandKitStatusUpdate(request2, env2, brandKitStatusMatch[1]);
+    const brandKitIdMatch = p.match(/^\/brand-kits\/([^\/]+)$/);
+    if (brandKitIdMatch && request2.method === "GET")
+      return handleBrandKitGet(env2, brandKitIdMatch[1]);
+    if (p === "/brand-assets/upload" && request2.method === "POST")
+      return handleBrandAssetUpload(request2, env2);
     if (request2.method === "POST")
       return handleAnthropicProxy(request2, env2);
     return jsonErr("Not found", 404);
   }
 };
+
+// ═══ UX-8B Lot 1 — Brand Kits : infrastructure de stockage uniquement ═══
+// Aucun parcours d'import, aucune extraction — la fondation (R2 + D1) qui rend le reste
+// possible. Voir migrations/0001_add_brand_kit_tables.sql pour le schéma exact.
+var BRAND_ASSET_ROLES = ["logo", "font", "image"];
+var BRAND_SOURCE_TYPES = ["pptx", "pdf", "image", "font"];
+var BRAND_COLOR_KEYS = ["primary", "accent", "background", "text", "success", "warning", "critical"];
+
+function adocBrandKitRowToJSON(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    version: row.version,
+    colors: row.colors_json ? JSON.parse(row.colors_json) : null,
+    typography: row.typography_json ? JSON.parse(row.typography_json) : null,
+    density: row.density,
+    iconStyle: row.icon_style,
+    photoDirection: row.photo_direction,
+    toneRules: row.tone_rules,
+    visualProhibitions: row.visual_prohibitions,
+    status: row.status,
+    sourceAssetId: row.source_asset_id,
+    sourceChecksum: row.source_checksum,
+    sourceType: row.source_type,
+    importedAt: row.imported_at,
+    provenance: row.provenance_json ? JSON.parse(row.provenance_json) : null,
+    createdAt: row.created_at
+  };
+}
+__name(adocBrandKitRowToJSON, "adocBrandKitRowToJSON");
+
+function adocValidateBrandKitColors(colors) {
+  if (!colors || typeof colors !== "object" || Array.isArray(colors)) return "colors must be an object";
+  for (const k of BRAND_COLOR_KEYS) {
+    if (typeof colors[k] !== "string" || !colors[k]) return `colors.${k} is required and must be a non-empty string`;
+  }
+  return null;
+}
+__name(adocValidateBrandKitColors, "adocValidateBrandKitColors");
+
+function adocValidateBrandKitTypography(typography) {
+  if (!typography || typeof typography !== "object" || Array.isArray(typography)) return "typography must be an object";
+  if (typeof typography.headingFont !== "string" || !typography.headingFont) return "typography.headingFont is required";
+  if (typeof typography.bodyFont !== "string" || !typography.bodyFont) return "typography.bodyFont is required";
+  return null;
+}
+__name(adocValidateBrandKitTypography, "adocValidateBrandKitTypography");
+
+async function handleBrandKitsList(env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const { results } = await env2.DB.prepare(
+      "SELECT * FROM brand_kits WHERE status = 'active' ORDER BY created_at ASC"
+    ).all();
+    return json({ brand_kits: (results || []).map(adocBrandKitRowToJSON) });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleBrandKitsList, "handleBrandKitsList");
+
+async function handleBrandKitGet(env2, id) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!id) return jsonErr("Missing id", 400);
+  try {
+    const row = await env2.DB.prepare("SELECT * FROM brand_kits WHERE id = ?").bind(id).first();
+    if (!row) return jsonErr("Brand kit not found", 404);
+    return json(adocBrandKitRowToJSON(row));
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleBrandKitGet, "handleBrandKitGet");
+
+async function handleBrandKitCreate(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const {
+    name, colors, typography, density, icon_style, photo_direction, tone_rules,
+    visual_prohibitions, source_asset_id, source_checksum, source_type, provenance
+  } = body || {};
+  if (!name || typeof name !== "string") return jsonErr("Missing name", 400);
+  const colorsErr = adocValidateBrandKitColors(colors);
+  if (colorsErr) return jsonErr(colorsErr, 400);
+  const typoErr = adocValidateBrandKitTypography(typography);
+  if (typoErr) return jsonErr(typoErr, 400);
+  if (source_type && !BRAND_SOURCE_TYPES.includes(source_type))
+    return jsonErr("source_type must be one of: " + BRAND_SOURCE_TYPES.join(", "), 400);
+  if (source_asset_id) {
+    // Une charte importée doit référencer un actif réellement stocké — jamais une supposition.
+    try {
+      const asset = await env2.DB.prepare("SELECT asset_id FROM render_assets WHERE asset_id = ?").bind(source_asset_id).first();
+      if (!asset) return jsonErr("source_asset_id does not reference an existing render_assets row", 400);
+    } catch (err2) {
+      return jsonErr(err2.message, 500);
+    }
+  }
+  const id = crypto.randomUUID();
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    await env2.DB.prepare(
+      `INSERT INTO brand_kits
+        (id, name, version, colors_json, typography_json, density, icon_style, photo_direction,
+         tone_rules, visual_prohibitions, status, source_asset_id, source_checksum, source_type,
+         imported_at, provenance_json, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(
+      id, name, 1, JSON.stringify(colors), JSON.stringify(typography),
+      density || null, icon_style || null, photo_direction || null,
+      tone_rules || null, visual_prohibitions || null, "active",
+      source_asset_id || null, source_checksum || null, source_type || null,
+      source_asset_id ? now : null, provenance ? JSON.stringify(provenance) : null, now
+    ).run();
+    return json({ id, name, status: "active", created_at: now }, 201);
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleBrandKitCreate, "handleBrandKitCreate");
+
+async function handleBrandKitStatusUpdate(request2, env2, id) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!id) return jsonErr("Missing id", 400);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { status } = body || {};
+  // Pas de suppression définitive dans ce lot (viendra avec le lot de gestion complète) —
+  // seuls archiver/désarchiver sont autorisés ici, conformément à la demande.
+  if (status !== "active" && status !== "archived")
+    return jsonErr("status must be 'active' or 'archived' in this lot", 400);
+  try {
+    const existing = await env2.DB.prepare("SELECT id FROM brand_kits WHERE id = ?").bind(id).first();
+    if (!existing) return jsonErr("Brand kit not found", 404);
+    await env2.DB.prepare("UPDATE brand_kits SET status = ? WHERE id = ?").bind(status, id).run();
+    return json({ id, status });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleBrandKitStatusUpdate, "handleBrandKitStatusUpdate");
+
+async function handleBrandAssetUpload(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  let arrayBuffer, role, mimeType;
+  const contentType = request2.headers.get("Content-Type") || "";
+  try {
+    if (contentType.includes("application/json")) {
+      // Compat : contenu encodé en base64 dans un JSON, même style que /store-file.
+      const body = await request2.json();
+      if (!body.content) return jsonErr("Missing content", 400);
+      const binStr = atob(body.content);
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+      arrayBuffer = bytes.buffer;
+      role = body.role;
+      mimeType = body.mime_type || "application/octet-stream";
+    } else {
+      arrayBuffer = await request2.arrayBuffer();
+      const url = new URL(request2.url);
+      role = url.searchParams.get("role");
+      mimeType = contentType || "application/octet-stream";
+    }
+  } catch {
+    return jsonErr("Invalid request body", 400);
+  }
+  if (!arrayBuffer || !arrayBuffer.byteLength) return jsonErr("Empty file", 400);
+  if (!role || !BRAND_ASSET_ROLES.includes(role))
+    return jsonErr("role must be one of: " + BRAND_ASSET_ROLES.join(", "), 400);
+
+  const digest = await crypto.subtle.digest("SHA-256", arrayBuffer);
+  const assetId = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  try {
+    // Déduplication par empreinte : contenu déjà connu → ni ré-upload R2, ni doublon D1,
+    // l'asset_id renvoyé est le même quel que soit l'appelant ou le nombre d'uploads.
+    const existing = await env2.DB.prepare("SELECT asset_id, size_bytes FROM render_assets WHERE asset_id = ?").bind(assetId).first();
+    if (!existing) {
+      await env2.BRAND_ASSETS.put(assetId, arrayBuffer, { httpMetadata: { contentType: mimeType } });
+      await env2.DB.prepare(
+        `INSERT OR IGNORE INTO render_assets (asset_id, checksum, role, r2_key, mime_type, size_bytes, ref_count, created_at)
+         VALUES (?,?,?,?,?,?,0,?)`
+      ).bind(assetId, assetId, role, assetId, mimeType, arrayBuffer.byteLength, (/* @__PURE__ */ new Date()).toISOString()).run();
+    }
+    return json({ asset_id: assetId, deduplicated: !!existing, size_bytes: existing ? existing.size_bytes : arrayBuffer.byteLength });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleBrandAssetUpload, "handleBrandAssetUpload");
+
 async function handleAnthropicProxy(request2, env2) {
   let body;
   try {
@@ -55775,7 +56041,7 @@ async function handleGetFile(url, env2) {
     headers: {
       "Content-Type": meta.mime,
       "Content-Disposition": `${dl ? "attachment" : "inline"}; filename="${encodeURIComponent(meta.filename)}"`,
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": ADOC_ALLOWED_ORIGIN,
       "Cache-Control": "no-store"
     }
   });
