@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 5cf5eacb7af9b67f1658a2517d9a1139e011e1c9b4c2261a257f967ae0572b8d
+ * source-sha256: 56ec643049af6d3c05c1b1b834feb5af1618de2520705339d84b7c2d5c08de27
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -4792,10 +4792,23 @@ Répondez uniquement avec l'objet JSON demandé, conforme exactement au schéma 
 // source de vérité du schéma des 6 champs globaux.
 const CRITIC_GLOBAL_JSON_SCHEMA = CRITIC_JSON_SCHEMA;
 
-function makeCriticGlobalUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [] } = {}) {
+/* OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01 — LE CHAMP QUE CE CHEMIN N'AVAIT JAMAIS PORTÉ.
+ *
+ * `/operational-request` route TOUJOURS le rôle Critique vers le pipeline batché, donc vers ce
+ * constructeur — jamais vers makeCriticUserMessage, qui émettait material_context depuis
+ * OPRIE-MATERIAL-CONTEXT-02 et que la production n'emprunte pas. Le Critique de production voyait
+ * donc une provenance user_provided_material sans aucun moyen de savoir qu'un matériau avait été
+ * transmis, et la règle d'ancrage posée par OPRIE-MATERIAL-PROVENANCE-02 — qui conditionne
+ * l'acceptation à deep_content_available === true — ne pouvait jamais s'appliquer.
+ *
+ * DEUX BOOLÉENS, PAS UN OCTET DE PLUS. material_context ne porte que la disponibilité ; le contenu
+ * lui-même n'entre pas ici et n'y entrera pas. Le Critique gagne de quoi juger la COHÉRENCE d'une
+ * provenance, jamais de quoi relire le matériau. */
+function makeCriticGlobalUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context } = {}) {
   return JSON.stringify({
     original_request: text(original_request),
     clarification_history: list(clarification_history),
+    material_context: normalizeMaterialContext(material_context),
     analyst_output,
     previous_vetoes: list(previous_vetoes)
   });
@@ -5512,12 +5525,15 @@ function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_drift_d
  * agreement ni illegitimate_question_found : c'est à la couche qui possède l'autorité OPRIE de
  * décider degraded_state, jamais à ce code.
  */
-async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
+async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context, capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
   const questionReviewTargets = buildQuestionReviewTargets(analyst_output);
   const batchPlan = computeBatchPlan(questionReviewTargets, capability);
   const familyGroups = list(candidateFamilyGroups).length > 0 ? candidateFamilyGroups : [LADDER_ALTERNATIVE_VALUES];
 
-  const globalRaw = await executeGlobal({ original_request, clarification_history, analyst_output, previous_vetoes });
+  /* material_context ne va QU'à l'étape globale : c'est elle qui porte la règle d'ancrage. La
+     review de substitution juge la substituabilité des questions, jamais la provenance — lui
+     ajouter ce champ élargirait son contrat sans qu'aucune règle ne l'emploie. */
+  const globalRaw = await executeGlobal({ original_request, clarification_history, analyst_output, previous_vetoes, material_context });
   const globalOutput = filterEmptyCandidateUnsupportedAdditions(
     typeof globalRaw === "string" ? parseJsonMaybeFenced(globalRaw) : globalRaw,
     analyst_output
@@ -6107,6 +6123,16 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog 
 
   for (const role of OPERATIONAL_REQUEST_ROLE_SEQUENCE) {
     log({ event: "operational_request_role_start", role, sequence: OPERATIONAL_REQUEST_ROLE_SEQUENCE });
+    /* OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01 — la preuve, tour par tour, que le Critique reçoit
+       la disponibilité. Deux booléens, jamais un octet de matériau. Elle existe parce qu'un test
+       vert sur un chemin mort avait laissé croire pendant deux lots que ce champ arrivait. */
+    if (role === "critic") {
+      log({
+        event: "critic_global_material_context_observation",
+        critic_global_material_context_present: material_context ? material_context.present : null,
+        critic_global_deep_content_available: material_context ? material_context.deep_content_available : null
+      });
+    }
     let raw;
     try {
       raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context, material_content));
@@ -9528,5 +9554,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'5cf5eacb7af9b67f1658a2517d9a1139e011e1c9b4c2261a257f967ae0572b8d'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'56ec643049af6d3c05c1b1b834feb5af1618de2520705339d84b7c2d5c08de27'});
 })(window);

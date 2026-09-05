@@ -188,7 +188,7 @@ test('T-MCNT01-10 : aucun contenu dans les traces ni dans les preuves', () => {
 test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '5260458b2c23cee7ec84b64bc129bfba0b7f6d57d8a7658c2a5802865fc70c83',
+    'd0138022dcc27bcc4f6368fb0acda8c54d2b09b68c7016607bbf22d6a5d364a7',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

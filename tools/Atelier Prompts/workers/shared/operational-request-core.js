@@ -1120,10 +1120,23 @@ Répondez uniquement avec l'objet JSON demandé, conforme exactement au schéma 
 // source de vérité du schéma des 6 champs globaux.
 export const CRITIC_GLOBAL_JSON_SCHEMA = CRITIC_JSON_SCHEMA;
 
-export function makeCriticGlobalUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [] } = {}) {
+/* OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01 — LE CHAMP QUE CE CHEMIN N'AVAIT JAMAIS PORTÉ.
+ *
+ * `/operational-request` route TOUJOURS le rôle Critique vers le pipeline batché, donc vers ce
+ * constructeur — jamais vers makeCriticUserMessage, qui émettait material_context depuis
+ * OPRIE-MATERIAL-CONTEXT-02 et que la production n'emprunte pas. Le Critique de production voyait
+ * donc une provenance user_provided_material sans aucun moyen de savoir qu'un matériau avait été
+ * transmis, et la règle d'ancrage posée par OPRIE-MATERIAL-PROVENANCE-02 — qui conditionne
+ * l'acceptation à deep_content_available === true — ne pouvait jamais s'appliquer.
+ *
+ * DEUX BOOLÉENS, PAS UN OCTET DE PLUS. material_context ne porte que la disponibilité ; le contenu
+ * lui-même n'entre pas ici et n'y entrera pas. Le Critique gagne de quoi juger la COHÉRENCE d'une
+ * provenance, jamais de quoi relire le matériau. */
+export function makeCriticGlobalUserMessage({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context } = {}) {
   return JSON.stringify({
     original_request: text(original_request),
     clarification_history: list(clarification_history),
+    material_context: normalizeMaterialContext(material_context),
     analyst_output,
     previous_vetoes: list(previous_vetoes)
   });
@@ -1840,12 +1853,15 @@ export function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_
  * agreement ni illegitimate_question_found : c'est à la couche qui possède l'autorité OPRIE de
  * décider degraded_state, jamais à ce code.
  */
-export async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
+export async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context, capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
   const questionReviewTargets = buildQuestionReviewTargets(analyst_output);
   const batchPlan = computeBatchPlan(questionReviewTargets, capability);
   const familyGroups = list(candidateFamilyGroups).length > 0 ? candidateFamilyGroups : [LADDER_ALTERNATIVE_VALUES];
 
-  const globalRaw = await executeGlobal({ original_request, clarification_history, analyst_output, previous_vetoes });
+  /* material_context ne va QU'à l'étape globale : c'est elle qui porte la règle d'ancrage. La
+     review de substitution juge la substituabilité des questions, jamais la provenance — lui
+     ajouter ce champ élargirait son contrat sans qu'aucune règle ne l'emploie. */
+  const globalRaw = await executeGlobal({ original_request, clarification_history, analyst_output, previous_vetoes, material_context });
   const globalOutput = filterEmptyCandidateUnsupportedAdditions(
     typeof globalRaw === "string" ? parseJsonMaybeFenced(globalRaw) : globalRaw,
     analyst_output

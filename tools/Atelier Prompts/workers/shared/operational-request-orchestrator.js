@@ -158,6 +158,16 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
 
   for (const role of OPERATIONAL_REQUEST_ROLE_SEQUENCE) {
     log({ event: "operational_request_role_start", role, sequence: OPERATIONAL_REQUEST_ROLE_SEQUENCE });
+    /* OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01 — la preuve, tour par tour, que le Critique reçoit
+       la disponibilité. Deux booléens, jamais un octet de matériau. Elle existe parce qu'un test
+       vert sur un chemin mort avait laissé croire pendant deux lots que ce champ arrivait. */
+    if (role === "critic") {
+      log({
+        event: "critic_global_material_context_observation",
+        critic_global_material_context_present: material_context ? material_context.present : null,
+        critic_global_deep_content_available: material_context ? material_context.deep_content_available : null
+      });
+    }
     let raw;
     try {
       raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context, material_content));
