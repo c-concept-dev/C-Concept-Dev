@@ -2386,6 +2386,28 @@
           if (window.adocHandleUpload) window.adocHandleUpload(event.dataTransfer.files);
         });
       }
+
+      // UX-8B Lot 3, correctif — même mécanisme EXACT que landingUploadZone ci-dessus,
+      // manquant à la création de cette zone (seul le clic avait été câblé). Sans
+      // event.preventDefault() sur dragover ET drop, le comportement par défaut du navigateur
+      // (ouvrir le fichier déposé en plein écran) prend le dessus — ce n'est pas un filet de
+      // sécurité global qui protège la zone de document clinique ci-dessus, seulement ce
+      // gestionnaire précis, donc appliqué ici à l'identique plutôt qu'un nouveau mécanisme.
+      const brandKitImportZone = document.querySelector('#cc-brandkit-import-zone');
+      if (brandKitImportZone) {
+        brandKitImportZone.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          brandKitImportZone.style.borderColor = 'var(--petrol-800)';
+        });
+        brandKitImportZone.addEventListener('dragleave', () => {
+          brandKitImportZone.style.borderColor = '';
+        });
+        brandKitImportZone.addEventListener('drop', (event) => {
+          event.preventDefault();
+          brandKitImportZone.style.borderColor = '';
+          if (window.adocHandleBrandKitImport) window.adocHandleBrandKitImport(event.dataTransfer.files);
+        });
+      }
     })();
 
 </script>
