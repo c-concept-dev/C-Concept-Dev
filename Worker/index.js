@@ -55253,7 +55253,14 @@ __name(zipSync, "zipSync");
 var ADOC_ALLOWED_ORIGIN = "https://c-concept-dev.github.io";
 var CORS = {
   "Access-Control-Allow-Origin": ADOC_ALLOWED_ORIGIN,
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  // UX-10A Étape 2 — PATCH et DELETE ajoutés : la nouvelle route DELETE /clinical-documents/:id
+  // de ce lot en a besoin, et j'ai découvert au passage que PATCH /brand-kits/:id/status
+  // (UX-8B Lot 1, "Retirer" une charte) en manquait déjà — sans ça, le préflight CORS du
+  // navigateur réel aurait bloqué les DEUX depuis le domaine autorisé, alors que nos tests
+  // (worker.fetch direct, sans préflight) ne l'auraient jamais révélé. Aucune régression : la
+  // sécurité réelle reste X-API-Key + origine fixe ci-dessus, jamais la liste de méthodes CORS
+  // elle-même, qu'un client non-navigateur ignore de toute façon.
+  "Access-Control-Allow-Methods": "POST, GET, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization"
 };
 // SEC-HOTFIX-01 — routes publiques par exception explicite ; tout le reste exige X-API-Key.
@@ -55413,6 +55420,23 @@ var Worker_default = {
     // pas destinés à être publics, contrairement à /library-stats.
     if (p === "/storage-stats" && request2.method === "GET")
       return handleStorageStats(env2);
+    // UX-10A Étape 2 — persistance de ClinicalDocument + versions. Motifs les plus spécifiques
+    // vérifiés en premier (versions/:versionId avant versions, avant le générique /:id).
+    if (p === "/clinical-documents" && request2.method === "POST")
+      return handleClinicalDocumentCreate(request2, env2);
+    const clinicalDocVersionGetMatch = p.match(/^\/clinical-documents\/([^\/]+)\/versions\/([^\/]+)$/);
+    if (clinicalDocVersionGetMatch && request2.method === "GET")
+      return handleClinicalDocumentVersionGet(env2, clinicalDocVersionGetMatch[1], clinicalDocVersionGetMatch[2]);
+    const clinicalDocVersionsMatch = p.match(/^\/clinical-documents\/([^\/]+)\/versions$/);
+    if (clinicalDocVersionsMatch && request2.method === "POST")
+      return handleClinicalDocumentVersionCreate(request2, env2, clinicalDocVersionsMatch[1]);
+    if (clinicalDocVersionsMatch && request2.method === "GET")
+      return handleClinicalDocumentVersionsList(env2, clinicalDocVersionsMatch[1]);
+    const clinicalDocIdMatch = p.match(/^\/clinical-documents\/([^\/]+)$/);
+    if (clinicalDocIdMatch && request2.method === "GET")
+      return handleClinicalDocumentGet(env2, clinicalDocIdMatch[1]);
+    if (clinicalDocIdMatch && request2.method === "DELETE")
+      return handleClinicalDocumentDelete(env2, clinicalDocIdMatch[1]);
     const brandKitStatusMatch = p.match(/^\/brand-kits\/([^\/]+)\/status$/);
     if (brandKitStatusMatch && request2.method === "PATCH")
       return handleBrandKitStatusUpdate(request2, env2, brandKitStatusMatch[1]);
@@ -55770,6 +55794,191 @@ async function handleStorageStats(env2) {
   return json({ d1, r2 });
 }
 __name(handleStorageStats, "handleStorageStats");
+
+// ═══ UX-10A Étape 2 — persistance réelle d'un ClinicalDocument + historique de versions ═══
+// Avant ce lot, un document généré ne vivait que dans le navigateur (confirmé par
+// l'investigation de l'Étape 1) — CRUD minimal ici, sauvegarde EXPLICITE côté client (bouton
+// "Enregistrer", jamais automatique à chaque génération — voir rapport de lot pour la décision).
+// Suppression manuelle uniquement (DELETE ci-dessous) — jamais de purge automatique par durée,
+// politique déjà tranchée avec Christophe, non rouverte ici. Chaque version est immuable une
+// fois créée : aucune route de ce lot ne fait d'UPDATE sur une ligne existante de
+// clinical_document_versions, seulement des INSERT + un pointeur current_version_id déplacé.
+var CLINICAL_DOCUMENT_KINDS = ["fiche", "carrousel", "tableau", "script", "liens"];
+
+// Point d'ancrage pour la migration de schéma future (§4 de la demande) — aujourd'hui un simple
+// JSON.parse, schemaVersion=1 partout dans ce lot, rien à migrer. Le jour où le schemaVersion de
+// ClinicalDocument (UX-8A) augmentera, l'aiguillage doit se brancher ICI, au moment de la
+// LECTURE d'une version précise — jamais en réécrivant silencieusement une version historique
+// immuable déjà stockée. Exemple attendu :
+//   const CURRENT_CLINICAL_DOCUMENT_SCHEMA_VERSION = 2;
+//   if (row.schema_version < CURRENT_CLINICAL_DOCUMENT_SCHEMA_VERSION) {
+//     return adocMigrateClinicalDocumentSchema(parsed, row.schema_version); // à écrire alors
+//   }
+function adocParseClinicalDocumentContent(row) {
+  return JSON.parse(row.content_json);
+}
+__name(adocParseClinicalDocumentContent, "adocParseClinicalDocumentContent");
+
+async function handleClinicalDocumentCreate(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { document, title, documentKind } = body || {};
+  if (!document || typeof document !== "object") return jsonErr("Missing document", 400);
+  if (!title || typeof title !== "string") return jsonErr("Missing title", 400);
+  if (!documentKind || !CLINICAL_DOCUMENT_KINDS.includes(documentKind))
+    return jsonErr("documentKind must be one of: " + CLINICAL_DOCUMENT_KINDS.join(", "), 400);
+  const schemaVersion = typeof document.schemaVersion === "number" ? document.schemaVersion : 1;
+
+  const documentId = crypto.randomUUID();
+  const versionId = crypto.randomUUID();
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    // Écriture atomique (document + version initiale + pointeur current_version_id) via
+    // .batch() — jamais une moitié de document sans version, ou l'inverse, en cas d'échec.
+    await env2.DB.batch([
+      env2.DB.prepare("INSERT INTO clinical_documents (document_id, current_version_id, title, document_kind, created_at) VALUES (?, NULL, ?, ?, ?)")
+        .bind(documentId, title, documentKind, now),
+      env2.DB.prepare("INSERT INTO clinical_document_versions (version_id, document_id, previous_version_id, schema_version, content_json, created_at, change_summary) VALUES (?, ?, NULL, ?, ?, ?, NULL)")
+        .bind(versionId, documentId, schemaVersion, JSON.stringify(document), now),
+      env2.DB.prepare("UPDATE clinical_documents SET current_version_id = ? WHERE document_id = ?")
+        .bind(versionId, documentId)
+    ]);
+    return json({ document_id: documentId, version_id: versionId, created_at: now }, 201);
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentCreate, "handleClinicalDocumentCreate");
+
+async function handleClinicalDocumentVersionCreate(request2, env2, documentId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { document, change_summary } = body || {};
+  if (!document || typeof document !== "object") return jsonErr("Missing document", 400);
+
+  let existing;
+  try {
+    existing = await env2.DB.prepare("SELECT document_id, current_version_id FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+  if (!existing) return jsonErr("Clinical document not found", 404);
+
+  const schemaVersion = typeof document.schemaVersion === "number" ? document.schemaVersion : 1;
+  const versionId = crypto.randomUUID();
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    await env2.DB.batch([
+      env2.DB.prepare("INSERT INTO clinical_document_versions (version_id, document_id, previous_version_id, schema_version, content_json, created_at, change_summary) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(versionId, documentId, existing.current_version_id, schemaVersion, JSON.stringify(document), now, change_summary || null),
+      env2.DB.prepare("UPDATE clinical_documents SET current_version_id = ? WHERE document_id = ?")
+        .bind(versionId, documentId)
+    ]);
+    return json({ document_id: documentId, version_id: versionId, previous_version_id: existing.current_version_id, created_at: now }, 201);
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentVersionCreate, "handleClinicalDocumentVersionCreate");
+
+async function handleClinicalDocumentGet(env2, documentId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const doc = await env2.DB.prepare("SELECT * FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+    if (!doc) return jsonErr("Clinical document not found", 404);
+    let version = null;
+    if (doc.current_version_id) {
+      const row = await env2.DB.prepare("SELECT * FROM clinical_document_versions WHERE version_id = ?").bind(doc.current_version_id).first();
+      if (row) {
+        version = {
+          version_id: row.version_id,
+          previous_version_id: row.previous_version_id,
+          schema_version: row.schema_version,
+          created_at: row.created_at,
+          change_summary: row.change_summary,
+          document: adocParseClinicalDocumentContent(row)
+        };
+      }
+    }
+    return json({
+      document_id: doc.document_id,
+      title: doc.title,
+      document_kind: doc.document_kind,
+      created_at: doc.created_at,
+      current_version_id: doc.current_version_id,
+      version
+    });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentGet, "handleClinicalDocumentGet");
+
+async function handleClinicalDocumentVersionsList(env2, documentId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const doc = await env2.DB.prepare("SELECT document_id FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+    if (!doc) return jsonErr("Clinical document not found", 404);
+    const { results } = await env2.DB.prepare(
+      "SELECT version_id, previous_version_id, schema_version, created_at, change_summary FROM clinical_document_versions WHERE document_id = ? ORDER BY created_at DESC"
+    ).bind(documentId).all();
+    return json({ document_id: documentId, versions: results || [] });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentVersionsList, "handleClinicalDocumentVersionsList");
+
+async function handleClinicalDocumentVersionGet(env2, documentId, versionId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const row = await env2.DB.prepare("SELECT * FROM clinical_document_versions WHERE version_id = ? AND document_id = ?").bind(versionId, documentId).first();
+    if (!row) return jsonErr("Version not found", 404);
+    return json({
+      version_id: row.version_id,
+      document_id: row.document_id,
+      previous_version_id: row.previous_version_id,
+      schema_version: row.schema_version,
+      created_at: row.created_at,
+      change_summary: row.change_summary,
+      document: adocParseClinicalDocumentContent(row)
+    });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentVersionGet, "handleClinicalDocumentVersionGet");
+
+async function handleClinicalDocumentDelete(env2, documentId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const doc = await env2.DB.prepare("SELECT document_id FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+    if (!doc) return jsonErr("Clinical document not found", 404);
+    // Suppression manuelle explicite uniquement — cette route n'est jamais appelée par autre
+    // chose qu'un clic direct de l'utilisatrice côté client (voir écran de confirmation qui
+    // propose l'export avant ce point). Retire le pointeur current_version_id avant de
+    // supprimer les versions puis le document, pour ne jamais laisser une référence pendante.
+    await env2.DB.batch([
+      env2.DB.prepare("UPDATE clinical_documents SET current_version_id = NULL WHERE document_id = ?").bind(documentId),
+      env2.DB.prepare("DELETE FROM clinical_document_versions WHERE document_id = ?").bind(documentId),
+      env2.DB.prepare("DELETE FROM clinical_documents WHERE document_id = ?").bind(documentId)
+    ]);
+    return json({ document_id: documentId, deleted: true });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentDelete, "handleClinicalDocumentDelete");
 
 async function handleBrandAssetUpload(request2, env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
