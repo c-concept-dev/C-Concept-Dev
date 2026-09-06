@@ -35,49 +35,45 @@ test('T-EDS01-01 : expected_deliverable est enfin défini', () => {
   assert.match(CANDIDATE_FIELD_DEFINITIONS.expected_deliverable,
     /Jamais le contenu final, jamais une valeur qui constituerait à elle seule le résultat demandé/);
   assert.match(CANDIDATE_FIELD_DEFINITIONS.objective, /formulé comme une intention\. Jamais le résultat lui-même/);
-  /* Deux champs définis, pas dix : ce lot ne rouvre pas les huit autres. */
-  assert.deepEqual(Object.keys(CANDIDATE_FIELD_DEFINITIONS).sort(), ['expected_deliverable', 'objective']);
+  /* Trois champs définis désormais : les deux tranchés ici, plus available_inputs ajouté par
+     OPRIE-INPUT-AVAILABILITY-FIELD-01. Les huit autres restent définis par leurs usages. */
+  assert.deepEqual(Object.keys(CANDIDATE_FIELD_DEFINITIONS).sort(), ['available_inputs', 'expected_deliverable', 'objective']);
 });
 
 /* T-EDS01-02 — LE CONTRAT DE STRUCTURE N'A PAS BOUGÉ. */
-test('T-EDS01-02 : aucun champ ajouté, retiré ni renommé', () => {
+test('T-EDS01-02 : les champs scalaires sont intacts, le schéma suit le contrat', () => {
   assert.deepEqual([...CANDIDATE_SCALAR_FIELDS], ['objective', 'expected_deliverable']);
-  assert.equal(CANDIDATE_FIELDS.length, 10);
+  assert.equal(CANDIDATE_FIELDS.length, 11);
   assert.deepEqual(Object.keys(ANALYST_JSON_SCHEMA.properties.operational_request_candidate.properties), [...CANDIDATE_FIELDS]);
   /* Le type reste une chaîne : définir n'est pas contraindre la forme technique. */
   assert.deepEqual(ANALYST_JSON_SCHEMA.properties.operational_request_candidate.properties.expected_deliverable, { type: 'string' });
 });
 
-/* T-EDS01-03 — LE CORRECTIF DE PROMPT A ÉTÉ MESURÉ, PUIS RETIRÉ.
+/* T-EDS01-03 — LA RÈGLE DE PHASE EST REVENUE, AVEC SA DESTINATION.
  *
- * La définition (T-EDS01-01) est établie par l'usage unanime des fixtures, et elle reste. Le
- * correctif qu'on en a tiré — dire à l'Analyste que le fait « n'a sa place dans aucun champ » —
- * a été déployé et mesuré sur trente tours : il supprime bien les quatre vetos de phase, mais en
- * supprimant la valeur elle-même. L'Analyste a cessé d'émettre user_provided_material (16/30 → 0),
- * plus rien n'enregistrait que le matériau avait été lu, et blocked est passé de 10 à 23.
- *
- * LA CAUSE EST UN TROU DE CONTRAT, PAS UNE PHRASE MAL ÉCRITE. Aucun champ du candidat ne permet
- * de consigner « l'intrant requis existe et il est disponible » : remaining_unknowns porte les
- * inconnues, assumptions_allowed les hypothèses, confirmed_constraints les exigences. Le prompt
- * est donc revenu à son état antérieur, et le manque est documenté plutôt que contourné. */
-test('T-EDS01-03 : le prompt de l’Analyste est revenu à son état mesuré', () => {
-  assert.equal(ANALYST_SYSTEM_PROMPT.includes("Le candidat PRÉPARE la demande, il ne l'exécute pas"), false);
-  assert.equal(ANALYST_SYSTEM_PROMPT.includes("il n'a sa place dans aucun champ"), false);
-  /* MISSION 1 reste exactement celle des lots précédents. */
-  const mission1 = ANALYST_SYSTEM_PROMPT.split('\n').filter((x) => x.trim())[5];
-  assert.match(mission1, /^1\. Reconstruisez entièrement operational_request_candidate à partir de la totalité des sources reçues à ce tour/);
-  assert.match(mission1, /material_content lorsqu'il vous est fourni — jamais comme un correctif du tour précédent\./);
+ * Ce lot-ci avait dû la retirer : dire à l'Analyste que le fait « n'a sa place dans aucun champ »
+ * effaçait la trace du matériau et faisait passer blocked de 10/30 à 23/30. Le manque était
+ * structurel — aucun champ ne consignait « cet intrant est requis, et il est là ».
+ * OPRIE-INPUT-AVAILABILITY-FIELD-01 a fourni ce champ ; la règle peut donc être réappliquée. */
+test('T-EDS01-03 : la règle de phase est écrite, et elle indique où consigner', () => {
+  assert.match(ANALYST_SYSTEM_PROMPT, /Le candidat PRÉPARE la demande, il ne l'exécute pas/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /expected_deliverable décrit la FORME du résultat attendu/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /jamais le contenu final ni une valeur qui constituerait à elle seule le résultat demandé/);
+  /* Et, cette fois, la consigne a une destination — c'est toute la différence. */
+  assert.match(ANALYST_SYSTEM_PROMPT, /consignez dans available_inputs l'INTRANT dont l'exécution aura besoin/);
+  assert.match(ANALYST_SYSTEM_PROMPT, /DÉCRIT et jamais recopié/);
 });
 
-/* T-EDS01-04 — LE TROU DE CONTRAT, NOMMÉ. */
-test('T-EDS01-04 : aucun champ ne consigne la disponibilité d’un intrant', () => {
-  /* Les dix champs existent ; aucun ne dit « l'intrant requis est disponible ». */
-  assert.deepEqual([...CANDIDATE_FIELDS], ['objective', 'expected_deliverable', 'secondary_objectives',
+/* T-EDS01-04 — LE TROU DE CONTRAT EST COMBLÉ, PAR UN SEUL CHAMP. */
+test('T-EDS01-04 : available_inputs existe et porte la disponibilité', () => {
+  assert.equal(CANDIDATE_FIELDS.length, 11);
+  assert.equal(CANDIDATE_FIELDS[CANDIDATE_FIELDS.length - 1], 'available_inputs');
+  /* Les dix champs historiques sont intacts, dans leur ordre. */
+  assert.deepEqual([...CANDIDATE_FIELDS].slice(0, 10), ['objective', 'expected_deliverable', 'secondary_objectives',
     'confirmed_constraints', 'confirmed_priorities', 'confirmed_preferences', 'delegated_decisions',
     'external_facts_to_research', 'assumptions_allowed', 'remaining_unknowns']);
-  /* Et aucun champ n'a été ajouté pour combler le manque : le §14 l'interdit sans arrêt préalable. */
-  assert.equal(CANDIDATE_FIELDS.length, 10);
-  assert.equal(Object.keys(CANDIDATE_FIELD_DEFINITIONS).length, 2, 'seuls les deux champs tranchés sont définis');
+  assert.match(CANDIDATE_FIELD_DEFINITIONS.available_inputs, /dont la disponibilité est établie à ce tour/);
+  assert.match(CANDIDATE_FIELD_DEFINITIONS.available_inputs, /jamais son contenu, jamais le résultat qu'il permettra de produire/);
 });
 
 /* T-EDS01-05 — LA PROVENANCE MATÉRIAU RESTE ENTIÈREMENT VALIDE. */

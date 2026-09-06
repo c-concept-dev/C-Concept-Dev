@@ -117,7 +117,9 @@ export const CANDIDATE_FIELD_DEFINITIONS = Object.freeze({
   objective:
     "Ce que la demande vise à obtenir, formulé comme une intention. Jamais le résultat lui-même.",
   expected_deliverable:
-    "La forme du résultat attendu et ses caractéristiques structurelles — nature, structure, volume, sections. Jamais le contenu final, jamais une valeur qui constituerait à elle seule le résultat demandé."
+    "La forme du résultat attendu et ses caractéristiques structurelles — nature, structure, volume, sections. Jamais le contenu final, jamais une valeur qui constituerait à elle seule le résultat demandé.",
+  available_inputs:
+    "Intrant que l'Analyste juge nécessaire à l'exécution et dont la disponibilité est établie à ce tour. Décrit l'intrant — ce dont l'exécution aura besoin — jamais son contenu, jamais le résultat qu'il permettra de produire. Disponible ne signifie ni suffisant, ni correct, ni pertinent, et ne rend jamais une demande prête."
 });
 export const CANDIDATE_LIST_FIELDS = Object.freeze([
   "secondary_objectives",
@@ -127,7 +129,21 @@ export const CANDIDATE_LIST_FIELDS = Object.freeze([
   "delegated_decisions",
   "external_facts_to_research",
   "assumptions_allowed",
-  "remaining_unknowns"
+  "remaining_unknowns",
+  /* OPRIE-INPUT-AVAILABILITY-FIELD-01 — LE CANAL QUI MANQUAIT.
+   *
+   * Le candidat savait dire ce qu'il ignore (remaining_unknowns), ce qu'il suppose
+   * (assumptions_allowed), ce qu'il faut aller chercher (external_facts_to_research). Il ne savait
+   * pas dire l'inverse : « cet intrant est nécessaire, et il est là ». Faute de cet emplacement,
+   * l'Analyste enregistrait la disponibilité par EFFET DE BORD, en recopiant la valeur dans
+   * expected_deliverable — ce que le Critique sanctionnait, à raison. Et l'interdire sans fournir
+   * le canal a fait passer blocked de 10/30 à 23/30 : l'information disparaissait au lieu de
+   * changer de place.
+   *
+   * IL DÉCRIT L'INTRANT, IL NE LE RECOPIE PAS. « le numéro de dossier, présent dans le matériau
+   * transmis » — jamais « ZX-4821 ». Disponible ne veut dire ni suffisant, ni correct, ni
+   * pertinent, et ne rend jamais une demande prête. */
+  "available_inputs"
 ]);
 export const CANDIDATE_FIELDS = Object.freeze([...CANDIDATE_SCALAR_FIELDS, ...CANDIDATE_LIST_FIELDS]);
 
@@ -230,7 +246,18 @@ export function createEmptyCandidate() {
  * CDC §5.3) : cette fonction ne vérifie jamais qu'un champ est renseigné, uniquement sa forme.
  */
 export function normalizeCandidate(candidate) {
-  exactKeys(candidate, CANDIDATE_FIELDS, "OperationalRequestCandidate");
+  /* OPRIE-INPUT-AVAILABILITY-FIELD-01 — LE SEUL CHAMP OPTIONNEL DU CANDIDAT, ET IL L'EST EXPRÈS.
+     available_inputs est requis du MODÈLE — le schéma JSON l'exige, pour qu'il s'en serve — mais
+     toléré absent du VALIDATEUR : tout candidat écrit avant ce lot reste valide à l'octet près,
+     et son absence vaut liste vide. Sans cela, ajouter un champ à un schéma dont `required` égale
+     `properties` invaliderait d'un coup chaque candidat historique. exactKeys reste la règle pour
+     les dix autres : on n'ouvre pas le contrat, on nomme l'unique exception. */
+  const complete = candidate && typeof candidate === "object" && !Array.isArray(candidate)
+    && !Object.prototype.hasOwnProperty.call(candidate, "available_inputs")
+      ? { ...candidate, available_inputs: [] }
+      : candidate;
+  exactKeys(complete, CANDIDATE_FIELDS, "OperationalRequestCandidate");
+  candidate = complete;
   const result = {};
   for (const field of CANDIDATE_SCALAR_FIELDS) {
     assert(typeof candidate[field] === "string", `${field} doit être une chaîne.`);

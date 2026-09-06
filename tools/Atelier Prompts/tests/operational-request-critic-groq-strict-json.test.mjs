@@ -183,6 +183,10 @@ test("G1 : le schéma JSON strict Critic reste cohérent avec le validateur (G1 
 test("G1 : createEmptyCandidate (Analyst) reste totalement inchangé par ce lot Critic-only", () => {
   assert.deepEqual(createEmptyCandidate(), {
     objective: "", expected_deliverable: "", secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [],
-    confirmed_preferences: [], delegated_decisions: [], external_facts_to_research: [], assumptions_allowed: [], remaining_unknowns: []
+    confirmed_preferences: [], delegated_decisions: [], external_facts_to_research: [], assumptions_allowed: [], remaining_unknowns: [],
+    /* OPRIE-INPUT-AVAILABILITY-FIELD-01 : onzième champ, ajouté par un lot qui, lui, touche
+       délibérément le candidat. La garde continue de figer la forme exacte — elle en a seulement
+       une de plus à figer. Les dix historiques sont intacts, dans leur ordre. */
+    available_inputs: []
   });
 });

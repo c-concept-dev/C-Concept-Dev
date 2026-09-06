@@ -227,5 +227,5 @@ test('T-PERFREAL01G-14/15/16 : péremption, faux READY et artefact frontend', ()
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '87630e6b8e0dff4253c4759622a3e155b20301cc671944ce1c10140627ea45be', 'CANONICAL_HTML_CHANGED = NO');
+    'b738f0861a4b14613c1d09d6f552c3144c7a80f9149ed6cd165064dff784f063', 'CANONICAL_HTML_CHANGED = NO');
 });
