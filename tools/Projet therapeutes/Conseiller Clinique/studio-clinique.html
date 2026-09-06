@@ -2527,6 +2527,15 @@
           </button>
           <div id="adoc-sync-result" style="font-size:9px;color:var(--muted);margin-top:4px;display:none;line-height:1.5;"></div>
         </div>
+        <!-- UX-10A Étape 1 — jauge d'usage D1/R2, mode développeur uniquement. Chiffres bruts,
+             jamais un jugement de valeur ("c'est trop") — Christophe reste seul décisionnaire. -->
+        <div style="margin-top:8px;" class="adoc-dev-only">
+          <button onclick="adocRunStorageStats()" id="adoc-storage-btn"
+            style="width:100%;padding:4px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
+            <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg> Jauge d'usage D1/R2
+          </button>
+          <div id="adoc-storage-result" style="font-size:9px;color:var(--muted);margin-top:4px;display:none;line-height:1.5;"></div>
+        </div>
       </div>
     </div>
 
@@ -7296,6 +7305,58 @@ ${recent}`;
     } finally {
       btn.disabled    = false;
       btn.innerHTML   = adocIconSvg('icon-search') + ' Vérifier sync D1↔Vector';
+    }
+  };
+
+  // UX-10A Étape 1 — jauge d'usage D1/R2 (lecture seule, mode développeur). Affiche les
+  // chiffres bruts renvoyés par /storage-stats tels quels, sans interprétation ni alerte —
+  // Christophe reste seul décisionnaire de quand une suppression manuelle vaut la peine.
+  window.adocRunStorageStats = async function() {
+    const btn = document.getElementById('adoc-storage-btn');
+    const res = document.getElementById('adoc-storage-result');
+    if (!btn || !res) return;
+
+    btn.disabled = true;
+    btn.innerHTML = adocIconSvg('icon-progress') + ' Lecture…';
+    res.style.display = 'none';
+
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const resp = await fetch(workerUrl + '/storage-stats', { headers: { 'X-API-Key': adocGetApiKey() } });
+      const data = await resp.json();
+      if (data.error) {
+        res.innerHTML = `${adocIconSvg('icon-error')} ${adocEsc(data.error)}`;
+        res.style.display = 'block';
+        return;
+      }
+
+      const d1 = data.d1 || {};
+      const tableRows = Object.entries(d1.tables || {}).map(([name, t]) =>
+        `<tr><td style="padding:1px 4px">${adocEsc(name)}</td><td style="padding:1px 4px;text-align:right">${t.rowCount != null ? t.rowCount.toLocaleString('fr') : '—'}</td></tr>`
+      ).join('');
+      const dbSizeLine = d1.databaseSizeAvailable
+        ? `Taille base : ${d1.databaseSizeMb.toLocaleString('fr')} Mo`
+        : `Taille base : non mesurable depuis ce binding`;
+
+      const r2 = data.r2 || {};
+      const r2Line = r2.available
+        ? `R2 (${adocEsc(r2.bucket)}) : ${r2.objectCount.toLocaleString('fr')} objet(s) · ${r2.totalSizeMb.toLocaleString('fr')} Mo`
+        : `R2 : indisponible (${adocEsc(r2.note || 'non configuré')})`;
+
+      res.innerHTML =
+        `<table style="width:100%;font-size:9px;border-collapse:collapse">
+          <tr style="color:var(--terracotta-700);font-weight:600"><td>Table D1</td><td style="text-align:right">Lignes</td></tr>
+          ${tableRows}
+        </table>
+        <div style="margin-top:4px">${adocEsc(dbSizeLine)}</div>
+        <div style="margin-top:2px">${r2Line}</div>`;
+      res.style.display = 'block';
+    } catch (e) {
+      res.innerHTML = `${adocIconSvg('icon-error')} Erreur : ${adocEsc(e.message)}`;
+      res.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = adocIconSvg('icon-cloud') + ' Jauge d’usage D1/R2';
     }
   };
 
