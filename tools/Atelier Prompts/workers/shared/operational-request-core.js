@@ -100,12 +100,41 @@ function exactKeys(value, keys, path) {
  * trois niveaux à la fois (Analyst.issues, Critic.missed_material_issues, Arbiter.issues), sans
  * aucune référence à un domaine, un mot-clé, un seuil numérique ou un ratio.
  */
+/**
+ * OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01 — LA MÊME RÈGLE DOIT ÊTRE CLASSÉE PAREIL POUR LES TROIS.
+ * ============================================================================================
+ *
+ * normalizeRoleIssues ferme le contournement B-01B « aux trois niveaux à la fois ». Le REJET était
+ * bien commun aux trois rôles ; sa CLASSIFICATION ne l'était pas.
+ *
+ * Observé en production, un tour sur vingt-six : le Critique produit dans missed_material_issues une
+ * issue non matérielle traitée par question. Le rejet part en TypeError nue. parseRoleOutput, qui
+ * enveloppe l'Analyste et l'Arbitre, l'aurait étiquetée STRUCTURED_OUTPUT_INVALID ; le pipeline
+ * Critic, lui, n'étiquette que ce qui porte un marqueur explicite. Sans marqueur, la règle par
+ * défaut s'applique — une erreur non étiquetée est un défaut de NOTRE code — et le tour se termine
+ * en 502 sans aucun état sémantique. Mesuré : Analyste et Arbitre rendent degraded_state (200) sur
+ * exactement la même violation.
+ *
+ * CE N'EST PAS NOTRE BUG. Le validateur a raison de refuser ; c'est la sortie du modèle qui ne
+ * respecte pas le contrat. La taxonomie le dit déjà mot pour mot : STRUCTURED_OUTPUT_INVALID couvre
+ * la « sortie refusée par la validation structurelle », « défaut de CE modèle sur CET appel ».
+ *
+ * LE MARQUEUR, ET RIEN D'AUTRE. La règle B-01B n'est pas touchée : mêmes combinaisons refusées,
+ * même message. Seule change l'étiquette portée par l'erreur, pour que le classificateur voie ce
+ * qu'il regarde. Ce que ce marqueur ne dit PAS : que tout rejet de validateCriticOutput soit un
+ * défaut de modèle. Cette question, plus large, reste ouverte et hors de ce lot — ici on ne corrige
+ * que l'incohérence prouvée, sur la seule fonction que les trois rôles partagent.
+ */
+function assertRoleIssueContract(condition, message) {
+  if (!condition) throw Object.assign(new TypeError(message), { output_contract_violation: true });
+}
+
 function normalizeRoleIssues(issues) {
   const normalized = normalizeIssues(issues);
   for (const issue of normalized) {
-    assert(TREATMENT_VALUES.includes(issue.recommended_treatment), `recommended_treatment invalide : ${issue.recommended_treatment}.`);
+    assertRoleIssueContract(TREATMENT_VALUES.includes(issue.recommended_treatment), `recommended_treatment invalide : ${issue.recommended_treatment}.`);
     if (issue.recommended_treatment === "question") {
-      assert(issue.impact === "material", `recommended_treatment="question" exige impact="material" (B-01B) : l'issue "${issue.id}" est non matérielle et ne peut jamais être traitée par question.`);
+      assertRoleIssueContract(issue.impact === "material", `recommended_treatment="question" exige impact="material" (B-01B) : l'issue "${issue.id}" est non matérielle et ne peut jamais être traitée par question.`);
     }
   }
   return normalized;

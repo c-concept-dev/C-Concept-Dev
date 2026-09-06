@@ -187,8 +187,13 @@ test('T-MCNT01-10 : aucun contenu dans les traces ni dans les preuves', () => {
 /* T-MCNT01-11 — artefact canonique intact, dette ouverte. */
 test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
+  /* OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01 — L'EMPREINTE A ENCORE BOUGÉ, ET POUR LA MÊME
+     RAISON MÉCANIQUE : le noyau OPRIE est embarqué verbatim dans le bundle navigateur, et ce lot y
+     marque les rejets du validateur d'issues partagé pour qu'ils soient classés comme ce qu'ils
+     sont. Aucune règle, aucun prompt, aucun comportement d'interface n'a changé — seule l'étiquette
+     portée par une erreur déjà levée. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '4ade8759eb9912935965e784e31cdf899eaceca5fda150e02a24b81ef60e2c59',
+    'e650eee0bec52fe8267d9fa21120b3598abe15ecdc2778eabd2741c15ace0b35',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

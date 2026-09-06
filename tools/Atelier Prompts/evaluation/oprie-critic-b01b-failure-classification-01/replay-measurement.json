@@ -1,0 +1,54 @@
+{
+ "lot": "OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01",
+ "protocole": {
+  "campagne_1": {
+   "n": 20,
+   "cas": "14 × matériau (celui du défaut) + 6 × sans matériau",
+   "epinglage": null
+  },
+  "campagne_2_ciblee": {
+   "n": 12,
+   "cas": "12 × sans matériau — chasse au 502 résiduel",
+   "epinglage": null
+  },
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "concurrence": 1
+ },
+ "REAL_REPLAY_RUN_COUNT": 32,
+ "tours_avec_journal_complet": 23,
+ "mesures": {
+  "B01B_VIOLATION_COUNT": 0,
+  "PROGRAMMING_ERROR_COUNT": 0,
+  "STRUCTURED_OUTPUT_INVALID_COUNT": 0,
+  "TECHNICAL_FAILOVER_COUNT": 2,
+  "DEGRADED_STATE_COUNT": 3,
+  "HTTP_502_COUNT": 1,
+  "FALSE_READY_COUNT": 0,
+  "CRITIC_SUCCESS_COUNT": 19
+ },
+ "etats_finaux": {
+  "clarification_required": 27,
+  "degraded_state": 3,
+  "confirmation_required": 1,
+  "null": 1
+ },
+ "echecs_observes": {
+  "critic_technical_failover": 2,
+  "cause": "anthropic_transport_error — panne de transport du fournisseur, correctement dégradée en 200/degraded_state",
+  "b01b": "AUCUN — la violation qui a motivé ce lot n’est pas réapparue sur les tours journalisés"
+ },
+ "residu_non_attribue": {
+  "occurrences": 1,
+  "sur_tours": 32,
+  "cas": "sans matériau",
+  "latence_ms": 54094,
+  "status": 502,
+  "journalise": false,
+  "raison": "wrangler tail n’a livré que 11 des 20 invocations de la campagne 1 ; l’événement operational_request_error de ce tour est tombé hors de la fenêtre capturée",
+  "reproduction_tentee": "12 tours ciblés sur exactement le même cas, journal complet (12/12 capturés) : 12 × HTTP 200, zéro échec de quelque classe que ce soit",
+  "est_ce_le_defaut_b01b": "NON PROUVÉ, et improbable : le correctif rend ce chemin déterministe (structured_output_invalid → degraded_state, vérifié par fixture), et zéro B-01B n’apparaît sur les 23 tours journalisés",
+  "attribution": "INDÉTERMINÉE — non reproduite, preuve perdue à l’échantillonnage du journal",
+  "statut": "remonté tel quel : ni expliqué, ni minimisé"
+ }
+}

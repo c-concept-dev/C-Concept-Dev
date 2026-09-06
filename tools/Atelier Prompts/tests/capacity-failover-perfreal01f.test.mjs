@@ -306,8 +306,13 @@ test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transit
      material_context au contrat d'entrée le répercute mécaniquement dans l'artefact.
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
+  /* OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01 — L'EMPREINTE A ENCORE BOUGÉ, ET POUR LA MÊME
+     RAISON MÉCANIQUE : le noyau OPRIE est embarqué verbatim dans le bundle navigateur, et ce lot y
+     marque les rejets du validateur d'issues partagé pour qu'ils soient classés comme ce qu'ils
+     sont. Aucune règle, aucun prompt, aucun comportement d'interface n'a changé — seule l'étiquette
+     portée par une erreur déjà levée. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '4ade8759eb9912935965e784e31cdf899eaceca5fda150e02a24b81ef60e2c59', 'CANONICAL_HTML_CHANGED = NO');
+    'e650eee0bec52fe8267d9fa21120b3598abe15ecdc2778eabd2741c15ace0b35', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

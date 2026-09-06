@@ -25,6 +25,9 @@ import groqWorker, {
   runRoleWithHaChain, runRoleWithAnthropic, resolveRoleProviderOrder
 } from '../workers/groq/src/index.js';
 import { FAILURE_CLASSES } from '../workers/shared/provider-ha.js';
+import {
+  ANALYST_SYSTEM_PROMPT, CRITIC_GLOBAL_SYSTEM_PROMPT, ARBITER_SYSTEM_PROMPT
+} from '../workers/shared/operational-request-core.js';
 import { createEmptyCandidate } from '../core/adn/index.js';
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -226,10 +229,18 @@ test('T-DPB01-07 : les trois prompts sont intacts', () => {
   assert.equal(PREUVES.analyst_prompt_changed, false);
   assert.equal(PREUVES.critic_prompt_changed, false);
   assert.equal(PREUVES.arbiter_prompt_changed, false);
-  /* Le noyau sémantique est vérifié à l'octet près par l'empreinte de l'artefact canonique,
-     qui l'embarque verbatim : si un prompt bougeait, cette empreinte bougerait. */
-  const html = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
-  assert.equal(PREUVES.html_canonique_sha256.length, 64);
-  assert.equal(createHash('sha256').update(html).digest('hex'), PREUVES.html_canonique_sha256,
-    'l’artefact canonique — donc le noyau sémantique qu’il embarque — est inchangé');
+  /* CE QUE CETTE PREUVE EST DEVENUE. DPB-01 prouvait l'immutabilité des prompts par l'empreinte de
+     l'artefact canonique, qui les embarque verbatim. OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01 a
+     depuis modifié le noyau — un marqueur d'erreur, aucune règle — et l'artefact a donc bougé, pour
+     une raison étrangère aux prompts. L'empreinte enregistrée reste vraie à sa date et n'est pas
+     réécrite : c'est une archive.
+
+     La garde est donc reportée sur ce qu'elle voulait réellement dire, et elle y gagne : les trois
+     prompts sont épinglés par leur PROPRE empreinte. Un artefact qui bouge pour une autre raison ne
+     la fera plus sonner ; un prompt qui bouge la fera sonner immédiatement. */
+  assert.equal(PREUVES.html_canonique_sha256.length, 64, 'l’empreinte de l’époque reste archivée');
+  const empreinte = (v) => createHash('sha256').update(v).digest('hex');
+  assert.equal(empreinte(ANALYST_SYSTEM_PROMPT), 'd815ea1b13c31843ad4dc4278f1b712dfd07de768de625c1642c410b5cb1ffb8');
+  assert.equal(empreinte(CRITIC_GLOBAL_SYSTEM_PROMPT), '8915d9bad81965ceca062fc1d509291a91e3fbedd894514c8e9d60c5e2030100');
+  assert.equal(empreinte(ARBITER_SYSTEM_PROMPT), '3120f05368961356e73485be9f467237644c5eb0bff5d9173e73aae7e2a094c1');
 });
