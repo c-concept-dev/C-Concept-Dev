@@ -55408,6 +55408,11 @@ var Worker_default = {
     // méthode POST ne collisionnerait de toute façon jamais avec le GET de ce dernier).
     if (p === "/brand-kits/analyze" && request2.method === "POST")
       return handleBrandKitAnalyze(request2, env2);
+    // UX-10A Étape 1 — jauge d'usage D1/R2 (lecture seule). Protégée par le même mécanisme
+    // deny-by-default que le reste (non ajoutée à ADOC_PUBLIC_ROUTES) : ces chiffres ne sont
+    // pas destinés à être publics, contrairement à /library-stats.
+    if (p === "/storage-stats" && request2.method === "GET")
+      return handleStorageStats(env2);
     const brandKitStatusMatch = p.match(/^\/brand-kits\/([^\/]+)\/status$/);
     if (brandKitStatusMatch && request2.method === "PATCH")
       return handleBrandKitStatusUpdate(request2, env2, brandKitStatusMatch[1]);
@@ -55703,6 +55708,68 @@ async function handleBrandKitAnalyze(request2, env2) {
   });
 }
 __name(handleBrandKitAnalyze, "handleBrandKitAnalyze");
+
+// ═══ UX-10A Étape 1 — jauge d'usage D1/R2, uniquement une lecture, aucune écriture, aucune
+// suppression. Politique déjà tranchée avec Christophe : suppression manuelle explicite
+// uniquement, jamais de purge automatique — cette route ne fait que RENVOYER des chiffres bruts,
+// jamais un jugement de valeur ("c'est trop") ni une action. ═══
+async function handleStorageStats(env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  const d1 = { tables: {} };
+
+  async function countRows(table) {
+    try {
+      const row = await env2.DB.prepare("SELECT COUNT(*) as c FROM " + table).first();
+      return { rowCount: row ? row.c : 0 };
+    } catch (err2) {
+      return { rowCount: null, error: err2.message };
+    }
+  }
+  d1.tables.brand_kits = await countRows("brand_kits");
+  d1.tables.render_assets = await countRows("render_assets");
+
+  // Taille réelle de la base — tentative via la table virtuelle SQLite `dbstat` (non garantie
+  // exposée par D1 ; confirmé INDISPONIBLE en local au moment de ce lot — cf. rapport). Ne
+  // fabrique jamais un chiffre approximatif si la mesure échoue : on le dit explicitement.
+  try {
+    const sizeRow = await env2.DB.prepare("SELECT SUM(pgsize) as bytes FROM dbstat").first();
+    if (sizeRow && typeof sizeRow.bytes === "number") {
+      d1.databaseSizeAvailable = true;
+      d1.databaseSizeMb = Math.round((sizeRow.bytes / (1024 * 1024)) * 100) / 100;
+    } else {
+      d1.databaseSizeAvailable = false;
+      d1.databaseSizeNote = "dbstat n'a renvoyé aucune valeur exploitable.";
+    }
+  } catch (err2) {
+    d1.databaseSizeAvailable = false;
+    d1.databaseSizeNote = "Taille de base non mesurable depuis le binding D1 de ce Worker (table dbstat indisponible) — seule l'API Cloudflare REST/GraphQL au niveau du compte (hors binding Worker, nécessite un jeton API séparé) expose ce chiffre.";
+  }
+
+  let r2;
+  if (env2.BRAND_ASSETS) {
+    try {
+      let cursor, objectCount = 0, totalSizeBytes = 0, truncated = true, guard = 0;
+      while (truncated && guard < 1000) {
+        const page = await env2.BRAND_ASSETS.list(cursor ? { cursor } : {});
+        for (const obj of page.objects || []) { objectCount++; totalSizeBytes += obj.size || 0; }
+        truncated = !!page.truncated;
+        cursor = page.cursor;
+        guard++;
+      }
+      r2 = {
+        bucket: "studio-clinique-brand-assets", available: true,
+        objectCount, totalSizeBytes, totalSizeMb: Math.round((totalSizeBytes / (1024 * 1024)) * 100) / 100
+      };
+    } catch (err2) {
+      r2 = { bucket: "studio-clinique-brand-assets", available: false, note: err2.message };
+    }
+  } else {
+    r2 = { available: false, note: "Binding BRAND_ASSETS non configuré." };
+  }
+
+  return json({ d1, r2 });
+}
+__name(handleStorageStats, "handleStorageStats");
 
 async function handleBrandAssetUpload(request2, env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
