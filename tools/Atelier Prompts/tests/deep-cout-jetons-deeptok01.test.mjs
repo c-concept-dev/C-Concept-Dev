@@ -152,9 +152,15 @@ test('T-DEEPTOK01-08 : la saturation est intrinsèque, pas provoquée', () => {
 test('T-DEEPTOK01-09 : aucun contrat de production n’a été touché', () => {
   assert.equal(R.code_produit_modifie, false);
   assert.equal(R.deploiement_effectue, false);
-  assert.deepEqual([...ROLE_PROVIDER_ORDER], ['groq', 'anthropic', 'openai']);
+  /* DEEP-PROVIDER-ROUTING-FINAL-01 — L'ORDRE DU PLAN PROFOND A CHANGÉ APRÈS CE LOT.
+     Au moment de cette mesure, ROLE_PROVIDER_ORDER valait ["groq","anthropic","openai"] ; la
+     décision « DEEP = ANTHROPIC ONLY » a depuis été appliquée au runtime. L'assertion suit le
+     contrat courant : ce qu'affirmait ce lot — qu'il n'avait lui-même RIEN changé — reste vrai,
+     et c'est ce que R.* continue de prouver. */
+  assert.deepEqual([...ROLE_PROVIDER_ORDER], ['anthropic']);
   assert.deepEqual([...DECISION_PROVIDER_ORDER], ['groq', 'anthropic', 'openai']);
   assert.deepEqual([...FAST_PROVIDER_ORDER], ['groq'], 'le plan rapide reste tel que le lot précédent l’a laissé');
+  /* L'inventaire, lui, est une ARCHIVE de mesure : il garde l'ordre observé ce jour-là. */
   assert.deepEqual(R.inventaire.ordre_fournisseur_des_roles, ['groq', 'anthropic', 'openai']);
   assert.equal(R.inventaire.analyst.modele_groq, MODEL);
   assert.equal(R.inventaire.critic.modele_groq, MODEL);

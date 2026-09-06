@@ -15,13 +15,20 @@ import {
   assertOrchestratedRolesCoverOprie, runOperationalRequestTurn
 } from "../workers/shared/operational-request-orchestrator.js";
 import { ProviderChainError } from "../workers/shared/provider-ha.js";
-import groqWorker from "../workers/groq/src/index.js";
+import groqWorker, { runRoleWithHaChain } from "../workers/groq/src/index.js";
 
 // =================================================================================================
 // ORCH-01 — orchestrateur serveur canonique de la demande opérationnelle.
 //
 // UNE porte d'entrée (/operational-request) qui enchaîne Analyste -> Critique -> Arbitre, chacun sur
-// sa propre chaîne HA (Groq -> Anthropic -> OpenAI, gelée). L'orchestrateur n'est PAS une autorité :
+// sa propre chaîne de fournisseurs. DEEP-PROVIDER-ROUTING-FINAL-01 : cette chaîne ne contient plus
+// qu'Anthropic — le plan profond n'appelle plus ni Groq ni OpenAI. Rien de ce que garde ORCH-01 n'en
+// dépend : la séquence des trois rôles, l'absence d'autorité de l'orchestrateur, le fail-closed en
+// degraded_state et l'interdiction de rejouer un rôle réussi sont indifférents au fournisseur. Les
+// assertions qui NOMMENT un fournisseur ont été ramenées au fournisseur réel ; celles qui exigeaient
+// PLUSIEURS fournisseurs pour être observables sont descendues au niveau où la mécanique existe
+// encore (runRoleWithHaChain, avec un ordre passé explicitement), plutôt que supprimées.
+// L'orchestrateur n'est PAS une autorité :
 // il ne lit jamais le contenu d'une sortie de rôle, ne compare rien, ne corrige rien. L'état final
 // est celui que l'Arbitre a prononcé ; degraded_state est le seul état que l'orchestrateur produit
 // lui-même, et uniquement lorsqu'une chaîne de fournisseurs est épuisée.
@@ -71,6 +78,15 @@ const chatOk = (p) => Response.json({ choices: [{ message: { content: JSON.strin
 const toolOk = (p, name) => Response.json({ content: [{ type: "tool_use", name, input: p }] });
 const httpFail = (status = 503) => Response.json({ error: { message: "indisponible" } }, { status });
 const providerOf = (u) => String(u).includes("groq") ? "groq" : String(u).includes("anthropic") ? "anthropic" : "openai";
+
+/* DEEP-PROVIDER-ROUTING-FINAL-01 — les fixtures ne présument plus une forme de fournisseur.
+   Groq/OpenAI : system dans messages[0], utilisateur dans messages[1], réponse en `choices`.
+   Anthropic : system à part, utilisateur dans messages[0], réponse en `tool_use`. Les trois
+   transportent EXACTEMENT le même prompt et le même schéma — c'est un invariant HA-02, et c'est ce
+   qui permet à ces lecteurs d'être neutres sans rien relâcher. */
+const sysOf = (body) => body.system ?? body.messages[0].content;
+const userOf = (body) => JSON.parse(body.system ? body.messages[0].content : body.messages[1].content);
+const okFor = ({ provider, schemaName }, payload) => provider === "anthropic" ? toolOk(payload, schemaName) : chatOk(payload);
 
 function withCapturedConsole(t) {
   const l = console.log, e = console.error;
@@ -122,9 +138,9 @@ test("ORCH01-1b : chaque rôle reçoit son prompt canonique, et le serveur const
   withCapturedConsole(t);
   const seen = [];
   withProviders(t, { handlers: {
-    analyst: ({ body }) => { seen.push({ role: "analyst", system: body.messages[0].content, user: JSON.parse(body.messages[1].content) }); return chatOk(analystOutput()); },
-    critic: ({ body, schemaName }) => { seen.push({ role: "critic", system: body.messages[0].content, user: JSON.parse(body.messages[1].content) }); return chatOk(criticGlobal()); },
-    arbiter: ({ body }) => { seen.push({ role: "arbiter", system: body.messages[0].content, user: JSON.parse(body.messages[1].content) }); return chatOk(arbiterOutput("operational_request_ready")); }
+    analyst: (c) => { seen.push({ role: "analyst", system: sysOf(c.body), user: userOf(c.body) }); return okFor(c, analystOutput()); },
+    critic: (c) => { seen.push({ role: "critic", system: sysOf(c.body), user: userOf(c.body) }); return okFor(c, criticGlobal()); },
+    arbiter: (c) => { seen.push({ role: "arbiter", system: sysOf(c.body), user: userOf(c.body) }); return okFor(c, arbiterOutput("operational_request_ready")); }
   } });
   await groqWorker.fetch(post("/operational-request", INPUT), ENV);
   const byRole = Object.fromEntries(seen.map((s) => [s.role, s]));
@@ -174,7 +190,10 @@ for (const [role, id] of [["analyst", "ORCH01-6"], ["critic", "ORCH01-7"], ["arb
     assert.deepEqual(validateDegradedRoleResult(body), body, "la réponse est un DegradedRoleResult canonique, jamais une shape inventée.");
     assert.deepEqual(Object.keys(body).sort(), ["reason", "role", "state"]);
     const failed = calls.filter((c) => c.role === role);
-    assert.deepEqual([...new Set(failed.map((c) => c.provider))], ["groq", "anthropic", "openai"], "les trois fournisseurs doivent avoir été tentés avant de dégrader.");
+    /* DEEP-PROVIDER-ROUTING-FINAL-01 — la chaîne du plan profond est épuisée dès qu'Anthropic
+       échoue : il n'y a plus de « trois fournisseurs » à tenter. Ce que ce test garde reste
+       entier — une chaîne épuisée dégrade, elle ne fabrique rien, et elle arrête la séquence. */
+    assert.deepEqual([...new Set(failed.map((c) => c.provider))], ["anthropic"], "la chaîne est épuisée avant de dégrader.");
     assert.ok(!calls.some((c) => OPERATIONAL_REQUEST_ROLE_SEQUENCE.indexOf(c.role) > OPERATIONAL_REQUEST_ROLE_SEQUENCE.indexOf(role)),
       "aucun rôle postérieur ne doit être exécuté après une dégradation.");
   });
@@ -236,9 +255,9 @@ test("ORCH01-11 : original_request est transmis à l'identique aux trois rôles 
   withCapturedConsole(t);
   const seen = [];
   withProviders(t, { handlers: {
-    analyst: ({ body }) => { seen.push(JSON.parse(body.messages[1].content)); return chatOk(analystOutput()); },
-    critic: ({ body }) => { seen.push(JSON.parse(body.messages[1].content)); return chatOk(criticGlobal()); },
-    arbiter: ({ body }) => { seen.push(JSON.parse(body.messages[1].content)); return chatOk(arbiterOutput("operational_request_ready")); }
+    analyst: (c) => { seen.push(userOf(c.body)); return okFor(c, analystOutput()); },
+    critic: (c) => { seen.push(userOf(c.body)); return okFor(c, criticGlobal()); },
+    arbiter: (c) => { seen.push(userOf(c.body)); return okFor(c, arbiterOutput("operational_request_ready")); }
   } });
   const input = { original_request: REQUEST_TEXT, clarification_history: HISTORY };
   await groqWorker.fetch(post("/operational-request", input), ENV);
@@ -251,9 +270,9 @@ test("ORCH01-12 : clarification_history est conservée intégralement et transmi
   withCapturedConsole(t);
   const seen = [];
   withProviders(t, { handlers: {
-    analyst: ({ body }) => { seen.push(JSON.parse(body.messages[1].content)); return chatOk(analystOutput()); },
-    critic: ({ body }) => { seen.push(JSON.parse(body.messages[1].content)); return chatOk(criticGlobal()); },
-    arbiter: ({ body }) => { seen.push(JSON.parse(body.messages[1].content)); return chatOk(arbiterOutput("operational_request_ready")); }
+    analyst: (c) => { seen.push(userOf(c.body)); return okFor(c, analystOutput()); },
+    critic: (c) => { seen.push(userOf(c.body)); return okFor(c, criticGlobal()); },
+    arbiter: (c) => { seen.push(userOf(c.body)); return okFor(c, arbiterOutput("operational_request_ready")); }
   } });
   await groqWorker.fetch(post("/operational-request", INPUT), ENV);
   for (const message of seen) {
@@ -269,14 +288,16 @@ test("ORCH01-13 : la préservation d'intention reste obligatoire — un ready au
   withCapturedConsole(t);
   const broken = { ...arbiterOutput("operational_request_ready"), intent_preservation: { objective_preserved: false, priorities_preserved: true, semantic_equivalence: true, concerns: ["dérive"] } };
   assert.throws(() => validateArbiterOutput(broken), /intent_preservation/);
-  const calls = withProviders(t, { handlers: { analyst: () => chatOk(analystOutput()), critic: () => chatOk(criticGlobal()), arbiter: () => chatOk(broken) } });
+  const calls = withProviders(t, { handlers: { analyst: (c) => okFor(c, analystOutput()), critic: (c) => okFor(c, criticGlobal()), arbiter: (c) => okFor(c, broken) } });
   const response = await groqWorker.fetch(post("/operational-request", INPUT), ENV);
   const body = await response.json();
-  // Les trois fournisseurs produisent la même sortie invalide : chacun est rejeté par le validateur
-  // canonique, la chaîne s'épuise, et le tour se termine en dégradation TECHNIQUE -- jamais en ready.
+  // La sortie invalide est rejetée par le validateur canonique, la chaîne s'épuise, et le tour se
+  // termine en dégradation TECHNIQUE -- jamais en ready. DEEP-PROVIDER-ROUTING-FINAL-01 : la chaîne
+  // ne compte plus qu'Anthropic, ce qui ne change rien ici — le validateur n'a jamais été
+  // contournable par un fournisseur, et il l'est encore moins quand il n'y en a qu'un.
   assert.equal(body.state, "degraded_state", "un ready sans préservation d'intention ne doit jamais être servi.");
   assert.equal(body.role, "arbiter");
-  assert.deepEqual([...new Set(calls.filter((c) => c.role === "arbiter").map((c) => c.provider))], ["groq", "anthropic", "openai"]);
+  assert.deepEqual([...new Set(calls.filter((c) => c.role === "arbiter").map((c) => c.provider))], ["anthropic"]);
   assert.ok(!JSON.stringify(body).includes("operational_request_ready"));
 });
 
@@ -286,19 +307,40 @@ test("ORCH01-14 : un rôle réussi met fin à SA chaîne — aucun autre fournis
   withCapturedConsole(t);
   const calls = withProviders(t);
   await groqWorker.fetch(post("/operational-request", INPUT), ENV);
-  assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq"], "aucune comparaison entre fournisseurs.");
+  assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["anthropic"], "aucune comparaison entre fournisseurs.");
   assert.equal(calls.length, 3, "exactement un appel par rôle sur le chemin nominal.");
 });
 
-test("ORCH01-14b : les chaînes des rôles sont indépendantes — un rôle dégradé n'impose pas son fournisseur aux suivants", async (t) => {
+/* ORCH01-14b — DEEP-PROVIDER-ROUTING-FINAL-01 : L'INVARIANT RESTE, LE POINT D'OBSERVATION DESCEND.
+ *
+ * Ce test prouvait qu'un rôle ayant basculé n'imposait pas son fournisseur aux rôles suivants — que
+ * chaque rôle repartait du début de SA chaîne. Sur la route HTTP, cet invariant n'est plus
+ * observable : avec un seul fournisseur, il n'y a plus de bascule à propager. Le rendre vert en
+ * l'affaiblissant aurait été le perdre. Il est donc vérifié là où la mécanique subsiste — la couche
+ * de chaîne elle-même, celle que /decision continue d'exercer — en lui passant un ordre explicite.
+ * Ce qui est gardé est identique : trois rôles, trois chaînes, aucune contamination. */
+test("ORCH01-14b : les chaînes des rôles sont indépendantes — un rôle basculé n'impose pas son fournisseur aux suivants", async (t) => {
   withCapturedConsole(t);
-  const calls = withProviders(t, { handlers: {
-    analyst: ({ provider }) => provider === "groq" ? httpFail(503) : (provider === "anthropic" ? toolOk(analystOutput(), "oprie_analyst") : chatOk(analystOutput())),
-    critic: ({ provider }) => provider === "groq" ? chatOk(criticGlobal()) : httpFail(503),
-    arbiter: ({ provider }) => provider === "groq" ? chatOk(arbiterOutput("operational_request_ready")) : httpFail(503)
-  } });
-  const response = await groqWorker.fetch(post("/operational-request", INPUT), ENV);
-  assert.equal(response.status, 200);
+  const ORDRE_MECANIQUE = { order: Object.freeze(["groq", "anthropic", "openai"]) };
+  const calls = [];
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (url, options) => {
+    const provider = providerOf(url);
+    const body = JSON.parse(options.body);
+    const schemaName = body.response_format?.json_schema?.name ?? body.tools?.[0]?.name ?? null;
+    const role = schemaName === "oprie_analyst" ? "analyst" : schemaName === "oprie_arbiter" ? "arbiter" : "critic";
+    calls.push({ provider, role });
+    if (role === "analyst" && provider === "groq") return httpFail(503);
+    if (role !== "analyst" && provider !== "groq") return httpFail(503);
+    const payload = role === "analyst" ? analystOutput() : role === "arbiter" ? arbiterOutput("operational_request_ready") : criticGlobal();
+    return okFor({ provider, schemaName }, payload);
+  };
+  const resultat = await runOperationalRequestTurn(INPUT, {
+    executeRole: (role, roleInput) => runRoleWithHaChain(role, roleInput, ENV, ORDRE_MECANIQUE),
+    log: () => {}
+  });
+  assert.equal(resultat.state, "operational_request_ready");
   assert.deepEqual(calls.filter((c) => c.role === "analyst").map((c) => c.provider), ["groq", "anthropic"]);
   assert.deepEqual(calls.filter((c) => c.role === "critic").map((c) => c.provider), ["groq"], "le Critique repart de Groq : chaque rôle a sa propre chaîne.");
   assert.deepEqual(calls.filter((c) => c.role === "arbiter").map((c) => c.provider), ["groq"]);
@@ -377,12 +419,12 @@ test("ORCH01-19 : une sortie malformée d'analyst ou d'arbiter est rejetée par 
   for (const role of ["analyst", "arbiter"]) {
     await test(`ORCH01-19/${role}`, async (sub) => {
       withCapturedConsole(sub);
-      const calls = withProviders(sub, { handlers: { [role]: () => chatOk({ champ: "inattendu" }) } });
+      const calls = withProviders(sub, { handlers: { [role]: (c) => okFor(c, { champ: "inattendu" }) } });
       const body = await (await groqWorker.fetch(post("/operational-request", INPUT), ENV)).json();
       assert.equal(body.state, "degraded_state", role);
       assert.equal(body.role, role);
-      assert.deepEqual([...new Set(calls.filter((c) => c.role === role).map((c) => c.provider))], ["groq", "anthropic", "openai"],
-        "une sortie inexploitable est un défaut de CE modèle : les trois sont tentés avant de dégrader.");
+      assert.deepEqual([...new Set(calls.filter((c) => c.role === role).map((c) => c.provider))], ["anthropic"],
+        "une sortie inexploitable épuise la chaîne du rôle, qui dégrade sans jamais inventer d'état.");
       for (const forbidden of ["operational_request_candidate", "next_question", "issues", "intent_preservation"]) assert.ok(!Object.hasOwn(body, forbidden));
     });
   }
@@ -390,13 +432,13 @@ test("ORCH01-19 : une sortie malformée d'analyst ou d'arbiter est rejetée par 
 
 test("ORCH01-19b : une sortie Critic structurellement invalide est FAIL-CLOSED dès le premier fournisseur (CSR-01) — 502 technique, jamais un état sémantique", async (t) => {
   withCapturedConsole(t);
-  const calls = withProviders(t, { handlers: { critic: () => chatOk({ champ: "inattendu" }) } });
+  const calls = withProviders(t, { handlers: { critic: (c) => okFor(c, { champ: "inattendu" }) } });
   const response = await groqWorker.fetch(post("/operational-request", INPUT), ENV);
   assert.equal(response.status, 502);
   const body = await response.json();
   assert.equal(body.error, "operational_request_failure");
   assert.ok(!Object.hasOwn(body, "state"), "un échec technique ne porte jamais d'état sémantique.");
-  assert.deepEqual([...new Set(calls.filter((c) => c.role === "critic").map((c) => c.provider))], ["groq"],
+  assert.deepEqual([...new Set(calls.filter((c) => c.role === "critic").map((c) => c.provider))], ["anthropic"],
     "aucun model shopping : un défaut de contrat n'est jamais rejoué sur un autre modèle.");
 });
 
@@ -452,7 +494,7 @@ test("ORCH01-21b : l'orchestrateur n'est pas une seconde autorité — aucune ta
 test("ORCH01-COMPAT : /decision, /analyst, /critic et /arbiter conservent leur contrat", async (t) => {
   withCapturedConsole(t);
   withProviders(t, { handlers: {
-    analyst: () => chatOk(analystOutput()), critic: () => chatOk(criticGlobal()), arbiter: () => chatOk(arbiterOutput("operational_request_ready"))
+    analyst: (c) => okFor(c, analystOutput()), critic: (c) => okFor(c, criticGlobal()), arbiter: (c) => okFor(c, arbiterOutput("operational_request_ready"))
   } });
   const analyst = await groqWorker.fetch(post("/analyst", INPUT), ENV);
   assert.equal(analyst.status, 200, "/analyst reste servi tel quel.");

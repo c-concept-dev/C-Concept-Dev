@@ -243,7 +243,9 @@ test('T-PERFNOMINAL01-09 : autorité du plan rapide nulle chez les trois', () =>
 test('T-PERFNOMINAL01-10 : l’ordre de production et le primaire sont inchangés', () => {
   assert.deepEqual(DECISION_PROVIDER_ORDER, ['groq', 'anthropic', 'openai']);
   assert.match(WORKER, /export const DECISION_PROVIDER_ORDER = Object\.freeze\(\["groq", "anthropic", "openai"\]\)/);
-  assert.match(WORKER, /export const ROLE_PROVIDER_ORDER = Object\.freeze\(\["groq", "anthropic", "openai"\]\)/);
+  /* DEEP-PROVIDER-ROUTING-FINAL-01 — le plan PROFOND a changé depuis ce banc ; le plan
+     rapide et /decision, seuls objets de cette mesure, n'ont pas bougé d'un octet. */
+  assert.match(WORKER, /export const ROLE_PROVIDER_ORDER = Object\.freeze\(\["anthropic"\]\)/);
   assert.equal(R.invariants.provider_order_changed, false);
   assert.equal(R.invariants.primary_provider_changed, false);
   /* Le meilleur nominal ne devient pas primaire de production par ce lot. */

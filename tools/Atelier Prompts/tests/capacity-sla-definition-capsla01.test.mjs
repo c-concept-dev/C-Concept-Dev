@@ -247,10 +247,19 @@ test('T-CAPSLA01-09 : Fast et Deep partagent une seule clé, donc un seul budget
   assert.deepEqual(clesGroq, ['GROQ_API_KEY'], 'une seule clé Groq dans tout le worker');
   const wrangler = JSON.parse(lire('workers/groq/wrangler.jsonc').replace(/^\s*\/\/.*$/gm, ''));
   assert.deepEqual(wrangler.secrets.required, ['GROQ_API_KEY']);
-  assert.deepEqual(ROLE_PROVIDER_ORDER, ['groq', 'anthropic', 'openai'],
-    'les rôles profonds partent eux aussi sur Groq en premier');
+  /* DEEP-PROVIDER-ROUTING-FINAL-01 — LE COUPLAGE QUE CE LOT AVAIT MESURÉ EST ROMPU.
+     Quand CAPSLA-01 a été écrit, les deux plans partaient sur Groq : une seule clé, donc un
+     seul budget de jetons par minute, donc une saturation du plan rapide qui pouvait faire
+     tomber le plan profond. Le plan profond n'appelle plus Groq du tout. La clé reste unique —
+     la ligne ci-dessus le prouve toujours — mais elle ne sert plus qu'à UN plan, et la
+     contention croisée mesurée par ce lot n'a plus de chemin pour se produire. Le DOC de
+     CAPSLA-01 n'est pas réécrit : c'est une archive de mesure, vraie à sa date. */
+  assert.deepEqual(ROLE_PROVIDER_ORDER, ['anthropic'],
+    'les rôles profonds ne partagent plus le budget Groq du plan rapide');
   assert.match(DOC, /partagent une seule clé `GROQ_API_KEY`/);
-  /* Et le plan profond est déjà contractuellement tolérant à la latence. */
+  /* Les politiques de reprise Groq des rôles SURVIVENT dans le code sans être atteignables
+     depuis le plan profond : elles sont conservées, pas supprimées, et cette branche devenue
+     inerte est inventoriée dans docs/DEEP-PROVIDER-ROUTING-FINAL-01.md (§ Legacy HA). */
   assert.equal(ROLE_GROQ_RETRY_POLICIES.analyst.maxRetryWaitMs, 16000);
   assert.equal(ROLE_GROQ_RETRY_POLICIES.arbiter.maxRetryWaitMs, 17000);
   assert.equal(ROLE_GROQ_RETRY_POLICIES.critic.maxRetryWaitMs, 26000);
@@ -283,7 +292,9 @@ test('T-CAPSLA01-10 : le repli préserve la disponibilité, pas la latence', () 
  * latence, artefact canonique. */
 test('T-CAPSLA01-11 : aucun contrat de production n’a été touché', () => {
   assert.deepEqual(DECISION_PROVIDER_ORDER, ['groq', 'anthropic', 'openai']);
-  assert.deepEqual(ROLE_PROVIDER_ORDER, ['groq', 'anthropic', 'openai']);
+  /* DEEP-PROVIDER-ROUTING-FINAL-01 : ordre du plan profond ramené à Anthropic seul. Ce que
+     CAPSLA-01 affirmait — qu'IL n'avait rien touché — reste vrai et reste prouvé par R.*. */
+  assert.deepEqual(ROLE_PROVIDER_ORDER, ['anthropic']);
   assert.equal(DECISION_PROVIDER_ORDER[0], 'groq', 'le primaire du plan rapide est inchangé');
   const seuils = JSON.parse(lire('evaluation/perf-real-01/results-01b.json')).seuils;
   assert.equal(seuils.p50_prefere_ms, 2000);

@@ -79,16 +79,39 @@ function groqResponse(contentObj, status = 200) {
   return Response.json({ choices: [{ message: { content: JSON.stringify(contentObj) } }] }, { status });
 }
 
+/* DEEP-PROVIDER-ROUTING-FINAL-01 — LE ROUTAGE HTTP RÉEL NE PASSE PLUS PAR GROQ.
+   ============================================================================
+   Ces tests-ci disent « sur le routage HTTP réel », et c'est ce qui fait leur valeur : ils
+   n'appellent pas un pipeline choisi à la main, ils empruntent la route que la production emprunte.
+   Cette route sert désormais Anthropic. Les épingler sur Groq pour éviter de toucher au harnais
+   aurait gardé les assertions vertes tout en leur retirant ce qui les rendait utiles — ils
+   n'auraient plus rien prouvé du chemin réel.
+
+   Ils sont donc portés sur la forme Anthropic : `system` au lieu de `messages[0].content`,
+   `tools[0].name` au lieu de `response_format.json_schema.name`, réponse `tool_use` au lieu de
+   `choices[].message.content`. Ce qu'ils vérifient n'a pas bougé d'un pouce : prompt global et non
+   monolithique, N=0 -> un seul appel, N=1 -> global + exactement un batch, analyst/arbiter sur le
+   chemin générique mono-call. Le batching est porté par runCriticBatchedPipeline, partagé par les
+   quatre pipelines : le prouver sur Anthropic le prouve là où il s'exécute.
+
+   Les variantes Workers AI (R1-2/R1-4/R1-6) sont inchangées : autre worker, autre plan. */
+const ANTHROPIC_ENV = { ALLOWED_ORIGINS: "https://atelier.example.com", ANTHROPIC_API_KEY: "server-only" };
+const nomOutil = (body) => body.tools?.[0]?.name ?? null;
+function anthropicResponse(contentObj, name, status = 200) {
+  if (status !== 200) return Response.json(contentObj, { status });
+  return Response.json({ content: [{ type: "tool_use", name, input: contentObj }] }, { status });
+}
+
 // --- R1-1/R1-2 : le runtime n'appelle plus le monolithique par défaut -----------------------------
 
 test("R1-1 (Groq) : le rôle critic, sur le routage HTTP réel, n'utilise plus CRITIC_SYSTEM_PROMPT (monolithique) mais CRITIC_GLOBAL_SYSTEM_PROMPT", async (t) => {
   let captured;
-  withGroqFetch(t, async (url, options) => { captured = JSON.parse(options.body); return groqResponse(globalOutputFixture()); });
-  const response = await groqWorker.fetch(postRole("critic", criticBody(0)), GROQ_ENV);
+  withGroqFetch(t, async (url, options) => { captured = JSON.parse(options.body); return anthropicResponse(globalOutputFixture(), nomOutil(captured)); });
+  const response = await groqWorker.fetch(postRole("critic", criticBody(0)), ANTHROPIC_ENV);
   assert.equal(response.status, 200);
-  assert.equal(captured.messages[0].content, CRITIC_GLOBAL_SYSTEM_PROMPT);
-  assert.notEqual(captured.messages[0].content, CRITIC_SYSTEM_PROMPT);
-  assert.doesNotMatch(captured.messages[0].content, /FORME DE question_substitution_review/);
+  assert.equal(captured.system, CRITIC_GLOBAL_SYSTEM_PROMPT);
+  assert.notEqual(captured.system, CRITIC_SYSTEM_PROMPT);
+  assert.doesNotMatch(captured.system, /FORME DE question_substitution_review/);
 });
 
 test("R1-2 (Workers AI) : le rôle critic, sur le routage HTTP réel, n'utilise plus CRITIC_SYSTEM_PROMPT (monolithique) mais CRITIC_GLOBAL_SYSTEM_PROMPT", async () => {
@@ -104,8 +127,8 @@ test("R1-2 (Workers AI) : le rôle critic, sur le routage HTTP réel, n'utilise 
 
 test("R1-3 (Groq) : N=0 -> un seul appel réseau (Critic global), aucun batch", async (t) => {
   let calls = 0;
-  withGroqFetch(t, async (url, options) => { calls += 1; return groqResponse(globalOutputFixture()); });
-  const response = await groqWorker.fetch(postRole("critic", criticBody(0)), GROQ_ENV);
+  withGroqFetch(t, async (url, options) => { calls += 1; return anthropicResponse(globalOutputFixture(), nomOutil(JSON.parse(options.body))); });
+  const response = await groqWorker.fetch(postRole("critic", criticBody(0)), ANTHROPIC_ENV);
   assert.equal(response.status, 200);
   assert.equal(calls, 1);
   const body = await response.json();
@@ -128,13 +151,13 @@ test("R1-5 (Groq) : N=1 -> global + exactement 1 appel batch, cardinalité exact
   withGroqFetch(t, async (url, options) => {
     const body = JSON.parse(options.body);
     calls.push(body);
-    if (body.response_format.json_schema.name === "critic_global") return groqResponse(globalOutputFixture());
-    return groqResponse(batchEntryFor(["issue1"], "estimate"));
+    if (nomOutil(body) === "critic_global") return anthropicResponse(globalOutputFixture(), "critic_global");
+    return anthropicResponse(batchEntryFor(["issue1"], "estimate"), nomOutil(body));
   });
-  const response = await groqWorker.fetch(postRole("critic", criticBody(1)), GROQ_ENV);
+  const response = await groqWorker.fetch(postRole("critic", criticBody(1)), ANTHROPIC_ENV);
   assert.equal(response.status, 200);
   assert.equal(calls.length, 2);
-  assert.equal(calls[1].response_format.json_schema.name, "substitution_review_batch");
+  assert.equal(nomOutil(calls[1]), "substitution_review_batch");
   const body = await response.json();
   assert.equal(body.question_substitution_review.length, 1);
   assert.equal(body.question_substitution_review[0].issue_id, "issue1");
@@ -289,12 +312,12 @@ test("R1-13 (portée élargie HA-02) : le routage fetch() ne peut router critic 
 
 test("R1-14 : analyst et arbiter restent routés vers le chemin générique mono-call inchangé (non concernés par X2-BATCH)", async (t) => {
   let captured;
-  withGroqFetch(t, async (url, options) => { captured = JSON.parse(options.body); return groqResponse({
+  withGroqFetch(t, async (url, options) => { captured = JSON.parse(options.body); return anthropicResponse({
     operational_request_candidate: createEmptyCandidate(), provenance_records: [], issues: [], question_candidates: [], confirmation_signals: confirmationSignals()
-  }); });
-  const response = await groqWorker.fetch(postRole("analyst", { original_request: "x", clarification_history: [] }), GROQ_ENV);
+  }, nomOutil(captured)); });
+  const response = await groqWorker.fetch(postRole("analyst", { original_request: "x", clarification_history: [] }), ANTHROPIC_ENV);
   assert.equal(response.status, 200);
-  assert.equal(captured.messages[0].content, ANALYST_SYSTEM_PROMPT);
+  assert.equal(captured.system, ANALYST_SYSTEM_PROMPT);
 });
 
 // --- R1-15 : aucune instruction fantôme dans les prompts actifs -----------------------------------

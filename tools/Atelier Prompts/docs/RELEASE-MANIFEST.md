@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `029a44fc9f9c5e7edbd735ff3a1d5ed34277008a` |
-| Date du commit | 2026-09-06T20:41:53+02:00 |
+| Commit local | `fec2d0ae67af409245cf39d59cbffe6a92da7a33` |
+| Date du commit | 2026-09-06T20:41:54+02:00 |
 
 ## Artefact canonique
 
@@ -59,7 +59,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `7410a4553d6e7704df119a475e46d9e6f2fd485e2b25d36112a36a9774814cf6` |
+| Empreinte du jeu | `575abb3e090c74a9611042a975fb8c684cb26e0151d1262bcda0c22df71c28ca` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -112,7 +112,7 @@ sa propre empreinte.
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `c484c3b6603464a4d2c6e140eb3ed605ea4704ada4c334498b05ba9c8f4f5aeb` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `70bcb641500d52f5cea1fa095932f8b004c59467e97d4e1669f82e64330ba8fb` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `d4020d27f72d38bfd770e6e1fc243daba22aee2d1bfb0191f773cb3be8970e51` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `cd5c96f70f8853a3d9e03b12b8bae808cc5e3ac3b1d766e16fd04716bd6bfadf` |
 | REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `a49272421d15e9348d5e389e37e36a493f40c6a65c13ec0bbd8e56ac964ebfb7` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/decision-core.js` | `2879c8e720146b4d2a620f76e329aa1a2e9f1ae3c7725749bbe6cbaf31b32869` |
@@ -156,7 +156,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2882 |
+| Tests au vert | 2889 |
 
 ## Dette encore ouverte
 

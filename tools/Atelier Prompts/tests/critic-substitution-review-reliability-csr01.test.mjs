@@ -57,6 +57,15 @@ const chatOk = (p) => Response.json({ choices: [{ message: { content: JSON.strin
 const toolOk = (p, name) => Response.json({ content: [{ type: "tool_use", name, input: p }] });
 const providerOf = (u) => String(u).includes("groq") ? "groq" : String(u).includes("anthropic") ? "anthropic" : "openai";
 
+/* DEEP-PROVIDER-ROUTING-FINAL-01 — CE FICHIER TESTE LA CLASSIFICATION D'ÉCHEC, PAS LE ROUTAGE.
+   Ce qui l'intéresse, c'est qu'un rejet structurel non marqué NE bascule PAS (CSR01-8) et qu'une
+   panne technique rejoue le pipeline ENTIER chez le fournisseur suivant (CSR01-10). Ces deux
+   invariants appartiennent à runProviderChain, qui reste actif — /decision s'en sert toujours. Le
+   plan profond, lui, n'a plus qu'Anthropic ; les tests qui ont besoin de plusieurs fournisseurs
+   passent donc l'ordre explicitement, au lieu de dépendre d'un ordre de production qui a changé. */
+const CHAINE_HA_MECANIQUE = Object.freeze(["groq", "anthropic", "openai"]);
+const ORDRE = { order: CHAINE_HA_MECANIQUE };
+
 function withCapturedConsole(t) {
   const l = console.log, e = console.error;
   console.log = () => {}; console.error = () => {};
@@ -186,7 +195,7 @@ test("CSR01-6 : une issue PERDUE est rejetée, jamais comblée par une review fa
 test("CSR01-7 : un batch incomplet du PROVIDER est un STRUCTURED_OUTPUT_INVALID -> failover autorisé", async (t) => {
   withCapturedConsole(t);
   const calls = withProviders(t, { groq: criticProvider("groq", { batchBehaviour: "empty" }), anthropic: criticProvider("anthropic") });
-  const output = await runRoleWithHaChain("critic", criticInput(1), ENV);
+  const output = await runRoleWithHaChain("critic", criticInput(1), ENV, ORDRE);
   assert.ok(calls.some((c) => c.provider === "anthropic"), "une violation du contrat de sortie par le modèle doit permettre de basculer.");
   assert.equal(output.question_substitution_review.length, 1);
 });
@@ -207,7 +216,7 @@ test("CSR01-8 : une erreur NON marquée reste PROGRAMMING_ERROR -> fail-closed, 
     groq: ({ schemaName }) => schemaName === "critic_global" ? chatOk(globalFixture()) : chatOk({ issue1: { candidates: "structure invalide" } }),
     anthropic: criticProvider("anthropic")
   });
-  await runRoleWithHaChain("critic", criticInput(1), ENV).catch(() => {});
+  await runRoleWithHaChain("critic", criticInput(1), ENV, ORDRE).catch(() => {});
   assert.ok(!calls.some((c) => c.provider === "anthropic"), "un rejet structurel non marqué ne doit jamais déclencher de bascule.");
 });
 
@@ -216,7 +225,7 @@ test("CSR01-8 : une erreur NON marquée reste PROGRAMMING_ERROR -> fail-closed, 
 test("CSR01-9 : Groq en échec -> pipeline COMPLET rejoué chez Anthropic", async (t) => {
   withCapturedConsole(t);
   const calls = withProviders(t, { groq: () => Response.json({ error: {} }, { status: 503 }), anthropic: criticProvider("anthropic") });
-  const output = await runRoleWithHaChain("critic", criticInput(2), ENV);
+  const output = await runRoleWithHaChain("critic", criticInput(2), ENV, ORDRE);
   assert.equal(output.question_substitution_review.length, 2);
   assert.ok(calls.filter((c) => c.provider === "anthropic" && c.schemaName === "critic_global").length === 1, "le provider suivant rejoue l'appel global, jamais seulement les batches.");
 });
@@ -228,7 +237,7 @@ test("CSR01-10 : Groq et Anthropic en échec -> pipeline COMPLET chez OpenAI", a
     anthropic: () => Response.json({ error: {} }, { status: 500 }),
     openai: criticProvider("openai")
   });
-  const output = await runRoleWithHaChain("critic", criticInput(1), ENV);
+  const output = await runRoleWithHaChain("critic", criticInput(1), ENV, ORDRE);
   assert.equal(output.question_substitution_review.length, 1);
   assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq", "anthropic", "openai"]);
 });
@@ -236,7 +245,7 @@ test("CSR01-10 : Groq et Anthropic en échec -> pipeline COMPLET chez OpenAI", a
 test("CSR01-11 : un CriticOutput est TOUJOURS produit par un seul provider — jamais un global et des batches mélangés", async (t) => {
   withCapturedConsole(t);
   const calls = withProviders(t, { groq: criticProvider("groq", { batchBehaviour: "empty" }), anthropic: criticProvider("anthropic") });
-  await runRoleWithHaChain("critic", criticInput(2), ENV);
+  await runRoleWithHaChain("critic", criticInput(2), ENV, ORDRE);
   const anthropicCalls = calls.filter((c) => c.provider === "anthropic");
   assert.equal(anthropicCalls.filter((c) => c.schemaName === "critic_global").length, 1);
   assert.ok(anthropicCalls.filter((c) => c.schemaName === "substitution_review_batch").length >= 1);

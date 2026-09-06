@@ -1841,8 +1841,28 @@ export async function runCriticWithAnthropic(input, env) {
 // de ROLE_DEFINITIONS (operational-request-core.js, INCHANGÉ par ce lot).
 // =================================================================================================
 
-/** Même ordre que Decision : Groq (primary) -> Anthropic (secondary) -> OpenAI (tertiary). */
-export const ROLE_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
+/* DEEP-PROVIDER-ROUTING-FINAL-01 — LE PLAN PROFOND N'A PLUS QU'UN FOURNISSEUR.
+ *
+ * La décision produit disait « DEEP = ANTHROPIC ONLY » depuis plusieurs lots ; le runtime, lui,
+ * appelait toujours Groq en premier. ANTHROPIC-DEEP-CAPACITY-01 l'a mesuré sans détour : six tours
+ * sans épinglage, ANTHROPIC_NATIVE = 0/6 — les rôles partaient sur Groq, et Anthropic ne servait
+ * qu'après un échec. Tout ce qui a été qualifié aux portes 2 et 3 l'avait été sous un épinglage que
+ * la production n'appliquait pas. Cette ligne referme cet écart.
+ *
+ * CE QUI JUSTIFIE UN SEUL FOURNISSEUR, ET PAS UN REPLI. Un repli de plan profond n'est pas une
+ * redondance technique : les trois rôles portent la sémantique, et changer de fournisseur en cours
+ * de chaîne revient à changer de juge au milieu du procès. La qualification sémantique (porte 2) et
+ * la qualification de capacité (porte 3) portent sur Anthropic — sur lui seul. Un succès obtenu
+ * chez un autre fournisseur ne prouverait rien de ce qui a été mesuré.
+ *
+ * SI ANTHROPIC ÉCHOUE, LA CHAÎNE SE FERME. runProviderChain épuise la liste et remonte une
+ * ProviderChainError, que l'orchestrateur traduit en degraded_state — jamais en READY fabriqué,
+ * jamais en bascule silencieuse vers un autre modèle. Fail-closed, comme partout ailleurs.
+ *
+ * CE QUI N'EST PAS TOUCHÉ : FAST_PROVIDER_ORDER, déjà réduit à Groq seul par
+ * FAST-CAPACITY-ADMISSION-01, et DECISION_PROVIDER_ORDER, qui régit la route /decision — un autre
+ * plan, hors du contrat OPRIE profond, et hors du périmètre de ce lot. */
+export const ROLE_PROVIDER_ORDER = Object.freeze(["anthropic"]);
 
 /**
  * OPRIE-QUALITY-PARITY-01 — ÉPINGLAGE DIAGNOSTIC DU FOURNISSEUR DU PLAN PROFOND.
@@ -1871,7 +1891,14 @@ export const ROLE_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]
  * connaît pas l'existence. Choisir un fournisseur reste une instruction d'opérateur.
  *
  * IL NE CHANGE RIEN À LA PRODUCTION. La valeur déclarée du Worker est "ha" :
- * ROLE_PROVIDER_ORDER — Groq puis Anthropic puis OpenAI — n'est pas touché.
+ * ROLE_PROVIDER_ORDER — désormais Anthropic seul — n'est pas touché.
+ *
+ * DEEP-PROVIDER-ROUTING-FINAL-01 — ET IL NE PEUT PLUS DÉTOURNER LE PLAN PROFOND. Les valeurs
+ * permises sont dérivées de ROLE_PROVIDER_ORDER, pas écrites en dur : depuis que la liste ne
+ * contient plus qu'Anthropic, un épinglage vers "groq" ou "openai" est REFUSÉ (contract_error)
+ * au lieu d'être appliqué en silence. Un épinglage résiduel oublié dans un wrangler.jsonc ne peut
+ * donc plus renvoyer la production sur le fournisseur que ce lot vient d'écarter : il la casse
+ * bruyamment. C'est le comportement voulu — une mesure qui traîne doit se voir.
  */
 export const DEEP_BENCH_PROVIDER_BINDING = "DEEP_BENCH_PROVIDER";
 

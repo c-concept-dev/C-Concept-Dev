@@ -134,13 +134,18 @@ test('T-P04-EP10 : /operational-request conserve son contrat à l’octet près'
   /* OPRIE-QUALITY-PARITY-01 — LE LITTÉRAL A CHANGÉ, LE CONTRAT NON. La route reçoit
      désormais son ORDRE par resolveRoleProviderOrder(env), qui rend ROLE_PROVIDER_ORDER
      tant que DEEP_BENCH_PROVIDER vaut "ha" — sa valeur déclarée. L'épinglage est un
-     outil de mesure d'opérateur, exactement comme celui du plan rapide : la chaîne HA
+     outil de mesure d'opérateur, exactement comme celui du plan rapide : l'ORDRE DÉCLARÉ
      des trois rôles reste ce qui s'exécute en production, et les deux lignes suivantes
-     le prouvent plutôt que de le supposer. */
+     le prouvent plutôt que de le supposer.
+
+     DEEP-PROVIDER-ROUTING-FINAL-01 — cet ordre déclaré ne contient plus qu'Anthropic. Le
+     câblage vérifié ici est inchangé : c'est toujours resolveRoleProviderOrder(env) qui le
+     fournit à la route, et c'est précisément pour cela que le changement de fournisseur n'a
+     demandé aucune retouche de cette ligne. */
   assert.match(WORKER, /executeRole: \(role, roleInput\) => runRoleWithHaChain\(role, roleInput, env, \{ order: resolveRoleProviderOrder\(env\) \}\)/);
-  assert.deepEqual(resolveRoleProviderOrder({}), ["groq", "anthropic", "openai"],
+  assert.deepEqual(resolveRoleProviderOrder({}), ["anthropic"],
     'sans variable, l\'ordre des rôles est exactement celui de production.');
-  assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: "ha" }), ["groq", "anthropic", "openai"],
+  assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: "ha" }), ["anthropic"],
     'et "ha" — la valeur déclarée du Worker — rend le même.');
   const avantFast = WORKER.indexOf('FAST_INTERACTION_PATHNAME');
   const avantOprie = WORKER.indexOf('"/operational-request"');

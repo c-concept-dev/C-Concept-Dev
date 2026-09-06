@@ -211,10 +211,13 @@ test('T-FASTCAPADM-09 : le plan rapide n’a qu’un fournisseur', () => {
   assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: 'ha' }), ['groq']);
   assert.equal(FAST_PROVIDER_ORDER.includes('anthropic'), false, 'FAST_ANTHROPIC_FAILOVER = NO');
   assert.equal(FAST_PROVIDER_ORDER.includes('openai'), false, 'FAST_OPENAI_FAILOVER = NO');
-  /* L'ordre du plan PROFOND et de /decision est intact, à l'octet près. */
+  /* L'ordre de /decision est intact, à l'octet près. Le plan PROFOND, lui, a été ramené à
+     Anthropic seul par DEEP-PROVIDER-ROUTING-FINAL-01 — ce qui ne retire rien à ce lot-ci :
+     ce qu'il affirmait, c'est que RÉDUIRE le plan rapide à Groq n'avait touché aucun autre
+     plan, et les deux lignes suivantes le prouvent toujours, chacune sur son propre plan. */
   assert.deepEqual([...DECISION_PROVIDER_ORDER], ['groq', 'anthropic', 'openai']);
-  assert.deepEqual([...ROLE_PROVIDER_ORDER], ['groq', 'anthropic', 'openai']);
-  assert.match(WORKER, /export const ROLE_PROVIDER_ORDER = Object\.freeze\(\["groq", "anthropic", "openai"\]\)/);
+  assert.deepEqual([...ROLE_PROVIDER_ORDER], ['anthropic']);
+  assert.match(WORKER, /export const ROLE_PROVIDER_ORDER = Object\.freeze\(\["anthropic"\]\)/);
   /* L'épinglage diagnostic les atteint toujours : c'est un outil de mesure. */
   for (const f of ['anthropic', 'openai']) {
     assert.deepEqual(resolveFastProviderOrder({ FAST_BENCH_PROVIDER: f }), [f]);

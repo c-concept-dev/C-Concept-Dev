@@ -13,6 +13,17 @@ import groqWorker, { runRoleWithGroq, decideWithGroq } from "../workers/groq/src
 const ORIGIN_ENV = { ALLOWED_ORIGINS: "https://atelier.example.com" };
 const ORIGIN_AND_KEY_ENV = { ...ORIGIN_ENV, GROQ_API_KEY: "server-only" };
 
+/* DEEP-PROVIDER-ROUTING-FINAL-01 — LE WORKER « GROQ » NE SERT PLUS LES RÔLES AVEC GROQ.
+   Le nom du worker est historique : c'est le worker du plan profond, et son plan profond est
+   désormais servi par Anthropic seul. Les tests d'endpoint qui empruntent le vrai routage HTTP
+   reçoivent donc la clé Anthropic et la forme de réponse Anthropic. Ce qu'ils vérifient est
+   inchangé — même prompt canonique, même sortie validée, même statut : c'est justement parce que
+   prompt et schéma sont identiques d'un fournisseur à l'autre (invariant HA-02) que le changement
+   se limite au transport. */
+const ORIGIN_AND_ANTHROPIC_ENV = { ...ORIGIN_ENV, ANTHROPIC_API_KEY: "server-only" };
+const outilDe = (body) => body.tools?.[0]?.name ?? null;
+const reponseAnthropic = (payload, name) => Response.json({ content: [{ type: "tool_use", name, input: payload }] });
+
 function confirmationSignals() {
   return {
     multiple_ambiguities_resolved: false,
@@ -103,17 +114,18 @@ test("Analyste sur Workers AI : requête valide -> sortie validée, mêmes promp
   assert.deepEqual(captured.options.response_format.json_schema, ANALYST_JSON_SCHEMA);
 });
 
-test("Analyste sur Groq : requête valide -> sortie validée", async (t) => {
+test("Analyste sur le plan profond : requête valide -> sortie validée", async (t) => {
   let captured;
   withGroqFetch(t, async (url, options) => {
     captured = { url, options, body: JSON.parse(options.body) };
-    return Response.json({ choices: [{ message: { content: JSON.stringify(validAnalystOutput()) } }] });
+    return reponseAnthropic(validAnalystOutput(), outilDe(captured.body));
   });
-  const response = await groqWorker.fetch(postRole("analyst", analystRequestBody()), ORIGIN_AND_KEY_ENV);
+  const response = await groqWorker.fetch(postRole("analyst", analystRequestBody()), ORIGIN_AND_ANTHROPIC_ENV);
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.operational_request_candidate.objective, "Rédiger une lettre de motivation.");
-  assert.equal(captured.body.messages[0].content, ANALYST_SYSTEM_PROMPT);
+  assert.equal(captured.body.system, ANALYST_SYSTEM_PROMPT);
+  assert.equal(new URL(captured.url).host, "api.anthropic.com", "le plan profond ne contacte qu'Anthropic.");
 });
 
 // --- Critique --------------------------------------------------------------------------------------
@@ -125,9 +137,9 @@ test("Critique sur Workers AI : requête valide -> agreement=agree préservé", 
   assert.equal((await response.json()).agreement, "agree");
 });
 
-test("Critique sur Groq : requête valide -> agreement=agree préservé", async (t) => {
-  withGroqFetch(t, async () => Response.json({ choices: [{ message: { content: JSON.stringify(validCriticOutput()) } }] }));
-  const response = await groqWorker.fetch(postRole("critic", criticRequestBody()), ORIGIN_AND_KEY_ENV);
+test("Critique sur le plan profond : requête valide -> agreement=agree préservé", async (t) => {
+  withGroqFetch(t, async (url, options) => reponseAnthropic(validCriticOutput(), outilDe(JSON.parse(options.body))));
+  const response = await groqWorker.fetch(postRole("critic", criticRequestBody()), ORIGIN_AND_ANTHROPIC_ENV);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).agreement, "agree");
 });
@@ -141,9 +153,9 @@ test("Arbitre sur Workers AI : requête valide -> state=operational_request_read
   assert.equal((await response.json()).state, "operational_request_ready");
 });
 
-test("Arbitre sur Groq : requête valide -> state=operational_request_ready", async (t) => {
-  withGroqFetch(t, async () => Response.json({ choices: [{ message: { content: JSON.stringify(validArbiterOutput()) } }] }));
-  const response = await groqWorker.fetch(postRole("arbiter", arbiterRequestBody()), ORIGIN_AND_KEY_ENV);
+test("Arbitre sur le plan profond : requête valide -> state=operational_request_ready", async (t) => {
+  withGroqFetch(t, async (url, options) => reponseAnthropic(validArbiterOutput(), outilDe(JSON.parse(options.body))));
+  const response = await groqWorker.fetch(postRole("arbiter", arbiterRequestBody()), ORIGIN_AND_ANTHROPIC_ENV);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).state, "operational_request_ready");
 });
@@ -225,14 +237,14 @@ test("la route /decision historique répond toujours à l'identique sur les deux
 
 // --- Même prompt, même schéma, quel que soit le provider ----------------------------------------------
 
-test("même rôle -> prompt système et schéma strictement identiques sur Workers AI et Groq", async (t) => {
+test("même rôle -> prompt système et schéma strictement identiques sur Workers AI et sur le plan profond", async (t) => {
   let workersAiCaptured;
   const workersEnv = workersAiEnv(async (model, options) => { workersAiCaptured = options; return { response: validCriticOutput() }; });
   await workersAIWorker.fetch(postRole("critic", criticRequestBody()), workersEnv);
 
   let groqCaptured;
-  withGroqFetch(t, async (url, options) => { groqCaptured = JSON.parse(options.body); return Response.json({ choices: [{ message: { content: JSON.stringify(validCriticOutput()) } }] }); });
-  await groqWorker.fetch(postRole("critic", criticRequestBody()), ORIGIN_AND_KEY_ENV);
+  withGroqFetch(t, async (url, options) => { groqCaptured = JSON.parse(options.body); return reponseAnthropic(validCriticOutput(), outilDe(groqCaptured)); });
+  await groqWorker.fetch(postRole("critic", criticRequestBody()), ORIGIN_AND_ANTHROPIC_ENV);
 
   // 3F.3.3-X2-BATCH-R1 : le chemin critic réel de production n'est plus le mécanisme monolithique
   // (CRITIC_SYSTEM_PROMPT + buildCriticJsonSchema) — cf. runCriticWithGroq/runCriticWithWorkersAI.
@@ -240,9 +252,9 @@ test("même rôle -> prompt système et schéma strictement identiques sur Worke
   // (le Critic global) est effectué sur chaque provider, et son prompt/schéma doit être
   // CRITIC_GLOBAL_SYSTEM_PROMPT/CRITIC_GLOBAL_JSON_SCHEMA — identiques entre les deux providers,
   // exactement comme CRITIC_SYSTEM_PROMPT l'était avant R1 pour le mécanisme monolithique.
-  assert.equal(workersAiCaptured.messages[0].content, groqCaptured.messages[0].content);
+  assert.equal(workersAiCaptured.messages[0].content, groqCaptured.system);
   assert.equal(workersAiCaptured.messages[0].content, CRITIC_GLOBAL_SYSTEM_PROMPT);
-  assert.deepEqual(workersAiCaptured.response_format.json_schema, groqCaptured.response_format.json_schema.schema);
+  assert.deepEqual(workersAiCaptured.response_format.json_schema, groqCaptured.tools[0].input_schema);
   assert.deepEqual(workersAiCaptured.response_format.json_schema, CRITIC_GLOBAL_JSON_SCHEMA);
 });
 

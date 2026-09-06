@@ -63,6 +63,22 @@ const groq429 = (retryAfterS) => new Response('{"error":{"message":"rate limit",
 const httpFail = (status = 503) => Response.json({ error: { message: "ko" } }, { status });
 const providerOf = (u) => String(u).includes("groq") ? "groq" : String(u).includes("anthropic") ? "anthropic" : "openai";
 
+// -------------------------------------------------------------------------------------------------
+// DEEP-PROVIDER-ROUTING-FINAL-01 — LA GARDE RESTE, LE CHEMIN QU'ELLE GARDAIT A DISPARU.
+//
+// HA-03 corrige un défaut précis : sur un Retry-After long, la première tentative Groq d'un rôle
+// dormait sans borne et n'atteignait jamais le fournisseur suivant. Le plan profond n'appelle plus
+// Groq, donc ce défaut n'a plus de chemin pour se produire EN PRODUCTION. La garde n'est pas
+// supprimée pour autant : ROLE_GROQ_RETRY_POLICIES et la borne d'attente restent dans le code, et
+// les tests ci-dessous continuent de les vérifier en passant l'ordre explicitement — comme le ferait
+// tout appelant qui reconfigurerait la chaîne. Supprimer une garde parce que son chemin est
+// momentanément fermé, c'est la perdre le jour où on le rouvre.
+//
+// Ce que ces tests ne prétendent plus : que la production bascule. HA03-11 dit maintenant l'inverse.
+// -------------------------------------------------------------------------------------------------
+const CHAINE_HA_MECANIQUE = Object.freeze(["groq", "anthropic", "openai"]);
+const ORDRE = { order: CHAINE_HA_MECANIQUE };
+
 function withCapturedConsole(t) {
   const l = console.log, e = console.error;
   console.log = () => {}; console.error = () => {};
@@ -145,7 +161,7 @@ test("HA03-9 : un Retry-After LONG n'est JAMAIS attendu — la garde abandonne G
     anthropic: ({ schemaName }) => responder("critic", "anthropic")({ schemaName })
   });
   const started = Date.now();
-  await runRoleWithHaChain("critic", ROLE_INPUT.critic, ENV, { retryOverrides: { sleepFn: async (ms) => { sleeps.push(ms); } } });
+  await runRoleWithHaChain("critic", ROLE_INPUT.critic, ENV, { ...ORDRE, retryOverrides: { sleepFn: async (ms) => { sleeps.push(ms); } } });
   const elapsed = Date.now() - started;
   assert.deepEqual(sleeps, [], `aucune attente ne doit avoir lieu pour un Retry-After de ${PATHOLOGICAL_RETRY_AFTER_S}s ; obtenu ${JSON.stringify(sleeps)}`);
   assert.equal(calls.filter((c) => c.provider === "groq").length, 1, "une seule tentative Groq : la reprise est abandonnée, pas rejouée.");
@@ -163,7 +179,7 @@ for (const [role, id] of [["analyst", "HA03-1"], ["arbiter", "HA03-2"], ["critic
       groq: () => groq429(PATHOLOGICAL_RETRY_AFTER_S),
       anthropic: ({ schemaName }) => responder(role, "anthropic")({ schemaName })
     });
-    const output = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV);
+    const output = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE);
     const elapsed = Date.now() - started;
     assert.ok(output && typeof output === "object", `${role} doit produire une sortie servie par Anthropic.`);
     assert.equal(calls.filter((c) => c.provider === "groq").length, 1);
@@ -185,7 +201,7 @@ test("HA03-4 : Groq (Retry-After long) puis Anthropic KO -> OpenAI est atteint",
     anthropic: () => httpFail(500),
     openai: ({ schemaName }) => responder("analyst", "openai")({ schemaName })
   });
-  const output = await runRoleWithHaChain("analyst", ROLE_INPUT.analyst, ENV);
+  const output = await runRoleWithHaChain("analyst", ROLE_INPUT.analyst, ENV, ORDRE);
   assert.ok(output.operational_request_candidate);
   assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq", "anthropic", "openai"]);
 });
@@ -193,7 +209,7 @@ test("HA03-4 : Groq (Retry-After long) puis Anthropic KO -> OpenAI est atteint",
 test("HA03-5 : les trois fournisseurs échouent -> ProviderChainError, fail-closed, aucun résultat fabriqué", async (t) => {
   withCapturedConsole(t);
   withProviders(t, { groq: () => groq429(PATHOLOGICAL_RETRY_AFTER_S), anthropic: () => httpFail(500), openai: () => httpFail(502) });
-  const error = await runRoleWithHaChain("analyst", ROLE_INPUT.analyst, ENV).then(() => null, (e) => e);
+  const error = await runRoleWithHaChain("analyst", ROLE_INPUT.analyst, ENV, ORDRE).then(() => null, (e) => e);
   assert.ok(error instanceof ProviderChainError);
   assert.equal(error.all_providers_failed, true);
   assert.deepEqual(error.attempts.map((a) => a.provider), ["groq", "anthropic", "openai"]);
@@ -206,13 +222,16 @@ test("HA03-10 : aucun model shopping — un succès Groq met fin à la chaîne, 
   withCapturedConsole(t);
   for (const role of OPRIE_ROLES) {
     const calls = withProviders(t, { groq: ({ schemaName }) => responder(role, "groq")({ schemaName }) });
-    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV);
+    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE);
     assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq"], role);
   }
 });
 
-test("HA03-11 : l'ordre des fournisseurs est INCHANGÉ pour les rôles comme pour Decision", () => {
-  assert.deepEqual(ROLE_PROVIDER_ORDER, ["groq", "anthropic", "openai"]);
+test("HA03-11 : l'ordre de Decision est inchangé, celui des rôles est désormais Anthropic seul", () => {
+  /* DEEP-PROVIDER-ROUTING-FINAL-01 — l'ordre des rôles a changé APRÈS ce lot, par une décision
+     mesurée puis appliquée. Les gardes de reprise ci-dessous, elles, n'ont pas bougé d'un
+     millième de seconde : c'est ce que HA-03 avait à protéger, et c'est ce qui reste protégé. */
+  assert.deepEqual(ROLE_PROVIDER_ORDER, ["anthropic"]);
   assert.deepEqual(DECISION_PROVIDER_ORDER, ["groq", "anthropic", "openai"]);
   assert.deepEqual([...Object.keys(ROLE_GROQ_RETRY_POLICIES)].sort(), [...OPRIE_ROLES].sort(),
     "chaque rôle OPRIE, et seulement eux, possède une garde.");

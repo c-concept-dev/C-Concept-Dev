@@ -109,6 +109,24 @@ function roleResponder(role, provider) {
 }
 const providersFor = (role, spec) => Object.fromEntries(Object.entries(spec).map(([p, v]) => [p, v === "ok" ? roleResponder(role, p) : v]));
 
+// -------------------------------------------------------------------------------------------------
+// DEEP-PROVIDER-ROUTING-FINAL-01 — CE QUE CES TESTS PROUVENT ENCORE, ET CE QU'ILS NE PROUVENT PLUS.
+//
+// HA-02 a été écrit quand le plan profond enchaînait Groq -> Anthropic -> OpenAI. Ce n'est plus
+// l'ordre de production : ROLE_PROVIDER_ORDER ne contient plus qu'Anthropic, et HA02-ORDER l'affirme
+// désormais explicitement. Le MÉCANISME, lui, n'a pas été retiré — runRoleWithHaChain, ses trois
+// adaptateurs, la classification d'échec, la règle de cause commune et le fail-closed sont le même
+// code que celui qui sert /decision, où la chaîne à trois fournisseurs reste bel et bien active.
+//
+// D'où cette constante : les tests de MÉCANIQUE passent l'ordre explicitement, exactement comme le
+// ferait un appelant qui en configure un. Ils continuent donc de garder ce qu'ils gardaient — même
+// prompt et même schéma chez chaque fournisseur, aucun model shopping, aucun résultat fabriqué,
+// aucun mélange de fournisseurs dans un même CriticOutput — sans laisser croire une seconde que la
+// production ferait encore ces bascules. Ce qu'ils ne prouvent plus, ils ne le prétendent plus.
+// -------------------------------------------------------------------------------------------------
+const CHAINE_HA_MECANIQUE = Object.freeze(["groq", "anthropic", "openai"]);
+const ORDRE = { order: CHAINE_HA_MECANIQUE };
+
 // =================================================================================================
 // (A) LATENCE DE BASCULE 429 — /decision
 // =================================================================================================
@@ -194,16 +212,19 @@ test("HA02-D6 : Decision et Critic ont des CONFIGS distinctes sans dupliquer le 
 // (B) HAUTE DISPONIBILITÉ DES RÔLES — analyst / critic / arbiter
 // =================================================================================================
 
-test("HA02-ORDER : l'ordre des providers des rôles est exactement celui de Decision", () => {
-  assert.deepEqual(ROLE_PROVIDER_ORDER, ["groq", "anthropic", "openai"]);
+test("HA02-ORDER : l'ordre des rôles n'est plus celui de Decision — le plan profond n'a qu'Anthropic", () => {
+  assert.deepEqual(ROLE_PROVIDER_ORDER, ["anthropic"]);
   assert.ok(Object.isFrozen(ROLE_PROVIDER_ORDER));
+  /* Et il ne s'agit pas d'un ordre tronqué : ni Groq ni OpenAI n'y figurent plus du tout. */
+  assert.equal(ROLE_PROVIDER_ORDER.includes("groq"), false);
+  assert.equal(ROLE_PROVIDER_ORDER.includes("openai"), false);
 });
 
 for (const [role, prefix] of [["analyst", "HA02-A"], ["critic", "HA02-C"], ["arbiter", "HA02-R"]]) {
   test(`${prefix}1 : ${role} — Groq réussit, aucun autre provider contacté`, async (t) => {
     withCapturedConsole(t);
     const calls = withProviders(t, providersFor(role, { groq: "ok" }));
-    const output = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV);
+    const output = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE);
     assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq"]);
     assert.ok(output && typeof output === "object");
   });
@@ -211,21 +232,21 @@ for (const [role, prefix] of [["analyst", "HA02-A"], ["critic", "HA02-C"], ["arb
   test(`${prefix}2 : ${role} — échec technique Groq -> Anthropic`, async (t) => {
     withCapturedConsole(t);
     const calls = withProviders(t, providersFor(role, { groq: () => httpFail(503), anthropic: "ok" }));
-    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV);
+    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE);
     assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq", "anthropic"]);
   });
 
   test(`${prefix}3 : ${role} — Groq et Anthropic échouent -> OpenAI`, async (t) => {
     withCapturedConsole(t);
     const calls = withProviders(t, providersFor(role, { groq: () => httpFail(503), anthropic: () => httpFail(500), openai: "ok" }));
-    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV);
+    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE);
     assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq", "anthropic", "openai"]);
   });
 
   test(`${prefix}-SEMANTIC : ${role} — une sortie techniquement valide est FINALE, jamais rejouée ailleurs`, async (t) => {
     withCapturedConsole(t);
     const calls = withProviders(t, providersFor(role, { groq: "ok" }));
-    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV);
+    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE);
     assert.ok(!calls.some((c) => c.provider !== "groq"), "aucun model shopping : un succès technique met fin à la chaîne.");
   });
 
@@ -236,9 +257,9 @@ for (const [role, prefix] of [["analyst", "HA02-A"], ["critic", "HA02-C"], ["arb
       seen.push({ provider, system: body.system ?? body.messages?.[0]?.content, schema: body.tools?.[0]?.input_schema ?? body.response_format?.json_schema?.schema, schemaName });
       return provider === "groq" || provider === "anthropic" ? httpFail(503) : (provider === "openai" ? chatOk(ROLE_OUTPUT[role]()) : httpFail(503));
     };
-    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, {}).catch(() => {});
+    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE).catch(() => {});
     withProviders(t, { groq: capture("groq"), anthropic: capture("anthropic"), openai: capture("openai") });
-    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV).catch(() => {});
+    await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE).catch(() => {});
     const firstCallPerProvider = ["groq", "anthropic", "openai"].map((p) => seen.find((s) => s.provider === p)).filter(Boolean);
     assert.equal(firstCallPerProvider.length, 3, "les trois providers doivent avoir été tentés.");
     const [a, b, c] = firstCallPerProvider;
@@ -249,7 +270,7 @@ for (const [role, prefix] of [["analyst", "HA02-A"], ["critic", "HA02-C"], ["arb
   test(`${prefix}-ALLFAIL : ${role} — les trois échouent -> ProviderChainError, aucun résultat fabriqué`, async (t) => {
     withCapturedConsole(t);
     withProviders(t, providersFor(role, { groq: () => httpFail(503), anthropic: () => httpFail(500), openai: () => httpFail(502) }));
-    const error = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV).then(() => null, (e) => e);
+    const error = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE).then(() => null, (e) => e);
     assert.ok(error instanceof ProviderChainError);
     assert.equal(error.all_providers_failed, true);
     assert.deepEqual(error.attempts.map((x) => x.provider), ["groq", "anthropic", "openai"]);
@@ -263,7 +284,7 @@ test("HA02-A6 : Analyst réutilise EXACTEMENT le prompt, le schéma et le valida
   withCapturedConsole(t);
   let captured;
   withProviders(t, { groq: ({ body }) => { captured = body; return chatOk(validAnalystOutput()); } });
-  await runRoleWithHaChain("analyst", ROLE_INPUT.analyst, ENV);
+  await runRoleWithHaChain("analyst", ROLE_INPUT.analyst, ENV, ORDRE);
   assert.equal(captured.messages[0].content, ANALYST_SYSTEM_PROMPT);
   assert.deepEqual(captured.response_format.json_schema.schema, ANALYST_JSON_SCHEMA);
   assert.equal(ROLE_DEFINITIONS.analyst.systemPrompt, ANALYST_SYSTEM_PROMPT);
@@ -275,7 +296,7 @@ test("HA02-R4/R5 : Arbiter — validateArbiterOutput et l'intent preservation re
   const illegal = { ...validArbiterOutput(), intent_preservation: { objective_preserved: false, priorities_preserved: true, semantic_equivalence: true, concerns: ["dérive"] } };
   assert.throws(() => validateArbiterOutput(illegal), /intent_preservation/);
   withProviders(t, { groq: () => chatOk(illegal), anthropic: () => chatOk(illegal), openai: () => chatOk(illegal) });
-  const error = await runRoleWithHaChain("arbiter", ROLE_INPUT.arbiter, ENV).then(() => null, (e) => e);
+  const error = await runRoleWithHaChain("arbiter", ROLE_INPUT.arbiter, ENV, ORDRE).then(() => null, (e) => e);
   assert.ok(error instanceof ProviderChainError, "aucun provider ne peut contourner le validateur : la chaîne échoue en fail-closed.");
   assert.deepEqual(error.attempts.map((x) => x.failure_class), Array(3).fill(FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID));
 });
@@ -283,7 +304,7 @@ test("HA02-R4/R5 : Arbiter — validateArbiterOutput et l'intent preservation re
 test("HA02-R8 : Arbiter — aucun chemin de repli ne peut produire un état READY artificiel", async (t) => {
   withCapturedConsole(t);
   withProviders(t, { groq: () => httpFail(503), anthropic: () => httpFail(503), openai: () => httpFail(503) });
-  const error = await runRoleWithHaChain("arbiter", ROLE_INPUT.arbiter, ENV).then(() => null, (e) => e);
+  const error = await runRoleWithHaChain("arbiter", ROLE_INPUT.arbiter, ENV, ORDRE).then(() => null, (e) => e);
   const serialized = JSON.stringify({ message: error.message, attempts: error.attempts });
   for (const forbidden of ["operational_request_ready", "clarification_required", "confirmation_required", "blocked"]) {
     assert.ok(!serialized.includes(forbidden), `l'échec technique ne doit jamais mentionner un état OPRIE (${forbidden}).`);
@@ -307,7 +328,7 @@ test("HA02-C6b : un échec de batch (technical_state=partial_failure) est une pa
     groq: ({ schemaName }) => schemaName === "critic_global" ? chatOk(criticGlobalFixture()) : httpFail(500),
     anthropic: ({ schemaName }) => toolOk(schemaName === "critic_global" ? criticGlobalFixture() : {}, schemaName)
   });
-  await runRoleWithHaChain("critic", input, ENV).catch(() => {});
+  await runRoleWithHaChain("critic", input, ENV, ORDRE).catch(() => {});
   assert.ok(calls.some((c) => c.provider === "anthropic"), "un partial_failure doit être classé TECHNICAL_FAILOVER et permettre la bascule.");
 });
 
@@ -325,7 +346,7 @@ test("HA02-C10 : le failover Critic est PAR PIPELINE — jamais un mélange de p
     groq: ({ schemaName }) => schemaName === "critic_global" ? chatOk(criticGlobalFixture()) : httpFail(500),
     anthropic: ({ schemaName }) => toolOk(schemaName === "critic_global" ? criticGlobalFixture() : {}, schemaName)
   });
-  await runRoleWithHaChain("critic", input, ENV).catch(() => {});
+  await runRoleWithHaChain("critic", input, ENV, ORDRE).catch(() => {});
   const anthropicCalls = calls.filter((c) => c.provider === "anthropic");
   assert.ok(anthropicCalls.some((c) => c.schemaName === "critic_global"),
     "après bascule, le provider suivant rejoue le pipeline ENTIER (global inclus) : jamais un batch réparé isolément par un autre modèle.");
@@ -346,7 +367,7 @@ for (const [role, id] of [["analyst", "HA02-G1"], ["critic", "HA02-G2"], ["arbit
   test(`${id} : ${role} — ProviderChainError -> degraded_state canonique, validé par le contrat OPRIE existant`, async (t) => {
     withCapturedConsole(t);
     withProviders(t, providersFor(role, { groq: () => httpFail(503), anthropic: () => httpFail(500), openai: () => httpFail(502) }));
-    const error = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV).then(() => null, (e) => e);
+    const error = await runRoleWithHaChain(role, ROLE_INPUT[role], ENV, ORDRE).then(() => null, (e) => e);
     const degraded = degradedResultFromProviderChainError(role, error);
     assert.deepEqual(validateDegradedRoleResult(degraded), degraded, "la sortie doit passer le validateur canonique existant, jamais une nouvelle shape.");
     assert.deepEqual(Object.keys(degraded).sort(), ["reason", "role", "state"]);
@@ -405,14 +426,18 @@ test("HA02-HTTP : l'échec des trois providers reste un 502 role_provider_failur
   }
 });
 
-test("HA02-HTTP-b : le chemin nominal des trois rôles reste identique à celui d'avant HA-02 (Groq, 200, même sortie validée)", async (t) => {
+/* DEEP-PROVIDER-ROUTING-FINAL-01 — CE TEST-CI EMPRUNTE LE VRAI CHEMIN HTTP, donc l'ordre de
+   PRODUCTION : il ne reçoit pas ORDRE et c'est délibéré. Ce qui a changé, c'est le fournisseur qui
+   sert — Anthropic, plus Groq. Ce qui n'a pas changé, et c'est l'objet du test, c'est que le chemin
+   nominal rend 200 avec la même sortie validée, sans consulter personne d'autre. */
+test("HA02-HTTP-b : le chemin nominal des trois rôles rend 200 et la même sortie validée (désormais Anthropic)", async (t) => {
   withCapturedConsole(t);
   for (const role of ["analyst", "arbiter"]) {
-    const calls = withProviders(t, providersFor(role, { groq: "ok" }));
+    const calls = withProviders(t, providersFor(role, { anthropic: "ok" }));
     const response = await groqWorker.fetch(new Request(`https://worker.example/${role}`, {
       method: "POST", headers: { "Content-Type": "application/json", Origin: "https://atelier.example.com" }, body: JSON.stringify(ROLE_INPUT[role])
     }), ENV);
     assert.equal(response.status, 200, role);
-    assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["groq"], role);
+    assert.deepEqual([...new Set(calls.map((c) => c.provider))], ["anthropic"], role);
   }
 });

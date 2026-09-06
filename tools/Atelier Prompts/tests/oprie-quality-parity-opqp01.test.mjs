@@ -48,10 +48,17 @@ test('T-OPQP01-01 : les deux runs sont réellement épinglés', () => {
   assert.equal(R.epinglage.anthropic.invocations, 12);
   assert.equal(R.epinglage.groq.valide, true);
   assert.equal(R.epinglage.anthropic.valide, true);
-  /* Le mécanisme lui-même : même contrat que celui du plan rapide. */
+  /* Le mécanisme lui-même : même contrat que celui du plan rapide.
+
+     DEEP-PROVIDER-ROUTING-FINAL-01 — MAIS SA PORTÉE S'EST RÉTRÉCIE. Les valeurs permises sont
+     dérivées de ROLE_PROVIDER_ORDER ; depuis que le plan profond n'a plus qu'Anthropic, épingler
+     "groq" ou "openai" est refusé au lieu d'être appliqué. La mesure comparative de ce lot-ci
+     n'est donc plus rejouable telle quelle — c'est assumé : elle a servi à décider, la décision
+     est prise, et le résultat mesuré reste lisible dans R.epinglage ci-dessus. */
   assert.equal(DEEP_BENCH_PROVIDER_BINDING, 'DEEP_BENCH_PROVIDER');
-  for (const f of ['groq', 'anthropic', 'openai']) {
-    assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: f }), [f]);
+  assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: 'anthropic' }), ['anthropic']);
+  for (const ferme of ['groq', 'openai']) {
+    assert.throws(() => resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: ferme }), /invalide/, ferme);
   }
   assert.throws(() => resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: 'auto' }), /invalide/);
 });
@@ -160,12 +167,17 @@ test('T-OPQP01-08 : PARTIAL, et la migration reste fermée', () => {
 
 /* T-OPQP01-09 — RIEN N'A MIGRÉ, rien n'a changé en production. */
 test('T-OPQP01-09 : aucun ordre de production, aucun primaire, aucune migration', () => {
-  assert.deepEqual([...ROLE_PROVIDER_ORDER], ['groq', 'anthropic', 'openai']);
+  /* DEEP-PROVIDER-ROUTING-FINAL-01 — L'ORDRE DU PLAN PROFOND A CHANGÉ APRÈS CE LOT.
+     Au moment de cette mesure, ROLE_PROVIDER_ORDER valait ["groq","anthropic","openai"] ; la
+     décision « DEEP = ANTHROPIC ONLY » a depuis été appliquée au runtime. L'assertion suit le
+     contrat courant : ce qu'affirmait ce lot — qu'il n'avait lui-même RIEN changé — reste vrai,
+     et c'est ce que R.* continue de prouver. */
+  assert.deepEqual([...ROLE_PROVIDER_ORDER], ['anthropic']);
   assert.deepEqual([...DECISION_PROVIDER_ORDER], ['groq', 'anthropic', 'openai']);
   assert.deepEqual([...FAST_PROVIDER_ORDER], ['groq'], 'le plan rapide est intact');
-  assert.deepEqual(resolveRoleProviderOrder({}), ['groq', 'anthropic', 'openai'],
+  assert.deepEqual(resolveRoleProviderOrder({}), ['anthropic'],
     'sans variable, l’ordre des rôles est celui de production');
-  assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: 'ha' }), ['groq', 'anthropic', 'openai']);
+  assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: 'ha' }), ['anthropic']);
   assert.match(lire('workers/groq/wrangler.jsonc'), /"DEEP_BENCH_PROVIDER": "ha"/);
   assert.equal(R.configuration.groq_model, MODEL);
   assert.equal(R.configuration.anthropic_model, ANTHROPIC_MODEL);
