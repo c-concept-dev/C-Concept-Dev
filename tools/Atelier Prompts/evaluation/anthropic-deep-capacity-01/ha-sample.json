@@ -1,0 +1,222 @@
+[
+ {
+  "ts": 1788719743867,
+  "wallTime": 13858,
+  "outcome": "ok",
+  "total_journal": 13857,
+  "analyst": 1132,
+  "critic": 407,
+  "arbiter": 12318,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "groq",
+   "critic": "groq",
+   "arbiter": "groq"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 3762,
+    "sortie": 651,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 2289,
+    "sortie": 147,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 2390,
+    "sortie": 206,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719765844,
+  "wallTime": 16427,
+  "outcome": "ok",
+  "total_journal": 16426,
+  "analyst": 8036,
+  "critic": 454,
+  "arbiter": 7936,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "groq",
+   "arbiter": "anthropic"
+  },
+  "echecs": {
+   "analyst": [
+    "groq:technical_failover"
+   ],
+   "arbiter": [
+    "groq:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 2345,
+    "sortie": 149,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3786,
+    "sortie": 502,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719790397,
+  "wallTime": 45254,
+  "outcome": "ok",
+  "total_journal": 45253,
+  "analyst": 18312,
+  "critic": 19342,
+  "arbiter": 7599,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "groq",
+   "critic": "groq",
+   "arbiter": "anthropic"
+  },
+  "echecs": {
+   "arbiter": [
+    "groq:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 3762,
+    "sortie": 359,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 2285,
+    "sortie": 155,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3692,
+    "sortie": 445,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719843796,
+  "wallTime": 42656,
+  "outcome": "ok",
+  "total_journal": 42653,
+  "analyst": 14491,
+  "critic": 20099,
+  "arbiter": 8063,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "groq",
+   "critic": "groq",
+   "arbiter": "anthropic"
+  },
+  "echecs": {
+   "arbiter": [
+    "groq:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 3762,
+    "sortie": 484,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 2299,
+    "sortie": 133,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3721,
+    "sortie": 473,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719894596,
+  "wallTime": 37198,
+  "outcome": "ok",
+  "total_journal": 37198,
+  "analyst": 11746,
+  "critic": 22103,
+  "arbiter": 3349,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "groq",
+   "critic": "groq",
+   "arbiter": "groq"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 3762,
+    "sortie": 491,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 2285,
+    "sortie": 155,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 2386,
+    "sortie": 216,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719939899,
+  "wallTime": 16451,
+  "outcome": "ok",
+  "total_journal": 16449,
+  "analyst": 7869,
+  "critic": 520,
+  "arbiter": 8060,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "groq",
+   "arbiter": "anthropic"
+  },
+  "echecs": {
+   "analyst": [
+    "groq:technical_failover"
+   ],
+   "arbiter": [
+    "groq:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 2345,
+    "sortie": 149,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3786,
+    "sortie": 502,
+    "appels": 1
+   }
+  }
+ }
+]

@@ -1,0 +1,127 @@
+{
+ "lot": "ANTHROPIC-DEEP-CAPACITY-01",
+ "mesure_le": "2026-09-06",
+ "checkpoint": "702c11219237206df614646a4294c56157241765",
+ "provider": "anthropic epingle (mesure native) + echantillon HA non epingle",
+ "model": "claude-sonnet-4-6",
+ "comportement_production_modifie": false,
+ "instrumentation_ajoutee": false,
+ "latence_totale_ms": {
+  "min": 19707,
+  "p50": 21338,
+  "p75": 27364,
+  "p90": 51880,
+  "p95": 75347,
+  "max": 81334
+ },
+ "latence_par_etage_ms": {
+  "analyst": {
+   "p50": 8001,
+   "p75": 8906,
+   "p90": 16848,
+   "p95": 22357,
+   "max": 27916
+  },
+  "critic": {
+   "p50": 4737,
+   "p75": 6350,
+   "p90": 9169,
+   "p95": 25052,
+   "max": 39251
+  },
+  "arbiter": {
+   "p50": 8461,
+   "p75": 11835,
+   "p90": 17544,
+   "p95": 26000,
+   "max": 37160
+  }
+ },
+ "surcout_orchestration_ms": {
+  "p50": 0,
+  "p95": 0,
+  "max": 0,
+  "lecture": "le produit n ajoute rien : la latence est integralement du temps de generation fournisseur"
+ },
+ "decomposition_p50": "8001 analyste + 4737 critique + 8461 arbitre + 0 orchestration = 21199 ms",
+ "jetons": {
+  "analyst": {
+   "entree_p50": 5573,
+   "entree_p95": 5573,
+   "sortie_p50": 448,
+   "sortie_p95": 1464
+  },
+  "critic": {
+   "entree_p50": 3653,
+   "entree_p95": 9582,
+   "sortie_p50": 227,
+   "sortie_p95": 1295
+  },
+  "arbiter": {
+   "entree_p50": 3853,
+   "entree_p95": 5211,
+   "sortie_p50": 521,
+   "sortie_p95": 1589
+  }
+ },
+ "jetons_total": {
+  "entree_p50": 13081,
+  "entree_p95": 19907,
+  "sortie_p50": 1193,
+  "sortie_p95": 4372
+ },
+ "echecs_natifs": {
+  "structured_output_invalid": 2,
+  "technical_failover": 3,
+  "sur_invocations": 62,
+  "preuve_plafond_sortie": "les deux structured_output_invalid surviennent a une sortie de EXACTEMENT 2048 = ROLE_MAX_OUTPUT_UNITS",
+  "plafond_modifie": false
+ },
+ "concurrence": {
+  "1": {
+   "n": 50,
+   "succes": 41,
+   "429": 0,
+   "5xx": 0,
+   "p50": 21740,
+   "p95": 80568
+  },
+  "2": {
+   "n": 8,
+   "succes": 8,
+   "429": 0,
+   "5xx": 0,
+   "p50": 20903,
+   "p95": 28066
+  },
+  "4": {
+   "n": 8,
+   "succes": 8,
+   "429": 0,
+   "5xx": 0,
+   "p50": 20643,
+   "p95": 21747
+  }
+ },
+ "grand_materiau": {
+  "octets": 16251,
+  "n": 3,
+  "succes": 3,
+  "latences_ms": [
+   36505,
+   28304,
+   26157
+  ],
+  "note": "un premier essai a 16743 octets a ete refuse 4 fois en 413 — plafond 16384, fixture fausse, corrigee ; plafond NON modifie"
+ },
+ "echantillon_ha_non_epingle": {
+  "n": 6,
+  "anthropic_natif": 0,
+  "repli_implique": 6,
+  "routage_actuel": "ROLE_PROVIDER_ORDER = groq -> anthropic -> openai",
+  "lecture": "la decision « DEEP = ANTHROPIC ONLY » n est pas encore implementee dans le routage ; sans epinglage le plan profond tourne majoritairement sur Groq"
+ },
+ "goulot": "SERIAL_CHAIN_DOMINANT (queue portee par le Critique batche, composante PROVIDER_VARIANCE)",
+ "utilisabilite": "HIGH_AND_VARIABLE",
+ "classement": "ANTHROPIC_CAPACITY_ACCEPTED_WITH_LIMITATIONS"
+}
