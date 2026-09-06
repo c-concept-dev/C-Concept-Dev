@@ -1918,7 +1918,45 @@ export function resolveRoleProviderOrder(env) {
 // ils utilisent le plafond de mesure déjà calibré en réel pour le pipeline Critic Anthropic (R5.2a),
 // jamais celui de /decision (20000 ms, dimensionné pour une décision courte).
 const OPENAI_ROLE_TIMEOUT_MS = 60000;
-const ROLE_MAX_OUTPUT_UNITS = 2048;
+
+/* DEEP-PRODUCTION-BLOCKERS-01 — 2048 N'ÉTAIT PAS UNE MESURE, C'ÉTAIT UN EMPRUNT.
+ * ============================================================================
+ *
+ * Cette valeur venait de GROQ_CRITIC_CAPABILITY.global_max_completion_units, où elle est
+ * documentée comme « valeur de production conservée par prudence (aucune mesure réseau réelle de sa
+ * sortie réduite) ». Elle n'a jamais été calibrée pour l'Analyste ni pour l'Arbitre : ces deux rôles
+ * l'ont héritée parce qu'ils passaient par le même adaptateur générique.
+ *
+ * CE QU'ELLE A COÛTÉ. Sur le runtime final Anthropic-only, 4 tours sur 11 se sont terminés en
+ * degraded_state. Les quatre sur l'Arbitre, les quatre en structured_output_invalid, les quatre à
+ * une sortie de EXACTEMENT 2048 jetons avec stop_reason = "max_tokens". Ce n'était pas un défaut du
+ * modèle, ni du parseur, ni du contrat : la structure était coupée en plein milieu par NOTRE
+ * plafond. Exactement le défaut que CSR-01 avait déjà rencontré sur le plafond des batches.
+ *
+ * POURQUOI L'ANCIEN ROUTAGE LE MASQUAIT. Avec un repli, un Arbitre tronqué basculait vers un autre
+ * fournisseur et le tour aboutissait quand même. Sans repli, il dégrade — proprement, mais il
+ * dégrade. Le défaut n'est pas né avec DEEP = ANTHROPIC ONLY ; il est devenu visible.
+ *
+ * D'OÙ VIENT 4096. D'une mesure, pas d'un arrondi. Plafond relevé temporairement, huit tours réels
+ * rejoués sur les cas mêmes qui tronquaient : zéro troncature, et la vraie distribution de sortie de
+ * l'Arbitre enfin observable — 1632, 1661, 1797, 1810, 1992, 2004, 2006, 2332. Maximum réel : 2332,
+ * soit 284 jetons au-dessus du mur. L'Analyste, mesuré dans la même campagne : maximum 1852.
+ *
+ * LA MARGE EST CHOISIE, PAS SUBIE. 3072 couvrirait le maximum observé de 32 % — moins que l'étendue
+ * de la distribution elle-même (1632 à 2332, soit 43 %). Sur dix-neuf tours et trois cas, ce serait
+ * calibrer sur l'échantillon plutôt que sur la population. 4096 le couvre de 76 %, soit plus d'une
+ * étendue observée, en un seul doublement — le plus petit pas qui tienne cet argument.
+ *
+ * POURQUOI UNE SEULE VALEUR, ET NON UN PLAFOND PAR RÔLE. Laisser l'Analyste à 2048 lui laisserait
+ * 196 jetons au-dessus de son maximum mesuré : la même faute, sur l'autre rôle, en attente. Un
+ * plafond par rôle fermerait une instance du défaut ; une seule valeur mesurée ferme la classe.
+ *
+ * CE QUI N'EST PAS TOUCHÉ. GROQ_CRITIC_CAPABILITY.global_max_completion_units reste à 2048 : le
+ * Critique global a été mesuré dans la même campagne à 1401 jetons au maximum, il n'approche pas son
+ * plafond, et cette constante-là a sa propre lignée de dérivation. Aucun prompt n'a été raccourci,
+ * aucune information sémantique retirée : le problème n'a jamais été que l'Arbitre parlait trop.
+ */
+const ROLE_MAX_OUTPUT_UNITS = 4096;
 
 /**
  * Préflight de contrat COMMUN au rôle, exécuté UNE SEULE FOIS avant toute tentative provider —

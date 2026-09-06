@@ -1,0 +1,83 @@
+{
+ "lot": "DEEP-PRODUCTION-BLOCKERS-01",
+ "question": "pourquoi 21 338 ms au Capacity Gate et 93 047 ms au routage final ?",
+ "reponse": "les deux campagnes ne mesuraient pas la même population. Le cas qui portait le Capacity Gate, rejoué à l'identique sur le runtime FINAL, rend le même chiffre.",
+ "classification": "TEST_POPULATION_DIFFERENCE",
+ "mecanisme": "ROLE_OUTPUT_EXPANSION — la latence de génération suit les jetons de SORTIE",
+ "preuve_principale": {
+  "cas": "A — cas synthétique matériau du Capacity Gate, à l’identique",
+  "capacity_gate_p50_ms": 21338,
+  "runtime_final_p50_ms": 20809,
+  "ecart_relatif": -0.0248,
+  "etages_p50_ms": {
+   "capacity": {
+    "analyst": 8001,
+    "critic": 4737,
+    "arbiter": 8461
+   },
+   "runtime_final": {
+    "analyst": 7882,
+    "critic": 4612,
+    "arbiter": 8954
+   }
+  },
+  "jetons_sortie_p50": {
+   "capacity": {
+    "analyst": 448,
+    "critic": 227,
+    "arbiter": 521
+   },
+   "runtime_final": {
+    "analyst": 422,
+    "critic": 233,
+    "arbiter": 480
+   }
+  },
+  "lecture": "chaque étage et chaque volume de sortie se retrouvent. Le runtime final reproduit le Capacity Gate sur le cas du Capacity Gate."
+ },
+ "preuve_secondaire": {
+  "cas": "B — cas sans matériau du routage final",
+  "p50_ms": 91694,
+  "p95_ms": 110446,
+  "n": 10,
+  "jetons_sortie_p50_total": 4180,
+  "rapport_latence_B_sur_A": 4.41,
+  "rapport_sortie_B_sur_A": 3.68,
+  "lecture": "le rapport des latences et le rapport des volumes de sortie sont du même ordre : c'est la longueur produite qui commande, pas le fournisseur ni le routage."
+ },
+ "causes_ecartees": {
+  "MEASUREMENT_METHOD_DIFFERENCE": "écarté : le cas A rend 20 679 ms en temps mur client contre 21 338 ms en horodatages de journal ; le surcoût d'orchestration avait été mesuré à 0 aux trois quantiles",
+  "CONFIGURATION_DIFFERENCE": "écarté : endpoint, rôles, modèle, plafond, timeouts, reprises, chemin Critic et concurrence sont identiques",
+  "RETRY_OR_PROVIDER_VARIANCE": "écarté : aucune reprise Anthropic n'existe, et les deux campagnes ont été servies par Anthropic",
+  "REAL_RUNTIME_REGRESSION": "écarté : le cas du Capacity Gate rend la valeur du Capacity Gate sur le runtime final, étage par étage"
+ },
+ "latence_par_cas": {
+  "A": {
+   "n": 10,
+   "min": 19100,
+   "p50": 20809,
+   "p95": 28025,
+   "max": 29979
+  },
+  "B": {
+   "n": 10,
+   "min": 77756,
+   "p50": 91694,
+   "p95": 110446,
+   "max": 121185
+  },
+  "T": {
+   "n": 6,
+   "min": 53284,
+   "p50": 101718,
+   "p95": 134815,
+   "max": 141958
+  }
+ },
+ "nominal": {
+  "definition": "le cas nominal est celui sur lequel la capacité a été qualifiée : le cas A",
+  "p50_ms": 20809,
+  "NOMINAL_DEEP_LATENCY_BLOCKER": "NO",
+  "limitation_connue": "les demandes ouvertes et sans matériau produisent des sorties trois à quatre fois plus longues et coûtent donc trois à quatre fois plus de temps. C'est une limitation documentée, pas une régression."
+ }
+}

@@ -1,0 +1,107 @@
+{
+ "lot": "DEEP-PRODUCTION-BLOCKERS-01",
+ "objet": "comparabilité des deux campagnes dont les p50 diffèrent (21 338 ms vs 93 047 ms)",
+ "axes": [
+  {
+   "axe": "endpoint",
+   "capacity": "/operational-request",
+   "routing_final": "/operational-request",
+   "identique": true
+  },
+  {
+   "axe": "rôles",
+   "capacity": "analyst, critic, arbiter",
+   "routing_final": "analyst, critic, arbiter",
+   "identique": true
+  },
+  {
+   "axe": "fournisseur",
+   "capacity": "anthropic",
+   "routing_final": "anthropic",
+   "identique": true
+  },
+  {
+   "axe": "modèle",
+   "capacity": "claude-sonnet-4-6",
+   "routing_final": "claude-sonnet-4-6",
+   "identique": true
+  },
+  {
+   "axe": "épinglage",
+   "capacity": "DEEP_BENCH_PROVIDER=anthropic (épinglé)",
+   "routing_final": "aucun (anthropic est le seul fournisseur)",
+   "identique": false,
+   "lecture": "différence de mécanisme, pas de fournisseur : les deux campagnes ont été servies par Anthropic"
+  },
+  {
+   "axe": "plafond de sortie",
+   "capacity": 2048,
+   "routing_final": 2048,
+   "identique": true
+  },
+  {
+   "axe": "timeouts",
+   "capacity": "ANTHROPIC_CRITIC_TIMEOUT_MS",
+   "routing_final": "ANTHROPIC_CRITIC_TIMEOUT_MS",
+   "identique": true
+  },
+  {
+   "axe": "reprises",
+   "capacity": "aucune politique de reprise Anthropic",
+   "routing_final": "aucune politique de reprise Anthropic",
+   "identique": true
+  },
+  {
+   "axe": "chemin Critic batché",
+   "capacity": "runCriticBatchedPipeline",
+   "routing_final": "runCriticBatchedPipeline",
+   "identique": true
+  },
+  {
+   "axe": "définition début/fin",
+   "capacity": "horodatages du journal Worker",
+   "routing_final": "temps mur client",
+   "identique": false,
+   "lecture": "le surcoût d'orchestration mesuré au Capacity était 0 aux trois quantiles : les deux définitions coïncident à quelques ms près"
+  },
+  {
+   "axe": "concurrence",
+   "capacity": "1 (mesure nominale), plus K2/K4 séparés",
+   "routing_final": "1, séquentiel",
+   "identique": true
+  },
+  {
+   "axe": "nombre d’appels",
+   "capacity": "3 rôles + batches Critic",
+   "routing_final": "3 rôles + batches Critic",
+   "identique": true
+  },
+  {
+   "axe": "POPULATION DE TEST",
+   "capacity": "A: 8 courtes sans matériau · B: 30 × cas stable « Extrais le numéro de dossier du matériau disponible » / ZX-4821 · C: 8 oracle · D: 4 grand matériau",
+   "routing_final": "5 × « accusé de réception » (matériau) + 5 × « note de synthèse deux pages pour comité de pilotage » (sans matériau)",
+   "identique": false,
+   "lecture": "AUCUN cas commun entre les deux campagnes. Le cas dominant du Capacity (30/50 tours) n'apparaît pas du tout dans le routage final."
+  }
+ ],
+ "jetons_de_sortie_p50_par_role": {
+  "capacity": {
+   "analyst": 448,
+   "critic": 227,
+   "arbiter": 521,
+   "total": 1193
+  },
+  "routing_final": {
+   "analyst": 1480,
+   "critic": 1137,
+   "arbiter": 1985,
+   "total": 4602
+  }
+ },
+ "latence_p50_ms": {
+  "capacity": 21338,
+  "routing_final": 93047
+ },
+ "hypothese_a_prouver": "la latence de génération est portée par les jetons de SORTIE ; le rapport de sortie (~3,9x) et le rapport de latence (~4,4x) sont du même ordre. Si le cas A du Capacity, rejoué sur le runtime final, revient vers ~21 s, la cause est la POPULATION, pas le runtime.",
+ "preuve_manquante": "replay apparié du cas A sur le runtime final"
+}
