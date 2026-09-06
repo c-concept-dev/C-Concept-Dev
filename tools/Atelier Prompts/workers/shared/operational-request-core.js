@@ -575,10 +575,11 @@ export const ARBITER_OUTPUT_FIELDS = Object.freeze([
   "reason"
 ]);
 
-export function makeArbiterUserMessage({ original_request, clarification_history = [], analyst_output, critic_output } = {}) {
+export function makeArbiterUserMessage({ original_request, clarification_history = [], analyst_output, critic_output, material_context } = {}) {
   return JSON.stringify({
     original_request: text(original_request),
     clarification_history: list(clarification_history),
+    material_context: normalizeMaterialContext(material_context),
     analyst_output,
     critic_output
   });

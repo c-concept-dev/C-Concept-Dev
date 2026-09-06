@@ -111,8 +111,14 @@ test('T-IAF01-07 : la disponibilité ne décide de rien', () => {
     assert.equal(ANALYST_SYSTEM_PROMPT.includes(etat), false, `${etat} absent du prompt Analyste`);
   }
   /* Aucun branchement runtime ne lit ce champ pour en tirer un état. */
-  for (const f of ['core/adn/intent-preservation.js', 'workers/shared/operational-request-orchestrator.js']) {
-    assert.equal(lire(f).includes('available_inputs'), false, `${f} ne connaît pas ce champ`);
+  /* L'orchestrateur NOMME available_inputs depuis OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01,
+     uniquement pour lever un drapeau de présence dans une trace metadata — jamais une valeur.
+     Ce que la garde protège vraiment : aucun état n'en est dérivé. */
+  assert.equal(lire('core/adn/intent-preservation.js').includes('available_inputs'), false);
+  const orch = lire('workers/shared/operational-request-orchestrator.js');
+  assert.match(orch, /arbiter_available_inputs_present: disponibles\.length > 0/);
+  for (const etat of ['operational_request_ready', 'clarification_required', 'blocked']) {
+    assert.equal(new RegExp(`available_inputs[^\\n]*${etat}`).test(orch), false, 'aucun état dérivé');
   }
 });
 

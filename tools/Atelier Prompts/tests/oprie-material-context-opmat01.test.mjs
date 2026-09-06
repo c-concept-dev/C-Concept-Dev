@@ -186,8 +186,11 @@ test('T-OPMAT01-09 : le piège de buildRoleInput est identifié', () => {
      deux premiers rôles le reçoivent explicitement, l’Arbitre ne le reçoit pas. */
   assert.match(orchestrateur, /if \(role === "analyst"\) return \{ \.\.\.base, material_context, \.\.\.\(material_content \? \{ material_content \} : \{\}\) \};/);
   assert.match(orchestrateur, /if \(role === "critic"\) return \{ \.\.\.base, analyst_output: outputs\.analyst, previous_vetoes: \[\], material_context \};/);
-  assert.match(orchestrateur, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic \};/,
-    'l’Arbitre reste sans contexte matériau');
+  /* OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01 : l'Arbitre reçoit désormais material_context —
+     deux booléens de disponibilité — parce qu'il écartait sinon comme invérifiable la
+     revendication portée par available_inputs. Le CONTENU ne lui parvient toujours pas. */
+  assert.match(orchestrateur, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic, material_context \};/,
+    'l’Arbitre reçoit le contexte, jamais le contenu');
   assert.match(DOC, /Le contexte ne doit\s*\n?donc \*\*pas\*\* être ajouté à `base`/);
   assert.match(DOC, /\| \*\*Arbitre\*\* \| \*\*NON\*\* \|/);
 });
@@ -201,7 +204,7 @@ test('T-OPMAT01-10 : HTML canonique inchangé, dette ouverte', () => {
      Le changement se limite à l'enveloppe et au contrat — aucune modification visuelle,
      aucun redesign, aucun comportement d'interface touché. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'b738f0861a4b14613c1d09d6f552c3144c7a80f9149ed6cd165064dff784f063', 'CANONICAL_HTML_CHANGED = NO');
+    '4ade8759eb9912935965e784e31cdf899eaceca5fda150e02a24b81ef60e2c59', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

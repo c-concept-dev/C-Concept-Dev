@@ -229,7 +229,10 @@ test('T-MCNT02-10 : ni le Critique ni l’Arbitre ne voient le contenu', () => {
   /* Le contenu ne passe pas par `base` : il ne peut donc pas fuir par effet de bord. */
   assert.equal(/base = Object\.freeze\(\{[^}]*material_content/.test(ORCH), false);
   assert.match(ORCH, /if \(role === "analyst"\) return \{ \.\.\.base, material_context, \.\.\.\(material_content \? \{ material_content \} : \{\}\) \};/);
-  assert.match(ORCH, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic \};/);
+  /* OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01 : l'Arbitre reçoit désormais material_context —
+     deux booléens de disponibilité — parce qu'il écartait sinon comme invérifiable la
+     revendication portée par available_inputs. Le CONTENU ne lui parvient toujours pas. */
+  assert.match(ORCH, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic, material_context \};/);
 });
 
 /* T-MCNT02-11 — LE MATÉRIAU EST UNE DONNÉE, JAMAIS UNE INSTRUCTION. */

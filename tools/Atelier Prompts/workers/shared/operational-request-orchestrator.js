@@ -111,7 +111,14 @@ function buildRoleInput(role, base, outputs, material_context, material_content)
      conditionnel garantit qu il n apparaît nulle part ailleurs, même vide. */
   if (role === "analyst") return { ...base, material_context, ...(material_content ? { material_content } : {}) };
   if (role === "critic") return { ...base, analyst_output: outputs.analyst, previous_vetoes: [], material_context };
-  return { ...base, analyst_output: outputs.analyst, critic_output: outputs.critic };
+  /* OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01 — L'ARBITRE VOYAIT LA REVENDICATION, PAS LE FAIT.
+     Depuis OPRIE-INPUT-AVAILABILITY-FIELD-01, le candidat porte available_inputs : « le numéro de
+     dossier, présent dans le matériau transmis », avec la provenance user_provided_material.
+     L'Arbitre recevait cette affirmation sans aucun moyen de savoir qu'un matériau avait été
+     transmis, et l'écartait comme invérifiable — seize fois sur trente. Il reçoit désormais les
+     deux booléens de disponibilité, et rien d'autre : material_content ne lui parvient pas, et
+     ne lui parviendra pas. */
+  return { ...base, analyst_output: outputs.analyst, critic_output: outputs.critic, material_context };
 }
 
 function defaultLog(event) {
@@ -161,6 +168,22 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
     /* OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01 — la preuve, tour par tour, que le Critique reçoit
        la disponibilité. Deux booléens, jamais un octet de matériau. Elle existe parce qu'un test
        vert sur un chemin mort avait laissé croire pendant deux lots que ce champ arrivait. */
+    if (role === "arbiter") {
+      /* Preuve tour par tour, metadata SEULE : ce que l'Arbitre reçoit pour juger une
+         revendication de disponibilité. Deux booléens, et deux drapeaux de présence — jamais un
+         octet de matériau, jamais une valeur du candidat. */
+      const candidat = outputs.analyst && outputs.analyst.operational_request_candidate;
+      const disponibles = candidat && Array.isArray(candidat.available_inputs) ? candidat.available_inputs : [];
+      const provenances = outputs.analyst && Array.isArray(outputs.analyst.provenance_records)
+        ? outputs.analyst.provenance_records : [];
+      log({
+        event: "arbiter_material_context_observation",
+        arbiter_material_context_present: material_context ? material_context.present : null,
+        arbiter_deep_content_available: material_context ? material_context.deep_content_available : null,
+        arbiter_available_inputs_present: disponibles.length > 0,
+        arbiter_material_provenance_present: provenances.some((record) => record.provenance === "user_provided_material")
+      });
+    }
     if (role === "critic") {
       log({
         event: "critic_global_material_context_observation",

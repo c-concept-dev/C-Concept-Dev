@@ -429,8 +429,10 @@ test("les constructeurs de message produisent un JSON exploitable avec les clés
   assert.deepEqual(Object.keys(criticMessage).sort(), ["analyst_output", "clarification_history", "material_context", "original_request", "previous_vetoes", "question_review_targets"]);
 
   const arbiterMessage = JSON.parse(makeArbiterUserMessage({ original_request: "x", analyst_output: minimalAnalystOutput(), critic_output: minimalCriticOutput() }));
-  /* L'Arbitre, lui, est INCHANGÉ : aucun material_context. C'est l'invariant. */
-  assert.deepEqual(Object.keys(arbiterMessage).sort(), ["analyst_output", "clarification_history", "critic_output", "original_request"]);
+  /* OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01 : l'Arbitre porte désormais material_context —
+     deux booléens de disponibilité, absent valant unknown. Le contenu, lui, jamais. */
+  assert.deepEqual(Object.keys(arbiterMessage).sort(), ["analyst_output", "clarification_history", "critic_output", "material_context", "original_request"]);
+  assert.deepEqual(arbiterMessage.material_context, { present: "unknown", deep_content_available: "unknown" });
 });
 
 test("parseAnalystOutput / parseCriticOutput / parseArbiterOutput acceptent une réponse encadrée de balises de code", () => {

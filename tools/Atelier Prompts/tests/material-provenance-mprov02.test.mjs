@@ -133,10 +133,15 @@ test('T-MPROV02-09 : une provenance ne décide jamais d’un état', () => {
     assert.equal(ANALYST_SYSTEM_PROMPT.includes(etat), false, `${etat} absent du prompt Analyste`);
   }
   /* Aucun branchement runtime ne lit la valeur pour en tirer une conclusion. */
-  for (const f of ['core/adn/intent-preservation.js', 'workers/shared/operational-request-orchestrator.js']) {
-    const src = lire(f);
-    assert.equal(src.includes('user_provided_material'), false, `${f} ne connaît aucune valeur de provenance`);
+  /* L'orchestrateur NOMME user_provided_material depuis
+     OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01, uniquement pour lever un drapeau dans une trace
+     metadata. Ce que la garde protège vraiment : aucun ÉTAT n'en est jamais dérivé. */
+  assert.equal(lire('core/adn/intent-preservation.js').includes('user_provided_material'), false);
+  const orch = lire('workers/shared/operational-request-orchestrator.js');
+  for (const etat of ['operational_request_ready', 'clarification_required', 'confirmation_required']) {
+    assert.equal(new RegExp(`user_provided_material[^\\n]*${etat}`).test(orch), false, 'aucun état dérivé');
   }
+  assert.match(orch, /arbiter_material_provenance_present/, 'la seule mention est un drapeau de trace');
   /* assessProvenance reste indifférent à l'étiquette : ce lot ne le transforme pas en juge. */
   const ip = lire('core/adn/intent-preservation.js');
   assert.match(ip, /records\.some\(\(record\) => record\.field === field && sameValue\(record\.value, value\)\)/);
@@ -156,7 +161,9 @@ test('T-MPROV02-10 : la provenance voyage, le matériau non', () => {
   assert.equal(JSON.stringify(critique.analyst_output.provenance_records).includes('user_provided_material'), true);
   const arbitre = JSON.parse(makeArbiterUserMessage({ ...commun, analyst_output: analyste, critic_output: { agreement: 'agree' } }));
   assert.equal(JSON.stringify(arbitre).includes('NUMERO_DOSSIER'), false, 'aucun contenu brut à l’Arbitre');
-  assert.equal(Object.prototype.hasOwnProperty.call(arbitre, 'material_context'), false, 'l’Arbitre reste inchangé');
+  /* OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01 : l'Arbitre reçoit désormais material_context.
+     Le CONTENU, lui, ne lui parvient toujours pas. */
+  assert.deepEqual(arbitre.material_context, { present: true, deep_content_available: true });
   /* Et l'Arbitre voit la provenance, puisqu'elle voyage dans analyst_output. */
   assert.match(JSON.stringify(arbitre.analyst_output.provenance_records), /user_provided_material/);
   assert.equal(/material_/.test(ARBITER_SYSTEM_PROMPT), false, 'son contrat n’a pas été touché');

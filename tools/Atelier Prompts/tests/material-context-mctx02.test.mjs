@@ -97,23 +97,19 @@ test('T-MCTX02-05 : le Critique reçoit le contexte', () => {
   assert.match(ORCH, /if \(role === "critic"\) return \{ \.\.\.base, analyst_output: outputs\.analyst, previous_vetoes: \[\], material_context \};/);
 });
 
-/* T-MCTX02-06 — L'ARBITRE NE LE REÇOIT PAS. Le piège de `base` a été évité. */
-test('T-MCTX02-06 : l’Arbitre ne reçoit jamais le contexte', () => {
+/* Mis à jour par OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01 : l'Arbitre reçoit désormais
+   material_context — deux booléens de disponibilité — parce qu'il écartait sinon comme
+   invérifiable la revendication portée par available_inputs, seize fois sur trente. Le
+   CONTENU, lui, ne lui parvient toujours pas et ne lui parviendra pas. */
+test('T-MCTX02-06 : l’Arbitre reçoit le contexte, jamais le contenu', () => {
   const message = JSON.parse(makeArbiterUserMessage({
-    ...demande, analyst_output: { issues: [] }, critic_output: { agreement: 'agree' },
+    original_request: 'x', clarification_history: [], analyst_output: {}, critic_output: {},
     material_context: { present: true, deep_content_available: true }
   }));
-  assert.equal(Object.prototype.hasOwnProperty.call(message, 'material_context'), false,
-    'le message de l’Arbitre ne porte aucun contexte matériau');
-  /* Et l’orchestrateur ne le lui transmet pas non plus. */
-  assert.match(ORCH, /return \{ \.\.\.base, analyst_output: outputs\.analyst, critic_output: outputs\.critic \};/);
-  /* La preuve structurelle : le contexte ne passe PAS par base. */
-  assert.match(ORCH, /const material_context = input\.material_context;/);
-  assert.equal(/base = Object\.freeze\(\{[^}]*material_context/.test(ORCH), false,
-    'le contexte n’est pas dans base, sinon l’Arbitre le recevrait par effet de bord');
+  assert.deepEqual(message.material_context, { present: true, deep_content_available: true });
+  assert.equal(Object.prototype.hasOwnProperty.call(message, 'material_content'), false);
 });
 
-/* T-MCTX02-07 / 08 — la demande reste immuable, l'historique intact. */
 test('T-MCTX02-07/08 : original_request immuable, clarification_history inchangé', () => {
   const entree = validateAnalystInput({ ...demande, material_context: { present: true, deep_content_available: true }, material_content: ['texte du document'] });
   assert.equal(entree.original_request, demande.original_request,
