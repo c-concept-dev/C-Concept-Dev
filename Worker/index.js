@@ -55804,6 +55804,23 @@ __name(handleStorageStats, "handleStorageStats");
 // fois créée : aucune route de ce lot ne fait d'UPDATE sur une ligne existante de
 // clinical_document_versions, seulement des INSERT + un pointeur current_version_id déplacé.
 var CLINICAL_DOCUMENT_KINDS = ["fiche", "carrousel", "tableau", "script", "liens"];
+// Audit correctif, Partie B point 9 — enveloppe generationEngine. 'structured' : document =
+// {schemaVersion, clinicalDocument, sourceSnapshot, renderManifestOverride} (contrat UX-8A
+// inchangé). 'legacy-html' : document = {html, sourceSnapshot} — HTML figé du moteur legacy au
+// moment du repli + le SourceSnapshot déjà construit à cet instant (jamais un faux
+// ClinicalDocument fabriqué après coup à partir du HTML). Toute ligne créée avant ce lot est
+// 'structured' par construction (seule forme persistable jusqu'ici) — voir migration 0005.
+var GENERATION_ENGINES = ["structured", "legacy-html"];
+function adocValidateClinicalDocumentPayload(document, generationEngine) {
+  if (generationEngine === "legacy-html") {
+    if (typeof document.html !== "string" || !document.html.trim()) return "document.html (string non vide) requis pour generationEngine='legacy-html'";
+    if (!document.sourceSnapshot || typeof document.sourceSnapshot !== "object") return "document.sourceSnapshot requis pour generationEngine='legacy-html'";
+    return null;
+  }
+  if (!document.clinicalDocument || typeof document.clinicalDocument !== "object") return "document.clinicalDocument requis pour generationEngine='structured'";
+  return null;
+}
+__name(adocValidateClinicalDocumentPayload, "adocValidateClinicalDocumentPayload");
 
 // Point d'ancrage pour la migration de schéma future (§4 de la demande) — aujourd'hui un simple
 // JSON.parse, schemaVersion=1 partout dans ce lot, rien à migrer. Le jour où le schemaVersion de
@@ -55827,11 +55844,15 @@ async function handleClinicalDocumentCreate(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { document, title, documentKind } = body || {};
+  const { document, title, documentKind, generationEngine } = body || {};
   if (!document || typeof document !== "object") return jsonErr("Missing document", 400);
   if (!title || typeof title !== "string") return jsonErr("Missing title", 400);
   if (!documentKind || !CLINICAL_DOCUMENT_KINDS.includes(documentKind))
     return jsonErr("documentKind must be one of: " + CLINICAL_DOCUMENT_KINDS.join(", "), 400);
+  const engine = generationEngine || "structured";
+  if (!GENERATION_ENGINES.includes(engine)) return jsonErr("generationEngine must be one of: " + GENERATION_ENGINES.join(", "), 400);
+  const validationErr = adocValidateClinicalDocumentPayload(document, engine);
+  if (validationErr) return jsonErr(validationErr, 400);
   const schemaVersion = typeof document.schemaVersion === "number" ? document.schemaVersion : 1;
 
   const documentId = crypto.randomUUID();
@@ -55841,14 +55862,14 @@ async function handleClinicalDocumentCreate(request2, env2) {
     // Écriture atomique (document + version initiale + pointeur current_version_id) via
     // .batch() — jamais une moitié de document sans version, ou l'inverse, en cas d'échec.
     await env2.DB.batch([
-      env2.DB.prepare("INSERT INTO clinical_documents (document_id, current_version_id, title, document_kind, created_at) VALUES (?, NULL, ?, ?, ?)")
-        .bind(documentId, title, documentKind, now),
-      env2.DB.prepare("INSERT INTO clinical_document_versions (version_id, document_id, previous_version_id, schema_version, content_json, created_at, change_summary) VALUES (?, ?, NULL, ?, ?, ?, NULL)")
-        .bind(versionId, documentId, schemaVersion, JSON.stringify(document), now),
+      env2.DB.prepare("INSERT INTO clinical_documents (document_id, current_version_id, title, document_kind, created_at, generation_engine) VALUES (?, NULL, ?, ?, ?, ?)")
+        .bind(documentId, title, documentKind, now, engine),
+      env2.DB.prepare("INSERT INTO clinical_document_versions (version_id, document_id, previous_version_id, schema_version, content_json, created_at, change_summary, generation_engine) VALUES (?, ?, NULL, ?, ?, ?, NULL, ?)")
+        .bind(versionId, documentId, schemaVersion, JSON.stringify(document), now, engine),
       env2.DB.prepare("UPDATE clinical_documents SET current_version_id = ? WHERE document_id = ?")
         .bind(versionId, documentId)
     ]);
-    return json({ document_id: documentId, version_id: versionId, created_at: now }, 201);
+    return json({ document_id: documentId, version_id: versionId, created_at: now, generation_engine: engine }, 201);
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
@@ -55868,23 +55889,30 @@ async function handleClinicalDocumentVersionCreate(request2, env2, documentId) {
 
   let existing;
   try {
-    existing = await env2.DB.prepare("SELECT document_id, current_version_id FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+    existing = await env2.DB.prepare("SELECT document_id, current_version_id, generation_engine FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
   if (!existing) return jsonErr("Clinical document not found", 404);
+
+  // Le moteur de génération est une propriété du DOCUMENT, fixée à sa création — une nouvelle
+  // version ne peut jamais en changer (un document structuré reste structuré, un document de
+  // repli reste HTML), jamais lu depuis le corps de la requête.
+  const engine = existing.generation_engine || "structured";
+  const validationErr = adocValidateClinicalDocumentPayload(document, engine);
+  if (validationErr) return jsonErr(validationErr, 400);
 
   const schemaVersion = typeof document.schemaVersion === "number" ? document.schemaVersion : 1;
   const versionId = crypto.randomUUID();
   const now = (/* @__PURE__ */ new Date()).toISOString();
   try {
     await env2.DB.batch([
-      env2.DB.prepare("INSERT INTO clinical_document_versions (version_id, document_id, previous_version_id, schema_version, content_json, created_at, change_summary) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(versionId, documentId, existing.current_version_id, schemaVersion, JSON.stringify(document), now, change_summary || null),
+      env2.DB.prepare("INSERT INTO clinical_document_versions (version_id, document_id, previous_version_id, schema_version, content_json, created_at, change_summary, generation_engine) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(versionId, documentId, existing.current_version_id, schemaVersion, JSON.stringify(document), now, change_summary || null, engine),
       env2.DB.prepare("UPDATE clinical_documents SET current_version_id = ? WHERE document_id = ?")
         .bind(versionId, documentId)
     ]);
-    return json({ document_id: documentId, version_id: versionId, previous_version_id: existing.current_version_id, created_at: now }, 201);
+    return json({ document_id: documentId, version_id: versionId, previous_version_id: existing.current_version_id, created_at: now, generation_engine: engine }, 201);
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
@@ -55906,6 +55934,7 @@ async function handleClinicalDocumentGet(env2, documentId) {
           schema_version: row.schema_version,
           created_at: row.created_at,
           change_summary: row.change_summary,
+          generation_engine: row.generation_engine,
           document: adocParseClinicalDocumentContent(row)
         };
       }
@@ -55916,6 +55945,7 @@ async function handleClinicalDocumentGet(env2, documentId) {
       document_kind: doc.document_kind,
       created_at: doc.created_at,
       current_version_id: doc.current_version_id,
+      generation_engine: doc.generation_engine,
       version
     });
   } catch (err2) {
@@ -55930,7 +55960,7 @@ async function handleClinicalDocumentVersionsList(env2, documentId) {
     const doc = await env2.DB.prepare("SELECT document_id FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
     if (!doc) return jsonErr("Clinical document not found", 404);
     const { results } = await env2.DB.prepare(
-      "SELECT version_id, previous_version_id, schema_version, created_at, change_summary FROM clinical_document_versions WHERE document_id = ? ORDER BY created_at DESC"
+      "SELECT version_id, previous_version_id, schema_version, created_at, change_summary, generation_engine FROM clinical_document_versions WHERE document_id = ? ORDER BY created_at DESC"
     ).bind(documentId).all();
     return json({ document_id: documentId, versions: results || [] });
   } catch (err2) {
@@ -55951,6 +55981,7 @@ async function handleClinicalDocumentVersionGet(env2, documentId, versionId) {
       schema_version: row.schema_version,
       created_at: row.created_at,
       change_summary: row.change_summary,
+      generation_engine: row.generation_engine,
       document: adocParseClinicalDocumentContent(row)
     });
   } catch (err2) {
