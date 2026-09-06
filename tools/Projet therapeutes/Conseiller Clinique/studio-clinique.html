@@ -4640,6 +4640,114 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (sendBtn) sendBtn.disabled = false;
   };
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Traceur persistant des replis du moteur structuré — DIAGNOSTIC UNIQUEMENT, jamais un
+  // correctif. Trois occurrences réelles déjà observées à la console (même signature à chaque
+  // fois : finalState "semantic-timeout", lastEventType "ping", payloadBytes ~27-28 Ko,
+  // usefulContentFragmentCount 37-44, msSinceLastSemanticActivity ~45000ms) — ce lot accumule
+  // automatiquement ces mêmes données sur plusieurs jours d'usage réel pour confirmer ou infirmer
+  // un facteur distinctif, sans que Christophe ait à copier la console à chaque occurrence.
+  // Purement local (localStorage), aucun envoi réseau, aucune télémétrie externe. Ne stocke QUE
+  // des métriques techniques déjà journalisées par ailleurs (voir _adocLogCallMetrics) et des
+  // comptages — jamais le contenu du document, jamais un identifiant patient, jamais le texte de
+  // la demande de l'utilisatrice.
+  // ═══════════════════════════════════════════════════════════════════════
+  const ADOC_FALLBACK_TRACE_KEY = 'adocFallbackTrace';
+  const ADOC_FALLBACK_TRACE_MAX_ENTRIES = 100;
+
+  // Observateur passif pur : une erreur ici ne doit JAMAIS remonter ni interrompre le repli ou la
+  // génération elle-même — échec silencieux (juste un console.warn discret), conformément à la
+  // consigne. Toute la logique de repli/minuteries/persistance UX-10A reste strictement inchangée
+  // par ailleurs ; cette fonction ne fait que lire des objets déjà produits et écrire dans
+  // localStorage, jamais autre chose.
+  function adocRecordFallbackTrace(entry) {
+    try {
+      let list = [];
+      try {
+        const raw = localStorage.getItem(ADOC_FALLBACK_TRACE_KEY);
+        if (raw) list = JSON.parse(raw) || [];
+        if (!Array.isArray(list)) list = [];
+      } catch (_readErr) { list = []; } // clé corrompue/absente — repartir d'un tableau vide, jamais une exception
+      list.push(entry);
+      while (list.length > ADOC_FALLBACK_TRACE_MAX_ENTRIES) list.shift(); // jamais de croissance illimitée
+      localStorage.setItem(ADOC_FALLBACK_TRACE_KEY, JSON.stringify(list));
+    } catch (e) {
+      console.warn('[FallbackTrace] enregistrement impossible (ignoré, sans impact sur la génération):', e && e.message);
+    }
+  }
+
+  function adocReadFallbackTrace() {
+    try {
+      const raw = localStorage.getItem(ADOC_FALLBACK_TRACE_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      console.warn('[FallbackTrace] lecture impossible (traité comme vide):', e && e.message);
+      return [];
+    }
+  }
+
+  // Console uniquement (window.adocDumpFallbackTrace()) — jamais appelée par le code applicatif
+  // lui-même. Affiche les chiffres bruts ; l'interprétation reste entre Christophe et moi, jamais
+  // une conclusion devinée ici (ex. jamais "c'est à cause de X").
+  window.adocDumpFallbackTrace = function () {
+    const list = adocReadFallbackTrace();
+    if (!list.length) {
+      console.log('[FallbackTrace] Aucun repli enregistré pour le moment.');
+      return;
+    }
+    console.table(list.map(function (e) {
+      return {
+        timestamp: e.timestamp,
+        hourOfDay: e.hourOfDay,
+        failedCall: e.failedCall,
+        sourceCount: e.sourceCount,
+        ragChunkCount: e.ragChunkCount,
+        usedWebSearch: e.usedWebSearch,
+        msSinceLastSemanticActivity: e.metrics2 ? e.metrics2.msSinceLastSemanticActivity : null,
+        payloadBytes: e.metrics2 ? e.metrics2.payloadBytes : null,
+        usefulContentFragmentCount: e.metrics2 ? e.metrics2.usefulContentFragmentCount : null,
+        errorMessage: e.errorMessage,
+      };
+    }));
+
+    const total = list.length;
+    const call1Count = list.filter(function (e) { return e.failedCall === 1; }).length;
+    const call2Entries = list.filter(function (e) { return e.failedCall === 2; });
+    const call2Count = call2Entries.length;
+    function avg(arr) { return arr.length ? (arr.reduce(function (a, b) { return a + b; }, 0) / arr.length) : null; }
+    const avgSourceCountCall2 = avg(call2Entries.map(function (e) { return e.sourceCount; }).filter(function (v) { return typeof v === 'number'; }));
+    const avgPayloadBytesCall2 = avg(call2Entries.map(function (e) { return e.metrics2 && e.metrics2.payloadBytes; }).filter(function (v) { return typeof v === 'number'; }));
+    const byHourBucket = {};
+    list.forEach(function (e) {
+      if (typeof e.hourOfDay !== 'number') return;
+      const bucketStart = Math.floor(e.hourOfDay / 3) * 3;
+      const key = bucketStart + 'h-' + (bucketStart + 3) + 'h';
+      byHourBucket[key] = (byHourBucket[key] || 0) + 1;
+    });
+    const pingCount = call2Entries.filter(function (e) { return e.metrics2 && e.metrics2.lastEventType === 'ping'; }).length;
+
+    console.log('=== Résumé traceur de replis ===');
+    console.log('Total d\'entrées enregistrées :', total);
+    console.log('Répartition par appel en échec — appel 1 :', call1Count, '(' + (total ? Math.round(call1Count / total * 100) : 0) + '%)',
+      '| appel 2 :', call2Count, '(' + (total ? Math.round(call2Count / total * 100) : 0) + '%)');
+    console.log('Moyenne sourceCount (replis appel 2 uniquement) :', avgSourceCountCall2);
+    console.log('Moyenne payloadBytes de metrics2 (replis appel 2 uniquement) :', avgPayloadBytesCall2);
+    console.log('Répartition par tranche de 3h (hourOfDay) :', byHourBucket);
+    console.log('Proportion lastEventType==="ping" parmi les replis appel 2 :',
+      call2Count ? (pingCount + '/' + call2Count + ' (' + Math.round(pingCount / call2Count * 100) + '%)') : 'aucun repli appel 2 enregistré');
+  };
+
+  // Console uniquement (window.adocClearFallbackTrace()) — jamais appelée par le code applicatif.
+  window.adocClearFallbackTrace = function () {
+    try {
+      localStorage.removeItem(ADOC_FALLBACK_TRACE_KEY);
+      console.log('[FallbackTrace] Traceur vidé.');
+    } catch (e) {
+      console.warn('[FallbackTrace] échec du vidage (ignoré):', e && e.message);
+    }
+  };
+
   // ── adocSend — Architecture agentique 2 passes ──
   window.adocSend = async function() {
     const input = document.getElementById('adoc-input');
@@ -4875,11 +4983,18 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // window.adocStructuredFicheEnabled : un seul point de vérité pour couper ce chemin.
       // Repli automatique (catch ci-dessous) vers le moteur legacy inchangé en cas d'échec
       // — jamais d'interruption du parcours utilisateur. Carrousel n'est pas branché ici.
+      // Traceur persistant des replis — hissé hors du try (jamais réassigné, juste rendu visible
+      // au catch ci-dessous) pour pouvoir retrouver le VRAI sourceSnapshot déjà produit quand la
+      // fonction a réussi mais que la suite (QC bloquant) échoue ensuite — sans ce hissage,
+      // `_struct` serait hors de portée dans le catch (ReferenceError, pas juste undefined),
+      // puisque try/catch sont deux blocs distincts. Aucun changement de comportement : la valeur
+      // affectée et le moment où elle l'est restent identiques, seule sa visibilité s'élargit.
+      let _struct;
       if (window.adocStructuredFicheEnabled && plan?.intent === 'fiche' && !_isLongDoc
           && adocGetRendererMode('fiche') === 'structured') {
         try {
           adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)…');
-          const _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId);
+          _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId);
           // UX-8B Lot 2 — charte choisie pour CETTE demande : uniquement un choix de RENDU,
           // appliqué après coup sur le _struct.doc déjà produit ci-dessus. Ne relit ni ne
           // relance jamais ragResult/sourceSnapshot — donc jamais de nouvelle recherche RAG.
@@ -4921,6 +5036,36 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         } catch (_structErr) {
           console.warn('[UX-8A.1] Génération structurée Fiche en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
           _structFellBack = true;
+          // Traceur persistant des replis (diagnostic uniquement, cf. commentaire complet plus
+          // haut) — une entrée UNIQUEMENT ici, jamais pour un appel réussi.
+          // failedCall — déduit du code, jamais deviné : la boucle de l'appel 1 (décision
+          // web_search) ne relance JAMAIS d'exception hors d'elle-même (son propre catch interne
+          // se contente toujours de retenter ou de `break`, cf. adocGenerateStructuredFiche) —
+          // donc TOUTE exception atteignant CE catch provient soit de l'appel 2 (réseau/flux/
+          // validation du JSON structuré), soit du contrôle qualité qui suit son succès (QC
+          // bloquant, throw juste au-dessus) — dans les deux cas, c'est la sortie de l'appel 2 qui
+          // est en cause, jamais l'appel 1. D'où failedCall=2 dans ce lot ; si un futur correctif
+          // faisait un jour remonter une exception depuis l'appel 1 lui-même, cette valeur devra
+          // être réexaminée en conséquence (elle ne serait alors plus toujours exacte telle quelle).
+          const _fbMetrics = window._adocLastStructAttemptMetrics || {};
+          adocRecordFallbackTrace({
+            timestamp: new Date().toISOString(),
+            hourOfDay: new Date().getHours(),
+            failedCall: 2,
+            // sourceCount : sourceSnapshot est construit tout au début de
+            // adocGenerateStructuredFiche, avant tout appel réseau — donc déjà disponible via le
+            // holder partagé pour toute tentative de repli. Recours à ragResult.chunks.length
+            // (déjà journalisé ailleurs comme "chunks avant systemPrompt") uniquement dans le cas
+            // limite où adocGenerateStructuredFiche aurait échoué avant même d'atteindre cette
+            // ligne (ex. exception synchrone très précoce) — n'est jamais arrivé dans les 3
+            // occurrences réelles observées à ce jour, mais reste un filet de sécurité honnête.
+            sourceCount: typeof _fbMetrics.sourceCount === 'number' ? _fbMetrics.sourceCount : (ragResult?.chunks?.length || 0),
+            ragChunkCount: ragResult?.chunks?.length || 0,
+            usedWebSearch: typeof _fbMetrics.usedWebSearch === 'boolean' ? _fbMetrics.usedWebSearch : null,
+            metrics1: _fbMetrics.metrics1 || null,
+            metrics2: _fbMetrics.metrics2 || null,
+            errorMessage: (_structErr && _structErr.message) || 'erreur inconnue',
+          });
         }
       }
 
@@ -9369,6 +9514,14 @@ ${recent}`;
 
   async function adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId) {
     _adocEmojiStrippedCount = 0;
+    // Traceur persistant des replis (diagnostic uniquement, aucun changement de comportement) —
+    // _m1/_m2 (métriques par tentative) sont scopées à cette fonction et disparaissent avant
+    // d'atteindre le catch englobant dans window.adocSend (autre fonction) où le repli est
+    // constaté. Ce holder partagé, réinitialisé à chaque appel de adocGenerateStructuredFiche et
+    // mis à jour juste après chaque _adocLogCallMetrics déjà existant (jamais une nouvelle
+    // mesure), permet à ce catch de relire tel quel l'objet de métriques de la DERNIÈRE tentative
+    // de chaque appel — simple relais de lecture, sans effet sur la logique de repli elle-même.
+    window._adocLastStructAttemptMetrics = { metrics1: null, metrics2: null };
     // ── Instrumentation (ENQUÊTE latence, lot investigation) — chronométrage explicite de
     // chaque étape des deux appels, pour mesurer AVANT de corriger. Retiré/désactivable
     // facilement (window.adocStructuredFicheTimingLog = false) une fois la cause confirmée.
@@ -9382,6 +9535,10 @@ ${recent}`;
     if (!sourceSnapshot.entries.length) {
       throw new Error('Aucun passage RAG disponible pour sourcer une fiche structurée.');
     }
+    // Traceur persistant — sourceSnapshot est construit ICI, avant tout appel réseau, donc déjà
+    // disponible pour TOUTE tentative de repli qui pourrait survenir plus loin (appel 1 ou 2).
+    // Relais tel quel, jamais une nouvelle mesure : cf. commentaire en tête de fonction.
+    window._adocLastStructAttemptMetrics.sourceCount = sourceSnapshot.entries.length;
 
     const passagesListing = sourceSnapshot.entries.map(function(e) {
       return e.sourceSnapshotEntryId + ' — ' + e.book + (e.author ? ' [' + e.author + ']' : '') +
@@ -9536,6 +9693,7 @@ ${recent}`;
           console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
           _m1.finalState = 'http-error';
           _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        window._adocLastStructAttemptMetrics.metrics1 = _m1; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
           if (_adocIsTransientHttpStatus(searchResp.status) && _attempt1 < ADOC_CALL1_MAX_ATTEMPTS) {
             console.log('[UX-8A.2] Appel 1 — HTTP ' + searchResp.status + ' (transitoire), nouvelle tentative avant abandon.');
             continue;
@@ -9609,6 +9767,7 @@ ${recent}`;
         }
         _m1.finalState = 'completed';
         _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        window._adocLastStructAttemptMetrics.metrics1 = _m1; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
         break; // succès (avec ou sans web_search) — jamais de 2e tentative après un flux entamé.
       } catch (_searchErr) {
         _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + ')');
@@ -9616,6 +9775,7 @@ ${recent}`;
           : _searchErr && _searchErr.name === 'AbortError' ? (_abortReason1 || 'transport-timeout')
           : 'network-error';
         _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        window._adocLastStructAttemptMetrics.metrics1 = _m1; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
         console.warn('[UX-8A.2] Premier appel (décision web_search) en échec, on continue sans recherche web:', _searchErr && _searchErr.name, _searchErr && _searchErr.message);
         // Partie A, point 7 — jamais de 2e tentative après un flux entamé (HTTP 200 déjà reçu).
         if (_progressedPastHttp200_1 || _attempt1 >= ADOC_CALL1_MAX_ATTEMPTS) break;
@@ -9623,6 +9783,7 @@ ${recent}`;
       }
     }
     console.log('[UX-8A.2] web_search', usedWebSearch ? 'utilisé pour la Fiche structurée' : 'non utilisé (bibliothèque jugée suffisante par CC ou appel indisponible)');
+    window._adocLastStructAttemptMetrics.usedWebSearch = usedWebSearch; // traceur persistant — valeur figée ici, jamais modifiée après ce point
 
     // ── Second appel — sortie structurée forcée, enrichie du complément web s'il existe ──
     // Le complément web est clairement distingué des passages bibliothèque : jamais associé à
@@ -9774,6 +9935,7 @@ ${recent}`;
         _logTiming('flux terminé (stop_reason=' + _genStopReason + '), JSON tool_use accumulé: ' + _genToolInputJson.length + ' caractères');
         _m2.finalState = 'completed';
         _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
+        window._adocLastStructAttemptMetrics.metrics2 = _m2; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
         break; // flux mené à son terme (avec ou sans JSON exploitable) — validation après la boucle.
       } catch (_genErr) {
         // Partie A, point 5 — même niveau de détail chronométrique sur un abandon PENDANT la
@@ -9785,6 +9947,7 @@ ${recent}`;
           : _genErr && _genErr.httpStatus ? 'http-error'
           : 'network-error';
         _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
+        window._adocLastStructAttemptMetrics.metrics2 = _m2; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
 
         const _isTransient = !_progressedPastHttp200_2 && (
           (_genErr && _genErr.httpStatus && _adocIsTransientHttpStatus(_genErr.httpStatus)) ||
