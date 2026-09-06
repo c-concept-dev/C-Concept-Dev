@@ -1797,6 +1797,16 @@
       border-radius: 6px; line-height: 0;
     }
     .cc-ws-close:hover, .cc-ws-close:focus-visible { opacity: 1; background: rgba(255,255,255,.12); }
+    /* Audit correctif, Partie B point 11 — message explicite repli legacy-html. Même piège de
+       spécificité déjà rencontré sur .cc-ws-topbar-btn (UX-10A Étape 2) : un sélecteur de classe
+       fixant `display` bat la règle native [hidden]{display:none} à spécificité égale — la règle
+       [hidden] dédiée ci-dessous est donc obligatoire, pas une simple redondance. */
+    .cc-ws-legacy-banner {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 20px;
+      background: var(--terracotta-100); color: var(--terracotta-700); font-size: 13px; line-height: 1.5;
+    }
+    .cc-ws-legacy-banner[hidden] { display: none; }
+    .cc-ws-legacy-banner .cc-ws-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
     .cc-ws-body { flex: 1; display: flex; min-height: 0; }
     .cc-ws-panel {
       width: 280px; flex-shrink: 0; background: var(--paper); border-right: 1px solid var(--stone-200);
@@ -4477,6 +4487,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         if (cd === '[DONE]') continue;
         try {
           const ce = JSON.parse(cd);
+          // Partie A, point 1 — un événement 'error' explicite ne doit jamais rester silencieux
+          // (avant ce correctif, il n'était même pas détecté ici). On le journalise clairement
+          // et on garde ce qui a déjà été reçu (même philosophie de résilience que la ligne
+          // 4460 ci-dessus pour un échec HTTP), plutôt que de casser toute la suite automatique.
+          if (ce.type === 'error') {
+            console.warn('[Continuation] Stream error reçu d\'Anthropic, arrêt propre de cette suite:', ce.error && ce.error.message);
+            return { reply: reply + contChunk, stopReason };
+          }
           if (ce.type === 'content_block_delta' && ce.delta?.type === 'text_delta') {
             contChunk += ce.delta.text;
             adocUpdateStreamMsg(streamMsgId, reply + contChunk);
@@ -4496,8 +4514,27 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // ── Finalisation d'une réponse générée — appelée une seule fois, soit juste
   // après la suite automatique si le document est complet, soit après le choix
   // explicite de l'utilisatrice (continuer jusqu'à complétude, ou garder tel quel).
-  async function adocFinalizeGeneration(streamMsgId, reply, plan, ragResult) {
-    await adocHandleReply(reply, plan, ragResult?.chunks || []);
+  // Audit correctif, Partie B point 10 — étiquette de secours generationEngine='legacy-html'
+  // sur l'artefact produit par le moteur legacy UNIQUEMENT quand fellBackFromStructured est vrai
+  // (repli explicite depuis une tentative structurée en échec, jamais pour un document legacy
+  // "normal" comme tableau/carrousel/script/liens/cours, qui n'a jamais tenté le moteur
+  // structuré). Le SourceSnapshot est reconstruit ICI, au moment du repli, à partir de ragResult
+  // (encore disponible dans ce scope) — jamais un ClinicalDocument fabriqué à partir du HTML.
+  async function adocFinalizeGeneration(streamMsgId, reply, plan, ragResult, fellBackFromStructured) {
+    const _storeKey = await adocHandleReply(reply, plan, ragResult?.chunks || []);
+    if (fellBackFromStructured && _storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html') {
+      try {
+        const _legacySnapshot = await adocBuildSourceSnapshotFromRAG(ragResult || { chunks: [] });
+        Object.assign(window._adocArtifacts[_storeKey], {
+          _adocGenerationEngine: 'legacy-html',
+          _adocLegacySourceSnapshot: _legacySnapshot,
+          _adocDocumentKind: 'fiche',
+          _adocCapabilities: { workspace: true, persist: true, fineCitations: false, blockEditing: false, transform: false },
+        });
+      } catch (_snapErr) {
+        console.warn('[Audit Partie B] SourceSnapshot de repli non construit, document non étiqueté legacy-html:', _snapErr && _snapErr.message);
+      }
+    }
     if (adocLastUsage) adocShowCost(streamMsgId, adocLastUsage);
     // FIX-STREAM-BUBBLE-DOUBLON : adocHandleReply insère TOUJOURS un nouvel élément (bulle
     // formatée via adocAddMsg, ou carte artifact via adocDeliverArtifact) sans jamais retirer
@@ -4585,7 +4622,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       adocRenderContinueChoice(streamMsgId);
     } else {
       delete window._adocPendingContinuations[streamMsgId];
-      await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult);
+      await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult, state.fellBackFromStructured);
     }
   };
 
@@ -4598,7 +4635,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (sendBtn) sendBtn.disabled = true;
     adocRemoveContinueChoice(streamMsgId);
     delete window._adocPendingContinuations[streamMsgId];
-    await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult);
+    await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult, state.fellBackFromStructured);
     adocThinking = false;
     if (sendBtn) sendBtn.disabled = false;
   };
@@ -4827,6 +4864,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // Si adocLongDoc échoue → fallback vers stream normal ci-dessous
       }
 
+      // Audit correctif, Partie B point 10 — vrai en cas de repli depuis une tentative
+      // structurée en échec (jamais pour toute autre demande legacy : tableau/carrousel/
+      // script/liens/cours n'ont jamais tenté le moteur structuré, donc jamais ce drapeau).
+      // Threadé jusqu'à adocFinalizeGeneration (directement ou via window._adocPendingContinuations
+      // pour les 2 suites en attente de confirmation) pour savoir si l'artefact HTML produit par
+      // le moteur legacy ci-dessous doit être étiqueté generationEngine='legacy-html'.
+      let _structFellBack = false;
       // ── Phase UX-8A.1, point 10 — Fiche synthèse UNIQUEMENT, bascule explicite ──
       // window.adocStructuredFicheEnabled : un seul point de vérité pour couper ce chemin.
       // Repli automatique (catch ci-dessous) vers le moteur legacy inchangé en cas d'échec
@@ -4876,6 +4920,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           return;
         } catch (_structErr) {
           console.warn('[UX-8A.1] Génération structurée Fiche en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
+          _structFellBack = true;
         }
       }
 
@@ -4927,46 +4972,80 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
           if (data === '[DONE]') continue;
+          let evt;
           try {
-            const evt = JSON.parse(data);
+            evt = JSON.parse(data);
+          } catch (parseErr) { continue; /* SSE malformée (fragment JSON incomplet) — ignorer */ }
 
-            // Texte normal — affiché en streaming temps réel
+          // Partie A, point 1 — un événement 'error' explicite ne doit jamais être avalé par le
+          // catch de JSON.parse ci-dessus (avant ce correctif, throw+catch juste au-dessus le
+          // faisait disparaître silencieusement). Il est désormais séparé du parsing et remonte
+          // vers le catch englobant (ligne ~5025) qui l'affiche clairement à l'utilisatrice.
+          if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || 'erreur inconnue'));
+
+          // Texte normal — affiché en streaming temps réel
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            reply += evt.delta.text;
+            adocUpdateStreamMsg(streamMsgId, reply);
+          }
+
+          // CC déclenche une recherche web — indicateur discret dans l'UI (le lancement seul,
+          // pas encore usedWebSearch : voir content_block_start/web_search_tool_result plus bas).
+          if (evt.type === 'content_block_start' && evt.content_block?.type === 'tool_use'
+              && evt.content_block.name === 'web_search') {
+            const ind = document.createElement('div');
+            ind.id = 'adoc-ws-ind-' + streamMsgId;
+            ind.style.cssText = 'font-size:10px;color:var(--petrol-800);padding:3px 10px;opacity:0.8;font-style:italic;display:flex;align-items:center;gap:.35rem;';
+            ind.innerHTML = adocIconSvg('icon-web') + '<span>CC consulte le web…</span>';
+            const msgEl = document.getElementById(streamMsgId);
+            if (msgEl && !document.getElementById(ind.id)) msgEl.appendChild(ind);
+          }
+
+          // Partie A, point 3 — usedWebSearch ne devient vrai qu'à réception d'un vrai résultat
+          // exploitable (content non vide), jamais au simple lancement de l'outil ci-dessus.
+          if (evt.type === 'content_block_start' && evt.content_block?.type === 'web_search_tool_result'
+              && Array.isArray(evt.content_block.content) && evt.content_block.content.length) {
+            usedWebSearch = true;
+          }
+
+          // Recherche web terminée — retirer l'indicateur
+          if (evt.type === 'content_block_stop') {
+            const ind = document.getElementById('adoc-ws-ind-' + streamMsgId);
+            if (ind) ind.remove();
+          }
+
+          // Tokens usage
+          if (evt.type === 'message_start' && evt.message?.usage) {
+            adocLastUsage = { input: evt.message.usage.input_tokens || 0, output: 0 };
+          }
+          if (evt.type === 'message_delta') {
+            if (evt.usage) {
+              if (!adocLastUsage) adocLastUsage = { input: 0, output: 0 };
+              adocLastUsage.output = evt.usage.output_tokens || 0;
+            }
+            if (evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
+          }
+        }
+      }
+
+      // Partie A, point 5 — ne jamais perdre le dernier fragment SSE resté dans le buffer si le
+      // flux se termine sans retour à la ligne final (rare mais déjà vu avec certains proxys).
+      if (sseBuffer && sseBuffer.startsWith('data: ')) {
+        const _leftover = sseBuffer.slice(6).trim();
+        if (_leftover && _leftover !== '[DONE]') {
+          try {
+            const evt = JSON.parse(_leftover);
+            if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || 'erreur inconnue'));
             if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
               reply += evt.delta.text;
               adocUpdateStreamMsg(streamMsgId, reply);
             }
-
-            // CC déclenche une recherche web — indicateur discret dans l'UI
-            if (evt.type === 'content_block_start' && evt.content_block?.type === 'tool_use'
-                && evt.content_block.name === 'web_search') {
+            if (evt.type === 'content_block_start' && evt.content_block?.type === 'web_search_tool_result'
+                && Array.isArray(evt.content_block.content) && evt.content_block.content.length) {
               usedWebSearch = true;
-              const ind = document.createElement('div');
-              ind.id = 'adoc-ws-ind-' + streamMsgId;
-              ind.style.cssText = 'font-size:10px;color:var(--petrol-800);padding:3px 10px;opacity:0.8;font-style:italic;display:flex;align-items:center;gap:.35rem;';
-              ind.innerHTML = adocIconSvg('icon-web') + '<span>CC consulte le web…</span>';
-              const msgEl = document.getElementById(streamMsgId);
-              if (msgEl && !document.getElementById(ind.id)) msgEl.appendChild(ind);
             }
-
-            // Recherche web terminée — retirer l'indicateur
-            if (evt.type === 'content_block_stop') {
-              const ind = document.getElementById('adoc-ws-ind-' + streamMsgId);
-              if (ind) ind.remove();
-            }
-
-            // Tokens usage
-            if (evt.type === 'message_start' && evt.message?.usage) {
-              adocLastUsage = { input: evt.message.usage.input_tokens || 0, output: 0 };
-            }
-            if (evt.type === 'message_delta') {
-              if (evt.usage) {
-                if (!adocLastUsage) adocLastUsage = { input: 0, output: 0 };
-                adocLastUsage.output = evt.usage.output_tokens || 0;
-              }
-              if (evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
-            }
-            if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || ''));
-          } catch(parseErr) { /* SSE malformée — ignorer */ }
+            if (evt.type === 'message_delta' && evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
+          } catch (parseErr) { /* dernier fragment illisible — rien à en tirer, ignorer */ }
         }
       }
 
@@ -5007,11 +5086,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // d'impasse) et on laisse le choix de continuer, plutôt que de replonger
         // automatiquement dans une nouvelle suite sans validation.
         window._adocPendingContinuations[streamMsgId] = {
-          workerUrl, MODEL, systemPrompt, contBaseMessages, reply, plan, ragResult, round: continuationCount, busy: false
+          workerUrl, MODEL, systemPrompt, contBaseMessages, reply, plan, ragResult, round: continuationCount, busy: false,
+          fellBackFromStructured: _structFellBack
         };
         adocRenderContinueChoice(streamMsgId);
       } else {
-        await adocFinalizeGeneration(streamMsgId, reply, plan, ragResult);
+        await adocFinalizeGeneration(streamMsgId, reply, plan, ragResult, _structFellBack);
       }
 
     } catch(e) {
@@ -5263,17 +5343,20 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // attributs, JSON éventuel), donc sûr à appliquer sur le document entier plutôt que sur
       // chaque champ texte séparément comme le fait le moteur structuré.
       const repairedHtml = adocStripEmoji(adocRepairHTML(resolvedTrimmed));
+      // Audit correctif, Partie B point 10 — le storeKey de adocDeliverArtifact (déjà renvoyé
+      // pour le cas html, cf. son commentaire) doit remonter jusqu'à l'appelant
+      // (adocFinalizeGeneration) pour pouvoir y attacher generationEngine/capacités en cas de
+      // repli depuis le moteur structuré — un simple `await` sans `return` le perdait ici.
       if (fmt === 'pdf') {
-        await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'pdf', citations, autoGenerate: true });
+        return await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'pdf', citations, autoGenerate: true });
       } else if (fmt === 'html-visual') {
         // html-visual → ZIP (HTML standalone téléchargeable, pas besoin de Browser Rendering)
-        await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'zip', citations, autoGenerate: true });
+        return await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'zip', citations, autoGenerate: true });
       } else if (fmt === 'zip') {
-        await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'zip', citations, autoGenerate: true });
+        return await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'zip', citations, autoGenerate: true });
       } else {
-        await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'html', citations, autoGenerate: false });
+        return await adocDeliverArtifact({ html: repairedHtml, topic, fmt: 'html', citations, autoGenerate: false });
       }
-      return;
     }
 
     // ── Chat / texte Markdown (inclut HTML partiel résolu) ──
@@ -7787,7 +7870,11 @@ ${recent}`;
     // UX-8W : une Fiche synthèse structurée s'ouvre désormais dans l'écran de travail dédié
     // (adocRenderClinicalDocument, sources, bibliothèque, export) plutôt que le popup iframe
     // générique — tous les autres formats gardent ce popup, inchangé.
-    if (art._adocStructuredDoc) { window.adocOpenWorkspace(storeKey); return; }
+    // Audit correctif, Partie B point 10 — test unique sur l'objet de capacités (plutôt qu'un
+    // test _adocStructuredDoc ne reconnaissant que le moteur structuré) : un document de repli
+    // legacy-html porte aussi capabilities.workspace=true (voir adocFinalizeGeneration) et doit
+    // s'ouvrir dans le même écran de travail, qui adapte son affichage selon le moteur.
+    if (art._adocCapabilities && art._adocCapabilities.workspace) { window.adocOpenWorkspace(storeKey); return; }
     const title = (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ');
     if (art.html) { adocOpenDocPopupWithSrc(title, art.html, true); return; }
     if (art.htmlBlobUrl) { adocOpenDocPopupWithSrc(title, art.htmlBlobUrl, false); return; }
@@ -9130,6 +9217,11 @@ ${recent}`;
       // export) reste cohérent avec la charte choisie, et son nom pour le badge UX-8W.
       window._adocArtifacts[storeKey]._adocRenderManifestOverride = rendered.renderManifest || null;
       window._adocArtifacts[storeKey]._adocBrandKitName = brandKitName || null;
+      // Audit correctif, Partie B point 10 — même enveloppe generationEngine/capacités que le
+      // repli legacy-html (adocFinalizeGeneration), pour un seul test de capacités partout
+      // (adocOpenDocPopup) plutôt qu'un test _adocStructuredDoc dupliqué à chaque point d'usage.
+      window._adocArtifacts[storeKey]._adocGenerationEngine = 'structured';
+      window._adocArtifacts[storeKey]._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: false, transform: false };
     }
     return storeKey;
   }
@@ -9326,75 +9418,163 @@ ${recent}`;
 
     let usedWebSearch = false;
     let webFindings = '';
-    try {
-      const _searchCtrl = new AbortController();
-      let _searchTid = setTimeout(() => _searchCtrl.abort(), 20000);
-      function _resetSearchTimeout() { clearTimeout(_searchTid); _searchTid = setTimeout(() => _searchCtrl.abort(), 20000); }
 
-      let searchResp;
-      _logTiming('avant envoi appel 1 (décision web_search, streamée, contexte réduit)');
+    // ── Partie A, point 4 — instrumentation métriques (jamais de contenu clinique dans les
+    // logs, uniquement des chiffres/états), un objet par tentative de chaque appel. ──
+    function _adocNewCallMetrics() {
+      return {
+        payloadBytes: 0, msToHttp200: null, msToFirstByte: null, msToFirstValidSSE: null,
+        msToFirstSemanticProgress: null, bytesReceived: 0, fragmentsReceived: 0,
+        validSSEEventCount: 0, usefulContentFragmentCount: 0, lastEventType: null,
+        lastTransportActivityAt: null, lastSemanticActivityAt: null, finalState: null,
+      };
+    }
+    function _adocLogCallMetrics(label, m) {
+      if (window.adocStructuredFicheTimingLog === false) return;
+      const nowMs = performance.now();
+      console.log('[UX-8A.2][métriques] ' + label, {
+        payloadBytes: m.payloadBytes, msToHttp200: m.msToHttp200, msToFirstByte: m.msToFirstByte,
+        msToFirstValidSSE: m.msToFirstValidSSE, msToFirstSemanticProgress: m.msToFirstSemanticProgress,
+        bytesReceived: m.bytesReceived, fragmentsReceived: m.fragmentsReceived,
+        validSSEEventCount: m.validSSEEventCount, usefulContentFragmentCount: m.usefulContentFragmentCount,
+        lastEventType: m.lastEventType,
+        msSinceLastTransportActivity: m.lastTransportActivityAt != null ? Math.round(nowMs - m.lastTransportActivityAt) : null,
+        msSinceLastSemanticActivity: m.lastSemanticActivityAt != null ? Math.round(nowMs - m.lastSemanticActivityAt) : null,
+        finalState: m.finalState,
+      });
+    }
+    // Marqueur distinct pour une vraie erreur SSE remontée par Anthropic (Partie A, point 1) —
+    // jamais confondue avec un fragment JSON simplement incomplet/malformé du même catch.
+    function _adocSSEStreamError(message, sseErrorType) {
+      return Object.assign(new Error(message), { name: 'AdocSSEStreamError', sseErrorType: sseErrorType || null });
+    }
+    // Une erreur SSE explicite n'est éligible à une nouvelle tentative (point 7) que si son
+    // type est documenté comme transitoire — jamais une erreur d'authentification/requête
+    // invalide/permission, qui échouerait de façon identique à chaque tentative.
+    function _adocIsTransientSSEErrorType(sseErrorType) {
+      return ['overloaded_error', 'api_error', 'timeout_error'].includes(sseErrorType);
+    }
+    function _adocIsTransientHttpStatus(status) {
+      return [429, 502, 503, 504].includes(status);
+    }
+
+    // ── Premier appel — web_search en libre décision. Jusqu'à 2 tentatives (Partie A, point 7),
+    // UNIQUEMENT si l'échec précédent est survenu AVANT tout HTTP 200 (aucun outil lancé,
+    // aucune progression reçue) — jamais après un flux entamé. ──
+    const ADOC_CALL1_MAX_ATTEMPTS = 2;
+    for (let _attempt1 = 1; _attempt1 <= ADOC_CALL1_MAX_ATTEMPTS; _attempt1++) {
+      const _m1 = _adocNewCallMetrics();
+      let _progressedPastHttp200_1 = false;
+      let _abortReason1 = null;
+      const _tCall1Start = performance.now();
       try {
-        searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-          body: JSON.stringify({
-            payload: {
-              provider: 'anthropic',
-              model: 'claude-sonnet-4-6',
-              max_tokens: 4000,
-              stream: true,
-              system: searchDecisionSystemPrompt,
-              messages: [{ role: 'user', content: text }],
-              tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-              tool_choice: { type: 'auto' },
-            },
-          }),
-          signal: _searchCtrl.signal,
-        });
-      } catch (_searchFetchErr) {
-        clearTimeout(_searchTid);
-        throw _searchFetchErr;
-      }
-      if (!searchResp.ok) {
-        clearTimeout(_searchTid);
-        console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
-      } else {
+        const _searchCtrl = new AbortController();
+        // Minuterie TRANSPORT (comportement/seuil inchangés) — réarmée à chaque octet brut lu.
+        let _searchTid = setTimeout(() => { _abortReason1 = 'transport-timeout'; _searchCtrl.abort(); }, 20000);
+        function _resetSearchTimeout() { clearTimeout(_searchTid); _searchTid = setTimeout(() => { _abortReason1 = 'transport-timeout'; _searchCtrl.abort(); }, 20000); }
+        // Minuterie SÉMANTIQUE (nouvelle, Partie A point 2) — réarmée UNIQUEMENT sur un
+        // fragment de texte réellement reçu, jamais sur un simple octet brut.
+        let _searchSemTid = setTimeout(() => { _abortReason1 = 'semantic-timeout'; _searchCtrl.abort(); }, 20000);
+        function _resetSearchSemanticTimeout() {
+          clearTimeout(_searchSemTid);
+          _searchSemTid = setTimeout(() => { _abortReason1 = 'semantic-timeout'; _searchCtrl.abort(); }, 20000);
+          _m1.lastSemanticActivityAt = performance.now();
+          if (_m1.msToFirstSemanticProgress == null) _m1.msToFirstSemanticProgress = Math.round(performance.now() - _tCall1Start);
+        }
+
+        const _payload1 = {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          max_tokens: 200, // Partie A, point 5 — un accusé court n'a jamais besoin de 4000 tokens.
+          stream: true,
+          system: searchDecisionSystemPrompt,
+          messages: [{ role: 'user', content: text }],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          tool_choice: { type: 'auto' },
+        };
+        _m1.payloadBytes = JSON.stringify(_payload1).length;
+
+        let searchResp;
+        _logTiming('avant envoi appel 1 (décision web_search, streamée, contexte réduit)' + (_attempt1 > 1 ? ' — nouvelle tentative' : ''));
+        try {
+          searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+            body: JSON.stringify({ payload: _payload1 }),
+            signal: _searchCtrl.signal,
+          });
+        } catch (_searchFetchErr) {
+          clearTimeout(_searchTid); clearTimeout(_searchSemTid);
+          throw _searchFetchErr;
+        }
+        _m1.msToHttp200 = Math.round(performance.now() - _tCall1Start);
+        if (!searchResp.ok) {
+          clearTimeout(_searchTid); clearTimeout(_searchSemTid);
+          console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
+          _m1.finalState = 'http-error';
+          _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+          if (_adocIsTransientHttpStatus(searchResp.status) && _attempt1 < ADOC_CALL1_MAX_ATTEMPTS) {
+            console.log('[UX-8A.2] Appel 1 — HTTP ' + searchResp.status + ' (transitoire), nouvelle tentative avant abandon.');
+            continue;
+          }
+          break; // best-effort, jamais bloquant — usedWebSearch reste false plus bas.
+        }
+        _progressedPastHttp200_1 = true;
         _logTiming('réponse appel 1 reçue (HTTP ' + searchResp.status + '), début du flux');
         const _searchReader = searchResp.body.getReader();
         const _searchDecoder = new TextDecoder();
         let _searchSseBuffer = '';
         const textBlocks = [];
         const resultEntries = [];
+        function _processSearchLine(_sl) {
+          if (!_sl.startsWith('data: ')) return;
+          const _sd = _sl.slice(6).trim();
+          if (_sd === '[DONE]') return;
+          try {
+            const _se = JSON.parse(_sd);
+            _m1.validSSEEventCount++;
+            _m1.lastEventType = _se.type;
+            if (_m1.msToFirstValidSSE == null) _m1.msToFirstValidSSE = Math.round(performance.now() - _tCall1Start);
+            if (_se.type === 'error') throw _adocSSEStreamError('Stream error (appel 1) : ' + (_se.error && _se.error.message || 'erreur inconnue'), _se.error && _se.error.type);
+            if (_se.type === 'content_block_start' && _se.content_block) {
+              if (_se.content_block.type === 'web_search_tool_result' && Array.isArray(_se.content_block.content)) {
+                resultEntries.push.apply(resultEntries, _se.content_block.content);
+                // Partie A, point 3 — usedWebSearch ne devient vrai qu'à réception d'un vrai
+                // résultat exploitable, jamais au simple lancement de l'outil.
+                if (_se.content_block.content.length) usedWebSearch = true;
+              }
+            }
+            if (_se.type === 'content_block_delta' && _se.delta && _se.delta.type === 'text_delta' && _se.delta.text) {
+              textBlocks.push(_se.delta.text);
+              _m1.usefulContentFragmentCount++;
+              _resetSearchSemanticTimeout();
+            }
+          } catch (_searchParseErr) {
+            if (_searchParseErr && _searchParseErr.name === 'AdocSSEStreamError') throw _searchParseErr;
+            /* SSE malformée — ignorer */
+          }
+        }
         try {
           while (true) {
             const { done, value } = await _searchReader.read();
             if (done) break;
+            _m1.fragmentsReceived++;
+            if (_m1.msToFirstByte == null) _m1.msToFirstByte = Math.round(performance.now() - _tCall1Start);
+            _m1.lastTransportActivityAt = performance.now();
             _resetSearchTimeout();
-            _searchSseBuffer += _searchDecoder.decode(value, { stream: true });
+            const _chunkText1 = _searchDecoder.decode(value, { stream: true });
+            _m1.bytesReceived += _chunkText1.length;
+            _searchSseBuffer += _chunkText1;
             const _searchLines = _searchSseBuffer.split('\n');
             _searchSseBuffer = _searchLines.pop();
-            for (const _sl of _searchLines) {
-              if (!_sl.startsWith('data: ')) continue;
-              const _sd = _sl.slice(6).trim();
-              if (_sd === '[DONE]') continue;
-              try {
-                const _se = JSON.parse(_sd);
-                if (_se.type === 'content_block_start' && _se.content_block) {
-                  if (_se.content_block.type === 'server_tool_use' && _se.content_block.name === 'web_search') {
-                    usedWebSearch = true;
-                  }
-                  if (_se.content_block.type === 'web_search_tool_result' && Array.isArray(_se.content_block.content)) {
-                    resultEntries.push.apply(resultEntries, _se.content_block.content);
-                  }
-                }
-                if (_se.type === 'content_block_delta' && _se.delta && _se.delta.type === 'text_delta') {
-                  textBlocks.push(_se.delta.text);
-                }
-              } catch (_searchParseErr) { /* SSE malformée — ignorer */ }
-            }
+            for (const _sl of _searchLines) _processSearchLine(_sl);
           }
+          // Partie A, point 5 — dernier fragment jamais perdu si le flux se ferme sans saut de
+          // ligne terminal (buffer restant potentiellement une ligne "data: ..." complète).
+          if (_searchSseBuffer) _processSearchLine(_searchSseBuffer);
         } finally {
           clearTimeout(_searchTid);
+          clearTimeout(_searchSemTid);
         }
         _logTiming('flux appel 1 terminé');
         if (usedWebSearch) {
@@ -9404,10 +9584,20 @@ ${recent}`;
           webFindings = [textBlocks.join(''), sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
             .filter(Boolean).join('\n\n');
         }
+        _m1.finalState = 'completed';
+        _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        break; // succès (avec ou sans web_search) — jamais de 2e tentative après un flux entamé.
+      } catch (_searchErr) {
+        _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + ')');
+        _m1.finalState = _searchErr && _searchErr.name === 'AdocSSEStreamError' ? 'sse-error'
+          : _searchErr && _searchErr.name === 'AbortError' ? (_abortReason1 || 'transport-timeout')
+          : 'network-error';
+        _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        console.warn('[UX-8A.2] Premier appel (décision web_search) en échec, on continue sans recherche web:', _searchErr && _searchErr.name, _searchErr && _searchErr.message);
+        // Partie A, point 7 — jamais de 2e tentative après un flux entamé (HTTP 200 déjà reçu).
+        if (_progressedPastHttp200_1 || _attempt1 >= ADOC_CALL1_MAX_ATTEMPTS) break;
+        console.log('[UX-8A.2] Appel 1 (décision web_search) — nouvelle tentative avant abandon (échec avant tout HTTP 200).');
       }
-    } catch (_searchErr) {
-      _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + ')');
-      console.warn('[UX-8A.2] Premier appel (décision web_search) en échec, on continue sans recherche web:', _searchErr && _searchErr.message);
     }
     console.log('[UX-8A.2] web_search', usedWebSearch ? 'utilisé pour la Fiche structurée' : 'non utilisé (bibliothèque jugée suffisante par CC ou appel indisponible)');
 
@@ -9430,82 +9620,170 @@ ${recent}`;
     // pas du texte mais un unique bloc tool_use (tool_choice forcé) livré par fragments
     // (delta.type==='input_json_delta', delta.partial_json) — JAMAIS parsé avant la fin réelle
     // du flux, pour ne jamais tenter un JSON.parse sur un fragment incomplet.
-    // Timeout d'INACTIVITÉ (pas de durée totale) : reset à chaque chunk reçu — un flux qui
-    // progresse normalement mais prend simplement du temps n'est jamais interrompu à tort ;
-    // seul un silence réel de 45s déclenche l'abandon (repli catch existant, inchangé).
-    const _genCtrl = new AbortController();
-    let _genTid = setTimeout(() => _genCtrl.abort(), 45000);
-    function _resetGenTimeout() { clearTimeout(_genTid); _genTid = setTimeout(() => _genCtrl.abort(), 45000); }
-
-    let resp;
-    _logTiming('avant envoi appel 2 (génération structurée forcée, streamée)');
-    try {
-      resp = await fetch(workerUrl.replace(/\/+$/, ''), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-        body: JSON.stringify({
-          payload: {
-            provider: 'anthropic',
-            model: 'claude-sonnet-4-6',
-            max_tokens: 8000,
-            stream: true,
-            system: structuredSystemPrompt,
-            messages: [{ role: 'user', content: text }],
-            tools: [ADOC_STRUCTURED_FICHE_TOOL],
-            tool_choice: { type: 'tool', name: 'emit_fiche_document' },
-          },
-        }),
-        signal: _genCtrl.signal,
-      });
-    } catch (_genErr) {
-      clearTimeout(_genTid);
-      _logTiming('appel 2 en échec/timeout (' + (_genErr && _genErr.name) + ')');
-      if (_genErr && _genErr.name === 'AbortError') throw new Error('Génération structurée : inactivité du flux >45s, abandon.');
-      throw _genErr;
-    }
-    if (!resp.ok) { clearTimeout(_genTid); throw new Error('HTTP ' + resp.status); }
-    _logTiming('réponse appel 2 reçue (HTTP ' + resp.status + '), début du flux');
-
-    const _genReader = resp.body.getReader();
-    const _genDecoder = new TextDecoder();
-    let _genSseBuffer = '';
+    // Minuterie TRANSPORT (seuil inchangé, 45s) : reset à chaque chunk brut reçu — comportement
+    // conservé tel quel (Partie A, point 2). Minuterie SÉMANTIQUE (nouvelle, même seuil 45s) :
+    // reset UNIQUEMENT sur un fragment JSON réellement reçu — un flux qui envoie des octets sans
+    // jamais progresser sémantiquement n'échappe plus à l'abandon.
+    // Jusqu'à 2 tentatives (Partie A, point 7) — UNIQUEMENT si l'échec est explicitement
+    // transitoire (réseau avant réponse, HTTP 429/502/503/504, erreur SSE transitoire, ou
+    // timeout) ET qu'aucun JSON utile n'a encore été accumulé. Jamais de retry après tool
+    // absent / max_tokens / JSON invalide (vérifiés APRÈS cette boucle, jamais à l'intérieur).
+    const ADOC_CALL2_MAX_ATTEMPTS = 2;
     let _genToolName = null;
     let _genToolInputJson = '';
     let _genStopReason = null;
-    let _genReceivedChars = 0;
-    try {
-      while (true) {
-        const { done, value } = await _genReader.read();
-        if (done) break;
-        _resetGenTimeout();
-        _genSseBuffer += _genDecoder.decode(value, { stream: true });
-        const _genLines = _genSseBuffer.split('\n');
-        _genSseBuffer = _genLines.pop();
-        for (const _gl of _genLines) {
-          if (!_gl.startsWith('data: ')) continue;
+    for (let _attempt2 = 1; _attempt2 <= ADOC_CALL2_MAX_ATTEMPTS; _attempt2++) {
+      const _m2 = _adocNewCallMetrics();
+      let _progressedPastHttp200_2 = false;
+      let _abortReason2 = null;
+      let _genReceivedChars = 0;
+      _genToolName = null;
+      _genToolInputJson = '';
+      _genStopReason = null;
+      const _tCall2Start = performance.now();
+      const _genCtrl = new AbortController();
+      let _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, 45000);
+      function _resetGenTimeout() { clearTimeout(_genTid); _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, 45000); }
+      let _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, 45000);
+      function _resetGenSemanticTimeout() {
+        clearTimeout(_genSemTid);
+        _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, 45000);
+        _m2.lastSemanticActivityAt = performance.now();
+        if (_m2.msToFirstSemanticProgress == null) _m2.msToFirstSemanticProgress = Math.round(performance.now() - _tCall2Start);
+      }
+
+      let resp;
+      const _payload2 = {
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8000,
+        stream: true,
+        system: structuredSystemPrompt,
+        messages: [{ role: 'user', content: text }],
+        tools: [ADOC_STRUCTURED_FICHE_TOOL],
+        tool_choice: { type: 'tool', name: 'emit_fiche_document' },
+      };
+      _m2.payloadBytes = JSON.stringify(_payload2).length;
+      _logTiming('avant envoi appel 2 (génération structurée forcée, streamée)' + (_attempt2 > 1 ? ' — nouvelle tentative' : ''));
+      if (_attempt2 > 1 && typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… nouvelle tentative');
+      let _fetchOrHttpErr = null;
+      try {
+        try {
+          resp = await fetch(workerUrl.replace(/\/+$/, ''), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+            body: JSON.stringify({ payload: _payload2 }),
+            signal: _genCtrl.signal,
+          });
+        } catch (_genFetchErr) {
+          clearTimeout(_genTid); clearTimeout(_genSemTid);
+          throw _genFetchErr;
+        }
+        _m2.msToHttp200 = Math.round(performance.now() - _tCall2Start);
+        if (!resp.ok) {
+          clearTimeout(_genTid); clearTimeout(_genSemTid);
+          _fetchOrHttpErr = new Error('HTTP ' + resp.status);
+          _fetchOrHttpErr.httpStatus = resp.status;
+          throw _fetchOrHttpErr;
+        }
+        _progressedPastHttp200_2 = true;
+        _logTiming('réponse appel 2 reçue (HTTP ' + resp.status + '), début du flux');
+
+        const _genReader = resp.body.getReader();
+        const _genDecoder = new TextDecoder();
+        let _genSseBuffer = '';
+        function _processGenLine(_gl) {
+          if (!_gl.startsWith('data: ')) return;
           const _gd = _gl.slice(6).trim();
-          if (_gd === '[DONE]') continue;
+          if (_gd === '[DONE]') return;
           try {
             const _ge = JSON.parse(_gd);
+            _m2.validSSEEventCount++;
+            _m2.lastEventType = _ge.type;
+            if (_m2.msToFirstValidSSE == null) _m2.msToFirstValidSSE = Math.round(performance.now() - _tCall2Start);
+            // Partie A, point 1 — un événement 'error' explicite ne doit JAMAIS être confondu
+            // avec une erreur de parsing JSON : marqué distinctement pour re-surgir hors de ce
+            // catch, jamais avalé en silence (une vraie erreur ne se déguise plus en simple
+            // inactivité de flux quelques secondes plus tard).
+            if (_ge.type === 'error') throw _adocSSEStreamError('Stream error (appel 2) : ' + (_ge.error && _ge.error.message || 'erreur inconnue'), _ge.error && _ge.error.type);
             if (_ge.type === 'content_block_start' && _ge.content_block && _ge.content_block.type === 'tool_use') {
               _genToolName = _ge.content_block.name;
             }
             if (_ge.type === 'content_block_delta' && _ge.delta && _ge.delta.type === 'input_json_delta') {
               const frag = _ge.delta.partial_json || '';
               _genToolInputJson += frag;
-              _genReceivedChars += frag.length;
-              // Progression réelle à l'écran pendant le flux — jamais un texte figé.
-              if (typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… ' + _genReceivedChars + ' caractères reçus');
+              if (frag) {
+                _genReceivedChars += frag.length;
+                _m2.usefulContentFragmentCount++;
+                _resetGenSemanticTimeout();
+                // Progression réelle à l'écran pendant le flux — jamais un texte figé.
+                if (typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… ' + _genReceivedChars + ' caractères reçus');
+              }
             }
             if (_ge.type === 'message_delta' && _ge.delta && _ge.delta.stop_reason) _genStopReason = _ge.delta.stop_reason;
-            if (_ge.type === 'error') throw new Error('Stream error: ' + (_ge.error && _ge.error.message || ''));
-          } catch (_parseErr) { /* SSE malformée — ignorer, cohérent avec le moteur legacy */ }
+          } catch (_parseErr) {
+            if (_parseErr && _parseErr.name === 'AdocSSEStreamError') throw _parseErr;
+            /* SSE malformée — ignorer, cohérent avec le moteur legacy */
+          }
         }
+        try {
+          while (true) {
+            const { done, value } = await _genReader.read();
+            if (done) break;
+            _m2.fragmentsReceived++;
+            if (_m2.msToFirstByte == null) _m2.msToFirstByte = Math.round(performance.now() - _tCall2Start);
+            _m2.lastTransportActivityAt = performance.now();
+            _resetGenTimeout();
+            const _chunkText2 = _genDecoder.decode(value, { stream: true });
+            _m2.bytesReceived += _chunkText2.length;
+            _genSseBuffer += _chunkText2;
+            const _genLines = _genSseBuffer.split('\n');
+            _genSseBuffer = _genLines.pop();
+            for (const _gl of _genLines) _processGenLine(_gl);
+          }
+          // Partie A, point 5 — dernier fragment jamais perdu si le flux se ferme sans saut de
+          // ligne terminal.
+          if (_genSseBuffer) _processGenLine(_genSseBuffer);
+        } finally {
+          clearTimeout(_genTid);
+          clearTimeout(_genSemTid);
+        }
+        _logTiming('flux terminé (stop_reason=' + _genStopReason + '), JSON tool_use accumulé: ' + _genToolInputJson.length + ' caractères');
+        _m2.finalState = 'completed';
+        _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
+        break; // flux mené à son terme (avec ou sans JSON exploitable) — validation après la boucle.
+      } catch (_genErr) {
+        // Partie A, point 5 — même niveau de détail chronométrique sur un abandon PENDANT la
+        // lecture du flux que sur un échec initial du fetch (auparavant asymétrique : seul
+        // l'échec de fetch était chronométré ici).
+        _logTiming('appel 2 en échec/timeout (' + (_genErr && _genErr.name) + ')' + (_progressedPastHttp200_2 ? ', après démarrage du flux' : ', avant toute réponse'));
+        _m2.finalState = _genErr && _genErr.name === 'AdocSSEStreamError' ? 'sse-error'
+          : _genErr && _genErr.name === 'AbortError' ? (_abortReason2 || 'transport-timeout')
+          : _genErr && _genErr.httpStatus ? 'http-error'
+          : 'network-error';
+        _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
+
+        const _isTransient = !_progressedPastHttp200_2 && (
+          (_genErr && _genErr.httpStatus && _adocIsTransientHttpStatus(_genErr.httpStatus)) ||
+          (_genErr && !_genErr.httpStatus && _genErr.name !== 'AdocSSEStreamError') // échec réseau/abort avant tout HTTP 200
+        ) || (
+          // Une erreur SSE ou un abandon sémantique APRÈS le HTTP 200 restent éligibles au
+          // retry, mais SEULEMENT si aucun JSON utile n'a encore été produit par cette tentative.
+          !_genToolInputJson && (
+            (_genErr && _genErr.name === 'AdocSSEStreamError' && _adocIsTransientSSEErrorType(_genErr.sseErrorType)) ||
+            (_genErr && _genErr.name === 'AbortError')
+          )
+        );
+
+        if (!_isTransient || _attempt2 >= ADOC_CALL2_MAX_ATTEMPTS) {
+          if (_genErr && _genErr.name === 'AbortError') {
+            throw new Error('Génération structurée : inactivité du flux (' + (_abortReason2 || 'timeout') + '), abandon.');
+          }
+          throw _genErr;
+        }
+        console.log('[UX-8A.2] Appel 2 (génération structurée) — échec transitoire (' + (_genErr && _genErr.name) + '), nouvelle tentative avant repli sur l\'ancien moteur.');
       }
-    } finally {
-      clearTimeout(_genTid);
     }
-    _logTiming('flux terminé (stop_reason=' + _genStopReason + '), JSON tool_use accumulé: ' + _genToolInputJson.length + ' caractères');
 
     if (_genToolName !== 'emit_fiche_document' || !_genToolInputJson) {
       throw new Error('Réponse sans bloc tool_use structuré (emit_fiche_document) après streaming.');
@@ -9620,42 +9898,65 @@ ${recent}`;
 
   window.adocOpenWorkspace = async function (storeKey) {
     const art = window._adocArtifacts?.[storeKey];
-    if (!art || !art._adocStructuredDoc) return;
-    const doc = art._adocStructuredDoc;
-    const snapshot = art._adocStructuredSnapshot;
-    let rendered;
-    try {
-      // UX-8B Lot 2 — ré-applique la charte RÉELLEMENT utilisée pour CE document (mémorisée à
-      // la génération), jamais la charte par défaut du manifeste embarqué. art._adocRenderManifestOverride
-      // est null pour un document généré avant ce lot (ou dont la charte n'a pas pu être résolue) —
-      // le moteur canonique retombe alors sur son comportement inchangé (renderManifestId du doc).
-      rendered = await window.adocRenderClinicalDocument(doc, snapshot, art._adocRenderManifestOverride || null);
-    } catch (e) {
-      console.warn('[UX-8W] rendu impossible, ouverture annulée:', e && e.message);
-      return;
+    // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
+    // capacités l'autorisent (structuré OU repli legacy-html), plus seulement le moteur structuré.
+    if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return;
+    const isLegacy = art._adocGenerationEngine === 'legacy-html';
+    const doc = art._adocStructuredDoc; // undefined pour un repli legacy-html — jamais utilisé alors
+    const snapshot = isLegacy ? art._adocLegacySourceSnapshot : art._adocStructuredSnapshot;
+    let renderedHtml, qcBlockingCount;
+    if (isLegacy) {
+      // Le HTML est déjà figé (sanitisé/réparé par adocHandleReply au moment de la génération) —
+      // jamais de re-rendu canonique, qui exigerait un ClinicalDocument qui n'existe pas ici.
+      renderedHtml = art.html || '';
+      qcBlockingCount = 0; // pas de concept de QC bloquant pour ce moteur — jamais un état inventé
+    } else {
+      try {
+        // UX-8B Lot 2 — ré-applique la charte RÉELLEMENT utilisée pour CE document (mémorisée à
+        // la génération), jamais la charte par défaut du manifeste embarqué. art._adocRenderManifestOverride
+        // est null pour un document généré avant ce lot (ou dont la charte n'a pas pu être résolue) —
+        // le moteur canonique retombe alors sur son comportement inchangé (renderManifestId du doc).
+        const rendered = await window.adocRenderClinicalDocument(doc, snapshot, art._adocRenderManifestOverride || null);
+        renderedHtml = rendered.html;
+        qcBlockingCount = rendered.qc.blocking.length;
+      } catch (e) {
+        console.warn('[UX-8W] rendu impossible, ouverture annulée:', e && e.message);
+        return;
+      }
     }
 
     window._adocWsState.storeKey = storeKey;
     window._adocWsState.lastFocus = document.activeElement;
 
     const kindLabels = { fiche: 'Fiche synthèse', carrousel: 'Carrousel' };
-    document.getElementById('cc-ws-title').textContent = doc.title || 'Document';
+    const docKind = isLegacy ? art._adocDocumentKind : doc.documentKind;
+    const docTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : (doc.title || 'Document');
+    document.getElementById('cc-ws-title').textContent = docTitle;
     document.getElementById('cc-ws-badge').textContent =
-      (kindLabels[doc.documentKind] || doc.documentKind || '').toUpperCase();
+      (kindLabels[docKind] || docKind || '').toUpperCase();
     // UX-8B Lot 2 — reflète le nom RÉEL de la charte utilisée pour ce document précis (jamais un
     // libellé fixe). Élément séparé de cc-ws-badge (documentKind, non modifiable par ce lot).
+    // Une charte graphique est un concept propre au moteur structuré (RenderManifest) — jamais
+    // affichée pour un repli legacy-html, qui n'en a jamais eu.
     const brandKitEl = document.getElementById('cc-ws-brandkit');
-    if (brandKitEl) brandKitEl.textContent = art._adocBrandKitName || '';
+    if (brandKitEl) brandKitEl.textContent = isLegacy ? '' : (art._adocBrandKitName || '');
     // UX-10A Étape 2 — reflète l'état réel de sauvegarde de CE document précis (jamais un
     // libellé fixe) : "Non enregistré" tant qu'aucun clic explicite sur "Enregistrer" n'a eu
     // lieu, y compris en rouvrant un document généré plus tôt dans la même session.
     adocUpdateSaveStatusUI(art);
 
+    // Audit correctif, Partie B point 11 — message explicite (jamais tooltip seul) quand ce
+    // document vient du repli legacy-html : ce qui reste possible (enregistrer/exporter) et ce
+    // qui ne l'est pas (citations fines, édition par bloc) — jamais une simple absence silencieuse
+    // des fonctionnalités manquantes.
+    const legacyBanner = document.getElementById('cc-ws-legacy-banner');
+    if (legacyBanner) legacyBanner.hidden = !isLegacy;
+
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
     // distingue aujourd'hui un brouillon d'un document prêt en dehors de ce contrôle qualité.
     const statusEl = document.getElementById('cc-ws-status');
-    if (rendered.qc.blocking.length) {
+    if (qcBlockingCount) {
       statusEl.textContent = '● Sources à vérifier';
       statusEl.className = 'cc-ws-status review';
     } else {
@@ -9663,7 +9964,7 @@ ${recent}`;
       statusEl.className = 'cc-ws-status ready';
     }
 
-    document.getElementById('cc-ws-doc-card').innerHTML = rendered.html;
+    document.getElementById('cc-ws-doc-card').innerHTML = renderedHtml;
     adocWsRenderSources(snapshot);
     adocRenderDocs(); // Documents joints — même rendu partagé que le reste de l'app (aucune divergence)
     document.getElementById('cc-ws-search-input').value = '';
@@ -9695,7 +9996,19 @@ ${recent}`;
   window.adocWsExport = async function () {
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
-    if (!art || !art._adocStructuredDoc) return;
+    if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return;
+    if (art._adocGenerationEngine === 'legacy-html') {
+      // Audit correctif, Partie B point 12 — pas de re-rendu/QC pour ce moteur (HTML déjà figé
+      // au moment du repli) : export = téléchargement direct, même mécanique de blob que
+      // l'export du moteur structuré ci-dessous, jamais dupliquée.
+      const blob2 = new Blob([art.html || ''], { type: 'text/html;charset=utf-8' });
+      const url2 = URL.createObjectURL(blob2);
+      const a2 = document.createElement('a');
+      a2.href = url2; a2.download = (art.name || 'document') + '.html';
+      document.body.appendChild(a2); a2.click();
+      setTimeout(() => { URL.revokeObjectURL(url2); a2.remove(); }, 2000);
+      return;
+    }
     // UX-8B Lot 2 — même charte que l'aperçu (cohérence aperçu/export déjà exigée par UX-1).
     const result = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
     if (result.blocked) {
@@ -9722,6 +10035,12 @@ ${recent}`;
   // sont de simples objets JS en mémoire navigateur) — les embarquer ici est nécessaire, une
   // simple référence à leur id serait une référence vers rien une fois persistée.
   function adocBuildClinicalDocumentContent(art) {
+    // Audit correctif, Partie B point 9 — enveloppe distincte pour un repli legacy-html : HTML
+    // figé + SourceSnapshot construit au moment du repli, JAMAIS un ClinicalDocument fabriqué
+    // après coup (le contrat du schéma structuré ne change pas, et n'est jamais utilisé ici).
+    if (art._adocGenerationEngine === 'legacy-html') {
+      return { html: art.html || '', sourceSnapshot: art._adocLegacySourceSnapshot || null };
+    }
     return {
       schemaVersion: (art._adocStructuredDoc && art._adocStructuredDoc.schemaVersion) || 1,
       clinicalDocument: art._adocStructuredDoc,
@@ -9750,19 +10069,25 @@ ${recent}`;
   window.adocWsSave = async function () {
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
-    if (!art || !art._adocStructuredDoc) return;
+    if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;
+    const isLegacy = art._adocGenerationEngine === 'legacy-html';
     const btn = document.getElementById('cc-ws-save-btn');
     if (btn) btn.disabled = true;
     try {
       const workerUrl = adocGetWorkerUrl();
       const apiKey = adocGetApiKey();
       const content = adocBuildClinicalDocumentContent(art);
+      // Audit correctif, Partie B point 12 — même mécanisme UX-10A Étape 2 pour les deux moteurs
+      // (POST création puis POST .../versions en re-sauvegarde), jamais dupliqué : seuls le
+      // titre/type/enveloppe de contenu diffèrent selon le moteur.
+      const saveTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : art._adocStructuredDoc.title;
+      const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
       if (!art._adocClinicalDocumentId) {
         // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
         const r = await fetch(workerUrl + '/clinical-documents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-          body: JSON.stringify({ document: content, title: art._adocStructuredDoc.title, documentKind: art._adocStructuredDoc.documentKind }),
+          body: JSON.stringify({ document: content, title: saveTitle, documentKind: saveKind, generationEngine: art._adocGenerationEngine || 'structured' }),
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const data = await r.json();
@@ -9999,6 +10324,14 @@ ${recent}`;
       aria-label="Fermer l'espace de travail et revenir à la conversation">
       <svg aria-hidden="true" focusable="false" style="width:18px;height:18px;"><use href="#icon-close"></use></svg>
     </button>
+  </div>
+  <!-- Audit correctif, Partie B point 11 — message EXPLICITE (jamais tooltip seul) affiché
+       uniquement quand ce document vient du repli sur l'ancien moteur (generationEngine=
+       'legacy-html', cf. adocOpenWorkspace) : rassure sur ce qui reste possible, précise
+       honnêtement ce qui ne l'est pas pour CE document précis. -->
+  <div class="cc-ws-legacy-banner" id="cc-ws-legacy-banner" role="status" hidden>
+    <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-info"></use></svg>
+    <span>Ce document a été généré par le moteur de secours (HTML) suite à une indisponibilité du moteur structuré. Vous pouvez l'enregistrer et l'exporter normalement, mais les citations fines et l'édition par bloc ne sont pas disponibles pour ce document.</span>
   </div>
   <div class="cc-ws-body">
     <aside class="cc-ws-panel" id="cc-ws-panel">
