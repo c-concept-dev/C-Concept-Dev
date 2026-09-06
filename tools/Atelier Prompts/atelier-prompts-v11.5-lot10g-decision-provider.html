@@ -10617,7 +10617,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 56ec643049af6d3c05c1b1b834feb5af1618de2520705339d84b7c2d5c08de27
+ * source-sha256: 28d1c49f802777e492b88a6639ead6bcf36aed3f9069df46cea21ce503601f38
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -13462,6 +13462,31 @@ const ISSUE_IMPACTS = Object.freeze(["material", "non_material"]);
 // Champs du candidat opérationnel canonique (CDC §5.3). Tous adaptatifs : un champ vide est valide,
 // aucun n'est une checklist à remplir "parce qu'il existe".
 const CANDIDATE_SCALAR_FIELDS = Object.freeze(["objective", "expected_deliverable"]);
+
+/* OPRIE-EXPECTED-DELIVERABLE-SEMANTICS-01 — CE QUE expected_deliverable CONTIENT, ENFIN ÉCRIT.
+ *
+ * Le CDC §5.3 nommait les champs sans les définir. Le schéma les déclare `{type:"string"}`, sans
+ * description. La sémantique n'existait donc que dans l'usage — et l'usage, lui, est parfaitement
+ * constant : « Compte rendu structuré en trois sections », « Liste de 10 conseils », « Document
+ * d'une page avec les trois indicateurs clés ». Une FORME, parfois ses paramètres structurels,
+ * jamais un contenu.
+ *
+ * C'est ce silence qui a produit un veto que personne ne pouvait trancher : l'Analyste inscrivait
+ * la valeur extraite d'un matériau dans expected_deliverable, et le Critique y voyait — à raison —
+ * le livrable rédigé pendant la préparation.
+ *
+ * LA LIGNE DE PARTAGE N'EST PAS « FAIT OU PAS FAIT », C'EST LE RÔLE DU FAIT. Un fait qui SPÉCIFIE
+ * la demande appartient au candidat, avec sa provenance. Un fait qui EST le résultat demandé n'y
+ * appartient pas : le candidat prépare, il n'exécute pas.
+ *
+ * Seuls les deux champs que ce lot a dû trancher sont définis ici. Les huit autres restent définis
+ * par leurs usages, inchangés — ce lot n'ouvre pas un chantier encyclopédique. */
+const CANDIDATE_FIELD_DEFINITIONS = Object.freeze({
+  objective:
+    "Ce que la demande vise à obtenir, formulé comme une intention. Jamais le résultat lui-même.",
+  expected_deliverable:
+    "La forme du résultat attendu et ses caractéristiques structurelles — nature, structure, volume, sections. Jamais le contenu final, jamais une valeur qui constituerait à elle seule le résultat demandé."
+});
 const CANDIDATE_LIST_FIELDS = Object.freeze([
   "secondary_objectives",
   "confirmed_constraints",
@@ -20172,7 +20197,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'56ec643049af6d3c05c1b1b834feb5af1618de2520705339d84b7c2d5c08de27'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'28d1c49f802777e492b88a6639ead6bcf36aed3f9069df46cea21ce503601f38'});
 })(window);
 
 

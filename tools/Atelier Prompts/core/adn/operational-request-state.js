@@ -94,6 +94,31 @@ export const ISSUE_IMPACTS = Object.freeze(["material", "non_material"]);
 // Champs du candidat opérationnel canonique (CDC §5.3). Tous adaptatifs : un champ vide est valide,
 // aucun n'est une checklist à remplir "parce qu'il existe".
 export const CANDIDATE_SCALAR_FIELDS = Object.freeze(["objective", "expected_deliverable"]);
+
+/* OPRIE-EXPECTED-DELIVERABLE-SEMANTICS-01 — CE QUE expected_deliverable CONTIENT, ENFIN ÉCRIT.
+ *
+ * Le CDC §5.3 nommait les champs sans les définir. Le schéma les déclare `{type:"string"}`, sans
+ * description. La sémantique n'existait donc que dans l'usage — et l'usage, lui, est parfaitement
+ * constant : « Compte rendu structuré en trois sections », « Liste de 10 conseils », « Document
+ * d'une page avec les trois indicateurs clés ». Une FORME, parfois ses paramètres structurels,
+ * jamais un contenu.
+ *
+ * C'est ce silence qui a produit un veto que personne ne pouvait trancher : l'Analyste inscrivait
+ * la valeur extraite d'un matériau dans expected_deliverable, et le Critique y voyait — à raison —
+ * le livrable rédigé pendant la préparation.
+ *
+ * LA LIGNE DE PARTAGE N'EST PAS « FAIT OU PAS FAIT », C'EST LE RÔLE DU FAIT. Un fait qui SPÉCIFIE
+ * la demande appartient au candidat, avec sa provenance. Un fait qui EST le résultat demandé n'y
+ * appartient pas : le candidat prépare, il n'exécute pas.
+ *
+ * Seuls les deux champs que ce lot a dû trancher sont définis ici. Les huit autres restent définis
+ * par leurs usages, inchangés — ce lot n'ouvre pas un chantier encyclopédique. */
+export const CANDIDATE_FIELD_DEFINITIONS = Object.freeze({
+  objective:
+    "Ce que la demande vise à obtenir, formulé comme une intention. Jamais le résultat lui-même.",
+  expected_deliverable:
+    "La forme du résultat attendu et ses caractéristiques structurelles — nature, structure, volume, sections. Jamais le contenu final, jamais une valeur qui constituerait à elle seule le résultat demandé."
+});
 export const CANDIDATE_LIST_FIELDS = Object.freeze([
   "secondary_objectives",
   "confirmed_constraints",
