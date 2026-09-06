@@ -1,0 +1,22 @@
+-- Migration number: 0005
+--
+-- Audit correctif — Partie B, point 9 : enveloppe generationEngine ('structured' |
+-- 'legacy-html'). Avant ce lot, une Fiche synthèse générée par le moteur legacy (repli en cas
+-- d'échec du moteur structuré, cf. le catch autour de adocGenerateStructuredFiche dans
+-- studio-clinique.html) n'était JAMAIS persistable : seul un vrai ClinicalDocument structuré
+-- pouvait être enregistré via /clinical-documents (UX-10A Étape 2). Ce lot n'invente jamais de
+-- faux ClinicalDocument à partir du HTML legacy (le contrat de ce schéma reste inchangé) : il
+-- ajoute une colonne permettant de distinguer, au niveau du stockage, un contenu structuré d'un
+-- contenu HTML figé + SourceSnapshot construit au moment du repli.
+--
+-- Stockée sur CHAQUE version (comme schema_version en 0004), jamais seulement au niveau du
+-- document : un même document_id ne change jamais de moteur après coup dans ce lot (un document
+-- structuré reste structuré, un document de repli reste HTML), mais la colonne vit sur la version
+-- pour rester cohérente avec le principe déjà établi en 0004 (l'information nécessaire à
+-- l'interprétation d'une version doit être portée par CETTE version, jamais déduite d'ailleurs).
+--
+-- DEFAULT 'structured' : toute ligne existante avant ce lot est, par construction, un
+-- ClinicalDocument structuré (c'était la SEULE forme persistable jusqu'ici) — jamais une
+-- supposition arbitraire, un fait garanti par le code du lot précédent (UX-10A Étape 2).
+ALTER TABLE clinical_documents ADD COLUMN generation_engine TEXT NOT NULL DEFAULT 'structured' CHECK (generation_engine IN ('structured', 'legacy-html'));
+ALTER TABLE clinical_document_versions ADD COLUMN generation_engine TEXT NOT NULL DEFAULT 'structured' CHECK (generation_engine IN ('structured', 'legacy-html'));
