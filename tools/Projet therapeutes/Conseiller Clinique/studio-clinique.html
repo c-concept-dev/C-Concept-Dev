@@ -1198,6 +1198,36 @@
     .cc-brandkit-confirm-save { background: var(--terracotta-600); border: 1px solid var(--terracotta-600); color: #fff; font-weight: 600; }
     .cc-brandkit-confirm-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    /* ── UX-10A Étape 2 — statut d'enregistrement (topbar UX-8W) et confirmation de suppression ── */
+    .cc-ws-save-status {
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+    }
+    .cc-ws-save-status.unsaved { background: rgba(255,255,255,.14); color: #fff; opacity: 0.75; }
+    .cc-ws-save-status.saved { background: rgba(255,255,255,.14); color: #fff; }
+    #cc-ws-delete-confirm {
+      display: none; position: fixed; inset: 0; z-index: 8500;
+      background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    #cc-ws-delete-confirm.open { display: flex; }
+    .cc-ws-delete-confirm-panel {
+      background: var(--paper); border-radius: 1rem; max-width: 26rem; width: 100%;
+      padding: 1.4rem; box-shadow: 0 20px 60px rgba(16,47,49,0.35);
+    }
+    .cc-ws-delete-confirm-panel h2 { margin: 0 0 0.7rem; font-size: 1.05rem; color: var(--ink); }
+    .cc-ws-delete-confirm-panel p { margin: 0 0 1.1rem; font-size: 0.85rem; color: var(--ink); line-height: 1.5; }
+    .cc-ws-delete-confirm-actions { display: flex; flex-direction: column; gap: 0.7rem; }
+    .cc-ws-delete-confirm-export {
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.6rem 1rem; border-radius: 0.7rem; font: inherit; font-size: 0.85rem; font-weight: 600;
+      background: var(--petrol-100); border: 1px solid var(--petrol-800); color: var(--petrol-950); cursor: pointer;
+    }
+    .cc-ws-delete-confirm-row { display: flex; justify-content: flex-end; gap: 0.6rem; }
+    .cc-ws-delete-confirm-cancel, .cc-ws-delete-confirm-confirm {
+      padding: 0.55rem 1rem; border-radius: 0.7rem; font: inherit; font-size: 0.83rem; cursor: pointer;
+    }
+    .cc-ws-delete-confirm-cancel { background: var(--paper); border: 1px solid var(--stone-400); color: var(--ink); }
+    .cc-ws-delete-confirm-confirm { background: #A13327; border: 1px solid #A13327; color: #fff; font-weight: 600; }
+
     #cc-landing .question-field:hover { border-color: var(--petrol-800); }
 
     #cc-landing .question-field:focus {
@@ -1753,6 +1783,12 @@
       font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
     }
     .cc-ws-topbar-btn:hover, .cc-ws-topbar-btn:focus-visible { background: rgba(255,255,255,.22); }
+    /* UX-10A Étape 2 — bug découvert en testant #cc-ws-delete-btn : .cc-ws-topbar-btn fixe
+       display:inline-flex avec la même spécificité que la règle UA [hidden]{display:none},
+       et l'emporte dans la cascade (règle d'auteur après la feuille UA) — l'attribut hidden
+       natif était donc silencieusement sans effet sur tout bouton de la topbar. Réaffirmé
+       explicitement ici, comme .cc-ws-panel-toggle le fait déjà pour son propre cas. */
+    .cc-ws-topbar-btn[hidden] { display: none; }
     .cc-ws-topbar-btn.primary { background: var(--terracotta-600); border-color: var(--terracotta-600); }
     .cc-ws-topbar-btn.primary:hover, .cc-ws-topbar-btn.primary:focus-visible { background: var(--terracotta-700); }
     .cc-ws-panel-toggle { display: none; }
@@ -1837,6 +1873,10 @@
       .cc-ws-topbar-title { font-size: 12px; max-width: 30vw; }
       #cc-ws-export-btn { padding: 6px 9px; }
       #cc-ws-export-btn span { display: none; }
+      /* UX-10A Étape 2 — même traitement que Exporter ci-dessus, pour les mêmes raisons. */
+      #cc-ws-save-btn, #cc-ws-delete-btn { padding: 6px 9px; }
+      #cc-ws-save-btn span, #cc-ws-delete-btn span { display: none; }
+      .cc-ws-save-status { display: none; }
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -9606,6 +9646,10 @@ ${recent}`;
     // libellé fixe). Élément séparé de cc-ws-badge (documentKind, non modifiable par ce lot).
     const brandKitEl = document.getElementById('cc-ws-brandkit');
     if (brandKitEl) brandKitEl.textContent = art._adocBrandKitName || '';
+    // UX-10A Étape 2 — reflète l'état réel de sauvegarde de CE document précis (jamais un
+    // libellé fixe) : "Non enregistré" tant qu'aucun clic explicite sur "Enregistrer" n'a eu
+    // lieu, y compris en rouvrant un document généré plus tôt dans la même session.
+    adocUpdateSaveStatusUI(art);
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -9664,6 +9708,115 @@ ${recent}`;
     a.href = url; a.download = (art.name || 'document') + '.html';
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // UX-10A Étape 2 — persistance réelle (CRUD /clinical-documents) : sauvegarde EXPLICITE
+  // uniquement (jamais automatique à chaque génération — décision confirmée dans le rapport de
+  // lot), historique de versions immuable, suppression manuelle avec export proposé d'abord.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Sérialise tout ce qu'il faut pour réafficher ce document à l'identique plus tard, pas
+  // seulement le ClinicalDocument : le SourceSnapshot et le RenderManifest utilisé ne sont eux-
+  // mêmes stockés nulle part ailleurs côté serveur (confirmé par l'investigation Étape 1 — ce
+  // sont de simples objets JS en mémoire navigateur) — les embarquer ici est nécessaire, une
+  // simple référence à leur id serait une référence vers rien une fois persistée.
+  function adocBuildClinicalDocumentContent(art) {
+    return {
+      schemaVersion: (art._adocStructuredDoc && art._adocStructuredDoc.schemaVersion) || 1,
+      clinicalDocument: art._adocStructuredDoc,
+      sourceSnapshot: art._adocStructuredSnapshot || null,
+      renderManifestOverride: art._adocRenderManifestOverride || null,
+    };
+  }
+
+  // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
+  // — reflète simplement l'état réel : enregistré ou non, jamais une invitation insistante.
+  function adocUpdateSaveStatusUI(art) {
+    const statusEl = document.getElementById('cc-ws-save-status');
+    const deleteBtn = document.getElementById('cc-ws-delete-btn');
+    const saveBtn = document.getElementById('cc-ws-save-btn');
+    if (!statusEl) return;
+    const saved = !!(art && art._adocClinicalDocumentId);
+    statusEl.textContent = saved ? 'Enregistré' : 'Non enregistré';
+    statusEl.className = 'cc-ws-save-status ' + (saved ? 'saved' : 'unsaved');
+    if (deleteBtn) deleteBtn.hidden = !saved;
+    if (saveBtn) {
+      const label = saveBtn.querySelector('span');
+      if (label) label.textContent = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer';
+    }
+  }
+
+  window.adocWsSave = async function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const btn = document.getElementById('cc-ws-save-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const apiKey = adocGetApiKey();
+      const content = adocBuildClinicalDocumentContent(art);
+      if (!art._adocClinicalDocumentId) {
+        // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
+        const r = await fetch(workerUrl + '/clinical-documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+          body: JSON.stringify({ document: content, title: art._adocStructuredDoc.title, documentKind: art._adocStructuredDoc.documentKind }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        art._adocClinicalDocumentId = data.document_id;
+        art._adocClinicalVersionId = data.version_id;
+      } else {
+        // Déjà enregistré — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
+        const r = await fetch(workerUrl + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId) + '/versions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+          body: JSON.stringify({ document: content }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        art._adocClinicalVersionId = data.version_id;
+      }
+      adocUpdateSaveStatusUI(art);
+    } catch (e) {
+      alert('Impossible d’enregistrer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  // ── Suppression manuelle explicite uniquement — jamais déclenchée par autre chose qu'un clic
+  // direct ici. L'écran de confirmation (jamais un confirm() générique) propose explicitement
+  // l'export avant de supprimer, cf. #cc-ws-delete-confirm dans le HTML. ──
+  window.adocWsDeleteRequest = function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocClinicalDocumentId) return;
+    document.getElementById('cc-ws-delete-confirm').classList.add('open');
+  };
+  window.adocWsDeleteCancel = function () {
+    document.getElementById('cc-ws-delete-confirm').classList.remove('open');
+  };
+  window.adocWsDeleteConfirmed = async function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocClinicalDocumentId) return;
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const r = await fetch(workerUrl + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId), {
+        method: 'DELETE',
+        headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      art._adocClinicalDocumentId = null;
+      art._adocClinicalVersionId = null;
+      window.adocWsDeleteCancel();
+      adocUpdateSaveStatusUI(art);
+    } catch (e) {
+      alert('Impossible de supprimer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '.');
+    }
   };
 
   function adocWsRenderSources(snapshot) {
@@ -9825,6 +9978,19 @@ ${recent}`;
       aria-label="Afficher les sources" aria-expanded="false" onclick="window.adocWsTogglePanel()">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-sources"></use></svg>
     </button>
+    <!-- UX-10A Étape 2 — sauvegarde EXPLICITE uniquement (jamais automatique à chaque
+         génération, cf. rapport de lot) : geste volontaire symétrique d'"Exporter", pas un
+         comportement caché. "Non enregistré" tant qu'aucun clic n'a eu lieu ; aucun document
+         n'existe côté serveur avant ce geste (confirmé par l'investigation UX-10A Étape 1). -->
+    <span class="cc-ws-save-status unsaved" id="cc-ws-save-status">Non enregistré</span>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-btn" onclick="window.adocWsSave()" aria-label="Enregistrer le document">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg>
+      <span>Enregistrer</span>
+    </button>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-delete-btn" onclick="window.adocWsDeleteRequest()" aria-label="Supprimer le document enregistré" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-trash"></use></svg>
+      <span>Supprimer</span>
+    </button>
     <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" onclick="window.adocWsExport()" aria-label="Exporter le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
       <span>Exporter</span>
@@ -9907,6 +10073,26 @@ ${recent}`;
     <div class="cc-brandkit-confirm-footer">
       <button type="button" class="cc-brandkit-confirm-cancel" id="cc-brandkit-confirm-cancel" onclick="window.adocBrandKitImportCancel()">Annuler</button>
       <button type="button" class="cc-brandkit-confirm-save" id="cc-brandkit-confirm-save" onclick="window.adocBrandKitImportSave()">Enregistrer la charte</button>
+    </div>
+  </div>
+</div>
+
+<!-- UX-10A Étape 2 — confirmation de suppression, JAMAIS un confirm() générique : rappelle
+     explicitement la possibilité d'exporter avant de supprimer définitivement (document ET
+     tout son historique de versions). Suppression manuelle explicite uniquement. -->
+<div id="cc-ws-delete-confirm" role="dialog" aria-modal="true" aria-labelledby="cc-ws-delete-confirm-title">
+  <div class="cc-ws-delete-confirm-panel">
+    <h2 id="cc-ws-delete-confirm-title">Supprimer ce document ?</h2>
+    <p>Cette action supprime définitivement le document <strong>et tout son historique de versions</strong> — impossible à annuler. Si vous voulez en garder une copie, exportez-le d'abord.</p>
+    <div class="cc-ws-delete-confirm-actions">
+      <button type="button" class="cc-ws-delete-confirm-export" onclick="window.adocWsExport()">
+        <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
+        Exporter d'abord
+      </button>
+      <div class="cc-ws-delete-confirm-row">
+        <button type="button" class="cc-ws-delete-confirm-cancel" onclick="window.adocWsDeleteCancel()">Annuler</button>
+        <button type="button" class="cc-ws-delete-confirm-confirm" onclick="window.adocWsDeleteConfirmed()">Supprimer définitivement</button>
+      </div>
     </div>
   </div>
 </div>
