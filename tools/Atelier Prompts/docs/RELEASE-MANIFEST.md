@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `d9e60a93cdc958b10e3ce53eac4106361f9c3da2` |
-| Date du commit | 2026-09-07T13:16:12+02:00 |
+| Commit local | `ae3ca90350e15d745cbe9a02b97c6dbe63f99b29` |
+| Date du commit | 2026-09-07T18:25:39+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-68 fichiers. C'est ce qui doit exister pour **servir** la page,
+74 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `5802714665d857146abc3aa7b7a44240edaf7a20fb54147e25b4c6a2782172f9` |
+| Empreinte du jeu | `16435bfb1aab2aca050bb8306ac608a78009da929bb2f1ef21a6cdcbd33aa329` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -85,10 +85,16 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
 | REQUIRED_DOC | `docs/ANTHROPIC-DEEP-CAPACITY-01.md` | `a6c063c7f49ce9fe2883b4cc1eb5811ddf38b8ddfe28342c6f430596e2319b9f` |
+| REQUIRED_DOC | `docs/ATELIER-DEEP-ECONOMICS-CHAIN-01.md` | `3b61dd8e5e030c234db2d635b54e72c951f916a9684f6532e573e260782fead5` |
+| REQUIRED_DOC | `docs/ATELIER-DEEP-EFFICIENCY-ECONOMICS-01.md` | `ff57fc3985e5bd98979807d4abd362e18b5e4fec1cbe73788617ead018bfa3ad` |
+| REQUIRED_DOC | `docs/ATELIER-DEEP-TURN-AMORTIZATION-01.md` | `af690a6a16634b32162d73b2946c7266ee8c5a3a39e44c196a20d7c66fd61b88` |
+| REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
+| REQUIRED_DOC | `docs/ATELIER-LLM-ARCHITECTURE-SURGEON-01.md` | `98f8400e4f4b58442c39ca2aab8f65477e0864328834b916b7fe1374c1da7429` |
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
 | REQUIRED_DOC | `docs/CRITIC-POSTPROVIDER-TYPEERROR-01.md` | `c9b6d591c920f748cf56f34b33652ff3cdc14054d73954460ea3864819f87f7f` |
 | REQUIRED_DOC | `docs/DEEP-ANTHROPIC-ACCEPTANCE-01.md` | `4218e62ea2ca9ea92618f895635068b96729665c456e91782ff10596b76db051` |
 | REQUIRED_DOC | `docs/DEEP-COUT-JETONS-01.md` | `5d298c68b4b7d5fe6adc285e828abd6c0a33a611c2407013835162009302e3a2` |
+| REQUIRED_DOC | `docs/DEEP-HAIKU-FIT-01.md` | `ca9bca976b87042587e4cfe07c32d232e40f67a8cd5905e1f2c7295e86382b12` |
 | REQUIRED_DOC | `docs/DEEP-PRODUCTION-BLOCKERS-01.md` | `62d88bc95a303d1e330f0911dd4d58540fc08af2f641be33f1fd19dee63511f2` |
 | REQUIRED_DOC | `docs/DEEP-PROVIDER-ROUTING-FINAL-01.md` | `dea4886a323bf2d1006299639f21c31c1973cf47049774a697c4474d6a2226ec` |
 | REQUIRED_DOC | `docs/DEEP-RESIDUAL-502-ATTRIBUTION-01.md` | `023aa9e037222aefa5dcd447d316fdf04d3ae04333a998502256340e82c90131` |
@@ -138,7 +144,7 @@ sa propre empreinte.
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
 | REQUIRED_TEST_ONLY | 155 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 278 | bancs et campagnes, dont le worker `…-local-only` |
+| EVALUATION_ONLY | 285 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
