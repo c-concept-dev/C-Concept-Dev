@@ -1,0 +1,150 @@
+{
+ "lot": "DEEP-HAIKU-FIT-01",
+ "tarifs_verifies_le": "2026-09-07",
+ "tarifs_source": "platform.claude.com/docs/en/about-claude/pricing — relu ce jour, jamais repris de Studio Clinique",
+ "tarifs_usd_par_million": {
+  "claude-haiku-4-5-20251001": {
+   "entree": 1,
+   "sortie": 5
+  },
+  "claude-sonnet-4-6": {
+   "entree": 3,
+   "sortie": 15
+  }
+ },
+ "tokenizer": "Haiku 4.5 et Sonnet 4.6 partagent le tokenizer antérieur (le nouveau commence à Claude 4.7). Les comptes de jetons sont donc directement comparables — vérifié en mesure : 13 674 jetons d entrée médians contre 13 081 pour Sonnet, +4,5 %.",
+ "mesure": {
+  "campagne_8_cas": {
+   "entree_median_par_tour": 13673.5,
+   "sortie_median_par_tour": 2275,
+   "entree_total": 136763,
+   "sortie_total": 24357,
+   "par_cas": [
+    {
+     "cas": "C1_READY_HARD",
+     "entree": 24000,
+     "sortie": 5723,
+     "appels": 4,
+     "cout_usd": 0.052615
+    },
+    {
+     "cas": "C2_FALSE_READY_TRAP",
+     "entree": 13471,
+     "sortie": 1860,
+     "appels": 3,
+     "cout_usd": 0.022771
+    },
+    {
+     "cas": "C3_CLARIFICATION",
+     "entree": 13599,
+     "sortie": 2095,
+     "appels": 3,
+     "cout_usd": 0.024074
+    },
+    {
+     "cas": "C4_QUESTION_LAST_RESORT",
+     "entree": 26653,
+     "sortie": 4815,
+     "appels": 5,
+     "cout_usd": 0.050728
+    },
+    {
+     "cas": "C5_MATERIAL_PRESENT",
+     "entree": 9250,
+     "sortie": 986,
+     "appels": 2,
+     "cout_usd": 0.01418
+    },
+    {
+     "cas": "C6_OPEN_NO_MATERIAL",
+     "entree": 22595,
+     "sortie": 4960,
+     "appels": 4,
+     "cout_usd": 0.047395
+    },
+    {
+     "cas": "C7_PROVENANCE_HISTORY",
+     "entree": 13447,
+     "sortie": 1463,
+     "appels": 3,
+     "cout_usd": 0.020762
+    },
+    {
+     "cas": "C8_NEGATIVE_CONTROL",
+     "entree": 13748,
+     "sortie": 2455,
+     "appels": 3,
+     "cout_usd": 0.026023
+    }
+   ]
+  },
+  "sortie_par_role_median": {
+   "analyst": 751.5,
+   "critic": 585,
+   "arbiter": 846
+  },
+  "sortie_par_role_detail": {
+   "analyst": {
+    "C1_READY_HARD": 1928,
+    "C2_FALSE_READY_TRAP": 786,
+    "C3_CLARIFICATION": 717,
+    "C4_QUESTION_LAST_RESORT": 872,
+    "C5_MATERIAL_PRESENT": 529,
+    "C6_OPEN_NO_MATERIAL": 1396,
+    "C7_PROVENANCE_HISTORY": 662,
+    "C8_NEGATIVE_CONTROL": 708
+   },
+   "critic": {
+    "C1_READY_HARD": 3795,
+    "C2_FALSE_READY_TRAP": 228,
+    "C3_CLARIFICATION": 554,
+    "C4_QUESTION_LAST_RESORT": 2616,
+    "C5_MATERIAL_PRESENT": 457,
+    "C6_OPEN_NO_MATERIAL": 3564,
+    "C7_PROVENANCE_HISTORY": 236,
+    "C8_NEGATIVE_CONTROL": 616
+   },
+   "arbiter": {
+    "C2_FALSE_READY_TRAP": 846,
+    "C3_CLARIFICATION": 824,
+    "C4_QUESTION_LAST_RESORT": 1327,
+    "C7_PROVENANCE_HISTORY": 565,
+    "C8_NEGATIVE_CONTROL": 1131
+   }
+  }
+ },
+ "baseline_sonnet": {
+  "entree_p50": 13081,
+  "sortie_p50": 1193,
+  "sortie_par_role_p50": {
+   "analyst": 448,
+   "critic": 227,
+   "arbiter": 521
+  },
+  "cout_par_tour_p50_usd": 0.057
+ },
+ "constat_volume": {
+  "rapport_sortie_haiku_sur_sonnet": 1.91,
+  "rapport_entree_haiku_sur_sonnet": 1.045,
+  "lecture": "À entrée constante, Haiku produit environ 1,9 fois plus de jetons de sortie que Sonnet. C est la cause directe des troncatures : les plafonds internes (1600 pour les batches de revue de substitution, 2048 pour le Critique global) ont été calibrés sur la verbosité de Sonnet."
+ },
+ "cout": {
+  "cout_median_par_tour_deep_usd": 0.02505,
+  "cout_median_tours_gouvernes_usd": 0.02342,
+  "reduction_vs_sonnet_pourcent": 56.1,
+  "hypothese_anterieure": "-67 % (A1) et -87 % (A1+ avec cache) — NON CONFIRMÉE : elle supposait un volume de sortie identique à Sonnet. Mesurée, la réduction est de 56 %.",
+  "budget_du_banc": {
+   "appels_totaux": 45,
+   "entree_totale": 229341,
+   "sortie_totale": 42332,
+   "cout_total_usd": 0.441,
+   "plafond_lot_usd": 0.5,
+   "repartition": {
+    "campagne_8_cas": 0.2585,
+    "reproduction_4_cas": 0.1558,
+    "amorces_harnais_2_tours": 0.0267
+   },
+   "appels_sonnet_supplementaires": 0
+  }
+ }
+}

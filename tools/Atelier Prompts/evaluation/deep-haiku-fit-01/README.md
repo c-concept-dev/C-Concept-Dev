@@ -6,7 +6,7 @@
 | `cases.json` | les 8 cas, leur baseline Sonnet déjà payée, ce que Haiku a rendu, la classe de divergence |
 | `divergences.json` | les 8 divergences, classées NON_MATERIAL / MATERIAL / CRITICAL, avec la preuve et le contrat violé |
 | `latency.json` | latence totale et par étage, populations gouvernée et interrompue séparées |
-| `tokens-cost.json` | jetons par rôle, tarifs relus le jour de la mesure, coût réel du banc et coût par tour |
+| `cout-jetons.json` | jetons par rôle, tarifs relus le jour de la mesure, coût réel du banc et coût par tour |
 | `runs.jsonl` | les 14 tours effectués — métadonnées seules : état, rôle en défaut, plafond, jetons, stop_reason, clés racine réellement produites |
 
 **Une seule variable a changé** : le champ `model` de la requête sortante, remplacé dans un

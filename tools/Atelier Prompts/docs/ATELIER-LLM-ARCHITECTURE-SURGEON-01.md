@@ -2,6 +2,37 @@
 
 Analyse seule. **Aucun appel API. Aucun code modifié.**
 
+> ---
+>
+> ## ⚠ NOTE DE RÉFUTATION — ajoutée à la publication de la chaîne, postérieure à ce document
+>
+> **La recommandation de ce document (A1 / A1+, « Deep tout-Haiku ») a été TESTÉE et REJETÉE.**
+> Elle ne doit pas être lue comme courante.
+>
+> `DEEP-HAIKU-FIT-01` a exécuté le banc de 8 cas proposé au § R — 45 appels réels, 0,4410 $ —
+> et rend `ALL_HAIKU_VERDICT = ALL_HAIKU_FAIL_MULTIPLE_ROLES`. Haiku n'échoue pas sur le sens :
+> il échoue sur le **contrat de sortie**. Quatre tours sur huit sans état gouverné, dont deux en
+> HTTP 502 sans aucun état OPRIE. `FAILING_ROLE = critic, arbiter, analyst`.
+>
+> Trois lectures de ce document sont explicitement corrigées par la mesure :
+>
+> | Ce document (§ P, Q, S/T) | Ce que la mesure a rendu |
+> | --- | --- |
+> | A1 : −67 % de coût, A1+ : −87 % | **−56 %** — les projections supposaient un volume de sortie identique à Sonnet ; il est ×1,91 |
+> | « échec sur l'Arbitre seul → A3 » | Le rôle en défaut principal est le **Critique**, qu'A3 laisse en Haiku. La bascule vers A3 n'est **pas** déclenchée |
+> | A1 « ne retire aucun contrôle » | Exact, et c'est ce qui l'a sauvé : les validateurs déterministes ont refusé chaque sortie non conforme. Mais les **plafonds** (1 600 / 2 048 / 4 096) sont calibrés sur la verbosité de Sonnet, et un changement de modèle les remet en jeu |
+>
+> **Ce qui reste valide et confirmé par la mesure** : le § M (la protection ne vient pas de la
+> puissance du modèle mais des validateurs déterministes, indépendants de lui) — vérifié contre un
+> modèle qui les mettait en défaut sept fois sur quatorze ; le § O (Sonnet 4.6 =
+> `HISTORICAL_IMPLEMENTATION_DECISION`) ; le § N pistes 1 et 5 (cache de préfixe, streaming de
+> progression), qui ne dépendent d'aucun changement de modèle.
+>
+> `DEEP_MODEL_FINAL = claude-sonnet-4-6` — inchangé. Voir `DEEP-HAIKU-FIT-01.md` et
+> `ATELIER-DEEP-ECONOMICS-CHAIN-01.md`.
+>
+> ---
+
 ---
 
 ## A. Diagnostic exécutif
