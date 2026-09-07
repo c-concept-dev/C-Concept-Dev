@@ -464,6 +464,20 @@ function getWorkerUrl() {
     return document.getElementById('workerUrl').value.replace(/\/+$/, '');
 }
 
+// ── Clé d'accès Worker ──
+// Ajoutée le 2026-09-08 : le durcissement de sécurité du même jour (audit systémique) exige
+// désormais X-API-Key sur toute route non explicitement publique — /library-stats reste
+// publique (aucune clé nécessaire), mais /d1-query, /ingest, /update-book-meta, /delete-book et
+// /search-library l'exigent maintenant. Sans cet en-tête, ces routes renvoient
+// {"error":"Unauthorized"} — c'est ce qui a cassé la recherche dans cet outil sans avertissement.
+// /d1-query exécute du SQL transmis tel quel par le client : la garder derrière une clé (même
+// minimale) reste nettement préférable à la rendre publique sans aucune protection.
+// Même clé que Studio Clinique — voir studio-clinique.html, adocGetApiKey(), même valeur en
+// dernier recours pendant la phase de test/construction active.
+function getAdminApiKey() {
+    return '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8';
+}
+
 // Helper: échapper les apostrophes pour les attributs onclick
 function esc(s) { return (s || '').replace(/'/g, "\\'"); }
 
@@ -786,7 +800,7 @@ async function startIngestion() {
                     // Méthode 1 : /d1-query (précis)
                     const dupRes = await fetch(getWorkerUrl() + '/d1-query', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
                         body: JSON.stringify({ sql: "SELECT COUNT(*) as cnt FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
                     });
                     if (dupRes.ok) {
@@ -816,7 +830,7 @@ async function startIngestion() {
                 try {
                     await fetch(getWorkerUrl() + '/d1-query', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
                         body: JSON.stringify({ sql: "DELETE FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
                     });
                     log('  ✅ Ancien contenu supprimé');
@@ -886,7 +900,7 @@ async function startIngestion() {
 
                 const res = await fetch(getWorkerUrl() + '/ingest', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
                     body: JSON.stringify({ chunks: batch, book_meta: q.meta })
                 });
 
@@ -968,7 +982,7 @@ async function scanDuplicates() {
         // Chercher les book_id avec des chunks en double (même content dans le même livre)
         const res = await fetch(getWorkerUrl() + '/d1-query', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({
                 sql: "SELECT book_id, book_title, content, COUNT(*) as cnt FROM chunks GROUP BY book_id, content HAVING cnt > 1 ORDER BY cnt DESC LIMIT 100"
             })
@@ -982,7 +996,7 @@ async function scanDuplicates() {
             // Vérifier aussi les livres entièrement dupliqués (même book_id, même nombre de chunks)
             const res2 = await fetch(getWorkerUrl() + '/d1-query', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
                 body: JSON.stringify({
                     sql: "SELECT book_id, book_title, COUNT(*) as total, COUNT(DISTINCT content) as unique_chunks FROM chunks GROUP BY book_id HAVING total > unique_chunks ORDER BY (total - unique_chunks) DESC"
                 })
@@ -1053,7 +1067,7 @@ async function purgeDuplicates(bookId, bookTitle) {
         // Stratégie : pour chaque book_id, supprimer les doublons en gardant le rowid le plus petit
         const res = await fetch(getWorkerUrl() + '/d1-query', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({
                 sql: "DELETE FROM chunks WHERE rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content) AND book_id = ?",
                 params: [bookId, bookId]
@@ -1197,7 +1211,7 @@ async function submitEditMeta(bookId) {
         // Essayer d'abord /update-book-meta
         let res = await fetch(getWorkerUrl() + '/update-book-meta', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({ book_id: bookId, approach, author, language })
         });
         
@@ -1215,7 +1229,7 @@ async function submitEditMeta(bookId) {
         log('  ⚠️ /update-book-meta non disponible — tentative via /d1-query...');
         res = await fetch(getWorkerUrl() + '/d1-query', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({
                 sql: "UPDATE chunks SET approach = ?, author = ?, language = ? WHERE book_id = ?",
                 params: [approach, author, language, bookId]
@@ -1261,7 +1275,7 @@ async function deleteBook(bookId, title) {
         log(`🗑 Suppression: ${title}...`);
         const res = await fetch(getWorkerUrl() + '/delete-book', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({ book_id: bookId })
         });
         const data = await res.json();
@@ -1290,7 +1304,7 @@ async function testSearch() {
         const t0 = Date.now();
         const res = await fetch(getWorkerUrl() + '/search-library', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({ query, topK, approach: approach || undefined })
         });
         const data = await res.json();
