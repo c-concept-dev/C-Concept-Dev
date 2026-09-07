@@ -1,0 +1,37 @@
+{
+  "lot": "DEEP-INTERACTION-LATENCY-01",
+  "EARLIEST_SAFE_CLARIFICATION_POINT": "operational-request-core.js — dans runCriticBatchedPipeline, à la fin du premier batch de revue de substitution dont l'entrée conclut question_is_last_resort = true après passage du Substitution Gate, les cibles étant traitées dans l'ordre de priorité fixé par l'Analyste.",
+  "demonstration_logique": {
+    "premisse_1": "Une seule question est posée par tour. Le prompt Analyste l'énonce : « un rôle ultérieur ne retient toujours qu'UNE seule prochaine question effectivement posée ».",
+    "premisse_2": "L'Analyste classe question_candidates par valeur informationnelle décroissante : « la première est celle qu'un rôle ultérieur retiendra en priorité ».",
+    "premisse_3": "Chaque revue de substitution est STRICTEMENT AUTO-CONTENUE. Le code le dit mot pour mot : « Validation strictement AUTO-CONTENUE (une seule entrée de question_substitution_review, indépendamment des autres) ». La revue de l'issue k ne peut donc modifier le verdict de l'issue j.",
+    "conclusion_1": "Dès qu'une issue matérielle survit au Gate comme non substituable, operational_request_ready devient LOGIQUEMENT IMPOSSIBLE pour ce tour : il subsiste une information manquante, matérielle, non substituable.",
+    "conclusion_2": "Cette issue étant la première dans l'ordre de priorité à survivre, aucune revue ultérieure ne peut lui prendre sa place. La prochaine question est déterminée.",
+    "conclusion_3": "Les revues des cibles suivantes ne peuvent donc changer ni l'état final, ni la prochaine question, ni la provenance, ni la substituabilité de la question retenue. Elles produisent de la preuve sur des questions qui ne seront pas posées."
+  },
+  "ce_que_cette_regle_n_est_pas": "ni un score, ni un seuil, ni une heuristique, ni une nouvelle autorité. C'est une propriété logique du contrat existant : « une seule question » + « revues auto-contenues » + « ordre de priorité fixé par l'Analyste ».",
+  "familles_critic_apres_preuve_suffisante": {
+    "revue_de_substitution_des_cibles_restantes": {
+      "CAN_STILL_CHANGE_FINAL_STATE": "NO — READY est déjà impossible",
+      "CAN_STILL_CHANGE_NEXT_QUESTION": "NO — une cible de priorité supérieure a déjà survécu",
+      "CAN_STILL_CHANGE_PROVENANCE": "NO — la revue ne produit aucune provenance",
+      "CAN_STILL_CHANGE_SUBSTITUTION": "NO — chaque entrée est auto-contenue",
+      "SAFE_TO_SKIP_AFTER_PROOF": "YES"
+    },
+    "critic_global": {
+      "SAFE_TO_SKIP_AFTER_PROOF": "NO — il porte les vetos, la dérive sémantique, les enjeux significatifs et la revue du candidat. Il précède toute preuve et reste indispensable."
+    },
+    "illegitimate_question_found": {
+      "SAFE_TO_SKIP_AFTER_PROOF": "NO — il est produit par l'appel global, pas par les batches ; il n'est pas concerné."
+    }
+  },
+  "EARLY_STOP_SAFE": "YES — logiquement démontré, sans seuil ni heuristique",
+  "EARLY_STOP_IMPLEMENTED": "NO",
+  "POURQUOI_IL_N_A_PAS_ETE_IMPLEMENTE": {
+    "obstacle": "un contrat de CARDINALITÉ interdit l'arrêt anticipé.",
+    "citation_du_code": "assembleSubstitutionReviews lève sur toute cible non couverte : « issue(s) manquante(s), aucun batch ne les a couvertes ». Le validateur le formule ainsi : « une revue par issue material+question, ni plus ni moins ».",
+    "consequence": "un early-stop laisserait des cibles non couvertes et serait refusé comme une violation de contrat de sortie du modèle — exactement le mécanisme que DEEP-OUTPUT-ROBUSTNESS-01 vient de fiabiliser.",
+    "nature_du_changement_requis": "remplacer « une revue par cible, ni plus ni moins » par « une revue par cible EXAMINÉE, et la liste des cibles examinées est explicite ». C'est un changement de contrat sémantique structurel.",
+    "pourquoi_je_ne_le_fais_pas_seul": "la gouvernance de ce lot me l'interdit explicitement : contrats gelés, invariants sémantiques et architecture générale ne sont pas modifiables sans décision. Ce contrat de cardinalité est la garantie qui rend la revue de substitution auditable."
+  }
+}
