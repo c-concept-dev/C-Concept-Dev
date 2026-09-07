@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `991d99a079dad9b1463c46d5ae2ed8ca5ab72cd0` |
-| Date du commit | 2026-09-07T23:50:24+02:00 |
+| Commit local | `febaf4d6ae6229e1fe5bf99840cc7e0115cdeb2e` |
+| Date du commit | 2026-09-08T00:03:02+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-80 fichiers. C'est ce qui doit exister pour **servir** la page,
+81 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `2b641ca7dc097a5ba47ce2c0c55175a4d9e3047444d4e544f047f9504b895e5c` |
+| Empreinte du jeu | `11a1e301c1d2177fb71508711a92215c310131df059bfecf83ae7341ac493af2` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -88,6 +88,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-DEEP-ECONOMICS-CHAIN-01.md` | `3b61dd8e5e030c234db2d635b54e72c951f916a9684f6532e573e260782fead5` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-EFFICIENCY-ECONOMICS-01.md` | `ff57fc3985e5bd98979807d4abd362e18b5e4fec1cbe73788617ead018bfa3ad` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-TURN-AMORTIZATION-01.md` | `af690a6a16634b32162d73b2946c7266ee8c5a3a39e44c196a20d7c66fd61b88` |
+| REQUIRED_DOC | `docs/ATELIER-FINAL-HTML-CONSOLIDATION-01.md` | `d0ee18ef20804980157a6019ba680ca386e8f89fd03da4ef00620d4c0dba532d` |
 | REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
 | REQUIRED_DOC | `docs/ATELIER-LLM-ARCHITECTURE-SURGEON-01.md` | `98f8400e4f4b58442c39ca2aab8f65477e0864328834b916b7fe1374c1da7429` |
 | REQUIRED_DOC | `docs/ATELIER-RELEASE-GATE-01.md` | `57494ccb8d0db93960230d98354056e73ecb05f464dd676f5b1ab231fc1866ad` |
