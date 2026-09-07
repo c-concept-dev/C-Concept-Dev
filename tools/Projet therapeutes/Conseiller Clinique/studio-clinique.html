@@ -4187,7 +4187,14 @@ RÈGLES ABSOLUES :
   // cette seule génération — ex. le bandeau "Hypothèses retenues" après un plafond de
   // clarification (cf. adocClarityBannerNote). Jamais stockée dans adocConversations,
   // jamais affichée en bulle utilisateur.
-  function adocBuildSystemPrompt(ragCtx, docCtx, plan, extraNote) {
+  // Correctif contradiction de prompt (audit Codex, confirmé dans le code) — opts.forStructuredTool
+  // (défaut false, comportement strictement inchangé pour tout appelant existant) désactive les
+  // instructions de format HTML autonome (DOCTYPE/charte CSS en dur/script plein écran/_photoCtx,
+  // qui demande d'insérer du HTML <img data-pexels=...> brut dans le texte produit) : la sortie
+  // structurée attendue est un objet JSON typé via un outil forcé, jamais un document HTML — les
+  // deux contrats de sortie étaient auparavant envoyés ensemble dans le même prompt système.
+  function adocBuildSystemPrompt(ragCtx, docCtx, plan, extraNote, opts) {
+    const _forStructuredTool = !!(opts && opts.forStructuredTool);
     const ctxSession = adocSessionContext
       ? '\n\nCONTEXTE DE TRAVAIL : ' + adocSessionContext : '';
     const ctxPatient = adocPatientContext
@@ -4333,12 +4340,48 @@ RÈGLES ABSOLUES :
       ? "\nDOCX — HTML semantique : <h1>, <h2>, <p>, <table>, <ul>. Pas de styles inline complexes."
       : '';
 
-    const outputConstraint = '\n\n── CONTRAT DE SORTIE ──\n'
+    // _forStructuredTool : aucun de ces trois blocs n'a de sens pour une sortie JSON via outil
+    // forcé (_execContext décrit un fichier HTML autonome, _photoCtx demande d'insérer du HTML
+    // <img data-pexels=...> brut dans le texte, _fmtSpecific décrit des formats binaires/HTML) —
+    // le contrat de sortie réel pour ce cas est entièrement porté par le schéma d'outil et par
+    // les instructions ajoutées après coup dans baseStructuredSystemPrompt (adocGenerateStructuredFiche).
+    const outputConstraint = _forStructuredTool ? '' : ('\n\n── CONTRAT DE SORTIE ──\n'
       + _execContext + '\n'
       + _photoCtx + '\n'
-      + _fmtSpecific;
+      + _fmtSpecific);
 
     const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
+
+    // Correctif contradiction de prompt — ce bloc (charte CSS en dur, "Tout JS self-contained",
+    // script de plein écran au clic sur les images) décrit un fichier HTML autonome, exactement
+    // comme _execContext ci-dessus : sans objet et contradictoire pour une sortie structurée via
+    // outil forcé (_forStructuredTool). Extrait en variable pour rester omissible sans dupliquer
+    // ni altérer son contenu pour tout appelant existant (legacy HTML, inchangé).
+    const htmlDeliverableBlock = _forStructuredTool ? '' : `
+Pour les livrables HTML visuels :
+— CHARTE GRAPHIQUE C CONCEPT&DEV — OBLIGATOIRE pour tout HTML produit :
+  Police principale : IBM Plex Sans (Google Fonts, weights 400/500/600/700) — titres en Source Serif 4 (weight 600)
+  Variables CSS à déclarer en :root (valeurs en dur — le document vit seul, sans accès au CSS de l'app hôte) :
+    --mer: #1f5053;        /* titres, bordures, boutons, accents */
+    --deep: #102f31;       /* H1/H2, en-têtes tableau */
+    --vert-sauge: #c9c3b8; /* sections secondaires */
+    --beige: #ddd7cc;      /* zones interprétation */
+    --sable: #f6f2ea;      /* fond général */
+    --surf: #f6f2ea;       /* fond app */
+    --text: #273331;       /* corps de texte */
+    --muted: #5d6966;      /* texte secondaire */
+    --blanc: #FFFFFF;      /* fond zones texte */
+  Fond body : var(--sable) ou var(--surf). JAMAIS fond noir #0a0a0a.
+  Accents : var(--mer) et var(--deep). JAMAIS or #d4af37 ni violet.
+  Cette charte est non négociable — identité visuelle C Concept&Dev.
+— Layout éditorial : hero header, sidebar colorée, callouts, citations en bloc
+— Design qui donne envie de lire — pas qui signale "c'est un rapport"
+— Tout JS self-contained
+— TOUTE IMAGE (<img>, y compris celles injectées par data-pexels) DOIT être cliquable pour
+  s'ouvrir en plein écran (le document vit seul, ce comportement doit être auto-porté). Coller
+  tel quel avant </body> :
+  <script>document.querySelectorAll('img').forEach(function(im){im.style.cursor='zoom-in';im.addEventListener('click',function(){var o=document.createElement('div');o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.style.cssText='position:fixed;inset:0;background:rgba(16,47,49,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;';var b=document.createElement('img');b.src=im.src;b.alt=im.alt||'';b.style.cssText='max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 20px 60px rgba(0,0,0,.5);border-radius:8px;';o.appendChild(b);o.addEventListener('click',function(){o.remove()});function esc(e){if(e.key==='Escape'){o.remove();document.removeEventListener('keydown',esc);}}document.addEventListener('keydown',esc);document.body.appendChild(o);});});<\/script>
+`;
 
     return (
       `Tu es le Studio Clinique de C Concept&Dev.
@@ -4409,35 +4452,16 @@ Pour Christophe en tant qu'orateur (conférences, formations, séminaires) :
 — Le "takeaway" doit être formulable en une phrase par chaque participant
 — L'émotion et le raisonnement doivent coexister
 
-Pour les livrables HTML visuels :
-— CHARTE GRAPHIQUE C CONCEPT&DEV — OBLIGATOIRE pour tout HTML produit :
-  Police principale : IBM Plex Sans (Google Fonts, weights 400/500/600/700) — titres en Source Serif 4 (weight 600)
-  Variables CSS à déclarer en :root (valeurs en dur — le document vit seul, sans accès au CSS de l'app hôte) :
-    --mer: #1f5053;        /* titres, bordures, boutons, accents */
-    --deep: #102f31;       /* H1/H2, en-têtes tableau */
-    --vert-sauge: #c9c3b8; /* sections secondaires */
-    --beige: #ddd7cc;      /* zones interprétation */
-    --sable: #f6f2ea;      /* fond général */
-    --surf: #f6f2ea;       /* fond app */
-    --text: #273331;       /* corps de texte */
-    --muted: #5d6966;      /* texte secondaire */
-    --blanc: #FFFFFF;      /* fond zones texte */
-  Fond body : var(--sable) ou var(--surf). JAMAIS fond noir #0a0a0a.
-  Accents : var(--mer) et var(--deep). JAMAIS or #d4af37 ni violet.
-  Cette charte est non négociable — identité visuelle C Concept&Dev.
-— Layout éditorial : hero header, sidebar colorée, callouts, citations en bloc
-— Design qui donne envie de lire — pas qui signale "c'est un rapport"
-— Tout JS self-contained
-— TOUTE IMAGE (<img>, y compris celles injectées par data-pexels) DOIT être cliquable pour
-  s'ouvrir en plein écran (le document vit seul, ce comportement doit être auto-porté). Coller
-  tel quel avant </body> :
-  <script>document.querySelectorAll('img').forEach(function(im){im.style.cursor='zoom-in';im.addEventListener('click',function(){var o=document.createElement('div');o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.style.cssText='position:fixed;inset:0;background:rgba(16,47,49,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;';var b=document.createElement('img');b.src=im.src;b.alt=im.alt||'';b.style.cssText='max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 20px 60px rgba(0,0,0,.5);border-radius:8px;';o.appendChild(b);o.addEventListener('click',function(){o.remove()});function esc(e){if(e.key==='Escape'){o.remove();document.removeEventListener('keydown',esc);}}document.addEventListener('keydown',esc);document.body.appendChild(o);});});<\/script>
-
+${htmlDeliverableBlock}
 ${orientationBlock}
 
 ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──\n' + extraNote : ''}`
     );
   }
+  // Exposée pour inspection/tests (même convention que adocDeliverStructuredFicheArtifact,
+  // adocDumpFallbackTrace, etc.) — jamais appelée par un autre code applicatif que les call
+  // sites déjà existants dans ce fichier.
+  window.adocBuildSystemPrompt = adocBuildSystemPrompt;
 
 
   // ── Phase B0.3 — un seul round de continuation, réutilisable en automatique
@@ -5004,7 +5028,16 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           && adocGetRendererMode('fiche') === 'structured') {
         try {
           adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)…');
-          _struct = await adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId);
+          // Correctif contradiction de prompt (audit Codex confirmé dans le code) — `systemPrompt`
+          // ci-dessus est construit pour un fichier HTML autonome (plan.intent==='fiche' → fmt
+          // 'html' → _execContext/_photoCtx/charte CSS en dur/script plein écran), alors que
+          // cet appel force une sortie JSON via l'outil emit_fiche_document : deux contrats de
+          // sortie incompatibles envoyés dans le même prompt système. Reconstruit ici à partir des
+          // MÊMES ragCtx/docCtx/plan/clarityNote (aucune divergence de contenu clinique/RAG avec
+          // `systemPrompt`), avec opts.forStructuredTool qui retire uniquement les instructions de
+          // format HTML — jamais utilisé pour le moteur legacy, qui garde `systemPrompt` inchangé.
+          const structuredSystemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan, clarityNote, { forStructuredTool: true });
+          _struct = await adocGenerateStructuredFiche(text, plan, ragResult, structuredSystemPrompt, workerUrl, typingId);
           // UX-8B Lot 2 — charte choisie pour CETTE demande : uniquement un choix de RENDU,
           // appliqué après coup sur le _struct.doc déjà produit ci-dessus. Ne relit ni ne
           // relance jamais ragResult/sourceSnapshot — donc jamais de nouvelle recherche RAG.
@@ -5205,8 +5238,6 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       }
 
       console.log('[Mixte]', usedWebSearch ? 'web_search utilisé' : 'pas de web_search', '— D1:', d1Coverage, 'chunks');
-
-      if (!reply)
 
       if (!reply) throw new Error('Réponse vide du modèle.');
 
@@ -9617,6 +9648,14 @@ ${recent}`;
         msToFirstSemanticProgress: null, bytesReceived: 0, fragmentsReceived: 0,
         validSSEEventCount: 0, usefulContentFragmentCount: 0, lastEventType: null,
         lastTransportActivityAt: null, lastSemanticActivityAt: null, finalState: null,
+        // Axe 2 (audit Codex) — instrumentation supplémentaire pour que l'expérience du seuil
+        // sémantique à 120s produise des données exploitables même si 120s ne suffit pas non
+        // plus. Champs partagés avec l'appel 1 par simplicité (jamais dupliquer
+        // _adocNewCallMetrics) — restent à leur valeur par défaut pour l'appel 1, qui ne les
+        // renseigne jamais (pas de tool_use/input_json_delta sur ce premier appel).
+        interFragmentIntervalsMs: [], jsonLengthAtIntervalStart: [],
+        pingCount: 0, pingTimestampsMs: [],
+        receivedContentBlockStop: false, receivedMessageStop: false, stopReasonAtAbandon: null,
       };
     }
     function _adocLogCallMetrics(label, m) {
@@ -9832,6 +9871,19 @@ ${recent}`;
     // timeout) ET qu'aucun JSON utile n'a encore été accumulé. Jamais de retry après tool
     // absent / max_tokens / JSON invalide (vérifiés APRÈS cette boucle, jamais à l'intérieur).
     const ADOC_CALL2_MAX_ATTEMPTS = 2;
+    // Axe 2 (audit Codex) — EXPÉRIENCE CONTRÔLÉE, appel 2 UNIQUEMENT : les 3 occurrences réelles
+    // déjà tracées (traceur persistant, lot précédent) montrent systématiquement un flux qui
+    // s'arrête juste après un keep-alive ("ping"), avec 37-44 fragments JSON déjà reçus — un
+    // document en cours de production, pas un blocage dès le départ. Le seuil sémantique de 45s
+    // (réarmé UNIQUEMENT sur un vrai fragment input_json_delta, jamais sur un simple octet/ping)
+    // pourrait couper un flux encore productif. Porté à 120s ICI SEULEMENT, recommandation
+    // explicite de l'audit compte tenu des données disponibles — pas une valeur arbitraire.
+    // Minuterie TRANSPORT de l'appel 2 : INCHANGÉE (45s) — se réarme sur tout octet brut, y
+    // compris un ping, donc ne protège pas contre ce scénario précis (elle continuerait de se
+    // réarmer indéfiniment tant que des pings arrivent). Les deux minuteries de l'appel 1 (20s)
+    // et tout le reste (max_tokens, retry, repli, persistance legacy-html) : INCHANGÉS.
+    const ADOC_CALL2_TRANSPORT_TIMEOUT_MS = 45000;
+    const ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL = 120000;
     let _genToolName = null;
     let _genToolInputJson = '';
     let _genStopReason = null;
@@ -9845,12 +9897,12 @@ ${recent}`;
       _genStopReason = null;
       const _tCall2Start = performance.now();
       const _genCtrl = new AbortController();
-      let _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, 45000);
-      function _resetGenTimeout() { clearTimeout(_genTid); _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, 45000); }
-      let _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, 45000);
+      let _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, ADOC_CALL2_TRANSPORT_TIMEOUT_MS);
+      function _resetGenTimeout() { clearTimeout(_genTid); _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, ADOC_CALL2_TRANSPORT_TIMEOUT_MS); }
+      let _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL);
       function _resetGenSemanticTimeout() {
         clearTimeout(_genSemTid);
-        _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, 45000);
+        _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL);
         _m2.lastSemanticActivityAt = performance.now();
         if (_m2.msToFirstSemanticProgress == null) _m2.msToFirstSemanticProgress = Math.round(performance.now() - _tCall2Start);
       }
@@ -9895,6 +9947,10 @@ ${recent}`;
         const _genReader = resp.body.getReader();
         const _genDecoder = new TextDecoder();
         let _genSseBuffer = '';
+        // Axe 2 (audit Codex) — horodatage (relatif au début de CETTE tentative) du dernier
+        // fragment input_json_delta reçu, pour calculer l'intervalle avec le suivant. Redéclaré
+        // à chaque tentative (portée de la fonction englobante, comme _m2 lui-même).
+        let _lastFragmentAtMs = null;
         function _processGenLine(_gl) {
           if (!_gl.startsWith('data: ')) return;
           const _gd = _gl.slice(6).trim();
@@ -9909,11 +9965,29 @@ ${recent}`;
             // catch, jamais avalé en silence (une vraie erreur ne se déguise plus en simple
             // inactivité de flux quelques secondes plus tard).
             if (_ge.type === 'error') throw _adocSSEStreamError('Stream error (appel 2) : ' + (_ge.error && _ge.error.message || 'erreur inconnue'), _ge.error && _ge.error.type);
+            // Axe 2 — compte et horodate chaque keep-alive reçu (événement RÉEL {"type":"ping"}
+            // émis par l'API Anthropic, distinct d'un simple octet brut) : les 3 occurrences déjà
+            // tracées montrent systématiquement un flux qui s'arrête juste après l'un de ceux-ci.
+            if (_ge.type === 'ping') {
+              _m2.pingCount++;
+              _m2.pingTimestampsMs.push(Math.round(performance.now() - _tCall2Start));
+            }
             if (_ge.type === 'content_block_start' && _ge.content_block && _ge.content_block.type === 'tool_use') {
               _genToolName = _ge.content_block.name;
             }
             if (_ge.type === 'content_block_delta' && _ge.delta && _ge.delta.type === 'input_json_delta') {
               const frag = _ge.delta.partial_json || '';
+              if (frag) {
+                // Axe 2 — intervalle depuis le fragment précédent + longueur du JSON déjà
+                // accumulé au moment où cette pause a commencé (donc AVANT d'ajouter `frag`
+                // ci-dessous) : premier fragment de la tentative exclu (rien à comparer).
+                const _nowRelMs = Math.round(performance.now() - _tCall2Start);
+                if (_lastFragmentAtMs != null) {
+                  _m2.interFragmentIntervalsMs.push(_nowRelMs - _lastFragmentAtMs);
+                  _m2.jsonLengthAtIntervalStart.push(_genToolInputJson.length);
+                }
+                _lastFragmentAtMs = _nowRelMs;
+              }
               _genToolInputJson += frag;
               if (frag) {
                 _genReceivedChars += frag.length;
@@ -9923,6 +9997,12 @@ ${recent}`;
                 if (typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… ' + _genReceivedChars + ' caractères reçus');
               }
             }
+            // Axe 2 — content_block_stop/message_stop reçus AVANT un abandon éventuel indiquent
+            // un flux qui a fini de produire son bloc (ou le message entier) mais dont un
+            // événement de clôture attendu ensuite ne serait jamais arrivé — distinct d'un flux
+            // coupé en plein milieu d'un fragment.
+            if (_ge.type === 'content_block_stop') _m2.receivedContentBlockStop = true;
+            if (_ge.type === 'message_stop') _m2.receivedMessageStop = true;
             if (_ge.type === 'message_delta' && _ge.delta && _ge.delta.stop_reason) _genStopReason = _ge.delta.stop_reason;
           } catch (_parseErr) {
             if (_parseErr && _parseErr.name === 'AdocSSEStreamError') throw _parseErr;
@@ -9965,6 +10045,10 @@ ${recent}`;
           : _genErr && _genErr.name === 'AbortError' ? (_abortReason2 || 'transport-timeout')
           : _genErr && _genErr.httpStatus ? 'http-error'
           : 'network-error';
+        // Axe 2 — stop_reason au moment précis de l'abandon (souvent null dans un scénario de
+        // timeout — le flux s'arrête avant tout message_delta portant stop_reason — mais capturé
+        // honnêtement tel quel, jamais deviné, pour les cas où il serait déjà connu).
+        _m2.stopReasonAtAbandon = _genStopReason;
         _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
         window._adocLastStructAttemptMetrics.metrics2 = _m2; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
 
