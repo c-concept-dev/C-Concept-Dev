@@ -3059,6 +3059,15 @@
       window._therapyWorkerApiKey ||
       window.CONFIG?.WORKER_API_KEY ||
       localStorage.getItem('workerApiKey') ||
+      // ⚠️ TEMPORAIRE — PHASE DE TEST/CONSTRUCTION ACTIVE (décision explicite, 2026-09-07) ⚠️
+      // Clé en dur réintroduite en dernier recours pour la commodité pendant l'itération rapide
+      // (nouveaux fichiers HTML fréquents, plusieurs appareils). Un audit précédent avait retiré
+      // cette clé pour une faille de sécurité critique (n'importe qui affichant le code source
+      // peut la lire et appeler le Worker directement). À RETIRER avant toute mise en production
+      // réelle avec de vraies données patientes en continu — remplacer par un vrai mécanisme
+      // d'authentification (écran de connexion, jeton temporaire) à ce moment-là, pas remettre
+      // cette valeur en dur indéfiniment.
+      '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8' ||
       null
     );
     if (!key) _adocWarnMissingApiKey();
