@@ -4690,6 +4690,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // Console uniquement (window.adocDumpFallbackTrace()) — jamais appelée par le code applicatif
   // lui-même. Affiche les chiffres bruts ; l'interprétation reste entre Christophe et moi, jamais
   // une conclusion devinée ici (ex. jamais "c'est à cause de X").
+  // Correctif d'affichage — les métriques d'une entrée vivent dans metrics1 OU metrics2 selon
+  // QUEL appel a échoué (failedCall), jamais toujours dans metrics2 : lire metrics2 sans
+  // condition affichait "undefined" pour toute entrée dont failedCall serait un jour 1 (metrics1
+  // jamais consulté dans ce cas). Point de lecture UNIQUE, pour ne pas dupliquer cette règle à
+  // chaque champ affiché ni risquer de l'oublier sur l'un d'eux.
+  function _adocMetricsForEntry(entry) {
+    return entry.failedCall === 1 ? entry.metrics1 : entry.metrics2;
+  }
+
   window.adocDumpFallbackTrace = function () {
     const list = adocReadFallbackTrace();
     if (!list.length) {
@@ -4697,6 +4706,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       return;
     }
     console.table(list.map(function (e) {
+      const m = _adocMetricsForEntry(e);
       return {
         timestamp: e.timestamp,
         hourOfDay: e.hourOfDay,
@@ -4704,9 +4714,9 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         sourceCount: e.sourceCount,
         ragChunkCount: e.ragChunkCount,
         usedWebSearch: e.usedWebSearch,
-        msSinceLastSemanticActivity: e.metrics2 ? e.metrics2.msSinceLastSemanticActivity : null,
-        payloadBytes: e.metrics2 ? e.metrics2.payloadBytes : null,
-        usefulContentFragmentCount: e.metrics2 ? e.metrics2.usefulContentFragmentCount : null,
+        msSinceLastSemanticActivity: m ? m.msSinceLastSemanticActivity : null,
+        payloadBytes: m ? m.payloadBytes : null,
+        usefulContentFragmentCount: m ? m.usefulContentFragmentCount : null,
         errorMessage: e.errorMessage,
       };
     }));
@@ -4717,7 +4727,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const call2Count = call2Entries.length;
     function avg(arr) { return arr.length ? (arr.reduce(function (a, b) { return a + b; }, 0) / arr.length) : null; }
     const avgSourceCountCall2 = avg(call2Entries.map(function (e) { return e.sourceCount; }).filter(function (v) { return typeof v === 'number'; }));
-    const avgPayloadBytesCall2 = avg(call2Entries.map(function (e) { return e.metrics2 && e.metrics2.payloadBytes; }).filter(function (v) { return typeof v === 'number'; }));
+    const avgPayloadBytesCall2 = avg(call2Entries.map(function (e) { return _adocMetricsForEntry(e) && _adocMetricsForEntry(e).payloadBytes; }).filter(function (v) { return typeof v === 'number'; }));
     const byHourBucket = {};
     list.forEach(function (e) {
       if (typeof e.hourOfDay !== 'number') return;
@@ -4725,7 +4735,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       const key = bucketStart + 'h-' + (bucketStart + 3) + 'h';
       byHourBucket[key] = (byHourBucket[key] || 0) + 1;
     });
-    const pingCount = call2Entries.filter(function (e) { return e.metrics2 && e.metrics2.lastEventType === 'ping'; }).length;
+    const pingCount = call2Entries.filter(function (e) { const m = _adocMetricsForEntry(e); return m && m.lastEventType === 'ping'; }).length;
 
     console.log('=== Résumé traceur de replis ===');
     console.log('Total d\'entrées enregistrées :', total);
@@ -9610,16 +9620,25 @@ ${recent}`;
       };
     }
     function _adocLogCallMetrics(label, m) {
-      if (window.adocStructuredFicheTimingLog === false) return;
+      // Correctif traceur persistant — msSinceLastTransportActivity/msSinceLastSemanticActivity
+      // n'étaient calculées QUE localement pour ce console.log, jamais reportées sur `m` lui-même
+      // — un consommateur externe de `m` (ex. adocDumpFallbackTrace, via le holder partagé
+      // window._adocLastStructAttemptMetrics) ne pouvait donc JAMAIS les lire, quel que soit le
+      // sous-objet consulté : le champ était simplement absent de l'objet stocké, pas seulement
+      // mal aiguillé. Persistées ici sur `m` (aucune nouvelle mesure, juste la même valeur déjà
+      // calculée ci-dessous rendue visible au-delà de ce seul console.log).
       const nowMs = performance.now();
+      m.msSinceLastTransportActivity = m.lastTransportActivityAt != null ? Math.round(nowMs - m.lastTransportActivityAt) : null;
+      m.msSinceLastSemanticActivity = m.lastSemanticActivityAt != null ? Math.round(nowMs - m.lastSemanticActivityAt) : null;
+      if (window.adocStructuredFicheTimingLog === false) return;
       console.log('[UX-8A.2][métriques] ' + label, {
         payloadBytes: m.payloadBytes, msToHttp200: m.msToHttp200, msToFirstByte: m.msToFirstByte,
         msToFirstValidSSE: m.msToFirstValidSSE, msToFirstSemanticProgress: m.msToFirstSemanticProgress,
         bytesReceived: m.bytesReceived, fragmentsReceived: m.fragmentsReceived,
         validSSEEventCount: m.validSSEEventCount, usefulContentFragmentCount: m.usefulContentFragmentCount,
         lastEventType: m.lastEventType,
-        msSinceLastTransportActivity: m.lastTransportActivityAt != null ? Math.round(nowMs - m.lastTransportActivityAt) : null,
-        msSinceLastSemanticActivity: m.lastSemanticActivityAt != null ? Math.round(nowMs - m.lastSemanticActivityAt) : null,
+        msSinceLastTransportActivity: m.msSinceLastTransportActivity,
+        msSinceLastSemanticActivity: m.msSinceLastSemanticActivity,
         finalState: m.finalState,
       });
     }
