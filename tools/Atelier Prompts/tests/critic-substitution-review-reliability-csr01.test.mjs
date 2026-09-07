@@ -117,7 +117,9 @@ test("CSR01-ROOT-b : le coût de sortie par issue est DÉRIVÉ de la structure d
   assert.equal(PRODUCTION_OUTPUT_CAPABILITY.perIssueOutputUnits,
     LADDER_ALTERNATIVE_VALUES.length * SUBSTITUTION_CANDIDATE_FIELDS.length * OUTPUT_UNITS_PER_FIELD_MEASURED);
   assert.equal(LADDER_ALTERNATIVE_VALUES.length, 6);
-  assert.equal(SUBSTITUTION_CANDIDATE_FIELDS.length, 7);
+  /* DEEP-OUTPUT-MINIMALITY-01 expérience A : sept clés moins candidate_action, que rien ne lisait.
+     La ligne au-dessus — la DÉRIVATION — est ce que ce test garde vraiment ; elle est intacte. */
+  assert.equal(SUBSTITUTION_CANDIDATE_FIELDS.length, 6);
 });
 
 test("CSR01-ROOT-c : un batch n'est jamais planifié au-delà de ce qu'un modèle peut RÉPONDRE", () => {

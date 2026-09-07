@@ -1,0 +1,36 @@
+{
+  "measured_sizes": {
+    "analyst_prompt_chars": 13339,
+    "critic_global_prompt_chars": 6912,
+    "critic_batch_prompt_chars": 12487,
+    "arbiter_prompt_chars": 6211,
+    "analyst_schema_chars": 3439,
+    "critic_global_schema_chars": 1890,
+    "critic_batch_schema_one_issue_chars": 3620,
+    "arbiter_schema_chars": 2865
+  },
+  "drivers": [
+    {
+      "role": "ANALYST",
+      "finding": "13.3k-character prompt repeatedly defines candidate/provenance/material semantics; output inflation comes from reconstruct-entire-candidate, per-item provenance, and unconstrained issue/question prose."
+    },
+    {
+      "role": "CRITIC_GLOBAL",
+      "finding": "Requires explanations for drift, veto, stakes and candidate review; empty branches still require fields."
+    },
+    {
+      "role": "CRITIC_BATCH",
+      "finding": "12.5k-character prompt explicitly requires six families, seven leaves each, and justification even when inapplicable; this is the dominant serialized-output driver."
+    },
+    {
+      "role": "ARBITER",
+      "finding": "Requires full reconstruction of candidate and issues plus intent-preservation and reason even when adopting upstream work unchanged."
+    }
+  ],
+  "safe_prompt_changes": [
+    "Remove instructions for candidate_action once schema removes it",
+    "Ask for bounded codes/detail only on positive or exceptional branches",
+    "Allow explicit adopt/reference semantics for unchanged candidate/issues",
+    "Preserve all materiality, provenance, last-resort, and READY invariants verbatim"
+  ]
+}

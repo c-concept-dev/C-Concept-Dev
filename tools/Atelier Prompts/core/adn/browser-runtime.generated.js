@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: cd4efaaee5346f787a6984fe2c04a74e7c26c1b7447aeda0e70325591f20b761
+ * source-sha256: a49dcde8ed48554d663564a93d285df212f3800667c1e6cc248ddbf8f2bf7382
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -4944,12 +4944,12 @@ FORME DE LA REVUE ATTENDUE (X2-C.4 — matérialisation exhaustive)
 Le schéma impose structurellement une clé exactement par élément de question_review_targets (limité à ce lot) — la clé est l'issue_id lui-même, tel quel, jamais reformulé. La valeur associée à chaque issue_id a exactement cette forme, avec exactement une clé :
 {
   "candidates": {
-    "research":      { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
-    "decide":        { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
-    "estimate":      { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
-    "scenario":      { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
-    "condition":     { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
-    "leave_unknown": { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." }
+    "research":      { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
+    "decide":        { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
+    "estimate":      { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
+    "scenario":      { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
+    "condition":     { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." },
+    "leave_unknown": { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." }
   }
 }
 candidates est un OBJET à exactement ces six clés fixes (les six familles non-question de la ladder), jamais un tableau, jamais une liste de noms. Les six familles sont TOUJOURS présentes, y compris celles jugées inapplicables — vous ne pouvez produire de réponse valide qui en omette une. justification est obligatoire pour chacune, y compris quand applicable=false.
@@ -4963,7 +4963,7 @@ DÉFINITION DES SIX FAMILLES (jugement issue par issue, jamais par défaut — j
 - leave_unknown : l'inconnue peut rester explicitement ouverte sans empêcher la production d'un premier travail utile — leave_unknown ne signifie jamais que l'inconnue disparaît, elle est conservée comme inconnue pendant que le reste avance.
 Une famille n'a JAMAIS besoin d'être définitive, certaine ou optimale pour être applicable : distinguez resolve the unknown (produire la vraie valeur manquante) de continue productively despite the unknown (avancer utilement malgré elle) — seule la seconde compte pour applicable.
 
-MATÉRIALISATION OBLIGATOIRE : pour chacune des six familles, produisez un jugement réellement engagé — jamais un rejet par défaut, jamais une justification interchangeable copiée d'une famille à l'autre. candidate_action porte la proposition concrète que cette famille produirait si elle était retenue (null si applicable=false : aucune proposition concrète n'existe alors). Les cinq champs booléens sont des jugements INDÉPENDANTS, chacun évalué séparément, jamais déduits les uns des autres :
+MATÉRIALISATION OBLIGATOIRE : pour chacune des six familles, produisez un jugement réellement engagé — jamais un rejet par défaut, jamais une justification interchangeable copiée d'une famille à l'autre. Les cinq champs booléens sont des jugements INDÉPENDANTS, chacun évalué séparément, jamais déduits les uns des autres :
 - applicable : cette famille produit-elle une action concrète et distincte pour CETTE issue précise (jamais une réponse générale, jamais une famille non pertinente à la nature de l'inconnue) ?
 - preserves_objective : cette action, si retenue, préserve-t-elle l'objectif et le sens de la demande tels qu'exprimés par l'utilisateur, sans dérive ni réinterprétation ?
 - requires_user_reserved_choice : cette action exige-t-elle de choisir, à la place de l'utilisateur, une information que lui seul peut légitimement fournir (préférence strictement personnelle, arbitrage qui lui appartient) ?
@@ -4971,10 +4971,10 @@ MATÉRIALISATION OBLIGATOIRE : pour chacune des six familles, produisez un jugem
 - produces_complete_deliverable : cette action permet-elle de produire, dès ce tour, un livrable complet et fidèle pour cette issue — jamais un livrable partiel, tronqué, ou nécessitant une omission ?
 Une famille n'est un candidat retenable que si applicable=true ET preserves_objective=true ET requires_user_reserved_choice=false ET contradicts_known_facts=false ET produces_complete_deliverable=true — vous ne calculez cependant jamais vous-même ce verdict global ni available_alternative : ce choix appartient exclusivement au Substitution Gate déterministe en aval, à partir des six jugements structurés que vous produisez ici. Une question reste pleinement légitime et attendue chaque fois qu'aucune des six familles ne remplit ces cinq conditions simultanément — cela ne doit jamais être requalifié ni forcé vers une validité artificielle par vous.
 
-CLÉS EXACTES, RIEN D'AUTRE : chaque valeur contient EXACTEMENT une clé — candidates — jamais une deuxième, et jamais issue_id à l'intérieur de cette valeur (l'issue_id est déjà la clé elle-même). candidates contient EXACTEMENT les six clés déjà nommées ci-dessus, jamais une septième. Chaque candidate individuelle (chacune des six) contient EXACTEMENT ces sept clés — candidate_action, applicable, preserves_objective, requires_user_reserved_choice, contradicts_known_facts, produces_complete_deliverable, justification — jamais une autre. N'ajoutez JAMAIS available_alternative ni why_available : ces champs ne vivent plus dans votre sortie (X2-C.4) — leur calcul appartient exclusivement au Substitution Gate déterministe en aval.
+CLÉS EXACTES, RIEN D'AUTRE : chaque valeur contient EXACTEMENT une clé — candidates — jamais une deuxième, et jamais issue_id à l'intérieur de cette valeur (l'issue_id est déjà la clé elle-même). candidates contient EXACTEMENT les six clés déjà nommées ci-dessus, jamais une septième. Chaque candidate individuelle (chacune des six) contient EXACTEMENT ces six clés — applicable, preserves_objective, requires_user_reserved_choice, contradicts_known_facts, produces_complete_deliverable, justification — jamais une autre. N'ajoutez JAMAIS available_alternative ni why_available : ces champs ne vivent plus dans votre sortie (X2-C.4) — leur calcul appartient exclusivement au Substitution Gate déterministe en aval.
 
 MISSION
-1. Pour chaque issue de ce lot, examinez individuellement, sur les six familles non-question de la ladder, si chacune produit une action concrète compte tenu de original_request, de clarification_history, de l'issue elle-même (dont la description complète se trouve dans analyst_output.issues, cf. FORME DE question_review_targets ci-dessus), des informations déjà disponibles, de la nature de l'inconnue et des contraintes exprimées — et consignez pour chacune les sept champs exigés (cf. FORME DE LA REVUE ATTENDUE ci-dessus pour le détail exact, y compris pour une famille jugée inapplicable). N'inventez jamais une action théorique seulement pour produire un candidat retenable : une famille n'est applicable que si elle est réellement compatible avec les données reçues à ce tour. Cette lecture est strictement individuelle, issue par issue — aucun maximum, aucune cible, aucun seuil de nombre de questions n'existe.
+1. Pour chaque issue de ce lot, examinez individuellement, sur les six familles non-question de la ladder, si chacune produit une action concrète compte tenu de original_request, de clarification_history, de l'issue elle-même (dont la description complète se trouve dans analyst_output.issues, cf. FORME DE question_review_targets ci-dessus), des informations déjà disponibles, de la nature de l'inconnue et des contraintes exprimées — et consignez pour chacune les six champs exigés (cf. FORME DE LA REVUE ATTENDUE ci-dessus pour le détail exact, y compris pour une famille jugée inapplicable). N'inventez jamais une action théorique seulement pour produire un candidat retenable : une famille n'est applicable que si elle est réellement compatible avec les données reçues à ce tour. Cette lecture est strictement individuelle, issue par issue — aucun maximum, aucune cible, aucun seuil de nombre de questions n'existe.
 
 ${ISSUE_TAXONOMY_GUIDE}
 
@@ -5022,7 +5022,7 @@ function buildSubstitutionReviewGroupSystemPrompt(candidateFamilies) {
 
   const familyList = families.join(", ");
   const exampleEntries = families.map((f) =>
-    `    "${f}": { "candidate_action": null, "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." }`
+    `    "${f}": { "applicable": false, "preserves_objective": false, "requires_user_reserved_choice": false, "contradicts_known_facts": false, "produces_complete_deliverable": false, "justification": "..." }`
   ).join(",\n");
   const definitionLines = families.map((f) => `- ${f} : ${SUBSTITUTION_FAMILY_DEFINITIONS[f]}`).join("\n");
 
@@ -5055,7 +5055,7 @@ DÉFINITION DES FAMILLES DE CE SOUS-APPEL (jugement issue par issue, jamais par 
 ${definitionLines}
 Une famille n'a JAMAIS besoin d'être définitive, certaine ou optimale pour être applicable : distinguez resolve the unknown (produire la vraie valeur manquante) de continue productively despite the unknown (avancer utilement malgré elle) — seule la seconde compte pour applicable.
 
-MATÉRIALISATION OBLIGATOIRE : pour chacune des familles de ce sous-appel, produisez un jugement réellement engagé — jamais un rejet par défaut, jamais une justification interchangeable copiée d'une famille à l'autre. candidate_action porte la proposition concrète que cette famille produirait si elle était retenue (null si applicable=false : aucune proposition concrète n'existe alors). Les cinq champs booléens sont des jugements INDÉPENDANTS, chacun évalué séparément, jamais déduits les uns des autres :
+MATÉRIALISATION OBLIGATOIRE : pour chacune des familles de ce sous-appel, produisez un jugement réellement engagé — jamais un rejet par défaut, jamais une justification interchangeable copiée d'une famille à l'autre. Les cinq champs booléens sont des jugements INDÉPENDANTS, chacun évalué séparément, jamais déduits les uns des autres :
 - applicable : cette famille produit-elle une action concrète et distincte pour CETTE issue précise (jamais une réponse générale, jamais une famille non pertinente à la nature de l'inconnue) ?
 - preserves_objective : cette action, si retenue, préserve-t-elle l'objectif et le sens de la demande tels qu'exprimés par l'utilisateur, sans dérive ni réinterprétation ?
 - requires_user_reserved_choice : cette action exige-t-elle de choisir, à la place de l'utilisateur, une information que lui seul peut légitimement fournir (préférence strictement personnelle, arbitrage qui lui appartient) ?
@@ -5063,10 +5063,10 @@ MATÉRIALISATION OBLIGATOIRE : pour chacune des familles de ce sous-appel, produ
 - produces_complete_deliverable : cette action permet-elle de produire, dès ce tour, un livrable complet et fidèle pour cette issue — jamais un livrable partiel, tronqué, ou nécessitant une omission ?
 Une famille n'est un candidat retenable que si applicable=true ET preserves_objective=true ET requires_user_reserved_choice=false ET contradicts_known_facts=false ET produces_complete_deliverable=true — vous ne calculez cependant jamais vous-même ce verdict global ni available_alternative : ce choix appartient exclusivement au Substitution Gate déterministe en aval, à partir des jugements structurés que vous produisez ici (fusionnés avec ceux des autres sous-appels avant tout calcul). Une question reste pleinement légitime et attendue chaque fois qu'aucune des six familles de la ladder complète (dont celles de ce sous-appel) ne remplit ces cinq conditions simultanément — cela ne doit jamais être requalifié ni forcé vers une validité artificielle par vous.
 
-CLÉS EXACTES, RIEN D'AUTRE : chaque valeur contient EXACTEMENT une clé — candidates — jamais une deuxième, et jamais issue_id à l'intérieur de cette valeur (l'issue_id est déjà la clé elle-même). candidates contient EXACTEMENT les ${families.length} clé${families.length === 1 ? "" : "s"} de ce sous-appel déjà nommée${families.length === 1 ? "" : "s"} ci-dessus (${familyList}), jamais une clé supplémentaire, jamais une clé absente de cette liste. Chaque candidate individuelle contient EXACTEMENT ces sept clés — candidate_action, applicable, preserves_objective, requires_user_reserved_choice, contradicts_known_facts, produces_complete_deliverable, justification — jamais une autre. N'ajoutez JAMAIS available_alternative ni why_available : ces champs ne vivent jamais dans votre sortie — leur calcul appartient exclusivement au Substitution Gate déterministe en aval.
+CLÉS EXACTES, RIEN D'AUTRE : chaque valeur contient EXACTEMENT une clé — candidates — jamais une deuxième, et jamais issue_id à l'intérieur de cette valeur (l'issue_id est déjà la clé elle-même). candidates contient EXACTEMENT les ${families.length} clé${families.length === 1 ? "" : "s"} de ce sous-appel déjà nommée${families.length === 1 ? "" : "s"} ci-dessus (${familyList}), jamais une clé supplémentaire, jamais une clé absente de cette liste. Chaque candidate individuelle contient EXACTEMENT ces six clés — applicable, preserves_objective, requires_user_reserved_choice, contradicts_known_facts, produces_complete_deliverable, justification — jamais une autre. N'ajoutez JAMAIS available_alternative ni why_available : ces champs ne vivent jamais dans votre sortie — leur calcul appartient exclusivement au Substitution Gate déterministe en aval.
 
 MISSION
-1. Pour chaque issue de ce lot, examinez individuellement, sur ${families.length === 1 ? "la famille" : "les familles"} ${familyList} (jamais les autres familles de la ladder, couvertes ailleurs), si elle${families.length === 1 ? "" : "s"} produi${families.length === 1 ? "t" : "sent"} une action concrète compte tenu de original_request, de clarification_history, de l'issue elle-même (dont la description complète se trouve dans analyst_output.issues, cf. FORME DE question_review_targets ci-dessus), des informations déjà disponibles, de la nature de l'inconnue et des contraintes exprimées — et consignez pour chacune les sept champs exigés (cf. FORME DE LA REVUE ATTENDUE ci-dessus pour le détail exact, y compris pour une famille jugée inapplicable). N'inventez jamais une action théorique seulement pour produire un candidat retenable : une famille n'est applicable que si elle est réellement compatible avec les données reçues à ce tour. Cette lecture est strictement individuelle, issue par issue — aucun maximum, aucune cible, aucun seuil de nombre de questions n'existe.
+1. Pour chaque issue de ce lot, examinez individuellement, sur ${families.length === 1 ? "la famille" : "les familles"} ${familyList} (jamais les autres familles de la ladder, couvertes ailleurs), si elle${families.length === 1 ? "" : "s"} produi${families.length === 1 ? "t" : "sent"} une action concrète compte tenu de original_request, de clarification_history, de l'issue elle-même (dont la description complète se trouve dans analyst_output.issues, cf. FORME DE question_review_targets ci-dessus), des informations déjà disponibles, de la nature de l'inconnue et des contraintes exprimées — et consignez pour chacune les six champs exigés (cf. FORME DE LA REVUE ATTENDUE ci-dessus pour le détail exact, y compris pour une famille jugée inapplicable). N'inventez jamais une action théorique seulement pour produire un candidat retenable : une famille n'est applicable que si elle est réellement compatible avec les données reçues à ce tour. Cette lecture est strictement individuelle, issue par issue — aucun maximum, aucune cible, aucun seuil de nombre de questions n'existe.
 
 ${ISSUE_TAXONOMY_GUIDE}
 
@@ -5086,13 +5086,12 @@ Répondez uniquement avec l'objet JSON demandé, conforme exactement au schéma 
 // global, non structuré, était donc indiscernable d'un rejet réellement motivé). Ce schéma remplace,
 // UNIQUEMENT dans le batch de Substitution Review (buildSubstitutionBatchSchema, jamais
 // buildAlternativesReviewedJsonSchema ni buildCriticJsonSchema, tous deux INCHANGÉS), le couple
-// {reasonably_available, reason} par une candidate à SEPT clés fixes, forçant un jugement engagé et
+// {reasonably_available, reason} par une candidate à SIX clés fixes, forçant un jugement engagé et
 // indépendant par dimension plutôt qu'un unique booléen agrégé. available_alternative n'est plus
 // demandé au provider : ce choix appartient désormais exclusivement au Substitution Gate déterministe
 // (evaluateSubstitutionCandidateGate / materializeSubstitutionReviewFromCandidates, ci-dessous), à
 // partir des jugements structurés produits ici — jamais un second jugement LLM, jamais un score.
 const SUBSTITUTION_CANDIDATE_FIELDS = Object.freeze([
-  "candidate_action",
   "applicable",
   "preserves_objective",
   "requires_user_reserved_choice",
@@ -5107,7 +5106,6 @@ function buildSubstitutionCandidateJsonSchema() {
     additionalProperties: false,
     required: [...SUBSTITUTION_CANDIDATE_FIELDS],
     properties: {
-      candidate_action: { type: ["string", "null"] },
       applicable: { type: "boolean" },
       preserves_objective: { type: "boolean" },
       requires_user_reserved_choice: { type: "boolean" },
@@ -5182,7 +5180,7 @@ function buildSubstitutionBatchSchema(issueIds, candidateFamilies = LADDER_ALTER
  *                           computeBatchPlan ne raisonnait que sur l'enveloppe d'ENTRÉE et pouvait
  *                           donc planifier un batch parfaitement admissible en entrée mais auquel
  *                           aucun modèle ne peut RÉPONDRE, faute de capacité de sortie suffisante
- *                           (cf. CSR-01 : une entrée de batch coûte six familles × sept champs en
+ *                           (cf. CSR-01 : une entrée de batch coûte six familles × six champs en
  *                           sortie). Omis : comportement strictement inchangé pour tout appelant
  *                           existant.
  *
@@ -10003,5 +10001,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'cd4efaaee5346f787a6984fe2c04a74e7c26c1b7447aeda0e70325591f20b761'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a49dcde8ed48554d663564a93d285df212f3800667c1e6cc248ddbf8f2bf7382'});
 })(window);

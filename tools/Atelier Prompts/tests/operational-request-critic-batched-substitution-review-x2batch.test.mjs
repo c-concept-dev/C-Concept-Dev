@@ -143,7 +143,10 @@ test("XB-5 : buildSubstitutionBatchSchema (X2-C.4) produit exactement une clé p
   const schema = buildSubstitutionBatchSchema(["issue1", "issue2"]);
   assert.deepEqual(schema.required.sort(), ["issue1", "issue2"]);
   assert.equal(schema.additionalProperties, false);
-  const CANDIDATE_FIELDS_SORTED = ["applicable", "candidate_action", "contradicts_known_facts", "justification", "preserves_objective", "produces_complete_deliverable", "requires_user_reserved_choice"];
+  /* DEEP-OUTPUT-MINIMALITY-01 expérience A : candidate_action retiré du contrat de sortie du batch.
+     Aucun consommateur ne le lisait — evaluateSubstitutionCandidateGate n'examine que les six clés
+     restantes, et materializeSubstitutionReviewFromCandidates ne retient que justification. */
+  const CANDIDATE_FIELDS_SORTED = ["applicable", "contradicts_known_facts", "justification", "preserves_objective", "produces_complete_deliverable", "requires_user_reserved_choice"];
   for (const id of ["issue1", "issue2"]) {
     assert.deepEqual(Object.keys(schema.properties[id].properties), ["candidates"]);
     assert.deepEqual(schema.properties[id].required, ["candidates"]);

@@ -1,28 +1,49 @@
 {
-  "lot": "DEEP-INTERACTION-LATENCY-01",
-  "phase_atteinte": "A — diagnostic complet. Phase B non entamée.",
-  "INTERACTION_LATENCY_RESULT": "PARTIAL_OWNER_DECISION_REQUIRED",
-  "en_une_phrase": "La lenteur n'est pas du travail mal fait, c'est du travail écrit : la latence suit les jetons produits, et sur une clarification le Critique en produit jusqu'à 86 % pour instruire des questions qui ne seront jamais posées.",
-  "PRIMARY_LATENCY_CAUSE": "VOLUME_DE_SORTIE_SERIALISE",
-  "appels_api": 0,
-  "cout_usd": 0.0,
-  "PRODUCTION_CODE_CHANGED": false,
-  "causes": {
-    "ANALYST_ISSUE_INFLATION": "CONFIRMED",
-    "CRITIC_BATCH_MULTIPLICATION": "CONFIRMED — mécanisme fidèle de la précédente, jamais cause autonome",
-    "RETRY_OR_REGENERATION_CONTRIBUTION": "LOW",
-    "ANTHROPIC_CAPACITY_CONTRIBUTION": "NONE"
-  },
-  "early_stop": {
-    "EARLY_STOP_SAFE": "YES — démontré logiquement, sans seuil ni heuristique",
-    "EARLY_STOP_IMPLEMENTED": "NO",
-    "obstacle": "le contrat de cardinalité « une revue par issue material+question, ni plus ni moins » interdit l'arrêt anticipé. Le lever est un changement de contrat sémantique structurel, hors de mon autorité.",
-    "gain_projete": "queue divisée par trois (218 s → 60 s ; 15 appels → 4), clarifications ambiguës réduites d'un tiers",
-    "ce_qu_il_ne_donne_pas": "l'objectif « quelques secondes » du §29. Le plancher resterait de 33 à 60 s."
-  },
-  "decision_demandee_au_proprietaire": [
-    "Autoriser le changement du contrat de cardinalité de la revue de substitution — de « une revue par cible » à « une revue par cible EXAMINÉE, liste explicite » — condition nécessaire à tout early-stop.",
-    "Accepter que, même avec l'early-stop, une clarification restera de l'ordre de 30 à 60 secondes, et que descendre plus bas exigerait de toucher aux prompts, ce que ce lot s'interdit."
-  ],
-  "NEXT_SAFE_ACTION": "STOP — OWNER DECISION"
+ "_EVIDENCE_CORRECTION": "INVALID_FOR_SONNET_ROLE_DISTRIBUTION",
+ "_corrige_le": "2026-09-07, par DEEP-OUTPUT-MINIMALITY-01 expérience A, sur décision propriétaire",
+ "_quoi": "Les chiffres PAR FIXTURE de ce fichier (R01…Q08, A01, A02) proviennent de evaluation/deep-cout-jetons-01, mesuré sur groq / openai/gpt-oss-20b — PAS sur le Deep de production (anthropic / claude-sonnet-4-6).",
+ "_preuve": "inventaire.{analyst,critic,arbiter}.modele_groq = openai/gpt-oss-20b ; tours[0].jetons_par_fournisseur = {groq: 8724, anthropic: 0, openai: 0}",
+ "_retire_comme_preuve_sonnet": [
+  "répartition par rôle",
+  "part du Critique dans la sortie",
+  "queue à 218 533 ms",
+  "13 appels de Critique",
+  "coûts par tour en USD",
+  "projections d'early-stop chiffrées",
+  "constante ~13 ms/jeton"
+ ],
+ "_reste_etabli": [
+  "appels Critique = 1 global + issues material+question (lu dans le code)",
+  "cardinalité de batch = 1 (dérivée du contrat)",
+  "early-stop logiquement sûr (preuve contractuelle)",
+  "latence Sonnet corrélée aux jetons de sortie (paired-latency, anthropic)",
+  "clarification ouverte Sonnet p50 = 91 694 ms"
+ ],
+ "_rien_n_a_ete_supprime": "les valeurs d'origine sont conservées telles quelles ci-dessous.",
+ "lot": "DEEP-INTERACTION-LATENCY-01",
+ "phase_atteinte": "A — diagnostic complet. Phase B non entamée.",
+ "INTERACTION_LATENCY_RESULT": "PARTIAL_OWNER_DECISION_REQUIRED",
+ "en_une_phrase": "La lenteur n'est pas du travail mal fait, c'est du travail écrit : la latence suit les jetons produits, et sur une clarification le Critique en produit jusqu'à 86 % pour instruire des questions qui ne seront jamais posées.",
+ "PRIMARY_LATENCY_CAUSE": "VOLUME_DE_SORTIE_SERIALISE",
+ "appels_api": 0,
+ "cout_usd": 0.0,
+ "PRODUCTION_CODE_CHANGED": false,
+ "causes": {
+  "ANALYST_ISSUE_INFLATION": "CONFIRMED",
+  "CRITIC_BATCH_MULTIPLICATION": "CONFIRMED — mécanisme fidèle de la précédente, jamais cause autonome",
+  "RETRY_OR_REGENERATION_CONTRIBUTION": "LOW",
+  "ANTHROPIC_CAPACITY_CONTRIBUTION": "NONE"
+ },
+ "early_stop": {
+  "EARLY_STOP_SAFE": "YES — démontré logiquement, sans seuil ni heuristique",
+  "EARLY_STOP_IMPLEMENTED": "NO",
+  "obstacle": "le contrat de cardinalité « une revue par issue material+question, ni plus ni moins » interdit l'arrêt anticipé. Le lever est un changement de contrat sémantique structurel, hors de mon autorité.",
+  "gain_projete": "queue divisée par trois (218 s → 60 s ; 15 appels → 4), clarifications ambiguës réduites d'un tiers",
+  "ce_qu_il_ne_donne_pas": "l'objectif « quelques secondes » du §29. Le plancher resterait de 33 à 60 s."
+ },
+ "decision_demandee_au_proprietaire": [
+  "Autoriser le changement du contrat de cardinalité de la revue de substitution — de « une revue par cible » à « une revue par cible EXAMINÉE, liste explicite » — condition nécessaire à tout early-stop.",
+  "Accepter que, même avec l'early-stop, une clarification restera de l'ordre de 30 à 60 secondes, et que descendre plus bas exigerait de toucher aux prompts, ce que ce lot s'interdit."
+ ],
+ "NEXT_SAFE_ACTION": "STOP — OWNER DECISION"
 }

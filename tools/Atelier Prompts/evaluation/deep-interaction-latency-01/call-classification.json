@@ -1,4 +1,25 @@
 {
+ "_EVIDENCE_CORRECTION": "INVALID_FOR_SONNET_ROLE_DISTRIBUTION",
+ "_corrige_le": "2026-09-07, par DEEP-OUTPUT-MINIMALITY-01 expérience A, sur décision propriétaire",
+ "_quoi": "Les chiffres PAR FIXTURE de ce fichier (R01…Q08, A01, A02) proviennent de evaluation/deep-cout-jetons-01, mesuré sur groq / openai/gpt-oss-20b — PAS sur le Deep de production (anthropic / claude-sonnet-4-6).",
+ "_preuve": "inventaire.{analyst,critic,arbiter}.modele_groq = openai/gpt-oss-20b ; tours[0].jetons_par_fournisseur = {groq: 8724, anthropic: 0, openai: 0}",
+ "_retire_comme_preuve_sonnet": [
+  "répartition par rôle",
+  "part du Critique dans la sortie",
+  "queue à 218 533 ms",
+  "13 appels de Critique",
+  "coûts par tour en USD",
+  "projections d'early-stop chiffrées",
+  "constante ~13 ms/jeton"
+ ],
+ "_reste_etabli": [
+  "appels Critique = 1 global + issues material+question (lu dans le code)",
+  "cardinalité de batch = 1 (dérivée du contrat)",
+  "early-stop logiquement sûr (preuve contractuelle)",
+  "latence Sonnet corrélée aux jetons de sortie (paired-latency, anthropic)",
+  "clarification ouverte Sonnet p50 = 91 694 ms"
+ ],
+ "_rien_n_a_ete_supprime": "les valeurs d'origine sont conservées telles quelles ci-dessous.",
  "lot": "DEEP-INTERACTION-LATENCY-01",
  "source": "evaluation/deep-cout-jetons-01/results.json — 12 tours reels, aucun rejeu",
  "loi_observee": "latence ≈ jetons de sortie × ~13 ms — la generation domine, pas le nombre d'appels",

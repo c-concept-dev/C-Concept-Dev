@@ -1,0 +1,77 @@
+{
+  "counting_rule": "leaf schema properties; dynamic issue ids and array multiplicity counted once as templates; Critic batch expands six named families, hence 42 leaves per issue",
+  "role_stats": {
+    "ANALYST": {
+      "total": 29,
+      "MUST_KEEP": 25,
+      "CAN_COMPACT": 3,
+      "DEAD_OR_REDUNDANT": 0,
+      "NEEDS_EVIDENCE": 1
+    },
+    "CRITIC_GLOBAL": {
+      "total": 17,
+      "MUST_KEEP": 8,
+      "CAN_COMPACT": 8,
+      "DEAD_OR_REDUNDANT": 0,
+      "NEEDS_EVIDENCE": 1
+    },
+    "CRITIC_BATCH": {
+      "total": 42,
+      "MUST_KEEP": 30,
+      "CAN_COMPACT": 6,
+      "DEAD_OR_REDUNDANT": 6,
+      "NEEDS_EVIDENCE": 0
+    },
+    "ARBITER": {
+      "total": 29,
+      "MUST_KEEP": 24,
+      "CAN_COMPACT": 4,
+      "DEAD_OR_REDUNDANT": 0,
+      "NEEDS_EVIDENCE": 1
+    }
+  },
+  "exact_shapes": {
+    "analyst": "29 leaf fields",
+    "critic_global": "17 leaf fields",
+    "critic_batch": "42 leaf fields per reviewed issue",
+    "arbiter": "29 leaf fields"
+  },
+  "verbosity_drivers": [
+    {
+      "rank": 1,
+      "path": "critic_batch.issues[].candidates.*",
+      "cause": "6 families x 7 required leaves = 42 leaves per issue; one issue per batch in measured configuration"
+    },
+    {
+      "rank": 2,
+      "path": "arbiter.operational_request_candidate + arbiter.issues[]",
+      "cause": "full rewrite of already-produced Analyst payload"
+    },
+    {
+      "rank": 3,
+      "path": "analyst.provenance_records[].value",
+      "cause": "exact candidate text duplicated for provenance"
+    },
+    {
+      "rank": 4,
+      "path": "all empty/null required branches",
+      "cause": "strict required===properties forces structurally irrelevant empty strings, arrays, and nulls"
+    },
+    {
+      "rank": 5,
+      "path": "free-text explanation fields",
+      "cause": "no maxLength or code vocabulary; unbounded serialization"
+    }
+  ],
+  "strictness": "additionalProperties=false throughout; exactKeys validators mirror schemas. available_inputs is the sole validator-side backward-compatibility exception in candidate normalization.",
+  "prompt_and_schema_sizes": {
+    "analyst_prompt_chars": 13339,
+    "critic_global_prompt_chars": 6912,
+    "critic_batch_prompt_chars": 12487,
+    "arbiter_prompt_chars": 6211,
+    "analyst_schema_chars": 3439,
+    "critic_global_schema_chars": 1890,
+    "critic_batch_schema_one_issue_chars": 3620,
+    "arbiter_schema_chars": 2865
+  }
+}

@@ -1,5 +1,30 @@
 # DEEP-INTERACTION-LATENCY-01
 
+> **⚠ CORRECTION DE PREUVE — ajoutée le 2026-09-07 par DEEP-OUTPUT-MINIMALITY-01 (expérience A).**
+>
+> Les chiffres **par fixture** de ce document (R01…Q08, A01, A02) proviennent de
+> `evaluation/deep-cout-jetons-01`, qui a été mesuré sur **groq / `openai/gpt-oss-20b`** — pas sur le
+> Deep de production (`anthropic` / `claude-sonnet-4-6`). Preuve :
+> `inventaire.{analyst,critic,arbiter}.modele_groq = openai/gpt-oss-20b` et
+> `tours[0].jetons_par_fournisseur = {groq: 8724, anthropic: 0, openai: 0}`.
+>
+> **Retiré comme preuve Sonnet** : la répartition par rôle, la part du Critique à 52–86 % de la
+> sortie, la queue à 218 s, les 13 appels de Critique, les coûts par tour en USD, les projections
+> d'early-stop chiffrées, et la constante « ~13 ms par jeton ».
+>
+> **Reste établi** : appels Critique = 1 global + issues `material`+`question` (lu dans le code) ;
+> cardinalité de batch = 1 ; early-stop logiquement sûr (preuve contractuelle) ; latence Sonnet
+> corrélée aux jetons de sortie (`paired-latency.json`, anthropic) ; clarification ouverte Sonnet
+> p50 = 91 694 ms ; capacité fournisseur écartée sur la population Anthropic disponible.
+>
+> **Nouvelle carte Sonnet** (rapports de médianes par étage, population B, n=10) : Analyste ≈ 32,1 %,
+> Critique ≈ 25,5 %, Arbitre ≈ **42,4 %**. Sur le modèle de production, **c'est l'Arbitre qui écrit
+> le plus**, pas le Critique. Aucune donnée Sonnet par tour n'existe : ces parts sont un ordre de
+> grandeur, pas une mesure exacte.
+>
+> Le texte d'origine est conservé intégralement ci-dessous. Rien n'a été réécrit.
+
+
 > Le Critique instruit douze questions pour en poser une.
 > C'est là qu'est la minute.
 

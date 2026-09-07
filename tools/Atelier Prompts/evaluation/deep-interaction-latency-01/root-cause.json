@@ -1,41 +1,62 @@
 {
-  "lot": "DEEP-INTERACTION-LATENCY-01",
-  "PRIMARY_LATENCY_CAUSE": "VOLUME_DE_SORTIE_SERIALISE — la latence Deep est, à quelques pour cent près, une fonction linéaire du nombre de jetons que les trois rôles ÉCRIVENT, additionnés en série. Ce n'est ni un problème de fournisseur, ni de reprises, ni de troncature.",
-  "loi_mesuree": {
-    "enonce": "latence ≈ jetons de sortie × constante de génération",
-    "constante_observee": "18–19 ms/jeton (deep-production-blockers-01) ; 11–15 ms/jeton (deep-cout-jetons-01)",
-    "preuve_croisee": "deux jeux de mesures indépendants, populations et dates différentes, donnent la même loi",
-    "exemples": [
-      "population A (READY, matériau) : 1 135 jetons de sortie → 20 679 ms",
-      "population B (ouverte, clarification) : 4 180 jetons → 91 694 ms",
-      "A02 : 17 812 jetons → 218 533 ms",
-      "R09 : 651 jetons → 1 559 ms"
-    ],
-    "consequence": "toute seconde gagnée doit venir de jetons NON écrits. Accélérer l'écriture n'est pas à notre portée dans ce lot ; ne pas l'écrire l'est."
+ "_EVIDENCE_CORRECTION": "INVALID_FOR_SONNET_ROLE_DISTRIBUTION",
+ "_corrige_le": "2026-09-07, par DEEP-OUTPUT-MINIMALITY-01 expérience A, sur décision propriétaire",
+ "_quoi": "Les chiffres PAR FIXTURE de ce fichier (R01…Q08, A01, A02) proviennent de evaluation/deep-cout-jetons-01, mesuré sur groq / openai/gpt-oss-20b — PAS sur le Deep de production (anthropic / claude-sonnet-4-6).",
+ "_preuve": "inventaire.{analyst,critic,arbiter}.modele_groq = openai/gpt-oss-20b ; tours[0].jetons_par_fournisseur = {groq: 8724, anthropic: 0, openai: 0}",
+ "_retire_comme_preuve_sonnet": [
+  "répartition par rôle",
+  "part du Critique dans la sortie",
+  "queue à 218 533 ms",
+  "13 appels de Critique",
+  "coûts par tour en USD",
+  "projections d'early-stop chiffrées",
+  "constante ~13 ms/jeton"
+ ],
+ "_reste_etabli": [
+  "appels Critique = 1 global + issues material+question (lu dans le code)",
+  "cardinalité de batch = 1 (dérivée du contrat)",
+  "early-stop logiquement sûr (preuve contractuelle)",
+  "latence Sonnet corrélée aux jetons de sortie (paired-latency, anthropic)",
+  "clarification ouverte Sonnet p50 = 91 694 ms"
+ ],
+ "_rien_n_a_ete_supprime": "les valeurs d'origine sont conservées telles quelles ci-dessous.",
+ "lot": "DEEP-INTERACTION-LATENCY-01",
+ "PRIMARY_LATENCY_CAUSE": "VOLUME_DE_SORTIE_SERIALISE — la latence Deep est, à quelques pour cent près, une fonction linéaire du nombre de jetons que les trois rôles ÉCRIVENT, additionnés en série. Ce n'est ni un problème de fournisseur, ni de reprises, ni de troncature.",
+ "loi_mesuree": {
+  "enonce": "latence ≈ jetons de sortie × constante de génération",
+  "constante_observee": "18–19 ms/jeton (deep-production-blockers-01) ; 11–15 ms/jeton (deep-cout-jetons-01)",
+  "preuve_croisee": "deux jeux de mesures indépendants, populations et dates différentes, donnent la même loi",
+  "exemples": [
+   "population A (READY, matériau) : 1 135 jetons de sortie → 20 679 ms",
+   "population B (ouverte, clarification) : 4 180 jetons → 91 694 ms",
+   "A02 : 17 812 jetons → 218 533 ms",
+   "R09 : 651 jetons → 1 559 ms"
+  ],
+  "consequence": "toute seconde gagnée doit venir de jetons NON écrits. Accélérer l'écriture n'est pas à notre portée dans ce lot ; ne pas l'écrire l'est."
+ },
+ "les_trois_causes_du_§8": {
+  "CAUSE_A_inflation_des_issues_Analyst": {
+   "classement": "CONFIRMED",
+   "preuve": "les appels de Critique valent exactement 1 (global) + 1 par issue Analyst portant impact=material ET recommended_treatment=question. buildQuestionReviewTargets filtre sur ces deux champs, et maxAnswerableTargetsPerBatch() vaut 1 : une cible, un batch, un appel.",
+   "mesure": "A02 : 13 appels de Critique = 1 global + 12 batches, donc 12 issues material+question. A01 : 9 appels = 8 issues. Q02 : 5 = 4 issues. R01/R02/R03/R09 : 1 appel = 0 issue.",
+   "lecture": "le nombre d'appels n'est pas un phénomène d'orchestration : c'est le compte des issues que l'Analyste a décidé de porter en question."
   },
-  "les_trois_causes_du_§8": {
-    "CAUSE_A_inflation_des_issues_Analyst": {
-      "classement": "CONFIRMED",
-      "preuve": "les appels de Critique valent exactement 1 (global) + 1 par issue Analyst portant impact=material ET recommended_treatment=question. buildQuestionReviewTargets filtre sur ces deux champs, et maxAnswerableTargetsPerBatch() vaut 1 : une cible, un batch, un appel.",
-      "mesure": "A02 : 13 appels de Critique = 1 global + 12 batches, donc 12 issues material+question. A01 : 9 appels = 8 issues. Q02 : 5 = 4 issues. R01/R02/R03/R09 : 1 appel = 0 issue.",
-      "lecture": "le nombre d'appels n'est pas un phénomène d'orchestration : c'est le compte des issues que l'Analyste a décidé de porter en question."
-    },
-    "CAUSE_B_mecanique_des_batches": {
-      "classement": "CONTRIBUTING — mécanisme, jamais cause première",
-      "preuve": "la règle de découpage est déterministe et dérivée : ceil((20 + 1260 × N) × 1,25) borné à [256, 2048] plafonne N à 1. Il n'y a ni retry supplémentaire, ni régénération de gate, ni multiplication cachée.",
-      "reprises_observees": "2 sur R01, 1 sur R08, 2 sur A01, 2 sur A02 — jamais dominantes",
-      "lecture": "la mécanique amplifie fidèlement la CAUSE_A, elle ne la crée pas"
-    },
-    "CAUSE_C_capacite_backoff_rate_limit": {
-      "classement": "NOT_OBSERVED",
-      "preuve": "refus_429 = 0 sur les 12 tours ; 429 = 0 dans anthropic-deep-capacity-01 ; troncatures = 0 dans paired-latency (populations A, B et T)",
-      "consequence": "§31 ne s'applique pas — il n'y a pas de problème fournisseur à ne pas déguiser en problème d'orchestration"
-    }
+  "CAUSE_B_mecanique_des_batches": {
+   "classement": "CONTRIBUTING — mécanisme, jamais cause première",
+   "preuve": "la règle de découpage est déterministe et dérivée : ceil((20 + 1260 × N) × 1,25) borné à [256, 2048] plafonne N à 1. Il n'y a ni retry supplémentaire, ni régénération de gate, ni multiplication cachée.",
+   "reprises_observees": "2 sur R01, 1 sur R08, 2 sur A01, 2 sur A02 — jamais dominantes",
+   "lecture": "la mécanique amplifie fidèlement la CAUSE_A, elle ne la crée pas"
   },
-  "ou_va_reellement_le_temps": {
-    "sur_les_tours_lents": "le Critique produit 52 à 86 % de toute la sortie du tour",
-    "detail": "A02 83,4 % · A01 85,9 % · Q02 66,4 % · Q08 63,7 % · Q07 63,3 % · Q01 51,8 %",
-    "sur_les_tours_rapides": "le Critique retombe à 5–26 % — R09 rend 651 jetons en 1 559 ms",
-    "conclusion": "le coût de la clarification n'est pas le raisonnement : c'est la revue de substitution, répétée une fois par issue, pour ne poser qu'UNE seule question."
+  "CAUSE_C_capacite_backoff_rate_limit": {
+   "classement": "NOT_OBSERVED",
+   "preuve": "refus_429 = 0 sur les 12 tours ; 429 = 0 dans anthropic-deep-capacity-01 ; troncatures = 0 dans paired-latency (populations A, B et T)",
+   "consequence": "§31 ne s'applique pas — il n'y a pas de problème fournisseur à ne pas déguiser en problème d'orchestration"
   }
+ },
+ "ou_va_reellement_le_temps": {
+  "sur_les_tours_lents": "le Critique produit 52 à 86 % de toute la sortie du tour",
+  "detail": "A02 83,4 % · A01 85,9 % · Q02 66,4 % · Q08 63,7 % · Q07 63,3 % · Q01 51,8 %",
+  "sur_les_tours_rapides": "le Critique retombe à 5–26 % — R09 rend 651 jetons en 1 559 ms",
+  "conclusion": "le coût de la clarification n'est pas le raisonnement : c'est la revue de substitution, répétée une fois par issue, pour ne poser qu'UNE seule question."
+ }
 }

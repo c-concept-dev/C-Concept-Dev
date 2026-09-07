@@ -1,0 +1,13 @@
+{
+  "lot": "DEEP-OUTPUT-MINIMALITY-01 — EXPERIMENT A",
+  "MESURE_REELLE": "AUCUNE — l'expérience live n'a pas pu être exécutée dans le budget",
+  "reduction_structurelle_certaine": {
+    "quoi": "le contrat de sortie du batch passe de 7 à 6 clés par candidate",
+    "par_issue": "6 familles × 1 champ retiré = 6 chaînes potentiellement longues supprimées de la sortie exigée",
+    "modele_de_cout_du_produit_lui_meme": "per_target_output_units passe de 1 260 à 1 080, soit −14,3 % — c'est l'estimation que le produit fait de son propre coût de sortie par issue, dérivée de la structure du contrat",
+    "plafond_effectif_du_batch": "1 600 → 1 375"
+  },
+  "ce_que_cela_ne_dit_pas": "le −14,3 % est un modèle de coût, pas une mesure. La part réelle de candidate_action dans la sortie d'un batch dépend de la longueur que le modèle donnait à ces six chaînes — inconnue sans mesure. Elle peut être supérieure (les cinq autres champs sont des booléens, deux seulement sont du texte) comme inférieure.",
+  "seuil_du_§17": "CRITIC_BATCH_OUTPUT_TOKENS_REDUCTION_PERCENT >= 20 % — NON MESURÉ, donc NON ÉTABLI",
+  "avertissement_supplementaire": "sur la seule baseline Sonnet disponible, le Critique ne représente que 25,5 % de la sortie d'un tour de clarification (1 066 jetons sur 4 180), l'Arbitre en représentant 42,4 %. Le gain au niveau du TOUR sera donc nettement plus faible que le gain au niveau du batch."
+}
