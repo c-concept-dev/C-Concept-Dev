@@ -55261,7 +55261,11 @@ var CORS = {
   // sécurité réelle reste X-API-Key + origine fixe ci-dessus, jamais la liste de méthodes CORS
   // elle-même, qu'un client non-navigateur ignore de toute façon.
   "Access-Control-Allow-Methods": "POST, GET, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization"
+  "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
+  // Lot request-id — sans Access-Control-Expose-Headers, un en-tête de réponse personnalisé
+  // (ici X-Anthropic-Request-Id) reste invisible à fetch()/Response.headers côté navigateur
+  // même s'il est bien présent sur la réponse HTTP réelle.
+  "Access-Control-Expose-Headers": "X-Anthropic-Request-Id"
 };
 // SEC-HOTFIX-01 — routes publiques par exception explicite ; tout le reste exige X-API-Key.
 // Volontairement une liste courte de routes SANS coût réel ni donnée sensible :
@@ -55392,7 +55396,7 @@ var Worker_default = {
     if (p === "/generate-presentation" && request2.method === "POST")
       return handleGeneratePresentation(request2, env2);
     if (p === "/web-consult" && request2.method === "POST")
-      return handleWebConsult(request2, env2);
+      return handleWebConsult(request2, env2, ctx);
     if (p === "/tts-google" && request2.method === "POST")
       return handleTTSGoogle(request2, env2);
     if (p === "/tts-openai" && request2.method === "POST")
@@ -56110,6 +56114,11 @@ async function handleAnthropicProxy(request2, env2) {
     },
     body: JSON.stringify(ab)
   });
+  // Lot request-id — Headers.get() est insensible à la casse (spec Fetch), donc pas besoin de
+  // deviner la casse exacte renvoyée par Anthropic. Uniquement l'identifiant technique lui-même
+  // dans ce log : jamais le prompt, les passages RAG, la clé API ni aucune donnée clinique.
+  const anthropicRequestId = res.headers.get("request-id");
+  console.log("[AnthropicProxy] request-id=" + (anthropicRequestId || "absent") + " status=" + res.status + " streamed=" + !!(stream && res.ok && res.body));
   // ═══ STREAMING — on pipe res.body tel quel au client ═══
   // Sans .text() pour éviter de bloquer le Worker jusqu'à fin de génération (timeout 502).
   // En cas d'erreur Anthropic (!res.ok), on bascule sur .text() pour transmettre le message JSON.
@@ -56121,13 +56130,18 @@ async function handleAnthropicProxy(request2, env2) {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
-        "X-Accel-Buffering": "no"
+        "X-Accel-Buffering": "no",
+        ...(anthropicRequestId ? { "X-Anthropic-Request-Id": anthropicRequestId } : {})
       }
     });
   }
   return new Response(await res.text(), {
     status: res.status,
-    headers: { ...CORS, "Content-Type": "application/json" }
+    headers: {
+      ...CORS,
+      "Content-Type": "application/json",
+      ...(anthropicRequestId ? { "X-Anthropic-Request-Id": anthropicRequestId } : {})
+    }
   });
 }
 __name(handleAnthropicProxy, "handleAnthropicProxy");
@@ -58089,7 +58103,7 @@ async function logWebConsult(env2, caller, query, domain, resultCount) {
 }
 __name(logWebConsult, "logWebConsult");
 
-async function handleWebConsult(request2, env2) {
+async function handleWebConsult(request2, env2, ctx) {
   let body;
   try { body = await request2.json(); } catch { return jsonErr('Invalid JSON', 400); }
   const { query, domain = 'general', sources = ['pubmed','scholar','google_scholar'], language = 'fr', max_results = 5, caller = 'unknown' } = body;
@@ -58108,7 +58122,11 @@ async function handleWebConsult(request2, env2) {
     const scored = merged.map(r => ({ ...r, reliability: scoreReliability(r), reliability_reason: explainReliability(r) }));
     const highMed = scored.filter(r => r.reliability !== 'low');
     const filtered = highMed.length >= 2 ? highMed.slice(0, max_results) : scored.slice(0, max_results);
-    logWebConsult(env2, caller, cleanQuery, domain, filtered.length);
+    // Fuite de promesse corrigée : sans ctx.waitUntil, cette écriture D1 pouvait être
+    // silencieusement abandonnée si le Worker se termine avant qu'elle ne se finalise, la
+    // réponse au client étant déjà partie. ctx?. par prudence si jamais appelé sans ctx (tests).
+    const logPromise = logWebConsult(env2, caller, cleanQuery, domain, filtered.length);
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(logPromise);
     return json({
       results: filtered.map(r => ({
         title: r.title, source: r.source, url: r.url,
