@@ -1577,11 +1577,19 @@ export function assembleSubstitutionReviews(questionReviewTargets, batchResults)
 
   const byIssueId = new Map();
   for (const batchResult of list(batchResults)) {
-    assertProviderOutputContract(batchResult && typeof batchResult === "object" && !Array.isArray(batchResult), "assembleSubstitutionReviews: chaque résultat de batch doit être un objet keyed-by-issue_id.");
+    /* UAF-02 (correction de provenance) — INVARIANT INTERNE, PAS UNE FAUTE DU MODÈLE.
+       Sur l'unique chemin appelant de production, cet élément est construit par notre propre code
+       une ligne plus tôt (Object.fromEntries), donc toujours un objet simple : ce refus n'est pas
+       atteignable par une sortie fournisseur. S'il se déclenche un jour, la faute est la NÔTRE et
+       doit rester bruyante — programming_error, 502, aucun état. Il reste donc nu, délibérément. */
+    assert(batchResult && typeof batchResult === "object" && !Array.isArray(batchResult), "assembleSubstitutionReviews: chaque résultat de batch doit être un objet keyed-by-issue_id.");
     for (const [issueId, entry] of Object.entries(batchResult)) {
       assertProviderOutputContract(expectedIdSet.has(issueId), `assembleSubstitutionReviews: issue_id inconnu "${issueId}" (absent de questionReviewTargets).`);
       assertProviderOutputContract(!byIssueId.has(issueId), `assembleSubstitutionReviews: collision — issue_id "${issueId}" présent dans plusieurs batches.`);
-      assertProviderOutputContract(entry && typeof entry === "object" && !Array.isArray(entry), `assembleSubstitutionReviews: résultat invalide pour "${issueId}".`);
+      /* UAF-02 (correction de provenance) — INVARIANT INTERNE : `entry` est le retour de
+         materializeSubstitutionReviewFromCandidates, donc toujours un objet (sinon elle lève, et
+         CPT-01 a déjà marqué CE refus-là). Nu, pour la même raison qu'au-dessus. */
+      assert(entry && typeof entry === "object" && !Array.isArray(entry), `assembleSubstitutionReviews: résultat invalide pour "${issueId}".`);
       const alternatives_reviewed = entry.alternatives_reviewed;
       const available_alternative = entry.available_alternative !== undefined ? entry.available_alternative : null;
       const why_available = available_alternative !== null && alternatives_reviewed && alternatives_reviewed[available_alternative]

@@ -38,18 +38,17 @@ const G = [FAMILLES.slice(0, 3), FAMILLES.slice(3)];
    seule l'étiquette change, jamais un octet du message. Si l'une bouge, le refus n'est plus le
    même refus, et il vaut mieux que ça casse ici. */
 const EMPREINTES_AVANT = Object.freeze({
-  'A-1563': '099055d15bdd6e1c', 'A-1565': '3789efb712be76a5',
-  'A-1566': '818a2c1225067a21', 'A-1567': 'a38c0c46414265b2',
+  'A-1565': '3789efb712be76a5', 'A-1566': '818a2c1225067a21',
   'M-1718': '590ac11988b48506', 'M-1720': 'c6ad76e406bbf8ed',
   'M-1722': '398bf438ff10a27c'
 });
 
-/** Les SEPT sites autorisés, chacun atteint par une sortie fournisseur invalide et déterministe. */
+/** Les CINQ sites dont la valeur vérifiée vient RÉELLEMENT du fournisseur, sur le chemin de
+    production. La revue de provenance en avait d'abord retenu sept ; deux ont été rendus à leur
+    nature interne (voir SITES_INTERNES). */
 const SITES = Object.freeze({
-  'A-1563': () => assembleSubstitutionReviews(CIBLES, ['pas un objet']),
   'A-1565': () => assembleSubstitutionReviews(CIBLES, [{ inconnu: {} }]),
   'A-1566': () => assembleSubstitutionReviews(CIBLES, [{ issue1: {} }, { issue1: {} }]),
-  'A-1567': () => assembleSubstitutionReviews(CIBLES, [{ issue1: 'pas un objet' }]),
   'M-1718': () => mergeCandidateGroups(G, ['pas un objet', {}]),
   'M-1720': () => mergeCandidateGroups(G, [{ issue1: {} }, {}]),
   'M-1722': () => mergeCandidateGroups(G, [{ issue1: { candidates: { [FAMILLES[0]]: 1 } } }, {}])
@@ -60,12 +59,20 @@ const leve = (fn) => { try { fn(); return null; } catch (e) { return e; } };
 const SITES_INTERNES = Object.freeze({
   'familyGroups ne couvre pas les six familles': () => mergeCandidateGroups([[FAMILLES[0]], [FAMILLES[1]]], [{}, {}]),
   'issue_id en double dans nos cibles': () => assembleSubstitutionReviews([{ issue_id: 'd' }, { issue_id: 'd' }], [{}]),
-  'capability invalide (configuration)': () => computeBatchPlan([{ issue_id: 'a' }], { fixedOverheadUnits: -1, perTargetUnits: 1, maxUnitsPerBatch: 10 })
+  'capability invalide (configuration)': () => computeBatchPlan([{ issue_id: 'a' }], { fixedOverheadUnits: -1, perTargetUnits: 1, maxUnitsPerBatch: 10 }),
+  /* A-1563 et A-1567 — RENDUS À LEUR NATURE PAR LA REVUE DE PROVENANCE.
+     Sur l'unique chemin appelant de production, assembleSubstitutionReviews reçoit
+     `materializedBatchResults` : chaque élément est un Object.fromEntries(...) et chaque valeur le
+     retour de materializeSubstitutionReviewFromCandidates. Les deux sont donc toujours des objets,
+     construits par NOTRE code une ligne plus tôt. Ces refus ne sont pas atteignables par une sortie
+     fournisseur ; les marquer aurait déguisé un futur bug interne en faute du modèle. */
+  'A-1563 batchResult non-objet (construit par nous)': () => assembleSubstitutionReviews(CIBLES, ['pas un objet']),
+  'A-1567 entry non-objet (retour de materialize)': () => assembleSubstitutionReviews(CIBLES, [{ issue1: 'pas un objet' }])
 });
 
 // --- 1. LE REFUS EST MARQUÉ, ET LE MESSAGE N'A PAS BOUGÉ ------------------------------------------
 
-test('T-UAF02-01 : les sept refus de sortie fournisseur portent output_contract_violation', () => {
+test('T-UAF02-01 : les cinq refus de sortie fournisseur portent output_contract_violation', () => {
   for (const [id, fn] of Object.entries(SITES)) {
     const e = leve(fn);
     assert.ok(e instanceof TypeError, `${id} : l'entrée invalide doit être refusée`);
@@ -100,6 +107,19 @@ test('T-UAF02-04 : les assertions internes et de configuration restent NUES', ()
     assert.ok(e instanceof TypeError, `${nom} : toujours refusé`);
     assert.notEqual(e.output_contract_violation, true,
       `${nom} : un défaut qui est le NÔTRE ne doit jamais être déguisé en faute du modèle`);
+  }
+});
+
+test('T-UAF02-04b : A-1563 et A-1567 restent des défauts À NOUS — bruyants, jamais dégradés', () => {
+  /* Ils ne sont pas atteignables par une sortie fournisseur sur le chemin de production : aucun
+     test HTTP ne peut donc les provoquer, et on n'en fabrique pas un. Ce qui est gardé ici est ce
+     qui compte — s'ils se déclenchent, ils restent NOTRE faute, donc programming_error. */
+  for (const nom of ['A-1563 batchResult non-objet (construit par nous)', 'A-1567 entry non-objet (retour de materialize)']) {
+    const e = leve(SITES_INTERNES[nom]);
+    assert.ok(e instanceof TypeError, `${nom} : toujours refusé`);
+    assert.notEqual(e.output_contract_violation, true, `${nom} : jamais marqué`);
+    assert.equal(failureClassOf(e), FAILURE_CLASSES.PROGRAMMING_ERROR,
+      `${nom} : reste « défaut de notre code », donc fail-closed 502 sans état`);
   }
 });
 
@@ -166,13 +186,24 @@ test('T-UAF02-07 : un issue_id inconnu rendu par le fournisseur donne degraded_s
   assert.deepEqual([...ROLE_PROVIDER_ORDER], ['anthropic'], 'ordre de fournisseurs inchangé');
 });
 
-test('T-UAF02-08 : une entrée de batch non-objet donne aussi degraded_state 200', async (t) => {
+/* T-UAF02-08 — FRONTIÈRE AVEC CPT-01, ET ATTRIBUTION HONNÊTE DU MÉCANISME.
+ *
+ * Une entrée de batch non-objet dégrade bien en 200 — mais PAS par un site de ce lot. `entry` vaut
+ * ici une chaîne, donc `entry?.candidates` vaut undefined, et c'est materializeSubstitutionReviewFromCandidates
+ * (marquée par CPT-01) qui refuse la première. A-1567, désormais nu, n'est jamais atteint : il est
+ * derrière cette barrière. Ce test garde donc deux choses à la fois — que le chemin CPT-01 est
+ * intact, et que rendre A-1567 à sa nature interne n'a rien rouvert. */
+test('T-UAF02-08 : une entrée de batch non-objet dégrade via le marqueur CPT-01, A-1567 restant hors d’atteinte', async (t) => {
   silence(t);
-  avecBatch(t, { issue1: 'pas un objet' });          // A-1567 sur le vrai chemin
+  avecBatch(t, { issue1: 'pas un objet' });
   const reponse = await tour();
   const corps = await reponse.json();
   assert.equal(reponse.status, 200);
   assert.equal(corps.state, 'degraded_state');
+  /* Et la preuve que c'est bien CPT-01 qui a refusé, pas A-1567 : la même entrée, appelée
+     directement, est arrêtée par materialize avant d'atteindre assembleSubstitutionReviews. */
+  const parMaterialize = leve(() => materializeSubstitutionReviewFromCandidates(undefined));
+  assert.equal(parMaterialize.output_contract_violation, true, 'CPT-01 refuse en premier, et marqué');
 });
 
 test('T-UAF02-09 : FAIL-CLOSED — un refus structurel NON marqué reste programming_error', async (t) => {
@@ -201,10 +232,13 @@ test('T-UAF02-09 : FAIL-CLOSED — un refus structurel NON marqué reste program
   assert.equal(erreur.all_providers_failed, undefined, 'fail-closed : la chaîne relève l’erreur telle quelle');
 });
 
-test('T-UAF02-10 : la portée du lot est exactement sept sites, et elle est vérifiable', () => {
+test('T-UAF02-10 : la portée du lot est exactement cinq sites, et elle est vérifiable', () => {
   const src = fs.readFileSync(new URL('../workers/shared/operational-request-core.js', import.meta.url), 'utf8');
   const marques = (src.match(/assertProviderOutputContract\(/g) || []).length;
-  assert.equal(marques, 8, '1 définition + 7 appels — ni plus, ni moins');
+  assert.equal(marques, 6, '1 définition + 5 appels — ni plus, ni moins');
+  /* Les deux sites rendus à leur nature interne sont bien redevenus nus. */
+  assert.ok(/assert\(batchResult && typeof batchResult === "object"/.test(src), 'A-1563 nu');
+  assert.ok(/assert\(entry && typeof entry === "object" && !Array\.isArray\(entry\)/.test(src), 'A-1567 nu');
   assert.ok(/assert\(!\(family in accumulator\)/.test(src), 'L1729 reste une assertion nue');
   assert.ok(/assert\(new Set\(expectedIds\)\.size/.test(src), 'le doublon de cibles reste une assertion nue');
 });
