@@ -61,7 +61,10 @@ function candidateFor(treatment, isAccepted) {
     ? { candidate_action: `Action via ${treatment}.`, applicable: true, preserves_objective: true, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: true, justification: "ok" }
     : { candidate_action: null, applicable: false, preserves_objective: false, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: false, justification: "non" };
 }
-function batchEntryFor(issueIds, available) {
+/* DEEP-INTERACTION-EARLY-STOP-01 : sans famille disponible, la cible est « dernier recours » et
+   l'arrêt anticipé se déclenche au premier batch. Ces tests mesurent l'ordre, la couverture et le
+   transport : leur fixture exprime donc, par défaut, une revue SUBSTITUABLE. Intention inchangée. */
+function batchEntryFor(issueIds, available = "decide") {
   const out = {};
   for (const id of issueIds) {
     out[id] = { candidates: Object.fromEntries(LADDER.map((t) => [t, candidateFor(t, t === available)])) };
@@ -200,7 +203,7 @@ test("R1-7 (Groq) : N=4 avec un contexte réaliste volumineux -> la capacité r�
     calls.push(body);
     if (body.response_format.json_schema.name === "critic_global") return groqResponse(globalOutputFixture());
     const issueIds = Object.keys(body.response_format.json_schema.schema.properties);
-    return groqResponse(batchEntryFor(issueIds, null));
+    return groqResponse(batchEntryFor(issueIds, "decide"));
   });
   const output = await runCriticWithGroq(criticBody(4, { descLen: 2000 }), { GROQ_API_KEY: "server-only" });
   const batchCalls = calls.filter((c) => c.response_format.json_schema.name === "substitution_review_batch");
@@ -219,7 +222,7 @@ test("R1-8 (Workers AI) : N=4 avec un contexte réaliste volumineux -> la capaci
         calls.push(options);
         if (options.messages[0].content === CRITIC_GLOBAL_SYSTEM_PROMPT) return { response: globalOutputFixture() };
         const issueIds = Object.keys(options.response_format.json_schema.properties);
-        return { response: batchEntryFor(issueIds, null) };
+        return { response: batchEntryFor(issueIds, "decide") };
       }
     }
   };

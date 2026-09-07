@@ -41,7 +41,11 @@ function candidateFor(treatment, isAccepted) {
     ? { candidate_action: `Action via ${treatment}.`, applicable: true, preserves_objective: true, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: true, justification: "ok" }
     : { candidate_action: null, applicable: false, preserves_objective: false, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: false, justification: "non" };
 }
-function batchEntryFor(issueIds, available) {
+/* DEEP-INTERACTION-EARLY-STOP-01 : sans famille disponible, la cible est « dernier recours » et
+   l'arrêt anticipé se déclenche au premier batch. Ces tests mesurent l'ordre, la couverture et le
+   transport : leur fixture exprime donc, par défaut, une revue SUBSTITUABLE. L'intention est
+   inchangée ; un test qui veut un dernier recours le demande explicitement. */
+function batchEntryFor(issueIds, available = "decide") {
   const out = {};
   for (const id of issueIds) {
     out[id] = { candidates: Object.fromEntries(LADDER.map((t) => [t, candidateFor(t, t === available)])) };
@@ -81,7 +85,7 @@ test("R5.2-1 : N=4 (fixture R3B) sur Anthropic -> plan de batch [1,1,1,1] STRICT
     if (schemaNameOf(options) === "critic_global") return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" });
     const issueIds = issueIdsOf(options);
     batchSizes.push(issueIds.length);
-    return anthropicToolUseResponse(batchEntryFor(issueIds, null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIds, "decide"), { schemaName: "substitution_review_batch" });
   });
   await runCriticWithAnthropic(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -98,7 +102,7 @@ test("R5.2-2 : N=4 -> assemblage 4/4, ordre et issue_ids corrects (un batch par 
     if (schemaNameOf(options) === "critic_global") return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" });
     const issueIds = issueIdsOf(options);
     batchIssueIds.push(issueIds);
-    return anthropicToolUseResponse(batchEntryFor(issueIds, null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIds, "decide"), { schemaName: "substitution_review_batch" });
   });
   const output = await runCriticWithAnthropic(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -115,7 +119,7 @@ test("R5.2-3 : Critic global -> tool_use Anthropic, input_schema = CRITIC_GLOBAL
   let captured;
   withFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") { captured = bodyOf(options); return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" }); }
-    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), "decide"), { schemaName: "substitution_review_batch" });
   });
   await runCriticWithAnthropic(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -133,7 +137,7 @@ test("R5.2-3b : chaque batch Substitution Review -> tool_use Anthropic, input_sc
   withFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" });
     capturedByBatch.push(bodyOf(options));
-    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), "decide"), { schemaName: "substitution_review_batch" });
   });
   await runCriticWithAnthropic(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -174,7 +178,7 @@ test("R5.2-5 : un échec technique d'un batch Anthropic remonte technical_state=
     if (schemaNameOf(options) === "critic_global") return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" });
     batchCall += 1;
     if (batchCall === 1) return anthropicToolUseResponse({ error: { type: "overloaded_error", message: "surchargé" } }, { status: 529, schemaName: "substitution_review_batch" });
-    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), "decide"), { schemaName: "substitution_review_batch" });
   });
   await assert.rejects(
     () => runCriticWithAnthropic(
@@ -197,7 +201,7 @@ test("R5.2-6 : aucune reprise automatique n'est inventée pour Anthropic -- un H
   let globalFetchCount = 0;
   withFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") { globalFetchCount += 1; return anthropicToolUseResponse({ error: { type: "rate_limit_error", message: "429" } }, { status: 429, schemaName: "critic_global" }); }
-    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), "decide"), { schemaName: "substitution_review_batch" });
   });
   await assert.rejects(
     () => runCriticWithAnthropic(
@@ -221,7 +225,7 @@ test("R5.2-7 : runCriticWithGroq reste strictement inchangé -- même fixture N=
     if (name === "critic_global") return Response.json({ choices: [{ message: { content: JSON.stringify(globalOutputFixture()) } }] });
     const issueIds = Object.keys(body.response_format.json_schema.schema.properties);
     batchSizes.push(issueIds.length);
-    return Response.json({ choices: [{ message: { content: JSON.stringify(batchEntryFor(issueIds, null)) } }] });
+    return Response.json({ choices: [{ message: { content: JSON.stringify(batchEntryFor(issueIds, "decide")) } }] });
   });
   const output = await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -256,7 +260,7 @@ test("R5.2a-1 : le Critic global Anthropic déclenche AbortSignal.timeout(60000)
   const calls = withAbortSignalTimeoutSpy(t);
   withFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" });
-    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), "decide"), { schemaName: "substitution_review_batch" });
   });
   await runCriticWithAnthropic(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -270,7 +274,7 @@ test("R5.2a-2 : chaque batch Substitution Review Anthropic déclenche aussi Abor
   const calls = withAbortSignalTimeoutSpy(t);
   withFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") return anthropicToolUseResponse(globalOutputFixture(), { schemaName: "critic_global" });
-    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), null), { schemaName: "substitution_review_batch" });
+    return anthropicToolUseResponse(batchEntryFor(issueIdsOf(options), "decide"), { schemaName: "substitution_review_batch" });
   });
   await runCriticWithAnthropic(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },
@@ -288,7 +292,7 @@ test("R5.2a-3 : le pipeline Critic Groq reste strictement inchangé -- AbortSign
     const name = body.response_format.json_schema.name;
     if (name === "critic_global") return Response.json({ choices: [{ message: { content: JSON.stringify(globalOutputFixture()) } }] });
     const issueIds = Object.keys(body.response_format.json_schema.schema.properties);
-    return Response.json({ choices: [{ message: { content: JSON.stringify(batchEntryFor(issueIds, null)) } }] });
+    return Response.json({ choices: [{ message: { content: JSON.stringify(batchEntryFor(issueIds, "decide")) } }] });
   });
   await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: N4_FIXTURE(), previous_vetoes: [] },

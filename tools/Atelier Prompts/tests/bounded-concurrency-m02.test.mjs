@@ -59,9 +59,15 @@ const LADDER = [...LADDER_ALTERNATIVE_VALUES];
 const TIGHT_CAPABILITY = { fixedOverheadUnits: 100, perTargetUnits: 50, maxUnitsPerBatch: 220 };
 
 const candidateFor = (treatment, available) => ({
-  treatment, available, substitution_value: available ? `valeur ${treatment}` : '',
-  justification: `justification ${treatment}`, residual_risk: available ? 'faible' : '',
-  blocking_reason: available ? '' : `indisponible pour ${treatment}`, confidence: available ? 'haute' : 'basse'
+  /* DEEP-INTERACTION-EARLY-STOP-01 — FIXTURE REMISE AU CONTRAT COURANT.
+     Elle portait encore la forme d'avant X2-C.4 (treatment/available/substitution_value/…), que
+     le Substitution Gate ne lit plus : toutes les familles étaient donc rejetées, et chaque cible
+     ressortait « dernier recours ». Ces tests, qui veulent mesurer la CONCURRENCE et la
+     COUVERTURE, déclenchaient ainsi l'arrêt anticipé au premier batch. La forme est corrigée ;
+     leur intention est inchangée : `available=true` produit une alternative réellement retenable. */
+  applicable: available, preserves_objective: available, requires_user_reserved_choice: false,
+  contradicts_known_facts: false, produces_complete_deliverable: available,
+  justification: available ? `alternative ${treatment} réellement disponible` : `indisponible pour ${treatment}`
 });
 const candidatesEntry = (available = LADDER[0]) => ({ candidates: Object.fromEntries(LADDER.map((t) => [t, candidateFor(t, t === available)])) });
 

@@ -48,7 +48,10 @@ function candidateFor(treatment, isAccepted) {
     ? { candidate_action: `Action via ${treatment}.`, applicable: true, preserves_objective: true, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: true, justification: "ok" }
     : { candidate_action: null, applicable: false, preserves_objective: false, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: false, justification: "non" };
 }
-function batchEntryFor(issueIds, available) {
+/* DEEP-INTERACTION-EARLY-STOP-01 : sans famille disponible, la cible est « dernier recours » et
+   l'arrêt anticipé se déclenche au premier batch. Ces tests mesurent l'ordre, la couverture et le
+   transport : leur fixture exprime donc, par défaut, une revue SUBSTITUABLE. Intention inchangée. */
+function batchEntryFor(issueIds, available = "decide") {
   const out = {};
   for (const id of issueIds) {
     out[id] = { candidates: Object.fromEntries(LADDER.map((t) => [t, candidateFor(t, t === available)])) };
@@ -150,7 +153,7 @@ test("R3B-5 : N=1 -> un seul batch d'une issue, description résolue via analyst
     if (schemaNameOf(options) === "critic_global") return groqResponse(globalOutputFixture());
     const parsed = parsedUserMessage(options);
     sawTargetWithoutDescription = parsed.question_review_targets.every((t) => !("description" in t));
-    return groqResponse(batchEntryFor(issueIdsOf(options), null));
+    return groqResponse(batchEntryFor(issueIdsOf(options), "decide"));
   });
   const output = await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },
@@ -179,7 +182,7 @@ test("R3B-6 : N=4 sur le plan réel de production — le plan reflète fidèleme
     if (schemaNameOf(options) === "critic_global") return groqResponse(globalOutputFixture());
     const issueIds = issueIdsOf(options);
     batchSizes.push(issueIds.length);
-    return groqResponse(batchEntryFor(issueIds, null));
+    return groqResponse(batchEntryFor(issueIds, "decide"));
   });
   await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },
@@ -196,7 +199,7 @@ test("R3B-7 : N=4 -> assemblage 4/4, ordre et issue_ids corrects, avec la projec
   const analystOutput = analystOutputWithIssues(4, { descLen: 2000 });
   withGroqFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") return groqResponse(globalOutputFixture());
-    return groqResponse(batchEntryFor(issueIdsOf(options), null));
+    return groqResponse(batchEntryFor(issueIdsOf(options), "decide"));
   });
   const output = await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },

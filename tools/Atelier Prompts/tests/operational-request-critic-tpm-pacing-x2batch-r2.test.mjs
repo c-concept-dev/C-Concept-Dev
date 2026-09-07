@@ -52,7 +52,10 @@ function candidateFor(treatment, isAccepted) {
     ? { candidate_action: `Action via ${treatment}.`, applicable: true, preserves_objective: true, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: true, justification: "ok" }
     : { candidate_action: null, applicable: false, preserves_objective: false, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: false, justification: "non" };
 }
-function batchEntryFor(issueIds, available) {
+/* DEEP-INTERACTION-EARLY-STOP-01 : sans famille disponible, la cible est « dernier recours » et
+   l'arrêt anticipé se déclenche au premier batch. Ces tests mesurent l'ordre, la couverture et le
+   transport : leur fixture exprime donc, par défaut, une revue SUBSTITUABLE. Intention inchangée. */
+function batchEntryFor(issueIds, available = "decide") {
   const out = {};
   for (const id of issueIds) {
     out[id] = {
@@ -214,7 +217,7 @@ test("R2-1 (corrigé R2.1) : quand le Critic global a dû attendre suite à un 4
     if (body.response_format.json_schema.name === "critic_global") {
       return call === 1 ? groq429Body({ retryAfterS: 2 }) : groqResponse(globalOutputFixture());
     }
-    return groqResponse(batchEntryFor(Object.keys(body.response_format.json_schema.schema.properties), null));
+    return groqResponse(batchEntryFor(Object.keys(body.response_format.json_schema.schema.properties), "decide"));
   });
   const output = await runCriticWithGroq(criticInput(1), { GROQ_API_KEY: "server-only" }, { retryOverrides: { sleepFn: recordingSleep(sleeps) } });
   assert.equal(output.question_substitution_review.length, 1);
@@ -232,7 +235,7 @@ test("R2-2 : deux appels batch d'un même pipeline ne partent jamais simultaném
     events.push({ type: "start", issueIds });
     await new Promise((resolve) => setTimeout(resolve, 5));
     events.push({ type: "end", issueIds });
-    return groqResponse(batchEntryFor(issueIds, null));
+    return groqResponse(batchEntryFor(issueIds, "decide"));
   });
   await runCriticWithGroq(criticInput(4), { GROQ_API_KEY: "server-only" }, { retryOverrides: { sleepFn: recordingSleep([]) } });
   // Avec la capacité par défaut (input_budget=24400) et ces 4 issues minces, un seul batch de 4 —
@@ -277,7 +280,7 @@ test("R2-10 : N=4 forcé sur >=2 batches (fixture volumineuse) — ordre, couver
     const issueIds = Object.keys(body.response_format.json_schema.schema.properties);
     calls.push(issueIds);
     if (firstBatchAttempt) { firstBatchAttempt = false; return groq429Body({ retryAfterS: 1 }); }
-    return groqResponse(batchEntryFor(issueIds, null));
+    return groqResponse(batchEntryFor(issueIds, "decide"));
   });
   const output = await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },

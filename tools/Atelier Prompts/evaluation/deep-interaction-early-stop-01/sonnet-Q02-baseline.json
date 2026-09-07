@@ -1,0 +1,72 @@
+{
+ "case": "Q02",
+ "variant": "baseline",
+ "http_status": 200,
+ "exception": null,
+ "demande": "Compare ces deux documents et recommande le plus complet",
+ "materiau_present": false,
+ "appels": [
+  {
+   "call_index": 1,
+   "outil": "oprie_analyst",
+   "http_status": 200,
+   "input_tokens": 5519,
+   "output_tokens": 813,
+   "stop_reason": "tool_use",
+   "latency_ms": 14250,
+   "cost_usd": 0.028752
+  },
+  {
+   "call_index": 2,
+   "outil": "critic_global",
+   "http_status": 200,
+   "input_tokens": 3873,
+   "output_tokens": 849,
+   "stop_reason": "tool_use",
+   "latency_ms": 19016,
+   "cost_usd": 0.024354
+  },
+  {
+   "call_index": 3,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 5681,
+   "output_tokens": 899,
+   "stop_reason": "tool_use",
+   "latency_ms": 17967,
+   "cost_usd": 0.030528
+  },
+  {
+   "call_index": 4,
+   "outil": "oprie_arbiter",
+   "http_status": 200,
+   "input_tokens": 5319,
+   "output_tokens": 1301,
+   "stop_reason": "tool_use",
+   "latency_ms": 24424,
+   "cost_usd": 0.035472000000000004
+  }
+ ],
+ "outils_non_classes": [],
+ "tour": {
+  "TOTAL_PROVIDER_CALLS": 4,
+  "ANALYST_CALLS": 1,
+  "CRITIC_GLOBAL_CALLS": 1,
+  "CRITIC_BATCH_CALLS": 1,
+  "ARBITER_CALLS": 1,
+  "ANALYST_OUTPUT_TOKENS": 813,
+  "CRITIC_GLOBAL_OUTPUT_TOKENS": 849,
+  "CRITIC_BATCH_OUTPUT_TOKENS": 899,
+  "ARBITER_OUTPUT_TOKENS": 1301,
+  "TOTAL_OUTPUT_TOKENS": 3862,
+  "TOTAL_INPUT_TOKENS": 20392,
+  "ANALYST_LATENCY_MS": 14250,
+  "CRITIC_GLOBAL_LATENCY_MS": 19016,
+  "CRITIC_BATCH_LATENCY_MS": 17967,
+  "ARBITER_LATENCY_MS": 24424,
+  "TOTAL_LATENCY_MS": 75691,
+  "TOTAL_COST_USD": 0.119106,
+  "FINAL_OPRIE_STATE": "clarification_required",
+  "NEXT_QUESTION": "Pouvez-vous transmettre les deux documents à comparer ?"
+ }
+}

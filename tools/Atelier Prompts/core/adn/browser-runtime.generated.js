@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: a49dcde8ed48554d663564a93d285df212f3800667c1e6cc248ddbf8f2bf7382
+ * source-sha256: 20094fa088f4f992ef68779cf87e3e51fda9aa54e46622a7bda2efdae1abae03
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -5648,7 +5648,7 @@ function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_drift_d
  * agreement ni illegitimate_question_found : c'est à la couche qui possède l'autorité OPRIE de
  * décider degraded_state, jamais à ce code.
  */
-async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context, capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal } = {}) {
+async function runCriticBatchedPipeline({ original_request, clarification_history = [], analyst_output, previous_vetoes = [], material_context, capability, candidateFamilyGroups } = {}, { executeGlobal, executeBatch, concurrency, signal, telemetry } = {}) {
   const questionReviewTargets = buildQuestionReviewTargets(analyst_output);
   const batchPlan = computeBatchPlan(questionReviewTargets, capability);
   const familyGroups = list(candidateFamilyGroups).length > 0 ? candidateFamilyGroups : [LADDER_ALTERNATIVE_VALUES];
@@ -5679,54 +5679,136 @@ async function runCriticBatchedPipeline({ original_request, clarification_histor
    * La limite est INJECTÉE et vaut 1 par défaut : à défaut d'opt-in explicite,
    * l'exécution reste exactement celle d'avant, dans le même ordre.
    */
-  const tasks = [];
-  for (let index = 0; index < batchPlan.length; index += 1) {
-    const batchTargets = batchPlan[index];
-    const issueIds = batchTargets.map((t) => t.issue_id);
-    for (let groupIndex = 0; groupIndex < familyGroups.length; groupIndex += 1) {
-      const familyGroup = familyGroups[groupIndex];
-      tasks.push({
-        batchIndex: index, groupIndex, issueIds, familyGroup,
-        run: () => executeBatch({ original_request, clarification_history, analyst_output, batchTargets, batchIndex: index, issueIds, familyGroup, groupIndex })
-      });
-    }
-  }
-
-  const settled = await runBounded(tasks.map((task) => task.run), { concurrency, signal });
-
-  /* Réassemblage par INDEX, jamais par ordre d'arrivée : `groupRaws[groupIndex]`
-     et l'ordre de `batchFailures` sont exactement ceux de l'exécution série. */
+  /* DEEP-INTERACTION-EARLY-STOP-01 — LE TOUR S'ARRÊTE QUAND LA QUESTION EST PROUVÉE.
+   *
+   * Le plan était émis en entier puis dépouillé : un tour n'ayant qu'UNE question à poser
+   * instruisait la totalité des issues avant de la poser. L'exécution se fait désormais par
+   * VAGUES BORNÉES par `concurrency` — la concurrence de production est conservée telle quelle
+   * (max_inflight = 2) —, et aucune vague nouvelle n'est lancée après la preuve.
+   *
+   * CE QUE LA CONCURRENCE PEUT CHANGER : combien de travail SPÉCULATIF était déjà en vol.
+   * CE QU'ELLE NE PEUT JAMAIS CHANGER : ce qu'Atelier décide. C'est pourquoi la sortie
+   * autoritaire est tronquée à la cible gagnante — un batch spéculatif de la même vague peut
+   * terminer, il n'entre pas dans question_substitution_review. À concurrence 1 ou 2, le résultat
+   * gouverné est le même ; seul le compte d'appels déjà partis diffère.
+   */
+  const waveSize = Math.max(1, Number.isFinite(concurrency) && concurrency > 0 ? Math.floor(concurrency) : 1);
   const groupRawsByBatch = batchPlan.map(() => new Array(familyGroups.length));
   const batchSucceeded = batchPlan.map(() => true);
-  const batchFailures = [];
-  for (let taskIndex = 0; taskIndex < tasks.length; taskIndex += 1) {
-    const { batchIndex, groupIndex, issueIds, familyGroup } = tasks[taskIndex];
-    const verdict = settled[taskIndex];
-    if (verdict.status === "fulfilled") {
-      const raw = verdict.value;
-      try {
-        groupRawsByBatch[batchIndex][groupIndex] = typeof raw === "string" ? parseJsonMaybeFenced(raw) : raw;
-        continue;
-      } catch (error) {
-        /* Une réponse illisible reste un échec de CE batch, exactement comme
-           lorsque le parsing était fait dans la boucle série. */
-        batchFailures.push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
-        batchSucceeded[batchIndex] = false;
-        continue;
+  const batchLaunched = batchPlan.map(() => false);
+  const failuresByBatch = batchPlan.map(() => []);
+
+  /* Liste PLATE des cibles dans l'ordre de priorité fixé par l'Analyste, chacune sachant de quel
+     batch elle vient. C'est sur cet ordre, jamais sur l'ordre d'arrivée, que la preuve se lit. */
+  const orderedTargets = [];
+  batchPlan.forEach((targets, batchIndex) => targets.forEach((t) => orderedTargets.push({ batchIndex, target: t })));
+
+  const materializedByIssue = new Map();
+  let winnerPosition = -1;
+
+  /* Lit la preuve dans l'ordre de priorité, et rend la position de la première cible qui rend la
+     clarification irréversible. Une cible de rang k ne peut conclure que si TOUTES les cibles
+     0..k-1 sont résolues validement : une priorité supérieure non résolue bloque la conclusion. */
+  const findWinner = () => {
+    for (let pos = 0; pos < orderedTargets.length; pos += 1) {
+      const { batchIndex, target } = orderedTargets[pos];
+      if (!batchLaunched[batchIndex]) return -1;          // pas encore examinée : on ne conclut pas
+      if (!batchSucceeded[batchIndex]) return -1;          // échec technique : preuve impossible ici
+      let materialized = materializedByIssue.get(target.issue_id);
+      if (materialized === undefined) {
+        let batchResult = null;
+        try {
+          const raws = groupRawsByBatch[batchIndex];
+          batchResult = familyGroups.length === 1 ? raws[0] : mergeCandidateGroups(familyGroups, raws);
+        } catch { batchResult = null; }
+        try {
+          materialized = batchResult ? materializeSubstitutionReviewFromCandidates(batchResult?.[target.issue_id]?.candidates) : null;
+        } catch { materialized = null; }
+        materializedByIssue.set(target.issue_id, materialized);
+      }
+      if (!materialized) return -1;                        // revue invalide : jamais un arrêt
+      const [gated] = applySubstitutionGate([{ issue_id: target.issue_id, ...materialized }], {
+        vetoes: globalOutput?.vetoes,
+        semantic_drift_detected: globalOutput?.semantic_drift_detected === true
+      });
+      const anyAvailable = LADDER_ALTERNATIVE_VALUES.some(
+        (treatment) => gated?.alternatives_reviewed?.[treatment]?.reasonably_available === true
+      );
+      if (!anyAvailable) return pos;                       // dernier recours prouvé : c'est elle
+    }
+    return -1;                                             // toutes substituables : on continue
+  };
+
+  for (let waveStart = 0; waveStart < batchPlan.length; waveStart += waveSize) {
+    const waveIndexes = [];
+    for (let k = waveStart; k < Math.min(waveStart + waveSize, batchPlan.length); k += 1) waveIndexes.push(k);
+
+    const tasks = [];
+    for (const index of waveIndexes) {
+      const batchTargets = batchPlan[index];
+      const issueIds = batchTargets.map((t) => t.issue_id);
+      batchLaunched[index] = true;
+      for (let groupIndex = 0; groupIndex < familyGroups.length; groupIndex += 1) {
+        const familyGroup = familyGroups[groupIndex];
+        tasks.push({
+          batchIndex: index, groupIndex, issueIds, familyGroup,
+          run: () => executeBatch({ original_request, clarification_history, analyst_output, batchTargets, batchIndex: index, issueIds, familyGroup, groupIndex })
+        });
       }
     }
-    const error = verdict.reason;
-    batchFailures.push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
-    batchSucceeded[batchIndex] = false;
+    const settled = await runBounded(tasks.map((task) => task.run), { concurrency, signal });
+
+    /* Réassemblage par INDEX, jamais par ordre d'arrivée. */
+    for (let taskIndex = 0; taskIndex < tasks.length; taskIndex += 1) {
+      const { batchIndex, groupIndex, issueIds, familyGroup } = tasks[taskIndex];
+      const verdict = settled[taskIndex];
+      if (verdict.status === "fulfilled") {
+        const raw = verdict.value;
+        try {
+          groupRawsByBatch[batchIndex][groupIndex] = typeof raw === "string" ? parseJsonMaybeFenced(raw) : raw;
+          continue;
+        } catch (error) {
+          /* Une réponse illisible reste un échec de CE batch, exactement comme
+             lorsque le parsing était fait dans la boucle série. */
+          failuresByBatch[batchIndex].push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
+          batchSucceeded[batchIndex] = false;
+          continue;
+        }
+      }
+      const error = verdict.reason;
+      failuresByBatch[batchIndex].push({ batchIndex, groupIndex, issueIds, familyGroup, error: error instanceof Error ? error.message : String(error) });
+      batchSucceeded[batchIndex] = false;
+    }
+
+    winnerPosition = findWinner();
+    if (winnerPosition >= 0) break;                        // aucune vague nouvelle après la preuve
   }
 
+  const earlyStop = winnerPosition >= 0;
+  /* La sortie autoritaire s'arrête à la gagnante. Ce qui a été lancé au-delà, dans la même vague,
+     est du travail SPÉCULATIF NON AUTORITAIRE : il ne peut ni changer l'état, ni la question, ni
+     la provenance, ni la substitution retenue — ni dégrader quoi que ce soit s'il échoue. */
+  const authoritativeTargets = earlyStop
+    ? orderedTargets.slice(0, winnerPosition + 1).map((x) => x.target)
+    : questionReviewTargets;
+  const authoritativeBatchIndexes = earlyStop
+    ? [...new Set(orderedTargets.slice(0, winnerPosition + 1).map((x) => x.batchIndex))]
+    : batchPlan.map((_, i) => i);
+  const speculativeIssueIds = earlyStop
+    ? orderedTargets.slice(winnerPosition + 1).filter((x) => batchLaunched[x.batchIndex]).map((x) => x.target.issue_id)
+    : [];
+  const notExecutedIssueIds = orderedTargets.filter((x) => !batchLaunched[x.batchIndex]).map((x) => x.target.issue_id);
+
   const batchResults = [];
-  for (let index = 0; index < batchPlan.length; index += 1) {
+  for (const index of authoritativeBatchIndexes) {
     if (!batchSucceeded[index]) continue;
     const groupRaws = groupRawsByBatch[index];
     batchResults.push(familyGroups.length === 1 ? groupRaws[0] : mergeCandidateGroups(familyGroups, groupRaws));
   }
 
+  /* Seuls les échecs de priorité SUPÉRIEURE OU ÉGALE à la gagnante restent gouvernés. Un échec
+     spéculatif ne dégrade jamais une clarification déjà établie par une cible prioritaire valide. */
+  const batchFailures = authoritativeBatchIndexes.flatMap((index) => failuresByBatch[index]);
   if (batchFailures.length > 0) {
     throw Object.assign(new Error("runCriticBatchedPipeline: un ou plusieurs batches de Substitution Review ont échoué techniquement."), {
       technical_state: "partial_failure",
@@ -5736,10 +5818,36 @@ async function runCriticBatchedPipeline({ original_request, clarification_histor
     });
   }
 
+  /* Un batch peut porter plusieurs cibles : celles qui suivent la gagnante DANS LE MÊME batch sont
+     spéculatives au même titre que celles d'un batch spéculatif. On ne matérialise donc que les
+     cibles autoritaires — sinon l'assembleur verrait un issue_id absent de sa liste et refuserait,
+     à juste titre, une couverture qu'il n'a pas demandée. */
+  const authoritativeIssueIds = new Set(authoritativeTargets.map((t) => t.issue_id));
   const materializedBatchResults = batchResults.map((batchResult) =>
-    Object.fromEntries(Object.entries(batchResult).map(([issueId, entry]) => [issueId, materializeSubstitutionReviewFromCandidates(entry?.candidates)]))
+    Object.fromEntries(
+      Object.entries(batchResult)
+        .filter(([issueId]) => authoritativeIssueIds.has(issueId))
+        .map(([issueId, entry]) => [issueId, materializeSubstitutionReviewFromCandidates(entry?.candidates)])
+    )
   );
-  const assembledReviews = assembleSubstitutionReviews(questionReviewTargets, materializedBatchResults);
+
+  /* COUVERTURE : DÉRIVÉE PAR LE RUNTIME, JAMAIS DÉCIDÉE PAR LE MODÈLE.
+     Sans arrêt anticipé, la couverture totale reste exigée à l'identique. Avec arrêt anticipé, les
+     cibles jamais lancées ne sont ni des revues manquantes ni des erreurs : elles sont
+     NOT_EXECUTED_EARLY_STOP, et sortent de l'exigence de couverture totale. */
+  if (telemetry && typeof telemetry === "object") {
+    telemetry.reviewed_targets = authoritativeTargets.map((t) => t.issue_id);
+    telemetry.speculative_targets = speculativeIssueIds;
+    telemetry.not_executed_targets = notExecutedIssueIds;
+    telemetry.not_executed_reason = notExecutedIssueIds.length > 0 ? "NOT_EXECUTED_EARLY_STOP" : null;
+    telemetry.coverage_complete = !earlyStop;
+    telemetry.early_stop = earlyStop;
+    telemetry.early_stop_reason = earlyStop ? "FIRST_PRIORITY_LAST_RESORT_CONFIRMED" : null;
+    telemetry.early_stop_issue_id = earlyStop ? orderedTargets[winnerPosition].target.issue_id : null;
+    telemetry.batches_planned = batchPlan.length;
+    telemetry.batches_launched = batchLaunched.filter(Boolean).length;
+  }
+  const assembledReviews = assembleSubstitutionReviews(authoritativeTargets, materializedBatchResults);
   const gatedReviews = applySubstitutionGate(assembledReviews, {
     vetoes: globalOutput?.vetoes,
     semantic_drift_detected: globalOutput?.semantic_drift_detected === true
@@ -10001,5 +10109,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a49dcde8ed48554d663564a93d285df212f3800667c1e6cc248ddbf8f2bf7382'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'20094fa088f4f992ef68779cf87e3e51fda9aa54e46622a7bda2efdae1abae03'});
 })(window);

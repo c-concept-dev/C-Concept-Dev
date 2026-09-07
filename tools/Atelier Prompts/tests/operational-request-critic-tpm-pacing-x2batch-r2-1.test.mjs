@@ -58,7 +58,10 @@ function candidateFor(treatment, isAccepted) {
     ? { candidate_action: `Action via ${treatment}.`, applicable: true, preserves_objective: true, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: true, justification: "ok" }
     : { candidate_action: null, applicable: false, preserves_objective: false, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: false, justification: "non" };
 }
-function batchEntryFor(issueIds, available) {
+/* DEEP-INTERACTION-EARLY-STOP-01 : sans famille disponible, la cible est « dernier recours » et
+   l'arrêt anticipé se déclenche au premier batch. Ces tests mesurent l'ordre, la couverture et le
+   transport : leur fixture exprime donc, par défaut, une revue SUBSTITUABLE. Intention inchangée. */
+function batchEntryFor(issueIds, available = "decide") {
   const out = {};
   for (const id of issueIds) {
     out[id] = { candidates: Object.fromEntries(LADDER.map((t) => [t, candidateFor(t, t === available)])) };
@@ -117,7 +120,7 @@ test("R2.1-1 (magnitude ajustée HA-03) : 429 -> wait 20s -> retry 200 ; l'appel
       globalCall += 1;
       return globalCall === 1 ? groq429Body({ retryAfterS: 20 }) : groqResponse(globalOutputFixture());
     }
-    return groqResponse(batchEntryFor(issueIdsOf(options), null));
+    return groqResponse(batchEntryFor(issueIdsOf(options), "decide"));
   });
   const output = await runCriticWithGroq(criticInput(1), { GROQ_API_KEY: "server-only" }, { retryOverrides: { sleepFn: recordingSleep(sleeps) } });
   assert.equal(output.question_substitution_review.length, 1);
@@ -138,7 +141,7 @@ test("R2.1-2 : deux appels successifs, A 429 -> retry 200 ; B (le batch suivant)
       return globalCall === 1 ? groq429Body({ retryAfterS: 5 }) : groqResponse(globalOutputFixture());
     }
     batchStartTimestamps.push(Date.now());
-    return groqResponse(batchEntryFor(issueIdsOf(options), null));
+    return groqResponse(batchEntryFor(issueIdsOf(options), "decide"));
   });
   await runCriticWithGroq(criticInput(1), { GROQ_API_KEY: "server-only" }, { retryOverrides: { sleepFn: recordingSleep(sleeps) } });
   assert.equal(batchStartTimestamps.length, 1);
@@ -174,7 +177,7 @@ test("R2.1-3 : A (premier batch) réussit avec 429->retry, B (second batch) reç
       // 1er essai de CE batch : 429, avec un Retry-After PROPRE à ce batch (A != B).
       return groq429Body({ retryAfterS: isBatchA ? 10 : 3 });
     }
-    return groqResponse(batchEntryFor(issueIds, null)); // retry -> succès
+    return groqResponse(batchEntryFor(issueIds, "decide")); // retry -> succès
   });
   const output = await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },
@@ -207,7 +210,7 @@ test("R2.1-4 : la marge de sécurité (safetyMarginMs=750) n'est comptée qu'une
       globalCall += 1;
       return globalCall === 1 ? groq429Body({ retryAfterS: 2 }) : groqResponse(globalOutputFixture());
     }
-    return groqResponse(batchEntryFor(issueIdsOf(options), null));
+    return groqResponse(batchEntryFor(issueIdsOf(options), "decide"));
   });
   await runCriticWithGroq(criticInput(1), { GROQ_API_KEY: "server-only" }, { retryOverrides: { sleepFn: recordingSleep(sleeps) } });
   const totalWaited = sleeps.reduce((a, b) => a + b, 0);
@@ -291,7 +294,7 @@ test("R2.1-7 : N=4 sur >=2 batches réels (fixture volumineuse), avec un 429 tra
     const issueIds = issueIdsOf(options);
     calls.push(issueIds);
     if (firstBatchAttempt) { firstBatchAttempt = false; return groq429Body({ retryAfterS: 1 }); }
-    return groqResponse(batchEntryFor(issueIds, null));
+    return groqResponse(batchEntryFor(issueIds, "decide"));
   });
   const output = await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },

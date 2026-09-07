@@ -67,7 +67,11 @@ const LADDER = [...LADDER_ALTERNATIVE_VALUES];
 const TIGHT_CAPABILITY = { fixedOverheadUnits: 100, perTargetUnits: 50, maxUnitsPerBatch: 220 };
 const ISSUES = ['issue1', 'issue2', 'issue3', 'issue4', 'issue5', 'issue6', 'issue7', 'issue8'];
 
-const candidateFor = (t, a) => ({ treatment: t, available: a, substitution_value: a ? 'v' : '', justification: 'j', residual_risk: a ? 'faible' : '', blocking_reason: a ? '' : 'x', confidence: a ? 'haute' : 'basse' });
+/* DEEP-INTERACTION-EARLY-STOP-01 — FIXTURE REMISE AU CONTRAT COURANT (cf. M-02).
+   Elle portait la forme d'avant X2-C.4, que le Substitution Gate ne lit plus : toutes les familles
+   étaient rejetées, chaque cible ressortait « dernier recours », et ces tests de CONCURRENCE
+   déclenchaient l'arrêt anticipé au premier batch. Intention inchangée. */
+const candidateFor = (t, a) => ({ applicable: a, preserves_objective: a, requires_user_reserved_choice: false, contradicts_known_facts: false, produces_complete_deliverable: a, justification: a ? `alternative ${t} disponible` : `indisponible pour ${t}` });
 const candidatesEntry = () => ({ candidates: Object.fromEntries(LADDER.map((t) => [t, candidateFor(t, t === LADDER[0])])) });
 const analystOutputFixture = (ids) => ({
   operational_request_candidate: { objective: 'x', expected_deliverable: '', secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [], confirmed_preferences: [], delegated_decisions: [], external_facts_to_research: [], assumptions_allowed: [], remaining_unknowns: [] },

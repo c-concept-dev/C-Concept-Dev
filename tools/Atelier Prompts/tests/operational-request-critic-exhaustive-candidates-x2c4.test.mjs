@@ -223,7 +223,11 @@ test("X2C4-17 : le verdict du Gate candidate-level ne dépend jamais du nombre t
   );
   const inBatchOf3 = await runCriticBatchedPipeline(
     { original_request: "x", analyst_output: analystOutputFixture(["a", "issue1", "b"]), capability: TIGHT_CAPABILITY },
-    { executeGlobal: async () => globalOutputFixture(), executeBatch: async (input) => Object.fromEntries(input.issueIds.map((id) => [id, { candidates: allCandidates(id === "issue1" ? { estimate: candidate() } : {}) }])) }
+    { executeGlobal: async () => globalOutputFixture(), /* DEEP-INTERACTION-EARLY-STOP-01 — les cibles "a" et "b" reçoivent une alternative disponible.
+        Sans elle, "a" prouverait la question au premier batch et le tour s'arrêterait avant d'atteindre
+        "issue1" : ce test ne mesurerait plus l'indépendance du verdict vis-à-vis de la POSITION, qui
+        est son objet. Le verdict attendu pour issue1 est strictement inchangé. */
+      executeBatch: async (input) => Object.fromEntries(input.issueIds.map((id) => [id, { candidates: allCandidates(id === "issue1" ? { estimate: candidate() } : { decide: candidate() }) }])) }
   );
   assert.equal(alone.question_substitution_review[0].available_alternative, "estimate");
   assert.equal(inBatchOf3.question_substitution_review.find((r) => r.issue_id === "issue1").available_alternative, "estimate");

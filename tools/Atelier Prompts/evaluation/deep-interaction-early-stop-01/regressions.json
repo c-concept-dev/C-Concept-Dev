@@ -1,0 +1,25 @@
+{
+  "lot": "DEEP-INTERACTION-EARLY-STOP-01",
+  "implementation_essayee": "OUI — deux variantes complètes, chargées et exécutées contre la suite déterministe",
+  "etat_final_du_depot": "REVERTÉ — workers/shared/operational-request-core.js restauré depuis HEAD ; GLOBAL 2965/2965",
+  "variante_1_serie_stricte": { "echecs": 23, "verdict": "détruit la concurrence M-02/M-03 entre batches" },
+  "variante_2_par_vagues": { "echecs": 26, "verdict": "préserve la concurrence DANS la vague, mais ne lève pas l'incompatibilité de fond" },
+  "echecs_classes": {
+    "A_contrat_de_couverture_DANS_le_perimetre_du_§8": {
+      "tests": ["R1-7", "R1-8", "R2-10", "R2.1-3", "R2.1-7", "R3B-6", "R3B-7", "R5.2-1", "R5.2-2", "R5.2-3b", "R5.2-7", "R5.2a-2", "XB-29", "XB-31", "X2C1-SCHEMA"],
+      "nature": "ils affirment « N=4 → 4 batches, assemblage 4/4, couverture exacte » — précisément le contrat que le §8 demande de remplacer",
+      "traitement_possible": "mise à jour légitime, dans le périmètre du lot"
+    },
+    "B_contrat_de_concurrence_HORS_perimetre": {
+      "tests": ["T-M02-16", "T-M02-18", "T-M02-20", "T-M02-29", "T-M02-31", "T-M02-40", "T-M03-28", "T-M03-29", "T-M03-30", "T-M03-37"],
+      "nature": "ils affirment des propriétés que TOUT arrêt anticipé rend structurellement fausses",
+      "citations": [
+        "T-M02-20 : « le résultat concurrent est identique au résultat séquentiel » — assert.deepEqual(concurrent.sortie, serie.sortie)",
+        "T-M02-31 : « le nombre logique d'appels est identique en série et en concurrence » — LOGICAL_LLM_CALL_COUNT inchangé",
+        "T-M03-30 : « toutes les tâches restent tentées avant l'échec »"
+      ],
+      "traitement_possible": "AUCUN sans décision d'architecture — ce sont des invariants d'un lot antérieur que la gouvernance de ce lot m'interdit de démonter seul"
+    },
+    "C_mecanique": { "tests": ["T-HTMLFINAL02-10"], "nature": "empreinte de manifeste, conséquence de la régénération" }
+  }
+}

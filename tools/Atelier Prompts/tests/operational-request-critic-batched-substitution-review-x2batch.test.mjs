@@ -76,7 +76,11 @@ function candidateFor(treatment, isAccepted) {
       };
 }
 
-function candidatesEntry(availableTreatment) {
+/* DEEP-INTERACTION-EARLY-STOP-01 : sans famille disponible, la cible est « dernier recours » et
+   l'arrêt anticipé se déclenche au premier batch. Ces tests mesurent l'ordre, la couverture et le
+   transport : leur fixture exprime donc, par défaut, une revue SUBSTITUABLE. L'intention est
+   inchangée ; un test qui veut un dernier recours le demande explicitement. */
+function candidatesEntry(availableTreatment = "decide") {
   return { candidates: Object.fromEntries(LADDER.map((treatment) => [treatment, candidateFor(treatment, treatment === availableTreatment)])) };
 }
 
@@ -380,7 +384,7 @@ test("XB-29 : N=4 forcé sur au moins 2 batches -> ordre, couverture exacte, auc
       executeGlobal: async () => globalOutputFixture(),
       executeBatch: async (input) => {
         calls.push(input.issueIds);
-        return Object.fromEntries(input.issueIds.map((id) => [id, candidatesEntry(id === "issue2" ? "decide" : null)]));
+        return Object.fromEntries(input.issueIds.map((id) => [id, candidatesEntry(id === "issue2" ? "decide" : "estimate")]));
       }
     }
   );
@@ -388,8 +392,13 @@ test("XB-29 : N=4 forcé sur au moins 2 batches -> ordre, couverture exacte, auc
   assert.deepEqual(calls.flat(), ["issue1", "issue2", "issue3", "issue4"]);
   assert.equal(output.question_substitution_review.length, 4);
   assert.deepEqual(output.question_substitution_review.map((r) => r.issue_id), ["issue1", "issue2", "issue3", "issue4"]);
-  assert.equal(output.illegitimate_question_found.length, 1);
-  assert.equal(output.illegitimate_question_found[0].issue_id, "issue2");
+  /* DEEP-INTERACTION-EARLY-STOP-01 — la fixture rend désormais les QUATRE cibles substituables.
+     C'est ce qu'il faut pour que ce test mesure ce qu'il annonce : l'ordre, la couverture exacte et
+     l'assemblage sur N=4. Une cible non substituable prouverait la question et arrêterait le tour au
+     premier batch — comportement voulu, couvert par T-ESO01-A à H, mais qui ne teste pas la
+     couverture complète. Les quatre revues concluent donc à une alternative disponible. */
+  assert.equal(output.illegitimate_question_found.length, 4);
+  assert.deepEqual(output.illegitimate_question_found.map((f) => f.issue_id), ["issue1", "issue2", "issue3", "issue4"]);
   assert.equal(output.agreement, "disagree");
   // La validation historique (validateCriticOutput, inchangée) doit accepter le résultat sans erreur —
   // déjà garanti par le fait que runCriticBatchedPipeline le retourne (elle l'appelle en dernier), mais
@@ -407,7 +416,7 @@ test("XB-30 : les appels de batch sont strictement séquentiels, jamais en paral
         events.push({ type: "start", batchIndex: input.batchIndex });
         await new Promise((resolve) => setTimeout(resolve, 5));
         events.push({ type: "end", batchIndex: input.batchIndex });
-        return Object.fromEntries(input.issueIds.map((id) => [id, candidatesEntry(null)]));
+        return Object.fromEntries(input.issueIds.map((id) => [id, candidatesEntry("decide")]));
       }
     }
   );
@@ -427,7 +436,7 @@ test("XB-31 : panne partielle — un batch échoue techniquement, aucune issue i
         executeGlobal: async () => globalOutputFixture(),
         executeBatch: async (input) => {
           if (input.issueIds.includes("issue3")) throw new Error("provider_failure simulée");
-          return Object.fromEntries(input.issueIds.map((id) => [id, candidatesEntry(null)]));
+          return Object.fromEntries(input.issueIds.map((id) => [id, candidatesEntry("decide")]));
         }
       }
     ),

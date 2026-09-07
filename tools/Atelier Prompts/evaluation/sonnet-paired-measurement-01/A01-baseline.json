@@ -1,0 +1,92 @@
+{
+ "case": "A01",
+ "variant": "baseline",
+ "http_status": 200,
+ "exception": null,
+ "demande": "Je veux préparer mon voyage en Italie",
+ "materiau_present": false,
+ "appels": [
+  {
+   "call_index": 1,
+   "outil": "oprie_analyst",
+   "http_status": 200,
+   "input_tokens": 5520,
+   "output_tokens": 1335,
+   "stop_reason": "tool_use",
+   "latency_ms": 21864,
+   "cost_usd": 0.036585000000000006
+  },
+  {
+   "call_index": 2,
+   "outil": "critic_global",
+   "http_status": 200,
+   "input_tokens": 4303,
+   "output_tokens": 248,
+   "stop_reason": "tool_use",
+   "latency_ms": 6114,
+   "cost_usd": 0.016629
+  },
+  {
+   "call_index": 3,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 6318,
+   "output_tokens": 1114,
+   "stop_reason": "tool_use",
+   "latency_ms": 20139,
+   "cost_usd": 0.035664
+  },
+  {
+   "call_index": 4,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 6317,
+   "output_tokens": 1337,
+   "stop_reason": "tool_use",
+   "latency_ms": 24639,
+   "cost_usd": 0.039006
+  },
+  {
+   "call_index": 5,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 6317,
+   "output_tokens": 1459,
+   "stop_reason": "tool_use",
+   "latency_ms": 27845,
+   "cost_usd": 0.040836
+  },
+  {
+   "call_index": 6,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 6317,
+   "output_tokens": 1600,
+   "stop_reason": "max_tokens",
+   "latency_ms": 30488,
+   "cost_usd": 0.042951
+  }
+ ],
+ "outils_non_classes": [],
+ "tour": {
+  "TOTAL_PROVIDER_CALLS": 6,
+  "ANALYST_CALLS": 1,
+  "CRITIC_GLOBAL_CALLS": 1,
+  "CRITIC_BATCH_CALLS": 4,
+  "ARBITER_CALLS": 0,
+  "ANALYST_OUTPUT_TOKENS": 1335,
+  "CRITIC_GLOBAL_OUTPUT_TOKENS": 248,
+  "CRITIC_BATCH_OUTPUT_TOKENS": 5510,
+  "ARBITER_OUTPUT_TOKENS": 0,
+  "TOTAL_OUTPUT_TOKENS": 7093,
+  "TOTAL_INPUT_TOKENS": 35092,
+  "ANALYST_LATENCY_MS": 21864,
+  "CRITIC_GLOBAL_LATENCY_MS": 6114,
+  "CRITIC_BATCH_LATENCY_MS": 103111,
+  "ARBITER_LATENCY_MS": 0,
+  "TOTAL_LATENCY_MS": 83145,
+  "TOTAL_COST_USD": 0.211671,
+  "FINAL_OPRIE_STATE": "degraded_state",
+  "NEXT_QUESTION": null
+ }
+}

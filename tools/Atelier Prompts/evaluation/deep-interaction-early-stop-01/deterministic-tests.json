@@ -1,0 +1,22 @@
+{
+  "lot": "DEEP-INTERACTION-EARLY-STOP-01",
+  "fichier": "tests/deep-interaction-early-stop-eso01.test.mjs",
+  "resultat": "8/8 verts",
+  "couverture_du_§9": {
+    "A": "T-ESO01-A — concurrency=1, cible 1 dernier recours → UN SEUL batch émis, not_executed = [issue2, issue3], NOT_EXECUTED_EARLY_STOP",
+    "B": "T-ESO01-B — concurrency=2 → 2 appels au maximum, issue2 marquée spéculative, et RÉSULTAT GOUVERNÉ deepEqual à celui de concurrency=1",
+    "C": "T-ESO01-C — cible 1 substituable, cible 2 dernier recours → 2 appels, gagnante = issue2, couverture autoritaire [issue1, issue2]",
+    "D": "T-ESO01-D — cible 1 invalide → AUCUN arrêt sur la cible 2 ; le tour échoue proprement plutôt que de conclure sur un rang inférieur",
+    "E": "T-ESO01-E — cible 1 prouvée, cible 2 spéculative en panne → clarification conservée, sortie autoritaire = [issue1]",
+    "F": "T-ESO01-F — aucune cible dernier recours → couverture complète historique, coverage_complete = true",
+    "G": "T-ESO01-G — aucune issue material+question → aucun batch, chemin READY inchangé",
+    "H": "T-ESO01-H — pour concurrency ∈ {1,2} : batches_launched == concurrency, batches_planned == 6 → NO_NEW_CALLS_AFTER_EARLY_STOP_DECISION"
+  },
+  "tests_historiques_adaptes": {
+    "principe": "aucune assertion sémantique affaiblie ; ce sont les FIXTURES qui ont été remises au contrat courant.",
+    "M-02 et M-03": "leur helper candidateFor produisait encore la forme d'avant X2-C.4 (treatment/available/substitution_value/…), que le Substitution Gate ne lit plus. Toutes les familles étaient donc rejetées, chaque cible ressortait « dernier recours », et ces tests de CONCURRENCE déclenchaient l'arrêt au premier batch. Fixture corrigée → les 16 tests M-02/M-03 passent SANS AUCUNE modification de leurs assertions.",
+    "consequence_notable": "les invariants historiques T-M02-20 (résultat concurrent == séquentiel) et T-M02-31 / T-M03-37 (nombre d'appels identique) SURVIVENT INTACTS : en l'absence d'arrêt anticipé, le comportement est inchangé. La redéfinition autorisée par le §8 n'a finalement pas eu besoin d'être exercée sur eux.",
+    "R1 / R2 / R2.1 / R3B / R5.2 / X2C1 / X2C4 / XB": "leurs fixtures passaient explicitement « aucune alternative disponible », ce qui prouve la question et arrête le tour. Elles expriment désormais une revue substituable — leur objet est l'ordre, la couverture et le transport, pas l'arrêt. XB-29 voit son compte d'illegitimate_question_found passer de 1 à 4, conséquence directe et documentée de cette fixture.",
+    "X2C3-14 et X2C3-15": "conservent délibérément « aucune alternative » : c'est leur sujet. Intactes."
+  }
+}

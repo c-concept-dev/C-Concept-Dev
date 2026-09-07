@@ -172,7 +172,11 @@ test("X2C1-SCHEMA : le schéma réellement envoyé au provider exige structurell
   withGroqFetch(t, async (url, options) => {
     if (schemaNameOf(options) === "critic_global") return groqResponse(globalOutputFixture());
     capturedSchemas.push(schemaOf(options));
-    return substitutionBatchResponse(issueIdsOf(options), null);
+    /* DEEP-INTERACTION-EARLY-STOP-01 — la revue conclut à une alternative disponible. Sans cela, la
+       cible A prouverait la question au premier batch, le tour s'arrêterait, et un seul schéma serait
+       émis : ce test ne pourrait plus vérifier que CHAQUE issue material+question reçoit les six
+       familles. L'invariant vérifié est inchangé ; seule la fixture cesse de déclencher l'arrêt. */
+    return substitutionBatchResponse(issueIdsOf(options), "decide");
   });
   await runCriticWithGroq(
     { original_request: "x", clarification_history: [], analyst_output: analystOutput, previous_vetoes: [] },
