@@ -176,8 +176,13 @@ test('T-DEEPTOK01-09 : aucun contrat de production n’a été touché', () => {
      marque les rejets du validateur d'issues partagé pour qu'ils soient classés comme ce qu'ils
      sont. Aucune règle, aucun prompt, aucun comportement d'interface n'a changé — seule l'étiquette
      portée par une erreur déjà levée. */
+  /* CRITIC-POSTPROVIDER-TYPEERROR-01 — L'EMPREINTE BOUGE ENCORE, ET TOUJOURS POUR LA MÊME RAISON
+     MÉCANIQUE : le noyau OPRIE est embarqué verbatim dans le bundle navigateur. Ce lot y marque
+     UNE assertion de contrat — celle dont l'empreinte de message correspond au 502 observé — pour
+     qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
+     règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '6719e3be080b4de4c66c971419da14f88b6c660e2d60609af41d9e41585fd7f9', 'CANONICAL_HTML_CHANGED = NO');
+    'd1248dbfca5ab3f6d8b9e9ab1f68b153c2302cb208e87b4971f05eca28236c69', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 /* T-DEEPTOK01-10 — le rapport cite les chiffres mesurés, et la dette reste ouverte. */

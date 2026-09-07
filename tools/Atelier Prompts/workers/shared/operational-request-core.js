@@ -1649,10 +1649,28 @@ export function materializeSubstitutionReviewFromCandidates(candidatesByTreatmen
   const receivedFamilies = candidatesByTreatment && typeof candidatesByTreatment === "object" && !Array.isArray(candidatesByTreatment)
     ? Object.keys(candidatesByTreatment)
     : [];
-  assert(
-    receivedFamilies.length === LADDER_ALTERNATIVE_VALUES.length && LADDER_ALTERNATIVE_VALUES.every((f) => receivedFamilies.includes(f)),
-    `materializeSubstitutionReviewFromCandidates: candidates doit contenir exactement les 6 familles (${LADDER_ALTERNATIVE_VALUES.join(", ")}), reçu (${receivedFamilies.join(", ")}) — sortie provider contractuellement incomplète, jamais acceptée comme review valide.`
-  );
+  /* CRITIC-POSTPROVIDER-TYPEERROR-01 — LA MÊME FAUTE QUE LE VOISIN, ET LE MÊME MARQUEUR.
+   *
+   * Ce refus était levé sans marqueur. Une TypeError nue atteignait le catch-all sans étiquette,
+   * devenait programming_error — « défaut de NOTRE code » — et rendait un 502 sans état sémantique.
+   * Mesuré en production : un tour sur vingt, empreinte de message identique à celle observée.
+   *
+   * Or le message dit lui-même de qui est la faute : « sortie provider contractuellement
+   * incomplète ». Et dans CE MÊME pipeline, assembleSubstitutionReviews marque déjà exactement
+   * cette classe de faute — une issue non couverte par les batches — avec output_contract_violation.
+   * « Tu n'as pas couvert une issue » était donc une violation de contrat du modèle, tandis que
+   * « tu n'as pas rendu les six familles » passait pour un bug à nous. C'est cette asymétrie qui
+   * est corrigée, rien d'autre.
+   *
+   * LE MESSAGE EST INCHANGÉ, à l'octet près — même précédent que CSR-01 : seul un marqueur
+   * structurel est ajouté, jamais une inspection de texte, jamais une tolérance nouvelle. La
+   * validation refuse exactement les mêmes entrées qu'avant. */
+  if (!(receivedFamilies.length === LADDER_ALTERNATIVE_VALUES.length && LADDER_ALTERNATIVE_VALUES.every((f) => receivedFamilies.includes(f)))) {
+    throw Object.assign(
+      new TypeError(`materializeSubstitutionReviewFromCandidates: candidates doit contenir exactement les 6 familles (${LADDER_ALTERNATIVE_VALUES.join(", ")}), reçu (${receivedFamilies.join(", ")}) — sortie provider contractuellement incomplète, jamais acceptée comme review valide.`),
+      { output_contract_violation: true }
+    );
+  }
   let acceptedTreatment = null;
   const alternatives_reviewed = {};
   for (const treatment of LADDER_ALTERNATIVE_VALUES) {

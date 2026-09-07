@@ -212,12 +212,33 @@ test("CSR01-8 : une erreur NON marquée reste PROGRAMMING_ERROR -> fail-closed, 
   const bug = new TypeError("assembleur interne défaillant");
   assert.equal(failureClassOf(bug), FAILURE_CLASSES.PROGRAMMING_ERROR);
   assert.notEqual(bug.output_contract_violation, true);
+  /* CRITIC-POSTPROVIDER-TYPEERROR-01 — L'INVARIANT EST INTACT, LE SPÉCIMEN A CHANGÉ DE CAMP.
+     Ce test illustrait « rejet non marqué » avec `candidates: "structure invalide"`. Ce cas précis
+     est désormais MARQUÉ : la production a rendu un 502 dessus, empreinte de message à l'appui, et
+     materializeSubstitutionReviewFromCandidates dit elle-même dans son message que la sortie du
+     fournisseur est en cause. Une sortie de modèle non conforme n'est pas notre bug.
+     Ce que CSR-01 garde ici — un rejet NON marqué ne bascule jamais — reste vrai et reste gardé :
+     seul l'exemple est remplacé par un rejet réellement non marqué (charge globale incomplète,
+     refusée par validateCriticOutput sans marqueur). */
   const calls = withProviders(t, {
-    groq: ({ schemaName }) => schemaName === "critic_global" ? chatOk(globalFixture()) : chatOk({ issue1: { candidates: "structure invalide" } }),
+    groq: ({ schemaName }) => {
+      if (schemaName !== "critic_global") return chatOk(batchEntry(["issue1"]));
+      const incomplet = globalFixture(); delete incomplet.vetoes; return chatOk(incomplet);
+    },
     anthropic: criticProvider("anthropic")
   });
   await runRoleWithHaChain("critic", criticInput(1), ENV, ORDRE).catch(() => {});
   assert.ok(!calls.some((c) => c.provider === "anthropic"), "un rejet structurel non marqué ne doit jamais déclencher de bascule.");
+
+  /* Et la frontière, rendue explicite ici même : le cas retiré ci-dessus bascule maintenant,
+     parce qu'il est marqué comme violation de contrat du MODÈLE. */
+  const calls2 = withProviders(t, {
+    groq: ({ schemaName }) => schemaName === "critic_global" ? chatOk(globalFixture()) : chatOk({ issue1: { candidates: "structure invalide" } }),
+    anthropic: criticProvider("anthropic")
+  });
+  await runRoleWithHaChain("critic", criticInput(1), ENV, ORDRE).catch(() => {});
+  assert.ok(calls2.some((c) => c.provider === "anthropic"),
+    "une sortie de modèle contractuellement invalide, elle, est éligible à la bascule.");
 });
 
 // --- CSR01-9 / 10 / 11 : chaîne HA, pipeline homogène ------------------------------------------------
