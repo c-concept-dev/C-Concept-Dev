@@ -219,21 +219,116 @@ export function createExecutionTrace({ resolveModel } = {}) {
   return trace;
 }
 
-/** Champs OBLIGATOIRES de l'enregistrement terminal. `journal_complete` est CALCULÉ sur cette liste. */
+/** Champs qui doivent EXISTER dans l'enregistrement terminal, quel que soit le chemin. */
 export const TERMINAL_RECORD_REQUIRED_FIELDS = Object.freeze([
   "invocation_id", "terminal_event", "phase", "role", "provider", "model",
   "provider_attempt_index", "http_status", "semantic_state", "error_class",
   "untagged_exception", "fallback_path", "phases", "safe_error_fingerprint"
 ]);
 
+/* -------------------------------------------------------------------------------------------
+   VALIDITÉ DE L'ENREGISTREMENT TERMINAL — prédicats explicites, jamais une utilitaire opaque.
+   La première version de `journal_complete` testait `!== undefined`. C'était une vérification de
+   PRÉSENCE, pas de VALIDITÉ : `phase: null` ou `invocation_id: ""` la passaient sans bruit. Un
+   signal censé dénoncer un enregistrement inutilisable ne peut pas se laisser satisfaire par une
+   valeur vide — c'est précisément dans ce cas qu'on a besoin de lui.
+   ------------------------------------------------------------------------------------------- */
+
+/** Une chaîne réellement porteuse d'information : ni null, ni vide, ni faite d'espaces. */
+export function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Un statut HTTP réel : entier fini, dans la plage des codes existants. */
+export function isValidHttpStatus(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599;
+}
+
+/** Un index de tentative réel : entier, jamais négatif. La première tentative porte 0. */
+export function isValidAttemptIndex(value) {
+  return Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * Empreinte d'erreur exploitable : de quoi REGROUPER des occurrences identiques, et rien qui
+ * ressemble à du contenu. Le SHA-256 est vérifié dans sa forme, pas seulement dans sa présence.
+ */
+export function isValidErrorFingerprint(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value)
+    && isNonEmptyString(value.error_name)
+    && typeof value.message_sha256 === "string" && /^[0-9a-f]{64}$/.test(value.message_sha256)
+    && Number.isInteger(value.frame_count) && value.frame_count >= 0;
+}
+
+/**
+ * UN FAIT, pas une supposition : une tentative de fournisseur a-t-elle réellement eu lieu ?
+ * L'index de tentative n'est renseigné que par l'absorption d'un événement provider_ha_* réellement
+ * émis par la chaîne. Tant qu'il vaut null, aucun fournisseur n'a été appelé — et exiger alors un
+ * `provider` ou un `model` déclarerait incomplet un enregistrement qui est, lui, complet.
+ */
+export function providerAttemptOccurred(record) {
+  return record && record.provider_attempt_index !== null && record.provider_attempt_index !== undefined;
+}
+
+/**
+ * `journal_complete` — la question à laquelle il répond : « cet enregistrement suffit-il, à lui
+ * seul, à attribuer ce qui vient de se passer ? »
+ *
+ * Trois couches, dans cet ordre :
+ *   1. l'identité et la situation, TOUJOURS exigées (sans elles, rien n'est joignable ni situable) ;
+ *   2. le contexte fournisseur, exigé UNIQUEMENT si une tentative a réellement eu lieu ;
+ *   3. les preuves d'échec, exigées UNIQUEMENT sur un statut d'erreur.
+ *
+ * Un chemin de succès n'est jamais déclaré incomplet parce qu'il n'a pas d'erreur à montrer, et une
+ * validation qui échoue avant tout appel n'est jamais déclarée incomplète faute de fournisseur.
+ */
+export function computeJournalComplete(record) {
+  if (!record || typeof record !== "object") return false;
+
+  /* 1. Identité et situation — sans exception, sur tous les chemins. */
+  if (!isNonEmptyString(record.invocation_id)) return false;
+  if (record.terminal_event !== true) return false;              // l'égalité, jamais la simple présence
+  if (!isNonEmptyString(record.phase)) return false;
+  if (!OPERATIONAL_REQUEST_PHASES.includes(record.phase)) return false;
+  if (!isValidHttpStatus(record.http_status)) return false;
+  if (typeof record.untagged_exception !== "boolean") return false;
+  if (!Array.isArray(record.fallback_path)) return false;
+  if (!Array.isArray(record.phases) || record.phases.length === 0) return false;
+  /* Ces deux-là peuvent légitimement valoir null (succès sans erreur, erreur sans état) : on exige
+     qu'ils soient RENSEIGNÉS, jamais absents — l'absence signalerait un enregistrement tronqué. */
+  if (record.semantic_state === undefined) return false;
+  if (record.error_class === undefined) return false;
+  if (record.safe_error_fingerprint === undefined) return false;
+  if (record.role === undefined) return false;
+
+  /* 2. Contexte fournisseur — conditionnel au FAIT qu'une tentative a eu lieu. */
+  if (providerAttemptOccurred(record)) {
+    if (!isValidAttemptIndex(record.provider_attempt_index)) return false;
+    if (!isNonEmptyString(record.provider)) return false;
+    if (!isNonEmptyString(record.model)) return false;
+  }
+
+  /* 3. Preuves d'échec — uniquement sur un statut d'erreur. Un 200 (succès comme degraded_state)
+        n'a rien à prouver ici : degraded_state est un état PUBLIC abouti, pas une erreur HTTP. */
+  if (record.http_status >= 400) {
+    if (!isNonEmptyString(record.error_class)) return false;
+    if (!isValidErrorFingerprint(record.safe_error_fingerprint)) return false;
+    /* Une exception non étiquetée est le cas qui avait rendu un 502 inattribuable : elle doit
+       porter la phase (déjà exigée ci-dessus) ET se nommer comme non étiquetée. */
+    if (record.untagged_exception === true && record.error_class !== "untagged") return false;
+  }
+
+  return true;
+}
+
 /**
  * Construit l'UNIQUE enregistrement terminal d'une invocation. `journal_complete` n'est pas une
- * constante décorative : il vaut vrai seulement si chacun des champs obligatoires est réellement
- * présent. Un enregistrement incomplet se dénonce donc lui-même, au lieu de passer inaperçu.
+ * constante décorative : il est CALCULÉ, et il est faux dès qu'un champ est absent OU vide OU
+ * incohérent. Un enregistrement inexploitable se dénonce donc lui-même.
  */
 export function buildTerminalRecord(fields) {
   const record = { ...fields, terminal_event: true };
-  record.journal_complete = TERMINAL_RECORD_REQUIRED_FIELDS.every((key) => record[key] !== undefined);
+  record.journal_complete = computeJournalComplete(record);
   return record;
 }
 

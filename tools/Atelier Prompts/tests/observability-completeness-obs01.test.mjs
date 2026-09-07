@@ -4,8 +4,9 @@ import test from "node:test";
 import { createEmptyCandidate } from "../core/adn/index.js";
 import {
   OPERATIONAL_REQUEST_PHASES, TERMINAL_RECORD_REQUIRED_FIELDS,
-  buildTerminalRecord, createExecutionTrace, handleOperationalRequest,
-  resolveInvocationId, safeErrorFingerprint
+  buildTerminalRecord, computeJournalComplete, createExecutionTrace, handleOperationalRequest,
+  isNonEmptyString, isValidAttemptIndex, isValidErrorFingerprint, isValidHttpStatus,
+  providerAttemptOccurred, resolveInvocationId, safeErrorFingerprint
 } from "../workers/shared/operational-request-orchestrator.js";
 import { ProviderChainError, runProviderChain, tagFailure, FAILURE_CLASSES } from "../workers/shared/provider-ha.js";
 import groqWorker, { resolveRoleProviderModel, ANTHROPIC_MODEL, MODEL } from "../workers/groq/src/index.js";
@@ -59,6 +60,20 @@ function capture() {
   return { log: (event) => events.push(event), events };
 }
 const terminalOf = (events) => events.filter((e) => e.terminal_event === true);
+
+/** Enregistrement terminal de RÉFÉRENCE, valide sur tous les champs. Les tests d'intégrité ne
+    dégradent qu'une seule chose à la fois à partir de lui — jamais un objet bricolé au cas par cas. */
+function valideRecord() {
+  return {
+    invocation_id: "8abc123def456789-CDG", terminal_event: true, phase: "critic", role: "critic",
+    provider: null, model: null, provider_attempt_index: null,
+    http_status: 200, semantic_state: "clarification_required", error_class: null,
+    untagged_exception: false, fallback_path: [],
+    phases: [{ phase: "critic", role: "critic", phase_started_at: 1, duration_ms: 2 }],
+    safe_error_fingerprint: null
+  };
+}
+const cas = (mutation) => buildTerminalRecord({ ...valideRecord(), ...mutation }).journal_complete;
 
 /** Exécute un tour complet via le gestionnaire HTTP réel, avec des rôles injectés. */
 async function run({ executeRole, body = INPUT, resolveModel } = {}) {
@@ -311,10 +326,112 @@ test("OBS01-21 : l'empreinte est déterministe et distingue deux messages diffé
 // --- 7. CONTRAT DE L'ENREGISTREMENT ---------------------------------------------------------------
 
 test("OBS01-22 : journal_complete est CALCULÉ, pas décoratif — un champ manquant le met à false", () => {
-  const complet = Object.fromEntries(TERMINAL_RECORD_REQUIRED_FIELDS.map((k) => [k, k === "terminal_event" ? true : "x"]));
-  assert.equal(buildTerminalRecord(complet).journal_complete, true);
-  const { phase, ...incomplet } = complet;
-  assert.equal(buildTerminalRecord(incomplet).journal_complete, false, "un enregistrement incomplet se dénonce lui-même");
+  assert.equal(buildTerminalRecord(valideRecord()).journal_complete, true, "l'enregistrement de référence est complet");
+  const { phase, ...sansPhase } = valideRecord();
+  assert.equal(buildTerminalRecord(sansPhase).journal_complete, false, "un enregistrement incomplet se dénonce lui-même");
+});
+
+// --- 7bis. INTÉGRITÉ : validité, jamais simple présence -------------------------------------------
+//
+// La première version testait `!== undefined` : `phase: null` et `invocation_id: ""` la passaient
+// sans bruit. Ces assertions ferment l'écart champ par champ, à partir d'un enregistrement de
+// référence VALIDE dont on ne dégrade qu'une seule chose à la fois.
+
+test("OBS01-26 : invocation_id — absent, null, vide ou blanc rend journal_complete=false", () => {
+  const { invocation_id, ...sans } = valideRecord();
+  assert.equal(buildTerminalRecord(sans).journal_complete, false, "A. absent");
+  assert.equal(cas({ invocation_id: null }), false, "B. null");
+  assert.equal(cas({ invocation_id: "" }), false, "C. vide");
+  assert.equal(cas({ invocation_id: "   " }), false, "D. blancs seulement");
+  assert.equal(cas({ invocation_id: 42 }), false, "non-chaîne");
+});
+
+test("OBS01-27 : phase — absente, null, vide ou hors vocabulaire rend journal_complete=false", () => {
+  const { phase, ...sans } = valideRecord();
+  assert.equal(buildTerminalRecord(sans).journal_complete, false, "E. absente");
+  assert.equal(cas({ phase: null }), false, "F. null");
+  assert.equal(cas({ phase: "" }), false, "G. vide");
+  assert.equal(cas({ phase: "phase_inventee" }), false, "hors du vocabulaire fermé");
+  for (const p of OPERATIONAL_REQUEST_PHASES) assert.equal(cas({ phase: p }), true, `${p} accepté`);
+});
+
+test("OBS01-28 : http_status — absent, null ou non entier valide rend journal_complete=false", () => {
+  const { http_status, ...sans } = valideRecord();
+  assert.equal(buildTerminalRecord(sans).journal_complete, false, "H. absent");
+  assert.equal(cas({ http_status: null }), false, "I. null");
+  assert.equal(cas({ http_status: "200" }), false, "J. chaîne");
+  assert.equal(cas({ http_status: 200.5 }), false, "J. non entier");
+  assert.equal(cas({ http_status: 99 }), false, "hors plage basse");
+  assert.equal(cas({ http_status: 600 }), false, "hors plage haute");
+});
+
+test("OBS01-29 : terminal_event — la validation exige l'égalité à true, jamais la présence", () => {
+  /* buildTerminalRecord force terminal_event=true : la vacuité se teste donc sur le prédicat
+     lui-même, qui est ce que le contrat protège réellement. */
+  assert.equal(computeJournalComplete({ ...valideRecord(), terminal_event: false }), false, "K. false");
+  assert.equal(computeJournalComplete({ ...valideRecord(), terminal_event: "true" }), false, "K. chaîne");
+  assert.equal(computeJournalComplete({ ...valideRecord(), terminal_event: 1 }), false, "K. entier");
+  const { terminal_event, ...sans } = valideRecord();
+  assert.equal(computeJournalComplete(sans), false, "K. absent");
+});
+
+test("OBS01-30 : validate sans aucune tentative fournisseur reste COMPLET (L)", async () => {
+  const fp = await safeErrorFingerprint(new Error("entrée invalide"));
+  const r = buildTerminalRecord({ ...valideRecord(), phase: "validate", role: null, http_status: 400,
+    provider: null, model: null, provider_attempt_index: null,
+    semantic_state: null, error_class: "http_error", untagged_exception: false, safe_error_fingerprint: fp });
+  assert.equal(r.journal_complete, true, "aucun fournisseur n'a été appelé : rien ne manque");
+  assert.equal(providerAttemptOccurred(r), false);
+});
+
+test("OBS01-31 : dès qu'une tentative a eu lieu, provider/model/index deviennent EXIGÉS (M, N, O, P)", () => {
+  const avecTentative = { provider: "anthropic", model: "claude-sonnet-4-6", provider_attempt_index: 0 };
+  assert.equal(cas(avecTentative), true, "P. tentative valide");
+  assert.equal(cas({ ...avecTentative, provider: null }), false, "M. provider manquant");
+  assert.equal(cas({ ...avecTentative, provider: "" }), false, "M. provider vide");
+  assert.equal(cas({ ...avecTentative, model: null }), false, "N. modèle manquant");
+  assert.equal(cas({ ...avecTentative, model: "  " }), false, "N. modèle blanc");
+  assert.equal(cas({ ...avecTentative, provider_attempt_index: -1 }), false, "O. index négatif");
+  assert.equal(cas({ ...avecTentative, provider_attempt_index: 1.5 }), false, "O. index non entier");
+  assert.equal(cas({ ...avecTentative, provider_attempt_index: "0" }), false, "O. index non numérique");
+});
+
+test("OBS01-32 : un 5xx non étiqueté doit porter ses preuves d'attribution (Q, R)", async () => {
+  const fp = await safeErrorFingerprint(new Error("x"));
+  const base = { phase: "critic", role: "critic", http_status: 502, semantic_state: null,
+    error_class: "untagged", untagged_exception: true, safe_error_fingerprint: fp };
+  assert.equal(cas(base), true, "R. 502 non étiqueté valide");
+  assert.equal(cas({ ...base, safe_error_fingerprint: null }), false, "Q. empreinte absente");
+  assert.equal(cas({ ...base, safe_error_fingerprint: { error_name: "Error" } }), false, "Q. empreinte tronquée");
+  assert.equal(cas({ ...base, safe_error_fingerprint: { ...fp, message_sha256: "pas-un-hash" } }), false, "Q. empreinte malformée");
+  assert.equal(cas({ ...base, error_class: null }), false, "une erreur HTTP sans classe n'est pas attribuable");
+  assert.equal(cas({ ...base, error_class: "autre_chose" }), false, "untagged_exception=true exige error_class=\"untagged\"");
+});
+
+test("OBS01-33 : un 200 n'a aucune preuve d'erreur à fournir — succès et degraded_state (S, T)", () => {
+  const succes = { phase: "state_check", role: "arbiter", http_status: 200,
+    semantic_state: "operational_request_ready", error_class: null, untagged_exception: false,
+    safe_error_fingerprint: null };
+  assert.equal(cas(succes), true, "T. succès complet sans champs d'erreur");
+  const degrade = { ...succes, phase: "critic", role: "critic", semantic_state: "degraded_state",
+    provider: "anthropic", model: "claude-sonnet-4-6", provider_attempt_index: 1,
+    fallback_path: [{ from: "groq", to: "anthropic", failure_class: "technical_failover" }] };
+  assert.equal(cas(degrade), true, "S. degraded_state avec panne fournisseur étiquetée");
+  assert.equal(cas({ ...degrade, model: null }), false, "S. mais la tentative reste exigeante");
+});
+
+test("OBS01-34 : les prédicats de validité sont exacts, isolément", () => {
+  assert.equal(isNonEmptyString("a"), true); assert.equal(isNonEmptyString(" "), false);
+  assert.equal(isNonEmptyString(null), false); assert.equal(isNonEmptyString(1), false);
+  assert.equal(isValidHttpStatus(200), true); assert.equal(isValidHttpStatus(502), true);
+  assert.equal(isValidHttpStatus(null), false); assert.equal(isValidHttpStatus(99), false);
+  assert.equal(isValidHttpStatus(Number.NaN), false);
+  assert.equal(isValidAttemptIndex(0), true); assert.equal(isValidAttemptIndex(-1), false);
+  assert.equal(isValidAttemptIndex(null), false);
+  assert.equal(isValidErrorFingerprint({ error_name: "Error", message_sha256: "a".repeat(64), frame_count: 3 }), true);
+  assert.equal(isValidErrorFingerprint({ error_name: "", message_sha256: "a".repeat(64), frame_count: 3 }), false);
+  assert.equal(isValidErrorFingerprint(null), false);
+  assert.equal(computeJournalComplete(null), false, "un non-objet n'est jamais complet");
 });
 
 test("OBS01-23 : tous les champs de trace obligatoires sont présents sur les trois chemins terminaux", async () => {

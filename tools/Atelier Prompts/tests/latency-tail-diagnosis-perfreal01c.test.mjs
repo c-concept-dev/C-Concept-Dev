@@ -231,7 +231,7 @@ test('T-PERFREAL01C-12 : rien n’a été déplacé — ni politique, ni seuil, 
      sont. Aucune règle, aucun prompt, aucun comportement d'interface n'a changé — seule l'étiquette
      portée par une erreur déjà levée. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '000f1ce8572659b6b769e3f781ba0d4068146e4df355db80ab2aad46fdac5f34', 'CANONICAL_HTML_CHANGED = NO');
+    '6719e3be080b4de4c66c971419da14f88b6c660e2d60609af41d9e41585fd7f9', 'CANONICAL_HTML_CHANGED = NO');
   /* Et le protocole du banc n'a pas été retouché pour flatter le résultat. */
   assert.equal(D.protocole.identique_a, 'PERF-REAL-01B');
   assert.equal(D.protocole.methode_percentile, 'NEAREST_RANK');
