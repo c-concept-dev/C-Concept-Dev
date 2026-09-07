@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `cae7135eef49b965214ef4e832e0770e014898e3` |
-| Date du commit | 2026-09-07T11:26:49+02:00 |
+| Commit local | `7062cbe9869ff09915dcbc306fd76013fab094f0` |
+| Date du commit | 2026-09-07T12:29:52+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-66 fichiers. C'est ce qui doit exister pour **servir** la page,
+68 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `84ba2074583c42ad1be5447304944d734d823919988092b7885a151319e11f03` |
+| Empreinte du jeu | `c0481d32ced579197973aba3ec1ee0edc24e7e5b007c3ac22b66d08cf5686efb` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -86,6 +86,7 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
 | REQUIRED_DOC | `docs/ANTHROPIC-DEEP-CAPACITY-01.md` | `a6c063c7f49ce9fe2883b4cc1eb5811ddf38b8ddfe28342c6f430596e2319b9f` |
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
+| REQUIRED_DOC | `docs/CRITIC-POSTPROVIDER-TYPEERROR-01.md` | `c9b6d591c920f748cf56f34b33652ff3cdc14054d73954460ea3864819f87f7f` |
 | REQUIRED_DOC | `docs/DEEP-ANTHROPIC-ACCEPTANCE-01.md` | `4218e62ea2ca9ea92618f895635068b96729665c456e91782ff10596b76db051` |
 | REQUIRED_DOC | `docs/DEEP-COUT-JETONS-01.md` | `5d298c68b4b7d5fe6adc285e828abd6c0a33a611c2407013835162009302e3a2` |
 | REQUIRED_DOC | `docs/DEEP-PRODUCTION-BLOCKERS-01.md` | `62d88bc95a303d1e330f0911dd4d58540fc08af2f641be33f1fd19dee63511f2` |
@@ -93,6 +94,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/DEEP-RESIDUAL-502-ATTRIBUTION-01.md` | `023aa9e037222aefa5dcd447d316fdf04d3ae04333a998502256340e82c90131` |
 | REQUIRED_DOC | `docs/DEEP-RESIDUAL-502-ATTRIBUTION-02.md` | `b4ccc94959e0ec7f7dc0723e74cc53457f62f34d7c19d22b274d7833866c472c` |
 | REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
+| REQUIRED_DOC | `docs/OBSERVABILITY-COMPLETENESS-01.md` | `ad03cc9f297ff04ea6326c1243ee85e884529a2c1fedc80b4711e5c2bbbe61bf` |
 | REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `cce92ba10b4bb7e8698fc8a6db8791f1af85c6466028baf6bd7f421c7c42a65d` |
 | REQUIRED_DOC | `docs/OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01.md` | `ac9bd6f73b7d18c1ea8e6760fdb11e42a37ebe7496cdb22d606f4b4972bcd960` |
 | REQUIRED_DOC | `docs/OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01.md` | `019bee219d0e353b3918452c06189e3e4652cc4af62f741974d7e0443001cb12` |
@@ -135,8 +137,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 153 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 275 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 154 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 278 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
