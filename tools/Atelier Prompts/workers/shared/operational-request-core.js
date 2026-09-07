@@ -70,6 +70,23 @@ function assert(condition, message) {
   if (!condition) throw new TypeError(message);
 }
 
+/**
+ * UNTAGGED-ASSERT-FAMILY-02 — REFUSER UNE SORTIE DE MODÈLE N'EST PAS UN BUG À NOUS.
+ *
+ * Même corps que `assert`, une seule différence : le marqueur structurel. Il sert aux refus dont
+ * la donnée examinée vient du FOURNISSEUR — jamais à un invariant de notre propre code, jamais à
+ * une valeur de configuration. Sans marqueur, la levée atteint le catch-all sans étiquette,
+ * devient `programming_error` (« défaut de NOTRE code »), et rend un 502 sans état sémantique :
+ * c'est exactement ce que B-01B puis CPT-01 ont mesuré en production, deux fois.
+ *
+ * Pourquoi une fonction de plus plutôt que `assertRoleIssueContract` : celle-ci nomme le contrat
+ * des issues de rôle et sert la règle B-01B (lot CLOS). L'emprunter ici mentirait sur ce qui est
+ * vérifié. Même marqueur, même convention lue par le pipeline — deux noms, deux provenances.
+ */
+function assertProviderOutputContract(condition, message) {
+  if (!condition) throw Object.assign(new TypeError(message), { output_contract_violation: true });
+}
+
 function exactKeys(value, keys, path) {
   assert(value && typeof value === "object" && !Array.isArray(value), `${path} doit être un objet.`);
   const actual = Object.keys(value).sort();
@@ -1560,10 +1577,18 @@ export function assembleSubstitutionReviews(questionReviewTargets, batchResults)
 
   const byIssueId = new Map();
   for (const batchResult of list(batchResults)) {
+    /* UAF-02 (correction de provenance) — INVARIANT INTERNE, PAS UNE FAUTE DU MODÈLE.
+       Sur l'unique chemin appelant de production, cet élément est construit par notre propre code
+       une ligne plus tôt (Object.fromEntries), donc toujours un objet simple : ce refus n'est pas
+       atteignable par une sortie fournisseur. S'il se déclenche un jour, la faute est la NÔTRE et
+       doit rester bruyante — programming_error, 502, aucun état. Il reste donc nu, délibérément. */
     assert(batchResult && typeof batchResult === "object" && !Array.isArray(batchResult), "assembleSubstitutionReviews: chaque résultat de batch doit être un objet keyed-by-issue_id.");
     for (const [issueId, entry] of Object.entries(batchResult)) {
-      assert(expectedIdSet.has(issueId), `assembleSubstitutionReviews: issue_id inconnu "${issueId}" (absent de questionReviewTargets).`);
-      assert(!byIssueId.has(issueId), `assembleSubstitutionReviews: collision — issue_id "${issueId}" présent dans plusieurs batches.`);
+      assertProviderOutputContract(expectedIdSet.has(issueId), `assembleSubstitutionReviews: issue_id inconnu "${issueId}" (absent de questionReviewTargets).`);
+      assertProviderOutputContract(!byIssueId.has(issueId), `assembleSubstitutionReviews: collision — issue_id "${issueId}" présent dans plusieurs batches.`);
+      /* UAF-02 (correction de provenance) — INVARIANT INTERNE : `entry` est le retour de
+         materializeSubstitutionReviewFromCandidates, donc toujours un objet (sinon elle lève, et
+         CPT-01 a déjà marqué CE refus-là). Nu, pour la même raison qu'au-dessus. */
       assert(entry && typeof entry === "object" && !Array.isArray(entry), `assembleSubstitutionReviews: résultat invalide pour "${issueId}".`);
       const alternatives_reviewed = entry.alternatives_reviewed;
       const available_alternative = entry.available_alternative !== undefined ? entry.available_alternative : null;
@@ -1715,11 +1740,11 @@ export function mergeCandidateGroups(familyGroups, groupResults) {
   const merged = new Map();
   groups.forEach((group, groupIndex) => {
     const result = groupResults[groupIndex];
-    assert(result && typeof result === "object" && !Array.isArray(result), `mergeCandidateGroups: résultat invalide pour le groupe ${groupIndex}.`);
+    assertProviderOutputContract(result && typeof result === "object" && !Array.isArray(result), `mergeCandidateGroups: résultat invalide pour le groupe ${groupIndex}.`);
     for (const [issueId, entry] of Object.entries(result)) {
-      assert(entry && entry.candidates && typeof entry.candidates === "object" && !Array.isArray(entry.candidates), `mergeCandidateGroups: candidates manquantes ou invalides pour "${issueId}" (groupe ${groupIndex}).`);
+      assertProviderOutputContract(entry && entry.candidates && typeof entry.candidates === "object" && !Array.isArray(entry.candidates), `mergeCandidateGroups: candidates manquantes ou invalides pour "${issueId}" (groupe ${groupIndex}).`);
       const receivedFamilies = Object.keys(entry.candidates);
-      assert(
+      assertProviderOutputContract(
         receivedFamilies.length === group.length && group.every((f) => receivedFamilies.includes(f)),
         `mergeCandidateGroups: le groupe ${groupIndex} pour "${issueId}" doit contenir exactement les familles attendues (${group.join(", ")}), reçu (${receivedFamilies.join(", ")}).`
       );
