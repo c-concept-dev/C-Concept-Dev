@@ -141,10 +141,61 @@ les laisser fail-closed. Ce lot ne renverse pas cette décision sans preuve : il
 
 ## I. Rejeu réel
 
-<!-- REJEU -->
+Trente tours étaient prévus sur la population fautive. **La campagne n'a pas pu aller au bout**, et
+il faut le dire avant d'en tirer quoi que ce soit.
+
+| | |
+| --- | --- |
+| Tours effectués | 27 |
+| **Tours exploitables** | **12** |
+| Tours invalidés | **15** |
+
+À partir du treizième tour, l'API Anthropic répond :
+
+```
+anthropic_api_error  status=400  code=invalid_request_error
+"Your credit balance is too low to access the Anthropic API."
+```
+
+→ `request_rejected` → chaîne épuisée → `degraded_state` 200, en 300 à 550 ms. **Ces quinze tours
+mesurent un solde épuisé, pas le correctif.** Ils ne sont pas comptés.
+
+**Sur les douze tours exploitables :**
+
+| Compteur | Valeur |
+| --- | --- |
+| `HTTP_502_COUNT` | **0** |
+| `TYPEERROR_ON_SUCCESSFUL_CRITIC_PROCESSING` | **0** |
+| `clarification_required` | 11 |
+| `degraded_state` | 1 |
+| `FALSE_READY` · `DEEP_GROQ_CALL` · `DEEP_OPENAI_CALL` | 0 · 0 · 0 |
+
+La seule dégradation (tour 7) est sur l'**Arbitre**, pas le Critique : sortie de 1756 jetons sous un
+plafond de 4096, donc non tronquée, refusée structurellement, classée `structured_output_invalid` et
+fermée en 200. Classe préexistante, correctement traitée, sans rapport avec le défaut corrigé.
+
+**Ce que douze tours prouvent, et ce qu'ils ne prouvent pas.** Pour un événement à environ 4 %, on en
+attendrait à peu près un demi sur douze tours : leur silence est *cohérent* avec le correctif, il ne
+le démontre pas. La preuve forte de ce lot est déterministe — origine localisée par exécution,
+empreinte identique, rejeu avant/après — et non statistique.
+
+**Une observation incidente, non planifiée mais réelle.** Les quinze tours à crédit épuisé montrent
+le comportement sous panne fournisseur totale : `request_rejected`, aucun repli Groq, aucun repli
+OpenAI, aucun READY fabriqué, `degraded_state` 200 rendu au client. Le fail-closed tient aussi
+quand le fournisseur refuse tout.
 
 ---
 
 ## J. Impact release
 
-<!-- RELEASE -->
+**Le défaut est fermé au niveau où il pouvait l'être :** l'instruction exacte est connue, la cause
+est établie, le correctif traite la cause — l'étiquette du refus — et non le symptôme, et deux
+contrôles prouvent qu'il n'a pas débordé : un vrai défaut interne reste `programming_error` en 502,
+une sortie fournisseur invalide ne remonte plus jamais nue.
+
+**Mais le gate ne peut pas être franchi ici**, pour une raison qui n'est pas un défaut du produit :
+la campagne réelle exigée — trente tours — n'a pas pu être menée à terme. Le crédit Anthropic s'est
+épuisé au treizième. Je ne vais pas présenter douze tours comme s'ils en valaient trente.
+
+`NEXT_SAFE_ACTION` : recharger le crédit Anthropic, puis rejouer les trente tours sur la population
+fautive. Aucun changement de code n'est attendu — le correctif est déjà en place et déployé.
