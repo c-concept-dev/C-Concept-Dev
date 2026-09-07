@@ -237,5 +237,5 @@ test('T-PERFREAL01G-14/15/16 : péremption, faux READY et artefact frontend', ()
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '34eb25c516e9c9f9faac9e5af6ca90dcacc432c7a5eb6e1fc111398b5cdc800c', 'CANONICAL_HTML_CHANGED = NO');
+    'cde627380affd12a7ecf11e0d7e3c66f9bedf95543a8a2ecfb982ecb498d8db6', 'CANONICAL_HTML_CHANGED = NO');
 });

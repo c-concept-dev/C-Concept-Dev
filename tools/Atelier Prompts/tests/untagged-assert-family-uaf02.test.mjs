@@ -206,7 +206,23 @@ test('T-UAF02-08 : une entrée de batch non-objet dégrade via le marqueur CPT-0
   assert.equal(parMaterialize.output_contract_violation, true, 'CPT-01 refuse en premier, et marqué');
 });
 
-test('T-UAF02-09 : FAIL-CLOSED — un refus structurel NON marqué reste programming_error', async (t) => {
+/* T-UAF02-09 — MIS À JOUR PAR DEEP-OUTPUT-ROBUSTNESS-01 : LA BRANCHE EST FERMÉE.
+ *
+ * Ce test épinglait, à raison, la limite que UAF-02 s'était fixée : « il reste défaut de notre code
+ * — le lot n'a pas tout converti ». La chose qu'il gardait n'était pas un invariant souhaitable,
+ * c'était une DETTE, nommée et bornée, en attente de son lot.
+ *
+ * DEEP-HAIKU-FIT-01 en a mesuré le prix en production : sur huit tours réels, deux ont fini en
+ * HTTP 502 avec semantic_state = null — aucun état OPRIE du tout — et l'un d'eux pour EXACTEMENT
+ * la sortie que ce test fabrique, un Critique global sans `vetoes`. Le tour ne dégradait pas : il
+ * disparaissait.
+ *
+ * DEEP-OUTPUT-ROBUSTNESS-01 a marqué le refus final de runCriticBatchedPipeline. Le même scénario
+ * rend désormais un degraded_state gouverné, sur le même chemin HTTP que ses voisins T-UAF02-07 et
+ * T-UAF02-08. Ce qui n'a PAS changé, et que ce test garde toujours : le refus lui-même — mêmes
+ * sorties refusées, même message — et le fait qu'un défaut interne, lui, reste nu (T-UAF02-04,
+ * T-UAF02-04b, et T-DOR01-05/06 côté DOR-01). */
+test('T-UAF02-09 : un Critique global amputé dégrade désormais — la dette de UAF-02 est soldée', async (t) => {
   silence(t);
   const original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
@@ -225,11 +241,22 @@ test('T-UAF02-09 : FAIL-CLOSED — un refus structurel NON marqué reste program
   const entree = { original_request: 'O.', clarification_history: [], analyst_output: analystOutput(), previous_vetoes: [] };
   const erreur = await runRoleWithHaChain('critic', entree, ENV, { order: resolveRoleProviderOrder({}), log: () => {} })
     .then(() => null, (e) => e);
-  assert.ok(erreur, 'un rejet non marqué ne peut pas réussir');
-  assert.equal(failureClassOf(erreur), FAILURE_CLASSES.PROGRAMMING_ERROR,
-    'il reste « défaut de notre code » — le lot n’a pas tout converti');
-  assert.equal(erreur.output_contract_violation, undefined, 'et il ne porte pas le marqueur');
-  assert.equal(erreur.all_providers_failed, undefined, 'fail-closed : la chaîne relève l’erreur telle quelle');
+  assert.ok(erreur, 'la sortie amputée ne peut toujours pas réussir : aucun contrat n’a été relâché');
+  assert.notEqual(failureClassOf(erreur), FAILURE_CLASSES.PROGRAMMING_ERROR,
+    'ce n’est plus imputé à NOTRE code : le fournisseur n’a pas respecté un contrat inchangé');
+
+  /* Et sur le chemin HTTP réel — celui que le produit emprunte — le tour aboutit à un état
+     gouverné au lieu de disparaître en 502 sans état. */
+  const reponse = await tour();
+  const corps = await reponse.json();
+  assert.equal(reponse.status, 200, 'le tour aboutit : plus de 502 sans état OPRIE');
+  assert.equal(corps.state, 'degraded_state');
+  assert.equal(corps.role, 'critic');
+  assert.deepEqual(Object.keys(corps).sort(), ['reason', 'role', 'state'], 'DegradedRoleResult canonique');
+  const brut = JSON.stringify(corps);
+  for (const interdit of ['operational_request_ready', 'clarification_required', 'confirmation_required', 'blocked']) {
+    assert.equal(brut.includes(interdit), false, `aucun verdict fabriqué : ${interdit}`);
+  }
 });
 
 test('T-UAF02-10 : la portée du lot est exactement cinq sites, et elle est vérifiable', () => {

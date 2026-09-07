@@ -158,7 +158,18 @@ test('T-CPT01-05 : la sortie provider incomplète est classée structured_output
  * Le fournisseur répond ici parfaitement ; c'est sa charge globale qui viole le contrat de sortie
  * sur un point non marqué. C'est le contre-exemple exact du § 23 : si ce test devenait vert avec un
  * degraded_state, le correctif aurait débordé de sa cause. */
-test('T-CPT01-06 : un rejet structurel NON marqué reste fail-closed en 502, jamais dégradé', async (t) => {
+/* T-CPT01-06 — RÉVISÉ PAR DEEP-OUTPUT-ROBUSTNESS-01 : LE SPÉCIMEN N'EST PLUS NON MARQUÉ.
+ *
+ * CPT-01 avait choisi la charge globale incomplète comme exemple de rejet « non marqué », et écrit
+ * que « le correctif n'a pas tout converti ». C'était exact, et volontaire. DEEP-HAIKU-FIT-01 a
+ * ensuite mesuré ce reste : 7 appels de Critique global sur 14 rendaient une charge amputée, le
+ * modèle s'arrêtant de lui-même bien en dessous de son plafond — jamais une troncature, jamais
+ * notre code. Deux tours sur huit sont sortis en 502 sans aucun état OPRIE.
+ *
+ * CE QUI NE CHANGE PAS : la charge incomplète est toujours refusée, avec le même message, et aucun
+ * état sémantique n'est fabriqué. CE QUI CHANGE : le refus est imputé au fournisseur, et le tour
+ * aboutit à un état dégradé gouverné au lieu de se perdre. */
+test('T-CPT01-06 : une charge globale incomplète est imputée au fournisseur et dégrade proprement', async (t) => {
   silence(t);
   const original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
@@ -170,21 +181,23 @@ test('T-CPT01-06 : un rejet structurel NON marqué reste fail-closed en 502, jam
   };
   const erreur = await runRoleWithHaChain('critic', entreeCritic(), ENV, { order: resolveRoleProviderOrder({}), log: () => {} })
     .then(() => null, (e) => e);
-  assert.ok(erreur, 'un rejet non marqué ne peut pas réussir');
-  assert.equal(failureClassOf(erreur), FAILURE_CLASSES.PROGRAMMING_ERROR,
-    'un rejet non marqué reste « défaut de notre code » — le correctif n’a pas tout converti');
-  assert.equal(erreur.output_contract_violation, undefined, 'et il ne porte pas le marqueur');
-  assert.equal(erreur.all_providers_failed, undefined, 'fail-closed : la chaîne relève l’erreur telle quelle');
+  assert.ok(erreur, 'la charge incomplète est toujours refusée : aucun contrat n’a été relâché');
+  assert.notEqual(failureClassOf(erreur), FAILURE_CLASSES.PROGRAMMING_ERROR,
+    'ce n’est plus « défaut de notre code » : le fournisseur n’a pas honoré un schéma inchangé');
 
-  /* Et de bout en bout, le client reçoit bien un échec TECHNIQUE, pas un état OPRIE. */
+  /* Et de bout en bout, le tour aboutit à un état gouverné au lieu de disparaître. */
   const reponse = await groqWorker.fetch(new Request('https://worker.example/operational-request', {
     method: 'POST', headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
     body: JSON.stringify({ original_request: 'O.', clarification_history: [] })
   }), ENV);
   const corps = await reponse.json();
-  assert.equal(reponse.status, 502);
-  assert.equal(corps.error, 'operational_request_failure');
-  assert.equal('state' in corps, false, 'aucun état sémantique sur un défaut interne');
+  assert.equal(reponse.status, 200, 'plus de 502 sans état OPRIE');
+  assert.equal(corps.state, 'degraded_state');
+  assert.equal(corps.role, 'critic');
+  const brut = JSON.stringify(corps);
+  for (const interdit of ['operational_request_ready', 'clarification_required', 'confirmation_required', 'blocked']) {
+    assert.equal(brut.includes(interdit), false, `aucun verdict fabriqué : ${interdit}`);
+  }
 });
 
 /* T-CPT01-07 — AUCUNE EXCEPTION NON CLASSIFIÉE NE SORT DE CE CHEMIN.

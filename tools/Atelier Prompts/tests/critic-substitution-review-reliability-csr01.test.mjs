@@ -11,7 +11,7 @@ import {
   CRITIC_GLOBAL_SYSTEM_PROMPT, SUBSTITUTION_REVIEW_SYSTEM_PROMPT
 } from "../workers/shared/operational-request-core.js";
 import groqWorker, { runCriticWithGroq, runRoleWithHaChain } from "../workers/groq/src/index.js";
-import { FAILURE_CLASSES, ProviderChainError, failureClassOf } from "../workers/shared/provider-ha.js";
+import { FAILURE_CLASSES, ProviderChainError, failureClassOf, isFailoverEligible } from "../workers/shared/provider-ha.js";
 
 // =================================================================================================
 // CSR-01 — FIABILITÉ DE L'ÉTAPE SUBSTITUTION REVIEW BATCHÉE.
@@ -219,7 +219,21 @@ test("CSR01-8 : une erreur NON marquée reste PROGRAMMING_ERROR -> fail-closed, 
      fournisseur est en cause. Une sortie de modèle non conforme n'est pas notre bug.
      Ce que CSR-01 garde ici — un rejet NON marqué ne bascule jamais — reste vrai et reste gardé :
      seul l'exemple est remplacé par un rejet réellement non marqué (charge globale incomplète,
-     refusée par validateCriticOutput sans marqueur). */
+     refusée par validateCriticOutput sans marqueur).
+
+     DEEP-OUTPUT-ROBUSTNESS-01 — LE SPÉCIMEN CHANGE DE CAMP UNE SECONDE FOIS, POUR LA MÊME RAISON.
+     La charge globale incomplète était le dernier exemple disponible de « rejet non marqué ». Elle
+     ne l'est plus : DEEP-HAIKU-FIT-01 l'a mesurée en production sur 7 appels de Critique sur 14, le
+     modèle s'arrêtant de lui-même entre 10 % et 47 % de son plafond en omettant des champs
+     obligatoires. Une sortie que le fournisseur choisit de ne pas compléter n'est pas notre bug, et
+     deux tours sur huit ont disparu en 502 sans état pour l'avoir compté comme tel.
+
+     L'INVARIANT DE CSR-01 N'EST PAS TOUCHÉ, et reste gardé ci-dessous à l'étage où il vit
+     réellement : la taxonomie. Une erreur sans étiquette est un PROGRAMMING_ERROR, et cette classe
+     n'est pas éligible à la bascule. Ce qui a changé n'est pas la règle — c'est qu'il n'existe plus,
+     sur le chemin fournisseur, de spécimen qui mérite d'y tomber. */
+  assert.equal(isFailoverEligible(FAILURE_CLASSES.PROGRAMMING_ERROR), false,
+    "la règle CSR-01 elle-même : une erreur non étiquetée ne bascule jamais");
   const calls = withProviders(t, {
     groq: ({ schemaName }) => {
       if (schemaName !== "critic_global") return chatOk(batchEntry(["issue1"]));
@@ -228,7 +242,8 @@ test("CSR01-8 : une erreur NON marquée reste PROGRAMMING_ERROR -> fail-closed, 
     anthropic: criticProvider("anthropic")
   });
   await runRoleWithHaChain("critic", criticInput(1), ENV, ORDRE).catch(() => {});
-  assert.ok(!calls.some((c) => c.provider === "anthropic"), "un rejet structurel non marqué ne doit jamais déclencher de bascule.");
+  assert.ok(calls.some((c) => c.provider === "anthropic"),
+    "une charge globale incomplète est une faute du modèle : elle est désormais éligible à la bascule.");
 
   /* Et la frontière, rendue explicite ici même : le cas retiré ci-dessus bascule maintenant,
      parce qu'il est marqué comme violation de contrat du MODÈLE. */

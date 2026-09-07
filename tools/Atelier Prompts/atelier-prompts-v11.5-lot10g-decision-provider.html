@@ -10617,7 +10617,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 3b425ec203435bfa81835ab3f952c0cd63ee27bc839cb539398f71a3135f2ca6
+ * source-sha256: cd4efaaee5346f787a6984fe2c04a74e7c26c1b7447aeda0e70325591f20b761
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -16365,7 +16365,34 @@ async function runCriticBatchedPipeline({ original_request, clarification_histor
     semantic_drift_detected: globalOutput?.semantic_drift_detected === true
   });
   const derived = deriveCriticConsequences({ ...globalOutput, question_substitution_review: gatedReviews });
-  return validateCriticOutput(derived);
+  /* DEEP-OUTPUT-ROBUSTNESS-01 — LA DERNIÈRE ASYMÉTRIE DU CHEMIN CRITIQUE.
+   *
+   * Les deux autres rôles traversent parseRoleOutput, qui étiquette TOUT refus de leur validateur en
+   * STRUCTURED_OUTPUT_INVALID : un Arbitre qui omet `reason` bascule, épuise la chaîne, et finit en
+   * état dégradé gouverné. Le Critique batché n'a jamais eu cette enveloppe. Son refus final
+   * sortait nu, devenait programming_error (« défaut de NOTRE code »), donc ni éligible au failover
+   * ni à la dégradation — et remontait en 502 SANS aucun état OPRIE. Mesuré deux fois sur huit tours
+   * en campagne réelle (DEEP-HAIKU-FIT-01, C5 et C6) : le Critique global n'émettait qu'une partie
+   * de ses champs racine, exactKeys refusait à juste titre, et le tour disparaissait sans état.
+   *
+   * CE PIPELINE NE DÉCIDE TOUJOURS AUCUN ÉTAT (XB-37). Il pose une étiquette de provenance sur une
+   * erreur ; la traduction en état appartient, comme avant, à la couche appelante et à OPRIE.
+   *
+   * LE MARQUEUR NE RELÂCHE RIEN. validateCriticOutput refuse exactement les mêmes sorties, avec
+   * exactement les mêmes messages : aucun champ rendu facultatif, aucun exactKeys assoupli, aucune
+   * valeur par défaut fabriquée. Seule change la réponse à « de qui est la faute » — du fournisseur,
+   * qui n'a pas respecté un contrat que nous ne changeons pas.
+   *
+   * PORTÉE STRICTE. Seul l'appel au validateur est enveloppé. deriveCriticConsequences reste
+   * DEHORS, délibérément : un défaut de notre propre dérivation doit continuer à sortir nu et
+   * bruyant, exactement comme UAF-02 a laissé nus les invariants internes de ses deux fonctions.
+   */
+  try {
+    return validateCriticOutput(derived);
+  } catch (error) {
+    if (error && typeof error === "object") error.output_contract_violation = true;
+    throw error;
+  }
 }
 
 const ARBITER_JSON_SCHEMA = Object.freeze({
@@ -20594,7 +20621,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'3b425ec203435bfa81835ab3f952c0cd63ee27bc839cb539398f71a3135f2ca6'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'cd4efaaee5346f787a6984fe2c04a74e7c26c1b7447aeda0e70325591f20b761'});
 })(window);
 
 

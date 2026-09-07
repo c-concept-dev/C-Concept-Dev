@@ -2023,7 +2023,34 @@ export async function runCriticBatchedPipeline({ original_request, clarification
     semantic_drift_detected: globalOutput?.semantic_drift_detected === true
   });
   const derived = deriveCriticConsequences({ ...globalOutput, question_substitution_review: gatedReviews });
-  return validateCriticOutput(derived);
+  /* DEEP-OUTPUT-ROBUSTNESS-01 — LA DERNIÈRE ASYMÉTRIE DU CHEMIN CRITIQUE.
+   *
+   * Les deux autres rôles traversent parseRoleOutput, qui étiquette TOUT refus de leur validateur en
+   * STRUCTURED_OUTPUT_INVALID : un Arbitre qui omet `reason` bascule, épuise la chaîne, et finit en
+   * état dégradé gouverné. Le Critique batché n'a jamais eu cette enveloppe. Son refus final
+   * sortait nu, devenait programming_error (« défaut de NOTRE code »), donc ni éligible au failover
+   * ni à la dégradation — et remontait en 502 SANS aucun état OPRIE. Mesuré deux fois sur huit tours
+   * en campagne réelle (DEEP-HAIKU-FIT-01, C5 et C6) : le Critique global n'émettait qu'une partie
+   * de ses champs racine, exactKeys refusait à juste titre, et le tour disparaissait sans état.
+   *
+   * CE PIPELINE NE DÉCIDE TOUJOURS AUCUN ÉTAT (XB-37). Il pose une étiquette de provenance sur une
+   * erreur ; la traduction en état appartient, comme avant, à la couche appelante et à OPRIE.
+   *
+   * LE MARQUEUR NE RELÂCHE RIEN. validateCriticOutput refuse exactement les mêmes sorties, avec
+   * exactement les mêmes messages : aucun champ rendu facultatif, aucun exactKeys assoupli, aucune
+   * valeur par défaut fabriquée. Seule change la réponse à « de qui est la faute » — du fournisseur,
+   * qui n'a pas respecté un contrat que nous ne changeons pas.
+   *
+   * PORTÉE STRICTE. Seul l'appel au validateur est enveloppé. deriveCriticConsequences reste
+   * DEHORS, délibérément : un défaut de notre propre dérivation doit continuer à sortir nu et
+   * bruyant, exactement comme UAF-02 a laissé nus les invariants internes de ses deux fonctions.
+   */
+  try {
+    return validateCriticOutput(derived);
+  } catch (error) {
+    if (error && typeof error === "object") error.output_contract_violation = true;
+    throw error;
+  }
 }
 
 export const ARBITER_JSON_SCHEMA = Object.freeze({

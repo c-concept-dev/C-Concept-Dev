@@ -430,16 +430,36 @@ test("ORCH01-19 : une sortie malformée d'analyst ou d'arbiter est rejetée par 
   }
 });
 
-test("ORCH01-19b : une sortie Critic structurellement invalide est FAIL-CLOSED dès le premier fournisseur (CSR-01) — 502 technique, jamais un état sémantique", async (t) => {
+/* ORCH01-19b — RÉVISÉ PAR DEEP-OUTPUT-ROBUSTNESS-01.
+ *
+ * Ce test gardait la conséquence de la classification d'alors : une sortie de Critique hors contrat
+ * était comptée comme un défaut de NOTRE code, donc fail-closed, donc 502 sans état sémantique.
+ * DEEP-HAIKU-FIT-01 a montré ce que cette classification coûte en production — deux tours sur huit
+ * terminés avec semantic_state = null, ni READY, ni clarification, ni dégradation : le tour ne
+ * dégradait pas, il disparaissait.
+ *
+ * CE QUI EST CONSERVÉ MOT POUR MOT : la sortie hors contrat est toujours refusée, aucun état
+ * sémantique n'est fabriqué, et aucun verdict OPRIE n'apparaît. Ce qui change est que l'échec
+ * ABOUTIT désormais à un état gouverné au lieu de se perdre.
+ *
+ * SUR LE MODEL SHOPPING : la chaîne de production ne contient qu'un fournisseur
+ * (ROLE_PROVIDER_ORDER = ["anthropic"]). Aucun autre modèle n'est appelé — l'assertion ci-dessous
+ * le garde toujours. La bascule est ouverte par la taxonomie, elle n'est empruntée par personne. */
+test("ORCH01-19b : une sortie Critic structurellement invalide aboutit à un état gouverné, jamais à un verdict fabriqué", async (t) => {
   withCapturedConsole(t);
   const calls = withProviders(t, { handlers: { critic: (c) => okFor(c, { champ: "inattendu" }) } });
   const response = await groqWorker.fetch(post("/operational-request", INPUT), ENV);
-  assert.equal(response.status, 502);
+  assert.equal(response.status, 200, "le tour aboutit : plus de 502 sans état OPRIE");
   const body = await response.json();
-  assert.equal(body.error, "operational_request_failure");
-  assert.ok(!Object.hasOwn(body, "state"), "un échec technique ne porte jamais d'état sémantique.");
+  assert.equal(body.state, "degraded_state");
+  assert.equal(body.role, "critic");
+  assert.deepEqual(Object.keys(body).sort(), ["reason", "role", "state"], "DegradedRoleResult canonique");
+  const brut = JSON.stringify(body);
+  for (const interdit of ["operational_request_ready", "clarification_required", "confirmation_required", "blocked"]) {
+    assert.equal(brut.includes(interdit), false, `aucun verdict fabriqué : ${interdit}`);
+  }
   assert.deepEqual([...new Set(calls.filter((c) => c.role === "critic").map((c) => c.provider))], ["anthropic"],
-    "aucun model shopping : un défaut de contrat n'est jamais rejoué sur un autre modèle.");
+    "aucun model shopping : la chaîne de production ne contient qu'un fournisseur.");
 });
 
 test("ORCH01-20 : une erreur de programmation est FAIL-CLOSED — jamais traduite en degraded_state", async (t) => {

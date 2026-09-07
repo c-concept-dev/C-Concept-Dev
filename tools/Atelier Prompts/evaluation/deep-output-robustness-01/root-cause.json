@@ -1,0 +1,50 @@
+{
+  "lot": "DEEP-OUTPUT-ROBUSTNESS-01",
+  "question": "QUESTION A — toute sortie structurée invalide aboutit-elle à un état gouverné, jamais à un 502 sans état OPRIE ?",
+  "reponse": "NON avant ce lot, sur un seul chemin. OUI après.",
+  "chaine_causale": [
+    "1. Le Critique global renvoie un objet amputé d'un ou plusieurs de ses six champs racine requis.",
+    "2. runCriticBatchedPipeline assemble globalOutput + gatedReviews et appelle validateCriticOutput.",
+    "3. exactKeys(valueForKeys, CRITIC_OUTPUT_FIELDS, \"CriticOutput\") refuse — à juste titre.",
+    "4. exactKeys lève via `assert`, qui produit un TypeError NU, sans marqueur structurel.",
+    "5. tagCriticPipelineFailure ne voit ni technical_state=partial_failure, ni output_contract_violation : elle laisse l'erreur telle quelle.",
+    "6. failureClassOf, faute d'étiquette, retourne PROGRAMMING_ERROR — « défaut de NOTRE code ».",
+    "7. isFailoverEligible(PROGRAMMING_ERROR) = false : runProviderChain émet provider_ha_fail_closed et relance l'erreur.",
+    "8. L'exception n'est donc JAMAIS une ProviderChainError : degradedResultFromProviderChainError, qui aurait produit l'état gouverné, ne s'applique pas.",
+    "9. handleRoleRequest répond HTTP 502 role_provider_failure, dont le contrat gelé R1-9/R1-10 interdit tout champ state.",
+    "10. Résultat : semantic_state = null. Ni READY, ni clarification, ni degraded_state. Le tour disparaît."
+  ],
+  "asymetrie_qui_est_le_defaut": {
+    "analyst_et_arbiter": "traversent parseRoleOutput (workers/groq/src/index.js), qui étiquette TOUT refus de leur validateur en STRUCTURED_OUTPUT_INVALID — classe éligible au repli. Un Arbitre omettant `reason` bascule, épuise la chaîne, et finit en degraded_state gouverné : c'est exactement ce qui a été observé sur C8 et sur la reproduction de C5.",
+    "critic_batche": "n'a jamais eu cette enveloppe. Son refus final sortait nu. La MÊME faute de contrat produisait donc un état gouverné sur deux rôles et un trou noir sur le troisième.",
+    "lecture": "Le défaut n'était pas que le validateur refuse. C'était que son refus n'avait pas de provenance."
+  },
+  "branche_laissee_ouverte_par_les_lots_anterieurs": {
+    "OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01": "a marqué assertRoleIssueContract et a écrit noir sur blanc : « Ce que ce marqueur ne dit PAS : que tout rejet de validateCriticOutput soit un défaut de modèle. Cette question, plus large, reste ouverte et hors de ce lot. »",
+    "UNTAGGED-ASSERT-FAMILY-02": "a marqué cinq refus de plus dans assembleSubstitutionReviews et mergeCandidateGroups, en laissant délibérément nus les invariants internes. Il n'a pas touché au refus FINAL du pipeline.",
+    "ce_lot": "ferme exactement cette branche, et rien de plus."
+  },
+  "correction": {
+    "fichier": "workers/shared/operational-request-core.js",
+    "fonction": "runCriticBatchedPipeline",
+    "nature": "le seul appel à validateCriticOutput du pipeline est enveloppé ; son refus porte désormais output_contract_violation = true, marqueur déjà lu par tagCriticPipelineFailure depuis UAF-02.",
+    "lignes_ajoutees_hors_commentaire": 6,
+    "portee_stricte": "deriveCriticConsequences reste HORS de l'enveloppe : un défaut de notre propre dérivation doit continuer à sortir nu et bruyant.",
+    "ce_qui_n_a_pas_change": [
+      "aucun champ rendu facultatif",
+      "aucun exactKeys assoupli",
+      "aucune valeur par défaut fabriquée",
+      "aucun message d'erreur modifié (T-DOR01-02 l'épingle)",
+      "aucun prompt touché",
+      "aucun schéma touché",
+      "OPRIE reste seule autorité sémantique : le marqueur ouvre la dégradation, il ne décide d'aucun état"
+    ]
+  },
+  "classification_des_defauts": {
+    "502_sans_etat": "BUG_PIPELINE — corrigé ici",
+    "D1_critic_global_champs_racine_manquants": "MODEL_BEHAVIOR — non corrigeable par un plafond, voir output-limits.json",
+    "D2_substitution_review_tronquee": "LIMIT_OUTPUT — réel, mesuré, mais isolé",
+    "arbiter_reason_manquant": "MODEL_BEHAVIOR",
+    "D3_available_inputs_porte_la_valeur": "MODEL_SEMANTIC_ERROR"
+  }
+}
