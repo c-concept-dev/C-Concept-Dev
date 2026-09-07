@@ -55279,28 +55279,70 @@ var ADOC_PUBLIC_ROUTES = ["/get-file/", "/library-stats", "/sync-check"];
 function adocIsPublicRoute(pathname) {
   return ADOC_PUBLIC_ROUTES.some((r) => r.endsWith("/") ? pathname.startsWith(r) : pathname === r);
 }
-// SEC-HOTFIX-01 — limitation de débit basique par IP, fenêtre glissante par compteur KV.
-// Seuil VOLONTAIREMENT généreux (60 req/min/IP) : l'outil sert deux personnes de confiance,
-// pas un public large — le but est de couper un abus scripté depuis l'extérieur, jamais de
-// gêner un usage normal. Une seule question de génération peut déjà déclencher plusieurs
-// appels internes chaînés (clarification, plan, recherche, rédaction, relances de chapitre
-// pour un document long) : 60/min laisse une large marge même pour un document long à
-// plusieurs chapitres généré en rafale. Ajustable ici si besoin (cf. rapport SEC-HOTFIX-01).
+// SEC-HOTFIX-01/02 — limitation de débit basique par IP. Seuil VOLONTAIREMENT généreux
+// (60 req/min/IP) : l'outil sert deux personnes de confiance, pas un public large — le but est
+// de couper un abus scripté depuis l'extérieur, jamais de gêner un usage normal. Une seule
+// question de génération peut déjà déclencher plusieurs appels internes chaînés (clarification,
+// plan, recherche, rédaction, relances de chapitre pour un document long) : 60/min laisse une
+// large marge même pour un document long à plusieurs chapitres généré en rafale. Ajustable ici
+// si besoin (cf. rapport SEC-HOTFIX-01).
 var ADOC_RATE_LIMIT_MAX = 60;
 var ADOC_RATE_LIMIT_WINDOW_S = 60;
+// Audit systémique (SEC-HOTFIX-02) — deux limites documentées, non corrigées entièrement :
+//  1. Fenêtre RÉELLEMENT glissante (algorithme "sliding window counter" : le compteur du bucket
+//     précédent est pondéré par sa fraction de chevauchement encore couverte) — corrige le bug
+//     réel de la version précédente, qui calculait une fenêtre FIXE malgré son commentaire.
+//     Coût : une lecture KV supplémentaire par requête (toujours 1 put), jugé raisonnable au
+//     seuil et au volume de cet outil.
+//  2. Non-atomicité get→calcul→put : Cloudflare KV n'offre AUCUNE primitive d'incrémentation
+//     atomique ni de comparaison-et-échange (ça nécessiterait un Durable Object dédié — hors
+//     périmètre de ce lot). Deux requêtes strictement concurrentes de la même IP peuvent donc
+//     lire le même compteur avant que l'une des deux n'écrive, sous-comptant le quota d'au plus
+//     quelques requêtes par rafale. LIMITE CONNUE, acceptée : seuil généreux, deux utilisateurs
+//     de confiance, but est de couper un abus scripté grossier — pas une garantie stricte.
 async function adocCheckRateLimit(env2, ip) {
   // Jamais bloquant si KV indisponible ou IP non identifiable — un problème d'infrastructure
   // ne doit jamais se traduire par un blocage total de l'outil.
   if (!env2.CLONE_KV || !ip) return true;
-  const bucket = Math.floor(Date.now() / (ADOC_RATE_LIMIT_WINDOW_S * 1e3));
-  const key = `ratelimit:${ip}:${bucket}`;
+  const now = Date.now();
+  const windowMs = ADOC_RATE_LIMIT_WINDOW_S * 1e3;
+  const currentBucket = Math.floor(now / windowMs);
+  const elapsedFraction = (now % windowMs) / windowMs; // 0..1 — progression dans le bucket courant
+  const currentKey = `ratelimit:${ip}:${currentBucket}`;
+  const prevKey = `ratelimit:${ip}:${currentBucket - 1}`;
+  let currentCount = 0, prevCount = 0;
+  try {
+    const [c, p] = await Promise.all([env2.CLONE_KV.get(currentKey), env2.CLONE_KV.get(prevKey)]);
+    currentCount = parseInt(c || "0", 10) || 0;
+    prevCount = parseInt(p || "0", 10) || 0;
+  } catch { return true; }
+  const estimated = currentCount + prevCount * (1 - elapsedFraction);
+  if (estimated >= ADOC_RATE_LIMIT_MAX) return false;
+  try {
+    await env2.CLONE_KV.put(currentKey, String(currentCount + 1), { expirationTtl: ADOC_RATE_LIMIT_WINDOW_S * 2 });
+  } catch {}
+  return true;
+}
+// Audit systémique (Priorité 8.5) — /sync-check est publique par construction (cf.
+// ADOC_PUBLIC_ROUTES ci-dessus), donc entièrement hors du rate-limit générique par défaut (qui
+// ne s'applique qu'aux routes protégées par X-API-Key, sautées d'office pour toute route
+// publique). Limite dédiée, volontairement plus stricte (elle n'a pas besoin d'être aussi
+// permissive que les routes authentifiées) et namespace KV séparé — jamais derrière X-API-Key,
+// elle doit rester publique par conception. Fenêtre fixe simple (pas la version glissante du
+// limiteur générique ci-dessus) : volume et enjeu bien moindres pour cette route de diagnostic.
+var ADOC_SYNC_CHECK_RATE_LIMIT_MAX = 10;
+var ADOC_SYNC_CHECK_RATE_LIMIT_WINDOW_S = 60;
+async function adocCheckSyncCheckRateLimit(env2, ip) {
+  if (!env2.CLONE_KV || !ip) return true;
+  const bucket = Math.floor(Date.now() / (ADOC_SYNC_CHECK_RATE_LIMIT_WINDOW_S * 1e3));
+  const key = `ratelimit:sync-check:${ip}:${bucket}`;
   let current = 0;
   try {
     current = parseInt(await env2.CLONE_KV.get(key) || "0", 10) || 0;
   } catch { return true; }
-  if (current >= ADOC_RATE_LIMIT_MAX) return false;
+  if (current >= ADOC_SYNC_CHECK_RATE_LIMIT_MAX) return false;
   try {
-    await env2.CLONE_KV.put(key, String(current + 1), { expirationTtl: ADOC_RATE_LIMIT_WINDOW_S * 2 });
+    await env2.CLONE_KV.put(key, String(current + 1), { expirationTtl: ADOC_SYNC_CHECK_RATE_LIMIT_WINDOW_S * 2 });
   } catch {}
   return true;
 }
@@ -55383,8 +55425,13 @@ var Worker_default = {
       return handleSessionLoad(request2, env2);
     if (p === "/session-list" && request2.method === "POST")
       return handleSessionList(request2, env2);
-    if (p === "/sync-check" && request2.method === "GET")
+    if (p === "/sync-check" && request2.method === "GET") {
+      const ip = request2.headers.get("CF-Connecting-IP") || "unknown";
+      const withinLimit = await adocCheckSyncCheckRateLimit(env2, ip);
+      if (!withinLimit)
+        return new Response(JSON.stringify({ error: "Too many requests — réessayez dans une minute." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
       return handleSyncCheck(request2, env2);
+    }
     if (p === "/rag-search" && request2.method === "POST")
       return handleRagSearch(request2, env2);
     if (p === "/rag-stats" && request2.method === "GET")
@@ -55449,7 +55496,13 @@ var Worker_default = {
       return handleBrandKitGet(env2, brandKitIdMatch[1]);
     if (p === "/brand-assets/upload" && request2.method === "POST")
       return handleBrandAssetUpload(request2, env2);
-    if (request2.method === "POST")
+    // Audit systémique (Priorité 8.7) — CONFIRMÉ : tout POST non reconnu par une route explicite
+    // ci-dessus tombait silencieusement dans handleAnthropicProxy, tentant un appel LLM réel
+    // avec un corps qui ne lui était pas destiné. Le seul appel légitime au proxy Anthropic est
+    // un POST à la racine (le client appelle toujours workerUrl SANS suffixe de chemin, cf.
+    // adocGenerateStructuredFiche/adocPlanQuery/etc.) — tout autre chemin POST inconnu reçoit
+    // désormais un 404 clair, jamais un appel LLM implicite.
+    if (p === "/" && request2.method === "POST")
       return handleAnthropicProxy(request2, env2);
     return jsonErr("Not found", 404);
   }
@@ -55815,14 +55868,42 @@ var CLINICAL_DOCUMENT_KINDS = ["fiche", "carrousel", "tableau", "script", "liens
 // ClinicalDocument fabriqué après coup à partir du HTML). Toute ligne créée avant ce lot est
 // 'structured' par construction (seule forme persistable jusqu'ici) — voir migration 0005.
 var GENERATION_ENGINES = ["structured", "legacy-html"];
-function adocValidateClinicalDocumentPayload(document, generationEngine) {
+// Audit systémique (Priorité 7) — CONSTAT CONFIRMÉ : pour un document 'structured', seule la
+// présence de document.clinicalDocument comme objet était vérifiée — aucune validation du
+// schéma réel, du SourceSnapshot, ni de la cohérence documentKind externe/interne. Le client
+// valide intégralement via AJV avant tout rendu, mais un appel direct au Worker (contournant le
+// client) pouvait persister un objet incompatible avec le contrat réel. Validation manuelle
+// légère ci-dessous (pas d'AJV côté Worker — poids inutile pour ce besoin, et son schéma complet
+// vit côté client) : deuxième ligne de défense, pas un remplacement de la validation client.
+var CLINICAL_DOCUMENT_BLOCK_TYPES = ["heading", "paragraph", "callout", "list", "table", "quote", "card", "image"];
+function adocValidateStructuredClinicalDocument(document, documentKind) {
+  const doc = document.clinicalDocument;
+  if (!doc || typeof doc !== "object") return "document.clinicalDocument requis pour generationEngine='structured'";
+  if (typeof doc.title !== "string" || !doc.title.trim()) return "document.clinicalDocument.title (string non vide) requis";
+  if (!Array.isArray(doc.blocks) || !doc.blocks.length) return "document.clinicalDocument.blocks (tableau non vide) requis";
+  for (let i = 0; i < doc.blocks.length; i++) {
+    const b = doc.blocks[i];
+    if (!b || typeof b !== "object") return "document.clinicalDocument.blocks[" + i + "] doit être un objet";
+    if (typeof b.id !== "string" || !b.id) return "document.clinicalDocument.blocks[" + i + "].id (string non vide) requis";
+    if (typeof b.type !== "string" || !CLINICAL_DOCUMENT_BLOCK_TYPES.includes(b.type)) return "document.clinicalDocument.blocks[" + i + "].type invalide";
+    if (!b.content || typeof b.content !== "object") return "document.clinicalDocument.blocks[" + i + "].content requis";
+  }
+  if (!CLINICAL_DOCUMENT_KINDS.includes(doc.documentKind)) return "document.clinicalDocument.documentKind invalide";
+  if (documentKind && doc.documentKind !== documentKind) return 'documentKind ("' + documentKind + '") incohérent avec document.clinicalDocument.documentKind ("' + doc.documentKind + '")';
+  const snap = document.sourceSnapshot;
+  if (!snap || typeof snap !== "object") return "document.sourceSnapshot requis pour generationEngine='structured'";
+  if (typeof snap.sourceSnapshotId !== "string" || !snap.sourceSnapshotId) return "document.sourceSnapshot.sourceSnapshotId (string non vide) requis";
+  if (!Array.isArray(snap.entries)) return "document.sourceSnapshot.entries (tableau) requis";
+  return null;
+}
+__name(adocValidateStructuredClinicalDocument, "adocValidateStructuredClinicalDocument");
+function adocValidateClinicalDocumentPayload(document, generationEngine, documentKind) {
   if (generationEngine === "legacy-html") {
     if (typeof document.html !== "string" || !document.html.trim()) return "document.html (string non vide) requis pour generationEngine='legacy-html'";
     if (!document.sourceSnapshot || typeof document.sourceSnapshot !== "object") return "document.sourceSnapshot requis pour generationEngine='legacy-html'";
     return null;
   }
-  if (!document.clinicalDocument || typeof document.clinicalDocument !== "object") return "document.clinicalDocument requis pour generationEngine='structured'";
-  return null;
+  return adocValidateStructuredClinicalDocument(document, documentKind);
 }
 __name(adocValidateClinicalDocumentPayload, "adocValidateClinicalDocumentPayload");
 
@@ -55855,7 +55936,7 @@ async function handleClinicalDocumentCreate(request2, env2) {
     return jsonErr("documentKind must be one of: " + CLINICAL_DOCUMENT_KINDS.join(", "), 400);
   const engine = generationEngine || "structured";
   if (!GENERATION_ENGINES.includes(engine)) return jsonErr("generationEngine must be one of: " + GENERATION_ENGINES.join(", "), 400);
-  const validationErr = adocValidateClinicalDocumentPayload(document, engine);
+  const validationErr = adocValidateClinicalDocumentPayload(document, engine, documentKind);
   if (validationErr) return jsonErr(validationErr, 400);
   const schemaVersion = typeof document.schemaVersion === "number" ? document.schemaVersion : 1;
 
@@ -55893,7 +55974,7 @@ async function handleClinicalDocumentVersionCreate(request2, env2, documentId) {
 
   let existing;
   try {
-    existing = await env2.DB.prepare("SELECT document_id, current_version_id, generation_engine FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+    existing = await env2.DB.prepare("SELECT document_id, current_version_id, generation_engine, document_kind FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
@@ -55901,9 +55982,11 @@ async function handleClinicalDocumentVersionCreate(request2, env2, documentId) {
 
   // Le moteur de génération est une propriété du DOCUMENT, fixée à sa création — une nouvelle
   // version ne peut jamais en changer (un document structuré reste structuré, un document de
-  // repli reste HTML), jamais lu depuis le corps de la requête.
+  // repli reste HTML), jamais lu depuis le corps de la requête. Même principe étendu ici
+  // (Priorité 7) au documentKind : toujours celui déjà enregistré sur le document, jamais une
+  // valeur du corps de la requête qui pourrait diverger.
   const engine = existing.generation_engine || "structured";
-  const validationErr = adocValidateClinicalDocumentPayload(document, engine);
+  const validationErr = adocValidateClinicalDocumentPayload(document, engine, existing.document_kind);
   if (validationErr) return jsonErr(validationErr, 400);
 
   const schemaVersion = typeof document.schemaVersion === "number" ? document.schemaVersion : 1;
@@ -56474,7 +56557,11 @@ async function handleStoreFile(request2, env2) {
   const { content, filename, mime } = body;
   if (!content)
     return jsonErr("Missing content", 400);
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  // Audit systémique (Priorité 8.4) — Date.now()+Math.random() n'est PAS un identifiant
+  // cryptographiquement imprévisible (Math.random() n'est pas garanti CSPRNG, et l'horodatage
+  // réduit encore l'espace de recherche) : renforcé avec crypto.randomUUID() (disponible
+  // nativement dans l'environnement Worker), même TTL d'une heure conservé.
+  const id = crypto.randomUUID();
   const meta = JSON.stringify({ filename: filename || "document", mime: mime || "text/html;charset=utf-8" });
   await env2.CLONE_KV.put("file:" + id, content, { expirationTtl: 3600 });
   await env2.CLONE_KV.put("meta:" + id, meta, { expirationTtl: 3600 });
@@ -56509,7 +56596,10 @@ __name(handleGetFile, "handleGetFile");
 async function storeAndReturn(env2, buffer2, filename, mime, ttl = 3600) {
   if (!env2.CLONE_KV)
     return jsonErr("CLONE_KV binding not configured", 500);
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  // Audit systémique (Priorité 8.4) — même correctif que handleStoreFile ci-dessus, même bug
+  // dupliqué ici (surface plus large : tous les fichiers générés PDF/DOCX/PPTX/XLSX/ZIP passent
+  // par cette fonction).
+  const id = crypto.randomUUID();
   const meta = JSON.stringify({ filename, mime });
   await env2.CLONE_KV.put("file:" + id, buffer2, { expirationTtl: ttl });
   await env2.CLONE_KV.put("meta:" + id, meta, { expirationTtl: ttl });
@@ -57240,6 +57330,27 @@ async function handleFetchImage(url, env2) {
 }
 __name(handleFetchImage, "handleFetchImage");
 var SESSION_TTL = 30 * 24 * 3600;
+// Audit systémique (Priorité 6) — CONSTAT CONFIRMÉ : l'ancien stockage lisait l'historique
+// complet, le modifiait localement puis réécrivait L'INTÉGRALITÉ de la valeur sous une clé
+// UNIQUE par patient — deux sauvegardes concurrentes de la même session pouvaient se marcher
+// dessus, la dernière écriture effaçant silencieusement l'autre. Cloudflare KV standard n'offre
+// AUCUNE primitive de comparaison-et-échange (il faudrait un Durable Object dédié pour un vrai
+// verrou — hors périmètre de ce lot).
+// Une vérification optimiste (relire juste avant d'écrire, réessayer si la valeur a changé) a
+// été implémentée et testée EN PREMIER : elle réduit la fenêtre de course mais ne l'ÉLIMINE PAS
+// — vérifié empiriquement par un test de course simulée avec latence réseau réaliste (deux
+// sauvegardes dont les deux put() sont physiquement "en vol" en même temps peuvent se marcher
+// dessus sans qu'aucune relecture ne l'ait jamais détecté, puisqu'aucune des deux n'observe
+// l'écriture de l'autre avant d'avoir déjà émis la sienne) : l'entrée perdue réapparaissait sur
+// environ 1 essai sur 3 dans ce test. Une vérification optimiste ne peut structurellement PAS
+// garantir l'absence de perte sans une primitive de verrouillage réelle.
+// Choix retenu à la place : stockage APPEND-ONLY — chaque sauvegarde écrit sa PROPRE clé unique
+// (jamais de lecture avant écriture, donc AUCUNE fenêtre de course possible, quel que soit
+// l'entrelacement réel). handleSessionLoad reconstruit l'historique en listant puis agrégeant
+// les entrées. Conséquence assumée et nécessaire (pas une extension gratuite du lot) :
+// handleSessionList, qui partage le même espace de clés KV, doit regrouper par patient au lieu
+// de lire une ligne par clé — aucun appelant direct de cette route trouvé dans ce client (cf.
+// rapport), traité en conséquence directe de ce choix de stockage, jamais touché pour lui-même.
 async function handleSessionSave(request2, env2) {
   if (!env2.CLONE_KV)
     return jsonErr("KV binding CLONE_KV not configured", 500);
@@ -57254,24 +57365,22 @@ async function handleSessionSave(request2, env2) {
     return jsonErr("Missing patientId", 400);
   if (!summary)
     return jsonErr("Missing summary", 400);
-  const key = therapistId ? "session:" + therapistId + ":" + patientId : "session:" + patientId;
-  const existing = await env2.CLONE_KV.get(key);
-  let history = [];
-  if (existing) {
-    try {
-      history = JSON.parse(existing).history || [];
-    } catch {
-    }
-  }
-  history.unshift({ date: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10), summary });
-  if (history.length > 10)
-    history = history.slice(0, 10);
-  await env2.CLONE_KV.put(
-    key,
-    JSON.stringify({ patientId, history, updated: (/* @__PURE__ */ new Date()).toISOString() }),
-    { expirationTtl: SESSION_TTL }
-  );
-  return json({ ok: true, patientId, sessions: history.length });
+  const now = /* @__PURE__ */ new Date();
+  const prefix = therapistId ? "session:" + therapistId + ":" + patientId : "session:" + patientId;
+  const entryKey = prefix + ":" + crypto.randomUUID();
+  const entry = { date: now.toISOString().slice(0, 10), summary, savedAt: now.toISOString() };
+  // Écriture UNIQUE, sans aucune lecture préalable : rien à comparer, rien à écraser, donc
+  // aucune fenêtre de course possible entre deux sauvegardes concurrentes.
+  await env2.CLONE_KV.put(entryKey, JSON.stringify(entry), { expirationTtl: SESSION_TTL });
+  // Décompte informatif uniquement (affiché tel quel côté client) — best-effort : list() peut
+  // être en retard d'une écriture toute récente (cohérence éventuelle standard de KV), jamais
+  // bloquant, jamais une cause d'échec de la sauvegarde elle-même (déjà actée ci-dessus).
+  let sessionsCount = 1;
+  try {
+    const listed = await env2.CLONE_KV.list({ prefix: prefix + ":" });
+    sessionsCount = (listed.keys || []).length || 1;
+  } catch {}
+  return json({ ok: true, patientId, sessions: sessionsCount });
 }
 __name(handleSessionSave, "handleSessionSave");
 async function handleSessionLoad(request2, env2) {
@@ -57286,15 +57395,31 @@ async function handleSessionLoad(request2, env2) {
   const { patientId, therapistId } = body;
   if (!patientId)
     return jsonErr("Missing patientId", 400);
-  const kvKey = therapistId ? "session:" + therapistId + ":" + patientId : "session:" + patientId;
-  const raw = await env2.CLONE_KV.get(kvKey);
-  if (!raw)
-    return json({ patientId, history: [], found: false });
+  const prefix = (therapistId ? "session:" + therapistId + ":" + patientId : "session:" + patientId) + ":";
+  let keys;
   try {
-    return json({ ...JSON.parse(raw), found: true });
-  } catch {
-    return jsonErr("Corrupted session data", 500);
+    const listed = await env2.CLONE_KV.list({ prefix });
+    keys = listed.keys || [];
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
   }
+  if (!keys.length)
+    return json({ patientId, history: [], found: false });
+  const entries = [];
+  for (const k of keys) {
+    try {
+      const raw = await env2.CLONE_KV.get(k.name);
+      if (raw) entries.push(JSON.parse(raw));
+    } catch {
+      // une entrée corrompue/illisible ne doit jamais faire échouer tout le chargement des
+      // autres — ignorée, jamais un 500 pour une seule mauvaise clé parmi d'autres valides.
+    }
+  }
+  // Tri par savedAt (horodatage complet) — jamais par `date` seul (granularité jour), qui
+  // perdrait l'ordre exact de plusieurs sauvegardes survenues le même jour.
+  entries.sort((a, b) => (b.savedAt || b.date || "").localeCompare(a.savedAt || a.date || ""));
+  const history = entries.slice(0, 10);
+  return json({ patientId, history, found: true });
 }
 __name(handleSessionLoad, "handleSessionLoad");
 async function handleSessionList(request2, env2) {
@@ -57308,24 +57433,37 @@ async function handleSessionList(request2, env2) {
   const therapistId2 = body2?.therapistId;
   const prefix = therapistId2 ? "session:" + therapistId2 + ":" : "session:";
   const list = await env2.CLONE_KV.list({ prefix });
-  const keys = (list.keys || []).map((k) => {
-    const raw = k.name.replace("session:", "");
+  // Regroupement par patient (une clé PAR sauvegarde désormais, cf. commentaire ci-dessus) :
+  // 2 segments après "session:" = patientId:entryId (pas de thérapeute) ; 3 segments =
+  // therapistId:patientId:entryId. Toute clé à la forme inattendue est ignorée proprement,
+  // jamais un crash.
+  const groups = /* @__PURE__ */ new Map();
+  for (const k of list.keys || []) {
+    const raw = k.name.startsWith("session:") ? k.name.slice("session:".length) : k.name;
     const parts = raw.split(":");
-    return {
-      patientId: parts.length > 1 ? parts.slice(1).join(":") : parts[0],
-      therapistId: parts.length > 1 ? parts[0] : null,
-      key: k.name,
-      expiration: k.expiration
-    };
-  });
-  return json({ sessions: keys, count: keys.length });
+    if (parts.length < 2) continue;
+    const therapistId = parts.length >= 3 ? parts[0] : null;
+    const patientId = parts.length >= 3 ? parts[1] : parts[0];
+    const groupKey = (therapistId || "") + "\0" + patientId;
+    const existing = groups.get(groupKey);
+    if (existing) {
+      existing.sessionCount++;
+      if ((k.expiration || 0) > (existing.expiration || 0)) existing.expiration = k.expiration;
+    } else {
+      groups.set(groupKey, { patientId, therapistId, sessionCount: 1, expiration: k.expiration });
+    }
+  }
+  const sessions = Array.from(groups.values());
+  return json({ sessions, count: sessions.length });
 }
 __name(handleSessionList, "handleSessionList");
 async function handleSyncCheck(request2, env2) {
   if (!env2.DB)
     return jsonErr("D1 not configured", 500);
-  if (!env2.AI)
-    return jsonErr("AI binding not configured (needed for test embed)", 500);
+  // Audit systémique (Priorité 8.6) — CONFIRMÉ : cette fonction ne consulte que D1 et
+  // VECTOR_INDEX (getByIds ci-dessous, jamais un embed/query nécessitant env2.AI). La
+  // vérification de env2.AI retirée ici bloquait inutilement la route si ce binding n'était pas
+  // configuré, sans qu'il soit jamais utilisé.
   if (!env2.VECTOR_INDEX)
     return jsonErr("VECTOR_INDEX not configured", 500);
   try {

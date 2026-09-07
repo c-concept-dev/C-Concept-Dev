@@ -3039,14 +3039,30 @@
   // ici) — un jeton statique visible dans le source suffit pour ce seul objectif. Même
   // schéma de surcharge que adocGetWorkerUrl() ci-dessus, pour permettre une rotation sans
   // republier ce fichier si besoin.
+  // SEC-HOTFIX-02 — plus aucun secret en dur ici : un fichier HTML statique servi publiquement
+  // (GitHub Pages) ne peut jamais garder une clé réellement secrète, une valeur littérale ici
+  // serait visible par quiconque affiche le source. Cette clé doit désormais être définie UNE
+  // FOIS, hors du fichier, via la console navigateur : localStorage.setItem('workerApiKey', '...')
+  // (ou par un futur écran de réglages, hors périmètre de ce lot). Sans elle, adocGetApiKey()
+  // renvoie null — jamais un échec silencieux, un message clair est affiché une fois (voir
+  // _adocWarnMissingApiKey ci-dessous).
+  let _adocApiKeyWarningShown = false;
+  function _adocWarnMissingApiKey() {
+    if (_adocApiKeyWarningShown) return;
+    _adocApiKeyWarningShown = true;
+    console.warn("[Sécurité] Clé d'accès Worker non configurée — définissez-la via localStorage.setItem('workerApiKey', '...') dans la console du navigateur.");
+    try { alert("Clé d'accès non configurée — voir réglages.\n\nDéfinissez-la une fois dans la console du navigateur :\nlocalStorage.setItem('workerApiKey', 'votre-clé')"); } catch (_) {}
+  }
   function adocGetApiKey() {
-    return (
+    const key = (
       window.conversationalSystem?.WORKER_API_KEY ||
       window._therapyWorkerApiKey ||
       window.CONFIG?.WORKER_API_KEY ||
       localStorage.getItem('workerApiKey') ||
-      '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8'
+      null
     );
+    if (!key) _adocWarnMissingApiKey();
+    return key;
   }
 
   // N2 — Charger dossier patient depuis le système thérapeutique
@@ -3543,9 +3559,14 @@
       const _iT = (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
         : (ql.includes('support visuel') || ql.includes('conf') || ql.includes('page web')) ? 'document'
         : (ql.includes('cours') || ql.includes('formation')) ? 'cours'
-        : (ql.includes('fiche') || ql.includes('carrousel')) ? 'fiche'
+        // Audit systémique (Priorité 8.1) — 'carrousel' est une intention distincte reconnue par
+        // le planner (cf. plannerSystem ci-dessus) : ce repli local la transformait silencieusement
+        // en 'fiche' HTML dès qu'elle était explicitement demandée, alors même que la demande la
+        // nommait. Vérifiée en premier pour ne pas être masquée par le test 'fiche' générique.
+        : ql.includes('carrousel') ? 'carrousel'
+        : ql.includes('fiche') ? 'fiche'
         : 'chat';
-      const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',chat:'chat'}[_iT]||'chat';
+      const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
       const _tw = q.replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
       const _w0 = (q.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-z]/gi,'');
       // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
@@ -4530,6 +4551,31 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         } catch (e) { /* SSE malformée */ }
       }
     }
+    // Audit systémique (Priorité 5.2) — même reliquat final que le moteur principal (cf. plus
+    // bas dans adocSend) : contBuffer conserve le dernier fragment SSE resté sans retour à la
+    // ligne à chaque itération, mais n'était jamais traité une fois la boucle terminée — le tout
+    // dernier text_delta (voire le stop_reason final) pouvait être perdu si le flux se ferme
+    // sans '\n' terminal.
+    if (contBuffer && contBuffer.startsWith('data: ')) {
+      const _leftover = contBuffer.slice(6).trim();
+      if (_leftover && _leftover !== '[DONE]') {
+        let ce = null;
+        try { ce = JSON.parse(_leftover); } catch (e) { /* dernier fragment illisible — ignorer */ }
+        if (ce) {
+          if (ce.type === 'error') {
+            console.warn('[Continuation] Stream error reçu d\'Anthropic (dernier fragment), arrêt propre de cette suite:', ce.error && ce.error.message);
+          } else {
+            if (ce.type === 'content_block_delta' && ce.delta?.type === 'text_delta') {
+              contChunk += ce.delta.text;
+            }
+            if (ce.type === 'message_delta') {
+              if (ce.usage && adocLastUsage) adocLastUsage.output += ce.usage.output_tokens || 0;
+              if (ce.delta?.stop_reason) stopReason = ce.delta.stop_reason;
+            }
+          }
+        }
+      }
+    }
     const newReply = reply + contChunk;
     adocUpdateStreamMsg(streamMsgId, newReply);
     return { reply: newReply, stopReason };
@@ -4553,7 +4599,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           _adocGenerationEngine: 'legacy-html',
           _adocLegacySourceSnapshot: _legacySnapshot,
           _adocDocumentKind: 'fiche',
-          _adocCapabilities: { workspace: true, persist: true, fineCitations: false, blockEditing: false, transform: false },
+          // Audit systémique (Priorité 8.2) — export:true (un repli legacy-html s'exporte bien,
+          // en téléchargement direct du HTML déjà figé) mais qualityControlledExport:false (pas
+          // de re-rendu/QC pour ce moteur, cf. commentaire Partie B point 12 plus bas) : les
+          // points d'export (carte/barre latérale) se fient désormais à ce booléen plutôt qu'à
+          // un test binaire direct sur _adocStructuredDoc.
+          _adocCapabilities: { workspace: true, persist: true, fineCitations: false, blockEditing: false, transform: false, export: true, qualityControlledExport: false },
         });
       } catch (_snapErr) {
         console.warn('[Audit Partie B] SourceSnapshot de repli non construit, document non étiqueté legacy-html:', _snapErr && _snapErr.message);
@@ -4602,6 +4653,16 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   function adocRemoveContinueChoice(streamMsgId) {
     document.getElementById('cc-continue-' + streamMsgId)?.remove();
   }
+  // Audit systémique (Priorité 2) — nettoyage commun de fin d'envoi (drapeau adocThinking +
+  // réactivation du bouton d'envoi), factorisé pour ne pas dupliquer une troisième fois cette
+  // séquence déjà recopiée manuellement une fois (chemin structuré, lot précédent) en plus du
+  // chemin legacy en fin de adocSend. Tout NOUVEAU point de sortie qui doit relâcher l'interface
+  // doit appeler ceci plutôt que recopier les deux lignes.
+  function _adocResetSendState() {
+    adocThinking = false;
+    const btn = document.getElementById('adoc-send-btn');
+    if (btn) btn.disabled = false;
+  }
   // Phase B0 (suite) — désactive les deux boutons dès le clic et remplace le
   // texte par un état "en cours", pour qu'un double-clic ne puisse plus rien
   // déclencher (les boutons n'existent déjà plus dans le DOM au 2ᵉ clic).
@@ -4631,22 +4692,32 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (sendBtn) sendBtn.disabled = true;
     adocSetContinueBusy(streamMsgId);
 
-    state.round++;
-    const result = await adocRunContinuationRound({
-      streamMsgId, workerUrl: state.workerUrl, MODEL: state.MODEL,
-      systemPrompt: state.systemPrompt, contBaseMessages: state.contBaseMessages,
-      reply: state.reply, roundLabel: 'suite ' + state.round
-    });
-    state.reply = result.reply;
-    state.busy = false;
-    adocThinking = false;
-    if (sendBtn) sendBtn.disabled = false;
+    // Audit systémique (Priorité 2.2) — le verrouillage ci-dessus était posé sans try/finally :
+    // une exception levée par adocRunContinuationRound (ou par adocFinalizeGeneration ensuite)
+    // laissait state.busy/adocThinking/le bouton d'envoi verrouillés en permanence, sans aucun
+    // moyen de s'en remettre autrement qu'en rechargeant la page.
+    try {
+      state.round++;
+      const result = await adocRunContinuationRound({
+        streamMsgId, workerUrl: state.workerUrl, MODEL: state.MODEL,
+        systemPrompt: state.systemPrompt, contBaseMessages: state.contBaseMessages,
+        reply: state.reply, roundLabel: 'suite ' + state.round
+      });
+      state.reply = result.reply;
 
-    if (result.stopReason === 'max_tokens') {
-      adocRenderContinueChoice(streamMsgId);
-    } else {
-      delete window._adocPendingContinuations[streamMsgId];
-      await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult, state.fellBackFromStructured);
+      if (result.stopReason === 'max_tokens') {
+        adocRenderContinueChoice(streamMsgId);
+      } else {
+        delete window._adocPendingContinuations[streamMsgId];
+        await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult, state.fellBackFromStructured);
+      }
+    } catch (e) {
+      console.warn('[Continuation] Exception pendant la suite de rédaction, interface déverrouillée malgré tout:', e && e.message);
+      adocAddMsg('assistant', `Erreur : ${e.message}`, []);
+    } finally {
+      state.busy = false;
+      adocThinking = false;
+      if (sendBtn) sendBtn.disabled = false;
     }
   };
 
@@ -4659,9 +4730,18 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (sendBtn) sendBtn.disabled = true;
     adocRemoveContinueChoice(streamMsgId);
     delete window._adocPendingContinuations[streamMsgId];
-    await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult, state.fellBackFromStructured);
-    adocThinking = false;
-    if (sendBtn) sendBtn.disabled = false;
+    // Audit systémique (Priorité 2.3) — même défaut que adocContinueGeneration : verrouillage
+    // sans try/finally autour d'un await, une exception d'adocFinalizeGeneration bloquait
+    // l'interface en permanence.
+    try {
+      await adocFinalizeGeneration(streamMsgId, state.reply, state.plan, state.ragResult, state.fellBackFromStructured);
+    } catch (e) {
+      console.warn('[KeepAsIs] Exception pendant la finalisation, interface déverrouillée malgré tout:', e && e.message);
+      adocAddMsg('assistant', `Erreur : ${e.message}`, []);
+    } finally {
+      adocThinking = false;
+      if (sendBtn) sendBtn.disabled = false;
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -4824,9 +4904,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         const _iT = (_q.includes('excel') || _q.includes('comparatif') || _q.includes('tableau')) ? 'tableau'
           : (_q.includes('support visuel') || _q.includes('page web')) ? 'document'
           : (_q.includes('cours') || _q.includes('formation')) ? 'cours'
-          : (_q.includes('fiche') || _q.includes('carrousel')) ? 'fiche'
+          // Audit systémique (Priorité 8.1) — même correctif que adocMultiPlan ci-dessus :
+          // 'carrousel' préservé comme intention distincte, jamais silencieusement transformé
+          // en 'fiche' HTML.
+          : _q.includes('carrousel') ? 'carrousel'
+          : _q.includes('fiche') ? 'fiche'
           : 'chat';
-        const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',chat:'chat'}[_iT]||'chat';
+        const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
         const _tw = text.replace(/[^a-z0-9\u00C0-\u024F\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
         const _w0 = text.split(/\s+/)[0] || 'therapie';
         // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
@@ -5004,6 +5088,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           adocExchangeCount++;
           if (adocExchangeCount % 4 === 0) adocAccumulateSessionContext(plan, fullDocResult).catch(()=>{});
           if (adocKvPatientId && adocExchangeCount % 3 === 0) adocKvAutoSave().catch(()=>{});
+          // Audit systémique (Priorité 2.1) — ce `return` sautait le nettoyage commun de fin
+          // de adocSend (drapeau adocThinking, bouton d'envoi) : un document long réussi
+          // laissait le bouton d'envoi désactivé indéfiniment, exactement le même défaut déjà
+          // corrigé pour le chemin structuré ci-dessous.
+          _adocResetSendState();
+          input.focus();
           return;
         }
         // Si adocLongDoc échoue → fallback vers stream normal ci-dessous
@@ -5074,9 +5164,9 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           if (adocExchangeCount % 4 === 0) adocAccumulateSessionContext(plan, _struct.doc.title).catch(()=>{});
           // Correctif BUG 1 : un `return` nu ici sautait le nettoyage commun en bas de
           // fonction (drapeau adocThinking, bouton d'envoi, focus) — le bouton restait
-          // désactivé indéfiniment après une génération structurée réussie.
-          adocThinking = false;
-          document.getElementById('adoc-send-btn').disabled = false;
+          // désactivé indéfiniment après une génération structurée réussie. Factorisé
+          // (Priorité 2.1) dans _adocResetSendState(), réutilisée par le chemin document long.
+          _adocResetSendState();
           input.focus();
           return;
         } catch (_structErr) {
@@ -5110,7 +5200,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
             usedWebSearch: typeof _fbMetrics.usedWebSearch === 'boolean' ? _fbMetrics.usedWebSearch : null,
             metrics1: _fbMetrics.metrics1 || null,
             metrics2: _fbMetrics.metrics2 || null,
-            errorMessage: (_structErr && _structErr.message) || 'erreur inconnue',
+            // Audit systémique (Priorité 8.10) — défense en profondeur : le message d'une
+            // exception QUELCONQUE remontant ici n'a jamais de limite de taille ni de filtrage
+            // garanti par construction. Aucune fuite clinique réelle trouvée à ce jour dans les
+            // chemins actuels, mais on ne dépend jamais du contenu FUTUR d'un message d'exception
+            // pour cette garantie — troncature à 300 caractères avant stockage, systématique.
+            errorMessage: (((_structErr && _structErr.message) || 'erreur inconnue') + '').slice(0, 300),
           });
         }
       }
@@ -5224,8 +5319,16 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (sseBuffer && sseBuffer.startsWith('data: ')) {
         const _leftover = sseBuffer.slice(6).trim();
         if (_leftover && _leftover !== '[DONE]') {
+          // Audit systémique (Priorité 5.1) — même bug déjà corrigé 4 fois ailleurs (audit
+          // Codex précédent) : le `throw` volontaire pour un événement 'error' explicite était
+          // À L'INTÉRIEUR du try dont le catch avale tout, donc silencieusement perdu ici aussi.
+          // Séparé du parsing exactement comme la boucle principale ci-dessus (ligne ~5218) —
+          // seul JSON.parse lui-même reste protégé, jamais le contrôle métier qui suit.
+          let evt = null;
           try {
-            const evt = JSON.parse(_leftover);
+            evt = JSON.parse(_leftover);
+          } catch (parseErr) { /* dernier fragment illisible — rien à en tirer, ignorer */ }
+          if (evt) {
             if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || 'erreur inconnue'));
             if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
               reply += evt.delta.text;
@@ -5236,7 +5339,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
               usedWebSearch = true;
             }
             if (evt.type === 'message_delta' && evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
-          } catch (parseErr) { /* dernier fragment illisible — rien à en tirer, ignorer */ }
+          }
         }
       }
 
@@ -5288,8 +5391,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       adocAddMsg('assistant', `Erreur : ${e.message}`, []);
     }
 
-    adocThinking = false;
-    document.getElementById('adoc-send-btn').disabled = false;
+    _adocResetSendState();
     input.focus();
   };
 
@@ -5970,26 +6072,28 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // Correctif parité (lot streaming) : un artifact issu du moteur canonique (Fiche
         // structurée) exporte via adocExportClinicalDocumentHTML — jamais un téléchargement
         // de blob brut qui contournerait le blocage qualité déjà en place (qc.exportAllowed).
-        if (art._adocStructuredDoc) {
-          const exportResult = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot);
-          if (exportResult.blocked) {
-            alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + exportResult.qc.blocking.join('\n'));
+        try {
+          // Audit systémique (Priorité 8.2) — test de capacité explicite (qualityControlledExport)
+          // au lieu d'un test binaire direct sur _adocStructuredDoc.
+          if (art._adocCapabilities?.qualityControlledExport) {
+            // Audit systémique (Priorité 4) — override de RenderManifest désormais transmis :
+            // sans lui, ce point d'export retombait sur la charte PAR DÉFAUT du manifeste
+            // embarqué au lieu de celle réellement affichée à l'écran (charte importée choisie
+            // pour cette génération), contredisant "aperçu = livrable" pour ce point d'entrée
+            // précis (déjà correct pour l'export depuis l'espace de travail).
+            const exportResult = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+            if (exportResult.blocked) {
+              alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + exportResult.qc.blocking.join('\n'));
+              return;
+            }
+            adocDownloadArtifact(new Blob([exportResult.html], { type: 'text/html;charset=utf-8' }), art.name + '.html');
             return;
           }
-          const blob = new Blob([exportResult.html], { type: 'text/html;charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = art.name + '.html';
-          document.body.appendChild(a); a.click();
-          setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
-          return;
+          adocDownloadArtifact(new Blob([art.html], { type: 'text/html;charset=utf-8' }), art.name + '.html');
+        } catch (exportErr) {
+          console.warn('[Export carte] Échec du re-rendu:', exportErr && exportErr.message);
+          alert('Impossible d\'exporter ce document : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
         }
-        const blob = new Blob([art.html], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = art.name + '.html';
-        document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
       }
     });
 
@@ -6193,31 +6297,30 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // artifact du moteur canonique exporte via adocExportClinicalDocumentHTML, jamais un
       // blob brut qui contournerait le blocage qualité (2e point d'entrée d'export, cf.
       // adocShowArtifactCard).
-      if (art._adocStructuredDoc) {
-        const exportResult = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot);
-        if (exportResult.blocked) {
-          alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + exportResult.qc.blocking.join('\n'));
+      try {
+        // Audit systémique (Priorité 8.2) — même migration que la carte de conversation.
+        if (art._adocCapabilities?.qualityControlledExport) {
+          // Audit systémique (Priorité 4) — même correctif que la carte de conversation :
+          // override de RenderManifest désormais transmis, sinon retour silencieux à la charte
+          // par défaut au lieu de celle réellement affichée.
+          const exportResult = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+          if (exportResult.blocked) {
+            alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + exportResult.qc.blocking.join('\n'));
+            return;
+          }
+          adocDownloadArtifact(new Blob([exportResult.html], { type: 'text/html;charset=utf-8' }), art.name + '.html');
           return;
         }
-        const blob = new Blob([exportResult.html], { type: 'text/html;charset=utf-8' });
-        const u = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = u; a.download = art.name + '.html';
-        document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 2000);
-        return;
-      }
-      if (art.url) {
-        const a = document.createElement('a');
-        a.href = art.url; a.download = art.name + '.' + (art.fmt || ext);
-        document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
-      } else if (art.html) {
-        const blob = new Blob([art.html], { type: 'text/html;charset=utf-8' });
-        const u = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = u; a.download = art.name + '.html';
-        document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 2000);
+        if (art.url) {
+          const a = document.createElement('a');
+          a.href = art.url; a.download = art.name + '.' + (art.fmt || ext);
+          document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+        } else if (art.html) {
+          adocDownloadArtifact(new Blob([art.html], { type: 'text/html;charset=utf-8' }), art.name + '.html');
+        }
+      } catch (exportErr) {
+        console.warn('[Export barre latérale] Échec du re-rendu:', exportErr && exportErr.message);
+        alert('Impossible d\'exporter ce document : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
       }
     });
     item.appendChild(dlBtn);
@@ -6231,6 +6334,18 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   window.adocDownloadBlob = function(url, filename, mime) {
     const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   };
+  // Audit systémique (Priorité 4) — logique de téléchargement de Blob dupliquée à l'identique
+  // à trois endroits (carte de conversation, barre latérale, espace de travail) : createObjectURL
+  // → clic synthétique → nettoyage différé (URL.revokeObjectURL + retrait du <a>). Factorisée
+  // une seule fois ici ; les trois points d'export l'appellent désormais au lieu de recopier ces
+  // 5 lignes une troisième fois.
+  function adocDownloadArtifact(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  }
   window.adocPrintBlob = function(url) {
     const win = window.open(url, '_blank');
     if (win) setTimeout(() => win.print(), 800);
@@ -7366,6 +7481,14 @@ ${body}
         headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ patientId: adocKvPatientId, ...(adocKvTherapistId ? { therapistId: adocKvTherapistId } : {}) })
       });
+      // Audit systémique (Priorité 3) — un statut HTTP en erreur était traité comme "aucune
+      // séance enregistrée" (data.found resterait falsy sur un corps d'erreur), masquant une
+      // vraie panne serveur derrière un message qui laisse croire qu'il n'y a simplement
+      // jamais rien eu à charger.
+      if (!resp.ok) {
+        statusEl.innerHTML = adocIconSvg('icon-error') + ' Impossible de charger la séance — réessayez';
+        return;
+      }
       const data = await resp.json();
       if (!data.found || !data.history?.length) {
         statusEl.innerHTML = adocIconSvg('icon-empty') + ' Aucune séance enregistrée';
@@ -7419,8 +7542,19 @@ ${body}
       const resp = await fetch(adocGetWorkerUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-        body: JSON.stringify(summaryPayload)
+        // Audit systémique (Priorité 3) — contrat rompu corrigé : handleAnthropicProxy exige
+        // { payload: ... } à la racine (400 "Missing payload" sinon) ; ce payload était envoyé
+        // nu depuis toujours ici, donc CETTE requête échouait systématiquement en silence (la
+        // réponse d'erreur JSON n'a pas de champ .content, le résumé de repli générique était
+        // alors sauvegardé comme si c'était un vrai résumé de session, dans TOUS les cas).
+        body: JSON.stringify({ payload: summaryPayload })
       });
+      if (!resp.ok) {
+        // Ne jamais enregistrer un résumé de repli générique comme s'il s'agissait d'un vrai
+        // résumé — on abandonne proprement plutôt que de persister un texte creux dans KV.
+        if (statusEl) statusEl.innerHTML = adocIconSvg('icon-error') + ' Résumé automatique indisponible — séance non sauvegardée';
+        return;
+      }
       const data = await resp.json();
       const summary = data.content?.[0]?.text || 'Session sans résumé automatique.';
 
@@ -7430,6 +7564,12 @@ ${body}
         headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ patientId: adocKvPatientId, summary, ...(adocKvTherapistId ? { therapistId: adocKvTherapistId } : {}) })
       });
+      if (!saveResp.ok) {
+        // Ne jamais afficher un message de succès trompeur ("Sauvegardé (undefined séance(s))")
+        // sur un échec serveur silencieux.
+        if (statusEl) statusEl.innerHTML = adocIconSvg('icon-error') + ' Sauvegarde échouée';
+        return;
+      }
       const saveData = await saveResp.json();
       if (statusEl) statusEl.innerHTML = adocIconSvg('icon-verify') + ` Sauvegardé (${saveData.sessions} séance(s))`;
       // Mettre à jour l'historique local
@@ -8398,10 +8538,24 @@ ${recent}`;
   window.adocRenderManifests = JSON.parse(document.getElementById('adoc-sc-render-manifests').textContent);
   window.adocTokensSnapshots = JSON.parse(document.getElementById('adoc-sc-tokens-snapshots').textContent);
 
+  // rendererModeByDocumentKind décrit une capacité réelle et déjà éprouvée : ce que le MOTEUR DE
+  // RENDU (adocRenderClinicalDocument, appelé directement avec un ClinicalDocument déjà en main)
+  // sait produire. 'structured' pour carrousel est exact ici — adocRenderCarrouselHTML existe et
+  // fonctionne (couvert depuis le lot fondateur UX-8A) — retirer cette valeur casserait ce rendu
+  // déjà validé, jamais souhaité.
   window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'legacy', script: 'legacy', liens: 'legacy' };
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
+  // Audit systémique (Priorité 8.3) — CONSTAT DISTINCT du précédent : le registre ci-dessus ne
+  // dit rien sur la GÉNÉRATION automatique (adocSend), qui elle ne déclenche le moteur structuré
+  // QUE pour plan.intent==='fiche' — carrousel n'a jamais été câblé à cette génération malgré une
+  // lecture rapide de rendererModeByDocumentKind qui pourrait le laisser croire. Registre séparé
+  // et honnête pour cette question précise, sans toucher au registre de rendu ci-dessus (qui,
+  // lui, décrit une capacité réelle et non concernée par cette confusion). Ne câble PAS carrousel
+  // à la génération structurée dans ce lot — changement de fond hors périmètre, à traiter
+  // séparément si un jour souhaité.
+  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: false, tableau: false, script: false, liens: false };
 
   // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
   let _adocAjvValidators = null;
@@ -9433,7 +9587,10 @@ ${recent}`;
       // repli legacy-html (adocFinalizeGeneration), pour un seul test de capacités partout
       // (adocOpenDocPopup) plutôt qu'un test _adocStructuredDoc dupliqué à chaque point d'usage.
       window._adocArtifacts[storeKey]._adocGenerationEngine = 'structured';
-      window._adocArtifacts[storeKey]._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: false, transform: false };
+      // Audit systémique (Priorité 8.2) — qualityControlledExport:true : seul ce moteur passe
+      // par un re-rendu + blocage QC avant export (adocExportClinicalDocumentHTML), contrairement
+      // au repli legacy-html (HTML déjà figé, cf. ci-dessus).
+      window._adocArtifacts[storeKey]._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: false, transform: false, export: true, qualityControlledExport: true };
     }
     return storeKey;
   }
@@ -9673,6 +9830,15 @@ ${recent}`;
       m.msSinceLastTransportActivity = m.lastTransportActivityAt != null ? Math.round(nowMs - m.lastTransportActivityAt) : null;
       m.msSinceLastSemanticActivity = m.lastSemanticActivityAt != null ? Math.round(nowMs - m.lastSemanticActivityAt) : null;
       if (window.adocStructuredFicheTimingLog === false) return;
+      // Audit systémique (Priorité 8.9) — l'instrumentation Axe 2 (intervalles entre fragments,
+      // pings, longueur JSON, événements de clôture) n'était visible QUE via le traceur de
+      // repli (adocRecordFallbackTrace) : une génération réussie grâce au seuil de 120s ne
+      // laissait donc aucune trace de ces données pourtant collectées. Cette fonction est déjà
+      // appelée sur TOUS les chemins (succès et échec, appel 1 et appel 2) — les ajouter ici
+      // suffit à les rendre observables dans les deux issues, sans plomberie supplémentaire.
+      // Choix : console.log seulement (pas de persistance localStorage, volume jugé excessif
+      // pour un usage normal — chaque appel réussi en ajouterait une entrée, contrairement au
+      // traceur de repli qui reste rare par nature).
       console.log('[UX-8A.2][métriques] ' + label, {
         payloadBytes: m.payloadBytes, msToHttp200: m.msToHttp200, msToFirstByte: m.msToFirstByte,
         msToFirstValidSSE: m.msToFirstValidSSE, msToFirstSemanticProgress: m.msToFirstSemanticProgress,
@@ -9682,6 +9848,10 @@ ${recent}`;
         msSinceLastTransportActivity: m.msSinceLastTransportActivity,
         msSinceLastSemanticActivity: m.msSinceLastSemanticActivity,
         finalState: m.finalState,
+        interFragmentIntervalsMs: m.interFragmentIntervalsMs, pingCount: m.pingCount,
+        pingTimestampsMs: m.pingTimestampsMs, jsonLengthAtIntervalStart: m.jsonLengthAtIntervalStart,
+        receivedContentBlockStop: m.receivedContentBlockStop, receivedMessageStop: m.receivedMessageStop,
+        stopReasonAtAbandon: m.stopReasonAtAbandon,
       });
     }
     // Marqueur distinct pour une vraie erreur SSE remontée par Anthropic (Partie A, point 1) —
@@ -9763,9 +9933,6 @@ ${recent}`;
         }
         _progressedPastHttp200_1 = true;
         _logTiming('réponse appel 1 reçue (HTTP ' + searchResp.status + '), début du flux');
-        const _searchReader = searchResp.body.getReader();
-        const _searchDecoder = new TextDecoder();
-        let _searchSseBuffer = '';
         const textBlocks = [];
         const resultEntries = [];
         function _processSearchLine(_sl) {
@@ -9797,6 +9964,14 @@ ${recent}`;
           }
         }
         try {
+          // Audit systémique (Priorité 5, dette associée) — getReader() déplacé ICI (à l'intérieur
+          // du try/finally qui nettoie les minuteries) : avant ce correctif, une réponse HTTP 200
+          // sans body (edge case rare mais possible) aurait levé une exception AVANT ce try/finally,
+          // laissant _searchTid/_searchSemTid armés indéfiniment (le catch englobant ne les nettoie
+          // jamais lui-même).
+          const _searchReader = searchResp.body.getReader();
+          const _searchDecoder = new TextDecoder();
+          let _searchSseBuffer = '';
           while (true) {
             const { done, value } = await _searchReader.read();
             if (done) break;
@@ -9865,10 +10040,13 @@ ${recent}`;
     // pas du texte mais un unique bloc tool_use (tool_choice forcé) livré par fragments
     // (delta.type==='input_json_delta', delta.partial_json) — JAMAIS parsé avant la fin réelle
     // du flux, pour ne jamais tenter un JSON.parse sur un fragment incomplet.
-    // Minuterie TRANSPORT (seuil inchangé, 45s) : reset à chaque chunk brut reçu — comportement
-    // conservé tel quel (Partie A, point 2). Minuterie SÉMANTIQUE (nouvelle, même seuil 45s) :
-    // reset UNIQUEMENT sur un fragment JSON réellement reçu — un flux qui envoie des octets sans
-    // jamais progresser sémantiquement n'échappe plus à l'abandon.
+    // Audit systémique (Priorité 5, commentaire périmé corrigé) — Minuterie TRANSPORT (seuil
+    // inchangé, 45s, ADOC_CALL2_TRANSPORT_TIMEOUT_MS) : reset à chaque chunk brut reçu —
+    // comportement conservé tel quel (Partie A, point 2). Minuterie SÉMANTIQUE : seuil porté à
+    // 120s à titre EXPÉRIMENTAL (ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL, Axe 2 — plus le
+    // même seuil que le transport depuis ce lot), reset UNIQUEMENT sur un fragment JSON
+    // réellement reçu — un flux qui envoie des octets sans jamais progresser sémantiquement
+    // n'échappe plus à l'abandon.
     // Jusqu'à 2 tentatives (Partie A, point 7) — UNIQUEMENT si l'échec est explicitement
     // transitoire (réseau avant réponse, HTTP 429/502/503/504, erreur SSE transitoire, ou
     // timeout) ET qu'aucun JSON utile n'a encore été accumulé. Jamais de retry après tool
@@ -9951,9 +10129,6 @@ ${recent}`;
         _progressedPastHttp200_2 = true;
         _logTiming('réponse appel 2 reçue (HTTP ' + resp.status + '), début du flux');
 
-        const _genReader = resp.body.getReader();
-        const _genDecoder = new TextDecoder();
-        let _genSseBuffer = '';
         // Axe 2 (audit Codex) — horodatage (relatif au début de CETTE tentative) du dernier
         // fragment input_json_delta reçu, pour calculer l'intervalle avec le suivant. Redéclaré
         // à chaque tentative (portée de la fonction englobante, comme _m2 lui-même).
@@ -10017,6 +10192,12 @@ ${recent}`;
           }
         }
         try {
+          // Audit systémique (Priorité 5, dette associée) — getReader() déplacé ICI (à l'intérieur
+          // du try/finally qui nettoie les minuteries), même correctif que l'appel 1 ci-dessus :
+          // une réponse 200 sans body aurait sinon laissé _genTid/_genSemTid armés indéfiniment.
+          const _genReader = resp.body.getReader();
+          const _genDecoder = new TextDecoder();
+          let _genSseBuffer = '';
           while (true) {
             const { done, value } = await _genReader.read();
             if (done) break;
@@ -10217,6 +10398,10 @@ ${recent}`;
         qcBlockingCount = rendered.qc.blocking.length;
       } catch (e) {
         console.warn('[UX-8W] rendu impossible, ouverture annulée:', e && e.message);
+        // Audit systémique (Priorité 8.8) — un simple console.error puis abandon laissait le
+        // clic sans effet apparent, sans que l'utilisatrice sache pourquoi. Message visible
+        // désormais, avec la raison quand elle est disponible.
+        alert('Impossible d\'afficher ce document' + (e && e.message ? ' : ' + e.message : ' — cause inconnue') + '.');
         return;
       }
     }
@@ -10293,30 +10478,28 @@ ${recent}`;
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return;
-    if (art._adocGenerationEngine === 'legacy-html') {
-      // Audit correctif, Partie B point 12 — pas de re-rendu/QC pour ce moteur (HTML déjà figé
-      // au moment du repli) : export = téléchargement direct, même mécanique de blob que
-      // l'export du moteur structuré ci-dessous, jamais dupliquée.
-      const blob2 = new Blob([art.html || ''], { type: 'text/html;charset=utf-8' });
-      const url2 = URL.createObjectURL(blob2);
-      const a2 = document.createElement('a');
-      a2.href = url2; a2.download = (art.name || 'document') + '.html';
-      document.body.appendChild(a2); a2.click();
-      setTimeout(() => { URL.revokeObjectURL(url2); a2.remove(); }, 2000);
-      return;
+    try {
+      if (art._adocGenerationEngine === 'legacy-html') {
+        // Audit correctif, Partie B point 12 — pas de re-rendu/QC pour ce moteur (HTML déjà
+        // figé au moment du repli) : export = téléchargement direct, même mécanique de blob
+        // que l'export du moteur structuré ci-dessous, factorisée (Priorité 4, audit systémique).
+        adocDownloadArtifact(new Blob([art.html || ''], { type: 'text/html;charset=utf-8' }), (art.name || 'document') + '.html');
+        return;
+      }
+      // UX-8B Lot 2 — même charte que l'aperçu (cohérence aperçu/export déjà exigée par UX-1).
+      const result = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+      if (result.blocked) {
+        alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + result.qc.blocking.join('\n'));
+        return;
+      }
+      adocDownloadArtifact(new Blob([result.html], { type: 'text/html;charset=utf-8' }), (art.name || 'document') + '.html');
+    } catch (exportErr) {
+      // Audit systémique (Priorité 4) — aucune exception du re-rendu (validation, manifeste,
+      // jetons, résolution d'image) n'était interceptée ici : jamais une promesse rejetée
+      // silencieuse, un message clair désormais.
+      console.warn('[Export espace de travail] Échec du re-rendu:', exportErr && exportErr.message);
+      alert('Impossible d\'exporter ce document : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
     }
-    // UX-8B Lot 2 — même charte que l'aperçu (cohérence aperçu/export déjà exigée par UX-1).
-    const result = await window.adocExportClinicalDocumentHTML(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
-    if (result.blocked) {
-      alert('Export bloqué — problème(s) de qualité à corriger avant export :\n\n' + result.qc.blocking.join('\n'));
-      return;
-    }
-    const blob = new Blob([result.html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = (art.name || 'document') + '.html';
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
   };
 
   // ═══════════════════════════════════════════════════════════════════════
