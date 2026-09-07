@@ -212,18 +212,33 @@ test('T-CPT01-07 : toute forme de batch invalide est classée, jamais laissée n
   }
 });
 
-/* T-CPT01-08 — CE QUI N'A PAS ÉTÉ TOUCHÉ, ET QUI RESTE VOLONTAIREMENT EN L'ÉTAT.
+/* T-CPT01-08 — CE QUI N'AVAIT PAS ÉTÉ TOUCHÉ, ET CE QUI L'A ÉTÉ DEPUIS.
  *
- * assembleSubstitutionReviews porte trois autres assertions non marquées — identifiant inconnu,
- * collision, entrée invalide. Ce sont vraisemblablement la même classe de faute, mais aucune n'a
- * été observée en production, et CSR-01 avait tranché de les laisser fail-closed. Ce lot ne les
- * renverse pas sans preuve : il les inventorie pour que la décision reste visible. */
-test('T-CPT01-08 : les assertions voisines non marquées sont inventoriées, pas modifiées', () => {
+ * Ce test inventoriait trois assertions voisines non marquées — identifiant inconnu, collision,
+ * entrée invalide — pour que la décision de les laisser fail-closed reste VISIBLE plutôt que tacite.
+ * C'était sa raison d'être : « ce lot ne les renverse pas sans preuve ».
+ *
+ * UNTAGGED-ASSERT-FAMILY-02 a apporté la preuve. L'audit de provenance a établi que ces refus
+ * portent sur `batchResults` — la sortie brute du fournisseur — et non sur un état interne ; ils
+ * sont désormais marqués, avec messages inchangés. L'inventaire n'est donc pas supprimé : il est
+ * DÉPLACÉ vers ce qui reste réellement en suspens, et il nomme le lot qui a tranché.
+ *
+ * Ce qui reste en suspens, et pourquoi : le doublon d'issue_id dans NOS cibles (dérivé de la sortie
+ * Analyste par notre propre code) et la collision de familles de mergeCandidateGroups (provenance
+ * non établie — fournisseur ou découpage). Aucune fixture ne les a tranchés. Ils restent nus. */
+test('T-CPT01-08 : les voisins tranchés par UAF-02 sont marqués, ceux qui restent en suspens ne le sont pas', () => {
+  /* Tranchés par UAF-02 : provenance fournisseur établie. */
   const inconnu = (() => { try { assembleSubstitutionReviews([{ issue_id: 'issue1' }], [{ autre: {} }]); return null; } catch (e) { return e; } })();
   assert.ok(inconnu instanceof TypeError);
-  assert.notEqual(inconnu.output_contract_violation, true,
-    'identifiant inconnu : toujours NON marqué — décision CSR-01 inchangée, faute de reproduction');
+  assert.equal(inconnu.output_contract_violation, true,
+    'identifiant inconnu : marqué par UAF-02 — le fournisseur a rendu un id absent de nos cibles');
   const collision = (() => { try { assembleSubstitutionReviews([{ issue_id: 'issue1' }], [{ issue1: { alternatives_reviewed: {} } }, { issue1: { alternatives_reviewed: {} } }]); return null; } catch (e) { return e; } })();
   assert.ok(collision instanceof TypeError);
-  assert.notEqual(collision.output_contract_violation, true, 'collision : toujours NON marquée');
+  assert.equal(collision.output_contract_violation, true, 'collision entre batches : marquée par UAF-02');
+
+  /* TOUJOURS en suspens : provenance interne ou non établie. L'inventaire vit maintenant ici. */
+  const cibleDouble = (() => { try { assembleSubstitutionReviews([{ issue_id: 'd' }, { issue_id: 'd' }], [{}]); return null; } catch (e) { return e; } })();
+  assert.ok(cibleDouble instanceof TypeError);
+  assert.notEqual(cibleDouble.output_contract_violation, true,
+    'doublon dans NOS cibles : ce serait notre bug, jamais celui du modèle');
 });

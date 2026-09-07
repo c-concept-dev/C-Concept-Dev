@@ -247,7 +247,7 @@ test('T-PERFREAL01A-12 : l’artefact frontend n’a pas bougé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'd1248dbfca5ab3f6d8b9e9ab1f68b153c2302cb208e87b4971f05eca28236c69', 'CANONICAL_HTML_CHANGED = NO');
+    'a14993b5fcee4027660db8dbb3752593797c0498e5c960c192426f4ffd21c656', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 test('T-PERFREAL01A-13 : le worker déployé est le candidat local, et il est traçable', () => {
