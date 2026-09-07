@@ -1828,17 +1828,17 @@
     }
     .cc-ws-search-result { padding: 6px 2px; font-size: 11px; border-bottom: 1px solid var(--ivory); color: var(--ink); }
     .cc-ws-memory { margin-top: auto; border-top: 1px solid var(--stone-200); padding-top: 14px; }
-    .cc-ws-memory-toggle {
+    .cc-ws-memory-toggle, .adoc-sidebar-memory-toggle {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
       background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 700;
       color: var(--muted); padding: 0; font-family: inherit;
     }
-    .cc-ws-memory-toggle:focus-visible { outline: 2px solid var(--petrol-800); outline-offset: 3px; }
-    .cc-ws-memory-toggle svg { transition: transform .15s; }
-    .cc-ws-memory-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-    .cc-ws-memory-body { display: none; margin-top: 10px; }
-    .cc-ws-memory-body.open { display: block; }
-    .cc-ws-memory-body .adoc-sidebar-title { display: none; } /* déjà annoncé par le bouton replié */
+    .cc-ws-memory-toggle:focus-visible, .adoc-sidebar-memory-toggle:focus-visible { outline: 2px solid var(--petrol-800); outline-offset: 3px; }
+    .cc-ws-memory-toggle svg, .adoc-sidebar-memory-toggle svg { transition: transform .15s; }
+    .cc-ws-memory-toggle[aria-expanded="true"] svg, .adoc-sidebar-memory-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+    .cc-ws-memory-body, .adoc-sidebar-memory-body { display: none; margin-top: 10px; }
+    .cc-ws-memory-body.open, .adoc-sidebar-memory-body.open { display: block; }
+    .cc-ws-memory-body .adoc-sidebar-title, .adoc-sidebar-memory-body .adoc-sidebar-title { display: none; } /* déjà annoncé par le bouton replié */
     .cc-ws-doc-area {
       flex: 1; overflow-y: auto; padding: 40px 24px;
       background-color: var(--ivory);
@@ -1874,7 +1874,7 @@
     .cc-block-edit-after .cc-block-edit-text { border-color: var(--terracotta-600); }
     .cc-block-edit-flag { font-size: 11px; color: var(--terracotta-700); margin-top: 8px; }
     @media (prefers-reduced-motion: reduce) {
-      .cc-ws-memory-toggle svg, .cc-ws-doc-card .adoc-sc-block, .cc-ws-panel { transition: none !important; }
+      .cc-ws-memory-toggle svg, .adoc-sidebar-memory-toggle svg, .cc-ws-doc-card .adoc-sc-block, .cc-ws-panel { transition: none !important; }
     }
     @media (max-width: 980px) { .cc-ws-panel { width: 240px; } }
     @media (max-width: 768px) {
@@ -2511,43 +2511,6 @@
 
     <!-- Sidebar -->
     <div class="adoc-sidebar" id="adoc-sidebar-panel">
-      <!-- Phase UX-2A.4 — Mémoire patient remontée en premier : c'est la fonction la
-           plus sensible de l'écran (identification patient), elle passait avant après
-           "Documents joints" qui n'a rien de sensible. Traitement visuel légèrement
-           renforcé (bordure gauche) pour signaler cette sensibilité, pas seulement la
-           position. -->
-      <div class="adoc-sidebar-section adoc-sidebar-sensitive">
-        <div class="adoc-sidebar-title"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-lock"></use></svg> Mémoire patient</div>
-        <!-- P3-3 : ID thérapeute -->
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">
-          <input id="adoc-kv-therapist-id" type="text" placeholder="ID thérapeute (optionnel)"
-            style="flex:1;padding:4px 8px;border:1px solid var(--stone-300);border-radius:5px;font-size:10px;background:var(--ivory);color:var(--muted);"
-            oninput="adocKvTherapistIdChange(this.value)" aria-label="ID thérapeute, optionnel" />
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-          <input id="adoc-kv-patient-id" type="text" placeholder="ID patient (ex: dupont-marie)"
-            style="flex:1;padding:5px 8px;border:1px solid var(--stone-300);border-radius:5px;font-size:11px;background:#fff;"
-            oninput="adocKvPatientIdChange(this.value)" aria-label="ID patient" />
-          <button onclick="adocKvLoad()" title="Charger le dossier de ce patient" aria-label="Charger le dossier de ce patient"
-            style="padding:4px 8px;background:var(--petrol-950);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">↓</button>
-        </div>
-        <div id="adoc-kv-status" style="font-size:10px;color:var(--muted);min-height:14px;"></div>
-        <div id="adoc-kv-history" style="display:none;margin-top:6px;"></div>
-        <div style="display:flex;gap:6px;margin-top:6px;">
-          <button onclick="adocKvSaveNow()" title="Sauvegarder la session maintenant"
-            style="flex:1;padding:4px;background:var(--petrol-800);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
-            <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg> Sauvegarder
-          </button>
-          <!-- Phase UX-2A.4 — bouton "×" sans texte : sa fonction réelle (adocKvClear)
-               ferme ce dossier dans l'écran, sans rien supprimer côté serveur — libellé
-               explicite pour ne pas laisser croire à une suppression de données. -->
-          <button onclick="adocKvClear()" title="Fermer ce dossier ici — les séances déjà enregistrées ne sont pas supprimées" aria-label="Fermer le dossier patient actif"
-            style="padding:4px 10px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;white-space:nowrap;">
-            <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg> Fermer
-          </button>
-        </div>
-      </div>
-
       <!-- Dossier patient N2 -->
       <div class="adoc-sidebar-section" id="adoc-patient-section" style="display:none;">
         <div class="adoc-sidebar-title">Dossier patient actif</div>
@@ -2603,6 +2566,57 @@
             <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg> Jauge d'usage D1/R2
           </button>
           <div id="adoc-storage-result" style="font-size:9px;color:var(--muted);margin-top:4px;display:none;line-height:1.5;"></div>
+        </div>
+      </div>
+
+      <!-- Changement purement visuel — l'usage réel de l'outil ne correspond plus à un suivi
+           clinique approfondi entre séances, mais le mécanisme (adocKvPatientIdChange,
+           adocKvSaveNow, adocKvLoad, adocKvClear, adocKvAutoSave, tous les points d'appel
+           automatique) reste intact et disponible — seule sa visibilité est réduite : replié
+           par défaut, descendu en bas de colonne. Réutilise le même patron de repli/dépli
+           (chevron qui pivote) déjà existant pour Mémoire patient dans l'écran de travail
+           (cf. adocWsMountMemory ci-dessous, cc-ws-memory-toggle/cc-ws-memory-body), jamais un
+           nouveau composant inventé. adocWsMountMemory()/adocWsUnmountMemory() continuent de
+           déplacer .adoc-sidebar-sensitive par son id/sa classe, où qu'elle se trouve dans la
+           colonne : ce déplacement n'est pas affecté par ce changement purement visuel. -->
+      <div class="adoc-sidebar-section" style="padding-top:10px;padding-bottom:10px;">
+        <button type="button" class="adoc-sidebar-memory-toggle" id="adoc-sidebar-memory-toggle"
+          aria-expanded="false" aria-controls="adoc-sidebar-memory-body"
+          onclick="window.adocToggleSidebarMemory()">
+          <span class="sc-icon-label"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-lock"></use></svg> Mémoire patient</span>
+          <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
+        </button>
+        <div class="adoc-sidebar-memory-body" id="adoc-sidebar-memory-body">
+          <div class="adoc-sidebar-section adoc-sidebar-sensitive" style="padding:12px 0 0;border-bottom:none;">
+            <!-- P3-3 : ID thérapeute -->
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">
+              <input id="adoc-kv-therapist-id" type="text" placeholder="ID thérapeute (optionnel)"
+                style="flex:1;padding:4px 8px;border:1px solid var(--stone-300);border-radius:5px;font-size:10px;background:var(--ivory);color:var(--muted);"
+                oninput="adocKvTherapistIdChange(this.value)" aria-label="ID thérapeute, optionnel" />
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+              <input id="adoc-kv-patient-id" type="text" placeholder="ID patient (ex: dupont-marie)"
+                style="flex:1;padding:5px 8px;border:1px solid var(--stone-300);border-radius:5px;font-size:11px;background:#fff;"
+                oninput="adocKvPatientIdChange(this.value)" aria-label="ID patient" />
+              <button onclick="adocKvLoad()" title="Charger le dossier de ce patient" aria-label="Charger le dossier de ce patient"
+                style="padding:4px 8px;background:var(--petrol-950);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">↓</button>
+            </div>
+            <div id="adoc-kv-status" style="font-size:10px;color:var(--muted);min-height:14px;"></div>
+            <div id="adoc-kv-history" style="display:none;margin-top:6px;"></div>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button onclick="adocKvSaveNow()" title="Sauvegarder la session maintenant"
+                style="flex:1;padding:4px;background:var(--petrol-800);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;">
+                <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg> Sauvegarder
+              </button>
+              <!-- Phase UX-2A.4 — bouton "×" sans texte : sa fonction réelle (adocKvClear)
+                   ferme ce dossier dans l'écran, sans rien supprimer côté serveur — libellé
+                   explicite pour ne pas laisser croire à une suppression de données. -->
+              <button onclick="adocKvClear()" title="Fermer ce dossier ici — les séances déjà enregistrées ne sont pas supprimées" aria-label="Fermer le dossier patient actif"
+                style="padding:4px 10px;background:var(--ivory);color:var(--terracotta-700);border:none;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600;white-space:nowrap;">
+                <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg> Fermer
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -3038,6 +3052,17 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') window.adocToggleSidebar(false);
   });
+
+  // Réduction visuelle de "Mémoire patient" — repli/dépli pur, même patron que
+  // cc-ws-memory-toggle/cc-ws-memory-body (écran de travail) : aucune logique de mémoire
+  // patient touchée, uniquement l'affichage du bloc replié par défaut dans la sidebar.
+  window.adocToggleSidebarMemory = function () {
+    const body = document.getElementById('adoc-sidebar-memory-body');
+    const btn = document.getElementById('adoc-sidebar-memory-toggle');
+    if (!body || !btn) return;
+    const open = body.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+  };
 
   // ── Helper URL Worker (fallback hardcodé) ──
   function adocGetWorkerUrl() {
@@ -10597,6 +10622,59 @@ ${recent}`;
     verifySources: { label: 'Vérifier les sources', instruction: "Relis ce passage et corrige toute formulation qui semblerait aller au-delà de ce qui peut être affirmé avec confiance, sans changer le fond si tout semble déjà bien mesuré." },
   };
 
+  // Barre d'outils de personnalisation, premier chantier — insertion de blocs (voir
+  // PRINCIPES-FONDATEURS-PERSONNALISATION.md, principe 1 : le bloc est l'unité fondamentale,
+  // toute insertion crée un NOUVEAU bloc dans la séquence). Types strictement identiques à
+  // ceux du schéma existant (block.schema.json), jamais un type inventé — vocabulaire français
+  // déjà utilisé ailleurs dans l'interface (cf. adocDescribeBlockContent : Titre/Paragraphe/
+  // Encadré/Citation/Liste/Tableau). Aucun type "card" (Carrousel, non câblé au moteur
+  // structuré, hors périmètre comme pour la correction de bloc).
+  var ADOC_BLOCK_INSERT_TYPES = [
+    { type: 'heading', label: 'Titre' },
+    { type: 'paragraph', label: 'Paragraphe' },
+    { type: 'callout', label: 'Encadré' },
+    { type: 'list', label: 'Liste' },
+    { type: 'table', label: 'Tableau' },
+    { type: 'quote', label: 'Citation' },
+    { type: 'image', label: 'Image' },
+  ];
+
+  // Contenu initial minimal — investigation obligatoire de ce lot : le schéma existant impose
+  // déjà minLength:1 sur heading/paragraph/callout/quote.content.text et minItems:1 (+ items
+  // non vides) sur list.content.items ("contenu minimal vide" y est donc IMPOSSIBLE — un texte
+  // de remplacement discret, seconde option offerte par la demande, est la seule conforme au
+  // schéma existant, jamais un champ ou une contrainte inventée pour contourner ça). table
+  // accepte en revanche des cellules vides ('') : structure minimale réellement vide comme
+  // demandé (2 colonnes, 2 lignes). image : query/alt viennent de la description demandée à
+  // l'utilisatrice, jamais vides non plus (même contrainte de schéma).
+  function adocDefaultBlockContent(type, imageDescription) {
+    switch (type) {
+      case 'heading': return { text: 'Nouveau titre', level: 2 };
+      case 'paragraph': return { text: 'Nouveau paragraphe.' };
+      case 'callout': return { text: 'Nouvel encadré.', visualRole: 'info' };
+      case 'quote': return { text: 'Nouvelle citation.' };
+      case 'list': return { items: ['Nouvel élément'], ordered: false };
+      case 'table': return { headers: ['', ''], rows: [['', ''], ['', '']] };
+      case 'image': { const d = (imageDescription || '').trim(); return { query: d, alt: d }; }
+      default: return {};
+    }
+  }
+
+  // Identifiant du nouveau bloc — investigation préalable de ce lot : le schéma "type-NN" est
+  // DÉJÀ une séquence stable et persistée (blockSeq, assigné une seule fois à la génération dans
+  // adocGenerateStructuredFiche, jamais recalculé ensuite — cf. rapport). Reprend EXACTEMENT le
+  // même format (type + numéro sur 2 chiffres), en calculant le prochain numéro disponible à
+  // partir du maximum déjà utilisé dans le document ENTIER (numérotation globale, jamais par
+  // type) — jamais de collision possible, même après plusieurs insertions successives.
+  function adocNextBlockId(doc, type) {
+    let maxSeq = 0;
+    (doc.blocks || []).forEach(function (b) {
+      const m = /-(\d+)$/.exec(b.id || '');
+      if (m) { const n = parseInt(m[1], 10); if (n > maxSeq) maxSeq = n; }
+    });
+    return type + '-' + String(maxSeq + 1).padStart(2, '0');
+  }
+
   // Même vocabulaire de champs que ADOC_STRUCTURED_FICHE_TOOL (jamais un champ inventé) —
   // sans type (fixé côté client à celui du bloc d'origine, jamais renvoyé par le modèle : "un
   // paragraphe reste un paragraphe"), sans imageQuery/imageAlt (image hors périmètre), sans
@@ -10723,9 +10801,19 @@ ${recent}`;
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestBlockCorrectionByIntent(\'' + key + '\')">' +
         adocEsc(ADOC_BLOCK_EDIT_INTENTS[key].label) + '</button>';
     };
+    // Barre d'outils de personnalisation, premier chantier — les deux actions structurelles
+    // "Insérer avant/après" rejoignent ici les actions d'intention déjà là (même bouton
+    // cc-clarity-reply-btn, même niveau visuel), séparées par un simple repère visuel discret
+    // (jamais un nouveau composant) puisqu'elles créent un NOUVEAU bloc plutôt que de corriger
+    // celui-ci. Un seul point d'entrée pour toute action sur un bloc, comme demandé.
+    const insertBtn = function (direction, label) {
+      return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRequestBlockInsert(\'' + direction + '\')">' + label + '</button>';
+    };
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
+        '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
+        insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -10867,6 +10955,93 @@ ${recent}`;
     // Réutilise EXACTEMENT le mécanisme de sauvegarde déjà existant et déjà testé (UX-10A) —
     // nouvelle version créée, l'ancienne reste accessible via l'historique déjà existant.
     await window.adocWsSave();
+  };
+
+  // ── Barre d'outils de personnalisation, premier chantier — insertion de blocs ──
+  // Réutilise le même panneau (cc-block-edit-panel), la même zone de résultat
+  // (.cc-block-edit-result) et le même cycle contrôles/résultat que la correction ci-dessus —
+  // jamais un second panneau. Étape 1 : choix du type (remplace temporairement les contrôles,
+  // même patron que l'aperçu avant/après).
+  function adocBuildBlockInsertTypePickerHTML(direction) {
+    const positionLabel = direction === 'before' ? 'avant' : 'après';
+    return '<div class="cc-block-edit-label">Type de bloc à insérer ' + positionLabel + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
+        ADOC_BLOCK_INSERT_TYPES.map(function (t) {
+          return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocChooseBlockInsertType(\'' + direction + '\',\'' + t.type + '\')">' + adocEsc(t.label) + '</button>';
+        }).join('') +
+      '</div>' +
+      '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
+  }
+
+  window.adocRequestBlockInsert = function (direction) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.panelEl) return;
+    const controlsEl = st.panelEl.querySelector('.cc-block-edit-controls');
+    const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
+    if (controlsEl) controlsEl.hidden = true;
+    if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocBuildBlockInsertTypePickerHTML(direction); }
+  };
+
+  // Étape 2 (type choisi) : pour une image, une courte description est demandée d'abord (la
+  // requête/l'alt ne peuvent pas être vides, cf. schéma et mécanisme de résolution existant) ;
+  // pour tout autre type, création immédiate — pas d'étape supplémentaire nécessaire, le
+  // panneau de correction déjà existant prend le relais juste après (étape 3).
+  window.adocChooseBlockInsertType = function (direction, type) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.panelEl) return;
+    if (type === 'image') {
+      const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
+      if (!resultEl) return;
+      resultEl.innerHTML =
+        '<div class="cc-block-edit-label">Décrivez brièvement l\'image souhaitée</div>' +
+        '<div style="display:flex;gap:6px;margin-top:6px;">' +
+          '<input type="text" class="cc-block-edit-freetext adoc-textarea" style="flex:1;" placeholder="ex. mère et enfant en interaction calme" ' +
+            'onkeydown="if(event.key===\'Enter\'){event.preventDefault();event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.value);}" />' +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.previousElementSibling.value)">Créer</button>' +
+        '</div>' +
+        '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
+      return;
+    }
+    window.adocConfirmBlockInsert(direction, type, '');
+  };
+
+  // Étape 3 : insertion réelle dans la séquence (principe 1 — jamais un élément flottant), sans
+  // toucher aux autres blocs (ni position ni identifiant, cf. investigation préalable), puis
+  // réaffichage via adocOpenWorkspace (déjà réutilisé pour la correction, aucun rendu dupliqué).
+  // Pour un type textuel/liste/tableau : simule un clic sur le nouveau bloc pour rouvrir EXACTEMENT
+  // le même panneau de correction que s'il venait d'être sélectionné à la main (zéro logique de
+  // sélection dupliquée — cf. adocWsSetupBlockEditing) ; la saisie manuelle ou l'intention
+  // "Réécrire" y fonctionnent alors sans aucun code spécifique à un bloc "tout juste créé".
+  // Pour une image : le mécanisme de résolution existant (adocResolveImages, appelé à même le
+  // pipeline de rendu déjà partagé par adocOpenWorkspace) s'exécute de lui-même, sans nouveau
+  // code de recherche — l'image n'est jamais sélectionnable via ce panneau (hors périmètre,
+  // comme pour la correction de bloc).
+  window.adocConfirmBlockInsert = async function (direction, type, imageDescription) {
+    if (type === 'image' && !(imageDescription || '').trim()) return; // jamais de bloc image sans description
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) return;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const doc = art._adocStructuredDoc;
+    const idx = (doc.blocks || []).findIndex(function (b) { return b.id === st.blockId; });
+    if (idx === -1) { adocWsClearBlockSelection(); return; }
+    const newBlock = {
+      id: adocNextBlockId(doc, type),
+      type: type,
+      content: adocDefaultBlockContent(type, imageDescription),
+      citationIds: [], // jamais rattaché à un passage sourcé réel (cf. demande)
+      validation: {},
+    };
+    const insertIdx = direction === 'before' ? idx : idx + 1;
+    doc.blocks.splice(insertIdx, 0, newBlock);
+    const storeKey = st.storeKey;
+    const newId = newBlock.id;
+    adocWsClearBlockSelection();
+    await window.adocOpenWorkspace(storeKey);
+    if (ADOC_BLOCK_EDIT_TYPES.indexOf(type) !== -1) {
+      const el = document.getElementById(newId);
+      if (el) el.click(); // même sélection que si l'utilisatrice venait de cliquer ce bloc
+    }
   };
 
   // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
