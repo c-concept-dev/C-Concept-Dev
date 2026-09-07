@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `c6e27a571c1c5fac1f83131acd521b0f657ea6c5` |
-| Date du commit | 2026-09-07T09:10:32+02:00 |
+| Commit local | `34d7da0ab279cea95c1670c8155e163fe4b91033` |
+| Date du commit | 2026-09-07T11:35:19+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-64 fichiers. C'est ce qui doit exister pour **servir** la page,
+65 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `3b0fd40990157deaf42d126af5422e8a3aab3409dd2e71e4a3d86e586deef4d6` |
+| Empreinte du jeu | `1963bf75d3cca007d62a28706536c37b6e175d7832b8cb3b8cf1d6763ce7c124` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -91,6 +91,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/DEEP-PRODUCTION-BLOCKERS-01.md` | `62d88bc95a303d1e330f0911dd4d58540fc08af2f641be33f1fd19dee63511f2` |
 | REQUIRED_DOC | `docs/DEEP-PROVIDER-ROUTING-FINAL-01.md` | `dea4886a323bf2d1006299639f21c31c1973cf47049774a697c4474d6a2226ec` |
 | REQUIRED_DOC | `docs/FAST-CAPACITY-ADMISSION-01.md` | `27bb4a5f4c197828cdf65f60e0c9de2d775f637cb7eb691c52162cbe8c279d12` |
+| REQUIRED_DOC | `docs/OBSERVABILITY-COMPLETENESS-01.md` | `ad03cc9f297ff04ea6326c1243ee85e884529a2c1fedc80b4711e5c2bbbe61bf` |
 | REQUIRED_DOC | `docs/OPEN-DEBTS.md` | `cce92ba10b4bb7e8698fc8a6db8791f1af85c6466028baf6bd7f421c7c42a65d` |
 | REQUIRED_DOC | `docs/OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01.md` | `ac9bd6f73b7d18c1ea8e6760fdb11e42a37ebe7496cdb22d606f4b4972bcd960` |
 | REQUIRED_DOC | `docs/OPRIE-CRITIC-B01B-FAILURE-CLASSIFICATION-01.md` | `019bee219d0e353b3918452c06189e3e4652cc4af62f741974d7e0443001cb12` |
