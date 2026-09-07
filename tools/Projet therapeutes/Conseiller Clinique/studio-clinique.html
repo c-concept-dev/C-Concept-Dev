@@ -4741,6 +4741,9 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         msSinceLastSemanticActivity: m ? m.msSinceLastSemanticActivity : null,
         payloadBytes: m ? m.payloadBytes : null,
         usefulContentFragmentCount: m ? m.usefulContentFragmentCount : null,
+        // Lot request-id — identifiant technique Anthropic (corrélation support), présent
+        // uniquement pour un repli lié à l'appel 2 (seul appel qui le capture pour l'instant).
+        anthropicRequestId: m ? (m.anthropicRequestId || null) : null,
         errorMessage: e.errorMessage,
       };
     }));
@@ -9935,6 +9938,10 @@ ${recent}`;
           throw _genFetchErr;
         }
         _m2.msToHttp200 = Math.round(performance.now() - _tCall2Start);
+        // Lot request-id — capturé dès que la réponse existe (avant le test !resp.ok), pour
+        // qu'un futur repli lié à une erreur HTTP Anthropic garde aussi cet identifiant de
+        // corrélation, pas seulement les replis liés à un timeout de flux.
+        _m2.anthropicRequestId = resp.headers.get('X-Anthropic-Request-Id') || null;
         if (!resp.ok) {
           clearTimeout(_genTid); clearTimeout(_genSemTid);
           _fetchOrHttpErr = new Error('HTTP ' + resp.status);
