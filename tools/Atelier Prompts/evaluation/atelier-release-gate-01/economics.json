@@ -1,0 +1,31 @@
+{
+  "lot": "ATELIER-RELEASE-GATE-01",
+  "ECONOMIC_FIT": "OWNER_ACCEPTANCE_REQUIRED",
+  "regle_d_attribution": "Seules les mesures attribuables à Atelier sont utilisées. La consommation globale du compte Anthropic n'est PAS une métrique Atelier : Claude Code a été lancé par le passé avec ANTHROPIC_API_KEY dans son environnement, ce qui mélangeait les consommations.",
+  "tarifs_verifies": { "claude-sonnet-4-6": { "entree_usd_par_million": 3, "sortie_usd_par_million": 15 } },
+  "reference_retenue_par_le_lot": {
+    "cout_p50_usd": 0.057,
+    "cout_p95_usd": 0.125,
+    "derivation_p50": "13 081 jetons d'entrée × 3/M + 1 193 de sortie × 15/M = 0,0392 + 0,0179 = 0,0571 — cohérent avec la baseline Sonnet de DEEP-HAIKU-FIT-01"
+  },
+  "seconde_mesure_qui_ne_concorde_pas": {
+    "source": "evaluation/deep-cout-jetons-01/results.json — 12 tours du corpus de régression",
+    "deep_core_turn_entree_p50": 13408,
+    "deep_core_turn_sortie_p50": 2829,
+    "cout_p50_recalcule_usd": 0.0826,
+    "deep_core_turn_entree_p95": 86082,
+    "deep_core_turn_sortie_p95": 17812,
+    "cout_p95_recalcule_usd": 0.525,
+    "pourquoi_l_ecart": "les deux populations diffèrent. La baseline à 0,057 porte sur une population où la sortie médiane vaut 1 193 jetons ; celle-ci en mesure 2 829, et sa queue monte à 17 812 jetons de sortie pour un seul tour — le Critique y fait jusqu'à 13 appels.",
+    "avertissement": "p95 sur 12 tours n'est pas un p95 robuste. Le chiffre dit une direction, pas une valeur."
+  },
+  "verdict_du_lot_cout_jetons": {
+    "classification": "DEEP_COST_DOMINANT",
+    "regle": "dérivée du quota lui-même, jamais d'un seuil inventé : DOMINANT si un seul tour dépasse le budget d'une minute entière",
+    "rapport_p50_sur_quota": 2,
+    "rapport_p95_sur_quota": 12.99,
+    "lecture": "un tour Deep médian consomme deux fois le quota d'une minute ; au p95, treize fois"
+  },
+  "pourquoi_OWNER_ACCEPTANCE_REQUIRED_et_non_ACCEPTABLE": "À 0,057 USD par tour, l'économie est raisonnable pour un atelier de prompts. Mais la queue mesurée — 0,5 USD sur un tour, jusqu'à 15 appels fournisseur — n'est pas encadrée par un plafond de coût par tour. Ce n'est pas un bloqueur technique ; c'est un arbitrage produit qui appartient à Christophe.",
+  "ce_que_ce_lot_ne_fait_pas": "§21 interdit d'optimiser le coût ici. Aucune optimisation proposée, aucun cache, aucune réduction de rôle."
+}

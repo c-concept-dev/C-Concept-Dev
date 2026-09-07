@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `32c8bbc5e1521d8f3865734cdcbfdd2778750eac` |
-| Date du commit | 2026-09-07T19:16:06+02:00 |
+| Commit local | `544497cf8faedb2be601fe2ec019484e8b405acd` |
+| Date du commit | 2026-09-07T19:35:24+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-75 fichiers. C'est ce qui doit exister pour **servir** la page,
+76 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `2b753ad7f848df5162c158b466b8ac701f15139743e93c7d4bb3dec56e360be7` |
+| Empreinte du jeu | `a23ddea555ca725b4a4585fd5db6731d0cc2df8b42aadb836de749eab99a19e5` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -90,6 +90,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-DEEP-TURN-AMORTIZATION-01.md` | `af690a6a16634b32162d73b2946c7266ee8c5a3a39e44c196a20d7c66fd61b88` |
 | REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
 | REQUIRED_DOC | `docs/ATELIER-LLM-ARCHITECTURE-SURGEON-01.md` | `98f8400e4f4b58442c39ca2aab8f65477e0864328834b916b7fe1374c1da7429` |
+| REQUIRED_DOC | `docs/ATELIER-RELEASE-GATE-01.md` | `57494ccb8d0db93960230d98354056e73ecb05f464dd676f5b1ab231fc1866ad` |
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
 | REQUIRED_DOC | `docs/CRITIC-POSTPROVIDER-TYPEERROR-01.md` | `c9b6d591c920f748cf56f34b33652ff3cdc14054d73954460ea3864819f87f7f` |
 | REQUIRED_DOC | `docs/DEEP-ANTHROPIC-ACCEPTANCE-01.md` | `4218e62ea2ca9ea92618f895635068b96729665c456e91782ff10596b76db051` |
@@ -145,7 +146,7 @@ sa propre empreinte.
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
 | REQUIRED_TEST_ONLY | 156 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 291 | bancs et campagnes, dont le worker `…-local-only` |
+| EVALUATION_ONLY | 300 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 

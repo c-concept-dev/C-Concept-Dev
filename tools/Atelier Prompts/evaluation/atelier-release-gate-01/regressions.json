@@ -1,0 +1,37 @@
+{
+  "lot": "ATELIER-RELEASE-GATE-01",
+  "GLOBAL": { "run_1": "2965/2965", "run_2": "2965/2965", "run_3": "2965/2965", "nouvelles_regressions": 0 },
+  "FROZEN": { "verdict": "PASS", "empreintes": 7, "toutes_conformes_a": "anti-regression-baseline.json" },
+  "BROWSER_RUNTIME": {
+    "verdict": "PASS",
+    "preuve_independante": "la régénération relancée pendant ce Release Gate produit ZÉRO fichier modifié — le runtime embarqué dans l'HTML est exactement le build de la source courante",
+    "stale_build": "aucun",
+    "TypeError_connu_reproduit": "aucun — la classe CPT-01 / UAF-02 / DOR-01 est couverte et verte"
+  },
+  "SECRET_SCAN": {
+    "verdict": "PASS",
+    "methode": "recherche de valeurs de clés réelles (sk-ant-, gsk_, sk-proj-) sur tout le subtree hors node_modules",
+    "resultat": "aucun fichier",
+    "ANTHROPIC_API_KEY_en_clair": "absente"
+  },
+  "MANIFEST_FIX": {
+    "classification": "LEGITIMATE",
+    "historique": "T-HTMLFINAL02-10 était en échec au checkpoint ca6fa4d : le manifeste annonçait 68 fichiers, l'inventaire en comptait 72. Dérive laissée par quatre commits documentaires.",
+    "ce_qui_a_ete_fait": "le manifeste a été RÉGÉNÉRÉ par son propre outil, tools/build-release-manifest.mjs, qui recalcule l'inventaire, les empreintes par fichier et l'empreinte de jeu. Le compte de tests observés, seule valeur non recalculable, est reporté explicitement via --tests=N.",
+    "verification_qu_aucune_attente_n_a_ete_affaiblie": [
+      "le test T-HTMLFINAL02-10 est INCHANGÉ — il n'a pas été touché par le lot précédent ; c'est la donnée qui a été réalignée, pas l'assertion",
+      "aucune entrée n'a été supprimée de l'inventaire : le compte est passé de 72 à 75, il a augmenté",
+      "les tests voisins T-HTMLFINAL02-11 à -20 sont restés verts sans modification, dont -12 (chaque fichier suivi est classé) et -18 (une seule dette reste ouverte, et le manifeste la nomme)"
+    ],
+    "conclusion": "le test passe parce que le manifeste dit désormais la vérité, pas parce que l'attente a été abaissée"
+  },
+  "regressions_semantiques_connues": {
+    "false_READY": 0,
+    "commentaire": "les protections false READY, clarification_required, blocked, degraded_state, matériau présent/absent, provenance, available_inputs, expected_deliverable, question dernier recours, six familles du Critique, correction de l'Arbitre et B-01B sont toutes couvertes par la suite déterministe, verte trois fois de suite. Aucune campagne nouvelle n'a été lancée (§13)."
+  },
+  "confirmation_required": {
+    "statut": "NON COUVERT PAR LE CORPUS",
+    "source": "OPRIE-REFERENCE-ORACLE-01 — CORPUS_COVERAGE_GAP = YES : aucune fixture du corpus ne déclenche cet état",
+    "gravite": "dette de couverture connue et documentée, héritée, non introduite par les lots récents ; l'état lui-même est implémenté et validé structurellement"
+  }
+}

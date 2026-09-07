@@ -1,0 +1,57 @@
+{
+  "lot": "ATELIER-RELEASE-GATE-01",
+  "appels_api": 0,
+  "methode": "relecture des preuves existantes (§18, §26). Aucune nouvelle campagne.",
+  "FAST": {
+    "FAST_PERFORMANCE": "PASS",
+    "source_retenue": "evaluation/perf-nominal-provider-01/results.json — 48 appels par fournisseur, fixtures identiques",
+    "groq": {
+      "ttfi_p50_ms": 467.3,
+      "ttfi_p95_ms": 1617,
+      "reprises_totales": 0,
+      "zero_429": true,
+      "p50_target_met": true,
+      "p95_contract_met": true,
+      "non_conforming": false,
+      "jetons_total_p50": 426
+    },
+    "contrat": { "cible_p50_ms": 2000, "p95_contractuel_ms": 3000, "degrade_max_ms": 5000 },
+    "lecture": "En régime nominal, le plan rapide tient largement le contrat interactif : médiane sous une demi-seconde, p95 à 1,6 s pour un plafond de 3 s.",
+    "nuance_a_ne_pas_masquer": {
+      "quoi": "La série perf-real-01 (B à G) mesure le MÊME plan rapide en régime SATURÉ et rapporte systématiquement interactive_p95_contract_met = false : p95 de 3245 ms (01B), 3406 (01C), 3395 (01D), 3947 (01F).",
+      "pourquoi_ce_n_est_pas_la_reference_applicable": "ces mesures ont été prises sous 429 répétés (8 à 21 signaux) ET avec un repli Fast vers Anthropic dont les populations sont explicitement séparées : côté Groq seul, p95 de 780 à 1215 ms selon la politique. La configuration mesurée n'est plus celle du code : FAST_PROVIDER_ORDER est aujourd'hui figé à [\"groq\"].",
+      "consequence_du_fournisseur_unique": "un 429 Groq n'a plus de cible de repli. La chaîne s'épuise et échoue proprement au lieu de ralentir. Le comportement sous saturation est donc fail-closed, non dégradé-lent — c'est un choix cohérent, mais il n'a pas été remesuré depuis le figement de la chaîne.",
+      "classification": "preuve nominale valide ; preuve de saturation périmée par changement de configuration"
+    }
+  },
+  "DEEP": {
+    "DEEP_PRODUCT_LATENCY": "OWNER_ACCEPTANCE_REQUIRED",
+    "sources": {
+      "deep-production-blockers-01/paired-latency.json": {
+        "population_A_materiau_nominal_p50_ms": 20809,
+        "population_B_ouverte_sans_materiau_p50_ms": 91694
+      },
+      "deep-cout-jetons-01/results.json": {
+        "population": "12 tours du corpus de régression, 5 catégories",
+        "latence_p50_ms": 32568,
+        "latence_p95_ms": 218533,
+        "appels_fournisseur_par_tour_p50": 4,
+        "appels_fournisseur_par_tour_p95": 15,
+        "critic_appels_par_tour_p95": 13
+      }
+    },
+    "reponse_a_la_question_centrale_du_§19": {
+      "question": "les chemins très lents sont-ils réservés à un travail Deep substantiel, ou le dialogue courant force-t-il l'attente ?",
+      "reponse": "NON, ils ne sont pas réservés au travail substantiel — et c'est le constat le plus important de ce Release Gate.",
+      "preuve": [
+        "C3 — « Résume ce texte en dix lignes » : Sonnet met 57 113 ms pour rendre clarification_required, c'est-à-dire pour poser la question « Quel est le texte ? »",
+        "C4 — « Prépare ça pour demain » : 86 928 ms pour rendre clarification_required",
+        "C1 — demande substantielle (trois scénarios de réduction budgétaire) : 68 083 ms pour un READY",
+        "population B (ouverte, sans matériau) : p50 91 694 ms — et c'est la population qui aboutit à une QUESTION, pas à un livrable"
+      ],
+      "lecture": "L'attente la plus longue tombe sur les tours qui produisent le moins : une question d'une ligne. Un utilisateur qui écrit « Résume ce texte » attend près d'une minute pour s'entendre demander de quel texte il s'agit. La demande substantielle, elle, coûte 68 s — moins que la question.",
+      "confrontation_au_contrat_produit_§2": "« Le Deep peut prendre plus de temps lorsqu'un vrai travail de fond est nécessaire, mais il ne doit pas transformer chaque échange en attente longue. » La première moitié est respectée. La seconde ne l'est pas sur la population ouverte."
+    },
+    "ce_que_ce_lot_ne_fait_pas": "§20 interdit de changer l'architecture ici. Aucune piste n'est ouverte, aucun cache, aucun streaming, aucun routage. Le constat est remis au propriétaire."
+  }
+}
