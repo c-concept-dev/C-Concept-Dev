@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 7f43ddb081b63f11526bf8361c73d9fe80a3a5ee1b318c84a39d0f4cc57b8a94
+ * source-sha256: 39f79065ec97a7a100b7c2732ebc7b9d8ca92e46cb6fe267dccd80382a96ab4a
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -6168,6 +6168,122 @@ function buildRoleInput(role, base, outputs, material_context, material_content)
   return { ...base, analyst_output: outputs.analyst, critic_output: outputs.critic, material_context };
 }
 
+/**
+ * OBSERVABILITY-COMPLETENESS-01 — POURQUOI CE BLOC EXISTE.
+ *
+ * Un 502 de cette route est resté DÉFINITIVEMENT inattribuable : le journal de l'invocation
+ * concernée n'a pas été capté, et surtout AUCUN identifiant ne permettait de rattacher la réponse
+ * observée par le client à un enregistrement serveur. La capture n'était que la moitié du problème ;
+ * l'absence de clé de jointure en était l'autre, et elle aurait survécu à une capture parfaite.
+ *
+ * Ce bloc n'ajoute AUCUN comportement : ni décision, ni état, ni repli, ni changement de statut.
+ * Il ne fait qu'observer. Trois pièces, et rien de plus :
+ *   1. un identifiant d'invocation stable, rendu au client (en-tête) et présent dans chaque événement ;
+ *   2. une trace MUTABLE qui survit à toute levée — étiquetée ou non, c'est précisément le cas qui
+ *      avait mis l'enquête en échec : on ne peut pas se reposer sur l'étiquetage pour observer ce
+ *      qui n'est pas étiqueté ;
+ *   3. exactement UN enregistrement terminal par invocation, sur les trois chemins terminaux.
+ */
+
+/**
+ * Identifiant d'invocation. `cf-ray` est préféré quand il existe : il est stable pour toute
+ * l'invocation et déjà corrélable côté plateforme. Hors Cloudflare (tests, exécution locale), un
+ * UUID est généré. Une seule valeur est produite par invocation, puis diffusée — jamais régénérée
+ * dans un sous-appel, ce qui produirait des identifiants divergents pour un même tour.
+ */
+function resolveInvocationId(request) {
+  const ray = request && request.headers && typeof request.headers.get === "function" ? request.headers.get("cf-ray") : null;
+  if (typeof ray === "string" && ray.trim()) return ray.trim();
+  return crypto.randomUUID();
+}
+
+/**
+ * Empreinte d'erreur SÛRE. `error.message` n'est JAMAIS émis : un message de validation peut citer
+ * une valeur d'entrée, donc du contenu utilisateur. Ce qui sort ici est un nom de classe (vocabulaire
+ * du langage), une empreinte SHA-256 du message (déterministe, non réversible, suffisante pour
+ * regrouper des occurrences identiques) et le NOMBRE de cadres de pile — jamais le texte de la pile,
+ * qui contient des chemins de source.
+ */
+async function safeErrorFingerprint(error) {
+  const name = error instanceof Error && typeof error.name === "string" ? error.name : "UnknownError";
+  const message = error instanceof Error && typeof error.message === "string" ? error.message : String(error ?? "");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(message));
+  const message_sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const frame_count = error instanceof Error && typeof error.stack === "string"
+    ? error.stack.split("\n").filter((line) => line.trim().startsWith("at ")).length : 0;
+  return { error_name: name, message_sha256, frame_count };
+}
+
+/** Phases observables d'une invocation. Vocabulaire fermé, aligné sur la séquence réelle. */
+const OPERATIONAL_REQUEST_PHASES = Object.freeze(["validate", "analyst", "critic", "arbiter", "state_check"]);
+
+/**
+ * Trace d'exécution MUTABLE. Elle est écrite au fil de l'invocation et lue dans le `catch` du
+ * gestionnaire HTTP : elle survit donc à n'importe quelle levée, étiquetée ou non. C'est la
+ * propriété qui manquait — une exception non étiquetée ne dit rien d'elle-même, mais la trace, elle,
+ * sait toujours où l'on était.
+ *
+ * `observe(event)` absorbe les événements provider_ha_* DÉJÀ ÉMIS par la chaîne de fournisseurs :
+ * aucune instrumentation n'est ajoutée dans provider-ha.js, qui reste inchangé. Le fournisseur,
+ * l'index de tentative et le chemin de repli sont donc corrélés sans toucher à ce module.
+ */
+function createExecutionTrace({ resolveModel } = {}) {
+  const started_at = Date.now();
+  const phases = [];
+  const trace = {
+    started_at,
+    phase: null,
+    role: null,
+    provider: null,
+    model: null,
+    provider_attempt_index: null,
+    fallback_path: [],
+    phases,
+    enterPhase(phase, role = null) {
+      const now = Date.now();
+      const previous = phases[phases.length - 1];
+      if (previous && previous.duration_ms === null) previous.duration_ms = now - previous.phase_started_at;
+      trace.phase = phase;
+      trace.role = role;
+      phases.push({ phase, role, phase_started_at: now, duration_ms: null });
+    },
+    closePhase() {
+      const previous = phases[phases.length - 1];
+      if (previous && previous.duration_ms === null) previous.duration_ms = Date.now() - previous.phase_started_at;
+    },
+    observe(event) {
+      if (!event || typeof event !== "object") return;
+      if (event.event === "provider_ha_attempt" || event.event === "provider_ha_failure" || event.event === "provider_ha_success") {
+        trace.provider = event.provider ?? trace.provider;
+        trace.provider_attempt_index = typeof event.attempt_index === "number" ? event.attempt_index : trace.provider_attempt_index;
+        if (typeof resolveModel === "function" && trace.provider) trace.model = resolveModel(trace.provider) ?? trace.model;
+      }
+      if (event.event === "provider_ha_fallback" && event.fallback_to) {
+        trace.fallback_path.push({ from: event.fallback_from ?? null, to: event.fallback_to, failure_class: event.failure_class ?? null });
+      }
+    }
+  };
+  return trace;
+}
+
+/** Champs OBLIGATOIRES de l'enregistrement terminal. `journal_complete` est CALCULÉ sur cette liste. */
+const TERMINAL_RECORD_REQUIRED_FIELDS = Object.freeze([
+  "invocation_id", "terminal_event", "phase", "role", "provider", "model",
+  "provider_attempt_index", "http_status", "semantic_state", "error_class",
+  "untagged_exception", "fallback_path", "phases", "safe_error_fingerprint"
+]);
+
+/**
+ * Construit l'UNIQUE enregistrement terminal d'une invocation. `journal_complete` n'est pas une
+ * constante décorative : il vaut vrai seulement si chacun des champs obligatoires est réellement
+ * présent. Un enregistrement incomplet se dénonce donc lui-même, au lieu de passer inaperçu.
+ */
+function buildTerminalRecord(fields) {
+  const record = { ...fields, terminal_event: true };
+  record.journal_complete = TERMINAL_RECORD_REQUIRED_FIELDS.every((key) => record[key] !== undefined);
+  return record;
+}
+
 function defaultLog(event) {
   console.log(JSON.stringify(event));
 }
@@ -6185,7 +6301,7 @@ function defaultLog(event) {
  * @param {(role: string, roleInput: object) => Promise<object>} executeRole  chaîne HA du rôle
  * @returns {Promise<object>} ArbiterOutput validé, ou DegradedRoleResult validé
  */
-async function runOperationalRequestTurn(input, { executeRole, log = defaultLog } = {}) {
+async function runOperationalRequestTurn(input, { executeRole, log = defaultLog, trace = null } = {}) {
   if (typeof executeRole !== "function") throw new TypeError("runOperationalRequestTurn: executeRole est obligatoire.");
   const base = Object.freeze({ original_request: input.original_request, clarification_history: input.clarification_history });
   /* Le contexte matériau vit à côté de `base`, jamais dedans : voir buildRoleInput. */
@@ -6211,6 +6327,7 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog 
   const outputs = {};
 
   for (const role of OPERATIONAL_REQUEST_ROLE_SEQUENCE) {
+    if (trace) trace.enterPhase(role, role);
     log({ event: "operational_request_role_start", role, sequence: OPERATIONAL_REQUEST_ROLE_SEQUENCE });
     /* OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01 — la preuve, tour par tour, que le Critique reçoit
        la disponibilité. Deux booléens, jamais un octet de matériau. Elle existe parce qu'un test
@@ -6240,7 +6357,9 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog 
     }
     let raw;
     try {
-      raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context, material_content));
+      /* OBSERVABILITY-COMPLETENESS-01 — le MÊME `log` est passé à l'adaptateur de rôle : les
+         événements provider_ha_* portent donc le même invocation_id, sans toucher provider-ha.js. */
+      raw = await executeRole(role, buildRoleInput(role, base, outputs, material_context, material_content), { log });
     } catch (error) {
       if (!isProviderChainExhausted(error)) throw error;
       // Le détail technique reste côté serveur ; le client reçoit un motif neutre.
@@ -6268,6 +6387,7 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog 
   }
 
   const turn = outputs.arbiter;
+  if (trace) trace.enterPhase("state_check", "arbiter");
   // La légalité de l'état vient de la machine d'état gelée, jamais d'une liste recopiée ici.
   if (!isLegalTransition(OPERATIONAL_REQUEST_TURN_ORIGIN_STATE, turn.state)) {
     throw new TypeError(`État de tour OPRIE illégal depuis "${OPERATIONAL_REQUEST_TURN_ORIGIN_STATE}" : ${turn.state}.`);
@@ -6289,7 +6409,7 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog 
  * contrat existant — /decision, /analyst, /critic et /arbiter conservent le leur, y compris leur 502
  * sans champ d'état.
  */
-async function handleOperationalRequest(request, env, { executeRole, log } = {}) {
+async function handleOperationalRequest(request, env, { executeRole, log, resolveModel } = {}) {
   const url = new URL(request.url);
   const cors = corsHeaders(request, env);
   if (request.method === "OPTIONS") {
@@ -6298,16 +6418,75 @@ async function handleOperationalRequest(request, env, { executeRole, log } = {})
   if (url.pathname !== "/operational-request") return jsonResponse({ error: "not_found" }, 404, cors);
   if (request.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, cors);
   if (!cors) return jsonResponse({ error: "origin_not_allowed" }, 403, null);
+
+  /* OBSERVABILITY-COMPLETENESS-01 — un seul identifiant, minté ici, diffusé partout. */
+  const invocation_id = resolveInvocationId(request);
+  const trace = createExecutionTrace({ resolveModel });
+  const sink = typeof log === "function" ? log : defaultLog;
+  /* Le MÊME emballage est passé au tour ET, par lui, à la chaîne de fournisseurs : chaque événement
+     porte l'identifiant, et la trace absorbe au passage provider/tentative/repli. */
+  const stampedLog = (event) => { trace.observe(event); sink({ ...event, invocation_id }); };
+  /* En-tête de jointure : présent sur TOUTES les réponses de cette route, y compris les succès.
+     Additif — aucune forme de réponse existante n'est modifiée. */
+  const join = { ...(cors || {}), "X-Invocation-Id": invocation_id, "Access-Control-Expose-Headers": "X-Invocation-Id" };
+
+  const emitTerminal = (event, { http_status, semantic_state, error_class, untagged_exception, safe_error_fingerprint }) => {
+    trace.closePhase();
+    sink(buildTerminalRecord({
+      event,
+      invocation_id,
+      phase: trace.phase,
+      role: trace.role,
+      provider: trace.provider,
+      model: trace.model,
+      provider_attempt_index: trace.provider_attempt_index,
+      http_status,
+      semantic_state,
+      error_class,
+      untagged_exception,
+      fallback_path: trace.fallback_path,
+      phases: trace.phases,
+      total_duration_ms: Date.now() - trace.started_at,
+      safe_error_fingerprint
+    }));
+  };
+
   try {
     // Un tour transporte la demande et son historique, jamais analyst_output ni critic_output :
     // la limite de l'Analyste est donc exactement la bonne, sans nouvelle constante de transport.
+    trace.enterPhase("validate", null);
     const input = validateAnalystInput(await readJsonBody(request, TRANSPORT_LIMITS.analyst));
-    return jsonResponse(await runOperationalRequestTurn(input, { executeRole, ...(log ? { log } : {}) }), 200, cors);
+    const turn = await runOperationalRequestTurn(input, { executeRole, log: stampedLog, trace });
+    emitTerminal("operational_request_terminal", {
+      http_status: 200,
+      semantic_state: turn && typeof turn.state === "string" ? turn.state : null,
+      error_class: null,
+      untagged_exception: false,
+      safe_error_fingerprint: null
+    });
+    return jsonResponse(turn, 200, join);
   } catch (error) {
-    if (error instanceof DecisionHttpError) return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
+    /* L'empreinte est SÛRE par construction : jamais error.message, jamais le texte de la pile. */
+    const safe_error_fingerprint = await safeErrorFingerprint(error);
+    if (error instanceof DecisionHttpError) {
+      emitTerminal("operational_request_terminal", {
+        http_status: error.status, semantic_state: null, error_class: "http_error",
+        untagged_exception: false, safe_error_fingerprint
+      });
+      return jsonResponse({ error: error.code, message: error.message, invocation_id }, error.status, join);
+    }
+    /* Une exception qui arrive ici sans classe connue est, par définition, NON ÉTIQUETÉE : c'est
+       exactement le cas qui avait rendu un 502 inattribuable. Il est désormais nommé comme tel. */
+    const tagged_class = typeof error?.failure_class === "string" ? error.failure_class : null;
+    emitTerminal("operational_request_error", {
+      http_status: 502,
+      semantic_state: null,
+      error_class: tagged_class ?? "untagged",
+      untagged_exception: tagged_class === null,
+      safe_error_fingerprint
+    });
     // Aucun détail interne n'est exposé : ni message d'erreur brut, ni pile, ni fournisseur.
-    console.error(JSON.stringify({ event: "operational_request_error", message: error instanceof Error ? error.message : "unknown" }));
-    return jsonResponse({ error: "operational_request_failure", message: "La demande opérationnelle n'a pas pu être traitée." }, 502, cors);
+    return jsonResponse({ error: "operational_request_failure", message: "La demande opérationnelle n'a pas pu être traitée.", invocation_id }, 502, join);
   }
 }
 
@@ -9659,5 +9838,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'7f43ddb081b63f11526bf8361c73d9fe80a3a5ee1b318c84a39d0f4cc57b8a94'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'39f79065ec97a7a100b7c2732ebc7b9d8ca92e46cb6fe267dccd80382a96ab4a'});
 })(window);

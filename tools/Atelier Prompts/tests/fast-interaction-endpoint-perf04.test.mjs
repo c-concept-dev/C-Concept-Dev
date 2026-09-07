@@ -142,7 +142,15 @@ test('T-P04-EP10 : /operational-request conserve son contrat à l’octet près'
      câblage vérifié ici est inchangé : c'est toujours resolveRoleProviderOrder(env) qui le
      fournit à la route, et c'est précisément pour cela que le changement de fournisseur n'a
      demandé aucune retouche de cette ligne. */
-  assert.match(WORKER, /executeRole: \(role, roleInput\) => runRoleWithHaChain\(role, roleInput, env, \{ order: resolveRoleProviderOrder\(env\) \}\)/);
+  /* OBSERVABILITY-COMPLETENESS-01 — LE LITTÉRAL A CHANGÉ, LE CONTRAT NON, À NOUVEAU.
+     La route reçoit désormais aussi le `log` estampillé de l'orchestrateur (pour que les
+     événements provider_ha_* portent l'invocation_id) et un résolveur de modèle. Ce que
+     CETTE ligne protégeait — l'ordre vient de resolveRoleProviderOrder(env), jamais d'un
+     littéral en dur — est vérifié exactement comme avant, et les trois assertions
+     suivantes le prouvent indépendamment du câblage d'observabilité. */
+  assert.match(WORKER, /executeRole: \(role, roleInput, options\) => runRoleWithHaChain\(role, roleInput, env, \{\s*order: resolveRoleProviderOrder\(env\),/);
+  assert.match(WORKER, /resolveModel: \(provider\) => resolveRoleProviderModel\(provider, env\)/,
+    'le modèle réellement utilisé est rendu observable, sans être choisi ici.');
   assert.deepEqual(resolveRoleProviderOrder({}), ["anthropic"],
     'sans variable, l\'ordre des rôles est exactement celui de production.');
   assert.deepEqual(resolveRoleProviderOrder({ DEEP_BENCH_PROVIDER: "ha" }), ["anthropic"],

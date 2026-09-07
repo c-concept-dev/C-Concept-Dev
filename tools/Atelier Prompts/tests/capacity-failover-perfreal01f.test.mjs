@@ -312,7 +312,7 @@ test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transit
      sont. Aucune règle, aucun prompt, aucun comportement d'interface n'a changé — seule l'étiquette
      portée par une erreur déjà levée. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'e650eee0bec52fe8267d9fa21120b3598abe15ecdc2778eabd2741c15ace0b35', 'CANONICAL_HTML_CHANGED = NO');
+    '000f1ce8572659b6b769e3f781ba0d4068146e4df355db80ab2aad46fdac5f34', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

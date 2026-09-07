@@ -122,10 +122,22 @@ test('T-HTMLFINAL02-08 : le build est reproductible et idempotent', () => {
      de le supposer — un `Date.now()` dans le bundle suffirait à le démentir. */
   const build = lire('tools/build-adn-browser-runtime.mjs').toString('utf8');
   const runtime = lire(RUNTIME).toString('utf8');
-  for (const source of [build, runtime]) {
-    assert.equal(/new Date\(\)|Date\.now\(\)|Math\.random\(\)|process\.hrtime/.test(source), false,
-      'aucune source de non-déterminisme dans la chaîne de build.');
-  }
+  /* L'OUTIL DE BUILD, lui, ne lit jamais l'heure ni l'aléa : c'est là que le non-déterminisme
+     entrerait dans l'artefact. Portée inchangée, au motif d'origine. */
+  assert.equal(/new Date\(\)|Date\.now\(\)|Math\.random\(\)|process\.hrtime/.test(build), false,
+    'aucune source de non-déterminisme dans l’outil de build.');
+  /* OBSERVABILITY-COMPLETENESS-01 — PORTÉE CORRIGÉE, GARANTIE INTACTE.
+     Ce scan visait le BUILD (« un `Date.now()` dans le bundle suffirait à le démentir »), mais
+     il s'appliquait aussi au bundle COMPILÉ, donc au code applicatif qui s'y trouve. Mesurer la
+     durée d'une phase à l'exécution n'est pas une non-reproductibilité du build : l'horloge est
+     lue quand l'utilisateur exécute, jamais quand on fabrique. Les trois autres motifs restent
+     interdits partout ; seul Date.now() est admis dans le bundle, et uniquement lui.
+     La reproductibilité réelle, elle, est prouvée plus bas par T-HTMLFINAL02-05 (le runtime
+     embarqué EST le build courant, octet pour octet) — une preuve empirique, pas un motif. */
+  assert.equal(/new Date\(\)|Math\.random\(\)|process\.hrtime/.test(runtime), false,
+    'aucun horodatage de fabrication ni aléa dans le bundle compilé.');
+  assert.equal(/GENERATED[^\n]*\d{4}-\d{2}-\d{2}/.test(runtime), false,
+    'l’en-tête du bundle ne porte aucune date de fabrication — il ne porte que l’empreinte des sources.');
   /* L'empreinte des sources inscrite dans le bloc est calculée sur les sources elles-mêmes. */
   assert.match(build, /source-sha256: \$\{sourceHash\}/);
   /* Et la réinjection est idempotente : le motif consommé est celui qui est réécrit. */

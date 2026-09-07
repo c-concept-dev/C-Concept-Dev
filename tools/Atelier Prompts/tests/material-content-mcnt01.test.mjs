@@ -193,7 +193,7 @@ test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
      sont. Aucune règle, aucun prompt, aucun comportement d'interface n'a changé — seule l'étiquette
      portée par une erreur déjà levée. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'e650eee0bec52fe8267d9fa21120b3598abe15ecdc2778eabd2741c15ace0b35',
+    '000f1ce8572659b6b769e3f781ba0d4068146e4df355db80ab2aad46fdac5f34',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

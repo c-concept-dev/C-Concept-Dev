@@ -1865,6 +1865,26 @@ export async function runCriticWithAnthropic(input, env) {
 export const ROLE_PROVIDER_ORDER = Object.freeze(["anthropic"]);
 
 /**
+ * OBSERVABILITY-COMPLETENESS-01 — QUEL MODÈLE A RÉPONDU.
+ *
+ * Les événements provider_ha_* nomment le fournisseur, jamais le modèle : une panne future pouvait
+ * donc dire « anthropic a échoué » sans jamais dire lequel de ses modèles. Cette fonction ne CHOISIT
+ * rien et n'introduit aucune valeur : elle relit les constantes de modèle DÉJÀ utilisées par les
+ * appels réels, à la même place et avec la même règle de surcharge d'environnement que le chemin
+ * OpenAI existant. Un fournisseur inconnu rend `null` — jamais un modèle deviné.
+ */
+export function resolveRoleProviderModel(provider, env = {}) {
+  if (provider === "groq") return MODEL;
+  if (provider === "anthropic") return ANTHROPIC_MODEL;
+  if (provider === "openai") {
+    return typeof env.OPENAI_DECISION_MODEL === "string" && env.OPENAI_DECISION_MODEL.trim()
+      ? env.OPENAI_DECISION_MODEL.trim()
+      : OPENAI_MODEL;
+  }
+  return null;
+}
+
+/**
  * OPRIE-QUALITY-PARITY-01 — ÉPINGLAGE DIAGNOSTIC DU FOURNISSEUR DU PLAN PROFOND.
  *
  * POURQUOI. DEEP-TOKEN-COST-01 a établi que 77,7 % des jetons du plan profond sont
@@ -2228,7 +2248,14 @@ export default {
     }
     if (new URL(request.url).pathname === "/operational-request") {
       return handleOperationalRequest(request, env, {
-        executeRole: (role, roleInput) => runRoleWithHaChain(role, roleInput, env, { order: resolveRoleProviderOrder(env) })
+        /* OBSERVABILITY-COMPLETENESS-01 — le `log` estampillé par l'orchestrateur descend jusqu'à
+           runProviderChain : les événements provider_ha_* portent donc le même invocation_id que
+           l'enregistrement terminal. provider-ha.js n'est pas touché. */
+        executeRole: (role, roleInput, options) => runRoleWithHaChain(role, roleInput, env, {
+          order: resolveRoleProviderOrder(env),
+          ...(options && typeof options.log === "function" ? { log: options.log } : {})
+        }),
+        resolveModel: (provider) => resolveRoleProviderModel(provider, env)
       });
     }
     const role = roleFromPathname(new URL(request.url).pathname);
