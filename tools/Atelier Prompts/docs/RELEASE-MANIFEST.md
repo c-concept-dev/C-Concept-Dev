@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `a960a898d0d6842e334c4f4f0e0f7d06ddaa3001` |
-| Date du commit | 2026-09-08T02:02:35+02:00 |
+| Commit local | `f2d9262a1b935e2e1b1484c2b913277a6179b73e` |
+| Date du commit | 2026-09-08T02:25:28+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-81 fichiers. C'est ce qui doit exister pour **servir** la page,
+82 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `02884029a2f0171b7719c845a14b9da67f534b5d75d084e166fc4188f0343157` |
+| Empreinte du jeu | `1b8d8a0cbe9e9b4751d5b9b4d50cfa0f89269695aad2a135cd835b2ccee1ed2a` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -92,6 +92,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
 | REQUIRED_DOC | `docs/ATELIER-LLM-ARCHITECTURE-SURGEON-01.md` | `98f8400e4f4b58442c39ca2aab8f65477e0864328834b916b7fe1374c1da7429` |
 | REQUIRED_DOC | `docs/ATELIER-RELEASE-GATE-01.md` | `57494ccb8d0db93960230d98354056e73ecb05f464dd676f5b1ab231fc1866ad` |
+| REQUIRED_DOC | `docs/ATELIER-VISUAL-MERGE-FINAL-01-REPORT.md` | `b3c1ef26b5bcab07b2a11fc144b59cf2066b098bdb32b10d7a0ffe648625b4fb` |
 | REQUIRED_DOC | `docs/CAPACITY-SLA-DEFINITION-01.md` | `7df757a294b95567cac340b3824d05aaf9ab8fea915fa7ed51917163b7e69fde` |
 | REQUIRED_DOC | `docs/CRITIC-POSTPROVIDER-TYPEERROR-01.md` | `c9b6d591c920f748cf56f34b33652ff3cdc14054d73954460ea3864819f87f7f` |
 | REQUIRED_DOC | `docs/DEEP-ANTHROPIC-ACCEPTANCE-01.md` | `4218e62ea2ca9ea92618f895635068b96729665c456e91782ff10596b76db051` |
