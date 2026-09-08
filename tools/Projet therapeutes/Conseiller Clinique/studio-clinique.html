@@ -6460,7 +6460,20 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       for (const _part of _textParts) {
         if (/^<!DOCTYPE\s+html/i.test(_part.trim())) {
           _htmlCount++;
-          _displayParts.push('<div style="margin:8px 0;padding:10px 14px;background:var(--ivory);border-left:3px solid var(--petrol-800);border-radius:4px;font-size:11px;color:var(--petrol-950);">' + adocIconSvg('icon-progress') + ' Document ' + _htmlCount + ' en cours de génération…</div>');
+          // Correctif régression (signalée production, document long multi-chapitres) — ce
+          // div hérite de word-break:break-word depuis .adoc-bubble (ligne ~395). Sans largeur
+          // plancher, un enfant flex (le wrapper anonyme entre .adoc-avatar et .adoc-bubble,
+          // lui-même dans .adoc-msg qui est display:flex) voit sa "taille minimale automatique"
+          // calculée à partir du min-content de son contenu — et avec break-word, ce min-content
+          // s'effondre à la largeur d'un seul caractère (n'importe quel point peut couper).
+          // Sous contrainte de largeur (fenêtre plus étroite que la largeur naturelle du
+          // message), flex-shrink compresse alors la boîte jusqu'à ce plancher quasi nul :
+          // le texte s'empile lettre par lettre. Un min-width explicite ici remonte ce
+          // plancher tout le long de la chaîne (div → .adoc-bubble → wrapper flex), sans toucher
+          // à aucune autre bulle de conversation (ce style reste strictement inline, localisé à
+          // ce seul placeholder). Non lié à l'écran d'accueil : aucune règle #cc-landing ne
+          // s'applique jamais en dehors de son propre sous-arbre.
+          _displayParts.push('<div style="margin:8px 0;padding:10px 14px;min-width:220px;box-sizing:border-box;background:var(--ivory);border-left:3px solid var(--petrol-800);border-radius:4px;font-size:11px;color:var(--petrol-950);">' + adocIconSvg('icon-progress') + ' Document ' + _htmlCount + ' en cours de génération…</div>');
         } else if (_part.trim().length > 0) {
           _displayParts.push(adocFormatMd(_part));
         }
