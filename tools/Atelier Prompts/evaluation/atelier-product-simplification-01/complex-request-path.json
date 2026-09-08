@@ -1,0 +1,31 @@
+{
+  "lot": "ATELIER-PRODUCT-SIMPLIFICATION-01",
+  "avertissement": "les latences citées sont MESURÉES pour les scénarios 1, 2 et 6 (campagne Sonnet de cette session) ; ESTIMÉES pour 3, 4 et 5, faute de mesure. La distinction est explicite ligne par ligne.",
+  "scenarios": [
+    { "n": 1, "demande": "Je veux préparer mon voyage en Italie", "type": "A — clarification simple",
+      "chemin_actuel": "3 rôles, 6 appels, 92 556 ms (MESURÉ) ; 5 appels et 74 412 ms après early-stop (MESURÉ)",
+      "minimum_necessaire": "plan rapide seul pour AFFICHER la question (~0,5 s) ; profond en arrière-plan pour l'autorité",
+      "appels_proposes": "1 visible + profond hors chemin d'affichage",
+      "garanties_conservees": "toutes — le profond n'est pas sauté en A ni en B" },
+    { "n": 2, "demande": "Résume ce texte en dix lignes (sans texte)", "type": "A — clarification évidente",
+      "chemin_actuel": "4 appels, 75 691 ms (MESURÉ, cas Q02) — 1 seule cible, rien à arrêter",
+      "minimum_necessaire": "identique au scénario 1 : la question « quel texte ? » est évidente dès l'Analyste",
+      "note": "l'early-stop n'apporte RIEN ici — une seule issue. Seul le plan rapide change l'expérience." },
+    { "n": 3, "demande": "demande prête simple", "type": "C — substantielle simple",
+      "chemin_actuel": "3 rôles, 3–4 appels, 20 679 ms au p50 (MESURÉ, population A de paired-latency)",
+      "minimum_necessaire": "chaîne complète — c'est un READY, la garantie doit être entière",
+      "verdict": "NE PAS TOUCHER. Le §22 dit profondeur proportionnelle : ici elle l'est." },
+    { "n": 4, "demande": "complexe multi-critères", "type": "D",
+      "chemin_actuel": "ESTIMÉ — 3 rôles + N batches selon le nombre d'issues material+question",
+      "minimum_necessaire": "chaîne complète ; l'early-stop s'applique si la conclusion est une clarification",
+      "verdict": "NE PAS TOUCHER" },
+    { "n": 5, "demande": "complexe avec matériau long", "type": "E",
+      "chemin_actuel": "ESTIMÉ — matériau brut à l'Analyste seul ; Critique et Arbitre ne reçoivent que material_context",
+      "verdict": "NE PAS TOUCHER — l'étanchéité du matériau est un invariant produit, et elle limite déjà l'entrée des deux rôles avals" },
+    { "n": 6, "demande": "ambiguë nécessitant réellement Deep", "type": "F",
+      "chemin_actuel": "MESURÉ sur Q07/Q08 — 5 à 6 appels, 57 à 97 s",
+      "minimum_necessaire": "chaîne complète : c'est exactement le cas où la profondeur est justifiée",
+      "verdict": "NE PAS TOUCHER" }
+  ],
+  "conclusion": "quatre scénarios sur six ne doivent PAS être touchés. Le problème produit est concentré sur la classe A — clarification évidente — et il ne se résout pas en accélérant le profond, mais en cessant de l'attendre pour afficher."
+}

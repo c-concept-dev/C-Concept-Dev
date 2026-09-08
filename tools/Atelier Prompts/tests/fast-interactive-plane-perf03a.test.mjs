@@ -296,18 +296,33 @@ test('T-P03A-21 une inconnue n’appelle pas automatiquement une question', () =
  * §68–§69 — LES DEUX MODES
  * ======================================================================== */
 
-test('T-P03A-22 le mode Rapide n’acquiert aucune boucle de dialogue', async () => {
+/* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — RAPIDE CONVERSE DÉSORMAIS.
+   L'invariant R1 « Rapide ne converse pas » transformait une clarification en orientation, et la
+   question n'arrivait qu'avec le plan profond — 503 ms de disponible, ~92 s d'attente mesurés.
+   La règle est levée. Ce qui reste gardé, et que ces tests vérifient toujours : le plan rapide
+   n'acquiert AUCUNE autorité, et la projection existe toujours pour les modes qui ne conversent
+   pas — Atelier compose à la main et n'ouvre pas de tour gouverné. */
+test('T-P03A-22 le mode Rapide pose la question au lieu de renvoyer ailleurs', async () => {
   const { resultat } = await tour({ mode: 'rapide', fast: fastOk('ASK_CLARIFICATION', 'Quel public ?'), fastMs: 2, deepMs: 5 });
-  assert.equal(resultat.fast_interaction.type, 'ORIENT_ARCHITECTE',
-    'RAPIDE_DIALOG_LOOP_INTRODUCED = NO — une clarification y devient une orientation');
-  assert.equal(resultat.fast_interaction.projected_from, 'ASK_CLARIFICATION');
-  assert.deepEqual([...CONVERSATIONAL_MODES], ['architecte']);
+  assert.equal(resultat.fast_interaction.type, 'ASK_CLARIFICATION',
+    'la clarification reste une clarification en Rapide');
+  assert.equal(resultat.fast_interaction.projected_from, undefined, 'aucune projection : rien à tracer');
+  assert.equal(resultat.fast_interaction.authority, 'candidate', 'et elle n’acquiert toujours AUCUNE autorité');
+  assert.deepEqual([...CONVERSATIONAL_MODES], ['architecte', 'rapide']);
 });
 
-test('T-P03A-23 une confirmation aussi devient une orientation en Rapide', () => {
+test('T-P03A-22b la projection existe toujours pour un mode qui ne converse pas', () => {
+  const interaction = validateFastInteraction(fastOk('ASK_CLARIFICATION', 'Quel public ?'), snapshot()).interaction;
+  const projete = projectInteractionForMode(interaction, 'atelier');
+  assert.equal(projete.type, 'ORIENT_ARCHITECTE', 'Atelier compose à la main : il n’ouvre pas de dialogue');
+  assert.equal(projete.projected_from, 'ASK_CLARIFICATION', 'et la projection reste tracée, jamais silencieuse');
+});
+
+test('T-P03A-23 une confirmation est posée en Rapide comme en Architecte', () => {
   const interaction = validateFastInteraction(fastOk('ASK_CONFIRMATION', 'Confirmez-vous ?'), snapshot()).interaction;
-  assert.equal(projectInteractionForMode(interaction, 'rapide').type, 'ORIENT_ARCHITECTE');
+  assert.equal(projectInteractionForMode(interaction, 'rapide').type, 'ASK_CONFIRMATION');
   assert.equal(projectInteractionForMode(interaction, 'architecte').type, 'ASK_CONFIRMATION');
+  assert.equal(projectInteractionForMode(interaction, 'atelier').type, 'ORIENT_ARCHITECTE');
 });
 
 test('T-P03A-24 un accusé de réception reste tel quel dans les deux modes', () => {

@@ -873,7 +873,6 @@ html:not([data-theme="sombre"]) .visite-actions .bouton.primaire:hover{backgroun
 .v11-clarification-modal{position:fixed;inset:0;z-index:10000;margin:0;padding:24px;display:grid;place-items:center;background:rgba(45,42,39,.52);backdrop-filter:blur(3px)}
 .v11-clarification-modal[hidden]{display:none!important}
 .v11-clarification-panel{width:min(100%,620px);max-height:calc(100vh - 48px);overflow:auto;margin:0;padding:26px;border:1px solid var(--ds-border);border-radius:18px;background:var(--ds-surface-strong);box-shadow:0 24px 70px rgba(45,42,39,.25)}
-.v11-clarification-intro{margin:-4px 0 18px;color:var(--ds-text-muted);font-size:.94rem;line-height:1.55}
 .v11-clarification-doc{display:inline-flex;align-items:center;justify-content:center}
 @media(max-width:700px){.v11-clarification-modal{padding:12px;align-items:end}.v11-clarification-panel{width:100%;max-height:calc(100vh - 24px);padding:20px;border-radius:16px}.v11-clarification-panel .v11-actions>*{width:100%}}
 
@@ -1681,15 +1680,13 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
     </div>
 
     <div class="v11-stage v11-clarification-modal" id="v11-dialogue" hidden>
-      <div class="v11-card ui-stage-card v11-clarification-panel" role="dialog" aria-modal="true" aria-labelledby="v11-dialogue-title" aria-describedby="v11-dialogue-intro">
+      <div class="v11-card ui-stage-card v11-clarification-panel" role="dialog" aria-modal="true" aria-labelledby="v11-question">
         <div class="ui-dialogue-head">
           <div class="ui-stage-icon thumb-atelier" aria-hidden="true"><img class="ui-photo-thumb" src="data:image/webp;base64,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" alt="" loading="lazy" decoding="async"></div>
           <div>
-            <div class="v11-eyebrow ui-eyebrow" id="v11-dialogue-title">Une précision est nécessaire</div>
             <div class="v11-question ui-question" id="v11-question"></div>
           </div>
         </div>
-        <p class="v11-clarification-intro" id="v11-dialogue-intro">Pour bien préparer votre demande, j’ai besoin d’un détail.</p>
         <textarea class="v11-answer ui-answer" id="v11-answer" aria-label="Votre réponse à la question posée" placeholder="Répondez simplement avec vos mots…"></textarea>
         <div class="v11-chiprow ui-chiprow" id="v11-chips"></div>
         <div class="v11-actions ui-stage-actions">
@@ -10617,7 +10614,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 20094fa088f4f992ef68779cf87e3e51fda9aa54e46622a7bda2efdae1abae03
+ * source-sha256: a118512c74615ac83c99f634aa3b660f2aa91ff00fe1fff212256130b5fd4aa8
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -20289,7 +20286,22 @@ function validateFastInteraction(candidate, snapshot) {
  * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne
  * lui ouvre pas un échange que ce mode ne sait pas tenir.
  * ------------------------------------------------------------------------ */
-const CONVERSATIONAL_MODES = Object.freeze(["architecte"]);
+/* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — « RAPIDE NE CONVERSE PAS » ÉTAIT UNE RÈGLE, PAS UN FAIT.
+ *
+ * L'invariant R1 faisait d'une clarification une ORIENTATION dès que le mode n'était pas
+ * Architecte : on disait à la personne où poursuivre au lieu de lui poser la question. Le
+ * diagnostic du chemin réel a mesuré ce que cette règle coûte — en Rapide, le plan rapide répond
+ * en 503 ms, sa question est convertie en orientation, et l'utilisateur attend le plan profond,
+ * soit ~92 s sur le cas de référence. La règle était le défaut, pas le plan rapide.
+ *
+ * CE QUI NE CHANGE PAS : le plan rapide ne gagne AUCUNE autorité. Sa sortie reste
+ * authority="candidate", son schéma continue d'interdire tout champ d'état, et le plan profond
+ * tranche toujours. Poser une question n'a jamais été une autorité — c'est le contraire d'une
+ * décision.
+ *
+ * Atelier reste hors de cette liste : ce mode compose à la main et ne tient pas de tour gouverné.
+ */
+const CONVERSATIONAL_MODES = Object.freeze(["architecte", "rapide"]);
 
 function projectInteractionForMode(interaction, mode) {
   if (!isObject(interaction)) return null;
@@ -20727,7 +20739,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'20094fa088f4f992ef68779cf87e3e51fda9aa54e46622a7bda2efdae1abae03'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a118512c74615ac83c99f634aa3b660f2aa91ff00fe1fff212256130b5fd4aa8'});
 })(window);
 
 

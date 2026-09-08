@@ -157,7 +157,22 @@ export function validateFastInteraction(candidate, snapshot) {
  * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne
  * lui ouvre pas un échange que ce mode ne sait pas tenir.
  * ------------------------------------------------------------------------ */
-export const CONVERSATIONAL_MODES = Object.freeze(["architecte"]);
+/* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — « RAPIDE NE CONVERSE PAS » ÉTAIT UNE RÈGLE, PAS UN FAIT.
+ *
+ * L'invariant R1 faisait d'une clarification une ORIENTATION dès que le mode n'était pas
+ * Architecte : on disait à la personne où poursuivre au lieu de lui poser la question. Le
+ * diagnostic du chemin réel a mesuré ce que cette règle coûte — en Rapide, le plan rapide répond
+ * en 503 ms, sa question est convertie en orientation, et l'utilisateur attend le plan profond,
+ * soit ~92 s sur le cas de référence. La règle était le défaut, pas le plan rapide.
+ *
+ * CE QUI NE CHANGE PAS : le plan rapide ne gagne AUCUNE autorité. Sa sortie reste
+ * authority="candidate", son schéma continue d'interdire tout champ d'état, et le plan profond
+ * tranche toujours. Poser une question n'a jamais été une autorité — c'est le contraire d'une
+ * décision.
+ *
+ * Atelier reste hors de cette liste : ce mode compose à la main et ne tient pas de tour gouverné.
+ */
+export const CONVERSATIONAL_MODES = Object.freeze(["architecte", "rapide"]);
 
 export function projectInteractionForMode(interaction, mode) {
   if (!isObject(interaction)) return null;

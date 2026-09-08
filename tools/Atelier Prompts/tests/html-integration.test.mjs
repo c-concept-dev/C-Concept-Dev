@@ -98,8 +98,14 @@ test('la panne des deux providers échoue en technique — aucune décision fabr
 
 test('la fenêtre de clarification est modale, responsive et non technique',()=>{
   assert.match(html,/role="dialog" aria-modal="true"/);
-  assert.match(html,/Une précision est nécessaire/);
-  assert.match(html,/Pour bien préparer votre demande, j’ai besoin d’un détail/);
+  /* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — LA CLARIFICATION N'AFFICHE PLUS QUE LA QUESTION.
+     Ce test exigeait la PRÉSENCE d'un titre technique et d'une justification redondante. Le contrat
+     produit les interdit : une clarification, c'est une question, pas un formulaire d'explication.
+     Les deux éléments statiques sont retirés ; la modale se nomme désormais par la question
+     elle-même, ce qui lui rend un nom accessible sans réintroduire de chrome. */
+  assert.doesNotMatch(html,/Une précision est nécessaire/);
+  assert.doesNotMatch(html,/Pour bien préparer votre demande, j’ai besoin d’un détail/);
+  assert.match(html,/aria-labelledby="v11-question"/);
   assert.match(html,/id="v11-add-clarification-document">Ajouter un document/);
   assert.match(html,/id="v11-cancel-clarification">Annuler/);
   assert.match(html,/\.v11-clarification-modal\{position:fixed/);

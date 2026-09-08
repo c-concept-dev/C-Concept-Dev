@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 20094fa088f4f992ef68779cf87e3e51fda9aa54e46622a7bda2efdae1abae03
+ * source-sha256: a118512c74615ac83c99f634aa3b660f2aa91ff00fe1fff212256130b5fd4aa8
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -9671,7 +9671,22 @@ function validateFastInteraction(candidate, snapshot) {
  * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne
  * lui ouvre pas un échange que ce mode ne sait pas tenir.
  * ------------------------------------------------------------------------ */
-const CONVERSATIONAL_MODES = Object.freeze(["architecte"]);
+/* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — « RAPIDE NE CONVERSE PAS » ÉTAIT UNE RÈGLE, PAS UN FAIT.
+ *
+ * L'invariant R1 faisait d'une clarification une ORIENTATION dès que le mode n'était pas
+ * Architecte : on disait à la personne où poursuivre au lieu de lui poser la question. Le
+ * diagnostic du chemin réel a mesuré ce que cette règle coûte — en Rapide, le plan rapide répond
+ * en 503 ms, sa question est convertie en orientation, et l'utilisateur attend le plan profond,
+ * soit ~92 s sur le cas de référence. La règle était le défaut, pas le plan rapide.
+ *
+ * CE QUI NE CHANGE PAS : le plan rapide ne gagne AUCUNE autorité. Sa sortie reste
+ * authority="candidate", son schéma continue d'interdire tout champ d'état, et le plan profond
+ * tranche toujours. Poser une question n'a jamais été une autorité — c'est le contraire d'une
+ * décision.
+ *
+ * Atelier reste hors de cette liste : ce mode compose à la main et ne tient pas de tour gouverné.
+ */
+const CONVERSATIONAL_MODES = Object.freeze(["architecte", "rapide"]);
 
 function projectInteractionForMode(interaction, mode) {
   if (!isObject(interaction)) return null;
@@ -10109,5 +10124,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'20094fa088f4f992ef68779cf87e3e51fda9aa54e46622a7bda2efdae1abae03'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a118512c74615ac83c99f634aa3b660f2aa91ff00fe1fff212256130b5fd4aa8'});
 })(window);

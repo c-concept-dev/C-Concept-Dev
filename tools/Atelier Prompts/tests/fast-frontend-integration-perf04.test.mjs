@@ -274,7 +274,13 @@ test('T-P04-18 : une seule sollicitation peut être en attente à la fois', asyn
 // §67 — RAPIDE : AUCUNE BOUCLE DE DIALOGUE
 // =================================================================================================
 
-test('T-P04-19 : en Rapide, une clarification rapide n’ouvre AUCUNE boucle de dialogue', async () => {
+/* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — RAPIDE CONVERSE DÉSORMAIS.
+   L'invariant R1 « Rapide ne converse pas » transformait une clarification en orientation, et la
+   question n'arrivait qu'avec le plan profond — 503 ms de disponible, ~92 s d'attente mesurés.
+   La règle est levée. Ce qui reste gardé, et que ces tests vérifient toujours : le plan rapide
+   n'acquiert AUCUNE autorité, et la projection existe toujours pour les modes qui ne conversent
+   pas — Atelier compose à la main et n'ouvre pas de tour gouverné. */
+test('T-P04-19 : en Rapide, une clarification rapide pose la question tout de suite', async () => {
   const { pilot, spy, ctx } = loadPilot({
     mode: 'rapide',
     fast: async () => askClarification('Pour quel public ?'),
@@ -282,11 +288,11 @@ test('T-P04-19 : en Rapide, une clarification rapide n’ouvre AUCUNE boucle de 
   });
   await pilot.oprieRunTurn('rapide');
   const dialogues = spy.shown.filter((s) => s.id === '#v11-dialogue');
-  assert.equal(dialogues.length, 0, 'aucune modale de dialogue n’est ouverte en Rapide.');
-  assert.equal(questionShown(ctx), '', 'aucune question n’est posée en Rapide.');
+  assert.equal(dialogues.length, 1, 'la modale de dialogue s’ouvre en Rapide.');
+  assert.equal(questionShown(ctx), 'Pour quel public ?', 'et c’est la question du plan rapide qui s’affiche.');
 });
 
-test('T-P04-20 : en Rapide, une clarification devient une ORIENTATION', async () => {
+test('T-P04-20 : en Rapide, une clarification RESTE une clarification', async () => {
   const { pilot, spy } = loadPilot({
     mode: 'rapide',
     fast: async () => askClarification('Pour quel public ?'),
@@ -295,8 +301,8 @@ test('T-P04-20 : en Rapide, une clarification devient une ORIENTATION', async ()
   const run = pilot.oprieRunTurn('rapide');
   await delay(30);
   const candidate = pilot.oprieState.fastInteraction;
-  assert.equal(candidate.type, 'ORIENT_ARCHITECTE', 'le noyau projette la clarification en orientation.');
-  assert.equal(candidate.projected_from, 'ASK_CLARIFICATION', 'et la projection est tracée, jamais silencieuse.');
+  assert.equal(candidate.type, 'ASK_CLARIFICATION', 'la clarification reste une clarification en Rapide.');
+  assert.equal(candidate.authority, 'candidate', 'et elle n’acquiert aucune autorité pour autant.');
   await run;
 });
 
@@ -325,7 +331,7 @@ test('T-P04-22 : en Rapide, le plan rapide seul n’exécute jamais', async () =
   assert.deepEqual(spy.executed, [], 'aucune exécution sans operational_request_ready.');
 });
 
-test('T-P04-23 : en Rapide, une confirmation rapide ne devient pas une question', async () => {
+test('T-P04-23 : en Rapide, une confirmation rapide est posée comme une question', async () => {
   const { pilot, spy, ctx } = loadPilot({
     mode: 'rapide',
     fast: async () => ({ type: 'ASK_CONFIRMATION', text: 'Confirmez-vous ?' }),
@@ -333,8 +339,8 @@ test('T-P04-23 : en Rapide, une confirmation rapide ne devient pas une question'
   });
   const run = pilot.oprieRunTurn('rapide');
   await delay(25);
-  assert.equal(pilot.oprieState.fastInteraction.type, 'ORIENT_ARCHITECTE');
-  assert.equal(ctx.adpState.pendingQuestion, false, 'Rapide ne met jamais une question en attente.');
+  assert.equal(pilot.oprieState.fastInteraction.type, 'ASK_CONFIRMATION');
+  assert.equal(ctx.adpState.pendingQuestion, true, 'Rapide sollicite désormais, comme Architecte.');
   await run;
 });
 
