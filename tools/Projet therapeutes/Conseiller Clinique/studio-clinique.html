@@ -1012,7 +1012,10 @@
 
     #cc-landing .question-field {
       width: 100%;
-      min-height: clamp(8.6rem, 20vh, 11rem);
+      /* Kit v2.4 (state-a-contract.json: questionMinimumViewportHeightRatio=0.4) — le champ
+         libre est le point d'entrée dominant de l'écran, jamais plafonné à une petite hauteur
+         fixe comme avant : au moins 40% de la hauteur de la fenêtre. */
+      min-height: max(9rem, 40vh);
       resize: vertical;
       padding: 1.1rem 1.2rem;
       border: 1px solid var(--stone-400);
@@ -1262,36 +1265,43 @@
       border: 0;
     }
 
+    /* Kit v2.4 — 5 pastilles de poids visuel identique (plus de présélection, plus de carte
+       "Libre" : ne rien choisir produit déjà ce comportement). Disposition en flexbox (et non
+       grid à colonnes 1fr) : c'est ce qui permet à la dernière rangée incomplète de rester
+       CENTRÉE (state-a-contract.json: incompleteResponsiveRowAlignment="center") plutôt que
+       plaquée à gauche comme le ferait une grille classique. */
     #cc-landing .format-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: clamp(0.6rem, 1.25vw, 1.1rem);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.6rem;
     }
 
-    #cc-landing .format-option { position: relative; min-width: 0; }
-
-    #cc-landing .format-option input {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
+    #cc-landing .format-option {
+      position: relative;
+      min-width: 0;
+      flex: 0 1 calc((100% - 4 * 0.6rem) / 5);
     }
 
+    /* Geometrie strictement identique pour les 5 pastilles, quel que soit le contenu
+       (state-a-contract.json: documentKindFrameHeightPx=82, documentKindFramesEqualGeometry).
+       Ce sont désormais de vrais <button aria-pressed> — plus d'<input type="radio"> masqué. */
     #cc-landing .format-card {
       position: relative;
-      min-height: 9.6rem;
-      height: 100%;
-      padding: 1rem 0.85rem 0.9rem;
-      display: grid;
-      align-content: center;
-      justify-items: center;
-      gap: 0.5rem;
+      width: 100%;
+      height: 82px;
+      padding: 0.65rem 2.5rem 0.65rem 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
       border: 1px solid var(--stone-300);
-      border-radius: 0.75rem;
+      border-radius: 0.65rem;
       background: rgba(255, 253, 249, 0.82);
-      text-align: center;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
       cursor: pointer;
+      overflow: hidden;
       box-shadow: 0 3px 12px rgba(16, 47, 49, 0.035);
       transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
     }
@@ -1302,54 +1312,29 @@
       box-shadow: 0 8px 20px rgba(16, 47, 49, 0.08);
     }
 
-    #cc-landing .format-option input:focus-visible + .format-card {
+    #cc-landing .format-card:focus-visible {
+      outline: none;
       border-color: var(--terracotta-700);
       box-shadow: var(--focus);
     }
 
-    #cc-landing .format-option input:checked + .format-card {
+    /* Sélection = état fonctionnel réel (aria-pressed), jamais une simple classe cosmétique. */
+    #cc-landing .format-card[aria-pressed="true"] {
       border: 2px solid var(--terracotta-600);
       background: #fbf2ed;
       box-shadow: 0 9px 24px rgba(138, 63, 41, 0.10);
     }
 
-    #cc-landing .format-option input:checked + .format-card::after {
-      content: "✓";
-      position: absolute;
-      top: 0.65rem;
-      right: 0.65rem;
-      width: 1.45rem;
-      height: 1.45rem;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: var(--terracotta-600);
-      color: var(--white);
-      font-size: 0.85rem;
-      font-weight: 700;
-    }
-
-    #cc-landing .recommended-badge {
-      position: absolute;
-      top: 0.55rem;
-      left: 0.55rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 999px;
-      background: var(--terracotta-100);
-      color: var(--terracotta-700);
-      font-size: 0.67rem;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-    }
-
+    /* "?" — centré verticalement à l'intérieur du bord droit du cadre, toujours dans le
+       cadre quelle que soit la hauteur (state-a-contract.json: helpPosition). */
     #cc-landing .format-help {
       position: absolute;
-      right: 0.65rem;
-      bottom: 0.65rem;
+      top: 50%;
+      right: 0.5rem;
+      transform: translateY(-50%);
       z-index: 4;
-      width: 1.7rem;
-      height: 1.7rem;
+      width: 1.6rem;
+      height: 1.6rem;
       display: grid;
       place-items: center;
       padding: 0;
@@ -1357,7 +1342,7 @@
       border-radius: 50%;
       background: var(--paper);
       color: var(--petrol-900);
-      font-size: 0.86rem;
+      font-size: 0.82rem;
       font-weight: 700;
       line-height: 1;
       cursor: help;
@@ -1438,26 +1423,36 @@
     #cc-landing .format-option:last-child .format-tooltip::after { left: 18%; }
 
     #cc-landing .format-icon {
-      width: 2rem;
-      height: 2rem;
+      width: 1.5rem;
+      height: 1.5rem;
+      flex: 0 0 auto;
+      margin-top: 0.1rem;
       color: var(--petrol-800);
       stroke-width: 1.7;
     }
 
-    #cc-landing .format-option input:checked + .format-card .format-icon, #cc-landing .format-option input:checked + .format-card .format-name { color: var(--terracotta-700); }
+    #cc-landing .format-card[aria-pressed="true"] .format-icon, #cc-landing .format-card[aria-pressed="true"] .format-name { color: var(--terracotta-700); }
+
+    #cc-landing .format-copy { min-width: 0; display: grid; gap: 0.15rem; }
 
     #cc-landing .format-name {
       color: var(--petrol-950);
-      font-size: 1.02rem;
+      font-size: 0.88rem;
       font-weight: 700;
-      line-height: 1.25;
+      line-height: 1.2;
     }
 
+    /* Hauteur du cadre fixe quel que soit le texte : la description est bornée à 2 lignes
+       (jamais le contenu qui dicte la hauteur — state-a-contract.json:
+       documentKindFramesEqualGeometry). */
     #cc-landing .format-description {
-      max-width: 12rem;
       color: var(--muted);
-      font-size: 0.88rem;
-      line-height: 1.35;
+      font-size: 0.74rem;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     #cc-landing .submit-row {
@@ -1521,88 +1516,6 @@
       text-align: center;
     }
 
-    #cc-landing .examples {
-      padding-top: 1.1rem;
-      border-top: 1px solid var(--stone-300);
-    }
-
-    #cc-landing .examples-header {
-      margin: 0 0 0.75rem;
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    #cc-landing .examples h2 {
-      margin: 0;
-      color: var(--ink);
-      font-size: 1rem;
-      font-weight: 700;
-    }
-
-    #cc-landing .examples-header p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.82rem;
-    }
-
-    #cc-landing .example-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0.75rem;
-    }
-
-    #cc-landing .example-button {
-      min-height: 3.4rem;
-      padding: 0.75rem 0.9rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.65rem;
-      border: 1px solid var(--stone-300);
-      border-radius: 0.65rem;
-      background: rgba(255, 253, 249, 0.76);
-      color: var(--petrol-950);
-      text-align: left;
-      font-size: 0.9rem;
-      font-weight: 500;
-      line-height: 1.35;
-      cursor: pointer;
-      transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-    }
-
-    #cc-landing .example-text {
-      display: grid;
-      gap: 0.2rem;
-    }
-
-    #cc-landing .example-text small {
-      color: var(--terracotta-700);
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.035em;
-      text-transform: uppercase;
-    }
-
-    #cc-landing .example-button svg {
-      width: 1rem;
-      height: 1rem;
-      flex: none;
-      color: var(--terracotta-700);
-    }
-
-    #cc-landing .example-button:hover {
-      border-color: var(--terracotta-600);
-      background: var(--paper);
-    }
-
-    #cc-landing .example-button:focus-visible {
-      outline: none;
-      border-color: var(--terracotta-700);
-      box-shadow: var(--focus);
-    }
-
     /* Harmonisation A→D — la zone de dépôt de l'accueil partage .adoc-upload-zone avec
        l'écran de conversation (même composant, cf. adocHandleUpload) mais doit reprendre
        ici l'anneau de focus terracotta des autres cartes de l'accueil plutôt que le
@@ -1613,14 +1526,22 @@
       box-shadow: var(--focus);
     }
 
-    @media (max-width: 980px) {
-      #cc-landing main { align-items: flex-start; }
-      #cc-landing .format-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      #cc-landing .format-option:nth-child(4), #cc-landing .format-option:nth-child(5) { grid-column: span 1; }
-      #cc-landing .example-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* Kit v2.4 (state-a-contract.json: attachmentPosition="after-submit") — le dépôt de
+       document passe en position secondaire, après le bouton d'envoi. */
+    #cc-landing .cc-landing-upload.cc-landing-upload-secondary {
+      margin-top: 1.1rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--stone-300);
     }
 
-    @media (max-width: 680px) {
+    /* Kit v2.4 (state-a-contract.json: responsiveColumns) — 5 pastilles au-delà de 1020px,
+       3 jusqu'à 1020px, 2 jusqu'à 700px, 1 en dessous de 520px. */
+    @media (max-width: 1020px) {
+      #cc-landing main { align-items: flex-start; }
+      #cc-landing .format-option { flex-basis: calc((100% - 2 * 0.6rem) / 3); }
+    }
+
+    @media (max-width: 700px) {
       #cc-landing .masthead { padding-inline: 1rem; }
       #cc-landing .brand h1 { font-size: clamp(2rem, 11vw, 3rem); }
       #cc-landing .library-proof { width: 100%; }
@@ -1632,17 +1553,11 @@
         white-space: normal;
       }
       #cc-landing main { padding-inline: 1rem; }
-      #cc-landing .question-field { min-height: 8rem; }
-      #cc-landing .format-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      #cc-landing .format-option:last-child { grid-column: 1 / -1; }
-      #cc-landing .format-card { min-height: 8.4rem; }
-      #cc-landing .format-description { display: none; }
+      #cc-landing .format-option { flex-basis: calc((100% - 0.6rem) / 2); }
       #cc-landing .workspace { padding: 1rem; }
-      #cc-landing .examples-header { display: block; }
-      #cc-landing .examples-header p { margin-top: 0.2rem; }
     }
 
-    @media (max-width: 460px) {
+    @media (max-width: 520px) {
       #cc-landing .library-proof { display: grid; grid-template-columns: 1fr; }
       #cc-landing .library-proof li { width: 100%; }
       #cc-landing .library-proof li + li {
@@ -1650,16 +1565,7 @@
         border-left: 0;
         border-top: 1px solid var(--stone-300);
       }
-      #cc-landing .format-grid, #cc-landing .example-grid { grid-template-columns: 1fr; }
-      #cc-landing .format-option:last-child { grid-column: auto; }
-      #cc-landing .format-card {
-        min-height: 4.9rem;
-        padding: 0.75rem 3rem 0.75rem 0.85rem;
-        grid-template-columns: auto 1fr;
-        justify-items: start;
-        text-align: left;
-      }
-      #cc-landing .format-name { align-self: center; }
+      #cc-landing .format-option { flex-basis: 100%; }
       #cc-landing .submit-button { font-size: 1rem; }
     }
 
@@ -2039,15 +1945,12 @@
 </head>
 <body>
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- ÉCRAN D'ACCUEIL #cc-landing — nouvel écran (remplace l'ancien    -->
-<!-- état "welcome" affiché dans #adoc-messages). Reprise intégrale  -->
-<!-- du fichier conseiller-clinique-accueil.html fourni par          -->
-<!-- Christophe (produit par ChatGPT), avec 2 corrections seulement :-->
-<!--  1. section "Quelques points de départ" remontée sous le champ -->
-<!--     de question (au lieu d'après le bouton d'envoi)             -->
-<!--  2. wrapper #cc-landing ajouté pour permettre le basculement    -->
-<!--     vers l'écran de conversation existant (voir intégration en  -->
-<!--     fin de fichier). Palette et contenu inchangés.              -->
+<!-- ÉCRAN D'ACCUEIL #cc-landing — reprise du fichier conseiller-clinique-accueil.html     -->
+<!-- fourni par Christophe (produit par ChatGPT), avec wrapper #cc-landing pour permettre  -->
+<!-- le basculement vers l'écran de conversation existant (voir intégration en fin de      -->
+<!-- fichier). Kit d'harmonisation v2.4 (MISSION-HARMONISATION-CORRIGEE.md, Volet 1) :      -->
+<!-- section "Quelques points de départ" retirée (hors nouvelle hiérarchie visuelle), plus  -->
+<!-- aucune présélection de type de document, dépôt de document déplacé après l'envoi.      -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div id="cc-landing">
   <div class="app-shell">
@@ -2105,72 +2008,33 @@
               Utilisez des initiales plutôt que des données identifiantes.
             </span>
           </div>
-
-          <!-- Phase UX-2A.10 — joindre un document dès l'accueil, même composant et même
-               extraction que le panneau "Documents joints" de la conversation (qui reste
-               disponible ensuite, en complément, pour en ajouter d'autres en cours d'échange). -->
-          <div class="cc-landing-upload">
-            <div class="cc-landing-upload-label">Document à joindre <span class="cc-landing-upload-optional">(optionnel)</span></div>
-            <div class="adoc-upload-zone" id="cc-landing-upload-zone" role="button" tabindex="0"
-              aria-label="Déposer ou choisir un document à joindre à votre question — PDF, DOCX, TXT, JSON ou MD"
-              onclick="document.getElementById('cc-landing-file-input').click()"
-              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cc-landing-file-input').click();}">
-              <div class="icon"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-attachment"></use></svg></div>
-              <div class="txt">Déposer ou cliquer</div>
-              <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
-            </div>
-            <input type="file" id="cc-landing-file-input" multiple accept=".pdf,.docx,.txt,.json,.html,.htm,.md,.csv" style="display:none"
-              onchange="window.adocHandleUpload && window.adocHandleUpload(this.files)">
-            <div id="cc-landing-upload-progress" style="display:none;font-size:11px;color:var(--petrol-800);margin-top:8px;padding:6px 10px;background:var(--petrol-100);border-radius:6px;"></div>
-            <div id="cc-landing-upload-list" style="margin-top:8px;"></div>
-          </div>
         </div>
 
-        <section class="examples" aria-labelledby="examples-title">
-          <div class="examples-header">
-            <h2 id="examples-title">Quelques points de départ</h2>
-            <p>Un clic remplit la question et choisit le format adapté.</p>
-          </div>
-          <div class="example-grid">
-            <button class="example-button" type="button" data-example="Les cavaliers de l'apocalypse — Gottman" data-format="fiche">
-              <span class="example-text"><small>Fiche synthèse</small><span>Les cavaliers de l’apocalypse — Gottman</span></span>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
-            </button>
-            <button class="example-button" type="button" data-example="Comparatif EMDR / ICV / IFS" data-format="tableau">
-              <span class="example-text"><small>Tableau</small><span>Comparatif EMDR / ICV / IFS</span></span>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
-            </button>
-            <button class="example-button" type="button" data-example="Schémas de Young et attachement" data-format="liens">
-              <span class="example-text"><small>Liens transversaux</small><span>Schémas de Young et attachement</span></span>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
-            </button>
-            <button class="example-button" type="button" data-example="Techniques ICV pour trauma dissociatif" data-format="script">
-              <span class="example-text"><small>Script verbatim</small><span>Techniques ICV pour trauma dissociatif</span></span>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
-            </button>
-          </div>
-        </section>
-
-
+        <!-- Kit v2.4 (MISSION-HARMONISATION-CORRIGEE.md, Volet 1) — plus de présélection, plus
+             de carte "Libre" : ne rien cocher produit déjà ce comportement (aucun préfixe,
+             cf. window.addEventListener('conseiller-clinique:start') plus bas). Les 5 types
+             sont désormais de vrais <button aria-pressed>, poids visuel identique, jamais un
+             <input type="radio"> masqué sous un <label> — donc aucune valeur "cochée" par
+             défaut au sens du DOM (state-a-contract.json: defaultDocumentKind=null). -->
         <fieldset>
-          <legend>Choisissez le type de document</legend>
+          <legend>Type de document (optionnel)</legend>
           <div class="section-heading">
-            <span class="step-number" aria-hidden="true">2</span>
             <div class="heading-copy">
-              <div class="field-label">Type de document</div>
-              <p>Le contenu sera structuré directement pour l’usage que vous en ferez.</p>
+              <div class="field-label" id="document-kind-heading">2 — Type de document <span class="cc-landing-upload-optional">(optionnel)</span></div>
+              <p>Un clic impose une structure précise au document ; sans choix, le conseiller détermine lui-même la structure la plus adaptée.</p>
             </div>
           </div>
-          <div class="format-grid">
+          <div class="format-grid" role="group" aria-labelledby="document-kind-heading">
             <div class="format-option">
-              <input type="radio" name="output-format" id="format-carousel" value="carrousel">
-              <label class="format-card" for="format-carousel">
+              <button type="button" class="format-card" id="format-carousel" data-kind="carrousel" aria-pressed="false">
                 <svg class="format-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" aria-hidden="true">
                   <rect x="7" y="8" width="18" height="15" rx="2"/><path d="M4 11v9M28 11v9M11 26h10"/>
                 </svg>
-                <span class="format-name">Carrousel</span>
-                <span class="format-description">Parcourez visuellement les passages clés.</span>
-              </label>
+                <span class="format-copy">
+                  <span class="format-name">Carrousel</span>
+                  <span class="format-description">Parcourez visuellement les passages clés.</span>
+                </span>
+              </button>
               <button class="format-help" type="button" aria-label="À quoi sert le format Carrousel ?" aria-controls="help-carousel" aria-expanded="false">?</button>
               <div class="format-tooltip" id="help-carousel" role="tooltip">
                 <strong>Comme un petit diaporama</strong>
@@ -2179,14 +2043,15 @@
             </div>
 
             <div class="format-option">
-              <input type="radio" name="output-format" id="format-table" value="tableau">
-              <label class="format-card" for="format-table">
+              <button type="button" class="format-card" id="format-table" data-kind="tableau" aria-pressed="false">
                 <svg class="format-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" aria-hidden="true">
                   <rect x="4" y="6" width="24" height="20" rx="2"/><path d="M4 13h24M12 6v20M21 6v20M4 20h24"/>
                 </svg>
-                <span class="format-name">Tableau</span>
-                <span class="format-description">Comparez les approches et points de vue.</span>
-              </label>
+                <span class="format-copy">
+                  <span class="format-name">Tableau</span>
+                  <span class="format-description">Comparez les approches et points de vue.</span>
+                </span>
+              </button>
               <button class="format-help" type="button" aria-label="À quoi sert le format Tableau ?" aria-controls="help-table" aria-expanded="false">?</button>
               <div class="format-tooltip" id="help-table" role="tooltip">
                 <strong>Pour comparer d’un seul regard</strong>
@@ -2195,15 +2060,15 @@
             </div>
 
             <div class="format-option">
-              <input type="radio" name="output-format" id="format-summary" value="fiche" checked>
-              <label class="format-card" for="format-summary">
-                <span class="recommended-badge">Recommandé</span>
+              <button type="button" class="format-card" id="format-summary" data-kind="fiche" aria-pressed="false">
                 <svg class="format-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="M8 3h11l6 6v20H8z"/><path d="M19 3v7h6M12 16h9M12 21h9M12 26h6"/>
                 </svg>
-                <span class="format-name">Fiche synthèse</span>
-                <span class="format-description">Obtenez une synthèse structurée et référencée.</span>
-              </label>
+                <span class="format-copy">
+                  <span class="format-name">Fiche synthèse</span>
+                  <span class="format-description">Obtenez une synthèse structurée et référencée.</span>
+                </span>
+              </button>
               <button class="format-help" type="button" aria-label="À quoi sert le format Fiche synthèse ?" aria-controls="help-summary" aria-expanded="false">?</button>
               <div class="format-tooltip" id="help-summary" role="tooltip">
                 <strong>Le format passe-partout</strong>
@@ -2212,14 +2077,15 @@
             </div>
 
             <div class="format-option">
-              <input type="radio" name="output-format" id="format-script" value="script">
-              <label class="format-card" for="format-script">
+              <button type="button" class="format-card" id="format-script" data-kind="script" aria-pressed="false">
                 <svg class="format-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="M7 8h7v7H7zM18 8h7v7h-7z"/><path d="M10.5 15c0 5-2 7-5 8M21.5 15c0 5-2 7-5 8M10 25h15"/>
                 </svg>
-                <span class="format-name">Script verbatim</span>
-                <span class="format-description">Accédez à des formulations textuelles précises.</span>
-              </label>
+                <span class="format-copy">
+                  <span class="format-name">Script verbatim</span>
+                  <span class="format-description">Accédez à des formulations textuelles précises.</span>
+                </span>
+              </button>
               <button class="format-help" type="button" aria-label="À quoi sert le format Script verbatim ?" aria-controls="help-script" aria-expanded="false">?</button>
               <div class="format-tooltip" id="help-script" role="tooltip">
                 <strong>Des phrases prêtes à adapter</strong>
@@ -2228,14 +2094,15 @@
             </div>
 
             <div class="format-option">
-              <input type="radio" name="output-format" id="format-links" value="liens">
-              <label class="format-card" for="format-links">
+              <button type="button" class="format-card" id="format-links" data-kind="liens" aria-pressed="false">
                 <svg class="format-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" aria-hidden="true">
                   <circle cx="16" cy="6" r="3"/><circle cx="7" cy="23" r="3"/><circle cx="25" cy="23" r="3"/><circle cx="16" cy="17" r="2.5"/><path d="M16 9v5.5M14 18.5l-5 2.8M18 18.5l5 2.8"/>
                 </svg>
-                <span class="format-name">Liens transversaux</span>
-                <span class="format-description">Explorez les connexions entre notions et auteurs.</span>
-              </label>
+                <span class="format-copy">
+                  <span class="format-name">Liens transversaux</span>
+                  <span class="format-description">Explorez les connexions entre notions et auteurs.</span>
+                </span>
+              </button>
               <button class="format-help" type="button" aria-label="À quoi sert le format Liens transversaux ?" aria-controls="help-links" aria-expanded="false">?</button>
               <div class="format-tooltip" id="help-links" role="tooltip">
                 <strong>Pour relier plusieurs idées</strong>
@@ -2286,7 +2153,7 @@
         <div class="submit-row">
           <button class="submit-button" type="submit">
             <span class="submit-copy">
-              <span id="submit-label">Créer une fiche synthèse</span>
+              <span id="submit-label">Envoyer ma demande</span>
               <small>À partir de votre bibliothèque thérapeutique</small>
             </span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -2294,6 +2161,25 @@
             </svg>
           </button>
           <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <!-- Kit v2.4 (state-a-contract.json: attachmentPosition="after-submit") — le dépôt de
+             document (même composant que le panneau "Documents joints" de la conversation,
+             cf. adocHandleUpload) passe en position secondaire, après l'envoi de la demande. -->
+        <div class="cc-landing-upload cc-landing-upload-secondary">
+          <div class="cc-landing-upload-label">Document à joindre <span class="cc-landing-upload-optional">(optionnel)</span></div>
+          <div class="adoc-upload-zone" id="cc-landing-upload-zone" role="button" tabindex="0"
+            aria-label="Déposer ou choisir un document à joindre à votre question — PDF, DOCX, TXT, JSON ou MD"
+            onclick="document.getElementById('cc-landing-file-input').click()"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cc-landing-file-input').click();}">
+            <div class="icon"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-attachment"></use></svg></div>
+            <div class="txt">Déposer ou cliquer</div>
+            <div class="sub">PDF · DOCX · TXT · JSON · MD</div>
+          </div>
+          <input type="file" id="cc-landing-file-input" multiple accept=".pdf,.docx,.txt,.json,.html,.htm,.md,.csv" style="display:none"
+            onchange="window.adocHandleUpload && window.adocHandleUpload(this.files)">
+          <div id="cc-landing-upload-progress" style="display:none;font-size:11px;color:var(--petrol-800);margin-top:8px;padding:6px 10px;background:var(--petrol-100);border-radius:6px;"></div>
+          <div id="cc-landing-upload-list" style="margin-top:8px;"></div>
         </div>
 
       </form>
@@ -2309,44 +2195,24 @@
       const form = document.querySelector('#clinical-home-form');
       const question = document.querySelector('#clinical-question');
       const status = document.querySelector('#form-status');
-      const submitLabel = document.querySelector('#submit-label');
-      const formatLabels = {
-        carrousel: 'Créer un carrousel',
-        tableau: 'Créer un tableau',
-        fiche: 'Créer une fiche synthèse',
-        script: 'Créer un script verbatim',
-        liens: 'Explorer les liens transversaux'
-      };
 
-      const updateSelectedFormat = (format) => {
-        const radio = form.querySelector(`[name="output-format"][value="${format}"]`);
-        if (radio) radio.checked = true;
-        submitLabel.textContent = formatLabels[format] || 'Interroger la bibliothèque';
-        status.textContent = '';
-      };
-
-      // UX-1/UX-2B (clôture) — préférence de type de document, strictement locale (jamais
-      // envoyée au serveur : hors périmètre SEC-PERSIST par construction). N'affecte que la
-      // sélection au chargement de CET écran d'accueil — jamais un document déjà généré ou
-      // affiché dans l'écran de travail, qui vit entièrement ailleurs dans le DOM (#cc-workspace).
-      const ADOC_PREFERRED_KIND_KEY = 'adocPreferredDocumentKind';
-      try {
-        const savedKind = localStorage.getItem(ADOC_PREFERRED_KIND_KEY);
-        // formatLabels est la liste canonique des 5 valeurs valides — une clé orpheline
-        // (ancienne version, storage corrompu) est ignorée, jamais appliquée telle quelle.
-        if (savedKind && Object.prototype.hasOwnProperty.call(formatLabels, savedKind)) {
-          updateSelectedFormat(savedKind);
-        }
-      } catch (e) {
-        // localStorage indisponible (navigation privée stricte, quota, etc.) — comportement
-        // par défaut inchangé, jamais bloquant.
-      }
-
-      form.querySelectorAll('[name="output-format"]').forEach((radio) => {
-        radio.addEventListener('change', () => {
-          updateSelectedFormat(radio.value);
-          // Écriture immédiate au clic sur une carte — pas seulement à l'envoi du formulaire.
-          try { localStorage.setItem(ADOC_PREFERRED_KIND_KEY, radio.value); } catch (e) {}
+      // Kit v2.4 (MISSION-HARMONISATION-CORRIGEE.md, Volet 1 — state-a-contract.json) :
+      // documentKind est un état FONCTIONNEL réel (variable JS + aria-pressed), plus jamais
+      // un <input type="radio"> avec une valeur "cochée" par défaut. Rien n'est sélectionné
+      // au chargement (defaultDocumentKind=null) et la persistance localStorage de la
+      // préférence (UX-1/UX-2B) est délibérément retirée : elle réintroduirait exactement la
+      // présélection au chargement que ce lot supprime.
+      let documentKind = null;
+      const kindButtons = [...document.querySelectorAll('#cc-landing .format-card[data-kind]')];
+      kindButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const kind = button.dataset.kind;
+          const wasSelected = button.getAttribute('aria-pressed') === 'true';
+          kindButtons.forEach((b) => b.setAttribute('aria-pressed', 'false'));
+          documentKind = wasSelected ? null : kind;
+          if (!wasSelected) button.setAttribute('aria-pressed', 'true');
+          // Le texte tapé et le libellé du bouton d'envoi ne changent JAMAIS ici — seul
+          // documentKind (contrainte structurelle transmise séparément) est affecté.
         });
       });
 
@@ -2376,19 +2242,9 @@
         if (event.key === 'Escape') closeHelpBubbles();
       });
 
-      document.querySelectorAll('[data-example]').forEach((button) => {
-        button.addEventListener('click', () => {
-          question.value = button.dataset.example || '';
-          updateSelectedFormat(button.dataset.format || 'fiche');
-          question.focus();
-          question.setSelectionRange(question.value.length, question.value.length);
-        });
-      });
-
       form.addEventListener('submit', (event) => {
         event.preventDefault();
         const prompt = question.value.trim();
-        const format = form.elements['output-format'].value;
 
         if (!prompt) {
           status.textContent = 'Saisissez une question clinique pour commencer.';
@@ -2396,7 +2252,11 @@
           return;
         }
 
-        status.textContent = `${formatLabels[format] || 'Demande'} : prêt à démarrer.`;
+        // Kit v2.4 — libellé neutre et invariable, jamais dérivé du type choisi
+        // (state-a-contract.json acceptance: "The submit label never changes with a
+        // document kind"). Le libellé du BOUTON (#submit-label) n'est de toute façon plus
+        // jamais réécrit par ce script — cette ligne ne touche que le message de statut.
+        status.textContent = 'Demande envoyée.';
 
         // UX-8B Lot 2 — charte choisie pour CETTE demande précise (jamais un réglage global
         // figé — modifiable à chaque nouvelle demande). '' si la liste n'a pas encore chargé :
@@ -2404,17 +2264,21 @@
         const brandKitSelect = document.querySelector('#cc-brandkit-select');
         const brandKitId = brandKitSelect ? brandKitSelect.value : '';
 
-        // Point de raccord avec l’application hôte.
-        // Claude Code peut écouter cet événement puis ouvrir l’interface de conversation.
+        // Point de raccord avec l’application hôte. documentKind (fiche|carrousel|tableau|
+        // script|liens|null) continue de voyager dans detail.format pour ne pas rompre le
+        // contrat de l'événement — mais désormais SANS aucun préfixe caché : voir le
+        // listener 'conseiller-clinique:start' plus bas, qui ne concatène plus rien au texte.
         window.dispatchEvent(new CustomEvent('conseiller-clinique:start', {
-          detail: { prompt, format, brandKitId }
+          detail: { prompt, format: documentKind, brandKitId }
         }));
       });
 
       // UX-8B Lot 2 — point d'intégration prévu pour la liste réelle des chartes (jamais codée
       // en dur ici) : l'application hôte l'appelle après un vrai GET /brand-kits, même patron
       // que window.setConseillerCliniqueLibraryStats ci-dessous. Persistance locale du dernier
-      // choix (même mécanisme que adocPreferredDocumentKind), mais toujours modifiable.
+      // choix (persistance localStorage locale, comme le faisait l'ancienne préférence de
+      // type de document avant le Kit v2.4 — non concernée par ce lot, elle ne présélectionne
+      // jamais rien au chargement de l'écran, contrairement à ce que faisait ce dernier).
       const ADOC_PREFERRED_BRANDKIT_KEY = 'adocPreferredBrandKitId';
       window.setConseillerCliniqueBrandKits = (brandKits) => {
         const select = document.querySelector('#cc-brandkit-select');
@@ -3022,7 +2886,10 @@
     const btn = document.getElementById('adoc-context-toggle');
     if (!btn) return;
     if (adocSessionContext) {
-      btn.textContent = '✓ Contexte : ' + (adocSessionContext.length > 40 ? adocSessionContext.substring(0, 40) + '…' : adocSessionContext);
+      // Harmonisation Kit v2.4, Volet 2 — remplace le glyphe brut "✓" par l'icône du sprite
+      // interne existant (icon-verify), texte explicite conservé à côté (jamais une icône seule).
+      const summary = adocSessionContext.length > 40 ? adocSessionContext.substring(0, 40) + '…' : adocSessionContext;
+      btn.innerHTML = '<svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-verify"></use></svg> Contexte : ' + adocEsc(summary);
       btn.classList.add('has-value');
     } else {
       btn.textContent = '+ Ajouter un contexte de conversation (optionnel)';
@@ -4326,6 +4193,28 @@ RÈGLES ABSOLUES :
         + 'Tu utilises ce contexte pour décider — pas pour obéir mécaniquement.';
     }
 
+    // Kit v2.4 (Volet 1) — structure imposée par un clic explicite de type de document sur
+    // l'écran d'accueil (plan.documentKind). Contrairement au CONTEXTE PLANNER ci-dessus,
+    // c'est une contrainte OBLIGATOIRE, pas une indication : contrairement à "intent" (qui
+    // pilote aussi le format d'export via _fmtFromIntent plus bas, INCHANGÉ ici), documentKind
+    // n'influence jamais le conteneur d'export (HTML/PDF/DOCX/PPTX/XLSX) — seulement la
+    // structure interne du contenu. Le prompt (sujet, longueur, ton, contraintes) reste
+    // entièrement décidé par le texte tapé, jamais réécrit ici.
+    const _documentKindInstructions = {
+      fiche: 'Fiche de synthèse structurée : sections claires (définition, repères cliniques, outils, vigilance, références) — jamais un texte continu non structuré.',
+      carrousel: 'Carrousel de diapositives : découpe le contenu en écrans successifs, une idée claire par diapositive. Si la demande précise un nombre de pages ou de diapositives, respecte-le exactement (ex. « 4 pages » → 4 diapositives, ni plus ni moins).',
+      tableau: 'Tableau comparatif : présente le contenu sous forme de tableau (lignes/colonnes). Si la demande évoque plusieurs pages, réparti(s) le contenu sur plusieurs tableaux ou un tableau étendu sur plusieurs pages — jamais un texte narratif à la place du tableau.',
+      script: 'Script verbatim : rédige des phrases entièrement prêtes à être dites telles quelles (questions, reformulations, introductions d’exercice) — un texte continu à lire mot pour mot, jamais un plan ni une liste à puces.',
+      liens: 'Liens transversaux : montre explicitement les connexions, rapprochements et distinctions entre plusieurs notions, auteurs ou approches — jamais un exposé linéaire sur un seul concept isolé.',
+    };
+    const documentKindCtx = (plan && plan.documentKind && _documentKindInstructions[plan.documentKind])
+      ? ('\n\n── STRUCTURE IMPOSÉE (choix explicite du thérapeute sur l’écran d’accueil) ──\n'
+        + _documentKindInstructions[plan.documentKind] + '\n'
+        + 'Cette contrainte est OBLIGATOIRE, quel que soit le sujet — contrairement au CONTEXTE PLANNER '
+        + 'ci-dessus qui reste indicatif. Elle porte uniquement sur la structure du contenu, jamais sur '
+        + 'le conteneur d’export (HTML/PDF/DOCX/PPTX/XLSX), qui reste décidé indépendamment.')
+      : '';
+
     // Contrainte de sortie — règles techniques non négociables
     // ── CONTRAT DE SORTIE DYNAMIQUE v1.0 ────────────────────────────────────────────
     // CC comprend son contexte d'execution et adapte sa sortie naturellement.
@@ -4429,7 +4318,7 @@ RÈGLES ABSOLUES :
       + _photoCtx + '\n'
       + _fmtSpecific);
 
-    const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + outputConstraint;
+    const commonBase = ctxSession + ctxPatient + ctxKvMemory + ctxHistory + modeCtx + docCtx + ragCtx + plannerCtx + documentKindCtx + outputConstraint;
 
     // Correctif contradiction de prompt — ce bloc (charte CSS en dur, "Tout JS self-contained",
     // script de plein écran au clic sur les images) décrit un fichier HTML autonome, exactement
@@ -5108,6 +4997,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // jamais affichée ni conservée dans l'historique de conversation (cf. adocRunClarityGate).
       const clarityNote = adocClarityBannerNote;
       adocClarityBannerNote = null;
+
+      // Kit v2.4 (Volet 1) — documentKind choisi explicitement sur l'écran d'accueil (cf.
+      // adocClarityDocumentKind, lu et effacé ici, une seule fois, même patron que
+      // adocClarityBannerNote ci-dessus). Simple métadonnée additive sur le plan : elle
+      // n'influence jamais la recherche RAG ni le calcul du format d'export (fmt ci-dessous,
+      // dans adocBuildSystemPrompt) — seulement la structure imposée, lue par le système.
+      if (adocClarityDocumentKind) plan.documentKind = adocClarityDocumentKind;
+      adocClarityDocumentKind = null;
 
       const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan, clarityNote);
 
@@ -8086,8 +7983,11 @@ ${recent}`;
     }
 
     const planBadge = document.createElement('div');
-    planBadge.style.cssText = 'font-size:11px;color:var(--muted);padding:4px 10px;font-style:italic;border-left:2px solid var(--petrol-800);margin:4px 0;';
-    planBadge.textContent = '\u{1F4CB} Document ' + chapters.length + ' chapitres — génération en cours…';
+    planBadge.style.cssText = 'font-size:11px;color:var(--muted);padding:4px 10px;font-style:italic;border-left:2px solid var(--petrol-800);margin:4px 0;display:flex;align-items:center;gap:0.35rem;';
+    // Harmonisation Kit v2.4, Volet 2 — remplace l'émoji brut 📋 (\u{1F4CB}, invisible à un
+    // audit texte car encodé en séquence d'échappement JS) par l'icône du sprite interne
+    // existant (icon-documents), texte explicite conservé à côté.
+    planBadge.innerHTML = '<svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-documents"></use></svg> Document ' + chapters.length + ' chapitres — génération en cours…';
     if (msgEl) msgEl.appendChild(planBadge);
 
     window._adocLongDocState[docId] = {
@@ -8128,20 +8028,23 @@ ${recent}`;
     return fullDocRendered;
   };
 
-  // ═══ INTÉGRATION ÉCRAN D'ACCUEIL #cc-landing (v1.1.0) ═══
+  // ═══ INTÉGRATION ÉCRAN D'ACCUEIL #cc-landing (Kit v2.4 — Volet 1) ═══
   // Le nouvel écran d'accueil (#cc-landing, cf. début de <body>) remplace l'ancien état
   // "welcome" affiché au chargement. Il gère sa propre UI via son script embarqué et se
   // contente de dispatcher 'conseiller-clinique:start' ({prompt, format}) quand le
   // thérapeute valide sa question — c'est le point d'intégration prévu par ce fichier.
-  // Ici on traduit cet événement en comportement EXISTANT et inchangé : ouverture de
-  // l'écran de conversation (openAssistDoc, logique ci-dessus, non modifiée) puis envoi
-  // du message (adocSend), en réutilisant EXACTEMENT le même mapping format → formulation
-  // que les boutons rapides existants (cf. window.adocInsert plus haut dans cette IIFE),
-  // pour que le planner RAG se comporte à l'identique de ce qu'il ferait aujourd'hui.
+  // detail.format porte désormais documentKind (fiche|carrousel|tableau|script|liens|null),
+  // JAMAIS une clé d'un ancien "formatPhrases" concaténé au texte : cette concaténation est
+  // supprimée (MISSION-HARMONISATION-CORRIGEE.md, Volet 1, point 3 — "cette concaténation
+  // est supprimée"). Le texte tapé part à l'identique dans #adoc-input et vers adocSend/
+  // adocMultiPlan (réutilisé tel quel, jamais dupliqué) ; documentKind voyage séparément via
+  // window.adocPendingDocumentKind, consommé une seule fois par adocSend (cf. plus bas dans
+  // cette IIFE, bloc de clarification), qui l'attache à plan.documentKind — une contrainte
+  // structurelle additive, jamais un mot ajouté au prompt.
   window.addEventListener('conseiller-clinique:start', function (evt) {
     const detail = evt.detail || {};
     const prompt = (detail.prompt || '').trim();
-    const format = detail.format || '';
+    const documentKind = detail.format || null;
     if (!prompt) return;
 
     // UX-8B Lot 2 — charte choisie pour CETTE demande précise (jamais un réglage global figé).
@@ -8153,18 +8056,10 @@ ${recent}`;
 
     if (typeof openAssistDoc === 'function') openAssistDoc();
 
-    // Mapping identique à window.adocInsert — ne pas diverger, c'est ce qui pilote le
-    // format détecté par le planner (output_format inféré de la formulation du message).
-    const formatPhrases = {
-      carrousel: 'Fais-moi un carrousel sur : ',
-      tableau:   'Fais-moi un tableau comparatif sur : ',
-      fiche:     'Fais-moi une fiche synthèse sur : ',
-      script:    'Écris-moi un script verbatim pour : ',
-      liens:     'Fais-moi une carte des liens transversaux entre : '
-    };
+    window.adocPendingDocumentKind = documentKind;
     const input = document.getElementById('adoc-input');
     if (input) {
-      input.value = (formatPhrases[format] || '') + prompt;
+      input.value = prompt;
       if (typeof adocResize === 'function') adocResize(input);
     }
     if (typeof adocSend === 'function') adocSend();
@@ -8382,6 +8277,12 @@ ${recent}`;
   let adocClarityQAPairs = [];
   let adocClarityLastQuestion = '';
   let adocClarityCardEl = null;
+  // Kit v2.4 (Volet 1) — documentKind choisi sur l'écran d'accueil (window.adocPendingDocumentKind,
+  // cf. listener 'conseiller-clinique:start'), capturé UNE SEULE FOIS au début d'une nouvelle
+  // demande (même cycle de vie que adocClarityOriginalMessage/adocClarityQAPairs ci-dessus, pour
+  // survivre aux allers-retours de clarification) puis lu-et-effacé par adocSendOriginal, qui
+  // l'attache à plan.documentKind. Jamais réappliqué à une demande ultérieure non liée.
+  let adocClarityDocumentKind = null;
   let adocDefaultInputPlaceholder = null; // capturé au premier remplacement, pour pouvoir le restaurer
   // Correctif UX-2bis (terrain, v1.4.0) : l'instruction de bandeau "Hypothèses retenues"
   // ne doit jamais apparaître dans la bulle utilisateur ni dans l'historique de
@@ -8574,6 +8475,12 @@ ${recent}`;
     adocClarityRound = 0;
     adocClarityQAPairs = [];
     adocClarityOriginalMessage = raw;
+    // Kit v2.4 (Volet 1) — capturé UNE FOIS ici (début de la demande, jamais à chaque tour de
+    // clarification) puis consommé par adocSendOriginal ; window.adocPendingDocumentKind est
+    // remis à null tout de suite pour ne jamais fuiter vers un envoi ultérieur sans rapport
+    // (ex. bouton d'insertion rapide du chat, qui ne pose jamais cette variable).
+    adocClarityDocumentKind = window.adocPendingDocumentKind || null;
+    window.adocPendingDocumentKind = null;
     await adocRunClarityGate();
   };
 
@@ -10701,11 +10608,13 @@ ${recent}`;
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
     // distingue aujourd'hui un brouillon d'un document prêt en dehors de ce contrôle qualité.
     const statusEl = document.getElementById('cc-ws-status');
+    // Harmonisation Kit v2.4, Volet 2 — remplace les glyphes bruts "●"/"✓" par les icônes du
+    // sprite interne existant (icon-warning/icon-verify), texte explicite conservé à côté.
     if (qcBlockingCount) {
-      statusEl.textContent = '● Sources à vérifier';
+      statusEl.innerHTML = '<svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-warning"></use></svg> Sources à vérifier';
       statusEl.className = 'cc-ws-status review';
     } else {
-      statusEl.textContent = '✓ Prêt';
+      statusEl.innerHTML = '<svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-verify"></use></svg> Prêt';
       statusEl.className = 'cc-ws-status ready';
     }
 
