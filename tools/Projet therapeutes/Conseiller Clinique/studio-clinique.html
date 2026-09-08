@@ -1124,6 +1124,11 @@
       background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
     }
     #cc-brandkit-confirm.open { display: flex; }
+    #cc-legacy-retheme-modal {
+      display: none; position: fixed; inset: 0; z-index: 8500;
+      background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    #cc-legacy-retheme-modal.open { display: flex; }
     .cc-brandkit-confirm-panel {
       background: var(--paper); border-radius: 1rem; max-width: 46rem; width: 100%;
       max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
@@ -1827,6 +1832,7 @@
       font-size: 12px; font-family: inherit; margin-bottom: 6px; box-sizing: border-box; color: var(--ink);
     }
     .cc-ws-search-result { padding: 6px 2px; font-size: 11px; border-bottom: 1px solid var(--ivory); color: var(--ink); }
+    .cc-ws-search-excerpt { margin-top: 3px; color: var(--muted); line-height: 1.45; white-space: pre-wrap; }
     .cc-ws-memory { margin-top: auto; border-top: 1px solid var(--stone-200); padding-top: 14px; }
     .cc-ws-memory-toggle, .adoc-sidebar-memory-toggle {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
@@ -6116,6 +6122,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (!art) return;
       if (act === 'preview-html' || act === 'preview') {
         window.adocOpenDocPopup(key);
+      } else if (act === 'retheme-html') {
+        window.adocOpenLegacyReThemePanel(key);
       } else if (act === 'download') {
         const a = document.createElement('a');
         a.href = art.url; a.download = art.name + '.' + art.fmt;
@@ -6151,6 +6159,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     area.appendChild(wrapper);
     area.scrollTop = area.scrollHeight;
+    if (fmt === 'html' && blobUrl) setTimeout(function () { adocRevealRethemeButtonIfEligible(storeKey); }, 0);
   }
 
   // ── Templates de carte ──
@@ -6180,7 +6189,10 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       '</div>' +
       '<div style="padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--ivory);font-size:10px;color:var(--muted);">' +
         '<span>' + adocIconSvg('icon-verify') + ' Aperçu disponible</span>' +
-        '<button data-key="' + storeKey + '" data-action="preview-html" style="background:none;border:none;color:var(--petrol-950);font-size:10px;font-weight:700;cursor:pointer;text-decoration:underline;">Plein écran →</button>' +
+        '<div style="display:flex;gap:12px;align-items:center;">' +
+          '<button data-key="' + storeKey + '" data-action="retheme-html" id="retheme-btn-' + storeKey + '" hidden style="background:none;border:none;color:var(--petrol-950);font-size:10px;font-weight:700;cursor:pointer;text-decoration:underline;">' + adocIconSvg('icon-brand') + ' Charte</button>' +
+          '<button data-key="' + storeKey + '" data-action="preview-html" style="background:none;border:none;color:var(--petrol-950);font-size:10px;font-weight:700;cursor:pointer;text-decoration:underline;">Plein écran →</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   }
@@ -8852,6 +8864,192 @@ ${recent}`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // Modernisation ancien moteur — personnalisation des couleurs d'un document déjà généré,
+  // en un clic (type Gamma/Canva). PORTÉE VOLONTAIREMENT LIMITÉE, décision actée : UNIQUEMENT
+  // les couleurs, UNIQUEMENT fmt==='html' (jamais html-visual/pdf/zip — ceux-ci ne conservent
+  // pas de art.html retouchable, cf. rapport), UNIQUEMENT le moteur legacy (jamais un document
+  // du moteur structuré, qui a déjà son propre système de charte à la génération).
+  //
+  // Investigation préalable (adocBuildSystemPrompt, ~ligne 4437) : le prompt système impose au
+  // modèle un bloc littéral ":root { --mer:#1f5053; --deep:#102f31; --vert-sauge:#c9c3b8;
+  // --beige:#ddd7cc; --sable:#f6f2ea; --surf:#f6f2ea; --text:#273331; --muted:#5d6966;
+  // --blanc:#FFFFFF }" — ces 9 variables sont donc bien isolables et remplaçables après coup,
+  // sans toucher au reste du HTML. Réutilise EXACTEMENT adocBrandKitToTokensSnapshot (déjà
+  // existant pour le moteur structuré) pour dériver les nouvelles valeurs — jamais un second
+  // système de couleurs parallèle.
+  var ADOC_LEGACY_ROOT_VARS = ['mer', 'deep', 'vert-sauge', 'beige', 'sable', 'surf', 'text', 'muted', 'blanc'];
+
+  // Correspondance entre les 9 variables de l'ancien moteur et les tokens sémantiques déjà
+  // dérivés d'une charte (adocBrandKitToTokensSnapshot) — un choix de mapping documenté dans le
+  // rapport, pas une évidence : --deep (H1/H2, en-têtes) est la couleur la plus sombre/dominante
+  // (petrol950, "primary"), --mer (titres, bordures, accents) sa variante plus claire
+  // (petrol800), --vert-sauge/--beige des tons neutres clairs (stone300/200), --sable/--surf le
+  // fond général (ivory), --text/--muted le texte (ink/muted), --blanc toujours blanc pur,
+  // indépendant de la charte (fond des zones de texte, jamais une couleur de marque).
+  function adocBuildLegacyPaletteFromBrandKit(brandKit) {
+    const t = adocBrandKitToTokensSnapshot(brandKit);
+    return {
+      mer: t.colors.petrol800,
+      deep: t.colors.petrol950,
+      'vert-sauge': t.colors.stone300,
+      beige: t.colors.stone200,
+      sable: t.colors.ivory,
+      surf: t.colors.ivory,
+      text: t.colors.ink,
+      muted: t.colors.muted,
+      blanc: '#FFFFFF',
+    };
+  }
+
+  // Vérifie que le document porte bien le bloc :root attendu, avec ses 9 variables — jamais une
+  // tentative silencieuse de remplacement si le modèle n'a pas respecté la consigne pour CE
+  // document précis (aucune garantie de conformité, cf. rapport — vérification en conditions
+  // réelles non faisable dans cet environnement, pas d'accès à l'API Anthropic réelle).
+  function adocParseLegacyRootVars(html) {
+    const rootMatch = /:root\s*\{([^}]*)\}/.exec(html || '');
+    if (!rootMatch) return null;
+    const body = rootMatch[1];
+    const allFound = ADOC_LEGACY_ROOT_VARS.every(function (name) {
+      return new RegExp('--' + name + '\\s*:\\s*[^;}]+', 'i').test(body);
+    });
+    return allFound ? { blockBody: body } : null;
+  }
+
+  // Remplace UNIQUEMENT la valeur de chacune des 9 variables, jamais rien d'autre dans le
+  // document (contenu, structure, scripts) — une déclaration "--mer:" n'apparaît nulle part
+  // ailleurs qu'à sa définition dans :root (un usage s'écrit "var(--mer)", jamais "--mer:"),
+  // donc un remplacement non ancré au bloc :root reste sûr et plus simple qu'un découpage
+  // manuel du bloc.
+  function adocApplyLegacyRootVars(html, palette) {
+    let newHtml = html;
+    ADOC_LEGACY_ROOT_VARS.forEach(function (name) {
+      const value = palette[name];
+      if (!value) return;
+      newHtml = newHtml.replace(new RegExp('(--' + name + '\\s*:\\s*)[^;}]+', 'i'), '$1' + value);
+    });
+    return newHtml;
+  }
+
+  // Orchestrateur — retourne { ok:false } sans rien modifier si le bloc :root attendu n'est pas
+  // retrouvé (document antérieur à ce lot, ou modèle n'ayant pas respecté la consigne cette
+  // fois-là) : jamais une tentative partielle qui laisserait croire à un changement qui n'a pas
+  // eu lieu.
+  function adocRethemeLegacyHtml(html, brandKit) {
+    const rootInfo = adocParseLegacyRootVars(html);
+    if (!rootInfo) return { ok: false, html: html };
+    const palette = adocBuildLegacyPaletteFromBrandKit(brandKit);
+    return { ok: true, html: adocApplyLegacyRootVars(html, palette) };
+  }
+
+  window._adocLegacyReThemeCandidate = null;
+
+  window.adocCloseLegacyReThemePanel = function () {
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    if (modal) { modal.classList.remove('open'); delete modal.dataset.storeKey; }
+    window._adocLegacyReThemeCandidate = null;
+  };
+
+  window.adocOpenLegacyReThemePanel = async function (storeKey) {
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || art._adocStructuredDoc) return; // jamais pour un document du moteur structuré
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    const body = document.getElementById('cc-legacy-retheme-body');
+    if (!modal || !body) return;
+    modal.dataset.storeKey = storeKey;
+    modal.classList.add('open');
+    body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Chargement des chartes…</div>';
+    let kits = window._adocBrandKits;
+    if (!kits || !kits.length) kits = await adocFetchBrandKits();
+    if (!kits || !kits.length) {
+      body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Aucune charte disponible pour le moment.</div>'
+        + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Fermer</button></div>';
+      return;
+    }
+    body.innerHTML =
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Choisissez une charte à appliquer — un aperçu vous sera montré avant toute confirmation. Seules les couleurs changent, jamais le contenu.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;">' +
+      kits.map(function (k) {
+        return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewLegacyRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
+      }).join('') +
+      '</div>' +
+      '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Annuler</button></div>';
+  };
+
+  window.adocPreviewLegacyRetheme = async function (brandKitId) {
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    const body = document.getElementById('cc-legacy-retheme-body');
+    const storeKey = modal && modal.dataset.storeKey;
+    const art = storeKey && window._adocArtifacts?.[storeKey];
+    if (!art || !body) return;
+    body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Préparation de l\'aperçu…</div>';
+    try {
+      const brandKit = await adocGetBrandKitById(brandKitId);
+      if (!brandKit || !brandKit.id) throw new Error('Charte introuvable');
+      const result = adocRethemeLegacyHtml(art.html, brandKit);
+      if (!result.ok) {
+        body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Ce document ne peut pas être re-thématisé automatiquement : sa palette de couleurs n\'a pas été retrouvée sous la forme attendue. Rien n\'a été modifié.</div>'
+          + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Fermer</button></div>';
+        return;
+      }
+      window._adocLegacyReThemeCandidate = { storeKey: storeKey, html: result.html, brandKitId: brandKit.id, brandKitName: brandKit.name || null };
+      const previewBlobUrl = URL.createObjectURL(new Blob([result.html], { type: 'text/html;charset=utf-8' }));
+      body.innerHTML =
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' » — contenu, structure et scripts inchangés, seules les couleurs changent.</div>' +
+        '<iframe src="' + previewBlobUrl + '" style="width:100%;height:320px;border:1px solid var(--stone-200);border-radius:8px;" sandbox="allow-scripts"></iframe>' +
+        '<div style="margin-top:10px;display:flex;gap:8px;">' +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmLegacyRetheme()">Confirmer</button>' +
+          '<button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Annuler</button>' +
+        '</div>';
+    } catch (e) {
+      body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Impossible de préparer l\'aperçu : ' + adocEsc(e && e.message || 'erreur inconnue') + '.</div>'
+        + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Fermer</button></div>';
+    }
+  };
+
+  window.adocConfirmLegacyRetheme = async function () {
+    const candidate = window._adocLegacyReThemeCandidate;
+    if (!candidate) return;
+    const art = window._adocArtifacts?.[candidate.storeKey];
+    if (!art) { window.adocCloseLegacyReThemePanel(); return; }
+    if (art.blobUrl) URL.revokeObjectURL(art.blobUrl);
+    art.html = candidate.html;
+    art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' }));
+    art._adocBrandKitName = candidate.brandKitName;
+    // Promotion tardive des capacités — un document legacy "normal" (jamais un repli depuis le
+    // moteur structuré) n'a jamais reçu cette enveloppe à la génération (cf. adocFinalizeGeneration,
+    // réservée au cas de repli) : l'utilisatrice demandant explicitement une action qui en
+    // dépend (persistance de la nouvelle version), on la lui accorde ici plutôt que d'échouer
+    // silencieusement — cohérent avec "toute demande doit être réellement exécutée".
+    if (!art._adocCapabilities) {
+      art._adocGenerationEngine = art._adocGenerationEngine || 'legacy-html';
+      art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, transform: false, export: true, qualityControlledExport: false };
+    }
+    const storeKey = candidate.storeKey;
+    window.adocCloseLegacyReThemePanel();
+    const card = document.getElementById('card-' + storeKey);
+    if (card) card.innerHTML = adocArtifactCardHtml(storeKey, (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' '), art.blobUrl);
+    // Réutilise EXACTEMENT le mécanisme déjà existant (ouverture + adocWsSave), même patron que
+    // adocConfirmBlockCorrection : ouvre l'espace de travail sur CE document (garantit que
+    // window._adocWsState.storeKey pointe bien dessus, quel que soit le point d'entrée — carte
+    // ou espace de travail déjà ouvert) puis sauvegarde une nouvelle version — aucune logique de
+    // sauvegarde dupliquée.
+    await window.adocOpenWorkspace(storeKey);
+    await window.adocWsSave();
+  };
+
+  // Révèle le bouton "Charte" seulement si ELIGIBLE (fmt html du moteur legacy, jamais
+  // structuré) — vérifié en différé (setTimeout 0) car adocShowArtifactCard s'exécute AVANT que
+  // _adocStructuredDoc soit posé sur l'artefact par son appelant (adocDeliverStructuredFicheArtifact),
+  // pour les deux moteurs indifféremment ; un setTimeout(0) est garanti s'exécuter après la fin
+  // de la pile synchrone en cours, donc après ce marquage, quel que soit le moteur.
+  function adocRevealRethemeButtonIfEligible(storeKey) {
+    const art = window._adocArtifacts?.[storeKey];
+    const btn = document.getElementById('retheme-btn-' + storeKey);
+    if (!art || !btn) return;
+    if (!art._adocStructuredDoc) btn.hidden = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // UX-8B Lot 3 — import réel de charte PDF (extraction texte + interprétation par Claude,
   // écran de confirmation, sauvegarde, retrait). Action séparée de "Document à joindre" —
   // ce fichier n'entre JAMAIS dans le RAG comme contenu clinique (CDC UX-8B, critère
@@ -11162,20 +11360,70 @@ ${recent}`;
     }).join('');
   }
 
+  // Fenêtre un extrait EXACT (jamais reformulé) autour du premier mot recherché retrouvé dans
+  // le passage — jamais un résumé, jamais une troncature aveugle qui couperait juste avant le
+  // passage pertinent quand le chunk est long.
+  function adocLibrarySearchSnippet(content, words) {
+    const text = content || '';
+    if (!text) return '';
+    const lower = text.toLowerCase();
+    let pos = -1;
+    for (let i = 0; i < words.length && pos === -1; i++) {
+      const w = (words[i] || '').toLowerCase();
+      if (w) pos = lower.indexOf(w);
+    }
+    const BEFORE = 100, AFTER = 220, MAX_LEN = 340;
+    if (pos === -1) return text.length > MAX_LEN ? text.slice(0, MAX_LEN).trim() + '…' : text;
+    const start = Math.max(0, pos - BEFORE);
+    const end = Math.min(text.length, pos + AFTER);
+    let excerpt = text.slice(start, end).trim();
+    if (start > 0) excerpt = '…' + excerpt;
+    if (end < text.length) excerpt = excerpt + '…';
+    return excerpt;
+  }
+
+  // Dédoublonnage client — la réponse de /d1-query ne porte plus d'id de chunk (retiré avant
+  // envoi côté Worker), seule la combinaison livre+page+début d'extrait permet de repérer un
+  // même passage retrouvé par les deux recherches (contenu ET auteur) lancées ci-dessous.
+  function adocLibrarySearchResultKey(r) {
+    return (r.book_title || '') + '|' + (r.page_number || '') + '|' + (r.content || '').slice(0, 60);
+  }
+
+  // Recherche par mot-clé OU par nom d'auteur, dans le VRAI contenu indexé des passages —
+  // jamais une image de la page PDF originale (chantier séparé, dépend d'un transfert de
+  // fichiers non encore fait). Les deux recherches (contenu via FTS5, auteur via le gabarit B
+  // dédié déjà existant côté Worker) partent en parallèle sur la MÊME saisie : une seule boîte
+  // de recherche couvre les deux usages sans que l'utilisatrice ait à préciser laquelle.
   window.adocWsSearchLibrary = async function () {
     const input = document.getElementById('cc-ws-search-input');
     const q = (input.value || '').trim();
     const resultsEl = document.getElementById('cc-ws-search-results');
     if (!q) { resultsEl.innerHTML = ''; return; }
     resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche…</div>';
-    const results = await adocD1Search({ terms: [q], term_match: 'any', limit: 6 }).catch(function () { return null; });
-    if (!results || !results.length) {
+    const words = q.split(/\s+/).filter(Boolean);
+    const [contentResults, authorResults] = await Promise.all([
+      adocD1Search({ terms: words, term_match: 'any', limit: 6 }).catch(function () { return null; }),
+      adocD1Search({ authors: [q], limit: 6 }).catch(function () { return null; }),
+    ]);
+    const seen = new Set();
+    const merged = [];
+    (contentResults || []).concat(authorResults || []).forEach(function (r) {
+      const key = adocLibrarySearchResultKey(r);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(r);
+    });
+    if (!merged.length) {
       resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Aucun résultat pour « ' + adocEsc(q) + ' ».</div>';
       return;
     }
-    resultsEl.innerHTML = results.map(function (r) {
-      return '<div class="cc-ws-search-result"><strong>' + adocEsc(r.book_title || 'Référence') + '</strong>'
-        + (r.author ? ' — ' + adocEsc(r.author) : '') + (r.page_number ? ', p.' + r.page_number : '') + '</div>';
+    resultsEl.innerHTML = merged.slice(0, 8).map(function (r) {
+      const snippet = adocLibrarySearchSnippet(r.content, words);
+      return '<div class="cc-ws-search-result">'
+        + '<div><strong>' + adocEsc(r.book_title || 'Référence') + '</strong>'
+        + (r.author ? ' — ' + adocEsc(r.author) : '') + (r.page_number ? ', p.' + r.page_number : '') + '</div>'
+        + (snippet ? '<div class="cc-ws-search-excerpt">' + adocEsc(snippet) + '</div>' : '')
+        + '</div>';
     }).join('');
   };
 
@@ -11422,6 +11670,20 @@ ${recent}`;
         <button type="button" class="cc-ws-delete-confirm-confirm" onclick="window.adocWsDeleteConfirmed()">Supprimer définitivement</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Modernisation ancien moteur — changement de charte (couleurs) d'un document déjà généré,
+     avec aperçu avant confirmation (jamais un changement silencieux). Même patron d'ouverture/
+     fermeture que #cc-brandkit-confirm (classe .open), même style de carte que le panneau de
+     correction de bloc (cc-clarity-card) — jamais un nouveau composant visuel inventé. -->
+<div id="cc-legacy-retheme-modal" role="dialog" aria-modal="true" aria-labelledby="cc-legacy-retheme-title">
+  <div class="cc-clarity-card" style="max-width:32rem;width:100%;max-height:85vh;overflow:auto;">
+    <div class="cc-clarity-question sc-icon-label" id="cc-legacy-retheme-title">
+      <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-brand"></use></svg>
+      <span>Changer de charte</span>
+    </div>
+    <div id="cc-legacy-retheme-body"></div>
   </div>
 </div>
 </body>
