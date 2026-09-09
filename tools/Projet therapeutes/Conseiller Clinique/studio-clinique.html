@@ -3494,10 +3494,15 @@
       const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
       const _tw = q.replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
       const _w0 = (q.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-z]/gi,'');
+      // LOT 30 — demande visuelle pure : orthogonal à _iT ci-dessus, jamais un remplacement.
+      // Muet auparavant sur ce cas (aucune branche ci-dessus ne le teste) → retombait sur
+      // 'chat' sans jamais signaler images_only, d'où le routage erroné vers le document long.
+      const _imagesOnly = /\b(images?|photos?|visuels?)\b/.test(ql)
+        && /(sans texte|pas de texte|aucun texte|uniquement (du|le) visuel|que des (images|photos))/.test(ql);
       // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
       return { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
         searches:[{ terms:[_w0], term_match:'any', limit:15 }], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
-        max_tokens:4000, clinical_intent:(_iT==='chat'?'chat':'production') };
+        max_tokens:4000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly };
     };
 
     // Plans en parallele (max 3 simultanement)
@@ -3532,6 +3537,10 @@
       approach_filter: allApp.length === 1 ? allApp[0] : null,
       needs_rag: true,
       max_tokens: Math.max(...plans.map(p => p.max_tokens||4000), 8000),
+      // LOT 30 — images_only n'est jamais garanti porté par `dominant` (le plan le plus
+      // "riche" par format, cf. ci-dessus) : une seule sous-question true suffit à qualifier
+      // toute la demande (ex. Q1 texte + Q2 "que des photos, sans texte" en multi-question).
+      images_only: plans.some(p => p.images_only === true),
       _multiPlan: questions.length > 1,
       _subPlans: plans,
     };
@@ -3600,7 +3609,8 @@ TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markd
   "registre": "clinique|pedagogique|academique|vulgarisation",
   "topic_summary": "résumé du sujet en 5 mots max",
   "deep_scan": true/false,
-  "max_tokens": 2000
+  "max_tokens": 2000,
+  "images_only": true/false
 }
 ────────────────────────────────────────────────
 
@@ -3644,6 +3654,14 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    - TABLEAU COMPARATIF, comparatif structuré, données en colonnes multiples → xlsx OBLIGATOIREMENT
    - Fiche, carrousel, contenu web → html
    - Par défaut → chat
+
+   LOT 30 — DEMANDE VISUELLE PURE (images_only) :
+   Champ ORTHOGONAL à intent/output_format — jamais un remplacement, une information en plus.
+   Mets images_only=true UNIQUEMENT si la demande combine (a) un mot visuel explicite (image(s),
+   photo(s), visuel(s)) ET (b) un marqueur explicite d'absence de texte (« sans texte », « pas de
+   texte », « uniquement du visuel », « que des images/photos »). Sinon toujours false — jamais
+   déduit d'un simple sujet visuel sans ce second marqueur (une demande de fiche illustrée n'est
+   PAS images_only). Le reste du plan (intent, topic_summary, etc.) se remplit normalement.
 
    DÉTECTION ARTEFACTS DANS UN FLUX MULTI-QUESTIONS (règle critique) :
    Même si la demande est longue, mixte ou noyée dans du contexte, si elle contient
@@ -4860,10 +4878,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
         const _tw = text.replace(/[^a-z0-9\u00C0-\u024F\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
         const _w0 = text.split(/\s+/)[0] || 'therapie';
+        // LOT 30 — même correctif que _fallback ci-dessus (adocMultiPlan) : orthogonal à _iT,
+        // muet auparavant sur ce cas.
+        const _imagesOnly = /\b(images?|photos?|visuels?)\b/.test(_q)
+          && /(sans texte|pas de texte|aucun texte|uniquement (du|le) visuel|que des (images|photos))/.test(_q);
         // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
         plan = { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
           searches:[{ terms:[_w0], term_match:'any', limit:15 }], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
-          max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production') };
+          max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly };
         console.warn('[FIX-MULTI-PLAN] fallback plan:', _iT, _fT);
       }
 
@@ -5021,10 +5043,44 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         messages.push({ role: 'user', content: text });
       }
 
+      // ── LOT 30 : demande visuelle pure (images seules, sans texte) ────
+      // Chemin dédié, séparé du moteur de document long : jamais de planificateur de
+      // chapitres, jamais l'instruction fixe de longueur par chapitre (800-1500 mots),
+      // jamais le plancher de 8000 tokens hérité de adocMultiPlan pour cette demande
+      // précise. Vérifié EN PREMIER, avant _isLongDoc ci-dessous : une demande "4 pages de
+      // photos, sans texte" est classée intent=document avec max_tokens>=4000 comme
+      // n'importe quel autre document — sans cette priorité, elle retomberait quand même
+      // dans le moteur de chapitres malgré images_only=true.
+      const _isVisualOnly = plan?.images_only === true
+        && !['pdf','docx','pptx','xlsx'].includes(plan?.output_format);
+
+      if (_isVisualOnly && typeof adocVisualOnlyDoc === 'function') {
+        adocUpdateTypingLabel(typingId, 'icon-web', 'Recherche des images…');
+        const visualMsgId = adocAddMsg('assistant', '', [], true);
+        let visualHtml = null;
+        try {
+          visualHtml = await adocVisualOnlyDoc(text, plan, workerUrl);
+        } catch (_visErr) {
+          console.warn('[LOT30] adocVisualOnlyDoc en échec, repli sur le flux standard:', _visErr && _visErr.message);
+        }
+        if (visualHtml) {
+          await adocFinalizeGeneration(visualMsgId, visualHtml, plan, ragResult, false);
+          _adocResetSendState();
+          input.focus();
+          return;
+        }
+        // Échec total (réseau, etc.) — retirer la bulle vide et repartir sur le flux
+        // standard ci-dessous plutôt que de laisser un message assistant vide affiché.
+        document.getElementById(visualMsgId)?.remove();
+      }
+
       // ── M3 : Route vers adocLongDoc pour documents longs ────────────
       // Critère : intent=cours|document ET max_tokens planifiés >= 4000
       // FIX-ISLONGDOC-FORMAT : pdf/docx/pptx/xlsx ont leur propre route Worker — pas de long doc
-      const _isLongDoc = ['cours','document'].includes(plan?.intent)
+      // LOT 30 : jamais pour une demande visuelle pure, déjà traitée (ou dont l'échec a déjà
+      // été acté) par le bloc _isVisualOnly ci-dessus — ce garde-fou est la seule modification
+      // apportée à cette condition, le reste de son comportement est strictement inchangé.
+      const _isLongDoc = !_isVisualOnly && ['cours','document'].includes(plan?.intent)
         && (plan?.max_tokens || 0) >= 4000
         && !['pdf','docx','pptx','xlsx'].includes(plan?.output_format);
 
@@ -7961,6 +8017,75 @@ ${recent}`;
     chapBadge.innerHTML = adocIconSvg('icon-verify') + ' ' + adocEsc(chap.titre);
     state.completedDocument += '\n\n' + state.currentChapterText;
   }
+
+  // ── LOT 30 — chemin dédié pour une demande "images seules, sans texte" ──
+  // Séparé du moteur de document long : aucun planificateur de chapitres, aucune instruction
+  // de longueur de mots, aucun plancher de tokens hérité. Un seul appel léger propose des
+  // requêtes d'image + textes alternatifs, assemblés directement en HTML autonome ici même
+  // (jamais généré paragraphe par paragraphe par le modèle). La résolution réelle des images
+  // (<img data-pexels="...">) est laissée à adocResolveImages, appelé par adocHandleReply
+  // (via adocFinalizeGeneration) exactement comme pour tout autre document HTML — mécanisme
+  // déjà existant et éprouvé, jamais dupliqué ici.
+  window.adocVisualOnlyDoc = async function(text, plan, workerUrl) {
+    // Nombre d'images cohérent avec la demande si un nombre est précisé ("4 pages", "6 images"…),
+    // sinon une valeur par défaut raisonnable.
+    const _countMatch = text.match(/\b(\d{1,2})\s*(page|pages|image|images|photo|photos|diapo|diapos|diapositive|diapositives)\b/i);
+    const targetCount = _countMatch ? Math.min(Math.max(parseInt(_countMatch[1], 10), 1), 12) : 6;
+
+    let title = plan?.topic_summary || 'Planche visuelle';
+    let images = [];
+    try {
+      const prompt = 'Sujet clinique : "' + (plan?.topic_summary || text.slice(0, 200)) + '".\n'
+        + 'Propose exactement ' + targetCount + ' requêtes de recherche d’image (banque Pexels, en '
+        + 'anglais, concrètes et variées — jamais deux fois la même) illustrant ce sujet, chacune avec '
+        + 'un texte alternatif court en français (une phrase, jamais vide) décrivant ce que l’image '
+        + 'doit montrer.\n'
+        + 'Réponds UNIQUEMENT avec ce JSON, sans texte avant ni après :\n'
+        + '{"title":"titre court en français","images":[{"query":"...","alt":"..."}]}';
+      const r = await fetch(workerUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ payload: {
+          model: 'claude-haiku-4-5-20251001', max_tokens: 700,
+          messages: [{ role: 'user', content: prompt }]
+        }})
+      });
+      const d = await r.json();
+      const t = d.content?.[0]?.text || '{}';
+      const m = t.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(m ? m[0] : '{}');
+      if (parsed.title) title = parsed.title;
+      if (Array.isArray(parsed.images)) {
+        images = parsed.images.filter(im => im && im.query).slice(0, targetCount);
+      }
+    } catch (e) {
+      console.warn('[LOT30] adocVisualOnlyDoc — planification des images en échec, repli générique:', e && e.message);
+    }
+
+    // Repli — jamais un document sans aucune image, même si l'appel ci-dessus échoue
+    // totalement (réseau, JSON malformé) : mêmes principes que les replis _fallback/
+    // FIX-EMPTY-PLAN déjà établis ailleurs dans ce fichier.
+    if (!images.length) {
+      const base = (plan?.topic_summary || text).replace(/[^a-z0-9À-ɏ\s]/gi, '').trim().slice(0, 60) || 'therapie';
+      images = Array.from({ length: targetCount }, (_, i) => ({
+        query: base, alt: 'Illustration ' + (i + 1) + ' — ' + base,
+      }));
+    }
+
+    const figuresHtml = images.map((im) =>
+      '<figure style="margin:0 0 24px;">'
+      + '<img data-pexels="' + adocEsc(im.query) + '" alt="' + adocEsc(im.alt) + '" style="width:100%;border-radius:10px;object-fit:cover;display:block;">'
+      + '<figcaption style="margin-top:8px;font-size:13px;color:var(--muted);">' + adocEsc(im.alt) + '</figcaption>'
+      + '</figure>'
+    ).join('\n');
+
+    // Charte C Concept&Dev en dur, identique à celle imposée à tout document HTML autonome
+    // ailleurs dans ce fichier (cf. adocBuildSystemPrompt/_execContext) — le fichier vit seul.
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + adocEsc(title) + '</title>'
+      + '<style>:root{--mer:#1f5053;--deep:#102f31;--vert-sauge:#c9c3b8;--beige:#ddd7cc;--sable:#f6f2ea;--surf:#f6f2ea;--text:#273331;--muted:#5d6966;--blanc:#FFFFFF}'
+      + 'body{margin:0;padding:32px;background:var(--sable);color:var(--text);font-family:"IBM Plex Sans",Arial,sans-serif;}'
+      + 'h1{font-family:"Source Serif 4",Georgia,serif;color:var(--deep);margin:0 0 24px;}</style></head>'
+      + '<body><h1>' + adocEsc(title) + '</h1>' + figuresHtml + '</body></html>';
+  };
 
   window.adocLongDoc = async function(text, plan, ragResult, systemPrompt, streamMsgId, workerUrl) {
     const docId = streamMsgId; // un seul long-doc actif par message assistant — déjà unique
